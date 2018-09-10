@@ -1,98 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2229B8E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 17:06:56 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id p5-v6so11652487pfh.11
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 14:06:56 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z89-v6sor3282338pfi.24.2018.09.10.14.06.54
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D54A78E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 17:07:22 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id m3-v6so10528122plt.9
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 14:07:22 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id v1-v6si18847577pfc.23.2018.09.10.14.07.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 10 Sep 2018 14:06:54 -0700 (PDT)
-Date: Tue, 11 Sep 2018 07:06:45 +1000
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: How to handle PTE tables with non contiguous entries ?
-Message-ID: <20180911070645.239aef8a@roar.ozlabs.ibm.com>
-In-Reply-To: <ddc3bb56-4da0-c093-256f-185d4a612b5c@c-s.fr>
-References: <ddc3bb56-4da0-c093-256f-185d4a612b5c@c-s.fr>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Sep 2018 14:07:21 -0700 (PDT)
+Date: Tue, 11 Sep 2018 00:07:17 +0300
+From: Jarkko Sakkinen <jarkko.sakkinen@intel.com>
+Subject: Re: [RFC 09/12] mm: Restrict memory encryption to anonymous VMA's
+Message-ID: <20180910210716.GB26766@intel.com>
+References: <cover.1536356108.git.alison.schofield@intel.com>
+ <f69e3d4f96504185054d951c7c85075ebf63e47a.1536356108.git.alison.schofield@intel.com>
+ <ae0288d5205a5c431e9a6bf0c9e68beded45e84b.camel@intel.com>
+ <84154fd2-7c27-0fd2-f339-15e144a5df49@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <84154fd2-7c27-0fd2-f339-15e144a5df49@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christophe Leroy <christophe.leroy@c-s.fr>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aneesh.kumar@linux.vnet.ibm.com, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, LKML <linux-kernel@vger.kernel.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "tglx@linutronix.de" <tglx@linutronix.de>, "Schofield, Alison" <alison.schofield@intel.com>, "dhowells@redhat.com" <dhowells@redhat.com>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "jmorris@namei.org" <jmorris@namei.org>, "Huang, Kai" <kai.huang@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "Nakajima, Jun" <jun.nakajima@intel.com>
 
-On Mon, 10 Sep 2018 14:34:37 +0000
-Christophe Leroy <christophe.leroy@c-s.fr> wrote:
+On Mon, Sep 10, 2018 at 11:57:49AM -0700, Dave Hansen wrote:
+> On 09/10/2018 11:21 AM, Sakkinen, Jarkko wrote:
+> >> +/*
+> >> + * Encrypted mprotect is only supported on anonymous mappings.
+> >> + * All VMA's in the requested range must be anonymous. If this
+> >> + * test fails on any single VMA, the entire mprotect request fails.
+> >> + */
+> > kdoc
+> 
+> kdoc what?  You want this comment in kdoc format?  Why?
 
-> Hi,
-> 
-> I'm having a hard time figuring out the best way to handle the following 
-> situation:
-> 
-> On the powerpc8xx, handling 16k size pages requires to have page tables 
-> with 4 identical entries.
-> 
-> Initially I was thinking about handling this by simply modifying 
-> pte_index() which changing pte_t type in order to have one entry every 
-> 16 bytes, then replicate the PTE value at *ptep, *ptep+1,*ptep+2 and 
-> *ptep+3 both in set_pte_at() and pte_update().
-> 
-> However, this doesn't work because many many places in the mm core part 
-> of the kernel use loops on ptep with single ptep++ increment.
-> 
-> Therefore did it with the following hack:
-> 
->   /* PTE level */
-> +#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
-> +typedef struct { pte_basic_t pte, pte1, pte2, pte3; } pte_t;
-> +#else
->   typedef struct { pte_basic_t pte; } pte_t;
-> +#endif
-> 
-> @@ -181,7 +192,13 @@ static inline unsigned long pte_update(pte_t *p,
->          : "cc" );
->   #else /* PTE_ATOMIC_UPDATES */
->          unsigned long old = pte_val(*p);
-> -       *p = __pte((old & ~clr) | set);
-> +       unsigned long new = (old & ~clr) | set;
-> +
-> +#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
-> +       p->pte = p->pte1 = p->pte2 = p->pte3 = new;
-> +#else
-> +       *p = __pte(new);
-> +#endif
->   #endif /* !PTE_ATOMIC_UPDATES */
-> 
->   #ifdef CONFIG_44x
-> 
-> 
-> @@ -161,7 +161,11 @@ static inline void __set_pte_at(struct mm_struct 
-> *mm, unsigned long addr,
->          /* Anything else just stores the PTE normally. That covers all 
-> 64-bit
->           * cases, and 32-bit non-hash with 32-bit PTEs.
->           */
-> +#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
-> +       ptep->pte = ptep->pte1 = ptep->pte2 = ptep->pte3 = pte_val(pte);
-> +#else
->          *ptep = pte;
-> +#endif
-> 
-> 
-> 
-> But I'm not too happy with it as it means pte_t is not a single type 
-> anymore so passing it from one function to the other is quite heavy.
-> 
-> 
-> Would someone have an idea of an elegent way to handle that ?
+If there is a header comment for a function anyway, why wouldn't you
+put it to kdoc-format?
 
-I can't think of anything better. Do we pass pte by value to a lot of
-non inlined functions? Possible to inline the important ones?
-
-Other option, try to get an iterator like pte = pte_next(pte) into core
-code.
-
-Thanks,
-Nick
+/Jarkko
