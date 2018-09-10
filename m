@@ -1,58 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F1EF8E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 06:12:40 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id u13-v6so10941677pfm.8
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 03:12:40 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id o33-v6si11673177plb.489.2018.09.10.03.12.38
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A1708E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 07:14:02 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id z77-v6so18925712wrb.20
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 04:14:02 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j12-v6sor10113160wrt.26.2018.09.10.04.14.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 03:12:38 -0700 (PDT)
-Message-ID: <0663b867003511f1ca652cef6acce589a5184a4b.camel@linux.intel.com>
-Subject: Re: [RFC 02/12] mm: Generalize the mprotect implementation to
- support extensions
-From: Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>
-Date: Mon, 10 Sep 2018 13:12:31 +0300
-In-Reply-To: <2dcbb08ed8804e02538a73ee05a4283c54180e36.1536356108.git.alison.schofield@intel.com>
-References: <cover.1536356108.git.alison.schofield@intel.com>
-	 <2dcbb08ed8804e02538a73ee05a4283c54180e36.1536356108.git.alison.schofield@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Mon, 10 Sep 2018 04:14:00 -0700 (PDT)
+From: Aaron Tomlin <atomlin@redhat.com>
+Subject: [PATCH] slub: extend slub debug to handle multiple slabs
+Date: Mon, 10 Sep 2018 12:13:58 +0100
+Message-Id: <20180910111358.10539-1-atomlin@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alison Schofield <alison.schofield@intel.com>, dhowells@redhat.com, tglx@linutronix.de
-Cc: Kai Huang <kai.huang@intel.com>, Jun Nakajima <jun.nakajima@intel.com>, Kirill Shutemov <kirill.shutemov@intel.com>, Dave Hansen <dave.hansen@intel.com>, jmorris@namei.org, keyrings@vger.kernel.org, linux-security-module@vger.kernel.org, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-mm@kvack.org
+To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, atomlin@redhat.com
 
-On Fri, 2018-09-07 at 15:34 -0700, Alison Schofield wrote:
-> Today mprotect is implemented to support legacy mprotect behavior
-> plus an extension for memory protection keys. Make it more generic
-> so that it can support additional extensions in the future.
-> 
-> This is done is preparation for adding a new system call for memory
-> encyption keys. The intent is that the new encrypted mprotect will be
-> another extension to legacy mprotect.
-> 
-> Signed-off-by: Alison Schofield <alison.schofield@intel.com>
-> ---
->  mm/mprotect.c | 10 ++++++----
->  1 file changed, 6 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/mprotect.c b/mm/mprotect.c
-> index 68dc476310c0..56e64ef7931e 100644
-> --- a/mm/mprotect.c
-> +++ b/mm/mprotect.c
-> @@ -35,6 +35,8 @@
->  
->  #include "internal.h"
->  
-> +#define NO_PKEY  -1
+Extend the slub_debug syntax to "slub_debug=<flags>[,<slub>]*", where <slub>
+may contain an asterisk at the end.  For example, the following would poison
+all kmalloc slabs:
 
-This commit does not make anything more generic but it does take
-away a magic number. The code change is senseful. The commit
-message is nonsense.
+	slub_debug=P,kmalloc*
 
-PS. Please use @linux.intel.com for LKML.
+and the following would apply the default flags to all kmalloc and all block IO
+slabs:
 
-/Jarkko
+	slub_debug=,bio*,kmalloc*
+
+Please note that a similar patch was posted by Iliyan Malchev some time ago but
+was never merged:
+
+	https://marc.info/?l=linux-mm&m=131283905330474&w=2
+
+
+Signed-off-by: Aaron Tomlin <atomlin@redhat.com>
+---
+ Documentation/vm/slub.rst | 12 +++++++++---
+ mm/slub.c                 | 34 +++++++++++++++++++++++++++++++---
+ 2 files changed, 40 insertions(+), 6 deletions(-)
+
+diff --git a/Documentation/vm/slub.rst b/Documentation/vm/slub.rst
+index 3a775fd64e2d..195928808bac 100644
+--- a/Documentation/vm/slub.rst
++++ b/Documentation/vm/slub.rst
+@@ -36,9 +36,10 @@ debugging is enabled. Format:
+ 
+ slub_debug=<Debug-Options>
+ 	Enable options for all slabs
+-slub_debug=<Debug-Options>,<slab name>
+-	Enable options only for select slabs
+ 
++slub_debug=<Debug-Options>,<slab name1>,<slab name2>,...
++	Enable options only for select slabs (no spaces
++	after a comma)
+ 
+ Possible debug options are::
+ 
+@@ -62,7 +63,12 @@ Trying to find an issue in the dentry cache? Try::
+ 
+ 	slub_debug=,dentry
+ 
+-to only enable debugging on the dentry cache.
++to only enable debugging on the dentry cache.  You may use an asterisk at the
++end of the slab name, in order to cover all slabs with the same prefix.  For
++example, here's how you can poison the dentry cache as well as all kmalloc
++slabs:
++
++	slub_debug=P,kmalloc-*,dentry
+ 
+ Red zoning and tracking may realign the slab.  We can just apply sanity checks
+ to the dentry cache with::
+diff --git a/mm/slub.c b/mm/slub.c
+index 8da34a8af53d..27281867cbe0 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1283,9 +1283,37 @@ slab_flags_t kmem_cache_flags(unsigned int object_size,
+ 	/*
+ 	 * Enable debugging if selected on the kernel commandline.
+ 	 */
+-	if (slub_debug && (!slub_debug_slabs || (name &&
+-		!strncmp(slub_debug_slabs, name, strlen(slub_debug_slabs)))))
+-		flags |= slub_debug;
++
++	char *end, *n, *glob;
++	int len = strlen(name);
++
++	/* If slub_debug = 0, it folds into the if conditional. */
++	if (!slub_debug_slabs)
++		return flags | slub_debug;
++
++	n = slub_debug_slabs;
++	while (*n) {
++		int cmplen;
++
++		end = strchr(n, ',');
++		if (!end)
++			end = n + strlen(n);
++
++		glob = strnchr(n, end - n, '*');
++		if (glob)
++			cmplen = glob - n;
++		else
++			cmplen = max(len, end - n);
++
++		if (!strncmp(name, n, cmplen)) {
++			flags |= slub_debug;
++			break;
++		}
++
++		if (!*end)
++			break;
++		n = end + 1;
++	}
+ 
+ 	return flags;
+ }
+-- 
+2.14.4
