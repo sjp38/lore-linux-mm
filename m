@@ -1,139 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C1BF8E0003
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 11:16:37 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id e14-v6so21426639qtp.17
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 08:16:37 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id o1-v6si1900758qvm.174.2018.09.10.08.16.36
+	by kanga.kvack.org (Postfix) with ESMTP id BCDB48E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 11:27:00 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id u45-v6so21572953qte.12
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 08:27:00 -0700 (PDT)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0092.outbound.protection.outlook.com. [104.47.34.92])
+        by mx.google.com with ESMTPS id 100-v6si767566qkr.357.2018.09.10.08.26.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 08:16:36 -0700 (PDT)
-Subject: Re: [PATCH v2 17/40] iommu/arm-smmu-v3: Link domains and devices
-References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
- <20180511190641.23008-18-jean-philippe.brucker@arm.com>
-From: Auger Eric <eric.auger@redhat.com>
-Message-ID: <b4154adb-313c-133b-6c5d-6e789bd754c7@redhat.com>
-Date: Mon, 10 Sep 2018 17:16:25 +0200
-MIME-Version: 1.0
-In-Reply-To: <20180511190641.23008-18-jean-philippe.brucker@arm.com>
-Content-Type: text/plain; charset=utf-8
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 10 Sep 2018 08:26:59 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Subject: Re: [PATCH] memory_hotplug: fix the panic when memory end is not on
+ the section boundary
+Date: Mon, 10 Sep 2018 15:26:55 +0000
+Message-ID: <abf84f61-82f3-e3d5-2e6e-82a11cb5dcf5@microsoft.com>
+References: <20180910123527.71209-1-zaslonko@linux.ibm.com>
+ <20180910131754.GG10951@dhcp22.suse.cz>
+ <e8d75768-9122-332b-3b16-cad032aeb27f@microsoft.com>
+ <20180910135959.GI10951@dhcp22.suse.cz>
+ <CAGM2reZuGAPmfO8x0TnHnqHci_Hsga3-CfM9+udJs=gUQCw-1g@mail.gmail.com>
+ <20180910141946.GJ10951@dhcp22.suse.cz>
+ <CAGM2reZ5OD9SRW8j9iaQAk9jpr86pF2NqpBjv-dxH+1vJZs0=g@mail.gmail.com>
+ <20180910144152.GL10951@dhcp22.suse.cz>
+In-Reply-To: <20180910144152.GL10951@dhcp22.suse.cz>
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <34C67F38B6F25441968EDEFB545BCD62@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>, linux-arm-kernel@lists.infradead.org, linux-pci@vger.kernel.org, linux-acpi@vger.kernel.org, devicetree@vger.kernel.org, iommu@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org
-Cc: xieyisheng1@huawei.com, liubo95@huawei.com, xuzaibo@huawei.com, thunder.leizhen@huawei.com, will.deacon@arm.com, okaya@codeaurora.org, yi.l.liu@intel.com, ashok.raj@intel.com, tn@semihalf.com, joro@8bytes.org, bharatku@xilinx.com, liudongdong3@huawei.com, rfranz@cavium.com, kevin.tian@intel.com, jacob.jun.pan@linux.intel.com, jcrouse@codeaurora.org, rgummal@xilinx.com, jonathan.cameron@huawei.com, shunyong.yang@hxt-semitech.com, robin.murphy@arm.com, ilias.apalodimas@linaro.org, alex.williamson@redhat.com, robdclark@gmail.com, dwmw2@infradead.org, christian.koenig@amd.com, nwatters@codeaurora.org, baolu.lu@linux.intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "zaslonko@linux.ibm.com" <zaslonko@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "osalvador@suse.de" <osalvador@suse.de>, "gerald.schaefer@de.ibm.com" <gerald.schaefer@de.ibm.com>
 
-Hi Jean-Philippe,
-
-On 05/11/2018 09:06 PM, Jean-Philippe Brucker wrote:
-> When removing a mapping from a domain, we need to send an invalidation to
-> all devices that might have stored it in their Address Translation Cache
-> (ATC). In addition when updating the context descriptor of a live domain,
-> we'll need to send invalidations for all devices attached to it.
-> 
-> Maintain a list of devices in each domain, protected by a spinlock. It is
-> updated every time we attach or detach devices to and from domains.
-> 
-> It needs to be a spinlock because we'll invalidate ATC entries from
-> within hardirq-safe contexts, but it may be possible to relax the read
-> side with RCU later.
-> 
-> Signed-off-by: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
-> ---
->  drivers/iommu/arm-smmu-v3.c | 28 ++++++++++++++++++++++++++++
->  1 file changed, 28 insertions(+)
-> 
-> diff --git a/drivers/iommu/arm-smmu-v3.c b/drivers/iommu/arm-smmu-v3.c
-> index 1d647104bccc..c892f012fb43 100644
-> --- a/drivers/iommu/arm-smmu-v3.c
-> +++ b/drivers/iommu/arm-smmu-v3.c
-> @@ -595,6 +595,11 @@ struct arm_smmu_device {
->  struct arm_smmu_master_data {
->  	struct arm_smmu_device		*smmu;
->  	struct arm_smmu_strtab_ent	ste;
-> +
-> +	struct arm_smmu_domain		*domain;
-> +	struct list_head		list; /* domain->devices */
-> +
-> +	struct device			*dev;
-This field addition and associated assignment in arm_smmu_attach_dev()
-is not really documented in the commit message.
-
->  };
->  
->  /* SMMU private data for an IOMMU domain */
-> @@ -618,6 +623,9 @@ struct arm_smmu_domain {
->  	};
->  
->  	struct iommu_domain		domain;
-> +
-> +	struct list_head		devices;
-> +	spinlock_t			devices_lock;
->  };
->  
->  struct arm_smmu_option_prop {
-> @@ -1470,6 +1478,9 @@ static struct iommu_domain *arm_smmu_domain_alloc(unsigned type)
->  	}
->  
->  	mutex_init(&smmu_domain->init_mutex);
-> +	INIT_LIST_HEAD(&smmu_domain->devices);
-> +	spin_lock_init(&smmu_domain->devices_lock);
-> +
->  	return &smmu_domain->domain;
->  }
->  
-> @@ -1685,7 +1696,17 @@ static void arm_smmu_install_ste_for_dev(struct iommu_fwspec *fwspec)
->  
->  static void arm_smmu_detach_dev(struct device *dev)
->  {
-> +	unsigned long flags;
->  	struct arm_smmu_master_data *master = dev->iommu_fwspec->iommu_priv;
-> +	struct arm_smmu_domain *smmu_domain = master->domain;
-> +
-> +	if (smmu_domain) {
-> +		spin_lock_irqsave(&smmu_domain->devices_lock, flags);
-> +		list_del(&master->list);
-> +		spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
-> +
-> +		master->domain = NULL;
-> +	}
->  
->  	master->ste.assigned = false;
->  	arm_smmu_install_ste_for_dev(dev->iommu_fwspec);
-> @@ -1694,6 +1715,7 @@ static void arm_smmu_detach_dev(struct device *dev)
->  static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
->  {
->  	int ret = 0;
-> +	unsigned long flags;
->  	struct arm_smmu_device *smmu;
->  	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
->  	struct arm_smmu_master_data *master;
-> @@ -1729,6 +1751,11 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
->  	}
->  
->  	ste->assigned = true;
-> +	master->domain = smmu_domain;
-> +
-> +	spin_lock_irqsave(&smmu_domain->devices_lock, flags);
-> +	list_add(&master->list, &smmu_domain->devices);
-it is not totally obvious to me why master->domain = smmu_domain isn't
-within the lock either for consistency. Same when deleting the node.
-
-Thanks
-
-Eric
-> +	spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
->  
->  	if (smmu_domain->stage == ARM_SMMU_DOMAIN_BYPASS) {
->  		ste->s1_cfg = NULL;
-> @@ -1847,6 +1874,7 @@ static int arm_smmu_add_device(struct device *dev)
->  			return -ENOMEM;
->  
->  		master->smmu = smmu;
-> +		master->dev = dev;
->  		fwspec->iommu_priv = master;
->  	}
->  
-> 
+DQoNCk9uIDkvMTAvMTggMTA6NDEgQU0sIE1pY2hhbCBIb2NrbyB3cm90ZToNCj4gT24gTW9uIDEw
+LTA5LTE4IDE0OjMyOjE2LCBQYXZlbCBUYXRhc2hpbiB3cm90ZToNCj4+IE9uIE1vbiwgU2VwIDEw
+LCAyMDE4IGF0IDEwOjE5IEFNIE1pY2hhbCBIb2NrbyA8bWhvY2tvQGtlcm5lbC5vcmc+IHdyb3Rl
+Og0KPj4+DQo+Pj4gT24gTW9uIDEwLTA5LTE4IDE0OjExOjQ1LCBQYXZlbCBUYXRhc2hpbiB3cm90
+ZToNCj4+Pj4gSGkgTWljaGFsLA0KPj4+Pg0KPj4+PiBJdCBpcyB0cmlja3ksIGJ1dCBwcm9iYWJs
+eSBjYW4gYmUgZG9uZS4gRWl0aGVyIGNoYW5nZQ0KPj4+PiBtZW1tYXBfaW5pdF96b25lKCkgb3Ig
+aXRzIGNhbGxlciB0byBhbHNvIGNvdmVyIHRoZSBlbmRzIGFuZCBzdGFydHMgb2YNCj4+Pj4gdW5h
+bGlnbmVkIHNlY3Rpb25zIHRvIGluaXRpYWxpemUgYW5kIHJlc2VydmUgcGFnZXMuDQo+Pj4+DQo+
+Pj4+IFRoZSBzYW1lIHRoaW5nIHdvdWxkIGFsc28gbmVlZCB0byBiZSBkb25lIGluIGRlZmVycmVk
+X2luaXRfbWVtbWFwKCkgdG8NCj4+Pj4gY292ZXIgdGhlIGRlZmVycmVkIGluaXQgY2FzZS4NCj4+
+Pg0KPj4+IFdlbGwsIEkgYW0gbm90IHN1cmUgVEJILiBJIGhhdmUgdG8gdGhpbmsgYWJvdXQgdGhh
+dCBtdWNoIG1vcmUuIE1heWJlIGl0DQo+Pj4gd291bGQgYmUgbXVjaCBtb3JlIHNpbXBsZSB0byBt
+YWtlIHN1cmUgdGhhdCB3ZSB3aWxsIG5ldmVyIGFkZCBpbmNvbXBsZXRlDQo+Pj4gbWVtYmxvY2tz
+IGFuZCBzaW1wbHkgcmVmdXNlIHRoZW0gZHVyaW5nIHRoZSBkaXNjb3ZlcnkuIEF0IGxlYXN0IGZv
+ciBub3cuDQo+Pg0KPj4gT24geDg2IG1lbWJsb2NrcyBjYW4gYmUgdXB0byAyRyBvbiBtYWNoaW5l
+cyB3aXRoIG92ZXIgNjRHIG9mIFJBTS4NCj4gDQo+IHNvcnJ5IEkgbWVhbnQgcGFnZWJsb2NrX25y
+X3BhZ2VzIHJhdGhlciB0aGFuIG1lbWJsb2Nrcy4NCg0KT0suIFRoaXMgc291bmQgcmVhc29uYWJs
+ZSwgYnV0LCB0byBiZSBob25lc3QgSSBhbSBub3Qgc3VyZSBob3cgdG8NCmFjaGlldmUgdGhpcyB5
+ZXQsIEkgbmVlZCB0byB0aGluayBtb3JlIGFib3V0IHRoaXMuIEluIHRoZW9yeSwgaWYgd2UgaGF2
+ZQ0Kc3BhcnNlIG1lbW9yeSBtb2RlbCwgaXQgbWFrZXMgc2Vuc2UgdG8gZW5mb3JjZSBtZW1vcnkg
+YWxpZ25tZW50IHRvDQpzZWN0aW9uIHNpemVzLCBzb3VuZHMgYSBsb3Qgc2FmZXIuDQoNCj4gDQo+
+PiBBbHNvLCBtZW1vcnkgc2l6ZSBpcyB3YXkgdG8gZWFzeSB0b28gY2hhbmdlIHZpYSBxZW11IGFy
+Z3VtZW50cyB3aGVuIFZNDQo+PiBzdGFydHMuIElmIHdlIHNpbXBseSBkaXNhYmxlIHVuYWxpZ25l
+ZCB0cmFpbGluZyBtZW1ibG9ja3MsIEkgYW0gc3VyZQ0KPj4gd2Ugd291bGQgZ2V0IHRvbnMgb2Yg
+bm9pc2Ugb2YgbWlzc2luZyBtZW1vcnkuDQo+Pg0KPj4gSSB0aGluaywgYWRkaW5nIGNoZWNrX2hv
+dHBsdWdfbWVtb3J5X3JhbmdlKCkgd291bGQgd29yayB0byBmaXggdGhlDQo+PiBpbW1lZGlhdGUg
+cHJvYmxlbS4gQnV0LCB3ZSBkbyBuZWVkIHRvIGZpZ3VyZSBvdXQgIGEgYmV0dGVyIHNvbHV0aW9u
+Lg0KPj4NCj4+IG1lbWJsb2NrIGRlc2lnbiBpcyBiYXNlZCBvbiBhcmNoYWljIGFzc3VtcHRpb24g
+dGhhdCBob3RwbHVnIHVuaXRzIGFyZQ0KPj4gcGh5c2ljYWwgZGltbXMuIFZNcyBhbmQgaHlwZXJ2
+aXNvcnMgY2hhbmdlZCBhbGwgb2YgdGhhdCwgYW5kIHdlIGNhbg0KPj4gaGF2ZSBtdWNoIGZpbmVy
+IGhvdHBsdWcgcmVxdWVzdHMgb24gbWFjaGluZXMgd2l0aCBodWdlIERJTU1zLiBZZXQsIHdlDQo+
+PiBkbyBub3Qgd2FudCB0byBwb2xsdXRlIHN5c2ZzIHdpdGggbWlsbGlvbnMgb2YgdGlueSBtZW1v
+cnkgZGV2aWNlcy4gSQ0KPj4gYW0gbm90IHN1cmUgd2hhdCBhIGxvbmcgdGVybSBwcm9wZXIgc29s
+dXRpb24gZm9yIHRoaXMgcHJvYmxlbSBzaG91bGQNCj4+IGJlLCBidXQgSSBzZWUgdGhhdCBsaW51
+eCBob3RwbHVnL2hvdHJlbW92ZSBzdWJzeXN0ZW1zIG11c3QgYmUNCj4+IHJlZGVzaWduZWQgYmFz
+ZWQgb24gdGhlIG5ldyByZXF1aXJlbWVudHMuDQo+IA0KPiBOb3QgYW4gZWFzeSB0YXNrIHRob3Vn
+aC4gQW55d2F5LCBzcGFyc2UgbWVtb3J5IG1vZGVseSBpcyBoaWdobHkgYmFzZWQgb24NCj4gbWVt
+b3J5IHNlY3Rpb25zIHNvIGl0IG1ha2VzIHNvbWUgc2Vuc2UgdG8gaGF2ZSBob3RwbHVnIHNlY3Rp
+b24gYmFzZWQgYXMNCj4gd2VsbC4gTWVtYmxvY2tzIGFzIGEgaGlnaGVyIGxvZ2ljYWwgdW5pdCBv
+biB0b3Agb2YgdGhhdCBpcyBraW5kYSBoYWNrLg0KPiBUaGUgdXNlcnNwYWNlIEFQSSBoYXMgbmV2
+ZXIgYmVlbiBwcm9wZXJseSB0aG91Z2h0IHRocm91Z2ggSSBhbSBhZnJhaWQuDQoNCkkgYWdyZWUg
+bWVtb3J5YmxvY2sgaXMgYSBoYWNrLCBpdCBmYWlscyB0byBkbyBib3RoIHRoaW5ncyBpdCB3YXMN
+CmRlc2lnbmVkIHRvIGRvOg0KDQoxLiBPbiBiYXJlIG1ldGFsIHlvdSBjYW5ub3QgZnJlZSBhIHBo
+eXNpY2FsIGRpbW0gb2YgbWVtb3J5IHVzaW5nDQptZW1vcnlibG9jayBncmFudWxhcml0eSBiZWNh
+dXNlIG1lbW9yeSBkZXZpY2VzIGRvIG5vdCBlcXVhbCB0byBwaHlzaWNhbA0KZGltbXMuIFRodXMs
+IGlmIGZvciBzb21lIHJlYXNvbiBhIHBhcnRpY3VsYXIgZGltbSBtdXN0IGJlDQpyZW1vdmUvcmVw
+bGFjZWQsIG1lbW9yeWJsb2NrIGRvZXMgbm90IGhlbHAgdXMuDQoNCjIuIE9uIG1hY2hpbmVzIHdp
+dGggaHlwZXJ2aXNvcnMgaXQgZmFpbHMgdG8gcHJvdmlkZSBhbiBhZGVxdWF0ZQ0KZ3JhbnVsYXJp
+dHkgdG8gYWRkL3JlbW92ZSBtZW1vcnkuDQoNCldlIHNob3VsZCBkZWZpbmUgYSBuZXcgdXNlciBp
+bnRlcmZhY2Ugd2hlcmUgbWVtb3J5IGNhbiBiZSBhZGRlZC9yZW1vdmVkDQphdCBhIGZpbmVyIGdy
+YW51bGFyaXR5OiBzcGFyc2Ugc2VjdGlvbiBzaXplLCBidXQgd2l0aG91dCBhIG1lbW9yeQ0KZGV2
+aWNlcyBmb3IgZWFjaCBzZWN0aW9uLiBXZSBzaG91bGQgYWxzbyBwcm92aWRlIGFuIG9wdGlvbmFs
+IGFjY2VzcyB0bw0KbGVnYWN5IGludGVyZmFjZSB3aGVyZSBtZW1vcnkgZGV2aWNlcyBhcmUgZXhw
+b3J0ZWQgYnV0IGVhY2ggaXMgb2YNCnNlY3Rpb24gc2l6ZS4NCg0KU28sIHdoZW4gbGVnYWN5IGlu
+dGVyZmFjZSBpcyBlbmFibGVkLCBjdXJyZW50IHdheSB3b3VsZCB3b3JrOg0KDQplY2hvIG9mZmxp
+bmUgPiAvc3lzL2RldmljZXMvc3lzdGVtL21lbW9yeS9tZW1vcnlYWFgvc3RhdGUNCg0KQW5kIG5l
+dyBpbnRlcmZhY2Ugd291bGQgYWxsb3cgdXMgdG8gZG8gc29tZXRoaW5nIGxpa2UgdGhpczoNCg0K
+ZWNobyBvZmZsaW5lIDI1Nk0gPiAvc3lzL2RldmljZXMvc3lzdGVtL25vZGUvbm9kZVhYWC9tZW1v
+cnkNCg0KV2l0aCBvcHRpb25hbCBzdGFydCBhZGRyZXNzIGZvciBvZmZsaW5lIG1lbW9yeS4NCmVj
+aG8gb2ZmbGluZSBbc3RhcnRfcGFdIHNpemUgPiAvc3lzL2RldmljZXMvc3lzdGVtL25vZGUvbm9k
+ZVhYWC9tZW1vcnkNCnN0YXJ0X3BhIGFuZCBzaXplIG11c3QgYmUgc2VjdGlvbiBzaXplIGFsaWdu
+ZWQgKDEyOE0pLg0KDQpJdCB3b3VsZCBwcm9iYWJseSBiZSBhIGdvb2QgZGlzY3Vzc2lvbiBmb3Ig
+dGhlIG5leHQgTU0gU3VtbWl0IGhvdyB0bw0Kc29sdmUgdGhlIGN1cnJlbnQgbWVtb3J5IGhvdHBs
+dWcgaW50ZXJmYWNlIGxpbWl0YXRpb25zLg0KDQpQYXZlbA==
