@@ -1,241 +1,392 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A41F98E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 04:35:04 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id o4-v6so3238422iob.12
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 01:35:04 -0700 (PDT)
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id e185-v6sor12241085ith.43.2018.09.10.01.35.02
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E31748E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 05:23:34 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id m197-v6so25985589oig.18
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 02:23:34 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id h133-v6si10167854oif.446.2018.09.10.02.23.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 10 Sep 2018 01:35:02 -0700 (PDT)
-MIME-Version: 1.0
-Date: Mon, 10 Sep 2018 01:35:02 -0700
-Message-ID: <000000000000c691670575803b0c@google.com>
-Subject: BUG: Bad page map (3)
-From: syzbot <syzbot+0b10582e8ee2a6253de7@syzkaller.appspotmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Sep 2018 02:23:32 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8A9JpX0063301
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 05:23:30 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mdnmqrrp6-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 05:23:30 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Mon, 10 Sep 2018 10:23:27 +0100
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH v2] mips: switch to NO_BOOTMEM
+Date: Mon, 10 Sep 2018 12:23:18 +0300
+Message-Id: <1536571398-29194-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, christian.koenig@amd.com, dan.j.williams@intel.com, dave@stgolabs.net, dwmw@amazon.co.uk, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux@dominikbrodowski.net, mhocko@suse.com, rientjes@google.com, syzkaller-bugs@googlegroups.com
+To: Paul Burton <paul.burton@mips.com>
+Cc: Serge Semin <fancer.lancer@gmail.com>, Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>, Huacai Chen <chenhc@lemote.com>, Michal Hocko <mhocko@kernel.org>, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-Hello,
+MIPS already has memblock support and all the memory is already registered
+with it.
 
-syzbot found the following crash on:
+This patch replaces bootmem memory reservations with memblock ones and
+removes the bootmem initialization.
 
-HEAD commit:    3d0e7a9e00fd Merge tag 'md/4.19-rc2' of git://git.kernel.o..
-git tree:       upstream
-console output: https://syzkaller.appspot.com/x/log.txt?x=1782d70a400000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=8f59875069d721b6
-dashboard link: https://syzkaller.appspot.com/bug?extid=0b10582e8ee2a6253de7
-compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+Since memblock allocates memory in top-down mode, we ensure that memblock
+limit is max_low_pfn to prevent allocations from the high memory.
 
-Unfortunately, I don't have any reproducer for this crash yet.
+To have the exceptions base in the lower 512M of the physical memory, its
+allocation in arch/mips/kernel/traps.c::traps_init() is using bottom-up
+mode.
 
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+0b10582e8ee2a6253de7@syzkaller.appspotmail.com
-
-BUG: Bad page map in process syz-executor3  pte:ffffffff8901f947  
-pmd:18d73f067
-addr:000000006b20cb06 vm_flags:180400fb anon_vma:          (null)  
-mapping:000000007878cb6c index:b7
-file:kcov fault:          (null) mmap:kcov_mmap readpage:          (null)
-CPU: 0 PID: 19022 Comm: syz-executor3 Not tainted 4.19.0-rc2+ #4
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x1c4/0x2b4 lib/dump_stack.c:113
-  print_bad_pte.cold.111+0x1e6/0x24b mm/memory.c:773
-  _vm_normal_page+0x248/0x3c0 mm/memory.c:859
-  zap_pte_range mm/memory.c:1311 [inline]
-  zap_pmd_range mm/memory.c:1440 [inline]
-  zap_pud_range mm/memory.c:1469 [inline]
-  zap_p4d_range mm/memory.c:1490 [inline]
-  unmap_page_range+0x9a5/0x2000 mm/memory.c:1511
-  unmap_single_vma+0x19b/0x310 mm/memory.c:1556
-  unmap_vmas+0x125/0x200 mm/memory.c:1586
-  exit_mmap+0x2be/0x590 mm/mmap.c:3093
-  __mmput kernel/fork.c:1001 [inline]
-  mmput+0x247/0x610 kernel/fork.c:1022
-  exit_mm kernel/exit.c:545 [inline]
-  do_exit+0xe6f/0x2610 kernel/exit.c:854
-  do_group_exit+0x177/0x440 kernel/exit.c:970
-  get_signal+0x8b0/0x1980 kernel/signal.c:2513
-  do_signal+0x9c/0x21e0 arch/x86/kernel/signal.c:816
-  exit_to_usermode_loop+0x2e5/0x380 arch/x86/entry/common.c:162
-  prepare_exit_to_usermode arch/x86/entry/common.c:197 [inline]
-  syscall_return_slowpath arch/x86/entry/common.c:268 [inline]
-  do_syscall_64+0x6be/0x820 arch/x86/entry/common.c:293
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x457099
-Code: Bad RIP value.
-RSP: 002b:00007f9decd04cf8 EFLAGS: 00000246 ORIG_RAX: 00000000000000ca
-RAX: fffffffffffffe00 RBX: 00000000009300a8 RCX: 0000000000457099
-RDX: 0000000000000000 RSI: 0000000000000080 RDI: 00000000009300a8
-RBP: 00000000009300a0 R08: 0000000000000000 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000246 R12: 00000000009300ac
-R13: 00007ffe4545d67f R14: 00007f9decd059c0 R15: 0000000000000000
-swap_info_get: Bad swap file entry 3ffffffffffff
-BUG: Bad page map in process syz-executor3  pte:00000008 pmd:18d73f067
-addr:000000005c045c2f vm_flags:180400fb anon_vma:          (null)  
-mapping:000000007878cb6c index:ba
-file:kcov fault:          (null) mmap:kcov_mmap readpage:          (null)
-CPU: 0 PID: 19022 Comm: syz-executor3 Tainted: G    B              
-4.19.0-rc2+ #4
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x1c4/0x2b4 lib/dump_stack.c:113
-  print_bad_pte.cold.111+0x1e6/0x24b mm/memory.c:773
-  zap_pte_range mm/memory.c:1385 [inline]
-  zap_pmd_range mm/memory.c:1440 [inline]
-  zap_pud_range mm/memory.c:1469 [inline]
-  zap_p4d_range mm/memory.c:1490 [inline]
-  unmap_page_range+0x196f/0x2000 mm/memory.c:1511
-  unmap_single_vma+0x19b/0x310 mm/memory.c:1556
-  unmap_vmas+0x125/0x200 mm/memory.c:1586
-  exit_mmap+0x2be/0x590 mm/mmap.c:3093
-  __mmput kernel/fork.c:1001 [inline]
-  mmput+0x247/0x610 kernel/fork.c:1022
-  exit_mm kernel/exit.c:545 [inline]
-  do_exit+0xe6f/0x2610 kernel/exit.c:854
-  do_group_exit+0x177/0x440 kernel/exit.c:970
-  get_signal+0x8b0/0x1980 kernel/signal.c:2513
-  do_signal+0x9c/0x21e0 arch/x86/kernel/signal.c:816
-  exit_to_usermode_loop+0x2e5/0x380 arch/x86/entry/common.c:162
-  prepare_exit_to_usermode arch/x86/entry/common.c:197 [inline]
-  syscall_return_slowpath arch/x86/entry/common.c:268 [inline]
-  do_syscall_64+0x6be/0x820 arch/x86/entry/common.c:293
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x457099
-Code: Bad RIP value.
-RSP: 002b:00007f9decd04cf8 EFLAGS: 00000246 ORIG_RAX: 00000000000000ca
-RAX: fffffffffffffe00 RBX: 00000000009300a8 RCX: 0000000000457099
-RDX: 0000000000000000 RSI: 0000000000000080 RDI: 00000000009300a8
-RBP: 00000000009300a0 R08: 0000000000000000 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000246 R12: 00000000009300ac
-R13: 00007ffe4545d67f R14: 00007f9decd059c0 R15: 0000000000000000
-BUG: Bad page map in process syz-executor3  pte:ffff8801ce138140  
-pmd:18d73f067
-addr:00000000df7251c2 vm_flags:180400fb anon_vma:          (null)  
-mapping:000000007878cb6c index:bc
-file:kcov fault:          (null) mmap:kcov_mmap readpage:          (null)
-CPU: 0 PID: 19022 Comm: syz-executor3 Tainted: G    B              
-4.19.0-rc2+ #4
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x1c4/0x2b4 lib/dump_stack.c:113
-  print_bad_pte.cold.111+0x1e6/0x24b mm/memory.c:773
-  _vm_normal_page+0x248/0x3c0 mm/memory.c:859
-  zap_pte_range mm/memory.c:1311 [inline]
-  zap_pmd_range mm/memory.c:1440 [inline]
-  zap_pud_range mm/memory.c:1469 [inline]
-  zap_p4d_range mm/memory.c:1490 [inline]
-  unmap_page_range+0x9a5/0x2000 mm/memory.c:1511
-  unmap_single_vma+0x19b/0x310 mm/memory.c:1556
-  unmap_vmas+0x125/0x200 mm/memory.c:1586
-  exit_mmap+0x2be/0x590 mm/mmap.c:3093
-  __mmput kernel/fork.c:1001 [inline]
-  mmput+0x247/0x610 kernel/fork.c:1022
-  exit_mm kernel/exit.c:545 [inline]
-  do_exit+0xe6f/0x2610 kernel/exit.c:854
-  do_group_exit+0x177/0x440 kernel/exit.c:970
-  get_signal+0x8b0/0x1980 kernel/signal.c:2513
-  do_signal+0x9c/0x21e0 arch/x86/kernel/signal.c:816
-  exit_to_usermode_loop+0x2e5/0x380 arch/x86/entry/common.c:162
-  prepare_exit_to_usermode arch/x86/entry/common.c:197 [inline]
-  syscall_return_slowpath arch/x86/entry/common.c:268 [inline]
-  do_syscall_64+0x6be/0x820 arch/x86/entry/common.c:293
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x457099
-Code: Bad RIP value.
-RSP: 002b:00007f9decd04cf8 EFLAGS: 00000246 ORIG_RAX: 00000000000000ca
-RAX: fffffffffffffe00 RBX: 00000000009300a8 RCX: 0000000000457099
-RDX: 0000000000000000 RSI: 0000000000000080 RDI: 00000000009300a8
-RBP: 00000000009300a0 R08: 0000000000000000 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000246 R12: 00000000009300ac
-R13: 00007ffe4545d67f R14: 00007f9decd059c0 R15: 0000000000000000
-------------[ cut here ]------------
-kernel BUG at include/linux/swapops.h:215!
-invalid opcode: 0000 [#1] PREEMPT SMP KASAN
-CPU: 0 PID: 19022 Comm: syz-executor3 Tainted: G    B              
-4.19.0-rc2+ #4
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-RIP: 0010:migration_entry_to_page+0x444/0x550 include/linux/swapops.h:215
-Code: 2b e8 70 6a cd ff 48 c7 c6 60 af 13 88 4c 89 e7 e8 c1 0b ff ff 0f 0b  
-e8 5a 6a cd ff 4d 8d 67 ff e9 a3 fe ff ff e8 4c 6a cd ff <0f> 0b e8 45 6a  
-cd ff 4c 8d 63 ff eb ca e8 da cf 10 00 e9 63 fc ff
-RSP: 0018:ffff880081026b20 EFLAGS: 00010293
-RAX: ffff8801cc706340 RBX: fffff8ffce518000 RCX: ffffffff81b163c4
-RDX: 0000000000000000 RSI: ffffffff81b164f4 RDI: 0000000000000007
-RBP: ffff880081026c78 R08: ffff8801cc706340 R09: fffffbfff1326cb0
-R10: fffffbfff1326cb0 R11: 0000000000000003 R12: 0000000000000000
-R13: 1ffff10010204d66 R14: 0000000000000000 R15: 0000000000000000
-FS:  00007f9decd05700(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 000000000045706f CR3: 0000000136186000 CR4: 00000000001426f0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-Call Trace:
-  zap_pte_range mm/memory.c:1381 [inline]
-  zap_pmd_range mm/memory.c:1440 [inline]
-  zap_pud_range mm/memory.c:1469 [inline]
-  zap_p4d_range mm/memory.c:1490 [inline]
-  unmap_page_range+0x108f/0x2000 mm/memory.c:1511
-  unmap_single_vma+0x19b/0x310 mm/memory.c:1556
-  unmap_vmas+0x125/0x200 mm/memory.c:1586
-  exit_mmap+0x2be/0x590 mm/mmap.c:3093
-  __mmput kernel/fork.c:1001 [inline]
-  mmput+0x247/0x610 kernel/fork.c:1022
-  exit_mm kernel/exit.c:545 [inline]
-  do_exit+0xe6f/0x2610 kernel/exit.c:854
-  do_group_exit+0x177/0x440 kernel/exit.c:970
-  get_signal+0x8b0/0x1980 kernel/signal.c:2513
-  do_signal+0x9c/0x21e0 arch/x86/kernel/signal.c:816
-  exit_to_usermode_loop+0x2e5/0x380 arch/x86/entry/common.c:162
-  prepare_exit_to_usermode arch/x86/entry/common.c:197 [inline]
-  syscall_return_slowpath arch/x86/entry/common.c:268 [inline]
-  do_syscall_64+0x6be/0x820 arch/x86/entry/common.c:293
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x457099
-Code: Bad RIP value.
-RSP: 002b:00007f9decd04cf8 EFLAGS: 00000246 ORIG_RAX: 00000000000000ca
-RAX: fffffffffffffe00 RBX: 00000000009300a8 RCX: 0000000000457099
-RDX: 0000000000000000 RSI: 0000000000000080 RDI: 00000000009300a8
-RBP: 00000000009300a0 R08: 0000000000000000 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000246 R12: 00000000009300ac
-R13: 00007ffe4545d67f R14: 00007f9decd059c0 R15: 0000000000000000
-Modules linked in:
-Dumping ftrace buffer:
-    (ftrace buffer empty)
----[ end trace 434b92653afbda82 ]---
-RIP: 0010:migration_entry_to_page+0x444/0x550 include/linux/swapops.h:215
-Code: 2b e8 70 6a cd ff 48 c7 c6 60 af 13 88 4c 89 e7 e8 c1 0b ff ff 0f 0b  
-e8 5a 6a cd ff 4d 8d 67 ff e9 a3 fe ff ff e8 4c 6a cd ff <0f> 0b e8 45 6a  
-cd ff 4c 8d 63 ff eb ca e8 da cf 10 00 e9 63 fc ff
-RSP: 0018:ffff880081026b20 EFLAGS: 00010293
-RAX: ffff8801cc706340 RBX: fffff8ffce518000 RCX: ffffffff81b163c4
-RDX: 0000000000000000 RSI: ffffffff81b164f4 RDI: 0000000000000007
-RBP: ffff880081026c78 R08: ffff8801cc706340 R09: fffffbfff1326cb0
-R10: fffffbfff1326cb0 R11: 0000000000000003 R12: 0000000000000000
-R13: 1ffff10010204d66 R14: 0000000000000000 R15: 0000000000000000
-FS:  00007f9decd05700(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 000000000045706f CR3: 0000000136186000 CR4: 00000000001426f0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-
-
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 ---
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
+v2:
+* set memblock limit to max_low_pfn to avoid allocation attempts from high
+memory
+* use boottom-up mode for allocation of the exceptions base
 
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
-syzbot.
+Build tested with *_defconfig.
+Boot tested with qemu-system-mips64el for 32r6el, 64r6el and fuloong2e
+defconfigs.
+Boot tested with qemu-system-mipsel for malta defconfig.
+
+ arch/mips/Kconfig                      |  1 +
+ arch/mips/kernel/setup.c               | 99 ++++++++--------------------------
+ arch/mips/kernel/traps.c               |  3 ++
+ arch/mips/loongson64/loongson-3/numa.c | 34 ++++++------
+ arch/mips/sgi-ip27/ip27-memory.c       | 11 ++--
+ 5 files changed, 46 insertions(+), 102 deletions(-)
+
+diff --git a/arch/mips/Kconfig b/arch/mips/Kconfig
+index 3551199..b8c5fea 100644
+--- a/arch/mips/Kconfig
++++ b/arch/mips/Kconfig
+@@ -78,6 +78,7 @@ config MIPS
+ 	select RTC_LIB if !MACH_LOONGSON64
+ 	select SYSCTL_EXCEPTION_TRACE
+ 	select VIRT_TO_BUS
++	select NO_BOOTMEM
+ 
+ menu "Machine selection"
+ 
+diff --git a/arch/mips/kernel/setup.c b/arch/mips/kernel/setup.c
+index c71d1eb..0b728b7 100644
+--- a/arch/mips/kernel/setup.c
++++ b/arch/mips/kernel/setup.c
+@@ -333,7 +333,7 @@ static void __init finalize_initrd(void)
+ 
+ 	maybe_bswap_initrd();
+ 
+-	reserve_bootmem(__pa(initrd_start), size, BOOTMEM_DEFAULT);
++	memblock_reserve(__pa(initrd_start), size);
+ 	initrd_below_start_ok = 1;
+ 
+ 	pr_info("Initial ramdisk at: 0x%lx (%lu bytes)\n",
+@@ -370,20 +370,10 @@ static void __init bootmem_init(void)
+ 
+ #else  /* !CONFIG_SGI_IP27 */
+ 
+-static unsigned long __init bootmap_bytes(unsigned long pages)
+-{
+-	unsigned long bytes = DIV_ROUND_UP(pages, 8);
+-
+-	return ALIGN(bytes, sizeof(long));
+-}
+-
+ static void __init bootmem_init(void)
+ {
+ 	unsigned long reserved_end;
+-	unsigned long mapstart = ~0UL;
+-	unsigned long bootmap_size;
+ 	phys_addr_t ramstart = PHYS_ADDR_MAX;
+-	bool bootmap_valid = false;
+ 	int i;
+ 
+ 	/*
+@@ -395,6 +385,8 @@ static void __init bootmem_init(void)
+ 	init_initrd();
+ 	reserved_end = (unsigned long) PFN_UP(__pa_symbol(&_end));
+ 
++	memblock_reserve(PHYS_OFFSET, reserved_end << PAGE_SHIFT);
++
+ 	/*
+ 	 * max_low_pfn is not a number of pages. The number of pages
+ 	 * of the system is given by 'max_low_pfn - min_low_pfn'.
+@@ -442,9 +434,6 @@ static void __init bootmem_init(void)
+ 		if (initrd_end && end <= (unsigned long)PFN_UP(__pa(initrd_end)))
+ 			continue;
+ #endif
+-		if (start >= mapstart)
+-			continue;
+-		mapstart = max(reserved_end, start);
+ 	}
+ 
+ 	if (min_low_pfn >= max_low_pfn)
+@@ -456,9 +445,11 @@ static void __init bootmem_init(void)
+ 	/*
+ 	 * Reserve any memory between the start of RAM and PHYS_OFFSET
+ 	 */
+-	if (ramstart > PHYS_OFFSET)
++	if (ramstart > PHYS_OFFSET) {
+ 		add_memory_region(PHYS_OFFSET, ramstart - PHYS_OFFSET,
+ 				  BOOT_MEM_RESERVED);
++		memblock_reserve(PHYS_OFFSET, ramstart - PHYS_OFFSET);
++	}
+ 
+ 	if (min_low_pfn > ARCH_PFN_OFFSET) {
+ 		pr_info("Wasting %lu bytes for tracking %lu unused pages\n",
+@@ -483,52 +474,6 @@ static void __init bootmem_init(void)
+ 		max_low_pfn = PFN_DOWN(HIGHMEM_START);
+ 	}
+ 
+-#ifdef CONFIG_BLK_DEV_INITRD
+-	/*
+-	 * mapstart should be after initrd_end
+-	 */
+-	if (initrd_end)
+-		mapstart = max(mapstart, (unsigned long)PFN_UP(__pa(initrd_end)));
+-#endif
+-
+-	/*
+-	 * check that mapstart doesn't overlap with any of
+-	 * memory regions that have been reserved through eg. DTB
+-	 */
+-	bootmap_size = bootmap_bytes(max_low_pfn - min_low_pfn);
+-
+-	bootmap_valid = memory_region_available(PFN_PHYS(mapstart),
+-						bootmap_size);
+-	for (i = 0; i < boot_mem_map.nr_map && !bootmap_valid; i++) {
+-		unsigned long mapstart_addr;
+-
+-		switch (boot_mem_map.map[i].type) {
+-		case BOOT_MEM_RESERVED:
+-			mapstart_addr = PFN_ALIGN(boot_mem_map.map[i].addr +
+-						boot_mem_map.map[i].size);
+-			if (PHYS_PFN(mapstart_addr) < mapstart)
+-				break;
+-
+-			bootmap_valid = memory_region_available(mapstart_addr,
+-								bootmap_size);
+-			if (bootmap_valid)
+-				mapstart = PHYS_PFN(mapstart_addr);
+-			break;
+-		default:
+-			break;
+-		}
+-	}
+-
+-	if (!bootmap_valid)
+-		panic("No memory area to place a bootmap bitmap");
+-
+-	/*
+-	 * Initialize the boot-time allocator with low memory only.
+-	 */
+-	if (bootmap_size != init_bootmem_node(NODE_DATA(0), mapstart,
+-					 min_low_pfn, max_low_pfn))
+-		panic("Unexpected memory size required for bootmap");
+-
+ 	for (i = 0; i < boot_mem_map.nr_map; i++) {
+ 		unsigned long start, end;
+ 
+@@ -577,9 +522,9 @@ static void __init bootmem_init(void)
+ 		default:
+ 			/* Not usable memory */
+ 			if (start > min_low_pfn && end < max_low_pfn)
+-				reserve_bootmem(boot_mem_map.map[i].addr,
+-						boot_mem_map.map[i].size,
+-						BOOTMEM_DEFAULT);
++				memblock_reserve(boot_mem_map.map[i].addr,
++						boot_mem_map.map[i].size);
++
+ 			continue;
+ 		}
+ 
+@@ -602,15 +547,9 @@ static void __init bootmem_init(void)
+ 		size = end - start;
+ 
+ 		/* Register lowmem ranges */
+-		free_bootmem(PFN_PHYS(start), size << PAGE_SHIFT);
+ 		memory_present(0, start, end);
+ 	}
+ 
+-	/*
+-	 * Reserve the bootmap memory.
+-	 */
+-	reserve_bootmem(PFN_PHYS(mapstart), bootmap_size, BOOTMEM_DEFAULT);
+-
+ #ifdef CONFIG_RELOCATABLE
+ 	/*
+ 	 * The kernel reserves all memory below its _end symbol as bootmem,
+@@ -908,21 +847,29 @@ static void __init arch_mem_init(char **cmdline_p)
+ 	early_init_fdt_scan_reserved_mem();
+ 
+ 	bootmem_init();
++
++	/*
++	 * Prevent memblock from allocating high memory.
++	 * This cannot be done before max_low_pfn is detected, so up
++	 * to this point is possible to only reserve physical memory
++	 * with memblock_reserve; memblock_virt_alloc* can be used
++	 * only after this point
++	 */
++	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
++
+ #ifdef CONFIG_PROC_VMCORE
+ 	if (setup_elfcorehdr && setup_elfcorehdr_size) {
+ 		printk(KERN_INFO "kdump reserved memory at %lx-%lx\n",
+ 		       setup_elfcorehdr, setup_elfcorehdr_size);
+-		reserve_bootmem(setup_elfcorehdr, setup_elfcorehdr_size,
+-				BOOTMEM_DEFAULT);
++		memblock_reserve(setup_elfcorehdr, setup_elfcorehdr_size);
+ 	}
+ #endif
+ 
+ 	mips_parse_crashkernel();
+ #ifdef CONFIG_KEXEC
+ 	if (crashk_res.start != crashk_res.end)
+-		reserve_bootmem(crashk_res.start,
+-				crashk_res.end - crashk_res.start + 1,
+-				BOOTMEM_DEFAULT);
++		memblock_reserve(crashk_res.start,
++				 crashk_res.end - crashk_res.start + 1);
+ #endif
+ 	device_tree_init();
+ 	sparse_init();
+@@ -932,7 +879,7 @@ static void __init arch_mem_init(char **cmdline_p)
+ 	/* Tell bootmem about cma reserved memblock section */
+ 	for_each_memblock(reserved, reg)
+ 		if (reg->size != 0)
+-			reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
++			memblock_reserve(reg->base, reg->size);
+ 
+ 	reserve_bootmem_region(__pa_symbol(&__nosave_begin),
+ 			__pa_symbol(&__nosave_end)); /* Reserve for hibernation */
+diff --git a/arch/mips/kernel/traps.c b/arch/mips/kernel/traps.c
+index 9dab0ed..05270d0 100644
+--- a/arch/mips/kernel/traps.c
++++ b/arch/mips/kernel/traps.c
+@@ -29,6 +29,7 @@
+ #include <linux/spinlock.h>
+ #include <linux/kallsyms.h>
+ #include <linux/bootmem.h>
++#include <linux/memblock.h>
+ #include <linux/interrupt.h>
+ #include <linux/ptrace.h>
+ #include <linux/kgdb.h>
+@@ -2260,8 +2261,10 @@ void __init trap_init(void)
+ 		unsigned long size = 0x200 + VECTORSPACING*64;
+ 		phys_addr_t ebase_pa;
+ 
++		memblock_set_bottom_up(true);
+ 		ebase = (unsigned long)
+ 			__alloc_bootmem(size, 1 << fls(size), 0);
++		memblock_set_bottom_up(false);
+ 
+ 		/*
+ 		 * Try to ensure ebase resides in KSeg0 if possible.
+diff --git a/arch/mips/loongson64/loongson-3/numa.c b/arch/mips/loongson64/loongson-3/numa.c
+index 9717106..c1e6ec5 100644
+--- a/arch/mips/loongson64/loongson-3/numa.c
++++ b/arch/mips/loongson64/loongson-3/numa.c
+@@ -180,43 +180,39 @@ static void __init szmem(unsigned int node)
+ 
+ static void __init node_mem_init(unsigned int node)
+ {
+-	unsigned long bootmap_size;
+ 	unsigned long node_addrspace_offset;
+-	unsigned long start_pfn, end_pfn, freepfn;
++	unsigned long start_pfn, end_pfn;
+ 
+ 	node_addrspace_offset = nid_to_addroffset(node);
+ 	pr_info("Node%d's addrspace_offset is 0x%lx\n",
+ 			node, node_addrspace_offset);
+ 
+ 	get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
+-	freepfn = start_pfn;
+-	if (node == 0)
+-		freepfn = PFN_UP(__pa_symbol(&_end)); /* kernel end address */
+-	pr_info("Node%d: start_pfn=0x%lx, end_pfn=0x%lx, freepfn=0x%lx\n",
+-		node, start_pfn, end_pfn, freepfn);
++	pr_info("Node%d: start_pfn=0x%lx, end_pfn=0x%lx\n",
++		node, start_pfn, end_pfn);
+ 
+ 	__node_data[node] = prealloc__node_data + node;
+ 
+-	NODE_DATA(node)->bdata = &bootmem_node_data[node];
+ 	NODE_DATA(node)->node_start_pfn = start_pfn;
+ 	NODE_DATA(node)->node_spanned_pages = end_pfn - start_pfn;
+ 
+-	bootmap_size = init_bootmem_node(NODE_DATA(node), freepfn,
+-					start_pfn, end_pfn);
+ 	free_bootmem_with_active_regions(node, end_pfn);
+-	if (node == 0) /* used by finalize_initrd() */
++
++	if (node == 0) {
++		/* kernel end address */
++		unsigned long kernel_end_pfn = PFN_UP(__pa_symbol(&_end));
++
++		/* used by finalize_initrd() */
+ 		max_low_pfn = end_pfn;
+ 
+-	/* This is reserved for the kernel and bdata->node_bootmem_map */
+-	reserve_bootmem_node(NODE_DATA(node), start_pfn << PAGE_SHIFT,
+-		((freepfn - start_pfn) << PAGE_SHIFT) + bootmap_size,
+-		BOOTMEM_DEFAULT);
++		/* Reserve the kernel text/data/bss */
++		memblock_reserve(start_pfn << PAGE_SHIFT,
++				 ((kernel_end_pfn - start_pfn) << PAGE_SHIFT));
+ 
+-	if (node == 0 && node_end_pfn(0) >= (0xffffffff >> PAGE_SHIFT)) {
+ 		/* Reserve 0xfe000000~0xffffffff for RS780E integrated GPU */
+-		reserve_bootmem_node(NODE_DATA(node),
+-				(node_addrspace_offset | 0xfe000000),
+-				32 << 20, BOOTMEM_DEFAULT);
++		if (node_end_pfn(0) >= (0xffffffff >> PAGE_SHIFT))
++			memblock_reserve((node_addrspace_offset | 0xfe000000),
++					 32 << 20);
+ 	}
+ 
+ 	sparse_memory_present_with_active_regions(node);
+diff --git a/arch/mips/sgi-ip27/ip27-memory.c b/arch/mips/sgi-ip27/ip27-memory.c
+index 59133d0a..6f7bef0 100644
+--- a/arch/mips/sgi-ip27/ip27-memory.c
++++ b/arch/mips/sgi-ip27/ip27-memory.c
+@@ -389,7 +389,6 @@ static void __init node_mem_init(cnodeid_t node)
+ {
+ 	unsigned long slot_firstpfn = slot_getbasepfn(node, 0);
+ 	unsigned long slot_freepfn = node_getfirstfree(node);
+-	unsigned long bootmap_size;
+ 	unsigned long start_pfn, end_pfn;
+ 
+ 	get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
+@@ -400,7 +399,6 @@ static void __init node_mem_init(cnodeid_t node)
+ 	__node_data[node] = __va(slot_freepfn << PAGE_SHIFT);
+ 	memset(__node_data[node], 0, PAGE_SIZE);
+ 
+-	NODE_DATA(node)->bdata = &bootmem_node_data[node];
+ 	NODE_DATA(node)->node_start_pfn = start_pfn;
+ 	NODE_DATA(node)->node_spanned_pages = end_pfn - start_pfn;
+ 
+@@ -409,12 +407,11 @@ static void __init node_mem_init(cnodeid_t node)
+ 	slot_freepfn += PFN_UP(sizeof(struct pglist_data) +
+ 			       sizeof(struct hub_data));
+ 
+-	bootmap_size = init_bootmem_node(NODE_DATA(node), slot_freepfn,
+-					start_pfn, end_pfn);
+ 	free_bootmem_with_active_regions(node, end_pfn);
+-	reserve_bootmem_node(NODE_DATA(node), slot_firstpfn << PAGE_SHIFT,
+-		((slot_freepfn - slot_firstpfn) << PAGE_SHIFT) + bootmap_size,
+-		BOOTMEM_DEFAULT);
++
++	memblock_reserve(slot_firstpfn << PAGE_SHIFT,
++			 ((slot_freepfn - slot_firstpfn) << PAGE_SHIFT));
++
+ 	sparse_memory_present_with_active_regions(node);
+ }
+ 
+-- 
+2.7.4
