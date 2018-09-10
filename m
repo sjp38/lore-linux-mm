@@ -1,68 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E46128E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 05:54:36 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id c16-v6so6986605edc.21
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 02:54:36 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p4-v6si688111edr.292.2018.09.10.02.54.35
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F1EF8E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 06:12:40 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id u13-v6so10941677pfm.8
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 03:12:40 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id o33-v6si11673177plb.489.2018.09.10.03.12.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 02:54:35 -0700 (PDT)
-Date: Mon, 10 Sep 2018 11:54:33 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm, oom: Fix unnecessary killing of additional
- processes.
-Message-ID: <20180910095433.GE10951@dhcp22.suse.cz>
-References: <1536382452-3443-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1536382452-3443-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        Mon, 10 Sep 2018 03:12:38 -0700 (PDT)
+Message-ID: <0663b867003511f1ca652cef6acce589a5184a4b.camel@linux.intel.com>
+Subject: Re: [RFC 02/12] mm: Generalize the mprotect implementation to
+ support extensions
+From: Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>
+Date: Mon, 10 Sep 2018 13:12:31 +0300
+In-Reply-To: <2dcbb08ed8804e02538a73ee05a4283c54180e36.1536356108.git.alison.schofield@intel.com>
+References: <cover.1536356108.git.alison.schofield@intel.com>
+	 <2dcbb08ed8804e02538a73ee05a4283c54180e36.1536356108.git.alison.schofield@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Roman Gushchin <guro@fb.com>
+To: Alison Schofield <alison.schofield@intel.com>, dhowells@redhat.com, tglx@linutronix.de
+Cc: Kai Huang <kai.huang@intel.com>, Jun Nakajima <jun.nakajima@intel.com>, Kirill Shutemov <kirill.shutemov@intel.com>, Dave Hansen <dave.hansen@intel.com>, jmorris@namei.org, keyrings@vger.kernel.org, linux-security-module@vger.kernel.org, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-mm@kvack.org
 
-On Sat 08-09-18 13:54:12, Tetsuo Handa wrote:
-[...]
-
-I will not comment on the above because I have already done so and you
-keep ignoring it so I will not waste my time again. But let me ask about
-the following though
-
-> This patch also fixes three possible bugs
+On Fri, 2018-09-07 at 15:34 -0700, Alison Schofield wrote:
+> Today mprotect is implemented to support legacy mprotect behavior
+> plus an extension for memory protection keys. Make it more generic
+> so that it can support additional extensions in the future.
 > 
->   (1) oom_task_origin() tasks can be selected forever because it did not
->       check for MMF_OOM_SKIP.
-
-Is this a real problem. Could you point to any path that wouldn't bail
-out and oom_origin task would keep trying for ever? If such a path
-doesn't exist and you believe it is too fragile and point out the older
-bugs proving that then I can imagine we should care.
-
->   (2) sysctl_oom_kill_allocating_task path can be selected forever
->       because it did not check for MMF_OOM_SKIP.
-
-Why is that a problem? sysctl_oom_kill_allocating_task doesn't have any
-well defined semantic. It is a gross hack to save long and expensive oom
-victim selection. If we were too strict we should even not allow anybody
-else but an allocating task to be killed. So selecting it multiple times
-doesn't sound harmful to me.
-
->   (3) CONFIG_MMU=n kernels might livelock because nobody except
->       is_global_init() case in __oom_kill_process() sets MMF_OOM_SKIP.
-
-And now the obligatory question. Is this a real problem?
- 
-> which prevent proof of "the forward progress guarantee"
-> and adds one optimization
+> This is done is preparation for adding a new system call for memory
+> encyption keys. The intent is that the new encrypted mprotect will be
+> another extension to legacy mprotect.
 > 
->   (4) oom_evaluate_task() was calling oom_unkillable_task() twice because
->       oom_evaluate_task() needs to check for !MMF_OOM_SKIP and
->       oom_task_origin() tasks before calling oom_badness().
+> Signed-off-by: Alison Schofield <alison.schofield@intel.com>
+> ---
+>  mm/mprotect.c | 10 ++++++----
+>  1 file changed, 6 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/mprotect.c b/mm/mprotect.c
+> index 68dc476310c0..56e64ef7931e 100644
+> --- a/mm/mprotect.c
+> +++ b/mm/mprotect.c
+> @@ -35,6 +35,8 @@
+>  
+>  #include "internal.h"
+>  
+> +#define NO_PKEY  -1
 
-ENOPARSE
--- 
-Michal Hocko
-SUSE Labs
+This commit does not make anything more generic but it does take
+away a magic number. The code change is senseful. The commit
+message is nonsense.
+
+PS. Please use @linux.intel.com for LKML.
+
+/Jarkko
