@@ -1,88 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BB1508E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 10:46:52 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id 40-v6so18974315wrb.23
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 07:46:52 -0700 (PDT)
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id z74-v6si131088wmz.160.2018.09.10.07.46.47
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C8F0E8E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 10:59:39 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id u195-v6so3058563ith.2
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 07:59:39 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id h185-v6si11871439itg.43.2018.09.10.07.59.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 07:46:47 -0700 (PDT)
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: How to handle PTE tables with non contiguous entries ?
-Message-ID: <ddc3bb56-4da0-c093-256f-185d4a612b5c@c-s.fr>
-Date: Mon, 10 Sep 2018 14:34:37 +0000
+        Mon, 10 Sep 2018 07:59:32 -0700 (PDT)
+Subject: Re: [RFC PATCH 0/3] rework mmap-exit vs. oom_reaper handover
+References: <1536382452-3443-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180910125513.311-1-mhocko@kernel.org>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <cc772297-5aeb-8410-d902-c224f4717514@i-love.sakura.ne.jp>
+Date: Mon, 10 Sep 2018 23:59:02 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20180910125513.311-1-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-mm@kvack.org, aneesh.kumar@linux.vnet.ibm.com, Nicholas Piggin <npiggin@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org
-Cc: LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Hi,
+Thank you for proposing a patch.
 
-I'm having a hard time figuring out the best way to handle the following 
-situation:
+On 2018/09/10 21:55, Michal Hocko wrote:
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 5f2b2b1..99bb9ce 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -3091,7 +3081,31 @@ void exit_mmap(struct mm_struct *mm)
+>  	/* update_hiwater_rss(mm) here? but nobody should be looking */
+>  	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+>  	unmap_vmas(&tlb, vma, 0, -1);
 
-On the powerpc8xx, handling 16k size pages requires to have page tables 
-with 4 identical entries.
+unmap_vmas() might involve hugepage path. Is it safe to race with the OOM reaper?
 
-Initially I was thinking about handling this by simply modifying 
-pte_index() which changing pte_t type in order to have one entry every 
-16 bytes, then replicate the PTE value at *ptep, *ptep+1,*ptep+2 and 
-*ptep+3 both in set_pte_at() and pte_update().
+  i_mmap_lock_write(vma->vm_file->f_mapping);
+  __unmap_hugepage_range_final(tlb, vma, start, end, NULL);
+  i_mmap_unlock_write(vma->vm_file->f_mapping);
 
-However, this doesn't work because many many places in the mm core part 
-of the kernel use loops on ptep with single ptep++ increment.
+> -	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+> +
+> +	/* oom_reaper cannot race with the page tables teardown */
+> +	if (oom)
+> +		down_write(&mm->mmap_sem);
+> +	/*
+> +	 * Hide vma from rmap and truncate_pagecache before freeing
+> +	 * pgtables
+> +	 */
+> +	while (vma) {
+> +		unlink_anon_vmas(vma);
+> +		unlink_file_vma(vma);
+> +		vma = vma->vm_next;
+> +	}
+> +	vma = mm->mmap;
+> +	if (oom) {
+> +		/*
+> +		 * the exit path is guaranteed to finish without any unbound
+> +		 * blocking at this stage so make it clear to the caller.
+> +		 */
+> +		mm->mmap = NULL;
+> +		up_write(&mm->mmap_sem);
+> +	}
+> +
+> +	free_pgd_range(&tlb, vma->vm_start, vma->vm_prev->vm_end,
+> +			FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
 
-Therefore did it with the following hack:
+Are you trying to inline free_pgtables() here? But some architectures are
+using hugetlb_free_pgd_range() which does more than free_pgd_range(). Are
+they really safe (with regard to memory allocation dependency and flags
+manipulation) ?
 
-  /* PTE level */
-+#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
-+typedef struct { pte_basic_t pte, pte1, pte2, pte3; } pte_t;
-+#else
-  typedef struct { pte_basic_t pte; } pte_t;
-+#endif
+>  	tlb_finish_mmu(&tlb, 0, -1);
+>  
+>  	/*
 
-@@ -181,7 +192,13 @@ static inline unsigned long pte_update(pte_t *p,
-         : "cc" );
-  #else /* PTE_ATOMIC_UPDATES */
-         unsigned long old = pte_val(*p);
--       *p = __pte((old & ~clr) | set);
-+       unsigned long new = (old & ~clr) | set;
-+
-+#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
-+       p->pte = p->pte1 = p->pte2 = p->pte3 = new;
-+#else
-+       *p = __pte(new);
-+#endif
-  #endif /* !PTE_ATOMIC_UPDATES */
+Also, how do you plan to give this thread enough CPU resources, for this thread might
+be SCHED_IDLE priority? Since this thread might not be a thread which is exiting
+(because this is merely a thread which invoked __mmput()), we can't use boosting
+approach. CPU resource might be given eventually unless schedule_timeout_*() is used,
+but it might be deadly slow if allocating threads keep wasting CPU resources.
 
-  #ifdef CONFIG_44x
-
-
-@@ -161,7 +161,11 @@ static inline void __set_pte_at(struct mm_struct 
-*mm, unsigned long addr,
-         /* Anything else just stores the PTE normally. That covers all 
-64-bit
-          * cases, and 32-bit non-hash with 32-bit PTEs.
-          */
-+#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
-+       ptep->pte = ptep->pte1 = ptep->pte2 = ptep->pte3 = pte_val(pte);
-+#else
-         *ptep = pte;
-+#endif
-
-
-
-But I'm not too happy with it as it means pte_t is not a single type 
-anymore so passing it from one function to the other is quite heavy.
-
-
-Would someone have an idea of an elegent way to handle that ?
-
-Thanks
-Christophe
+Also, why MMF_OOM_SKIP will not be set if the OOM reaper handed over?
