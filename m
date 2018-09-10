@@ -1,66 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C32C8E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 16:05:46 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id a10-v6so10361540pls.23
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 13:05:46 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id j61-v6sor1968734plb.68.2018.09.10.13.05.44
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 570538E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 16:08:38 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id v9-v6so11690012pff.4
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 13:08:38 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r13-v6sor2997353pls.81.2018.09.10.13.08.36
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 10 Sep 2018 13:05:45 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: How to handle PTE tables with non contiguous entries ?
-From: Dan Malek <dan.malek@konsulko.com>
-In-Reply-To: <ddc3bb56-4da0-c093-256f-185d4a612b5c@c-s.fr>
-Date: Mon, 10 Sep 2018 13:05:41 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <98C61C92-0D24-41C6-B9DA-8335B34D3B07@konsulko.com>
-References: <ddc3bb56-4da0-c093-256f-185d4a612b5c@c-s.fr>
+        Mon, 10 Sep 2018 13:08:37 -0700 (PDT)
+Date: Mon, 10 Sep 2018 13:08:34 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE
+ mappings
+In-Reply-To: <20180907130550.11885-1-mhocko@kernel.org>
+Message-ID: <alpine.DEB.2.21.1809101253080.177111@chino.kir.corp.google.com>
+References: <20180907130550.11885-1-mhocko@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christophe Leroy <christophe.leroy@c-s.fr>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aneesh.kumar@linux.vnet.ibm.com, Nicholas Piggin <npiggin@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Stefan Priebe <s.priebe@profihost.ag>
 
+On Fri, 7 Sep 2018, Michal Hocko wrote:
 
-Hello Cristophe.
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> Andrea has noticed [1] that a THP allocation might be really disruptive
+> when allocated on NUMA system with the local node full or hard to
+> reclaim. Stefan has posted an allocation stall report on 4.12 based
+> SLES kernel which suggests the same issue:
+> [245513.362669] kvm: page allocation stalls for 194572ms, order:9, mode:0x4740ca(__GFP_HIGHMEM|__GFP_IO|__GFP_FS|__GFP_COMP|__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE|__GFP_MOVABLE|__GFP_DIRECT_RECLAIM), nodemask=(null)
+> [245513.363983] kvm cpuset=/ mems_allowed=0-1
+> [245513.364604] CPU: 10 PID: 84752 Comm: kvm Tainted: G        W 4.12.0+98-ph <a href="/view.php?id=1" title="[geschlossen] Integration Ramdisk" class="resolved">0000001</a> SLE15 (unreleased)
+> [245513.365258] Hardware name: Supermicro SYS-1029P-WTRT/X11DDW-NT, BIOS 2.0 12/05/2017
+> [245513.365905] Call Trace:
+> [245513.366535]  dump_stack+0x5c/0x84
+> [245513.367148]  warn_alloc+0xe0/0x180
+> [245513.367769]  __alloc_pages_slowpath+0x820/0xc90
+> [245513.368406]  ? __slab_free+0xa9/0x2f0
+> [245513.369048]  ? __slab_free+0xa9/0x2f0
+> [245513.369671]  __alloc_pages_nodemask+0x1cc/0x210
+> [245513.370300]  alloc_pages_vma+0x1e5/0x280
+> [245513.370921]  do_huge_pmd_wp_page+0x83f/0xf00
+> [245513.371554]  ? set_huge_zero_page.isra.52.part.53+0x9b/0xb0
+> [245513.372184]  ? do_huge_pmd_anonymous_page+0x631/0x6d0
+> [245513.372812]  __handle_mm_fault+0x93d/0x1060
+> [245513.373439]  handle_mm_fault+0xc6/0x1b0
+> [245513.374042]  __do_page_fault+0x230/0x430
+> [245513.374679]  ? get_vtime_delta+0x13/0xb0
+> [245513.375411]  do_page_fault+0x2a/0x70
+> [245513.376145]  ? page_fault+0x65/0x80
+> [245513.376882]  page_fault+0x7b/0x80
 
-> On Sep 10, 2018, at 7:34 AM, Christophe Leroy =
-<christophe.leroy@c-s.fr> wrote:
->=20
-> On the powerpc8xx, handling 16k size pages requires to have page =
-tables with 4 identical entries.
+Since we don't have __GFP_REPEAT, this suggests that 
+__alloc_pages_direct_compact() took >100s to complete.  The memory 
+capacity of the system isn't shown, but I assume it's around 768GB?  This 
+should be with COMPACT_PRIO_ASYNC, and MIGRATE_ASYNC compaction certainly 
+should abort much earlier.
 
-Do you think a 16k page is useful?  Back in the day, the goal was to =
-keep the fault handling and management overhead as simple and generic as =
-possible, as you know this affects the system performance.  I understand =
-there would be fewer page faults and more efficient use of the MMU =
-resources with 16k, but if this comes at an overhead cost, is it really =
-worth it?
+> [...]
+> [245513.382056] Mem-Info:
+> [245513.382634] active_anon:126315487 inactive_anon:1612476 isolated_anon:5
+>                  active_file:60183 inactive_file:245285 isolated_file:0
+>                  unevictable:15657 dirty:286 writeback:1 unstable:0
+>                  slab_reclaimable:75543 slab_unreclaimable:2509111
+>                  mapped:81814 shmem:31764 pagetables:370616 bounce:0
+>                  free:32294031 free_pcp:6233 free_cma:0
+> [245513.386615] Node 0 active_anon:254680388kB inactive_anon:1112760kB active_file:240648kB inactive_file:981168kB unevictable:13368kB isolated(anon):0kB isolated(file):0kB mapped:280240kB dirty:1144kB writeback:0kB shmem:95832kB shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 81225728kB writeback_tmp:0kB unstable:0kB all_unreclaimable? no
+> [245513.388650] Node 1 active_anon:250583072kB inactive_anon:5337144kB active_file:84kB inactive_file:0kB unevictable:49260kB isolated(anon):20kB isolated(file):0kB mapped:47016kB dirty:0kB writeback:4kB shmem:31224kB shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 31897600kB writeback_tmp:0kB unstable:0kB all_unreclaimable? no
+> 
+> The defrag mode is "madvise" and from the above report it is clear that
+> the THP has been allocated for MADV_HUGEPAGA vma.
+> 
+> Andrea has identified that the main source of the problem is
+> __GFP_THISNODE usage:
+> 
+> : The problem is that direct compaction combined with the NUMA
+> : __GFP_THISNODE logic in mempolicy.c is telling reclaim to swap very
+> : hard the local node, instead of failing the allocation if there's no
+> : THP available in the local node.
+> :
+> : Such logic was ok until __GFP_THISNODE was added to the THP allocation
+> : path even with MPOL_DEFAULT.
+> :
+> : The idea behind the __GFP_THISNODE addition, is that it is better to
+> : provide local memory in PAGE_SIZE units than to use remote NUMA THP
+> : backed memory. That largely depends on the remote latency though, on
+> : threadrippers for example the overhead is relatively low in my
+> : experience.
+> :
+> : The combination of __GFP_THISNODE and __GFP_DIRECT_RECLAIM results in
+> : extremely slow qemu startup with vfio, if the VM is larger than the
+> : size of one host NUMA node. This is because it will try very hard to
+> : unsuccessfully swapout get_user_pages pinned pages as result of the
+> : __GFP_THISNODE being set, instead of falling back to PAGE_SIZE
+> : allocations and instead of trying to allocate THP on other nodes (it
+> : would be even worse without vfio type1 GUP pins of course, except it'd
+> : be swapping heavily instead).
+> 
+> Fix this by removing __GFP_THISNODE handling from alloc_pages_vma where
+> it doesn't belong and move it to alloc_hugepage_direct_gfpmask where we
+> juggle gfp flags for different allocation modes. The rationale is that
+> __GFP_THISNODE is helpful in relaxed defrag modes because falling back
+> to a different node might be more harmful than the benefit of a large page.
+> If the user really requires THP (e.g. by MADV_HUGEPAGE) then the THP has
+> a higher priority than local NUMA placement.
+> 
 
-In addition to the normal 4k mapping, I had thought about using 512k =
-mapping, which could be easily detected at level 2 (PMD), with a single =
-entry loaded into the MMU.  We would need an aux header or something =
-from the executable/library to assist with knowing when this could be =
-done.  I never got around to it. :)
+That's not entirely true, the remote access latency for remote thp on all 
+of our platforms is greater than local small pages, this is especially 
+true for remote thp that is allocated intersocket and must be accessed 
+through the interconnect.
 
-The 8xx platforms tended to have smaller memory resources, so the 4k =
-granularity was also useful in making better use of the available space.
+Our users of MADV_HUGEPAGE are ok with assuming the burden of increased 
+allocation latency, but certainly not remote access latency.  There are 
+users who remap their text segment onto transparent hugepages are fine 
+with startup delay if they are access all of their text from local thp.  
+Remote thp would be a significant performance degradation.
 
-> Would someone have an idea of an elegent way to handle that ?
-
-My suggestion would be to not change the PTE table, but have the fault =
-handler detect a 16k page and load any one of the four entries based =
-upon miss offset.  Kinda use the same 4k miss hander, but with 16k =
-knowledge.  You wouldn=E2=80=99t save any PTE table space, but the MMU =
-efficiency may be worth it.  As I recall, the hardware may ignore/mask =
-any LS bits, and there is PMD level information to utilize as well.
-
-It=E2=80=99s been a long time since I=E2=80=99ve investigated how things =
-have evolved, glad it=E2=80=99s still in use, and I hope you at least =
-have some fun with the development :)
-
-Thanks.
-
-	=E2=80=94 Dan
+When Andrea brought this up, I suggested that the full solution would be a 
+MPOL_F_HUGEPAGE flag that could define thp allocation policy -- the added 
+benefit is that we could replace the thp "defrag" mode default by setting 
+this as part of default_policy.  Right now, MADV_HUGEPAGE users are 
+concerned about (1) getting thp when system-wide it is not default and (2) 
+additional fault latency when direct compaction is not default.  They are 
+not anticipating the degradation of remote access latency, so overloading 
+the meaning of the mode is probably not a good idea.
