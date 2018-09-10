@@ -1,137 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 27DF18E0001
-	for <linux-mm@kvack.org>; Sat,  8 Sep 2018 21:38:11 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id g11-v6so5800132edi.8
-        for <linux-mm@kvack.org>; Sat, 08 Sep 2018 18:38:11 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i37-v6sor11814501eda.28.2018.09.08.18.38.09
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E09E18E0001
+	for <linux-mm@kvack.org>; Sun,  9 Sep 2018 21:10:25 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id bh1-v6so9278352plb.15
+        for <linux-mm@kvack.org>; Sun, 09 Sep 2018 18:10:25 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id r21-v6si15260853pgi.690.2018.09.09.18.10.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 08 Sep 2018 18:38:09 -0700 (PDT)
-Date: Sun, 9 Sep 2018 01:38:07 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH 1/3] mm/sparse: add likely to mem_section[root] check in
- sparse_index_init()
-Message-ID: <20180909013807.6ux4cidt3nehofz5@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20180823130732.9489-1-richard.weiyang@gmail.com>
- <20180823130732.9489-2-richard.weiyang@gmail.com>
- <cc817bc8-bced-fb07-cb2d-c122463380a7@intel.com>
- <20180824150717.GA10093@WeideMacBook-Pro.local>
- <20180903222732.v52zdya2c2hkff7n@master>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 09 Sep 2018 18:10:24 -0700 (PDT)
+From: "Huang, Kai" <kai.huang@intel.com>
+Subject: RE: [RFC 00/12] Multi-Key Total Memory Encryption API (MKTME)
+Date: Mon, 10 Sep 2018 01:10:19 +0000
+Message-ID: <105F7BF4D0229846AF094488D65A098935424961@PGSMSX112.gar.corp.intel.com>
+References: <cover.1536356108.git.alison.schofield@intel.com>
+In-Reply-To: <cover.1536356108.git.alison.schofield@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180903222732.v52zdya2c2hkff7n@master>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
+To: "Schofield, Alison" <alison.schofield@intel.com>, "dhowells@redhat.com" <dhowells@redhat.com>, "tglx@linutronix.de" <tglx@linutronix.de>
+Cc: "Nakajima, Jun" <jun.nakajima@intel.com>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>, "jmorris@namei.org" <jmorris@namei.org>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Sep 03, 2018 at 10:27:32PM +0000, Wei Yang wrote:
->On Fri, Aug 24, 2018 at 11:07:17PM +0800, Wei Yang wrote:
->>On Thu, Aug 23, 2018 at 05:11:48PM -0700, Dave Hansen wrote:
->>>On 08/23/2018 06:07 AM, Wei Yang wrote:
->>>> --- a/mm/sparse.c
->>>> +++ b/mm/sparse.c
->>>> @@ -78,7 +78,7 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
->>>>  	unsigned long root = SECTION_NR_TO_ROOT(section_nr);
->>>>  	struct mem_section *section;
->>>>  
->>>> -	if (mem_section[root])
->>>> +	if (likely(mem_section[root]))
->>>>  		return -EEXIST;
->>>
->>>We could add likely()/unlikely() to approximately a billion if()s around
->>>the kernel if we felt like it.  We don't because it's messy and it
->>>actually takes away choices from the compiler.
->>>
->>>Please don't send patches like this unless you have some *actual*
->>>analysis that shows the benefit of the patch.  Performance numbers are best.
->>
->
->Hi, 
->
->Is my analysis reasonable? Or which part is not valid?
->
 
-Would someone share some idea on my analysis?
+> -----Original Message-----
+> From: keyrings-owner@vger.kernel.org [mailto:keyrings-
+> owner@vger.kernel.org] On Behalf Of Alison Schofield
+> Sent: Saturday, September 8, 2018 10:23 AM
+> To: dhowells@redhat.com; tglx@linutronix.de
+> Cc: Huang, Kai <kai.huang@intel.com>; Nakajima, Jun
+> <jun.nakajima@intel.com>; Shutemov, Kirill <kirill.shutemov@intel.com>;
+> Hansen, Dave <dave.hansen@intel.com>; Sakkinen, Jarkko
+> <jarkko.sakkinen@intel.com>; jmorris@namei.org; keyrings@vger.kernel.org;
+> linux-security-module@vger.kernel.org; mingo@redhat.com; hpa@zytor.com;
+> x86@kernel.org; linux-mm@kvack.org
+> Subject: [RFC 00/12] Multi-Key Total Memory Encryption API (MKTME)
+>=20
+> Seeking comments on the APIs supporting MKTME on future Intel platforms.
+>=20
+> MKTME (Multi-Key Total Memory Encryption) is a technology supporting
+> memory encryption on upcoming Intel platforms. Whereas TME allows
+> encryption of the entire system memory using a single key, MKTME allows
+> mulitple encryption domains, each having their own key. While the main us=
+e
+> case for the feature is virtual machine isolation, the API needs the flex=
+ibility to
+> work for a wide range of use cases.
+>=20
+> This RFC presents the 2 API additions that enable userspace to:
+>  1) Create Encryption Keys: Kernel Key Service type "mktme"
+>  2) Use the Encryption Keys: system call encrypt_mprotect()
+>=20
+> In order to share between: the Kernel Key Service, the new system call, a=
+nd the
+> existing mm code, helper functions were created in arch/x86/mktme
 
->>Thanks all for your comments, Michal, Dave and Oscar.
->>
->>Well, maybe I took it for granted, so let me put more words on this. To be
->>honest, my analysis maybe partially effective, so if the cost is higher than
->>the gain, please let me know.
->>
->>Below is my analysis and test result for this patch.
->>------------------------------------------------------
->>
->>During bootup, the call flow looks like this.
->>
->>    sparse_memory_present_with_active_regions()
->>        memory_present()
->>            sparse_index_init()
->>
->>sparse_memory_present_with_active_regions() iterates on pfn continuously for
->>the whole system RAM, which leads to sparse_index_init() will iterate
->>section_nr continuously. Usually, we don't expect many large holes, right?
->>
->>Each time when mem_section[root] is null, SECTIONS_PER_ROOT number of
->>mem_section will be allocated. This means, for SECTIONS_PER_ROOT number of
->>check, only the first check is false. So the possibility to be false is 
->>(1 / SECTIONS_PER_ROOT).
->>
->>SECTIONS_PER_ROOT is defined as (PAGE_SIZE / sizeof (struct mem_section)).
->>
->>On my x86_64 machine, PAGE_SIZE is 4KB and mem_section is 16B.
->>
->>    SECTIONS_PER_ROOT = 4K / 16 = 256.
->>
->>So the check for mem_section[root] is (1 / 256) chance to be invalid and
->>(255 / 256) valid. In theory, this value seems to be a "likely" to me.
->>
->>In practice, when the system RAM is multiple times of
->>((1 << SECTION_SIZE_BITS) * SECTIONS_PER_ROOT), the "likely" chance is
->>(255 / 256), otherwise the chance would be less. 
->>
->>On my x86_64 machine, SECTION_SIZE_BITS is defined to 27.
->>
->>    ((1 << SECTION_SIZE_BITS) * SECTIONS_PER_ROOT) = 32GB
->>
->>          System RAM size       32G         16G        8G         4G
->>      Possibility          (255 / 256) (127 / 128) (63 / 64)  (31 / 32)
->>
->>Generally, in my mind, if we iterate pfn continuously and there is no large
->>holes, the check on mem_section[root] is likely to be true.
->>
->>At last, here is the test result on my 4G virtual machine. I added printk
->>before and after sparse_memory_present_with_active_regions() and tested three
->>times with/without "likely".
->>
->>                without      with
->>     Elapsed   0.000252     0.000250   -0.8%
->>
->>The benefit seems to be too small on a 4G virtual machine or even this is not
->>stable. Not sure we can see some visible effect on a 32G machine.
->>
->>
->>Well, above is all my analysis and test result. I did the optimization based
->>on my own experience and understanding. If this is not qualified, I am very
->>glad to hear from your statement, so that I would learn more from your
->>experience.
->>
->>Thanks all for your comments again :-)
->> 
->>
->>-- 
->>Wei Yang
->>Help you, Help me
->
->-- 
->Wei Yang
->Help you, Help me
+IMHO, we can separate this series into 2 parts, as you did above, and send =
+out them separately. The reason is, in general I think adding new MKTME typ=
+e to key retention services is not that related to memory management code, =
+namely the encrypt_mprotect() API part.
 
--- 
-Wei Yang
-Help you, Help me
+So if we split the two parts and send them out separately, the first part c=
+an be reviewed by keyring and security guys, without involving mm guys, and=
+ the encrypt_mprotect() part can be more reviewed more by mm guys.=20
+
+And since encrypt_mprotect() is a new syscall, you may need to add more lis=
+ts for the review, ie, linux-api, and maybe linux-kernel as well.
+
+Thanks,
+-Kai
+
+>=20
+> This patchset is built upon Kirill Shutemov's patchset for the core MKTME
+> support. You can find that here:
+> git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git mktme/wip
+>=20
+>=20
+> Alison Schofield (12):
+>   docs/x86: Document the Multi-Key Total Memory Encryption API
+>   mm: Generalize the mprotect implementation to support extensions
+>   syscall/x86: Wire up a new system call for memory encryption keys
+>   x86/mm: Add helper functions to manage memory encryption keys
+>   x86/mm: Add a helper function to set keyid bits in encrypted VMA's
+>   mm: Add the encrypt_mprotect() system call
+>   x86/mm: Add helper functions to track encrypted VMA's
+>   mm: Track VMA's in use for each memory encryption keyid
+>   mm: Restrict memory encryption to anonymous VMA's
+>   x86/pconfig: Program memory encryption keys on a system-wide basis
+>   keys/mktme: Add a new key service type for memory encryption keys
+>   keys/mktme: Do not revoke in use memory encryption keys
+>=20
+>  Documentation/x86/mktme-keys.txt       | 153 ++++++++++++++++
+>  arch/x86/Kconfig                       |   1 +
+>  arch/x86/entry/syscalls/syscall_32.tbl |   1 +
+>  arch/x86/entry/syscalls/syscall_64.tbl |   1 +
+>  arch/x86/include/asm/intel_pconfig.h   |  42 ++++-
+>  arch/x86/include/asm/mktme.h           |  21 +++
+>  arch/x86/mm/mktme.c                    | 141 ++++++++++++++
+>  fs/exec.c                              |   4 +-
+>  include/keys/mktme-type.h              |  28 +++
+>  include/linux/key.h                    |   2 +
+>  include/linux/mm.h                     |   9 +-
+>  include/linux/syscalls.h               |   2 +
+>  include/uapi/asm-generic/unistd.h      |   4 +-
+>  kernel/fork.c                          |   2 +
+>  kernel/sys_ni.c                        |   2 +
+>  mm/mmap.c                              |  12 ++
+>  mm/mprotect.c                          |  93 +++++++++-
+>  mm/nommu.c                             |   4 +
+>  security/keys/Kconfig                  |  11 ++
+>  security/keys/Makefile                 |   1 +
+>  security/keys/internal.h               |   6 +
+>  security/keys/keyctl.c                 |   7 +
+>  security/keys/mktme_keys.c             | 325
+> +++++++++++++++++++++++++++++++++
+>  23 files changed, 855 insertions(+), 17 deletions(-)  create mode 100644
+> Documentation/x86/mktme-keys.txt  create mode 100644 include/keys/mktme-
+> type.h  create mode 100644 security/keys/mktme_keys.c
+>=20
+> --
+> 2.14.1
