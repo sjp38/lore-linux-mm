@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A6918E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 08:55:56 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id d47-v6so7204371edb.3
+	by kanga.kvack.org (Postfix) with ESMTP id 08CDC8E0006
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 08:55:57 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id 57-v6so7210559edt.15
         for <linux-mm@kvack.org>; Mon, 10 Sep 2018 05:55:56 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g54-v6sor14960078edg.7.2018.09.10.05.55.54
+        by mx.google.com with SMTPS id y50-v6sor14275219edd.15.2018.09.10.05.55.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 10 Sep 2018 05:55:54 -0700 (PDT)
+        Mon, 10 Sep 2018 05:55:55 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH 1/3] mm, oom: rework mmap_exit vs. oom_reaper synchronization
-Date: Mon, 10 Sep 2018 14:55:11 +0200
-Message-Id: <20180910125513.311-2-mhocko@kernel.org>
+Subject: [RFC PATCH 2/3] mm, oom: keep retrying the oom_reap operation as long as there is substantial memory left
+Date: Mon, 10 Sep 2018 14:55:12 +0200
+Message-Id: <20180910125513.311-3-mhocko@kernel.org>
 In-Reply-To: <20180910125513.311-1-mhocko@kernel.org>
 References: <1536382452-3443-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
  <20180910125513.311-1-mhocko@kernel.org>
@@ -23,104 +23,69 @@ Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Roman Gushchin <guro@fb.c
 
 From: Michal Hocko <mhocko@suse.com>
 
-The oom_reaper cannot handle mlocked vmas right now and therefore we
-have exit_mmap to reap the memory before it clears the mlock flags on
-mappings. This is all good but we would like to have a better hand over
-protocol between the oom_reaper and exit_mmap paths.
+oom_reaper is not able to reap all types of memory. E.g. mlocked
+mappings or page tables. In some cases this might be a lot of memory
+and we do rely on exit_mmap to release that memory. Yet we cannot rely
+on exit_mmap to set MMF_OOM_SKIP right now because there are several
+places when sleeping locks are taken.
 
-Therefore use exclusive mmap_sem in exit_mmap whenever exit_mmap has to
-synchronize with the oom_reaper. There are two notable places. Mlocked
-vmas (munlock_vma_pages_all) and page tables tear down path. All others
-should be fine to race with oom_reap_task_mm.
-
-This is mostly a preparatory patch which shouldn't introduce functional
-changes.
+This patch adds a simple heuristic to check for the amount of memory
+the mm is sitting on after oom_reaper is done with it. If this is still
+few megabytes (this is a subject for further tunning based on real world
+usecases) then simply keep retrying oom_reap_task_mm.
 
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/mmap.c | 48 +++++++++++++++++++++++-------------------------
- 1 file changed, 23 insertions(+), 25 deletions(-)
+ mm/oom_kill.c | 23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 5f2b2b184c60..3481424717ac 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3042,39 +3042,29 @@ void exit_mmap(struct mm_struct *mm)
- 	struct mmu_gather tlb;
- 	struct vm_area_struct *vma;
- 	unsigned long nr_accounted = 0;
-+	bool oom = mm_is_oom_victim(mm);
- 
- 	/* mm's last user has gone, and its about to be pulled down */
- 	mmu_notifier_release(mm);
- 
--	if (unlikely(mm_is_oom_victim(mm))) {
--		/*
--		 * Manually reap the mm to free as much memory as possible.
--		 * Then, as the oom reaper does, set MMF_OOM_SKIP to disregard
--		 * this mm from further consideration.  Taking mm->mmap_sem for
--		 * write after setting MMF_OOM_SKIP will guarantee that the oom
--		 * reaper will not run on this mm again after mmap_sem is
--		 * dropped.
--		 *
--		 * Nothing can be holding mm->mmap_sem here and the above call
--		 * to mmu_notifier_release(mm) ensures mmu notifier callbacks in
--		 * __oom_reap_task_mm() will not block.
--		 *
--		 * This needs to be done before calling munlock_vma_pages_all(),
--		 * which clears VM_LOCKED, otherwise the oom reaper cannot
--		 * reliably test it.
--		 */
--		(void)__oom_reap_task_mm(mm);
--
--		set_bit(MMF_OOM_SKIP, &mm->flags);
--		down_write(&mm->mmap_sem);
--		up_write(&mm->mmap_sem);
--	}
--
- 	if (mm->locked_vm) {
- 		vma = mm->mmap;
- 		while (vma) {
--			if (vma->vm_flags & VM_LOCKED)
-+			if (vma->vm_flags & VM_LOCKED) {
-+				/*
-+				 * oom_reaper cannot handle mlocked vmas but we
-+				 * need to serialize it with munlock_vma_pages_all
-+				 * which clears VM_LOCKED, otherwise the oom reaper
-+				 * cannot reliably test it.
-+				 */
-+				if (oom)
-+					down_write(&mm->mmap_sem);
-+
- 				munlock_vma_pages_all(vma);
-+
-+				if (oom)
-+					up_write(&mm->mmap_sem);
-+			}
- 			vma = vma->vm_next;
- 		}
- 	}
-@@ -3091,6 +3081,11 @@ void exit_mmap(struct mm_struct *mm)
- 	/* update_hiwater_rss(mm) here? but nobody should be looking */
- 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
- 	unmap_vmas(&tlb, vma, 0, -1);
-+
-+	/* oom_reaper cannot race with the page tables teardown */
-+	if (oom)
-+		down_write(&mm->mmap_sem);
-+
- 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
- 	tlb_finish_mmu(&tlb, 0, -1);
- 
-@@ -3104,6 +3099,9 @@ void exit_mmap(struct mm_struct *mm)
- 		vma = remove_vma(vma);
- 	}
- 	vm_unacct_memory(nr_accounted);
-+
-+	if (oom)
-+		up_write(&mm->mmap_sem);
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index f10aa5360616..049e67dc039b 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -189,6 +189,16 @@ static bool is_dump_unreclaim_slabs(void)
+ 	return (global_node_page_state(NR_SLAB_UNRECLAIMABLE) > nr_lru);
  }
  
- /* Insert vm structure into process list sorted by address
++/*
++ * Rough memory consumption of the given mm which should be theoretically freed
++ * when the mm is removed.
++ */
++static unsigned long oom_badness_pages(struct mm_struct *mm)
++{
++	return get_mm_rss(mm) + get_mm_counter(mm, MM_SWAPENTS) +
++		mm_pgtables_bytes(mm) / PAGE_SIZE;
++}
++
+ /**
+  * oom_badness - heuristic function to determine which candidate task to kill
+  * @p: task struct of which task we should calculate
+@@ -230,8 +240,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+ 	 * The baseline for the badness score is the proportion of RAM that each
+ 	 * task's rss, pagetable and swap space use.
+ 	 */
+-	points = get_mm_rss(p->mm) + get_mm_counter(p->mm, MM_SWAPENTS) +
+-		mm_pgtables_bytes(p->mm) / PAGE_SIZE;
++	points = oom_badness_pages(p->mm);
+ 	task_unlock(p);
+ 
+ 	/* Normalize to oom_score_adj units */
+@@ -532,6 +541,16 @@ bool __oom_reap_task_mm(struct mm_struct *mm)
+ 		}
+ 	}
+ 
++	/*
++	 * If we still sit on a noticeable amount of memory even after successfully
++	 * reaping the address space then keep retrying until exit_mmap makes some
++	 * further progress.
++	 * TODO: add a flag for a stage when the exit path doesn't block anymore
++	 * and hand over MMF_OOM_SKIP handling there in that case
++	 */
++	if (ret && oom_badness_pages(mm) > 1024)
++		ret = false;
++
+ 	return ret;
+ }
+ 
 -- 
 2.18.0
