@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 61DC98E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 19:43:57 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id 3-v6so10636084plq.6
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 16:43:57 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DF848E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 19:44:04 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id 2-v6so10572786plc.11
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 16:44:04 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x21-v6sor2360929pgx.300.2018.09.10.16.43.55
+        by mx.google.com with SMTPS id u9-v6sor3090814plz.78.2018.09.10.16.44.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 10 Sep 2018 16:43:55 -0700 (PDT)
-Subject: [PATCH 3/4] mm: Defer ZONE_DEVICE page initialization to the point
- where we init pgmap
+        Mon, 10 Sep 2018 16:44:02 -0700 (PDT)
+Subject: [PATCH 4/4] nvdimm: Trigger the device probe on a cpu local to the
+ device
 From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Mon, 10 Sep 2018 16:43:54 -0700
-Message-ID: <20180910234354.4068.65260.stgit@localhost.localdomain>
+Date: Mon, 10 Sep 2018 16:44:00 -0700
+Message-ID: <20180910234400.4068.15541.stgit@localhost.localdomain>
 In-Reply-To: <20180910232615.4068.29155.stgit@localhost.localdomain>
 References: <20180910232615.4068.29155.stgit@localhost.localdomain>
 MIME-Version: 1.0
@@ -26,224 +26,92 @@ Cc: pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com, mingo@k
 
 From: Alexander Duyck <alexander.h.duyck@intel.com>
 
-The ZONE_DEVICE pages were being initialized in two locations. One was with
-the memory_hotplug lock held and another was outside of that lock. The
-problem with this is that it was nearly doubling the memory initialization
-time. Instead of doing this twice, once while holding a global lock and
-once without, I am opting to defer the initialization to the one outside of
-the lock. This allows us to avoid serializing the overhead for memory init
-and we can instead focus on per-node init times.
+This patch is based off of the pci_call_probe function used to initialize
+PCI devices. The general idea here is to move the probe call to a location
+that is local to the memory being initialized. By doing this we can shave
+significant time off of the total time needed for initialization.
 
-One issue I encountered is that devm_memremap_pages and
-hmm_devmmem_pages_create were initializing only the pgmap field the same
-way. One wasn't initializing hmm_data, and the other was initializing it to
-a poison value. Since this is something that is exposed to the driver in
-the case of hmm I am opting for a third option and just initializing
-hmm_data to 0 since this is going to be exposed to unknown third party
-drivers.
+With this patch applied I see a significant reduction in overall init time
+as without it the init varied between 23 and 37 seconds to initialize a 3GB
+node. With this patch applied the variance is only between 23 and 26
+seconds to initialize each node.
+
+I hope to refine this further in the future by combining this logic into
+the async_schedule_domain code that is already in use. By doing that it
+would likely make this functionality redundant.
 
 Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
 ---
- include/linux/mm.h |    2 +
- kernel/memremap.c  |   24 +++++---------
- mm/hmm.c           |   12 ++++---
- mm/page_alloc.c    |   89 +++++++++++++++++++++++++++++++++++++++++++++++++++-
- 4 files changed, 105 insertions(+), 22 deletions(-)
+ drivers/nvdimm/bus.c |   45 ++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 44 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a61ebe8ad4ca..47b440bb3050 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -848,6 +848,8 @@ static inline bool is_zone_device_page(const struct page *page)
- {
- 	return page_zonenum(page) == ZONE_DEVICE;
- }
-+extern void memmap_init_zone_device(struct zone *, unsigned long,
-+				    unsigned long, struct dev_pagemap *);
- #else
- static inline bool is_zone_device_page(const struct page *page)
- {
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 5b8600d39931..d0c32e473f82 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -175,10 +175,10 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 	struct vmem_altmap *altmap = pgmap->altmap_valid ?
- 			&pgmap->altmap : NULL;
- 	struct resource *res = &pgmap->res;
--	unsigned long pfn, pgoff, order;
-+	struct dev_pagemap *conflict_pgmap;
- 	pgprot_t pgprot = PAGE_KERNEL;
-+	unsigned long pgoff, order;
- 	int error, nid, is_ram;
--	struct dev_pagemap *conflict_pgmap;
- 
- 	align_start = res->start & ~(SECTION_SIZE - 1);
- 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
-@@ -256,19 +256,13 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 	if (error)
- 		goto err_add_memory;
- 
--	for_each_device_pfn(pfn, pgmap) {
--		struct page *page = pfn_to_page(pfn);
--
--		/*
--		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
--		 * pointer.  It is a bug if a ZONE_DEVICE page is ever
--		 * freed or placed on a driver-private list.  Seed the
--		 * storage with LIST_POISON* values.
--		 */
--		list_del(&page->lru);
--		page->pgmap = pgmap;
--		percpu_ref_get(pgmap->ref);
--	}
-+	/*
-+	 * Initialization of the pages has been deferred until now in order
-+	 * to allow us to do the work while not holding the hotplug lock.
-+	 */
-+	memmap_init_zone_device(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
-+				align_start >> PAGE_SHIFT,
-+				align_size >> PAGE_SHIFT, pgmap);
- 
- 	devm_add_action(dev, devm_memremap_pages_release, pgmap);
- 
-diff --git a/mm/hmm.c b/mm/hmm.c
-index c968e49f7a0c..774d684fa2b4 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -1024,7 +1024,6 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
- 	resource_size_t key, align_start, align_size, align_end;
- 	struct device *device = devmem->device;
- 	int ret, nid, is_ram;
--	unsigned long pfn;
- 
- 	align_start = devmem->resource->start & ~(PA_SECTION_SIZE - 1);
- 	align_size = ALIGN(devmem->resource->start +
-@@ -1109,11 +1108,14 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
- 				align_size >> PAGE_SHIFT, NULL);
- 	mem_hotplug_done();
- 
--	for (pfn = devmem->pfn_first; pfn < devmem->pfn_last; pfn++) {
--		struct page *page = pfn_to_page(pfn);
-+	/*
-+	 * Initialization of the pages has been deferred until now in order
-+	 * to allow us to do the work while not holding the hotplug lock.
-+	 */
-+	memmap_init_zone_device(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
-+				align_start >> PAGE_SHIFT,
-+				align_size >> PAGE_SHIFT, &devmem->pagemap);
- 
--		page->pgmap = &devmem->pagemap;
--	}
- 	return 0;
- 
- error_add_memory:
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a9b095a72fd9..81a3fd942c45 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5454,6 +5454,83 @@ void __ref build_all_zonelists(pg_data_t *pgdat)
- #endif
+diff --git a/drivers/nvdimm/bus.c b/drivers/nvdimm/bus.c
+index 8aae6dcc839f..5b73953176b1 100644
+--- a/drivers/nvdimm/bus.c
++++ b/drivers/nvdimm/bus.c
+@@ -27,6 +27,7 @@
+ #include <linux/io.h>
+ #include <linux/mm.h>
+ #include <linux/nd.h>
++#include <linux/cpu.h>
+ #include "nd-core.h"
+ #include "nd.h"
+ #include "pfn.h"
+@@ -90,6 +91,48 @@ static void nvdimm_bus_probe_end(struct nvdimm_bus *nvdimm_bus)
+ 	nvdimm_bus_unlock(&nvdimm_bus->dev);
  }
  
-+#ifdef CONFIG_ZONE_DEVICE
-+void __ref memmap_init_zone_device(struct zone *zone, unsigned long pfn,
-+				   unsigned long size,
-+				   struct dev_pagemap *pgmap)
++struct nvdimm_drv_dev {
++	struct nd_device_driver *nd_drv;
++	struct device *dev;
++};
++
++static long __nvdimm_call_probe(void *_nddd)
 +{
-+	struct pglist_data *pgdat = zone->zone_pgdat;
-+	unsigned long zone_idx = zone_idx(zone);
-+	unsigned long end_pfn = pfn + size;
-+	unsigned long start = jiffies;
-+	int nid = pgdat->node_id;
-+	unsigned long nr_pages;
++	struct nvdimm_drv_dev *nddd = _nddd;
++	struct nd_device_driver *nd_drv = nddd->nd_drv;
 +
-+	if (WARN_ON_ONCE(!pgmap || !is_dev_zone(zone)))
-+		return;
-+
-+	/*
-+	 * The call to memmap_init_zone should have already taken care
-+	 * of the pages reserved for the memmap, so we can just jump to
-+	 * the end of that region and start processing the device pages.
-+	 */
-+	if (pgmap->altmap_valid) {
-+		struct vmem_altmap *altmap = &pgmap->altmap;
-+
-+		pfn = altmap->base_pfn + vmem_altmap_offset(altmap);
-+	}
-+
-+	/* Record the number of pages we are about to initialize */
-+	nr_pages = end_pfn - pfn;
-+
-+	for (; pfn < end_pfn; pfn++) {
-+		struct page *page = pfn_to_page(pfn);
-+
-+		__init_single_page(page, pfn, zone_idx, nid);
-+
-+		/*
-+		 * Mark page reserved as it will need to wait for onlining
-+		 * phase for it to be fully associated with a zone.
-+		 *
-+		 * We can use the non-atomic __set_bit operation for setting
-+		 * the flag as we are still initializing the pages.
-+		 */
-+		__SetPageReserved(page);
-+
-+		/*
-+		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
-+		 * pointer and hmm_data.  It is a bug if a ZONE_DEVICE
-+		 * page is ever freed or placed on a driver-private list.
-+		 */
-+		page->pgmap = pgmap;
-+		page->hmm_data = 0;
-+
-+		/*
-+		 * Mark the block movable so that blocks are reserved for
-+		 * movable at startup. This will force kernel allocations
-+		 * to reserve their blocks rather than leaking throughout
-+		 * the address space during boot when many long-lived
-+		 * kernel allocations are made.
-+		 *
-+		 * bitmap is created for zone's valid pfn range. but memmap
-+		 * can be created for invalid pages (for alignment)
-+		 * check here not to call set_pageblock_migratetype() against
-+		 * pfn out of zone.
-+		 *
-+		 * Please note that MEMMAP_HOTPLUG path doesn't clear memmap
-+		 * because this is done early in sparse_add_one_section
-+		 */
-+		if (!(pfn & (pageblock_nr_pages - 1))) {
-+			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
-+			cond_resched();
-+		}
-+	}
-+
-+	pr_info("%s initialised, %lu pages in %ums\n", dev_name(pgmap->dev),
-+		nr_pages, jiffies_to_msecs(jiffies - start));
++	return nd_drv->probe(nddd->dev);
 +}
 +
-+#endif
- /*
-  * Initially all pages are reserved - free ones are freed
-  * up by free_all_bootmem() once the early boot process is
-@@ -5477,10 +5554,18 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
++static int nvdimm_call_probe(struct nd_device_driver *nd_drv,
++			     struct device *dev)
++{
++	struct nvdimm_drv_dev nddd = { nd_drv, dev };
++	int rc, node, cpu;
++
++	/*
++	 * Execute driver initialization on node where the device is
++	 * attached.  This way the driver will be able to access local
++	 * memory instead of having to initialize memory across nodes.
++	 */
++	node = dev_to_node(dev);
++
++	cpu_hotplug_disable();
++
++	if (node < 0 || node >= MAX_NUMNODES || !node_online(node))
++		cpu = nr_cpu_ids;
++	else
++		cpu = cpumask_any_and(cpumask_of_node(node), cpu_online_mask);
++
++	if (cpu < nr_cpu_ids)
++		rc = work_on_cpu(cpu, __nvdimm_call_probe, &nddd);
++	else
++		rc = __nvdimm_call_probe(&nddd);
++
++	cpu_hotplug_enable();
++	return rc;
++}
++
+ static int nvdimm_bus_probe(struct device *dev)
+ {
+ 	struct nd_device_driver *nd_drv = to_nd_device_driver(dev->driver);
+@@ -104,7 +147,7 @@ static int nvdimm_bus_probe(struct device *dev)
+ 			dev->driver->name, dev_name(dev));
  
- 	/*
- 	 * Honor reservation requested by the driver for this ZONE_DEVICE
--	 * memory
-+	 * memory. We limit the total number of pages to initialize to just
-+	 * those that might contain the memory mapping. We will defer the
-+	 * ZONE_DEVICE page initialization until after we have released
-+	 * the hotplug lock.
- 	 */
--	if (altmap && start_pfn == altmap->base_pfn)
-+	if (altmap && start_pfn == altmap->base_pfn) {
- 		start_pfn += altmap->reserve;
-+		end_pfn = altmap->base_pfn +
-+			  vmem_altmap_offset(altmap);
-+	} else if (zone == ZONE_DEVICE) {
-+		end_pfn = start_pfn;
-+	}
- 
- 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
- 		/*
+ 	nvdimm_bus_probe_start(nvdimm_bus);
+-	rc = nd_drv->probe(dev);
++	rc = nvdimm_call_probe(nd_drv, dev);
+ 	if (rc == 0)
+ 		nd_region_probe_success(nvdimm_bus, dev);
+ 	else
