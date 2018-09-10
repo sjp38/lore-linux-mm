@@ -1,120 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E00318E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 09:46:49 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id k204-v6so8470952ite.1
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 06:46:49 -0700 (PDT)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0132.outbound.protection.outlook.com. [104.47.36.132])
-        by mx.google.com with ESMTPS id l13-v6si10234776iob.225.2018.09.10.06.46.47
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A7EE8E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 10:00:02 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id c25-v6so7033576edb.12
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 07:00:01 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q24-v6si1924437eda.181.2018.09.10.07.00.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 06:46:47 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+        Mon, 10 Sep 2018 07:00:00 -0700 (PDT)
+Date: Mon, 10 Sep 2018 15:59:59 +0200
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH] memory_hotplug: fix the panic when memory end is not on
  the section boundary
-Date: Mon, 10 Sep 2018 13:46:45 +0000
-Message-ID: <e8d75768-9122-332b-3b16-cad032aeb27f@microsoft.com>
+Message-ID: <20180910135959.GI10951@dhcp22.suse.cz>
 References: <20180910123527.71209-1-zaslonko@linux.ibm.com>
  <20180910131754.GG10951@dhcp22.suse.cz>
-In-Reply-To: <20180910131754.GG10951@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <1627E19FBAC8A545A404BE0C5715B9FD@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+ <e8d75768-9122-332b-3b16-cad032aeb27f@microsoft.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e8d75768-9122-332b-3b16-cad032aeb27f@microsoft.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Mikhail Zaslonko <zaslonko@linux.ibm.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "osalvador@suse.de" <osalvador@suse.de>, "gerald.schaefer@de.ibm.com" <gerald.schaefer@de.ibm.com>
+To: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Cc: Mikhail Zaslonko <zaslonko@linux.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "osalvador@suse.de" <osalvador@suse.de>, "gerald.schaefer@de.ibm.com" <gerald.schaefer@de.ibm.com>
 
-DQoNCk9uIDkvMTAvMTggOToxNyBBTSwgTWljaGFsIEhvY2tvIHdyb3RlOg0KPiBbQ2MgUGF2ZWxd
-DQo+IA0KPiBPbiBNb24gMTAtMDktMTggMTQ6MzU6MjcsIE1pa2hhaWwgWmFzbG9ua28gd3JvdGU6
-DQo+PiBJZiBtZW1vcnkgZW5kIGlzIG5vdCBhbGlnbmVkIHdpdGggdGhlIGxpbnV4IG1lbW9yeSBz
-ZWN0aW9uIGJvdW5kYXJ5LCBzdWNoDQo+PiBhIHNlY3Rpb24gaXMgb25seSBwYXJ0bHkgaW5pdGlh
-bGl6ZWQuIFRoaXMgbWF5IGxlYWQgdG8gVk1fQlVHX09OIGR1ZSB0bw0KPj4gdW5pbml0aWFsaXpl
-ZCBzdHJ1Y3QgcGFnZXMgYWNjZXNzIGZyb20gaXNfbWVtX3NlY3Rpb25fcmVtb3ZhYmxlKCkgb3IN
-Cj4+IHRlc3RfcGFnZXNfaW5fYV96b25lKCkgZnVuY3Rpb24uDQo+Pg0KPj4gSGVyZSBpcyBvbmUg
-b2YgdGhlIHBhbmljIGV4YW1wbGVzOg0KPj4gIENPTkZJR19ERUJVR19WTV9QR0ZMQUdTPXkNCj4+
-ICBrZXJuZWwgcGFyYW1ldGVyIG1lbT0zMDc1TQ0KPiANCj4gT0ssIHNvIHRoZSBsYXN0IG1lbW9y
-eSBzZWN0aW9uIGlzIG5vdCBmdWxsIGFuZCB3ZSBoYXZlIGEgcGFydGlhbCBtZW1vcnkNCj4gYmxv
-Y2sgcmlnaHQ/DQo+IA0KPj4gIHBhZ2UgZHVtcGVkIGJlY2F1c2U6IFZNX0JVR19PTl9QQUdFKFBh
-Z2VQb2lzb25lZChwKSkNCj4gDQo+IE9LLCB0aGlzIG1lYW5zIHRoYXQgdGhlIHN0cnVjdCBwYWdl
-IGlzIG5vdCBmdWxseSBpbml0aWFsaXplZC4gRG8geW91DQo+IGhhdmUgYSBzcGVjaWZpYyBwbGFj
-ZSB3aGljaCBoYXMgdHJpZ2dlcmVkIHRoaXMgYXNzZXJ0Pw0KPiANCj4+ICAtLS0tLS0tLS0tLS1b
-IGN1dCBoZXJlIF0tLS0tLS0tLS0tLS0NCj4+ICBDYWxsIFRyYWNlOg0KPj4gIChbPDAwMDAwMDAw
-MDAzOWI4YTQ+XSBpc19tZW1fc2VjdGlvbl9yZW1vdmFibGUrMHhjYy8weDFjMCkNCj4+ICAgWzww
-MDAwMDAwMDAwOTU1OGJhPl0gc2hvd19tZW1fcmVtb3ZhYmxlKzB4ZGEvMHhlMA0KPj4gICBbPDAw
-MDAwMDAwMDA5MzI1ZmM+XSBkZXZfYXR0cl9zaG93KzB4M2MvMHg4MA0KPj4gICBbPDAwMDAwMDAw
-MDA0N2U3ZWE+XSBzeXNmc19rZl9zZXFfc2hvdysweGRhLzB4MTYwDQo+PiAgIFs8MDAwMDAwMDAw
-MDNmYzRlMD5dIHNlcV9yZWFkKzB4MjA4LzB4NGM4DQo+PiAgIFs8MDAwMDAwMDAwMDNjYjgwZT5d
-IF9fdmZzX3JlYWQrMHg0Ni8weDE4MA0KPj4gICBbPDAwMDAwMDAwMDAzY2I5Y2U+XSB2ZnNfcmVh
-ZCsweDg2LzB4MTQ4DQo+PiAgIFs8MDAwMDAwMDAwMDNjYzA2YT5dIGtzeXNfcmVhZCsweDYyLzB4
-YzANCj4+ICAgWzwwMDAwMDAwMDAwYzAwMWMwPl0gc3lzdGVtX2NhbGwrMHhkYy8weDJkOA0KPj4N
-Cj4+IFRoaXMgZml4IGNoZWNrcyBpZiB0aGUgcGFnZSBsaWVzIHdpdGhpbiB0aGUgem9uZSBib3Vu
-ZGFyaWVzIGJlZm9yZQ0KPj4gYWNjZXNzaW5nIHRoZSBzdHJ1Y3QgcGFnZSBkYXRhLiBUaGUgY2hl
-Y2sgaXMgYWRkZWQgdG8gYm90aCBmdW5jdGlvbnMuDQo+PiBBY3R1YWxseSBzaW1pbGFyIGNoZWNr
-IGhhcyBhbHJlYWR5IGJlZW4gcHJlc2VudCBpbg0KPj4gaXNfcGFnZWJsb2NrX3JlbW92YWJsZV9u
-b2xvY2soKSBmdW5jdGlvbiBidXQgb25seSBhZnRlciB0aGUgc3RydWN0IHBhZ2UNCj4+IGlzIGFj
-Y2Vzc2VkLg0KPj4NCj4gDQo+IFdlbGwsIEkgYW0gYWZyYWlkIHRoaXMgaXMgbm90IHRoZSBwcm9w
-ZXIgc29sdXRpb24uIFdlIGFyZSByZWx5aW5nIG9uIHRoZQ0KPiBmdWxsIHBhZ2VibG9jayB3b3J0
-aCBvZiBpbml0aWFsaXplZCBzdHJ1Y3QgcGFnZXMgYXQgbWFueSBvdGhlciBwbGFjZS4gV2UNCj4g
-dXNlZCB0byBkbyB0aGF0IGluIHRoZSBwYXN0IGJlY2F1c2Ugd2UgaGF2ZSBpbml0aWFsaXplZCB0
-aGUgZnVsbA0KPiBzZWN0aW9uIGJ1dCB0aGlzIGhhcyBiZWVuIGNoYW5nZWQgcmVjZW50bHkuIFBh
-dmVsLCBkbyB5b3UgaGF2ZSBhbnkgaWRlYXMNCj4gaG93IHRvIGRlYWwgd2l0aCB0aGlzIHBhcnRp
-YWwgbWVtIHNlY3Rpb25zIG5vdz8NCg0KV2UgaGF2ZToNCg0KcmVtb3ZlX21lbW9yeSgpDQoJQlVH
-X09OKGNoZWNrX2hvdHBsdWdfbWVtb3J5X3JhbmdlKHN0YXJ0LCBzaXplKSkNCg0KVGhhdCBzdXBw
-b3NlZCB0byBzYWZlbHkgY2hlY2sgZm9yIHRoaXMgY29uZGl0aW9uOiBpZiBbc3RhcnQsIHN0YXJ0
-ICsNCnNpemUpIG5vdCBibG9jayBzaXplIGFsaWduZWQgKGFuZCB3ZSBrbm93IGJsb2NrIHNpemUg
-aXMgc2VjdGlvbg0KYWxpZ25lZCksIGhvdCByZW1vdmUgaXMgbm90IGFsbG93ZWQuIFRoZSBwcm9i
-bGVtIGlzIHRoaXMgY2hlY2sgaXMgbGF0ZSwNCmFuZCBvbmx5IGhhcHBlbnMgd2hlbiBpbnZhbGlk
-IHJhbmdlIGhhcyBhbHJlYWR5IHBhc3NlZCB0aHJvdWdoIHByZXZpb3VzDQpjaGVja3MuDQoNCldl
-IGNvdWxkIGFkZCBjaGVja19ob3RwbHVnX21lbW9yeV9yYW5nZSgpIHRvIGlzX21lbV9zZWN0aW9u
-X3JlbW92YWJsZSgpOg0KDQppc19tZW1fc2VjdGlvbl9yZW1vdmFibGUoc3RhcnRfcGZuLCBucl9w
-YWdlcykNCiBpZiAoY2hlY2tfaG90cGx1Z19tZW1vcnlfcmFuZ2UoUEZOX1BIWVMoc3RhcnRfcGZu
-KSwgUEZOX1BIWVMobnJfcGFnZXMpKSkNCiAgcmV0dXJuIGZhbHNlOw0KDQpJIHRoaW5rIGl0IHNo
-b3VsZCB3b3JrLg0KDQpQYXZlbA0KDQo+IA0KPj4gU2lnbmVkLW9mZi1ieTogTWlraGFpbCBaYXNs
-b25rbyA8emFzbG9ua29AbGludXguaWJtLmNvbT4NCj4+IFJldmlld2VkLWJ5OiBHZXJhbGQgU2No
-YWVmZXIgPGdlcmFsZC5zY2hhZWZlckBkZS5pYm0uY29tPg0KPj4gQ2M6IDxzdGFibGVAdmdlci5r
-ZXJuZWwub3JnPg0KPj4gLS0tDQo+PiAgbW0vbWVtb3J5X2hvdHBsdWcuYyB8IDIwICsrKysrKysr
-KysrLS0tLS0tLS0tDQo+PiAgMSBmaWxlIGNoYW5nZWQsIDExIGluc2VydGlvbnMoKyksIDkgZGVs
-ZXRpb25zKC0pDQo+Pg0KPj4gZGlmZiAtLWdpdCBhL21tL21lbW9yeV9ob3RwbHVnLmMgYi9tbS9t
-ZW1vcnlfaG90cGx1Zy5jDQo+PiBpbmRleCA5ZWVhNmU4MDlhNGUuLjhlMjBlOGZjYzNiMCAxMDA2
-NDQNCj4+IC0tLSBhL21tL21lbW9yeV9ob3RwbHVnLmMNCj4+ICsrKyBiL21tL21lbW9yeV9ob3Rw
-bHVnLmMNCj4+IEBAIC0xMjI5LDkgKzEyMjksOCBAQCBzdGF0aWMgc3RydWN0IHBhZ2UgKm5leHRf
-YWN0aXZlX3BhZ2VibG9jayhzdHJ1Y3QgcGFnZSAqcGFnZSkNCj4+ICAJcmV0dXJuIHBhZ2UgKyBw
-YWdlYmxvY2tfbnJfcGFnZXM7DQo+PiAgfQ0KPj4gIA0KPj4gLXN0YXRpYyBib29sIGlzX3BhZ2Vi
-bG9ja19yZW1vdmFibGVfbm9sb2NrKHN0cnVjdCBwYWdlICpwYWdlKQ0KPj4gK3N0YXRpYyBib29s
-IGlzX3BhZ2VibG9ja19yZW1vdmFibGVfbm9sb2NrKHN0cnVjdCBwYWdlICpwYWdlLCBzdHJ1Y3Qg
-em9uZSAqKnpvbmUpDQo+PiAgew0KPj4gLQlzdHJ1Y3Qgem9uZSAqem9uZTsNCj4+ICAJdW5zaWdu
-ZWQgbG9uZyBwZm47DQo+PiAgDQo+PiAgCS8qDQo+PiBAQCAtMTI0MSwxNSArMTI0MCwxNCBAQCBz
-dGF0aWMgYm9vbCBpc19wYWdlYmxvY2tfcmVtb3ZhYmxlX25vbG9jayhzdHJ1Y3QgcGFnZSAqcGFn
-ZSkNCj4+ICAJICogV2UgaGF2ZSB0byB0YWtlIGNhcmUgYWJvdXQgdGhlIG5vZGUgYXMgd2VsbC4g
-SWYgdGhlIG5vZGUgaXMgb2ZmbGluZQ0KPj4gIAkgKiBpdHMgTk9ERV9EQVRBIHdpbGwgYmUgTlVM
-TCAtIHNlZSBwYWdlX3pvbmUuDQo+PiAgCSAqLw0KPj4gLQlpZiAoIW5vZGVfb25saW5lKHBhZ2Vf
-dG9fbmlkKHBhZ2UpKSkNCj4+IC0JCXJldHVybiBmYWxzZTsNCj4+IC0NCj4+IC0Jem9uZSA9IHBh
-Z2Vfem9uZShwYWdlKTsNCj4+ICAJcGZuID0gcGFnZV90b19wZm4ocGFnZSk7DQo+PiAtCWlmICgh
-em9uZV9zcGFuc19wZm4oem9uZSwgcGZuKSkNCj4+ICsJaWYgKCp6b25lICYmICF6b25lX3NwYW5z
-X3Bmbigqem9uZSwgcGZuKSkNCj4+ICAJCXJldHVybiBmYWxzZTsNCj4+ICsJaWYgKCFub2RlX29u
-bGluZShwYWdlX3RvX25pZChwYWdlKSkpDQo+PiArCQlyZXR1cm4gZmFsc2U7DQo+PiArCSp6b25l
-ID0gcGFnZV96b25lKHBhZ2UpOw0KPj4gIA0KPj4gLQlyZXR1cm4gIWhhc191bm1vdmFibGVfcGFn
-ZXMoem9uZSwgcGFnZSwgMCwgTUlHUkFURV9NT1ZBQkxFLCB0cnVlKTsNCj4+ICsJcmV0dXJuICFo
-YXNfdW5tb3ZhYmxlX3BhZ2VzKCp6b25lLCBwYWdlLCAwLCBNSUdSQVRFX01PVkFCTEUsIHRydWUp
-Ow0KPj4gIH0NCj4+ICANCj4+ICAvKiBDaGVja3MgaWYgdGhpcyByYW5nZSBvZiBtZW1vcnkgaXMg
-bGlrZWx5IHRvIGJlIGhvdC1yZW1vdmFibGUuICovDQo+PiBAQCAtMTI1NywxMCArMTI1NSwxMSBA
-QCBib29sIGlzX21lbV9zZWN0aW9uX3JlbW92YWJsZSh1bnNpZ25lZCBsb25nIHN0YXJ0X3Bmbiwg
-dW5zaWduZWQgbG9uZyBucl9wYWdlcykNCj4+ICB7DQo+PiAgCXN0cnVjdCBwYWdlICpwYWdlID0g
-cGZuX3RvX3BhZ2Uoc3RhcnRfcGZuKTsNCj4+ICAJc3RydWN0IHBhZ2UgKmVuZF9wYWdlID0gcGFn
-ZSArIG5yX3BhZ2VzOw0KPj4gKwlzdHJ1Y3Qgem9uZSAqem9uZSA9IE5VTEw7DQo+PiAgDQo+PiAg
-CS8qIENoZWNrIHRoZSBzdGFydGluZyBwYWdlIG9mIGVhY2ggcGFnZWJsb2NrIHdpdGhpbiB0aGUg
-cmFuZ2UgKi8NCj4+ICAJZm9yICg7IHBhZ2UgPCBlbmRfcGFnZTsgcGFnZSA9IG5leHRfYWN0aXZl
-X3BhZ2VibG9jayhwYWdlKSkgew0KPj4gLQkJaWYgKCFpc19wYWdlYmxvY2tfcmVtb3ZhYmxlX25v
-bG9jayhwYWdlKSkNCj4+ICsJCWlmICghaXNfcGFnZWJsb2NrX3JlbW92YWJsZV9ub2xvY2socGFn
-ZSwgJnpvbmUpKQ0KPj4gIAkJCXJldHVybiBmYWxzZTsNCj4+ICAJCWNvbmRfcmVzY2hlZCgpOw0K
-Pj4gIAl9DQo+PiBAQCAtMTI5Niw2ICsxMjk1LDkgQEAgaW50IHRlc3RfcGFnZXNfaW5fYV96b25l
-KHVuc2lnbmVkIGxvbmcgc3RhcnRfcGZuLCB1bnNpZ25lZCBsb25nIGVuZF9wZm4sDQo+PiAgCQkJ
-CWkrKzsNCj4+ICAJCQlpZiAoaSA9PSBNQVhfT1JERVJfTlJfUEFHRVMgfHwgcGZuICsgaSA+PSBl
-bmRfcGZuKQ0KPj4gIAkJCQljb250aW51ZTsNCj4+ICsJCQkvKiBDaGVjayBpZiB3ZSBnb3Qgb3V0
-c2lkZSBvZiB0aGUgem9uZSAqLw0KPj4gKwkJCWlmICh6b25lICYmICF6b25lX3NwYW5zX3Bmbih6
-b25lLCBwZm4pKQ0KPj4gKwkJCQlyZXR1cm4gMDsNCj4+ICAJCQlwYWdlID0gcGZuX3RvX3BhZ2Uo
-cGZuICsgaSk7DQo+PiAgCQkJaWYgKHpvbmUgJiYgcGFnZV96b25lKHBhZ2UpICE9IHpvbmUpDQo+
-PiAgCQkJCXJldHVybiAwOw0KPj4gLS0gDQo+PiAyLjE2LjQNCj4g
+On Mon 10-09-18 13:46:45, Pavel Tatashin wrote:
+> 
+> 
+> On 9/10/18 9:17 AM, Michal Hocko wrote:
+> > [Cc Pavel]
+> > 
+> > On Mon 10-09-18 14:35:27, Mikhail Zaslonko wrote:
+> >> If memory end is not aligned with the linux memory section boundary, such
+> >> a section is only partly initialized. This may lead to VM_BUG_ON due to
+> >> uninitialized struct pages access from is_mem_section_removable() or
+> >> test_pages_in_a_zone() function.
+> >>
+> >> Here is one of the panic examples:
+> >>  CONFIG_DEBUG_VM_PGFLAGS=y
+> >>  kernel parameter mem=3075M
+> > 
+> > OK, so the last memory section is not full and we have a partial memory
+> > block right?
+> > 
+> >>  page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
+> > 
+> > OK, this means that the struct page is not fully initialized. Do you
+> > have a specific place which has triggered this assert?
+> > 
+> >>  ------------[ cut here ]------------
+> >>  Call Trace:
+> >>  ([<000000000039b8a4>] is_mem_section_removable+0xcc/0x1c0)
+> >>   [<00000000009558ba>] show_mem_removable+0xda/0xe0
+> >>   [<00000000009325fc>] dev_attr_show+0x3c/0x80
+> >>   [<000000000047e7ea>] sysfs_kf_seq_show+0xda/0x160
+> >>   [<00000000003fc4e0>] seq_read+0x208/0x4c8
+> >>   [<00000000003cb80e>] __vfs_read+0x46/0x180
+> >>   [<00000000003cb9ce>] vfs_read+0x86/0x148
+> >>   [<00000000003cc06a>] ksys_read+0x62/0xc0
+> >>   [<0000000000c001c0>] system_call+0xdc/0x2d8
+> >>
+> >> This fix checks if the page lies within the zone boundaries before
+> >> accessing the struct page data. The check is added to both functions.
+> >> Actually similar check has already been present in
+> >> is_pageblock_removable_nolock() function but only after the struct page
+> >> is accessed.
+> >>
+> > 
+> > Well, I am afraid this is not the proper solution. We are relying on the
+> > full pageblock worth of initialized struct pages at many other place. We
+> > used to do that in the past because we have initialized the full
+> > section but this has been changed recently. Pavel, do you have any ideas
+> > how to deal with this partial mem sections now?
+> 
+> We have:
+> 
+> remove_memory()
+> 	BUG_ON(check_hotplug_memory_range(start, size))
+> 
+> That supposed to safely check for this condition: if [start, start +
+> size) not block size aligned (and we know block size is section
+> aligned), hot remove is not allowed. The problem is this check is late,
+> and only happens when invalid range has already passed through previous
+> checks.
+> 
+> We could add check_hotplug_memory_range() to is_mem_section_removable():
+> 
+> is_mem_section_removable(start_pfn, nr_pages)
+>  if (check_hotplug_memory_range(PFN_PHYS(start_pfn), PFN_PHYS(nr_pages)))
+>   return false;
+> 
+> I think it should work.
+
+I do not think we want to sprinkle these tests over all pfn walkers. Can
+we simply initialize those uninitialized holes as well and make them
+reserved without handing them over to the page allocator? That would be
+much more robust approach IMHO.
+-- 
+Michal Hocko
+SUSE Labs
