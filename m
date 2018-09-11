@@ -1,54 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D61638E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 12:50:59 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id p11-v6so31823992oih.17
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 09:50:59 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l69-v6sor21532623oih.1.2018.09.11.09.50.58
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ADB858E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 13:56:13 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id v9-v6so11879603ply.13
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 10:56:13 -0700 (PDT)
+Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
+        by mx.google.com with ESMTPS id v6-v6si16245096plp.434.2018.09.11.10.55.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 11 Sep 2018 09:50:58 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Sep 2018 10:55:58 -0700 (PDT)
+Date: Tue, 11 Sep 2018 11:55:55 -0600
+From: Jonathan Corbet <corbet@lwn.net>
+Subject: Re: [PATCH v3 3/3] docs: core-api: add memory allocation guide
+Message-ID: <20180911115555.5fce5631@lwn.net>
+In-Reply-To: <1534517236-16762-4-git-send-email-rppt@linux.vnet.ibm.com>
+References: <1534517236-16762-1-git-send-email-rppt@linux.vnet.ibm.com>
+	<1534517236-16762-4-git-send-email-rppt@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20180910234341.4068.26882.stgit@localhost.localdomain>
-References: <20180910232615.4068.29155.stgit@localhost.localdomain> <20180910234341.4068.26882.stgit@localhost.localdomain>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 11 Sep 2018 09:50:57 -0700
-Message-ID: <CAPcyv4j301Ma8D65oMzFo9-jVdwKGHzOVHb=7u9XaxACR5RAhg@mail.gmail.com>
-Subject: Re: [PATCH 1/4] mm: Provide kernel parameter to allow disabling page
- init poisoning
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, pavel.tatashin@microsoft.com, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Michal Hocko <mhocko@suse.com>, Randy Dunlap <rdunlap@infradead.org>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Sep 10, 2018 at 4:43 PM, Alexander Duyck
-<alexander.duyck@gmail.com> wrote:
-> From: Alexander Duyck <alexander.h.duyck@intel.com>
->
-> On systems with a large amount of memory it can take a significant amount
-> of time to initialize all of the page structs with the PAGE_POISON_PATTERN
-> value. I have seen it take over 2 minutes to initialize a system with
-> over 12GB of RAM.
->
-> In order to work around the issue I had to disable CONFIG_DEBUG_VM and then
-> the boot time returned to something much more reasonable as the
-> arch_add_memory call completed in milliseconds versus seconds. However in
-> doing that I had to disable all of the other VM debugging on the system.
->
-> In order to work around a kernel that might have CONFIG_DEBUG_VM enabled on
-> a system that has a large amount of memory I have added a new kernel
-> parameter named "page_init_poison" that can be set to "off" in order to
-> disable it.
+Sorry for being so slow to get to this...it fell into a dark crack in my
+rickety email folder hierarchy.  I do have one question...
 
-In anticipation of potentially more DEBUG_VM options wanting runtime
-control I'd propose creating a new "vm_debug=" option for this modeled
-after "slub_debug=" along with a CONFIG_DEBUG_VM_ON to turn on all
-options.
+On Fri, 17 Aug 2018 17:47:16 +0300
+Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
 
-That way there is more differentiation for debug cases like this that
-have significant performance impact when enabled.
+> +    ``GFP_HIGHUSER_MOVABLE`` does not require that allocated memory
+> +    will be directly accessible by the kernel or the hardware and
+> +    implies that the data is movable.
+> +
+> +    ``GFP_HIGHUSER`` means that the allocated memory is not movable,
+> +    but it is not required to be directly accessible by the kernel or
+> +    the hardware. An example may be a hardware allocation that maps
+> +    data directly into userspace but has no addressing limitations.
+> +
+> +    ``GFP_USER`` means that the allocated memory is not movable and it
+> +    must be directly accessible by the kernel or the hardware. It is
+> +    typically used by hardware for buffers that are mapped to
+> +    userspace (e.g. graphics) that hardware still must DMA to.
 
-CONFIG_DEBUG_VM leaves optional debug capabilities disabled by default
-unless CONFIG_DEBUG_VM_ON is also set.
+I realize that this is copied from elsewhere, but still...as I understand
+it, the "HIGH" part means that the allocation can be satisfied from high
+memory, nothing more.  So...it's irrelevant on 64-bit machines to start
+with, right?  And it has nothing to do with DMA, I would think.  That would
+be handled by the DMA infrastructure and, perhaps, the DMA* zones.  Right?
+
+I ask because high memory is an artifact of how things are laid out on
+32-bit systems; hardware can often DMA quite easily into memory that the
+kernel sees as "high".  So, to me, this description seems kind of
+confusing; I wouldn't mention hardware at all.  But maybe I'm missing
+something?
+
+Thanks,
+
+jon
