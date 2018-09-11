@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A39A8E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 20:43:01 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id u195-v6so5991421ith.2
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 17:43:01 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id 124-v6si11714385itu.102.2018.09.10.17.42.59
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C4A3A8E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 20:43:09 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id x15-v6so44613551ite.8
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 17:43:09 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id y13-v6si11859069itb.31.2018.09.10.17.43.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 17:42:59 -0700 (PDT)
+        Mon, 10 Sep 2018 17:43:07 -0700 (PDT)
 From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: [RFC PATCH v2 2/8] mm: make zone_reclaim_stat updates thread-safe
-Date: Mon, 10 Sep 2018 20:42:34 -0400
-Message-Id: <20180911004240.4758-3-daniel.m.jordan@oracle.com>
+Subject: [RFC PATCH v2 3/8] mm: convert lru_lock from a spinlock_t to a rwlock_t
+Date: Mon, 10 Sep 2018 20:42:35 -0400
+Message-Id: <20180911004240.4758-4-daniel.m.jordan@oracle.com>
 In-Reply-To: <20180911004240.4758-1-daniel.m.jordan@oracle.com>
 References: <20180911004240.4758-1-daniel.m.jordan@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,366 +20,669 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 Cc: aaron.lu@intel.com, ak@linux.intel.com, akpm@linux-foundation.org, dave.dice@oracle.com, dave.hansen@linux.intel.com, hannes@cmpxchg.org, levyossi@icloud.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mhocko@kernel.org, Pavel.Tatashin@microsoft.com, steven.sistare@oracle.com, tim.c.chen@intel.com, vdavydov.dev@gmail.com, ying.huang@intel.com
 
-lru_lock needs to be held to update the zone_reclaim_stat statistics.
-Similar to the previous patch, this requirement again arises fairly
-naturally because callers are holding lru_lock already.
+lru_lock is currently a spinlock, which allows only one task at a time
+to add or remove pages from any of a node's LRU lists, even if the
+pages are in different parts of the same LRU or on different LRUs
+altogether.  This bottleneck shows up in memory-intensive database
+workloads such as decision support and data warehousing.  In the
+artificial benchmark will-it-scale/page_fault1, the lock contributes to
+system anti-scaling, so that adding more processes causes less work to
+be done.
 
-In preparation for allowing concurrent adds and removes from the LRU,
-however, make concurrent updates to these statistics safe without
-lru_lock.  The lock continues to be held until later in the series, when
-it is replaced with a rwlock that also disables preemption, maintaining
-the assumption in the comment above __update_page_reclaim_stat, which is
-introduced here.
+To prepare for better lru_lock scalability, change lru_lock into a
+rwlock_t.  For now, just make all users take the lock as writers.
+Later, to allow concurrent operations, change some users to acquire as
+readers, which will synchronize amongst themselves in a fine-grained,
+per-page way.  This is explained more later.
 
-Use a combination of per-cpu counters and atomics.
+RW locks are slower than spinlocks.  However, our results show that low
+task counts do not significantly regress, even in the stress test
+page_fault1, and high task counts enjoy much better scalability.
 
+zone->lock is often taken around the same times as lru_lock and
+contributes to this bottleneck.  For the full performance benefits of
+this work to be realized, both locks must be fixed, but changing
+lru_lock in isolation still allows modest performance improvements and
+is one step toward fixing the larger problem.
+
+Remove the spin_is_locked check in lru_add_page_tail.  Unfortunately,
+rwlock_t lacks an equivalent and adding one would require 17 new
+arch_write_is_locked functions, a heavy price for a single debugging
+check.
+
+Yosef Lev had the idea to use a reader-writer lock to split up the code
+that lru_lock protects, a form of room synchronization.
+
+Suggested-by: Yosef Lev <levyossi@icloud.com>
 Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- include/linux/mmzone.h | 50 ++++++++++++++++++++++++++++++++++++++++++
- init/main.c            |  1 +
- mm/memcontrol.c        | 20 ++++++++---------
- mm/memory_hotplug.c    |  1 +
- mm/mmzone.c            | 14 ++++++++++++
- mm/swap.c              | 14 ++++++++----
- mm/vmscan.c            | 42 ++++++++++++++++++++---------------
- 7 files changed, 110 insertions(+), 32 deletions(-)
+ include/linux/mmzone.h |  4 +-
+ mm/compaction.c        | 99 ++++++++++++++++++++++--------------------
+ mm/huge_memory.c       |  6 +--
+ mm/memcontrol.c        |  4 +-
+ mm/mlock.c             | 10 ++---
+ mm/page_alloc.c        |  2 +-
+ mm/page_idle.c         |  4 +-
+ mm/swap.c              | 44 +++++++++++--------
+ mm/vmscan.c            | 42 +++++++++---------
+ 9 files changed, 112 insertions(+), 103 deletions(-)
 
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 32699b2dc52a..6d4c23a3069d 100644
+index 6d4c23a3069d..c140aa9290a8 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -229,6 +229,12 @@ struct zone_reclaim_stat {
- 	 *
- 	 * The anon LRU stats live in [0], file LRU stats in [1]
- 	 */
-+	atomic_long_t		recent_rotated[2];
-+	atomic_long_t		recent_scanned[2];
-+};
-+
-+/* These spill into the counters in struct zone_reclaim_stat beyond a cutoff. */
-+struct zone_reclaim_stat_cpu {
- 	unsigned long		recent_rotated[2];
- 	unsigned long		recent_scanned[2];
- };
-@@ -236,6 +242,7 @@ struct zone_reclaim_stat {
- struct lruvec {
- 	struct list_head		lists[NR_LRU_LISTS];
- 	struct zone_reclaim_stat	reclaim_stat;
-+	struct zone_reclaim_stat_cpu __percpu *reclaim_stat_cpu;
- 	/* Evictions & activations on the inactive file list */
- 	atomic_long_t			inactive_age;
- 	/* Refaults at the time of last reclaim cycle */
-@@ -245,6 +252,47 @@ struct lruvec {
- #endif
- };
+@@ -742,7 +742,7 @@ typedef struct pglist_data {
  
-+#define	RECLAIM_STAT_BATCH	32U	/* From SWAP_CLUSTER_MAX */
-+
-+/*
-+ * Callers of the below three functions that update reclaim stats must hold
-+ * lru_lock and have preemption disabled.  Use percpu counters that spill into
-+ * atomics to allow concurrent updates when multiple readers hold lru_lock.
-+ */
-+
-+static inline void __update_page_reclaim_stat(unsigned long count,
-+					      unsigned long *percpu_stat,
-+					      atomic_long_t *stat)
-+{
-+	unsigned long val = *percpu_stat + count;
-+
-+	if (unlikely(val > RECLAIM_STAT_BATCH)) {
-+		atomic_long_add(val, stat);
-+		val = 0;
-+	}
-+	*percpu_stat = val;
-+}
-+
-+static inline void update_reclaim_stat_scanned(struct lruvec *lruvec, int file,
-+					       unsigned long count)
-+{
-+	struct zone_reclaim_stat_cpu __percpu *percpu_stat =
-+					 this_cpu_ptr(lruvec->reclaim_stat_cpu);
-+
-+	__update_page_reclaim_stat(count, &percpu_stat->recent_scanned[file],
-+				   &lruvec->reclaim_stat.recent_scanned[file]);
-+}
-+
-+static inline void update_reclaim_stat_rotated(struct lruvec *lruvec, int file,
-+					       unsigned long count)
-+{
-+	struct zone_reclaim_stat_cpu __percpu *percpu_stat =
-+					 this_cpu_ptr(lruvec->reclaim_stat_cpu);
-+
-+	__update_page_reclaim_stat(count, &percpu_stat->recent_rotated[file],
-+				   &lruvec->reclaim_stat.recent_rotated[file]);
-+}
-+
- /* Mask used at gathering information at once (see memcontrol.c) */
- #define LRU_ALL_FILE (BIT(LRU_INACTIVE_FILE) | BIT(LRU_ACTIVE_FILE))
- #define LRU_ALL_ANON (BIT(LRU_INACTIVE_ANON) | BIT(LRU_ACTIVE_ANON))
-@@ -795,6 +843,8 @@ extern void init_currently_empty_zone(struct zone *zone, unsigned long start_pfn
- 				     unsigned long size);
+ 	/* Write-intensive fields used by page reclaim */
+ 	ZONE_PADDING(_pad1_)
+-	spinlock_t		lru_lock;
++	rwlock_t		lru_lock;
  
- extern void lruvec_init(struct lruvec *lruvec);
-+extern void lruvec_init_late(struct lruvec *lruvec);
-+extern void lruvecs_init_late(void);
+ #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+ 	/*
+@@ -783,7 +783,7 @@ typedef struct pglist_data {
  
- static inline struct pglist_data *lruvec_pgdat(struct lruvec *lruvec)
+ #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
+ #define node_end_pfn(nid) pgdat_end_pfn(NODE_DATA(nid))
+-static inline spinlock_t *zone_lru_lock(struct zone *zone)
++static inline rwlock_t *zone_lru_lock(struct zone *zone)
  {
-diff --git a/init/main.c b/init/main.c
-index 3b4ada11ed52..80ad02fe99de 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -526,6 +526,7 @@ static void __init mm_init(void)
- 	init_espfix_bsp();
- 	/* Should be run after espfix64 is set up. */
- 	pti_init();
-+	lruvecs_init_late();
+ 	return &zone->zone_pgdat->lru_lock;
  }
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 29bd1df18b98..1d3c3f872a19 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -347,20 +347,20 @@ static inline void update_pageblock_skip(struct compact_control *cc,
+  * Returns true if the lock is held
+  * Returns false if the lock is not held and compaction should abort
+  */
+-static bool compact_trylock_irqsave(spinlock_t *lock, unsigned long *flags,
+-						struct compact_control *cc)
+-{
+-	if (cc->mode == MIGRATE_ASYNC) {
+-		if (!spin_trylock_irqsave(lock, *flags)) {
+-			cc->contended = true;
+-			return false;
+-		}
+-	} else {
+-		spin_lock_irqsave(lock, *flags);
+-	}
+-
+-	return true;
+-}
++#define compact_trylock(lock, flags, cc, lockf, trylockf)		       \
++({									       \
++	bool __ret = true;						       \
++	if ((cc)->mode == MIGRATE_ASYNC) {				       \
++		if (!trylockf((lock), *(flags))) {			       \
++			(cc)->contended = true;				       \
++			__ret = false;					       \
++		}							       \
++	} else {							       \
++		lockf((lock), *(flags));				       \
++	}								       \
++									       \
++	__ret;								       \
++})
  
- asmlinkage __visible void __init start_kernel(void)
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 5463ad160e10..f7f9682482cd 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3152,22 +3152,22 @@ static int memcg_stat_show(struct seq_file *m, void *v)
- 		pg_data_t *pgdat;
- 		struct mem_cgroup_per_node *mz;
- 		struct zone_reclaim_stat *rstat;
--		unsigned long recent_rotated[2] = {0, 0};
--		unsigned long recent_scanned[2] = {0, 0};
-+		unsigned long rota[2] = {0, 0};
-+		unsigned long scan[2] = {0, 0};
+ /*
+  * Compaction requires the taking of some coarse locks that are potentially
+@@ -377,29 +377,29 @@ static bool compact_trylock_irqsave(spinlock_t *lock, unsigned long *flags,
+  * Returns false when compaction can continue (sync compaction might have
+  *		scheduled)
+  */
+-static bool compact_unlock_should_abort(spinlock_t *lock,
+-		unsigned long flags, bool *locked, struct compact_control *cc)
+-{
+-	if (*locked) {
+-		spin_unlock_irqrestore(lock, flags);
+-		*locked = false;
+-	}
+-
+-	if (fatal_signal_pending(current)) {
+-		cc->contended = true;
+-		return true;
+-	}
+-
+-	if (need_resched()) {
+-		if (cc->mode == MIGRATE_ASYNC) {
+-			cc->contended = true;
+-			return true;
+-		}
+-		cond_resched();
+-	}
+-
+-	return false;
+-}
++#define compact_unlock_should_abort(lock, flags, locked, cc, unlockf)	       \
++({									       \
++	bool __ret = false;						       \
++									       \
++	if (*(locked)) {						       \
++		unlockf((lock), (flags));				       \
++		*(locked) = false;					       \
++	}								       \
++									       \
++	if (fatal_signal_pending(current)) {				       \
++		(cc)->contended = true;					       \
++		__ret = true;						       \
++	} else if (need_resched()) {					       \
++		if ((cc)->mode == MIGRATE_ASYNC) {			       \
++			(cc)->contended = true;				       \
++			__ret = true;					       \
++		} else {						       \
++			cond_resched();					       \
++		}							       \
++	}								       \
++									       \
++	__ret;								       \
++})
  
- 		for_each_online_pgdat(pgdat) {
- 			mz = mem_cgroup_nodeinfo(memcg, pgdat->node_id);
- 			rstat = &mz->lruvec.reclaim_stat;
+ /*
+  * Aside from avoiding lock contention, compaction also periodically checks
+@@ -457,7 +457,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+ 		 */
+ 		if (!(blockpfn % SWAP_CLUSTER_MAX)
+ 		    && compact_unlock_should_abort(&cc->zone->lock, flags,
+-								&locked, cc))
++					   &locked, cc, spin_unlock_irqrestore))
+ 			break;
  
--			recent_rotated[0] += rstat->recent_rotated[0];
--			recent_rotated[1] += rstat->recent_rotated[1];
--			recent_scanned[0] += rstat->recent_scanned[0];
--			recent_scanned[1] += rstat->recent_scanned[1];
-+			rota[0] += atomic_long_read(&rstat->recent_rotated[0]);
-+			rota[1] += atomic_long_read(&rstat->recent_rotated[1]);
-+			scan[0] += atomic_long_read(&rstat->recent_scanned[0]);
-+			scan[1] += atomic_long_read(&rstat->recent_scanned[1]);
- 		}
--		seq_printf(m, "recent_rotated_anon %lu\n", recent_rotated[0]);
--		seq_printf(m, "recent_rotated_file %lu\n", recent_rotated[1]);
--		seq_printf(m, "recent_scanned_anon %lu\n", recent_scanned[0]);
--		seq_printf(m, "recent_scanned_file %lu\n", recent_scanned[1]);
-+		seq_printf(m, "recent_rotated_anon %lu\n", rota[0]);
-+		seq_printf(m, "recent_rotated_file %lu\n", rota[1]);
-+		seq_printf(m, "recent_scanned_anon %lu\n", scan[0]);
-+		seq_printf(m, "recent_scanned_file %lu\n", scan[1]);
- 	}
- #endif
+ 		nr_scanned++;
+@@ -502,8 +502,9 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+ 			 * spin on the lock and we acquire the lock as late as
+ 			 * possible.
+ 			 */
+-			locked = compact_trylock_irqsave(&cc->zone->lock,
+-								&flags, cc);
++			locked = compact_trylock(&cc->zone->lock, &flags, cc,
++						 spin_lock_irqsave,
++						 spin_trylock_irqsave);
+ 			if (!locked)
+ 				break;
  
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 25982467800b..d3ebb11c3f9f 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1009,6 +1009,7 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
- 	/* init node's zones as empty zones, we don't have any present pages.*/
- 	free_area_init_node(nid, zones_size, start_pfn, zholes_size);
- 	pgdat->per_cpu_nodestats = alloc_percpu(struct per_cpu_nodestat);
-+	lruvec_init_late(node_lruvec(pgdat));
+@@ -757,8 +758,8 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		 * if contended.
+ 		 */
+ 		if (!(low_pfn % SWAP_CLUSTER_MAX)
+-		    && compact_unlock_should_abort(zone_lru_lock(zone), flags,
+-								&locked, cc))
++		    && compact_unlock_should_abort(zone_lru_lock(zone),
++				   flags, &locked, cc, write_unlock_irqrestore))
+ 			break;
+ 
+ 		if (!pfn_valid_within(low_pfn))
+@@ -817,8 +818,8 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 			if (unlikely(__PageMovable(page)) &&
+ 					!PageIsolated(page)) {
+ 				if (locked) {
+-					spin_unlock_irqrestore(zone_lru_lock(zone),
+-									flags);
++					write_unlock_irqrestore(
++						    zone_lru_lock(zone), flags);
+ 					locked = false;
+ 				}
+ 
+@@ -847,8 +848,9 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 
+ 		/* If we already hold the lock, we can skip some rechecking */
+ 		if (!locked) {
+-			locked = compact_trylock_irqsave(zone_lru_lock(zone),
+-								&flags, cc);
++			locked = compact_trylock(zone_lru_lock(zone), &flags,
++						 cc, write_lock_irqsave,
++						 write_trylock_irqsave);
+ 			if (!locked)
+ 				break;
+ 
+@@ -912,7 +914,8 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		 */
+ 		if (nr_isolated) {
+ 			if (locked) {
+-				spin_unlock_irqrestore(zone_lru_lock(zone), flags);
++				write_unlock_irqrestore(zone_lru_lock(zone),
++							flags);
+ 				locked = false;
+ 			}
+ 			putback_movable_pages(&cc->migratepages);
+@@ -939,7 +942,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		low_pfn = end_pfn;
+ 
+ 	if (locked)
+-		spin_unlock_irqrestore(zone_lru_lock(zone), flags);
++		write_unlock_irqrestore(zone_lru_lock(zone), flags);
  
  	/*
- 	 * The node we allocated has no zone fallback lists. For avoiding
-diff --git a/mm/mmzone.c b/mm/mmzone.c
-index 4686fdc23bb9..090cd4f7effb 100644
---- a/mm/mmzone.c
-+++ b/mm/mmzone.c
-@@ -9,6 +9,7 @@
- #include <linux/stddef.h>
- #include <linux/mm.h>
- #include <linux/mmzone.h>
-+#include <linux/percpu.h>
+ 	 * Update the pageblock-skip information and cached scanner pfn,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index b9f3dbd885bd..6ad045df967d 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2453,7 +2453,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
+ 		xa_unlock(&head->mapping->i_pages);
+ 	}
  
- struct pglist_data *first_online_pgdat(void)
+-	spin_unlock_irqrestore(zone_lru_lock(page_zone(head)), flags);
++	write_unlock_irqrestore(zone_lru_lock(page_zone(head)), flags);
+ 
+ 	unfreeze_page(head);
+ 
+@@ -2653,7 +2653,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 		lru_add_drain();
+ 
+ 	/* prevent PageLRU to go away from under us, and freeze lru stats */
+-	spin_lock_irqsave(zone_lru_lock(page_zone(head)), flags);
++	write_lock_irqsave(zone_lru_lock(page_zone(head)), flags);
+ 
+ 	if (mapping) {
+ 		void **pslot;
+@@ -2701,7 +2701,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 		spin_unlock(&pgdata->split_queue_lock);
+ fail:		if (mapping)
+ 			xa_unlock(&mapping->i_pages);
+-		spin_unlock_irqrestore(zone_lru_lock(page_zone(head)), flags);
++		write_unlock_irqrestore(zone_lru_lock(page_zone(head)), flags);
+ 		unfreeze_page(head);
+ 		ret = -EBUSY;
+ 	}
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f7f9682482cd..0580aff3bd98 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2043,7 +2043,7 @@ static void lock_page_lru(struct page *page, int *isolated)
  {
-@@ -96,6 +97,19 @@ void lruvec_init(struct lruvec *lruvec)
- 		INIT_LIST_HEAD(&lruvec->lists[lru]);
+ 	struct zone *zone = page_zone(page);
+ 
+-	spin_lock_irq(zone_lru_lock(zone));
++	write_lock_irq(zone_lru_lock(zone));
+ 	if (PageLRU(page)) {
+ 		struct lruvec *lruvec;
+ 
+@@ -2067,7 +2067,7 @@ static void unlock_page_lru(struct page *page, int isolated)
+ 		SetPageLRU(page);
+ 		add_page_to_lru_list(page, lruvec, page_lru(page));
+ 	}
+-	spin_unlock_irq(zone_lru_lock(zone));
++	write_unlock_irq(zone_lru_lock(zone));
  }
  
-+void lruvec_init_late(struct lruvec *lruvec)
-+{
-+	lruvec->reclaim_stat_cpu = alloc_percpu(struct zone_reclaim_stat_cpu);
-+}
-+
-+void lruvecs_init_late(void)
-+{
-+	pg_data_t *pgdat;
-+
-+	for_each_online_pgdat(pgdat)
-+		lruvec_init_late(node_lruvec(pgdat));
-+}
-+
- #if defined(CONFIG_NUMA_BALANCING) && !defined(LAST_CPUPID_NOT_IN_PAGE_FLAGS)
- int page_cpupid_xchg_last(struct page *page, int cpupid)
- {
+ static void commit_charge(struct page *page, struct mem_cgroup *memcg,
+diff --git a/mm/mlock.c b/mm/mlock.c
+index 74e5a6547c3d..f3c628e0eeb0 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -194,7 +194,7 @@ unsigned int munlock_vma_page(struct page *page)
+ 	 * might otherwise copy PageMlocked to part of the tail pages before
+ 	 * we clear it in the head page. It also stabilizes hpage_nr_pages().
+ 	 */
+-	spin_lock_irq(zone_lru_lock(zone));
++	write_lock_irq(zone_lru_lock(zone));
+ 
+ 	if (!TestClearPageMlocked(page)) {
+ 		/* Potentially, PTE-mapped THP: do not skip the rest PTEs */
+@@ -206,14 +206,14 @@ unsigned int munlock_vma_page(struct page *page)
+ 	__mod_zone_page_state(zone, NR_MLOCK, -nr_pages);
+ 
+ 	if (__munlock_isolate_lru_page(page, true)) {
+-		spin_unlock_irq(zone_lru_lock(zone));
++		write_unlock_irq(zone_lru_lock(zone));
+ 		__munlock_isolated_page(page);
+ 		goto out;
+ 	}
+ 	__munlock_isolation_failed(page);
+ 
+ unlock_out:
+-	spin_unlock_irq(zone_lru_lock(zone));
++	write_unlock_irq(zone_lru_lock(zone));
+ 
+ out:
+ 	return nr_pages - 1;
+@@ -298,7 +298,7 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
+ 	pagevec_init(&pvec_putback);
+ 
+ 	/* Phase 1: page isolation */
+-	spin_lock_irq(zone_lru_lock(zone));
++	write_lock_irq(zone_lru_lock(zone));
+ 	for (i = 0; i < nr; i++) {
+ 		struct page *page = pvec->pages[i];
+ 
+@@ -325,7 +325,7 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
+ 		pvec->pages[i] = NULL;
+ 	}
+ 	__mod_zone_page_state(zone, NR_MLOCK, delta_munlocked);
+-	spin_unlock_irq(zone_lru_lock(zone));
++	write_unlock_irq(zone_lru_lock(zone));
+ 
+ 	/* Now we can release pins of pages that we are not munlocking */
+ 	pagevec_release(&pvec_putback);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 22320ea27489..ca6620042431 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6222,7 +6222,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ 	init_waitqueue_head(&pgdat->kcompactd_wait);
+ #endif
+ 	pgdat_page_ext_init(pgdat);
+-	spin_lock_init(&pgdat->lru_lock);
++	rwlock_init(&pgdat->lru_lock);
+ 	lruvec_init(node_lruvec(pgdat));
+ 
+ 	pgdat->per_cpu_nodestats = &boot_nodestats;
+diff --git a/mm/page_idle.c b/mm/page_idle.c
+index e412a63b2b74..60118aa1b1ef 100644
+--- a/mm/page_idle.c
++++ b/mm/page_idle.c
+@@ -42,12 +42,12 @@ static struct page *page_idle_get_page(unsigned long pfn)
+ 		return NULL;
+ 
+ 	zone = page_zone(page);
+-	spin_lock_irq(zone_lru_lock(zone));
++	write_lock_irq(zone_lru_lock(zone));
+ 	if (unlikely(!PageLRU(page))) {
+ 		put_page(page);
+ 		page = NULL;
+ 	}
+-	spin_unlock_irq(zone_lru_lock(zone));
++	write_unlock_irq(zone_lru_lock(zone));
+ 	return page;
+ }
+ 
 diff --git a/mm/swap.c b/mm/swap.c
-index 3dd518832096..219c234d632f 100644
+index 219c234d632f..a16ba5194e1c 100644
 --- a/mm/swap.c
 +++ b/mm/swap.c
-@@ -34,6 +34,7 @@
- #include <linux/uio.h>
- #include <linux/hugetlb.h>
- #include <linux/page_idle.h>
-+#include <linux/mmzone.h>
+@@ -63,12 +63,12 @@ static void __page_cache_release(struct page *page)
+ 		struct lruvec *lruvec;
+ 		unsigned long flags;
  
- #include "internal.h"
- 
-@@ -260,14 +261,19 @@ void rotate_reclaimable_page(struct page *page)
+-		spin_lock_irqsave(zone_lru_lock(zone), flags);
++		write_lock_irqsave(zone_lru_lock(zone), flags);
+ 		lruvec = mem_cgroup_page_lruvec(page, zone->zone_pgdat);
+ 		VM_BUG_ON_PAGE(!PageLRU(page), page);
+ 		__ClearPageLRU(page);
+ 		del_page_from_lru_list(page, lruvec, page_off_lru(page));
+-		spin_unlock_irqrestore(zone_lru_lock(zone), flags);
++		write_unlock_irqrestore(zone_lru_lock(zone), flags);
  	}
- }
+ 	__ClearPageWaiters(page);
+ 	mem_cgroup_uncharge(page);
+@@ -200,17 +200,19 @@ static void pagevec_lru_move_fn(struct pagevec *pvec,
+ 		struct pglist_data *pagepgdat = page_pgdat(page);
  
-+/*
-+ * Updates page reclaim statistics using per-cpu counters that spill into
-+ * atomics above a threshold.
-+ *
-+ * Assumes that the caller has disabled preemption.  IRQs may be enabled
-+ * because this function is not called from irq context.
-+ */
- static void update_page_reclaim_stat(struct lruvec *lruvec,
- 				     int file, int rotated)
- {
--	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
--
--	reclaim_stat->recent_scanned[file]++;
-+	update_reclaim_stat_scanned(lruvec, file, 1);
- 	if (rotated)
--		reclaim_stat->recent_rotated[file]++;
-+		update_reclaim_stat_rotated(lruvec, file, 1);
- }
+ 		if (pagepgdat != pgdat) {
+-			if (pgdat)
+-				spin_unlock_irqrestore(&pgdat->lru_lock, flags);
++			if (pgdat) {
++				write_unlock_irqrestore(&pgdat->lru_lock,
++							flags);
++			}
+ 			pgdat = pagepgdat;
+-			spin_lock_irqsave(&pgdat->lru_lock, flags);
++			write_lock_irqsave(&pgdat->lru_lock, flags);
+ 		}
  
- static void __activate_page(struct page *page, struct lruvec *lruvec,
+ 		lruvec = mem_cgroup_page_lruvec(page, pgdat);
+ 		(*move_fn)(page, lruvec, arg);
+ 	}
+ 	if (pgdat)
+-		spin_unlock_irqrestore(&pgdat->lru_lock, flags);
++		write_unlock_irqrestore(&pgdat->lru_lock, flags);
+ 	release_pages(pvec->pages, pvec->nr);
+ 	pagevec_reinit(pvec);
+ }
+@@ -336,9 +338,9 @@ void activate_page(struct page *page)
+ 	struct zone *zone = page_zone(page);
+ 
+ 	page = compound_head(page);
+-	spin_lock_irq(zone_lru_lock(zone));
++	write_lock_irq(zone_lru_lock(zone));
+ 	__activate_page(page, mem_cgroup_page_lruvec(page, zone->zone_pgdat), NULL);
+-	spin_unlock_irq(zone_lru_lock(zone));
++	write_unlock_irq(zone_lru_lock(zone));
+ }
+ #endif
+ 
+@@ -735,7 +737,8 @@ void release_pages(struct page **pages, int nr)
+ 		 * same pgdat. The lock is held only if pgdat != NULL.
+ 		 */
+ 		if (locked_pgdat && ++lock_batch == SWAP_CLUSTER_MAX) {
+-			spin_unlock_irqrestore(&locked_pgdat->lru_lock, flags);
++			write_unlock_irqrestore(&locked_pgdat->lru_lock,
++						flags);
+ 			locked_pgdat = NULL;
+ 		}
+ 
+@@ -745,8 +748,9 @@ void release_pages(struct page **pages, int nr)
+ 		/* Device public page can not be huge page */
+ 		if (is_device_public_page(page)) {
+ 			if (locked_pgdat) {
+-				spin_unlock_irqrestore(&locked_pgdat->lru_lock,
+-						       flags);
++				write_unlock_irqrestore(
++						      &locked_pgdat->lru_lock,
++						      flags);
+ 				locked_pgdat = NULL;
+ 			}
+ 			put_zone_device_private_or_public_page(page);
+@@ -759,7 +763,9 @@ void release_pages(struct page **pages, int nr)
+ 
+ 		if (PageCompound(page)) {
+ 			if (locked_pgdat) {
+-				spin_unlock_irqrestore(&locked_pgdat->lru_lock, flags);
++				write_unlock_irqrestore(
++						      &locked_pgdat->lru_lock,
++						      flags);
+ 				locked_pgdat = NULL;
+ 			}
+ 			__put_compound_page(page);
+@@ -770,12 +776,14 @@ void release_pages(struct page **pages, int nr)
+ 			struct pglist_data *pgdat = page_pgdat(page);
+ 
+ 			if (pgdat != locked_pgdat) {
+-				if (locked_pgdat)
+-					spin_unlock_irqrestore(&locked_pgdat->lru_lock,
+-									flags);
++				if (locked_pgdat) {
++					write_unlock_irqrestore(
++					      &locked_pgdat->lru_lock, flags);
++				}
+ 				lock_batch = 0;
+ 				locked_pgdat = pgdat;
+-				spin_lock_irqsave(&locked_pgdat->lru_lock, flags);
++				write_lock_irqsave(&locked_pgdat->lru_lock,
++						   flags);
+ 			}
+ 
+ 			lruvec = mem_cgroup_page_lruvec(page, locked_pgdat);
+@@ -791,7 +799,7 @@ void release_pages(struct page **pages, int nr)
+ 		list_add(&page->lru, &pages_to_free);
+ 	}
+ 	if (locked_pgdat)
+-		spin_unlock_irqrestore(&locked_pgdat->lru_lock, flags);
++		write_unlock_irqrestore(&locked_pgdat->lru_lock, flags);
+ 
+ 	mem_cgroup_uncharge_list(&pages_to_free);
+ 	free_unref_page_list(&pages_to_free);
+@@ -829,8 +837,6 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
+ 	VM_BUG_ON_PAGE(!PageHead(page), page);
+ 	VM_BUG_ON_PAGE(PageCompound(page_tail), page);
+ 	VM_BUG_ON_PAGE(PageLRU(page_tail), page);
+-	VM_BUG_ON(NR_CPUS != 1 &&
+-		  !spin_is_locked(&lruvec_pgdat(lruvec)->lru_lock));
+ 
+ 	if (!list)
+ 		SetPageLRU(page_tail);
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9270a4370d54..730b6d0c6c61 100644
+index 730b6d0c6c61..e6f8f05d1bc6 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1655,7 +1655,6 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
- static noinline_for_stack void
- putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
- {
--	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
- 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
- 	LIST_HEAD(pages_to_free);
+@@ -1601,7 +1601,7 @@ int isolate_lru_page(struct page *page)
+ 		struct zone *zone = page_zone(page);
+ 		struct lruvec *lruvec;
  
-@@ -1684,7 +1683,7 @@ putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
- 		if (is_active_lru(lru)) {
- 			int file = is_file_lru(lru);
- 			int numpages = hpage_nr_pages(page);
--			reclaim_stat->recent_rotated[file] += numpages;
-+			update_reclaim_stat_rotated(lruvec, file, numpages);
+-		spin_lock_irq(zone_lru_lock(zone));
++		write_lock_irq(zone_lru_lock(zone));
+ 		lruvec = mem_cgroup_page_lruvec(page, zone->zone_pgdat);
+ 		if (PageLRU(page)) {
+ 			int lru = page_lru(page);
+@@ -1610,7 +1610,7 @@ int isolate_lru_page(struct page *page)
+ 			del_page_from_lru_list(page, lruvec, lru);
+ 			ret = 0;
  		}
- 		if (put_page_testzero(page)) {
- 			__ClearPageLRU(page);
-@@ -1736,7 +1735,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	isolate_mode_t isolate_mode = 0;
- 	int file = is_file_lru(lru);
- 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
--	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
- 	bool stalled = false;
+-		spin_unlock_irq(zone_lru_lock(zone));
++		write_unlock_irq(zone_lru_lock(zone));
+ 	}
+ 	return ret;
+ }
+@@ -1668,9 +1668,9 @@ putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
+ 		VM_BUG_ON_PAGE(PageLRU(page), page);
+ 		list_del(&page->lru);
+ 		if (unlikely(!page_evictable(page))) {
+-			spin_unlock_irq(&pgdat->lru_lock);
++			write_unlock_irq(&pgdat->lru_lock);
+ 			putback_lru_page(page);
+-			spin_lock_irq(&pgdat->lru_lock);
++			write_lock_irq(&pgdat->lru_lock);
+ 			continue;
+ 		}
  
- 	while (unlikely(too_many_isolated(pgdat, file, sc))) {
-@@ -1763,7 +1761,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+@@ -1691,10 +1691,10 @@ putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
+ 			del_page_from_lru_list(page, lruvec, lru);
+ 
+ 			if (unlikely(PageCompound(page))) {
+-				spin_unlock_irq(&pgdat->lru_lock);
++				write_unlock_irq(&pgdat->lru_lock);
+ 				mem_cgroup_uncharge(page);
+ 				(*get_compound_page_dtor(page))(page);
+-				spin_lock_irq(&pgdat->lru_lock);
++				write_lock_irq(&pgdat->lru_lock);
+ 			} else
+ 				list_add(&page->lru, &pages_to_free);
+ 		}
+@@ -1755,7 +1755,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 	if (!sc->may_unmap)
+ 		isolate_mode |= ISOLATE_UNMAPPED;
+ 
+-	spin_lock_irq(&pgdat->lru_lock);
++	write_lock_irq(&pgdat->lru_lock);
+ 
+ 	nr_taken = isolate_lru_pages(nr_to_scan, lruvec, &page_list,
  				     &nr_scanned, sc, isolate_mode, lru);
+@@ -1774,7 +1774,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 		count_memcg_events(lruvec_memcg(lruvec), PGSCAN_DIRECT,
+ 				   nr_scanned);
+ 	}
+-	spin_unlock_irq(&pgdat->lru_lock);
++	write_unlock_irq(&pgdat->lru_lock);
  
- 	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, nr_taken);
--	reclaim_stat->recent_scanned[file] += nr_taken;
-+	update_reclaim_stat_scanned(lruvec, file, nr_taken);
+ 	if (nr_taken == 0)
+ 		return 0;
+@@ -1782,7 +1782,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 	nr_reclaimed = shrink_page_list(&page_list, pgdat, sc, 0,
+ 				&stat, false);
+ 
+-	spin_lock_irq(&pgdat->lru_lock);
++	write_lock_irq(&pgdat->lru_lock);
  
  	if (current_is_kswapd()) {
  		if (global_reclaim(sc))
-@@ -1914,7 +1912,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 	LIST_HEAD(l_active);
- 	LIST_HEAD(l_inactive);
- 	struct page *page;
--	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
- 	unsigned nr_deactivate, nr_activate;
- 	unsigned nr_rotated = 0;
- 	isolate_mode_t isolate_mode = 0;
-@@ -1932,7 +1929,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
+@@ -1800,7 +1800,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 
+ 	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, -nr_taken);
+ 
+-	spin_unlock_irq(&pgdat->lru_lock);
++	write_unlock_irq(&pgdat->lru_lock);
+ 
+ 	mem_cgroup_uncharge_list(&page_list);
+ 	free_unref_page_list(&page_list);
+@@ -1880,10 +1880,10 @@ static unsigned move_active_pages_to_lru(struct lruvec *lruvec,
+ 			del_page_from_lru_list(page, lruvec, lru);
+ 
+ 			if (unlikely(PageCompound(page))) {
+-				spin_unlock_irq(&pgdat->lru_lock);
++				write_unlock_irq(&pgdat->lru_lock);
+ 				mem_cgroup_uncharge(page);
+ 				(*get_compound_page_dtor(page))(page);
+-				spin_lock_irq(&pgdat->lru_lock);
++				write_lock_irq(&pgdat->lru_lock);
+ 			} else
+ 				list_add(&page->lru, pages_to_free);
+ 		} else {
+@@ -1923,7 +1923,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 	if (!sc->may_unmap)
+ 		isolate_mode |= ISOLATE_UNMAPPED;
+ 
+-	spin_lock_irq(&pgdat->lru_lock);
++	write_lock_irq(&pgdat->lru_lock);
+ 
+ 	nr_taken = isolate_lru_pages(nr_to_scan, lruvec, &l_hold,
  				     &nr_scanned, sc, isolate_mode, lru);
- 
- 	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, nr_taken);
--	reclaim_stat->recent_scanned[file] += nr_taken;
-+	update_reclaim_stat_scanned(lruvec, file, nr_taken);
- 
+@@ -1934,7 +1934,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
  	__count_vm_events(PGREFILL, nr_scanned);
  	count_memcg_events(lruvec_memcg(lruvec), PGREFILL, nr_scanned);
-@@ -1989,7 +1986,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 	 * helps balance scan pressure between file and anonymous pages in
- 	 * get_scan_count.
- 	 */
--	reclaim_stat->recent_rotated[file] += nr_rotated;
-+	update_reclaim_stat_rotated(lruvec, file, nr_rotated);
  
+-	spin_unlock_irq(&pgdat->lru_lock);
++	write_unlock_irq(&pgdat->lru_lock);
+ 
+ 	while (!list_empty(&l_hold)) {
+ 		cond_resched();
+@@ -1979,7 +1979,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 	/*
+ 	 * Move pages back to the lru list.
+ 	 */
+-	spin_lock_irq(&pgdat->lru_lock);
++	write_lock_irq(&pgdat->lru_lock);
+ 	/*
+ 	 * Count referenced pages from currently used mappings as rotated,
+ 	 * even though only some of them are actually re-activated.  This
+@@ -1991,7 +1991,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
  	nr_activate = move_active_pages_to_lru(lruvec, &l_active, &l_hold, lru);
  	nr_deactivate = move_active_pages_to_lru(lruvec, &l_inactive, &l_hold, lru - LRU_ACTIVE);
-@@ -2116,7 +2113,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 			   unsigned long *lru_pages)
- {
- 	int swappiness = mem_cgroup_swappiness(memcg);
--	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
-+	struct zone_reclaim_stat *rstat = &lruvec->reclaim_stat;
- 	u64 fraction[2];
- 	u64 denominator = 0;	/* gcc */
- 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
-@@ -2125,6 +2122,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 	unsigned long anon, file;
- 	unsigned long ap, fp;
- 	enum lru_list lru;
-+	long recent_scanned[2], recent_rotated[2];
+ 	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, -nr_taken);
+-	spin_unlock_irq(&pgdat->lru_lock);
++	write_unlock_irq(&pgdat->lru_lock);
  
- 	/* If we have no swap space, do not bother scanning anon pages. */
- 	if (!sc->may_swap || mem_cgroup_get_nr_swap_pages(memcg) <= 0) {
-@@ -2238,14 +2236,22 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 	mem_cgroup_uncharge_list(&l_hold);
+ 	free_unref_page_list(&l_hold);
+@@ -2235,7 +2235,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 	file  = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE, MAX_NR_ZONES) +
  		lruvec_lru_size(lruvec, LRU_INACTIVE_FILE, MAX_NR_ZONES);
  
- 	spin_lock_irq(&pgdat->lru_lock);
--	if (unlikely(reclaim_stat->recent_scanned[0] > anon / 4)) {
--		reclaim_stat->recent_scanned[0] /= 2;
--		reclaim_stat->recent_rotated[0] /= 2;
-+	recent_scanned[0] = atomic_long_read(&rstat->recent_scanned[0]);
-+	recent_rotated[0] = atomic_long_read(&rstat->recent_rotated[0]);
-+	if (unlikely(recent_scanned[0] > anon / 4)) {
-+		recent_scanned[0] /= 2;
-+		recent_rotated[0] /= 2;
-+		atomic_long_set(&rstat->recent_scanned[0], recent_scanned[0]);
-+		atomic_long_set(&rstat->recent_rotated[0], recent_rotated[0]);
- 	}
+-	spin_lock_irq(&pgdat->lru_lock);
++	write_lock_irq(&pgdat->lru_lock);
+ 	recent_scanned[0] = atomic_long_read(&rstat->recent_scanned[0]);
+ 	recent_rotated[0] = atomic_long_read(&rstat->recent_rotated[0]);
+ 	if (unlikely(recent_scanned[0] > anon / 4)) {
+@@ -2264,7 +2264,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
  
--	if (unlikely(reclaim_stat->recent_scanned[1] > file / 4)) {
--		reclaim_stat->recent_scanned[1] /= 2;
--		reclaim_stat->recent_rotated[1] /= 2;
-+	recent_scanned[1] = atomic_long_read(&rstat->recent_scanned[1]);
-+	recent_rotated[1] = atomic_long_read(&rstat->recent_rotated[1]);
-+	if (unlikely(recent_scanned[1] > file / 4)) {
-+		recent_scanned[1] /= 2;
-+		recent_rotated[1] /= 2;
-+		atomic_long_set(&rstat->recent_scanned[1], recent_scanned[1]);
-+		atomic_long_set(&rstat->recent_rotated[1], recent_rotated[1]);
- 	}
- 
- 	/*
-@@ -2253,11 +2259,11 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 	 * proportional to the fraction of recently scanned pages on
- 	 * each list that were recently referenced and in active use.
- 	 */
--	ap = anon_prio * (reclaim_stat->recent_scanned[0] + 1);
--	ap /= reclaim_stat->recent_rotated[0] + 1;
-+	ap = anon_prio * (recent_scanned[0] + 1);
-+	ap /= recent_rotated[0] + 1;
- 
--	fp = file_prio * (reclaim_stat->recent_scanned[1] + 1);
--	fp /= reclaim_stat->recent_rotated[1] + 1;
-+	fp = file_prio * (recent_scanned[1] + 1);
-+	fp /= recent_rotated[1] + 1;
- 	spin_unlock_irq(&pgdat->lru_lock);
+ 	fp = file_prio * (recent_scanned[1] + 1);
+ 	fp /= recent_rotated[1] + 1;
+-	spin_unlock_irq(&pgdat->lru_lock);
++	write_unlock_irq(&pgdat->lru_lock);
  
  	fraction[0] = ap;
+ 	fraction[1] = fp;
+@@ -3998,9 +3998,9 @@ void check_move_unevictable_pages(struct page **pages, int nr_pages)
+ 		pgscanned++;
+ 		if (pagepgdat != pgdat) {
+ 			if (pgdat)
+-				spin_unlock_irq(&pgdat->lru_lock);
++				write_unlock_irq(&pgdat->lru_lock);
+ 			pgdat = pagepgdat;
+-			spin_lock_irq(&pgdat->lru_lock);
++			write_lock_irq(&pgdat->lru_lock);
+ 		}
+ 		lruvec = mem_cgroup_page_lruvec(page, pgdat);
+ 
+@@ -4021,7 +4021,7 @@ void check_move_unevictable_pages(struct page **pages, int nr_pages)
+ 	if (pgdat) {
+ 		__count_vm_events(UNEVICTABLE_PGRESCUED, pgrescued);
+ 		__count_vm_events(UNEVICTABLE_PGSCANNED, pgscanned);
+-		spin_unlock_irq(&pgdat->lru_lock);
++		write_unlock_irq(&pgdat->lru_lock);
+ 	}
+ }
+ #endif /* CONFIG_SHMEM */
 -- 
 2.18.0
