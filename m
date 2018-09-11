@@ -1,75 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 33CD08E0008
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 16:58:46 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id g9-v6so12895209pgc.16
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 13:58:46 -0700 (PDT)
-Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
-        by mx.google.com with ESMTPS id e21-v6si20832405pgb.131.2018.09.11.13.58.44
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C04B88E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 17:16:51 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id a23-v6so13326840pfo.23
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 14:16:51 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 16-v6si22171448pgy.641.2018.09.11.14.16.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Sep 2018 13:58:44 -0700 (PDT)
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [RFC v9 PATCH 4/4] mm: unmap VM_PFNMAP mappings with optimized path
-Date: Wed, 12 Sep 2018 04:58:13 +0800
-Message-Id: <1536699493-69195-5-git-send-email-yang.shi@linux.alibaba.com>
-In-Reply-To: <1536699493-69195-1-git-send-email-yang.shi@linux.alibaba.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 11 Sep 2018 14:16:50 -0700 (PDT)
+Date: Tue, 11 Sep 2018 14:16:45 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC v9 PATCH 2/4] mm: mmap: zap pages with read mmap_sem in
+ munmap
+Message-ID: <20180911211645.GA12159@bombadil.infradead.org>
 References: <1536699493-69195-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1536699493-69195-3-git-send-email-yang.shi@linux.alibaba.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1536699493-69195-3-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, vbabka@suse.cz, akpm@linux-foundation.org, dave.hansen@intel.com, oleg@redhat.com, srikar@linux.vnet.ibm.com
-Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: mhocko@kernel.org, ldufour@linux.vnet.ibm.com, vbabka@suse.cz, akpm@linux-foundation.org, dave.hansen@intel.com, oleg@redhat.com, srikar@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-When unmapping VM_PFNMAP mappings, vm flags need to be updated. Since
-the vmas have been detached, so it sounds safe to update vm flags with
-read mmap_sem.
+On Wed, Sep 12, 2018 at 04:58:11AM +0800, Yang Shi wrote:
+>  mm/mmap.c | 97 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
 
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
----
- mm/mmap.c | 15 +--------------
- 1 file changed, 1 insertion(+), 14 deletions(-)
-
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 086f8b5..0b6b231 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2778,7 +2778,7 @@ static int do_munmap_zap_rlock(struct mm_struct *mm, unsigned long start,
- 			       size_t len, struct list_head *uf)
- {
- 	unsigned long end;
--	struct vm_area_struct *start_vma, *prev, *vma;
-+	struct vm_area_struct *start_vma, *prev;
- 	int ret = 0;
- 
- 	if (!addr_ok(start, len))
-@@ -2811,16 +2811,6 @@ static int do_munmap_zap_rlock(struct mm_struct *mm, unsigned long start,
- 			goto out;
- 	}
- 
--	/*
--	 * Unmapping vmas, which have VM_PFNMAP
--	 * need get done with write mmap_sem held since they may update
--	 * vm_flags. Deal with such mappings with regular do_munmap() call.
--	 */
--	for (vma = start_vma; vma && vma->vm_start < end; vma = vma->vm_next) {
--		if (vma->vm_flags & VM_PFNMAP)
--			goto regular_path;
--	}
--
- 	/* Handle mlocked vmas */
- 	if (mm->locked_vm)
- 		munlock_vmas(start_vma, end);
-@@ -2844,9 +2834,6 @@ static int do_munmap_zap_rlock(struct mm_struct *mm, unsigned long start,
- 
- 	return 0;
- 
--regular_path:
--	ret = do_munmap(mm, start, len, uf);
--
- out:
- 	up_write(&mm->mmap_sem);
- 	return ret;
--- 
-1.8.3.1
+I really think you're going about this the wrong way by duplicating
+vm_munmap().
