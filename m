@@ -1,59 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BAABD8E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 10:31:18 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id f13-v6so12500220pgs.15
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 07:31:18 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id w25-v6si19817585pfa.359.2018.09.11.07.31.16
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B51A8E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 11:00:52 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id n3-v6so4931284ljc.17
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 08:00:52 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h77-v6sor6681071lfh.36.2018.09.11.08.00.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Sep 2018 07:31:17 -0700 (PDT)
-Date: Tue, 11 Sep 2018 17:31:09 +0300
-From: Jarkko Sakkinen <jarkko.sakkinen@intel.com>
-Subject: Re: [RFC 10/12] x86/pconfig: Program memory encryption keys on a
- system-wide basis
-Message-ID: <20180911143108.GA9717@intel.com>
-References: <cover.1536356108.git.alison.schofield@intel.com>
- <0947e4ad711e8b7c1f581a446e808f514620b49b.1536356108.git.alison.schofield@intel.com>
- <73c60d4f8a953476f1e29aaccbeb7f732c209190.camel@intel.com>
- <20180911024657.GC1732@alison-desk.jf.intel.com>
+        (Google Transport Security);
+        Tue, 11 Sep 2018 08:00:50 -0700 (PDT)
+Date: Tue, 11 Sep 2018 15:00:48 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH 1/3] mm/sparse: add likely to mem_section[root] check in
+ sparse_index_init()
+Message-ID: <20180911150048.5q6zmpz5m5cx3syu@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20180823130732.9489-1-richard.weiyang@gmail.com>
+ <20180823130732.9489-2-richard.weiyang@gmail.com>
+ <cc817bc8-bced-fb07-cb2d-c122463380a7@intel.com>
+ <20180824150717.GA10093@WeideMacBook-Pro.local>
+ <20180903222732.v52zdya2c2hkff7n@master>
+ <20180909013807.6ux4cidt3nehofz5@master>
+ <5140697b-540a-1db1-e300-af1aaece97ad@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180911024657.GC1732@alison-desk.jf.intel.com>
+In-Reply-To: <5140697b-540a-1db1-e300-af1aaece97ad@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alison Schofield <alison.schofield@intel.com>
-Cc: "tglx@linutronix.de" <tglx@linutronix.de>, "dhowells@redhat.com" <dhowells@redhat.com>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "jmorris@namei.org" <jmorris@namei.org>, "Huang, Kai" <kai.huang@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Nakajima, Jun" <jun.nakajima@intel.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-On Mon, Sep 10, 2018 at 07:46:57PM -0700, Alison Schofield wrote:
-> On Mon, Sep 10, 2018 at 11:24:20AM -0700, Sakkinen, Jarkko wrote:
-> > On Fri, 2018-09-07 at 15:38 -0700, Alison Schofield wrote:
-> > > The kernel manages the MKTME (Multi-Key Total Memory Encryption) Keys
-> > > as a system wide single pool of keys. The hardware, however, manages
-> > > the keys on a per physical package basis. Each physical package
-> > > maintains a key table that all CPU's in that package share.
-> > > 
-> > > In order to maintain the consistent, system wide view that the kernel
-> > > requires, program all physical packages during a key program request.
-> > > 
-> > > Signed-off-by: Alison Schofield <alison.schofield@intel.com>
-> > 
-> > Just kind of checking that are you talking about multiple cores in
-> > a single package or really multiple packages?
-> 
-> System wide pool.
-> System has multiple packages.  
-> Packages have multiple CPU's.
-> 
-> The hardware KEY TABLE is per package. I need that per package KEY TABLE
-> to be the same in every package across the system. So, I pick one 'lead'
-> CPU in each package to program that packages KEY TABLE.
-> 
-> (BTW - I'm going to look into Kai's suggestion to move the system wide view
-> of this key programming into the key service. Not sure if that's a go.)
+On Mon, Sep 10, 2018 at 01:30:11PM -0700, Dave Hansen wrote:
+>On 09/08/2018 06:38 PM, owner-linux-mm@kvack.org wrote:
+>> 
+>> At last, here is the test result on my 4G virtual machine. I added printk
+>> before and after sparse_memory_present_with_active_regions() and tested three
+>> times with/without "likely".
+>> 
+>>                without      with
+>>     Elapsed   0.000252     0.000250   -0.8%
+>> 
+>> The benefit seems to be too small on a 4G virtual machine or even this is not
+>> stable. Not sure we can see some visible effect on a 32G machine.
+>
+>I think it's highly unlikely you have found something significant here.
+>It's one system, in a VM and it's not being measured using a mechanism
+>that is suitable for benchmarking (the kernel dmesg timestamps).
+>
+>Plus, if this is a really tight loop, the cpu's branch predictors will
+>be good at it.
 
-Thanks. I think could be perhaps a fair addition to the documentation?
+Hi, Dave
 
-/Jarkko
+Thanks for your reply.
+
+I think you are right. This part is not significant and cpu may do its
+job well.
+
+Hmm... I am still willing to hear your opinion on my analysis of this
+situation. In which case we would use likely/unlikely.
+
+For example, in this case the possibility is (255/ 256) if the system
+has 32G RAM. Do we have a threshold of the possibility to use
+likely/unlikely. Or we'd prefer not to use this any more? Let compiler
+and cpu do their job.
+
+Look forward your insights.
+
+-- 
+Wei Yang
+Help you, Help me
