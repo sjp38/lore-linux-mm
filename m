@@ -1,71 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F1958E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 20:19:10 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id v9-v6so10682015ply.13
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 17:19:10 -0700 (PDT)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id p15-v6si18598087pgh.281.2018.09.10.17.19.09
+	by kanga.kvack.org (Postfix) with ESMTP id E8A4B8E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 20:29:17 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id k18-v6so10595770pls.12
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 17:29:17 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id q23-v6si18683584pgj.354.2018.09.10.17.29.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 17:19:09 -0700 (PDT)
-Date: Mon, 10 Sep 2018 17:19:42 -0700
-From: Alison Schofield <alison.schofield@intel.com>
-Subject: Re: [RFC 01/12] docs/x86: Document the Multi-Key Total Memory
- Encryption API
-Message-ID: <20180911001942.GC31868@alison-desk.jf.intel.com>
-References: <cover.1536356108.git.alison.schofield@intel.com>
- <b9c1e3805c700043d92117462bdb6018bb9f858a.1536356108.git.alison.schofield@intel.com>
- <437f79cf2512f3aef200f7d0bfba4c99a1834eff.camel@intel.com>
+        Mon, 10 Sep 2018 17:29:16 -0700 (PDT)
+Subject: Re: Plumbers 2018 - Performance and Scalability Microconference
+References: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
+ <35c2c79f-efbe-f6b2-43a6-52da82145638@nvidia.com>
+ <55b44432-ade5-f090-bfe7-ea20f3e87285@redhat.com>
+ <20180910172011.GB3902@linux-r8p5>
+ <78fa0507-4789-415b-5b9c-18e3fcefebab@nvidia.com>
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Message-ID: <3db2b742-9e09-a934-e4ef-c87465e6715a@oracle.com>
+Date: Mon, 10 Sep 2018 20:29:00 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <437f79cf2512f3aef200f7d0bfba4c99a1834eff.camel@intel.com>
+In-Reply-To: <78fa0507-4789-415b-5b9c-18e3fcefebab@nvidia.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>
-Cc: "tglx@linutronix.de" <tglx@linutronix.de>, "dhowells@redhat.com" <dhowells@redhat.com>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "jmorris@namei.org" <jmorris@namei.org>, "Huang, Kai" <kai.huang@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Nakajima, Jun" <jun.nakajima@intel.com>
+To: John Hubbard <jhubbard@nvidia.com>, Waiman Long <longman@redhat.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Aaron Lu <aaron.lu@intel.com>, alex.kogan@oracle.com, akpm@linux-foundation.org, boqun.feng@gmail.com, brouer@redhat.com, dave.dice@oracle.com, Dhaval Giani <dhaval.giani@oracle.com>, ktkhai@virtuozzo.com, ldufour@linux.vnet.ibm.com, Pavel.Tatashin@microsoft.com, paulmck@linux.vnet.ibm.com, shady.issa@oracle.com, tariqt@mellanox.com, tglx@linutronix.de, tim.c.chen@intel.com, vbabka@suse.cz, yang.shi@linux.alibaba.com, shy828301@gmail.com, Huang Ying <ying.huang@intel.com>, subhra.mazumdar@oracle.com, Steven Sistare <steven.sistare@oracle.com>, jwadams@google.com, ashwinch@google.com, sqazi@google.com, Shakeel Butt <shakeelb@google.com>, walken@google.com, rientjes@google.com, junaids@google.com, Neha Agarwal <nehaagarwal@google.com>
 
-On Mon, Sep 10, 2018 at 10:32:20AM -0700, Sakkinen, Jarkko wrote:
-> On Fri, 2018-09-07 at 15:34 -0700, Alison Schofield wrote:
-> > Document the API's used for MKTME on Intel platforms.
-> > MKTME: Multi-KEY Total Memory Encryption
-> > 
-> > Signed-off-by: Alison Schofield <alison.schofield@intel.com>
-> > ---
-> >  Documentation/x86/mktme-keys.txt | 153
-> > +++++++++++++++++++++++++++++++++++++++
-> >  1 file changed, 153 insertions(+)
-> >  create mode 100644 Documentation/x86/mktme-keys.txt
-> > 
-> > diff --git a/Documentation/x86/mktme-keys.txt b/Documentation/x86/mktme-
-> > keys.txt
-> > new file mode 100644
-> > index 000000000000..2dea7acd2a17
-> > --- /dev/null
-> > +++ b/Documentation/x86/mktme-keys.txt
-> > @@ -0,0 +1,153 @@
-> > +MKTME (Multi-Key Total Memory Encryption) is a technology that allows
-> > +memory encryption on Intel platforms. Whereas TME (Total Memory Encryption)
-> > +allows encryption of the entire system memory using a single key, MKTME
-> > +allows multiple encryption domains, each having their own key. The main use
-> > +case for the feature is virtual machine isolation. The API's introduced here
-> > +are intended to offer flexibility to work in a wide range of uses.
-> > +
-> > +The externally available Intel Architecture Spec:
-> > +https://software.intel.com/sites/default/files/managed/a5/16/Multi-Key-Total-
-> > Memory-Encryption-Spec.pdf
-> > +
-> > +============================  API Overview  ============================
-> > +
-> > +There are 2 MKTME specific API's that enable userspace to create and use
-> > +the memory encryption keys:
+On 9/10/18 1:34 PM, John Hubbard wrote:
+> On 9/10/18 10:20 AM, Davidlohr Bueso wrote:
+>> On Mon, 10 Sep 2018, Waiman Long wrote:
+>>> On 09/08/2018 12:13 AM, John Hubbard wrote:
+> [...]
+>>>> It's also interesting that there are two main huge page systems (THP and Hugetlbfs), and I sometimes
+>>>> wonder the obvious thing to wonder: are these sufficiently different to warrant remaining separate,
+>>>> long-term?A  Yes, I realize they're quite different in some ways, but still, one wonders. :)
+>>>
+>>> One major difference between hugetlbfs and THP is that the former has to
+>>> be explicitly managed by the applications that use it whereas the latter
+>>> is done automatically without the applications being aware that THP is
+>>> being used at all. Performance wise, THP may or may not increase
+>>> application performance depending on the exact memory access pattern,
+>>> though the chance is usually higher that an application will benefit
+>>> than suffer from it.
+>>>
+>>> If an application know what it is doing, using hughtblfs can boost
+>>> performance more than it can ever achieved by THP. Many large enterprise
+>>> applications, like Oracle DB, are using hugetlbfs and explicitly disable
+>>> THP. So unless THP can improve its performance to a level that is
+>>> comparable to hugetlbfs, I won't see the later going away.
+>>
+>> Yep, there are a few non-trivial workloads out there that flat out discourage
+>> thp, ie: redis to avoid latency issues.
+>>
 > 
-> This is like saying that they are different APIs to do semantically the
-> same exact thing. Is that so?
-
-No. 
-The API's used to create and use memory encryption keys are described below:
-
+> Yes, the need for guaranteed, available-now huge pages in some cases is
+> understood. That's not the quite same as saying that there have to be two different
+> subsystems, though. Nor does it even necessarily imply that the pool has to be
+> reserved in the same way as hugetlbfs does it...exactly.
 > 
-> /Jarkko
+> So I'm wondering if THP behavior can be made to mimic hugetlbfs enough (perhaps
+> another option, in addition to "always, never, madvise") that we could just use
+> THP in all cases. But the "transparent" could become a sliding scale that could
+> go all the way down to "opaque" (hugetlbfs behavior).
+
+Leaving the interface aside, the idea that we could deduplicate redundant parts of the hugetlbfs and THP implementations, without user-visible change, seems promising.
