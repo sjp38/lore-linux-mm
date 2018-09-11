@@ -1,61 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ADB858E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 13:56:13 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id v9-v6so11879603ply.13
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 10:56:13 -0700 (PDT)
-Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
-        by mx.google.com with ESMTPS id v6-v6si16245096plp.434.2018.09.11.10.55.58
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C1FB8E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 14:20:47 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id u126-v6so12381073itb.0
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 11:20:47 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q11-v6sor11752857iop.216.2018.09.11.11.20.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Sep 2018 10:55:58 -0700 (PDT)
-Date: Tue, 11 Sep 2018 11:55:55 -0600
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [PATCH v3 3/3] docs: core-api: add memory allocation guide
-Message-ID: <20180911115555.5fce5631@lwn.net>
-In-Reply-To: <1534517236-16762-4-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1534517236-16762-1-git-send-email-rppt@linux.vnet.ibm.com>
-	<1534517236-16762-4-git-send-email-rppt@linux.vnet.ibm.com>
+        (Google Transport Security);
+        Tue, 11 Sep 2018 11:20:45 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+References: <alpine.LRH.2.21.1808301639570.15669@math.ut.ee>
+ <20180830205527.dmemjwxfbwvkdzk2@suse.de> <alpine.LRH.2.21.1808310711380.17865@math.ut.ee>
+ <20180831070722.wnulbbmillxkw7ke@suse.de> <alpine.DEB.2.21.1809081223450.1402@nanos.tec.linutronix.de>
+ <20180911114927.gikd3uf3otxn2ekq@suse.de>
+In-Reply-To: <20180911114927.gikd3uf3otxn2ekq@suse.de>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 11 Sep 2018 08:20:33 -1000
+Message-ID: <CA+55aFzo3b2aChbJ2aOSvKbguYKMG8wv02NS8qzp6w2T5z8WTg@mail.gmail.com>
+Subject: Re: 32-bit PTI with THP = userspace corruption
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Michal Hocko <mhocko@suse.com>, Randy Dunlap <rdunlap@infradead.org>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Joerg Roedel <jroedel@suse.de>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Meelis Roos <mroos@linux.ee>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>
 
-Sorry for being so slow to get to this...it fell into a dark crack in my
-rickety email folder hierarchy.  I do have one question...
+On Tue, Sep 11, 2018 at 1:49 AM Joerg Roedel <jroedel@suse.de> wrote:
+>
+> I had a look into the THP and the HugeTLBfs code, and that is not
+> really easy to fix there. As I can see it now, there are a few options
+> to fix that, but most of them are ugly:
 
-On Fri, 17 Aug 2018 17:47:16 +0300
-Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+Just do (4): disable PTI with PAE.
 
-> +    ``GFP_HIGHUSER_MOVABLE`` does not require that allocated memory
-> +    will be directly accessible by the kernel or the hardware and
-> +    implies that the data is movable.
-> +
-> +    ``GFP_HIGHUSER`` means that the allocated memory is not movable,
-> +    but it is not required to be directly accessible by the kernel or
-> +    the hardware. An example may be a hardware allocation that maps
-> +    data directly into userspace but has no addressing limitations.
-> +
-> +    ``GFP_USER`` means that the allocated memory is not movable and it
-> +    must be directly accessible by the kernel or the hardware. It is
-> +    typically used by hardware for buffers that are mapped to
-> +    userspace (e.g. graphics) that hardware still must DMA to.
+Then we can try to make people perhaps not use !PAE very much, and
+warn if you have PAE disabled on a machine that supports it.
 
-I realize that this is copied from elsewhere, but still...as I understand
-it, the "HIGH" part means that the allocation can be satisfied from high
-memory, nothing more.  So...it's irrelevant on 64-bit machines to start
-with, right?  And it has nothing to do with DMA, I would think.  That would
-be handled by the DMA infrastructure and, perhaps, the DMA* zones.  Right?
+As you say, there shouldn't be much of a performance impact from PAE.
+There is a more noticeable performance impact from HIGHMEM, not from
+HIGHMEM_64G, iirc.
 
-I ask because high memory is an artifact of how things are laid out on
-32-bit systems; hardware can often DMA quite easily into memory that the
-kernel sees as "high".  So, to me, this description seems kind of
-confusing; I wouldn't mention hardware at all.  But maybe I'm missing
-something?
-
-Thanks,
-
-jon
+                Linus
