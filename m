@@ -1,92 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AD7998E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 10:02:24 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id w196-v6so1729788itb.4
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 07:02:24 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id a1-v6si12343025ion.111.2018.09.11.07.02.22
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DBD28E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 10:06:34 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id q11-v6so31811967oih.15
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 07:06:34 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 8-v6si12167935oix.218.2018.09.11.07.06.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Sep 2018 07:02:23 -0700 (PDT)
-Subject: Re: [RFC PATCH 0/3] rework mmap-exit vs. oom_reaper handover
-References: <1536382452-3443-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180910125513.311-1-mhocko@kernel.org>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <70a92ca8-ca3e-2586-d52a-36c5ef6f7e43@i-love.sakura.ne.jp>
-Date: Tue, 11 Sep 2018 23:01:57 +0900
+        Tue, 11 Sep 2018 07:06:32 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8BE4L03087335
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 10:06:31 -0400
+Received: from e36.co.us.ibm.com (e36.co.us.ibm.com [32.97.110.154])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2medw54247-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 10:06:30 -0400
+Received: from localhost
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <zaslonko@linux.vnet.ibm.com>;
+	Tue, 11 Sep 2018 08:06:27 -0600
+Subject: Re: [PATCH] memory_hotplug: fix the panic when memory end is not on
+ the section boundary
+References: <20180910123527.71209-1-zaslonko@linux.ibm.com>
+ <20180910131754.GG10951@dhcp22.suse.cz>
+From: Zaslonko Mikhail <zaslonko@linux.vnet.ibm.com>
+Date: Tue, 11 Sep 2018 16:06:23 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180910125513.311-1-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+In-Reply-To: <20180910131754.GG10951@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+Message-Id: <04b427ad-df4e-67bd-2942-2a7a2cccf1aa@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>, Mikhail Zaslonko <zaslonko@linux.ibm.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pavel.Tatashin@microsoft.com, osalvador@suse.de, gerald.schaefer@de.ibm.com
 
-On 2018/09/10 21:55, Michal Hocko wrote:
-> This is a very coarse implementation of the idea I've had before.
-> Please note that I haven't tested it yet. It is mostly to show the
-> direction I would wish to go for.
 
-Hmm, this patchset does not allow me to boot. ;-)
 
-        free_pgd_range(&tlb, vma->vm_start, vma->vm_prev->vm_end,
-                        FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+On 10.09.2018 15:17, Michal Hocko wrote:
+> [Cc Pavel]
+>
+> On Mon 10-09-18 14:35:27, Mikhail Zaslonko wrote:
+>> If memory end is not aligned with the linux memory section boundary, such
+>> a section is only partly initialized. This may lead to VM_BUG_ON due to
+>> uninitialized struct pages access from is_mem_section_removable() or
+>> test_pages_in_a_zone() function.
+>>
+>> Here is one of the panic examples:
+>>   CONFIG_DEBUG_VM_PGFLAGS=y
+>>   kernel parameter mem=3075M
+> OK, so the last memory section is not full and we have a partial memory
+> block right?
 
-[    1.875675] sched_clock: Marking stable (1810466565, 65169393)->(1977240380, -101604422)
-[    1.877833] registered taskstats version 1
-[    1.877853] Loading compiled-in X.509 certificates
-[    1.878835] zswap: loaded using pool lzo/zbud
-[    1.880835] BUG: unable to handle kernel NULL pointer dereference at 0000000000000008
-[    1.881792] PGD 0 P4D 0 
-[    1.881812] Oops: 0000 [#1] SMP DEBUG_PAGEALLOC
-[    1.882792] CPU: 1 PID: 121 Comm: modprobe Not tainted 4.19.0-rc3+ #469
-[    1.883803] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 05/19/2017
-[    1.884792] RIP: 0010:exit_mmap+0x122/0x1f0
-[    1.884812] Code: 8b 5b 10 48 85 db 75 e7 45 84 e4 48 8b 45 00 0f 85 9a 00 00 00 48 8b 50 18 48 8b 30 48 8d 7c 24 08 45 31 c0 31 c9 48 89 04 24 <48> 8b 52 08 e8 45 3b ff ff 48 8d 7c 24 08 31 f6 48 c7 c2 ff ff ff
-[    1.886793] RSP: 0018:ffffc90000897de0 EFLAGS: 00010246
-[    1.887812] RAX: ffff88013494fcc0 RBX: 0000000000000000 RCX: 0000000000000000
-[    1.888872] RDX: 0000000000000000 RSI: 0000000000400000 RDI: ffffc90000897de8
-[    1.889794] RBP: ffff880134950040 R08: 0000000000000000 R09: 0000000000000000
-[    1.890792] R10: 0000000000000001 R11: 0000000000081741 R12: 0000000000000000
-[    1.891794] R13: ffff8801348fe240 R14: ffff8801348fe928 R15: 0000000000000000
-[    1.892836] FS:  0000000000000000(0000) GS:ffff88013b240000(0000) knlGS:0000000000000000
-[    1.893792] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[    1.894792] CR2: 0000000000000008 CR3: 000000000220f001 CR4: 00000000001606e0
-[    1.895797] Call Trace:
-[    1.895817]  ? switch_mm_irqs_off+0x2e1/0x870
-[    1.895837]  mmput+0x63/0x130
-[    1.895857]  do_exit+0x2a7/0xc80
-[    1.895877]  ? __do_page_fault+0x219/0x520
-[    1.896793]  ? trace_hardirqs_on_thunk+0x1a/0x1c
-[    1.896813]  do_group_exit+0x41/0xc0
-[    1.896833]  __x64_sys_exit_group+0xf/0x10
-[    1.896853]  do_syscall_64+0x4f/0x1f0
-[    1.896873]  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-[    1.896893] RIP: 0033:0x7fa50e122909
-[    1.896913] Code: Bad RIP value.
-[    1.896933] RSP: 002b:00007fff0fdb96a8 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
-[    1.897792] RAX: ffffffffffffffda RBX: 0000000000000001 RCX: 00007fa50e122909
-[    1.898792] RDX: 0000000000000001 RSI: 0000000000000000 RDI: 0000000000000001
-[    1.899795] RBP: 00007fa50e41f838 R08: 000000000000003c R09: 00000000000000e7
-[    1.900800] R10: ffffffffffffff70 R11: 0000000000000246 R12: 00007fa50e41f838
-[    1.901793] R13: 00007fa50e424e80 R14: 0000000000000000 R15: 0000000000000000
-[    1.902796] Modules linked in:
-[    1.902816] CR2: 0000000000000008
-[    1.902836] ---[ end trace a1a4ea7953190d43 ]---
-[    1.902856] RIP: 0010:exit_mmap+0x122/0x1f0
-[    1.902876] Code: 8b 5b 10 48 85 db 75 e7 45 84 e4 48 8b 45 00 0f 85 9a 00 00 00 48 8b 50 18 48 8b 30 48 8d 7c 24 08 45 31 c0 31 c9 48 89 04 24 <48> 8b 52 08 e8 45 3b ff ff 48 8d 7c 24 08 31 f6 48 c7 c2 ff ff ff
-[    1.905792] RSP: 0018:ffffc90000897de0 EFLAGS: 00010246
-[    1.906792] RAX: ffff88013494fcc0 RBX: 0000000000000000 RCX: 0000000000000000
-[    1.907799] RDX: 0000000000000000 RSI: 0000000000400000 RDI: ffffc90000897de8
-[    1.908837] RBP: ffff880134950040 R08: 0000000000000000 R09: 0000000000000000
-[    1.909814] R10: 0000000000000001 R11: 0000000000081741 R12: 0000000000000000
-[    1.910812] R13: ffff8801348fe240 R14: ffff8801348fe928 R15: 0000000000000000
-[    1.911807] FS:  0000000000000000(0000) GS:ffff88013b240000(0000) knlGS:0000000000000000
-[    1.912792] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[    1.913820] CR2: 00007fa50e1228df CR3: 000000000220f001 CR4: 00000000001606e0
-[    1.914812] Fixing recursive fault but reboot is needed!
-[    2.076860] input: ImPS/2 Generic Wheel Mouse as /devices/platform/i8042/serio1/input/input3
-[    2.667963] tsc: Refined TSC clocksource calibration: 2793.558 MHz
+Right. In my example above, I define 3075M (3Gig + 3Meg) of base memory 
+in the
+kernel parameters. As a result we end up with the last memory block 
+having only
+3 megabytes initialized. The initialization takes place within
+memmap_init_zone(unsigned long size, ...) function called from
+free_area_init_core() with the size = zone->spanned_pages. Thus, only three
+megabytes of the last memory block are initialized (till the end of the zone
+Normal). And with the page poisoning introduced by Pavel we fail on such a
+memory block processing in memory_hotplug code (no actual memory hotplug
+is involved here).
+
+>
+>>   page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
+> OK, this means that the struct page is not fully initialized. Do you
+> have a specific place which has triggered this assert?
+
+This assert is triggered in page_to_nid() function when it is called for
+uninitialized page. I found two places where that can happen:
+1) is_pageblock_removable_nolock() - direct call
+2) test_pages_in_a_zone() - via page_zone() call
+
+>
+>>   ------------[ cut here ]------------
+>>   Call Trace:
+>>   ([<000000000039b8a4>] is_mem_section_removable+0xcc/0x1c0)
+>>    [<00000000009558ba>] show_mem_removable+0xda/0xe0
+>>    [<00000000009325fc>] dev_attr_show+0x3c/0x80
+>>    [<000000000047e7ea>] sysfs_kf_seq_show+0xda/0x160
+>>    [<00000000003fc4e0>] seq_read+0x208/0x4c8
+>>    [<00000000003cb80e>] __vfs_read+0x46/0x180
+>>    [<00000000003cb9ce>] vfs_read+0x86/0x148
+>>    [<00000000003cc06a>] ksys_read+0x62/0xc0
+>>    [<0000000000c001c0>] system_call+0xdc/0x2d8
+>>
+>> This fix checks if the page lies within the zone boundaries before
+>> accessing the struct page data. The check is added to both functions.
+>> Actually similar check has already been present in
+>> is_pageblock_removable_nolock() function but only after the struct page
+>> is accessed.
+>>
+> Well, I am afraid this is not the proper solution. We are relying on the
+> full pageblock worth of initialized struct pages at many other place. We
+> used to do that in the past because we have initialized the full
+> section but this has been changed recently. Pavel, do you have any ideas
+> how to deal with this partial mem sections now?
+
+I think this is not related to the recent changes of memory 
+initialization. If
+you mean deferred init case, the problem exists even without
+CONFIG_DEFERRED_STRUCT_PAGE_INIT kernel option.
+
+>> Signed-off-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
+>> Reviewed-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+>> Cc: <stable@vger.kernel.org>
+>> ---
+>>   mm/memory_hotplug.c | 20 +++++++++++---------
+>>   1 file changed, 11 insertions(+), 9 deletions(-)
+>>
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index 9eea6e809a4e..8e20e8fcc3b0 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -1229,9 +1229,8 @@ static struct page *next_active_pageblock(struct page *page)
+>>   	return page + pageblock_nr_pages;
+>>   }
+>>   
+>> -static bool is_pageblock_removable_nolock(struct page *page)
+>> +static bool is_pageblock_removable_nolock(struct page *page, struct zone **zone)
+>>   {
+>> -	struct zone *zone;
+>>   	unsigned long pfn;
+>>   
+>>   	/*
+>> @@ -1241,15 +1240,14 @@ static bool is_pageblock_removable_nolock(struct page *page)
+>>   	 * We have to take care about the node as well. If the node is offline
+>>   	 * its NODE_DATA will be NULL - see page_zone.
+>>   	 */
+>> -	if (!node_online(page_to_nid(page)))
+>> -		return false;
+>> -
+>> -	zone = page_zone(page);
+>>   	pfn = page_to_pfn(page);
+>> -	if (!zone_spans_pfn(zone, pfn))
+>> +	if (*zone && !zone_spans_pfn(*zone, pfn))
+>>   		return false;
+>> +	if (!node_online(page_to_nid(page)))
+>> +		return false;
+>> +	*zone = page_zone(page);
+>>   
+>> -	return !has_unmovable_pages(zone, page, 0, MIGRATE_MOVABLE, true);
+>> +	return !has_unmovable_pages(*zone, page, 0, MIGRATE_MOVABLE, true);
+>>   }
+>>   
+>>   /* Checks if this range of memory is likely to be hot-removable. */
+>> @@ -1257,10 +1255,11 @@ bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
+>>   {
+>>   	struct page *page = pfn_to_page(start_pfn);
+>>   	struct page *end_page = page + nr_pages;
+>> +	struct zone *zone = NULL;
+>>   
+>>   	/* Check the starting page of each pageblock within the range */
+>>   	for (; page < end_page; page = next_active_pageblock(page)) {
+>> -		if (!is_pageblock_removable_nolock(page))
+>> +		if (!is_pageblock_removable_nolock(page, &zone))
+>>   			return false;
+>>   		cond_resched();
+>>   	}
+>> @@ -1296,6 +1295,9 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
+>>   				i++;
+>>   			if (i == MAX_ORDER_NR_PAGES || pfn + i >= end_pfn)
+>>   				continue;
+>> +			/* Check if we got outside of the zone */
+>> +			if (zone && !zone_spans_pfn(zone, pfn))
+>> +				return 0;
+>>   			page = pfn_to_page(pfn + i);
+>>   			if (zone && page_zone(page) != zone)
+>>   				return 0;
+>> -- 
+>> 2.16.4
