@@ -1,100 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 770258E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 11:47:51 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id b8-v6so32289932oib.4
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 08:47:51 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id z5-v6si12315532oib.40.2018.09.11.08.47.49
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E31088E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 12:10:09 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id f4-v6so4316999ioh.13
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 09:10:09 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o8-v6sor899321itf.135.2018.09.11.09.10.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Sep 2018 08:47:50 -0700 (PDT)
-Date: Tue, 11 Sep 2018 08:47:35 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH RFC] mm: don't raise MEMCG_OOM event due to failed
- high-order allocation
-Message-ID: <20180911154735.GC28828@tower.DHCP.thefacebook.com>
-References: <20180910215622.4428-1-guro@fb.com>
- <20180911124303.GA19043@cmpxchg.org>
+        (Google Transport Security);
+        Tue, 11 Sep 2018 09:10:08 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20180911124303.GA19043@cmpxchg.org>
+In-Reply-To: <3f2dee71-1615-4a34-d611-3ccaf407551e@virtuozzo.com>
+References: <cover.1535462971.git.andreyknvl@google.com> <db103bdc2109396af0c6007f1669ebbbb63b872b.1535462971.git.andreyknvl@google.com>
+ <3f2dee71-1615-4a34-d611-3ccaf407551e@virtuozzo.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Tue, 11 Sep 2018 18:10:07 +0200
+Message-ID: <CAAeHK+wke5swBfwJUandKe=Oo643n7vHiwPGfUtarT3UmsHetg@mail.gmail.com>
+Subject: Re: [PATCH v6 16/18] khwasan, mm, arm64: tag non slab memory
+ allocated via pagealloc
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
 
-On Tue, Sep 11, 2018 at 08:43:03AM -0400, Johannes Weiner wrote:
-> On Mon, Sep 10, 2018 at 02:56:22PM -0700, Roman Gushchin wrote:
-> > The memcg OOM killer is never invoked due to a failed high-order
-> > allocation, however the MEMCG_OOM event can be easily raised.
-> 
-> Wasn't the same also true for kernel allocations until recently? We'd
-> signal MEMCG_OOM and then return -ENOMEM.
+On Fri, Sep 7, 2018 at 6:06 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+>
+>
+> On 08/29/2018 02:35 PM, Andrey Konovalov wrote:
+>
+>>  void kasan_poison_slab(struct page *page)
+>>  {
+>> +     unsigned long i;
+>> +
+>> +     if (IS_ENABLED(CONFIG_SLAB))
+>> +             page->s_mem = reset_tag(page->s_mem);
+>
+> Why reinitialize here, instead of single initialization in alloc_slabmgmt()?
 
-Well, assuming that it's normal for a cgroup to have its memory usage
-about the memory.max border, that sounds strange.
-
-> 
-> > Under some memory pressure it can happen easily because of a
-> > concurrent allocation. Let's look at try_charge(). Even if we were
-> > able to reclaim enough memory, this check can fail due to a race
-> > with another allocation:
-> > 
-> >     if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
-> >         goto retry;
-> > 
-> > For regular pages the following condition will save us from triggering
-> > the OOM:
-> > 
-> >    if (nr_reclaimed && nr_pages <= (1 << PAGE_ALLOC_COSTLY_ORDER))
-> >        goto retry;
-> > 
-> > But for high-order allocation this condition will intentionally fail.
-> > The reason behind is that we'll likely fall to regular pages anyway,
-> > so it's ok and even preferred to return ENOMEM.
-> 
-> These seem to be more implementation details than anything else.
-> 
-> Personally, I'm confused by the difference between the "oom" and
-> "oom_kill" events, and I don't understand when you would be interested
-> in one and when in the other. The difference again seems to be mostly
-> implementation details.
-> 
-> But the definition of "oom"/MEMCG_OOM in cgroup-v2.rst applies to the
-> situation of failing higher-order allocations. I'm not per-se against
-> changing the semantics here, as I don't think they are great. But can
-> you please start out with rewriting the definition in a way that shows
-> the practical difference for users?
-> 
-> The original idea behind MEMCG_OOM was to signal when reclaim had
-> failed and we defer to the oom killer. The oom killer may or may not
-> kill anything, which is the case for higher order allocations, but
-> that doesn't change the out-of-memory situation that has occurred.
-> 
-> Konstantin added the OOM_KILL events to count actual kills. It seems
-> to me that this has much more practical applications than the more
-> theoretical OOM, since users care more about kills and not necessarily
-> about "reclaim failed (but i might have been able to handle it with
-> retries and fallback allocations, and so there isn't an actual issue".
-> 
-> Is there a good reason for keeping OOM now that we have OOM_KILL?
-
-I totally agree that oom_kill is more useful, and I did propose to
-convert existing oom counter into oom_kill semantics back to time when
-Konstantin's patch was discussed. So, I'm not arguing here that having two
-counter is really useful, I've expressed the opposite meaning from scratch.
-
-However I'm not sure if it's not too late to remove the oom event.
-But if it is too late, let's make it less confusing.
-
-Definition of the oom event in docs is quite broad, so both current
-behavior and proposed change will fit. So it's not a semantics change
-at all, pure implementation details.
-
-Let's agree that oom event should not indicate a "random" allocation
-failure, but one caused by high memory pressure. Otherwise it's really
-a alloc_failure counter, which has to be moved to memory.stat.
-
-Thanks!
+Hm, don't see why I did it this way, looks odd to me as well. Will fix
+in v7, thanks!
