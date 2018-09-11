@@ -1,57 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 717858E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 11:35:06 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id w12-v6so31575536oie.12
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 08:35:06 -0700 (PDT)
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 770258E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 11:47:51 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id b8-v6so32289932oib.4
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 08:47:51 -0700 (PDT)
 Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id i16-v6si11892754oii.4.2018.09.11.08.35.05
+        by mx.google.com with ESMTPS id z5-v6si12315532oib.40.2018.09.11.08.47.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Sep 2018 08:35:05 -0700 (PDT)
-Date: Tue, 11 Sep 2018 08:34:48 -0700
+        Tue, 11 Sep 2018 08:47:50 -0700 (PDT)
+Date: Tue, 11 Sep 2018 08:47:35 -0700
 From: Roman Gushchin <guro@fb.com>
 Subject: Re: [PATCH RFC] mm: don't raise MEMCG_OOM event due to failed
  high-order allocation
-Message-ID: <20180911153448.GB28828@tower.DHCP.thefacebook.com>
+Message-ID: <20180911154735.GC28828@tower.DHCP.thefacebook.com>
 References: <20180910215622.4428-1-guro@fb.com>
- <20180911121141.GS10951@dhcp22.suse.cz>
- <0ea4cdbd-dc3f-1b66-8a5f-8d67ab0e2bc9@sony.com>
+ <20180911124303.GA19043@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <0ea4cdbd-dc3f-1b66-8a5f-8d67ab0e2bc9@sony.com>
+In-Reply-To: <20180911124303.GA19043@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peter enderborg <peter.enderborg@sony.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Tue, Sep 11, 2018 at 02:41:04PM +0200, peter enderborg wrote:
-> On 09/11/2018 02:11 PM, Michal Hocko wrote:
-> > Why is this a problem though? IIRC this event was deliberately placed
-> > outside of the oom path because we wanted to count allocation failures
-> > and this is also documented that way
-> >
-> >           oom
-> >                 The number of time the cgroup's memory usage was
-> >                 reached the limit and allocation was about to fail.
-> >
-> >                 Depending on context result could be invocation of OOM
-> >                 killer and retrying allocation or failing a
-> >
-> > One could argue that we do not apply the same logic to GFP_NOWAIT
-> > requests but in general I would like to see a good reason to change
-> > the behavior and if it is really the right thing to do then we need to
-> > update the documentation as well.
-> >
+On Tue, Sep 11, 2018 at 08:43:03AM -0400, Johannes Weiner wrote:
+> On Mon, Sep 10, 2018 at 02:56:22PM -0700, Roman Gushchin wrote:
+> > The memcg OOM killer is never invoked due to a failed high-order
+> > allocation, however the MEMCG_OOM event can be easily raised.
 > 
-> Why not introduce a MEMCG_ALLOC_FAIL in to memcg_memory_event?
+> Wasn't the same also true for kernel allocations until recently? We'd
+> signal MEMCG_OOM and then return -ENOMEM.
 
-memory.events contains events which are useful (actionable) for userspace.
-E.g. memory.high event may signal that high limit is reached and the workload
-is slowing down by forcing into the direct reclaim.
+Well, assuming that it's normal for a cgroup to have its memory usage
+about the memory.max border, that sounds strange.
 
-Kernel allocation failure is not a userspace problem, so it's not actionable.
-I'd say memory.stat can be a good place for a such counter.
+> 
+> > Under some memory pressure it can happen easily because of a
+> > concurrent allocation. Let's look at try_charge(). Even if we were
+> > able to reclaim enough memory, this check can fail due to a race
+> > with another allocation:
+> > 
+> >     if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
+> >         goto retry;
+> > 
+> > For regular pages the following condition will save us from triggering
+> > the OOM:
+> > 
+> >    if (nr_reclaimed && nr_pages <= (1 << PAGE_ALLOC_COSTLY_ORDER))
+> >        goto retry;
+> > 
+> > But for high-order allocation this condition will intentionally fail.
+> > The reason behind is that we'll likely fall to regular pages anyway,
+> > so it's ok and even preferred to return ENOMEM.
+> 
+> These seem to be more implementation details than anything else.
+> 
+> Personally, I'm confused by the difference between the "oom" and
+> "oom_kill" events, and I don't understand when you would be interested
+> in one and when in the other. The difference again seems to be mostly
+> implementation details.
+> 
+> But the definition of "oom"/MEMCG_OOM in cgroup-v2.rst applies to the
+> situation of failing higher-order allocations. I'm not per-se against
+> changing the semantics here, as I don't think they are great. But can
+> you please start out with rewriting the definition in a way that shows
+> the practical difference for users?
+> 
+> The original idea behind MEMCG_OOM was to signal when reclaim had
+> failed and we defer to the oom killer. The oom killer may or may not
+> kill anything, which is the case for higher order allocations, but
+> that doesn't change the out-of-memory situation that has occurred.
+> 
+> Konstantin added the OOM_KILL events to count actual kills. It seems
+> to me that this has much more practical applications than the more
+> theoretical OOM, since users care more about kills and not necessarily
+> about "reclaim failed (but i might have been able to handle it with
+> retries and fallback allocations, and so there isn't an actual issue".
+> 
+> Is there a good reason for keeping OOM now that we have OOM_KILL?
+
+I totally agree that oom_kill is more useful, and I did propose to
+convert existing oom counter into oom_kill semantics back to time when
+Konstantin's patch was discussed. So, I'm not arguing here that having two
+counter is really useful, I've expressed the opposite meaning from scratch.
+
+However I'm not sure if it's not too late to remove the oom event.
+But if it is too late, let's make it less confusing.
+
+Definition of the oom event in docs is quite broad, so both current
+behavior and proposed change will fit. So it's not a semantics change
+at all, pure implementation details.
+
+Let's agree that oom event should not indicate a "random" allocation
+failure, but one caused by high memory pressure. Otherwise it's really
+a alloc_failure counter, which has to be moved to memory.stat.
 
 Thanks!
