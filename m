@@ -1,67 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E8A4B8E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 20:29:17 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id k18-v6so10595770pls.12
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 17:29:17 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id q23-v6si18683584pgj.354.2018.09.10.17.29.16
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E49CD8E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 20:34:01 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id f32-v6so11434330pgm.14
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 17:34:01 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id v17-v6si18697864pgk.178.2018.09.10.17.34.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 17:29:16 -0700 (PDT)
-Subject: Re: Plumbers 2018 - Performance and Scalability Microconference
-References: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
- <35c2c79f-efbe-f6b2-43a6-52da82145638@nvidia.com>
- <55b44432-ade5-f090-bfe7-ea20f3e87285@redhat.com>
- <20180910172011.GB3902@linux-r8p5>
- <78fa0507-4789-415b-5b9c-18e3fcefebab@nvidia.com>
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Message-ID: <3db2b742-9e09-a934-e4ef-c87465e6715a@oracle.com>
-Date: Mon, 10 Sep 2018 20:29:00 -0400
+        Mon, 10 Sep 2018 17:34:00 -0700 (PDT)
+Date: Mon, 10 Sep 2018 17:34:33 -0700
+From: Alison Schofield <alison.schofield@intel.com>
+Subject: Re: [RFC 02/12] mm: Generalize the mprotect implementation to
+ support extensions
+Message-ID: <20180911003433.GA447@alison-desk.jf.intel.com>
+References: <cover.1536356108.git.alison.schofield@intel.com>
+ <2dcbb08ed8804e02538a73ee05a4283c54180e36.1536356108.git.alison.schofield@intel.com>
+ <0663b867003511f1ca652cef6acce589a5184a4b.camel@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <78fa0507-4789-415b-5b9c-18e3fcefebab@nvidia.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0663b867003511f1ca652cef6acce589a5184a4b.camel@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>, Waiman Long <longman@redhat.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Aaron Lu <aaron.lu@intel.com>, alex.kogan@oracle.com, akpm@linux-foundation.org, boqun.feng@gmail.com, brouer@redhat.com, dave.dice@oracle.com, Dhaval Giani <dhaval.giani@oracle.com>, ktkhai@virtuozzo.com, ldufour@linux.vnet.ibm.com, Pavel.Tatashin@microsoft.com, paulmck@linux.vnet.ibm.com, shady.issa@oracle.com, tariqt@mellanox.com, tglx@linutronix.de, tim.c.chen@intel.com, vbabka@suse.cz, yang.shi@linux.alibaba.com, shy828301@gmail.com, Huang Ying <ying.huang@intel.com>, subhra.mazumdar@oracle.com, Steven Sistare <steven.sistare@oracle.com>, jwadams@google.com, ashwinch@google.com, sqazi@google.com, Shakeel Butt <shakeelb@google.com>, walken@google.com, rientjes@google.com, junaids@google.com, Neha Agarwal <nehaagarwal@google.com>
+To: Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>
+Cc: dhowells@redhat.com, tglx@linutronix.de, Kai Huang <kai.huang@intel.com>, Jun Nakajima <jun.nakajima@intel.com>, Kirill Shutemov <kirill.shutemov@intel.com>, Dave Hansen <dave.hansen@intel.com>, jmorris@namei.org, keyrings@vger.kernel.org, linux-security-module@vger.kernel.org, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-mm@kvack.org
 
-On 9/10/18 1:34 PM, John Hubbard wrote:
-> On 9/10/18 10:20 AM, Davidlohr Bueso wrote:
->> On Mon, 10 Sep 2018, Waiman Long wrote:
->>> On 09/08/2018 12:13 AM, John Hubbard wrote:
-> [...]
->>>> It's also interesting that there are two main huge page systems (THP and Hugetlbfs), and I sometimes
->>>> wonder the obvious thing to wonder: are these sufficiently different to warrant remaining separate,
->>>> long-term?A  Yes, I realize they're quite different in some ways, but still, one wonders. :)
->>>
->>> One major difference between hugetlbfs and THP is that the former has to
->>> be explicitly managed by the applications that use it whereas the latter
->>> is done automatically without the applications being aware that THP is
->>> being used at all. Performance wise, THP may or may not increase
->>> application performance depending on the exact memory access pattern,
->>> though the chance is usually higher that an application will benefit
->>> than suffer from it.
->>>
->>> If an application know what it is doing, using hughtblfs can boost
->>> performance more than it can ever achieved by THP. Many large enterprise
->>> applications, like Oracle DB, are using hugetlbfs and explicitly disable
->>> THP. So unless THP can improve its performance to a level that is
->>> comparable to hugetlbfs, I won't see the later going away.
->>
->> Yep, there are a few non-trivial workloads out there that flat out discourage
->> thp, ie: redis to avoid latency issues.
->>
+On Mon, Sep 10, 2018 at 01:12:31PM +0300, Jarkko Sakkinen wrote:
+> On Fri, 2018-09-07 at 15:34 -0700, Alison Schofield wrote:
+> > Today mprotect is implemented to support legacy mprotect behavior
+> > plus an extension for memory protection keys. Make it more generic
+> > so that it can support additional extensions in the future.
+> > 
+> > This is done is preparation for adding a new system call for memory
+> > encyption keys. The intent is that the new encrypted mprotect will be
+> > another extension to legacy mprotect.
+> > 
+> > Signed-off-by: Alison Schofield <alison.schofield@intel.com>
+> > ---
+> >  mm/mprotect.c | 10 ++++++----
+> >  1 file changed, 6 insertions(+), 4 deletions(-)
+> > 
+> > diff --git a/mm/mprotect.c b/mm/mprotect.c
+> > index 68dc476310c0..56e64ef7931e 100644
+> > --- a/mm/mprotect.c
+> > +++ b/mm/mprotect.c
+> > @@ -35,6 +35,8 @@
+> >  
+> >  #include "internal.h"
+> >  
+> > +#define NO_PKEY  -1
 > 
-> Yes, the need for guaranteed, available-now huge pages in some cases is
-> understood. That's not the quite same as saying that there have to be two different
-> subsystems, though. Nor does it even necessarily imply that the pool has to be
-> reserved in the same way as hugetlbfs does it...exactly.
-> 
-> So I'm wondering if THP behavior can be made to mimic hugetlbfs enough (perhaps
-> another option, in addition to "always, never, madvise") that we could just use
-> THP in all cases. But the "transparent" could become a sliding scale that could
-> go all the way down to "opaque" (hugetlbfs behavior).
+> This commit does not make anything more generic but it does take
+> away a magic number. The code change is senseful. The commit
+> message is nonsense.
 
-Leaving the interface aside, the idea that we could deduplicate redundant parts of the hugetlbfs and THP implementations, without user-visible change, seems promising.
+do_mprotect_ext() is intended to be the generic replacement for
+do_mprotect_pkey() which was added for protection keys.
+
+> 
+> PS. Please use @linux.intel.com for LKML.
+Is this a request to use your @linux.intel.com email address when I'm
+posting to LKML's?
+
+> 
+> /Jarkko
