@@ -1,304 +1,301 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C43D58E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 20:45:23 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id n4-v6so10655917plk.7
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 17:45:23 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id j15-v6si18804204pgk.440.2018.09.10.17.45.22
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BB4958E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 21:00:07 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id l6-v6so2375792iog.4
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 18:00:07 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id x10-v6si11507374itf.119.2018.09.10.18.00.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 17:45:22 -0700 (PDT)
-Date: Mon, 10 Sep 2018 17:45:54 -0700
-From: Alison Schofield <alison.schofield@intel.com>
-Subject: Re: [RFC 01/12] docs/x86: Document the Multi-Key Total Memory
- Encryption API
-Message-ID: <20180911004554.GA646@alison-desk.jf.intel.com>
-References: <cover.1536356108.git.alison.schofield@intel.com>
- <b9c1e3805c700043d92117462bdb6018bb9f858a.1536356108.git.alison.schofield@intel.com>
- <105F7BF4D0229846AF094488D65A098935424996@PGSMSX112.gar.corp.intel.com>
- <20180911001301.GB31868@alison-desk.jf.intel.com>
- <105F7BF4D0229846AF094488D65A098935426D90@PGSMSX112.gar.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <105F7BF4D0229846AF094488D65A098935426D90@PGSMSX112.gar.corp.intel.com>
+        Mon, 10 Sep 2018 18:00:06 -0700 (PDT)
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: [RFC PATCH v2 4/8] mm: introduce smp_list_del for concurrent list entry removals
+Date: Mon, 10 Sep 2018 20:59:45 -0400
+Message-Id: <20180911005949.5635-1-daniel.m.jordan@oracle.com>
+In-Reply-To: <20180911004240.4758-1-daniel.m.jordan@oracle.com>
+References: <20180911004240.4758-1-daniel.m.jordan@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Kai" <kai.huang@intel.com>
-Cc: "dhowells@redhat.com" <dhowells@redhat.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "Nakajima, Jun" <jun.nakajima@intel.com>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>, "jmorris@namei.org" <jmorris@namei.org>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+Cc: aaron.lu@intel.com, ak@linux.intel.com, akpm@linux-foundation.org, dave.dice@oracle.com, dave.hansen@linux.intel.com, hannes@cmpxchg.org, levyossi@icloud.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mhocko@kernel.org, Pavel.Tatashin@microsoft.com, steven.sistare@oracle.com, tim.c.chen@intel.com, vdavydov.dev@gmail.com, ying.huang@intel.com
 
-On Mon, Sep 10, 2018 at 05:33:33PM -0700, Huang, Kai wrote:
-> > -----Original Message-----
-> > From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On
-> > Behalf Of Alison Schofield
-> > Sent: Tuesday, September 11, 2018 12:13 PM
-> > To: Huang, Kai <kai.huang@intel.com>
-> > Cc: dhowells@redhat.com; tglx@linutronix.de; Nakajima, Jun
-> > <jun.nakajima@intel.com>; Shutemov, Kirill <kirill.shutemov@intel.com>;
-> > Hansen, Dave <dave.hansen@intel.com>; Sakkinen, Jarkko
-> > <jarkko.sakkinen@intel.com>; jmorris@namei.org; keyrings@vger.kernel.org;
-> > linux-security-module@vger.kernel.org; mingo@redhat.com; hpa@zytor.com;
-> > x86@kernel.org; linux-mm@kvack.org
-> > Subject: Re: [RFC 01/12] docs/x86: Document the Multi-Key Total Memory
-> > Encryption API
-> > 
-> > On Sun, Sep 09, 2018 at 06:28:28PM -0700, Huang, Kai wrote:
-> > >
-> > > > -----Original Message-----
-> > > > From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On
-> > > > Behalf Of Alison Schofield
-> > > > Sent: Saturday, September 8, 2018 10:34 AM
-> > > > To: dhowells@redhat.com; tglx@linutronix.de
-> > > > Cc: Huang, Kai <kai.huang@intel.com>; Nakajima, Jun
-> > > > <jun.nakajima@intel.com>; Shutemov, Kirill
-> > > > <kirill.shutemov@intel.com>; Hansen, Dave <dave.hansen@intel.com>;
-> > > > Sakkinen, Jarkko <jarkko.sakkinen@intel.com>; jmorris@namei.org;
-> > > > keyrings@vger.kernel.org; linux-security-module@vger.kernel.org;
-> > > > mingo@redhat.com; hpa@zytor.com; x86@kernel.org; linux-
-> > mm@kvack.org
-> > > > Subject: [RFC 01/12] docs/x86: Document the Multi-Key Total Memory
-> > > > Encryption API
-> > > >
-> > > > Document the API's used for MKTME on Intel platforms.
-> > > > MKTME: Multi-KEY Total Memory Encryption
-> > > >
-> > > > Signed-off-by: Alison Schofield <alison.schofield@intel.com>
-> > > > ---
-> > > >  Documentation/x86/mktme-keys.txt | 153
-> > > > +++++++++++++++++++++++++++++++++++++++
-> > > >  1 file changed, 153 insertions(+)
-> > > >  create mode 100644 Documentation/x86/mktme-keys.txt
-> > > >
-> > > > diff --git a/Documentation/x86/mktme-keys.txt
-> > > > b/Documentation/x86/mktme- keys.txt new file mode 100644 index
-> > > > 000000000000..2dea7acd2a17
-> > > > --- /dev/null
-> > > > +++ b/Documentation/x86/mktme-keys.txt
-> > > > @@ -0,0 +1,153 @@
-> > > > +MKTME (Multi-Key Total Memory Encryption) is a technology that
-> > > > +allows memory encryption on Intel platforms. Whereas TME (Total
-> > > > +Memory
-> > > > +Encryption) allows encryption of the entire system memory using a
-> > > > +single key, MKTME allows multiple encryption domains, each having
-> > > > +their own key. The main use case for the feature is virtual machine
-> > > > +isolation. The API's introduced here are intended to offer
-> > > > +flexibility to work in a
-> > > > wide range of uses.
-> > > > +
-> > > > +The externally available Intel Architecture Spec:
-> > > > +https://software.intel.com/sites/default/files/managed/a5/16/Multi-
-> > > > +Key-
-> > > > +Total-Memory-Encryption-Spec.pdf
-> > > > +
-> > > > +============================  API Overview
-> > > > +============================
-> > > > +
-> > > > +There are 2 MKTME specific API's that enable userspace to create
-> > > > +and use the memory encryption keys:
-> > > > +
-> > > > +1) Kernel Key Service: MKTME Type
-> > > > +
-> > > > +   MKTME is a new key type added to the existing Kernel Key Services
-> > > > +   to support the memory encryption keys. The MKTME service manages
-> > > > +   the addition and removal of MKTME keys. It maps userspace keys
-> > > > +   to hardware keyids and programs the hardware with user requested
-> > > > +   encryption parameters.
-> > > > +
-> > > > +   o An understanding of the Kernel Key Service is required in order
-> > > > +     to use the MKTME key type as it is a subset of that service.
-> > > > +
-> > > > +   o MKTME keys are a limited resource. There is a single pool of
-> > > > +     MKTME keys for a system and that pool can be from 3 to 63 keys.
-> > >
-> > > Why 3 to 63 keys? Architecturally we are able to support up to 15-bit keyID,
-> > although in the first generation server we only support 6-bit keyID, which is 63
-> > key/keyIDs (excluding keyID 0, which is TME's keyID).
-> > 
-> > My understanding is that low level SKU's could have as few as 3 bits available to
-> > hold the keyid, and that the max is 6 bits, hence 64.
-> > I probably don't need to be stating that level of detail here, but rather just
-> > iterate the important point that the resource is limited!
-> > 
-> > >
-> > > > +     With that in mind, userspace may take advantage of the kernel
-> > > > +     key services sharing and permissions model for userspace keys.
-> > > > +     One key can be shared as long as each user has the permission
-> > > > +     of "KEY_NEED_VIEW" to use it.
-> > > > +
-> > > > +   o MKTME key type uses capabilities to restrict the allocation
-> > > > +     of keys. It only requires CAP_SYS_RESOURCE, but will accept
-> > > > +     the broader capability of CAP_SYS_ADMIN.  See capabilities(7).
-> > > > +
-> > > > +   o The MKTME key service blocks kernel key service commands that
-> > > > +     could lead to reprogramming of in use keys, or loss of keys from
-> > > > +     the pool. This means MKTME does not allow a key to be invalidated,
-> > > > +     unlinked, or timed out. These operations are blocked by MKTME as
-> > > > +     it creates all keys with the internal flag KEY_FLAG_KEEP.
-> > > > +
-> > > > +   o MKTME does not support the keyctl option of UPDATE. Userspace
-> > > > +     may change the programming of a key by revoking it and adding
-> > > > +     a new key with the updated encryption options (or vice-versa).
-> > > > +
-> > > > +2) System Call: encrypt_mprotect()
-> > > > +
-> > > > +   MKTME encryption is requested by calling encrypt_mprotect(). The
-> > > > +   caller passes the serial number to a previously allocated and
-> > > > +   programmed encryption key. That handle was created with the MKTME
-> > > > +   Key Service.
-> > > > +
-> > > > +   o The caller must have KEY_NEED_VIEW permission on the key
-> > > > +
-> > > > +   o The range of memory that is to be protected must be mapped as
-> > > > +     ANONYMOUS. If it is not, the entire encrypt_mprotect() request
-> > > > +     fails with EINVAL.
-> > > > +
-> > > > +   o As an extension to the existing mprotect() system call,
-> > > > +     encrypt_mprotect() supports the legacy mprotect behavior plus
-> > > > +     the enabling of memory encryption. That means that in addition
-> > > > +     to encrypting the memory, the protection flags will be updated
-> > > > +     as requested in the call.
-> > > > +
-> > > > +   o Additional mprotect() calls to memory already protected with
-> > > > +     MKTME will not alter the MKTME status.
-> > >
-> > > I think it's better to separate encrypt_mprotect() into another doc so both
-> > parts can be reviewed easier.
-> > 
-> > I can do that.
-> > Also, I do know I need man page for that too.
-> > >
-> > > > +
-> > > > +======================  Usage: MKTME Key Service
-> > > > +======================
-> > > > +
-> > > > +MKTME is enabled on supported Intel platforms by selecting
-> > > > +CONFIG_X86_INTEL_MKTME which selects CONFIG_MKTME_KEYS.
-> > > > +
-> > > > +Allocating MKTME Keys via command line or system call:
-> > > > +    keyctl add mktme name "[options]" ring
-> > > > +
-> > > > +    key_serial_t add_key(const char *type, const char *description,
-> > > > +                         const void *payload, size_t plen,
-> > > > +                         key_serial_t keyring);
-> > > > +
-> > > > +Revoking MKTME Keys via command line or system call::
-> > > > +   keyctl revoke <key>
-> > > > +
-> > > > +   long keyctl(KEYCTL_REVOKE, key_serial_t key);
-> > > > +
-> > > > +Options Field Definition:
-> > > > +    userkey=      ASCII HEX value encryption key. Defaults to a CPU
-> > > > +		  generated key if a userkey is not defined here.
-> > > > +
-> > > > +    algorithm=    Encryption algorithm name as a string.
-> > > > +		  Valid algorithm: "aes-xts-128"
-> > > > +
-> > > > +    tweak=        ASCII HEX value tweak key. Tweak key will be added to the
-> > > > +                  userkey...  (need to be clear here that this is being sent
-> > > > +                  to the hardware - kernel not messing w it)
-> > > > +
-> > > > +    entropy=      ascii hex value entropy.
-> > > > +                  This entropy will be used to generated the CPU key and
-> > > > +		  the tweak key when CPU generated key is requested.
-> > > > +
-> > > > +Algorithm Dependencies:
-> > > > +    AES-XTS 128 is the only supported algorithm.
-> > > > +    There are only 2 ways that AES-XTS 128 may be used:
-> > > > +
-> > > > +    1) User specified encryption key
-> > > > +	- The user specified encryption key must be exactly
-> > > > +	  16 ASCII Hex bytes (128 bits).
-> > > > +	- A tweak key must be specified and it must be exactly
-> > > > +	  16 ASCII Hex bytes (128 bits).
-> > > > +	- No entropy field is accepted.
-> > > > +
-> > > > +    2) CPU generated encryption key
-> > > > +	- When no user specified encryption key is provided, the
-> > > > +	  default encryption key will be CPU generated.
-> > > > +	- User must specify 16 ASCII Hex bytes of entropy. This
-> > > > +	  entropy will be used by the CPU to generate both the
-> > > > +	  encryption key and the tweak key.
-> > > > +	- No entropy field is accepted.
-> >              ^^^^^^^ should be tweak
-> > 
-> > >
-> > > This is not true. The spec says in CPU generated random mode, both 'key' and
-> > 'tweak' part are used to generate the final key and tweak respectively.
-> > >
-> > > Actually, simple 'XOR' is used to generate the final key:
-> > >
-> > > case KEYID_SET_KEY_RANDOM:
-> > > 	......
-> > > 	(* Mix user supplied entropy to the data key and tweak key *)
-> > > 	TMP_RND_DATA_KEY = TMP_RND_KEY XOR
-> > > 		TMP_KEY_PROGRAM_STRUCT.KEY_FIELD_1.BYTES[15:0];
-> > > 	TMP_RND_TWEAK_KEY = TMP_RND_TWEAK_KEY XOR
-> > > 		TMP_KEY_PROGRAM_STRUCT.KEY_FIELD_2.BYTES[15:0];
-> > >
-> > > So I think we can either just remove 'entropy' parameter, since we can use
-> > both 'userkey' and 'tweak' even for random key mode.
-> > >
-> > > In fact, which might be better IMHO, we can simply disallow or ignore
-> > 'userkey' and 'tweak' part for random key mode, since if we allow user to specify
-> > both entropies, and if user passes value with all 1, we are effectively making the
-> > key and tweak to be all 1, which is not random anymore.
-> > >
-> > > Instead, kernel can generate random for both entropies, or we can simply uses
-> > 0, ignoring user input.
-> > 
-> > Kai,
-> > I think my typo above, threw you off. We have the same understanding of the
-> > key fields.
-> > 
-> > Is this the structure you are suggesting?
-> > 
-> > 	Options
-> > 
-> > 	key_type=	"user" or "CPU"
-> > 
-> > 	key=		If key_type == user
-> > 				key= is the data key
-> > 			If key_type == CPU
-> > 				key= is not required
-> > 				if key= is present
-> > 					it is entropy to be mixed with
-> > 					CPU generated data key
-> > 
-> > 	tweak=		If key_type == user
-> > 				tweak= is the tweak key
-> > 			If key_type == CPU
-> > 				tweak= is not required
-> > 				if tweak= is present
-> > 					it is entropy to be mixed with
-> > 					CPU generated tweak key
-> 
-> Exactly.
-> 
-> Although I am not sure whether we should support other 2 modes: Clear key  and  no encryption;
+Now that the LRU lock is a RW lock, lay the groundwork for fine-grained
+synchronization so that multiple threads holding the lock as reader can
+safely remove pages from an LRU at the same time.
 
-A hardware key does get CLEAR'ed when the userspace key is revoked.
-I don't think we identified any other user directed need to clear a key.
+Add a thread-safe variant of list_del called smp_list_del that allows
+multiple threads to delete nodes from a list, and wrap this new list API
+in smp_del_page_from_lru to get the LRU statistics updates right.
 
-The no encryption option is currently considered not a requirement.
-That means, although you see it in the Intel HW Spec, we don't have
-use case that is driving us to implement it.
+For bisectability's sake, call the new function only when holding
+lru_lock as writer.  In the next patch, switch to taking it as reader.
 
-For other's info - no encryption would be an option where the key
-tells the hardware not to do any encryption at all on this piece of memory.
-All of memory not encrypted with these MKTME keys, is by default, encrypted
-with the system level TME, Total Memory Encryption algorithm. (OK - not
-really *all*, there is also a BIOS settable exclusion zone for TME)
+The algorithm is explained in detail in the comments.  Yosef Lev
+conceived of the algorithm, and this patch is heavily based on an
+earlier version from him.  Thanks to Dave Dice for suggesting the
+prefetch.
 
-> 
-> Thanks,
-> -Kai
-> > 
-> > 
-> > Alison
-> > >
-> > > Thanks,
-> > > -Kai
-> > 
-> > ........snip...........
-> 
+Signed-off-by: Yosef Lev <levyossi@icloud.com>
+Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+---
+ include/linux/list.h      |   2 +
+ include/linux/mm_inline.h |  28 +++++++
+ lib/Makefile              |   2 +-
+ lib/list.c                | 158 ++++++++++++++++++++++++++++++++++++++
+ mm/swap.c                 |   3 +-
+ 5 files changed, 191 insertions(+), 2 deletions(-)
+ create mode 100644 lib/list.c
+
+diff --git a/include/linux/list.h b/include/linux/list.h
+index 4b129df4d46b..bb80fe9b48cf 100644
+--- a/include/linux/list.h
++++ b/include/linux/list.h
+@@ -47,6 +47,8 @@ static inline bool __list_del_entry_valid(struct list_head *entry)
+ }
+ #endif
+ 
++extern void smp_list_del(struct list_head *entry);
++
+ /*
+  * Insert a new entry between two known consecutive entries.
+  *
+diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
+index 10191c28fc04..335bb9ba6510 100644
+--- a/include/linux/mm_inline.h
++++ b/include/linux/mm_inline.h
+@@ -4,6 +4,7 @@
+ 
+ #include <linux/huge_mm.h>
+ #include <linux/swap.h>
++#include <linux/list.h>
+ 
+ /**
+  * page_is_file_cache - should the page be on a file LRU or anon LRU?
+@@ -65,6 +66,33 @@ static __always_inline void del_page_from_lru_list(struct page *page,
+ 	update_lru_size(lruvec, lru, page_zonenum(page), -hpage_nr_pages(page));
+ }
+ 
++/**
++ * smp_del_page_from_lru_list - thread-safe del_page_from_lru_list
++ * @page: page to delete from the LRU
++ * @lruvec: vector of LRUs
++ * @lru: type of LRU list to delete from within the lruvec
++ *
++ * Requires lru_lock to be held, preferably as reader for greater concurrency
++ * with other LRU operations but writers are also correct.
++ *
++ * Holding lru_lock as reader, the only unprotected shared state is @page's
++ * lru links, which smp_list_del safely handles.  lru_lock excludes other
++ * writers, and the atomics and per-cpu counters in update_lru_size serialize
++ * racing stat updates.
++ *
++ * Concurrent removal of adjacent pages is expected to be rare.  In
++ * will-it-scale/page_fault1, the ratio of iterations of any while loop in
++ * smp_list_del to calls to that function was less than 0.009% (and 0.009% was
++ * an outlier on an oversubscribed 44 core system).
++ */
++static __always_inline void smp_del_page_from_lru_list(struct page *page,
++						       struct lruvec *lruvec,
++						       enum lru_list lru)
++{
++	smp_list_del(&page->lru);
++	update_lru_size(lruvec, lru, page_zonenum(page), -hpage_nr_pages(page));
++}
++
+ /**
+  * page_lru_base_type - which LRU list type should a page be on?
+  * @page: the page to test
+diff --git a/lib/Makefile b/lib/Makefile
+index ce20696d5a92..f0689480f704 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -40,7 +40,7 @@ obj-y += bcd.o div64.o sort.o parser.o debug_locks.o random32.o \
+ 	 gcd.o lcm.o list_sort.o uuid.o flex_array.o iov_iter.o clz_ctz.o \
+ 	 bsearch.o find_bit.o llist.o memweight.o kfifo.o \
+ 	 percpu-refcount.o percpu_ida.o rhashtable.o reciprocal_div.o \
+-	 once.o refcount.o usercopy.o errseq.o bucket_locks.o
++	 once.o refcount.o usercopy.o errseq.o bucket_locks.o list.o
+ obj-$(CONFIG_STRING_SELFTEST) += test_string.o
+ obj-y += string_helpers.o
+ obj-$(CONFIG_TEST_STRING_HELPERS) += test-string_helpers.o
+diff --git a/lib/list.c b/lib/list.c
+new file mode 100644
+index 000000000000..22188fc0316d
+--- /dev/null
++++ b/lib/list.c
+@@ -0,0 +1,158 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
++ *
++ * Authors: Yosef Lev <levyossi@icloud.com>
++ *          Daniel Jordan <daniel.m.jordan@oracle.com>
++ */
++
++#include <linux/list.h>
++#include <linux/prefetch.h>
++
++/*
++ * smp_list_del is a variant of list_del that allows concurrent list removals
++ * under certain assumptions.  The idea is to get away from overly coarse
++ * synchronization, such as using a lock to guard an entire list, which
++ * serializes all operations even though those operations might be happening on
++ * disjoint parts.
++ *
++ * If you want to use other functions from the list API concurrently,
++ * additional synchronization may be necessary.  For example, you could use a
++ * rwlock as a two-mode lock, where readers use the lock in shared mode and are
++ * allowed to call smp_list_del concurrently, and writers use the lock in
++ * exclusive mode and are allowed to use all list operations.
++ */
++
++/**
++ * smp_list_del - concurrent variant of list_del
++ * @entry: entry to delete from the list
++ *
++ * Safely removes an entry from the list in the presence of other threads that
++ * may try to remove adjacent entries.  Uses the entry's next field and the
++ * predecessor entry's next field as locks to accomplish this.
++ *
++ * Assumes that no two threads may try to delete the same entry.  This
++ * assumption holds, for example, if the objects on the list are
++ * reference-counted so that an object is only removed when its refcount falls
++ * to 0.
++ *
++ * @entry's next and prev fields are poisoned on return just as with list_del.
++ */
++void smp_list_del(struct list_head *entry)
++{
++	struct list_head *succ, *pred, *pred_reread;
++
++	/*
++	 * The predecessor entry's cacheline is read before it's written, so to
++	 * avoid an unnecessary cacheline state transition, prefetch for
++	 * writing.  In the common case, the predecessor won't change.
++	 */
++	prefetchw(entry->prev);
++
++	/*
++	 * Step 1: Lock @entry E by making its next field point to its
++	 * predecessor D.  This prevents any thread from removing the
++	 * predecessor because that thread will loop in its step 4 while
++	 * E->next == D.  This also prevents any thread from removing the
++	 * successor F because that thread will see that F->prev->next != F in
++	 * the cmpxchg in its step 3.  Retry if the successor is being removed
++	 * and has already set this field to NULL in step 3.
++	 */
++	succ = READ_ONCE(entry->next);
++	pred = READ_ONCE(entry->prev);
++	while (succ == NULL || cmpxchg(&entry->next, succ, pred) != succ) {
++		/*
++		 * Reread @entry's successor because it may change until
++		 * @entry's next field is locked.  Reread the predecessor to
++		 * have a better chance of publishing the right value and avoid
++		 * entering the loop in step 2 while @entry is locked,
++		 * but this isn't required for correctness because the
++		 * predecessor is reread in step 2.
++		 */
++		cpu_relax();
++		succ = READ_ONCE(entry->next);
++		pred = READ_ONCE(entry->prev);
++	}
++
++	/*
++	 * Step 2: A racing thread may remove @entry's predecessor.  Reread and
++	 * republish @entry->prev until it does not change.  This guarantees
++	 * that the racing thread has not passed the while loop in step 4 and
++	 * has not freed the predecessor, so it is safe for this thread to
++	 * access predecessor fields in step 3.
++	 */
++	pred_reread = READ_ONCE(entry->prev);
++	while (pred != pred_reread) {
++		WRITE_ONCE(entry->next, pred_reread);
++		pred = pred_reread;
++		/*
++		 * Ensure the predecessor is published in @entry's next field
++		 * before rereading the predecessor.  Pairs with the smp_mb in
++		 * step 4.
++		 */
++		smp_mb();
++		pred_reread = READ_ONCE(entry->prev);
++	}
++
++	/*
++	 * Step 3: If the predecessor points to @entry, lock it and continue.
++	 * Otherwise, the predecessor is being removed, so loop until that
++	 * removal finishes and this thread's @entry->prev is updated, which
++	 * indicates the old predecessor has reached the loop in step 4.  Write
++	 * the new predecessor into @entry->next.  This both releases the old
++	 * predecessor from its step 4 loop and sets this thread up to lock the
++	 * new predecessor.
++	 */
++	while (pred->next != entry ||
++	       cmpxchg(&pred->next, entry, NULL) != entry) {
++		/*
++		 * The predecessor is being removed so wait for a new,
++		 * unlocked predecessor.
++		 */
++		cpu_relax();
++		pred_reread = READ_ONCE(entry->prev);
++		if (pred != pred_reread) {
++			/*
++			 * The predecessor changed, so republish it and update
++			 * it as in step 2.
++			 */
++			WRITE_ONCE(entry->next, pred_reread);
++			pred = pred_reread;
++			/* Pairs with smp_mb in step 4. */
++			smp_mb();
++		}
++	}
++
++	/*
++	 * Step 4: @entry and @entry's predecessor are both locked, so now
++	 * actually remove @entry from the list.
++	 *
++	 * It is safe to write to the successor's prev pointer because step 1
++	 * prevents the successor from being removed.
++	 */
++
++	WRITE_ONCE(succ->prev, pred);
++
++	/*
++	 * The full barrier guarantees that all changes are visible to other
++	 * threads before the entry is unlocked by the final write, pairing
++	 * with the implied full barrier before the cmpxchg in step 1.
++	 *
++	 * The barrier also guarantees that this thread writes succ->prev
++	 * before reading succ->next, pairing with a thread in step 2 or 3 that
++	 * writes entry->next before reading entry->prev, which ensures that
++	 * the one that writes second sees the update from the other.
++	 */
++	smp_mb();
++
++	while (READ_ONCE(succ->next) == entry) {
++		/* The successor is being removed, so wait for it to finish. */
++		cpu_relax();
++	}
++
++	/* Simultaneously completes the removal and unlocks the predecessor. */
++	WRITE_ONCE(pred->next, succ);
++
++	entry->next = LIST_POISON1;
++	entry->prev = LIST_POISON2;
++}
+diff --git a/mm/swap.c b/mm/swap.c
+index a16ba5194e1c..613b841bd208 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -789,7 +789,8 @@ void release_pages(struct page **pages, int nr)
+ 			lruvec = mem_cgroup_page_lruvec(page, locked_pgdat);
+ 			VM_BUG_ON_PAGE(!PageLRU(page), page);
+ 			__ClearPageLRU(page);
+-			del_page_from_lru_list(page, lruvec, page_off_lru(page));
++			smp_del_page_from_lru_list(page, lruvec,
++						   page_off_lru(page));
+ 		}
+ 
+ 		/* Clear Active bit in case of parallel mark_page_accessed */
+-- 
+2.18.0
