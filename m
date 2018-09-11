@@ -1,147 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E452A8E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 01:36:46 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id x85-v6so12373407pfe.13
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 22:36:46 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id c19-v6si20646945pfc.18.2018.09.10.22.36.45
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 559D98E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 01:39:53 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id t79-v6so15525311wmt.3
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 22:39:53 -0700 (PDT)
+Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
+        by mx.google.com with ESMTPS id a12-v6si17437765wrs.291.2018.09.10.22.39.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 22:36:45 -0700 (PDT)
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: [RFC PATCH 9/9] mm: page_alloc: merge before sending pages to global pool
-Date: Tue, 11 Sep 2018 13:36:16 +0800
-Message-Id: <20180911053616.6894-10-aaron.lu@intel.com>
-In-Reply-To: <20180911053616.6894-1-aaron.lu@intel.com>
-References: <20180911053616.6894-1-aaron.lu@intel.com>
+        Mon, 10 Sep 2018 22:39:51 -0700 (PDT)
+Subject: Re: How to handle PTE tables with non contiguous entries ?
+References: <ddc3bb56-4da0-c093-256f-185d4a612b5c@c-s.fr>
+ <20180911070645.239aef8a@roar.ozlabs.ibm.com>
+From: Christophe LEROY <christophe.leroy@c-s.fr>
+Message-ID: <dd0076e4-1a40-b14a-6f2f-82cc2d7c494d@c-s.fr>
+Date: Tue, 11 Sep 2018 07:39:50 +0200
+MIME-Version: 1.0
+In-Reply-To: <20180911070645.239aef8a@roar.ozlabs.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: fr
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, Tariq Toukan <tariqt@mellanox.com>, Yosef Lev <levyossi@icloud.com>, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Nicholas Piggin <npiggin@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aneesh.kumar@linux.vnet.ibm.com, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, LKML <linux-kernel@vger.kernel.org>
 
-Now that we have mergable pages in Buddy unmerged, this is a step
-to reduce such things from happening to some extent.
 
-Suppose two buddy pages are on the list to be freed in free_pcppages_bulk(),
-the first page goes to merge but its buddy is not in Buddy yet so we
-hold it locally as an order0 page; then its buddy page goes to merge and
-couldn't merge either because we hold the first page locally instead of
-having it in Buddy. The end result is, we have two mergable buddy pages
-but failed to merge it.
 
-So this patch will attempt merge for these to-be-freed pages before
-acquiring any lock, it could, to some extent, reduce fragmentation caused
-by last patch.
+Le 10/09/2018 A  23:06, Nicholas Piggin a A(C)critA :
+> On Mon, 10 Sep 2018 14:34:37 +0000
+> Christophe Leroy <christophe.leroy@c-s.fr> wrote:
+> 
+>> Hi,
+>>
+>> I'm having a hard time figuring out the best way to handle the following
+>> situation:
+>>
+>> On the powerpc8xx, handling 16k size pages requires to have page tables
+>> with 4 identical entries.
+>>
+>> Initially I was thinking about handling this by simply modifying
+>> pte_index() which changing pte_t type in order to have one entry every
+>> 16 bytes, then replicate the PTE value at *ptep, *ptep+1,*ptep+2 and
+>> *ptep+3 both in set_pte_at() and pte_update().
+>>
+>> However, this doesn't work because many many places in the mm core part
+>> of the kernel use loops on ptep with single ptep++ increment.
+>>
+>> Therefore did it with the following hack:
+>>
+>>    /* PTE level */
+>> +#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
+>> +typedef struct { pte_basic_t pte, pte1, pte2, pte3; } pte_t;
+>> +#else
+>>    typedef struct { pte_basic_t pte; } pte_t;
+>> +#endif
+>>
+>> @@ -181,7 +192,13 @@ static inline unsigned long pte_update(pte_t *p,
+>>           : "cc" );
+>>    #else /* PTE_ATOMIC_UPDATES */
+>>           unsigned long old = pte_val(*p);
+>> -       *p = __pte((old & ~clr) | set);
+>> +       unsigned long new = (old & ~clr) | set;
+>> +
+>> +#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
+>> +       p->pte = p->pte1 = p->pte2 = p->pte3 = new;
+>> +#else
+>> +       *p = __pte(new);
+>> +#endif
+>>    #endif /* !PTE_ATOMIC_UPDATES */
+>>
+>>    #ifdef CONFIG_44x
+>>
+>>
+>> @@ -161,7 +161,11 @@ static inline void __set_pte_at(struct mm_struct
+>> *mm, unsigned long addr,
+>>           /* Anything else just stores the PTE normally. That covers all
+>> 64-bit
+>>            * cases, and 32-bit non-hash with 32-bit PTEs.
+>>            */
+>> +#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
+>> +       ptep->pte = ptep->pte1 = ptep->pte2 = ptep->pte3 = pte_val(pte);
+>> +#else
+>>           *ptep = pte;
+>> +#endif
+>>
+>>
+>>
+>> But I'm not too happy with it as it means pte_t is not a single type
+>> anymore so passing it from one function to the other is quite heavy.
+>>
+>>
+>> Would someone have an idea of an elegent way to handle that ?
+> 
+> I can't think of anything better. Do we pass pte by value to a lot of
+> non inlined functions? Possible to inline the important ones?
 
-With this change, the pcp_drain trace isn't easy to use so I removed it.
+Good question, I need to check that.
 
-Signed-off-by: Aaron Lu <aaron.lu@intel.com>
----
- mm/page_alloc.c | 75 +++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 73 insertions(+), 2 deletions(-)
+> 
+> Other option, try to get an iterator like pte = pte_next(pte) into core
+> code.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index df38c3f2a1cc..d3eafe857713 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1098,6 +1098,72 @@ void __init percpu_mergelist_init(void)
- 	}
- }
- 
-+static inline bool buddy_in_list(struct page *page, struct page *buddy,
-+				 struct list_head *list)
-+{
-+	list_for_each_entry_continue(page, list, lru)
-+		if (page == buddy)
-+			return true;
-+
-+	return false;
-+}
-+
-+static inline void merge_in_pcp(struct list_head *list)
-+{
-+	int order;
-+	struct page *page;
-+
-+	/* Set order information to 0 initially since they are PCP pages */
-+	list_for_each_entry(page, list, lru)
-+		set_page_private(page, 0);
-+
-+	/*
-+	 * Check for mergable pages for each order.
-+	 *
-+	 * For each order, check if their buddy is also in the list and
-+	 * if so, do merge, then remove the merged buddy from the list.
-+	 */
-+	for (order = 0; order < MAX_ORDER - 1; order++) {
-+		bool has_merge = false;
-+
-+		page = list_first_entry(list, struct page, lru);
-+		while (&page->lru != list) {
-+			unsigned long pfn, buddy_pfn, combined_pfn;
-+			struct page *buddy, *n;
-+
-+			if (page_order(page) != order) {
-+				page = list_next_entry(page, lru);
-+				continue;
-+			}
-+
-+			pfn = page_to_pfn(page);
-+			buddy_pfn = __find_buddy_pfn(pfn, order);
-+			buddy = page + (buddy_pfn - pfn);
-+			if (!buddy_in_list(page, buddy, list) ||
-+			    page_order(buddy) != order) {
-+				page = list_next_entry(page, lru);
-+				continue;
-+			}
-+
-+			combined_pfn = pfn & buddy_pfn;
-+			if (combined_pfn == pfn) {
-+				set_page_private(page, order + 1);
-+				list_del(&buddy->lru);
-+				page = list_next_entry(page, lru);
-+			} else {
-+				set_page_private(buddy, order + 1);
-+				n = list_next_entry(page, lru);
-+				list_del(&page->lru);
-+				page = n;
-+			}
-+			has_merge = true;
-+		}
-+
-+		if (!has_merge)
-+			break;
-+	}
-+}
-+
- /*
-  * Frees a number of pages from the PCP lists
-  * Assumes all pages on list are in same zone, and of same order.
-@@ -1165,6 +1231,12 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 		} while (--count && --batch_free && !list_empty(list));
- 	}
- 
-+	/*
-+	 * Before acquiring the possibly heavily contended zone lock, do merge
-+	 * among these to-be-freed PCP pages before sending them to Buddy.
-+	 */
-+	merge_in_pcp(&head);
-+
- 	read_lock(&zone->lock);
- 	isolated_pageblocks = has_isolate_pageblock(zone);
- 
-@@ -1182,10 +1254,9 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 		if (unlikely(isolated_pageblocks))
- 			mt = get_pageblock_migratetype(page);
- 
--		order = 0;
-+		order = page_order(page);
- 		merged_page = do_merge(page, page_to_pfn(page), zone, &order, mt);
- 		list_add(&merged_page->lru, this_cpu_ptr(&merge_lists[order][mt]));
--		trace_mm_page_pcpu_drain(page, 0, mt);
- 	}
- 
- 	for_each_migratetype_order(order, migratetype) {
--- 
-2.17.1
+Yes I've been thinking about that, but it looks like a huge job to 
+identify all places, as some drivers are also playing with it.
+I'm not sure it is only to find all 'pte++' and 'ptep++', I fear there 
+might be places with more unexpected names.
+
+Thanks
+Christophe
+
+> 
+> Thanks,
+> Nick
+> 
