@@ -1,60 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 271F18E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 18:35:06 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id r131-v6so33770677oie.14
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 15:35:06 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 828D58E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 18:35:14 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id b69-v6so13526807pfc.20
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 15:35:14 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i5-v6sor24724192oiy.33.2018.09.11.15.35.05
+        by mx.google.com with SMTPS id 192-v6sor2637700pgf.194.2018.09.11.15.35.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 11 Sep 2018 15:35:05 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20180910234354.4068.65260.stgit@localhost.localdomain>
-References: <20180910232615.4068.29155.stgit@localhost.localdomain> <20180910234354.4068.65260.stgit@localhost.localdomain>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 11 Sep 2018 15:35:04 -0700
-Message-ID: <CAPcyv4ja7=eUbwwJZhreexa9_7JyJotQwObrQm=nCEcgcfbWyw@mail.gmail.com>
-Subject: Re: [PATCH 3/4] mm: Defer ZONE_DEVICE page initialization to the
- point where we init pgmap
-Content-Type: text/plain; charset="UTF-8"
+        Tue, 11 Sep 2018 15:35:13 -0700 (PDT)
+From: Omar Sandoval <osandov@osandov.com>
+Subject: [PATCH v7 0/6] Btrfs: implement swap file support
+Date: Tue, 11 Sep 2018 15:34:43 -0700
+Message-Id: <cover.1536704650.git.osandov@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, pavel.tatashin@microsoft.com, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: linux-btrfs@vger.kernel.org
+Cc: kernel-team@fb.com, linux-mm@kvack.org
 
-On Mon, Sep 10, 2018 at 4:43 PM, Alexander Duyck
-<alexander.duyck@gmail.com> wrote:
->
-> From: Alexander Duyck <alexander.h.duyck@intel.com>
->
-> The ZONE_DEVICE pages were being initialized in two locations. One was with
-> the memory_hotplug lock held and another was outside of that lock. The
-> problem with this is that it was nearly doubling the memory initialization
-> time. Instead of doing this twice, once while holding a global lock and
-> once without, I am opting to defer the initialization to the one outside of
-> the lock. This allows us to avoid serializing the overhead for memory init
-> and we can instead focus on per-node init times.
->
-> One issue I encountered is that devm_memremap_pages and
-> hmm_devmmem_pages_create were initializing only the pgmap field the same
-> way. One wasn't initializing hmm_data, and the other was initializing it to
-> a poison value. Since this is something that is exposed to the driver in
-> the case of hmm I am opting for a third option and just initializing
-> hmm_data to 0 since this is going to be exposed to unknown third party
-> drivers.
->
-> Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
-> ---
->  include/linux/mm.h |    2 +
->  kernel/memremap.c  |   24 +++++---------
->  mm/hmm.c           |   12 ++++---
->  mm/page_alloc.c    |   89 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+From: Omar Sandoval <osandov@fb.com>
 
-Hmm, why mm/page_alloc.c and not kernel/memremap.c for this new
-helper? I think that would address the kbuild reports and keeps all
-the devm_memremap_pages / ZONE_DEVICE special casing centralized. I
-also think it makes sense to move memremap.c to mm/ rather than
-kernel/ especially since commit 5981690ddb8f "memremap: split
-devm_memremap_pages() and memremap() infrastructure". Arguably, that
-commit should have went ahead with the directory move.
+Hi,
+
+This series implements swap file support for Btrfs.
+
+Changes from v6 [1]:
+
+- Moved btrfs_get_chunk_map() comment to function body
+- Added more comments about pinned block group/device rbtree
+- Fixed bug in patch 4 which broke resize
+
+Based on v4.19-rc3.
+
+Thanks!
+
+1: https://www.spinics.net/lists/linux-btrfs/msg81732.html
+
+Omar Sandoval (6):
+  mm: split SWP_FILE into SWP_ACTIVATED and SWP_FS
+  mm: export add_swap_extent()
+  vfs: update swap_{,de}activate documentation
+  Btrfs: prevent ioctls from interfering with a swap file
+  Btrfs: rename get_chunk_map() and make it non-static
+  Btrfs: support swap files
+
+ Documentation/filesystems/Locking |  17 +-
+ Documentation/filesystems/vfs.txt |  12 +-
+ fs/btrfs/ctree.h                  |  29 +++
+ fs/btrfs/dev-replace.c            |   8 +
+ fs/btrfs/disk-io.c                |   4 +
+ fs/btrfs/inode.c                  | 317 ++++++++++++++++++++++++++++++
+ fs/btrfs/ioctl.c                  |  31 ++-
+ fs/btrfs/relocation.c             |  18 +-
+ fs/btrfs/volumes.c                |  82 ++++++--
+ fs/btrfs/volumes.h                |   2 +
+ include/linux/swap.h              |  13 +-
+ mm/page_io.c                      |   6 +-
+ mm/swapfile.c                     |  14 +-
+ 13 files changed, 502 insertions(+), 51 deletions(-)
+
+-- 
+2.18.0
