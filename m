@@ -1,89 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 04E218E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 09:52:33 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id y46-v6so24881207qth.9
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 06:52:33 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id u25-v6si996350qva.197.2018.09.11.06.52.31
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AD7998E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 10:02:24 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id w196-v6so1729788itb.4
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 07:02:24 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id a1-v6si12343025ion.111.2018.09.11.07.02.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Sep 2018 06:52:31 -0700 (PDT)
-Subject: Re: Plumbers 2018 - Performance and Scalability Microconference
-References: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
- <35c2c79f-efbe-f6b2-43a6-52da82145638@nvidia.com>
- <55b44432-ade5-f090-bfe7-ea20f3e87285@redhat.com>
- <20180910172011.GB3902@linux-r8p5>
- <78fa0507-4789-415b-5b9c-18e3fcefebab@nvidia.com>
- <3db2b742-9e09-a934-e4ef-c87465e6715a@oracle.com>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <82f06ae8-5a3f-283f-5ad3-e6ab2f42dbc6@redhat.com>
-Date: Tue, 11 Sep 2018 09:52:25 -0400
+        Tue, 11 Sep 2018 07:02:23 -0700 (PDT)
+Subject: Re: [RFC PATCH 0/3] rework mmap-exit vs. oom_reaper handover
+References: <1536382452-3443-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180910125513.311-1-mhocko@kernel.org>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <70a92ca8-ca3e-2586-d52a-36c5ef6f7e43@i-love.sakura.ne.jp>
+Date: Tue, 11 Sep 2018 23:01:57 +0900
 MIME-Version: 1.0
-In-Reply-To: <3db2b742-9e09-a934-e4ef-c87465e6715a@oracle.com>
+In-Reply-To: <20180910125513.311-1-mhocko@kernel.org>
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
 Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>, John Hubbard <jhubbard@nvidia.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Aaron Lu <aaron.lu@intel.com>, alex.kogan@oracle.com, akpm@linux-foundation.org, boqun.feng@gmail.com, brouer@redhat.com, dave.dice@oracle.com, Dhaval Giani <dhaval.giani@oracle.com>, ktkhai@virtuozzo.com, ldufour@linux.vnet.ibm.com, Pavel.Tatashin@microsoft.com, paulmck@linux.vnet.ibm.com, shady.issa@oracle.com, tariqt@mellanox.com, tglx@linutronix.de, tim.c.chen@intel.com, vbabka@suse.cz, yang.shi@linux.alibaba.com, shy828301@gmail.com, Huang Ying <ying.huang@intel.com>, subhra.mazumdar@oracle.com, Steven Sistare <steven.sistare@oracle.com>, jwadams@google.com, ashwinch@google.com, sqazi@google.com, Shakeel Butt <shakeelb@google.com>, walken@google.com, rientjes@google.com, junaids@google.com, Neha Agarwal <nehaagarwal@google.com>
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 09/10/2018 08:29 PM, Daniel Jordan wrote:
-> On 9/10/18 1:34 PM, John Hubbard wrote:
->> On 9/10/18 10:20 AM, Davidlohr Bueso wrote:
->>> On Mon, 10 Sep 2018, Waiman Long wrote:
->>>> On 09/08/2018 12:13 AM, John Hubbard wrote:
->> [...]
->>>>> It's also interesting that there are two main huge page systems
->>>>> (THP and Hugetlbfs), and I sometimes
->>>>> wonder the obvious thing to wonder: are these sufficiently
->>>>> different to warrant remaining separate,
->>>>> long-term?  Yes, I realize they're quite different in some ways,
->>>>> but still, one wonders. :)
->>>>
->>>> One major difference between hugetlbfs and THP is that the former
->>>> has to
->>>> be explicitly managed by the applications that use it whereas the
->>>> latter
->>>> is done automatically without the applications being aware that THP is
->>>> being used at all. Performance wise, THP may or may not increase
->>>> application performance depending on the exact memory access pattern,
->>>> though the chance is usually higher that an application will benefit
->>>> than suffer from it.
->>>>
->>>> If an application know what it is doing, using hughtblfs can boost
->>>> performance more than it can ever achieved by THP. Many large
->>>> enterprise
->>>> applications, like Oracle DB, are using hugetlbfs and explicitly
->>>> disable
->>>> THP. So unless THP can improve its performance to a level that is
->>>> comparable to hugetlbfs, I won't see the later going away.
->>>
->>> Yep, there are a few non-trivial workloads out there that flat out
->>> discourage
->>> thp, ie: redis to avoid latency issues.
->>>
->>
->> Yes, the need for guaranteed, available-now huge pages in some cases is
->> understood. That's not the quite same as saying that there have to be
->> two different
->> subsystems, though. Nor does it even necessarily imply that the pool
->> has to be
->> reserved in the same way as hugetlbfs does it...exactly.
->>
->> So I'm wondering if THP behavior can be made to mimic hugetlbfs
->> enough (perhaps
->> another option, in addition to "always, never, madvise") that we
->> could just use
->> THP in all cases. But the "transparent" could become a sliding scale
->> that could
->> go all the way down to "opaque" (hugetlbfs behavior).
->
-> Leaving the interface aside, the idea that we could deduplicate
-> redundant parts of the hugetlbfs and THP implementations, without
-> user-visible change, seems promising.
+On 2018/09/10 21:55, Michal Hocko wrote:
+> This is a very coarse implementation of the idea I've had before.
+> Please note that I haven't tested it yet. It is mostly to show the
+> direction I would wish to go for.
 
-That I think it is good idea if it can be done.
+Hmm, this patchset does not allow me to boot. ;-)
 
-Thanks,
-Longman
+        free_pgd_range(&tlb, vma->vm_start, vma->vm_prev->vm_end,
+                        FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+
+[    1.875675] sched_clock: Marking stable (1810466565, 65169393)->(1977240380, -101604422)
+[    1.877833] registered taskstats version 1
+[    1.877853] Loading compiled-in X.509 certificates
+[    1.878835] zswap: loaded using pool lzo/zbud
+[    1.880835] BUG: unable to handle kernel NULL pointer dereference at 0000000000000008
+[    1.881792] PGD 0 P4D 0 
+[    1.881812] Oops: 0000 [#1] SMP DEBUG_PAGEALLOC
+[    1.882792] CPU: 1 PID: 121 Comm: modprobe Not tainted 4.19.0-rc3+ #469
+[    1.883803] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 05/19/2017
+[    1.884792] RIP: 0010:exit_mmap+0x122/0x1f0
+[    1.884812] Code: 8b 5b 10 48 85 db 75 e7 45 84 e4 48 8b 45 00 0f 85 9a 00 00 00 48 8b 50 18 48 8b 30 48 8d 7c 24 08 45 31 c0 31 c9 48 89 04 24 <48> 8b 52 08 e8 45 3b ff ff 48 8d 7c 24 08 31 f6 48 c7 c2 ff ff ff
+[    1.886793] RSP: 0018:ffffc90000897de0 EFLAGS: 00010246
+[    1.887812] RAX: ffff88013494fcc0 RBX: 0000000000000000 RCX: 0000000000000000
+[    1.888872] RDX: 0000000000000000 RSI: 0000000000400000 RDI: ffffc90000897de8
+[    1.889794] RBP: ffff880134950040 R08: 0000000000000000 R09: 0000000000000000
+[    1.890792] R10: 0000000000000001 R11: 0000000000081741 R12: 0000000000000000
+[    1.891794] R13: ffff8801348fe240 R14: ffff8801348fe928 R15: 0000000000000000
+[    1.892836] FS:  0000000000000000(0000) GS:ffff88013b240000(0000) knlGS:0000000000000000
+[    1.893792] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[    1.894792] CR2: 0000000000000008 CR3: 000000000220f001 CR4: 00000000001606e0
+[    1.895797] Call Trace:
+[    1.895817]  ? switch_mm_irqs_off+0x2e1/0x870
+[    1.895837]  mmput+0x63/0x130
+[    1.895857]  do_exit+0x2a7/0xc80
+[    1.895877]  ? __do_page_fault+0x219/0x520
+[    1.896793]  ? trace_hardirqs_on_thunk+0x1a/0x1c
+[    1.896813]  do_group_exit+0x41/0xc0
+[    1.896833]  __x64_sys_exit_group+0xf/0x10
+[    1.896853]  do_syscall_64+0x4f/0x1f0
+[    1.896873]  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+[    1.896893] RIP: 0033:0x7fa50e122909
+[    1.896913] Code: Bad RIP value.
+[    1.896933] RSP: 002b:00007fff0fdb96a8 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
+[    1.897792] RAX: ffffffffffffffda RBX: 0000000000000001 RCX: 00007fa50e122909
+[    1.898792] RDX: 0000000000000001 RSI: 0000000000000000 RDI: 0000000000000001
+[    1.899795] RBP: 00007fa50e41f838 R08: 000000000000003c R09: 00000000000000e7
+[    1.900800] R10: ffffffffffffff70 R11: 0000000000000246 R12: 00007fa50e41f838
+[    1.901793] R13: 00007fa50e424e80 R14: 0000000000000000 R15: 0000000000000000
+[    1.902796] Modules linked in:
+[    1.902816] CR2: 0000000000000008
+[    1.902836] ---[ end trace a1a4ea7953190d43 ]---
+[    1.902856] RIP: 0010:exit_mmap+0x122/0x1f0
+[    1.902876] Code: 8b 5b 10 48 85 db 75 e7 45 84 e4 48 8b 45 00 0f 85 9a 00 00 00 48 8b 50 18 48 8b 30 48 8d 7c 24 08 45 31 c0 31 c9 48 89 04 24 <48> 8b 52 08 e8 45 3b ff ff 48 8d 7c 24 08 31 f6 48 c7 c2 ff ff ff
+[    1.905792] RSP: 0018:ffffc90000897de0 EFLAGS: 00010246
+[    1.906792] RAX: ffff88013494fcc0 RBX: 0000000000000000 RCX: 0000000000000000
+[    1.907799] RDX: 0000000000000000 RSI: 0000000000400000 RDI: ffffc90000897de8
+[    1.908837] RBP: ffff880134950040 R08: 0000000000000000 R09: 0000000000000000
+[    1.909814] R10: 0000000000000001 R11: 0000000000081741 R12: 0000000000000000
+[    1.910812] R13: ffff8801348fe240 R14: ffff8801348fe928 R15: 0000000000000000
+[    1.911807] FS:  0000000000000000(0000) GS:ffff88013b240000(0000) knlGS:0000000000000000
+[    1.912792] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[    1.913820] CR2: 00007fa50e1228df CR3: 000000000220f001 CR4: 00000000001606e0
+[    1.914812] Fixing recursive fault but reboot is needed!
+[    2.076860] input: ImPS/2 Generic Wheel Mouse as /devices/platform/i8042/serio1/input/input3
+[    2.667963] tsc: Refined TSC clocksource calibration: 2793.558 MHz
