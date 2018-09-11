@@ -1,38 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D31F8E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 20:35:46 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id f4-v6so2328053ioh.13
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 17:35:46 -0700 (PDT)
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 135C18E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 20:38:04 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id r19-v6so44681835itc.4
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 17:38:04 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g18-v6sor11367346ita.91.2018.09.10.17.35.45
+        by mx.google.com with SMTPS id u127-v6sor8607205itf.124.2018.09.10.17.38.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 10 Sep 2018 17:35:45 -0700 (PDT)
+        Mon, 10 Sep 2018 17:38:02 -0700 (PDT)
 MIME-Version: 1.0
-References: <20180910232615.4068.29155.stgit@localhost.localdomain> <20180910234341.4068.26882.stgit@localhost.localdomain>
-In-Reply-To: <20180910234341.4068.26882.stgit@localhost.localdomain>
+References: <20180910232615.4068.29155.stgit@localhost.localdomain> <20180910234400.4068.15541.stgit@localhost.localdomain>
+In-Reply-To: <20180910234400.4068.15541.stgit@localhost.localdomain>
 From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Mon, 10 Sep 2018 17:35:34 -0700
-Message-ID: <CAKgT0UcP4G-Y8ad2yGh_kGSSD4ry-Z+FtZ+6wwFzUS3YkpeFyg@mail.gmail.com>
-Subject: Re: [PATCH 1/4] mm: Provide kernel parameter to allow disabling page
- init poisoning
+Date: Mon, 10 Sep 2018 17:37:50 -0700
+Message-ID: <CAKgT0UceRHjfoKPxAJEchX4O91j_mtCQxqjTSQ=GJSoSOGbWmg@mail.gmail.com>
+Subject: Re: [PATCH 4/4] nvdimm: Trigger the device probe on a cpu local to
+ the device
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-nvdimm@lists.01.org
 Cc: pavel.tatashin@microsoft.com, Michal Hocko <mhocko@suse.com>, dave.jiang@intel.com, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, jglisse@redhat.com, Andrew Morton <akpm@linux-foundation.org>, logang@deltatee.com, dan.j.williams@intel.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon, Sep 10, 2018 at 4:43 PM Alexander Duyck
+On Mon, Sep 10, 2018 at 4:44 PM Alexander Duyck
 <alexander.duyck@gmail.com> wrote:
 >
 > From: Alexander Duyck <alexander.h.duyck@intel.com>
 >
-> On systems with a large amount of memory it can take a significant amount
-> of time to initialize all of the page structs with the PAGE_POISON_PATTERN
-> value. I have seen it take over 2 minutes to initialize a system with
-> over 12GB of RAM.
+> This patch is based off of the pci_call_probe function used to initialize
+> PCI devices. The general idea here is to move the probe call to a location
+> that is local to the memory being initialized. By doing this we can shave
+> significant time off of the total time needed for initialization.
+>
+> With this patch applied I see a significant reduction in overall init time
+> as without it the init varied between 23 and 37 seconds to initialize a 3GB
+> node. With this patch applied the variance is only between 23 and 26
+> seconds to initialize each node.
 
-Minor typo. I meant 12TB here, not 12GB.
+Same mistake here as in patch 1. It is 3TB, not 3GB. I will fix for
+the next version.
 
 - Alex
