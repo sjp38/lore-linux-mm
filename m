@@ -1,47 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 524388E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 20:38:50 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id n17-v6so11878901pff.17
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 17:38:50 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id k14-v6si19108924pfd.0.2018.09.10.17.38.48
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E0438E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 20:40:23 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id n17-v6so11881211pff.17
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 17:40:23 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n62-v6sor2527531pgn.145.2018.09.10.17.40.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 17:38:49 -0700 (PDT)
-Subject: Re: Plumbers 2018 - Performance and Scalability Microconference
-References: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
- <35c2c79f-efbe-f6b2-43a6-52da82145638@nvidia.com>
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Message-ID: <0f49f722-1759-f097-ff46-4ec7286dc69e@oracle.com>
-Date: Mon, 10 Sep 2018 20:38:35 -0400
+        (Google Transport Security);
+        Mon, 10 Sep 2018 17:40:22 -0700 (PDT)
+Date: Mon, 10 Sep 2018 17:40:20 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH RFC] mm: don't raise MEMCG_OOM event due to failed
+ high-order allocation
+In-Reply-To: <20180910215622.4428-1-guro@fb.com>
+Message-ID: <alpine.DEB.2.21.1809101740080.256423@chino.kir.corp.google.com>
+References: <20180910215622.4428-1-guro@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <35c2c79f-efbe-f6b2-43a6-52da82145638@nvidia.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Aaron Lu <aaron.lu@intel.com>, alex.kogan@oracle.com, akpm@linux-foundation.org, boqun.feng@gmail.com, brouer@redhat.com, dave@stgolabs.net, dave.dice@oracle.com, Dhaval Giani <dhaval.giani@oracle.com>, ktkhai@virtuozzo.com, ldufour@linux.vnet.ibm.com, Pavel.Tatashin@microsoft.com, paulmck@linux.vnet.ibm.com, shady.issa@oracle.com, tariqt@mellanox.com, tglx@linutronix.de, tim.c.chen@intel.com, vbabka@suse.cz, longman@redhat.com, yang.shi@linux.alibaba.com, shy828301@gmail.com, Huang Ying <ying.huang@intel.com>, subhra.mazumdar@oracle.com, Steven Sistare <steven.sistare@oracle.com>, jwadams@google.com, ashwinch@google.com, sqazi@google.com, Shakeel Butt <shakeelb@google.com>, walken@google.com, rientjes@google.com, junaids@google.com, Neha Agarwal <nehaagarwal@google.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On 9/8/18 12:13 AM, John Hubbard wrote:
-> I'm interested in the first 3 of those 4 topics, so if it doesn't conflict with HMM topics or
-> fix-gup-with-dma topics, I'd like to attend.
+On Mon, 10 Sep 2018, Roman Gushchin wrote:
 
-Great, we'll add your name to the list.
-
-> GPUs generally need to access large chunks of
-> memory, and that includes migrating (dma-copying) pages around.
+> The memcg OOM killer is never invoked due to a failed high-order
+> allocation, however the MEMCG_OOM event can be easily raised.
 > 
-> So for example a multi-threaded migration of huge pages between normal RAM and GPU memory is an
-> intriguing direction (and I realize that it's a well-known topic, already). Doing that properly
-> (how many threads to use?) seems like it requires scheduler interaction.
+> Under some memory pressure it can happen easily because of a
+> concurrent allocation. Let's look at try_charge(). Even if we were
+> able to reclaim enough memory, this check can fail due to a race
+> with another allocation:
+> 
+>     if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
+>         goto retry;
+> 
+> For regular pages the following condition will save us from triggering
+> the OOM:
+> 
+>    if (nr_reclaimed && nr_pages <= (1 << PAGE_ALLOC_COSTLY_ORDER))
+>        goto retry;
+> 
+> But for high-order allocation this condition will intentionally fail.
+> The reason behind is that we'll likely fall to regular pages anyway,
+> so it's ok and even preferred to return ENOMEM.
+> 
+> In this case the idea of raising the MEMCG_OOM event looks dubious.
+> 
+> Fix this by moving MEMCG_OOM raising to  mem_cgroup_oom() after
+> allocation order check, so that the event won't be raised for high
+> order allocations.
+> 
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
 
-Yes, in past discussions of multithreading kernel work, there's been some discussion of a scheduler API that could answer "are there idle CPUs we could use to multithread?".
-
-Instead of adding an interface, though, we could just let the scheduler do something it already knows how to do: prioritize.
-
-Additional threads used to parallelize kernel work could run at the lowest priority (i.e. MAX_NICE).  If the machine is heavily loaded, these extra threads simply won't run and other workloads on the system will be unaffected.
-
-There's the issue of priority inversion if one or more of those extra threads get started and are then preempted by normal-priority tasks midway through, but the main thread doing the job can just will its priority to each worker in turn once it's finished, so at most one thread will be active on a heavily loaded system, again leaving other workloads on the system undisturbed.
+Acked-by: David Rientjes <rientjes@google.com>
