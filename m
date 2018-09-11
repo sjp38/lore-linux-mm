@@ -1,97 +1,209 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A2958E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 16:30:24 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id z18-v6so13404701pfe.19
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 13:30:24 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g16-v6sor2896037pgg.427.2018.09.11.13.30.22
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C8B588E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 16:58:35 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id p22-v6so13349354pfj.7
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 13:58:35 -0700 (PDT)
+Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
+        by mx.google.com with ESMTPS id l30-v6si20836496plg.12.2018.09.11.13.58.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 11 Sep 2018 13:30:22 -0700 (PDT)
-Date: Tue, 11 Sep 2018 13:30:20 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE
- mappings
-In-Reply-To: <20180911115613.GR10951@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.21.1809111319060.189563@chino.kir.corp.google.com>
-References: <20180907130550.11885-1-mhocko@kernel.org> <alpine.DEB.2.21.1809101253080.177111@chino.kir.corp.google.com> <20180911115613.GR10951@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Sep 2018 13:58:34 -0700 (PDT)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [RFC v9 PATCH 0/4] mm: zap pages with read mmap_sem in munmap for large mapping
+Date: Wed, 12 Sep 2018 04:58:09 +0800
+Message-Id: <1536699493-69195-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stefan Priebe <s.priebe@profihost.ag>
+To: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, vbabka@suse.cz, akpm@linux-foundation.org, dave.hansen@intel.com, oleg@redhat.com, srikar@linux.vnet.ibm.com
+Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 11 Sep 2018, Michal Hocko wrote:
 
-> > That's not entirely true, the remote access latency for remote thp on all 
-> > of our platforms is greater than local small pages, this is especially 
-> > true for remote thp that is allocated intersocket and must be accessed 
-> > through the interconnect.
-> > 
-> > Our users of MADV_HUGEPAGE are ok with assuming the burden of increased 
-> > allocation latency, but certainly not remote access latency.  There are 
-> > users who remap their text segment onto transparent hugepages are fine 
-> > with startup delay if they are access all of their text from local thp.  
-> > Remote thp would be a significant performance degradation.
-> 
-> Well, it seems that expectations differ for users. It seems that kvm
-> users do not really agree with your interpretation.
-> 
+Background:
+Recently, when we ran some vm scalability tests on machines with large memory,
+we ran into a couple of mmap_sem scalability issues when unmapping large memory
+space, please refer to https://lkml.org/lkml/2017/12/14/733 and
+https://lkml.org/lkml/2018/2/20/576.
 
-If kvm is happy to allocate hugepages remotely, at least on a subset of 
-platforms where it doesn't incur such a high remote access latency, then 
-we probably shouldn't be adding lumping that together with the current 
-semantics of MADV_HUGEPAGE.  Otherwise, we risk it becoming a dumping 
-ground where current users may regress because they would be much more 
-willing to fault local pages of the native page size and lose the ability 
-to require that absent using mbind() -- and in that case they would be 
-affected by the policy decision of native page sizes as well.
 
-> > When Andrea brought this up, I suggested that the full solution would be a 
-> > MPOL_F_HUGEPAGE flag that could define thp allocation policy -- the added 
-> > benefit is that we could replace the thp "defrag" mode default by setting 
-> > this as part of default_policy.  Right now, MADV_HUGEPAGE users are 
-> > concerned about (1) getting thp when system-wide it is not default and (2) 
-> > additional fault latency when direct compaction is not default.  They are 
-> > not anticipating the degradation of remote access latency, so overloading 
-> > the meaning of the mode is probably not a good idea.
-> 
-> hugepage specific MPOL flags sounds like yet another step into even more
-> cluttered API and semantic, I am afraid. Why should this be any
-> different from regular page allocations? You are getting off-node memory
-> once your local node is full. You have to use an explicit binding to
-> disallow that. THP should be similar in that regards. Once you have said
-> that you _really_ want THP then you are closer to what we do for regular
-> pages IMHO.
-> 
+History:
+Then akpm suggested to unmap large mapping section by section and drop mmap_sem
+at a time to mitigate it (see https://lkml.org/lkml/2018/3/6/784).
 
-Saying that we really want THP isn't an all-or-nothing decision.  We 
-certainly want to try hard to fault hugepages locally especially at task 
-startup when remapping our .text segment to thp, and MADV_HUGEPAGE works 
-very well for that.  Remote hugepages would be a regression that we now 
-have no way to avoid because the kernel doesn't provide for it, if we were 
-to remove __GFP_THISNODE that this patch introduces.
+V1 patch series was submitted to the mailing list per Andrew's suggestion
+(see https://lkml.org/lkml/2018/3/20/786). Then I received a lot great feedback
+and suggestions.
 
-On Broadwell, for example, we find 7% slower access to remote hugepages 
-than local native pages.  On Naples, that becomes worse: 14% slower access 
-latency for intrasocket hugepages compared to local native pages and 39% 
-slower for intersocket.
+Then this topic was discussed on LSFMM summit 2018. In the summit, Michal Hocko
+suggested (also in the v1 patches review) to try "two phases" approach. Zapping
+pages with read mmap_sem, then doing via cleanup with write mmap_sem (for
+discussion detail, see https://lwn.net/Articles/753269/)
 
-> I do realize that this is a gray zone because nobody bothered to define
-> the semantic since the MADV_HUGEPAGE has been introduced (a826e422420b4
-> is exceptionaly short of information). So we are left with more or less
-> undefined behavior and define it properly now. As we can see this might
-> regress in some workloads but I strongly suspect that an explicit
-> binding sounds more logical approach than a thp specific mpol mode. If
-> anything this should be a more generic memory policy basically saying
-> that a zone/node reclaim mode should be enabled for the particular
-> allocation.
 
-This would be quite a serious regression with no way to actually define 
-that we want local hugepages but allow fallback to remote native pages if 
-we cannot allocate local native pages.  So rather than causing userspace 
-to regress and give them no alternative, I would suggest either hugepage 
-specific mempolicies or another madvise mode to allow remotely allocated 
-hugepages.
+Approach:
+Zapping pages is the most time consuming part, according to the suggestion from
+Michal Hocko [1], zapping pages can be done with holding read mmap_sem, like
+what MADV_DONTNEED does. Then re-acquire write mmap_sem to cleanup vmas.
+
+But, we can't call MADV_DONTNEED directly, since there are two major drawbacks:
+  * The unexpected state from PF if it wins the race in the middle of munmap.
+    It may return zero page, instead of the content or SIGSEGV.
+  * Can't handle VM_LOCKED | VM_HUGETLB | VM_PFNMAP and uprobe mappings, which
+    is a showstopper from akpm
+
+But, some part may need write mmap_sem, for example, vma splitting. So,
+the design is as follows:
+        acquire write mmap_sem
+        lookup vmas (find and split vmas)
+        deal with special mappings
+        detach vmas
+        downgrade_write
+
+        zap pages
+        free page tables
+        release mmap_sem
+
+The vm events with read mmap_sem may come in during page zapping, but
+since vmas have been detached before, they, i.e. page fault, gup, etc,
+will not be able to find valid vma, then just return SIGSEGV or -EFAULT
+as expected.
+
+If the vma has VM_HUGETLB | VM_PFNMAP, they are considered as special
+mappings. They will be handled by falling back to regular do_munmap()
+with exclusive mmap_sem held in this patch since they may update vm flags.
+
+But, with the "detach vmas first" approach, the vmas have been detached
+when vm flags are updated, so it sounds safe to update vm flags with
+read mmap_sem for this specific case. So, VM_HUGETLB and VM_PFNMAP will
+be handled by using the optimized path in the following separate patches
+for bisectable sake.
+
+Unmapping uprobe areas may need update mm flags (MMF_RECALC_UPROBES).
+However it is fine to have false-positive MMF_RECALC_UPROBES according
+to uprobes developer. So, uprobe unmap will not be handled by the
+regular path.
+
+With the "detach vmas first" approach we don't have to re-acquire
+mmap_sem again to clean up vmas to avoid race window which might get the
+address space changed since downgrade_write() doesn't release the lock
+to lead regression, which simply downgrades to read lock.
+
+And, since the lock acquire/release cost is managed to the minimum and
+almost as same as before, the optimization could be extended to any size
+of mapping without incurring significant penalty to small mappings.
+
+For the time being, just do this in munmap syscall path. Other
+vm_munmap() or do_munmap() call sites (i.e mmap, mremap, etc) remain
+intact due to some implementation difficulties since they acquire write
+mmap_sem from very beginning and hold it until the end, do_munmap()
+might be called in the middle. But, the optimized do_munmap would like
+to be called without mmap_sem held so that we can do the optimization.
+So, if we want to do the similar optimization for mmap/mremap path, I'm
+afraid we would have to redesign them. mremap might be called on very
+large area depending on the usecases, the optimization to it will be
+considered in the future.
+
+
+Changelog
+v8 -> v9:
+* Uprobe developer (Oleg Nesterov and Srikar Dronamraju) helped to confirm it is
+  fine to have a false-positive MMF_RECALC_UPROBES. So, unmapping uprobe areas
+  doesn't have to be handled by regular path and we can drop the uprobe related
+  patch. Thanks Oleg and Srikar.
+* Dave hansen helped to confirm mpx unmap has to be called under write mmap_sem,
+  but it has not to be after unmap_region(). So move arch_unmap() before
+  downgrade_write(). The other user of arch_unmap() is PowerPC, which just set
+  mm->context.vdso_base, so it sounds fine for this change too. Thanks Dave.
+* The above two resolved the concerns from Vlastimil for v8.
+
+v7 -> v8:
+* Added Acked-by from Vlastimil for patch 1/5. Thanks.
+* Fixed the wrong "evolution" direction. Converted VM_HUGETLB and VM_PFNMAP
+  mapping use the optimized path in separate patches respectively for safe and
+  bisectable sake per Michal's suggestion.
+* Extracted has_uprobes() helper from uprobes_munmap() to check if mm or vmas
+  have uprobes, which could save some cycles instead of calling
+  vma_has_uprobes() directly for some cases. Per Vlastimil's suggestion.
+* Keep unmapping uprobes area using regular do_munmap() since it might update
+  mm flags, that might be not safe with read mmap_sem even though vmas have
+  been detached.
+* Fixed some comments from Willy.
+
+v6 -> v7:
+* Rename some helper functions per Michal and Vlastimil's comments.
+* Refactor munmap_lookup_vma() to return the pointer of start vma per Michal's
+  suggestion.
+* Rephrase some commit log for patch 2/4 per Michal's comments.
+* Deal with special mappings (VM_HUGETLB | VM_PFNMAP | uprobes) with regular
+  do_munmap() in a separate patch per Michal's suggestion.
+* Bring the patch which makes vma_has_uprobes() non-static back since it is
+  needed to check if a vma has uprobes or not.
+
+v5 -> v6:
+* Fixed the comments from Kirill and Laurent
+* Added Laurent's reviewed-by to patch 1/2. Thanks.
+
+v4 -> v5:
+* Detach vmas before zapping pages so that we don't have to use VM_DEAD to mark
+  a being unmapping vma since they have been detached from rbtree when zapping
+  pages. Per Kirill
+* Eliminate VM_DEAD stuff
+* With this change we don't have to re-acquire write mmap_sem to do cleanup.
+  So, we could eliminate a potential race window
+* Eliminate PUD_SIZE check, and extend this optimization to all size
+
+v3 -> v4:
+* Extend check_stable_address_space to check VM_DEAD as Michal suggested
+* Deal with vm_flags update of VM_LOCKED | VM_HUGETLB | VM_PFNMAP and uprobe
+  mappings with exclusive lock held. The actual unmapping is still done with read
+  mmap_sem to solve akpm's concern
+* Clean up vmas with calling do_munmap to prevent from race condition by not
+  carrying vmas as Kirill suggested
+* Extracted more common code
+* Solved some code cleanup comments from akpm
+* Dropped uprobe and arch specific code, now all the changes are mm only
+* Still keep PUD_SIZE threshold, if everyone thinks it is better to extend to all
+  sizes or smaller size, will remove it
+* Make this optimization 64 bit only explicitly per akpm's suggestion
+
+v2 -> v3:
+* Refactor do_munmap code to extract the common part per Peter's sugestion
+* Introduced VM_DEAD flag per Michal's suggestion. Just handled VM_DEAD in
+  x86's page fault handler for the time being. Other architectures will be covered
+  once the patch series is reviewed
+* Now lookup vma (find and split) and set VM_DEAD flag with write mmap_sem, then
+  zap mapping with read mmap_sem, then clean up pgtables and vmas with write
+  mmap_sem per Peter's suggestion
+
+v1 -> v2:
+* Re-implemented the code per the discussion on LSFMM summit
+
+
+Regression and performance data:
+Did the below regression test with setting thresh to 4K manually in the code:
+  * Full LTP
+  * Trinity (munmap/all vm syscalls)
+  * Stress-ng: mmap/mmapfork/mmapfixed/mmapaddr/mmapmany/vm
+  * mm-tests: kernbench, phpbench, sysbench-mariadb, will-it-scale
+  * vm-scalability
+
+With the patches, exclusive mmap_sem hold time when munmap a 80GB address
+space on a machine with 32 cores of E5-2680 @ 2.70GHz dropped to us level
+from second.
+
+munmap_test-15002 [008]   594.380138: funcgraph_entry: |  vm_munmap_zap_rlock() {
+munmap_test-15002 [008]   594.380146: funcgraph_entry:      !2485684 us |    unmap_region();
+munmap_test-15002 [008]   596.865836: funcgraph_exit:       !2485692 us |  }
+
+Here the excution time of unmap_region() is used to evaluate the time of
+holding read mmap_sem, then the remaining time is used with holding
+exclusive lock.
+
+Yang Shi (4):
+      mm: refactor do_munmap() to extract the common part
+      mm: mmap: zap pages with read mmap_sem in munmap
+      mm: unmap VM_HUGETLB mappings with optimized path
+      mm: unmap VM_PFNMAP mappings with optimized path
+
+ mm/mmap.c | 190 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 156 insertions(+), 34 deletions(-)
