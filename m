@@ -1,277 +1,288 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E10118E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 21:15:54 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id v195-v6so11504805pgb.0
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 18:15:54 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id e14-v6si17584911pff.332.2018.09.10.18.15.52
+	by kanga.kvack.org (Postfix) with ESMTP id 796198E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 22:15:45 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id x2-v6so11581520pgp.4
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 19:15:45 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id r18-v6si18643893pgb.578.2018.09.10.19.15.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 18:15:53 -0700 (PDT)
-From: "Huang, Kai" <kai.huang@intel.com>
-Subject: Re: [RFC 01/12] docs/x86: Document the Multi-Key Total Memory
- Encryption API
-Date: Tue, 11 Sep 2018 01:14:44 +0000
-Message-ID: <1536628480.5860.0.camel@intel.com>
+        Mon, 10 Sep 2018 19:15:44 -0700 (PDT)
+Date: Mon, 10 Sep 2018 19:15:29 -0700
+From: Alison Schofield <alison.schofield@intel.com>
+Subject: Re: [RFC 06/12] mm: Add the encrypt_mprotect() system call
+Message-ID: <20180911021529.GA1732@alison-desk.jf.intel.com>
 References: <cover.1536356108.git.alison.schofield@intel.com>
-	 <b9c1e3805c700043d92117462bdb6018bb9f858a.1536356108.git.alison.schofield@intel.com>
-	 <105F7BF4D0229846AF094488D65A098935424996@PGSMSX112.gar.corp.intel.com>
-	 <20180911001301.GB31868@alison-desk.jf.intel.com>
-	 <105F7BF4D0229846AF094488D65A098935426D90@PGSMSX112.gar.corp.intel.com>
-	 <20180911004554.GA646@alison-desk.jf.intel.com>
-In-Reply-To: <20180911004554.GA646@alison-desk.jf.intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <90119A8CB7E3AF43BE5E7717B3FCB3C0@intel.com>
-Content-Transfer-Encoding: base64
+ <7d27511b07c8337e15096214622b66ef8f0fa345.1536356108.git.alison.schofield@intel.com>
+ <c790ace81239db52f8e9c42b10a9039aafbfff38.camel@linux.intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c790ace81239db52f8e9c42b10a9039aafbfff38.camel@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Schofield, Alison" <alison.schofield@intel.com>
-Cc: "Shutemov, Kirill" <kirill.shutemov@intel.com>, "jmorris@namei.org" <jmorris@namei.org>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dhowells@redhat.com" <dhowells@redhat.com>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Nakajima, Jun" <jun.nakajima@intel.com>
+To: Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>
+Cc: dhowells@redhat.com, tglx@linutronix.de, Kai Huang <kai.huang@intel.com>, Jun Nakajima <jun.nakajima@intel.com>, Kirill Shutemov <kirill.shutemov@intel.com>, Dave Hansen <dave.hansen@intel.com>, jmorris@namei.org, keyrings@vger.kernel.org, linux-security-module@vger.kernel.org, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-mm@kvack.org
 
-T24gTW9uLCAyMDE4LTA5LTEwIGF0IDE3OjQ1IC0wNzAwLCBBbGlzb24gU2Nob2ZpZWxkIHdyb3Rl
-Og0KPiBPbiBNb24sIFNlcCAxMCwgMjAxOCBhdCAwNTozMzozM1BNIC0wNzAwLCBIdWFuZywgS2Fp
-IHdyb3RlOg0KPiA+ID4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gPiA+IEZyb206IG93
-bmVyLWxpbnV4LW1tQGt2YWNrLm9yZyBbbWFpbHRvOm93bmVyLWxpbnV4LW1tQGt2YWNrLm9yZ10N
-Cj4gPiA+IE9uDQo+ID4gPiBCZWhhbGYgT2YgQWxpc29uIFNjaG9maWVsZA0KPiA+ID4gU2VudDog
-VHVlc2RheSwgU2VwdGVtYmVyIDExLCAyMDE4IDEyOjEzIFBNDQo+ID4gPiBUbzogSHVhbmcsIEth
-aSA8a2FpLmh1YW5nQGludGVsLmNvbT4NCj4gPiA+IENjOiBkaG93ZWxsc0ByZWRoYXQuY29tOyB0
-Z2x4QGxpbnV0cm9uaXguZGU7IE5ha2FqaW1hLCBKdW4NCj4gPiA+IDxqdW4ubmFrYWppbWFAaW50
-ZWwuY29tPjsgU2h1dGVtb3YsIEtpcmlsbCA8a2lyaWxsLnNodXRlbW92QGludGVsDQo+ID4gPiAu
-Y29tPjsNCj4gPiA+IEhhbnNlbiwgRGF2ZSA8ZGF2ZS5oYW5zZW5AaW50ZWwuY29tPjsgU2Fra2lu
-ZW4sIEphcmtrbw0KPiA+ID4gPGphcmtrby5zYWtraW5lbkBpbnRlbC5jb20+OyBqbW9ycmlzQG5h
-bWVpLm9yZzsga2V5cmluZ3NAdmdlci5rZXINCj4gPiA+IG5lbC5vcmc7DQo+ID4gPiBsaW51eC1z
-ZWN1cml0eS1tb2R1bGVAdmdlci5rZXJuZWwub3JnOyBtaW5nb0ByZWRoYXQuY29tOyBocGFAenl0
-bw0KPiA+ID4gci5jb207DQo+ID4gPiB4ODZAa2VybmVsLm9yZzsgbGludXgtbW1Aa3ZhY2sub3Jn
-DQo+ID4gPiBTdWJqZWN0OiBSZTogW1JGQyAwMS8xMl0gZG9jcy94ODY6IERvY3VtZW50IHRoZSBN
-dWx0aS1LZXkgVG90YWwNCj4gPiA+IE1lbW9yeQ0KPiA+ID4gRW5jcnlwdGlvbiBBUEkNCj4gPiA+
-IA0KPiA+ID4gT24gU3VuLCBTZXAgMDksIDIwMTggYXQgMDY6Mjg6MjhQTSAtMDcwMCwgSHVhbmcs
-IEthaSB3cm90ZToNCj4gPiA+ID4gDQo+ID4gPiA+ID4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0t
-LS0NCj4gPiA+ID4gPiBGcm9tOiBvd25lci1saW51eC1tbUBrdmFjay5vcmcgW21haWx0bzpvd25l
-ci1saW51eC1tbUBrdmFjay5vDQo+ID4gPiA+ID4gcmddIE9uDQo+ID4gPiA+ID4gQmVoYWxmIE9m
-IEFsaXNvbiBTY2hvZmllbGQNCj4gPiA+ID4gPiBTZW50OiBTYXR1cmRheSwgU2VwdGVtYmVyIDgs
-IDIwMTggMTA6MzQgQU0NCj4gPiA+ID4gPiBUbzogZGhvd2VsbHNAcmVkaGF0LmNvbTsgdGdseEBs
-aW51dHJvbml4LmRlDQo+ID4gPiA+ID4gQ2M6IEh1YW5nLCBLYWkgPGthaS5odWFuZ0BpbnRlbC5j
-b20+OyBOYWthamltYSwgSnVuDQo+ID4gPiA+ID4gPGp1bi5uYWthamltYUBpbnRlbC5jb20+OyBT
-aHV0ZW1vdiwgS2lyaWxsDQo+ID4gPiA+ID4gPGtpcmlsbC5zaHV0ZW1vdkBpbnRlbC5jb20+OyBI
-YW5zZW4sIERhdmUgPGRhdmUuaGFuc2VuQGludGVsLg0KPiA+ID4gPiA+IGNvbT47DQo+ID4gPiA+
-ID4gU2Fra2luZW4sIEphcmtrbyA8amFya2tvLnNha2tpbmVuQGludGVsLmNvbT47IGptb3JyaXNA
-bmFtZWkubw0KPiA+ID4gPiA+IHJnOw0KPiA+ID4gPiA+IGtleXJpbmdzQHZnZXIua2VybmVsLm9y
-ZzsgbGludXgtc2VjdXJpdHktbW9kdWxlQHZnZXIua2VybmVsLm8NCj4gPiA+ID4gPiByZzsNCj4g
-PiA+ID4gPiBtaW5nb0ByZWRoYXQuY29tOyBocGFAenl0b3IuY29tOyB4ODZAa2VybmVsLm9yZzsg
-bGludXgtDQo+ID4gPiANCj4gPiA+IG1tQGt2YWNrLm9yZw0KPiA+ID4gPiA+IFN1YmplY3Q6IFtS
-RkMgMDEvMTJdIGRvY3MveDg2OiBEb2N1bWVudCB0aGUgTXVsdGktS2V5IFRvdGFsDQo+ID4gPiA+
-ID4gTWVtb3J5DQo+ID4gPiA+ID4gRW5jcnlwdGlvbiBBUEkNCj4gPiA+ID4gPiANCj4gPiA+ID4g
-PiBEb2N1bWVudCB0aGUgQVBJJ3MgdXNlZCBmb3IgTUtUTUUgb24gSW50ZWwgcGxhdGZvcm1zLg0K
-PiA+ID4gPiA+IE1LVE1FOiBNdWx0aS1LRVkgVG90YWwgTWVtb3J5IEVuY3J5cHRpb24NCj4gPiA+
-ID4gPiANCj4gPiA+ID4gPiBTaWduZWQtb2ZmLWJ5OiBBbGlzb24gU2Nob2ZpZWxkIDxhbGlzb24u
-c2Nob2ZpZWxkQGludGVsLmNvbT4NCj4gPiA+ID4gPiAtLS0NCj4gPiA+ID4gPiAgRG9jdW1lbnRh
-dGlvbi94ODYvbWt0bWUta2V5cy50eHQgfCAxNTMNCj4gPiA+ID4gPiArKysrKysrKysrKysrKysr
-KysrKysrKysrKysrKysrKysrKysrKysNCj4gPiA+ID4gPiAgMSBmaWxlIGNoYW5nZWQsIDE1MyBp
-bnNlcnRpb25zKCspDQo+ID4gPiA+ID4gIGNyZWF0ZSBtb2RlIDEwMDY0NCBEb2N1bWVudGF0aW9u
-L3g4Ni9ta3RtZS1rZXlzLnR4dA0KPiA+ID4gPiA+IA0KPiA+ID4gPiA+IGRpZmYgLS1naXQgYS9E
-b2N1bWVudGF0aW9uL3g4Ni9ta3RtZS1rZXlzLnR4dA0KPiA+ID4gPiA+IGIvRG9jdW1lbnRhdGlv
-bi94ODYvbWt0bWUtIGtleXMudHh0IG5ldyBmaWxlIG1vZGUgMTAwNjQ0DQo+ID4gPiA+ID4gaW5k
-ZXgNCj4gPiA+ID4gPiAwMDAwMDAwMDAwMDAuLjJkZWE3YWNkMmExNw0KPiA+ID4gPiA+IC0tLSAv
-ZGV2L251bGwNCj4gPiA+ID4gPiArKysgYi9Eb2N1bWVudGF0aW9uL3g4Ni9ta3RtZS1rZXlzLnR4
-dA0KPiA+ID4gPiA+IEBAIC0wLDAgKzEsMTUzIEBADQo+ID4gPiA+ID4gK01LVE1FIChNdWx0aS1L
-ZXkgVG90YWwgTWVtb3J5IEVuY3J5cHRpb24pIGlzIGEgdGVjaG5vbG9neQ0KPiA+ID4gPiA+IHRo
-YXQNCj4gPiA+ID4gPiArYWxsb3dzIG1lbW9yeSBlbmNyeXB0aW9uIG9uIEludGVsIHBsYXRmb3Jt
-cy4gV2hlcmVhcyBUTUUNCj4gPiA+ID4gPiAoVG90YWwNCj4gPiA+ID4gPiArTWVtb3J5DQo+ID4g
-PiA+ID4gK0VuY3J5cHRpb24pIGFsbG93cyBlbmNyeXB0aW9uIG9mIHRoZSBlbnRpcmUgc3lzdGVt
-IG1lbW9yeQ0KPiA+ID4gPiA+IHVzaW5nIGENCj4gPiA+ID4gPiArc2luZ2xlIGtleSwgTUtUTUUg
-YWxsb3dzIG11bHRpcGxlIGVuY3J5cHRpb24gZG9tYWlucywgZWFjaA0KPiA+ID4gPiA+IGhhdmlu
-Zw0KPiA+ID4gPiA+ICt0aGVpciBvd24ga2V5LiBUaGUgbWFpbiB1c2UgY2FzZSBmb3IgdGhlIGZl
-YXR1cmUgaXMgdmlydHVhbA0KPiA+ID4gPiA+IG1hY2hpbmUNCj4gPiA+ID4gPiAraXNvbGF0aW9u
-LiBUaGUgQVBJJ3MgaW50cm9kdWNlZCBoZXJlIGFyZSBpbnRlbmRlZCB0byBvZmZlcg0KPiA+ID4g
-PiA+ICtmbGV4aWJpbGl0eSB0byB3b3JrIGluIGENCj4gPiA+ID4gPiB3aWRlIHJhbmdlIG9mIHVz
-ZXMuDQo+ID4gPiA+ID4gKw0KPiA+ID4gPiA+ICtUaGUgZXh0ZXJuYWxseSBhdmFpbGFibGUgSW50
-ZWwgQXJjaGl0ZWN0dXJlIFNwZWM6DQo+ID4gPiA+ID4gK2h0dHBzOi8vc29mdHdhcmUuaW50ZWwu
-Y29tL3NpdGVzL2RlZmF1bHQvZmlsZXMvbWFuYWdlZC9hNS8xNg0KPiA+ID4gPiA+IC9NdWx0aS0N
-Cj4gPiA+ID4gPiArS2V5LQ0KPiA+ID4gPiA+ICtUb3RhbC1NZW1vcnktRW5jcnlwdGlvbi1TcGVj
-LnBkZg0KPiA+ID4gPiA+ICsNCj4gPiA+ID4gPiArPT09PT09PT09PT09PT09PT09PT09PT09PT09
-PSAgQVBJIE92ZXJ2aWV3DQo+ID4gPiA+ID4gKz09PT09PT09PT09PT09PT09PT09PT09PT09PT0N
-Cj4gPiA+ID4gPiArDQo+ID4gPiA+ID4gK1RoZXJlIGFyZSAyIE1LVE1FIHNwZWNpZmljIEFQSSdz
-IHRoYXQgZW5hYmxlIHVzZXJzcGFjZSB0bw0KPiA+ID4gPiA+IGNyZWF0ZQ0KPiA+ID4gPiA+ICth
-bmQgdXNlIHRoZSBtZW1vcnkgZW5jcnlwdGlvbiBrZXlzOg0KPiA+ID4gPiA+ICsNCj4gPiA+ID4g
-PiArMSkgS2VybmVsIEtleSBTZXJ2aWNlOiBNS1RNRSBUeXBlDQo+ID4gPiA+ID4gKw0KPiA+ID4g
-PiA+ICsgICBNS1RNRSBpcyBhIG5ldyBrZXkgdHlwZSBhZGRlZCB0byB0aGUgZXhpc3RpbmcgS2Vy
-bmVsIEtleQ0KPiA+ID4gPiA+IFNlcnZpY2VzDQo+ID4gPiA+ID4gKyAgIHRvIHN1cHBvcnQgdGhl
-IG1lbW9yeSBlbmNyeXB0aW9uIGtleXMuIFRoZSBNS1RNRSBzZXJ2aWNlDQo+ID4gPiA+ID4gbWFu
-YWdlcw0KPiA+ID4gPiA+ICsgICB0aGUgYWRkaXRpb24gYW5kIHJlbW92YWwgb2YgTUtUTUUga2V5
-cy4gSXQgbWFwcyB1c2Vyc3BhY2UNCj4gPiA+ID4gPiBrZXlzDQo+ID4gPiA+ID4gKyAgIHRvIGhh
-cmR3YXJlIGtleWlkcyBhbmQgcHJvZ3JhbXMgdGhlIGhhcmR3YXJlIHdpdGggdXNlcg0KPiA+ID4g
-PiA+IHJlcXVlc3RlZA0KPiA+ID4gPiA+ICsgICBlbmNyeXB0aW9uIHBhcmFtZXRlcnMuDQo+ID4g
-PiA+ID4gKw0KPiA+ID4gPiA+ICsgICBvIEFuIHVuZGVyc3RhbmRpbmcgb2YgdGhlIEtlcm5lbCBL
-ZXkgU2VydmljZSBpcyByZXF1aXJlZA0KPiA+ID4gPiA+IGluIG9yZGVyDQo+ID4gPiA+ID4gKyAg
-ICAgdG8gdXNlIHRoZSBNS1RNRSBrZXkgdHlwZSBhcyBpdCBpcyBhIHN1YnNldCBvZiB0aGF0DQo+
-ID4gPiA+ID4gc2VydmljZS4NCj4gPiA+ID4gPiArDQo+ID4gPiA+ID4gKyAgIG8gTUtUTUUga2V5
-cyBhcmUgYSBsaW1pdGVkIHJlc291cmNlLiBUaGVyZSBpcyBhIHNpbmdsZQ0KPiA+ID4gPiA+IHBv
-b2wgb2YNCj4gPiA+ID4gPiArICAgICBNS1RNRSBrZXlzIGZvciBhIHN5c3RlbSBhbmQgdGhhdCBw
-b29sIGNhbiBiZSBmcm9tIDMgdG8NCj4gPiA+ID4gPiA2MyBrZXlzLg0KPiA+ID4gPiANCj4gPiA+
-ID4gV2h5IDMgdG8gNjMga2V5cz8gQXJjaGl0ZWN0dXJhbGx5IHdlIGFyZSBhYmxlIHRvIHN1cHBv
-cnQgdXAgdG8NCj4gPiA+ID4gMTUtYml0IGtleUlELA0KPiA+ID4gDQo+ID4gPiBhbHRob3VnaCBp
-biB0aGUgZmlyc3QgZ2VuZXJhdGlvbiBzZXJ2ZXIgd2Ugb25seSBzdXBwb3J0IDYtYml0DQo+ID4g
-PiBrZXlJRCwgd2hpY2ggaXMgNjMNCj4gPiA+IGtleS9rZXlJRHMgKGV4Y2x1ZGluZyBrZXlJRCAw
-LCB3aGljaCBpcyBUTUUncyBrZXlJRCkuDQo+ID4gPiANCj4gPiA+IE15IHVuZGVyc3RhbmRpbmcg
-aXMgdGhhdCBsb3cgbGV2ZWwgU0tVJ3MgY291bGQgaGF2ZSBhcyBmZXcgYXMgMw0KPiA+ID4gYml0
-cyBhdmFpbGFibGUgdG8NCj4gPiA+IGhvbGQgdGhlIGtleWlkLCBhbmQgdGhhdCB0aGUgbWF4IGlz
-IDYgYml0cywgaGVuY2UgNjQuDQo+ID4gPiBJIHByb2JhYmx5IGRvbid0IG5lZWQgdG8gYmUgc3Rh
-dGluZyB0aGF0IGxldmVsIG9mIGRldGFpbCBoZXJlLA0KPiA+ID4gYnV0IHJhdGhlciBqdXN0DQo+
-ID4gPiBpdGVyYXRlIHRoZSBpbXBvcnRhbnQgcG9pbnQgdGhhdCB0aGUgcmVzb3VyY2UgaXMgbGlt
-aXRlZCENCj4gPiA+IA0KPiA+ID4gPiANCj4gPiA+ID4gPiArICAgICBXaXRoIHRoYXQgaW4gbWlu
-ZCwgdXNlcnNwYWNlIG1heSB0YWtlIGFkdmFudGFnZSBvZiB0aGUNCj4gPiA+ID4gPiBrZXJuZWwN
-Cj4gPiA+ID4gPiArICAgICBrZXkgc2VydmljZXMgc2hhcmluZyBhbmQgcGVybWlzc2lvbnMgbW9k
-ZWwgZm9yDQo+ID4gPiA+ID4gdXNlcnNwYWNlIGtleXMuDQo+ID4gPiA+ID4gKyAgICAgT25lIGtl
-eSBjYW4gYmUgc2hhcmVkIGFzIGxvbmcgYXMgZWFjaCB1c2VyIGhhcyB0aGUNCj4gPiA+ID4gPiBw
-ZXJtaXNzaW9uDQo+ID4gPiA+ID4gKyAgICAgb2YgIktFWV9ORUVEX1ZJRVciIHRvIHVzZSBpdC4N
-Cj4gPiA+ID4gPiArDQo+ID4gPiA+ID4gKyAgIG8gTUtUTUUga2V5IHR5cGUgdXNlcyBjYXBhYmls
-aXRpZXMgdG8gcmVzdHJpY3QgdGhlDQo+ID4gPiA+ID4gYWxsb2NhdGlvbg0KPiA+ID4gPiA+ICsg
-ICAgIG9mIGtleXMuIEl0IG9ubHkgcmVxdWlyZXMgQ0FQX1NZU19SRVNPVVJDRSwgYnV0IHdpbGwN
-Cj4gPiA+ID4gPiBhY2NlcHQNCj4gPiA+ID4gPiArICAgICB0aGUgYnJvYWRlciBjYXBhYmlsaXR5
-IG9mIENBUF9TWVNfQURNSU4uICBTZWUNCj4gPiA+ID4gPiBjYXBhYmlsaXRpZXMoNykuDQo+ID4g
-PiA+ID4gKw0KPiA+ID4gPiA+ICsgICBvIFRoZSBNS1RNRSBrZXkgc2VydmljZSBibG9ja3Mga2Vy
-bmVsIGtleSBzZXJ2aWNlDQo+ID4gPiA+ID4gY29tbWFuZHMgdGhhdA0KPiA+ID4gPiA+ICsgICAg
-IGNvdWxkIGxlYWQgdG8gcmVwcm9ncmFtbWluZyBvZiBpbiB1c2Uga2V5cywgb3IgbG9zcyBvZg0K
-PiA+ID4gPiA+IGtleXMgZnJvbQ0KPiA+ID4gPiA+ICsgICAgIHRoZSBwb29sLiBUaGlzIG1lYW5z
-IE1LVE1FIGRvZXMgbm90IGFsbG93IGEga2V5IHRvIGJlDQo+ID4gPiA+ID4gaW52YWxpZGF0ZWQs
-DQo+ID4gPiA+ID4gKyAgICAgdW5saW5rZWQsIG9yIHRpbWVkIG91dC4gVGhlc2Ugb3BlcmF0aW9u
-cyBhcmUgYmxvY2tlZCBieQ0KPiA+ID4gPiA+IE1LVE1FIGFzDQo+ID4gPiA+ID4gKyAgICAgaXQg
-Y3JlYXRlcyBhbGwga2V5cyB3aXRoIHRoZSBpbnRlcm5hbCBmbGFnDQo+ID4gPiA+ID4gS0VZX0ZM
-QUdfS0VFUC4NCj4gPiA+ID4gPiArDQo+ID4gPiA+ID4gKyAgIG8gTUtUTUUgZG9lcyBub3Qgc3Vw
-cG9ydCB0aGUga2V5Y3RsIG9wdGlvbiBvZiBVUERBVEUuDQo+ID4gPiA+ID4gVXNlcnNwYWNlDQo+
-ID4gPiA+ID4gKyAgICAgbWF5IGNoYW5nZSB0aGUgcHJvZ3JhbW1pbmcgb2YgYSBrZXkgYnkgcmV2
-b2tpbmcgaXQgYW5kDQo+ID4gPiA+ID4gYWRkaW5nDQo+ID4gPiA+ID4gKyAgICAgYSBuZXcga2V5
-IHdpdGggdGhlIHVwZGF0ZWQgZW5jcnlwdGlvbiBvcHRpb25zIChvciB2aWNlLQ0KPiA+ID4gPiA+
-IHZlcnNhKS4NCj4gPiA+ID4gPiArDQo+ID4gPiA+ID4gKzIpIFN5c3RlbSBDYWxsOiBlbmNyeXB0
-X21wcm90ZWN0KCkNCj4gPiA+ID4gPiArDQo+ID4gPiA+ID4gKyAgIE1LVE1FIGVuY3J5cHRpb24g
-aXMgcmVxdWVzdGVkIGJ5IGNhbGxpbmcNCj4gPiA+ID4gPiBlbmNyeXB0X21wcm90ZWN0KCkuIFRo
-ZQ0KPiA+ID4gPiA+ICsgICBjYWxsZXIgcGFzc2VzIHRoZSBzZXJpYWwgbnVtYmVyIHRvIGEgcHJl
-dmlvdXNseSBhbGxvY2F0ZWQNCj4gPiA+ID4gPiBhbmQNCj4gPiA+ID4gPiArICAgcHJvZ3JhbW1l
-ZCBlbmNyeXB0aW9uIGtleS4gVGhhdCBoYW5kbGUgd2FzIGNyZWF0ZWQgd2l0aA0KPiA+ID4gPiA+
-IHRoZSBNS1RNRQ0KPiA+ID4gPiA+ICsgICBLZXkgU2VydmljZS4NCj4gPiA+ID4gPiArDQo+ID4g
-PiA+ID4gKyAgIG8gVGhlIGNhbGxlciBtdXN0IGhhdmUgS0VZX05FRURfVklFVyBwZXJtaXNzaW9u
-IG9uIHRoZQ0KPiA+ID4gPiA+IGtleQ0KPiA+ID4gPiA+ICsNCj4gPiA+ID4gPiArICAgbyBUaGUg
-cmFuZ2Ugb2YgbWVtb3J5IHRoYXQgaXMgdG8gYmUgcHJvdGVjdGVkIG11c3QgYmUNCj4gPiA+ID4g
-PiBtYXBwZWQgYXMNCj4gPiA+ID4gPiArICAgICBBTk9OWU1PVVMuIElmIGl0IGlzIG5vdCwgdGhl
-IGVudGlyZSBlbmNyeXB0X21wcm90ZWN0KCkNCj4gPiA+ID4gPiByZXF1ZXN0DQo+ID4gPiA+ID4g
-KyAgICAgZmFpbHMgd2l0aCBFSU5WQUwuDQo+ID4gPiA+ID4gKw0KPiA+ID4gPiA+ICsgICBvIEFz
-IGFuIGV4dGVuc2lvbiB0byB0aGUgZXhpc3RpbmcgbXByb3RlY3QoKSBzeXN0ZW0gY2FsbCwNCj4g
-PiA+ID4gPiArICAgICBlbmNyeXB0X21wcm90ZWN0KCkgc3VwcG9ydHMgdGhlIGxlZ2FjeSBtcHJv
-dGVjdA0KPiA+ID4gPiA+IGJlaGF2aW9yIHBsdXMNCj4gPiA+ID4gPiArICAgICB0aGUgZW5hYmxp
-bmcgb2YgbWVtb3J5IGVuY3J5cHRpb24uIFRoYXQgbWVhbnMgdGhhdCBpbg0KPiA+ID4gPiA+IGFk
-ZGl0aW9uDQo+ID4gPiA+ID4gKyAgICAgdG8gZW5jcnlwdGluZyB0aGUgbWVtb3J5LCB0aGUgcHJv
-dGVjdGlvbiBmbGFncyB3aWxsIGJlDQo+ID4gPiA+ID4gdXBkYXRlZA0KPiA+ID4gPiA+ICsgICAg
-IGFzIHJlcXVlc3RlZCBpbiB0aGUgY2FsbC4NCj4gPiA+ID4gPiArDQo+ID4gPiA+ID4gKyAgIG8g
-QWRkaXRpb25hbCBtcHJvdGVjdCgpIGNhbGxzIHRvIG1lbW9yeSBhbHJlYWR5IHByb3RlY3RlZA0K
-PiA+ID4gPiA+IHdpdGgNCj4gPiA+ID4gPiArICAgICBNS1RNRSB3aWxsIG5vdCBhbHRlciB0aGUg
-TUtUTUUgc3RhdHVzLg0KPiA+ID4gPiANCj4gPiA+ID4gSSB0aGluayBpdCdzIGJldHRlciB0byBz
-ZXBhcmF0ZSBlbmNyeXB0X21wcm90ZWN0KCkgaW50byBhbm90aGVyDQo+ID4gPiA+IGRvYyBzbyBi
-b3RoDQo+ID4gPiANCj4gPiA+IHBhcnRzIGNhbiBiZSByZXZpZXdlZCBlYXNpZXIuDQo+ID4gPiAN
-Cj4gPiA+IEkgY2FuIGRvIHRoYXQuDQo+ID4gPiBBbHNvLCBJIGRvIGtub3cgSSBuZWVkIG1hbiBw
-YWdlIGZvciB0aGF0IHRvby4NCj4gPiA+ID4gDQo+ID4gPiA+ID4gKw0KPiA+ID4gPiA+ICs9PT09
-PT09PT09PT09PT09PT09PT09ICBVc2FnZTogTUtUTUUgS2V5IFNlcnZpY2UNCj4gPiA+ID4gPiAr
-PT09PT09PT09PT09PT09PT09PT09PQ0KPiA+ID4gPiA+ICsNCj4gPiA+ID4gPiArTUtUTUUgaXMg
-ZW5hYmxlZCBvbiBzdXBwb3J0ZWQgSW50ZWwgcGxhdGZvcm1zIGJ5IHNlbGVjdGluZw0KPiA+ID4g
-PiA+ICtDT05GSUdfWDg2X0lOVEVMX01LVE1FIHdoaWNoIHNlbGVjdHMgQ09ORklHX01LVE1FX0tF
-WVMuDQo+ID4gPiA+ID4gKw0KPiA+ID4gPiA+ICtBbGxvY2F0aW5nIE1LVE1FIEtleXMgdmlhIGNv
-bW1hbmQgbGluZSBvciBzeXN0ZW0gY2FsbDoNCj4gPiA+ID4gPiArICAgIGtleWN0bCBhZGQgbWt0
-bWUgbmFtZSAiW29wdGlvbnNdIiByaW5nDQo+ID4gPiA+ID4gKw0KPiA+ID4gPiA+ICsgICAga2V5
-X3NlcmlhbF90IGFkZF9rZXkoY29uc3QgY2hhciAqdHlwZSwgY29uc3QgY2hhcg0KPiA+ID4gPiA+
-ICpkZXNjcmlwdGlvbiwNCj4gPiA+ID4gPiArICAgICAgICAgICAgICAgICAgICAgICAgIGNvbnN0
-IHZvaWQgKnBheWxvYWQsIHNpemVfdCBwbGVuLA0KPiA+ID4gPiA+ICsgICAgICAgICAgICAgICAg
-ICAgICAgICAga2V5X3NlcmlhbF90IGtleXJpbmcpOw0KPiA+ID4gPiA+ICsNCj4gPiA+ID4gPiAr
-UmV2b2tpbmcgTUtUTUUgS2V5cyB2aWEgY29tbWFuZCBsaW5lIG9yIHN5c3RlbSBjYWxsOjoNCj4g
-PiA+ID4gPiArICAga2V5Y3RsIHJldm9rZSA8a2V5Pg0KPiA+ID4gPiA+ICsNCj4gPiA+ID4gPiAr
-ICAgbG9uZyBrZXljdGwoS0VZQ1RMX1JFVk9LRSwga2V5X3NlcmlhbF90IGtleSk7DQo+ID4gPiA+
-ID4gKw0KPiA+ID4gPiA+ICtPcHRpb25zIEZpZWxkIERlZmluaXRpb246DQo+ID4gPiA+ID4gKyAg
-ICB1c2Vya2V5PSAgICAgIEFTQ0lJIEhFWCB2YWx1ZSBlbmNyeXB0aW9uIGtleS4gRGVmYXVsdHMN
-Cj4gPiA+ID4gPiB0byBhIENQVQ0KPiA+ID4gPiA+ICsJCSAgZ2VuZXJhdGVkIGtleSBpZiBhIHVz
-ZXJrZXkgaXMgbm90IGRlZmluZWQNCj4gPiA+ID4gPiBoZXJlLg0KPiA+ID4gPiA+ICsNCj4gPiA+
-ID4gPiArICAgIGFsZ29yaXRobT0gICAgRW5jcnlwdGlvbiBhbGdvcml0aG0gbmFtZSBhcyBhIHN0
-cmluZy4NCj4gPiA+ID4gPiArCQkgIFZhbGlkIGFsZ29yaXRobTogImFlcy14dHMtMTI4Ig0KPiA+
-ID4gPiA+ICsNCj4gPiA+ID4gPiArICAgIHR3ZWFrPSAgICAgICAgQVNDSUkgSEVYIHZhbHVlIHR3
-ZWFrIGtleS4gVHdlYWsga2V5IHdpbGwNCj4gPiA+ID4gPiBiZSBhZGRlZCB0byB0aGUNCj4gPiA+
-ID4gPiArICAgICAgICAgICAgICAgICAgdXNlcmtleS4uLiAgKG5lZWQgdG8gYmUgY2xlYXIgaGVy
-ZSB0aGF0DQo+ID4gPiA+ID4gdGhpcyBpcyBiZWluZyBzZW50DQo+ID4gPiA+ID4gKyAgICAgICAg
-ICAgICAgICAgIHRvIHRoZSBoYXJkd2FyZSAtIGtlcm5lbCBub3QgbWVzc2luZyB3IGl0KQ0KPiA+
-ID4gPiA+ICsNCj4gPiA+ID4gPiArICAgIGVudHJvcHk9ICAgICAgYXNjaWkgaGV4IHZhbHVlIGVu
-dHJvcHkuDQo+ID4gPiA+ID4gKyAgICAgICAgICAgICAgICAgIFRoaXMgZW50cm9weSB3aWxsIGJl
-IHVzZWQgdG8gZ2VuZXJhdGVkIHRoZQ0KPiA+ID4gPiA+IENQVSBrZXkgYW5kDQo+ID4gPiA+ID4g
-KwkJICB0aGUgdHdlYWsga2V5IHdoZW4gQ1BVIGdlbmVyYXRlZCBrZXkgaXMNCj4gPiA+ID4gPiBy
-ZXF1ZXN0ZWQuDQo+ID4gPiA+ID4gKw0KPiA+ID4gPiA+ICtBbGdvcml0aG0gRGVwZW5kZW5jaWVz
-Og0KPiA+ID4gPiA+ICsgICAgQUVTLVhUUyAxMjggaXMgdGhlIG9ubHkgc3VwcG9ydGVkIGFsZ29y
-aXRobS4NCj4gPiA+ID4gPiArICAgIFRoZXJlIGFyZSBvbmx5IDIgd2F5cyB0aGF0IEFFUy1YVFMg
-MTI4IG1heSBiZSB1c2VkOg0KPiA+ID4gPiA+ICsNCj4gPiA+ID4gPiArICAgIDEpIFVzZXIgc3Bl
-Y2lmaWVkIGVuY3J5cHRpb24ga2V5DQo+ID4gPiA+ID4gKwktIFRoZSB1c2VyIHNwZWNpZmllZCBl
-bmNyeXB0aW9uIGtleSBtdXN0IGJlIGV4YWN0bHkNCj4gPiA+ID4gPiArCSAgMTYgQVNDSUkgSGV4
-IGJ5dGVzICgxMjggYml0cykuDQo+ID4gPiA+ID4gKwktIEEgdHdlYWsga2V5IG11c3QgYmUgc3Bl
-Y2lmaWVkIGFuZCBpdCBtdXN0IGJlDQo+ID4gPiA+ID4gZXhhY3RseQ0KPiA+ID4gPiA+ICsJICAx
-NiBBU0NJSSBIZXggYnl0ZXMgKDEyOCBiaXRzKS4NCj4gPiA+ID4gPiArCS0gTm8gZW50cm9weSBm
-aWVsZCBpcyBhY2NlcHRlZC4NCj4gPiA+ID4gPiArDQo+ID4gPiA+ID4gKyAgICAyKSBDUFUgZ2Vu
-ZXJhdGVkIGVuY3J5cHRpb24ga2V5DQo+ID4gPiA+ID4gKwktIFdoZW4gbm8gdXNlciBzcGVjaWZp
-ZWQgZW5jcnlwdGlvbiBrZXkgaXMgcHJvdmlkZWQsDQo+ID4gPiA+ID4gdGhlDQo+ID4gPiA+ID4g
-KwkgIGRlZmF1bHQgZW5jcnlwdGlvbiBrZXkgd2lsbCBiZSBDUFUgZ2VuZXJhdGVkLg0KPiA+ID4g
-PiA+ICsJLSBVc2VyIG11c3Qgc3BlY2lmeSAxNiBBU0NJSSBIZXggYnl0ZXMgb2YgZW50cm9weS4N
-Cj4gPiA+ID4gPiBUaGlzDQo+ID4gPiA+ID4gKwkgIGVudHJvcHkgd2lsbCBiZSB1c2VkIGJ5IHRo
-ZSBDUFUgdG8gZ2VuZXJhdGUgYm90aA0KPiA+ID4gPiA+IHRoZQ0KPiA+ID4gPiA+ICsJICBlbmNy
-eXB0aW9uIGtleSBhbmQgdGhlIHR3ZWFrIGtleS4NCj4gPiA+ID4gPiArCS0gTm8gZW50cm9weSBm
-aWVsZCBpcyBhY2NlcHRlZC4NCj4gPiA+IA0KPiA+ID4gICAgICAgICAgICAgIF5eXl5eXl4gc2hv
-dWxkIGJlIHR3ZWFrDQo+ID4gPiANCj4gPiA+ID4gDQo+ID4gPiA+IFRoaXMgaXMgbm90IHRydWUu
-IFRoZSBzcGVjIHNheXMgaW4gQ1BVIGdlbmVyYXRlZCByYW5kb20gbW9kZSwNCj4gPiA+ID4gYm90
-aCAna2V5JyBhbmQNCj4gPiA+IA0KPiA+ID4gJ3R3ZWFrJyBwYXJ0IGFyZSB1c2VkIHRvIGdlbmVy
-YXRlIHRoZSBmaW5hbCBrZXkgYW5kIHR3ZWFrDQo+ID4gPiByZXNwZWN0aXZlbHkuDQo+ID4gPiA+
-IA0KPiA+ID4gPiBBY3R1YWxseSwgc2ltcGxlICdYT1InIGlzIHVzZWQgdG8gZ2VuZXJhdGUgdGhl
-IGZpbmFsIGtleToNCj4gPiA+ID4gDQo+ID4gPiA+IGNhc2UgS0VZSURfU0VUX0tFWV9SQU5ET006
-DQo+ID4gPiA+IAkuLi4uLi4NCj4gPiA+ID4gCSgqIE1peCB1c2VyIHN1cHBsaWVkIGVudHJvcHkg
-dG8gdGhlIGRhdGEga2V5IGFuZCB0d2Vhaw0KPiA+ID4gPiBrZXkgKikNCj4gPiA+ID4gCVRNUF9S
-TkRfREFUQV9LRVkgPSBUTVBfUk5EX0tFWSBYT1INCj4gPiA+ID4gCQlUTVBfS0VZX1BST0dSQU1f
-U1RSVUNULktFWV9GSUVMRF8xLkJZVEVTWzE1OjBdOw0KPiA+ID4gPiAJVE1QX1JORF9UV0VBS19L
-RVkgPSBUTVBfUk5EX1RXRUFLX0tFWSBYT1INCj4gPiA+ID4gCQlUTVBfS0VZX1BST0dSQU1fU1RS
-VUNULktFWV9GSUVMRF8yLkJZVEVTWzE1OjBdOw0KPiA+ID4gPiANCj4gPiA+ID4gU28gSSB0aGlu
-ayB3ZSBjYW4gZWl0aGVyIGp1c3QgcmVtb3ZlICdlbnRyb3B5JyBwYXJhbWV0ZXIsIHNpbmNlDQo+
-ID4gPiA+IHdlIGNhbiB1c2UNCj4gPiA+IA0KPiA+ID4gYm90aCAndXNlcmtleScgYW5kICd0d2Vh
-aycgZXZlbiBmb3IgcmFuZG9tIGtleSBtb2RlLg0KPiA+ID4gPiANCj4gPiA+ID4gSW4gZmFjdCwg
-d2hpY2ggbWlnaHQgYmUgYmV0dGVyIElNSE8sIHdlIGNhbiBzaW1wbHkgZGlzYWxsb3cgb3INCj4g
-PiA+ID4gaWdub3JlDQo+ID4gPiANCj4gPiA+ICd1c2Vya2V5JyBhbmQgJ3R3ZWFrJyBwYXJ0IGZv
-ciByYW5kb20ga2V5IG1vZGUsIHNpbmNlIGlmIHdlIGFsbG93DQo+ID4gPiB1c2VyIHRvIHNwZWNp
-ZnkNCj4gPiA+IGJvdGggZW50cm9waWVzLCBhbmQgaWYgdXNlciBwYXNzZXMgdmFsdWUgd2l0aCBh
-bGwgMSwgd2UgYXJlDQo+ID4gPiBlZmZlY3RpdmVseSBtYWtpbmcgdGhlDQo+ID4gPiBrZXkgYW5k
-IHR3ZWFrIHRvIGJlIGFsbCAxLCB3aGljaCBpcyBub3QgcmFuZG9tIGFueW1vcmUuDQo+ID4gPiA+
-IA0KPiA+ID4gPiBJbnN0ZWFkLCBrZXJuZWwgY2FuIGdlbmVyYXRlIHJhbmRvbSBmb3IgYm90aCBl
-bnRyb3BpZXMsIG9yIHdlDQo+ID4gPiA+IGNhbiBzaW1wbHkgdXNlcw0KPiA+ID4gDQo+ID4gPiAw
-LCBpZ25vcmluZyB1c2VyIGlucHV0Lg0KPiA+ID4gDQo+ID4gPiBLYWksDQo+ID4gPiBJIHRoaW5r
-IG15IHR5cG8gYWJvdmUsIHRocmV3IHlvdSBvZmYuIFdlIGhhdmUgdGhlIHNhbWUNCj4gPiA+IHVu
-ZGVyc3RhbmRpbmcgb2YgdGhlDQo+ID4gPiBrZXkgZmllbGRzLg0KPiA+ID4gDQo+ID4gPiBJcyB0
-aGlzIHRoZSBzdHJ1Y3R1cmUgeW91IGFyZSBzdWdnZXN0aW5nPw0KPiA+ID4gDQo+ID4gPiAJT3B0
-aW9ucw0KPiA+ID4gDQo+ID4gPiAJa2V5X3R5cGU9CSJ1c2VyIiBvciAiQ1BVIg0KPiA+ID4gDQo+
-ID4gPiAJa2V5PQkJSWYga2V5X3R5cGUgPT0gdXNlcg0KPiA+ID4gCQkJCWtleT0gaXMgdGhlIGRh
-dGEga2V5DQo+ID4gPiAJCQlJZiBrZXlfdHlwZSA9PSBDUFUNCj4gPiA+IAkJCQlrZXk9IGlzIG5v
-dCByZXF1aXJlZA0KPiA+ID4gCQkJCWlmIGtleT0gaXMgcHJlc2VudA0KPiA+ID4gCQkJCQlpdCBp
-cyBlbnRyb3B5IHRvIGJlIG1peGVkIHdpdGgNCj4gPiA+IAkJCQkJQ1BVIGdlbmVyYXRlZCBkYXRh
-IGtleQ0KPiA+ID4gDQo+ID4gPiAJdHdlYWs9CQlJZiBrZXlfdHlwZSA9PSB1c2VyDQo+ID4gPiAJ
-CQkJdHdlYWs9IGlzIHRoZSB0d2VhayBrZXkNCj4gPiA+IAkJCUlmIGtleV90eXBlID09IENQVQ0K
-PiA+ID4gCQkJCXR3ZWFrPSBpcyBub3QgcmVxdWlyZWQNCj4gPiA+IAkJCQlpZiB0d2Vhaz0gaXMg
-cHJlc2VudA0KPiA+ID4gCQkJCQlpdCBpcyBlbnRyb3B5IHRvIGJlIG1peGVkIHdpdGgNCj4gPiA+
-IAkJCQkJQ1BVIGdlbmVyYXRlZCB0d2VhayBrZXkNCj4gPiANCj4gPiBFeGFjdGx5Lg0KPiA+IA0K
-PiA+IEFsdGhvdWdoIEkgYW0gbm90IHN1cmUgd2hldGhlciB3ZSBzaG91bGQgc3VwcG9ydCBvdGhl
-ciAyIG1vZGVzOg0KPiA+IENsZWFyIGtleSAgYW5kICBubyBlbmNyeXB0aW9uOw0KPiANCj4gQSBo
-YXJkd2FyZSBrZXkgZG9lcyBnZXQgQ0xFQVInZWQgd2hlbiB0aGUgdXNlcnNwYWNlIGtleSBpcyBy
-ZXZva2VkLg0KPiBJIGRvbid0IHRoaW5rIHdlIGlkZW50aWZpZWQgYW55IG90aGVyIHVzZXIgZGly
-ZWN0ZWQgbmVlZCB0byBjbGVhciBhDQo+IGtleS4NCj4gDQo+IFRoZSBubyBlbmNyeXB0aW9uIG9w
-dGlvbiBpcyBjdXJyZW50bHkgY29uc2lkZXJlZCBub3QgYSByZXF1aXJlbWVudC4NCj4gVGhhdCBt
-ZWFucywgYWx0aG91Z2ggeW91IHNlZSBpdCBpbiB0aGUgSW50ZWwgSFcgU3BlYywgd2UgZG9uJ3Qg
-aGF2ZQ0KPiB1c2UgY2FzZSB0aGF0IGlzIGRyaXZpbmcgdXMgdG8gaW1wbGVtZW50IGl0Lg0KPiAN
-Cj4gRm9yIG90aGVyJ3MgaW5mbyAtIG5vIGVuY3J5cHRpb24gd291bGQgYmUgYW4gb3B0aW9uIHdo
-ZXJlIHRoZSBrZXkNCj4gdGVsbHMgdGhlIGhhcmR3YXJlIG5vdCB0byBkbyBhbnkgZW5jcnlwdGlv
-biBhdCBhbGwgb24gdGhpcyBwaWVjZSBvZg0KPiBtZW1vcnkuDQo+IEFsbCBvZiBtZW1vcnkgbm90
-IGVuY3J5cHRlZCB3aXRoIHRoZXNlIE1LVE1FIGtleXMsIGlzIGJ5IGRlZmF1bHQsDQo+IGVuY3J5
-cHRlZA0KPiB3aXRoIHRoZSBzeXN0ZW0gbGV2ZWwgVE1FLCBUb3RhbCBNZW1vcnkgRW5jcnlwdGlv
-biBhbGdvcml0aG0uIChPSyAtDQo+IG5vdA0KPiByZWFsbHkgKmFsbCosIHRoZXJlIGlzIGFsc28g
-YSBCSU9TIHNldHRhYmxlIGV4Y2x1c2lvbiB6b25lIGZvciBUTUUpDQoNCkFncmVlZC4gTGV0J3Mg
-Zm9jdXMgb24gdXNlciBtb2RlIGFuZCBDUFUgbW9kZSBmb3Igbm93Lg0KDQpUaGFua3MsDQotS2Fp
-DQo+IA0KPiA+IA0KPiA+IFRoYW5rcywNCj4gPiAtS2FpDQo+ID4gPiANCj4gPiA+IA0KPiA+ID4g
-QWxpc29uDQo+ID4gPiA+IA0KPiA+ID4gPiBUaGFua3MsDQo+ID4gPiA+IC1LYWkNCj4gPiA+IA0K
-PiA+ID4gLi4uLi4uLi5zbmlwLi4uLi4uLi4uLi4=
+On Mon, Sep 10, 2018 at 09:02:43PM +0300, Jarkko Sakkinen wrote:
+> On Fri, 2018-09-07 at 15:36 -0700, Alison Schofield wrote:
+> > Implement memory encryption with a new system call that is an
+> > extension of the legacy mprotect() system call.
+> > 
+> > In encrypt_mprotect the caller must pass a handle to a previously
+> > allocated and programmed encryption key. Validate the key and store
+> > the keyid bits in the vm_page_prot for each VMA in the protection
+> > range.
+> > 
+> > Signed-off-by: Alison Schofield <alison.schofield@intel.com>
+> > ---
+> >  fs/exec.c           |  4 ++--
+> >  include/linux/key.h |  2 ++
+> >  include/linux/mm.h  |  3 ++-
+> >  mm/mprotect.c       | 67 ++++++++++++++++++++++++++++++++++++++++++++++++--
+> > ---
+> >  4 files changed, 67 insertions(+), 9 deletions(-)
+> > 
+> > diff --git a/fs/exec.c b/fs/exec.c
+> > index a1a246062561..b681a413db9c 100644
+> > --- a/fs/exec.c
+> > +++ b/fs/exec.c
+> > @@ -754,8 +754,8 @@ int setup_arg_pages(struct linux_binprm *bprm,
+> >  	vm_flags |= mm->def_flags;
+> >  	vm_flags |= VM_STACK_INCOMPLETE_SETUP;
+> >  
+> > -	ret = mprotect_fixup(vma, &prev, vma->vm_start, vma->vm_end,
+> > -			vm_flags);
+> > +	ret = mprotect_fixup(vma, &prev, vma->vm_start, vma->vm_end,
+> > vm_flags,
+> > +			     -1);
+> 
+> Why you pass a magic number here when you went the trouble having
+> a named constant?
+
+The named constant isn't available over here in fs/exec.c.
+The special case is documented further down ... (scroll down)
+That caller has no knowledge of proctection or encryption keys.
+
+> 
+> >  	if (ret)
+> >  		goto out_unlock;
+> >  	BUG_ON(prev != vma);
+> > diff --git a/include/linux/key.h b/include/linux/key.h
+> > index e58ee10f6e58..fb8a7d5f6149 100644
+> > --- a/include/linux/key.h
+> > +++ b/include/linux/key.h
+> > @@ -346,6 +346,8 @@ static inline key_serial_t key_serial(const struct key
+> > *key)
+> >  
+> >  extern void key_set_timeout(struct key *, unsigned);
+> >  
+> > +extern key_ref_t lookup_user_key(key_serial_t id, unsigned long lflags,
+> > +				 key_perm_t perm);
+> >  /*
+> >   * The permissions required on a key that we're looking up.
+> >   */
+> > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > index ac85c0805761..0f9422c7841e 100644
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -1579,7 +1579,8 @@ extern unsigned long change_protection(struct
+> > vm_area_struct *vma, unsigned long
+> >  			      int dirty_accountable, int prot_numa);
+> >  extern int mprotect_fixup(struct vm_area_struct *vma,
+> >  			  struct vm_area_struct **pprev, unsigned long start,
+> > -			  unsigned long end, unsigned long newflags);
+> > +			  unsigned long end, unsigned long newflags,
+> > +			  int newkeyid);
+> >  
+> >  /*
+> >   * doesn't attempt to fault and will return short.
+> > diff --git a/mm/mprotect.c b/mm/mprotect.c
+> > index 56e64ef7931e..6c2e1106525c 100644
+> > --- a/mm/mprotect.c
+> > +++ b/mm/mprotect.c
+> > @@ -28,14 +28,17 @@
+> >  #include <linux/ksm.h>
+> >  #include <linux/uaccess.h>
+> >  #include <linux/mm_inline.h>
+> > +#include <linux/key.h>
+> >  #include <asm/pgtable.h>
+> >  #include <asm/cacheflush.h>
+> >  #include <asm/mmu_context.h>
+> >  #include <asm/tlbflush.h>
+> > +#include <asm/mktme.h>
+> >  
+> >  #include "internal.h"
+> >  
+> >  #define NO_PKEY  -1
+> > +#define NO_KEYID -1
+> 
+> Should have only single named constant IMHO. This ambiguity
+> is worse than some reasonable constant name for both cases.
+> Maybe NO_KEYID would be adequate?
+
+Yes, this could be NO_KEY for both. I was worried about readability,
+but most of the usages compare it to a well-named variable, as in 
+(pkey == NO_KEY) or (keyid == NO_KEY) so it seems to work. 
+Will do!
+
+> 
+> >  
+> >  static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+> >  		unsigned long addr, unsigned long end, pgprot_t newprot,
+> > @@ -310,7 +313,8 @@ unsigned long change_protection(struct vm_area_struct
+> > *vma, unsigned long start,
+> >  
+> >  int
+> >  mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
+> > -	unsigned long start, unsigned long end, unsigned long newflags)
+> > +	       unsigned long start, unsigned long end, unsigned long
+> > newflags,
+> > +	       int newkeyid)
+> >  {
+> >  	struct mm_struct *mm = vma->vm_mm;
+> >  	unsigned long oldflags = vma->vm_flags;
+> > @@ -320,10 +324,24 @@ mprotect_fixup(struct vm_area_struct *vma, struct
+> > vm_area_struct **pprev,
+> >  	int error;
+> >  	int dirty_accountable = 0;
+> >  
+> > +	/*
+> > +	 * Flags match and Keyids match or we have NO_KEYID.
+> > +	 * This _fixup is usually called from do_mprotect_ext() except
+> > +	 * for one special case: caller fs/exec.c/setup_arg_pages()
+> > +	 * In that case, newkeyid is passed as -1 (NO_KEYID).
+> > +	 */
+
+Above is that special case explanation.
+
+> > +	if (newflags == oldflags &&
+> > +	    (newkeyid == vma_keyid(vma) || newkeyid == NO_KEYID)) {
+> > +		*pprev = vma;
+> > +		return 0;
+> > +	}
+> > +	/* Flags match and Keyid changes */
+> >  	if (newflags == oldflags) {
+> > +		mprotect_set_encrypt(vma, newkeyid);
+> >  		*pprev = vma;
+> >  		return 0;
+> >  	}
+> > +	/* Flags and Keyids both change, continue. */
+> >  
+> >  	/*
+> >  	 * If we make a private mapping writable we increase our commit;
+> > @@ -373,6 +391,8 @@ mprotect_fixup(struct vm_area_struct *vma, struct
+> > vm_area_struct **pprev,
+> >  	}
+> >  
+> >  success:
+> > +	if (newkeyid != NO_KEYID)
+> > +		mprotect_set_encrypt(vma, newkeyid);
+> >  	/*
+> >  	 * vm_flags and vm_page_prot are protected by the mmap_sem
+> >  	 * held in write mode.
+> > @@ -404,10 +424,15 @@ mprotect_fixup(struct vm_area_struct *vma, struct
+> > vm_area_struct **pprev,
+> >  }
+> >  
+> >  /*
+> > - * When pkey==NO_PKEY we get legacy mprotect behavior here.
+> > + * do_mprotect_ext() supports the legacy mprotect behavior plus extensions
+> > + * for protection keys and memory encryption keys. These extensions are
+> > + * mutually exclusive and the behavior is:
+> > + *	(pkey==NO_PKEY && keyid==NO_KEYID) ==> legacy mprotect
+> > + *	(pkey is valid)  ==> legacy mprotect plus protection key extensions
+> > + *	(keyid is valid) ==> legacy mprotect plus encryption key extensions
+> >   */
+> 
+> The header does not follow
+> 
+> https://www.kernel.org/doc/Documentation/kernel-doc-nano-HOWTO.txt
+
+Jarkko,
+
+I see the "how to" on kernel doc formatting, but I'm not getting the
+when? When should it be done? I can imagine it for new code, like
+the mktme_keys.c where new code is being added and the kernel docs
+could give a complete narrative of the module.
+
+Here, in mprotect.c, there are no kernel doc comments. I realize
+sometime we just need to start somewhere ;), but I find it odd to
+pluck out one function header to be extracted for kernel docs.
+
+Alison
+
+> 
+> >  static int do_mprotect_ext(unsigned long start, size_t len,
+> > -		unsigned long prot, int pkey)
+> > +			   unsigned long prot, int pkey, int keyid)
+> >  {
+> >  	unsigned long nstart, end, tmp, reqprot;
+> >  	struct vm_area_struct *vma, *prev;
+> > @@ -505,7 +530,8 @@ static int do_mprotect_ext(unsigned long start, size_t
+> > len,
+> >  		tmp = vma->vm_end;
+> >  		if (tmp > end)
+> >  			tmp = end;
+> > -		error = mprotect_fixup(vma, &prev, nstart, tmp, newflags);
+> > +		error = mprotect_fixup(vma, &prev, nstart, tmp, newflags,
+> > +				       keyid);
+> >  		if (error)
+> >  			goto out;
+> >  		nstart = tmp;
+> > @@ -530,7 +556,7 @@ static int do_mprotect_ext(unsigned long start, size_t
+> > len,
+> >  SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+> >  		unsigned long, prot)
+> >  {
+> > -	return do_mprotect_ext(start, len, prot, NO_PKEY);
+> > +	return do_mprotect_ext(start, len, prot, NO_PKEY, NO_KEYID);
+> >  }
+> >  
+> >  #ifdef CONFIG_ARCH_HAS_PKEYS
+> > @@ -538,7 +564,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t,
+> > len,
+> >  SYSCALL_DEFINE4(pkey_mprotect, unsigned long, start, size_t, len,
+> >  		unsigned long, prot, int, pkey)
+> >  {
+> > -	return do_mprotect_ext(start, len, prot, pkey);
+> > +	return do_mprotect_ext(start, len, prot, pkey, NO_KEYID);
+> >  }
+> >  
+> >  SYSCALL_DEFINE2(pkey_alloc, unsigned long, flags, unsigned long, init_val)
+> > @@ -587,3 +613,32 @@ SYSCALL_DEFINE1(pkey_free, int, pkey)
+> >  }
+> >  
+> >  #endif /* CONFIG_ARCH_HAS_PKEYS */
+> > +
+> > +#ifdef CONFIG_X86_INTEL_MKTME
+> > +
+> > +SYSCALL_DEFINE4(encrypt_mprotect, unsigned long, start, size_t, len,
+> > +		unsigned long, prot, key_serial_t, serial)
+> > +{
+> > +	key_ref_t key_ref;
+> > +	int ret, keyid;
+> > +
+> > +	/* TODO MKTME key service must be initialized */
+> > +
+> > +	key_ref = lookup_user_key(serial, 0, KEY_NEED_VIEW);
+> > +	if (IS_ERR(key_ref))
+> > +		return PTR_ERR(key_ref);
+> > +
+> > +	mktme_map_lock();
+> > +	keyid = mktme_map_keyid_from_serial(serial);
+> > +	if (!keyid) {
+> > +		mktme_map_unlock();
+> > +		key_ref_put(key_ref);
+> > +		return -EINVAL;
+> > +	}
+> > +	ret = do_mprotect_ext(start, len, prot, NO_PKEY, keyid);
+> > +	mktme_map_unlock();
+> > +	key_ref_put(key_ref);
+> > +	return ret;
+> > +}
+> > +
+> > +#endif /* CONFIG_X86_INTEL_MKTME */
+> 
+> /Jarkko
