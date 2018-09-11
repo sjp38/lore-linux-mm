@@ -1,129 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D82FC8E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 05:16:12 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id r2-v6so12151826pgp.3
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 02:16:12 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s81-v6si20343534pfk.213.2018.09.11.02.16.11
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AE068E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 06:34:21 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id m4-v6so12222972pgq.19
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 03:34:21 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id h90-v6si20104366plb.64.2018.09.11.03.34.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Sep 2018 02:16:11 -0700 (PDT)
-Date: Tue, 11 Sep 2018 11:16:08 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] memory_hotplug: fix the panic when memory end is not on
- the section boundary
-Message-ID: <20180911091608.GQ10951@dhcp22.suse.cz>
-References: <20180910123527.71209-1-zaslonko@linux.ibm.com>
- <20180910131754.GG10951@dhcp22.suse.cz>
- <e8d75768-9122-332b-3b16-cad032aeb27f@microsoft.com>
- <20180910135959.GI10951@dhcp22.suse.cz>
- <CAGM2reZuGAPmfO8x0TnHnqHci_Hsga3-CfM9+udJs=gUQCw-1g@mail.gmail.com>
- <20180910141946.GJ10951@dhcp22.suse.cz>
- <CAGM2reZ5OD9SRW8j9iaQAk9jpr86pF2NqpBjv-dxH+1vJZs0=g@mail.gmail.com>
- <20180910144152.GL10951@dhcp22.suse.cz>
- <abf84f61-82f3-e3d5-2e6e-82a11cb5dcf5@microsoft.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <abf84f61-82f3-e3d5-2e6e-82a11cb5dcf5@microsoft.com>
+        Tue, 11 Sep 2018 03:34:20 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm, thp: Fix mlocking THP page with migration enabled
+Date: Tue, 11 Sep 2018 13:34:03 +0300
+Message-Id: <20180911103403.38086-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Cc: "zaslonko@linux.ibm.com" <zaslonko@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "osalvador@suse.de" <osalvador@suse.de>, "gerald.schaefer@de.ibm.com" <gerald.schaefer@de.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vegard Nossum <vegard.nossum@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, stable@vger.kernel.org, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Mon 10-09-18 15:26:55, Pavel Tatashin wrote:
-> 
-> 
-> On 9/10/18 10:41 AM, Michal Hocko wrote:
-> > On Mon 10-09-18 14:32:16, Pavel Tatashin wrote:
-> >> On Mon, Sep 10, 2018 at 10:19 AM Michal Hocko <mhocko@kernel.org> wrote:
-> >>>
-> >>> On Mon 10-09-18 14:11:45, Pavel Tatashin wrote:
-> >>>> Hi Michal,
-> >>>>
-> >>>> It is tricky, but probably can be done. Either change
-> >>>> memmap_init_zone() or its caller to also cover the ends and starts of
-> >>>> unaligned sections to initialize and reserve pages.
-> >>>>
-> >>>> The same thing would also need to be done in deferred_init_memmap() to
-> >>>> cover the deferred init case.
-> >>>
-> >>> Well, I am not sure TBH. I have to think about that much more. Maybe it
-> >>> would be much more simple to make sure that we will never add incomplete
-> >>> memblocks and simply refuse them during the discovery. At least for now.
-> >>
-> >> On x86 memblocks can be upto 2G on machines with over 64G of RAM.
-> > 
-> > sorry I meant pageblock_nr_pages rather than memblocks.
-> 
-> OK. This sound reasonable, but, to be honest I am not sure how to
-> achieve this yet, I need to think more about this. In theory, if we have
-> sparse memory model, it makes sense to enforce memory alignment to
-> section sizes, sounds a lot safer.
+A transparent huge page is represented by a single entry on an LRU list.
+Therefore, we can only make unevictable an entire compound page, not
+individual subpages.
 
-Memory hotplug is sparsemem only. You do not have to think about other
-memory models fortunately.
+If a user tries to mlock() part of a huge page, we want the rest of the
+page to be reclaimable.
+
+We handle this by keeping PTE-mapped huge pages on normal LRU lists: the
+PMD on border of VM_LOCKED VMA will be split into PTE table.
+
+Introduction of THP migration breaks the rules around mlocking THP
+pages. If we had a single PMD mapping of the page in mlocked VMA, the
+page will get mlocked, regardless of PTE mappings of the page.
+
+For tmpfs/shmem it's easy to fix by checking PageDoubleMap() in
+remove_migration_pmd().
+
+Anon THP pages can only be shared between processes via fork(). Mlocked
+page can only be shared if parent mlocked it before forking, otherwise
+CoW will be triggered on mlock().
+
+For Anon-THP, we can fix the issue by munlocking the page on removing PTE
+migration entry for the page. PTEs for the page will always come after
+mlocked PMD: rmap walks VMAs from oldest to newest.
+
+Test-case:
+
+	#include <unistd.h>
+	#include <sys/mman.h>
+	#include <sys/wait.h>
+	#include <linux/mempolicy.h>
+	#include <numaif.h>
+
+	int main(void)
+	{
+	        unsigned long nodemask = 4;
+	        void *addr;
+
+		addr = mmap((void *)0x20000000UL, 2UL << 20, PROT_READ | PROT_WRITE,
+			MAP_PRIVATE | MAP_ANONYMOUS | MAP_LOCKED, -1, 0);
+
+	        if (fork()) {
+			wait(NULL);
+			return 0;
+	        }
+
+	        mlock(addr, 4UL << 10);
+	        mbind(addr, 2UL << 20, MPOL_PREFERRED | MPOL_F_RELATIVE_NODES,
+	                &nodemask, 4, MPOL_MF_MOVE | MPOL_MF_MOVE_ALL);
+
+	        return 0;
+	}
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-by: Vegard Nossum <vegard.nossum@gmail.com>
+Fixes: 616b8371539a ("mm: thp: enable thp migration in generic path")
+Cc: <stable@vger.kernel.org> [v4.14+]
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+---
+ mm/huge_memory.c | 2 +-
+ mm/migrate.c     | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 533f9b00147d..00704060b7f7 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2931,7 +2931,7 @@ void remove_migration_pmd(struct page_vma_mapped_walk *pvmw, struct page *new)
+ 	else
+ 		page_add_file_rmap(new, true);
+ 	set_pmd_at(mm, mmun_start, pvmw->pmd, pmde);
+-	if (vma->vm_flags & VM_LOCKED)
++	if ((vma->vm_flags & VM_LOCKED) && !PageDoubleMap(new))
+ 		mlock_vma_page(new);
+ 	update_mmu_cache_pmd(vma, address, pvmw->pmd);
+ }
+diff --git a/mm/migrate.c b/mm/migrate.c
+index d6a2e89b086a..01dad96b25b5 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -275,6 +275,9 @@ static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
+ 		if (vma->vm_flags & VM_LOCKED && !PageTransCompound(new))
+ 			mlock_vma_page(new);
  
-> >> Also, memory size is way to easy too change via qemu arguments when VM
-> >> starts. If we simply disable unaligned trailing memblocks, I am sure
-> >> we would get tons of noise of missing memory.
-> >>
-> >> I think, adding check_hotplug_memory_range() would work to fix the
-> >> immediate problem. But, we do need to figure out  a better solution.
-> >>
-> >> memblock design is based on archaic assumption that hotplug units are
-> >> physical dimms. VMs and hypervisors changed all of that, and we can
-> >> have much finer hotplug requests on machines with huge DIMMs. Yet, we
-> >> do not want to pollute sysfs with millions of tiny memory devices. I
-> >> am not sure what a long term proper solution for this problem should
-> >> be, but I see that linux hotplug/hotremove subsystems must be
-> >> redesigned based on the new requirements.
-> > 
-> > Not an easy task though. Anyway, sparse memory modely is highly based on
-> > memory sections so it makes some sense to have hotplug section based as
-> > well. Memblocks as a higher logical unit on top of that is kinda hack.
-> > The userspace API has never been properly thought through I am afraid.
-> 
-> I agree memoryblock is a hack, it fails to do both things it was
-> designed to do:
-> 
-> 1. On bare metal you cannot free a physical dimm of memory using
-> memoryblock granularity because memory devices do not equal to physical
-> dimms. Thus, if for some reason a particular dimm must be
-> remove/replaced, memoryblock does not help us.
-
-agreed
-
-> 2. On machines with hypervisors it fails to provide an adequate
-> granularity to add/remove memory.
-> 
-> We should define a new user interface where memory can be added/removed
-> at a finer granularity: sparse section size, but without a memory
-> devices for each section. We should also provide an optional access to
-> legacy interface where memory devices are exported but each is of
-> section size.
-> 
-> So, when legacy interface is enabled, current way would work:
-> 
-> echo offline > /sys/devices/system/memory/memoryXXX/state
-> 
-> And new interface would allow us to do something like this:
-> 
-> echo offline 256M > /sys/devices/system/node/nodeXXX/memory
-> 
-> With optional start address for offline memory.
-> echo offline [start_pa] size > /sys/devices/system/node/nodeXXX/memory
-> start_pa and size must be section size aligned (128M).
-
-I am not sure what is the expected semantic of the version without
-start_pa.
-
-> It would probably be a good discussion for the next MM Summit how to
-> solve the current memory hotplug interface limitations.
-
-Yes, sounds good to me. In any case let's not pollute this email thread
-with this discussion now.
++		if (PageTransCompound(new) && PageMlocked(page))
++			clear_page_mlock(page);
++
+ 		/* No need to invalidate - it was non-present before */
+ 		update_mmu_cache(vma, pvmw.address, pvmw.pte);
+ 	}
 -- 
-Michal Hocko
-SUSE Labs
+2.18.0
