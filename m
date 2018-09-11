@@ -1,115 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AE068E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 06:34:21 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id m4-v6so12222972pgq.19
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 03:34:21 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id h90-v6si20104366plb.64.2018.09.11.03.34.20
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 60F9F8E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 07:49:32 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id x24-v6so8547688edm.13
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 04:49:32 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d30-v6si3370530edn.311.2018.09.11.04.49.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Sep 2018 03:34:20 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH] mm, thp: Fix mlocking THP page with migration enabled
-Date: Tue, 11 Sep 2018 13:34:03 +0300
-Message-Id: <20180911103403.38086-1-kirill.shutemov@linux.intel.com>
+        Tue, 11 Sep 2018 04:49:30 -0700 (PDT)
+Date: Tue, 11 Sep 2018 13:49:27 +0200
+From: Joerg Roedel <jroedel@suse.de>
+Subject: Re: 32-bit PTI with THP = userspace corruption
+Message-ID: <20180911114927.gikd3uf3otxn2ekq@suse.de>
+References: <alpine.LRH.2.21.1808301639570.15669@math.ut.ee>
+ <20180830205527.dmemjwxfbwvkdzk2@suse.de>
+ <alpine.LRH.2.21.1808310711380.17865@math.ut.ee>
+ <20180831070722.wnulbbmillxkw7ke@suse.de>
+ <alpine.DEB.2.21.1809081223450.1402@nanos.tec.linutronix.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.21.1809081223450.1402@nanos.tec.linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vegard Nossum <vegard.nossum@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, stable@vger.kernel.org, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Meelis Roos <mroos@linux.ee>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-A transparent huge page is represented by a single entry on an LRU list.
-Therefore, we can only make unevictable an entire compound page, not
-individual subpages.
+Hi,
 
-If a user tries to mlock() part of a huge page, we want the rest of the
-page to be reclaimable.
+[
+  Andrea, maybe you can have a quick look here too, please? Maybe I am
+  overlooking a simple way to fix the issue. Problem description is
+  below.
+]
 
-We handle this by keeping PTE-mapped huge pages on normal LRU lists: the
-PMD on border of VM_LOCKED VMA will be split into PTE table.
+On Sat, Sep 08, 2018 at 12:24:10PM +0200, Thomas Gleixner wrote:
+> > I'll try to reproduce and work on a fix.
+> 
+> Any progress on this?
 
-Introduction of THP migration breaks the rules around mlocking THP
-pages. If we had a single PMD mapping of the page in mlocked VMA, the
-page will get mlocked, regardless of PTE mappings of the page.
+Yes, but slower than I hoped because an infection sent me to bed for a
+couple of days :/
 
-For tmpfs/shmem it's easy to fix by checking PageDoubleMap() in
-remove_migration_pmd().
+So I can reproduce the issue, and the core problem is that with 32-bit
+legacy paging the PGD level is also the huge-page level. This means that
+we have two huge PTEs for every mapping and also two places where we
+have to look for A/D bits. The problem now is that the kernel only looks
+at the huge PTE in the kernel page-table when it evaluates A/D bits.
+This causes data corruption when it misses an A/D bit.
 
-Anon THP pages can only be shared between processes via fork(). Mlocked
-page can only be shared if parent mlocked it before forking, otherwise
-CoW will be triggered on mlock().
+I had a look into the THP and the HugeTLBfs code, and that is not
+really easy to fix there. As I can see it now, there are a few options
+to fix that, but most of them are ugly:
 
-For Anon-THP, we can fix the issue by munlocking the page on removing PTE
-migration entry for the page. PTEs for the page will always come after
-mlocked PMD: rmap walks VMAs from oldest to newest.
+	1) Use Software A/D bits for 2-level legacy paging (ugly because
+	   we need separate PAGE_* macros for that paging mode then)
 
-Test-case:
+	2) Update all the places in THP and HugeTLBfs code that
+	   evaluate A/D bits to take both PTEs into account (ugly too
+	   for obvious reasons)
 
-	#include <unistd.h>
-	#include <sys/mman.h>
-	#include <sys/wait.h>
-	#include <linux/mempolicy.h>
-	#include <numaif.h>
+	3) Disable THP and HugeTLBfs on 2-level paging kernels when PTI
+	   is enabled (ugly because it breaks userspace expectations)
 
-	int main(void)
-	{
-	        unsigned long nodemask = 4;
-	        void *addr;
+	4) Disable PTI support on 2-level paging by making it dependent
+	   on CONFIG_X86_PAE. This is, imho, the least ugly option
+	   because the machines that do not support PAE are most likely
+	   too old to be affected my Meltdown anyway. We might also
+	   consider switching i386_defconfig to PAE?
 
-		addr = mmap((void *)0x20000000UL, 2UL << 20, PROT_READ | PROT_WRITE,
-			MAP_PRIVATE | MAP_ANONYMOUS | MAP_LOCKED, -1, 0);
+I am not a THP or HugeTLBfs expert and maybe I am overlooking a simpler
+way to fix this issue. But as it stands now I am in favour for option
+number 4.
 
-	        if (fork()) {
-			wait(NULL);
-			return 0;
-	        }
+Any other thoughts?
 
-	        mlock(addr, 4UL << 10);
-	        mbind(addr, 2UL << 20, MPOL_PREFERRED | MPOL_F_RELATIVE_NODES,
-	                &nodemask, 4, MPOL_MF_MOVE | MPOL_MF_MOVE_ALL);
+Thanks,
 
-	        return 0;
-	}
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reported-by: Vegard Nossum <vegard.nossum@gmail.com>
-Fixes: 616b8371539a ("mm: thp: enable thp migration in generic path")
-Cc: <stable@vger.kernel.org> [v4.14+]
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
----
- mm/huge_memory.c | 2 +-
- mm/migrate.c     | 3 +++
- 2 files changed, 4 insertions(+), 1 deletion(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 533f9b00147d..00704060b7f7 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2931,7 +2931,7 @@ void remove_migration_pmd(struct page_vma_mapped_walk *pvmw, struct page *new)
- 	else
- 		page_add_file_rmap(new, true);
- 	set_pmd_at(mm, mmun_start, pvmw->pmd, pmde);
--	if (vma->vm_flags & VM_LOCKED)
-+	if ((vma->vm_flags & VM_LOCKED) && !PageDoubleMap(new))
- 		mlock_vma_page(new);
- 	update_mmu_cache_pmd(vma, address, pvmw->pmd);
- }
-diff --git a/mm/migrate.c b/mm/migrate.c
-index d6a2e89b086a..01dad96b25b5 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -275,6 +275,9 @@ static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
- 		if (vma->vm_flags & VM_LOCKED && !PageTransCompound(new))
- 			mlock_vma_page(new);
- 
-+		if (PageTransCompound(new) && PageMlocked(page))
-+			clear_page_mlock(page);
-+
- 		/* No need to invalidate - it was non-present before */
- 		update_mmu_cache(vma, pvmw.address, pvmw.pte);
- 	}
--- 
-2.18.0
+	Joerg
