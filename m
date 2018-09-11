@@ -1,76 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 224728E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 16:24:31 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id c18-v6so33242745oiy.3
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 13:24:31 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 536EF8E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 16:30:06 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id l11-v6so22125594qkk.0
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 13:30:06 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n1-v6sor24732595oig.126.2018.09.11.13.24.29
+        by mx.google.com with SMTPS id q78-v6sor7429840qka.24.2018.09.11.13.30.05
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 11 Sep 2018 13:24:29 -0700 (PDT)
+        Tue, 11 Sep 2018 13:30:05 -0700 (PDT)
+From: "Zi Yan" <zi.yan@cs.rutgers.edu>
+Subject: Re: [PATCH] mm, thp: Fix mlocking THP page with migration enabled
+Date: Tue, 11 Sep 2018 16:30:02 -0400
+Message-ID: <5E196C27-3D56-4D76-B361-0665CB3790BF@cs.rutgers.edu>
+In-Reply-To: <20180911103403.38086-1-kirill.shutemov@linux.intel.com>
+References: <20180911103403.38086-1-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CAKgT0UddVdf=+SnfeZ2hL=a47YkjOa+r96xnghP8r1fQZ_1Ycw@mail.gmail.com>
-References: <20180910232615.4068.29155.stgit@localhost.localdomain>
- <20180910234341.4068.26882.stgit@localhost.localdomain> <CAPcyv4j301Ma8D65oMzFo9-jVdwKGHzOVHb=7u9XaxACR5RAhg@mail.gmail.com>
- <CAKgT0UddVdf=+SnfeZ2hL=a47YkjOa+r96xnghP8r1fQZ_1Ycw@mail.gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 11 Sep 2018 13:24:29 -0700
-Message-ID: <CAPcyv4gV1q1RE5ck=+GcdydrN-_x3AqKPxF2sbCUhsafUov1Gw@mail.gmail.com>
-Subject: Re: [PATCH 1/4] mm: Provide kernel parameter to allow disabling page
- init poisoning
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: multipart/signed;
+ boundary="=_MailMate_F56E6C2A-13C4-4D7A-96AB-E3BCB22C8184_=";
+ micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, pavel.tatashin@microsoft.com, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vegard Nossum <vegard.nossum@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Tue, Sep 11, 2018 at 1:01 PM, Alexander Duyck
-<alexander.duyck@gmail.com> wrote:
-> On Tue, Sep 11, 2018 at 9:50 AM Dan Williams <dan.j.williams@intel.com> wrote:
->>
->> On Mon, Sep 10, 2018 at 4:43 PM, Alexander Duyck
->> <alexander.duyck@gmail.com> wrote:
->> > From: Alexander Duyck <alexander.h.duyck@intel.com>
->> >
->> > On systems with a large amount of memory it can take a significant amount
->> > of time to initialize all of the page structs with the PAGE_POISON_PATTERN
->> > value. I have seen it take over 2 minutes to initialize a system with
->> > over 12GB of RAM.
->> >
->> > In order to work around the issue I had to disable CONFIG_DEBUG_VM and then
->> > the boot time returned to something much more reasonable as the
->> > arch_add_memory call completed in milliseconds versus seconds. However in
->> > doing that I had to disable all of the other VM debugging on the system.
->> >
->> > In order to work around a kernel that might have CONFIG_DEBUG_VM enabled on
->> > a system that has a large amount of memory I have added a new kernel
->> > parameter named "page_init_poison" that can be set to "off" in order to
->> > disable it.
->>
->> In anticipation of potentially more DEBUG_VM options wanting runtime
->> control I'd propose creating a new "vm_debug=" option for this modeled
->> after "slub_debug=" along with a CONFIG_DEBUG_VM_ON to turn on all
->> options.
->>
->> That way there is more differentiation for debug cases like this that
->> have significant performance impact when enabled.
->>
->> CONFIG_DEBUG_VM leaves optional debug capabilities disabled by default
->> unless CONFIG_DEBUG_VM_ON is also set.
->
-> Based on earlier discussions I would assume that CONFIG_DEBUG_VM would
-> imply CONFIG_DEBUG_VM_ON anyway since we don't want most of these
-> disabled by default.
->
-> In my mind we should be looking at a selective "vm_debug_disable="
-> instead of something that would be turning on features.
+This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
 
-Sorry, I missed those earlier discussions, so I won't push too hard if
-this has been hashed before. My proposal for opt-in is the fact that
-at least one known distribution kernel, Fedora, is shipping with
-CONFIG_DEBUG_VM=y. They also ship with CONFIG_SLUB, but not
-SLUB_DEBUG_ON. If we are going to picemeal enable some debug options
-to be runtime controlled I think we should go further to start
-clarifying the cheap vs the expensive checks and making the expensive
-checks opt-in in the same spirit of SLUB_DEBUG.
+--=_MailMate_F56E6C2A-13C4-4D7A-96AB-E3BCB22C8184_=
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Hi Kirill,
+
+On 11 Sep 2018, at 6:34, Kirill A. Shutemov wrote:
+
+> A transparent huge page is represented by a single entry on an LRU list=
+=2E
+> Therefore, we can only make unevictable an entire compound page, not
+> individual subpages.
+>
+> If a user tries to mlock() part of a huge page, we want the rest of the=
+
+> page to be reclaimable.
+>
+> We handle this by keeping PTE-mapped huge pages on normal LRU lists: th=
+e
+> PMD on border of VM_LOCKED VMA will be split into PTE table.
+>
+> Introduction of THP migration breaks the rules around mlocking THP
+> pages. If we had a single PMD mapping of the page in mlocked VMA, the
+> page will get mlocked, regardless of PTE mappings of the page.
+>
+> For tmpfs/shmem it's easy to fix by checking PageDoubleMap() in
+> remove_migration_pmd().
+>
+> Anon THP pages can only be shared between processes via fork(). Mlocked=
+
+> page can only be shared if parent mlocked it before forking, otherwise
+> CoW will be triggered on mlock().
+>
+> For Anon-THP, we can fix the issue by munlocking the page on removing P=
+TE
+> migration entry for the page. PTEs for the page will always come after
+> mlocked PMD: rmap walks VMAs from oldest to newest.
+>
+> Test-case:
+>
+> 	#include <unistd.h>
+> 	#include <sys/mman.h>
+> 	#include <sys/wait.h>
+> 	#include <linux/mempolicy.h>
+> 	#include <numaif.h>
+>
+> 	int main(void)
+> 	{
+> 	        unsigned long nodemask =3D 4;
+> 	        void *addr;
+>
+> 		addr =3D mmap((void *)0x20000000UL, 2UL << 20, PROT_READ | PROT_WRITE=
+,
+> 			MAP_PRIVATE | MAP_ANONYMOUS | MAP_LOCKED, -1, 0);
+>
+> 	        if (fork()) {
+> 			wait(NULL);
+> 			return 0;
+> 	        }
+>
+> 	        mlock(addr, 4UL << 10);
+> 	        mbind(addr, 2UL << 20, MPOL_PREFERRED | MPOL_F_RELATIVE_NODES,=
+
+> 	                &nodemask, 4, MPOL_MF_MOVE | MPOL_MF_MOVE_ALL);
+>
+> 	        return 0;
+> 	}
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reported-by: Vegard Nossum <vegard.nossum@gmail.com>
+> Fixes: 616b8371539a ("mm: thp: enable thp migration in generic path")
+> Cc: <stable@vger.kernel.org> [v4.14+]
+> Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  mm/huge_memory.c | 2 +-
+>  mm/migrate.c     | 3 +++
+>  2 files changed, 4 insertions(+), 1 deletion(-)
+>
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 533f9b00147d..00704060b7f7 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2931,7 +2931,7 @@ void remove_migration_pmd(struct page_vma_mapped_=
+walk *pvmw, struct page *new)
+>  	else
+>  		page_add_file_rmap(new, true);
+>  	set_pmd_at(mm, mmun_start, pvmw->pmd, pmde);
+> -	if (vma->vm_flags & VM_LOCKED)
+> +	if ((vma->vm_flags & VM_LOCKED) && !PageDoubleMap(new))
+>  		mlock_vma_page(new);
+>  	update_mmu_cache_pmd(vma, address, pvmw->pmd);
+>  }
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index d6a2e89b086a..01dad96b25b5 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -275,6 +275,9 @@ static bool remove_migration_pte(struct page *page,=
+ struct vm_area_struct *vma,
+>  		if (vma->vm_flags & VM_LOCKED && !PageTransCompound(new))
+>  			mlock_vma_page(new);
+>
+> +		if (PageTransCompound(new) && PageMlocked(page))
+> +			clear_page_mlock(page);
+> +
+>  		/* No need to invalidate - it was non-present before */
+>  		update_mmu_cache(vma, pvmw.address, pvmw.pte);
+>  	}
+> -- =
+
+> 2.18.0
+
+Thanks for your patch. It fixes the mlock problem demonstrated by your te=
+st program.
+
+I want to understand the Anon THP part of the problem more clearly. For A=
+non THPs,
+you said, PTEs for the page will always come after mlocked PMD. I just wo=
+nder that if
+a process forks a child1 which forks its own child2 and the child1 mlocks=
+ a subpage causing
+split_pmd_page() and migrates its PTE-mapped THP, will the kernel see the=
+ sequence of PMD-mapped THP,
+PTE-mapped THP, and PMD-mapped THP while walking VMAs? Will the second PM=
+D-mapped THP
+reset the mlock on the page?
+
+In addition, I also discover that PageDoubleMap is not set for double map=
+ped Anon THPs after migration,
+the following patch fixes it. Do you want me to send it separately or you=
+ can merge it
+with your patch?
+
+diff --git a/mm/rmap.c b/mm/rmap.c
+index eb477809a5c0..defe8fc265e3 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1121,6 +1121,16 @@ void do_page_add_anon_rmap(struct page *page,
+                 */
+                if (compound)
+                        __inc_node_page_state(page, NR_ANON_THPS);
++               else {
++                       if (PageTransCompound(page) && compound_mapcount(=
+page) > 0) {
++                               struct page *head =3D compound_head(page)=
+;
++                               int i;
++
++                               SetPageDoubleMap(head);
++                               for (i =3D 0; i < HPAGE_PMD_NR; i++)
++                                       atomic_inc(&head[i]._mapcount);
++                       }
++               }
+                __mod_node_page_state(page_pgdat(page), NR_ANON_MAPPED, n=
+r);
+        }
+        if (unlikely(PageKsm(page)))
+
+=E2=80=94
+Best Regards,
+Yan Zi
+
+--=_MailMate_F56E6C2A-13C4-4D7A-96AB-E3BCB22C8184_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename=signature.asc
+Content-Type: application/pgp-signature; name=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+
+iQFKBAEBCgA0FiEEOXBxLIohamfZUwd5QYsvEZxOpswFAluYJcoWHHppLnlhbkBj
+cy5ydXRnZXJzLmVkdQAKCRBBiy8RnE6mzBKSB/9rtfp7XzaFZe4W1J/lzjPZvoy2
+xisHmr4+5FNTaEfdiev9t4e/TYtpHr/1IgCtn59dzwXUtQnsEFF0fWLvGqTgJP5/
+6KULctGIlJfzHTBxWckD4Jz7aqFuRe9L2abMqr2zlegAdpDsGQGLKZhm7oQ7Pq+Q
+1MVM6GNizdJfyRpIrdaq3pfrYk0emj07K6d+WwGR+VKSbiMMIDWK/GqPwOL8pCCv
+zFpl6aTeZKda5TS4nXsF5pHCrVb4Ig2Cpgeoo5AiKOFTSxlhf7oDHUK4SG96TQxe
+XgX33CllJX7kKRxpMvJEorH/tCAXxWVqE7KCj0XYpeJr7mhd4CK/njSpK4wn
+=9ZTQ
+-----END PGP SIGNATURE-----
+
+--=_MailMate_F56E6C2A-13C4-4D7A-96AB-E3BCB22C8184_=--
