@@ -1,43 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C1FB8E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 14:20:47 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id u126-v6so12381073itb.0
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 11:20:47 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q11-v6sor11752857iop.216.2018.09.11.11.20.45
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 789E78E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 15:18:36 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id q3-v6so21949864qki.4
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 12:18:36 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id 97-v6si6142473qva.253.2018.09.11.12.18.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 11 Sep 2018 11:20:45 -0700 (PDT)
-MIME-Version: 1.0
-References: <alpine.LRH.2.21.1808301639570.15669@math.ut.ee>
- <20180830205527.dmemjwxfbwvkdzk2@suse.de> <alpine.LRH.2.21.1808310711380.17865@math.ut.ee>
- <20180831070722.wnulbbmillxkw7ke@suse.de> <alpine.DEB.2.21.1809081223450.1402@nanos.tec.linutronix.de>
- <20180911114927.gikd3uf3otxn2ekq@suse.de>
-In-Reply-To: <20180911114927.gikd3uf3otxn2ekq@suse.de>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 11 Sep 2018 08:20:33 -1000
-Message-ID: <CA+55aFzo3b2aChbJ2aOSvKbguYKMG8wv02NS8qzp6w2T5z8WTg@mail.gmail.com>
-Subject: Re: 32-bit PTI with THP = userspace corruption
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Sep 2018 12:18:34 -0700 (PDT)
+From: Waiman Long <longman@redhat.com>
+Subject: [PATCH v3 0/4] fs/dcache: Track # of negative dentries
+Date: Tue, 11 Sep 2018 15:18:22 -0400
+Message-Id: <1536693506-11949-1-git-send-email-longman@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <jroedel@suse.de>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Meelis Roos <mroos@linux.ee>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>, Waiman Long <longman@redhat.com>
 
-On Tue, Sep 11, 2018 at 1:49 AM Joerg Roedel <jroedel@suse.de> wrote:
->
-> I had a look into the THP and the HugeTLBfs code, and that is not
-> really easy to fix there. As I can see it now, there are a few options
-> to fix that, but most of them are ugly:
+ v2->v3:
+  - With confirmation that the dummy array in dentry_stat structure
+    was never a replacement of a previously used field, patch 3 is now
+    reverted back to use one of dummy field as the negative dentry count
+    instead of adding a new field.
 
-Just do (4): disable PTI with PAE.
+ v1->v2:
+  - Clarify what the new nr_dentry_negative per-cpu counter is tracking
+    and open-code the increment and decrement as suggested by Dave Chinner.
+  - Append the new nr_dentry_negative count as the 7th element of dentry-state
+    instead of replacing one of the dummy entries.
+  - Remove patch "fs/dcache: Make negative dentries easier to be
+    reclaimed" for now as I need more time to think about what
+    to do with it.
+  - Add 2 more patches to address issues found while reviewing the
+    dentry code.
+  - Add another patch to change the conditional branch of
+    nr_dentry_negative accounting to conditional move so as to reduce
+    the performance impact of the accounting code.
 
-Then we can try to make people perhaps not use !PAE very much, and
-warn if you have PAE disabled on a machine that supports it.
+This patchset addresses 2 issues found in the dentry code and adds a
+new nr_dentry_negative per-cpu counter to track the total number of
+negative dentries in all the LRU lists.
 
-As you say, there shouldn't be much of a performance impact from PAE.
-There is a more noticeable performance impact from HIGHMEM, not from
-HIGHMEM_64G, iirc.
+Patch 1 fixes a bug in the accounting of nr_dentry_unused in
+shrink_dcache_sb().
 
-                Linus
+Patch 2 removes the ____cacheline_aligned_in_smp tag from super_block
+LRU lists.
+
+Patch 3 adds the new nr_dentry_negative per-cpu counter.
+
+Patch 4 removes conditional branches in nr_dentry_negative accounting
+code.
+
+Various filesystem related tests were run and no statistically
+significant changes in performance was observed.
+
+Waiman Long (4):
+  fs/dcache: Fix incorrect nr_dentry_unused accounting in
+    shrink_dcache_sb()
+  fs: Don't need to put list_lru into its own cacheline
+  fs/dcache: Track & report number of negative dentries
+  fs/dcache: Eliminate branches in nr_dentry_negative accounting
+
+ Documentation/sysctl/fs.txt | 26 +++++++++++++---------
+ fs/dcache.c                 | 54 ++++++++++++++++++++++++++++++++++++++++-----
+ include/linux/dcache.h      |  7 +++---
+ include/linux/fs.h          |  9 ++++----
+ 4 files changed, 74 insertions(+), 22 deletions(-)
+
+-- 
+1.8.3.1
