@@ -1,42 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E31088E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 12:10:09 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id f4-v6so4316999ioh.13
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 09:10:09 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o8-v6sor899321itf.135.2018.09.11.09.10.08
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E19A8E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 12:25:55 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id 13-v6so32425836oiq.1
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 09:25:55 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id d67-v6si13454621oib.412.2018.09.11.09.25.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 11 Sep 2018 09:10:08 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Sep 2018 09:25:54 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8BGPVJi010656
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 12:25:53 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2medv7t3h4-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 12:25:45 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 11 Sep 2018 17:24:43 +0100
+Date: Tue, 11 Sep 2018 19:24:35 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 0/3] docs/core-api: add memory allocation guide
+References: <1534517236-16762-1-git-send-email-rppt@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <3f2dee71-1615-4a34-d611-3ccaf407551e@virtuozzo.com>
-References: <cover.1535462971.git.andreyknvl@google.com> <db103bdc2109396af0c6007f1669ebbbb63b872b.1535462971.git.andreyknvl@google.com>
- <3f2dee71-1615-4a34-d611-3ccaf407551e@virtuozzo.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Tue, 11 Sep 2018 18:10:07 +0200
-Message-ID: <CAAeHK+wke5swBfwJUandKe=Oo643n7vHiwPGfUtarT3UmsHetg@mail.gmail.com>
-Subject: Re: [PATCH v6 16/18] khwasan, mm, arm64: tag non slab memory
- allocated via pagealloc
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1534517236-16762-1-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <20180911162435.GC30245@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: Michal Hocko <mhocko@suse.com>, Randy Dunlap <rdunlap@infradead.org>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Sep 7, 2018 at 6:06 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
->
->
-> On 08/29/2018 02:35 PM, Andrey Konovalov wrote:
->
->>  void kasan_poison_slab(struct page *page)
->>  {
->> +     unsigned long i;
->> +
->> +     if (IS_ENABLED(CONFIG_SLAB))
->> +             page->s_mem = reset_tag(page->s_mem);
->
-> Why reinitialize here, instead of single initialization in alloc_slabmgmt()?
+Ping?
 
-Hm, don't see why I did it this way, looks odd to me as well. Will fix
-in v7, thanks!
+On Fri, Aug 17, 2018 at 05:47:13PM +0300, Mike Rapoport wrote:
+> Hi,
+> 
+> As Vlastimil mentioned at [1], it would be nice to have some guide about
+> memory allocation. This set adds such guide that summarizes the "best
+> practices". 
+> 
+> The changes from the RFC include additions and corrections from Michal and
+> Randy. I've also added markup to cross-reference the kernel-doc
+> documentation.
+> 
+> I've split the patch into three to separate labels addition to the exiting
+> files from the new contents.
+> 
+> Note that the second patch depends on the mm docs update [2] that Andrew
+> took to the -mm tree.
+> 
+> v2 -> v3:
+>   * s/HW/hardware
+> 
+> [1] https://www.spinics.net/lists/netfilter-devel/msg55542.html
+> [2] https://lkml.org/lkml/2018/7/26/684
+> 
+> Mike Rapoport (3):
+>   docs: core-api/gfp_mask-from-fs-io: add a label for cross-referencing
+>   docs: core-api/mm-api: add a lable for GFP flags section
+>   docs: core-api: add memory allocation guide
+> 
+>  Documentation/core-api/gfp_mask-from-fs-io.rst |   2 +
+>  Documentation/core-api/index.rst               |   1 +
+>  Documentation/core-api/memory-allocation.rst   | 124 +++++++++++++++++++++++++
+>  Documentation/core-api/mm-api.rst              |   2 +
+>  4 files changed, 129 insertions(+)
+>  create mode 100644 Documentation/core-api/memory-allocation.rst
+> 
+> -- 
+> 2.7.4
+> 
+
+-- 
+Sincerely yours,
+Mike.
