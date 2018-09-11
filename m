@@ -1,52 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B849C8E0005
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 08:12:25 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id a23-v6so12754035pfo.23
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 05:12:25 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y6-v6si21891721pgr.684.2018.09.11.05.12.24
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B24E08E0002
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 08:41:07 -0400 (EDT)
+Received: by mail-lf1-f69.google.com with SMTP id d63-v6so4803482lfg.9
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 05:41:07 -0700 (PDT)
+Received: from SELDSEGREL01.sonyericsson.com (seldsegrel01.sonyericsson.com. [37.139.156.29])
+        by mx.google.com with ESMTPS id a16-v6si20409907ljj.172.2018.09.11.05.41.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Sep 2018 05:12:24 -0700 (PDT)
-Date: Tue, 11 Sep 2018 14:12:22 +0200
-From: Joerg Roedel <jroedel@suse.de>
-Subject: Re: 32-bit PTI with THP = userspace corruption
-Message-ID: <20180911121128.ikwptix6e4slvpt2@suse.de>
-References: <alpine.LRH.2.21.1808301639570.15669@math.ut.ee>
- <20180830205527.dmemjwxfbwvkdzk2@suse.de>
- <alpine.LRH.2.21.1808310711380.17865@math.ut.ee>
- <20180831070722.wnulbbmillxkw7ke@suse.de>
- <alpine.DEB.2.21.1809081223450.1402@nanos.tec.linutronix.de>
- <20180911114927.gikd3uf3otxn2ekq@suse.de>
- <alpine.LRH.2.21.1809111454100.29433@math.ut.ee>
+        Tue, 11 Sep 2018 05:41:06 -0700 (PDT)
+Subject: Re: [PATCH RFC] mm: don't raise MEMCG_OOM event due to failed
+ high-order allocation
+References: <20180910215622.4428-1-guro@fb.com>
+ <20180911121141.GS10951@dhcp22.suse.cz>
+From: peter enderborg <peter.enderborg@sony.com>
+Message-ID: <0ea4cdbd-dc3f-1b66-8a5f-8d67ab0e2bc9@sony.com>
+Date: Tue, 11 Sep 2018 14:41:04 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.21.1809111454100.29433@math.ut.ee>
+In-Reply-To: <20180911121141.GS10951@dhcp22.suse.cz>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Content-Language: en-GB
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Meelis Roos <mroos@linux.ee>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>, Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Tue, Sep 11, 2018 at 02:58:10PM +0300, Meelis Roos wrote:
-> The machines where I have PAE off are the ones that have less memory. 
-> PAE is off just for performance reasons, not lack of PAE. PAE should be 
-> present on all of my affected machines anyway and current distributions 
-> seem to mostly assume 686 and PAE anyway for 32-bit systems.
+On 09/11/2018 02:11 PM, Michal Hocko wrote:
+> Why is this a problem though? IIRC this event was deliberately placed
+> outside of the oom path because we wanted to count allocation failures
+> and this is also documented that way
+>
+>           oom
+>                 The number of time the cgroup's memory usage was
+>                 reached the limit and allocation was about to fail.
+>
+>                 Depending on context result could be invocation of OOM
+>                 killer and retrying allocation or failing a
+>
+> One could argue that we do not apply the same logic to GFP_NOWAIT
+> requests but in general I would like to see a good reason to change
+> the behavior and if it is really the right thing to do then we need to
+> update the documentation as well.
+>
 
-Right, most distributions don't even provide a non-PAE kernel for their
-users anymore.
-
-How big is the performance impact of using PAE over legacy paging? It
-shouldn't be too big because the top-level of the page-table only has 4
-entries and is completly cached in the CPU. This makes %cr3 switches
-slower, but the page-walk itself still only needs 2 memory accesses.
-
-The page-table entries are also 8 bytes instead of 4 bytes, so that
-there is less locality in page-walks and probably a higher cache-miss
-rate.
-
-Regards,
-
-	Joerg
+Why not introduce a MEMCG_ALLOC_FAIL in to memcg_memory_event?
