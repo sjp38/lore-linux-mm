@@ -1,53 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B6F1C8E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 04:17:35 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id g15-v6so534318edm.11
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 01:17:35 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C75BF8E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 05:11:10 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id z56-v6so593335edz.10
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 02:11:10 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y15-v6si583174edc.338.2018.09.12.01.17.34
+        by mx.google.com with ESMTPS id q57-v6si832929edq.188.2018.09.12.02.11.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Sep 2018 01:17:34 -0700 (PDT)
-Date: Wed, 12 Sep 2018 10:17:33 +0200
+        Wed, 12 Sep 2018 02:11:09 -0700 (PDT)
+Date: Wed, 12 Sep 2018 11:11:05 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 0/3] rework mmap-exit vs. oom_reaper handover
-Message-ID: <20180912081733.GA10951@dhcp22.suse.cz>
-References: <201809120306.w8C36JbS080965@www262.sakura.ne.jp>
- <20180912071842.GY10951@dhcp22.suse.cz>
- <201809120758.w8C7wrCN068547@www262.sakura.ne.jp>
+Subject: Re: [RFC v9 PATCH 2/4] mm: mmap: zap pages with read mmap_sem in
+ munmap
+Message-ID: <20180912091105.GB10951@dhcp22.suse.cz>
+References: <1536699493-69195-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1536699493-69195-3-git-send-email-yang.shi@linux.alibaba.com>
+ <20180911211645.GA12159@bombadil.infradead.org>
+ <b69d3f7d-e9ba-b95c-45cd-44489950751b@linux.alibaba.com>
+ <20180912022921.GA20056@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201809120758.w8C7wrCN068547@www262.sakura.ne.jp>
+In-Reply-To: <20180912022921.GA20056@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>, ldufour@linux.vnet.ibm.com, vbabka@suse.cz, akpm@linux-foundation.org, dave.hansen@intel.com, oleg@redhat.com, srikar@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 12-09-18 16:58:53, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > OK, I will fold the following to the patch
+On Tue 11-09-18 19:29:21, Matthew Wilcox wrote:
+> On Tue, Sep 11, 2018 at 04:35:03PM -0700, Yang Shi wrote:
+[...]
+
+I didn't get to read the patch yet.
+
+> > And, Michal prefers have VM_HUGETLB and VM_PFNMAP handled separately for
+> > safe and bisectable sake, which needs call the regular do_munmap().
 > 
-> OK. But at that point, my patch which tries to wait for reclaimed memory
-> to be re-allocatable addresses a different problem which you are refusing.
+> That can be introduced and then taken out ... indeed, you can split this into
+> many patches, starting with this:
+> 
+> +		if (tmp->vm_file)
+> +			downgrade = false;
+> 
+> to only allow this optimisation for anonymous mappings at first.
 
-I am trying to address a real world example of when the excessive amount
-of memory is in page tables. As David pointed, this can happen with some
-userspace allocators.
-
-> By the way, is it guaranteed that vma->vm_ops->close(vma) in remove_vma() never
-> sleeps? Since remove_vma() has might_sleep() since 2005, and that might_sleep()
-> predates the git history, I don't know what that ->close() would do.
-
-Hmm, I am afraid we cannot assume anything so we have to consider it
-unsafe. A cursory look at some callers shows that they are taking locks.
-E.g. drm_gem_object_put_unlocked might take a mutex. So MMF_OOM_SKIP
-would have to set right after releasing page tables.
-
-> Anyway, please fix free_pgd_range() crash in this patchset.
-
-I will try to get to this later today.
+or add a helper function to check for special cases and make the
+downgrade behavior conditional on it.
 -- 
 Michal Hocko
 SUSE Labs
