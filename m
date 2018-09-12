@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C144B8E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 16:25:04 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id n194-v6so5454798itn.0
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 13:25:04 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id l9-v6si1300698ioj.255.2018.09.12.13.25.02
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 06BD78E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 16:25:05 -0400 (EDT)
+Received: by mail-yb1-f197.google.com with SMTP id 1-v6so3108368ybe.18
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 13:25:05 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id x4-v6si485449ywb.562.2018.09.12.13.25.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 12 Sep 2018 13:25:03 -0700 (PDT)
 From: Prakash Sangappa <prakash.sangappa@oracle.com>
-Subject: [PATCH V2 2/6] Add /proc/<pid>/numa_vamaps file for numa node information
-Date: Wed, 12 Sep 2018 13:24:00 -0700
-Message-Id: <1536783844-4145-3-git-send-email-prakash.sangappa@oracle.com>
+Subject: [PATCH V2 1/6] Add check to match numa node id when gathering pte stats
+Date: Wed, 12 Sep 2018 13:23:59 -0700
+Message-Id: <1536783844-4145-2-git-send-email-prakash.sangappa@oracle.com>
 In-Reply-To: <1536783844-4145-1-git-send-email-prakash.sangappa@oracle.com>
 References: <1536783844-4145-1-git-send-email-prakash.sangappa@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,113 +20,122 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: dave.hansen@intel.com, mhocko@suse.com, nao.horiguchi@gmail.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, khandual@linux.vnet.ibm.com, steven.sistare@oracle.com, prakash.sangappa@oracle.com
 
-Introduce supporting data structures and file operations. Later
-patch will provide changes for generating file content.
+Add support to check if numa node id matches when gathering pte stats,
+to be used by later patches.
 
 Signed-off-by: Prakash Sangappa <prakash.sangappa@oracle.com>
 Reviewed-by: Steve Sistare <steven.sistare@oracle.com>
 ---
- fs/proc/base.c     |  2 ++
- fs/proc/internal.h |  1 +
- fs/proc/task_mmu.c | 42 ++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 45 insertions(+)
+ fs/proc/task_mmu.c | 44 +++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 37 insertions(+), 7 deletions(-)
 
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index ccf86f1..1af99ae 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -2927,6 +2927,7 @@ static const struct pid_entry tgid_base_stuff[] = {
- 	REG("maps",       S_IRUGO, proc_pid_maps_operations),
- #ifdef CONFIG_NUMA
- 	REG("numa_maps",  S_IRUGO, proc_pid_numa_maps_operations),
-+	REG("numa_vamaps",  S_IRUGO, proc_numa_vamaps_operations),
- #endif
- 	REG("mem",        S_IRUSR|S_IWUSR, proc_mem_operations),
- 	LNK("cwd",        proc_cwd_link),
-@@ -3313,6 +3314,7 @@ static const struct pid_entry tid_base_stuff[] = {
- #endif
- #ifdef CONFIG_NUMA
- 	REG("numa_maps", S_IRUGO, proc_pid_numa_maps_operations),
-+	REG("numa_vamaps",  S_IRUGO, proc_numa_vamaps_operations),
- #endif
- 	REG("mem",       S_IRUSR|S_IWUSR, proc_mem_operations),
- 	LNK("cwd",       proc_cwd_link),
-diff --git a/fs/proc/internal.h b/fs/proc/internal.h
-index 5185d7f..994c7fd 100644
---- a/fs/proc/internal.h
-+++ b/fs/proc/internal.h
-@@ -298,6 +298,7 @@ extern const struct file_operations proc_pid_smaps_operations;
- extern const struct file_operations proc_pid_smaps_rollup_operations;
- extern const struct file_operations proc_clear_refs_operations;
- extern const struct file_operations proc_pagemap_operations;
-+extern const struct file_operations proc_numa_vamaps_operations;
- 
- extern unsigned long task_vsize(struct mm_struct *);
- extern unsigned long task_statm(struct mm_struct *,
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 0e2095c..02b553c 100644
+index 5ea1d64..0e2095c 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
-@@ -1583,6 +1583,16 @@ struct numa_maps_private {
+@@ -1569,9 +1569,15 @@ struct numa_maps {
+ 	unsigned long mapcount_max;
+ 	unsigned long dirty;
+ 	unsigned long swapcache;
++        unsigned long nextaddr;
++		 long nid;
++		 long isvamaps;
+ 	unsigned long node[MAX_NUMNODES];
+ };
+ 
++#define        NUMA_VAMAPS_NID_NOPAGES         (-1)
++#define        NUMA_VAMAPS_NID_NONE    (-2)
++
+ struct numa_maps_private {
+ 	struct proc_maps_private proc_maps;
  	struct numa_maps md;
- };
- 
-+#define NUMA_VAMAPS_BUFSZ      1024
-+struct numa_vamaps_private {
-+	struct mm_struct *mm;
-+	struct numa_maps md;
-+	u64 vm_start;
-+	size_t from;
-+	size_t count; /* residual bytes in buf at offset 'from' */
-+	char buf[NUMA_VAMAPS_BUFSZ]; /* buffer */
-+};
-+
- static void gather_stats(struct page *page, struct numa_maps *md, int pte_dirty,
- 			unsigned long nr_pages)
- {
-@@ -1848,6 +1858,34 @@ static int pid_numa_maps_open(struct inode *inode, struct file *file)
- 				sizeof(struct numa_maps_private));
+@@ -1653,6 +1659,20 @@ static struct page *can_gather_numa_stats_pmd(pmd_t pmd,
  }
+ #endif
  
-+static int numa_vamaps_open(struct inode *inode, struct file *file)
++static bool
++vamap_match_nid(struct numa_maps *md, unsigned long addr, struct page *page)
 +{
-+	struct mm_struct *mm;
-+	struct numa_vamaps_private *nvm;
-+	nvm = kzalloc(sizeof(struct numa_vamaps_private), GFP_KERNEL);
-+	if (!nvm)
-+		return -ENOMEM;
++	long target = (page ? page_to_nid(page) : NUMA_VAMAPS_NID_NOPAGES);
 +
-+	mm = proc_mem_open(inode, PTRACE_MODE_READ);
-+	if (IS_ERR(mm)) {
-+		kfree(nvm);
-+		return PTR_ERR(mm);
-+	}
-+	nvm->mm = mm;
-+	file->private_data = nvm;
-+	return 0;
++	if (md->nid == NUMA_VAMAPS_NID_NONE)
++		md->nid = target;
++	if (md->nid == target)
++		return 0;
++	/* did not match */
++	md->nextaddr = addr;
++	return 1;
 +}
 +
-+static int numa_vamaps_release(struct inode *inode, struct file *file)
-+{
-+	struct numa_vamaps_private *nvm = file->private_data;
-+
-+	if (nvm->mm)
-+		mmdrop(nvm->mm);
-+	kfree(nvm);
-+	return 0;
-+}
-+
- const struct file_operations proc_pid_numa_maps_operations = {
- 	.open		= pid_numa_maps_open,
- 	.read		= seq_read,
-@@ -1855,4 +1893,8 @@ const struct file_operations proc_pid_numa_maps_operations = {
- 	.release	= proc_map_release,
- };
+ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
+ 		unsigned long end, struct mm_walk *walk)
+ {
+@@ -1661,6 +1681,7 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
+ 	spinlock_t *ptl;
+ 	pte_t *orig_pte;
+ 	pte_t *pte;
++	int ret = 0;
  
-+const struct file_operations proc_numa_vamaps_operations = {
-+	.open		= numa_vamaps_open,
-+	.release	= numa_vamaps_release,
-+};
- #endif /* CONFIG_NUMA */
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 	ptl = pmd_trans_huge_lock(pmd, vma);
+@@ -1668,11 +1689,13 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
+ 		struct page *page;
+ 
+ 		page = can_gather_numa_stats_pmd(*pmd, vma, addr);
+-		if (page)
++		if (md->isvamaps)
++			ret = vamap_match_nid(md, addr, page);
++		if (page && !ret)
+ 			gather_stats(page, md, pmd_dirty(*pmd),
+ 				     HPAGE_PMD_SIZE/PAGE_SIZE);
+ 		spin_unlock(ptl);
+-		return 0;
++		return ret;
+ 	}
+ 
+ 	if (pmd_trans_unstable(pmd))
+@@ -1681,6 +1704,10 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
+ 	orig_pte = pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
+ 	do {
+ 		struct page *page = can_gather_numa_stats(*pte, vma, addr);
++		if (md->isvamaps && vamap_match_nid(md, addr, page)) {
++			ret = 1;
++			break;
++		}
+ 		if (!page)
+ 			continue;
+ 		gather_stats(page, md, pte_dirty(*pte), 1);
+@@ -1688,7 +1715,7 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
+ 	} while (pte++, addr += PAGE_SIZE, addr != end);
+ 	pte_unmap_unlock(orig_pte, ptl);
+ 	cond_resched();
+-	return 0;
++	return ret;
+ }
+ #ifdef CONFIG_HUGETLB_PAGE
+ static int gather_hugetlb_stats(pte_t *pte, unsigned long hmask,
+@@ -1697,15 +1724,18 @@ static int gather_hugetlb_stats(pte_t *pte, unsigned long hmask,
+ 	pte_t huge_pte = huge_ptep_get(pte);
+ 	struct numa_maps *md;
+ 	struct page *page;
++	int ret = 0;
++	md = walk->private;
+ 
+ 	if (!pte_present(huge_pte))
+-		return 0;
++		return (md->isvamaps ? vamap_match_nid(md, addr, NULL) : 0);
+ 
+ 	page = pte_page(huge_pte);
+-	if (!page)
+-		return 0;
++	if (md->isvamaps)
++		ret = vamap_match_nid(md, addr, page);
++	if (!page || ret)
++		return ret;
+ 
+-	md = walk->private;
+ 	gather_stats(page, md, pte_dirty(huge_pte), 1);
+ 	return 0;
+ }
 -- 
 2.7.4
