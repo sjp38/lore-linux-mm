@@ -1,88 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CAD18E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 10:54:29 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id s14-v6so520391ioc.0
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 07:54:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i24-v6sor812111jaj.83.2018.09.12.07.54.27
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EAC68E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 11:07:27 -0400 (EDT)
+Received: by mail-yb1-f198.google.com with SMTP id 189-v6so2096152ybz.11
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 08:07:27 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id w189-v6si335008ywb.276.2018.09.12.08.07.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 12 Sep 2018 07:54:28 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 12 Sep 2018 08:07:25 -0700 (PDT)
+Date: Wed, 12 Sep 2018 11:07:17 -0400
+From: "Theodore Y. Ts'o" <tytso@mit.edu>
+Subject: Re: ext4 hang and per-memcg dirty throttling
+Message-ID: <20180912150717.GD8476@thunk.org>
+References: <20180912001054.bu3x3xwukusnsa26@US-160370MP2.local>
+ <20180912121130.GF7782@quack2.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <b4ba65afa55f2fdfd2856fb03c5aba99c7a8bdd7.1535462971.git.andreyknvl@google.com>
-References: <cover.1535462971.git.andreyknvl@google.com> <b4ba65afa55f2fdfd2856fb03c5aba99c7a8bdd7.1535462971.git.andreyknvl@google.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 12 Sep 2018 16:54:06 +0200
-Message-ID: <CACT4Y+Z4zLSBdXGtk-6nH64UpOVA8s5TJZSpokAqEu4pE8LpCA@mail.gmail.com>
-Subject: Re: [PATCH v6 04/18] khwasan, arm64: adjust shadow size for CONFIG_KASAN_HW
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180912121130.GF7782@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Liu Bo <bo.liu@linux.alibaba.com>, linux-ext4@vger.kernel.org, fengguang.wu@intel.com, tj@kernel.org, cgroups@vger.kernel.org, gthelen@google.com, linux-mm@kvack.org, yang.shi@linux.alibaba.com
 
-On Wed, Aug 29, 2018 at 1:35 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> KWHASAN uses 1 shadow byte for 16 bytes of kernel memory, so it requires
-> 1/16th of the kernel virtual address space for the shadow memory.
->
-> This commit sets KASAN_SHADOW_SCALE_SHIFT to 4 when KHWASAN is enabled.
->
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> ---
->  arch/arm64/Makefile             |  2 +-
->  arch/arm64/include/asm/memory.h | 13 +++++++++----
->  2 files changed, 10 insertions(+), 5 deletions(-)
->
-> diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-> index 106039d25e2f..17047b8ab984 100644
-> --- a/arch/arm64/Makefile
-> +++ b/arch/arm64/Makefile
-> @@ -94,7 +94,7 @@ endif
->  # KASAN_SHADOW_OFFSET = VA_START + (1 << (VA_BITS - KASAN_SHADOW_SCALE_SHIFT))
->  #                               - (1 << (64 - KASAN_SHADOW_SCALE_SHIFT))
->  # in 32-bit arithmetic
-> -KASAN_SHADOW_SCALE_SHIFT := 3
-> +KASAN_SHADOW_SCALE_SHIFT := $(if $(CONFIG_KASAN_HW), 4, 3)
->  KASAN_SHADOW_OFFSET := $(shell printf "0x%08x00000000\n" $$(( \
->         (0xffffffff & (-1 << ($(CONFIG_ARM64_VA_BITS) - 32))) \
->         + (1 << ($(CONFIG_ARM64_VA_BITS) - 32 - $(KASAN_SHADOW_SCALE_SHIFT))) \
-> diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-> index b96442960aea..f5e262ee76c1 100644
-> --- a/arch/arm64/include/asm/memory.h
-> +++ b/arch/arm64/include/asm/memory.h
-> @@ -74,12 +74,17 @@
->  #define KERNEL_END        _end
->
->  /*
-> - * KASAN requires 1/8th of the kernel virtual address space for the shadow
-> - * region. KASAN can bloat the stack significantly, so double the (minimum)
-> - * stack size when KASAN is in use.
-> + * KASAN and KHWASAN require 1/8th and 1/16th of the kernel virtual address
+On Wed, Sep 12, 2018 at 02:11:30PM +0200, Jan Kara wrote:
+> 
+> Yes, I guess you're speaking about the one Chris Mason mentioned [1].
+> Essentially it's a priority inversion where jbd2 thread gets blocked behind
+> writeback done on behalf of a heavily restricted process. It actually is
+> not related to dirty throttling or anything like that. And the solution for
+> this priority inversion is to use unwritten extents for writeback
+> unconditionally as I wrote in that thread. The core of this is implemented
+> and hidden behind dioread_nolock mount option but it needs some serious
+> polishing work and testing...
+> 
+> [1] https://marc.info/?l=linux-fsdevel&m=151688776319077
 
+I've actually be considering making dioread_nolock the default when
+page_size == block_size.
 
-I am somewhat confused by the terminology.
-"KASAN" is not actually "CONFIG_KASAN" below, it is actually
-"CONFIG_KASAN_GENERIC". While "KHWASAN" translates to "KASAN_HW" few
-lines later.
-I think we need some consistent terminology for comments and config
-names until it's too late.
+Arguments in favor:
 
+1)  Improves AIO latency in some circumstances
+2)  Improves parallel DIO read performance
+3)  Should address the block-cg throttling priority inversion problem
 
-> + * space for the shadow region respectively. They can bloat the stack
-> + * significantly, so double the (minimum) stack size when they are in use.
->   */
-> -#ifdef CONFIG_KASAN
-> +#ifdef CONFIG_KASAN_GENERIC
->  #define KASAN_SHADOW_SCALE_SHIFT 3
-> +#endif
-> +#ifdef CONFIG_KASAN_HW
-> +#define KASAN_SHADOW_SCALE_SHIFT 4
-> +#endif
-> +#ifdef CONFIG_KASAN
->  #define KASAN_SHADOW_SIZE      (UL(1) << (VA_BITS - KASAN_SHADOW_SCALE_SHIFT))
->  #define KASAN_THREAD_SHIFT     1
->  #else
-> --
-> 2.19.0.rc0.228.g281dcd1b4d0-goog
->
+Arguments against:
+
+1)  Hasn't seen much usage outside of Google (where it makes a big
+    difference for fast flash workloads; see (1) and (2) above)
+2)  Dioread_nolock only works when page_size == block_size; so this
+    implies we would be using a different codepath depending on
+    the block size.
+3)  generic/500 (dm-thin ENOSPC hitter with concurrent discards)
+    fails with dioread_nolock, but not in the 4k workload
+
+Liu, can you try out mount -o dioread_nolock and see if this address
+your problem, if so, maybe this is the development cycle where we
+finally change the default.
+
+						- Ted
