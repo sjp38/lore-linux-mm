@@ -1,57 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B36AF8E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 11:25:56 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id g18-v6so1029648edg.14
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 08:25:56 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v19-v6si1475798eda.162.2018.09.12.08.25.55
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 296E38E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 11:38:10 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id u195-v6so1912987qka.14
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 08:38:10 -0700 (PDT)
+Received: from smtp-fw-2101.amazon.com (smtp-fw-2101.amazon.com. [72.21.196.25])
+        by mx.google.com with ESMTPS id r10-v6si926470qvi.112.2018.09.12.08.37.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Sep 2018 08:25:55 -0700 (PDT)
-Date: Wed, 12 Sep 2018 17:25:53 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
-Message-ID: <20180912152553.GA20287@dhcp22.suse.cz>
-References: <20180907130550.11885-1-mhocko@kernel.org>
- <alpine.DEB.2.21.1809101253080.177111@chino.kir.corp.google.com>
- <20180911115613.GR10951@dhcp22.suse.cz>
- <20180912135417.GA15194@redhat.com>
- <20180912142126.GM10951@dhcp22.suse.cz>
+        Wed, 12 Sep 2018 08:37:58 -0700 (PDT)
+From: Julian Stecklina <jsteckli@amazon.de>
+Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs in mind (for KVM to isolate its guests per CPU)
+References: <CA+55aFxyUdhYjnQdnmWAt8tTwn4HQ1xz3SAMZJiawkLpMiJ_+w@mail.gmail.com>
+	<ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com>
+	<CA+55aFzHj_GNZWG4K2oDu4DPP9sZdTZ9PY7sBxGB6WoN9g8d=A@mail.gmail.com>
+	<ciirm8zhwyiqh4.fsf@u54ee758033e858cfa736.ant.amazon.com>
+Date: Wed, 12 Sep 2018 17:37:38 +0200
+In-Reply-To: <ciirm8zhwyiqh4.fsf@u54ee758033e858cfa736.ant.amazon.com> (Julian
+	Stecklina's message of "Mon, 03 Sep 2018 16:51:35 +0200")
+Message-ID: <ciirm8efdy916l.fsf@u54ee758033e858cfa736.ant.amazon.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180912142126.GM10951@dhcp22.suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Zi Yan <zi.yan@cs.rutgers.edu>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stefan Priebe <s.priebe@profihost.ag>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: David Woodhouse <dwmw@amazon.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, juerg.haefliger@hpe.com, deepa.srinivasan@oracle.com, Jim Mattson <jmattson@google.com>, Andrew Cooper <andrew.cooper3@citrix.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, joao.m.martins@oracle.com, pradeep.vincent@oracle.com, Andi Kleen <ak@linux.intel.com>, Khalid Aziz <khalid.aziz@oracle.com>, kanth.ghatraju@oracle.com, Liran Alon <liran.alon@oracle.com>, Kees Cook <keescook@google.com>, Kernel Hardening <kernel-hardening@lists.openwall.com>, chris.hyser@oracle.com, Tyler Hicks <tyhicks@canonical.com>, John Haxby <john.haxby@oracle.com>, Jon Masters <jcm@redhat.com>
 
-On Wed 12-09-18 16:21:26, Michal Hocko wrote:
-> On Wed 12-09-18 09:54:17, Andrea Arcangeli wrote:
-[...]
-> > I wasn't particularly happy about your patch because it still swaps
-> > with certain defrag settings which is still allowing things that
-> > shouldn't happen without some kind of privileged capability.
-> 
-> Well, I am not really sure about defrag=always. I would rather care
-> about the default behavior to plug the regression first. And think about
-> `always' mode on top. Or is this a no-go from your POV?
+Julian Stecklina <jsteckli@amazon.de> writes:
 
-In other words the following on top
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 56c9aac4dc86..723e8d77c5ef 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -644,7 +644,7 @@ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma, un
- #endif
- 
- 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
--		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY | this_node);
-+		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
- 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
- 		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM | this_node;
- 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags))
--- 
-Michal Hocko
-SUSE Labs
+> Linus Torvalds <torvalds@linux-foundation.org> writes:
+>
+>> On Fri, Aug 31, 2018 at 12:45 AM Julian Stecklina <jsteckli@amazon.de> wrote:
+>>>
+>>> I've been spending some cycles on the XPFO patch set this week. For the
+>>> patch set as it was posted for v4.13, the performance overhead of
+>>> compiling a Linux kernel is ~40% on x86_64[1]. The overhead comes almost
+>>> completely from TLB flushing. If we can live with stale TLB entries
+>>> allowing temporary access (which I think is reasonable), we can remove
+>>> all TLB flushing (on x86). This reduces the overhead to 2-3% for
+>>> kernel compile.
+>>
+>> I have to say, even 2-3% for a kernel compile sounds absolutely horrendous.
+>
+> Well, it's at least in a range where it doesn't look hopeless.
+>
+>> Kernel bullds are 90% user space at least for me, so a 2-3% slowdown
+>> from a kernel is not some small unnoticeable thing.
+>
+> The overhead seems to come from the hooks that XPFO adds to
+> alloc/free_pages. These hooks add a couple of atomic operations per
+> allocated (4K) page for book keeping. Some of these atomic ops are only
+> for debugging and could be removed. There is also some opportunity to
+> streamline the per-page space overhead of XPFO.
+
+I've updated my XPFO branch[1] to make some of the debugging optional
+and also integrated the XPFO bookkeeping with struct page, instead of
+requiring CONFIG_PAGE_EXTENSION, which removes some checks in the hot
+path. These changes push the overhead down to somewhere between 1.5 and
+2% for my quad core box in kernel compile. This is close to the
+measurement noise, so I take suggestions for a better benchmark here.
+
+Of course, if you hit contention on the xpfo spinlock then performance
+will suffer. I guess this is what happened on Khalid's large box.
+
+I'll try to remove the spinlocks and add fixup code to the pagefault
+handler to see whether this improves the situation on large boxes. This
+might turn out to be ugly, though.
+
+Julian
+
+[1] http://git.infradead.org/users/jsteckli/linux-xpfo.git/shortlog/refs/heads/xpfo-master
+--
+Amazon Development Center Germany GmbH
+Berlin - Dresden - Aachen
+main office: Krausenstr. 38, 10117 Berlin
+Geschaeftsfuehrer: Dr. Ralf Herbrich, Christian Schlaeger
+Ust-ID: DE289237879
+Eingetragen am Amtsgericht Charlottenburg HRB 149173 B
