@@ -1,187 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7052A8E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 13:13:54 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id n17-v6so1122379ioa.5
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 10:13:54 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g18-v6sor1270264ita.91.2018.09.12.10.13.52
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 275C58E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 13:14:48 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id o27-v6so1407648pfj.6
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 10:14:48 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id d13-v6si1502227pll.337.2018.09.12.10.14.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 12 Sep 2018 10:13:52 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Sep 2018 10:14:46 -0700 (PDT)
+Date: Wed, 12 Sep 2018 10:14:34 -0700
+From: Sean Christopherson <sean.j.christopherson@intel.com>
+Subject: Re: [PATCH 4/5] lib/ioremap: Ensure phys_addr actually corresponds
+ to a physical address
+Message-ID: <20180912171434.GA31712@linux.intel.com>
+References: <1536747974-25875-1-git-send-email-will.deacon@arm.com>
+ <1536747974-25875-5-git-send-email-will.deacon@arm.com>
+ <20180912150939.GA30274@linux.intel.com>
+ <20180912163914.GA16071@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <f5e73b5ead3355932ad8b5fc96b141c3f5b8c16c.1535462971.git.andreyknvl@google.com>
-References: <cover.1535462971.git.andreyknvl@google.com> <f5e73b5ead3355932ad8b5fc96b141c3f5b8c16c.1535462971.git.andreyknvl@google.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 12 Sep 2018 19:13:31 +0200
-Message-ID: <CACT4Y+ZwLnk7V1cY-EAHbrfXPBxs6qyynZPhxoSKZZDWSK8Fuw@mail.gmail.com>
-Subject: Re: [PATCH v6 15/18] khwasan, arm64: add brk handler for inline instrumentation
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180912163914.GA16071@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cpandya@codeaurora.org, toshi.kani@hpe.com, tglx@linutronix.de, mhocko@suse.com, akpm@linux-foundation.org
 
-On Wed, Aug 29, 2018 at 1:35 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> KHWASAN inline instrumentation mode (which embeds checks of shadow memory
-> into the generated code, instead of inserting a callback) generates a brk
-> instruction when a tag mismatch is detected.
->
-> This commit add a KHWASAN brk handler, that decodes the immediate value
-> passed to the brk instructions (to extract information about the memory
-> access that triggered the mismatch), reads the register values (x0 contains
-> the guilty address) and reports the bug.
->
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> ---
->  arch/arm64/include/asm/brk-imm.h |  2 +
->  arch/arm64/kernel/traps.c        | 69 +++++++++++++++++++++++++++++++-
->  2 files changed, 69 insertions(+), 2 deletions(-)
->
-> diff --git a/arch/arm64/include/asm/brk-imm.h b/arch/arm64/include/asm/brk-imm.h
-> index ed693c5bcec0..e4a7013321dc 100644
-> --- a/arch/arm64/include/asm/brk-imm.h
-> +++ b/arch/arm64/include/asm/brk-imm.h
-> @@ -16,10 +16,12 @@
->   * 0x400: for dynamic BRK instruction
->   * 0x401: for compile time BRK instruction
->   * 0x800: kernel-mode BUG() and WARN() traps
-> + * 0x9xx: KHWASAN trap (allowed values 0x900 - 0x9ff)
->   */
->  #define FAULT_BRK_IMM                  0x100
->  #define KGDB_DYN_DBG_BRK_IMM           0x400
->  #define KGDB_COMPILED_DBG_BRK_IMM      0x401
->  #define BUG_BRK_IMM                    0x800
-> +#define KHWASAN_BRK_IMM                        0x900
->
->  #endif
-> diff --git a/arch/arm64/kernel/traps.c b/arch/arm64/kernel/traps.c
-> index 039e9ff379cc..fd70347d1ce7 100644
-> --- a/arch/arm64/kernel/traps.c
-> +++ b/arch/arm64/kernel/traps.c
-> @@ -35,6 +35,7 @@
->  #include <linux/sizes.h>
->  #include <linux/syscalls.h>
->  #include <linux/mm_types.h>
-> +#include <linux/kasan.h>
->
->  #include <asm/atomic.h>
->  #include <asm/bug.h>
-> @@ -269,10 +270,14 @@ void arm64_notify_die(const char *str, struct pt_regs *regs,
->         }
->  }
->
-> -void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
-> +void __arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
->  {
->         regs->pc += size;
-> +}
->
-> +void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
-> +{
-> +       __arm64_skip_faulting_instruction(regs, size);
->         /*
->          * If we were single stepping, we want to get the step exception after
->          * we return from the trap.
-> @@ -775,7 +780,7 @@ static int bug_handler(struct pt_regs *regs, unsigned int esr)
->         }
->
->         /* If thread survives, skip over the BUG instruction and continue: */
-> -       arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
-> +       __arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
->         return DBG_HOOK_HANDLED;
->  }
->
-> @@ -785,6 +790,59 @@ static struct break_hook bug_break_hook = {
->         .fn = bug_handler,
->  };
->
-> +#ifdef CONFIG_KASAN_HW
-> +
-> +#define KHWASAN_ESR_RECOVER    0x20
-> +#define KHWASAN_ESR_WRITE      0x10
-> +#define KHWASAN_ESR_SIZE_MASK  0x0f
-> +#define KHWASAN_ESR_SIZE(esr)  (1 << ((esr) & KHWASAN_ESR_SIZE_MASK))
-> +
-> +static int khwasan_handler(struct pt_regs *regs, unsigned int esr)
-> +{
-> +       bool recover = esr & KHWASAN_ESR_RECOVER;
-> +       bool write = esr & KHWASAN_ESR_WRITE;
-> +       size_t size = KHWASAN_ESR_SIZE(esr);
-> +       u64 addr = regs->regs[0];
-> +       u64 pc = regs->pc;
-> +
-> +       if (user_mode(regs))
-> +               return DBG_HOOK_ERROR;
-> +
-> +       kasan_report(addr, size, write, pc);
-> +
-> +       /*
-> +        * The instrumentation allows to control whether we can proceed after
-> +        * a crash was detected. This is done by passing the -recover flag to
-> +        * the compiler. Disabling recovery allows to generate more compact
-> +        * code.
-> +        *
-> +        * Unfortunately disabling recovery doesn't work for the kernel right
-> +        * now. KHWASAN reporting is disabled in some contexts (for example when
-> +        * the allocator accesses slab object metadata; same is true for KASAN;
-> +        * this is controlled by current->kasan_depth). All these accesses are
-> +        * detected by the tool, even though the reports for them are not
-> +        * printed.
+On Wed, Sep 12, 2018 at 05:39:14PM +0100, Will Deacon wrote:
+> Hi Sean,
+> 
+> Thanks for looking at the patch.
+> 
+> On Wed, Sep 12, 2018 at 08:09:39AM -0700, Sean Christopherson wrote:
+> > On Wed, Sep 12, 2018 at 11:26:13AM +0100, Will Deacon wrote:
+> > > The current ioremap() code uses a phys_addr variable at each level of
+> > > page table, which is confusingly offset by subtracting the base virtual
+> > > address being mapped so that adding the current virtual address back on
+> > > when iterating through the page table entries gives back the corresponding
+> > > physical address.
+> > > 
+> > > This is fairly confusing and results in all users of phys_addr having to
+> > > add the current virtual address back on. Instead, this patch just updates
+> > > phys_addr when iterating over the page table entries, ensuring that it's
+> > > always up-to-date and doesn't require explicit offsetting.
+> > > 
+> > > Cc: Chintan Pandya <cpandya@codeaurora.org>
+> > > Cc: Toshi Kani <toshi.kani@hpe.com>
+> > > Cc: Thomas Gleixner <tglx@linutronix.de>
+> > > Cc: Michal Hocko <mhocko@suse.com>
+> > > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > > Signed-off-by: Will Deacon <will.deacon@arm.com>
+> > > ---
+> > >  lib/ioremap.c | 28 ++++++++++++----------------
+> > >  1 file changed, 12 insertions(+), 16 deletions(-)
+> > > 
+> > > diff --git a/lib/ioremap.c b/lib/ioremap.c
+> > > index 6c72764af19c..fc834a59c90c 100644
+> > > --- a/lib/ioremap.c
+> > > +++ b/lib/ioremap.c
+> > > @@ -101,19 +101,18 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
+> > >  	pmd_t *pmd;
+> > >  	unsigned long next;
+> > >  
+> > > -	phys_addr -= addr;
+> > >  	pmd = pmd_alloc(&init_mm, pud, addr);
+> > >  	if (!pmd)
+> > >  		return -ENOMEM;
+> > >  	do {
+> > >  		next = pmd_addr_end(addr, end);
+> > >  
+> > > -		if (ioremap_try_huge_pmd(pmd, addr, next, phys_addr + addr, prot))
+> > > +		if (ioremap_try_huge_pmd(pmd, addr, next, phys_addr, prot))
+> > >  			continue;
+> > >  
+> > > -		if (ioremap_pte_range(pmd, addr, next, phys_addr + addr, prot))
+> > > +		if (ioremap_pte_range(pmd, addr, next, phys_addr, prot))
+> > >  			return -ENOMEM;
+> > > -	} while (pmd++, addr = next, addr != end);
+> > > +	} while (pmd++, addr = next, phys_addr += PMD_SIZE, addr != end);
+> > 
+> > I think bumping phys_addr by PXX_SIZE is wrong if phys_addr and addr
+> > start unaligned with respect to PXX_SIZE.  The addresses must be
+> > PAGE_ALIGNED, which lets ioremap_pte_range() do a simple calculation,
+> > but that doesn't hold true for the upper levels, i.e. phys_addr needs
+> > to be adjusted using an algorithm similar to pxx_addr_end().
+> > 
+> > Using a 2mb page as an example (lower 32 bits only): 
+> > 
+> > pxx_size  = 0x00020000
+> > pxx_mask  = 0xfffe0000
+> > addr      = 0x1000
+> > end       = 0x00040000
+> > phys_addr = 0x1000
+> > 
+> > Loop 1:
+> >    addr = 0x1000
+> >    phys = 0x1000
+> > 
+> > Loop 2:
+> >    addr = 0x20000
+> >    phys = 0x21000
+> 
+> Yes, I think you're completely right, however I also don't think this
+> can happen with the current code (and I've failed to trigger it in my
+> testing). The virtual addresses allocated for VM_IOREMAP allocations
+> are aligned to the order of the allocation, which means that the virtual
+> address at the start of the mapping is aligned such that when we hit the
+> end of a pXd, we know we've mapped the previous PXD_SIZE bytes.
+> 
+> Having said that, this is clearly a change from the current code and I
+> haven't audited architectures other than arm64 (where IOREMAP_MAX_ORDER
+> corresponds to the maximum size of our huge mappings), so it would be
+> much better not to introduce this funny behaviour in a patch that aims
+> to reduce confusion in the first place!
+> 
+> Fixing this using the pxx_addr_end() macros is a bit strange, since we
+> don't have a physical end variable (nor do we need one), so perhaps
+> something like changing the while condition to be:
+> 
+> 	do {
+> 		...
+> 	} while (pmd++, phys_addr += (next - addr), addr = next, addr != end);
+> 
+> would do the trick. What do you reckon?
 
-
-I am not following this part.
-Slab accesses metadata. OK.
-This is detected as bad access. OK.
-Report is not printed. OK.
-We skip BRK and resume execution.
-What is the problem?
-
-
-
-> +        *
-> +        * This is something that might be fixed at some point in the future.
-> +        */
-> +       if (!recover)
-> +               die("Oops - KHWASAN", regs, 0);
-> +
-> +       /* If thread survives, skip over the brk instruction and continue: */
-> +       __arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
-> +       return DBG_HOOK_HANDLED;
-> +}
-> +
-> +#define KHWASAN_ESR_VAL (0xf2000000 | KHWASAN_BRK_IMM)
-> +#define KHWASAN_ESR_MASK 0xffffff00
-> +
-> +static struct break_hook khwasan_break_hook = {
-> +       .esr_val = KHWASAN_ESR_VAL,
-> +       .esr_mask = KHWASAN_ESR_MASK,
-> +       .fn = khwasan_handler,
-> +};
-> +#endif
-> +
->  /*
->   * Initial handler for AArch64 BRK exceptions
->   * This handler only used until debug_traps_init().
-> @@ -792,6 +850,10 @@ static struct break_hook bug_break_hook = {
->  int __init early_brk64(unsigned long addr, unsigned int esr,
->                 struct pt_regs *regs)
->  {
-> +#ifdef CONFIG_KASAN_HW
-> +       if ((esr & KHWASAN_ESR_MASK) == KHWASAN_ESR_VAL)
-> +               return khwasan_handler(regs, esr) != DBG_HOOK_HANDLED;
-> +#endif
->         return bug_handler(regs, esr) != DBG_HOOK_HANDLED;
->  }
->
-> @@ -799,4 +861,7 @@ int __init early_brk64(unsigned long addr, unsigned int esr,
->  void __init trap_init(void)
->  {
->         register_break_hook(&bug_break_hook);
-> +#ifdef CONFIG_KASAN_HW
-> +       register_break_hook(&khwasan_break_hook);
-> +#endif
->  }
-> --
-> 2.19.0.rc0.228.g281dcd1b4d0-goog
->
+LGTM.  I like that there isn't a separate calculation for phys_addr's offset.
