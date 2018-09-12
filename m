@@ -1,82 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 25F258E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 10:40:38 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id l14-v6so2536055oii.9
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 07:40:38 -0700 (PDT)
-Received: from NAM05-BY2-obe.outbound.protection.outlook.com (mail-by2nam05on0700.outbound.protection.outlook.com. [2a01:111:f400:fe52::700])
-        by mx.google.com with ESMTPS id h124-v6si797793oic.303.2018.09.12.07.40.36
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C2B428E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 10:42:32 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id bg5-v6so1125045plb.20
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 07:42:32 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id d1-v6si1154853plr.455.2018.09.12.07.42.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 12 Sep 2018 07:40:36 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [PATCH] memory_hotplug: fix the panic when memory end is not on
- the section boundary
-Date: Wed, 12 Sep 2018 14:40:18 +0000
-Message-ID: <38ce1d0b-14bd-9a4a-1061-62c366cb11b5@microsoft.com>
-References: <20180910123527.71209-1-zaslonko@linux.ibm.com>
- <20180910131754.GG10951@dhcp22.suse.cz> <20180912150356.642c1dab@thinkpad>
- <20180912133933.GI10951@dhcp22.suse.cz> <20180912162717.5a018bf6@thinkpad>
-In-Reply-To: <20180912162717.5a018bf6@thinkpad>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <B05514B915A5E944BDC03F796D68E222@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Sep 2018 07:42:31 -0700 (PDT)
 MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Wed, 12 Sep 2018 20:12:30 +0530
+From: Arun KS <arunks@codeaurora.org>
+Subject: Re: [RFC] memory_hotplug: Free pages as pageblock_order
+In-Reply-To: <20180912131724.GH10951@dhcp22.suse.cz>
+References: <1536744405-16752-1-git-send-email-arunks@codeaurora.org>
+ <20180912103853.GC10951@dhcp22.suse.cz> <20180912125743.GB8537@350D>
+ <20180912131724.GH10951@dhcp22.suse.cz>
+Message-ID: <9d8dfd50046036a7b4e730738940014d@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Mikhail Zaslonko <zaslonko@linux.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "osalvador@suse.de" <osalvador@suse.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Balbir Singh <bsingharora@gmail.com>, akpm@linux-foundation.org, dan.j.williams@intel.com, vbabka@suse.cz, pasha.tatashin@oracle.com, iamjoonsoo.kim@lge.com, osalvador@suse.de, malat@debian.org, gregkh@linuxfoundation.org, yasu.isimatu@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, arunks.linux@gmail.com, vinmenon@codeaurora.org
 
-DQoNCk9uIDkvMTIvMTggMTA6MjcgQU0sIEdlcmFsZCBTY2hhZWZlciB3cm90ZToNCj4gT24gV2Vk
-LCAxMiBTZXAgMjAxOCAxNTozOTozMyArMDIwMA0KPiBNaWNoYWwgSG9ja28gPG1ob2Nrb0BrZXJu
-ZWwub3JnPiB3cm90ZToNCj4gDQo+PiBPbiBXZWQgMTItMDktMTggMTU6MDM6NTYsIEdlcmFsZCBT
-Y2hhZWZlciB3cm90ZToNCj4+IFsuLi5dDQo+Pj4gQlRXLCB0aG9zZSBzeXNmcyBhdHRyaWJ1dGVz
-IGFyZSB3b3JsZC1yZWFkYWJsZSwgc28gYW55b25lIGNhbiB0cmlnZ2VyDQo+Pj4gdGhlIHBhbmlj
-IGJ5IHNpbXBseSByZWFkaW5nIHRoZW0sIG9yIGp1c3QgcnVuIGxzbWVtIChhbHNvIGF2YWlsYWJs
-ZSBmb3INCj4+PiB4ODYgc2luY2UgdXRpbC1saW51eCAyLjMyKS4gT0ssIHlvdSBuZWVkIGEgc3Bl
-Y2lhbCBub3QtbWVtb3J5LWJsb2NrLWFsaWduZWQNCj4+PiBtZW09IHBhcmFtZXRlciBhbmQgREVC
-VUdfVk0gZm9yIHBvaXNvbiBjaGVjaywgYnV0IHcvbyBERUJVR19WTSB5b3Ugd291bGQNCj4+PiBz
-dGlsbCBhY2Nlc3MgdW5pbml0aWFsaXplZCBzdHJ1Y3QgcGFnZXMuIFRoaXMgc291bmRzIHZlcnkg
-d3JvbmcsIGFuZCBJDQo+Pj4gdGhpbmsgaXQgcmVhbGx5IHNob3VsZCBiZSBmaXhlZC4gIA0KPj4N
-Cj4+IE9oaCwgYWJzb2x1dGVseS4gTm9ib2R5IGlzIHF1ZXN0aW9uaW5nIHRoYXQuIFRoZSB0aGlu
-ZyBpcyB0aGF0IHRoZQ0KPj4gY29kZSBoYXMgYmVlbiBsaWtlbHkgYWx3YXlzIGJyb2tlbi4gV2Ug
-anVzdCBoYXZlbid0IG5vdGljZWQgYmVjYXVzZQ0KPj4gdGhvc2UgdW5pdGlhbGl6ZWQgcGFydHMg
-d2hlcmUgemVyb2VkIHByZXZpb3VzbHkuIE5vdyB0aGF0IHRoZSBpbXBsaWNpdA0KPj4gemVyb3lp
-bmcgaXMgZ29uZSBpdCBpcyBqdXN0IHZpc2libGUuDQo+Pg0KPj4gQWxsIHRoYXQgSSBhbSBhcmd1
-aW5nIGlzIHRoYXQgdGhlcmUgYXJlIG1hbnkgcGxhY2VzIHdoaWNoIGFzc3VtZQ0KPj4gcGFnZWJs
-b2NrcyB0byBiZSBmdWxseSBpbml0aWFsaXplZCBhbmQgcGx1Z2dpbmcgb25lIHBsYWNlIHRoYXQg
-Ymxvd3MgdXANCj4+IGF0IHRoZSB0aW1lIGlzIGp1c3Qgd2hhY2sgYSBtb2xlLiBXZSBuZWVkIHRv
-IGFkZHJlc3MgdGhpcyBtdWNoIGVhcmxpZXIuDQo+PiBFLmcuIGJ5IGFsbG93aW5nIG9ubHkgZnVs
-bCBwYWdlYmxvY2tzIHdoZW4gYWRkaW5nIGEgbWVtb3J5IHJhbmdlLg0KPiANCj4gSnVzdCB0byBt
-YWtlIHN1cmUgd2UgYXJlIHRhbGtpbmcgYWJvdXQgdGhlIHNhbWUgdGhpbmc6IHdoZW4geW91IHNh
-eQ0KPiAicGFnZWJsb2NrcyIsIGRvIHlvdSBtZWFuIHRoZSBNQVhfT1JERVJfTlJfUEFHRVMgLyBw
-YWdlYmxvY2tfbnJfcGFnZXMNCj4gdW5pdCBvZiBwYWdlcywgb3IgZG8geW91IG1lYW4gdGhlIG1l
-bW9yeSAoaG90cGx1ZykgYmxvY2sgdW5pdD8NCg0KRnJvbSBlYXJseSBkaXNjdXNzaW9uLCBpdCB3
-YXMgYWJvdXQgcGFnZWJsb2NrX25yX3BhZ2VzIG5vdCBhYm91dA0KbWVtb3J5X2Jsb2NrX3NpemVf
-Ynl0ZXMNCg0KPiANCj4gSSBkbyBub3Qgc2VlIGFueSBpc3N1ZSBoZXJlIHdpdGggTUFYX09SREVS
-X05SX1BBR0VTIC8gcGFnZWJsb2NrX25yX3BhZ2VzDQo+IHBhZ2VibG9ja3MsIGFuZCBpZiB0aGVy
-ZSB3YXMgc3VjaCBhbiBpc3N1ZSwgb2YgY291cnNlIHlvdSBhcmUgcmlnaHQgdGhhdA0KPiB0aGlz
-IHdvdWxkIGFmZmVjdCBtYW55IHBsYWNlcy4gSWYgdGhlcmUgd2FzIHN1Y2ggYW4gaXNzdWUsIEkg
-d291bGQgYWxzbw0KPiBhc3N1bWUgdGhhdCB3ZSB3b3VsZCBzZWUgdGhlIG5ldyBwYWdlIHBvaXNv
-biB3YXJuaW5nIGluIG1hbnkgb3RoZXIgcGxhY2VzLg0KPiANCj4gVGhlIGJ1ZyB0aGF0IE1pa2hh
-aWxzIHBhdGNoIHdvdWxkIGZpeCBvbmx5IGFmZmVjdHMgY29kZSB0aGF0IG9wZXJhdGVzDQo+IG9u
-IC8gaXRlcmF0ZXMgdGhyb3VnaCBtZW1vcnkgKGhvdHBsdWcpIGJsb2NrcywgYW5kIHRoYXQgZG9l
-cyBub3QgaGFwcGVuDQo+IGluIG1hbnkgcGxhY2VzLCBvbmx5IGluIHRoZSB0d28gZnVuY3Rpb25z
-IHRoYXQgaGlzIHBhdGNoIGZpeGVzLg0KDQpKdXN0IHRvIGJlIGNsZWFyLCBzbyBtZW1vcnkgaXMg
-cGFnZWJsb2NrX25yX3BhZ2VzIGFsaWduZWQsIHlldA0KbWVtb3J5X2Jsb2NrIGFyZSBsYXJnZXIg
-YW5kIHBhbmljIGlzIHN0aWxsIHRyaWdnZXJlZD8NCg0KSSBhc2ssIGJlY2F1c2UgMzA3NU0gaXMg
-bm90IDEyOE0gYWxpZ25lZC4NCg0KPiANCj4gV2hlbiB5b3Ugc2F5ICJhZGRyZXNzIHRoaXMgbXVj
-aCBlYXJsaWVyIiwgZG8geW91IG1lYW4gY2hhbmdpbmcgdGhlIHdheQ0KPiB0aGF0IGZyZWVfYXJl
-YV9pbml0X2NvcmUoKS9tZW1tYXBfaW5pdCgpIGluaXRpYWxpemUgc3RydWN0IHBhZ2VzLCBpLmUu
-DQo+IGhhdmUgdGhlbSBub3QgdXNlIHpvbmUtPnNwYW5uZWRfcGFnZXMgYXMgbGltaXQsIGJ1dCBy
-YXRoZXIgYWxpZ24gdGhhdA0KPiB1cCB0byB0aGUgbWVtb3J5IGJsb2NrIChub3QgcGFnZWJsb2Nr
-KSBib3VuZGFyeT8NCj4gDQoNClRoaXMgd2FzIG15IGluaXRpYWwgcHJvcG9zYWwsIHRvIGZpeCBt
-ZW1tYXBfaW5pdCgpIGFuZCBpbml0aWFsaXplIHN0cnVjdA0KcGFnZXMgYmV5b25kIHRoZSAiZW5k
-IiwgYW5kIGJlZm9yZSB0aGUgInN0YXJ0IiB0byBjb3ZlciB0aGUgd2hvbGUNCnNlY3Rpb24uIEJ1
-dCwgSSB0aGluayBNaWNoYWwgc3VnZ2VzdGVkIChhbmQgaGUgbWlnaHQgY29ycmVjdCBtZSkgdG8N
-CnNpbXBseSBpZ25vcmUgdW5hbGlnbmVkIG1lbW9yeSB0byBzZWN0aW9uIG1lbW9yeSBtdWNoIGVh
-cmxpZXI6IHNvDQphbnl0aGluZyB0aGF0IGRvZXMgbm90IGFsaWduIHRvIHNwYXJzZSBvcmRlciBp
-cyBub3QgYWRkZWQgYXQgYWxsIHRvIHRoZQ0Kc3lzdGVtLg0KDQpJIHRoaW5rIE1pY2hhbCdzIHBy
-b3Bvc2FsIHdvdWxkIHNpbXBsaWZ5IGFuZCBzdHJlbmd0aGVuIG1lbW9yeSBtYXBwaW5nDQpvdmVy
-YWxsLg0KDQpQYXZlbA==
+On 2018-09-12 18:47, Michal Hocko wrote:
+> On Wed 12-09-18 22:57:43, Balbir Singh wrote:
+>> On Wed, Sep 12, 2018 at 12:38:53PM +0200, Michal Hocko wrote:
+>> > On Wed 12-09-18 14:56:45, Arun KS wrote:
+>> > > When free pages are done with pageblock_order, time spend on
+>> > > coalescing pages by buddy allocator can be reduced. With
+>> > > section size of 256MB, hot add latency of a single section
+>> > > shows improvement from 50-60 ms to less than 1 ms, hence
+>> > > improving the hot add latency by 60%.
+>> >
+>> > Where does the improvement come from? You are still doing the same
+>> > amount of work except that the number of callbacks is lower. Is this the
+>> > real source of 60% improvement?
+>> >
+>> 
+>> It looks like only the first page of the pageblock is initialized, is
+>> some of the cost amortized in terms of doing one initialization for
+>> the page with order (order) and then relying on split_page and helpers
+>> to do the rest? Of course the number of callbacks reduce by a 
+>> significant
+>> number as well.
+> 
+> Ohh, I have missed that part. Now when re-reading I can see the reason
+> for the perf improvement. It is most likely the higher order free which
+> ends up being much cheaper. This part makes some sense.
+> 
+> How much is this feasible is another question. Do not forget we have
+> those external providers of the online callback and those would need to
+> be updated as well.
+Sure Michal, I ll look into this.
+
+> 
+> Btw. the normal memmap init code path does the same per-page free as
+> well. If we really want to speed the hotplug path then I guess the init
+> one would see a bigger improvement and those two should be in sync.
+Thanks for pointers, Will look further.
+
+> 
+>> > >
+>> > > If this looks okey, I'll modify users of set_online_page_callback
+>> > > and resend clean patch.
+>> >
+>> > [...]
+>> >
+>> > > +static int generic_online_pages(struct page *page, unsigned int order);
+>> > > +static online_pages_callback_t online_pages_callback = generic_online_pages;
+>> > > +
+>> > > +static int generic_online_pages(struct page *page, unsigned int order)
+>> > > +{
+>> > > +	unsigned long nr_pages = 1 << order;
+>> > > +	struct page *p = page;
+>> > > +	unsigned int loop;
+>> > > +
+>> > > +	for (loop = 0 ; loop < nr_pages ; loop++, p++) {
+>> > > +		__ClearPageReserved(p);
+>> > > +		set_page_count(p, 0);
+> 
+> btw. you want init_page_count here.
+Do you mean replace set_page_count(p, 0) with init_page_count(page)?
+Because init_page_count is setting the page _refcount to 1
+
+static inline void init_page_count(struct page *page)
+{
+         set_page_count(page, 1);
+}
+
+I thought in case of higher order pages only the first struct page 
+should have _refcount to 1 before calling __free_pages(). Please correct 
+me if wrong.
+
+Regards,
+Arun
