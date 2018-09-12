@@ -1,79 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 296E38E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 11:38:10 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id u195-v6so1912987qka.14
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 08:38:10 -0700 (PDT)
-Received: from smtp-fw-2101.amazon.com (smtp-fw-2101.amazon.com. [72.21.196.25])
-        by mx.google.com with ESMTPS id r10-v6si926470qvi.112.2018.09.12.08.37.58
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 184A98E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 11:41:01 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id d194-v6so1909232qkb.12
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 08:41:01 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id d199-v6si945387qkb.275.2018.09.12.08.40.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Sep 2018 08:37:58 -0700 (PDT)
-From: Julian Stecklina <jsteckli@amazon.de>
-Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs in mind (for KVM to isolate its guests per CPU)
-References: <CA+55aFxyUdhYjnQdnmWAt8tTwn4HQ1xz3SAMZJiawkLpMiJ_+w@mail.gmail.com>
-	<ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com>
-	<CA+55aFzHj_GNZWG4K2oDu4DPP9sZdTZ9PY7sBxGB6WoN9g8d=A@mail.gmail.com>
-	<ciirm8zhwyiqh4.fsf@u54ee758033e858cfa736.ant.amazon.com>
-Date: Wed, 12 Sep 2018 17:37:38 +0200
-In-Reply-To: <ciirm8zhwyiqh4.fsf@u54ee758033e858cfa736.ant.amazon.com> (Julian
-	Stecklina's message of "Mon, 03 Sep 2018 16:51:35 +0200")
-Message-ID: <ciirm8efdy916l.fsf@u54ee758033e858cfa736.ant.amazon.com>
+        Wed, 12 Sep 2018 08:40:59 -0700 (PDT)
+Subject: Re: [PATCH v3 3/4] fs/dcache: Track & report number of negative
+ dentries
+References: <1536693506-11949-1-git-send-email-longman@redhat.com>
+ <1536693506-11949-4-git-send-email-longman@redhat.com>
+ <20180911220857.GG5631@dastard>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <4fdce6b6-7f0a-cef6-8361-2d297702ac38@redhat.com>
+Date: Wed, 12 Sep 2018 11:40:56 -0400
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20180911220857.GG5631@dastard>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: David Woodhouse <dwmw@amazon.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, juerg.haefliger@hpe.com, deepa.srinivasan@oracle.com, Jim Mattson <jmattson@google.com>, Andrew Cooper <andrew.cooper3@citrix.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, joao.m.martins@oracle.com, pradeep.vincent@oracle.com, Andi Kleen <ak@linux.intel.com>, Khalid Aziz <khalid.aziz@oracle.com>, kanth.ghatraju@oracle.com, Liran Alon <liran.alon@oracle.com>, Kees Cook <keescook@google.com>, Kernel Hardening <kernel-hardening@lists.openwall.com>, chris.hyser@oracle.com, Tyler Hicks <tyhicks@canonical.com>, John Haxby <john.haxby@oracle.com>, Jon Masters <jcm@redhat.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>
 
-Julian Stecklina <jsteckli@amazon.de> writes:
-
-> Linus Torvalds <torvalds@linux-foundation.org> writes:
->
->> On Fri, Aug 31, 2018 at 12:45 AM Julian Stecklina <jsteckli@amazon.de> wrote:
->>>
->>> I've been spending some cycles on the XPFO patch set this week. For the
->>> patch set as it was posted for v4.13, the performance overhead of
->>> compiling a Linux kernel is ~40% on x86_64[1]. The overhead comes almost
->>> completely from TLB flushing. If we can live with stale TLB entries
->>> allowing temporary access (which I think is reasonable), we can remove
->>> all TLB flushing (on x86). This reduces the overhead to 2-3% for
->>> kernel compile.
+On 09/11/2018 06:08 PM, Dave Chinner wrote:
+> On Tue, Sep 11, 2018 at 03:18:25PM -0400, Waiman Long wrote:
+>> The current dentry number tracking code doesn't distinguish between
+>> positive & negative dentries. It just reports the total number of
+>> dentries in the LRU lists.
 >>
->> I have to say, even 2-3% for a kernel compile sounds absolutely horrendous.
+>> As excessive number of negative dentries can have an impact on system
+>> performance, it will be wise to track the number of positive and
+>> negative dentries separately.
+>>
+>> This patch adds tracking for the total number of negative dentries
+>> in the system LRU lists and reports it in the 7th field in the
+> Not the 7th field anymore.
 >
-> Well, it's at least in a range where it doesn't look hopeless.
->
->> Kernel bullds are 90% user space at least for me, so a 2-3% slowdown
->> from a kernel is not some small unnoticeable thing.
->
-> The overhead seems to come from the hooks that XPFO adds to
-> alloc/free_pages. These hooks add a couple of atomic operations per
-> allocated (4K) page for book keeping. Some of these atomic ops are only
-> for debugging and could be removed. There is also some opportunity to
-> streamline the per-page space overhead of XPFO.
 
-I've updated my XPFO branch[1] to make some of the debugging optional
-and also integrated the XPFO bookkeeping with struct page, instead of
-requiring CONFIG_PAGE_EXTENSION, which removes some checks in the hot
-path. These changes push the overhead down to somewhere between 1.5 and
-2% for my quad core box in kernel compile. This is close to the
-measurement noise, so I take suggestions for a better benchmark here.
+You are right. It is a left-behind from v2.
 
-Of course, if you hit contention on the xpfo spinlock then performance
-will suffer. I guess this is what happened on Khalid's large box.
+>> /proc/sys/fs/dentry-state file. The number, however, does not include
+>> negative dentries that are in flight but not in the LRU yet as well
+>> as those in the shrinker lists.
+>>
+>> The number of positive dentries in the LRU lists can be roughly found
+>> by subtracting the number of negative dentries from the unused count.
+>>
+>> Matthew Wilcox had confirmed that since the introduction of the
+>> dentry_stat structure in 2.1.60, the dummy array was there, probably f=
+or
+>> future extension. They were not replacements of pre-existing fields. S=
+o
+>> no sane applications that read the value of /proc/sys/fs/dentry-state
+>> will do dummy thing if the last 2 fields of the sysctl parameter are
+>> not zero. IOW, it will be safe to use one of the dummy array entry for=
 
-I'll try to remove the spinlocks and add fixup code to the pagefault
-handler to see whether this improves the situation on large boxes. This
-might turn out to be ugly, though.
+>> negative dentry count.
+>>
+>> Signed-off-by: Waiman Long <longman@redhat.com>
+> ....
+>> ---
+>>  Documentation/sysctl/fs.txt | 26 ++++++++++++++++----------
+>>  fs/dcache.c                 | 31 +++++++++++++++++++++++++++++++
+>>  include/linux/dcache.h      |  7 ++++---
+>>  3 files changed, 51 insertions(+), 13 deletions(-)
+>>
+>> diff --git a/Documentation/sysctl/fs.txt b/Documentation/sysctl/fs.txt=
 
-Julian
+>> index 819caf8..3b4f441 100644
+>> --- a/Documentation/sysctl/fs.txt
+>> +++ b/Documentation/sysctl/fs.txt
+>> @@ -56,26 +56,32 @@ of any kernel data structures.
+>> =20
+>>  dentry-state:
+>> =20
+>> -From linux/fs/dentry.c:
+>> +From linux/include/linux/dcache.h:
+>>  --------------------------------------------------------------
+>> -struct {
+>> +struct dentry_stat_t dentry_stat {
+>>          int nr_dentry;
+>>          int nr_unused;
+>>          int age_limit;         /* age in seconds */
+>>          int want_pages;        /* pages requested by system */
+>> -        int dummy[2];
+>> -} dentry_stat =3D {0, 0, 45, 0,};
+>> ---------------------------------------------------------------=20
+>> -
+>> -Dentries are dynamically allocated and deallocated, and
+>> -nr_dentry seems to be 0 all the time. Hence it's safe to
+>> -assume that only nr_unused, age_limit and want_pages are
+>> -used. Nr_unused seems to be exactly what its name says.
+>> +        int nr_negative;       /* # of unused negative dentries */
+>> +        int dummy;	       /* Reserved */
+> /* reserved for future use */
 
-[1] http://git.infradead.org/users/jsteckli/linux-xpfo.git/shortlog/refs/heads/xpfo-master
---
-Amazon Development Center Germany GmbH
-Berlin - Dresden - Aachen
-main office: Krausenstr. 38, 10117 Berlin
-Geschaeftsfuehrer: Dr. Ralf Herbrich, Christian Schlaeger
-Ust-ID: DE289237879
-Eingetragen am Amtsgericht Charlottenburg HRB 149173 B
+Will change that.
+
+> ....
+>> @@ -331,6 +343,8 @@ static inline void __d_clear_type_and_inode(struct=
+ dentry *dentry)
+>>  	flags &=3D ~(DCACHE_ENTRY_TYPE | DCACHE_FALLTHRU);
+>>  	WRITE_ONCE(dentry->d_flags, flags);
+>>  	dentry->d_inode =3D NULL;
+>> +	if (dentry->d_flags & DCACHE_LRU_LIST)
+>> +		this_cpu_inc(nr_dentry_negative);
+>>  }
+>> =20
+>>  static void dentry_free(struct dentry *dentry)
+>> @@ -385,6 +399,10 @@ static void dentry_unlink_inode(struct dentry * d=
+entry)
+>>   * The per-cpu "nr_dentry_unused" counters are updated with
+>>   * the DCACHE_LRU_LIST bit.
+>>   *
+>> + * The per-cpu "nr_dentry_negative" counters are only updated
+>> + * when deleted or added to the per-superblock LRU list, not
+>> + * on the shrink list.
+> This tells us what the code is doing, but it doesn't explain why
+> a different accounting method to nr_dentry_unused was chosen. What
+> constraints require the accounting to be done this way rather than
+> just mirror the unused dentry accounting?
+
+It is done to minimize the number of percpu count update as much as
+possible. There is one code path where the unused count is decremented
+when removing from the lru and then increment later on when added to the
+shrink list. So we are doing double inc/dec in this case.
+
+Besides, those in the shrink list are on the way out and its number
+isn't really that important. I will elaborate a bit more on the
+rationale behind this decision in the patch.
+
+>> @@ -1836,6 +1862,11 @@ static void __d_instantiate(struct dentry *dent=
+ry, struct inode *inode)
+>>  	WARN_ON(d_in_lookup(dentry));
+>> =20
+>>  	spin_lock(&dentry->d_lock);
+>> +	/*
+>> +	 * Decrement negative dentry count if it was in the LRU list.
+>> +	 */
+>> +	if (dentry->d_flags & DCACHE_LRU_LIST)
+>> +		this_cpu_dec(nr_dentry_negative);
+>>  	hlist_add_head(&dentry->d_u.d_alias, &inode->i_dentry);
+>>  	raw_write_seqcount_begin(&dentry->d_seq);
+>>  	__d_set_inode_and_type(dentry, inode, add_flags);
+>> diff --git a/include/linux/dcache.h b/include/linux/dcache.h
+>> index ef4b70f..73ff9f0 100644
+>> --- a/include/linux/dcache.h
+>> +++ b/include/linux/dcache.h
+>> @@ -62,9 +62,10 @@ struct qstr {
+>>  struct dentry_stat_t {
+>>  	long nr_dentry;
+>>  	long nr_unused;
+>> -	long age_limit;          /* age in seconds */
+>> -	long want_pages;         /* pages requested by system */
+>> -	long dummy[2];
+>> +	long age_limit;		/* age in seconds */
+>> +	long want_pages;	/* pages requested by system */
+>> +	long nr_negative;	/* # of unused negative dentries */
+>> +	long dummy;		/* Reserved */
+> /* reserved for future use */
+
+Will do.
+
+Cheers,
+Longman
