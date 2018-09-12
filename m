@@ -1,58 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 020B48E0011
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 20:45:43 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id c8-v6so130666pfn.2
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 17:45:42 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id e8-v6si22134418pgl.498.2018.09.11.17.45.41
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EB5F48E0011
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 20:51:20 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id w132-v6so1112930ita.6
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 17:51:20 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p67-v6sor1805515itb.30.2018.09.11.17.51.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Sep 2018 17:45:42 -0700 (PDT)
-From: Huang Ying <ying.huang@intel.com>
-Subject: [PATCH -V5 RESEND 21/21] swap: Update help of CONFIG_THP_SWAP
-Date: Wed, 12 Sep 2018 08:44:14 +0800
-Message-Id: <20180912004414.22583-22-ying.huang@intel.com>
-In-Reply-To: <20180912004414.22583-1-ying.huang@intel.com>
-References: <20180912004414.22583-1-ying.huang@intel.com>
+        (Google Transport Security);
+        Tue, 11 Sep 2018 17:51:19 -0700 (PDT)
+MIME-Version: 1.0
+References: <20180910232615.4068.29155.stgit@localhost.localdomain>
+ <20180910234354.4068.65260.stgit@localhost.localdomain> <CAPcyv4ja7=eUbwwJZhreexa9_7JyJotQwObrQm=nCEcgcfbWyw@mail.gmail.com>
+In-Reply-To: <CAPcyv4ja7=eUbwwJZhreexa9_7JyJotQwObrQm=nCEcgcfbWyw@mail.gmail.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Tue, 11 Sep 2018 17:51:07 -0700
+Message-ID: <CAKgT0UdmkAXLdR6cfgmu-LcJUOO8a4qAS8zO3Bn+LwjJ9rT3pg@mail.gmail.com>
+Subject: Re: [PATCH 3/4] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>, Dan Williams <dan.j.williams@intel.com>
+To: dan.j.williams@intel.com
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-nvdimm@lists.01.org, pavel.tatashin@microsoft.com, Michal Hocko <mhocko@suse.com>, dave.jiang@intel.com, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, jglisse@redhat.com, Andrew Morton <akpm@linux-foundation.org>, logang@deltatee.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The help of CONFIG_THP_SWAP is updated to reflect the latest progress
-of THP (Tranparent Huge Page) swap optimization.
+On Tue, Sep 11, 2018 at 3:35 PM Dan Williams <dan.j.williams@intel.com> wrote:
+>
+> On Mon, Sep 10, 2018 at 4:43 PM, Alexander Duyck
+> <alexander.duyck@gmail.com> wrote:
+> >
+> > From: Alexander Duyck <alexander.h.duyck@intel.com>
+> >
+> > The ZONE_DEVICE pages were being initialized in two locations. One was with
+> > the memory_hotplug lock held and another was outside of that lock. The
+> > problem with this is that it was nearly doubling the memory initialization
+> > time. Instead of doing this twice, once while holding a global lock and
+> > once without, I am opting to defer the initialization to the one outside of
+> > the lock. This allows us to avoid serializing the overhead for memory init
+> > and we can instead focus on per-node init times.
+> >
+> > One issue I encountered is that devm_memremap_pages and
+> > hmm_devmmem_pages_create were initializing only the pgmap field the same
+> > way. One wasn't initializing hmm_data, and the other was initializing it to
+> > a poison value. Since this is something that is exposed to the driver in
+> > the case of hmm I am opting for a third option and just initializing
+> > hmm_data to 0 since this is going to be exposed to unknown third party
+> > drivers.
+> >
+> > Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
+> > ---
+> >  include/linux/mm.h |    2 +
+> >  kernel/memremap.c  |   24 +++++---------
+> >  mm/hmm.c           |   12 ++++---
+> >  mm/page_alloc.c    |   89 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+>
+> Hmm, why mm/page_alloc.c and not kernel/memremap.c for this new
+> helper? I think that would address the kbuild reports and keeps all
+> the devm_memremap_pages / ZONE_DEVICE special casing centralized. I
+> also think it makes sense to move memremap.c to mm/ rather than
+> kernel/ especially since commit 5981690ddb8f "memremap: split
+> devm_memremap_pages() and memremap() infrastructure". Arguably, that
+> commit should have went ahead with the directory move.
 
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Reviewed-by: Dan Williams <dan.j.williams@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
----
- mm/Kconfig | 2 --
- 1 file changed, 2 deletions(-)
-
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 9a6e7e27e8d5..cd41bc4382bf 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -425,8 +425,6 @@ config THP_SWAP
- 	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP && SWAP
- 	help
- 	  Swap transparent huge pages in one piece, without splitting.
--	  XXX: For now, swap cluster backing transparent huge page
--	  will be split after swapout.
- 
- 	  For selection by architectures with reasonable THP sizes.
- 
--- 
-2.16.4
+The issue ends up being the fact that I would then have to start
+exporting infrastructure such as __init_single_page from page_alloc. I
+have some follow-up patches I am working on that will generate some
+other shared functions that can be used by both memmap_init_zone and
+memmap_init_zone_device, as well as pulling in some of the code from
+the deferred memory init.
