@@ -1,69 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EAADF8E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 23:06:30 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id e62-v6so1488770itb.3
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 20:06:30 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id v23-v6si11829823iob.89.2018.09.11.20.06.28
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FF3C8E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 01:48:43 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id b8-v6so1076697oib.4
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 22:48:43 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c12-v6sor43940oib.5.2018.09.11.22.48.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Sep 2018 20:06:29 -0700 (PDT)
-Message-Id: <201809120306.w8C36JbS080965@www262.sakura.ne.jp>
-Subject: Re: [RFC PATCH 0/3] rework mmap-exit vs. =?ISO-2022-JP?B?b29tX3JlYXBlciBo?=
- =?ISO-2022-JP?B?YW5kb3Zlcg==?=
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+        (Google Transport Security);
+        Tue, 11 Sep 2018 22:48:41 -0700 (PDT)
 MIME-Version: 1.0
-Date: Wed, 12 Sep 2018 12:06:19 +0900
-References: <7e123109-fe7d-65cf-883e-74850fd2cf86@i-love.sakura.ne.jp> <20180910164411.GN10951@dhcp22.suse.cz>
-In-Reply-To: <20180910164411.GN10951@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180910234400.4068.15541.stgit@localhost.localdomain>
+References: <20180910232615.4068.29155.stgit@localhost.localdomain> <20180910234400.4068.15541.stgit@localhost.localdomain>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 11 Sep 2018 22:48:40 -0700
+Message-ID: <CAPcyv4gm30sT_us0j27jLmNTV_Fug4d8EW4xTmiTMFdwGSjN-A@mail.gmail.com>
+Subject: Re: [PATCH 4/4] nvdimm: Trigger the device probe on a cpu local to
+ the device
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, pavel.tatashin@microsoft.com, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Michal Hocko wrote:
-> On Tue 11-09-18 00:40:23, Tetsuo Handa wrote:
-> > >> Also, why MMF_OOM_SKIP will not be set if the OOM reaper handed over?
-> > > 
-> > > The idea is that the mm is not visible to anybody (except for the oom
-> > > reaper) anymore. So MMF_OOM_SKIP shouldn't matter.
-> > > 
-> > 
-> > I think it absolutely matters. The OOM killer waits until MMF_OOM_SKIP is set
-> > on a mm which is visible via task_struct->signal->oom_mm .
-> 
-> Hmm, I have to re-read the exit path once again and see when we unhash
-> the task and how many dangerous things we do in the mean time. I might
-> have been overly optimistic and you might be right that we indeed have
-> to set MMF_OOM_SKIP after all.
+On Mon, Sep 10, 2018 at 4:44 PM, Alexander Duyck
+<alexander.duyck@gmail.com> wrote:
+> From: Alexander Duyck <alexander.h.duyck@intel.com>
+>
+> This patch is based off of the pci_call_probe function used to initialize
+> PCI devices. The general idea here is to move the probe call to a location
+> that is local to the memory being initialized. By doing this we can shave
+> significant time off of the total time needed for initialization.
+>
+> With this patch applied I see a significant reduction in overall init time
+> as without it the init varied between 23 and 37 seconds to initialize a 3GB
+> node. With this patch applied the variance is only between 23 and 26
+> seconds to initialize each node.
+>
+> I hope to refine this further in the future by combining this logic into
+> the async_schedule_domain code that is already in use. By doing that it
+> would likely make this functionality redundant.
 
-What a foolhardy attempt!
+Yeah, it is a bit sad that we schedule an async thread only to move it
+back somewhere else.
 
-Commit d7a94e7e11badf84 ("oom: don't count on mm-less current process") says
+Could we trivially achieve the same with an
+async_schedule_domain_on_cpu() variant? It seems we can and the
+workqueue core will "Do the right thing".
 
-    out_of_memory() doesn't trigger the OOM killer if the current task is
-    already exiting or it has fatal signals pending, and gives the task
-    access to memory reserves instead.  However, doing so is wrong if
-    out_of_memory() is called by an allocation (e.g. from exit_task_work())
-    after the current task has already released its memory and cleared
-    TIF_MEMDIE at exit_mm().  If we again set TIF_MEMDIE to post-exit_mm()
-    current task, the OOM killer will be blocked by the task sitting in the
-    final schedule() waiting for its parent to reap it.  It will trigger an
-    OOM livelock if its parent is unable to reap it due to doing an
-    allocation and waiting for the OOM killer to kill it.
-
-and your
-
-+               /*
-+                * the exit path is guaranteed to finish without any unbound
-+                * blocking at this stage so make it clear to the caller.
-+                */
-
-attempt is essentially same with "we keep TIF_MEMDIE of post-exit_mm() task".
-
-That is, we can't expect that the OOM victim can finish without any unbound
-blocking. We have no choice but timeout based heuristic if we don't want to
-set MMF_OOM_SKIP even with your customized version of free_pgtables().
+I now notice that async uses the system_unbound_wq and work_on_cpu()
+uses the system_wq.  I don't think we want long running nvdimm work on
+system_wq.
