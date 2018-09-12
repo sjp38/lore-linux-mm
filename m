@@ -1,83 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DAE038E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 10:29:04 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id b8-v6so2515365oib.4
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 07:29:04 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id i5-v6si782588oii.19.2018.09.12.07.29.03
+	by kanga.kvack.org (Postfix) with ESMTP id 25F258E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 10:40:38 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id l14-v6so2536055oii.9
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 07:40:38 -0700 (PDT)
+Received: from NAM05-BY2-obe.outbound.protection.outlook.com (mail-by2nam05on0700.outbound.protection.outlook.com. [2a01:111:f400:fe52::700])
+        by mx.google.com with ESMTPS id h124-v6si797793oic.303.2018.09.12.07.40.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Sep 2018 07:29:03 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8CEOeRQ082191
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 10:29:03 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2mf3kgkc5x-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 10:29:02 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Wed, 12 Sep 2018 15:29:01 +0100
-Date: Wed, 12 Sep 2018 16:28:56 +0200
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 12 Sep 2018 07:40:36 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
 Subject: Re: [PATCH] memory_hotplug: fix the panic when memory end is not on
  the section boundary
-In-Reply-To: <abf84f61-82f3-e3d5-2e6e-82a11cb5dcf5@microsoft.com>
+Date: Wed, 12 Sep 2018 14:40:18 +0000
+Message-ID: <38ce1d0b-14bd-9a4a-1061-62c366cb11b5@microsoft.com>
 References: <20180910123527.71209-1-zaslonko@linux.ibm.com>
-	<20180910131754.GG10951@dhcp22.suse.cz>
-	<e8d75768-9122-332b-3b16-cad032aeb27f@microsoft.com>
-	<20180910135959.GI10951@dhcp22.suse.cz>
-	<CAGM2reZuGAPmfO8x0TnHnqHci_Hsga3-CfM9+udJs=gUQCw-1g@mail.gmail.com>
-	<20180910141946.GJ10951@dhcp22.suse.cz>
-	<CAGM2reZ5OD9SRW8j9iaQAk9jpr86pF2NqpBjv-dxH+1vJZs0=g@mail.gmail.com>
-	<20180910144152.GL10951@dhcp22.suse.cz>
-	<abf84f61-82f3-e3d5-2e6e-82a11cb5dcf5@microsoft.com>
+ <20180910131754.GG10951@dhcp22.suse.cz> <20180912150356.642c1dab@thinkpad>
+ <20180912133933.GI10951@dhcp22.suse.cz> <20180912162717.5a018bf6@thinkpad>
+In-Reply-To: <20180912162717.5a018bf6@thinkpad>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <B05514B915A5E944BDC03F796D68E222@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Message-Id: <20180912162856.697038a8@thinkpad>
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Cc: Michal Hocko <mhocko@kernel.org>, "zaslonko@linux.ibm.com" <zaslonko@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "osalvador@suse.de" <osalvador@suse.de>
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Mikhail Zaslonko <zaslonko@linux.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "osalvador@suse.de" <osalvador@suse.de>
 
-On Mon, 10 Sep 2018 15:26:55 +0000
-Pasha Tatashin <Pavel.Tatashin@microsoft.com> wrote:
-
-> 
-> I agree memoryblock is a hack, it fails to do both things it was
-> designed to do:
-> 
-> 1. On bare metal you cannot free a physical dimm of memory using
-> memoryblock granularity because memory devices do not equal to physical
-> dimms. Thus, if for some reason a particular dimm must be
-> remove/replaced, memoryblock does not help us.
-> 
-> 2. On machines with hypervisors it fails to provide an adequate
-> granularity to add/remove memory.
-> 
-> We should define a new user interface where memory can be added/removed
-> at a finer granularity: sparse section size, but without a memory
-> devices for each section. We should also provide an optional access to
-> legacy interface where memory devices are exported but each is of
-> section size.
-> 
-> So, when legacy interface is enabled, current way would work:
-> 
-> echo offline > /sys/devices/system/memory/memoryXXX/state
-> 
-> And new interface would allow us to do something like this:
-> 
-> echo offline 256M > /sys/devices/system/node/nodeXXX/memory
-> 
-> With optional start address for offline memory.
-> echo offline [start_pa] size > /sys/devices/system/node/nodeXXX/memory
-> start_pa and size must be section size aligned (128M).
-> 
-> It would probably be a good discussion for the next MM Summit how to
-> solve the current memory hotplug interface limitations.
-
-Please keep lsmem/chmem from util-linux in mind, when changing the
-memory hotplug user interface.
+DQoNCk9uIDkvMTIvMTggMTA6MjcgQU0sIEdlcmFsZCBTY2hhZWZlciB3cm90ZToNCj4gT24gV2Vk
+LCAxMiBTZXAgMjAxOCAxNTozOTozMyArMDIwMA0KPiBNaWNoYWwgSG9ja28gPG1ob2Nrb0BrZXJu
+ZWwub3JnPiB3cm90ZToNCj4gDQo+PiBPbiBXZWQgMTItMDktMTggMTU6MDM6NTYsIEdlcmFsZCBT
+Y2hhZWZlciB3cm90ZToNCj4+IFsuLi5dDQo+Pj4gQlRXLCB0aG9zZSBzeXNmcyBhdHRyaWJ1dGVz
+IGFyZSB3b3JsZC1yZWFkYWJsZSwgc28gYW55b25lIGNhbiB0cmlnZ2VyDQo+Pj4gdGhlIHBhbmlj
+IGJ5IHNpbXBseSByZWFkaW5nIHRoZW0sIG9yIGp1c3QgcnVuIGxzbWVtIChhbHNvIGF2YWlsYWJs
+ZSBmb3INCj4+PiB4ODYgc2luY2UgdXRpbC1saW51eCAyLjMyKS4gT0ssIHlvdSBuZWVkIGEgc3Bl
+Y2lhbCBub3QtbWVtb3J5LWJsb2NrLWFsaWduZWQNCj4+PiBtZW09IHBhcmFtZXRlciBhbmQgREVC
+VUdfVk0gZm9yIHBvaXNvbiBjaGVjaywgYnV0IHcvbyBERUJVR19WTSB5b3Ugd291bGQNCj4+PiBz
+dGlsbCBhY2Nlc3MgdW5pbml0aWFsaXplZCBzdHJ1Y3QgcGFnZXMuIFRoaXMgc291bmRzIHZlcnkg
+d3JvbmcsIGFuZCBJDQo+Pj4gdGhpbmsgaXQgcmVhbGx5IHNob3VsZCBiZSBmaXhlZC4gIA0KPj4N
+Cj4+IE9oaCwgYWJzb2x1dGVseS4gTm9ib2R5IGlzIHF1ZXN0aW9uaW5nIHRoYXQuIFRoZSB0aGlu
+ZyBpcyB0aGF0IHRoZQ0KPj4gY29kZSBoYXMgYmVlbiBsaWtlbHkgYWx3YXlzIGJyb2tlbi4gV2Ug
+anVzdCBoYXZlbid0IG5vdGljZWQgYmVjYXVzZQ0KPj4gdGhvc2UgdW5pdGlhbGl6ZWQgcGFydHMg
+d2hlcmUgemVyb2VkIHByZXZpb3VzbHkuIE5vdyB0aGF0IHRoZSBpbXBsaWNpdA0KPj4gemVyb3lp
+bmcgaXMgZ29uZSBpdCBpcyBqdXN0IHZpc2libGUuDQo+Pg0KPj4gQWxsIHRoYXQgSSBhbSBhcmd1
+aW5nIGlzIHRoYXQgdGhlcmUgYXJlIG1hbnkgcGxhY2VzIHdoaWNoIGFzc3VtZQ0KPj4gcGFnZWJs
+b2NrcyB0byBiZSBmdWxseSBpbml0aWFsaXplZCBhbmQgcGx1Z2dpbmcgb25lIHBsYWNlIHRoYXQg
+Ymxvd3MgdXANCj4+IGF0IHRoZSB0aW1lIGlzIGp1c3Qgd2hhY2sgYSBtb2xlLiBXZSBuZWVkIHRv
+IGFkZHJlc3MgdGhpcyBtdWNoIGVhcmxpZXIuDQo+PiBFLmcuIGJ5IGFsbG93aW5nIG9ubHkgZnVs
+bCBwYWdlYmxvY2tzIHdoZW4gYWRkaW5nIGEgbWVtb3J5IHJhbmdlLg0KPiANCj4gSnVzdCB0byBt
+YWtlIHN1cmUgd2UgYXJlIHRhbGtpbmcgYWJvdXQgdGhlIHNhbWUgdGhpbmc6IHdoZW4geW91IHNh
+eQ0KPiAicGFnZWJsb2NrcyIsIGRvIHlvdSBtZWFuIHRoZSBNQVhfT1JERVJfTlJfUEFHRVMgLyBw
+YWdlYmxvY2tfbnJfcGFnZXMNCj4gdW5pdCBvZiBwYWdlcywgb3IgZG8geW91IG1lYW4gdGhlIG1l
+bW9yeSAoaG90cGx1ZykgYmxvY2sgdW5pdD8NCg0KRnJvbSBlYXJseSBkaXNjdXNzaW9uLCBpdCB3
+YXMgYWJvdXQgcGFnZWJsb2NrX25yX3BhZ2VzIG5vdCBhYm91dA0KbWVtb3J5X2Jsb2NrX3NpemVf
+Ynl0ZXMNCg0KPiANCj4gSSBkbyBub3Qgc2VlIGFueSBpc3N1ZSBoZXJlIHdpdGggTUFYX09SREVS
+X05SX1BBR0VTIC8gcGFnZWJsb2NrX25yX3BhZ2VzDQo+IHBhZ2VibG9ja3MsIGFuZCBpZiB0aGVy
+ZSB3YXMgc3VjaCBhbiBpc3N1ZSwgb2YgY291cnNlIHlvdSBhcmUgcmlnaHQgdGhhdA0KPiB0aGlz
+IHdvdWxkIGFmZmVjdCBtYW55IHBsYWNlcy4gSWYgdGhlcmUgd2FzIHN1Y2ggYW4gaXNzdWUsIEkg
+d291bGQgYWxzbw0KPiBhc3N1bWUgdGhhdCB3ZSB3b3VsZCBzZWUgdGhlIG5ldyBwYWdlIHBvaXNv
+biB3YXJuaW5nIGluIG1hbnkgb3RoZXIgcGxhY2VzLg0KPiANCj4gVGhlIGJ1ZyB0aGF0IE1pa2hh
+aWxzIHBhdGNoIHdvdWxkIGZpeCBvbmx5IGFmZmVjdHMgY29kZSB0aGF0IG9wZXJhdGVzDQo+IG9u
+IC8gaXRlcmF0ZXMgdGhyb3VnaCBtZW1vcnkgKGhvdHBsdWcpIGJsb2NrcywgYW5kIHRoYXQgZG9l
+cyBub3QgaGFwcGVuDQo+IGluIG1hbnkgcGxhY2VzLCBvbmx5IGluIHRoZSB0d28gZnVuY3Rpb25z
+IHRoYXQgaGlzIHBhdGNoIGZpeGVzLg0KDQpKdXN0IHRvIGJlIGNsZWFyLCBzbyBtZW1vcnkgaXMg
+cGFnZWJsb2NrX25yX3BhZ2VzIGFsaWduZWQsIHlldA0KbWVtb3J5X2Jsb2NrIGFyZSBsYXJnZXIg
+YW5kIHBhbmljIGlzIHN0aWxsIHRyaWdnZXJlZD8NCg0KSSBhc2ssIGJlY2F1c2UgMzA3NU0gaXMg
+bm90IDEyOE0gYWxpZ25lZC4NCg0KPiANCj4gV2hlbiB5b3Ugc2F5ICJhZGRyZXNzIHRoaXMgbXVj
+aCBlYXJsaWVyIiwgZG8geW91IG1lYW4gY2hhbmdpbmcgdGhlIHdheQ0KPiB0aGF0IGZyZWVfYXJl
+YV9pbml0X2NvcmUoKS9tZW1tYXBfaW5pdCgpIGluaXRpYWxpemUgc3RydWN0IHBhZ2VzLCBpLmUu
+DQo+IGhhdmUgdGhlbSBub3QgdXNlIHpvbmUtPnNwYW5uZWRfcGFnZXMgYXMgbGltaXQsIGJ1dCBy
+YXRoZXIgYWxpZ24gdGhhdA0KPiB1cCB0byB0aGUgbWVtb3J5IGJsb2NrIChub3QgcGFnZWJsb2Nr
+KSBib3VuZGFyeT8NCj4gDQoNClRoaXMgd2FzIG15IGluaXRpYWwgcHJvcG9zYWwsIHRvIGZpeCBt
+ZW1tYXBfaW5pdCgpIGFuZCBpbml0aWFsaXplIHN0cnVjdA0KcGFnZXMgYmV5b25kIHRoZSAiZW5k
+IiwgYW5kIGJlZm9yZSB0aGUgInN0YXJ0IiB0byBjb3ZlciB0aGUgd2hvbGUNCnNlY3Rpb24uIEJ1
+dCwgSSB0aGluayBNaWNoYWwgc3VnZ2VzdGVkIChhbmQgaGUgbWlnaHQgY29ycmVjdCBtZSkgdG8N
+CnNpbXBseSBpZ25vcmUgdW5hbGlnbmVkIG1lbW9yeSB0byBzZWN0aW9uIG1lbW9yeSBtdWNoIGVh
+cmxpZXI6IHNvDQphbnl0aGluZyB0aGF0IGRvZXMgbm90IGFsaWduIHRvIHNwYXJzZSBvcmRlciBp
+cyBub3QgYWRkZWQgYXQgYWxsIHRvIHRoZQ0Kc3lzdGVtLg0KDQpJIHRoaW5rIE1pY2hhbCdzIHBy
+b3Bvc2FsIHdvdWxkIHNpbXBsaWZ5IGFuZCBzdHJlbmd0aGVuIG1lbW9yeSBtYXBwaW5nDQpvdmVy
+YWxsLg0KDQpQYXZlbA==
