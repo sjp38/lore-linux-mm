@@ -1,100 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A5318E0003
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 06:33:18 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id w12-v6so1747343oie.12
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 03:33:18 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id w203-v6si454067oif.130.2018.09.12.03.33.17
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F9138E0003
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 06:38:56 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id h10-v6so680615eda.9
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 03:38:56 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u35-v6si893949edc.308.2018.09.12.03.38.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Sep 2018 03:33:17 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8CAObcC069932
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 06:33:16 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mey20wrkt-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 06:33:16 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 12 Sep 2018 11:33:13 +0100
-Date: Wed, 12 Sep 2018 13:33:06 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 3/3] docs: core-api: add memory allocation guide
-References: <1534517236-16762-1-git-send-email-rppt@linux.vnet.ibm.com>
- <1534517236-16762-4-git-send-email-rppt@linux.vnet.ibm.com>
- <20180911115555.5fce5631@lwn.net>
+        Wed, 12 Sep 2018 03:38:55 -0700 (PDT)
+Date: Wed, 12 Sep 2018 12:38:53 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC] memory_hotplug: Free pages as pageblock_order
+Message-ID: <20180912103853.GC10951@dhcp22.suse.cz>
+References: <1536744405-16752-1-git-send-email-arunks@codeaurora.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180911115555.5fce5631@lwn.net>
-Message-Id: <20180912103305.GC6719@rapoport-lnx>
+In-Reply-To: <1536744405-16752-1-git-send-email-arunks@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Michal Hocko <mhocko@suse.com>, Randy Dunlap <rdunlap@infradead.org>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Arun KS <arunks@codeaurora.org>
+Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, vbabka@suse.cz, pasha.tatashin@oracle.com, iamjoonsoo.kim@lge.com, osalvador@suse.de, malat@debian.org, gregkh@linuxfoundation.org, yasu.isimatu@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, arunks.linux@gmail.com, vinmenon@codeaurora.org
 
-On Tue, Sep 11, 2018 at 11:55:55AM -0600, Jonathan Corbet wrote:
-> Sorry for being so slow to get to this...it fell into a dark crack in my
-> rickety email folder hierarchy.  I do have one question...
+On Wed 12-09-18 14:56:45, Arun KS wrote:
+> When free pages are done with pageblock_order, time spend on
+> coalescing pages by buddy allocator can be reduced. With
+> section size of 256MB, hot add latency of a single section
+> shows improvement from 50-60 ms to less than 1 ms, hence
+> improving the hot add latency by 60%.
+
+Where does the improvement come from? You are still doing the same
+amount of work except that the number of callbacks is lower. Is this the
+real source of 60% improvement?
+
 > 
-> On Fri, 17 Aug 2018 17:47:16 +0300
-> Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
-> 
-> > +    ``GFP_HIGHUSER_MOVABLE`` does not require that allocated memory
-> > +    will be directly accessible by the kernel or the hardware and
-> > +    implies that the data is movable.
-> > +
-> > +    ``GFP_HIGHUSER`` means that the allocated memory is not movable,
-> > +    but it is not required to be directly accessible by the kernel or
-> > +    the hardware. An example may be a hardware allocation that maps
-> > +    data directly into userspace but has no addressing limitations.
-> > +
-> > +    ``GFP_USER`` means that the allocated memory is not movable and it
-> > +    must be directly accessible by the kernel or the hardware. It is
-> > +    typically used by hardware for buffers that are mapped to
-> > +    userspace (e.g. graphics) that hardware still must DMA to.
-> 
-> I realize that this is copied from elsewhere, but still...as I understand
-> it, the "HIGH" part means that the allocation can be satisfied from high
-> memory, nothing more.  So...it's irrelevant on 64-bit machines to start
-> with, right?  And it has nothing to do with DMA, I would think.  That would
-> be handled by the DMA infrastructure and, perhaps, the DMA* zones.  Right?
-> 
-> I ask because high memory is an artifact of how things are laid out on
-> 32-bit systems; hardware can often DMA quite easily into memory that the
-> kernel sees as "high".  So, to me, this description seems kind of
-> confusing; I wouldn't mention hardware at all.  But maybe I'm missing
-> something?
+> If this looks okey, I'll modify users of set_online_page_callback
+> and resend clean patch.
 
-Well, I've amended the original text from gfp.h in attempt to make it more
-"user friendly". The GFP_HIGHUSER became really confusing :)
-I think that we can drop mentions of hardware from GFP_HIGHUSER_MOVABLE and
-GFP_USER, but it makes sense to leave the example in the GFP_HIGHUSER
-description.
+[...]
 
-How about:
+> +static int generic_online_pages(struct page *page, unsigned int order);
+> +static online_pages_callback_t online_pages_callback = generic_online_pages;
+> +
+> +static int generic_online_pages(struct page *page, unsigned int order)
+> +{
+> +	unsigned long nr_pages = 1 << order;
+> +	struct page *p = page;
+> +	unsigned int loop;
+> +
+> +	for (loop = 0 ; loop < nr_pages ; loop++, p++) {
+> +		__ClearPageReserved(p);
+> +		set_page_count(p, 0);
+> +	}
+> +	adjust_managed_page_count(page, nr_pages);
+> +	init_page_count(page);
+> +	__free_pages(page, order);
+> +
+> +	return 0;
+> +}
+> +
+> +static int online_pages_blocks(unsigned long start_pfn, unsigned long nr_pages)
+> +{
+> +	unsigned long pages_per_block = (1 << pageblock_order);
+> +	unsigned long nr_pageblocks = nr_pages / pages_per_block;
+> +//	unsigned long rem_pages = nr_pages % pages_per_block;
+> +	int i, ret, onlined_pages = 0;
+> +	struct page *page;
+> +
+> +	for (i = 0 ; i < nr_pageblocks ; i++) {
+> +		page = pfn_to_page(start_pfn + (i * pages_per_block));
+> +		ret = (*online_pages_callback)(page, pageblock_order);
+> +		if (!ret)
+> +			onlined_pages += pages_per_block;
+> +		else if (ret > 0)
+> +			onlined_pages += ret;
+> +	}
 
-    ``GFP_HIGHUSER_MOVABLE`` does not require that allocated memory
-    will be directly accessible by the kernel and implies that the
-    data is movable.
+Could you explain why does the pages_per_block step makes any sense? Why
+don't you simply apply handle the full nr_pages worth of memory range
+instead?
 
-    ``GFP_HIGHUSER`` means that the allocated memory is not movable,
-    but it is not required to be directly accessible by the kernel. An
-    example may be a hardware allocation that maps data directly into
-    userspace but has no addressing limitations.
-
-    ``GFP_USER`` means that the allocated memory is not movable and it
-    must be directly accessible by the kernel
-
- 
-> Thanks,
-> 
-> jon
+> +/*
+> +	if (rem_pages)
+> +		onlined_pages += online_page_single(start_pfn + i, rem_pages);
+> +*/
+> +
+> +	return onlined_pages;
+> +}
+> +
+>  static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
+>  			void *arg)
+>  {
+> -	unsigned long i;
+>  	unsigned long onlined_pages = *(unsigned long *)arg;
+> -	struct page *page;
+>  
+>  	if (PageReserved(pfn_to_page(start_pfn)))
+> -		for (i = 0; i < nr_pages; i++) {
+> -			page = pfn_to_page(start_pfn + i);
+> -			(*online_page_callback)(page);
+> -			onlined_pages++;
+> -		}
+> +		onlined_pages = online_pages_blocks(start_pfn, nr_pages);
+>  
+>  	online_mem_sections(start_pfn, start_pfn + nr_pages);
+>  
+> -- 
+> 1.9.1
 > 
 
 -- 
-Sincerely yours,
-Mike.
+Michal Hocko
+SUSE Labs
