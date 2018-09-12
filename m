@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E22DB8E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 08:41:04 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id 20-v6so2108775ois.21
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 05:41:04 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id i5-v6si615627oii.19.2018.09.12.05.41.03
-        for <linux-mm@kvack.org>;
-        Wed, 12 Sep 2018 05:41:03 -0700 (PDT)
-From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FBF48E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 08:56:21 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id q12-v6so1009718pgp.6
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 05:56:21 -0700 (PDT)
+Received: from NAM04-CO1-obe.outbound.protection.outlook.com (mail-eopbgr690081.outbound.protection.outlook.com. [40.107.69.81])
+        by mx.google.com with ESMTPS id y13-v6si1074117pgl.555.2018.09.12.05.56.19
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 12 Sep 2018 05:56:19 -0700 (PDT)
 Subject: Re: [PATCH v2 01/40] iommu: Introduce Shared Virtual Addressing API
 References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
  <20180511190641.23008-2-jean-philippe.brucker@arm.com>
@@ -21,80 +21,105 @@ References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
  <5bbc0332-b94b-75cc-ca42-a9b196811daf@amd.com>
  <20180907142504.5034351e@jacob-builder>
  <3e3a6797-a233-911b-3a7d-d9b549160960@amd.com>
-Message-ID: <9445a0be-fb5b-d195-4fdf-7ad6cb36ef4f@arm.com>
-Date: Wed, 12 Sep 2018 13:40:43 +0100
+ <9445a0be-fb5b-d195-4fdf-7ad6cb36ef4f@arm.com>
+From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
+Message-ID: <4d68da96-0ad5-b412-5987-2f7a6aa796c3@amd.com>
+Date: Wed, 12 Sep 2018 14:56:00 +0200
 MIME-Version: 1.0
-In-Reply-To: <3e3a6797-a233-911b-3a7d-d9b549160960@amd.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+In-Reply-To: <9445a0be-fb5b-d195-4fdf-7ad6cb36ef4f@arm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>
+To: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>
 Cc: Auger Eric <eric.auger@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, Will Deacon <Will.Deacon@arm.com>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "tn@semihalf.com" <tn@semihalf.com>, "joro@8bytes.org" <joro@8bytes.org>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "rfranz@cavium.com" <rfranz@cavium.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rgummal@xilinx.com" <rgummal@xilinx.com>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, Robin Murphy <Robin.Murphy@arm.com>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>, Michal Hocko <mhocko@kernel.org>
 
-On 08/09/2018 08:29, Christian KA?nig wrote:
-> Yes, exactly. I just need a PASID which is never used by the OS for a 
-> process and we can easily give that back when the last FD reference is 
-> closed.
+Am 12.09.2018 um 14:40 schrieb Jean-Philippe Brucker:
+> On 08/09/2018 08:29, Christian KA?nig wrote:
+>> Yes, exactly. I just need a PASID which is never used by the OS for a
+>> process and we can easily give that back when the last FD reference is
+>> closed.
+> Alright, iommu-sva can get its PASID from this external allocator as
+> well, as long as it has an interface similar to idr. Where would it go,
+> drivers/base/, mm/, kernel/...?
 
-Alright, iommu-sva can get its PASID from this external allocator as
-well, as long as it has an interface similar to idr. Where would it go,
-drivers/base/, mm/, kernel/...?
+Good question, my initial instinct was to put it under drivers/pci.
 
->>>> The process dies, iommu-sva is notified and calls the mm_exit()
->>>> function passed by the device driver to iommu_sva_device_init(). In
->>>> mm_exit() the device driver needs to clear any reference to the
->>>> PASID in hardware and in its own structures. When the device driver
->>>> returns from mm_exit(), it effectively tells the core that it has
->>>> finished using the PASID, and iommu-sva can reuse the PASID for
->>>> another process. mm_exit() is allowed to block, so the device
->>>> driver has time to clean up and flush the queues.
+But AFAIKS now you are supporting SVA implementations which are not 
+based on PCI.
+
+So drivers/base sounds like a good place to me.
+
+>
+>>>>> The process dies, iommu-sva is notified and calls the mm_exit()
+>>>>> function passed by the device driver to iommu_sva_device_init(). In
+>>>>> mm_exit() the device driver needs to clear any reference to the
+>>>>> PASID in hardware and in its own structures. When the device driver
+>>>>> returns from mm_exit(), it effectively tells the core that it has
+>>>>> finished using the PASID, and iommu-sva can reuse the PASID for
+>>>>> another process. mm_exit() is allowed to block, so the device
+>>>>> driver has time to clean up and flush the queues.
+>>>>>
+>>>>> If the device driver finishes using the PASID before the process
+>>>>> exits, it just calls unbind().
+>>>> Exactly that's what Michal Hocko is probably going to not like at all.
 >>>>
->>>> If the device driver finishes using the PASID before the process
->>>> exits, it just calls unbind().
->>> Exactly that's what Michal Hocko is probably going to not like at all.
->>>
->>> Can we have a different approach where each driver is informed by the
->>> mm_exit(), but needs to explicitly call unbind() before a PASID is
->>> reused?
+>>>> Can we have a different approach where each driver is informed by the
+>>>> mm_exit(), but needs to explicitly call unbind() before a PASID is
+>>>> reused?
+> It's awful from the IOMMU driver perspective. In addition to "enabled"
+> and "disabled" PASID states, you add "disabled but DMA still running
+> normally". Between that new state and "disabled", the IOMMU will be
+> flooded by translation faults (non-recoverable ones), which it needs to
+> ignore instead of reporting to the kernel. Not all IOMMUs can deal with
+> this in hardware (SMMU and VT-d can quiesce translation faults
+> per-PASID, but I don't think AMD IOMMU can.) Some drivers will have to
+> filter fault events themselves, depending on the PASID state.
 
-It's awful from the IOMMU driver perspective. In addition to "enabled"
-and "disabled" PASID states, you add "disabled but DMA still running
-normally". Between that new state and "disabled", the IOMMU will be
-flooded by translation faults (non-recoverable ones), which it needs to
-ignore instead of reporting to the kernel. Not all IOMMUs can deal with
-this in hardware (SMMU and VT-d can quiesce translation faults
-per-PASID, but I don't think AMD IOMMU can.) Some drivers will have to
-filter fault events themselves, depending on the PASID state.
+Puh, yeah that is probably true.
 
->>> During that teardown transition it would be ideal if that PASID only
->>> points to a dummy root page directory with only invalid entries.
->>>
->> I guess this can be vendor specific, In VT-d I plan to mark PASID
->> entry not present and disable fault reporting while draining remaining
->> activities.
+Ok let us skip that for a moment, we just need to invest more work in 
+killing DMA operations quickly when the process address space is teared 
+down.
+
+>>>> During that teardown transition it would be ideal if that PASID only
+>>>> points to a dummy root page directory with only invalid entries.
+>>>>
+>>> I guess this can be vendor specific, In VT-d I plan to mark PASID
+>>> entry not present and disable fault reporting while draining remaining
+>>> activities.
+>> Sounds good to me.
+>>
+>> Point is at least in the case where the process was killed by the OOM
+>> killer we should not block in mm_exit().
+>>
+>> Instead operations issued by the process to a device driver which uses
+>> SVA needs to be terminated as soon as possible to make sure that the OOM
+>> killer can advance.
+> I don't see how we're preventing the OOM killer from advancing, so I'm
+> looking for a stronger argument that justifies adding this complexity to
+> IOMMU drivers. Time limit of the release MMU notifier, locking
+> requirement, a concrete example where things break, even a comment
+> somewhere in mm/ would do...
 >
-> Sounds good to me.
-> 
-> Point is at least in the case where the process was killed by the OOM 
-> killer we should not block in mm_exit().
+> In my tests I can't manage to disturb the OOM killer, but I could be
+> missing some special case. Even if the mm_exit() callback
+> (unrealistically) sleeps for 60 seconds,
+
+Well you are *COMPLETELY* under estimating this. A compute task with a 
+huge wave launch can take multiple minutes to tear down.
+
+That's why I'm so concerned about that, but to be honest I think that 
+just the hardware needs to become better and we need to be able to block 
+dead tasks from spawning threads again.
+
+Regards,
+Christian.
+
+>   the OOM killer isn't affected
+> because oom_reap_task_mm() wipes the victim's address space in another
+> thread, either before or while the release notifier is running.
 >
-> Instead operations issued by the process to a device driver which uses 
-> SVA needs to be terminated as soon as possible to make sure that the OOM 
-> killer can advance.
-
-I don't see how we're preventing the OOM killer from advancing, so I'm
-looking for a stronger argument that justifies adding this complexity to
-IOMMU drivers. Time limit of the release MMU notifier, locking
-requirement, a concrete example where things break, even a comment
-somewhere in mm/ would do...
-
-In my tests I can't manage to disturb the OOM killer, but I could be
-missing some special case. Even if the mm_exit() callback
-(unrealistically) sleeps for 60 seconds, the OOM killer isn't affected
-because oom_reap_task_mm() wipes the victim's address space in another
-thread, either before or while the release notifier is running.
-
-Thanks,
-Jean
+> Thanks,
+> Jean
