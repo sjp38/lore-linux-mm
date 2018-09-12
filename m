@@ -1,129 +1,242 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 046938E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 11:51:57 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id w12-v6so2716048oie.12
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 08:51:56 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id z198-v6si939634oia.108.2018.09.12.08.51.55
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EDDB8E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 11:54:54 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id s14-v6so813940ioc.0
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 08:54:54 -0700 (PDT)
+Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0114.outbound.protection.outlook.com. [104.47.36.114])
+        by mx.google.com with ESMTPS id u77-v6si1126754ita.128.2018.09.12.08.54.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Sep 2018 08:51:55 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8CFicbq056904
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 11:51:54 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mf47s4xbg-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 11:51:54 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Wed, 12 Sep 2018 16:51:51 +0100
-Date: Wed, 12 Sep 2018 17:51:45 +0200
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [PATCH] memory_hotplug: fix the panic when memory end is not on
- the section boundary
-In-Reply-To: <38ce1d0b-14bd-9a4a-1061-62c366cb11b5@microsoft.com>
-References: <20180910123527.71209-1-zaslonko@linux.ibm.com>
-	<20180910131754.GG10951@dhcp22.suse.cz>
-	<20180912150356.642c1dab@thinkpad>
-	<20180912133933.GI10951@dhcp22.suse.cz>
-	<20180912162717.5a018bf6@thinkpad>
-	<38ce1d0b-14bd-9a4a-1061-62c366cb11b5@microsoft.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 12 Sep 2018 08:54:52 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Subject: Re: [PATCH 3/4] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
+Date: Wed, 12 Sep 2018 15:54:50 +0000
+Message-ID: <4d520227-52d3-6cd0-11d8-9be534097ea5@microsoft.com>
+References: <20180910232615.4068.29155.stgit@localhost.localdomain>
+ <20180910234354.4068.65260.stgit@localhost.localdomain>
+ <7b96298e-9590-befd-0670-ed0c9fcf53d5@microsoft.com>
+ <CAKgT0UdKZVUPBk=rg5kfUuFBpuZQEKPuGw31x5O2nMyuULgi0g@mail.gmail.com>
+In-Reply-To: 
+ <CAKgT0UdKZVUPBk=rg5kfUuFBpuZQEKPuGw31x5O2nMyuULgi0g@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <0C5FD6FEE291B241A87EC762C55871E3@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Message-Id: <20180912175145.7dd3513c@thinkpad>
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Mikhail Zaslonko <zaslonko@linux.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "osalvador@suse.de" <osalvador@suse.de>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Michal Hocko <mhocko@suse.com>, "dave.jiang@intel.com" <dave.jiang@intel.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, "jglisse@redhat.com" <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "logang@deltatee.com" <logang@deltatee.com>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, 12 Sep 2018 14:40:18 +0000
-Pasha Tatashin <Pavel.Tatashin@microsoft.com> wrote:
-
-> On 9/12/18 10:27 AM, Gerald Schaefer wrote:
-> > On Wed, 12 Sep 2018 15:39:33 +0200
-> > Michal Hocko <mhocko@kernel.org> wrote:
-> >   
-> >> On Wed 12-09-18 15:03:56, Gerald Schaefer wrote:
-> >> [...]  
-> >>> BTW, those sysfs attributes are world-readable, so anyone can trigger
-> >>> the panic by simply reading them, or just run lsmem (also available for
-> >>> x86 since util-linux 2.32). OK, you need a special not-memory-block-aligned
-> >>> mem= parameter and DEBUG_VM for poison check, but w/o DEBUG_VM you would
-> >>> still access uninitialized struct pages. This sounds very wrong, and I
-> >>> think it really should be fixed.    
-> >>
-> >> Ohh, absolutely. Nobody is questioning that. The thing is that the
-> >> code has been likely always broken. We just haven't noticed because
-> >> those unitialized parts where zeroed previously. Now that the implicit
-> >> zeroying is gone it is just visible.
-> >>
-> >> All that I am arguing is that there are many places which assume
-> >> pageblocks to be fully initialized and plugging one place that blows up
-> >> at the time is just whack a mole. We need to address this much earlier.
-> >> E.g. by allowing only full pageblocks when adding a memory range.  
-> > 
-> > Just to make sure we are talking about the same thing: when you say
-> > "pageblocks", do you mean the MAX_ORDER_NR_PAGES / pageblock_nr_pages
-> > unit of pages, or do you mean the memory (hotplug) block unit?  
-> 
-> From early discussion, it was about pageblock_nr_pages not about
-> memory_block_size_bytes
-> 
-> > 
-> > I do not see any issue here with MAX_ORDER_NR_PAGES / pageblock_nr_pages
-> > pageblocks, and if there was such an issue, of course you are right that
-> > this would affect many places. If there was such an issue, I would also
-> > assume that we would see the new page poison warning in many other places.
-> > 
-> > The bug that Mikhails patch would fix only affects code that operates
-> > on / iterates through memory (hotplug) blocks, and that does not happen
-> > in many places, only in the two functions that his patch fixes.  
-> 
-> Just to be clear, so memory is pageblock_nr_pages aligned, yet
-> memory_block are larger and panic is still triggered?
-> 
-> I ask, because 3075M is not 128M aligned.
-
-Correct, 3075M is pageblock aligned (at least on s390), but not memory
-block aligned (256 MB on s390). And the "not memory block aligned" is the
-reason for the panic, because at least the two memory hotplug functions
-seem to rely on completely initialized struct pages for a memory block.
-In this scenario we don't have any partly initialized pageblocks.
-
-While thinking about this, with mem= it may actually be possible to also
-create a not-pageblock-aligned scenario, e.g. with mem=2097148K. I didn't
-try this and I thought that at least pageblock-alignment would always be
-present, but from a quick glance at the mem= parsing it should actually
-be possible to also create such a scenario. Then we really would have
-partly initialized pageblocks, and maybe other problems would occur.
-
-> 
-> > 
-> > When you say "address this much earlier", do you mean changing the way
-> > that free_area_init_core()/memmap_init() initialize struct pages, i.e.
-> > have them not use zone->spanned_pages as limit, but rather align that
-> > up to the memory block (not pageblock) boundary?
-> >   
-> 
-> This was my initial proposal, to fix memmap_init() and initialize struct
-> pages beyond the "end", and before the "start" to cover the whole
-> section. But, I think Michal suggested (and he might correct me) to
-> simply ignore unaligned memory to section memory much earlier: so
-> anything that does not align to sparse order is not added at all to the
-> system.
-> 
-> I think Michal's proposal would simplify and strengthen memory mapping
-> overall.
-
-Of course it would be better to fix this in one place by providing
-proper alignment, but to what unit, pageblock, section, memory block?
-I was just confused by the pageblock discussion, because in the current
-scenario we do not have any pageblock issues, and pageblock alignment
-would also not help here. section alignment probably would, even though a
-memory block can contain multiple sections, at least the memory hotplug
-valid_zones/removable sysfs handlers seem to check for present sections
-first, before accessing the struct pages.
+DQoNCk9uIDkvMTIvMTggMTE6NDggQU0sIEFsZXhhbmRlciBEdXljayB3cm90ZToNCj4gT24gV2Vk
+LCBTZXAgMTIsIDIwMTggYXQgNjo1OSBBTSBQYXNoYSBUYXRhc2hpbg0KPiA8UGF2ZWwuVGF0YXNo
+aW5AbWljcm9zb2Z0LmNvbT4gd3JvdGU6DQo+Pg0KPj4gSGkgQWxleCwNCj4gDQo+IEhpIFBhdmVs
+LA0KPiANCj4+IFBsZWFzZSByZS1iYXNlIG9uIGxpbnV4LW5leHQsICBtZW1tYXBfaW5pdF96b25l
+KCkgaGFzIGJlZW4gdXBkYXRlZCB0aGVyZQ0KPj4gY29tcGFyZWQgdG8gbWFpbmxpbmUuIFlvdSBt
+aWdodCBldmVuIGZpbmQgYSB3YXkgdG8gdW5pZnkgc29tZSBwYXJ0cyBvZg0KPj4gbWVtbWFwX2lu
+aXRfem9uZSBhbmQgbWVtbWFwX2luaXRfem9uZV9kZXZpY2UgYXMgbWVtbWFwX2luaXRfem9uZSgp
+IGlzIGENCj4+IGxvdCBzaW1wbGVyIG5vdy4NCj4gDQo+IFRoaXMgcGF0Y2ggYXBwbGllZCB0byB0
+aGUgbGludXgtbmV4dCB0cmVlIHdpdGggb25seSBhIGxpdHRsZSBiaXQgb2YNCj4gZnV6ei4gSXQg
+bG9va3MgbGlrZSBpdCBpcyBtb3N0bHkgZHVlIHRvIHNvbWUgY29kZSB5b3UgaGFkIGFkZGVkIGFi
+b3ZlDQo+IHRoZSBmdW5jdGlvbiBhcyB3ZWxsLiBJIGhhdmUgdXBkYXRlZCB0aGlzIHBhdGNoIHNv
+IHRoYXQgaXQgd2lsbCBhcHBseQ0KPiB0byBib3RoIGxpbnV4IGFuZCBsaW51eC1uZXh0IGJ5IGp1
+c3QgbW92aW5nIHRoZSBuZXcgZnVuY3Rpb24gdG8NCj4gdW5kZXJuZWF0aCBtZW1tYXBfaW5pdF96
+b25lIGluc3RlYWQgb2YgYWJvdmUgaXQuDQo+IA0KPj4gSSB0aGluayBfX2luaXRfc2luZ2xlX3Bh
+Z2UoKSBzaG91bGQgc3RheSBsb2NhbCB0byBwYWdlX2FsbG9jLmMgdG8ga2VlcA0KPj4gdGhlIGlu
+bGluaW5nIG9wdGltaXphdGlvbi4NCj4gDQo+IEkgYWdyZWUuIEluIGFkZGl0aW9uIGl0IHdpbGwg
+bWFrZSBwdWxsaW5nIGNvbW1vbiBpbml0IHRvZ2V0aGVyIGludG8NCj4gb25lIHNwYWNlIGVhc2ll
+ci4gSSB3b3VsZCByYXRoZXIgbm90IGhhdmUgdXMgY3JlYXRlIGFuIG9wcG9ydHVuaXR5IGZvcg0K
+PiB0aGluZ3MgdG8gZnVydGhlciBkaXZlcmdlIGJ5IG1ha2luZyBpdCBhdmFpbGFibGUgZm9yIGFu
+eWJvZHkgdG8gdXNlLg0KPiANCj4+IEkgd2lsbCByZXZpZXcgeW91IHRoaXMgcGF0Y2ggb25jZSB5
+b3Ugc2VuZCBhbiB1cGRhdGVkIHZlcnNpb24uDQo+IA0KPiBPdGhlciB0aGFuIG1vdmluZyB0aGUg
+bmV3IGZ1bmN0aW9uIGZyb20gYmVpbmcgYWRkZWQgYWJvdmUgdmVyc3VzIGJlbG93DQo+IHRoZXJl
+IGlzbid0IG11Y2ggZWxzZSB0aGF0IG5lZWRzIHRvIGNoYW5nZSwgYXQgbGVhc3QgZm9yIHRoaXMg
+cGF0Y2guIEkNCj4gaGF2ZSBzb21lIGZvbGxvdy11cCBwYXRjaGVzIEkgYW0gcGxhbm5pbmcgdGhh
+dCB3aWxsIGJlIHRhcmdldGVkIGZvcg0KPiBsaW51eC1uZXh0LiBUaG9zZSBJIHRoaW5rIHdpbGwg
+Zm9jdXMgbW9yZSBvbiB3aGF0IHlvdSBoYXZlIGluIG1pbmQgaW4NCj4gdGVybXMgb2YgY29tYmlu
+aW5nIHRoaXMgbmV3IGZ1bmN0aW9uDQoNCkhpIEFsZXgsDQoNCkknZCBsaWtlIHNlZSB0aGUgY29t
+YmluaW5nIHRvIGJlIHBhcnQgb2YgdGhlIHNhbWUgc2VyaWVzLiBNYXkgYmUgdGhpcw0KcGF0Y2gg
+Y2FuIGJlIHB1bGxlZCBmcm9tIHRoaXMgc2VyaWVzIGFuZCBtZXJnZWQgd2l0aCB5b3VyIHVwY29t
+aW5nDQpwYXRjaGVzIHNlcmllcz8NCg0KVGhhbmsgeW91LA0KUGF2ZWwNCg0KPiANCj4+IFRoYW5r
+IHlvdSwNCj4+IFBhdmVsDQo+IA0KPiBUaGFua3MsDQo+IC0gQWxleA0KPiANCj4+IE9uIDkvMTAv
+MTggNzo0MyBQTSwgQWxleGFuZGVyIER1eWNrIHdyb3RlOg0KPj4+IEZyb206IEFsZXhhbmRlciBE
+dXljayA8YWxleGFuZGVyLmguZHV5Y2tAaW50ZWwuY29tPg0KPj4+DQo+Pj4gVGhlIFpPTkVfREVW
+SUNFIHBhZ2VzIHdlcmUgYmVpbmcgaW5pdGlhbGl6ZWQgaW4gdHdvIGxvY2F0aW9ucy4gT25lIHdh
+cyB3aXRoDQo+Pj4gdGhlIG1lbW9yeV9ob3RwbHVnIGxvY2sgaGVsZCBhbmQgYW5vdGhlciB3YXMg
+b3V0c2lkZSBvZiB0aGF0IGxvY2suIFRoZQ0KPj4+IHByb2JsZW0gd2l0aCB0aGlzIGlzIHRoYXQg
+aXQgd2FzIG5lYXJseSBkb3VibGluZyB0aGUgbWVtb3J5IGluaXRpYWxpemF0aW9uDQo+Pj4gdGlt
+ZS4gSW5zdGVhZCBvZiBkb2luZyB0aGlzIHR3aWNlLCBvbmNlIHdoaWxlIGhvbGRpbmcgYSBnbG9i
+YWwgbG9jayBhbmQNCj4+PiBvbmNlIHdpdGhvdXQsIEkgYW0gb3B0aW5nIHRvIGRlZmVyIHRoZSBp
+bml0aWFsaXphdGlvbiB0byB0aGUgb25lIG91dHNpZGUgb2YNCj4+PiB0aGUgbG9jay4gVGhpcyBh
+bGxvd3MgdXMgdG8gYXZvaWQgc2VyaWFsaXppbmcgdGhlIG92ZXJoZWFkIGZvciBtZW1vcnkgaW5p
+dA0KPj4+IGFuZCB3ZSBjYW4gaW5zdGVhZCBmb2N1cyBvbiBwZXItbm9kZSBpbml0IHRpbWVzLg0K
+Pj4+DQo+Pj4gT25lIGlzc3VlIEkgZW5jb3VudGVyZWQgaXMgdGhhdCBkZXZtX21lbXJlbWFwX3Bh
+Z2VzIGFuZA0KPj4+IGhtbV9kZXZtbWVtX3BhZ2VzX2NyZWF0ZSB3ZXJlIGluaXRpYWxpemluZyBv
+bmx5IHRoZSBwZ21hcCBmaWVsZCB0aGUgc2FtZQ0KPj4+IHdheS4gT25lIHdhc24ndCBpbml0aWFs
+aXppbmcgaG1tX2RhdGEsIGFuZCB0aGUgb3RoZXIgd2FzIGluaXRpYWxpemluZyBpdCB0bw0KPj4+
+IGEgcG9pc29uIHZhbHVlLiBTaW5jZSB0aGlzIGlzIHNvbWV0aGluZyB0aGF0IGlzIGV4cG9zZWQg
+dG8gdGhlIGRyaXZlciBpbg0KPj4+IHRoZSBjYXNlIG9mIGhtbSBJIGFtIG9wdGluZyBmb3IgYSB0
+aGlyZCBvcHRpb24gYW5kIGp1c3QgaW5pdGlhbGl6aW5nDQo+Pj4gaG1tX2RhdGEgdG8gMCBzaW5j
+ZSB0aGlzIGlzIGdvaW5nIHRvIGJlIGV4cG9zZWQgdG8gdW5rbm93biB0aGlyZCBwYXJ0eQ0KPj4+
+IGRyaXZlcnMuDQo+Pj4NCj4+PiBTaWduZWQtb2ZmLWJ5OiBBbGV4YW5kZXIgRHV5Y2sgPGFsZXhh
+bmRlci5oLmR1eWNrQGludGVsLmNvbT4NCj4+PiAtLS0NCj4+PiAgaW5jbHVkZS9saW51eC9tbS5o
+IHwgICAgMiArDQo+Pj4gIGtlcm5lbC9tZW1yZW1hcC5jICB8ICAgMjQgKysrKystLS0tLS0tLS0N
+Cj4+PiAgbW0vaG1tLmMgICAgICAgICAgIHwgICAxMiArKysrLS0tDQo+Pj4gIG1tL3BhZ2VfYWxs
+b2MuYyAgICB8ICAgODkgKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysr
+KysrKysrKysrLQ0KPj4+ICA0IGZpbGVzIGNoYW5nZWQsIDEwNSBpbnNlcnRpb25zKCspLCAyMiBk
+ZWxldGlvbnMoLSkNCj4+Pg0KPj4+IGRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L21tLmggYi9p
+bmNsdWRlL2xpbnV4L21tLmgNCj4+PiBpbmRleCBhNjFlYmU4YWQ0Y2EuLjQ3YjQ0MGJiMzA1MCAx
+MDA2NDQNCj4+PiAtLS0gYS9pbmNsdWRlL2xpbnV4L21tLmgNCj4+PiArKysgYi9pbmNsdWRlL2xp
+bnV4L21tLmgNCj4+PiBAQCAtODQ4LDYgKzg0OCw4IEBAIHN0YXRpYyBpbmxpbmUgYm9vbCBpc196
+b25lX2RldmljZV9wYWdlKGNvbnN0IHN0cnVjdCBwYWdlICpwYWdlKQ0KPj4+ICB7DQo+Pj4gICAg
+ICAgcmV0dXJuIHBhZ2Vfem9uZW51bShwYWdlKSA9PSBaT05FX0RFVklDRTsNCj4+PiAgfQ0KPj4+
+ICtleHRlcm4gdm9pZCBtZW1tYXBfaW5pdF96b25lX2RldmljZShzdHJ1Y3Qgem9uZSAqLCB1bnNp
+Z25lZCBsb25nLA0KPj4+ICsgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB1bnNpZ25l
+ZCBsb25nLCBzdHJ1Y3QgZGV2X3BhZ2VtYXAgKik7DQo+Pj4gICNlbHNlDQo+Pj4gIHN0YXRpYyBp
+bmxpbmUgYm9vbCBpc196b25lX2RldmljZV9wYWdlKGNvbnN0IHN0cnVjdCBwYWdlICpwYWdlKQ0K
+Pj4+ICB7DQo+Pj4gZGlmZiAtLWdpdCBhL2tlcm5lbC9tZW1yZW1hcC5jIGIva2VybmVsL21lbXJl
+bWFwLmMNCj4+PiBpbmRleCA1Yjg2MDBkMzk5MzEuLmQwYzMyZTQ3M2Y4MiAxMDA2NDQNCj4+PiAt
+LS0gYS9rZXJuZWwvbWVtcmVtYXAuYw0KPj4+ICsrKyBiL2tlcm5lbC9tZW1yZW1hcC5jDQo+Pj4g
+QEAgLTE3NSwxMCArMTc1LDEwIEBAIHZvaWQgKmRldm1fbWVtcmVtYXBfcGFnZXMoc3RydWN0IGRl
+dmljZSAqZGV2LCBzdHJ1Y3QgZGV2X3BhZ2VtYXAgKnBnbWFwKQ0KPj4+ICAgICAgIHN0cnVjdCB2
+bWVtX2FsdG1hcCAqYWx0bWFwID0gcGdtYXAtPmFsdG1hcF92YWxpZCA/DQo+Pj4gICAgICAgICAg
+ICAgICAgICAgICAgICZwZ21hcC0+YWx0bWFwIDogTlVMTDsNCj4+PiAgICAgICBzdHJ1Y3QgcmVz
+b3VyY2UgKnJlcyA9ICZwZ21hcC0+cmVzOw0KPj4+IC0gICAgIHVuc2lnbmVkIGxvbmcgcGZuLCBw
+Z29mZiwgb3JkZXI7DQo+Pj4gKyAgICAgc3RydWN0IGRldl9wYWdlbWFwICpjb25mbGljdF9wZ21h
+cDsNCj4+PiAgICAgICBwZ3Byb3RfdCBwZ3Byb3QgPSBQQUdFX0tFUk5FTDsNCj4+PiArICAgICB1
+bnNpZ25lZCBsb25nIHBnb2ZmLCBvcmRlcjsNCj4+PiAgICAgICBpbnQgZXJyb3IsIG5pZCwgaXNf
+cmFtOw0KPj4+IC0gICAgIHN0cnVjdCBkZXZfcGFnZW1hcCAqY29uZmxpY3RfcGdtYXA7DQo+Pj4N
+Cj4+PiAgICAgICBhbGlnbl9zdGFydCA9IHJlcy0+c3RhcnQgJiB+KFNFQ1RJT05fU0laRSAtIDEp
+Ow0KPj4+ICAgICAgIGFsaWduX3NpemUgPSBBTElHTihyZXMtPnN0YXJ0ICsgcmVzb3VyY2Vfc2l6
+ZShyZXMpLCBTRUNUSU9OX1NJWkUpDQo+Pj4gQEAgLTI1NiwxOSArMjU2LDEzIEBAIHZvaWQgKmRl
+dm1fbWVtcmVtYXBfcGFnZXMoc3RydWN0IGRldmljZSAqZGV2LCBzdHJ1Y3QgZGV2X3BhZ2VtYXAg
+KnBnbWFwKQ0KPj4+ICAgICAgIGlmIChlcnJvcikNCj4+PiAgICAgICAgICAgICAgIGdvdG8gZXJy
+X2FkZF9tZW1vcnk7DQo+Pj4NCj4+PiAtICAgICBmb3JfZWFjaF9kZXZpY2VfcGZuKHBmbiwgcGdt
+YXApIHsNCj4+PiAtICAgICAgICAgICAgIHN0cnVjdCBwYWdlICpwYWdlID0gcGZuX3RvX3BhZ2Uo
+cGZuKTsNCj4+PiAtDQo+Pj4gLSAgICAgICAgICAgICAvKg0KPj4+IC0gICAgICAgICAgICAgICog
+Wk9ORV9ERVZJQ0UgcGFnZXMgdW5pb24gLT5scnUgd2l0aCBhIC0+cGdtYXAgYmFjaw0KPj4+IC0g
+ICAgICAgICAgICAgICogcG9pbnRlci4gIEl0IGlzIGEgYnVnIGlmIGEgWk9ORV9ERVZJQ0UgcGFn
+ZSBpcyBldmVyDQo+Pj4gLSAgICAgICAgICAgICAgKiBmcmVlZCBvciBwbGFjZWQgb24gYSBkcml2
+ZXItcHJpdmF0ZSBsaXN0LiAgU2VlZCB0aGUNCj4+PiAtICAgICAgICAgICAgICAqIHN0b3JhZ2Ug
+d2l0aCBMSVNUX1BPSVNPTiogdmFsdWVzLg0KPj4+IC0gICAgICAgICAgICAgICovDQo+Pj4gLSAg
+ICAgICAgICAgICBsaXN0X2RlbCgmcGFnZS0+bHJ1KTsNCj4+PiAtICAgICAgICAgICAgIHBhZ2Ut
+PnBnbWFwID0gcGdtYXA7DQo+Pj4gLSAgICAgICAgICAgICBwZXJjcHVfcmVmX2dldChwZ21hcC0+
+cmVmKTsNCj4+PiAtICAgICB9DQo+Pj4gKyAgICAgLyoNCj4+PiArICAgICAgKiBJbml0aWFsaXph
+dGlvbiBvZiB0aGUgcGFnZXMgaGFzIGJlZW4gZGVmZXJyZWQgdW50aWwgbm93IGluIG9yZGVyDQo+
+Pj4gKyAgICAgICogdG8gYWxsb3cgdXMgdG8gZG8gdGhlIHdvcmsgd2hpbGUgbm90IGhvbGRpbmcg
+dGhlIGhvdHBsdWcgbG9jay4NCj4+PiArICAgICAgKi8NCj4+PiArICAgICBtZW1tYXBfaW5pdF96
+b25lX2RldmljZSgmTk9ERV9EQVRBKG5pZCktPm5vZGVfem9uZXNbWk9ORV9ERVZJQ0VdLA0KPj4+
+ICsgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGFsaWduX3N0YXJ0ID4+IFBBR0VfU0hJRlQs
+DQo+Pj4gKyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgYWxpZ25fc2l6ZSA+PiBQQUdFX1NI
+SUZULCBwZ21hcCk7DQo+Pj4NCj4+PiAgICAgICBkZXZtX2FkZF9hY3Rpb24oZGV2LCBkZXZtX21l
+bXJlbWFwX3BhZ2VzX3JlbGVhc2UsIHBnbWFwKTsNCj4+Pg0KPj4+IGRpZmYgLS1naXQgYS9tbS9o
+bW0uYyBiL21tL2htbS5jDQo+Pj4gaW5kZXggYzk2OGU0OWY3YTBjLi43NzRkNjg0ZmEyYjQgMTAw
+NjQ0DQo+Pj4gLS0tIGEvbW0vaG1tLmMNCj4+PiArKysgYi9tbS9obW0uYw0KPj4+IEBAIC0xMDI0
+LDcgKzEwMjQsNiBAQCBzdGF0aWMgaW50IGhtbV9kZXZtZW1fcGFnZXNfY3JlYXRlKHN0cnVjdCBo
+bW1fZGV2bWVtICpkZXZtZW0pDQo+Pj4gICAgICAgcmVzb3VyY2Vfc2l6ZV90IGtleSwgYWxpZ25f
+c3RhcnQsIGFsaWduX3NpemUsIGFsaWduX2VuZDsNCj4+PiAgICAgICBzdHJ1Y3QgZGV2aWNlICpk
+ZXZpY2UgPSBkZXZtZW0tPmRldmljZTsNCj4+PiAgICAgICBpbnQgcmV0LCBuaWQsIGlzX3JhbTsN
+Cj4+PiAtICAgICB1bnNpZ25lZCBsb25nIHBmbjsNCj4+Pg0KPj4+ICAgICAgIGFsaWduX3N0YXJ0
+ID0gZGV2bWVtLT5yZXNvdXJjZS0+c3RhcnQgJiB+KFBBX1NFQ1RJT05fU0laRSAtIDEpOw0KPj4+
+ICAgICAgIGFsaWduX3NpemUgPSBBTElHTihkZXZtZW0tPnJlc291cmNlLT5zdGFydCArDQo+Pj4g
+QEAgLTExMDksMTEgKzExMDgsMTQgQEAgc3RhdGljIGludCBobW1fZGV2bWVtX3BhZ2VzX2NyZWF0
+ZShzdHJ1Y3QgaG1tX2Rldm1lbSAqZGV2bWVtKQ0KPj4+ICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgIGFsaWduX3NpemUgPj4gUEFHRV9TSElGVCwgTlVMTCk7DQo+Pj4gICAgICAgbWVtX2hv
+dHBsdWdfZG9uZSgpOw0KPj4+DQo+Pj4gLSAgICAgZm9yIChwZm4gPSBkZXZtZW0tPnBmbl9maXJz
+dDsgcGZuIDwgZGV2bWVtLT5wZm5fbGFzdDsgcGZuKyspIHsNCj4+PiAtICAgICAgICAgICAgIHN0
+cnVjdCBwYWdlICpwYWdlID0gcGZuX3RvX3BhZ2UocGZuKTsNCj4+PiArICAgICAvKg0KPj4+ICsg
+ICAgICAqIEluaXRpYWxpemF0aW9uIG9mIHRoZSBwYWdlcyBoYXMgYmVlbiBkZWZlcnJlZCB1bnRp
+bCBub3cgaW4gb3JkZXINCj4+PiArICAgICAgKiB0byBhbGxvdyB1cyB0byBkbyB0aGUgd29yayB3
+aGlsZSBub3QgaG9sZGluZyB0aGUgaG90cGx1ZyBsb2NrLg0KPj4+ICsgICAgICAqLw0KPj4+ICsg
+ICAgIG1lbW1hcF9pbml0X3pvbmVfZGV2aWNlKCZOT0RFX0RBVEEobmlkKS0+bm9kZV96b25lc1ta
+T05FX0RFVklDRV0sDQo+Pj4gKyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgYWxpZ25fc3Rh
+cnQgPj4gUEFHRV9TSElGVCwNCj4+PiArICAgICAgICAgICAgICAgICAgICAgICAgICAgICBhbGln
+bl9zaXplID4+IFBBR0VfU0hJRlQsICZkZXZtZW0tPnBhZ2VtYXApOw0KPj4+DQo+Pj4gLSAgICAg
+ICAgICAgICBwYWdlLT5wZ21hcCA9ICZkZXZtZW0tPnBhZ2VtYXA7DQo+Pj4gLSAgICAgfQ0KPj4+
+ICAgICAgIHJldHVybiAwOw0KPj4+DQo+Pj4gIGVycm9yX2FkZF9tZW1vcnk6DQo+Pj4gZGlmZiAt
+LWdpdCBhL21tL3BhZ2VfYWxsb2MuYyBiL21tL3BhZ2VfYWxsb2MuYw0KPj4+IGluZGV4IGE5YjA5
+NWE3MmZkOS4uODFhM2ZkOTQyYzQ1IDEwMDY0NA0KPj4+IC0tLSBhL21tL3BhZ2VfYWxsb2MuYw0K
+Pj4+ICsrKyBiL21tL3BhZ2VfYWxsb2MuYw0KPj4+IEBAIC01NDU0LDYgKzU0NTQsODMgQEAgdm9p
+ZCBfX3JlZiBidWlsZF9hbGxfem9uZWxpc3RzKHBnX2RhdGFfdCAqcGdkYXQpDQo+Pj4gICNlbmRp
+Zg0KPj4+ICB9DQo+Pj4NCj4+PiArI2lmZGVmIENPTkZJR19aT05FX0RFVklDRQ0KPj4+ICt2b2lk
+IF9fcmVmIG1lbW1hcF9pbml0X3pvbmVfZGV2aWNlKHN0cnVjdCB6b25lICp6b25lLCB1bnNpZ25l
+ZCBsb25nIHBmbiwNCj4+PiArICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB1bnNpZ25l
+ZCBsb25nIHNpemUsDQo+Pj4gKyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc3RydWN0
+IGRldl9wYWdlbWFwICpwZ21hcCkNCj4+PiArew0KPj4+ICsgICAgIHN0cnVjdCBwZ2xpc3RfZGF0
+YSAqcGdkYXQgPSB6b25lLT56b25lX3BnZGF0Ow0KPj4+ICsgICAgIHVuc2lnbmVkIGxvbmcgem9u
+ZV9pZHggPSB6b25lX2lkeCh6b25lKTsNCj4+PiArICAgICB1bnNpZ25lZCBsb25nIGVuZF9wZm4g
+PSBwZm4gKyBzaXplOw0KPj4+ICsgICAgIHVuc2lnbmVkIGxvbmcgc3RhcnQgPSBqaWZmaWVzOw0K
+Pj4+ICsgICAgIGludCBuaWQgPSBwZ2RhdC0+bm9kZV9pZDsNCj4+PiArICAgICB1bnNpZ25lZCBs
+b25nIG5yX3BhZ2VzOw0KPj4+ICsNCj4+PiArICAgICBpZiAoV0FSTl9PTl9PTkNFKCFwZ21hcCB8
+fCAhaXNfZGV2X3pvbmUoem9uZSkpKQ0KPj4+ICsgICAgICAgICAgICAgcmV0dXJuOw0KPj4+ICsN
+Cj4+PiArICAgICAvKg0KPj4+ICsgICAgICAqIFRoZSBjYWxsIHRvIG1lbW1hcF9pbml0X3pvbmUg
+c2hvdWxkIGhhdmUgYWxyZWFkeSB0YWtlbiBjYXJlDQo+Pj4gKyAgICAgICogb2YgdGhlIHBhZ2Vz
+IHJlc2VydmVkIGZvciB0aGUgbWVtbWFwLCBzbyB3ZSBjYW4ganVzdCBqdW1wIHRvDQo+Pj4gKyAg
+ICAgICogdGhlIGVuZCBvZiB0aGF0IHJlZ2lvbiBhbmQgc3RhcnQgcHJvY2Vzc2luZyB0aGUgZGV2
+aWNlIHBhZ2VzLg0KPj4+ICsgICAgICAqLw0KPj4+ICsgICAgIGlmIChwZ21hcC0+YWx0bWFwX3Zh
+bGlkKSB7DQo+Pj4gKyAgICAgICAgICAgICBzdHJ1Y3Qgdm1lbV9hbHRtYXAgKmFsdG1hcCA9ICZw
+Z21hcC0+YWx0bWFwOw0KPj4+ICsNCj4+PiArICAgICAgICAgICAgIHBmbiA9IGFsdG1hcC0+YmFz
+ZV9wZm4gKyB2bWVtX2FsdG1hcF9vZmZzZXQoYWx0bWFwKTsNCj4+PiArICAgICB9DQo+Pj4gKw0K
+Pj4+ICsgICAgIC8qIFJlY29yZCB0aGUgbnVtYmVyIG9mIHBhZ2VzIHdlIGFyZSBhYm91dCB0byBp
+bml0aWFsaXplICovDQo+Pj4gKyAgICAgbnJfcGFnZXMgPSBlbmRfcGZuIC0gcGZuOw0KPj4+ICsN
+Cj4+PiArICAgICBmb3IgKDsgcGZuIDwgZW5kX3BmbjsgcGZuKyspIHsNCj4+PiArICAgICAgICAg
+ICAgIHN0cnVjdCBwYWdlICpwYWdlID0gcGZuX3RvX3BhZ2UocGZuKTsNCj4+PiArDQo+Pj4gKyAg
+ICAgICAgICAgICBfX2luaXRfc2luZ2xlX3BhZ2UocGFnZSwgcGZuLCB6b25lX2lkeCwgbmlkKTsN
+Cj4+PiArDQo+Pj4gKyAgICAgICAgICAgICAvKg0KPj4+ICsgICAgICAgICAgICAgICogTWFyayBw
+YWdlIHJlc2VydmVkIGFzIGl0IHdpbGwgbmVlZCB0byB3YWl0IGZvciBvbmxpbmluZw0KPj4+ICsg
+ICAgICAgICAgICAgICogcGhhc2UgZm9yIGl0IHRvIGJlIGZ1bGx5IGFzc29jaWF0ZWQgd2l0aCBh
+IHpvbmUuDQo+Pj4gKyAgICAgICAgICAgICAgKg0KPj4+ICsgICAgICAgICAgICAgICogV2UgY2Fu
+IHVzZSB0aGUgbm9uLWF0b21pYyBfX3NldF9iaXQgb3BlcmF0aW9uIGZvciBzZXR0aW5nDQo+Pj4g
+KyAgICAgICAgICAgICAgKiB0aGUgZmxhZyBhcyB3ZSBhcmUgc3RpbGwgaW5pdGlhbGl6aW5nIHRo
+ZSBwYWdlcy4NCj4+PiArICAgICAgICAgICAgICAqLw0KPj4+ICsgICAgICAgICAgICAgX19TZXRQ
+YWdlUmVzZXJ2ZWQocGFnZSk7DQo+Pj4gKw0KPj4+ICsgICAgICAgICAgICAgLyoNCj4+PiArICAg
+ICAgICAgICAgICAqIFpPTkVfREVWSUNFIHBhZ2VzIHVuaW9uIC0+bHJ1IHdpdGggYSAtPnBnbWFw
+IGJhY2sNCj4+PiArICAgICAgICAgICAgICAqIHBvaW50ZXIgYW5kIGhtbV9kYXRhLiAgSXQgaXMg
+YSBidWcgaWYgYSBaT05FX0RFVklDRQ0KPj4+ICsgICAgICAgICAgICAgICogcGFnZSBpcyBldmVy
+IGZyZWVkIG9yIHBsYWNlZCBvbiBhIGRyaXZlci1wcml2YXRlIGxpc3QuDQo+Pj4gKyAgICAgICAg
+ICAgICAgKi8NCj4+PiArICAgICAgICAgICAgIHBhZ2UtPnBnbWFwID0gcGdtYXA7DQo+Pj4gKyAg
+ICAgICAgICAgICBwYWdlLT5obW1fZGF0YSA9IDA7DQo+Pj4gKw0KPj4+ICsgICAgICAgICAgICAg
+LyoNCj4+PiArICAgICAgICAgICAgICAqIE1hcmsgdGhlIGJsb2NrIG1vdmFibGUgc28gdGhhdCBi
+bG9ja3MgYXJlIHJlc2VydmVkIGZvcg0KPj4+ICsgICAgICAgICAgICAgICogbW92YWJsZSBhdCBz
+dGFydHVwLiBUaGlzIHdpbGwgZm9yY2Uga2VybmVsIGFsbG9jYXRpb25zDQo+Pj4gKyAgICAgICAg
+ICAgICAgKiB0byByZXNlcnZlIHRoZWlyIGJsb2NrcyByYXRoZXIgdGhhbiBsZWFraW5nIHRocm91
+Z2hvdXQNCj4+PiArICAgICAgICAgICAgICAqIHRoZSBhZGRyZXNzIHNwYWNlIGR1cmluZyBib290
+IHdoZW4gbWFueSBsb25nLWxpdmVkDQo+Pj4gKyAgICAgICAgICAgICAgKiBrZXJuZWwgYWxsb2Nh
+dGlvbnMgYXJlIG1hZGUuDQo+Pj4gKyAgICAgICAgICAgICAgKg0KPj4+ICsgICAgICAgICAgICAg
+ICogYml0bWFwIGlzIGNyZWF0ZWQgZm9yIHpvbmUncyB2YWxpZCBwZm4gcmFuZ2UuIGJ1dCBtZW1t
+YXANCj4+PiArICAgICAgICAgICAgICAqIGNhbiBiZSBjcmVhdGVkIGZvciBpbnZhbGlkIHBhZ2Vz
+IChmb3IgYWxpZ25tZW50KQ0KPj4+ICsgICAgICAgICAgICAgICogY2hlY2sgaGVyZSBub3QgdG8g
+Y2FsbCBzZXRfcGFnZWJsb2NrX21pZ3JhdGV0eXBlKCkgYWdhaW5zdA0KPj4+ICsgICAgICAgICAg
+ICAgICogcGZuIG91dCBvZiB6b25lLg0KPj4+ICsgICAgICAgICAgICAgICoNCj4+PiArICAgICAg
+ICAgICAgICAqIFBsZWFzZSBub3RlIHRoYXQgTUVNTUFQX0hPVFBMVUcgcGF0aCBkb2Vzbid0IGNs
+ZWFyIG1lbW1hcA0KPj4+ICsgICAgICAgICAgICAgICogYmVjYXVzZSB0aGlzIGlzIGRvbmUgZWFy
+bHkgaW4gc3BhcnNlX2FkZF9vbmVfc2VjdGlvbg0KPj4+ICsgICAgICAgICAgICAgICovDQo+Pj4g
+KyAgICAgICAgICAgICBpZiAoIShwZm4gJiAocGFnZWJsb2NrX25yX3BhZ2VzIC0gMSkpKSB7DQo+
+Pj4gKyAgICAgICAgICAgICAgICAgICAgIHNldF9wYWdlYmxvY2tfbWlncmF0ZXR5cGUocGFnZSwg
+TUlHUkFURV9NT1ZBQkxFKTsNCj4+PiArICAgICAgICAgICAgICAgICAgICAgY29uZF9yZXNjaGVk
+KCk7DQo+Pj4gKyAgICAgICAgICAgICB9DQo+Pj4gKyAgICAgfQ0KPj4+ICsNCj4+PiArICAgICBw
+cl9pbmZvKCIlcyBpbml0aWFsaXNlZCwgJWx1IHBhZ2VzIGluICV1bXNcbiIsIGRldl9uYW1lKHBn
+bWFwLT5kZXYpLA0KPj4+ICsgICAgICAgICAgICAgbnJfcGFnZXMsIGppZmZpZXNfdG9fbXNlY3Mo
+amlmZmllcyAtIHN0YXJ0KSk7DQo+Pj4gK30NCj4+PiArDQo+Pj4gKyNlbmRpZg0KPj4+ICAvKg0K
+Pj4+ICAgKiBJbml0aWFsbHkgYWxsIHBhZ2VzIGFyZSByZXNlcnZlZCAtIGZyZWUgb25lcyBhcmUg
+ZnJlZWQNCj4+PiAgICogdXAgYnkgZnJlZV9hbGxfYm9vdG1lbSgpIG9uY2UgdGhlIGVhcmx5IGJv
+b3QgcHJvY2VzcyBpcw0KPj4+IEBAIC01NDc3LDEwICs1NTU0LDE4IEBAIHZvaWQgX19tZW1pbml0
+IG1lbW1hcF9pbml0X3pvbmUodW5zaWduZWQgbG9uZyBzaXplLCBpbnQgbmlkLCB1bnNpZ25lZCBs
+b25nIHpvbmUsDQo+Pj4NCj4+PiAgICAgICAvKg0KPj4+ICAgICAgICAqIEhvbm9yIHJlc2VydmF0
+aW9uIHJlcXVlc3RlZCBieSB0aGUgZHJpdmVyIGZvciB0aGlzIFpPTkVfREVWSUNFDQo+Pj4gLSAg
+ICAgICogbWVtb3J5DQo+Pj4gKyAgICAgICogbWVtb3J5LiBXZSBsaW1pdCB0aGUgdG90YWwgbnVt
+YmVyIG9mIHBhZ2VzIHRvIGluaXRpYWxpemUgdG8ganVzdA0KPj4+ICsgICAgICAqIHRob3NlIHRo
+YXQgbWlnaHQgY29udGFpbiB0aGUgbWVtb3J5IG1hcHBpbmcuIFdlIHdpbGwgZGVmZXIgdGhlDQo+
+Pj4gKyAgICAgICogWk9ORV9ERVZJQ0UgcGFnZSBpbml0aWFsaXphdGlvbiB1bnRpbCBhZnRlciB3
+ZSBoYXZlIHJlbGVhc2VkDQo+Pj4gKyAgICAgICogdGhlIGhvdHBsdWcgbG9jay4NCj4+PiAgICAg
+ICAgKi8NCj4+PiAtICAgICBpZiAoYWx0bWFwICYmIHN0YXJ0X3BmbiA9PSBhbHRtYXAtPmJhc2Vf
+cGZuKQ0KPj4+ICsgICAgIGlmIChhbHRtYXAgJiYgc3RhcnRfcGZuID09IGFsdG1hcC0+YmFzZV9w
+Zm4pIHsNCj4+PiAgICAgICAgICAgICAgIHN0YXJ0X3BmbiArPSBhbHRtYXAtPnJlc2VydmU7DQo+
+Pj4gKyAgICAgICAgICAgICBlbmRfcGZuID0gYWx0bWFwLT5iYXNlX3BmbiArDQo+Pj4gKyAgICAg
+ICAgICAgICAgICAgICAgICAgdm1lbV9hbHRtYXBfb2Zmc2V0KGFsdG1hcCk7DQo+Pj4gKyAgICAg
+fSBlbHNlIGlmICh6b25lID09IFpPTkVfREVWSUNFKSB7DQo+Pj4gKyAgICAgICAgICAgICBlbmRf
+cGZuID0gc3RhcnRfcGZuOw0KPj4+ICsgICAgIH0NCj4+Pg0KPj4+ICAgICAgIGZvciAocGZuID0g
+c3RhcnRfcGZuOyBwZm4gPCBlbmRfcGZuOyBwZm4rKykgew0KPj4+ICAgICAgICAgICAgICAgLyoN
+Cj4+Pg0KPiA=
