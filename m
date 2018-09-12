@@ -1,48 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C7A588E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 22:36:17 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id g12-v6so272366plo.1
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 19:36:17 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id t7-v6si20744730plo.165.2018.09.11.19.36.16
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EAADF8E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 23:06:30 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id e62-v6so1488770itb.3
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 20:06:30 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id v23-v6si11829823iob.89.2018.09.11.20.06.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 11 Sep 2018 19:36:16 -0700 (PDT)
-Date: Tue, 11 Sep 2018 19:36:10 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v3 4/4] fs/dcache: Eliminate branches in
- nr_dentry_negative accounting
-Message-ID: <20180912023610.GB20056@bombadil.infradead.org>
-References: <1536693506-11949-1-git-send-email-longman@redhat.com>
- <1536693506-11949-5-git-send-email-longman@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Sep 2018 20:06:29 -0700 (PDT)
+Message-Id: <201809120306.w8C36JbS080965@www262.sakura.ne.jp>
+Subject: Re: [RFC PATCH 0/3] rework mmap-exit vs. =?ISO-2022-JP?B?b29tX3JlYXBlciBo?=
+ =?ISO-2022-JP?B?YW5kb3Zlcg==?=
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1536693506-11949-5-git-send-email-longman@redhat.com>
+Date: Wed, 12 Sep 2018 12:06:19 +0900
+References: <7e123109-fe7d-65cf-883e-74850fd2cf86@i-love.sakura.ne.jp> <20180910164411.GN10951@dhcp22.suse.cz>
+In-Reply-To: <20180910164411.GN10951@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Sep 11, 2018 at 03:18:26PM -0400, Waiman Long wrote:
-> Because the accounting of nr_dentry_negative depends on whether a dentry
-> is a negative one or not, branch instructions are introduced to handle
-> the accounting conditionally. That may potentially slow down the task
-> by a noticeable amount if that introduces sizeable amount of additional
-> branch mispredictions.
+Michal Hocko wrote:
+> On Tue 11-09-18 00:40:23, Tetsuo Handa wrote:
+> > >> Also, why MMF_OOM_SKIP will not be set if the OOM reaper handed over?
+> > > 
+> > > The idea is that the mm is not visible to anybody (except for the oom
+> > > reaper) anymore. So MMF_OOM_SKIP shouldn't matter.
+> > > 
+> > 
+> > I think it absolutely matters. The OOM killer waits until MMF_OOM_SKIP is set
+> > on a mm which is visible via task_struct->signal->oom_mm .
 > 
-> To avoid that, the accounting code is now modified to use conditional
-> move instructions instead, if supported by the architecture.
+> Hmm, I have to re-read the exit path once again and see when we unhash
+> the task and how many dangerous things we do in the mean time. I might
+> have been overly optimistic and you might be right that we indeed have
+> to set MMF_OOM_SKIP after all.
 
-You're substituting your judgement here for the compiler's.  I don't
-see a reason why the compiler couldn't choose to use a cmov in order
-to do this:
+What a foolhardy attempt!
 
-	if (dentry->d_flags & DCACHE_LRU_LIST)
-		this_cpu_inc(nr_dentry_negative);
+Commit d7a94e7e11badf84 ("oom: don't count on mm-less current process") says
 
-unless our macrology has got too clever for the compilre to see through
-it.  In which case, the right answer is to simplify the percpu code,
-not to force the compiler to optimise the code in the way that makes
-sense for your current microarchitecture.
+    out_of_memory() doesn't trigger the OOM killer if the current task is
+    already exiting or it has fatal signals pending, and gives the task
+    access to memory reserves instead.  However, doing so is wrong if
+    out_of_memory() is called by an allocation (e.g. from exit_task_work())
+    after the current task has already released its memory and cleared
+    TIF_MEMDIE at exit_mm().  If we again set TIF_MEMDIE to post-exit_mm()
+    current task, the OOM killer will be blocked by the task sitting in the
+    final schedule() waiting for its parent to reap it.  It will trigger an
+    OOM livelock if its parent is unable to reap it due to doing an
+    allocation and waiting for the OOM killer to kill it.
+
+and your
+
++               /*
++                * the exit path is guaranteed to finish without any unbound
++                * blocking at this stage so make it clear to the caller.
++                */
+
+attempt is essentially same with "we keep TIF_MEMDIE of post-exit_mm() task".
+
+That is, we can't expect that the OOM victim can finish without any unbound
+blocking. We have no choice but timeout based heuristic if we don't want to
+set MMF_OOM_SKIP even with your customized version of free_pgtables().
