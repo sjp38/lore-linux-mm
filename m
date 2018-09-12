@@ -1,140 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C6AA88E0003
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 06:26:04 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id v4-v6so1793359oix.2
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 03:26:04 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id u185-v6si421964oib.207.2018.09.12.03.26.03
-        for <linux-mm@kvack.org>;
-        Wed, 12 Sep 2018 03:26:03 -0700 (PDT)
-From: Will Deacon <will.deacon@arm.com>
-Subject: [PATCH 5/5] lib/ioremap: Ensure break-before-make is used for huge p4d mappings
-Date: Wed, 12 Sep 2018 11:26:14 +0100
-Message-Id: <1536747974-25875-6-git-send-email-will.deacon@arm.com>
-In-Reply-To: <1536747974-25875-1-git-send-email-will.deacon@arm.com>
-References: <1536747974-25875-1-git-send-email-will.deacon@arm.com>
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 36D4C8E0003
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 06:33:15 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id d10-v6so1361063wrw.6
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 03:33:15 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b198-v6sor739896wme.27.2018.09.12.03.33.13
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 12 Sep 2018 03:33:13 -0700 (PDT)
+Date: Wed, 12 Sep 2018 13:33:11 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v2] mm: mprotect: check page dirty when change ptes
+Message-ID: <20180912103311.iwytyuk4lgckad5a@kshutemo-mobl1>
+References: <20180912064921.31015-1-peterx@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180912064921.31015-1-peterx@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: cpandya@codeaurora.org, toshi.kani@hpe.com, tglx@linutronix.de, mhocko@suse.com, akpm@linux-foundation.org, Will Deacon <will.deacon@arm.com>
+To: Peter Xu <peterx@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Khalid Aziz <khalid.aziz@oracle.com>, Thomas Gleixner <tglx@linutronix.de>, "David S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andi Kleen <ak@linux.intel.com>, Henry Willard <henry.willard@oracle.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, linux-mm@kvack.org
 
-Whilst no architectures actually enable support for huge p4d mappings
-in the vmap area, the code that is implemented should be using
-break-before-make, as we do for pud and pmd huge entries.
+On Wed, Sep 12, 2018 at 02:49:21PM +0800, Peter Xu wrote:
+> Add an extra check on page dirty bit in change_pte_range() since there
+> might be case where PTE dirty bit is unset but it's actually dirtied.
+> One example is when a huge PMD is splitted after written: the dirty bit
+> will be set on the compound page however we won't have the dirty bit set
+> on each of the small page PTEs.
+> 
+> I noticed this when debugging with a customized kernel that implemented
+> userfaultfd write-protect.  In that case, the dirty bit will be critical
+> since that's required for userspace to handle the write protect page
+> fault (otherwise it'll get a SIGBUS with a loop of page faults).
+> However it should still be good even for upstream Linux to cover more
+> scenarios where we shouldn't need to do extra page faults on the small
+> pages if the previous huge page is already written, so the dirty bit
+> optimization path underneath can cover more.
+> 
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: Mel Gorman <mgorman@techsingularity.net>
+> CC: Khalid Aziz <khalid.aziz@oracle.com>
+> CC: Thomas Gleixner <tglx@linutronix.de>
+> CC: "David S. Miller" <davem@davemloft.net>
+> CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> CC: Andi Kleen <ak@linux.intel.com>
+> CC: Henry Willard <henry.willard@oracle.com>
+> CC: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> CC: Andrea Arcangeli <aarcange@redhat.com>
+> CC: Kirill A. Shutemov <kirill@shutemov.name>
+> CC: Jerome Glisse <jglisse@redhat.com>
+> CC: Zi Yan <zi.yan@cs.rutgers.edu>
+> CC: linux-mm@kvack.org
+> CC: linux-kernel@vger.kernel.org
+> Signed-off-by: Peter Xu <peterx@redhat.com>
+> ---
+> v2:
+> - checking the dirty bit when changing PTE entries rather than fixing up
+>   the dirty bit when splitting the huge page PMD.
+> - rebase to 4.19-rc3
+> 
+> Instead of keeping this in my local tree, I'm giving it another shot to
+> see whether this could be acceptable for upstream since IMHO it should
+> still benefit the upstream.  Thanks,
+> ---
+>  mm/mprotect.c | 11 +++++++++++
+>  1 file changed, 11 insertions(+)
+> 
+> diff --git a/mm/mprotect.c b/mm/mprotect.c
+> index 6d331620b9e5..5fe752515161 100644
+> --- a/mm/mprotect.c
+> +++ b/mm/mprotect.c
+> @@ -115,6 +115,17 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+>  			if (preserve_write)
+>  				ptent = pte_mk_savedwrite(ptent);
+>  
+> +                       /*
+> +                        * The extra PageDirty() check will make sure
+> +                        * we'll capture the dirty page even if the PTE
+> +                        * dirty bit is unset.  One case is when the
+> +                        * PTE is splitted from a huge PMD, in that
+> +                        * case the dirty flag might only be set on the
+> +                        * compound page instead of this PTE.
+> +                        */
+> +			if (PageDirty(pte_page(ptent)))
+> +				ptent = pte_mkdirty(ptent);
+> +
 
-Cc: Chintan Pandya <cpandya@codeaurora.org>
-Cc: Toshi Kani <toshi.kani@hpe.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Will Deacon <will.deacon@arm.com>
----
- arch/arm64/mm/mmu.c           |  5 +++++
- arch/x86/mm/pgtable.c         |  8 ++++++++
- include/asm-generic/pgtable.h |  5 +++++
- lib/ioremap.c                 | 27 +++++++++++++++++++++------
- 4 files changed, 39 insertions(+), 6 deletions(-)
+How do you protect against concurent clearing of PG_dirty?
 
-diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-index 0dcb3354d6dd..58776b90dd2a 100644
---- a/arch/arm64/mm/mmu.c
-+++ b/arch/arm64/mm/mmu.c
-@@ -1024,3 +1024,8 @@ int pud_free_pmd_page(pud_t *pudp, unsigned long addr)
- 	pmd_free(NULL, table);
- 	return 1;
- }
-+
-+int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
-+{
-+	return 0;	/* Don't attempt a block mapping */
-+}
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index b4919c44a194..c6094997d060 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -779,6 +779,14 @@ int pmd_clear_huge(pmd_t *pmd)
- 	return 0;
- }
- 
-+/*
-+ * Until we support 512GB pages, skip them in the vmap area.
-+ */
-+int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
-+{
-+	return 0;
-+}
-+
- #ifdef CONFIG_X86_64
- /**
-  * pud_free_pmd_page - Clear pud entry and free pmd page.
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 88ebc6102c7c..4297a2519ebf 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -1019,6 +1019,7 @@ int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot);
- int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot);
- int pud_clear_huge(pud_t *pud);
- int pmd_clear_huge(pmd_t *pmd);
-+int p4d_free_pud_page(p4d_t *p4d, unsigned long addr);
- int pud_free_pmd_page(pud_t *pud, unsigned long addr);
- int pmd_free_pte_page(pmd_t *pmd, unsigned long addr);
- #else	/* !CONFIG_HAVE_ARCH_HUGE_VMAP */
-@@ -1046,6 +1047,10 @@ static inline int pmd_clear_huge(pmd_t *pmd)
- {
- 	return 0;
- }
-+static inline int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
-+{
-+	return 0;
-+}
- static inline int pud_free_pmd_page(pud_t *pud, unsigned long addr)
- {
- 	return 0;
-diff --git a/lib/ioremap.c b/lib/ioremap.c
-index fc834a59c90c..49d2e23dad2e 100644
---- a/lib/ioremap.c
-+++ b/lib/ioremap.c
-@@ -156,6 +156,25 @@ static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
- 	return 0;
- }
- 
-+static int ioremap_try_huge_p4d(p4d_t *p4d, unsigned long addr,
-+				unsigned long end, phys_addr_t phys_addr,
-+				pgprot_t prot)
-+{
-+	if (!ioremap_p4d_enabled())
-+		return 0;
-+
-+	if ((end - addr) != P4D_SIZE)
-+		return 0;
-+
-+	if (!IS_ALIGNED(phys_addr, P4D_SIZE))
-+		return 0;
-+
-+	if (p4d_present(*p4d) && !p4d_free_pud_page(p4d, addr))
-+		return 0;
-+
-+	return p4d_set_huge(p4d, phys_addr, prot);
-+}
-+
- static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
- 		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
- {
-@@ -168,12 +187,8 @@ static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
- 	do {
- 		next = p4d_addr_end(addr, end);
- 
--		if (ioremap_p4d_enabled() &&
--		    ((next - addr) == P4D_SIZE) &&
--		    IS_ALIGNED(phys_addr, P4D_SIZE)) {
--			if (p4d_set_huge(p4d, phys_addr, prot))
--				continue;
--		}
-+		if (ioremap_try_huge_p4d(p4d, addr, next, phys_addr, prot))
-+			continue;
- 
- 		if (ioremap_pud_range(p4d, addr, next, phys_addr, prot))
- 			return -ENOMEM;
+You can end up with unaccounted dirty page.
+
+NAK.
+
 -- 
-2.1.4
+ Kirill A. Shutemov
