@@ -1,49 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 925CC8E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 09:39:35 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id h10-v6so899459eda.9
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 06:39:35 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 276318E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 09:42:06 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id h4-v6so909805ede.5
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 06:42:06 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t24-v6si214015edq.93.2018.09.12.06.39.34
+        by mx.google.com with ESMTPS id k8si1296179edx.435.2018.09.12.06.42.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Sep 2018 06:39:34 -0700 (PDT)
-Date: Wed, 12 Sep 2018 15:39:33 +0200
+        Wed, 12 Sep 2018 06:42:04 -0700 (PDT)
+Date: Wed, 12 Sep 2018 15:42:03 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] memory_hotplug: fix the panic when memory end is not on
- the section boundary
-Message-ID: <20180912133933.GI10951@dhcp22.suse.cz>
-References: <20180910123527.71209-1-zaslonko@linux.ibm.com>
- <20180910131754.GG10951@dhcp22.suse.cz>
- <20180912150356.642c1dab@thinkpad>
+Subject: Re: [RFC PATCH 0/3] rework mmap-exit vs. oom_reaper handover
+Message-ID: <20180912134203.GJ10951@dhcp22.suse.cz>
+References: <1536382452-3443-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180910125513.311-1-mhocko@kernel.org>
+ <70a92ca8-ca3e-2586-d52a-36c5ef6f7e43@i-love.sakura.ne.jp>
+ <20180912075054.GZ10951@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180912150356.642c1dab@thinkpad>
+In-Reply-To: <20180912075054.GZ10951@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Mikhail Zaslonko <zaslonko@linux.ibm.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pavel.Tatashin@microsoft.com, osalvador@suse.de
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed 12-09-18 15:03:56, Gerald Schaefer wrote:
-[...]
-> BTW, those sysfs attributes are world-readable, so anyone can trigger
-> the panic by simply reading them, or just run lsmem (also available for
-> x86 since util-linux 2.32). OK, you need a special not-memory-block-aligned
-> mem= parameter and DEBUG_VM for poison check, but w/o DEBUG_VM you would
-> still access uninitialized struct pages. This sounds very wrong, and I
-> think it really should be fixed.
+On Wed 12-09-18 09:50:54, Michal Hocko wrote:
+> On Tue 11-09-18 23:01:57, Tetsuo Handa wrote:
+> > On 2018/09/10 21:55, Michal Hocko wrote:
+> > > This is a very coarse implementation of the idea I've had before.
+> > > Please note that I haven't tested it yet. It is mostly to show the
+> > > direction I would wish to go for.
+> > 
+> > Hmm, this patchset does not allow me to boot. ;-)
+> > 
+> >         free_pgd_range(&tlb, vma->vm_start, vma->vm_prev->vm_end,
+> >                         FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+> > 
+> > [    1.875675] sched_clock: Marking stable (1810466565, 65169393)->(1977240380, -101604422)
+> > [    1.877833] registered taskstats version 1
+> > [    1.877853] Loading compiled-in X.509 certificates
+> > [    1.878835] zswap: loaded using pool lzo/zbud
+> > [    1.880835] BUG: unable to handle kernel NULL pointer dereference at 0000000000000008
+> 
+> This is vm_prev == NULL. I thought we always have vm_prev as long as
+> this is not a single VMA in the address space. I will double check this.
 
-Ohh, absolutely. Nobody is questioning that. The thing is that the
-code has been likely always broken. We just haven't noticed because
-those unitialized parts where zeroed previously. Now that the implicit
-zeroying is gone it is just visible.
+So this is me misunderstanding the code. vm_next, vm_prev are not a full
+doubly linked list. The first entry doesn't really refer to the last
+entry. So the above cannot work at all. We can go around this in two
+ways. Either keep the iteration or use the following which should cover
+the full mapped range, unless I am missing something
 
-All that I am arguing is that there are many places which assume
-pageblocks to be fully initialized and plugging one place that blows up
-at the time is just whack a mole. We need to address this much earlier.
-E.g. by allowing only full pageblocks when adding a memory range.
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 64e8ccce5282..078295344a17 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3105,7 +3105,7 @@ void exit_mmap(struct mm_struct *mm)
+ 		up_write(&mm->mmap_sem);
+ 	}
+ 
+-	free_pgd_range(&tlb, vma->vm_start, vma->vm_prev->vm_end,
++	free_pgd_range(&tlb, vma->vm_start, mm->highest_vm_end,
+ 			FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+ 	tlb_finish_mmu(&tlb, 0, -1);
+ 
 -- 
 Michal Hocko
 SUSE Labs
