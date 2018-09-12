@@ -1,116 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 62A4F8E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 16:10:15 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id e6-v6so5330329itc.7
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 13:10:15 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d74-v6sor1241615jac.140.2018.09.12.13.10.13
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C144B8E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 16:25:04 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id n194-v6so5454798itn.0
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 13:25:04 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id l9-v6si1300698ioj.255.2018.09.12.13.25.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 12 Sep 2018 13:10:13 -0700 (PDT)
-MIME-Version: 1.0
-References: <20180911103403.38086-1-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20180911103403.38086-1-kirill.shutemov@linux.intel.com>
-From: Vegard Nossum <vegard.nossum@gmail.com>
-Date: Wed, 12 Sep 2018 22:10:00 +0200
-Message-ID: <CAOMGZ=F2RBqZT8sDR8pMi1OBefTEUKXA5_CsF7p0zQr4a39aaA@mail.gmail.com>
-Subject: Re: [PATCH] mm, thp: Fix mlocking THP page with migration enabled
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Sep 2018 13:25:03 -0700 (PDT)
+From: Prakash Sangappa <prakash.sangappa@oracle.com>
+Subject: [PATCH V2 2/6] Add /proc/<pid>/numa_vamaps file for numa node information
+Date: Wed, 12 Sep 2018 13:24:00 -0700
+Message-Id: <1536783844-4145-3-git-send-email-prakash.sangappa@oracle.com>
+In-Reply-To: <1536783844-4145-1-git-send-email-prakash.sangappa@oracle.com>
+References: <1536783844-4145-1-git-send-email-prakash.sangappa@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>, zi.yan@cs.rutgers.edu, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, vbabka@suse.cz, aarcange@redhat.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: dave.hansen@intel.com, mhocko@suse.com, nao.horiguchi@gmail.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, khandual@linux.vnet.ibm.com, steven.sistare@oracle.com, prakash.sangappa@oracle.com
 
-On Tue, 11 Sep 2018 at 12:34, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
->
-> A transparent huge page is represented by a single entry on an LRU list.
-> Therefore, we can only make unevictable an entire compound page, not
-> individual subpages.
->
-> If a user tries to mlock() part of a huge page, we want the rest of the
-> page to be reclaimable.
->
-> We handle this by keeping PTE-mapped huge pages on normal LRU lists: the
-> PMD on border of VM_LOCKED VMA will be split into PTE table.
->
-> Introduction of THP migration breaks the rules around mlocking THP
-> pages. If we had a single PMD mapping of the page in mlocked VMA, the
-> page will get mlocked, regardless of PTE mappings of the page.
->
-> For tmpfs/shmem it's easy to fix by checking PageDoubleMap() in
-> remove_migration_pmd().
->
-> Anon THP pages can only be shared between processes via fork(). Mlocked
-> page can only be shared if parent mlocked it before forking, otherwise
-> CoW will be triggered on mlock().
->
-> For Anon-THP, we can fix the issue by munlocking the page on removing PTE
-> migration entry for the page. PTEs for the page will always come after
-> mlocked PMD: rmap walks VMAs from oldest to newest.
->
-> Test-case:
->
->         #include <unistd.h>
->         #include <sys/mman.h>
->         #include <sys/wait.h>
->         #include <linux/mempolicy.h>
->         #include <numaif.h>
->
->         int main(void)
->         {
->                 unsigned long nodemask = 4;
->                 void *addr;
->
->                 addr = mmap((void *)0x20000000UL, 2UL << 20, PROT_READ | PROT_WRITE,
->                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_LOCKED, -1, 0);
->
->                 if (fork()) {
->                         wait(NULL);
->                         return 0;
->                 }
->
->                 mlock(addr, 4UL << 10);
->                 mbind(addr, 2UL << 20, MPOL_PREFERRED | MPOL_F_RELATIVE_NODES,
->                         &nodemask, 4, MPOL_MF_MOVE | MPOL_MF_MOVE_ALL);
+Introduce supporting data structures and file operations. Later
+patch will provide changes for generating file content.
 
-MPOL_MF_MOVE_ALL is actually not required to trigger the bug.
+Signed-off-by: Prakash Sangappa <prakash.sangappa@oracle.com>
+Reviewed-by: Steve Sistare <steven.sistare@oracle.com>
+---
+ fs/proc/base.c     |  2 ++
+ fs/proc/internal.h |  1 +
+ fs/proc/task_mmu.c | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 45 insertions(+)
 
->
->                 return 0;
->         }
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reported-by: Vegard Nossum <vegard.nossum@gmail.com>
-
-Would you mind putting vegard.nossum@oracle.com instead?
-
-> Fixes: 616b8371539a ("mm: thp: enable thp migration in generic path")
-
-The commit I bisected the problem to was actually a different one:
-
-commit c8633798497ce894c22ab083eb884c8294c537b2
-Author: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Date:   Fri Sep 8 16:11:08 2017 -0700
-
-    mm: mempolicy: mbind and migrate_pages support thp migration
-
-But maybe you had a good reason to choose the other one instead. They
-are close together in any case, so I guess it would be hard to find a
-kernel with one commit and not the other.
-
-> Cc: <stable@vger.kernel.org> [v4.14+]
-> Cc: Zi Yan <zi.yan@cs.rutgers.edu>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-
-You could also add:
-
-Link: https://lkml.org/lkml/2018/8/30/464
-
-Thanks for debugging this.
-
-
-Vegard
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index ccf86f1..1af99ae 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -2927,6 +2927,7 @@ static const struct pid_entry tgid_base_stuff[] = {
+ 	REG("maps",       S_IRUGO, proc_pid_maps_operations),
+ #ifdef CONFIG_NUMA
+ 	REG("numa_maps",  S_IRUGO, proc_pid_numa_maps_operations),
++	REG("numa_vamaps",  S_IRUGO, proc_numa_vamaps_operations),
+ #endif
+ 	REG("mem",        S_IRUSR|S_IWUSR, proc_mem_operations),
+ 	LNK("cwd",        proc_cwd_link),
+@@ -3313,6 +3314,7 @@ static const struct pid_entry tid_base_stuff[] = {
+ #endif
+ #ifdef CONFIG_NUMA
+ 	REG("numa_maps", S_IRUGO, proc_pid_numa_maps_operations),
++	REG("numa_vamaps",  S_IRUGO, proc_numa_vamaps_operations),
+ #endif
+ 	REG("mem",       S_IRUSR|S_IWUSR, proc_mem_operations),
+ 	LNK("cwd",       proc_cwd_link),
+diff --git a/fs/proc/internal.h b/fs/proc/internal.h
+index 5185d7f..994c7fd 100644
+--- a/fs/proc/internal.h
++++ b/fs/proc/internal.h
+@@ -298,6 +298,7 @@ extern const struct file_operations proc_pid_smaps_operations;
+ extern const struct file_operations proc_pid_smaps_rollup_operations;
+ extern const struct file_operations proc_clear_refs_operations;
+ extern const struct file_operations proc_pagemap_operations;
++extern const struct file_operations proc_numa_vamaps_operations;
+ 
+ extern unsigned long task_vsize(struct mm_struct *);
+ extern unsigned long task_statm(struct mm_struct *,
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 0e2095c..02b553c 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -1583,6 +1583,16 @@ struct numa_maps_private {
+ 	struct numa_maps md;
+ };
+ 
++#define NUMA_VAMAPS_BUFSZ      1024
++struct numa_vamaps_private {
++	struct mm_struct *mm;
++	struct numa_maps md;
++	u64 vm_start;
++	size_t from;
++	size_t count; /* residual bytes in buf at offset 'from' */
++	char buf[NUMA_VAMAPS_BUFSZ]; /* buffer */
++};
++
+ static void gather_stats(struct page *page, struct numa_maps *md, int pte_dirty,
+ 			unsigned long nr_pages)
+ {
+@@ -1848,6 +1858,34 @@ static int pid_numa_maps_open(struct inode *inode, struct file *file)
+ 				sizeof(struct numa_maps_private));
+ }
+ 
++static int numa_vamaps_open(struct inode *inode, struct file *file)
++{
++	struct mm_struct *mm;
++	struct numa_vamaps_private *nvm;
++	nvm = kzalloc(sizeof(struct numa_vamaps_private), GFP_KERNEL);
++	if (!nvm)
++		return -ENOMEM;
++
++	mm = proc_mem_open(inode, PTRACE_MODE_READ);
++	if (IS_ERR(mm)) {
++		kfree(nvm);
++		return PTR_ERR(mm);
++	}
++	nvm->mm = mm;
++	file->private_data = nvm;
++	return 0;
++}
++
++static int numa_vamaps_release(struct inode *inode, struct file *file)
++{
++	struct numa_vamaps_private *nvm = file->private_data;
++
++	if (nvm->mm)
++		mmdrop(nvm->mm);
++	kfree(nvm);
++	return 0;
++}
++
+ const struct file_operations proc_pid_numa_maps_operations = {
+ 	.open		= pid_numa_maps_open,
+ 	.read		= seq_read,
+@@ -1855,4 +1893,8 @@ const struct file_operations proc_pid_numa_maps_operations = {
+ 	.release	= proc_map_release,
+ };
+ 
++const struct file_operations proc_numa_vamaps_operations = {
++	.open		= numa_vamaps_open,
++	.release	= numa_vamaps_release,
++};
+ #endif /* CONFIG_NUMA */
+-- 
+2.7.4
