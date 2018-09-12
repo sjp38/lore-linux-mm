@@ -1,56 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CD5D8E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 12:45:10 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id n23-v6so2137772qkn.19
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 09:45:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id w11-v6si1033997qts.264.2018.09.12.09.45.08
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 55C378E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 12:50:36 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id w185-v6so2969003oig.19
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 09:50:36 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g11-v6sor1477486oiy.92.2018.09.12.09.50.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Sep 2018 09:45:09 -0700 (PDT)
-Date: Wed, 12 Sep 2018 18:45:05 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] mm, oom: Introduce time limit for dump_tasks duration.
-Message-ID: <20180912164505.GA18706@redhat.com>
-References: <CACT4Y+Yp6ZbusCWg5C1zaJpcS8=XnGPboKgWfyxVk1axQA2nbw@mail.gmail.com>
- <201809060553.w865rmpj036017@www262.sakura.ne.jp>
- <CACT4Y+YKJWJr-5rBQidt6nY7+VF=BAsvHyh+XTaf8spwNy3qPA@mail.gmail.com>
- <58aa0543-86d0-b2ad-7fb9-9bed7c6a1f6c@i-love.sakura.ne.jp>
- <20180906112306.GO14951@dhcp22.suse.cz>
- <1611e45d-235e-67e9-26e3-d0228255fa2f@i-love.sakura.ne.jp>
- <20180906115320.GS14951@dhcp22.suse.cz>
- <CACT4Y+byA7dLar5=9y+7RApT2WdxgVA9c29q83NEVkd5KCLgjg@mail.gmail.com>
- <20180906121601.GU14951@dhcp22.suse.cz>
- <20180911163708.GB27989@redhat.com>
+        (Google Transport Security);
+        Wed, 12 Sep 2018 09:50:35 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180911163708.GB27989@redhat.com>
+In-Reply-To: <CAKgT0UdKZVUPBk=rg5kfUuFBpuZQEKPuGw31x5O2nMyuULgi0g@mail.gmail.com>
+References: <20180910232615.4068.29155.stgit@localhost.localdomain>
+ <20180910234354.4068.65260.stgit@localhost.localdomain> <7b96298e-9590-befd-0670-ed0c9fcf53d5@microsoft.com>
+ <CAKgT0UdKZVUPBk=rg5kfUuFBpuZQEKPuGw31x5O2nMyuULgi0g@mail.gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 12 Sep 2018 09:50:34 -0700
+Message-ID: <CAPcyv4gEDwp8Xh4_E8RNBC_OqstwhqxkZOpvYjWd_siB4C=BEQ@mail.gmail.com>
+Subject: Re: [PATCH 3/4] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, syzbot <syzbot+f0fc7f62e88b1de99af3@syzkaller.appspotmail.com>, 'Dmitry Vyukov' via syzkaller-upstream-moderation <syzkaller-upstream-moderation@googlegroups.com>, linux-mm <linux-mm@kvack.org>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: Pavel.Tatashin@microsoft.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 09/11, Oleg Nesterov wrote:
+On Wed, Sep 12, 2018 at 8:48 AM, Alexander Duyck
+<alexander.duyck@gmail.com> wrote:
+> On Wed, Sep 12, 2018 at 6:59 AM Pasha Tatashin
+> <Pavel.Tatashin@microsoft.com> wrote:
+>>
+>> Hi Alex,
 >
-> On 09/06, Michal Hocko wrote:
-> >
-> > So a question for Oleg I guess. Is it possible that for_each_process
-> > live locks (or stalls for way too long/unbounded amount of time) under
-> > heavy fork/exit loads?
+> Hi Pavel,
 >
-> Oh yes, it can... plus other problems.
+>> Please re-base on linux-next,  memmap_init_zone() has been updated there
+>> compared to mainline. You might even find a way to unify some parts of
+>> memmap_init_zone and memmap_init_zone_device as memmap_init_zone() is a
+>> lot simpler now.
 >
-> I even sent the initial patches which introduce for_each_process_break/continue
-> a long ago... I'll try to find them tommorrow and resend.
+> This patch applied to the linux-next tree with only a little bit of
+> fuzz. It looks like it is mostly due to some code you had added above
+> the function as well. I have updated this patch so that it will apply
+> to both linux and linux-next by just moving the new function to
+> underneath memmap_init_zone instead of above it.
+>
+>> I think __init_single_page() should stay local to page_alloc.c to keep
+>> the inlining optimization.
+>
+> I agree. In addition it will make pulling common init together into
+> one space easier. I would rather not have us create an opportunity for
+> things to further diverge by making it available for anybody to use.
 
-Two years ago ;) I don't understand why there were ignored, please see
-"[PATCH 0/2] introduce for_each_process_thread_break() and for_each_process_thread_continue()"
-I sent a minute ago.
-
-However, I didn't notice that the subject mentions oom/dump_tasks... As for
-dump_tasks() it probably doesn't need the new helpers, I'll write another email
-tomorrow, but perhaps the time limit is all we need.
-
-Oleg.
+I'll buy the inline argument for keeping the new routine in
+page_alloc.c, but I otherwise do not see the divergence danger or
+"making __init_single_page() available for anybody" given the the
+declaration is limited in scope to a mm/ local header file.
