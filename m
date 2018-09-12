@@ -1,78 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2709B8E0011
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 20:59:28 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id t3-v6so309316oif.20
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 17:59:28 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k126-v6sor25222818oih.179.2018.09.11.17.59.26
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 064358E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 22:29:28 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id a23-v6so255017pfo.23
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 19:29:27 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id j15-v6si20461420pfn.366.2018.09.11.19.29.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 11 Sep 2018 17:59:26 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 11 Sep 2018 19:29:26 -0700 (PDT)
+Date: Tue, 11 Sep 2018 19:29:21 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC v9 PATCH 2/4] mm: mmap: zap pages with read mmap_sem in
+ munmap
+Message-ID: <20180912022921.GA20056@bombadil.infradead.org>
+References: <1536699493-69195-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1536699493-69195-3-git-send-email-yang.shi@linux.alibaba.com>
+ <20180911211645.GA12159@bombadil.infradead.org>
+ <b69d3f7d-e9ba-b95c-45cd-44489950751b@linux.alibaba.com>
 MIME-Version: 1.0
-In-Reply-To: <CAKgT0UdmkAXLdR6cfgmu-LcJUOO8a4qAS8zO3Bn+LwjJ9rT3pg@mail.gmail.com>
-References: <20180910232615.4068.29155.stgit@localhost.localdomain>
- <20180910234354.4068.65260.stgit@localhost.localdomain> <CAPcyv4ja7=eUbwwJZhreexa9_7JyJotQwObrQm=nCEcgcfbWyw@mail.gmail.com>
- <CAKgT0UdmkAXLdR6cfgmu-LcJUOO8a4qAS8zO3Bn+LwjJ9rT3pg@mail.gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 11 Sep 2018 17:59:25 -0700
-Message-ID: <CAPcyv4iiR3JgHg+Xyw-zON4+66stf917kUqNBxMFFLwT=H14qg@mail.gmail.com>
-Subject: Re: [PATCH 3/4] mm: Defer ZONE_DEVICE page initialization to the
- point where we init pgmap
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b69d3f7d-e9ba-b95c-45cd-44489950751b@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, pavel.tatashin@microsoft.com, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: mhocko@kernel.org, ldufour@linux.vnet.ibm.com, vbabka@suse.cz, akpm@linux-foundation.org, dave.hansen@intel.com, oleg@redhat.com, srikar@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 11, 2018 at 5:51 PM, Alexander Duyck
-<alexander.duyck@gmail.com> wrote:
-> On Tue, Sep 11, 2018 at 3:35 PM Dan Williams <dan.j.williams@intel.com> wrote:
->>
->> On Mon, Sep 10, 2018 at 4:43 PM, Alexander Duyck
->> <alexander.duyck@gmail.com> wrote:
->> >
->> > From: Alexander Duyck <alexander.h.duyck@intel.com>
->> >
->> > The ZONE_DEVICE pages were being initialized in two locations. One was with
->> > the memory_hotplug lock held and another was outside of that lock. The
->> > problem with this is that it was nearly doubling the memory initialization
->> > time. Instead of doing this twice, once while holding a global lock and
->> > once without, I am opting to defer the initialization to the one outside of
->> > the lock. This allows us to avoid serializing the overhead for memory init
->> > and we can instead focus on per-node init times.
->> >
->> > One issue I encountered is that devm_memremap_pages and
->> > hmm_devmmem_pages_create were initializing only the pgmap field the same
->> > way. One wasn't initializing hmm_data, and the other was initializing it to
->> > a poison value. Since this is something that is exposed to the driver in
->> > the case of hmm I am opting for a third option and just initializing
->> > hmm_data to 0 since this is going to be exposed to unknown third party
->> > drivers.
->> >
->> > Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
->> > ---
->> >  include/linux/mm.h |    2 +
->> >  kernel/memremap.c  |   24 +++++---------
->> >  mm/hmm.c           |   12 ++++---
->> >  mm/page_alloc.c    |   89 +++++++++++++++++++++++++++++++++++++++++++++++++++-
->>
->> Hmm, why mm/page_alloc.c and not kernel/memremap.c for this new
->> helper? I think that would address the kbuild reports and keeps all
->> the devm_memremap_pages / ZONE_DEVICE special casing centralized. I
->> also think it makes sense to move memremap.c to mm/ rather than
->> kernel/ especially since commit 5981690ddb8f "memremap: split
->> devm_memremap_pages() and memremap() infrastructure". Arguably, that
->> commit should have went ahead with the directory move.
->
-> The issue ends up being the fact that I would then have to start
-> exporting infrastructure such as __init_single_page from page_alloc. I
-> have some follow-up patches I am working on that will generate some
-> other shared functions that can be used by both memmap_init_zone and
-> memmap_init_zone_device, as well as pulling in some of the code from
-> the deferred memory init.
+On Tue, Sep 11, 2018 at 04:35:03PM -0700, Yang Shi wrote:
+> On 9/11/18 2:16 PM, Matthew Wilcox wrote:
+> > On Wed, Sep 12, 2018 at 04:58:11AM +0800, Yang Shi wrote:
+> > >   mm/mmap.c | 97 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+> > I really think you're going about this the wrong way by duplicating
+> > vm_munmap().
+> 
+> If we don't duplicate vm_munmap() or do_munmap(), we need pass an extra
+> parameter to them to tell when it is fine to downgrade write lock or if the
+> lock has been acquired outside it (i.e. in mmap()/mremap()), right? But,
+> vm_munmap() or do_munmap() is called not only by mmap-related, but also some
+> other places, like arch-specific places, which don't need downgrade write
+> lock or are not safe to do so.
+> 
+> Actually, I did this way in the v1 patches, but it got pushed back by tglx
+> who suggested duplicate the code so that the change could be done in mm only
+> without touching other files, i.e. arch-specific stuff. I didn't have strong
+> argument to convince him.
 
-You wouldn't need to export it, just make it public to mm/ in
-mm/internal.h, or a similar local header. With kernel/memremap.c moved
-to mm/memremap.c this becomes even easier and better scoped for the
-shared symbols.
+With my patch, there is nothing to change in arch-specific code.
+Here it is again ...
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index de699523c0b7..06dc31d1da8c 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2798,11 +2798,11 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+  * work.  This now handles partial unmappings.
+  * Jeremy Fitzhardinge <jeremy@goop.org>
+  */
+-int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+-	      struct list_head *uf)
++static int __do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
++	      struct list_head *uf, bool downgrade)
+ {
+ 	unsigned long end;
+-	struct vm_area_struct *vma, *prev, *last;
++	struct vm_area_struct *vma, *prev, *last, *tmp;
+ 
+ 	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE-start)
+ 		return -EINVAL;
+@@ -2816,7 +2816,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 	if (!vma)
+ 		return 0;
+ 	prev = vma->vm_prev;
+-	/* we have  start < vma->vm_end  */
++	/* we have start < vma->vm_end  */
+ 
+ 	/* if it doesn't overlap, we have nothing.. */
+ 	end = start + len;
+@@ -2873,18 +2873,22 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 
+ 	/*
+ 	 * unlock any mlock()ed ranges before detaching vmas
++	 * and check to see if there's any reason we might have to hold
++	 * the mmap_sem write-locked while unmapping regions.
+ 	 */
+-	if (mm->locked_vm) {
+-		struct vm_area_struct *tmp = vma;
+-		while (tmp && tmp->vm_start < end) {
+-			if (tmp->vm_flags & VM_LOCKED) {
+-				mm->locked_vm -= vma_pages(tmp);
+-				munlock_vma_pages_all(tmp);
+-			}
+-			tmp = tmp->vm_next;
++	for (tmp = vma; tmp && tmp->vm_start < end; tmp = tmp->vm_next) {
++		if (tmp->vm_flags & VM_LOCKED) {
++			mm->locked_vm -= vma_pages(tmp);
++			munlock_vma_pages_all(tmp);
+ 		}
++		if (tmp->vm_file &&
++				has_uprobes(tmp, tmp->vm_start, tmp->vm_end))
++			downgrade = false;
+ 	}
+ 
++	if (downgrade)
++		downgrade_write(&mm->mmap_sem);
++
+ 	/*
+ 	 * Remove the vma's, and unmap the actual pages
+ 	 */
+@@ -2896,7 +2900,13 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 	/* Fix up all other VM information */
+ 	remove_vma_list(mm, vma);
+ 
+-	return 0;
++	return downgrade ? 1 : 0;
++}
++
++int do_unmap(struct mm_struct *mm, unsigned long start, size_t len,
++		struct list_head *uf)
++{
++	return __do_munmap(mm, start, len, uf, false);
+ }
+ 
+ int vm_munmap(unsigned long start, size_t len)
+@@ -2905,11 +2915,12 @@ int vm_munmap(unsigned long start, size_t len)
+ 	struct mm_struct *mm = current->mm;
+ 	LIST_HEAD(uf);
+ 
+-	if (down_write_killable(&mm->mmap_sem))
+-		return -EINTR;
+-
+-	ret = do_munmap(mm, start, len, &uf);
+-	up_write(&mm->mmap_sem);
++	down_write(&mm->mmap_sem);
++	ret = __do_munmap(mm, start, len, &uf, true);
++	if (ret == 1)
++		up_read(&mm->mmap_sem);
++	else
++		up_write(&mm->mmap_sem);
+ 	userfaultfd_unmap_complete(mm, &uf);
+ 	return ret;
+ }
+
+Anybody calling do_munmap() will not get the lock dropped.
+
+> And, Michal prefers have VM_HUGETLB and VM_PFNMAP handled separately for
+> safe and bisectable sake, which needs call the regular do_munmap().
+
+That can be introduced and then taken out ... indeed, you can split this into
+many patches, starting with this:
+
++		if (tmp->vm_file)
++			downgrade = false;
+
+to only allow this optimisation for anonymous mappings at first.
+
+> In addition to this, I just found mpx code may call do_munmap() recursively
+> when I was looking into the mpx code.
+> 
+> We might be able to handle these by the extra parameter, but it sounds it
+> make the code hard to understand and error prone.
+
+Only if you make the extra parameter mandatory.
