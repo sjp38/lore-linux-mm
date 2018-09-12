@@ -1,95 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C44308E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 09:24:45 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id a15-v6so1523240qtj.15
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 06:24:45 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id g129-v6si726622qkc.246.2018.09.12.06.24.44
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B49628E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 09:24:49 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id v52-v6so1554430qtc.3
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 06:24:49 -0700 (PDT)
+Received: from NAM04-SN1-obe.outbound.protection.outlook.com (mail-eopbgr700136.outbound.protection.outlook.com. [40.107.70.136])
+        by mx.google.com with ESMTPS id e5-v6si763005qkm.115.2018.09.12.06.24.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Sep 2018 06:24:44 -0700 (PDT)
-Date: Wed, 12 Sep 2018 09:24:39 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH v2] mm: mprotect: check page dirty when change ptes
-Message-ID: <20180912132438.GB4009@redhat.com>
-References: <20180912064921.31015-1-peterx@redhat.com>
- <20180912130355.GA4009@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 12 Sep 2018 06:24:48 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Subject: Re: [PATCH 1/4] mm: Provide kernel parameter to allow disabling page
+ init poisoning
+Date: Wed, 12 Sep 2018 13:24:46 +0000
+Message-ID: <f7ec05ea-d16a-ded1-ceb7-5405eb32b40b@microsoft.com>
+References: <20180910232615.4068.29155.stgit@localhost.localdomain>
+ <20180910234341.4068.26882.stgit@localhost.localdomain>
+In-Reply-To: <20180910234341.4068.26882.stgit@localhost.localdomain>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <01D396A1328C7D45A6C1B457324FB838@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180912130355.GA4009@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Xu <peterx@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Khalid Aziz <khalid.aziz@oracle.com>, Thomas Gleixner <tglx@linutronix.de>, "David S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andi Kleen <ak@linux.intel.com>, Henry Willard <henry.willard@oracle.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Zi Yan <zi.yan@cs.rutgers.edu>, linux-mm@kvack.org
+To: Alexander Duyck <alexander.duyck@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+Cc: "mhocko@suse.com" <mhocko@suse.com>, "dave.jiang@intel.com" <dave.jiang@intel.com>, "mingo@kernel.org" <mingo@kernel.org>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "jglisse@redhat.com" <jglisse@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "logang@deltatee.com" <logang@deltatee.com>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
 
-On Wed, Sep 12, 2018 at 09:03:55AM -0400, Jerome Glisse wrote:
-> On Wed, Sep 12, 2018 at 02:49:21PM +0800, Peter Xu wrote:
-> > Add an extra check on page dirty bit in change_pte_range() since there
-> > might be case where PTE dirty bit is unset but it's actually dirtied.
-> > One example is when a huge PMD is splitted after written: the dirty bit
-> > will be set on the compound page however we won't have the dirty bit set
-> > on each of the small page PTEs.
-> > 
-> > I noticed this when debugging with a customized kernel that implemented
-> > userfaultfd write-protect.  In that case, the dirty bit will be critical
-> > since that's required for userspace to handle the write protect page
-> > fault (otherwise it'll get a SIGBUS with a loop of page faults).
-> > However it should still be good even for upstream Linux to cover more
-> > scenarios where we shouldn't need to do extra page faults on the small
-> > pages if the previous huge page is already written, so the dirty bit
-> > optimization path underneath can cover more.
-> > 
-> 
-> So as said by Kirill NAK you are not looking at the right place for
-> your bug please first apply the below patch and read my analysis in
-> my last reply.
-
-Just to be clear you are trying to fix a userspace bug that is hidden
-for non THP pages by a kernel space bug inside userfaultfd by making
-the kernel space bug of userfaultfd buggy for THP too.
-
-
-> 
-> Below patch fix userfaultfd bug. I am not posting it as it is on a
-> branch and i am not sure when Andrea plan to post. Andrea feel free
-> to squash that fix.
-> 
-> 
-> From 35cdb30afa86424c2b9f23c0982afa6731be961c Mon Sep 17 00:00:00 2001
-> From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-> Date: Wed, 12 Sep 2018 08:58:33 -0400
-> Subject: [PATCH] userfaultfd: do not set dirty accountable when changing
->  protection
-> MIME-Version: 1.0
-> Content-Type: text/plain; charset=UTF-8
-> Content-Transfer-Encoding: 8bit
-> 
-> mwriteprotect_range() has nothing to do with the dirty accountable
-> optimization so do not set it as it opens a door for userspace to
-> unwrite protect pages in a range that is write protected ie the vma
-> !(vm_flags & VM_WRITE).
-> 
-> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> ---
->  mm/userfaultfd.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-> index a0379c5ffa7c..59db1ce48fa0 100644
-> --- a/mm/userfaultfd.c
-> +++ b/mm/userfaultfd.c
-> @@ -632,7 +632,7 @@ int mwriteprotect_range(struct mm_struct *dst_mm, unsigned long start,
->  		newprot = vm_get_page_prot(dst_vma->vm_flags);
->  
->  	change_protection(dst_vma, start, start + len, newprot,
-> -				!enable_wp, 0);
-> +				false, 0);
->  
->  	err = 0;
->  out_unlock:
-> -- 
-> 2.17.1
-> 
+DQoNCk9uIDkvMTAvMTggNzo0MyBQTSwgQWxleGFuZGVyIER1eWNrIHdyb3RlOg0KPiBGcm9tOiBB
+bGV4YW5kZXIgRHV5Y2sgPGFsZXhhbmRlci5oLmR1eWNrQGludGVsLmNvbT4NCj4gDQo+IE9uIHN5
+c3RlbXMgd2l0aCBhIGxhcmdlIGFtb3VudCBvZiBtZW1vcnkgaXQgY2FuIHRha2UgYSBzaWduaWZp
+Y2FudCBhbW91bnQNCj4gb2YgdGltZSB0byBpbml0aWFsaXplIGFsbCBvZiB0aGUgcGFnZSBzdHJ1
+Y3RzIHdpdGggdGhlIFBBR0VfUE9JU09OX1BBVFRFUk4NCj4gdmFsdWUuIEkgaGF2ZSBzZWVuIGl0
+IHRha2Ugb3ZlciAyIG1pbnV0ZXMgdG8gaW5pdGlhbGl6ZSBhIHN5c3RlbSB3aXRoDQo+IG92ZXIg
+MTJHQiBvZiBSQU0uDQo+IA0KPiBJbiBvcmRlciB0byB3b3JrIGFyb3VuZCB0aGUgaXNzdWUgSSBo
+YWQgdG8gZGlzYWJsZSBDT05GSUdfREVCVUdfVk0gYW5kIHRoZW4NCj4gdGhlIGJvb3QgdGltZSBy
+ZXR1cm5lZCB0byBzb21ldGhpbmcgbXVjaCBtb3JlIHJlYXNvbmFibGUgYXMgdGhlDQo+IGFyY2hf
+YWRkX21lbW9yeSBjYWxsIGNvbXBsZXRlZCBpbiBtaWxsaXNlY29uZHMgdmVyc3VzIHNlY29uZHMu
+IEhvd2V2ZXIgaW4NCj4gZG9pbmcgdGhhdCBJIGhhZCB0byBkaXNhYmxlIGFsbCBvZiB0aGUgb3Ro
+ZXIgVk0gZGVidWdnaW5nIG9uIHRoZSBzeXN0ZW0uDQo+IA0KPiBJbiBvcmRlciB0byB3b3JrIGFy
+b3VuZCBhIGtlcm5lbCB0aGF0IG1pZ2h0IGhhdmUgQ09ORklHX0RFQlVHX1ZNIGVuYWJsZWQgb24N
+Cj4gYSBzeXN0ZW0gdGhhdCBoYXMgYSBsYXJnZSBhbW91bnQgb2YgbWVtb3J5IEkgaGF2ZSBhZGRl
+ZCBhIG5ldyBrZXJuZWwNCj4gcGFyYW1ldGVyIG5hbWVkICJwYWdlX2luaXRfcG9pc29uIiB0aGF0
+IGNhbiBiZSBzZXQgdG8gIm9mZiIgaW4gb3JkZXIgdG8NCj4gZGlzYWJsZSBpdC4NCj4gDQo+IFNp
+Z25lZC1vZmYtYnk6IEFsZXhhbmRlciBEdXljayA8YWxleGFuZGVyLmguZHV5Y2tAaW50ZWwuY29t
+Pg0KDQpSZXZpZXdlZC1ieTogUGF2ZWwgVGF0YXNoaW4gPHBhdmVsLnRhdGFzaGluQG1pY3Jvc29m
+dC5jb20+DQoNClRoYW5rIHlvdSwNClBhdmVsDQoNCj4gLS0tDQo+ICBEb2N1bWVudGF0aW9uL2Fk
+bWluLWd1aWRlL2tlcm5lbC1wYXJhbWV0ZXJzLnR4dCB8ICAgIDggKysrKysrKysNCj4gIGluY2x1
+ZGUvbGludXgvcGFnZS1mbGFncy5oICAgICAgICAgICAgICAgICAgICAgIHwgICAgOCArKysrKysr
+Kw0KPiAgbW0vZGVidWcuYyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfCAg
+IDE2ICsrKysrKysrKysrKysrKysNCj4gIG1tL21lbWJsb2NrLmMgICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgIHwgICAgNSArKy0tLQ0KPiAgbW0vc3BhcnNlLmMgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgfCAgICA0ICstLS0NCj4gIDUgZmlsZXMgY2hhbmdlZCwg
+MzUgaW5zZXJ0aW9ucygrKSwgNiBkZWxldGlvbnMoLSkNCj4gDQo+IGRpZmYgLS1naXQgYS9Eb2N1
+bWVudGF0aW9uL2FkbWluLWd1aWRlL2tlcm5lbC1wYXJhbWV0ZXJzLnR4dCBiL0RvY3VtZW50YXRp
+b24vYWRtaW4tZ3VpZGUva2VybmVsLXBhcmFtZXRlcnMudHh0DQo+IGluZGV4IDY0YTNiZjU0Yjk3
+NC4uN2IyMWUwYjljMzk0IDEwMDY0NA0KPiAtLS0gYS9Eb2N1bWVudGF0aW9uL2FkbWluLWd1aWRl
+L2tlcm5lbC1wYXJhbWV0ZXJzLnR4dA0KPiArKysgYi9Eb2N1bWVudGF0aW9uL2FkbWluLWd1aWRl
+L2tlcm5lbC1wYXJhbWV0ZXJzLnR4dA0KPiBAQCAtMzA0Nyw2ICszMDQ3LDE0IEBADQo+ICAJCQlv
+ZmY6IHR1cm4gb2ZmIHBvaXNvbmluZyAoZGVmYXVsdCkNCj4gIAkJCW9uOiB0dXJuIG9uIHBvaXNv
+bmluZw0KPiAgDQo+ICsJcGFnZV9pbml0X3BvaXNvbj0JW0tOTF0gQm9vdC10aW1lIHBhcmFtZXRl
+ciBjaGFuZ2luZyB0aGUNCj4gKwkJCXN0YXRlIG9mIHBvaXNvbmluZyBvZiBwYWdlIHN0cnVjdHVy
+ZXMgZHVyaW5nIGVhcmx5DQo+ICsJCQlib290LiBVc2VkIHRvIHZlcmlmeSBwYWdlIG1ldGFkYXRh
+IGlzIG5vdCBhY2Nlc3NlZA0KPiArCQkJcHJpb3IgdG8gaW5pdGlhbGl6YXRpb24uIEF2YWlsYWJs
+ZSB3aXRoDQo+ICsJCQlDT05GSUdfREVCVUdfVk09eS4NCj4gKwkJCW9mZjogdHVybiBvZmYgcG9p
+c29uaW5nDQo+ICsJCQlvbjogdHVybiBvbiBwb2lzb25pbmcgKGRlZmF1bHQpDQo+ICsNCj4gIAlw
+YW5pYz0JCVtLTkxdIEtlcm5lbCBiZWhhdmlvdXIgb24gcGFuaWM6IGRlbGF5IDx0aW1lb3V0Pg0K
+PiAgCQkJdGltZW91dCA+IDA6IHNlY29uZHMgYmVmb3JlIHJlYm9vdGluZw0KPiAgCQkJdGltZW91
+dCA9IDA6IHdhaXQgZm9yZXZlcg0KPiBkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC9wYWdlLWZs
+YWdzLmggYi9pbmNsdWRlL2xpbnV4L3BhZ2UtZmxhZ3MuaA0KPiBpbmRleCA3NGJlZThjZWNmNGMu
+LmQwMDIxNmNmMDBmOCAxMDA2NDQNCj4gLS0tIGEvaW5jbHVkZS9saW51eC9wYWdlLWZsYWdzLmgN
+Cj4gKysrIGIvaW5jbHVkZS9saW51eC9wYWdlLWZsYWdzLmgNCj4gQEAgLTE2Miw2ICsxNjIsMTQg
+QEAgc3RhdGljIGlubGluZSBpbnQgUGFnZVBvaXNvbmVkKGNvbnN0IHN0cnVjdCBwYWdlICpwYWdl
+KQ0KPiAgCXJldHVybiBwYWdlLT5mbGFncyA9PSBQQUdFX1BPSVNPTl9QQVRURVJOOw0KPiAgfQ0K
+PiAgDQo+ICsjaWZkZWYgQ09ORklHX0RFQlVHX1ZNDQo+ICt2b2lkIHBhZ2VfaW5pdF9wb2lzb24o
+c3RydWN0IHBhZ2UgKnBhZ2UsIHNpemVfdCBzaXplKTsNCj4gKyNlbHNlDQo+ICtzdGF0aWMgaW5s
+aW5lIHZvaWQgcGFnZV9pbml0X3BvaXNvbihzdHJ1Y3QgcGFnZSAqcGFnZSwgc2l6ZV90IHNpemUp
+DQo+ICt7DQo+ICt9DQo+ICsjZW5kaWYNCj4gKw0KPiAgLyoNCj4gICAqIFBhZ2UgZmxhZ3MgcG9s
+aWNpZXMgd3J0IGNvbXBvdW5kIHBhZ2VzDQo+ICAgKg0KPiBkaWZmIC0tZ2l0IGEvbW0vZGVidWcu
+YyBiL21tL2RlYnVnLmMNCj4gaW5kZXggMzhjOTI2NTIwYzk3Li5jNTQyMDQyMmMwYjUgMTAwNjQ0
+DQo+IC0tLSBhL21tL2RlYnVnLmMNCj4gKysrIGIvbW0vZGVidWcuYw0KPiBAQCAtMTc1LDQgKzE3
+NSwyMCBAQCB2b2lkIGR1bXBfbW0oY29uc3Qgc3RydWN0IG1tX3N0cnVjdCAqbW0pDQo+ICAJKTsN
+Cj4gIH0NCj4gIA0KPiArc3RhdGljIGJvb2wgcGFnZV9pbml0X3BvaXNvbmluZyBfX3JlYWRfbW9z
+dGx5ID0gdHJ1ZTsNCj4gKw0KPiArc3RhdGljIGludCBfX2luaXQgcGFnZV9pbml0X3BvaXNvbl9w
+YXJhbShjaGFyICpidWYpDQo+ICt7DQo+ICsJaWYgKCFidWYpDQo+ICsJCXJldHVybiAtRUlOVkFM
+Ow0KPiArCXJldHVybiBzdHJ0b2Jvb2woYnVmLCAmcGFnZV9pbml0X3BvaXNvbmluZyk7DQo+ICt9
+DQo+ICtlYXJseV9wYXJhbSgicGFnZV9pbml0X3BvaXNvbiIsIHBhZ2VfaW5pdF9wb2lzb25fcGFy
+YW0pOw0KPiArDQo+ICt2b2lkIHBhZ2VfaW5pdF9wb2lzb24oc3RydWN0IHBhZ2UgKnBhZ2UsIHNp
+emVfdCBzaXplKQ0KPiArew0KPiArCWlmIChwYWdlX2luaXRfcG9pc29uaW5nKQ0KPiArCQltZW1z
+ZXQocGFnZSwgUEFHRV9QT0lTT05fUEFUVEVSTiwgc2l6ZSk7DQo+ICt9DQo+ICtFWFBPUlRfU1lN
+Qk9MX0dQTChwYWdlX2luaXRfcG9pc29uKTsNCj4gICNlbmRpZgkJLyogQ09ORklHX0RFQlVHX1ZN
+ICovDQo+IGRpZmYgLS1naXQgYS9tbS9tZW1ibG9jay5jIGIvbW0vbWVtYmxvY2suYw0KPiBpbmRl
+eCAyMzc5NDQ0NzlkMjUuLmE4NTMxNTA4M2I1YSAxMDA2NDQNCj4gLS0tIGEvbW0vbWVtYmxvY2su
+Yw0KPiArKysgYi9tbS9tZW1ibG9jay5jDQo+IEBAIC0xNDQ0LDEwICsxNDQ0LDkgQEAgdm9pZCAq
+IF9faW5pdCBtZW1ibG9ja192aXJ0X2FsbG9jX3RyeV9uaWRfcmF3KA0KPiAgDQo+ICAJcHRyID0g
+bWVtYmxvY2tfdmlydF9hbGxvY19pbnRlcm5hbChzaXplLCBhbGlnbiwNCj4gIAkJCQkJICAgbWlu
+X2FkZHIsIG1heF9hZGRyLCBuaWQpOw0KPiAtI2lmZGVmIENPTkZJR19ERUJVR19WTQ0KPiAgCWlm
+IChwdHIgJiYgc2l6ZSA+IDApDQo+IC0JCW1lbXNldChwdHIsIFBBR0VfUE9JU09OX1BBVFRFUk4s
+IHNpemUpOw0KPiAtI2VuZGlmDQo+ICsJCXBhZ2VfaW5pdF9wb2lzb24ocHRyLCBzaXplKTsNCj4g
+Kw0KPiAgCXJldHVybiBwdHI7DQo+ICB9DQo+ICANCj4gZGlmZiAtLWdpdCBhL21tL3NwYXJzZS5j
+IGIvbW0vc3BhcnNlLmMNCj4gaW5kZXggMTBiMDdlZWE5YTZlLi42N2FkMDYxZjdmYjggMTAwNjQ0
+DQo+IC0tLSBhL21tL3NwYXJzZS5jDQo+ICsrKyBiL21tL3NwYXJzZS5jDQo+IEBAIC02OTYsMTMg
+KzY5NiwxMSBAQCBpbnQgX19tZW1pbml0IHNwYXJzZV9hZGRfb25lX3NlY3Rpb24oc3RydWN0IHBn
+bGlzdF9kYXRhICpwZ2RhdCwNCj4gIAkJZ290byBvdXQ7DQo+ICAJfQ0KPiAgDQo+IC0jaWZkZWYg
+Q09ORklHX0RFQlVHX1ZNDQo+ICAJLyoNCj4gIAkgKiBQb2lzb24gdW5pbml0aWFsaXplZCBzdHJ1
+Y3QgcGFnZXMgaW4gb3JkZXIgdG8gY2F0Y2ggaW52YWxpZCBmbGFncw0KPiAgCSAqIGNvbWJpbmF0
+aW9ucy4NCj4gIAkgKi8NCj4gLQltZW1zZXQobWVtbWFwLCBQQUdFX1BPSVNPTl9QQVRURVJOLCBz
+aXplb2Yoc3RydWN0IHBhZ2UpICogUEFHRVNfUEVSX1NFQ1RJT04pOw0KPiAtI2VuZGlmDQo+ICsJ
+cGFnZV9pbml0X3BvaXNvbihtZW1tYXAsIHNpemVvZihzdHJ1Y3QgcGFnZSkgKiBQQUdFU19QRVJf
+U0VDVElPTik7DQo+ICANCj4gIAlzZWN0aW9uX21hcmtfcHJlc2VudChtcyk7DQo+ICAJc3BhcnNl
+X2luaXRfb25lX3NlY3Rpb24obXMsIHNlY3Rpb25fbnIsIG1lbW1hcCwgdXNlbWFwKTsNCj4g
