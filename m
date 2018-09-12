@@ -1,180 +1,265 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AFA308E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 13:16:02 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id e62-v6so4559833itb.3
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 10:16:02 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s20-v6sor948464jan.144.2018.09.12.10.16.01
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CF488E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 13:29:29 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id g15-v6so1154575edm.11
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 10:29:29 -0700 (PDT)
+Received: from outbound-smtp13.blacknight.com (outbound-smtp13.blacknight.com. [46.22.139.230])
+        by mx.google.com with ESMTPS id 4-v6si1507171eds.302.2018.09.12.10.29.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 12 Sep 2018 10:16:01 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Sep 2018 10:29:27 -0700 (PDT)
+Received: from mail.blacknight.com (unknown [81.17.254.10])
+	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id 277131C2C99
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 18:29:27 +0100 (IST)
+Date: Wed, 12 Sep 2018 18:29:25 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
+Message-ID: <20180912172925.GK1719@techsingularity.net>
+References: <20180828075321.GD10223@dhcp22.suse.cz>
+ <20180828081837.GG10223@dhcp22.suse.cz>
+ <D5F4A33C-0A37-495C-9468-D6866A862097@cs.rutgers.edu>
+ <20180829142816.GX10223@dhcp22.suse.cz>
+ <20180829143545.GY10223@dhcp22.suse.cz>
+ <82CA00EB-BF8E-4137-953B-8BC4B74B99AF@cs.rutgers.edu>
+ <20180829154744.GC10223@dhcp22.suse.cz>
+ <39BE14E6-D0FB-428A-B062-8B5AEDC06E61@cs.rutgers.edu>
+ <20180829162528.GD10223@dhcp22.suse.cz>
+ <20180829192451.GG10223@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <f5e73b5ead3355932ad8b5fc96b141c3f5b8c16c.1535462971.git.andreyknvl@google.com>
-References: <cover.1535462971.git.andreyknvl@google.com> <f5e73b5ead3355932ad8b5fc96b141c3f5b8c16c.1535462971.git.andreyknvl@google.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 12 Sep 2018 19:15:39 +0200
-Message-ID: <CACT4Y+aEwYiaVN--RH_0VBh0wbCcrf-Ndz+_eOaBNi6nKxrfQA@mail.gmail.com>
-Subject: Re: [PATCH v6 15/18] khwasan, arm64: add brk handler for inline instrumentation
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20180829192451.GG10223@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
 
-On Wed, Aug 29, 2018 at 1:35 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> KHWASAN inline instrumentation mode (which embeds checks of shadow memory
-> into the generated code, instead of inserting a callback) generates a brk
-> instruction when a tag mismatch is detected.
->
-> This commit add a KHWASAN brk handler, that decodes the immediate value
-> passed to the brk instructions (to extract information about the memory
-> access that triggered the mismatch), reads the register values (x0 contains
-> the guilty address) and reports the bug.
->
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+On Wed, Aug 29, 2018 at 09:24:51PM +0200, Michal Hocko wrote:
+> From 4dc2f772756e6f91b9e64d1a3e2df4dca3475f5b Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Tue, 28 Aug 2018 09:59:19 +0200
+> Subject: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
+> 
+> Andrea has noticed [1] that a THP allocation might be really disruptive
+> when allocated on NUMA system with the local node full or hard to
+> reclaim. Stefan has posted an allocation stall report on 4.12 based
+> SLES kernel which suggests the same issue:
+
+Note that this behaviour is unhelpful but it is not against the defined
+semantic of the "madvise" defrag option.
+
+> Andrea has identified that the main source of the problem is
+> __GFP_THISNODE usage:
+> 
+> : The problem is that direct compaction combined with the NUMA
+> : __GFP_THISNODE logic in mempolicy.c is telling reclaim to swap very
+> : hard the local node, instead of failing the allocation if there's no
+> : THP available in the local node.
+> :
+> : Such logic was ok until __GFP_THISNODE was added to the THP allocation
+> : path even with MPOL_DEFAULT.
+> :
+> : The idea behind the __GFP_THISNODE addition, is that it is better to
+> : provide local memory in PAGE_SIZE units than to use remote NUMA THP
+> : backed memory. That largely depends on the remote latency though, on
+> : threadrippers for example the overhead is relatively low in my
+> : experience.
+> :
+> : The combination of __GFP_THISNODE and __GFP_DIRECT_RECLAIM results in
+> : extremely slow qemu startup with vfio, if the VM is larger than the
+> : size of one host NUMA node. This is because it will try very hard to
+> : unsuccessfully swapout get_user_pages pinned pages as result of the
+> : __GFP_THISNODE being set, instead of falling back to PAGE_SIZE
+> : allocations and instead of trying to allocate THP on other nodes (it
+> : would be even worse without vfio type1 GUP pins of course, except it'd
+> : be swapping heavily instead).
+> 
+> Fix this by removing __GFP_THISNODE handling from alloc_pages_vma where
+> it doesn't belong and move it to alloc_hugepage_direct_gfpmask where we
+> juggle gfp flags for different allocation modes.
+
+For the short term, I think you might be better off simply avoiding the
+combination of __GFP_THISNODE and __GFP_DIRECT_RECLAIM and declaring
+that the fix. That would be easier for -stable and the layering can be
+dealt with as a cleanup.
+
+I recognise that this fix means that users that expect zone_reclaim_mode==1
+type behaviour may get burned but the users that benefit from that should
+also be users that benefit from sizing their workload to a node. They should
+be able to replicate that with mempolicies or at least use prepation scripts
+to clear memory on a target node (e.g. membind a memhog to the desired size,
+exit and then start the target workload).
+
+I think this is a more appropriate solution than prematurely introducing a
+GFP flag as it's not guaranteed that a user is willing to pay a compaction
+penalty until it fails. That should be decided separately when the immediate
+problem is resolved.
+
+That said, I do think that sorting out where GFP flags are set for THP
+should be done in the context of THP code and not alloc_pages_vma. The
+current layering is a bit odd.
+
+> The rationale is that
+> __GFP_THISNODE is helpful in relaxed defrag modes because falling back
+> to a different node might be more harmful than the benefit of a large page.
+> If the user really requires THP (e.g. by MADV_HUGEPAGE) then the THP has
+> a higher priority than local NUMA placement.
+> 
+> Be careful when the vma has an explicit numa binding though, because
+> __GFP_THISNODE is not playing well with it. We want to follow the
+> explicit numa policy rather than enforce a node which happens to be
+> local to the cpu we are running on.
+> 
+> [1] http://lkml.kernel.org/r/20180820032204.9591-1-aarcange@redhat.com
+> 
+> Fixes: 5265047ac301 ("mm, thp: really limit transparent hugepage allocation to local node")
+> Reported-by: Stefan Priebe <s.priebe@profihost.ag>
+> Debugged-by: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 > ---
->  arch/arm64/include/asm/brk-imm.h |  2 +
->  arch/arm64/kernel/traps.c        | 69 +++++++++++++++++++++++++++++++-
->  2 files changed, 69 insertions(+), 2 deletions(-)
->
-> diff --git a/arch/arm64/include/asm/brk-imm.h b/arch/arm64/include/asm/brk-imm.h
-> index ed693c5bcec0..e4a7013321dc 100644
-> --- a/arch/arm64/include/asm/brk-imm.h
-> +++ b/arch/arm64/include/asm/brk-imm.h
-> @@ -16,10 +16,12 @@
->   * 0x400: for dynamic BRK instruction
->   * 0x401: for compile time BRK instruction
->   * 0x800: kernel-mode BUG() and WARN() traps
-> + * 0x9xx: KHWASAN trap (allowed values 0x900 - 0x9ff)
+>  include/linux/mempolicy.h |  2 ++
+>  mm/huge_memory.c          | 25 +++++++++++++++++--------
+>  mm/mempolicy.c            | 28 +---------------------------
+>  3 files changed, 20 insertions(+), 35 deletions(-)
+> 
+> diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+> index 5228c62af416..bac395f1d00a 100644
+> --- a/include/linux/mempolicy.h
+> +++ b/include/linux/mempolicy.h
+> @@ -139,6 +139,8 @@ struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
+>  struct mempolicy *get_task_policy(struct task_struct *p);
+>  struct mempolicy *__get_vma_policy(struct vm_area_struct *vma,
+>  		unsigned long addr);
+> +struct mempolicy *get_vma_policy(struct vm_area_struct *vma,
+> +						unsigned long addr);
+>  bool vma_policy_mof(struct vm_area_struct *vma);
+>  
+>  extern void numa_default_policy(void);
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index c3bc7e9c9a2a..94472bf9a31b 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -629,21 +629,30 @@ static vm_fault_t __do_huge_pmd_anonymous_page(struct vm_fault *vmf,
+>   *	    available
+>   * never: never stall for any thp allocation
 >   */
->  #define FAULT_BRK_IMM                  0x100
->  #define KGDB_DYN_DBG_BRK_IMM           0x400
->  #define KGDB_COMPILED_DBG_BRK_IMM      0x401
->  #define BUG_BRK_IMM                    0x800
-> +#define KHWASAN_BRK_IMM                        0x900
->
->  #endif
-> diff --git a/arch/arm64/kernel/traps.c b/arch/arm64/kernel/traps.c
-> index 039e9ff379cc..fd70347d1ce7 100644
-> --- a/arch/arm64/kernel/traps.c
-> +++ b/arch/arm64/kernel/traps.c
-> @@ -35,6 +35,7 @@
->  #include <linux/sizes.h>
->  #include <linux/syscalls.h>
->  #include <linux/mm_types.h>
-> +#include <linux/kasan.h>
->
->  #include <asm/atomic.h>
->  #include <asm/bug.h>
-> @@ -269,10 +270,14 @@ void arm64_notify_die(const char *str, struct pt_regs *regs,
->         }
->  }
->
-> -void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
-> +void __arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
+> -static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
+> +static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma, unsigned long addr)
 >  {
->         regs->pc += size;
-> +}
->
-> +void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
-> +{
-> +       __arm64_skip_faulting_instruction(regs, size);
->         /*
->          * If we were single stepping, we want to get the step exception after
->          * we return from the trap.
-> @@ -775,7 +780,7 @@ static int bug_handler(struct pt_regs *regs, unsigned int esr)
->         }
->
->         /* If thread survives, skip over the BUG instruction and continue: */
-> -       arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
-> +       __arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
->         return DBG_HOOK_HANDLED;
->  }
->
-> @@ -785,6 +790,59 @@ static struct break_hook bug_break_hook = {
->         .fn = bug_handler,
->  };
->
-> +#ifdef CONFIG_KASAN_HW
+>  	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
+> +	gfp_t this_node = 0;
+> +	struct mempolicy *pol;
 > +
-> +#define KHWASAN_ESR_RECOVER    0x20
-> +#define KHWASAN_ESR_WRITE      0x10
-> +#define KHWASAN_ESR_SIZE_MASK  0x0f
-> +#define KHWASAN_ESR_SIZE(esr)  (1 << ((esr) & KHWASAN_ESR_SIZE_MASK))
-> +
-> +static int khwasan_handler(struct pt_regs *regs, unsigned int esr)
-> +{
-> +       bool recover = esr & KHWASAN_ESR_RECOVER;
-> +       bool write = esr & KHWASAN_ESR_WRITE;
-> +       size_t size = KHWASAN_ESR_SIZE(esr);
-> +       u64 addr = regs->regs[0];
-> +       u64 pc = regs->pc;
-> +
-> +       if (user_mode(regs))
-> +               return DBG_HOOK_ERROR;
-> +
-> +       kasan_report(addr, size, write, pc);
-> +
-> +       /*
-> +        * The instrumentation allows to control whether we can proceed after
-> +        * a crash was detected. This is done by passing the -recover flag to
-> +        * the compiler. Disabling recovery allows to generate more compact
-> +        * code.
-> +        *
-> +        * Unfortunately disabling recovery doesn't work for the kernel right
-> +        * now. KHWASAN reporting is disabled in some contexts (for example when
-> +        * the allocator accesses slab object metadata; same is true for KASAN;
-> +        * this is controlled by current->kasan_depth). All these accesses are
-> +        * detected by the tool, even though the reports for them are not
-> +        * printed.
-> +        *
-> +        * This is something that might be fixed at some point in the future.
-> +        */
-> +       if (!recover)
-> +               die("Oops - KHWASAN", regs, 0);
+> +#ifdef CONFIG_NUMA
+> +	/* __GFP_THISNODE makes sense only if there is no explicit binding */
+> +	pol = get_vma_policy(vma, addr);
+> +	if (pol->mode != MPOL_BIND)
+> +		this_node = __GFP_THISNODE;
+> +#endif
+>  
 
-Why die and not panic? Die seems to be much less used function, and it
-calls panic anyway, and we call panic in kasan_report if panic_on_warn
-is set.
+Where is the mpol_cond_put? Historically it might not have mattered
+because THP could not be used with a shared possibility but it probably
+matters now that tmpfs can be backed by THP.
 
-> +       /* If thread survives, skip over the brk instruction and continue: */
-> +       __arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
-> +       return DBG_HOOK_HANDLED;
-> +}
-> +
-> +#define KHWASAN_ESR_VAL (0xf2000000 | KHWASAN_BRK_IMM)
-> +#define KHWASAN_ESR_MASK 0xffffff00
-> +
-> +static struct break_hook khwasan_break_hook = {
-> +       .esr_val = KHWASAN_ESR_VAL,
-> +       .esr_mask = KHWASAN_ESR_MASK,
-> +       .fn = khwasan_handler,
-> +};
-> +#endif
-> +
->  /*
->   * Initial handler for AArch64 BRK exceptions
->   * This handler only used until debug_traps_init().
-> @@ -792,6 +850,10 @@ static struct break_hook bug_break_hook = {
->  int __init early_brk64(unsigned long addr, unsigned int esr,
->                 struct pt_regs *regs)
->  {
-> +#ifdef CONFIG_KASAN_HW
-> +       if ((esr & KHWASAN_ESR_MASK) == KHWASAN_ESR_VAL)
-> +               return khwasan_handler(regs, esr) != DBG_HOOK_HANDLED;
-> +#endif
->         return bug_handler(regs, esr) != DBG_HOOK_HANDLED;
+The comment needs more expansion as well. Arguably it only makes sense in
+the event we are explicitly bound to one node because if we are bound to
+two nodes without interleaving then why not fall back? The answer to that
+is outside the scope of the patch but the comment as-is will cause head
+scratches in a years time.
+
+>  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
+> -		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
+> +		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY | this_node);
+>  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
+> -		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
+> +		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM | this_node;
+>  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags))
+>  		return GFP_TRANSHUGE_LIGHT | (vma_madvised ? __GFP_DIRECT_RECLAIM :
+> -							     __GFP_KSWAPD_RECLAIM);
+> +							     __GFP_KSWAPD_RECLAIM | this_node);
+>  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
+>  		return GFP_TRANSHUGE_LIGHT | (vma_madvised ? __GFP_DIRECT_RECLAIM :
+> -							     0);
+> -	return GFP_TRANSHUGE_LIGHT;
+> +							     this_node);
+> +	return GFP_TRANSHUGE_LIGHT | this_node;
 >  }
->
-> @@ -799,4 +861,7 @@ int __init early_brk64(unsigned long addr, unsigned int esr,
->  void __init trap_init(void)
+>  
+>  /* Caller must hold page table lock. */
+> @@ -715,7 +724,7 @@ vm_fault_t do_huge_pmd_anonymous_page(struct vm_fault *vmf)
+>  			pte_free(vma->vm_mm, pgtable);
+>  		return ret;
+>  	}
+> -	gfp = alloc_hugepage_direct_gfpmask(vma);
+> +	gfp = alloc_hugepage_direct_gfpmask(vma, haddr);
+>  	page = alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
+>  	if (unlikely(!page)) {
+>  		count_vm_event(THP_FAULT_FALLBACK);
+> @@ -1290,7 +1299,7 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
+>  alloc:
+>  	if (transparent_hugepage_enabled(vma) &&
+>  	    !transparent_hugepage_debug_cow()) {
+> -		huge_gfp = alloc_hugepage_direct_gfpmask(vma);
+> +		huge_gfp = alloc_hugepage_direct_gfpmask(vma, haddr);
+>  		new_page = alloc_hugepage_vma(huge_gfp, vma, haddr, HPAGE_PMD_ORDER);
+>  	} else
+>  		new_page = NULL;
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index da858f794eb6..75bbfc3d6233 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -1648,7 +1648,7 @@ struct mempolicy *__get_vma_policy(struct vm_area_struct *vma,
+>   * freeing by another task.  It is the caller's responsibility to free the
+>   * extra reference for shared policies.
+>   */
+> -static struct mempolicy *get_vma_policy(struct vm_area_struct *vma,
+> +struct mempolicy *get_vma_policy(struct vm_area_struct *vma,
+>  						unsigned long addr)
 >  {
->         register_break_hook(&bug_break_hook);
-> +#ifdef CONFIG_KASAN_HW
-> +       register_break_hook(&khwasan_break_hook);
-> +#endif
->  }
-> --
-> 2.19.0.rc0.228.g281dcd1b4d0-goog
->
+>  	struct mempolicy *pol = __get_vma_policy(vma, addr);
+> @@ -2026,32 +2026,6 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+>  		goto out;
+>  	}
+>  
+> -	if (unlikely(IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) && hugepage)) {
+> -		int hpage_node = node;
+> -
+> -		/*
+> -		 * For hugepage allocation and non-interleave policy which
+> -		 * allows the current node (or other explicitly preferred
+> -		 * node) we only try to allocate from the current/preferred
+> -		 * node and don't fall back to other nodes, as the cost of
+> -		 * remote accesses would likely offset THP benefits.
+> -		 *
+> -		 * If the policy is interleave, or does not allow the current
+> -		 * node in its nodemask, we allocate the standard way.
+> -		 */
+> -		if (pol->mode == MPOL_PREFERRED &&
+> -						!(pol->flags & MPOL_F_LOCAL))
+> -			hpage_node = pol->v.preferred_node;
+> -
+> -		nmask = policy_nodemask(gfp, pol);
+> -		if (!nmask || node_isset(hpage_node, *nmask)) {
+> -			mpol_cond_put(pol);
+> -			page = __alloc_pages_node(hpage_node,
+> -						gfp | __GFP_THISNODE, order);
+> -			goto out;
+> -		}
+> -	}
+> -
+
+The hugepage flag passed into this function is now redundant and that
+means that callers of alloc_hugepage_vma need to move back to using
+alloc_pages_vma() directly and remove the API entirely. This block of
+code is about both GFP flag settings and node selection but at a glance I
+cannot see the point of it because it's very similar to the base page code.
+The whole point may be to get around the warning in policy_node and that
+could just as easily be side-stepped in alloc_hugepage_direct_gfpmask
+as you do already in this patch. There should be no reason why THP has a
+different policy than a base page within a single VMA.
+
+-- 
+Mel Gorman
+SUSE Labs
