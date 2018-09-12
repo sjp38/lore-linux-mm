@@ -1,53 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FF3C8E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 01:48:43 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id b8-v6so1076697oib.4
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 22:48:43 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c12-v6sor43940oib.5.2018.09.11.22.48.41
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EE238E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 02:49:34 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id l7-v6so830355qte.2
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 23:49:34 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id s63-v6si83808qkc.404.2018.09.11.23.49.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 11 Sep 2018 22:48:41 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20180910234400.4068.15541.stgit@localhost.localdomain>
-References: <20180910232615.4068.29155.stgit@localhost.localdomain> <20180910234400.4068.15541.stgit@localhost.localdomain>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 11 Sep 2018 22:48:40 -0700
-Message-ID: <CAPcyv4gm30sT_us0j27jLmNTV_Fug4d8EW4xTmiTMFdwGSjN-A@mail.gmail.com>
-Subject: Re: [PATCH 4/4] nvdimm: Trigger the device probe on a cpu local to
- the device
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Sep 2018 23:49:32 -0700 (PDT)
+From: Peter Xu <peterx@redhat.com>
+Subject: [PATCH v2] mm: mprotect: check page dirty when change ptes
+Date: Wed, 12 Sep 2018 14:49:21 +0800
+Message-Id: <20180912064921.31015-1-peterx@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, pavel.tatashin@microsoft.com, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: linux-kernel@vger.kernel.org
+Cc: peterx@redhat.com, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Khalid Aziz <khalid.aziz@oracle.com>, Thomas Gleixner <tglx@linutronix.de>, "David S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andi Kleen <ak@linux.intel.com>, Henry Willard <henry.willard@oracle.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Jerome Glisse <jglisse@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, linux-mm@kvack.org
 
-On Mon, Sep 10, 2018 at 4:44 PM, Alexander Duyck
-<alexander.duyck@gmail.com> wrote:
-> From: Alexander Duyck <alexander.h.duyck@intel.com>
->
-> This patch is based off of the pci_call_probe function used to initialize
-> PCI devices. The general idea here is to move the probe call to a location
-> that is local to the memory being initialized. By doing this we can shave
-> significant time off of the total time needed for initialization.
->
-> With this patch applied I see a significant reduction in overall init time
-> as without it the init varied between 23 and 37 seconds to initialize a 3GB
-> node. With this patch applied the variance is only between 23 and 26
-> seconds to initialize each node.
->
-> I hope to refine this further in the future by combining this logic into
-> the async_schedule_domain code that is already in use. By doing that it
-> would likely make this functionality redundant.
+Add an extra check on page dirty bit in change_pte_range() since there
+might be case where PTE dirty bit is unset but it's actually dirtied.
+One example is when a huge PMD is splitted after written: the dirty bit
+will be set on the compound page however we won't have the dirty bit set
+on each of the small page PTEs.
 
-Yeah, it is a bit sad that we schedule an async thread only to move it
-back somewhere else.
+I noticed this when debugging with a customized kernel that implemented
+userfaultfd write-protect.  In that case, the dirty bit will be critical
+since that's required for userspace to handle the write protect page
+fault (otherwise it'll get a SIGBUS with a loop of page faults).
+However it should still be good even for upstream Linux to cover more
+scenarios where we shouldn't need to do extra page faults on the small
+pages if the previous huge page is already written, so the dirty bit
+optimization path underneath can cover more.
 
-Could we trivially achieve the same with an
-async_schedule_domain_on_cpu() variant? It seems we can and the
-workqueue core will "Do the right thing".
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: Mel Gorman <mgorman@techsingularity.net>
+CC: Khalid Aziz <khalid.aziz@oracle.com>
+CC: Thomas Gleixner <tglx@linutronix.de>
+CC: "David S. Miller" <davem@davemloft.net>
+CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+CC: Andi Kleen <ak@linux.intel.com>
+CC: Henry Willard <henry.willard@oracle.com>
+CC: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+CC: Andrea Arcangeli <aarcange@redhat.com>
+CC: Kirill A. Shutemov <kirill@shutemov.name>
+CC: Jerome Glisse <jglisse@redhat.com>
+CC: Zi Yan <zi.yan@cs.rutgers.edu>
+CC: linux-mm@kvack.org
+CC: linux-kernel@vger.kernel.org
+Signed-off-by: Peter Xu <peterx@redhat.com>
+---
+v2:
+- checking the dirty bit when changing PTE entries rather than fixing up
+  the dirty bit when splitting the huge page PMD.
+- rebase to 4.19-rc3
 
-I now notice that async uses the system_unbound_wq and work_on_cpu()
-uses the system_wq.  I don't think we want long running nvdimm work on
-system_wq.
+Instead of keeping this in my local tree, I'm giving it another shot to
+see whether this could be acceptable for upstream since IMHO it should
+still benefit the upstream.  Thanks,
+---
+ mm/mprotect.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 6d331620b9e5..5fe752515161 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -115,6 +115,17 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 			if (preserve_write)
+ 				ptent = pte_mk_savedwrite(ptent);
+ 
++                       /*
++                        * The extra PageDirty() check will make sure
++                        * we'll capture the dirty page even if the PTE
++                        * dirty bit is unset.  One case is when the
++                        * PTE is splitted from a huge PMD, in that
++                        * case the dirty flag might only be set on the
++                        * compound page instead of this PTE.
++                        */
++			if (PageDirty(pte_page(ptent)))
++				ptent = pte_mkdirty(ptent);
++
+ 			/* Avoid taking write faults for known dirty pages */
+ 			if (dirty_accountable && pte_dirty(ptent) &&
+ 					(pte_soft_dirty(ptent) ||
+-- 
+2.17.1
