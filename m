@@ -1,88 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EE238E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 02:49:34 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id l7-v6so830355qte.2
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 23:49:34 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id s63-v6si83808qkc.404.2018.09.11.23.49.32
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CB5F58E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 03:18:45 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id 57-v6so478725edt.15
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 00:18:45 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c10-v6si533682edk.121.2018.09.12.00.18.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Sep 2018 23:49:32 -0700 (PDT)
-From: Peter Xu <peterx@redhat.com>
-Subject: [PATCH v2] mm: mprotect: check page dirty when change ptes
-Date: Wed, 12 Sep 2018 14:49:21 +0800
-Message-Id: <20180912064921.31015-1-peterx@redhat.com>
+        Wed, 12 Sep 2018 00:18:44 -0700 (PDT)
+Date: Wed, 12 Sep 2018 09:18:42 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 0/3] rework mmap-exit vs. oom_reaper handover
+Message-ID: <20180912071842.GY10951@dhcp22.suse.cz>
+References: <7e123109-fe7d-65cf-883e-74850fd2cf86@i-love.sakura.ne.jp>
+ <20180910164411.GN10951@dhcp22.suse.cz>
+ <201809120306.w8C36JbS080965@www262.sakura.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201809120306.w8C36JbS080965@www262.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: peterx@redhat.com, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Khalid Aziz <khalid.aziz@oracle.com>, Thomas Gleixner <tglx@linutronix.de>, "David S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andi Kleen <ak@linux.intel.com>, Henry Willard <henry.willard@oracle.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Jerome Glisse <jglisse@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Add an extra check on page dirty bit in change_pte_range() since there
-might be case where PTE dirty bit is unset but it's actually dirtied.
-One example is when a huge PMD is splitted after written: the dirty bit
-will be set on the compound page however we won't have the dirty bit set
-on each of the small page PTEs.
+On Wed 12-09-18 12:06:19, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Tue 11-09-18 00:40:23, Tetsuo Handa wrote:
+> > > >> Also, why MMF_OOM_SKIP will not be set if the OOM reaper handed over?
+> > > > 
+> > > > The idea is that the mm is not visible to anybody (except for the oom
+> > > > reaper) anymore. So MMF_OOM_SKIP shouldn't matter.
+> > > > 
+> > > 
+> > > I think it absolutely matters. The OOM killer waits until MMF_OOM_SKIP is set
+> > > on a mm which is visible via task_struct->signal->oom_mm .
+> > 
+> > Hmm, I have to re-read the exit path once again and see when we unhash
+> > the task and how many dangerous things we do in the mean time. I might
+> > have been overly optimistic and you might be right that we indeed have
+> > to set MMF_OOM_SKIP after all.
+> 
+> What a foolhardy attempt!
+> 
+> Commit d7a94e7e11badf84 ("oom: don't count on mm-less current process") says
+> 
+>     out_of_memory() doesn't trigger the OOM killer if the current task is
+>     already exiting or it has fatal signals pending, and gives the task
+>     access to memory reserves instead.  However, doing so is wrong if
+>     out_of_memory() is called by an allocation (e.g. from exit_task_work())
+>     after the current task has already released its memory and cleared
+>     TIF_MEMDIE at exit_mm().  If we again set TIF_MEMDIE to post-exit_mm()
+>     current task, the OOM killer will be blocked by the task sitting in the
+>     final schedule() waiting for its parent to reap it.  It will trigger an
+>     OOM livelock if its parent is unable to reap it due to doing an
+>     allocation and waiting for the OOM killer to kill it.
+> 
+> and your
+> 
+> +               /*
+> +                * the exit path is guaranteed to finish without any unbound
+> +                * blocking at this stage so make it clear to the caller.
+> +                */
 
-I noticed this when debugging with a customized kernel that implemented
-userfaultfd write-protect.  In that case, the dirty bit will be critical
-since that's required for userspace to handle the write protect page
-fault (otherwise it'll get a SIGBUS with a loop of page faults).
-However it should still be good even for upstream Linux to cover more
-scenarios where we shouldn't need to do extra page faults on the small
-pages if the previous huge page is already written, so the dirty bit
-optimization path underneath can cover more.
+This comment was meant to tell that the tear down will not block for
+unbound amount of time.
 
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: Mel Gorman <mgorman@techsingularity.net>
-CC: Khalid Aziz <khalid.aziz@oracle.com>
-CC: Thomas Gleixner <tglx@linutronix.de>
-CC: "David S. Miller" <davem@davemloft.net>
-CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-CC: Andi Kleen <ak@linux.intel.com>
-CC: Henry Willard <henry.willard@oracle.com>
-CC: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-CC: Andrea Arcangeli <aarcange@redhat.com>
-CC: Kirill A. Shutemov <kirill@shutemov.name>
-CC: Jerome Glisse <jglisse@redhat.com>
-CC: Zi Yan <zi.yan@cs.rutgers.edu>
-CC: linux-mm@kvack.org
-CC: linux-kernel@vger.kernel.org
-Signed-off-by: Peter Xu <peterx@redhat.com>
----
-v2:
-- checking the dirty bit when changing PTE entries rather than fixing up
-  the dirty bit when splitting the huge page PMD.
-- rebase to 4.19-rc3
+> attempt is essentially same with "we keep TIF_MEMDIE of post-exit_mm() task".
+> 
+> That is, we can't expect that the OOM victim can finish without any unbound
+> blocking. We have no choice but timeout based heuristic if we don't want to
+> set MMF_OOM_SKIP even with your customized version of free_pgtables().
 
-Instead of keeping this in my local tree, I'm giving it another shot to
-see whether this could be acceptable for upstream since IMHO it should
-still benefit the upstream.  Thanks,
----
- mm/mprotect.c | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+OK, I will fold the following to the patch
 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 6d331620b9e5..5fe752515161 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -115,6 +115,17 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 			if (preserve_write)
- 				ptent = pte_mk_savedwrite(ptent);
- 
-+                       /*
-+                        * The extra PageDirty() check will make sure
-+                        * we'll capture the dirty page even if the PTE
-+                        * dirty bit is unset.  One case is when the
-+                        * PTE is splitted from a huge PMD, in that
-+                        * case the dirty flag might only be set on the
-+                        * compound page instead of this PTE.
-+                        */
-+			if (PageDirty(pte_page(ptent)))
-+				ptent = pte_mkdirty(ptent);
+commit e57a1e84db95906e6505de26db896f1b66b5b057
+Author: Michal Hocko <mhocko@suse.com>
+Date:   Tue Sep 11 13:09:16 2018 +0200
+
+    fold me "mm, oom: hand over MMF_OOM_SKIP to exit path if it is guranteed to finish"
+    
+    - the task is still visible to the OOM killer after exit_mmap terminates
+      so we should set MMF_OOM_SKIP from that path to be sure the oom killer
+      doesn't get stuck on this task (see d7a94e7e11badf84 for more context)
+      - per Tetsuo
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 99bb9ce29bc5..64e8ccce5282 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3097,8 +3097,9 @@ void exit_mmap(struct mm_struct *mm)
+ 	vma = mm->mmap;
+ 	if (oom) {
+ 		/*
+-		 * the exit path is guaranteed to finish without any unbound
+-		 * blocking at this stage so make it clear to the caller.
++		 * the exit path is guaranteed to finish the memory tear down
++		 * without any unbound blocking at this stage so make it clear
++		 * to the oom_reaper
+ 		 */
+ 		mm->mmap = NULL;
+ 		up_write(&mm->mmap_sem);
+@@ -3118,6 +3119,13 @@ void exit_mmap(struct mm_struct *mm)
+ 		vma = remove_vma(vma);
+ 	}
+ 	vm_unacct_memory(nr_accounted);
 +
- 			/* Avoid taking write faults for known dirty pages */
- 			if (dirty_accountable && pte_dirty(ptent) &&
- 					(pte_soft_dirty(ptent) ||
++	/*
++	 * Now that the full address space is torn down, make sure the
++	 * OOM killer skips over this task
++	 */
++	if (oom)
++		set_bit(MMF_OOM_SKIP, &mm->flags);
+ }
+ 
+ /* Insert vm structure into process list sorted by address
+
 -- 
-2.17.1
+Michal Hocko
+SUSE Labs
