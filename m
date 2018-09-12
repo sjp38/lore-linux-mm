@@ -1,290 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4182B8E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 11:48:26 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id z72-v6so4051956itc.8
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 08:48:26 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w8-v6sor804517itb.83.2018.09.12.08.48.24
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 144048E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 11:49:25 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id e14-v6so1870746qtp.17
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 08:49:25 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id b143-v6si1027120qka.158.2018.09.12.08.49.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 12 Sep 2018 08:48:24 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Sep 2018 08:49:24 -0700 (PDT)
+Subject: Re: [PATCH v3 4/4] fs/dcache: Eliminate branches in
+ nr_dentry_negative accounting
+References: <1536693506-11949-1-git-send-email-longman@redhat.com>
+ <1536693506-11949-5-git-send-email-longman@redhat.com>
+ <20180912023610.GB20056@bombadil.infradead.org>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <bf7592c3-dc1d-635e-8bb0-717f6e8a54d9@redhat.com>
+Date: Wed, 12 Sep 2018 11:49:22 -0400
 MIME-Version: 1.0
-References: <20180910232615.4068.29155.stgit@localhost.localdomain>
- <20180910234354.4068.65260.stgit@localhost.localdomain> <7b96298e-9590-befd-0670-ed0c9fcf53d5@microsoft.com>
-In-Reply-To: <7b96298e-9590-befd-0670-ed0c9fcf53d5@microsoft.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Wed, 12 Sep 2018 08:48:12 -0700
-Message-ID: <CAKgT0UdKZVUPBk=rg5kfUuFBpuZQEKPuGw31x5O2nMyuULgi0g@mail.gmail.com>
-Subject: Re: [PATCH 3/4] mm: Defer ZONE_DEVICE page initialization to the
- point where we init pgmap
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180912023610.GB20056@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel.Tatashin@microsoft.com
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-nvdimm@lists.01.org, Michal Hocko <mhocko@suse.com>, dave.jiang@intel.com, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, jglisse@redhat.com, Andrew Morton <akpm@linux-foundation.org>, logang@deltatee.com, dan.j.williams@intel.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>
 
-On Wed, Sep 12, 2018 at 6:59 AM Pasha Tatashin
-<Pavel.Tatashin@microsoft.com> wrote:
+On 09/11/2018 10:36 PM, Matthew Wilcox wrote:
+> On Tue, Sep 11, 2018 at 03:18:26PM -0400, Waiman Long wrote:
+>> Because the accounting of nr_dentry_negative depends on whether a dentry
+>> is a negative one or not, branch instructions are introduced to handle
+>> the accounting conditionally. That may potentially slow down the task
+>> by a noticeable amount if that introduces sizeable amount of additional
+>> branch mispredictions.
+>>
+>> To avoid that, the accounting code is now modified to use conditional
+>> move instructions instead, if supported by the architecture.
+> You're substituting your judgement here for the compiler's.  I don't
+> see a reason why the compiler couldn't choose to use a cmov in order
+> to do this:
 >
-> Hi Alex,
+> 	if (dentry->d_flags & DCACHE_LRU_LIST)
+> 		this_cpu_inc(nr_dentry_negative);
+>
+> unless our macrology has got too clever for the compilre to see through
+> it.  In which case, the right answer is to simplify the percpu code,
+> not to force the compiler to optimise the code in the way that makes
+> sense for your current microarchitecture.
+>
+I had actually looked at the x86 object file generated to verify that it
+did use cmove with the patch and use branch without. It is possible that
+there are other twists to make that happen with the above expression. I
+will need to run some experiments to figure it out. In the mean time, I
+am fine with dropping this patch as it is a micro-optimization that
+doesn't change the behavior at all.
 
-Hi Pavel,
-
-> Please re-base on linux-next,  memmap_init_zone() has been updated there
-> compared to mainline. You might even find a way to unify some parts of
-> memmap_init_zone and memmap_init_zone_device as memmap_init_zone() is a
-> lot simpler now.
-
-This patch applied to the linux-next tree with only a little bit of
-fuzz. It looks like it is mostly due to some code you had added above
-the function as well. I have updated this patch so that it will apply
-to both linux and linux-next by just moving the new function to
-underneath memmap_init_zone instead of above it.
-
-> I think __init_single_page() should stay local to page_alloc.c to keep
-> the inlining optimization.
-
-I agree. In addition it will make pulling common init together into
-one space easier. I would rather not have us create an opportunity for
-things to further diverge by making it available for anybody to use.
-
-> I will review you this patch once you send an updated version.
-
-Other than moving the new function from being added above versus below
-there isn't much else that needs to change, at least for this patch. I
-have some follow-up patches I am planning that will be targeted for
-linux-next. Those I think will focus more on what you have in mind in
-terms of combining this new function
-
-> Thank you,
-> Pavel
-
-Thanks,
-- Alex
-
-> On 9/10/18 7:43 PM, Alexander Duyck wrote:
-> > From: Alexander Duyck <alexander.h.duyck@intel.com>
-> >
-> > The ZONE_DEVICE pages were being initialized in two locations. One was with
-> > the memory_hotplug lock held and another was outside of that lock. The
-> > problem with this is that it was nearly doubling the memory initialization
-> > time. Instead of doing this twice, once while holding a global lock and
-> > once without, I am opting to defer the initialization to the one outside of
-> > the lock. This allows us to avoid serializing the overhead for memory init
-> > and we can instead focus on per-node init times.
-> >
-> > One issue I encountered is that devm_memremap_pages and
-> > hmm_devmmem_pages_create were initializing only the pgmap field the same
-> > way. One wasn't initializing hmm_data, and the other was initializing it to
-> > a poison value. Since this is something that is exposed to the driver in
-> > the case of hmm I am opting for a third option and just initializing
-> > hmm_data to 0 since this is going to be exposed to unknown third party
-> > drivers.
-> >
-> > Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
-> > ---
-> >  include/linux/mm.h |    2 +
-> >  kernel/memremap.c  |   24 +++++---------
-> >  mm/hmm.c           |   12 ++++---
-> >  mm/page_alloc.c    |   89 +++++++++++++++++++++++++++++++++++++++++++++++++++-
-> >  4 files changed, 105 insertions(+), 22 deletions(-)
-> >
-> > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > index a61ebe8ad4ca..47b440bb3050 100644
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -848,6 +848,8 @@ static inline bool is_zone_device_page(const struct page *page)
-> >  {
-> >       return page_zonenum(page) == ZONE_DEVICE;
-> >  }
-> > +extern void memmap_init_zone_device(struct zone *, unsigned long,
-> > +                                 unsigned long, struct dev_pagemap *);
-> >  #else
-> >  static inline bool is_zone_device_page(const struct page *page)
-> >  {
-> > diff --git a/kernel/memremap.c b/kernel/memremap.c
-> > index 5b8600d39931..d0c32e473f82 100644
-> > --- a/kernel/memremap.c
-> > +++ b/kernel/memremap.c
-> > @@ -175,10 +175,10 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
-> >       struct vmem_altmap *altmap = pgmap->altmap_valid ?
-> >                       &pgmap->altmap : NULL;
-> >       struct resource *res = &pgmap->res;
-> > -     unsigned long pfn, pgoff, order;
-> > +     struct dev_pagemap *conflict_pgmap;
-> >       pgprot_t pgprot = PAGE_KERNEL;
-> > +     unsigned long pgoff, order;
-> >       int error, nid, is_ram;
-> > -     struct dev_pagemap *conflict_pgmap;
-> >
-> >       align_start = res->start & ~(SECTION_SIZE - 1);
-> >       align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
-> > @@ -256,19 +256,13 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
-> >       if (error)
-> >               goto err_add_memory;
-> >
-> > -     for_each_device_pfn(pfn, pgmap) {
-> > -             struct page *page = pfn_to_page(pfn);
-> > -
-> > -             /*
-> > -              * ZONE_DEVICE pages union ->lru with a ->pgmap back
-> > -              * pointer.  It is a bug if a ZONE_DEVICE page is ever
-> > -              * freed or placed on a driver-private list.  Seed the
-> > -              * storage with LIST_POISON* values.
-> > -              */
-> > -             list_del(&page->lru);
-> > -             page->pgmap = pgmap;
-> > -             percpu_ref_get(pgmap->ref);
-> > -     }
-> > +     /*
-> > +      * Initialization of the pages has been deferred until now in order
-> > +      * to allow us to do the work while not holding the hotplug lock.
-> > +      */
-> > +     memmap_init_zone_device(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
-> > +                             align_start >> PAGE_SHIFT,
-> > +                             align_size >> PAGE_SHIFT, pgmap);
-> >
-> >       devm_add_action(dev, devm_memremap_pages_release, pgmap);
-> >
-> > diff --git a/mm/hmm.c b/mm/hmm.c
-> > index c968e49f7a0c..774d684fa2b4 100644
-> > --- a/mm/hmm.c
-> > +++ b/mm/hmm.c
-> > @@ -1024,7 +1024,6 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
-> >       resource_size_t key, align_start, align_size, align_end;
-> >       struct device *device = devmem->device;
-> >       int ret, nid, is_ram;
-> > -     unsigned long pfn;
-> >
-> >       align_start = devmem->resource->start & ~(PA_SECTION_SIZE - 1);
-> >       align_size = ALIGN(devmem->resource->start +
-> > @@ -1109,11 +1108,14 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
-> >                               align_size >> PAGE_SHIFT, NULL);
-> >       mem_hotplug_done();
-> >
-> > -     for (pfn = devmem->pfn_first; pfn < devmem->pfn_last; pfn++) {
-> > -             struct page *page = pfn_to_page(pfn);
-> > +     /*
-> > +      * Initialization of the pages has been deferred until now in order
-> > +      * to allow us to do the work while not holding the hotplug lock.
-> > +      */
-> > +     memmap_init_zone_device(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
-> > +                             align_start >> PAGE_SHIFT,
-> > +                             align_size >> PAGE_SHIFT, &devmem->pagemap);
-> >
-> > -             page->pgmap = &devmem->pagemap;
-> > -     }
-> >       return 0;
-> >
-> >  error_add_memory:
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index a9b095a72fd9..81a3fd942c45 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -5454,6 +5454,83 @@ void __ref build_all_zonelists(pg_data_t *pgdat)
-> >  #endif
-> >  }
-> >
-> > +#ifdef CONFIG_ZONE_DEVICE
-> > +void __ref memmap_init_zone_device(struct zone *zone, unsigned long pfn,
-> > +                                unsigned long size,
-> > +                                struct dev_pagemap *pgmap)
-> > +{
-> > +     struct pglist_data *pgdat = zone->zone_pgdat;
-> > +     unsigned long zone_idx = zone_idx(zone);
-> > +     unsigned long end_pfn = pfn + size;
-> > +     unsigned long start = jiffies;
-> > +     int nid = pgdat->node_id;
-> > +     unsigned long nr_pages;
-> > +
-> > +     if (WARN_ON_ONCE(!pgmap || !is_dev_zone(zone)))
-> > +             return;
-> > +
-> > +     /*
-> > +      * The call to memmap_init_zone should have already taken care
-> > +      * of the pages reserved for the memmap, so we can just jump to
-> > +      * the end of that region and start processing the device pages.
-> > +      */
-> > +     if (pgmap->altmap_valid) {
-> > +             struct vmem_altmap *altmap = &pgmap->altmap;
-> > +
-> > +             pfn = altmap->base_pfn + vmem_altmap_offset(altmap);
-> > +     }
-> > +
-> > +     /* Record the number of pages we are about to initialize */
-> > +     nr_pages = end_pfn - pfn;
-> > +
-> > +     for (; pfn < end_pfn; pfn++) {
-> > +             struct page *page = pfn_to_page(pfn);
-> > +
-> > +             __init_single_page(page, pfn, zone_idx, nid);
-> > +
-> > +             /*
-> > +              * Mark page reserved as it will need to wait for onlining
-> > +              * phase for it to be fully associated with a zone.
-> > +              *
-> > +              * We can use the non-atomic __set_bit operation for setting
-> > +              * the flag as we are still initializing the pages.
-> > +              */
-> > +             __SetPageReserved(page);
-> > +
-> > +             /*
-> > +              * ZONE_DEVICE pages union ->lru with a ->pgmap back
-> > +              * pointer and hmm_data.  It is a bug if a ZONE_DEVICE
-> > +              * page is ever freed or placed on a driver-private list.
-> > +              */
-> > +             page->pgmap = pgmap;
-> > +             page->hmm_data = 0;
-> > +
-> > +             /*
-> > +              * Mark the block movable so that blocks are reserved for
-> > +              * movable at startup. This will force kernel allocations
-> > +              * to reserve their blocks rather than leaking throughout
-> > +              * the address space during boot when many long-lived
-> > +              * kernel allocations are made.
-> > +              *
-> > +              * bitmap is created for zone's valid pfn range. but memmap
-> > +              * can be created for invalid pages (for alignment)
-> > +              * check here not to call set_pageblock_migratetype() against
-> > +              * pfn out of zone.
-> > +              *
-> > +              * Please note that MEMMAP_HOTPLUG path doesn't clear memmap
-> > +              * because this is done early in sparse_add_one_section
-> > +              */
-> > +             if (!(pfn & (pageblock_nr_pages - 1))) {
-> > +                     set_pageblock_migratetype(page, MIGRATE_MOVABLE);
-> > +                     cond_resched();
-> > +             }
-> > +     }
-> > +
-> > +     pr_info("%s initialised, %lu pages in %ums\n", dev_name(pgmap->dev),
-> > +             nr_pages, jiffies_to_msecs(jiffies - start));
-> > +}
-> > +
-> > +#endif
-> >  /*
-> >   * Initially all pages are reserved - free ones are freed
-> >   * up by free_all_bootmem() once the early boot process is
-> > @@ -5477,10 +5554,18 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
-> >
-> >       /*
-> >        * Honor reservation requested by the driver for this ZONE_DEVICE
-> > -      * memory
-> > +      * memory. We limit the total number of pages to initialize to just
-> > +      * those that might contain the memory mapping. We will defer the
-> > +      * ZONE_DEVICE page initialization until after we have released
-> > +      * the hotplug lock.
-> >        */
-> > -     if (altmap && start_pfn == altmap->base_pfn)
-> > +     if (altmap && start_pfn == altmap->base_pfn) {
-> >               start_pfn += altmap->reserve;
-> > +             end_pfn = altmap->base_pfn +
-> > +                       vmem_altmap_offset(altmap);
-> > +     } else if (zone == ZONE_DEVICE) {
-> > +             end_pfn = start_pfn;
-> > +     }
-> >
-> >       for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-> >               /*
-> >
+Cheers,
+Longman
