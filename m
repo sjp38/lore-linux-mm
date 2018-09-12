@@ -1,187 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B5BF8E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 09:04:08 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id t3-v6so2190587oif.20
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 06:04:08 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id e131-v6si707109oib.459.2018.09.12.06.04.06
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 44F6F8E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 09:17:28 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id r25-v6so870951edc.7
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 06:17:28 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s29-v6si1064483edd.58.2018.09.12.06.17.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Sep 2018 06:04:06 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8CD0vrb019617
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 09:04:06 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mf1m1d84r-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 09:04:05 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Wed, 12 Sep 2018 14:04:01 +0100
-Date: Wed, 12 Sep 2018 15:03:56 +0200
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [PATCH] memory_hotplug: fix the panic when memory end is not on
- the section boundary
-In-Reply-To: <20180910131754.GG10951@dhcp22.suse.cz>
-References: <20180910123527.71209-1-zaslonko@linux.ibm.com>
-	<20180910131754.GG10951@dhcp22.suse.cz>
+        Wed, 12 Sep 2018 06:17:27 -0700 (PDT)
+Date: Wed, 12 Sep 2018 15:17:24 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC] memory_hotplug: Free pages as pageblock_order
+Message-ID: <20180912131724.GH10951@dhcp22.suse.cz>
+References: <1536744405-16752-1-git-send-email-arunks@codeaurora.org>
+ <20180912103853.GC10951@dhcp22.suse.cz>
+ <20180912125743.GB8537@350D>
 MIME-Version: 1.0
-Message-Id: <20180912150356.642c1dab@thinkpad>
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180912125743.GB8537@350D>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mikhail Zaslonko <zaslonko@linux.ibm.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pavel.Tatashin@microsoft.com, osalvador@suse.de
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: Arun KS <arunks@codeaurora.org>, akpm@linux-foundation.org, dan.j.williams@intel.com, vbabka@suse.cz, pasha.tatashin@oracle.com, iamjoonsoo.kim@lge.com, osalvador@suse.de, malat@debian.org, gregkh@linuxfoundation.org, yasu.isimatu@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, arunks.linux@gmail.com, vinmenon@codeaurora.org
 
-On Mon, 10 Sep 2018 15:17:54 +0200
-Michal Hocko <mhocko@kernel.org> wrote:
-
-> [Cc Pavel]
-> 
-> On Mon 10-09-18 14:35:27, Mikhail Zaslonko wrote:
-> > If memory end is not aligned with the linux memory section boundary, such
-> > a section is only partly initialized. This may lead to VM_BUG_ON due to
-> > uninitialized struct pages access from is_mem_section_removable() or
-> > test_pages_in_a_zone() function.
+On Wed 12-09-18 22:57:43, Balbir Singh wrote:
+> On Wed, Sep 12, 2018 at 12:38:53PM +0200, Michal Hocko wrote:
+> > On Wed 12-09-18 14:56:45, Arun KS wrote:
+> > > When free pages are done with pageblock_order, time spend on
+> > > coalescing pages by buddy allocator can be reduced. With
+> > > section size of 256MB, hot add latency of a single section
+> > > shows improvement from 50-60 ms to less than 1 ms, hence
+> > > improving the hot add latency by 60%.
 > > 
-> > Here is one of the panic examples:
-> >  CONFIG_DEBUG_VM_PGFLAGS=y
-> >  kernel parameter mem=3075M  
+> > Where does the improvement come from? You are still doing the same
+> > amount of work except that the number of callbacks is lower. Is this the
+> > real source of 60% improvement?
+> >
 > 
-> OK, so the last memory section is not full and we have a partial memory
-> block right?
-> 
-> >  page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))  
-> 
-> OK, this means that the struct page is not fully initialized. Do you
-> have a specific place which has triggered this assert?
-> 
-> >  ------------[ cut here ]------------
-> >  Call Trace:
-> >  ([<000000000039b8a4>] is_mem_section_removable+0xcc/0x1c0)
-> >   [<00000000009558ba>] show_mem_removable+0xda/0xe0
-> >   [<00000000009325fc>] dev_attr_show+0x3c/0x80
-> >   [<000000000047e7ea>] sysfs_kf_seq_show+0xda/0x160
-> >   [<00000000003fc4e0>] seq_read+0x208/0x4c8
-> >   [<00000000003cb80e>] __vfs_read+0x46/0x180
-> >   [<00000000003cb9ce>] vfs_read+0x86/0x148
-> >   [<00000000003cc06a>] ksys_read+0x62/0xc0
-> >   [<0000000000c001c0>] system_call+0xdc/0x2d8
+> It looks like only the first page of the pageblock is initialized, is
+> some of the cost amortized in terms of doing one initialization for
+> the page with order (order) and then relying on split_page and helpers
+> to do the rest? Of course the number of callbacks reduce by a significant
+> number as well.
+
+Ohh, I have missed that part. Now when re-reading I can see the reason
+for the perf improvement. It is most likely the higher order free which
+ends up being much cheaper. This part makes some sense.
+
+How much is this feasible is another question. Do not forget we have
+those external providers of the online callback and those would need to
+be updated as well.
+
+Btw. the normal memmap init code path does the same per-page free as
+well. If we really want to speed the hotplug path then I guess the init
+one would see a bigger improvement and those two should be in sync.
+ 
+> > > 
+> > > If this looks okey, I'll modify users of set_online_page_callback
+> > > and resend clean patch.
 > > 
-> > This fix checks if the page lies within the zone boundaries before
-> > accessing the struct page data. The check is added to both functions.
-> > Actually similar check has already been present in
-> > is_pageblock_removable_nolock() function but only after the struct page
-> > is accessed.
-> >   
-> 
-> Well, I am afraid this is not the proper solution. We are relying on the
-> full pageblock worth of initialized struct pages at many other place. We
-> used to do that in the past because we have initialized the full
-> section but this has been changed recently. Pavel, do you have any ideas
-> how to deal with this partial mem sections now?
-
-This is not about partly initialized pageblocks, it is about partly
-initialized struct pages for memory (hotplug) blocks. And this also
-seems to "work as designed", i.e. memmap_init_zone() will stop at
-zone->spanned_pages, and not initialize the full memory block if
-you specify a not-memory-block-aligned mem= parameter.
-
-"Normal" memory management code should never get in touch with the
-uninitialized part, only the 2 memory hotplug sysfs handlers for
-"valid_zones" and "removable" will iterate over a complete memory block.
-
-So it does seem rather straight-forward to simply fix those 2 functions,
-and not let them go beyond zone->spanned_pages, which is what Mikhails patch
-would do. What exactly is wrong with that approach, and how would you rather
-have it fixed? A patch that changes memmap_init_zone() to initialize all
-struct pages of the last memory block, even beyond zone->spanned_pages?
-Could this be done w/o side-effects?
-
-If you look at test_pages_in_a_zone(), there is already some logic that
-obviously assumes that at least the first page of the memory block is
-initialized, and then while iterating over the rest, a check for
-zone_spans_pfn() can easily be added. Mikhail applied the same logic
-to is_mem_section_removable(), and his patch does fix the panic (or access
-to uninitialized struct pages w/o DEBUG_VM poisoning).
-
-BTW, those sysfs attributes are world-readable, so anyone can trigger
-the panic by simply reading them, or just run lsmem (also available for
-x86 since util-linux 2.32). OK, you need a special not-memory-block-aligned
-mem= parameter and DEBUG_VM for poison check, but w/o DEBUG_VM you would
-still access uninitialized struct pages. This sounds very wrong, and I
-think it really should be fixed.
-
-> 
-> > Signed-off-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
-> > Reviewed-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> > Cc: <stable@vger.kernel.org>
-> > ---
-> >  mm/memory_hotplug.c | 20 +++++++++++---------
-> >  1 file changed, 11 insertions(+), 9 deletions(-)
+> > [...]
 > > 
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > index 9eea6e809a4e..8e20e8fcc3b0 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -1229,9 +1229,8 @@ static struct page *next_active_pageblock(struct page *page)
-> >  	return page + pageblock_nr_pages;
-> >  }
-> >  
-> > -static bool is_pageblock_removable_nolock(struct page *page)
-> > +static bool is_pageblock_removable_nolock(struct page *page, struct zone **zone)
-> >  {
-> > -	struct zone *zone;
-> >  	unsigned long pfn;
-> >  
-> >  	/*
-> > @@ -1241,15 +1240,14 @@ static bool is_pageblock_removable_nolock(struct page *page)
-> >  	 * We have to take care about the node as well. If the node is offline
-> >  	 * its NODE_DATA will be NULL - see page_zone.
-> >  	 */
-> > -	if (!node_online(page_to_nid(page)))
-> > -		return false;
-> > -
-> > -	zone = page_zone(page);
-> >  	pfn = page_to_pfn(page);
-> > -	if (!zone_spans_pfn(zone, pfn))
-> > +	if (*zone && !zone_spans_pfn(*zone, pfn))
-> >  		return false;
-> > +	if (!node_online(page_to_nid(page)))
-> > +		return false;
-> > +	*zone = page_zone(page);
-> >  
-> > -	return !has_unmovable_pages(zone, page, 0, MIGRATE_MOVABLE, true);
-> > +	return !has_unmovable_pages(*zone, page, 0, MIGRATE_MOVABLE, true);
-> >  }
-> >  
-> >  /* Checks if this range of memory is likely to be hot-removable. */
-> > @@ -1257,10 +1255,11 @@ bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
-> >  {
-> >  	struct page *page = pfn_to_page(start_pfn);
-> >  	struct page *end_page = page + nr_pages;
-> > +	struct zone *zone = NULL;
-> >  
-> >  	/* Check the starting page of each pageblock within the range */
-> >  	for (; page < end_page; page = next_active_pageblock(page)) {
-> > -		if (!is_pageblock_removable_nolock(page))
-> > +		if (!is_pageblock_removable_nolock(page, &zone))
-> >  			return false;
-> >  		cond_resched();
-> >  	}
-> > @@ -1296,6 +1295,9 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
-> >  				i++;
-> >  			if (i == MAX_ORDER_NR_PAGES || pfn + i >= end_pfn)
-> >  				continue;
-> > +			/* Check if we got outside of the zone */
-> > +			if (zone && !zone_spans_pfn(zone, pfn))
-> > +				return 0;
-> >  			page = pfn_to_page(pfn + i);
-> >  			if (zone && page_zone(page) != zone)
-> >  				return 0;
-> > -- 
-> > 2.16.4  
-> 
+> > > +static int generic_online_pages(struct page *page, unsigned int order);
+> > > +static online_pages_callback_t online_pages_callback = generic_online_pages;
+> > > +
+> > > +static int generic_online_pages(struct page *page, unsigned int order)
+> > > +{
+> > > +	unsigned long nr_pages = 1 << order;
+> > > +	struct page *p = page;
+> > > +	unsigned int loop;
+> > > +
+> > > +	for (loop = 0 ; loop < nr_pages ; loop++, p++) {
+> > > +		__ClearPageReserved(p);
+> > > +		set_page_count(p, 0);
+
+btw. you want init_page_count here.
+-- 
+Michal Hocko
+SUSE Labs
