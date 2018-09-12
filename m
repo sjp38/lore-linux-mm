@@ -1,74 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D0EA38E0009
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 13:39:59 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id m21-v6so3144958oic.7
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 10:39:59 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l7-v6sor1608669oia.17.2018.09.12.10.39.58
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A210F8E0002
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 13:46:57 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id e62-v6so4704593itb.3
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 10:46:57 -0700 (PDT)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0108.outbound.protection.outlook.com. [104.47.41.108])
+        by mx.google.com with ESMTPS id r19-v6si952571ioh.155.2018.09.12.10.46.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 12 Sep 2018 10:39:58 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 12 Sep 2018 10:46:56 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Subject: Re: [PATCH 3/4] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
+Date: Wed, 12 Sep 2018 17:46:53 +0000
+Message-ID: <fac5a6f4-3dda-2ec4-81ec-4a4a7ad2a571@microsoft.com>
+References: <20180910232615.4068.29155.stgit@localhost.localdomain>
+ <20180910234354.4068.65260.stgit@localhost.localdomain>
+ <7b96298e-9590-befd-0670-ed0c9fcf53d5@microsoft.com>
+ <CAKgT0UdKZVUPBk=rg5kfUuFBpuZQEKPuGw31x5O2nMyuULgi0g@mail.gmail.com>
+ <CAPcyv4gEDwp8Xh4_E8RNBC_OqstwhqxkZOpvYjWd_siB4C=BEQ@mail.gmail.com>
+In-Reply-To: 
+ <CAPcyv4gEDwp8Xh4_E8RNBC_OqstwhqxkZOpvYjWd_siB4C=BEQ@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <6BC95DA5D70D7B4B9356E05A6683025F@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-References: <cover.1535462971.git.andreyknvl@google.com> <f5e73b5ead3355932ad8b5fc96b141c3f5b8c16c.1535462971.git.andreyknvl@google.com>
- <CACT4Y+aEwYiaVN--RH_0VBh0wbCcrf-Ndz+_eOaBNi6nKxrfQA@mail.gmail.com>
-In-Reply-To: <CACT4Y+aEwYiaVN--RH_0VBh0wbCcrf-Ndz+_eOaBNi6nKxrfQA@mail.gmail.com>
-From: Jann Horn <jannh@google.com>
-Date: Wed, 12 Sep 2018 19:39:30 +0200
-Message-ID: <CAG48ez2oT1dtDcH8SfPLnoX5F8d6Pd=M-eOKHhYJ83EuL_j6wQ@mail.gmail.com>
-Subject: Re: [PATCH v6 15/18] khwasan, arm64: add brk handler for inline instrumentation
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, dave.martin@arm.com, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, geert@linux-m68k.org, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, kstewart@linuxfoundation.org, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, kernel list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-kbuild@vger.kernel.org, Kostya Serebryany <kcc@google.com>, Evgenii Stepanov <eugenis@google.com>, Lee.Smith@arm.com, Ramana.Radhakrishnan@arm.com, Jacob.Bramley@arm.com, Ruben.Ayrapetyan@arm.com, Mark Brand <markbrand@google.com>, cpandya@codeaurora.org, Vishwath Mohan <vishwath@google.com>
+To: Dan Williams <dan.j.williams@intel.com>, Alexander Duyck <alexander.duyck@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Sep 12, 2018 at 7:16 PM Dmitry Vyukov <dvyukov@google.com> wrote:
-> On Wed, Aug 29, 2018 at 1:35 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-[...]
-> > +static int khwasan_handler(struct pt_regs *regs, unsigned int esr)
-> > +{
-> > +       bool recover = esr & KHWASAN_ESR_RECOVER;
-> > +       bool write = esr & KHWASAN_ESR_WRITE;
-> > +       size_t size = KHWASAN_ESR_SIZE(esr);
-> > +       u64 addr = regs->regs[0];
-> > +       u64 pc = regs->pc;
-> > +
-> > +       if (user_mode(regs))
-> > +               return DBG_HOOK_ERROR;
-> > +
-> > +       kasan_report(addr, size, write, pc);
-> > +
-> > +       /*
-> > +        * The instrumentation allows to control whether we can proceed after
-> > +        * a crash was detected. This is done by passing the -recover flag to
-> > +        * the compiler. Disabling recovery allows to generate more compact
-> > +        * code.
-> > +        *
-> > +        * Unfortunately disabling recovery doesn't work for the kernel right
-> > +        * now. KHWASAN reporting is disabled in some contexts (for example when
-> > +        * the allocator accesses slab object metadata; same is true for KASAN;
-> > +        * this is controlled by current->kasan_depth). All these accesses are
-> > +        * detected by the tool, even though the reports for them are not
-> > +        * printed.
-> > +        *
-> > +        * This is something that might be fixed at some point in the future.
-> > +        */
-> > +       if (!recover)
-> > +               die("Oops - KHWASAN", regs, 0);
->
-> Why die and not panic? Die seems to be much less used function, and it
-> calls panic anyway, and we call panic in kasan_report if panic_on_warn
-> is set.
-
-die() is vaguely equivalent to BUG(); die() and BUG() normally only
-terminate the current process, which may or may not leave the system
-somewhat usable, while panic() always brings down the whole system.
-AFAIK panic() shouldn't be used unless you're in some very low-level
-code where you know that trying to just kill the current process can't
-work and the entire system is broken beyond repair.
-
-If KASAN traps on some random memory access, there's a good chance
-that just killing the current process will allow at least parts of the
-system to continue. I'm not sure whether BUG() or die() is more
-appropriate here, but I think it definitely should not be a panic().
+DQoNCk9uIDkvMTIvMTggMTI6NTAgUE0sIERhbiBXaWxsaWFtcyB3cm90ZToNCj4gT24gV2VkLCBT
+ZXAgMTIsIDIwMTggYXQgODo0OCBBTSwgQWxleGFuZGVyIER1eWNrDQo+IDxhbGV4YW5kZXIuZHV5
+Y2tAZ21haWwuY29tPiB3cm90ZToNCj4+IE9uIFdlZCwgU2VwIDEyLCAyMDE4IGF0IDY6NTkgQU0g
+UGFzaGEgVGF0YXNoaW4NCj4+IDxQYXZlbC5UYXRhc2hpbkBtaWNyb3NvZnQuY29tPiB3cm90ZToN
+Cj4+Pg0KPj4+IEhpIEFsZXgsDQo+Pg0KPj4gSGkgUGF2ZWwsDQo+Pg0KPj4+IFBsZWFzZSByZS1i
+YXNlIG9uIGxpbnV4LW5leHQsICBtZW1tYXBfaW5pdF96b25lKCkgaGFzIGJlZW4gdXBkYXRlZCB0
+aGVyZQ0KPj4+IGNvbXBhcmVkIHRvIG1haW5saW5lLiBZb3UgbWlnaHQgZXZlbiBmaW5kIGEgd2F5
+IHRvIHVuaWZ5IHNvbWUgcGFydHMgb2YNCj4+PiBtZW1tYXBfaW5pdF96b25lIGFuZCBtZW1tYXBf
+aW5pdF96b25lX2RldmljZSBhcyBtZW1tYXBfaW5pdF96b25lKCkgaXMgYQ0KPj4+IGxvdCBzaW1w
+bGVyIG5vdy4NCj4+DQo+PiBUaGlzIHBhdGNoIGFwcGxpZWQgdG8gdGhlIGxpbnV4LW5leHQgdHJl
+ZSB3aXRoIG9ubHkgYSBsaXR0bGUgYml0IG9mDQo+PiBmdXp6LiBJdCBsb29rcyBsaWtlIGl0IGlz
+IG1vc3RseSBkdWUgdG8gc29tZSBjb2RlIHlvdSBoYWQgYWRkZWQgYWJvdmUNCj4+IHRoZSBmdW5j
+dGlvbiBhcyB3ZWxsLiBJIGhhdmUgdXBkYXRlZCB0aGlzIHBhdGNoIHNvIHRoYXQgaXQgd2lsbCBh
+cHBseQ0KPj4gdG8gYm90aCBsaW51eCBhbmQgbGludXgtbmV4dCBieSBqdXN0IG1vdmluZyB0aGUg
+bmV3IGZ1bmN0aW9uIHRvDQo+PiB1bmRlcm5lYXRoIG1lbW1hcF9pbml0X3pvbmUgaW5zdGVhZCBv
+ZiBhYm92ZSBpdC4NCj4+DQo+Pj4gSSB0aGluayBfX2luaXRfc2luZ2xlX3BhZ2UoKSBzaG91bGQg
+c3RheSBsb2NhbCB0byBwYWdlX2FsbG9jLmMgdG8ga2VlcA0KPj4+IHRoZSBpbmxpbmluZyBvcHRp
+bWl6YXRpb24uDQo+Pg0KPj4gSSBhZ3JlZS4gSW4gYWRkaXRpb24gaXQgd2lsbCBtYWtlIHB1bGxp
+bmcgY29tbW9uIGluaXQgdG9nZXRoZXIgaW50bw0KPj4gb25lIHNwYWNlIGVhc2llci4gSSB3b3Vs
+ZCByYXRoZXIgbm90IGhhdmUgdXMgY3JlYXRlIGFuIG9wcG9ydHVuaXR5IGZvcg0KPj4gdGhpbmdz
+IHRvIGZ1cnRoZXIgZGl2ZXJnZSBieSBtYWtpbmcgaXQgYXZhaWxhYmxlIGZvciBhbnlib2R5IHRv
+IHVzZS4NCj4gDQo+IEknbGwgYnV5IHRoZSBpbmxpbmUgYXJndW1lbnQgZm9yIGtlZXBpbmcgdGhl
+IG5ldyByb3V0aW5lIGluDQo+IHBhZ2VfYWxsb2MuYywgYnV0IEkgb3RoZXJ3aXNlIGRvIG5vdCBz
+ZWUgdGhlIGRpdmVyZ2VuY2UgZGFuZ2VyIG9yDQo+ICJtYWtpbmcgX19pbml0X3NpbmdsZV9wYWdl
+KCkgYXZhaWxhYmxlIGZvciBhbnlib2R5IiBnaXZlbiB0aGUgdGhlDQo+IGRlY2xhcmF0aW9uIGlz
+IGxpbWl0ZWQgaW4gc2NvcGUgdG8gYSBtbS8gbG9jYWwgaGVhZGVyIGZpbGUuDQo+IA0KDQpIaSBE
+YW4sDQoNCkl0IGlzIG11Y2ggaGFyZGVyIGZvciBjb21waWxlciB0byBkZWNpZGUgdGhhdCBmdW5j
+dGlvbiBjYW4gYmUgaW5saW5lZA0Kb25jZSBpdCBpcyBub24tc3RhdGljLiBPZiBjb3Vyc2UsIHdl
+IGNhbiBzaW1wbHkgbW92ZSB0aGlzIGZ1bmN0aW9uIHRvIGENCmhlYWRlciBmaWxlLCBhbmQgZGVj
+bGFyZSBpdCBpbmxpbmUgdG8gYmVnaW4gd2l0aC4NCg0KQnV0LCBzdGlsbCBfX2luaXRfc2luZ2xl
+X3BhZ2UoKSBpcyBzbyBwZXJmb3JtYW5jZSBzZW5zaXRpdmUsIHRoYXQgSSdkDQpsaWtlIHRvIHJl
+ZHVjZSBudW1iZXIgb2YgY2FsbGVycyB0byB0aGlzIGZ1bmN0aW9uLCBhbmQga2VlcCBpdCBpbiAu
+YyBmaWxlLg0KDQpUaGFuayB5b3UsDQpQYXZlbA==
