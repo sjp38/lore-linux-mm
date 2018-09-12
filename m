@@ -1,62 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 345088E0001
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B676D8E0009
 	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 13:35:56 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id d1-v6so2193506qth.21
+Received: by mail-qt0-f197.google.com with SMTP id e14-v6so2183410qtp.17
         for <linux-mm@kvack.org>; Wed, 12 Sep 2018 10:35:56 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id u17-v6si1006102qvi.90.2018.09.12.10.35.55
+        by mx.google.com with ESMTPS id z30-v6si1194578qve.249.2018.09.12.10.35.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 12 Sep 2018 10:35:55 -0700 (PDT)
 From: Waiman Long <longman@redhat.com>
-Subject: [PATCH v4 1/3] fs/dcache: Fix incorrect nr_dentry_unused accounting in shrink_dcache_sb()
-Date: Wed, 12 Sep 2018 13:35:40 -0400
-Message-Id: <1536773742-32687-2-git-send-email-longman@redhat.com>
+Subject: [PATCH v4 2/3] fs: Don't need to put list_lru into its own cacheline
+Date: Wed, 12 Sep 2018 13:35:41 -0400
+Message-Id: <1536773742-32687-3-git-send-email-longman@redhat.com>
 In-Reply-To: <1536773742-32687-1-git-send-email-longman@redhat.com>
 References: <1536773742-32687-1-git-send-email-longman@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>, Waiman Long <longman@redhat.com>, stable@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>, Waiman Long <longman@redhat.com>
 
-The nr_dentry_unused per-cpu counter tracks dentries in both the
-LRU lists and the shrink lists where the DCACHE_LRU_LIST bit is set.
-The shrink_dcache_sb() function moves dentries from the LRU list to a
-shrink list and subtracts the dentry count from nr_dentry_unused. This
-is incorrect as the nr_dentry_unused count Will also be decremented in
-shrink_dentry_list() via d_shrink_del(). To fix this double decrement,
-the decrement in the shrink_dcache_sb() function is taken out.
+The list_lru structure is essentially just a pointer to a table of
+per-node LRU lists. Even if CONFIG_MEMCG_KMEM is defined, the list
+field is just used for LRU list registration and shrinker_id is set
+at initialization. Those fields won't need to be touched that often.
 
-Fixes: 4e717f5c1083 ("list_lru: remove special case function list_lru_dispose_all."
-Cc: stable@vger.kernel.org
+So there is no point to make the list_lru structures to sit in their
+own cachelines.
 
 Signed-off-by: Waiman Long <longman@redhat.com>
 Reviewed-by: Dave Chinner <dchinner@redhat.com>
 ---
- fs/dcache.c | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ include/linux/fs.h | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index 2e7e8d8..cb515f1 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -1202,15 +1202,11 @@ static enum lru_status dentry_lru_isolate_shrink(struct list_head *item,
-  */
- void shrink_dcache_sb(struct super_block *sb)
- {
--	long freed;
--
- 	do {
- 		LIST_HEAD(dispose);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 3332270..fd4cd8a 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1443,11 +1443,12 @@ struct super_block {
+ 	struct user_namespace *s_user_ns;
  
--		freed = list_lru_walk(&sb->s_dentry_lru,
-+		list_lru_walk(&sb->s_dentry_lru,
- 			dentry_lru_isolate_shrink, &dispose, 1024);
--
--		this_cpu_sub(nr_dentry_unused, freed);
- 		shrink_dentry_list(&dispose);
- 	} while (list_lru_count(&sb->s_dentry_lru) > 0);
- }
+ 	/*
+-	 * Keep the lru lists last in the structure so they always sit on their
+-	 * own individual cachelines.
++	 * The list_lru structure is essentially just a pointer to a table
++	 * of per-node lru lists, each of which has its own spinlock.
++	 * There is no need to put them into separate cachelines.
+ 	 */
+-	struct list_lru		s_dentry_lru ____cacheline_aligned_in_smp;
+-	struct list_lru		s_inode_lru ____cacheline_aligned_in_smp;
++	struct list_lru		s_dentry_lru;
++	struct list_lru		s_inode_lru;
+ 	struct rcu_head		rcu;
+ 	struct work_struct	destroy_work;
+ 
 -- 
 1.8.3.1
