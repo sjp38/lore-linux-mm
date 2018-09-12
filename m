@@ -1,78 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 70CD98E0001
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 20:11:16 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id r2-v6so77481pgp.3
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 17:11:16 -0700 (PDT)
-Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
-        by mx.google.com with ESMTPS id b14-v6si22520517pgk.169.2018.09.11.17.11.13
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3992B8E0001
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2018 20:44:04 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id 90-v6so101219pla.18
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2018 17:44:04 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id p21-v6si20648717plq.338.2018.09.11.17.44.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Sep 2018 17:11:14 -0700 (PDT)
-Date: Tue, 11 Sep 2018 17:10:55 -0700
-From: Liu Bo <bo.liu@linux.alibaba.com>
-Subject: ext4 hang and per-memcg dirty throttling
-Message-ID: <20180912001054.bu3x3xwukusnsa26@US-160370MP2.local>
-Reply-To: bo.liu@linux.alibaba.com
+        Tue, 11 Sep 2018 17:44:02 -0700 (PDT)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V5 RESEND 00/21] swap: Swapout/swapin THP in one piece
+Date: Wed, 12 Sep 2018 08:43:53 +0800
+Message-Id: <20180912004414.22583-1-ying.huang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-ext4@vger.kernel.org
-Cc: fengguang.wu@intel.com, tj@kernel.org, jack@suse.cz, cgroups@vger.kernel.org, gthelen@google.com, linux-mm@kvack.org, yang.shi@linux.alibaba.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-Hi,
+Hi, Andrew, could you help me to check whether the overall design is
+reasonable?
 
-With ext4's data=ordered mode and the underlying blk throttle setting, we
-can easily run to hang,
+Hi, Hugh, Shaohua, Minchan and Rik, could you help me to review the
+swap part of the patchset?  Especially [02/21], [03/21], [04/21],
+[05/21], [06/21], [07/21], [08/21], [09/21], [10/21], [11/21],
+[12/21], [20/21], [21/21].
 
-1.
-mount /dev/sdc /mnt -odata=ordered
-2.
-mkdir /sys/fs/cgroup/unified/cg
-3.
-echo "+io" > /sys/fs/cgroup/unified/cgroup.subtree_control
-4.
-echo "`cat /sys/block/sdc/dev` wbps=$((1 << 20))" > /sys/fs/cgroup/unified/cg/io.max
-5.
-echo $$ >  /sys/fs/cgroup/unified/cg/cgroup.procs
-6.
-// background dirtier
-xfs_io -f -c "pwrite 0 1G" $M/dummy &
-7.
-echo $$ > /sys/fs/cgroup/unified/cgroup.procs
-8.
-// issue synchronous IO
-for i in `seq 1 100`;
-do
-    xfs_io -f -s -c "pwrite 0 4k" $M/foo > /dev/null
-done
+Hi, Andrea and Kirill, could you help me to review the THP part of the
+patchset?  Especially [01/21], [07/21], [09/21], [11/21], [13/21],
+[15/21], [16/21], [17/21], [18/21], [19/21], [20/21].
 
+Hi, Johannes and Michal, could you help me to review the cgroup part
+of the patchset?  Especially [14/21].
 
-And the hang is like
+And for all, Any comment is welcome!
 
-      [jbd2-sdc]
-jbd2_journal_commit_transaction                              
-  journal_submit_data_buffers
-    # file 'dummy' has been written by writeback kthread
-  journal_finish_inode_data_buffers
-    # wait on page's writeback
+This patchset is based on the 2018-09-04 head of mmotm/master.
 
-Then all the operations of ext4 which need to start journal will have
-to wait until journal committing transaction completes.
+This is the final step of THP (Transparent Huge Page) swap
+optimization.  After the first and second step, the splitting huge
+page is delayed from almost the first step of swapout to after swapout
+has been finished.  In this step, we avoid splitting THP for swapout
+and swapout/swapin the THP in one piece.
 
-Since there is no per-memcg throttling, such as dirty ratio or dirty
-bytes throttle, balance_dirty_pages() may not be able to slow down the
-background dirtier task as expected.
+We tested the patchset with vm-scalability benchmark swap-w-seq test
+case, with 16 processes.  The test case forks 16 processes.  Each
+process allocates large anonymous memory range, and writes it from
+begin to end for 8 rounds.  The first round will swapout, while the
+remaining rounds will swapin and swapout.  The test is done on a Xeon
+E5 v3 system, the swap device used is a RAM simulated PMEM (persistent
+memory) device.  The test result is as follow,
 
-I googled a little bit and found that Greg did the related work[1]
-back in 2011, but seems the patch set didn't make it to kernel.
+            base                  optimized
+---------------- -------------------------- 
+         %stddev     %change         %stddev
+             \          |                \  
+   1417897 A+-  2%    +992.8%   15494673        vm-scalability.throughput
+   1020489 A+-  4%   +1091.2%   12156349        vmstat.swap.si
+   1255093 A+-  3%    +940.3%   13056114        vmstat.swap.so
+   1259769 A+-  7%   +1818.3%   24166779        meminfo.AnonHugePages
+  28021761           -10.7%   25018848 A+-  2%  meminfo.AnonPages
+  64080064 A+-  4%     -95.6%    2787565 A+- 33%  interrupts.CAL:Function_call_interrupts
+     13.91 A+-  5%     -13.8        0.10 A+- 27%  perf-profile.children.cycles-pp.native_queued_spin_lock_slowpath
 
-Now that we have writeback aware cgroup, is there any plan to push the
-patch set again or are there any alternative solutions/suggestions?
+Where, the score of benchmark (bytes written per second) improved
+992.8%.  The swapout/swapin throughput improved 1008% (from about
+2.17GB/s to 24.04GB/s).  The performance difference is huge.  In base
+kernel, for the first round of writing, the THP is swapout and split,
+so in the remaining rounds, there is only normal page swapin and
+swapout.  While in optimized kernel, the THP is kept after first
+swapout, so THP swapin and swapout is used in the remaining rounds.
+This shows the key benefit to swapout/swapin THP in one piece, the THP
+will be kept instead of being split.  meminfo information verified
+this, in base kernel only 4.5% of anonymous page are THP during the
+test, while in optimized kernel, that is 96.6%.  The TLB flushing IPI
+(represented as interrupts.CAL:Function_call_interrupts) reduced
+95.6%, while cycles for spinlock reduced from 13.9% to 0.1%.  These
+are performance benefit of THP swapout/swapin too.
 
-[1]: https://lwn.net/Articles/455341/
+Below is the description for all steps of THP swap optimization.
 
-thanks,
--liubo
+Recently, the performance of the storage devices improved so fast that
+we cannot saturate the disk bandwidth with single logical CPU when do
+page swapping even on a high-end server machine.  Because the
+performance of the storage device improved faster than that of single
+logical CPU.  And it seems that the trend will not change in the near
+future.  On the other hand, the THP becomes more and more popular
+because of increased memory size.  So it becomes necessary to optimize
+THP swap performance.
+
+The advantages to swapout/swapin a THP in one piece include:
+
+- Batch various swap operations for the THP.  Many operations need to
+  be done once per THP instead of per normal page, for example,
+  allocating/freeing the swap space, writing/reading the swap space,
+  flushing TLB, page fault, etc.  This will improve the performance of
+  the THP swap greatly.
+
+- The THP swap space read/write will be large sequential IO (2M on
+  x86_64).  It is particularly helpful for the swapin, which are
+  usually 4k random IO.  This will improve the performance of the THP
+  swap too.
+
+- It will help the memory fragmentation, especially when the THP is
+  heavily used by the applications.  The THP order pages will be free
+  up after THP swapout.
+
+- It will improve the THP utilization on the system with the swap
+  turned on.  Because the speed for khugepaged to collapse the normal
+  pages into the THP is quite slow.  After the THP is split during the
+  swapout, it will take quite long time for the normal pages to
+  collapse back into the THP after being swapin.  The high THP
+  utilization helps the efficiency of the page based memory management
+  too.
+
+There are some concerns regarding THP swapin, mainly because possible
+enlarged read/write IO size (for swapout/swapin) may put more overhead
+on the storage device.  To deal with that, the THP swapin is turned on
+only when necessary.  A new sysfs interface:
+/sys/kernel/mm/transparent_hugepage/swapin_enabled is added to
+configure it.  It uses "always/never/madvise" logic, to be turned on
+globally, turned off globally, or turned on only for VMA with
+MADV_HUGEPAGE, etc.
+GE, etc.
+
+Changelog
+---------
+
+v5:
+
+- Rebased on 9/4 HEAD of mmotm/master
+
+- Merged the swap operations implementation for the huge and the
+  normal swap entries when possible
+
+- Added more code comments to improve code readability
+
+- Changed function parameter style to avoid to use Boolean parameter
+  as much as possible
+
+- Fixed a deadlock issue in do_huge_pmd_swap_page(), thanks 0-Day and sparse
+
+v4:
+
+- Rebased on 6/14 HEAD of mmotm/master
+
+- Fixed one build bug and several coding style issues, Thanks Daniel Jordon
+
+v3:
+
+- Rebased on 5/18 HEAD of mmotm/master
+
+- Fixed a build bug, Thanks 0-Day!
+
+v2:
+
+- Fixed several build bugs, Thanks 0-Day!
+
+- Improved documentation as suggested by Randy Dunlap.
+
+- Fixed several bugs in reading huge swap cluster
