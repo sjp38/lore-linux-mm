@@ -1,125 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 954558E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 12:39:00 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id u74-v6so2911371oie.16
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 09:39:00 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id h66-v6si1071419oib.383.2018.09.12.09.38.58
-        for <linux-mm@kvack.org>;
-        Wed, 12 Sep 2018 09:38:58 -0700 (PDT)
-Date: Wed, 12 Sep 2018 17:39:14 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH 4/5] lib/ioremap: Ensure phys_addr actually corresponds
- to a physical address
-Message-ID: <20180912163914.GA16071@arm.com>
-References: <1536747974-25875-1-git-send-email-will.deacon@arm.com>
- <1536747974-25875-5-git-send-email-will.deacon@arm.com>
- <20180912150939.GA30274@linux.intel.com>
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B33EF8E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 12:39:24 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id bh1-v6so1273032plb.15
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 09:39:24 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id o18-v6si1546199pfa.15.2018.09.12.09.39.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Sep 2018 09:39:23 -0700 (PDT)
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w8CGdMJp195439
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 16:39:22 GMT
+Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
+	by userp2120.oracle.com with ESMTP id 2mc72qu8bg-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 16:39:22 +0000
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w8CGdHec011681
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 16:39:18 GMT
+Received: from abhmp0012.oracle.com (abhmp0012.oracle.com [141.146.116.18])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w8CGdH1E021945
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 16:39:17 GMT
+From: Todd Vierling <todd.vierling@oracle.com>
+Subject: linux-mm wiki drop_caches doc is incomplete
+Message-ID: <01b0bc19-3326-05b9-166a-61445654a62f@oracle.com>
+Date: Wed, 12 Sep 2018 12:39:17 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180912150939.GA30274@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sean Christopherson <sean.j.christopherson@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cpandya@codeaurora.org, toshi.kani@hpe.com, tglx@linutronix.de, mhocko@suse.com, akpm@linux-foundation.org
+To: Linux-MM <linux-mm@kvack.org>
 
-Hi Sean,
+I've traced back several bad uses of drop_caches to users and bloggers
+who have used this doc page as a reference:
 
-Thanks for looking at the patch.
+https://linux-mm.org/Drop_Caches
 
-On Wed, Sep 12, 2018 at 08:09:39AM -0700, Sean Christopherson wrote:
-> On Wed, Sep 12, 2018 at 11:26:13AM +0100, Will Deacon wrote:
-> > The current ioremap() code uses a phys_addr variable at each level of
-> > page table, which is confusingly offset by subtracting the base virtual
-> > address being mapped so that adding the current virtual address back on
-> > when iterating through the page table entries gives back the corresponding
-> > physical address.
-> > 
-> > This is fairly confusing and results in all users of phys_addr having to
-> > add the current virtual address back on. Instead, this patch just updates
-> > phys_addr when iterating over the page table entries, ensuring that it's
-> > always up-to-date and doesn't require explicit offsetting.
-> > 
-> > Cc: Chintan Pandya <cpandya@codeaurora.org>
-> > Cc: Toshi Kani <toshi.kani@hpe.com>
-> > Cc: Thomas Gleixner <tglx@linutronix.de>
-> > Cc: Michal Hocko <mhocko@suse.com>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Signed-off-by: Will Deacon <will.deacon@arm.com>
-> > ---
-> >  lib/ioremap.c | 28 ++++++++++++----------------
-> >  1 file changed, 12 insertions(+), 16 deletions(-)
-> > 
-> > diff --git a/lib/ioremap.c b/lib/ioremap.c
-> > index 6c72764af19c..fc834a59c90c 100644
-> > --- a/lib/ioremap.c
-> > +++ b/lib/ioremap.c
-> > @@ -101,19 +101,18 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
-> >  	pmd_t *pmd;
-> >  	unsigned long next;
-> >  
-> > -	phys_addr -= addr;
-> >  	pmd = pmd_alloc(&init_mm, pud, addr);
-> >  	if (!pmd)
-> >  		return -ENOMEM;
-> >  	do {
-> >  		next = pmd_addr_end(addr, end);
-> >  
-> > -		if (ioremap_try_huge_pmd(pmd, addr, next, phys_addr + addr, prot))
-> > +		if (ioremap_try_huge_pmd(pmd, addr, next, phys_addr, prot))
-> >  			continue;
-> >  
-> > -		if (ioremap_pte_range(pmd, addr, next, phys_addr + addr, prot))
-> > +		if (ioremap_pte_range(pmd, addr, next, phys_addr, prot))
-> >  			return -ENOMEM;
-> > -	} while (pmd++, addr = next, addr != end);
-> > +	} while (pmd++, addr = next, phys_addr += PMD_SIZE, addr != end);
-> 
-> I think bumping phys_addr by PXX_SIZE is wrong if phys_addr and addr
-> start unaligned with respect to PXX_SIZE.  The addresses must be
-> PAGE_ALIGNED, which lets ioremap_pte_range() do a simple calculation,
-> but that doesn't hold true for the upper levels, i.e. phys_addr needs
-> to be adjusted using an algorithm similar to pxx_addr_end().
-> 
-> Using a 2mb page as an example (lower 32 bits only): 
-> 
-> pxx_size  = 0x00020000
-> pxx_mask  = 0xfffe0000
-> addr      = 0x1000
-> end       = 0x00040000
-> phys_addr = 0x1000
-> 
-> Loop 1:
->    addr = 0x1000
->    phys = 0x1000
-> 
-> Loop 2:
->    addr = 0x20000
->    phys = 0x21000
+Of course, *we* know that this knob is intended for benchmarking and
+debugging, but many less experienced system administrators don't. To a
+more green admin, "free" memory might be considered a "good" thing,
+never mind the entire purpose of reclaimable caches.
 
-Yes, I think you're completely right, however I also don't think this
-can happen with the current code (and I've failed to trigger it in my
-testing). The virtual addresses allocated for VM_IOREMAP allocations
-are aligned to the order of the allocation, which means that the virtual
-address at the start of the mapping is aligned such that when we hit the
-end of a pXd, we know we've mapped the previous PXD_SIZE bytes.
+As this is not an editable moinmoin page, will someone with the proper
+perms please fix this page, to include the next two paragraphs from the
+kernel doc where it came from?:
 
-Having said that, this is clearly a change from the current code and I
-haven't audited architectures other than arm64 (where IOREMAP_MAX_ORDER
-corresponds to the maximum size of our huge mappings), so it would be
-much better not to introduce this funny behaviour in a patch that aims
-to reduce confusion in the first place!
+===
 
-Fixing this using the pxx_addr_end() macros is a bit strange, since we
-don't have a physical end variable (nor do we need one), so perhaps
-something like changing the while condition to be:
+https://www.kernel.org/doc/Documentation/sysctl/vm.txt
 
-	do {
-		...
-	} while (pmd++, phys_addr += (next - addr), addr = next, addr != end);
+...
 
-would do the trick. What do you reckon?
+This file is not a means to control the growth of the various kernel
+caches (inodes, dentries, pagecache, etc...)  These objects are
+automatically reclaimed by the kernel when memory is needed elsewhere on
+the system.
 
-Will
+Use of this file can cause performance problems.  Since it discards
+cached objects, it may cost a significant amount of I/O and CPU to
+recreate the dropped objects, especially if they were under heavy use.
+Because of this, use outside of a testing or debugging environment is
+not recommended.
+
+-- 
+-- Todd Vierling <todd.vierling@oracle.com> +1-770-730-4426
