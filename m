@@ -1,58 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 55C378E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 12:50:36 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id w185-v6so2969003oig.19
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 09:50:36 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7052A8E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 13:13:54 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id n17-v6so1122379ioa.5
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 10:13:54 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g11-v6sor1477486oiy.92.2018.09.12.09.50.35
+        by mx.google.com with SMTPS id g18-v6sor1270264ita.91.2018.09.12.10.13.52
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 12 Sep 2018 09:50:35 -0700 (PDT)
+        Wed, 12 Sep 2018 10:13:52 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAKgT0UdKZVUPBk=rg5kfUuFBpuZQEKPuGw31x5O2nMyuULgi0g@mail.gmail.com>
-References: <20180910232615.4068.29155.stgit@localhost.localdomain>
- <20180910234354.4068.65260.stgit@localhost.localdomain> <7b96298e-9590-befd-0670-ed0c9fcf53d5@microsoft.com>
- <CAKgT0UdKZVUPBk=rg5kfUuFBpuZQEKPuGw31x5O2nMyuULgi0g@mail.gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 12 Sep 2018 09:50:34 -0700
-Message-ID: <CAPcyv4gEDwp8Xh4_E8RNBC_OqstwhqxkZOpvYjWd_siB4C=BEQ@mail.gmail.com>
-Subject: Re: [PATCH 3/4] mm: Defer ZONE_DEVICE page initialization to the
- point where we init pgmap
+In-Reply-To: <f5e73b5ead3355932ad8b5fc96b141c3f5b8c16c.1535462971.git.andreyknvl@google.com>
+References: <cover.1535462971.git.andreyknvl@google.com> <f5e73b5ead3355932ad8b5fc96b141c3f5b8c16c.1535462971.git.andreyknvl@google.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 12 Sep 2018 19:13:31 +0200
+Message-ID: <CACT4Y+ZwLnk7V1cY-EAHbrfXPBxs6qyynZPhxoSKZZDWSK8Fuw@mail.gmail.com>
+Subject: Re: [PATCH v6 15/18] khwasan, arm64: add brk handler for inline instrumentation
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: Pavel.Tatashin@microsoft.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
 
-On Wed, Sep 12, 2018 at 8:48 AM, Alexander Duyck
-<alexander.duyck@gmail.com> wrote:
-> On Wed, Sep 12, 2018 at 6:59 AM Pasha Tatashin
-> <Pavel.Tatashin@microsoft.com> wrote:
->>
->> Hi Alex,
+On Wed, Aug 29, 2018 at 1:35 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
+> KHWASAN inline instrumentation mode (which embeds checks of shadow memory
+> into the generated code, instead of inserting a callback) generates a brk
+> instruction when a tag mismatch is detected.
 >
-> Hi Pavel,
+> This commit add a KHWASAN brk handler, that decodes the immediate value
+> passed to the brk instructions (to extract information about the memory
+> access that triggered the mismatch), reads the register values (x0 contains
+> the guilty address) and reports the bug.
 >
->> Please re-base on linux-next,  memmap_init_zone() has been updated there
->> compared to mainline. You might even find a way to unify some parts of
->> memmap_init_zone and memmap_init_zone_device as memmap_init_zone() is a
->> lot simpler now.
+> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> ---
+>  arch/arm64/include/asm/brk-imm.h |  2 +
+>  arch/arm64/kernel/traps.c        | 69 +++++++++++++++++++++++++++++++-
+>  2 files changed, 69 insertions(+), 2 deletions(-)
 >
-> This patch applied to the linux-next tree with only a little bit of
-> fuzz. It looks like it is mostly due to some code you had added above
-> the function as well. I have updated this patch so that it will apply
-> to both linux and linux-next by just moving the new function to
-> underneath memmap_init_zone instead of above it.
+> diff --git a/arch/arm64/include/asm/brk-imm.h b/arch/arm64/include/asm/brk-imm.h
+> index ed693c5bcec0..e4a7013321dc 100644
+> --- a/arch/arm64/include/asm/brk-imm.h
+> +++ b/arch/arm64/include/asm/brk-imm.h
+> @@ -16,10 +16,12 @@
+>   * 0x400: for dynamic BRK instruction
+>   * 0x401: for compile time BRK instruction
+>   * 0x800: kernel-mode BUG() and WARN() traps
+> + * 0x9xx: KHWASAN trap (allowed values 0x900 - 0x9ff)
+>   */
+>  #define FAULT_BRK_IMM                  0x100
+>  #define KGDB_DYN_DBG_BRK_IMM           0x400
+>  #define KGDB_COMPILED_DBG_BRK_IMM      0x401
+>  #define BUG_BRK_IMM                    0x800
+> +#define KHWASAN_BRK_IMM                        0x900
 >
->> I think __init_single_page() should stay local to page_alloc.c to keep
->> the inlining optimization.
+>  #endif
+> diff --git a/arch/arm64/kernel/traps.c b/arch/arm64/kernel/traps.c
+> index 039e9ff379cc..fd70347d1ce7 100644
+> --- a/arch/arm64/kernel/traps.c
+> +++ b/arch/arm64/kernel/traps.c
+> @@ -35,6 +35,7 @@
+>  #include <linux/sizes.h>
+>  #include <linux/syscalls.h>
+>  #include <linux/mm_types.h>
+> +#include <linux/kasan.h>
 >
-> I agree. In addition it will make pulling common init together into
-> one space easier. I would rather not have us create an opportunity for
-> things to further diverge by making it available for anybody to use.
+>  #include <asm/atomic.h>
+>  #include <asm/bug.h>
+> @@ -269,10 +270,14 @@ void arm64_notify_die(const char *str, struct pt_regs *regs,
+>         }
+>  }
+>
+> -void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
+> +void __arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
+>  {
+>         regs->pc += size;
+> +}
+>
+> +void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
+> +{
+> +       __arm64_skip_faulting_instruction(regs, size);
+>         /*
+>          * If we were single stepping, we want to get the step exception after
+>          * we return from the trap.
+> @@ -775,7 +780,7 @@ static int bug_handler(struct pt_regs *regs, unsigned int esr)
+>         }
+>
+>         /* If thread survives, skip over the BUG instruction and continue: */
+> -       arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+> +       __arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+>         return DBG_HOOK_HANDLED;
+>  }
+>
+> @@ -785,6 +790,59 @@ static struct break_hook bug_break_hook = {
+>         .fn = bug_handler,
+>  };
+>
+> +#ifdef CONFIG_KASAN_HW
+> +
+> +#define KHWASAN_ESR_RECOVER    0x20
+> +#define KHWASAN_ESR_WRITE      0x10
+> +#define KHWASAN_ESR_SIZE_MASK  0x0f
+> +#define KHWASAN_ESR_SIZE(esr)  (1 << ((esr) & KHWASAN_ESR_SIZE_MASK))
+> +
+> +static int khwasan_handler(struct pt_regs *regs, unsigned int esr)
+> +{
+> +       bool recover = esr & KHWASAN_ESR_RECOVER;
+> +       bool write = esr & KHWASAN_ESR_WRITE;
+> +       size_t size = KHWASAN_ESR_SIZE(esr);
+> +       u64 addr = regs->regs[0];
+> +       u64 pc = regs->pc;
+> +
+> +       if (user_mode(regs))
+> +               return DBG_HOOK_ERROR;
+> +
+> +       kasan_report(addr, size, write, pc);
+> +
+> +       /*
+> +        * The instrumentation allows to control whether we can proceed after
+> +        * a crash was detected. This is done by passing the -recover flag to
+> +        * the compiler. Disabling recovery allows to generate more compact
+> +        * code.
+> +        *
+> +        * Unfortunately disabling recovery doesn't work for the kernel right
+> +        * now. KHWASAN reporting is disabled in some contexts (for example when
+> +        * the allocator accesses slab object metadata; same is true for KASAN;
+> +        * this is controlled by current->kasan_depth). All these accesses are
+> +        * detected by the tool, even though the reports for them are not
+> +        * printed.
 
-I'll buy the inline argument for keeping the new routine in
-page_alloc.c, but I otherwise do not see the divergence danger or
-"making __init_single_page() available for anybody" given the the
-declaration is limited in scope to a mm/ local header file.
+
+I am not following this part.
+Slab accesses metadata. OK.
+This is detected as bad access. OK.
+Report is not printed. OK.
+We skip BRK and resume execution.
+What is the problem?
+
+
+
+> +        *
+> +        * This is something that might be fixed at some point in the future.
+> +        */
+> +       if (!recover)
+> +               die("Oops - KHWASAN", regs, 0);
+> +
+> +       /* If thread survives, skip over the brk instruction and continue: */
+> +       __arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+> +       return DBG_HOOK_HANDLED;
+> +}
+> +
+> +#define KHWASAN_ESR_VAL (0xf2000000 | KHWASAN_BRK_IMM)
+> +#define KHWASAN_ESR_MASK 0xffffff00
+> +
+> +static struct break_hook khwasan_break_hook = {
+> +       .esr_val = KHWASAN_ESR_VAL,
+> +       .esr_mask = KHWASAN_ESR_MASK,
+> +       .fn = khwasan_handler,
+> +};
+> +#endif
+> +
+>  /*
+>   * Initial handler for AArch64 BRK exceptions
+>   * This handler only used until debug_traps_init().
+> @@ -792,6 +850,10 @@ static struct break_hook bug_break_hook = {
+>  int __init early_brk64(unsigned long addr, unsigned int esr,
+>                 struct pt_regs *regs)
+>  {
+> +#ifdef CONFIG_KASAN_HW
+> +       if ((esr & KHWASAN_ESR_MASK) == KHWASAN_ESR_VAL)
+> +               return khwasan_handler(regs, esr) != DBG_HOOK_HANDLED;
+> +#endif
+>         return bug_handler(regs, esr) != DBG_HOOK_HANDLED;
+>  }
+>
+> @@ -799,4 +861,7 @@ int __init early_brk64(unsigned long addr, unsigned int esr,
+>  void __init trap_init(void)
+>  {
+>         register_break_hook(&bug_break_hook);
+> +#ifdef CONFIG_KASAN_HW
+> +       register_break_hook(&khwasan_break_hook);
+> +#endif
+>  }
+> --
+> 2.19.0.rc0.228.g281dcd1b4d0-goog
+>
