@@ -1,123 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EC358E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 08:57:49 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id 191-v6so986027pgb.23
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 05:57:49 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z6-v6sor155253pgn.384.2018.09.12.05.57.47
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CA2C08E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 09:04:01 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id w142-v6so1504598qkw.8
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 06:04:01 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id g24-v6si737899qvg.205.2018.09.12.06.04.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 12 Sep 2018 05:57:47 -0700 (PDT)
-Date: Wed, 12 Sep 2018 22:57:43 +1000
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: Re: [RFC] memory_hotplug: Free pages as pageblock_order
-Message-ID: <20180912125743.GB8537@350D>
-References: <1536744405-16752-1-git-send-email-arunks@codeaurora.org>
- <20180912103853.GC10951@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Sep 2018 06:04:00 -0700 (PDT)
+Date: Wed, 12 Sep 2018 09:03:55 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH v2] mm: mprotect: check page dirty when change ptes
+Message-ID: <20180912130355.GA4009@redhat.com>
+References: <20180912064921.31015-1-peterx@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20180912103853.GC10951@dhcp22.suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180912064921.31015-1-peterx@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Arun KS <arunks@codeaurora.org>, akpm@linux-foundation.org, dan.j.williams@intel.com, vbabka@suse.cz, pasha.tatashin@oracle.com, iamjoonsoo.kim@lge.com, osalvador@suse.de, malat@debian.org, gregkh@linuxfoundation.org, yasu.isimatu@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, arunks.linux@gmail.com, vinmenon@codeaurora.org
+To: Peter Xu <peterx@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Khalid Aziz <khalid.aziz@oracle.com>, Thomas Gleixner <tglx@linutronix.de>, "David S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andi Kleen <ak@linux.intel.com>, Henry Willard <henry.willard@oracle.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Zi Yan <zi.yan@cs.rutgers.edu>, linux-mm@kvack.org
 
-On Wed, Sep 12, 2018 at 12:38:53PM +0200, Michal Hocko wrote:
-> On Wed 12-09-18 14:56:45, Arun KS wrote:
-> > When free pages are done with pageblock_order, time spend on
-> > coalescing pages by buddy allocator can be reduced. With
-> > section size of 256MB, hot add latency of a single section
-> > shows improvement from 50-60 ms to less than 1 ms, hence
-> > improving the hot add latency by 60%.
+On Wed, Sep 12, 2018 at 02:49:21PM +0800, Peter Xu wrote:
+> Add an extra check on page dirty bit in change_pte_range() since there
+> might be case where PTE dirty bit is unset but it's actually dirtied.
+> One example is when a huge PMD is splitted after written: the dirty bit
+> will be set on the compound page however we won't have the dirty bit set
+> on each of the small page PTEs.
 > 
-> Where does the improvement come from? You are still doing the same
-> amount of work except that the number of callbacks is lower. Is this the
-> real source of 60% improvement?
->
-
-It looks like only the first page of the pageblock is initialized, is
-some of the cost amortized in terms of doing one initialization for
-the page with order (order) and then relying on split_page and helpers
-to do the rest? Of course the number of callbacks reduce by a significant
-number as well.
-
- 
-> > 
-> > If this looks okey, I'll modify users of set_online_page_callback
-> > and resend clean patch.
+> I noticed this when debugging with a customized kernel that implemented
+> userfaultfd write-protect.  In that case, the dirty bit will be critical
+> since that's required for userspace to handle the write protect page
+> fault (otherwise it'll get a SIGBUS with a loop of page faults).
+> However it should still be good even for upstream Linux to cover more
+> scenarios where we shouldn't need to do extra page faults on the small
+> pages if the previous huge page is already written, so the dirty bit
+> optimization path underneath can cover more.
 > 
-> [...]
-> 
-> > +static int generic_online_pages(struct page *page, unsigned int order);
-> > +static online_pages_callback_t online_pages_callback = generic_online_pages;
-> > +
-> > +static int generic_online_pages(struct page *page, unsigned int order)
-> > +{
-> > +	unsigned long nr_pages = 1 << order;
-> > +	struct page *p = page;
-> > +	unsigned int loop;
-> > +
-> > +	for (loop = 0 ; loop < nr_pages ; loop++, p++) {
-> > +		__ClearPageReserved(p);
-> > +		set_page_count(p, 0);
-> > +	}
-> > +	adjust_managed_page_count(page, nr_pages);
-> > +	init_page_count(page);
-> > +	__free_pages(page, order);
-> > +
-> > +	return 0;
-> > +}
-> > +
-> > +static int online_pages_blocks(unsigned long start_pfn, unsigned long nr_pages)
-> > +{
-> > +	unsigned long pages_per_block = (1 << pageblock_order);
-> > +	unsigned long nr_pageblocks = nr_pages / pages_per_block;
-> > +//	unsigned long rem_pages = nr_pages % pages_per_block;
-> > +	int i, ret, onlined_pages = 0;
-> > +	struct page *page;
-> > +
-> > +	for (i = 0 ; i < nr_pageblocks ; i++) {
-> > +		page = pfn_to_page(start_pfn + (i * pages_per_block));
-> > +		ret = (*online_pages_callback)(page, pageblock_order);
-> > +		if (!ret)
-> > +			onlined_pages += pages_per_block;
-> > +		else if (ret > 0)
-> > +			onlined_pages += ret;
-> > +	}
-> 
-> Could you explain why does the pages_per_block step makes any sense? Why
-> don't you simply apply handle the full nr_pages worth of memory range
-> instead?
-> 
-> > +/*
-> > +	if (rem_pages)
-> > +		onlined_pages += online_page_single(start_pfn + i, rem_pages);
-> > +*/
 
-Do we expect no rem_pages with this patch?
+So as said by Kirill NAK you are not looking at the right place for
+your bug please first apply the below patch and read my analysis in
+my last reply.
 
-> > +
-> > +	return onlined_pages;
-> > +}
-> > +
-> >  static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
-> >  			void *arg)
-> >  {
-> > -	unsigned long i;
-> >  	unsigned long onlined_pages = *(unsigned long *)arg;
-> > -	struct page *page;
-> >  
-> >  	if (PageReserved(pfn_to_page(start_pfn)))
-> > -		for (i = 0; i < nr_pages; i++) {
-> > -			page = pfn_to_page(start_pfn + i);
-> > -			(*online_page_callback)(page);
-> > -			onlined_pages++;
-> > -		}
-> > +		onlined_pages = online_pages_blocks(start_pfn, nr_pages);
-> >  
-> >  	online_mem_sections(start_pfn, start_pfn + nr_pages);
-
-
-Balbir Singh.
+Below patch fix userfaultfd bug. I am not posting it as it is on a
+branch and i am not sure when Andrea plan to post. Andrea feel free
+to squash that fix.
