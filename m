@@ -1,83 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B2A1C8E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 12:36:50 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id k204-v6so15078296ite.1
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 09:36:50 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z6-v6sor1179900itz.0.2018.09.12.09.36.49
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 12 Sep 2018 09:36:49 -0700 (PDT)
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 954558E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 12:39:00 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id u74-v6so2911371oie.16
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 09:39:00 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id h66-v6si1071419oib.383.2018.09.12.09.38.58
+        for <linux-mm@kvack.org>;
+        Wed, 12 Sep 2018 09:38:58 -0700 (PDT)
+Date: Wed, 12 Sep 2018 17:39:14 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH 4/5] lib/ioremap: Ensure phys_addr actually corresponds
+ to a physical address
+Message-ID: <20180912163914.GA16071@arm.com>
+References: <1536747974-25875-1-git-send-email-will.deacon@arm.com>
+ <1536747974-25875-5-git-send-email-will.deacon@arm.com>
+ <20180912150939.GA30274@linux.intel.com>
 MIME-Version: 1.0
-References: <20180910232615.4068.29155.stgit@localhost.localdomain>
- <20180910234341.4068.26882.stgit@localhost.localdomain> <20180912141053.GL10951@dhcp22.suse.cz>
- <CAKgT0UdvhV7U5Zniq=KskXz2QsRP8C7ctr5=ZtJwYAVpBT-RHw@mail.gmail.com> <841e8101-40db-9ff2-f688-5f175d91fc31@intel.com>
-In-Reply-To: <841e8101-40db-9ff2-f688-5f175d91fc31@intel.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Wed, 12 Sep 2018 09:36:37 -0700
-Message-ID: <CAKgT0UeKnaY4XebOmtGozbjEJN4k3cwyhdBLPPJLc677-QU+Sw@mail.gmail.com>
-Subject: Re: [PATCH 1/4] mm: Provide kernel parameter to allow disabling page
- init poisoning
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180912150939.GA30274@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, mhocko@kernel.org, pavel.tatashin@microsoft.com, dan.j.williams@intel.com
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-nvdimm@lists.01.org, dave.jiang@intel.com, Ingo Molnar <mingo@kernel.org>, jglisse@redhat.com, Andrew Morton <akpm@linux-foundation.org>, logang@deltatee.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Sean Christopherson <sean.j.christopherson@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cpandya@codeaurora.org, toshi.kani@hpe.com, tglx@linutronix.de, mhocko@suse.com, akpm@linux-foundation.org
 
-On Wed, Sep 12, 2018 at 8:25 AM Dave Hansen <dave.hansen@intel.com> wrote:
->
-> On 09/12/2018 07:49 AM, Alexander Duyck wrote:
-> >>> +     page_init_poison=       [KNL] Boot-time parameter changing the
-> >>> +                     state of poisoning of page structures during early
-> >>> +                     boot. Used to verify page metadata is not accessed
-> >>> +                     prior to initialization. Available with
-> >>> +                     CONFIG_DEBUG_VM=y.
-> >>> +                     off: turn off poisoning
-> >>> +                     on: turn on poisoning (default)
-> >>> +
-> >> what about the following wording or something along those lines
-> >>
-> >> Boot-time parameter to control struct page poisoning which is a
-> >> debugging feature to catch unitialized struct page access. This option
-> >> is available only for CONFIG_DEBUG_VM=y and it affects boot time
-> >> (especially on large systems). If there are no poisoning bugs reported
-> >> on the particular system and workload it should be safe to disable it to
-> >> speed up the boot time.
-> > That works for me. I will update it for the next release.
->
-> FWIW, I rather liked Dan's idea of wrapping this under
-> vm_debug=<something>.  We've got a zoo of boot options and it's really
-> hard to _remember_ what does what.  For this case, we're creating one
-> that's only available under a specific debug option and I think it makes
-> total sense to name the boot option accordingly.
->
-> For now, I think it makes total sense to do vm_debug=all/off.  If, in
-> the future, we get more options, we can do things like slab does and do
-> vm_debug=P (for Page poison) for this feature specifically.
->
->         vm_debug =      [KNL] Available with CONFIG_DEBUG_VM=y.
->                         May slow down boot speed, especially on larger-
->                         memory systems when enabled.
->                         off: turn off all runtime VM debug features
->                         all: turn on all debug features (default)
+Hi Sean,
 
-This would introduce a significant amount of code change if we do it
-as a parameter that has control over everything.
+Thanks for looking at the patch.
 
-I would be open to something like "vm_debug_disables=" where we could
-then pass individual values like 'P' for disabling page poisoning.
-However doing this as a generic interface that could disable
-everything now would be messy. I could then also update the print
-message so that it lists what is disabled, and what was left enabled.
-Then as we need to disable things in the future we could add
-additional letters for individual features. I just don't want us
-preemptively adding control flags for features that may never need to
-be toggled.
+On Wed, Sep 12, 2018 at 08:09:39AM -0700, Sean Christopherson wrote:
+> On Wed, Sep 12, 2018 at 11:26:13AM +0100, Will Deacon wrote:
+> > The current ioremap() code uses a phys_addr variable at each level of
+> > page table, which is confusingly offset by subtracting the base virtual
+> > address being mapped so that adding the current virtual address back on
+> > when iterating through the page table entries gives back the corresponding
+> > physical address.
+> > 
+> > This is fairly confusing and results in all users of phys_addr having to
+> > add the current virtual address back on. Instead, this patch just updates
+> > phys_addr when iterating over the page table entries, ensuring that it's
+> > always up-to-date and doesn't require explicit offsetting.
+> > 
+> > Cc: Chintan Pandya <cpandya@codeaurora.org>
+> > Cc: Toshi Kani <toshi.kani@hpe.com>
+> > Cc: Thomas Gleixner <tglx@linutronix.de>
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Signed-off-by: Will Deacon <will.deacon@arm.com>
+> > ---
+> >  lib/ioremap.c | 28 ++++++++++++----------------
+> >  1 file changed, 12 insertions(+), 16 deletions(-)
+> > 
+> > diff --git a/lib/ioremap.c b/lib/ioremap.c
+> > index 6c72764af19c..fc834a59c90c 100644
+> > --- a/lib/ioremap.c
+> > +++ b/lib/ioremap.c
+> > @@ -101,19 +101,18 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
+> >  	pmd_t *pmd;
+> >  	unsigned long next;
+> >  
+> > -	phys_addr -= addr;
+> >  	pmd = pmd_alloc(&init_mm, pud, addr);
+> >  	if (!pmd)
+> >  		return -ENOMEM;
+> >  	do {
+> >  		next = pmd_addr_end(addr, end);
+> >  
+> > -		if (ioremap_try_huge_pmd(pmd, addr, next, phys_addr + addr, prot))
+> > +		if (ioremap_try_huge_pmd(pmd, addr, next, phys_addr, prot))
+> >  			continue;
+> >  
+> > -		if (ioremap_pte_range(pmd, addr, next, phys_addr + addr, prot))
+> > +		if (ioremap_pte_range(pmd, addr, next, phys_addr, prot))
+> >  			return -ENOMEM;
+> > -	} while (pmd++, addr = next, addr != end);
+> > +	} while (pmd++, addr = next, phys_addr += PMD_SIZE, addr != end);
+> 
+> I think bumping phys_addr by PXX_SIZE is wrong if phys_addr and addr
+> start unaligned with respect to PXX_SIZE.  The addresses must be
+> PAGE_ALIGNED, which lets ioremap_pte_range() do a simple calculation,
+> but that doesn't hold true for the upper levels, i.e. phys_addr needs
+> to be adjusted using an algorithm similar to pxx_addr_end().
+> 
+> Using a 2mb page as an example (lower 32 bits only): 
+> 
+> pxx_size  = 0x00020000
+> pxx_mask  = 0xfffe0000
+> addr      = 0x1000
+> end       = 0x00040000
+> phys_addr = 0x1000
+> 
+> Loop 1:
+>    addr = 0x1000
+>    phys = 0x1000
+> 
+> Loop 2:
+>    addr = 0x20000
+>    phys = 0x21000
 
-I would want to hear from Michal on this before I get too deep into it
-as he seemed to be of the opinion that we were already doing too much
-code for this and it seems like this is starting to veer off in that
-direction.
+Yes, I think you're completely right, however I also don't think this
+can happen with the current code (and I've failed to trigger it in my
+testing). The virtual addresses allocated for VM_IOREMAP allocations
+are aligned to the order of the allocation, which means that the virtual
+address at the start of the mapping is aligned such that when we hit the
+end of a pXd, we know we've mapped the previous PXD_SIZE bytes.
 
-- Alex
+Having said that, this is clearly a change from the current code and I
+haven't audited architectures other than arm64 (where IOREMAP_MAX_ORDER
+corresponds to the maximum size of our huge mappings), so it would be
+much better not to introduce this funny behaviour in a patch that aims
+to reduce confusion in the first place!
+
+Fixing this using the pxx_addr_end() macros is a bit strange, since we
+don't have a physical end variable (nor do we need one), so perhaps
+something like changing the while condition to be:
+
+	do {
+		...
+	} while (pmd++, phys_addr += (next - addr), addr = next, addr != end);
+
+would do the trick. What do you reckon?
+
+Will
