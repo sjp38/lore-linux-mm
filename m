@@ -1,60 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D1C998E0002
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 09:40:35 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id z56-v6so2433531edz.10
-        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 06:40:35 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z15-v6si3232695edr.81.2018.09.13.06.40.34
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B2AC8E0001
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 10:06:35 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id 51-v6so4949172wra.18
+        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 07:06:35 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id w187-v6si3955698wme.42.2018.09.13.07.06.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Sep 2018 06:40:34 -0700 (PDT)
-Date: Thu, 13 Sep 2018 15:40:32 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 0/3] rework mmap-exit vs. oom_reaper handover
-Message-ID: <20180913134032.GF20287@dhcp22.suse.cz>
-References: <1536382452-3443-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180910125513.311-1-mhocko@kernel.org>
- <70a92ca8-ca3e-2586-d52a-36c5ef6f7e43@i-love.sakura.ne.jp>
- <20180912075054.GZ10951@dhcp22.suse.cz>
- <20180912134203.GJ10951@dhcp22.suse.cz>
- <4ed2213e-c4ca-4ef2-2cc0-17b5c5447325@i-love.sakura.ne.jp>
- <20180913090950.GD20287@dhcp22.suse.cz>
- <c70a8b7c-d1d2-66de-d87e-13a4a410335b@i-love.sakura.ne.jp>
- <20180913113538.GE20287@dhcp22.suse.cz>
- <0897639b-a1d9-2da1-0a1e-a3eeed799a0f@i-love.sakura.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 13 Sep 2018 07:06:33 -0700 (PDT)
+Date: Thu, 13 Sep 2018 16:06:21 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC][PATCH 05/11] asm-generic/tlb: Provide generic tlb_flush
+Message-ID: <20180913140621.GY24124@hirez.programming.kicks-ass.net>
+References: <20180913092110.817204997@infradead.org>
+ <20180913092812.132208484@infradead.org>
+ <CAG48ez01-iQ5fyZjOJxQyOk9xRkra6bYyUAvUbVLheuABOQi8Q@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <0897639b-a1d9-2da1-0a1e-a3eeed799a0f@i-love.sakura.ne.jp>
+In-Reply-To: <CAG48ez01-iQ5fyZjOJxQyOk9xRkra6bYyUAvUbVLheuABOQi8Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Jann Horn <jannh@google.com>
+Cc: Will Deacon <will.deacon@arm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, npiggin@gmail.com, linux-arch <linux-arch@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Heiko Carstens <heiko.carstens@de.ibm.com>
 
-On Thu 13-09-18 20:53:24, Tetsuo Handa wrote:
-> On 2018/09/13 20:35, Michal Hocko wrote:
-> >> Next question.
-> >>
-> >>         /* Use -1 here to ensure all VMAs in the mm are unmapped */
-> >>         unmap_vmas(&tlb, vma, 0, -1);
-> >>
-> >> in exit_mmap() will now race with the OOM reaper. And unmap_vmas() will handle
-> >> VM_HUGETLB or VM_PFNMAP or VM_SHARED or !vma_is_anonymous() vmas, won't it?
-> >> Then, is it guaranteed to be safe if the OOM reaper raced with unmap_vmas() ?
-> > 
-> > I do not understand the question. unmap_vmas is basically MADV_DONTNEED
-> > and that doesn't require the exclusive mmap_sem lock so yes it should be
-> > safe those two to race (modulo bugs of course but I am not aware of any
-> > there).
-> >  
+On Thu, Sep 13, 2018 at 03:09:47PM +0200, Jann Horn wrote:
+> On Thu, Sep 13, 2018 at 3:01 PM Peter Zijlstra <peterz@infradead.org> wrote:
+> > Provide a generic tlb_flush() implementation that relies on
+> > flush_tlb_range(). This is a little awkward because flush_tlb_range()
+> > assumes a VMA for range invalidation, but we no longer have one.
+> >
+> > Audit of all flush_tlb_range() implementations shows only vma->vm_mm
+> > and vma->vm_flags are used, and of the latter only VM_EXEC (I-TLB
+> > invalidates) and VM_HUGETLB (large TLB invalidate) are used.
+> >
+> > Therefore, track VM_EXEC and VM_HUGETLB in two more bits, and create a
+> > 'fake' VMA.
+> >
+> > This allows architectures that have a reasonably efficient
+> > flush_tlb_range() to not require any additional effort.
+> [...]
+> > +#define tlb_flush tlb_flush
+> > +static inline void tlb_flush(struct mmu_gather *tlb)
+> > +{
+> > +       if (tlb->fullmm || tlb->need_flush_all) {
+> > +               flush_tlb_mm(tlb->mm);
+> > +       } else {
+> > +               struct vm_area_struct vma = {
+> > +                       .vm_mm = tlb->mm,
+> > +                       .vm_flags = tlb->vma_exec ? VM_EXEC    : 0 |
+> > +                                   tlb->vma_huge ? VM_HUGETLB : 0,
 > 
-> You need to verify that races we observed with VM_LOCKED can't happen
-> for VM_HUGETLB / VM_PFNMAP / VM_SHARED / !vma_is_anonymous() cases.
+> This looks wrong to me. Bitwise OR has higher precedence than the
+> ternary operator, so I think this code is equivalent to:
+> 
+> .vm_flags = tlb->vma_exec ? VM_EXEC    : (0 | tlb->vma_huge) ? VM_HUGETLB : 0
+> 
+> meaning that executable+huge mappings would only get VM_EXEC, but not
+> VM_HUGETLB.
 
-Well, VM_LOCKED is kind of special because that is not a permanent state
-which might change. VM_HUGETLB, VM_PFNMAP resp VM_SHARED are not changed
-throughout the vma lifetime.
--- 
-Michal Hocko
-SUSE Labs
+Bah. Fixed that. Thanks!
+
+--- a/include/asm-generic/tlb.h
++++ b/include/asm-generic/tlb.h
+@@ -309,8 +309,8 @@ static inline void tlb_flush(struct mmu_
+ 	} else {
+ 		struct vm_area_struct vma = {
+ 			.vm_mm = tlb->mm,
+-			.vm_flags = tlb->vma_exec ? VM_EXEC    : 0 |
+-				    tlb->vma_huge ? VM_HUGETLB : 0,
++			.vm_flags = (tlb->vma_exec ? VM_EXEC    : 0) |
++				    (tlb->vma_huge ? VM_HUGETLB : 0),
+ 		};
+ 
+ 		flush_tlb_range(&vma, tlb->start, tlb->end);
