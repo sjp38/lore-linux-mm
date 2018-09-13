@@ -1,75 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D01F98E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 22:44:20 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id y135-v6so4942172oie.11
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 19:44:20 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id r62-v6si2057900oib.84.2018.09.12.19.44.18
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 170E88E0001
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 23:20:21 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id m4-v6so1869951pgq.19
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 20:20:21 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id w1-v6si3142401pgt.629.2018.09.12.20.20.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Sep 2018 19:44:19 -0700 (PDT)
-Subject: Re: [RFC PATCH 0/3] rework mmap-exit vs. oom_reaper handover
-References: <1536382452-3443-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180910125513.311-1-mhocko@kernel.org>
- <70a92ca8-ca3e-2586-d52a-36c5ef6f7e43@i-love.sakura.ne.jp>
- <20180912075054.GZ10951@dhcp22.suse.cz>
- <20180912134203.GJ10951@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <4ed2213e-c4ca-4ef2-2cc0-17b5c5447325@i-love.sakura.ne.jp>
-Date: Thu, 13 Sep 2018 11:44:03 +0900
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 12 Sep 2018 20:20:19 -0700 (PDT)
+Date: Thu, 13 Sep 2018 13:20:12 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: mmotm 2018-09-12-16-40 uploaded (psi)
+Message-ID: <20180913132012.1506f0da@canb.auug.org.au>
+In-Reply-To: <20180913014222.GA2370@cmpxchg.org>
+References: <20180912234039.Xa5RS%akpm@linux-foundation.org>
+	<a9bef471-ac93-2983-618b-ffee65f01e0b@infradead.org>
+	<20180913014222.GA2370@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20180912134203.GJ10951@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/A0EZjjD/ORosSL0xF1vKrbv"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Randy Dunlap <rdunlap@infradead.org>, akpm@linux-foundation.org, broonie@kernel.org, mhocko@suse.cz, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org
 
-On 2018/09/12 22:42, Michal Hocko wrote:
-> On Wed 12-09-18 09:50:54, Michal Hocko wrote:
->> On Tue 11-09-18 23:01:57, Tetsuo Handa wrote:
->>> On 2018/09/10 21:55, Michal Hocko wrote:
->>>> This is a very coarse implementation of the idea I've had before.
->>>> Please note that I haven't tested it yet. It is mostly to show the
->>>> direction I would wish to go for.
->>>
->>> Hmm, this patchset does not allow me to boot. ;-)
->>>
->>>         free_pgd_range(&tlb, vma->vm_start, vma->vm_prev->vm_end,
->>>                         FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
->>>
->>> [    1.875675] sched_clock: Marking stable (1810466565, 65169393)->(1977240380, -101604422)
->>> [    1.877833] registered taskstats version 1
->>> [    1.877853] Loading compiled-in X.509 certificates
->>> [    1.878835] zswap: loaded using pool lzo/zbud
->>> [    1.880835] BUG: unable to handle kernel NULL pointer dereference at 0000000000000008
->>
->> This is vm_prev == NULL. I thought we always have vm_prev as long as
->> this is not a single VMA in the address space. I will double check this.
-> 
-> So this is me misunderstanding the code. vm_next, vm_prev are not a full
-> doubly linked list. The first entry doesn't really refer to the last
-> entry. So the above cannot work at all. We can go around this in two
-> ways. Either keep the iteration or use the following which should cover
-> the full mapped range, unless I am missing something
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 64e8ccce5282..078295344a17 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -3105,7 +3105,7 @@ void exit_mmap(struct mm_struct *mm)
->  		up_write(&mm->mmap_sem);
->  	}
->  
-> -	free_pgd_range(&tlb, vma->vm_start, vma->vm_prev->vm_end,
-> +	free_pgd_range(&tlb, vma->vm_start, mm->highest_vm_end,
->  			FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
->  	tlb_finish_mmu(&tlb, 0, -1);
->  
+--Sig_/A0EZjjD/ORosSL0xF1vKrbv
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-This is bad because architectures where hugetlb_free_pgd_range() does
-more than free_pgd_range() need to check VM_HUGETLB flag for each "vma".
-Thus, I think we need to keep the iteration.
+Hi Johannes,
+
+On Wed, 12 Sep 2018 21:42:22 -0400 Johannes Weiner <hannes@cmpxchg.org> wro=
+te:
+>
+> Thanks for the report.
+>=20
+> On Wed, Sep 12, 2018 at 05:45:08PM -0700, Randy Dunlap wrote:
+> > Multiple build errors when CONFIG_SMP is not set: (this is on i386 fwiw)
+> >=20
+> > in the psi (pressure) patches, I guess:
+> >=20
+> > In file included from ../kernel/sched/sched.h:1367:0,
+> >                  from ../kernel/sched/core.c:8:
+> > ../kernel/sched/stats.h: In function 'psi_task_tick':
+> > ../kernel/sched/stats.h:135:33: error: 'struct rq' has no member named =
+'cpu'
+> >    psi_memstall_tick(rq->curr, rq->cpu); =20
+>=20
+> This needs to use the SMP/UP config-aware accessor.
+>=20
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>=20
+> diff --git a/kernel/sched/stats.h b/kernel/sched/stats.h
+> index 2e07d8f59b3e..4904c4677000 100644
+> --- a/kernel/sched/stats.h
+> +++ b/kernel/sched/stats.h
+> @@ -132,7 +132,7 @@ static inline void psi_task_tick(struct rq *rq)
+>  		return;
+> =20
+>  	if (unlikely(rq->curr->flags & PF_MEMSTALL))
+> -		psi_memstall_tick(rq->curr, rq->cpu);
+> +		psi_memstall_tick(rq->curr, cpu_of(rq));
+>  }
+>  #else /* CONFIG_PSI */
+>  static inline void psi_enqueue(struct task_struct *p, bool wakeup) {}
+
+I will add this to linux-next today.
+
+--=20
+Cheers,
+Stephen Rothwell
+
+--Sig_/A0EZjjD/ORosSL0xF1vKrbv
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAluZ12wACgkQAVBC80lX
+0GyQDgf/R2XVV++XEvoRc1HlT8r5XB6DziGyJq2s5SGzvzF4nqVChOYkL7aEBpxZ
+qr5DVdFGqZigJ0eT8SWLGhNoYFyg9QOBIk3t4JNlDENfWIyQl6LPAPMo0AmtHKDK
+mkJfpt9pk2Gn4s64xvtjHuW9fmBP+DIP5GxDhAa7/K3LRFZO92FnG961/yauZBXy
+PWg90KvKpkbhPIV0xbr40WiY7JDC7hdPoLIBofdmLgMI5rijwcdD2lTIUoF3hPW6
+NQ/0eoUv8wml4XcedidUV0jSuDC+ohfifD1n8OH4xUvJTYpgiH0pGhERrrm+msBF
+AAJU5BRC8YDJNnwJQyg3Qj0+bZs4qw==
+=Fhk5
+-----END PGP SIGNATURE-----
+
+--Sig_/A0EZjjD/ORosSL0xF1vKrbv--
