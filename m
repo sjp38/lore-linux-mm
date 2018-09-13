@@ -1,72 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 790878E0001
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 07:53:35 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id m197-v6so5715494oig.18
-        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 04:53:35 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id u30-v6si394647otb.374.2018.09.13.04.53.33
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 211A88E0001
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 08:05:01 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id z77-v6so4706852wrb.20
+        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 05:05:01 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id i129-v6si3423549wmg.146.2018.09.13.05.04.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Sep 2018 04:53:33 -0700 (PDT)
-Subject: Re: [RFC PATCH 0/3] rework mmap-exit vs. oom_reaper handover
-References: <1536382452-3443-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180910125513.311-1-mhocko@kernel.org>
- <70a92ca8-ca3e-2586-d52a-36c5ef6f7e43@i-love.sakura.ne.jp>
- <20180912075054.GZ10951@dhcp22.suse.cz>
- <20180912134203.GJ10951@dhcp22.suse.cz>
- <4ed2213e-c4ca-4ef2-2cc0-17b5c5447325@i-love.sakura.ne.jp>
- <20180913090950.GD20287@dhcp22.suse.cz>
- <c70a8b7c-d1d2-66de-d87e-13a4a410335b@i-love.sakura.ne.jp>
- <20180913113538.GE20287@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <0897639b-a1d9-2da1-0a1e-a3eeed799a0f@i-love.sakura.ne.jp>
-Date: Thu, 13 Sep 2018 20:53:24 +0900
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 13 Sep 2018 05:04:59 -0700 (PDT)
+Date: Thu, 13 Sep 2018 14:04:58 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: How to profile 160 ms spent in
+ `add_highpages_with_active_regions()`?
+In-Reply-To: <d2ad2459-61ea-edb1-3b22-da92c039bfae@molgen.mpg.de>
+Message-ID: <alpine.DEB.2.21.1809131400070.1473@nanos.tec.linutronix.de>
+References: <d5a65984-36a7-15d8-b04a-461d0f53d36d@molgen.mpg.de> <5e5a39f4-1b91-c877-1368-0946160ef4be@molgen.mpg.de> <4f8d0de0-e9f1-e3cd-1f94-e95e6fa47ecf@molgen.mpg.de> <alpine.DEB.2.21.1808221539190.1652@nanos.tec.linutronix.de>
+ <d2ad2459-61ea-edb1-3b22-da92c039bfae@molgen.mpg.de>
 MIME-Version: 1.0
-In-Reply-To: <20180913113538.GE20287@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed; boundary="8323329-1620629746-1536840298=:1473"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Paul Menzel <pmenzel+linux-mm@molgen.mpg.de>
+Cc: linux-mm@kvack.org, x86@kernel.org
 
-On 2018/09/13 20:35, Michal Hocko wrote:
->> Next question.
->>
->>         /* Use -1 here to ensure all VMAs in the mm are unmapped */
->>         unmap_vmas(&tlb, vma, 0, -1);
->>
->> in exit_mmap() will now race with the OOM reaper. And unmap_vmas() will handle
->> VM_HUGETLB or VM_PFNMAP or VM_SHARED or !vma_is_anonymous() vmas, won't it?
->> Then, is it guaranteed to be safe if the OOM reaper raced with unmap_vmas() ?
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
+
+--8323329-1620629746-1536840298=:1473
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8BIT
+
+On Tue, 4 Sep 2018, Paul Menzel wrote:
+> On 08/22/18 15:41, Thomas Gleixner wrote:
+> > On Wed, 22 Aug 2018, Paul Menzel wrote:
+> >> Am 21.08.2018 um 11:37 schrieb Paul Menzel:
+> >>> [Removed non-working Pavel Tatashin <pasha.tatashin@oracle.com>]
+> >>
+> >> So a??freea??inga?? pfn = 225278 to e_pfn = 818492 in the for loop takes 160 ms.
+> > 
+> > That's 593214 pages and each one takes about 270ns. I don't see much
+> > optimization potential with that.
+> > 
+> > 32bit and highmem sucks ...
+
+We all know that.
+
+> Interestingly on my ASRock E350M1 with 4 GB, `pfn_valid()` is always true.
+>
+> Additionally, after removing the for loop, the system still boots and seems
+> to work fine.
 > 
-> I do not understand the question. unmap_vmas is basically MADV_DONTNEED
-> and that doesn't require the exclusive mmap_sem lock so yes it should be
-> safe those two to race (modulo bugs of course but I am not aware of any
-> there).
->  
+> Here is the hunk I removed (with my debug statements).
+> 
+> -               for ( ; pfn < e_pfn; pfn++)
+> -                       if (pfn_valid(pfn)) {
+> -                               free_highmem_page(pfn_to_page(pfn));
+> -                               //printk(KERN_INFO "%s: in for loop pfn_valid(pfn) after fre
+> e_highmem_page, pfn = %lu\n", __func__, pfn);
+> -                       } else {
+> -                               printk(KERN_INFO "%s: pfn = %lu is invalid\n", __func__);
+> -                       }
+> 
+> Is the code there for certain memory sizes?
 
-You need to verify that races we observed with VM_LOCKED can't happen
-for VM_HUGETLB / VM_PFNMAP / VM_SHARED / !vma_is_anonymous() cases.
+No, it's there to give the highmem pages back for allocation. You're losing
+usable memory that way. /proc/meminfo should tell you the difference.
 
-                for (vma = mm->mmap; vma; vma = vma->vm_next) {
-                        if (!(vma->vm_flags & VM_LOCKED))
-                                continue;
-                        /*
-                         * oom_reaper cannot handle mlocked vmas but we
-                         * need to serialize it with munlock_vma_pages_all
-                         * which clears VM_LOCKED, otherwise the oom reaper
-                         * cannot reliably test it.
-                         */
-                        if (oom)
-                                down_write(&mm->mmap_sem);
+Thanks,
 
-                        munlock_vma_pages_all(vma);
-
-                        if (oom)
-                                up_write(&mm->mmap_sem);
-                }
-
-Without enough comments, future changes might overlook the assumption.
+	tglx
+--8323329-1620629746-1536840298=:1473--
