@@ -1,48 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 42DBB8E0001
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 14:49:30 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id n17-v6so3260601pff.17
-        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 11:49:30 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id z13-v6si3659942pgk.127.2018.09.13.11.49.28
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F3CD08E0001
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 15:23:28 -0400 (EDT)
+Received: by mail-lf1-f69.google.com with SMTP id l142-v6so1983856lfg.23
+        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 12:23:28 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d17-v6sor3005014lji.40.2018.09.13.12.23.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Sep 2018 11:49:29 -0700 (PDT)
-Subject: Re: [RFC][PATCH 03/11] x86/mm: Page size aware flush_tlb_mm_range()
-References: <20180913092110.817204997@infradead.org>
- <20180913092812.012757318@infradead.org>
- <f89e61a3-0eb0-3d00-fbaa-f30c2cf60be3@linux.intel.com>
- <20180913184230.GD24124@hirez.programming.kicks-ass.net>
- <20180913184632.GM24142@hirez.programming.kicks-ass.net>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <93b19cab-779b-b5dd-a53b-df2c86241d4f@linux.intel.com>
-Date: Thu, 13 Sep 2018 11:49:28 -0700
+        (Google Transport Security);
+        Thu, 13 Sep 2018 12:23:27 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180913184632.GM24142@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <000000000000038dab0575476b73@google.com> <f3bcebc6-47a7-518e-70f7-c7e167621841@I-love.SAKURA.ne.jp>
+ <CAHC9VhT-Thu6KppC-MWzqkB7R1CaQA9DWXOQnG0b2uS9+rvzoA@mail.gmail.com> <ea29a8bf-95b2-91d2-043b-ed73c9023166@i-love.sakura.ne.jp>
+In-Reply-To: <ea29a8bf-95b2-91d2-043b-ed73c9023166@i-love.sakura.ne.jp>
+From: Paul Moore <paul@paul-moore.com>
+Date: Thu, 13 Sep 2018 15:23:15 -0400
+Message-ID: <CAHC9VhR8My9_Dt=4OhUoHsN8MRViLaBmcfzbeJWmvnGn_AQmzw@mail.gmail.com>
+Subject: Re: [PATCH] selinux: Add __GFP_NOWARN to allocation at str_read()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: will.deacon@arm.com, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, npiggin@gmail.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@armlinux.org.uk, heiko.carstens@de.ibm.com
+To: penguin-kernel@i-love.sakura.ne.jp
+Cc: selinux@tycho.nsa.gov, syzbot+ac488b9811036cea7ea0@syzkaller.appspotmail.com, Eric Paris <eparis@parisplace.org>, linux-kernel@vger.kernel.org, peter.enderborg@sony.com, Stephen Smalley <sds@tycho.nsa.gov>, syzkaller-bugs@googlegroups.com, linux-mm@kvack.org
 
-On 09/13/2018 11:46 AM, Peter Zijlstra wrote:
-> On Thu, Sep 13, 2018 at 08:42:30PM +0200, Peter Zijlstra wrote:
->>>> +#define flush_tlb_range(vma, start, end)			\
->>>> +		flush_tlb_mm_range((vma)->vm_mm, start, end,	\
->>>> +				(vma)->vm_flags & VM_HUGETLB ? PMD_SHIFT : PAGE_SHIFT)
->>> This is safe.  But, Couldn't this PMD_SHIFT also be PUD_SHIFT for a 1G
->>> hugetlb page?
->> It could be, but can we tell at that point?
-> I had me a look in higetlb.h, would something like so work?
-> 
-> #define flush_tlb_range(vma, start, end)			\
-> 	flush_tlb_mm_range((vma)->vm_mm, start, end,		\
-> 			   huge_page_shift(hstate_vma(vma)))
-> 
+On Thu, Sep 13, 2018 at 2:26 AM Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
+> On 2018/09/13 12:02, Paul Moore wrote:
+> > On Fri, Sep 7, 2018 at 12:43 PM Tetsuo Handa
+> > <penguin-kernel@i-love.sakura.ne.jp> wrote:
+> >> syzbot is hitting warning at str_read() [1] because len parameter can
+> >> become larger than KMALLOC_MAX_SIZE. We don't need to emit warning for
+> >> this case.
+> >>
+> >> [1] https://syzkaller.appspot.com/bug?id=7f2f5aad79ea8663c296a2eedb81978401a908f0
+> >>
+> >> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> >> Reported-by: syzbot <syzbot+ac488b9811036cea7ea0@syzkaller.appspotmail.com>
+> >> ---
+> >>  security/selinux/ss/policydb.c | 2 +-
+> >>  1 file changed, 1 insertion(+), 1 deletion(-)
+> >>
+> >> diff --git a/security/selinux/ss/policydb.c b/security/selinux/ss/policydb.c
+> >> index e9394e7..f4eadd3 100644
+> >> --- a/security/selinux/ss/policydb.c
+> >> +++ b/security/selinux/ss/policydb.c
+> >> @@ -1101,7 +1101,7 @@ static int str_read(char **strp, gfp_t flags, void *fp, u32 len)
+> >>         if ((len == 0) || (len == (u32)-1))
+> >>                 return -EINVAL;
+> >>
+> >> -       str = kmalloc(len + 1, flags);
+> >> +       str = kmalloc(len + 1, flags | __GFP_NOWARN);
+> >>         if (!str)
+> >>                 return -ENOMEM;
+> >
+> > Thanks for the patch.
+> >
+> > My eyes are starting to glaze over a bit chasing down all of the
+> > different kmalloc() code paths trying to ensure that this always does
+> > the right thing based on size of the allocation and the different slab
+> > allocators ... are we sure that this will always return NULL when (len
+> > + 1) is greater than KMALLOC_MAX_SIZE for the different slab allocator
+> > configurations?
+>
+> Yes, for (len + 1) cannot become 0 (which causes kmalloc() to return
+> ZERO_SIZE_PTR) due to (len == (u32)-1) check above.
+>
+> The only concern would be whether you want allocation failure messages.
+> I assumed you don't need it because we are returning -ENOMEM to the caller.
 
-I think you still need the VM_HUGETLB check somewhere because
-hstate_vma() won't work on non-VM_HUGETLB VMAs.  But, yeah, something
-close to that should be OK.
+I'm not to worried about the failure messages, returning -ENOMEM
+should be sufficient in this case.
+
+-- 
+paul moore
+www.paul-moore.com
