@@ -1,108 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 543A48E0002
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 14:01:46 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id l14-v6so6998494oii.9
-        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 11:01:46 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id b42-v6si695768otd.72.2018.09.13.11.01.44
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F37598E0001
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 14:09:53 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id p5-v6so3227321pfh.11
+        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 11:09:53 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k83-v6sor789580pfg.55.2018.09.13.11.09.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Sep 2018 11:01:44 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8DHsLjq011635
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 14:01:43 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2mfvaa9476-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 14:01:41 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Thu, 13 Sep 2018 19:01:39 +0100
-Date: Thu, 13 Sep 2018 21:01:33 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH V6 2/2 RESEND] ksm: replace jhash2 with faster hash
-References: <CAGqmi76gJV=ZDX5=Y3toF2tPiJs8T=PiUJFQg5nq9O5yztx80Q@mail.gmail.com>
- <CAGM2reaZ2YoxFhEDtcXi=hMFoGFi8+SROOn+_SRMwnx3cW15kw@mail.gmail.com>
- <CAGqmi76-qK9q_OTvyqpb-9k_m0CLMt3o860uaN5LL8nBkf5RTg@mail.gmail.com>
- <20180527130325.GB4522@rapoport-lnx>
- <CAGM2rea2GBvOAiKcSpHkQ9F+jgvy3sCsBw7hFz26DvQ+c_677A@mail.gmail.com>
- <CAGqmi74G-7bM5mbbaHjzOkTvuEpCcAbZ8Q0PVCMkyP09XaVSkA@mail.gmail.com>
- <20180607115232.GA8245@rapoport-lnx>
- <CAGM2rebK=gNbcAwkmt7W9kwtd=QWoPRogQMaoXOv=bmX+_d+yw@mail.gmail.com>
- <20180625084806.GB13791@rapoport-lnx>
- <CAGqmi75emzhU_coNv_8qaf1LkdG7gsFWNAFTwUC+1FikH7h1WQ@mail.gmail.com>
+        (Google Transport Security);
+        Thu, 13 Sep 2018 11:09:52 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAGqmi75emzhU_coNv_8qaf1LkdG7gsFWNAFTwUC+1FikH7h1WQ@mail.gmail.com>
-Message-Id: <20180913180132.GB15191@rapoport-lnx>
+References: <cover.1535462971.git.andreyknvl@google.com> <f5e73b5ead3355932ad8b5fc96b141c3f5b8c16c.1535462971.git.andreyknvl@google.com>
+ <CACT4Y+aEwYiaVN--RH_0VBh0wbCcrf-Ndz+_eOaBNi6nKxrfQA@mail.gmail.com>
+ <CAG48ez2oT1dtDcH8SfPLnoX5F8d6Pd=M-eOKHhYJ83EuL_j6wQ@mail.gmail.com> <CACT4Y+avu_68GoQcc32zpcOpAu-Pw7m71VmuKtEkOw=vKgxi7w@mail.gmail.com>
+In-Reply-To: <CACT4Y+avu_68GoQcc32zpcOpAu-Pw7m71VmuKtEkOw=vKgxi7w@mail.gmail.com>
+From: Nick Desaulniers <ndesaulniers@google.com>
+Date: Thu, 13 Sep 2018 11:09:39 -0700
+Message-ID: <CAKwvOdns=3bktpXLEpo6o0J8OQPym6YE+x6Dvs_kYSBsuJKtSw@mail.gmail.com>
+Subject: Re: [PATCH v6 15/18] khwasan, arm64: add brk handler for inline instrumentation
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Timofey Titovets <nefelim4ag@gmail.com>
-Cc: Pasha Tatashin <Pavel.Tatashin@microsoft.com>, linux-mm@kvack.org, Sioh Lee <solee@os.korea.ac.kr>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Jann Horn <jannh@google.com>, Andrey Konovalov <andreyknvl@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg KH <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgenii Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
 
-(updated Pasha's e-mail)
+On Thu, Sep 13, 2018 at 1:37 AM Dmitry Vyukov <dvyukov@google.com> wrote:
+>
+> On Wed, Sep 12, 2018 at 7:39 PM, Jann Horn <jannh@google.com> wrote:
+> > On Wed, Sep 12, 2018 at 7:16 PM Dmitry Vyukov <dvyukov@google.com> wrote:
+> >> On Wed, Aug 29, 2018 at 1:35 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
+> > [...]
+> >> > +static int khwasan_handler(struct pt_regs *regs, unsigned int esr)
+> >> > +{
+> >> > +       bool recover = esr & KHWASAN_ESR_RECOVER;
+> >> > +       bool write = esr & KHWASAN_ESR_WRITE;
+> >> > +       size_t size = KHWASAN_ESR_SIZE(esr);
+> >> > +       u64 addr = regs->regs[0];
+> >> > +       u64 pc = regs->pc;
+> >> > +
+> >> > +       if (user_mode(regs))
+> >> > +               return DBG_HOOK_ERROR;
+> >> > +
+> >> > +       kasan_report(addr, size, write, pc);
+> >> > +
+> >> > +       /*
+> >> > +        * The instrumentation allows to control whether we can proceed after
+> >> > +        * a crash was detected. This is done by passing the -recover flag to
+> >> > +        * the compiler. Disabling recovery allows to generate more compact
+> >> > +        * code.
+> >> > +        *
+> >> > +        * Unfortunately disabling recovery doesn't work for the kernel right
+> >> > +        * now. KHWASAN reporting is disabled in some contexts (for example when
+> >> > +        * the allocator accesses slab object metadata; same is true for KASAN;
+> >> > +        * this is controlled by current->kasan_depth). All these accesses are
+> >> > +        * detected by the tool, even though the reports for them are not
+> >> > +        * printed.
+> >> > +        *
+> >> > +        * This is something that might be fixed at some point in the future.
+> >> > +        */
+> >> > +       if (!recover)
+> >> > +               die("Oops - KHWASAN", regs, 0);
+> >>
+> >> Why die and not panic? Die seems to be much less used function, and it
+> >> calls panic anyway, and we call panic in kasan_report if panic_on_warn
+> >> is set.
+> >
+> > die() is vaguely equivalent to BUG(); die() and BUG() normally only
+> > terminate the current process, which may or may not leave the system
+> > somewhat usable, while panic() always brings down the whole system.
+> > AFAIK panic() shouldn't be used unless you're in some very low-level
+> > code where you know that trying to just kill the current process can't
+> > work and the entire system is broken beyond repair.
+> >
+> > If KASAN traps on some random memory access, there's a good chance
+> > that just killing the current process will allow at least parts of the
+> > system to continue. I'm not sure whether BUG() or die() is more
+> > appropriate here, but I think it definitely should not be a panic().
+>
+>
+> Nick, do you know if die() will be enough to catch problems on Android
+> phones? panic_on_warn would turn this into panic, but I guess one does
+> not want panic_on_warn on a canary phone.
 
-Thu, Sep 13, 2018 at 01:35:20PM +0300, Timofey Titovets wrote:
-> D?D 1/2 , 25 D,N?D 1/2 . 2018 D3. D2 11:48, Mike Rapoport <rppt@linux.vnet.ibm.com>:
-> >
-> > On Thu, Jun 07, 2018 at 09:29:49PM -0400, Pavel Tatashin wrote:
-> > > > With CONFIG_SYSFS=n there is nothing that will set ksm_run to anything but
-> > > > zero and ksm_do_scan will never be called.
-> > > >
-> > >
-> > > Unfortunatly, this is not so:
-> > >
-> > > In: /linux-master/mm/ksm.c
-> > >
-> > > 3143#else
-> > > 3144 ksm_run = KSM_RUN_MERGE; /* no way for user to start it */
-> > > 3145
-> > > 3146#endif /* CONFIG_SYSFS */
-> > >
-> > > So, we do set ksm_run to run right from ksm_init() when CONFIG_SYSFS=n.
-> > >
-> > > I wonder if this is acceptible to only use xxhash when CONFIG_SYSFS=n ?
-> >
-> > BTW, with CONFIG_SYSFS=n KSM may start running before hardware acceleration
-> > for crc32c is initialized...
-> >
-> > > Thank you,
-> > > Pavel
-> > >
-> >
-> > --
-> > Sincerely yours,
-> > Mike.
-> >
-> 
-> Little thread bump.
-> That patchset can't move forward already for about ~8 month.
-> As i see main question in thread: that we have a race with ksm
-> initialization and availability of crypto api.
-> Maybe we then can fall back to simple plan, and just replace old good
-> buddy jhash by just more fast xxhash?
-> That allow move question with crypto api & crc32 to background, and
-> make things better for now, in 2-3 times.
-> 
-> What you all think about that?
+die() has arch specific implementations, so looking at:
 
-Sounds reasonable to me
+arch/arm64/kernel/traps.c:196#die
 
-> > crc32c_intel: 1084.10ns
-> > crc32c (no hardware acceleration): 7012.51ns
-> > xxhash32: 2227.75ns
-> > xxhash64: 1413.16ns
-> > jhash2: 5128.30ns
-> 
-> -- 
-> Have a nice day,
-> Timofey.
-> 
+it looks like panic is invoked if in_interrupt() or panic_on_oops(),
+which is a configure option.  So maybe the config for KHWASAN should
+also enable that? Otherwise seems easy to forget.  But maybe that
+should remain configurable separately?
 
+Looking at the kernel configs for the Pixel 2, it does seem like
+CONFIG_PANIC_ON_OOPS=y is already enabled.
+https://android.googlesource.com/kernel/msm/+/android-msm-wahoo-4.4-pie/arch/arm64/configs/wahoo_defconfig#746
+
+Specifically to catch problems on Android, our internal debug builds
+can report on panics, but not oops, IIUC.
 -- 
-Sincerely yours,
-Mike.
+Thanks,
+~Nick Desaulniers
