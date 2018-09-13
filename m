@@ -1,71 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 25BE78E0001
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 14:11:02 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id w19-v6so5349085ioa.10
-        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 11:11:02 -0700 (PDT)
-Received: from NAM04-BN3-obe.outbound.protection.outlook.com (mail-eopbgr680121.outbound.protection.outlook.com. [40.107.68.121])
-        by mx.google.com with ESMTPS id q200-v6si3148680itq.62.2018.09.13.11.11.00
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 55BAD8E0001
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 14:23:32 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id p11-v6so6951787oih.17
+        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 11:23:32 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e126-v6sor4046978oig.186.2018.09.13.11.23.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 13 Sep 2018 11:11:00 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [PATCH V6 2/2 RESEND] ksm: replace jhash2 with faster hash
-Date: Thu, 13 Sep 2018 18:10:58 +0000
-Message-ID: <d0695f2b-5db3-cc1d-b069-4511e4e06887@microsoft.com>
-References: 
- <CAGqmi76gJV=ZDX5=Y3toF2tPiJs8T=PiUJFQg5nq9O5yztx80Q@mail.gmail.com>
- <CAGM2reaZ2YoxFhEDtcXi=hMFoGFi8+SROOn+_SRMwnx3cW15kw@mail.gmail.com>
- <CAGqmi76-qK9q_OTvyqpb-9k_m0CLMt3o860uaN5LL8nBkf5RTg@mail.gmail.com>
- <20180527130325.GB4522@rapoport-lnx>
- <CAGM2rea2GBvOAiKcSpHkQ9F+jgvy3sCsBw7hFz26DvQ+c_677A@mail.gmail.com>
- <CAGqmi74G-7bM5mbbaHjzOkTvuEpCcAbZ8Q0PVCMkyP09XaVSkA@mail.gmail.com>
- <20180607115232.GA8245@rapoport-lnx>
- <CAGM2rebK=gNbcAwkmt7W9kwtd=QWoPRogQMaoXOv=bmX+_d+yw@mail.gmail.com>
- <20180625084806.GB13791@rapoport-lnx>
- <CAGqmi75emzhU_coNv_8qaf1LkdG7gsFWNAFTwUC+1FikH7h1WQ@mail.gmail.com>
- <20180913180132.GB15191@rapoport-lnx>
-In-Reply-To: <20180913180132.GB15191@rapoport-lnx>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <A2F04108D4AE8448B8C5D1AED7D5494F@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Thu, 13 Sep 2018 11:23:31 -0700 (PDT)
 MIME-Version: 1.0
+References: <cover.1535462971.git.andreyknvl@google.com> <f5e73b5ead3355932ad8b5fc96b141c3f5b8c16c.1535462971.git.andreyknvl@google.com>
+ <CACT4Y+aEwYiaVN--RH_0VBh0wbCcrf-Ndz+_eOaBNi6nKxrfQA@mail.gmail.com>
+ <CAG48ez2oT1dtDcH8SfPLnoX5F8d6Pd=M-eOKHhYJ83EuL_j6wQ@mail.gmail.com>
+ <CACT4Y+avu_68GoQcc32zpcOpAu-Pw7m71VmuKtEkOw=vKgxi7w@mail.gmail.com> <CAKwvOdns=3bktpXLEpo6o0J8OQPym6YE+x6Dvs_kYSBsuJKtSw@mail.gmail.com>
+In-Reply-To: <CAKwvOdns=3bktpXLEpo6o0J8OQPym6YE+x6Dvs_kYSBsuJKtSw@mail.gmail.com>
+From: Jann Horn <jannh@google.com>
+Date: Thu, 13 Sep 2018 20:23:03 +0200
+Message-ID: <CAG48ez2AoEiFdLH2aLSjxdkdFbBT1PimOByaWbFykObTA2yqKg@mail.gmail.com>
+Subject: Re: [PATCH v6 15/18] khwasan, arm64: add brk handler for inline instrumentation
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>, Timofey Titovets <nefelim4ag@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Sioh Lee <solee@os.korea.ac.kr>, Andrea Arcangeli <aarcange@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>
+To: Nick Desaulniers <ndesaulniers@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrey Konovalov <andreyknvl@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Marc Zyngier <marc.zyngier@arm.com>, dave.martin@arm.com, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, geert@linux-m68k.org, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, kernel list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-kbuild@vger.kernel.org, Kostya Serebryany <kcc@google.com>, Evgenii Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana.Radhakrishnan@arm.com, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben.Ayrapetyan@arm.com, Mark Brand <markbrand@google.com>, cpandya@codeaurora.org, Vishwath Mohan <vishwath@google.com>
 
-DQoNCk9uIDkvMTMvMTggMjowMSBQTSwgTWlrZSBSYXBvcG9ydCB3cm90ZToNCj4gKHVwZGF0ZWQg
-UGFzaGEncyBlLW1haWwpDQo+IA0KPiBUaHUsIFNlcCAxMywgMjAxOCBhdCAwMTozNToyMFBNICsw
-MzAwLCBUaW1vZmV5IFRpdG92ZXRzIHdyb3RlOg0KPj4g0L/QvSwgMjUg0LjRjtC9LiAyMDE4INCz
-LiDQsiAxMTo0OCwgTWlrZSBSYXBvcG9ydCA8cnBwdEBsaW51eC52bmV0LmlibS5jb20+Og0KPj4+
-DQo+Pj4gT24gVGh1LCBKdW4gMDcsIDIwMTggYXQgMDk6Mjk6NDlQTSAtMDQwMCwgUGF2ZWwgVGF0
-YXNoaW4gd3JvdGU6DQo+Pj4+PiBXaXRoIENPTkZJR19TWVNGUz1uIHRoZXJlIGlzIG5vdGhpbmcg
-dGhhdCB3aWxsIHNldCBrc21fcnVuIHRvIGFueXRoaW5nIGJ1dA0KPj4+Pj4gemVybyBhbmQga3Nt
-X2RvX3NjYW4gd2lsbCBuZXZlciBiZSBjYWxsZWQuDQo+Pj4+Pg0KPj4+Pg0KPj4+PiBVbmZvcnR1
-bmF0bHksIHRoaXMgaXMgbm90IHNvOg0KPj4+Pg0KPj4+PiBJbjogL2xpbnV4LW1hc3Rlci9tbS9r
-c20uYw0KPj4+Pg0KPj4+PiAzMTQzI2Vsc2UNCj4+Pj4gMzE0NCBrc21fcnVuID0gS1NNX1JVTl9N
-RVJHRTsgLyogbm8gd2F5IGZvciB1c2VyIHRvIHN0YXJ0IGl0ICovDQo+Pj4+IDMxNDUNCj4+Pj4g
-MzE0NiNlbmRpZiAvKiBDT05GSUdfU1lTRlMgKi8NCj4+Pj4NCj4+Pj4gU28sIHdlIGRvIHNldCBr
-c21fcnVuIHRvIHJ1biByaWdodCBmcm9tIGtzbV9pbml0KCkgd2hlbiBDT05GSUdfU1lTRlM9bi4N
-Cj4+Pj4NCj4+Pj4gSSB3b25kZXIgaWYgdGhpcyBpcyBhY2NlcHRpYmxlIHRvIG9ubHkgdXNlIHh4
-aGFzaCB3aGVuIENPTkZJR19TWVNGUz1uID8NCj4+Pg0KPj4+IEJUVywgd2l0aCBDT05GSUdfU1lT
-RlM9biBLU00gbWF5IHN0YXJ0IHJ1bm5pbmcgYmVmb3JlIGhhcmR3YXJlIGFjY2VsZXJhdGlvbg0K
-Pj4+IGZvciBjcmMzMmMgaXMgaW5pdGlhbGl6ZWQuLi4NCj4+Pg0KPj4+PiBUaGFuayB5b3UsDQo+
-Pj4+IFBhdmVsDQo+Pj4+DQo+Pj4NCj4+PiAtLQ0KPj4+IFNpbmNlcmVseSB5b3VycywNCj4+PiBN
-aWtlLg0KPj4+DQo+Pg0KPj4gTGl0dGxlIHRocmVhZCBidW1wLg0KPj4gVGhhdCBwYXRjaHNldCBj
-YW4ndCBtb3ZlIGZvcndhcmQgYWxyZWFkeSBmb3IgYWJvdXQgfjggbW9udGguDQo+PiBBcyBpIHNl
-ZSBtYWluIHF1ZXN0aW9uIGluIHRocmVhZDogdGhhdCB3ZSBoYXZlIGEgcmFjZSB3aXRoIGtzbQ0K
-Pj4gaW5pdGlhbGl6YXRpb24gYW5kIGF2YWlsYWJpbGl0eSBvZiBjcnlwdG8gYXBpLg0KPj4gTWF5
-YmUgd2UgdGhlbiBjYW4gZmFsbCBiYWNrIHRvIHNpbXBsZSBwbGFuLCBhbmQganVzdCByZXBsYWNl
-IG9sZCBnb29kDQo+PiBidWRkeSBqaGFzaCBieSBqdXN0IG1vcmUgZmFzdCB4eGhhc2g/DQo+PiBU
-aGF0IGFsbG93IG1vdmUgcXVlc3Rpb24gd2l0aCBjcnlwdG8gYXBpICYgY3JjMzIgdG8gYmFja2dy
-b3VuZCwgYW5kDQo+PiBtYWtlIHRoaW5ncyBiZXR0ZXIgZm9yIG5vdywgaW4gMi0zIHRpbWVzLg0K
-Pj4NCj4+IFdoYXQgeW91IGFsbCB0aGluayBhYm91dCB0aGF0Pw0KPiANCj4gU291bmRzIHJlYXNv
-bmFibGUgdG8gbWUNCg0KU2FtZSBoZXJlLCBwbGVhc2Ugc2VuZCBhIG5ldyBwYXRjaCB3aXRoIHh4
-aGFzaCwgYW5kIGFmdGVyIHRoYXQgd2UgY2FuDQp3b3JrIG9uIGEgZmFzdGVyIGNyYzMyLg0KDQpU
-aGFuayB5b3UsDQpQYXZlbA0KDQo+IA0KPj4+IGNyYzMyY19pbnRlbDogMTA4NC4xMG5zDQo+Pj4g
-Y3JjMzJjIChubyBoYXJkd2FyZSBhY2NlbGVyYXRpb24pOiA3MDEyLjUxbnMNCj4+PiB4eGhhc2gz
-MjogMjIyNy43NW5zDQo+Pj4geHhoYXNoNjQ6IDE0MTMuMTZucw0KPj4+IGpoYXNoMjogNTEyOC4z
-MG5zDQo+Pg0KPj4gLS0gDQo+PiBIYXZlIGEgbmljZSBkYXksDQo+PiBUaW1vZmV5Lg0KPj4NCj4g
+On Thu, Sep 13, 2018 at 8:09 PM Nick Desaulniers
+<ndesaulniers@google.com> wrote:
+>
+> On Thu, Sep 13, 2018 at 1:37 AM Dmitry Vyukov <dvyukov@google.com> wrote:
+> >
+> > On Wed, Sep 12, 2018 at 7:39 PM, Jann Horn <jannh@google.com> wrote:
+> > > On Wed, Sep 12, 2018 at 7:16 PM Dmitry Vyukov <dvyukov@google.com> wrote:
+> > >> On Wed, Aug 29, 2018 at 1:35 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
+> > > [...]
+> > >> > +static int khwasan_handler(struct pt_regs *regs, unsigned int esr)
+> > >> > +{
+> > >> > +       bool recover = esr & KHWASAN_ESR_RECOVER;
+> > >> > +       bool write = esr & KHWASAN_ESR_WRITE;
+> > >> > +       size_t size = KHWASAN_ESR_SIZE(esr);
+> > >> > +       u64 addr = regs->regs[0];
+> > >> > +       u64 pc = regs->pc;
+> > >> > +
+> > >> > +       if (user_mode(regs))
+> > >> > +               return DBG_HOOK_ERROR;
+> > >> > +
+> > >> > +       kasan_report(addr, size, write, pc);
+> > >> > +
+> > >> > +       /*
+> > >> > +        * The instrumentation allows to control whether we can proceed after
+> > >> > +        * a crash was detected. This is done by passing the -recover flag to
+> > >> > +        * the compiler. Disabling recovery allows to generate more compact
+> > >> > +        * code.
+> > >> > +        *
+> > >> > +        * Unfortunately disabling recovery doesn't work for the kernel right
+> > >> > +        * now. KHWASAN reporting is disabled in some contexts (for example when
+> > >> > +        * the allocator accesses slab object metadata; same is true for KASAN;
+> > >> > +        * this is controlled by current->kasan_depth). All these accesses are
+> > >> > +        * detected by the tool, even though the reports for them are not
+> > >> > +        * printed.
+> > >> > +        *
+> > >> > +        * This is something that might be fixed at some point in the future.
+> > >> > +        */
+> > >> > +       if (!recover)
+> > >> > +               die("Oops - KHWASAN", regs, 0);
+> > >>
+> > >> Why die and not panic? Die seems to be much less used function, and it
+> > >> calls panic anyway, and we call panic in kasan_report if panic_on_warn
+> > >> is set.
+> > >
+> > > die() is vaguely equivalent to BUG(); die() and BUG() normally only
+> > > terminate the current process, which may or may not leave the system
+> > > somewhat usable, while panic() always brings down the whole system.
+> > > AFAIK panic() shouldn't be used unless you're in some very low-level
+> > > code where you know that trying to just kill the current process can't
+> > > work and the entire system is broken beyond repair.
+> > >
+> > > If KASAN traps on some random memory access, there's a good chance
+> > > that just killing the current process will allow at least parts of the
+> > > system to continue. I'm not sure whether BUG() or die() is more
+> > > appropriate here, but I think it definitely should not be a panic().
+> >
+> >
+> > Nick, do you know if die() will be enough to catch problems on Android
+> > phones? panic_on_warn would turn this into panic, but I guess one does
+> > not want panic_on_warn on a canary phone.
+>
+> die() has arch specific implementations, so looking at:
+>
+> arch/arm64/kernel/traps.c:196#die
+>
+> it looks like panic is invoked if in_interrupt() or panic_on_oops(),
+> which is a configure option.  So maybe the config for KHWASAN should
+> also enable that? Otherwise seems easy to forget.  But maybe that
+> should remain configurable separately?
+
+In the upstream kernel, it is desirable to be able to discover bugs
+and debug them from inside the running system. When you detect a bug
+that makes it impossible for the current task to continue safely,
+you're supposed to use something like BUG() to terminate the task; if
+you can continue safely, you're supposed to use WARN(). Either way,
+you should *not* just shoot down the whole kernel unless the system is
+corrupted so badly that trying to keep running would be pointless.
+
+You can configure the kernel such that it crashes the device when such
+an event occurs, and doing so can sometimes be beneficial; but please
+don't hardcode such policies into the upstream kernel.
