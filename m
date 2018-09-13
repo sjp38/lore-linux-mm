@@ -1,61 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 38A268E0001
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 12:26:05 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id m207-v6so9082511itg.5
-        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 09:26:05 -0700 (PDT)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id i16-v6si2980754jam.12.2018.09.13.09.26.03
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 360008E0001
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 13:23:00 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id v9-v6so3211559pff.4
+        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 10:23:00 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id l15-v6si4884608pgj.528.2018.09.13.10.22.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 13 Sep 2018 09:26:04 -0700 (PDT)
-References: <153680531988.453305.8080706591516037706.stgit@dwillia2-desk3.amr.corp.intel.com>
- <153680532635.453305.11297363695024516117.stgit@dwillia2-desk3.amr.corp.intel.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <f011859e-eab3-acea-9498-246f791922ff@deltatee.com>
-Date: Thu, 13 Sep 2018 10:25:58 -0600
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Sep 2018 10:22:58 -0700 (PDT)
+Subject: Re: [RFC][PATCH 03/11] x86/mm: Page size aware flush_tlb_mm_range()
+References: <20180913092110.817204997@infradead.org>
+ <20180913092812.012757318@infradead.org>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <f89e61a3-0eb0-3d00-fbaa-f30c2cf60be3@linux.intel.com>
+Date: Thu, 13 Sep 2018 10:22:58 -0700
 MIME-Version: 1.0
-In-Reply-To: <153680532635.453305.11297363695024516117.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <20180913092812.012757318@infradead.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
-Subject: Re: [PATCH v5 1/7] mm, devm_memremap_pages: Mark
- devm_memremap_pages() EXPORT_SYMBOL_GPL
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@suse.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Christoph Hellwig <hch@lst.de>, alexander.h.duyck@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>, will.deacon@arm.com, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, npiggin@gmail.com
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@armlinux.org.uk, heiko.carstens@de.ibm.com
 
+> +static inline void tlb_flush(struct mmu_gather *tlb)
+> +{
+> +	unsigned long start = 0UL, end = TLB_FLUSH_ALL;
+> +	unsigned int invl_shift = tlb_get_unmap_shift(tlb);
 
+I had to go back and look at
 
-On 12/09/18 08:22 PM, Dan Williams wrote:
-> devm_memremap_pages() is a facility that can create struct page entries
-> for any arbitrary range and give drivers the ability to subvert core
-> aspects of page management.
-> 
-> Specifically the facility is tightly integrated with the kernel's memory
-> hotplug functionality. It injects an altmap argument deep into the
-> architecture specific vmemmap implementation to allow allocating from
-> specific reserved pages, and it has Linux specific assumptions about
-> page structure reference counting relative to get_user_pages() and
-> get_user_pages_fast(). It was an oversight and a mistake that this was
-> not marked EXPORT_SYMBOL_GPL from the outset.
-> 
-> Again, devm_memremap_pagex() exposes and relies upon core kernel
-> internal assumptions and will continue to evolve along with 'struct
-> page', memory hotplug, and support for new memory types / topologies.
-> Only an in-kernel GPL-only driver is expected to keep up with this
-> ongoing evolution. This interface, and functionality derived from this
-> interface, is not suitable for kernel-external drivers.
-> 
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
-> Reviewed-by: Christoph Hellwig <hch@lst.de>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+	https://patchwork.kernel.org/patch/10587207/
 
-Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
+to figure out what was going on.  I wonder if we could make the code a
+bit more standalone.
 
-Mostly to say that I agree with you and Christoph on this debate and
-that the change to GPL does not affect my P2PDMA work.
+This at least needs a comment about what it's getting from 'tlb'.  Maybe
+just:
 
-Logan
+	/* Find the smallest page size that we unmapped: */
+
+> --- a/arch/x86/include/asm/tlbflush.h
+> +++ b/arch/x86/include/asm/tlbflush.h
+> @@ -507,23 +507,25 @@ struct flush_tlb_info {
+>  	unsigned long		start;
+>  	unsigned long		end;
+>  	u64			new_tlb_gen;
+> +	unsigned int		invl_shift;
+>  };
+
+Maybe we really should just call this flush_stride or something.
+
+>  #define local_flush_tlb() __flush_tlb()
+>  
+>  #define flush_tlb_mm(mm)	flush_tlb_mm_range(mm, 0UL, TLB_FLUSH_ALL, 0UL)
+>  
+> -#define flush_tlb_range(vma, start, end)	\
+> -		flush_tlb_mm_range(vma->vm_mm, start, end, vma->vm_flags)
+> +#define flush_tlb_range(vma, start, end)			\
+> +		flush_tlb_mm_range((vma)->vm_mm, start, end,	\
+> +				(vma)->vm_flags & VM_HUGETLB ? PMD_SHIFT : PAGE_SHIFT)
+
+This is safe.  But, Couldn't this PMD_SHIFT also be PUD_SHIFT for a 1G
+hugetlb page?
+
+>  void native_flush_tlb_others(const struct cpumask *cpumask,
+> --- a/arch/x86/mm/tlb.c
+> +++ b/arch/x86/mm/tlb.c
+> @@ -522,12 +522,12 @@ static void flush_tlb_func_common(const
+>  	    f->new_tlb_gen == mm_tlb_gen) {
+>  		/* Partial flush */
+>  		unsigned long addr;
+> -		unsigned long nr_pages = (f->end - f->start) >> PAGE_SHIFT;
+> +		unsigned long nr_pages = (f->end - f->start) >> f->invl_shift;
+
+We might want to make this nr_invalidations or nr_flushes now so we
+don't get it confused with PAGE_SIZE stuff.
+
+Otherwise, this makes me a *tiny* bit nervous.  I think we're good about
+ensuring that we fully flush 4k mappings from the TLB before going up to
+a 2MB mapping because of all the errata we've had there over the years.
+But, had we left 4k mappings around, the old flushing code would have
+cleaned them up for us.
+
+This certainly tightly ties the invalidations to what was in the page
+tables.  If that diverged from the TLB at some point, there's certainly
+more exposure here.
+
+Looks fun, though. :)
