@@ -1,300 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A5408E0001
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FA228E0006
 	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 05:29:27 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id a8-v6so2475503pla.10
+Received: by mail-pg1-f199.google.com with SMTP id s11-v6so2335867pgv.9
         for <linux-mm@kvack.org>; Thu, 13 Sep 2018 02:29:27 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id j61-v6si3364285plb.49.2018.09.13.02.29.25
+        by mx.google.com with ESMTPS id j30-v6si4070215pgj.73.2018.09.13.02.29.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Thu, 13 Sep 2018 02:29:26 -0700 (PDT)
-Message-ID: <20180913092811.955706111@infradead.org>
-Date: Thu, 13 Sep 2018 11:21:12 +0200
+Message-ID: <20180913092812.012757318@infradead.org>
+Date: Thu, 13 Sep 2018 11:21:13 +0200
 From: Peter Zijlstra <peterz@infradead.org>
-Subject: [RFC][PATCH 02/11] asm-generic/tlb: Provide HAVE_MMU_GATHER_PAGE_SIZE
+Subject: [RFC][PATCH 03/11] x86/mm: Page size aware flush_tlb_mm_range()
 References: <20180913092110.817204997@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: will.deacon@arm.com, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, npiggin@gmail.com
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, peterz@infradead.org, linux@armlinux.org.uk, heiko.carstens@de.ibm.com
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, peterz@infradead.org, linux@armlinux.org.uk, heiko.carstens@de.ibm.com, Dave Hansen <dave.hansen@linux.intel.com>
 
-Move the mmu_gather::page_size things into the generic code instead of
-powerpc specific bits.
+Use the new tlb_get_unmap_shift() to determine the stride of the
+INVLPG loop.
 
 Cc: Will Deacon <will.deacon@arm.com>
 Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Nick Piggin <npiggin@gmail.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
 Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 ---
- arch/Kconfig                   |    3 +++
- arch/arm/include/asm/tlb.h     |    3 +--
- arch/ia64/include/asm/tlb.h    |    3 +--
- arch/powerpc/Kconfig           |    1 +
- arch/powerpc/include/asm/tlb.h |   17 -----------------
- arch/s390/include/asm/tlb.h    |    4 +---
- arch/sh/include/asm/tlb.h      |    4 +---
- arch/um/include/asm/tlb.h      |    4 +---
- include/asm-generic/tlb.h      |   25 +++++++++++++------------
- mm/huge_memory.c               |    4 ++--
- mm/hugetlb.c                   |    2 +-
- mm/madvise.c                   |    2 +-
- mm/memory.c                    |    4 ++--
- mm/mmu_gather.c                |    5 +++++
- 14 files changed, 33 insertions(+), 48 deletions(-)
+ arch/x86/include/asm/tlb.h      |   21 ++++++++++++++-------
+ arch/x86/include/asm/tlbflush.h |   10 ++++++----
+ arch/x86/mm/tlb.c               |   10 +++++-----
+ 3 files changed, 25 insertions(+), 16 deletions(-)
 
---- a/arch/Kconfig
-+++ b/arch/Kconfig
-@@ -365,6 +365,9 @@ config HAVE_RCU_TABLE_FREE
- config HAVE_RCU_TABLE_INVALIDATE
- 	bool
+--- a/arch/x86/include/asm/tlb.h
++++ b/arch/x86/include/asm/tlb.h
+@@ -6,16 +6,23 @@
+ #define tlb_end_vma(tlb, vma) do { } while (0)
+ #define __tlb_remove_tlb_entry(tlb, ptep, address) do { } while (0)
  
-+config HAVE_MMU_GATHER_PAGE_SIZE
-+	bool
-+
- config ARCH_HAVE_NMI_SAFE_CMPXCHG
- 	bool
- 
---- a/arch/arm/include/asm/tlb.h
-+++ b/arch/arm/include/asm/tlb.h
-@@ -286,8 +286,7 @@ tlb_remove_pmd_tlb_entry(struct mmu_gath
- 
- #define tlb_migrate_finish(mm)		do { } while (0)
- 
--#define tlb_remove_check_page_size_change tlb_remove_check_page_size_change
--static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
-+static inline void tlb_change_page_size(struct mmu_gather *tlb,
- 						     unsigned int page_size)
- {
- }
---- a/arch/ia64/include/asm/tlb.h
-+++ b/arch/ia64/include/asm/tlb.h
-@@ -282,8 +282,7 @@ do {							\
- #define tlb_remove_huge_tlb_entry(h, tlb, ptep, address)	\
- 	tlb_remove_tlb_entry(tlb, ptep, address)
- 
--#define tlb_remove_check_page_size_change tlb_remove_check_page_size_change
--static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
-+static inline void tlb_change_page_size(struct mmu_gather *tlb,
- 						     unsigned int page_size)
- {
- }
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -216,6 +216,7 @@ config PPC
- 	select HAVE_PERF_REGS
- 	select HAVE_PERF_USER_STACK_DUMP
- 	select HAVE_RCU_TABLE_FREE		if SMP
-+	select HAVE_MMU_GATHER_PAGE_SIZE
- 	select HAVE_REGS_AND_STACK_ACCESS_API
- 	select HAVE_RELIABLE_STACKTRACE		if PPC64 && CPU_LITTLE_ENDIAN
- 	select HAVE_SYSCALL_TRACEPOINTS
---- a/arch/powerpc/include/asm/tlb.h
-+++ b/arch/powerpc/include/asm/tlb.h
-@@ -27,7 +27,6 @@
- #define tlb_start_vma(tlb, vma)	do { } while (0)
- #define tlb_end_vma(tlb, vma)	do { } while (0)
- #define __tlb_remove_tlb_entry	__tlb_remove_tlb_entry
--#define tlb_remove_check_page_size_change tlb_remove_check_page_size_change
- 
- extern void tlb_flush(struct mmu_gather *tlb);
- 
-@@ -46,22 +45,6 @@ static inline void __tlb_remove_tlb_entr
- #endif
- }
- 
--static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
--						     unsigned int page_size)
--{
--	if (!tlb->page_size)
--		tlb->page_size = page_size;
--	else if (tlb->page_size != page_size) {
--		if (!tlb->fullmm)
--			tlb_flush_mmu(tlb);
--		/*
--		 * update the page size after flush for the new
--		 * mmu_gather.
--		 */
--		tlb->page_size = page_size;
--	}
+-#define tlb_flush(tlb)							\
+-{									\
+-	if (!tlb->fullmm && !tlb->need_flush_all) 			\
+-		flush_tlb_mm_range(tlb->mm, tlb->start, tlb->end, 0UL);	\
+-	else								\
+-		flush_tlb_mm_range(tlb->mm, 0UL, TLB_FLUSH_ALL, 0UL);	\
 -}
--
- #ifdef CONFIG_SMP
- static inline int mm_is_core_local(struct mm_struct *mm)
- {
---- a/arch/s390/include/asm/tlb.h
-+++ b/arch/s390/include/asm/tlb.h
-@@ -180,9 +180,7 @@ static inline void pud_free_tlb(struct m
- #define tlb_remove_huge_tlb_entry(h, tlb, ptep, address)	\
- 	tlb_remove_tlb_entry(tlb, ptep, address)
++static inline void tlb_flush(struct mmu_gather *tlb);
  
--#define tlb_remove_check_page_size_change tlb_remove_check_page_size_change
--static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
--						     unsigned int page_size)
-+static inline void tlb_change_page_size(struct mmu_gather *tlb, unsigned int page_size)
- {
- }
+ #include <asm-generic/tlb.h>
  
---- a/arch/sh/include/asm/tlb.h
-+++ b/arch/sh/include/asm/tlb.h
-@@ -127,9 +127,7 @@ static inline void tlb_remove_page_size(
- 	return tlb_remove_page(tlb, page);
- }
- 
--#define tlb_remove_check_page_size_change tlb_remove_check_page_size_change
--static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
--						     unsigned int page_size)
-+static inline void tlb_change_page_size(struct mmu_gather *tlb, unsigned int page_size)
- {
- }
- 
---- a/arch/um/include/asm/tlb.h
-+++ b/arch/um/include/asm/tlb.h
-@@ -146,9 +146,7 @@ static inline void tlb_remove_page_size(
- #define tlb_remove_huge_tlb_entry(h, tlb, ptep, address)	\
- 	tlb_remove_tlb_entry(tlb, ptep, address)
- 
--#define tlb_remove_check_page_size_change tlb_remove_check_page_size_change
--static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
--						     unsigned int page_size)
-+static inline void tlb_change_page_size(struct mmu_gather *tlb, unsigned int page_size)
- {
- }
- 
---- a/include/asm-generic/tlb.h
-+++ b/include/asm-generic/tlb.h
-@@ -240,11 +240,15 @@ struct mmu_gather {
- 	unsigned int		cleared_puds : 1;
- 	unsigned int		cleared_p4ds : 1;
- 
-+	unsigned int		batch_count;
++static inline void tlb_flush(struct mmu_gather *tlb)
++{
++	unsigned long start = 0UL, end = TLB_FLUSH_ALL;
++	unsigned int invl_shift = tlb_get_unmap_shift(tlb);
 +
- 	struct mmu_gather_batch *active;
- 	struct mmu_gather_batch	local;
- 	struct page		*__pages[MMU_GATHER_BUNDLE];
--	unsigned int		batch_count;
--	int page_size;
-+
-+#ifdef CONFIG_HAVE_MMU_GATHER_PAGE_SIZE
-+	unsigned int page_size;
-+#endif
- };
- 
- void arch_tlb_gather_mmu(struct mmu_gather *tlb,
-@@ -310,21 +314,18 @@ static inline void tlb_remove_page(struc
- 	return tlb_remove_page_size(tlb, page, PAGE_SIZE);
- }
- 
--#ifndef tlb_remove_check_page_size_change
--#define tlb_remove_check_page_size_change tlb_remove_check_page_size_change
--static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
-+static inline void tlb_change_page_size(struct mmu_gather *tlb,
- 						     unsigned int page_size)
- {
--	/*
--	 * We don't care about page size change, just update
--	 * mmu_gather page size here so that debug checks
--	 * doesn't throw false warning.
--	 */
--#ifdef CONFIG_DEBUG_VM
-+#ifdef CONFIG_HAVE_MMU_GATHER_PAGE_SIZE
-+	if (tlb->page_size && tlb->page_size != page_size) {
-+		if (!tlb->fullmm)
-+			tlb_flush_mmu(tlb);
++	if (!tlb->fullmm && !tlb->need_flush_all) {
++		start = tlb->start;
++		end = tlb->end;
 +	}
 +
- 	tlb->page_size = page_size;
- #endif
- }
--#endif
- 
- static inline unsigned long tlb_get_unmap_shift(struct mmu_gather *tlb)
- {
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1617,7 +1617,7 @@ bool madvise_free_huge_pmd(struct mmu_ga
- 	struct mm_struct *mm = tlb->mm;
- 	bool ret = false;
- 
--	tlb_remove_check_page_size_change(tlb, HPAGE_PMD_SIZE);
-+	tlb_change_page_size(tlb, HPAGE_PMD_SIZE);
- 
- 	ptl = pmd_trans_huge_lock(pmd, vma);
- 	if (!ptl)
-@@ -1693,7 +1693,7 @@ int zap_huge_pmd(struct mmu_gather *tlb,
- 	pmd_t orig_pmd;
- 	spinlock_t *ptl;
- 
--	tlb_remove_check_page_size_change(tlb, HPAGE_PMD_SIZE);
-+	tlb_change_page_size(tlb, HPAGE_PMD_SIZE);
- 
- 	ptl = __pmd_trans_huge_lock(pmd, vma);
- 	if (!ptl)
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -3337,7 +3337,7 @@ void __unmap_hugepage_range(struct mmu_g
- 	 * This is a hugetlb vma, all the pte entries should point
- 	 * to huge page.
- 	 */
--	tlb_remove_check_page_size_change(tlb, sz);
-+	tlb_change_page_size(tlb, sz);
- 	tlb_start_vma(tlb, vma);
- 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
- 	address = start;
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -328,7 +328,7 @@ static int madvise_free_pte_range(pmd_t
- 	if (pmd_trans_unstable(pmd))
- 		return 0;
- 
--	tlb_remove_check_page_size_change(tlb, PAGE_SIZE);
-+	tlb_change_page_size(tlb, PAGE_SIZE);
- 	orig_pte = pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
- 	flush_tlb_batched_pending(mm);
- 	arch_enter_lazy_mmu_mode();
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -355,7 +355,7 @@ void free_pgd_range(struct mmu_gather *t
- 	 * We add page table cache pages with PAGE_SIZE,
- 	 * (see pte_free_tlb()), flush the tlb if we need
- 	 */
--	tlb_remove_check_page_size_change(tlb, PAGE_SIZE);
-+	tlb_change_page_size(tlb, PAGE_SIZE);
- 	pgd = pgd_offset(tlb->mm, addr);
- 	do {
- 		next = pgd_addr_end(addr, end);
-@@ -1046,7 +1046,7 @@ static unsigned long zap_pte_range(struc
- 	pte_t *pte;
- 	swp_entry_t entry;
- 
--	tlb_remove_check_page_size_change(tlb, PAGE_SIZE);
-+	tlb_change_page_size(tlb, PAGE_SIZE);
- again:
- 	init_rss_vec(rss);
- 	start_pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
---- a/mm/mmu_gather.c
-+++ b/mm/mmu_gather.c
-@@ -58,7 +58,9 @@ void arch_tlb_gather_mmu(struct mmu_gath
- #ifdef CONFIG_HAVE_RCU_TABLE_FREE
- 	tlb->batch = NULL;
- #endif
-+#ifdef CONFIG_HAVE_MMU_GATHER_PAGE_SIZE
- 	tlb->page_size = 0;
-+#endif
- 
- 	__tlb_reset_range(tlb);
- }
-@@ -121,7 +123,10 @@ bool __tlb_remove_page_size(struct mmu_g
- 	struct mmu_gather_batch *batch;
- 
- 	VM_BUG_ON(!tlb->end);
++	flush_tlb_mm_range(tlb->mm, start, end, invl_shift);
++}
 +
-+#ifdef CONFIG_HAVE_MMU_GATHER_PAGE_SIZE
- 	VM_WARN_ON(tlb->page_size != page_size);
-+#endif
+ /*
+  * While x86 architecture in general requires an IPI to perform TLB
+  * shootdown, enablement code for several hypervisors overrides
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -507,23 +507,25 @@ struct flush_tlb_info {
+ 	unsigned long		start;
+ 	unsigned long		end;
+ 	u64			new_tlb_gen;
++	unsigned int		invl_shift;
+ };
  
- 	batch = tlb->active;
- 	/*
+ #define local_flush_tlb() __flush_tlb()
+ 
+ #define flush_tlb_mm(mm)	flush_tlb_mm_range(mm, 0UL, TLB_FLUSH_ALL, 0UL)
+ 
+-#define flush_tlb_range(vma, start, end)	\
+-		flush_tlb_mm_range(vma->vm_mm, start, end, vma->vm_flags)
++#define flush_tlb_range(vma, start, end)			\
++		flush_tlb_mm_range((vma)->vm_mm, start, end,	\
++				(vma)->vm_flags & VM_HUGETLB ? PMD_SHIFT : PAGE_SHIFT)
+ 
+ extern void flush_tlb_all(void);
+ extern void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+-				unsigned long end, unsigned long vmflag);
++				unsigned long end, unsigned int invl_shift);
+ extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
+ 
+ static inline void flush_tlb_page(struct vm_area_struct *vma, unsigned long a)
+ {
+-	flush_tlb_mm_range(vma->vm_mm, a, a + PAGE_SIZE, VM_NONE);
++	flush_tlb_mm_range(vma->vm_mm, a, a + PAGE_SIZE, PAGE_SHIFT);
+ }
+ 
+ void native_flush_tlb_others(const struct cpumask *cpumask,
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -522,12 +522,12 @@ static void flush_tlb_func_common(const
+ 	    f->new_tlb_gen == mm_tlb_gen) {
+ 		/* Partial flush */
+ 		unsigned long addr;
+-		unsigned long nr_pages = (f->end - f->start) >> PAGE_SHIFT;
++		unsigned long nr_pages = (f->end - f->start) >> f->invl_shift;
+ 
+ 		addr = f->start;
+ 		while (addr < f->end) {
+ 			__flush_tlb_one_user(addr);
+-			addr += PAGE_SIZE;
++			addr += 1UL << f->invl_shift;
+ 		}
+ 		if (local)
+ 			count_vm_tlb_events(NR_TLB_LOCAL_FLUSH_ONE, nr_pages);
+@@ -616,12 +616,13 @@ void native_flush_tlb_others(const struc
+ static unsigned long tlb_single_page_flush_ceiling __read_mostly = 33;
+ 
+ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+-				unsigned long end, unsigned long vmflag)
++				unsigned long end, unsigned int invl_shift)
+ {
+ 	int cpu;
+ 
+ 	struct flush_tlb_info info __aligned(SMP_CACHE_BYTES) = {
+ 		.mm = mm,
++		.invl_shift = invl_shift,
+ 	};
+ 
+ 	cpu = get_cpu();
+@@ -631,8 +632,7 @@ void flush_tlb_mm_range(struct mm_struct
+ 
+ 	/* Should we flush just the requested range? */
+ 	if ((end != TLB_FLUSH_ALL) &&
+-	    !(vmflag & VM_HUGETLB) &&
+-	    ((end - start) >> PAGE_SHIFT) <= tlb_single_page_flush_ceiling) {
++	    ((end - start) >> invl_shift) <= tlb_single_page_flush_ceiling) {
+ 		info.start = start;
+ 		info.end = end;
+ 	} else {
