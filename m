@@ -1,217 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 285698E000E
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 05:30:50 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id 40-v6so4275751wrb.23
-        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 02:30:50 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id m16-v6si3161097wrr.317.2018.09.13.02.30.48
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 05B038E0001
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 06:30:25 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id b9-v6so572972otl.4
+        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 03:30:25 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 141-v6si2446013oia.278.2018.09.13.03.30.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 13 Sep 2018 02:30:48 -0700 (PDT)
-Message-ID: <20180913092812.071989585@infradead.org>
-Date: Thu, 13 Sep 2018 11:21:14 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: [RFC][PATCH 04/11] asm-generic/tlb: Provide generic VIPT cache flush
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Sep 2018 03:30:23 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8DATKlH092639
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 06:30:22 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mfk6e79hc-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 06:30:22 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Thu, 13 Sep 2018 11:30:19 +0100
+Date: Thu, 13 Sep 2018 12:30:14 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [RFC][PATCH 01/11] asm-generic/tlb: Provide a comment
+In-Reply-To: <20180913092811.894806629@infradead.org>
 References: <20180913092110.817204997@infradead.org>
+	<20180913092811.894806629@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Message-Id: <20180913123014.0d9321b8@mschwideX1>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: will.deacon@arm.com, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, npiggin@gmail.com
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, peterz@infradead.org, linux@armlinux.org.uk, heiko.carstens@de.ibm.com, David Miller <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: will.deacon@arm.com, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, npiggin@gmail.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@armlinux.org.uk, heiko.carstens@de.ibm.com
 
-The one obvious thing SH and ARM want is a sensible default for
-tlb_start_vma(). (also: https://lkml.org/lkml/2004/1/15/6 )
+On Thu, 13 Sep 2018 11:21:11 +0200
+Peter Zijlstra <peterz@infradead.org> wrote:
 
-Avoid all VIPT architectures providing their own tlb_start_vma()
-implementation and rely on architectures to provide a no-op
-flush_cache_range() when it is not relevant.
+> Write a comment explaining some of this..
+> 
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Nick Piggin <npiggin@gmail.com>
+> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+> ---
+>  include/asm-generic/tlb.h |  120 ++++++++++++++++++++++++++++++++++++++++++++--
+>  1 file changed, 117 insertions(+), 3 deletions(-)
+> 
+> --- a/include/asm-generic/tlb.h
+> +++ b/include/asm-generic/tlb.h
+> @@ -22,6 +22,119 @@
+> 
+>  #ifdef CONFIG_MMU
+> 
+> +/*
+> + * Generic MMU-gather implementation.
+> + *
+> + * The mmu_gather data structure is used by the mm code to implement the
+> + * correct and efficient ordering of freeing pages and TLB invalidations.
+> + *
+> + * This correct ordering is:
+> + *
+> + *  1) unhook page
+> + *  2) TLB invalidate page
+> + *  3) free page
+> + *
+> + * That is, we must never free a page before we have ensured there are no live
+> + * translations left to it. Otherwise it might be possible to observe (or
+> + * worse, change) the page content after it has been reused.
+> + *
 
-The below makes tlb_start_vma() default to flush_cache_range(), which
-should be right and sufficient. The only exceptions that I found where
-(oddly):
+This first comment already includes the reason why s390 is probably better off
+with its own mmu-gather implementation. It depends on the situation if we have
 
-  - m68k-mmu
-  - sparc64
-  - unicore
+1) unhook the page and do a TLB flush at the same time
+2) free page
 
-Those architectures appear to have flush_cache_range(), but their
-current tlb_start_vma() does not call it.
+or
 
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@gmail.com>
-Cc: David Miller <davem@davemloft.net>
-Cc: Guan Xuetao <gxt@pku.edu.cn>
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
----
- arch/arc/include/asm/tlb.h      |    9 ---------
- arch/mips/include/asm/tlb.h     |    9 ---------
- arch/nds32/include/asm/tlb.h    |    6 ------
- arch/nios2/include/asm/tlb.h    |   10 ----------
- arch/parisc/include/asm/tlb.h   |    5 -----
- arch/sparc/include/asm/tlb_32.h |    5 -----
- arch/xtensa/include/asm/tlb.h   |    9 ---------
- include/asm-generic/tlb.h       |   19 +++++++++++--------
- 8 files changed, 11 insertions(+), 61 deletions(-)
+1) unhook page
+2) free page
+3) final TLB flush of the whole mm
 
---- a/arch/arc/include/asm/tlb.h
-+++ b/arch/arc/include/asm/tlb.h
-@@ -23,15 +23,6 @@ do {						\
-  *
-  * Note, read http://lkml.org/lkml/2004/1/15/6
-  */
--#ifndef CONFIG_ARC_CACHE_VIPT_ALIASING
--#define tlb_start_vma(tlb, vma)
--#else
--#define tlb_start_vma(tlb, vma)						\
--do {									\
--	if (!tlb->fullmm)						\
--		flush_cache_range(vma, vma->vm_start, vma->vm_end);	\
--} while(0)
--#endif
- 
- #define tlb_end_vma(tlb, vma)						\
- do {									\
---- a/arch/mips/include/asm/tlb.h
-+++ b/arch/mips/include/asm/tlb.h
-@@ -5,15 +5,6 @@
- #include <asm/cpu-features.h>
- #include <asm/mipsregs.h>
- 
--/*
-- * MIPS doesn't need any special per-pte or per-vma handling, except
-- * we need to flush cache for area to be unmapped.
-- */
--#define tlb_start_vma(tlb, vma)					\
--	do {							\
--		if (!tlb->fullmm)				\
--			flush_cache_range(vma, vma->vm_start, vma->vm_end); \
--	}  while (0)
- #define tlb_end_vma(tlb, vma) do { } while (0)
- #define __tlb_remove_tlb_entry(tlb, ptep, address) do { } while (0)
- 
---- a/arch/nds32/include/asm/tlb.h
-+++ b/arch/nds32/include/asm/tlb.h
-@@ -4,12 +4,6 @@
- #ifndef __ASMNDS32_TLB_H
- #define __ASMNDS32_TLB_H
- 
--#define tlb_start_vma(tlb,vma)						\
--	do {								\
--		if (!tlb->fullmm)					\
--			flush_cache_range(vma, vma->vm_start, vma->vm_end); \
--	} while (0)
--
- #define tlb_end_vma(tlb,vma)				\
- 	do { 						\
- 		if(!tlb->fullmm)			\
---- a/arch/nios2/include/asm/tlb.h
-+++ b/arch/nios2/include/asm/tlb.h
-@@ -15,16 +15,6 @@
- 
- extern void set_mmu_pid(unsigned long pid);
- 
--/*
-- * NiosII doesn't need any special per-pte or per-vma handling, except
-- * we need to flush cache for the area to be unmapped.
-- */
--#define tlb_start_vma(tlb, vma)					\
--	do {							\
--		if (!tlb->fullmm)				\
--			flush_cache_range(vma, vma->vm_start, vma->vm_end); \
--	}  while (0)
--
- #define tlb_end_vma(tlb, vma)	do { } while (0)
- #define __tlb_remove_tlb_entry(tlb, ptep, address)	do { } while (0)
- 
---- a/arch/parisc/include/asm/tlb.h
-+++ b/arch/parisc/include/asm/tlb.h
-@@ -7,11 +7,6 @@ do {	if ((tlb)->fullmm)		\
- 		flush_tlb_mm((tlb)->mm);\
- } while (0)
- 
--#define tlb_start_vma(tlb, vma) \
--do {	if (!(tlb)->fullmm)	\
--		flush_cache_range(vma, vma->vm_start, vma->vm_end); \
--} while (0)
--
- #define tlb_end_vma(tlb, vma)	\
- do {	if (!(tlb)->fullmm)	\
- 		flush_tlb_range(vma, vma->vm_start, vma->vm_end); \
---- a/arch/sparc/include/asm/tlb_32.h
-+++ b/arch/sparc/include/asm/tlb_32.h
-@@ -2,11 +2,6 @@
- #ifndef _SPARC_TLB_H
- #define _SPARC_TLB_H
- 
--#define tlb_start_vma(tlb, vma) \
--do {								\
--	flush_cache_range(vma, vma->vm_start, vma->vm_end);	\
--} while (0)
--
- #define tlb_end_vma(tlb, vma) \
- do {								\
- 	flush_tlb_range(vma, vma->vm_start, vma->vm_end);	\
---- a/arch/xtensa/include/asm/tlb.h
-+++ b/arch/xtensa/include/asm/tlb.h
-@@ -16,19 +16,10 @@
- 
- #if (DCACHE_WAY_SIZE <= PAGE_SIZE)
- 
--/* Note, read http://lkml.org/lkml/2004/1/15/6 */
--
--# define tlb_start_vma(tlb,vma)			do { } while (0)
- # define tlb_end_vma(tlb,vma)			do { } while (0)
- 
- #else
- 
--# define tlb_start_vma(tlb, vma)					      \
--	do {								      \
--		if (!tlb->fullmm)					      \
--			flush_cache_range(vma, vma->vm_start, vma->vm_end);   \
--	} while(0)
--
- # define tlb_end_vma(tlb, vma)						      \
- 	do {								      \
- 		if (!tlb->fullmm)					      \
---- a/include/asm-generic/tlb.h
-+++ b/include/asm-generic/tlb.h
-@@ -19,6 +19,7 @@
- #include <linux/swap.h>
- #include <asm/pgalloc.h>
- #include <asm/tlbflush.h>
-+#include <asm/cacheflush.h>
- 
- #ifdef CONFIG_MMU
- 
-@@ -351,17 +352,19 @@ static inline unsigned long tlb_get_unma
-  * the vmas are adjusted to only cover the region to be torn down.
-  */
- #ifndef tlb_start_vma
--#define tlb_start_vma(tlb, vma) do { } while (0)
-+#define tlb_start_vma(tlb, vma)						\
-+do {									\
-+	if (!tlb->fullmm)						\
-+		flush_cache_range(vma, vma->vm_start, vma->vm_end);	\
-+} while (0)
- #endif
- 
--#define __tlb_end_vma(tlb, vma)					\
--	do {							\
--		if (!tlb->fullmm)				\
--			tlb_flush_mmu_tlbonly(tlb);		\
--	} while (0)
--
- #ifndef tlb_end_vma
--#define tlb_end_vma	__tlb_end_vma
-+#define tlb_end_vma(tlb, vma)						\
-+do {									\
-+	if (!tlb->fullmm)						\
-+		tlb_flush_mmu_tlbonly(tlb);				\
-+} while (0)
- #endif
- 
- #ifndef __tlb_remove_tlb_entry
+A variant of the second order we had in the past is to do the mm TLB flush first,
+then the unhooks and frees of the individual pages. The are some tricky corners
+switching between the two variants, see finish_arch_post_lock_switch.
+
+The point is: we *never* have the order 1) unhook, 2) TLB invalidate, 3) free.
+If there is concurrency due to a multi-threaded application we have to do the
+unhook of the page-table entry and the TLB flush with a single instruction.
+
+-- 
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
