@@ -1,73 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 211A88E0001
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 08:05:01 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id z77-v6so4706852wrb.20
-        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 05:05:01 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id i129-v6si3423549wmg.146.2018.09.13.05.04.59
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 333738E0001
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 08:18:47 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id c46-v6so745868otd.12
+        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 05:18:47 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d88-v6si399367otb.150.2018.09.13.05.18.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 13 Sep 2018 05:04:59 -0700 (PDT)
-Date: Thu, 13 Sep 2018 14:04:58 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: How to profile 160 ms spent in
- `add_highpages_with_active_regions()`?
-In-Reply-To: <d2ad2459-61ea-edb1-3b22-da92c039bfae@molgen.mpg.de>
-Message-ID: <alpine.DEB.2.21.1809131400070.1473@nanos.tec.linutronix.de>
-References: <d5a65984-36a7-15d8-b04a-461d0f53d36d@molgen.mpg.de> <5e5a39f4-1b91-c877-1368-0946160ef4be@molgen.mpg.de> <4f8d0de0-e9f1-e3cd-1f94-e95e6fa47ecf@molgen.mpg.de> <alpine.DEB.2.21.1808221539190.1652@nanos.tec.linutronix.de>
- <d2ad2459-61ea-edb1-3b22-da92c039bfae@molgen.mpg.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Sep 2018 05:18:45 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8DCIhwM110585
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 08:18:45 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2mfnexx20r-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 08:18:44 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Thu, 13 Sep 2018 13:18:32 +0100
+Date: Thu, 13 Sep 2018 14:18:27 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [RFC][PATCH 01/11] asm-generic/tlb: Provide a comment
+In-Reply-To: <20180913105738.GW24124@hirez.programming.kicks-ass.net>
+References: <20180913092110.817204997@infradead.org>
+	<20180913092811.894806629@infradead.org>
+	<20180913123014.0d9321b8@mschwideX1>
+	<20180913105738.GW24124@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="8323329-1620629746-1536840298=:1473"
+Message-Id: <20180913141827.1776985e@mschwideX1>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Menzel <pmenzel+linux-mm@molgen.mpg.de>
-Cc: linux-mm@kvack.org, x86@kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: will.deacon@arm.com, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, npiggin@gmail.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@armlinux.org.uk, heiko.carstens@de.ibm.com
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Thu, 13 Sep 2018 12:57:38 +0200
+Peter Zijlstra <peterz@infradead.org> wrote:
 
---8323329-1620629746-1536840298=:1473
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8BIT
-
-On Tue, 4 Sep 2018, Paul Menzel wrote:
-> On 08/22/18 15:41, Thomas Gleixner wrote:
-> > On Wed, 22 Aug 2018, Paul Menzel wrote:
-> >> Am 21.08.2018 um 11:37 schrieb Paul Menzel:
-> >>> [Removed non-working Pavel Tatashin <pasha.tatashin@oracle.com>]
-> >>
-> >> So a??freea??inga?? pfn = 225278 to e_pfn = 818492 in the for loop takes 160 ms.
+> On Thu, Sep 13, 2018 at 12:30:14PM +0200, Martin Schwidefsky wrote:
+> 
+> > > + * The mmu_gather data structure is used by the mm code to implement the
+> > > + * correct and efficient ordering of freeing pages and TLB invalidations.
+> > > + *
+> > > + * This correct ordering is:
+> > > + *
+> > > + *  1) unhook page
+> > > + *  2) TLB invalidate page
+> > > + *  3) free page
+> > > + *
+> > > + * That is, we must never free a page before we have ensured there are no live
+> > > + * translations left to it. Otherwise it might be possible to observe (or
+> > > + * worse, change) the page content after it has been reused.
+> > > + *  
 > > 
-> > That's 593214 pages and each one takes about 270ns. I don't see much
-> > optimization potential with that.
+> > This first comment already includes the reason why s390 is probably better off
+> > with its own mmu-gather implementation. It depends on the situation if we have
 > > 
-> > 32bit and highmem sucks ...
-
-We all know that.
-
-> Interestingly on my ASRock E350M1 with 4 GB, `pfn_valid()` is always true.
->
-> Additionally, after removing the for loop, the system still boots and seems
-> to work fine.
+> > 1) unhook the page and do a TLB flush at the same time
+> > 2) free page
+> > 
+> > or
+> > 
+> > 1) unhook page
+> > 2) free page
+> > 3) final TLB flush of the whole mm  
 > 
-> Here is the hunk I removed (with my debug statements).
+> that's the fullmm case, right?
+
+That includes the fullmm case but we use it for e.g. munmap of a single-threaded
+program as well.
+ 
+> > A variant of the second order we had in the past is to do the mm TLB flush first,
+> > then the unhooks and frees of the individual pages. The are some tricky corners
+> > switching between the two variants, see finish_arch_post_lock_switch.
+> > 
+> > The point is: we *never* have the order 1) unhook, 2) TLB invalidate, 3) free.
+> > If there is concurrency due to a multi-threaded application we have to do the
+> > unhook of the page-table entry and the TLB flush with a single instruction.  
 > 
-> -               for ( ; pfn < e_pfn; pfn++)
-> -                       if (pfn_valid(pfn)) {
-> -                               free_highmem_page(pfn_to_page(pfn));
-> -                               //printk(KERN_INFO "%s: in for loop pfn_valid(pfn) after fre
-> e_highmem_page, pfn = %lu\n", __func__, pfn);
-> -                       } else {
-> -                               printk(KERN_INFO "%s: pfn = %lu is invalid\n", __func__);
-> -                       }
-> 
-> Is the code there for certain memory sizes?
+> You can still get the thing you want if for !fullmm you have a no-op
+> tlb_flush() implementation, assuming your arch page-table frobbing thing
+> has the required TLB flush in.
 
-No, it's there to give the highmem pages back for allocation. You're losing
-usable memory that way. /proc/meminfo should tell you the difference.
+We have a non-empty tlb_flush_mmu_tlbonly to do a full-mm flush for two cases
+1) batches of page-table entries for single-threaded programs
+2) flushing of the pages used for the page-table structure itself
 
-Thanks,
+In fact only the page-table pages are added to the mmu_gather batch, the target
+page of the virtual mapping is always freed immediately.
+ 
+> Note that that's not utterly unlike how the PowerPC/Sparc hash things
+> work, they clear and invalidate entries different from others and don't
+> use the mmu_gather tlb-flush.
 
-	tglx
---8323329-1620629746-1536840298=:1473--
+We may get something working with a common code mmu_gather, but I fear the
+day someone makes a "minor" change to that subtly break s390. The debugging of
+TLB related problems is just horrible..
+
+-- 
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
