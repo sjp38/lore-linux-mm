@@ -1,92 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 170E88E0001
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2018 23:20:21 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id m4-v6so1869951pgq.19
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 20:20:21 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id w1-v6si3142401pgt.629.2018.09.12.20.20.18
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 39ABB8E0001
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 02:11:54 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id u74-v6so5258434oie.16
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2018 23:11:54 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h189-v6sor2954390oif.19.2018.09.12.23.11.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 12 Sep 2018 20:20:19 -0700 (PDT)
-Date: Thu, 13 Sep 2018 13:20:12 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: mmotm 2018-09-12-16-40 uploaded (psi)
-Message-ID: <20180913132012.1506f0da@canb.auug.org.au>
-In-Reply-To: <20180913014222.GA2370@cmpxchg.org>
-References: <20180912234039.Xa5RS%akpm@linux-foundation.org>
-	<a9bef471-ac93-2983-618b-ffee65f01e0b@infradead.org>
-	<20180913014222.GA2370@cmpxchg.org>
+        (Google Transport Security);
+        Wed, 12 Sep 2018 23:11:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
- boundary="Sig_/A0EZjjD/ORosSL0xF1vKrbv"; protocol="application/pgp-signature"
+In-Reply-To: <ciirm8efdy916l.fsf@u54ee758033e858cfa736.ant.amazon.com>
+References: <CA+55aFxyUdhYjnQdnmWAt8tTwn4HQ1xz3SAMZJiawkLpMiJ_+w@mail.gmail.com>
+ <ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com> <CA+55aFzHj_GNZWG4K2oDu4DPP9sZdTZ9PY7sBxGB6WoN9g8d=A@mail.gmail.com>
+ <ciirm8zhwyiqh4.fsf@u54ee758033e858cfa736.ant.amazon.com> <ciirm8efdy916l.fsf@u54ee758033e858cfa736.ant.amazon.com>
+From: Juerg Haefliger <juergh@gmail.com>
+Date: Thu, 13 Sep 2018 08:11:49 +0200
+Message-ID: <CADLDEKsxx=MSFu=4_4JLX1afUMr3GVjNxSQ-726NrbLn8KQaQg@mail.gmail.com>
+Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
+ in mind (for KVM to isolate its guests per CPU)
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Randy Dunlap <rdunlap@infradead.org>, akpm@linux-foundation.org, broonie@kernel.org, mhocko@suse.cz, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org
+To: Julian Stecklina <jsteckli@amazon.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, deepa.srinivasan@oracle.com, Jim Mattson <jmattson@google.com>, Andrew Cooper <andrew.cooper3@citrix.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, joao.m.martins@oracle.com, pradeep.vincent@oracle.com, Andi Kleen <ak@linux.intel.com>, Khalid Aziz <khalid.aziz@oracle.com>, kanth.ghatraju@oracle.com, Liran Alon <liran.alon@oracle.com>, Kees Cook <keescook@google.com>, Kernel Hardening <kernel-hardening@lists.openwall.com>, chris.hyser@oracle.com, Tyler Hicks <tyhicks@canonical.com>, John Haxby <john.haxby@oracle.com>, Jon Masters <jcm@redhat.com>
 
---Sig_/A0EZjjD/ORosSL0xF1vKrbv
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
-
-Hi Johannes,
-
-On Wed, 12 Sep 2018 21:42:22 -0400 Johannes Weiner <hannes@cmpxchg.org> wro=
-te:
+On Wed, Sep 12, 2018 at 5:37 PM, Julian Stecklina <jsteckli@amazon.de> wrote:
+> Julian Stecklina <jsteckli@amazon.de> writes:
 >
-> Thanks for the report.
->=20
-> On Wed, Sep 12, 2018 at 05:45:08PM -0700, Randy Dunlap wrote:
-> > Multiple build errors when CONFIG_SMP is not set: (this is on i386 fwiw)
-> >=20
-> > in the psi (pressure) patches, I guess:
-> >=20
-> > In file included from ../kernel/sched/sched.h:1367:0,
-> >                  from ../kernel/sched/core.c:8:
-> > ../kernel/sched/stats.h: In function 'psi_task_tick':
-> > ../kernel/sched/stats.h:135:33: error: 'struct rq' has no member named =
-'cpu'
-> >    psi_memstall_tick(rq->curr, rq->cpu); =20
->=20
-> This needs to use the SMP/UP config-aware accessor.
->=20
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->=20
-> diff --git a/kernel/sched/stats.h b/kernel/sched/stats.h
-> index 2e07d8f59b3e..4904c4677000 100644
-> --- a/kernel/sched/stats.h
-> +++ b/kernel/sched/stats.h
-> @@ -132,7 +132,7 @@ static inline void psi_task_tick(struct rq *rq)
->  		return;
-> =20
->  	if (unlikely(rq->curr->flags & PF_MEMSTALL))
-> -		psi_memstall_tick(rq->curr, rq->cpu);
-> +		psi_memstall_tick(rq->curr, cpu_of(rq));
->  }
->  #else /* CONFIG_PSI */
->  static inline void psi_enqueue(struct task_struct *p, bool wakeup) {}
+>> Linus Torvalds <torvalds@linux-foundation.org> writes:
+>>
+>>> On Fri, Aug 31, 2018 at 12:45 AM Julian Stecklina <jsteckli@amazon.de> wrote:
+>>>>
+>>>> I've been spending some cycles on the XPFO patch set this week. For the
+>>>> patch set as it was posted for v4.13, the performance overhead of
+>>>> compiling a Linux kernel is ~40% on x86_64[1]. The overhead comes almost
+>>>> completely from TLB flushing. If we can live with stale TLB entries
+>>>> allowing temporary access (which I think is reasonable), we can remove
+>>>> all TLB flushing (on x86). This reduces the overhead to 2-3% for
+>>>> kernel compile.
+>>>
+>>> I have to say, even 2-3% for a kernel compile sounds absolutely horrendous.
+>>
+>> Well, it's at least in a range where it doesn't look hopeless.
+>>
+>>> Kernel bullds are 90% user space at least for me, so a 2-3% slowdown
+>>> from a kernel is not some small unnoticeable thing.
+>>
+>> The overhead seems to come from the hooks that XPFO adds to
+>> alloc/free_pages. These hooks add a couple of atomic operations per
+>> allocated (4K) page for book keeping. Some of these atomic ops are only
+>> for debugging and could be removed. There is also some opportunity to
+>> streamline the per-page space overhead of XPFO.
+>
+> I've updated my XPFO branch[1] to make some of the debugging optional
+> and also integrated the XPFO bookkeeping with struct page, instead of
+> requiring CONFIG_PAGE_EXTENSION, which removes some checks in the hot
+> path.
 
-I will add this to linux-next today.
+FWIW, that was my original design but there was some resistance to
+adding more to the page struct and page extension was suggested
+instead.
 
---=20
-Cheers,
-Stephen Rothwell
 
---Sig_/A0EZjjD/ORosSL0xF1vKrbv
-Content-Type: application/pgp-signature
-Content-Description: OpenPGP digital signature
+> These changes push the overhead down to somewhere between 1.5 and
+> 2% for my quad core box in kernel compile. This is close to the
+> measurement noise, so I take suggestions for a better benchmark here.
+>
+> Of course, if you hit contention on the xpfo spinlock then performance
+> will suffer. I guess this is what happened on Khalid's large box.
+>
+> I'll try to remove the spinlocks and add fixup code to the pagefault
+> handler to see whether this improves the situation on large boxes. This
+> might turn out to be ugly, though.
 
------BEGIN PGP SIGNATURE-----
+I'm wondering how much performance we're loosing by having to split
+hugepages. Any chance this can be quantified somehow? Maybe we can
+have a pool of some sorts reserved for userpages and group allocations
+so that we can track the XPFO state at the hugepage level instead of
+at the 4k level to prevent/reduce page splitting. Not sure if that
+causes issues or has any unwanted side effects though...
 
-iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAluZ12wACgkQAVBC80lX
-0GyQDgf/R2XVV++XEvoRc1HlT8r5XB6DziGyJq2s5SGzvzF4nqVChOYkL7aEBpxZ
-qr5DVdFGqZigJ0eT8SWLGhNoYFyg9QOBIk3t4JNlDENfWIyQl6LPAPMo0AmtHKDK
-mkJfpt9pk2Gn4s64xvtjHuW9fmBP+DIP5GxDhAa7/K3LRFZO92FnG961/yauZBXy
-PWg90KvKpkbhPIV0xbr40WiY7JDC7hdPoLIBofdmLgMI5rijwcdD2lTIUoF3hPW6
-NQ/0eoUv8wml4XcedidUV0jSuDC+ohfifD1n8OH4xUvJTYpgiH0pGhERrrm+msBF
-AAJU5BRC8YDJNnwJQyg3Qj0+bZs4qw==
-=Fhk5
------END PGP SIGNATURE-----
+...Juerg
 
---Sig_/A0EZjjD/ORosSL0xF1vKrbv--
+
+> Julian
+>
+> [1] http://git.infradead.org/users/jsteckli/linux-xpfo.git/shortlog/refs/heads/xpfo-master
+> --
+> Amazon Development Center Germany GmbH
+> Berlin - Dresden - Aachen
+> main office: Krausenstr. 38, 10117 Berlin
+> Geschaeftsfuehrer: Dr. Ralf Herbrich, Christian Schlaeger
+> Ust-ID: DE289237879
+> Eingetragen am Amtsgericht Charlottenburg HRB 149173 B
+>
