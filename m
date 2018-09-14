@@ -1,100 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F0D68E0004
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 10:59:35 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id u12-v6so10504502wrc.1
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 07:59:35 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id b192-v6si1894684wmd.110.2018.09.14.07.59.33
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 14 Sep 2018 07:59:33 -0700 (PDT)
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: [PATCH 2/2] mm/swap: Access struct pagevec remotely
-Date: Fri, 14 Sep 2018 16:59:24 +0200
-Message-Id: <20180914145924.22055-3-bigeasy@linutronix.de>
-In-Reply-To: <20180914145924.22055-1-bigeasy@linutronix.de>
-References: <20180914145924.22055-1-bigeasy@linutronix.de>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1882D8E0001
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 11:28:11 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id s200-v6so9963394oie.6
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:28:11 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id d127-v6si3515801oia.329.2018.09.14.08.28.09
+        for <linux-mm@kvack.org>;
+        Fri, 14 Sep 2018 08:28:09 -0700 (PDT)
+Date: Fri, 14 Sep 2018 16:28:26 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v6 00/18] khwasan: kernel hardware assisted address
+ sanitizer
+Message-ID: <20180914152825.GC6236@arm.com>
+References: <cover.1535462971.git.andreyknvl@google.com>
+ <20180905141032.b1ddaab53d1b2b3bada95415@linux-foundation.org>
+ <20180906100543.GI3592@arm.com>
+ <CAAeHK+wStsNwh2oKv-KCG4kx5538FuDMQ6Yw2X=sK5LPrw2DZg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAAeHK+wStsNwh2oKv-KCG4kx5538FuDMQ6Yw2X=sK5LPrw2DZg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: tglx@linutronix.de, Vlastimil Babka <vbabka@suse.cz>, frederic@kernel.org, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
 
-From: Thomas Gleixner <tglx@linutronix.de>
+On Thu, Sep 06, 2018 at 01:06:23PM +0200, Andrey Konovalov wrote:
+> On Thu, Sep 6, 2018 at 12:05 PM, Will Deacon <will.deacon@arm.com> wrote:
+> > On Wed, Sep 05, 2018 at 02:10:32PM -0700, Andrew Morton wrote:
+> >> On Wed, 29 Aug 2018 13:35:04 +0200 Andrey Konovalov <andreyknvl@google.com> wrote:
+> >>
+> >> > This patchset adds a new mode to KASAN [1], which is called KHWASAN
+> >> > (Kernel HardWare assisted Address SANitizer).
+> >>
+> >> We're at v6 and there are no reviewed-by's or acked-by's to be seen.
+> >> Is that a fair commentary on what has been happening, or have people
+> >> been remiss in sending and gathering such things?
+> >
+> > I still have concerns about the consequences of merging this as anything
+> > other than a debug option [1]. Unfortunately, merging it as a debug option
+> > defeats the whole point, so I think we need to spend more effort on developing
+> > tools that can help us to find and fix the subtle bugs which will arise from
+> > enabling tagged pointers in the kernel.
+> 
+> I totally don't mind calling it a debug option. Do I need to somehow
+> specify it somewhere?
 
-Now that struct pagevec is locked during access, it is possible to
-access it from a remote CPU. The advantage is that the work can be done
-from the "requesting" CPU without firing a worker on a remote CPU and
-waiting for it to complete the work.
+Ok, sorry, I completely misunderstood you earlier on then! For some reason
+I thought you wanted this on by default.
 
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-[bigeasy: +commit message]
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
----
- mm/swap.c | 37 +------------------------------------
- 1 file changed, 1 insertion(+), 36 deletions(-)
+In which case, I'm ok with the overall idea as long as we make the caveats
+clear in the Kconfig text. In particular, that enabling this option may
+introduce problems relating to pointer casting and comparison, but can
+offer better coverage and lower memory consumption than a fully
+software-based KASAN solution.
 
-diff --git a/mm/swap.c b/mm/swap.c
-index 17702ee5bf81c..ec36e733aab5d 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -733,54 +733,19 @@ void lru_add_drain(void)
- 	lru_add_drain_cpu(raw_smp_processor_id());
- }
- 
--static void lru_add_drain_per_cpu(struct work_struct *dummy)
--{
--	lru_add_drain();
--}
--
--static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
--
--/*
-- * Doesn't need any cpu hotplug locking because we do rely on per-cpu
-- * kworkers being shut down before our page_alloc_cpu_dead callback is
-- * executed on the offlined cpu.
-- * Calling this function with cpu hotplug locks held can actually lead
-- * to obscure indirect dependencies via WQ context.
-- */
- void lru_add_drain_all(void)
- {
--	static DEFINE_MUTEX(lock);
--	static struct cpumask has_work;
- 	int cpu;
- 
--	/*
--	 * Make sure nobody triggers this path before mm_percpu_wq is fully
--	 * initialized.
--	 */
--	if (WARN_ON(!mm_percpu_wq))
--		return;
--
--	mutex_lock(&lock);
--	cpumask_clear(&has_work);
--
- 	for_each_online_cpu(cpu) {
--		struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
--
- 		if (pagevec_count(&per_cpu(lru_add_pvec.pvec, cpu)) ||
- 		    pagevec_count(&per_cpu(lru_rotate_pvecs.pvec, cpu)) ||
- 		    pagevec_count(&per_cpu(lru_deactivate_file_pvecs.pvec, cpu)) ||
- 		    pagevec_count(&per_cpu(lru_lazyfree_pvecs.pvec, cpu)) ||
- 		    need_activate_page_drain(cpu)) {
--			INIT_WORK(work, lru_add_drain_per_cpu);
--			queue_work_on(cpu, mm_percpu_wq, work);
--			cpumask_set_cpu(cpu, &has_work);
-+			lru_add_drain_cpu(cpu);
- 		}
- 	}
--
--	for_each_cpu(cpu, &has_work)
--		flush_work(&per_cpu(lru_add_drain_work, cpu));
--
--	mutex_unlock(&lock);
- }
- 
- /**
--- 
-2.19.0
+Will
