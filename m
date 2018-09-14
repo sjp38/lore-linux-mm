@@ -1,384 +1,506 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 955C48E0001
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:16 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id t3-v6so9288566oif.20
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 05:11:16 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 1F2128E0001
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:24 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id p11-v6so9156083oih.17
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 05:11:24 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id h6-v6si3838073oib.203.2018.09.14.05.11.14
+        by mx.google.com with ESMTPS id 7-v6si1378498otw.261.2018.09.14.05.11.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Sep 2018 05:11:14 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8EC5Mb8144953
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:14 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mgcfxgsqr-1
+        Fri, 14 Sep 2018 05:11:22 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8EC5MDt047912
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:21 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mgak1wvpq-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:13 -0400
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:21 -0400
 Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Fri, 14 Sep 2018 13:11:10 +0100
+	Fri, 14 Sep 2018 13:11:17 +0100
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 01/30] mips: switch to NO_BOOTMEM
-Date: Fri, 14 Sep 2018 15:10:16 +0300
+Subject: [PATCH 02/30] mm: remove CONFIG_NO_BOOTMEM
+Date: Fri, 14 Sep 2018 15:10:17 +0300
 In-Reply-To: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com>
 References: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1536927045-23536-2-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1536927045-23536-3-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, "David S. Miller" <davem@davemloft.net>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jonas Bonn <jonas@southpole.se>, Jonathan Corbet <corbet@lwn.net>, Ley Foon Tan <lftan@altera.com>, Mark Salter <msalter@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matt Turner <mattst88@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Palmer Dabbelt <palmer@sifive.com>, Paul Burton <paul.burton@mips.com>, Richard Kuo <rkuo@codeaurora.org>, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Serge Semin <fancer.lancer@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, nios2-dev@lists.rocketboards.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-MIPS already has memblock support and all the memory is already registered
-with it.
-
-This patch replaces bootmem memory reservations with memblock ones and
-removes the bootmem initialization.
-
-Since memblock allocates memory in top-down mode, we ensure that memblock
-limit is max_low_pfn to prevent allocations from the high memory.
-
-To have the exceptions base in the lower 512M of the physical memory, its
-allocation in arch/mips/kernel/traps.c::traps_init() is using bottom-up
-mode.
+All achitectures select NO_BOOTMEM which essentially becomes 'Y' for any
+kernel configuration and therefore it can be removed.
 
 Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 ---
- arch/mips/Kconfig                      |  1 +
- arch/mips/kernel/setup.c               | 99 ++++++++--------------------------
- arch/mips/kernel/traps.c               |  3 ++
- arch/mips/loongson64/loongson-3/numa.c | 34 ++++++------
- arch/mips/sgi-ip27/ip27-memory.c       | 11 ++--
- 5 files changed, 46 insertions(+), 102 deletions(-)
+ arch/alpha/Kconfig      |  1 -
+ arch/arc/Kconfig        |  1 -
+ arch/arm/Kconfig        |  1 -
+ arch/arm64/Kconfig      |  1 -
+ arch/c6x/Kconfig        |  1 -
+ arch/h8300/Kconfig      |  1 -
+ arch/hexagon/Kconfig    |  1 -
+ arch/ia64/Kconfig       |  1 -
+ arch/m68k/Kconfig       |  1 -
+ arch/microblaze/Kconfig |  1 -
+ arch/mips/Kconfig       |  1 -
+ arch/nds32/Kconfig      |  1 -
+ arch/nios2/Kconfig      |  1 -
+ arch/openrisc/Kconfig   |  1 -
+ arch/parisc/Kconfig     |  1 -
+ arch/powerpc/Kconfig    |  1 -
+ arch/riscv/Kconfig      |  1 -
+ arch/s390/Kconfig       |  1 -
+ arch/sh/Kconfig         |  1 -
+ arch/sparc/Kconfig      |  1 -
+ arch/um/Kconfig         |  1 -
+ arch/unicore32/Kconfig  |  1 -
+ arch/x86/Kconfig        |  3 ---
+ arch/xtensa/Kconfig     |  1 -
+ include/linux/bootmem.h | 36 ++----------------------------------
+ include/linux/mmzone.h  |  5 +----
+ mm/Kconfig              |  3 ---
+ mm/Makefile             |  7 +------
+ mm/memblock.c           |  2 --
+ 29 files changed, 4 insertions(+), 75 deletions(-)
 
+diff --git a/arch/alpha/Kconfig b/arch/alpha/Kconfig
+index 620b0a7..04de6be 100644
+--- a/arch/alpha/Kconfig
++++ b/arch/alpha/Kconfig
+@@ -32,7 +32,6 @@ config ALPHA
+ 	select OLD_SIGSUSPEND
+ 	select CPU_NO_EFFICIENT_FFS if !ALPHA_EV67
+ 	select HAVE_MEMBLOCK
+-	select NO_BOOTMEM
+ 	help
+ 	  The Alpha is a 64-bit general-purpose processor designed and
+ 	  marketed by the Digital Equipment Corporation of blessed memory,
+diff --git a/arch/arc/Kconfig b/arch/arc/Kconfig
+index b4441b0..04ebead 100644
+--- a/arch/arc/Kconfig
++++ b/arch/arc/Kconfig
+@@ -44,7 +44,6 @@ config ARC
+ 	select HANDLE_DOMAIN_IRQ
+ 	select IRQ_DOMAIN
+ 	select MODULES_USE_ELF_RELA
+-	select NO_BOOTMEM
+ 	select OF
+ 	select OF_EARLY_FLATTREE
+ 	select OF_RESERVED_MEM
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 4607d32..a961d70 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -100,7 +100,6 @@ config ARM
+ 	select IRQ_FORCED_THREADING
+ 	select MODULES_USE_ELF_REL
+ 	select NEED_DMA_MAP_STATE
+-	select NO_BOOTMEM
+ 	select OF_EARLY_FLATTREE if OF
+ 	select OF_RESERVED_MEM if OF
+ 	select OLD_SIGACTION
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 0128d84..1795eaa 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -156,7 +156,6 @@ config ARM64
+ 	select MULTI_IRQ_HANDLER
+ 	select NEED_DMA_MAP_STATE
+ 	select NEED_SG_DMA_LENGTH
+-	select NO_BOOTMEM
+ 	select OF
+ 	select OF_EARLY_FLATTREE
+ 	select OF_RESERVED_MEM
+diff --git a/arch/c6x/Kconfig b/arch/c6x/Kconfig
+index 85ed568..a641b0b 100644
+--- a/arch/c6x/Kconfig
++++ b/arch/c6x/Kconfig
+@@ -14,7 +14,6 @@ config C6X
+ 	select GENERIC_IRQ_SHOW
+ 	select HAVE_ARCH_TRACEHOOK
+ 	select HAVE_MEMBLOCK
+-	select NO_BOOTMEM
+ 	select SPARSE_IRQ
+ 	select IRQ_DOMAIN
+ 	select OF
+diff --git a/arch/h8300/Kconfig b/arch/h8300/Kconfig
+index 0b334b6..5e89d40 100644
+--- a/arch/h8300/Kconfig
++++ b/arch/h8300/Kconfig
+@@ -16,7 +16,6 @@ config H8300
+ 	select OF_IRQ
+ 	select OF_EARLY_FLATTREE
+ 	select HAVE_MEMBLOCK
+-	select NO_BOOTMEM
+ 	select TIMER_OF
+ 	select H8300_TMR8
+ 	select HAVE_KERNEL_GZIP
+diff --git a/arch/hexagon/Kconfig b/arch/hexagon/Kconfig
+index 3ba6873..24a6da9 100644
+--- a/arch/hexagon/Kconfig
++++ b/arch/hexagon/Kconfig
+@@ -33,7 +33,6 @@ config HEXAGON
+ 	select GENERIC_CPU_DEVICES
+ 	select HAVE_MEMBLOCK
+ 	select ARCH_DISCARD_MEMBLOCK
+-	select NO_BOOTMEM
+ 	---help---
+ 	  Qualcomm Hexagon is a processor architecture designed for high
+ 	  performance and low power across a wide variety of applications.
+diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
+index 8b4a0c17..2bf4ef7 100644
+--- a/arch/ia64/Kconfig
++++ b/arch/ia64/Kconfig
+@@ -28,7 +28,6 @@ config IA64
+ 	select HAVE_ARCH_TRACEHOOK
+ 	select HAVE_MEMBLOCK
+ 	select HAVE_MEMBLOCK_NODE_MAP
+-	select NO_BOOTMEM
+ 	select HAVE_VIRT_CPU_ACCOUNTING
+ 	select ARCH_HAS_DMA_MARK_CLEAN
+ 	select ARCH_HAS_SG_CHAIN
+diff --git a/arch/m68k/Kconfig b/arch/m68k/Kconfig
+index 0705537..8c7111d 100644
+--- a/arch/m68k/Kconfig
++++ b/arch/m68k/Kconfig
+@@ -29,7 +29,6 @@ config M68K
+ 	select DMA_NONCOHERENT_OPS if HAS_DMA
+ 	select HAVE_MEMBLOCK
+ 	select ARCH_DISCARD_MEMBLOCK
+-	select NO_BOOTMEM
+ 
+ config CPU_BIG_ENDIAN
+ 	def_bool y
+diff --git a/arch/microblaze/Kconfig b/arch/microblaze/Kconfig
+index ace5c5b..56379b9 100644
+--- a/arch/microblaze/Kconfig
++++ b/arch/microblaze/Kconfig
+@@ -28,7 +28,6 @@ config MICROBLAZE
+ 	select HAVE_FTRACE_MCOUNT_RECORD
+ 	select HAVE_FUNCTION_GRAPH_TRACER
+ 	select HAVE_FUNCTION_TRACER
+-	select NO_BOOTMEM
+ 	select HAVE_MEMBLOCK
+ 	select HAVE_MEMBLOCK_NODE_MAP
+ 	select HAVE_OPROFILE
 diff --git a/arch/mips/Kconfig b/arch/mips/Kconfig
-index 54532f2..1b5fa1a 100644
+index 1b5fa1a..54532f2 100644
 --- a/arch/mips/Kconfig
 +++ b/arch/mips/Kconfig
-@@ -78,6 +78,7 @@ config MIPS
+@@ -78,7 +78,6 @@ config MIPS
  	select RTC_LIB
  	select SYSCTL_EXCEPTION_TRACE
  	select VIRT_TO_BUS
-+	select NO_BOOTMEM
+-	select NO_BOOTMEM
  
  menu "Machine selection"
  
-diff --git a/arch/mips/kernel/setup.c b/arch/mips/kernel/setup.c
-index 32fc11d..2fde53e 100644
---- a/arch/mips/kernel/setup.c
-+++ b/arch/mips/kernel/setup.c
-@@ -333,7 +333,7 @@ static void __init finalize_initrd(void)
+diff --git a/arch/nds32/Kconfig b/arch/nds32/Kconfig
+index 7068f34..06b1259 100644
+--- a/arch/nds32/Kconfig
++++ b/arch/nds32/Kconfig
+@@ -36,7 +36,6 @@ config NDS32
+ 	select MODULES_USE_ELF_RELA
+ 	select OF
+ 	select OF_EARLY_FLATTREE
+-	select NO_BOOTMEM
+ 	select NO_IOPORT_MAP
+ 	select RTC_LIB
+ 	select THREAD_INFO_IN_TASK
+diff --git a/arch/nios2/Kconfig b/arch/nios2/Kconfig
+index 5ddf272..ebfae50 100644
+--- a/arch/nios2/Kconfig
++++ b/arch/nios2/Kconfig
+@@ -25,7 +25,6 @@ config NIOS2
+ 	select CPU_NO_EFFICIENT_FFS
+ 	select HAVE_MEMBLOCK
+ 	select ARCH_DISCARD_MEMBLOCK
+-	select NO_BOOTMEM
  
- 	maybe_bswap_initrd();
+ config GENERIC_CSUM
+ 	def_bool y
+diff --git a/arch/openrisc/Kconfig b/arch/openrisc/Kconfig
+index e0081e7..25c6c2e 100644
+--- a/arch/openrisc/Kconfig
++++ b/arch/openrisc/Kconfig
+@@ -32,7 +32,6 @@ config OPENRISC
+ 	select HAVE_DEBUG_STACKOVERFLOW
+ 	select OR1K_PIC
+ 	select CPU_NO_EFFICIENT_FFS if !OPENRISC_HAVE_INST_FF1
+-	select NO_BOOTMEM
+ 	select ARCH_USE_QUEUED_SPINLOCKS
+ 	select ARCH_USE_QUEUED_RWLOCKS
+ 	select OMPIC if SMP
+diff --git a/arch/parisc/Kconfig b/arch/parisc/Kconfig
+index 8e6d83f..1d6332c 100644
+--- a/arch/parisc/Kconfig
++++ b/arch/parisc/Kconfig
+@@ -16,7 +16,6 @@ config PARISC
+ 	select RTC_DRV_GENERIC
+ 	select INIT_ALL_POSSIBLE
+ 	select HAVE_MEMBLOCK
+-	select NO_BOOTMEM
+ 	select BUG
+ 	select BUILDTIME_EXTABLE_SORT
+ 	select HAVE_PERF_EVENTS
+diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+index a806692..304cdce 100644
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -228,7 +228,6 @@ config PPC
+ 	select MODULES_USE_ELF_RELA
+ 	select NEED_DMA_MAP_STATE		if PPC64 || NOT_COHERENT_CACHE
+ 	select NEED_SG_DMA_LENGTH
+-	select NO_BOOTMEM
+ 	select OF
+ 	select OF_EARLY_FLATTREE
+ 	select OF_RESERVED_MEM
+diff --git a/arch/riscv/Kconfig b/arch/riscv/Kconfig
+index a344980..63301c8 100644
+--- a/arch/riscv/Kconfig
++++ b/arch/riscv/Kconfig
+@@ -34,7 +34,6 @@ config RISCV
+ 	select HAVE_GENERIC_DMA_COHERENT
+ 	select HAVE_PERF_EVENTS
+ 	select IRQ_DOMAIN
+-	select NO_BOOTMEM
+ 	select RISCV_ISA_A if SMP
+ 	select SPARSE_IRQ
+ 	select SYSCTL_EXCEPTION_TRACE
+diff --git a/arch/s390/Kconfig b/arch/s390/Kconfig
+index 9a9c7a6..b388e05 100644
+--- a/arch/s390/Kconfig
++++ b/arch/s390/Kconfig
+@@ -166,7 +166,6 @@ config S390
+ 	select HAVE_SYSCALL_TRACEPOINTS
+ 	select HAVE_VIRT_CPU_ACCOUNTING
+ 	select MODULES_USE_ELF_RELA
+-	select NO_BOOTMEM
+ 	select OLD_SIGACTION
+ 	select OLD_SIGSUSPEND3
+ 	select SPARSE_IRQ
+diff --git a/arch/sh/Kconfig b/arch/sh/Kconfig
+index 1fb7b6d..e254226 100644
+--- a/arch/sh/Kconfig
++++ b/arch/sh/Kconfig
+@@ -10,7 +10,6 @@ config SUPERH
+ 	select HAVE_IDE if HAS_IOPORT_MAP
+ 	select HAVE_MEMBLOCK
+ 	select HAVE_MEMBLOCK_NODE_MAP
+-	select NO_BOOTMEM
+ 	select ARCH_DISCARD_MEMBLOCK
+ 	select HAVE_OPROFILE
+ 	select HAVE_GENERIC_DMA_COHERENT
+diff --git a/arch/sparc/Kconfig b/arch/sparc/Kconfig
+index e6f2a38..5e8aaee 100644
+--- a/arch/sparc/Kconfig
++++ b/arch/sparc/Kconfig
+@@ -46,7 +46,6 @@ config SPARC
+ 	select NEED_DMA_MAP_STATE
+ 	select NEED_SG_DMA_LENGTH
+ 	select HAVE_MEMBLOCK
+-	select NO_BOOTMEM
  
--	reserve_bootmem(__pa(initrd_start), size, BOOTMEM_DEFAULT);
-+	memblock_reserve(__pa(initrd_start), size);
- 	initrd_below_start_ok = 1;
+ config SPARC32
+ 	def_bool !64BIT
+diff --git a/arch/um/Kconfig b/arch/um/Kconfig
+index 10c15b8..ce3d562 100644
+--- a/arch/um/Kconfig
++++ b/arch/um/Kconfig
+@@ -13,7 +13,6 @@ config UML
+ 	select HAVE_FUTEX_CMPXCHG if FUTEX
+ 	select HAVE_DEBUG_KMEMLEAK
+ 	select HAVE_MEMBLOCK
+-	select NO_BOOTMEM
+ 	select GENERIC_IRQ_SHOW
+ 	select GENERIC_CPU_DEVICES
+ 	select GENERIC_CLOCKEVENTS
+diff --git a/arch/unicore32/Kconfig b/arch/unicore32/Kconfig
+index 6f38f7f..60eae74 100644
+--- a/arch/unicore32/Kconfig
++++ b/arch/unicore32/Kconfig
+@@ -5,7 +5,6 @@ config UNICORE32
+ 	select ARCH_MIGHT_HAVE_PC_PARPORT
+ 	select ARCH_MIGHT_HAVE_PC_SERIO
+ 	select HAVE_MEMBLOCK
+-	select NO_BOOTMEM
+ 	select HAVE_GENERIC_DMA_COHERENT
+ 	select HAVE_KERNEL_GZIP
+ 	select HAVE_KERNEL_BZIP2
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index e420b2a..859bf9a 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -835,9 +835,6 @@ config JAILHOUSE_GUEST
  
- 	pr_info("Initial ramdisk at: 0x%lx (%lu bytes)\n",
-@@ -370,20 +370,10 @@ static void __init bootmem_init(void)
+ endif #HYPERVISOR_GUEST
  
- #else  /* !CONFIG_SGI_IP27 */
- 
--static unsigned long __init bootmap_bytes(unsigned long pages)
--{
--	unsigned long bytes = DIV_ROUND_UP(pages, 8);
+-config NO_BOOTMEM
+-	def_bool y
 -
--	return ALIGN(bytes, sizeof(long));
--}
+ source "arch/x86/Kconfig.cpu"
+ 
+ config HPET_TIMER
+diff --git a/arch/xtensa/Kconfig b/arch/xtensa/Kconfig
+index 04d038f..e4f7d12 100644
+--- a/arch/xtensa/Kconfig
++++ b/arch/xtensa/Kconfig
+@@ -33,7 +33,6 @@ config XTENSA
+ 	select HAVE_STACKPROTECTOR
+ 	select IRQ_DOMAIN
+ 	select MODULES_USE_ELF_RELA
+-	select NO_BOOTMEM
+ 	select PERF_USE_VMALLOC
+ 	select VIRT_TO_BUS
+ 	help
+diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
+index 4251519..1f005b5 100644
+--- a/include/linux/bootmem.h
++++ b/include/linux/bootmem.h
+@@ -26,34 +26,6 @@ extern unsigned long max_pfn;
+  */
+ extern unsigned long long max_possible_pfn;
+ 
+-#ifndef CONFIG_NO_BOOTMEM
+-/**
+- * struct bootmem_data - per-node information used by the bootmem allocator
+- * @node_min_pfn: the starting physical address of the node's memory
+- * @node_low_pfn: the end physical address of the directly addressable memory
+- * @node_bootmem_map: is a bitmap pointer - the bits represent all physical
+- *		      memory pages (including holes) on the node.
+- * @last_end_off: the offset within the page of the end of the last allocation;
+- *                if 0, the page used is full
+- * @hint_idx: the PFN of the page used with the last allocation;
+- *            together with using this with the @last_end_offset field,
+- *            a test can be made to see if allocations can be merged
+- *            with the page used for the last allocation rather than
+- *            using up a full new page.
+- * @list: list entry in the linked list ordered by the memory addresses
+- */
+-typedef struct bootmem_data {
+-	unsigned long node_min_pfn;
+-	unsigned long node_low_pfn;
+-	void *node_bootmem_map;
+-	unsigned long last_end_off;
+-	unsigned long hint_idx;
+-	struct list_head list;
+-} bootmem_data_t;
 -
- static void __init bootmem_init(void)
- {
- 	unsigned long reserved_end;
--	unsigned long mapstart = ~0UL;
--	unsigned long bootmap_size;
- 	phys_addr_t ramstart = PHYS_ADDR_MAX;
--	bool bootmap_valid = false;
- 	int i;
- 
- 	/*
-@@ -395,6 +385,8 @@ static void __init bootmem_init(void)
- 	init_initrd();
- 	reserved_end = (unsigned long) PFN_UP(__pa_symbol(&_end));
- 
-+	memblock_reserve(PHYS_OFFSET, reserved_end << PAGE_SHIFT);
-+
- 	/*
- 	 * max_low_pfn is not a number of pages. The number of pages
- 	 * of the system is given by 'max_low_pfn - min_low_pfn'.
-@@ -442,9 +434,6 @@ static void __init bootmem_init(void)
- 		if (initrd_end && end <= (unsigned long)PFN_UP(__pa(initrd_end)))
- 			continue;
- #endif
--		if (start >= mapstart)
--			continue;
--		mapstart = max(reserved_end, start);
- 	}
- 
- 	if (min_low_pfn >= max_low_pfn)
-@@ -456,9 +445,11 @@ static void __init bootmem_init(void)
- 	/*
- 	 * Reserve any memory between the start of RAM and PHYS_OFFSET
- 	 */
--	if (ramstart > PHYS_OFFSET)
-+	if (ramstart > PHYS_OFFSET) {
- 		add_memory_region(PHYS_OFFSET, ramstart - PHYS_OFFSET,
- 				  BOOT_MEM_RESERVED);
-+		memblock_reserve(PHYS_OFFSET, ramstart - PHYS_OFFSET);
-+	}
- 
- 	if (min_low_pfn > ARCH_PFN_OFFSET) {
- 		pr_info("Wasting %lu bytes for tracking %lu unused pages\n",
-@@ -483,52 +474,6 @@ static void __init bootmem_init(void)
- 		max_low_pfn = PFN_DOWN(HIGHMEM_START);
- 	}
- 
--#ifdef CONFIG_BLK_DEV_INITRD
--	/*
--	 * mapstart should be after initrd_end
--	 */
--	if (initrd_end)
--		mapstart = max(mapstart, (unsigned long)PFN_UP(__pa(initrd_end)));
+-extern bootmem_data_t bootmem_node_data[];
 -#endif
 -
--	/*
--	 * check that mapstart doesn't overlap with any of
--	 * memory regions that have been reserved through eg. DTB
--	 */
--	bootmap_size = bootmap_bytes(max_low_pfn - min_low_pfn);
--
--	bootmap_valid = memory_region_available(PFN_PHYS(mapstart),
--						bootmap_size);
--	for (i = 0; i < boot_mem_map.nr_map && !bootmap_valid; i++) {
--		unsigned long mapstart_addr;
--
--		switch (boot_mem_map.map[i].type) {
--		case BOOT_MEM_RESERVED:
--			mapstart_addr = PFN_ALIGN(boot_mem_map.map[i].addr +
--						boot_mem_map.map[i].size);
--			if (PHYS_PFN(mapstart_addr) < mapstart)
--				break;
--
--			bootmap_valid = memory_region_available(mapstart_addr,
--								bootmap_size);
--			if (bootmap_valid)
--				mapstart = PHYS_PFN(mapstart_addr);
--			break;
--		default:
--			break;
--		}
--	}
--
--	if (!bootmap_valid)
--		panic("No memory area to place a bootmap bitmap");
--
--	/*
--	 * Initialize the boot-time allocator with low memory only.
--	 */
--	if (bootmap_size != init_bootmem_node(NODE_DATA(0), mapstart,
--					 min_low_pfn, max_low_pfn))
--		panic("Unexpected memory size required for bootmap");
--
- 	for (i = 0; i < boot_mem_map.nr_map; i++) {
- 		unsigned long start, end;
+ extern unsigned long bootmem_bootmap_pages(unsigned long);
  
-@@ -577,9 +522,9 @@ static void __init bootmem_init(void)
- 		default:
- 			/* Not usable memory */
- 			if (start > min_low_pfn && end < max_low_pfn)
--				reserve_bootmem(boot_mem_map.map[i].addr,
--						boot_mem_map.map[i].size,
--						BOOTMEM_DEFAULT);
-+				memblock_reserve(boot_mem_map.map[i].addr,
-+						boot_mem_map.map[i].size);
-+
- 			continue;
- 		}
+ extern unsigned long init_bootmem_node(pg_data_t *pgdat,
+@@ -125,12 +97,8 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
+ 				      unsigned long align,
+ 				      unsigned long goal) __malloc;
  
-@@ -602,15 +547,9 @@ static void __init bootmem_init(void)
- 		size = end - start;
+-#ifdef CONFIG_NO_BOOTMEM
+ /* We are using top down, so it is safe to use 0 here */
+ #define BOOTMEM_LOW_LIMIT 0
+-#else
+-#define BOOTMEM_LOW_LIMIT __pa(MAX_DMA_ADDRESS)
+-#endif
  
- 		/* Register lowmem ranges */
--		free_bootmem(PFN_PHYS(start), size << PAGE_SHIFT);
- 		memory_present(0, start, end);
- 	}
+ #ifndef ARCH_LOW_ADDRESS_LIMIT
+ #define ARCH_LOW_ADDRESS_LIMIT  0xffffffffUL
+@@ -165,7 +133,7 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
+ 	__alloc_bootmem_low_node(pgdat, x, PAGE_SIZE, 0)
  
--	/*
--	 * Reserve the bootmap memory.
--	 */
--	reserve_bootmem(PFN_PHYS(mapstart), bootmap_size, BOOTMEM_DEFAULT);
--
- #ifdef CONFIG_RELOCATABLE
+ 
+-#if defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM)
++#if defined(CONFIG_HAVE_MEMBLOCK)
+ 
+ /* FIXME: use MEMBLOCK_ALLOC_* variants here */
+ #define BOOTMEM_ALLOC_ACCESSIBLE	0
+@@ -373,7 +341,7 @@ static inline void __init memblock_free_late(
+ {
+ 	free_bootmem_late(base, size);
+ }
+-#endif /* defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM) */
++#endif /* defined(CONFIG_HAVE_MEMBLOCK) */
+ 
+ extern void *alloc_large_system_hash(const char *tablename,
+ 				     unsigned long bucketsize,
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index d267bce..4179e67 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -632,9 +632,6 @@ typedef struct pglist_data {
+ 	struct page_ext *node_page_ext;
+ #endif
+ #endif
+-#ifndef CONFIG_NO_BOOTMEM
+-	struct bootmem_data *bdata;
+-#endif
+ #if defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_DEFERRED_STRUCT_PAGE_INIT)
  	/*
- 	 * The kernel reserves all memory below its _end symbol as bootmem,
-@@ -907,21 +846,29 @@ static void __init arch_mem_init(char **cmdline_p)
- 	early_init_fdt_scan_reserved_mem();
- 
- 	bootmem_init();
-+
-+	/*
-+	 * Prevent memblock from allocating high memory.
-+	 * This cannot be done before max_low_pfn is detected, so up
-+	 * to this point is possible to only reserve physical memory
-+	 * with memblock_reserve; memblock_virt_alloc* can be used
-+	 * only after this point
-+	 */
-+	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
-+
- #ifdef CONFIG_PROC_VMCORE
- 	if (setup_elfcorehdr && setup_elfcorehdr_size) {
- 		printk(KERN_INFO "kdump reserved memory at %lx-%lx\n",
- 		       setup_elfcorehdr, setup_elfcorehdr_size);
--		reserve_bootmem(setup_elfcorehdr, setup_elfcorehdr_size,
--				BOOTMEM_DEFAULT);
-+		memblock_reserve(setup_elfcorehdr, setup_elfcorehdr_size);
- 	}
- #endif
- 
- 	mips_parse_crashkernel();
- #ifdef CONFIG_KEXEC
- 	if (crashk_res.start != crashk_res.end)
--		reserve_bootmem(crashk_res.start,
--				crashk_res.end - crashk_res.start + 1,
--				BOOTMEM_DEFAULT);
-+		memblock_reserve(crashk_res.start,
-+				 crashk_res.end - crashk_res.start + 1);
- #endif
- 	device_tree_init();
- 	sparse_init();
-@@ -931,7 +878,7 @@ static void __init arch_mem_init(char **cmdline_p)
- 	/* Tell bootmem about cma reserved memblock section */
- 	for_each_memblock(reserved, reg)
- 		if (reg->size != 0)
--			reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
-+			memblock_reserve(reg->base, reg->size);
- 
- 	reserve_bootmem_region(__pa_symbol(&__nosave_begin),
- 			__pa_symbol(&__nosave_end)); /* Reserve for hibernation */
-diff --git a/arch/mips/kernel/traps.c b/arch/mips/kernel/traps.c
-index 576aeef..5feef28 100644
---- a/arch/mips/kernel/traps.c
-+++ b/arch/mips/kernel/traps.c
-@@ -29,6 +29,7 @@
- #include <linux/spinlock.h>
- #include <linux/kallsyms.h>
- #include <linux/bootmem.h>
-+#include <linux/memblock.h>
- #include <linux/interrupt.h>
- #include <linux/ptrace.h>
- #include <linux/kgdb.h>
-@@ -2260,8 +2261,10 @@ void __init trap_init(void)
- 		unsigned long size = 0x200 + VECTORSPACING*64;
- 		phys_addr_t ebase_pa;
- 
-+		memblock_set_bottom_up(true);
- 		ebase = (unsigned long)
- 			__alloc_bootmem(size, 1 << fls(size), 0);
-+		memblock_set_bottom_up(false);
- 
- 		/*
- 		 * Try to ensure ebase resides in KSeg0 if possible.
-diff --git a/arch/mips/loongson64/loongson-3/numa.c b/arch/mips/loongson64/loongson-3/numa.c
-index 9717106..c1e6ec5 100644
---- a/arch/mips/loongson64/loongson-3/numa.c
-+++ b/arch/mips/loongson64/loongson-3/numa.c
-@@ -180,43 +180,39 @@ static void __init szmem(unsigned int node)
- 
- static void __init node_mem_init(unsigned int node)
- {
--	unsigned long bootmap_size;
- 	unsigned long node_addrspace_offset;
--	unsigned long start_pfn, end_pfn, freepfn;
-+	unsigned long start_pfn, end_pfn;
- 
- 	node_addrspace_offset = nid_to_addroffset(node);
- 	pr_info("Node%d's addrspace_offset is 0x%lx\n",
- 			node, node_addrspace_offset);
- 
- 	get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
--	freepfn = start_pfn;
--	if (node == 0)
--		freepfn = PFN_UP(__pa_symbol(&_end)); /* kernel end address */
--	pr_info("Node%d: start_pfn=0x%lx, end_pfn=0x%lx, freepfn=0x%lx\n",
--		node, start_pfn, end_pfn, freepfn);
-+	pr_info("Node%d: start_pfn=0x%lx, end_pfn=0x%lx\n",
-+		node, start_pfn, end_pfn);
- 
- 	__node_data[node] = prealloc__node_data + node;
- 
--	NODE_DATA(node)->bdata = &bootmem_node_data[node];
- 	NODE_DATA(node)->node_start_pfn = start_pfn;
- 	NODE_DATA(node)->node_spanned_pages = end_pfn - start_pfn;
- 
--	bootmap_size = init_bootmem_node(NODE_DATA(node), freepfn,
--					start_pfn, end_pfn);
- 	free_bootmem_with_active_regions(node, end_pfn);
--	if (node == 0) /* used by finalize_initrd() */
-+
-+	if (node == 0) {
-+		/* kernel end address */
-+		unsigned long kernel_end_pfn = PFN_UP(__pa_symbol(&_end));
-+
-+		/* used by finalize_initrd() */
- 		max_low_pfn = end_pfn;
- 
--	/* This is reserved for the kernel and bdata->node_bootmem_map */
--	reserve_bootmem_node(NODE_DATA(node), start_pfn << PAGE_SHIFT,
--		((freepfn - start_pfn) << PAGE_SHIFT) + bootmap_size,
--		BOOTMEM_DEFAULT);
-+		/* Reserve the kernel text/data/bss */
-+		memblock_reserve(start_pfn << PAGE_SHIFT,
-+				 ((kernel_end_pfn - start_pfn) << PAGE_SHIFT));
- 
--	if (node == 0 && node_end_pfn(0) >= (0xffffffff >> PAGE_SHIFT)) {
- 		/* Reserve 0xfe000000~0xffffffff for RS780E integrated GPU */
--		reserve_bootmem_node(NODE_DATA(node),
--				(node_addrspace_offset | 0xfe000000),
--				32 << 20, BOOTMEM_DEFAULT);
-+		if (node_end_pfn(0) >= (0xffffffff >> PAGE_SHIFT))
-+			memblock_reserve((node_addrspace_offset | 0xfe000000),
-+					 32 << 20);
- 	}
- 
- 	sparse_memory_present_with_active_regions(node);
-diff --git a/arch/mips/sgi-ip27/ip27-memory.c b/arch/mips/sgi-ip27/ip27-memory.c
-index 59133d0a..6f7bef0 100644
---- a/arch/mips/sgi-ip27/ip27-memory.c
-+++ b/arch/mips/sgi-ip27/ip27-memory.c
-@@ -389,7 +389,6 @@ static void __init node_mem_init(cnodeid_t node)
- {
- 	unsigned long slot_firstpfn = slot_getbasepfn(node, 0);
- 	unsigned long slot_freepfn = node_getfirstfree(node);
--	unsigned long bootmap_size;
- 	unsigned long start_pfn, end_pfn;
- 
- 	get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
-@@ -400,7 +399,6 @@ static void __init node_mem_init(cnodeid_t node)
- 	__node_data[node] = __va(slot_freepfn << PAGE_SHIFT);
- 	memset(__node_data[node], 0, PAGE_SIZE);
- 
--	NODE_DATA(node)->bdata = &bootmem_node_data[node];
- 	NODE_DATA(node)->node_start_pfn = start_pfn;
- 	NODE_DATA(node)->node_spanned_pages = end_pfn - start_pfn;
- 
-@@ -409,12 +407,11 @@ static void __init node_mem_init(cnodeid_t node)
- 	slot_freepfn += PFN_UP(sizeof(struct pglist_data) +
- 			       sizeof(struct hub_data));
- 
--	bootmap_size = init_bootmem_node(NODE_DATA(node), slot_freepfn,
--					start_pfn, end_pfn);
- 	free_bootmem_with_active_regions(node, end_pfn);
--	reserve_bootmem_node(NODE_DATA(node), slot_firstpfn << PAGE_SHIFT,
--		((slot_freepfn - slot_firstpfn) << PAGE_SHIFT) + bootmap_size,
--		BOOTMEM_DEFAULT);
-+
-+	memblock_reserve(slot_firstpfn << PAGE_SHIFT,
-+			 ((slot_freepfn - slot_firstpfn) << PAGE_SHIFT));
-+
- 	sparse_memory_present_with_active_regions(node);
+ 	 * Must be held any time you expect node_start_pfn, node_present_pages
+@@ -878,7 +875,7 @@ static inline int is_highmem_idx(enum zone_type idx)
  }
  
+ /**
+- * is_highmem - helper function to quickly check if a struct zone is a 
++ * is_highmem - helper function to quickly check if a struct zone is a
+  *              highmem zone or not.  This is an attempt to keep references
+  *              to ZONE_{DMA/NORMAL/HIGHMEM/etc} in general code to a minimum.
+  * @zone - pointer to struct zone variable
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 7bf074b..16ceea0 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -145,9 +145,6 @@ config HAVE_GENERIC_GUP
+ config ARCH_DISCARD_MEMBLOCK
+ 	bool
+ 
+-config NO_BOOTMEM
+-	bool
+-
+ config MEMORY_ISOLATION
+ 	bool
+ 
+diff --git a/mm/Makefile b/mm/Makefile
+index 6485d57..ea53338 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -42,12 +42,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
+ 			   debug.o $(mmu-y)
+ 
+ obj-y += init-mm.o
+-
+-ifdef CONFIG_NO_BOOTMEM
+-	obj-y		+= nobootmem.o
+-else
+-	obj-y		+= bootmem.o
+-endif
++obj-y += nobootmem.o
+ 
+ ifdef CONFIG_MMU
+ 	obj-$(CONFIG_ADVISE_SYSCALLS)	+= madvise.o
+diff --git a/mm/memblock.c b/mm/memblock.c
+index f798109..bba8d4e 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1369,7 +1369,6 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
+ 	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
+ }
+ 
+-#if defined(CONFIG_NO_BOOTMEM)
+ /**
+  * memblock_virt_alloc_internal - allocate boot memory block
+  * @size: size of memory block to be allocated in bytes
+@@ -1576,7 +1575,6 @@ void * __init memblock_virt_alloc_try_nid(
+ 	      __func__, (u64)size, (u64)align, nid, &min_addr, &max_addr);
+ 	return NULL;
+ }
+-#endif
+ 
+ /**
+  * __memblock_free_early - free boot memory block
 -- 
 2.7.4
