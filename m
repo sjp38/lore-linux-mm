@@ -1,61 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C0758E0001
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 09:05:06 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id d10-v6so9827523wrw.6
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 06:05:06 -0700 (PDT)
-Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50100.outbound.protection.outlook.com. [40.107.5.100])
-        by mx.google.com with ESMTPS id p2-v6si6340165wrj.355.2018.09.14.06.05.04
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A47528E0001
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 09:14:18 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id p105-v6so9797504wrc.11
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 06:14:18 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id u17-v6si1632743wmd.139.2018.09.14.06.14.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 14 Sep 2018 06:05:04 -0700 (PDT)
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH 3/3] vfree, kvfree: Add debug might sleeps.
-Date: Fri, 14 Sep 2018 16:05:12 +0300
-Message-Id: <20180914130512.10394-3-aryabinin@virtuozzo.com>
-In-Reply-To: <20180914130512.10394-1-aryabinin@virtuozzo.com>
-References: <20180914130512.10394-1-aryabinin@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Sep 2018 06:14:17 -0700 (PDT)
+Date: Fri, 14 Sep 2018 15:14:20 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH v5 2/7] mm, devm_memremap_pages: Kill mapping "System
+ RAM" support
+Message-ID: <20180914131420.GC27141@lst.de>
+References: <153680531988.453305.8080706591516037706.stgit@dwillia2-desk3.amr.corp.intel.com> <153680533172.453305.5701902165148172434.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <153680533172.453305.5701902165148172434.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Christoph Hellwig <hch@lst.de>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, alexander.h.duyck@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Add might_sleep() calls to vfree(), kvfree() to catch potential
-sleep-in-atomic bugs earlier.
+On Wed, Sep 12, 2018 at 07:22:11PM -0700, Dan Williams wrote:
+> Given the fact that devm_memremap_pages() requires a percpu_ref that is
+> torn down by devm_memremap_pages_release() the current support for
+> mapping RAM is broken.
 
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
----
- mm/util.c    | 2 ++
- mm/vmalloc.c | 2 ++
- 2 files changed, 4 insertions(+)
+I agree.  Do you remember why we even added it in the first place?
 
-diff --git a/mm/util.c b/mm/util.c
-index 7f1f165f46af..929ed1795bc1 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -446,6 +446,8 @@ EXPORT_SYMBOL(kvmalloc_node);
-  */
- void kvfree(const void *addr)
- {
-+	might_sleep_if(!in_interrupt());
-+
- 	if (is_vmalloc_addr(addr))
- 		vfree(addr);
- 	else
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index d00d42d6bf79..97d4b25d0373 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1587,6 +1587,8 @@ void vfree(const void *addr)
- 
- 	kmemleak_free(addr);
- 
-+	might_sleep_if(!in_interrupt());
-+
- 	if (!addr)
- 		return;
- 	if (unlikely(in_interrupt()))
--- 
-2.16.4
+Signed-off-by: Christoph Hellwig <hch@lst.de>
