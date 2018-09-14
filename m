@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D9318E0004
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 09:05:05 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id g36-v6so10036361wrd.9
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 06:05:05 -0700 (PDT)
-Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50091.outbound.protection.outlook.com. [40.107.5.91])
-        by mx.google.com with ESMTPS id w12-v6si4695304wrl.27.2018.09.14.06.05.04
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C0758E0001
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 09:05:06 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id d10-v6so9827523wrw.6
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 06:05:06 -0700 (PDT)
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50100.outbound.protection.outlook.com. [40.107.5.100])
+        by mx.google.com with ESMTPS id p2-v6si6340165wrj.355.2018.09.14.06.05.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Fri, 14 Sep 2018 06:05:04 -0700 (PDT)
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH 2/3] mm/vmalloc: Improve vfree() kerneldoc
-Date: Fri, 14 Sep 2018 16:05:11 +0300
-Message-Id: <20180914130512.10394-2-aryabinin@virtuozzo.com>
+Subject: [PATCH 3/3] vfree, kvfree: Add debug might sleeps.
+Date: Fri, 14 Sep 2018 16:05:12 +0300
+Message-Id: <20180914130512.10394-3-aryabinin@virtuozzo.com>
 In-Reply-To: <20180914130512.10394-1-aryabinin@virtuozzo.com>
 References: <20180914130512.10394-1-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
@@ -22,26 +22,40 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-vfree() might sleep if called not in interrupt context. Explain
-that in the comment.
+Add might_sleep() calls to vfree(), kvfree() to catch potential
+sleep-in-atomic bugs earlier.
 
 Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 ---
+ mm/util.c    | 2 ++
  mm/vmalloc.c | 2 ++
- 1 file changed, 2 insertions(+)
+ 2 files changed, 4 insertions(+)
 
+diff --git a/mm/util.c b/mm/util.c
+index 7f1f165f46af..929ed1795bc1 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -446,6 +446,8 @@ EXPORT_SYMBOL(kvmalloc_node);
+  */
+ void kvfree(const void *addr)
+ {
++	might_sleep_if(!in_interrupt());
++
+ 	if (is_vmalloc_addr(addr))
+ 		vfree(addr);
+ 	else
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index a728fc492557..d00d42d6bf79 100644
+index d00d42d6bf79..97d4b25d0373 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -1577,6 +1577,8 @@ void vfree_atomic(const void *addr)
-  *	have CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG, but making the calling
-  *	conventions for vfree() arch-depenedent would be a really bad idea)
-  *
-+ *	May sleep if called *not* from interrupt context.
-+ *
-  *	NOTE: assumes that the object at @addr has a size >= sizeof(llist_node)
-  */
- void vfree(const void *addr)
+@@ -1587,6 +1587,8 @@ void vfree(const void *addr)
+ 
+ 	kmemleak_free(addr);
+ 
++	might_sleep_if(!in_interrupt());
++
+ 	if (!addr)
+ 		return;
+ 	if (unlikely(in_interrupt()))
 -- 
 2.16.4
