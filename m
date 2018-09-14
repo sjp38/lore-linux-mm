@@ -1,103 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B41F8E0001
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 01:56:41 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id x24-v6so3377797edm.13
-        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 22:56:41 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D6A68E0001
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 02:21:38 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id g18-v6so3410728edg.14
+        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 23:21:38 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h25-v6si1654005edb.423.2018.09.13.22.56.40
+        by mx.google.com with ESMTPS id l32-v6si3826885eda.48.2018.09.13.23.21.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Sep 2018 22:56:40 -0700 (PDT)
-Date: Fri, 14 Sep 2018 07:56:37 +0200
+        Thu, 13 Sep 2018 23:21:36 -0700 (PDT)
+Date: Fri, 14 Sep 2018 08:21:32 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH V2 0/6] VA to numa node information
-Message-ID: <20180914055637.GH20287@dhcp22.suse.cz>
-References: <1536783844-4145-1-git-send-email-prakash.sangappa@oracle.com>
- <20180913084011.GC20287@dhcp22.suse.cz>
- <375951d0-f103-dec3-34d8-bbeb2f45f666@oracle.com>
+Subject: Re: [RFC PATCH] Add /proc/<pid>/numa_vamaps for numa node information
+Message-ID: <20180914062132.GI20287@dhcp22.suse.cz>
+References: <2ce01d91-5fba-b1b7-2956-c8cc1853536d@intel.com>
+ <33f96879-351f-674a-ca23-43f233f4eb1d@linux.vnet.ibm.com>
+ <82d2b35c-272a-ad02-692f-2c109aacdfb6@oracle.com>
+ <8569dabb-4930-aa20-6249-72457e2df51e@intel.com>
+ <51145ccb-fc0d-0281-9757-fb8a5112ec24@oracle.com>
+ <c72fea44-59f3-b106-8311-b5eae2d254e7@intel.com>
+ <addeaadc-5ab2-f0c9-2194-dd100ae90f3a@oracle.com>
+ <aaca3180-7510-c008-3e12-8bbe92344ef4@intel.com>
+ <94ee0b6c-4663-0705-d4a8-c50342f6b483@oracle.com>
+ <CAG48ez1YhHKTDHZoH2tEFaLk4LcCSw5G60=+KpGRaMQxvw1qLw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <375951d0-f103-dec3-34d8-bbeb2f45f666@oracle.com>
+In-Reply-To: <CAG48ez1YhHKTDHZoH2tEFaLk4LcCSw5G60=+KpGRaMQxvw1qLw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "prakash.sangappa" <prakash.sangappa@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@intel.com, nao.horiguchi@gmail.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, khandual@linux.vnet.ibm.com, steven.sistare@oracle.com
+To: Jann Horn <jannh@google.com>
+Cc: Prakash Sangappa <prakash.sangappa@oracle.com>, Dave Hansen <dave.hansen@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, kernel list <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, drepper@gmail.com, rientjes@google.com, nao.horiguchi@gmail.com, steven.sistare@oracle.com
 
-On Thu 13-09-18 15:32:25, prakash.sangappa wrote:
+On Fri 14-09-18 03:33:28, Jann Horn wrote:
+> On Wed, Sep 12, 2018 at 10:43 PM prakash.sangappa
+> <prakash.sangappa@oracle.com> wrote:
+> > On 05/09/2018 04:31 PM, Dave Hansen wrote:
+> > > On 05/07/2018 06:16 PM, prakash.sangappa wrote:
+> > >> It will be /proc/<pid>/numa_vamaps. Yes, the behavior will be
+> > >> different with respect to seeking. Output will still be text and
+> > >> the format will be same.
+> > >>
+> > >> I want to get feedback on this approach.
+> > > I think it would be really great if you can write down a list of the
+> > > things you actually want to accomplish.  Dare I say: you need a
+> > > requirements list.
+> > >
+> > > The numa_vamaps approach continues down the path of an ever-growing list
+> > > of highly-specialized /proc/<pid> files.  I don't think that is
+> > > sustainable, even if it has been our trajectory for many years.
+> > >
+> > > Pagemap wasn't exactly a shining example of us getting new ABIs right,
+> > > but it sounds like something along those is what we need.
+> >
+> > Just sent out a V2 patch.  This patch simplifies the file content. It
+> > only provides VA range to numa node id information.
+> >
+> > The requirement is basically observability for performance analysis.
+> >
+> > - Need to be able to determine VA range to numa node id information.
+> >    Which also gives an idea of which range has memory allocated.
+> >
+> > - The proc file /proc/<pid>/numa_vamaps is in text so it is easy to
+> >    directly view.
+> >
+> > The V2 patch supports seeking to a particular process VA from where
+> > the application could read the VA to  numa node id information.
+> >
+> > Also added the 'PTRACE_MODE_READ_REALCREDS' check when opening the
+> > file /proc file as was indicated by Michal Hacko
 > 
-> 
-> On 09/13/2018 01:40 AM, Michal Hocko wrote:
-> > On Wed 12-09-18 13:23:58, Prakash Sangappa wrote:
-> > > For analysis purpose it is useful to have numa node information
-> > > corresponding mapped virtual address ranges of a process. Currently,
-> > > the file /proc/<pid>/numa_maps provides list of numa nodes from where pages
-> > > are allocated per VMA of a process. This is not useful if an user needs to
-> > > determine which numa node the mapped pages are allocated from for a
-> > > particular address range. It would have helped if the numa node information
-> > > presented in /proc/<pid>/numa_maps was broken down by VA ranges showing the
-> > > exact numa node from where the pages have been allocated.
-> > > 
-> > > The format of /proc/<pid>/numa_maps file content is dependent on
-> > > /proc/<pid>/maps file content as mentioned in the manpage. i.e one line
-> > > entry for every VMA corresponding to entries in /proc/<pids>/maps file.
-> > > Therefore changing the output of /proc/<pid>/numa_maps may not be possible.
-> > > 
-> > > This patch set introduces the file /proc/<pid>/numa_vamaps which
-> > > will provide proper break down of VA ranges by numa node id from where the
-> > > mapped pages are allocated. For Address ranges not having any pages mapped,
-> > > a '-' is printed instead of numa node id.
-> > > 
-> > > Includes support to lseek, allowing seeking to a specific process Virtual
-> > > address(VA) starting from where the address range to numa node information
-> > > can to be read from this file.
-> > > 
-> > > The new file /proc/<pid>/numa_vamaps will be governed by ptrace access
-> > > mode PTRACE_MODE_READ_REALCREDS.
-> > > 
-> > > See following for previous discussion about this proposal
-> > > 
-> > > https://marc.info/?t=152524073400001&r=1&w=2
-> > It would be really great to give a short summary of the previous
-> > discussion. E.g. why do we need a proc interface in the first place when
-> > we already have an API to query for the information you are proposing to
-> > export [1]
-> > 
-> > [1] http://lkml.kernel.org/r/20180503085741.GD4535@dhcp22.suse.cz
-> 
-> The proc interface provides an efficient way to export address range
-> to numa node id mapping information compared to using the API.
+> procfs files should use PTRACE_MODE_*_FSCREDS, not PTRACE_MODE_*_REALCREDS.
 
-Do you have any numbers?
+Out of my curiosity, what is the semantic difference? At least
+kernel_move_pages uses PTRACE_MODE_READ_REALCREDS. Is this a bug?
 
-> For example, for sparsely populated mappings, if a VMA has large portions
-> not have any physical pages mapped, the page walk done thru the /proc file
-> interface can skip over non existent PMDs / ptes. Whereas using the
-> API the application would have to scan the entire VMA in page size units.
-
-What prevents you from pre-filtering by reading /proc/$pid/maps to get
-ranges of interest?
-
-> Also, VMAs having THP pages can have a mix of 4k pages and hugepages.
-> The page walks would be efficient in scanning and determining if it is
-> a THP huge page and step over it. Whereas using the API, the application
-> would not know what page size mapping is used for a given VA and so would
-> have to again scan the VMA in units of 4k page size.
-
-Why does this matter for something that is for analysis purposes.
-Reading the file for the whole address space is far from a free
-operation. Is the page walk optimization really essential for usability?
-Moreover what prevents move_pages implementation to be clever for the
-page walk itself? In other words why would we want to add a new API
-rather than make the existing one faster for everybody.
- 
-> If this sounds reasonable, I can add it to the commit / patch description.
-
-This all is absolutely _essential_ for any new API proposed. Remember that
-once we add a new user interface, we have to maintain it for ever. We
-used to be too relaxed when adding new proc files in the past and it
-backfired many times already.
 -- 
 Michal Hocko
 SUSE Labs
