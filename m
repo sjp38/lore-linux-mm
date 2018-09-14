@@ -1,54 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C68EF8E0001
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 10:16:22 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id e88-v6so7423602qtb.1
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 07:16:22 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f13-v6si756048qti.132.2018.09.14.07.16.21
+Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 667868E0006
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 10:28:15 -0400 (EDT)
+Received: by mail-vk1-f199.google.com with SMTP id g71-v6so1459385vke.15
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 07:28:15 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id j89-v6sor1811169vsi.51.2018.09.14.07.28.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Sep 2018 07:16:21 -0700 (PDT)
-Date: Fri, 14 Sep 2018 10:16:17 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH v5 5/7] mm, hmm: Use devm semantics for hmm_devmem_{add,
- remove}
-Message-ID: <20180914141617.GC3826@redhat.com>
-References: <153680531988.453305.8080706591516037706.stgit@dwillia2-desk3.amr.corp.intel.com>
- <153680534781.453305.3660438915028111950.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180914131838.GF27141@lst.de>
+        (Google Transport Security);
+        Fri, 14 Sep 2018 07:28:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180914131838.GF27141@lst.de>
+From: Pintu Kumar <pintu.ping@gmail.com>
+Date: Fri, 14 Sep 2018 19:58:01 +0530
+Message-ID: <CAOuPNLj1wx4sznrtLdKjcvuTf0dECPWzPaR946FoYRXB6YAGCw@mail.gmail.com>
+Subject: KSM not working in 4.9 Kernel
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org, Logan Gunthorpe <logang@deltatee.com>, alexander.h.duyck@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: open list <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
 
-On Fri, Sep 14, 2018 at 03:18:38PM +0200, Christoph Hellwig wrote:
-> On Wed, Sep 12, 2018 at 07:22:27PM -0700, Dan Williams wrote:
-> > devm semantics arrange for resources to be torn down when
-> > device-driver-probe fails or when device-driver-release completes.
-> > Similar to devm_memremap_pages() there is no need to support an explicit
-> > remove operation when the users properly adhere to devm semantics.
-> > 
-> > Note that devm_kzalloc() automatically handles allocating node-local
-> > memory.
-> > 
-> > Reviewed-by: Christoph Hellwig <hch@lst.de>
-> 
-> Given that we have no single user of these function I still think we
-> should just remove them.
+Hi All,
 
-It is in the process of being upstreamed:
+Board: Hikey620 ARM64
+Kernel: 4.9.20
 
-https://cgit.freedesktop.org/~glisse/linux/log/?h=nouveau-hmm-v01
+I am trying to verify KSM (Kernel Same Page Merging) functionality on
+4.9 Kernel using "mmap" and madvise user space test utility.
+But to my observation, it seems KSM is not working for me.
+CONFIG_KSM=y is enabled in kernel.
+ksm_init is also called during boot up.
+  443 ?        SN     0:00 [ksmd]
 
-and more users are coming for other devices.
+ksmd thread is also running.
 
-Yes it is taking time ... things never goes as planed.
+However, when I see the sysfs, no values are written.
+~ # grep -H '' /sys/kernel/mm/ksm/*
+/sys/kernel/mm/ksm/pages_hashed:0
+/sys/kernel/mm/ksm/pages_scanned:0
+/sys/kernel/mm/ksm/pages_shared:0
+/sys/kernel/mm/ksm/pages_sharing:0
+/sys/kernel/mm/ksm/pages_to_scan:200
+/sys/kernel/mm/ksm/pages_unshared:0
+/sys/kernel/mm/ksm/pages_volatile:0
+/sys/kernel/mm/ksm/run:1
+/sys/kernel/mm/ksm/sleep_millisecs:1000
 
-Cheers,
-Jerome
+So, please let me know if I am doing any thing wrong.
+
+This is the test utility:
+int main(int argc, char *argv[])
+{
+        int i, n, size;
+        char *buffer;
+        void *addr;
+
+        n = 100;
+        size = 100 * getpagesize();
+        for (i = 0; i < n; i++) {
+                buffer = (char *)malloc(size);
+                memset(buffer, 0xff, size);
+                addr =  mmap(NULL, size,
+                           PROT_READ | PROT_EXEC | PROT_WRITE,
+MAP_PRIVATE | MAP_ANONYMOUS,
+                           -1, 0);
+                madvise(addr, size, MADV_MERGEABLE);
+                sleep(1);
+        }
+        printf("Done....press ^C\n");
+
+        pause();
+
+        return 0;
+}
+
+
+
+Thanks,
+Pintu
