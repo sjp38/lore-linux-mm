@@ -1,87 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DCDA98E0001
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:49:41 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id u74-v6so9366781oie.16
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 05:49:41 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h65-v6sor6058161oia.71.2018.09.14.05.49.37
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2940D8E0001
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 09:02:16 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id h4-v6so4327049pls.17
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 06:02:16 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id j124-v6si7701625pfb.191.2018.09.14.06.02.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 14 Sep 2018 05:49:37 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 14 Sep 2018 06:02:14 -0700 (PDT)
+Date: Fri, 14 Sep 2018 15:02:07 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC][PATCH 01/11] asm-generic/tlb: Provide a comment
+Message-ID: <20180914130207.GD24106@hirez.programming.kicks-ass.net>
+References: <20180913092110.817204997@infradead.org>
+ <20180913092811.894806629@infradead.org>
+ <20180913123014.0d9321b8@mschwideX1>
+ <20180913105738.GW24124@hirez.programming.kicks-ass.net>
+ <20180913141827.1776985e@mschwideX1>
+ <20180913123937.GX24124@hirez.programming.kicks-ass.net>
+ <20180914122824.181d9778@mschwideX1>
 MIME-Version: 1.0
-References: <2ce01d91-5fba-b1b7-2956-c8cc1853536d@intel.com>
- <33f96879-351f-674a-ca23-43f233f4eb1d@linux.vnet.ibm.com> <82d2b35c-272a-ad02-692f-2c109aacdfb6@oracle.com>
- <8569dabb-4930-aa20-6249-72457e2df51e@intel.com> <51145ccb-fc0d-0281-9757-fb8a5112ec24@oracle.com>
- <c72fea44-59f3-b106-8311-b5eae2d254e7@intel.com> <addeaadc-5ab2-f0c9-2194-dd100ae90f3a@oracle.com>
- <aaca3180-7510-c008-3e12-8bbe92344ef4@intel.com> <94ee0b6c-4663-0705-d4a8-c50342f6b483@oracle.com>
- <CAG48ez1YhHKTDHZoH2tEFaLk4LcCSw5G60=+KpGRaMQxvw1qLw@mail.gmail.com> <20180914062132.GI20287@dhcp22.suse.cz>
-In-Reply-To: <20180914062132.GI20287@dhcp22.suse.cz>
-From: Jann Horn <jannh@google.com>
-Date: Fri, 14 Sep 2018 14:49:10 +0200
-Message-ID: <CAG48ez2RSn-EQkf-ahs41tOKpzt23JMGYZxUtWMRPe8c5jAq-A@mail.gmail.com>
-Subject: Re: [RFC PATCH] Add /proc/<pid>/numa_vamaps for numa node information
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180914122824.181d9778@mschwideX1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Prakash Sangappa <prakash.sangappa@oracle.com>, Dave Hansen <dave.hansen@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, kernel list <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Ulrich Drepper <drepper@gmail.com>, David Rientjes <rientjes@google.com>, Horiguchi Naoya <nao.horiguchi@gmail.com>, steven.sistare@oracle.com
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: will.deacon@arm.com, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, npiggin@gmail.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@armlinux.org.uk, heiko.carstens@de.ibm.com, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Fri, Sep 14, 2018 at 8:21 AM Michal Hocko <mhocko@kernel.org> wrote:
-> On Fri 14-09-18 03:33:28, Jann Horn wrote:
-> > On Wed, Sep 12, 2018 at 10:43 PM prakash.sangappa
-> > <prakash.sangappa@oracle.com> wrote:
-> > > On 05/09/2018 04:31 PM, Dave Hansen wrote:
-> > > > On 05/07/2018 06:16 PM, prakash.sangappa wrote:
-> > > >> It will be /proc/<pid>/numa_vamaps. Yes, the behavior will be
-> > > >> different with respect to seeking. Output will still be text and
-> > > >> the format will be same.
-> > > >>
-> > > >> I want to get feedback on this approach.
-> > > > I think it would be really great if you can write down a list of the
-> > > > things you actually want to accomplish.  Dare I say: you need a
-> > > > requirements list.
-> > > >
-> > > > The numa_vamaps approach continues down the path of an ever-growing list
-> > > > of highly-specialized /proc/<pid> files.  I don't think that is
-> > > > sustainable, even if it has been our trajectory for many years.
-> > > >
-> > > > Pagemap wasn't exactly a shining example of us getting new ABIs right,
-> > > > but it sounds like something along those is what we need.
-> > >
-> > > Just sent out a V2 patch.  This patch simplifies the file content. It
-> > > only provides VA range to numa node id information.
-> > >
-> > > The requirement is basically observability for performance analysis.
-> > >
-> > > - Need to be able to determine VA range to numa node id information.
-> > >    Which also gives an idea of which range has memory allocated.
-> > >
-> > > - The proc file /proc/<pid>/numa_vamaps is in text so it is easy to
-> > >    directly view.
-> > >
-> > > The V2 patch supports seeking to a particular process VA from where
-> > > the application could read the VA to  numa node id information.
-> > >
-> > > Also added the 'PTRACE_MODE_READ_REALCREDS' check when opening the
-> > > file /proc file as was indicated by Michal Hacko
-> >
-> > procfs files should use PTRACE_MODE_*_FSCREDS, not PTRACE_MODE_*_REALCREDS.
->
-> Out of my curiosity, what is the semantic difference? At least
-> kernel_move_pages uses PTRACE_MODE_READ_REALCREDS. Is this a bug?
+On Fri, Sep 14, 2018 at 12:28:24PM +0200, Martin Schwidefsky wrote:
 
-No, that's fine. REALCREDS basically means "look at the caller's real
-UID for the access check", while FSCREDS means "look at the caller's
-filesystem UID". The ptrace access check has historically been using
-the real UID, which is sorta weird, but normally works fine. Given
-that this is documented, I didn't see any reason to change it for most
-things that do ptrace access checks, even if the EUID would IMO be
-more appropriate. But things that capture caller credentials at points
-like open() really shouldn't look at the real UID; instead, they
-should use the filesystem UID (which in practice is basically the same
-as the EUID).
+> I spent some time to get s390 converted to the common mmu_gather code.
+> There is one thing I would like to request, namely the ability to
+> disable the page gather part of mmu_gather. For my prototype patch
+> see below, it defines the negative HAVE_RCU_NO_GATHER_PAGES Kconfig
+> symbol that if defined will remove some parts from common code.
+> Ugly but good enough for the prototype to convey the idea.
+> For the final solution we better use a positive Kconfig symbol and
+> add that to all arch Kconfig files except for s390.
 
-So in short, it depends on the interface you're coming through: Direct
-syscalls use REALCREDS, things that go through the VFS layer use
-FSCREDS.
+In a private thread ealier Linus raised the point that the batching and
+freeing of lots of pages at once is probably better for I$.
+
+> +config HAVE_RCU_NO_GATHER_PAGES
+> +	bool
+
+I have a problem with the name more than anything else; this name
+suggests it is the RCU table freeing that should not batch, which is not
+the case, you want the regular page gather gone, but very much require
+the RCU table gather to batch.
+
+So I would like to propose calling it:
+
+config HAVE_MMU_GATHER_NO_GATHER
+
+Or something along those lines.
