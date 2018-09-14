@@ -1,68 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E5CA8E0001
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 21:33:56 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id l191-v6so8001059oig.23
-        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 18:33:56 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o40-v6sor2063585otd.341.2018.09.13.18.33.54
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A3D3F8E0001
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 23:09:14 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id v62-v6so2736520ota.11
+        for <linux-mm@kvack.org>; Thu, 13 Sep 2018 20:09:14 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id p55-v6si1137918ote.317.2018.09.13.20.09.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 13 Sep 2018 18:33:55 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Sep 2018 20:09:13 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8E344kW111588
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 23:09:12 -0400
+Received: from e36.co.us.ibm.com (e36.co.us.ibm.com [32.97.110.154])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mfxa1mu6c-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2018 23:09:12 -0400
+Received: from localhost
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Thu, 13 Sep 2018 21:09:11 -0600
+Subject: Re: [Bug 201085] New: Kernel allows mlock() on pages in CMA without
+ migrating pages out of CMA first
+References: <bug-201085-27@https.bugzilla.kernel.org/>
+ <20180912124727.fccccf432d2d8163ead79288@linux-foundation.org>
+ <6d38e089-6df4-ead7-4a9d-7277a2db5d7c@oracle.com>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Date: Fri, 14 Sep 2018 08:39:01 +0530
 MIME-Version: 1.0
-References: <1525240686-13335-1-git-send-email-prakash.sangappa@oracle.com>
- <20180502143323.1c723ccb509c3497050a2e0a@linux-foundation.org>
- <2ce01d91-5fba-b1b7-2956-c8cc1853536d@intel.com> <33f96879-351f-674a-ca23-43f233f4eb1d@linux.vnet.ibm.com>
- <82d2b35c-272a-ad02-692f-2c109aacdfb6@oracle.com> <8569dabb-4930-aa20-6249-72457e2df51e@intel.com>
- <51145ccb-fc0d-0281-9757-fb8a5112ec24@oracle.com> <c72fea44-59f3-b106-8311-b5eae2d254e7@intel.com>
- <addeaadc-5ab2-f0c9-2194-dd100ae90f3a@oracle.com> <aaca3180-7510-c008-3e12-8bbe92344ef4@intel.com>
- <94ee0b6c-4663-0705-d4a8-c50342f6b483@oracle.com>
-In-Reply-To: <94ee0b6c-4663-0705-d4a8-c50342f6b483@oracle.com>
-From: Jann Horn <jannh@google.com>
-Date: Fri, 14 Sep 2018 03:33:28 +0200
-Message-ID: <CAG48ez1YhHKTDHZoH2tEFaLk4LcCSw5G60=+KpGRaMQxvw1qLw@mail.gmail.com>
-Subject: Re: [RFC PATCH] Add /proc/<pid>/numa_vamaps for numa node information
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <6d38e089-6df4-ead7-4a9d-7277a2db5d7c@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <e04af13c-7237-c430-032b-29c4ebb4058a@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Prakash Sangappa <prakash.sangappa@oracle.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, kernel list <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, drepper@gmail.com, rientjes@google.com, nao.horiguchi@gmail.com, steven.sistare@oracle.com
+To: Mike Kravetz <mike.kravetz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Laura Abbott <labbott@redhat.com>
+Cc: bugzilla-daemon@bugzilla.kernel.org, tpearson@raptorengineering.com
 
-On Wed, Sep 12, 2018 at 10:43 PM prakash.sangappa
-<prakash.sangappa@oracle.com> wrote:
-> On 05/09/2018 04:31 PM, Dave Hansen wrote:
-> > On 05/07/2018 06:16 PM, prakash.sangappa wrote:
-> >> It will be /proc/<pid>/numa_vamaps. Yes, the behavior will be
-> >> different with respect to seeking. Output will still be text and
-> >> the format will be same.
-> >>
-> >> I want to get feedback on this approach.
-> > I think it would be really great if you can write down a list of the
-> > things you actually want to accomplish.  Dare I say: you need a
-> > requirements list.
-> >
-> > The numa_vamaps approach continues down the path of an ever-growing list
-> > of highly-specialized /proc/<pid> files.  I don't think that is
-> > sustainable, even if it has been our trajectory for many years.
-> >
-> > Pagemap wasn't exactly a shining example of us getting new ABIs right,
-> > but it sounds like something along those is what we need.
->
-> Just sent out a V2 patch.  This patch simplifies the file content. It
-> only provides VA range to numa node id information.
->
-> The requirement is basically observability for performance analysis.
->
-> - Need to be able to determine VA range to numa node id information.
->    Which also gives an idea of which range has memory allocated.
->
-> - The proc file /proc/<pid>/numa_vamaps is in text so it is easy to
->    directly view.
->
-> The V2 patch supports seeking to a particular process VA from where
-> the application could read the VA to  numa node id information.
->
-> Also added the 'PTRACE_MODE_READ_REALCREDS' check when opening the
-> file /proc file as was indicated by Michal Hacko
+On 9/13/18 3:49 AM, Mike Kravetz wrote:
+> On 09/12/2018 12:47 PM, Andrew Morton wrote:
+>>
+>> (switched to email.  Please respond via emailed reply-to-all, not via the
+>> bugzilla web interface).
+>>
+>> On Tue, 11 Sep 2018 03:59:11 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+>>
+>>> https://bugzilla.kernel.org/show_bug.cgi?id=201085
+>>>
+>>>              Bug ID: 201085
+>>>             Summary: Kernel allows mlock() on pages in CMA without
+>>>                      migrating pages out of CMA first
+>>>             Product: Memory Management
+>>>             Version: 2.5
+>>>      Kernel Version: 4.18
+>>>            Hardware: All
+>>>                  OS: Linux
+>>>                Tree: Mainline
+>>>              Status: NEW
+>>>            Severity: normal
+>>>            Priority: P1
+>>>           Component: Page Allocator
+>>>            Assignee: akpm@linux-foundation.org
+>>>            Reporter: tpearson@raptorengineering.com
+>>>          Regression: No
+>>>
+>>> Pages allocated in CMA are not migrated out of CMA when non-CMA memory is
+>>> available and locking is attempted via mlock().  This can result in rapid
+>>> exhaustion of the CMA pool if memory locking is used by an application with
+>>> large memory requirements such as QEMU.
+>>>
+>>> To reproduce, on a dual-CPU (NUMA) POWER9 host try to launch a VM with mlock=on
+>>> and 1/2 or more of physical memory allocated to the guest.  Observe full CMA
+>>> pool depletion occurs despite plenty of normal free RAM available.
+>>>
+>>> -- 
+>>> You are receiving this mail because:
+>>> You are the assignee for the bug.
+> 
+> IIRC, Aneesh is working on some powerpc IOMMU patches for a similar issue
+> (long term pinning of cma pages).  Added him on Cc:
+> https://lkml.kernel.org/r/20180906054342.25094-2-aneesh.kumar@linux.ibm.com
+> 
+> This report seems to be suggesting a more general solution/change.  Wondering
+> if there is any overlap with this and Aneesh's work.
+> 
 
-procfs files should use PTRACE_MODE_*_FSCREDS, not PTRACE_MODE_*_REALCREDS.
+This is a related issue. I am looking at doing something similar to what 
+I did with IOMMU patches. That is migrate pages out of CMA region bfore 
+mlock.
+
+The problem mentioned is similar to vfio. With VFIO we do pin the guest 
+pages and that is similar with -realtime mlock=on option of Qemu.
+
+We can endup backing guest RAM with pages from CMA area and these are 
+different qemu options that do pin these guest pages for the lifetime of 
+the guest.
+
+-aneesh
