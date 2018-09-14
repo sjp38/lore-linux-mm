@@ -1,88 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EBC528E0001
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 13:12:14 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id u13-v6so7706196qtb.18
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 10:12:14 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id u8-v6sor2468178qvn.29.2018.09.14.10.12.13
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 332F48E0001
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 13:25:11 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id q11-v6so10304239oih.15
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 10:25:11 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m5-v6sor3033109otm.148.2018.09.14.10.25.09
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 14 Sep 2018 10:12:14 -0700 (PDT)
+        Fri, 14 Sep 2018 10:25:09 -0700 (PDT)
 MIME-Version: 1.0
-References: <CAOuPNLj1wx4sznrtLdKjcvuTf0dECPWzPaR946FoYRXB6YAGCw@mail.gmail.com>
-In-Reply-To: <CAOuPNLj1wx4sznrtLdKjcvuTf0dECPWzPaR946FoYRXB6YAGCw@mail.gmail.com>
-From: Yang Shi <shy828301@gmail.com>
-Date: Fri, 14 Sep 2018 10:12:00 -0700
-Message-ID: <CAHbLzkojdPxgrEiPLcJUX9c4muw8eupStJ_0xPnAuFM7g4V1jA@mail.gmail.com>
-Subject: Re: KSM not working in 4.9 Kernel
+In-Reply-To: <20180914131618.GD27141@lst.de>
+References: <153680531988.453305.8080706591516037706.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <153680533706.453305.3428304103990941022.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180914131618.GD27141@lst.de>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 14 Sep 2018 10:25:09 -0700
+Message-ID: <CAPcyv4jTOYjeG4eJd+XR9dzQGb2f_rdn1Knb7V=AMgokzC0M7Q@mail.gmail.com>
+Subject: Re: [PATCH v5 3/7] mm, devm_memremap_pages: Fix shutdown handling
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: pintu.ping@gmail.com
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux@armlinux.org.uk, linux-arm-kernel@lists.infradead.org, Linux MM <linux-mm@kvack.org>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, stable <stable@vger.kernel.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, Alexander Duyck <alexander.h.duyck@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Hi Pintu,
+On Fri, Sep 14, 2018 at 6:16 AM, Christoph Hellwig <hch@lst.de> wrote:
+>> An argument could be made to require that the ->kill() operation be set
+>> in the @pgmap arg rather than passed in separately. However, it helps
+>> code readability, tracking the lifetime of a given instance, to be able
+>> to grep the kill routine directly at the devm_memremap_pages() call
+>> site.
+>
+> I generally do not like passing redundant argument, and I don't really
+> see why this case is different.  Or in other ways I'd like to make
+> your above argument..
 
-I recall there are some ksm test cases in LTP. Did you try them out?
-On Fri, Sep 14, 2018 at 7:28 AM Pintu Kumar <pintu.ping@gmail.com> wrote:
->
-> Hi All,
->
-> Board: Hikey620 ARM64
-> Kernel: 4.9.20
->
-> I am trying to verify KSM (Kernel Same Page Merging) functionality on
-> 4.9 Kernel using "mmap" and madvise user space test utility.
-> But to my observation, it seems KSM is not working for me.
-> CONFIG_KSM=y is enabled in kernel.
-> ksm_init is also called during boot up.
->   443 ?        SN     0:00 [ksmd]
->
-> ksmd thread is also running.
->
-> However, when I see the sysfs, no values are written.
-> ~ # grep -H '' /sys/kernel/mm/ksm/*
-> /sys/kernel/mm/ksm/pages_hashed:0
-> /sys/kernel/mm/ksm/pages_scanned:0
-> /sys/kernel/mm/ksm/pages_shared:0
-> /sys/kernel/mm/ksm/pages_sharing:0
-> /sys/kernel/mm/ksm/pages_to_scan:200
-> /sys/kernel/mm/ksm/pages_unshared:0
-> /sys/kernel/mm/ksm/pages_volatile:0
-> /sys/kernel/mm/ksm/run:1
-> /sys/kernel/mm/ksm/sleep_millisecs:1000
->
-> So, please let me know if I am doing any thing wrong.
->
-> This is the test utility:
-> int main(int argc, char *argv[])
-> {
->         int i, n, size;
->         char *buffer;
->         void *addr;
->
->         n = 100;
->         size = 100 * getpagesize();
->         for (i = 0; i < n; i++) {
->                 buffer = (char *)malloc(size);
->                 memset(buffer, 0xff, size);
->                 addr =  mmap(NULL, size,
->                            PROT_READ | PROT_EXEC | PROT_WRITE,
-> MAP_PRIVATE | MAP_ANONYMOUS,
->                            -1, 0);
->                 madvise(addr, size, MADV_MERGEABLE);
->                 sleep(1);
->         }
->         printf("Done....press ^C\n");
->
->         pause();
->
->         return 0;
-> }
->
->
->
-> Thanks,
-> Pintu
->
+Logan had similar feedback, and now the chorus is getting louder. I
+personally like how I can do this with grep:
+
+drivers/dax/pmem.c:114: addr = devm_memremap_pages(dev,
+&dax_pmem->pgmap, dax_pmem_percpu_kill);
+--
+drivers/nvdimm/pmem.c:411:              addr =
+devm_memremap_pages(dev, &pmem->pgmap,
+drivers/nvdimm/pmem.c-412-                              pmem_freeze_queue);
+--
+drivers/nvdimm/pmem.c:425:              addr =
+devm_memremap_pages(dev, &pmem->pgmap,
+drivers/nvdimm/pmem.c-426-                              pmem_freeze_queue);
+--
+mm/hmm.c:1059:  result = devm_memremap_pages(devmem->device, &devmem->pagemap,
+mm/hmm.c-1060-                  hmm_devmem_ref_kill);
+--
+mm/hmm.c:1113:  result = devm_memremap_pages(devmem->device, &devmem->pagemap,
+mm/hmm.c-1114-                  hmm_devmem_ref_kill);
+
+...and see all of the kill() variants, but the redundancy will likely
+continue to bother folks.
+
+> Except for that the patch looks good to me.
+
+Thanks, I'll fix it up to drop the redundant arg.
