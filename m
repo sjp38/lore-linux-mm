@@ -1,59 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1882D8E0001
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 11:28:11 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id s200-v6so9963394oie.6
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:28:11 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id d127-v6si3515801oia.329.2018.09.14.08.28.09
-        for <linux-mm@kvack.org>;
-        Fri, 14 Sep 2018 08:28:09 -0700 (PDT)
-Date: Fri, 14 Sep 2018 16:28:26 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v6 00/18] khwasan: kernel hardware assisted address
- sanitizer
-Message-ID: <20180914152825.GC6236@arm.com>
-References: <cover.1535462971.git.andreyknvl@google.com>
- <20180905141032.b1ddaab53d1b2b3bada95415@linux-foundation.org>
- <20180906100543.GI3592@arm.com>
- <CAAeHK+wStsNwh2oKv-KCG4kx5538FuDMQ6Yw2X=sK5LPrw2DZg@mail.gmail.com>
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8617F8E0001
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 12:01:33 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id k204-v6so4637633ite.1
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 09:01:33 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id u77-v6si1341257ita.128.2018.09.14.09.01.31
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Sep 2018 09:01:31 -0700 (PDT)
+Subject: Re: [PATCH V2 0/6] VA to numa node information
+References: <1536783844-4145-1-git-send-email-prakash.sangappa@oracle.com>
+ <20180913084011.GC20287@dhcp22.suse.cz>
+ <375951d0-f103-dec3-34d8-bbeb2f45f666@oracle.com>
+ <20180914055637.GH20287@dhcp22.suse.cz>
+From: Steven Sistare <steven.sistare@oracle.com>
+Message-ID: <91988f05-2723-3120-5607-40fabe4a170d@oracle.com>
+Date: Fri, 14 Sep 2018 12:01:18 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAAeHK+wStsNwh2oKv-KCG4kx5538FuDMQ6Yw2X=sK5LPrw2DZg@mail.gmail.com>
+In-Reply-To: <20180914055637.GH20287@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: Michal Hocko <mhocko@kernel.org>, "prakash.sangappa" <prakash.sangappa@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@intel.com, nao.horiguchi@gmail.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, khandual@linux.vnet.ibm.com
 
-On Thu, Sep 06, 2018 at 01:06:23PM +0200, Andrey Konovalov wrote:
-> On Thu, Sep 6, 2018 at 12:05 PM, Will Deacon <will.deacon@arm.com> wrote:
-> > On Wed, Sep 05, 2018 at 02:10:32PM -0700, Andrew Morton wrote:
-> >> On Wed, 29 Aug 2018 13:35:04 +0200 Andrey Konovalov <andreyknvl@google.com> wrote:
-> >>
-> >> > This patchset adds a new mode to KASAN [1], which is called KHWASAN
-> >> > (Kernel HardWare assisted Address SANitizer).
-> >>
-> >> We're at v6 and there are no reviewed-by's or acked-by's to be seen.
-> >> Is that a fair commentary on what has been happening, or have people
-> >> been remiss in sending and gathering such things?
-> >
-> > I still have concerns about the consequences of merging this as anything
-> > other than a debug option [1]. Unfortunately, merging it as a debug option
-> > defeats the whole point, so I think we need to spend more effort on developing
-> > tools that can help us to find and fix the subtle bugs which will arise from
-> > enabling tagged pointers in the kernel.
+On 9/14/2018 1:56 AM, Michal Hocko wrote:
+> On Thu 13-09-18 15:32:25, prakash.sangappa wrote:
+>> On 09/13/2018 01:40 AM, Michal Hocko wrote:
+>>> On Wed 12-09-18 13:23:58, Prakash Sangappa wrote:
+>>>> For analysis purpose it is useful to have numa node information
+>>>> corresponding mapped virtual address ranges of a process. Currently,
+>>>> the file /proc/<pid>/numa_maps provides list of numa nodes from where pages
+>>>> are allocated per VMA of a process. This is not useful if an user needs to
+>>>> determine which numa node the mapped pages are allocated from for a
+>>>> particular address range. It would have helped if the numa node information
+>>>> presented in /proc/<pid>/numa_maps was broken down by VA ranges showing the
+>>>> exact numa node from where the pages have been allocated.
+>>>>
+>>>> The format of /proc/<pid>/numa_maps file content is dependent on
+>>>> /proc/<pid>/maps file content as mentioned in the manpage. i.e one line
+>>>> entry for every VMA corresponding to entries in /proc/<pids>/maps file.
+>>>> Therefore changing the output of /proc/<pid>/numa_maps may not be possible.
+>>>>
+>>>> This patch set introduces the file /proc/<pid>/numa_vamaps which
+>>>> will provide proper break down of VA ranges by numa node id from where the
+>>>> mapped pages are allocated. For Address ranges not having any pages mapped,
+>>>> a '-' is printed instead of numa node id.
+>>>>
+>>>> Includes support to lseek, allowing seeking to a specific process Virtual
+>>>> address(VA) starting from where the address range to numa node information
+>>>> can to be read from this file.
+>>>>
+>>>> The new file /proc/<pid>/numa_vamaps will be governed by ptrace access
+>>>> mode PTRACE_MODE_READ_REALCREDS.
+>>>>
+>>>> See following for previous discussion about this proposal
+>>>>
+>>>> https://marc.info/?t=152524073400001&r=1&w=2
+>>> It would be really great to give a short summary of the previous
+>>> discussion. E.g. why do we need a proc interface in the first place when
+>>> we already have an API to query for the information you are proposing to
+>>> export [1]
+>>>
+>>> [1] http://lkml.kernel.org/r/20180503085741.GD4535@dhcp22.suse.cz
+>>
+>> The proc interface provides an efficient way to export address range
+>> to numa node id mapping information compared to using the API.
 > 
-> I totally don't mind calling it a debug option. Do I need to somehow
-> specify it somewhere?
+> Do you have any numbers?
+> 
+>> For example, for sparsely populated mappings, if a VMA has large portions
+>> not have any physical pages mapped, the page walk done thru the /proc file
+>> interface can skip over non existent PMDs / ptes. Whereas using the
+>> API the application would have to scan the entire VMA in page size units.
+> 
+> What prevents you from pre-filtering by reading /proc/$pid/maps to get
+> ranges of interest?
 
-Ok, sorry, I completely misunderstood you earlier on then! For some reason
-I thought you wanted this on by default.
+That works for skipping holes, but not for skipping huge pages.  I did a 
+quick experiment to time move_pages on a 3 GHz Xeon and a 4.18 kernel.  
+Allocate 128 GB and touch every small page.  Call move_pages with nodes=NULL 
+to get the node id for all pages, passing 512 consecutive small pages per 
+call to move_nodes. The total move_nodes time is 1.85 secs, and 55 nsec 
+per page.  Extrapolating to a 1 TB range, it would take 15 sec to retrieve 
+the numa node for every small page in the range.  That is not terrible, but 
+it is not interactive, and it becomes terrible for multiple TB.
 
-In which case, I'm ok with the overall idea as long as we make the caveats
-clear in the Kconfig text. In particular, that enabling this option may
-introduce problems relating to pointer casting and comparison, but can
-offer better coverage and lower memory consumption than a fully
-software-based KASAN solution.
+>> Also, VMAs having THP pages can have a mix of 4k pages and hugepages.
+>> The page walks would be efficient in scanning and determining if it is
+>> a THP huge page and step over it. Whereas using the API, the application
+>> would not know what page size mapping is used for a given VA and so would
+>> have to again scan the VMA in units of 4k page size.
+> 
+> Why does this matter for something that is for analysis purposes.
+> Reading the file for the whole address space is far from a free
+> operation. Is the page walk optimization really essential for usability?
+> Moreover what prevents move_pages implementation to be clever for the
+> page walk itself? In other words why would we want to add a new API
+> rather than make the existing one faster for everybody.
 
-Will
+One could optimize move pages.  If the caller passes a consecutive range
+of small pages, and the page walk sees that a VA is mapped by a huge page, 
+then it can return the same numa node for each of the following VA's that fall 
+into the huge page range. It would be faster than 55 nsec per small page, but 
+hard to say how much faster, and the cost is still driven by the number of 
+small pages. 
+ 
+>> If this sounds reasonable, I can add it to the commit / patch description.
+> 
+> This all is absolutely _essential_ for any new API proposed. Remember that
+> once we add a new user interface, we have to maintain it for ever. We
+> used to be too relaxed when adding new proc files in the past and it
+> backfired many times already.
+
+An offhand idea -- we could extend /proc/pid/numa_maps in a backward compatible
+way by providing a control interface that is poked via write() or ioctl().
+Provide one control "do-not-combine".  If do-not-combine has been set, then
+the read() function returns a separate line for each range of memory mapped
+on the same numa node, in the existing format.
+
+- Steve
