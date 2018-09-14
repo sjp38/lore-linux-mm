@@ -1,312 +1,363 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 13E988E0001
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:13:12 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id j65-v6so3537997otc.5
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 05:13:12 -0700 (PDT)
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D4FD8E0001
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:13:20 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id p14-v6so9360190oip.0
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 05:13:20 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id u3-v6si1450291otj.449.2018.09.14.05.13.10
+        by mx.google.com with ESMTPS id i65-v6si3593602oih.28.2018.09.14.05.13.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Sep 2018 05:13:10 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8EC4XCM096265
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:13:10 -0400
+        Fri, 14 Sep 2018 05:13:18 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8EC6L9k088123
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:13:18 -0400
 Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mgay24x87-1
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2mg9pb7awp-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:13:09 -0400
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:13:17 -0400
 Received: from localhost
 	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Fri, 14 Sep 2018 13:13:07 +0100
+	Fri, 14 Sep 2018 13:13:13 +0100
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 20/30] memblock: replace __alloc_bootmem with memblock_alloc_from
-Date: Fri, 14 Sep 2018 15:10:35 +0300
+Subject: [PATCH 21/30] memblock: replace alloc_bootmem with memblock_alloc
+Date: Fri, 14 Sep 2018 15:10:36 +0300
 In-Reply-To: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com>
 References: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1536927045-23536-21-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1536927045-23536-22-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, "David S. Miller" <davem@davemloft.net>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jonas Bonn <jonas@southpole.se>, Jonathan Corbet <corbet@lwn.net>, Ley Foon Tan <lftan@altera.com>, Mark Salter <msalter@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matt Turner <mattst88@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Palmer Dabbelt <palmer@sifive.com>, Paul Burton <paul.burton@mips.com>, Richard Kuo <rkuo@codeaurora.org>, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Serge Semin <fancer.lancer@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, nios2-dev@lists.rocketboards.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-The functions are equivalent, just the later does not require nobootmem
-translation layer.
+The alloc_bootmem(size) is a shortcut for allocation of SMP_CACHE_BYTES
+aligned memory. When the align parameter of memblock_alloc() is 0, the
+alignment is implicitly set to SMP_CACHE_BYTES and thus alloc_bootmem(size)
+and memblock_alloc(size, 0) are equivalent.
 
 The conversion is done using the following semantic patch:
 
 @@
-expression size, align, goal;
+expression size;
 @@
-- __alloc_bootmem(size, align, goal)
-+ memblock_alloc_from(size, align, goal)
+- alloc_bootmem(size)
++ memblock_alloc(size, 0)
 
 Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- arch/alpha/kernel/core_cia.c  |  2 +-
- arch/alpha/kernel/pci_iommu.c |  4 ++--
- arch/alpha/kernel/setup.c     |  2 +-
- arch/ia64/kernel/mca.c        |  4 ++--
- arch/ia64/mm/contig.c         |  5 +++--
- arch/mips/kernel/traps.c      |  2 +-
- arch/sparc/kernel/prom_32.c   |  2 +-
- arch/sparc/kernel/smp_64.c    | 10 +++++-----
- arch/sparc/mm/init_32.c       |  2 +-
- arch/sparc/mm/init_64.c       |  9 ++++++---
- arch/sparc/mm/srmmu.c         | 10 +++++-----
- include/linux/bootmem.h       |  8 ++++++++
- 12 files changed, 36 insertions(+), 24 deletions(-)
+ arch/alpha/kernel/core_marvel.c     | 4 ++--
+ arch/alpha/kernel/pci-noop.c        | 4 ++--
+ arch/alpha/kernel/pci.c             | 4 ++--
+ arch/alpha/kernel/pci_iommu.c       | 4 ++--
+ arch/ia64/kernel/mca.c              | 4 ++--
+ arch/ia64/mm/tlb.c                  | 4 ++--
+ arch/m68k/sun3/sun3dvma.c           | 3 ++-
+ arch/microblaze/mm/init.c           | 2 +-
+ arch/mips/kernel/setup.c            | 2 +-
+ arch/um/drivers/net_kern.c          | 2 +-
+ arch/um/drivers/vector_kern.c       | 2 +-
+ arch/um/kernel/initrd.c             | 2 +-
+ arch/x86/kernel/acpi/boot.c         | 3 ++-
+ arch/x86/kernel/apic/io_apic.c      | 2 +-
+ arch/x86/kernel/e820.c              | 2 +-
+ arch/x86/platform/olpc/olpc_dt.c    | 2 +-
+ arch/xtensa/platforms/iss/network.c | 2 +-
+ drivers/macintosh/smu.c             | 2 +-
+ init/main.c                         | 4 ++--
+ 19 files changed, 28 insertions(+), 26 deletions(-)
 
-diff --git a/arch/alpha/kernel/core_cia.c b/arch/alpha/kernel/core_cia.c
-index 4b38386..026ee95 100644
---- a/arch/alpha/kernel/core_cia.c
-+++ b/arch/alpha/kernel/core_cia.c
-@@ -331,7 +331,7 @@ cia_prepare_tbia_workaround(int window)
- 	long i;
+diff --git a/arch/alpha/kernel/core_marvel.c b/arch/alpha/kernel/core_marvel.c
+index bdebb8c2..1f00c94 100644
+--- a/arch/alpha/kernel/core_marvel.c
++++ b/arch/alpha/kernel/core_marvel.c
+@@ -82,7 +82,7 @@ mk_resource_name(int pe, int port, char *str)
+ 	char *name;
+ 	
+ 	sprintf(tmp, "PCI %s PE %d PORT %d", str, pe, port);
+-	name = alloc_bootmem(strlen(tmp) + 1);
++	name = memblock_alloc(strlen(tmp) + 1, 0);
+ 	strcpy(name, tmp);
  
- 	/* Use minimal 1K map. */
--	ppte = __alloc_bootmem(CIA_BROKEN_TBIA_SIZE, 32768, 0);
-+	ppte = memblock_alloc_from(CIA_BROKEN_TBIA_SIZE, 32768, 0);
- 	pte = (virt_to_phys(ppte) >> (PAGE_SHIFT - 1)) | 1;
+ 	return name;
+@@ -117,7 +117,7 @@ alloc_io7(unsigned int pe)
+ 		return NULL;
+ 	}
  
- 	for (i = 0; i < CIA_BROKEN_TBIA_SIZE / sizeof(unsigned long); ++i)
+-	io7 = alloc_bootmem(sizeof(*io7));
++	io7 = memblock_alloc(sizeof(*io7), 0);
+ 	io7->pe = pe;
+ 	raw_spin_lock_init(&io7->irq_lock);
+ 
+diff --git a/arch/alpha/kernel/pci-noop.c b/arch/alpha/kernel/pci-noop.c
+index c7c5879..59cbfc2 100644
+--- a/arch/alpha/kernel/pci-noop.c
++++ b/arch/alpha/kernel/pci-noop.c
+@@ -33,7 +33,7 @@ alloc_pci_controller(void)
+ {
+ 	struct pci_controller *hose;
+ 
+-	hose = alloc_bootmem(sizeof(*hose));
++	hose = memblock_alloc(sizeof(*hose), 0);
+ 
+ 	*hose_tail = hose;
+ 	hose_tail = &hose->next;
+@@ -44,7 +44,7 @@ alloc_pci_controller(void)
+ struct resource * __init
+ alloc_resource(void)
+ {
+-	return alloc_bootmem(sizeof(struct resource));
++	return memblock_alloc(sizeof(struct resource), 0);
+ }
+ 
+ SYSCALL_DEFINE3(pciconfig_iobase, long, which, unsigned long, bus,
+diff --git a/arch/alpha/kernel/pci.c b/arch/alpha/kernel/pci.c
+index c668c3b..4cc3eb9 100644
+--- a/arch/alpha/kernel/pci.c
++++ b/arch/alpha/kernel/pci.c
+@@ -392,7 +392,7 @@ alloc_pci_controller(void)
+ {
+ 	struct pci_controller *hose;
+ 
+-	hose = alloc_bootmem(sizeof(*hose));
++	hose = memblock_alloc(sizeof(*hose), 0);
+ 
+ 	*hose_tail = hose;
+ 	hose_tail = &hose->next;
+@@ -403,7 +403,7 @@ alloc_pci_controller(void)
+ struct resource * __init
+ alloc_resource(void)
+ {
+-	return alloc_bootmem(sizeof(struct resource));
++	return memblock_alloc(sizeof(struct resource), 0);
+ }
+ 
+ 
 diff --git a/arch/alpha/kernel/pci_iommu.c b/arch/alpha/kernel/pci_iommu.c
-index b52d76f..0c05493 100644
+index 0c05493..5d178c7 100644
 --- a/arch/alpha/kernel/pci_iommu.c
 +++ b/arch/alpha/kernel/pci_iommu.c
-@@ -87,13 +87,13 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
- 		printk("%s: couldn't allocate arena ptes from node %d\n"
+@@ -79,7 +79,7 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
+ 		printk("%s: couldn't allocate arena from node %d\n"
  		       "    falling back to system-wide allocation\n",
  		       __func__, nid);
--		arena->ptes = __alloc_bootmem(mem_size, align, 0);
-+		arena->ptes = memblock_alloc_from(mem_size, align, 0);
+-		arena = alloc_bootmem(sizeof(*arena));
++		arena = memblock_alloc(sizeof(*arena), 0);
  	}
+ 
+ 	arena->ptes = memblock_alloc_node(sizeof(*arena), align, nid);
+@@ -92,7 +92,7 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
  
  #else /* CONFIG_DISCONTIGMEM */
  
- 	arena = alloc_bootmem(sizeof(*arena));
--	arena->ptes = __alloc_bootmem(mem_size, align, 0);
-+	arena->ptes = memblock_alloc_from(mem_size, align, 0);
+-	arena = alloc_bootmem(sizeof(*arena));
++	arena = memblock_alloc(sizeof(*arena), 0);
+ 	arena->ptes = memblock_alloc_from(mem_size, align, 0);
  
  #endif /* CONFIG_DISCONTIGMEM */
- 
-diff --git a/arch/alpha/kernel/setup.c b/arch/alpha/kernel/setup.c
-index 4f0d944..64c06a0 100644
---- a/arch/alpha/kernel/setup.c
-+++ b/arch/alpha/kernel/setup.c
-@@ -294,7 +294,7 @@ move_initrd(unsigned long mem_limit)
- 	unsigned long size;
- 
- 	size = initrd_end - initrd_start;
--	start = __alloc_bootmem(PAGE_ALIGN(size), PAGE_SIZE, 0);
-+	start = memblock_alloc_from(PAGE_ALIGN(size), PAGE_SIZE, 0);
- 	if (!start || __pa(start) + size > mem_limit) {
- 		initrd_start = initrd_end = 0;
- 		return NULL;
 diff --git a/arch/ia64/kernel/mca.c b/arch/ia64/kernel/mca.c
-index 6115464..5586926 100644
+index 5586926..7120976 100644
 --- a/arch/ia64/kernel/mca.c
 +++ b/arch/ia64/kernel/mca.c
-@@ -1835,8 +1835,8 @@ format_mca_init_stack(void *mca_data, unsigned long offset,
- /* Caller prevents this from being called after init */
- static void * __ref mca_bootmem(void)
+@@ -361,9 +361,9 @@ static ia64_state_log_t ia64_state_log[IA64_MAX_LOG_TYPES];
+ 
+ #define IA64_LOG_ALLOCATE(it, size) \
+ 	{ia64_state_log[it].isl_log[IA64_LOG_CURR_INDEX(it)] = \
+-		(ia64_err_rec_t *)alloc_bootmem(size); \
++		(ia64_err_rec_t *)memblock_alloc(size, 0); \
+ 	ia64_state_log[it].isl_log[IA64_LOG_NEXT_INDEX(it)] = \
+-		(ia64_err_rec_t *)alloc_bootmem(size);}
++		(ia64_err_rec_t *)memblock_alloc(size, 0);}
+ #define IA64_LOG_LOCK_INIT(it) spin_lock_init(&ia64_state_log[it].isl_lock)
+ #define IA64_LOG_LOCK(it)      spin_lock_irqsave(&ia64_state_log[it].isl_lock, s)
+ #define IA64_LOG_UNLOCK(it)    spin_unlock_irqrestore(&ia64_state_log[it].isl_lock,s)
+diff --git a/arch/ia64/mm/tlb.c b/arch/ia64/mm/tlb.c
+index acf10eb..5554863 100644
+--- a/arch/ia64/mm/tlb.c
++++ b/arch/ia64/mm/tlb.c
+@@ -59,8 +59,8 @@ struct ia64_tr_entry *ia64_idtrs[NR_CPUS];
+ void __init
+ mmu_context_init (void)
  {
--	return __alloc_bootmem(sizeof(struct ia64_mca_cpu),
--	                    KERNEL_STACK_SIZE, 0);
-+	return memblock_alloc_from(sizeof(struct ia64_mca_cpu),
-+				   KERNEL_STACK_SIZE, 0);
+-	ia64_ctx.bitmap = alloc_bootmem((ia64_ctx.max_ctx+1)>>3);
+-	ia64_ctx.flushmap = alloc_bootmem((ia64_ctx.max_ctx+1)>>3);
++	ia64_ctx.bitmap = memblock_alloc((ia64_ctx.max_ctx + 1) >> 3, 0);
++	ia64_ctx.flushmap = memblock_alloc((ia64_ctx.max_ctx + 1) >> 3, 0);
  }
  
- /* Do per-CPU MCA-related initialization.  */
-diff --git a/arch/ia64/mm/contig.c b/arch/ia64/mm/contig.c
-index e2e40bb..9e5c23a 100644
---- a/arch/ia64/mm/contig.c
-+++ b/arch/ia64/mm/contig.c
-@@ -85,8 +85,9 @@ void *per_cpu_init(void)
- static inline void
- alloc_per_cpu_data(void)
- {
--	cpu_data = __alloc_bootmem(PERCPU_PAGE_SIZE * num_possible_cpus(),
--				   PERCPU_PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
-+	cpu_data = memblock_alloc_from(PERCPU_PAGE_SIZE * num_possible_cpus(),
-+				       PERCPU_PAGE_SIZE,
-+				       __pa(MAX_DMA_ADDRESS));
- }
+ /*
+diff --git a/arch/m68k/sun3/sun3dvma.c b/arch/m68k/sun3/sun3dvma.c
+index 8546922..72d9458 100644
+--- a/arch/m68k/sun3/sun3dvma.c
++++ b/arch/m68k/sun3/sun3dvma.c
+@@ -267,7 +267,8 @@ void __init dvma_init(void)
  
- /**
-diff --git a/arch/mips/kernel/traps.c b/arch/mips/kernel/traps.c
-index 5feef28..623dc18 100644
---- a/arch/mips/kernel/traps.c
-+++ b/arch/mips/kernel/traps.c
-@@ -2263,7 +2263,7 @@ void __init trap_init(void)
+ 	list_add(&(hole->list), &hole_list);
  
- 		memblock_set_bottom_up(true);
- 		ebase = (unsigned long)
--			__alloc_bootmem(size, 1 << fls(size), 0);
-+			memblock_alloc_from(size, 1 << fls(size), 0);
- 		memblock_set_bottom_up(false);
+-	iommu_use = alloc_bootmem(IOMMU_TOTAL_ENTRIES * sizeof(unsigned long));
++	iommu_use = memblock_alloc(IOMMU_TOTAL_ENTRIES * sizeof(unsigned long),
++				   0);
  
- 		/*
-diff --git a/arch/sparc/kernel/prom_32.c b/arch/sparc/kernel/prom_32.c
-index b51cbb9..4389944 100644
---- a/arch/sparc/kernel/prom_32.c
-+++ b/arch/sparc/kernel/prom_32.c
-@@ -32,7 +32,7 @@ void * __init prom_early_alloc(unsigned long size)
- {
- 	void *ret;
+ 	dvma_unmap_iommu(DVMA_START, DVMA_SIZE);
  
--	ret = __alloc_bootmem(size, SMP_CACHE_BYTES, 0UL);
-+	ret = memblock_alloc_from(size, SMP_CACHE_BYTES, 0UL);
- 	if (ret != NULL)
- 		memset(ret, 0, size);
- 
-diff --git a/arch/sparc/kernel/smp_64.c b/arch/sparc/kernel/smp_64.c
-index 83ff88d..337febd 100644
---- a/arch/sparc/kernel/smp_64.c
-+++ b/arch/sparc/kernel/smp_64.c
-@@ -1588,7 +1588,7 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, size_t size,
- 	void *ptr;
- 
- 	if (!node_online(node) || !NODE_DATA(node)) {
--		ptr = __alloc_bootmem(size, align, goal);
-+		ptr = memblock_alloc_from(size, align, goal);
- 		pr_info("cpu %d has no node %d or node-local memory\n",
- 			cpu, node);
- 		pr_debug("per cpu data for cpu%d %lu bytes at %016lx\n",
-@@ -1601,7 +1601,7 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, size_t size,
+diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
+index df6de7c..8c7f074 100644
+--- a/arch/microblaze/mm/init.c
++++ b/arch/microblaze/mm/init.c
+@@ -377,7 +377,7 @@ void * __ref zalloc_maybe_bootmem(size_t size, gfp_t mask)
+ 	if (mem_init_done)
+ 		p = kzalloc(size, mask);
+ 	else {
+-		p = alloc_bootmem(size);
++		p = memblock_alloc(size, 0);
+ 		if (p)
+ 			memset(p, 0, size);
  	}
- 	return ptr;
- #else
--	return __alloc_bootmem(size, align, goal);
-+	return memblock_alloc_from(size, align, goal);
- #endif
- }
+diff --git a/arch/mips/kernel/setup.c b/arch/mips/kernel/setup.c
+index a717c90..a6bc2f6 100644
+--- a/arch/mips/kernel/setup.c
++++ b/arch/mips/kernel/setup.c
+@@ -909,7 +909,7 @@ static void __init resource_init(void)
+ 		if (end >= HIGHMEM_START)
+ 			end = HIGHMEM_START - 1;
  
-@@ -1627,7 +1627,7 @@ static void __init pcpu_populate_pte(unsigned long addr)
- 	if (pgd_none(*pgd)) {
- 		pud_t *new;
+-		res = alloc_bootmem(sizeof(struct resource));
++		res = memblock_alloc(sizeof(struct resource), 0);
  
--		new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
-+		new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
- 		pgd_populate(&init_mm, pgd, new);
+ 		res->start = start;
+ 		res->end = end;
+diff --git a/arch/um/drivers/net_kern.c b/arch/um/drivers/net_kern.c
+index 3ef1b48..ef19a39 100644
+--- a/arch/um/drivers/net_kern.c
++++ b/arch/um/drivers/net_kern.c
+@@ -650,7 +650,7 @@ static int __init eth_setup(char *str)
+ 		return 1;
  	}
  
-@@ -1635,7 +1635,7 @@ static void __init pcpu_populate_pte(unsigned long addr)
- 	if (pud_none(*pud)) {
- 		pmd_t *new;
+-	new = alloc_bootmem(sizeof(*new));
++	new = memblock_alloc(sizeof(*new), 0);
  
--		new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
-+		new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
- 		pud_populate(&init_mm, pud, new);
+ 	INIT_LIST_HEAD(&new->list);
+ 	new->index = n;
+diff --git a/arch/um/drivers/vector_kern.c b/arch/um/drivers/vector_kern.c
+index c84133c..9d77579 100644
+--- a/arch/um/drivers/vector_kern.c
++++ b/arch/um/drivers/vector_kern.c
+@@ -1575,7 +1575,7 @@ static int __init vector_setup(char *str)
+ 				 str, error);
+ 		return 1;
+ 	}
+-	new = alloc_bootmem(sizeof(*new));
++	new = memblock_alloc(sizeof(*new), 0);
+ 	INIT_LIST_HEAD(&new->list);
+ 	new->unit = n;
+ 	new->arguments = str;
+diff --git a/arch/um/kernel/initrd.c b/arch/um/kernel/initrd.c
+index 6f6e789..844056c 100644
+--- a/arch/um/kernel/initrd.c
++++ b/arch/um/kernel/initrd.c
+@@ -36,7 +36,7 @@ int __init read_initrd(void)
+ 		return 0;
  	}
  
-@@ -1643,7 +1643,7 @@ static void __init pcpu_populate_pte(unsigned long addr)
- 	if (!pmd_present(*pmd)) {
- 		pte_t *new;
+-	area = alloc_bootmem(size);
++	area = memblock_alloc(size, 0);
  
--		new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
-+		new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
- 		pmd_populate_kernel(&init_mm, pmd, new);
+ 	if (load_initrd(initrd, area, size) == -1)
+ 		return 0;
+diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
+index 3b20607..fd887c1 100644
+--- a/arch/x86/kernel/acpi/boot.c
++++ b/arch/x86/kernel/acpi/boot.c
+@@ -932,7 +932,8 @@ static int __init acpi_parse_hpet(struct acpi_table_header *table)
+ 	 * the resource tree during the lateinit timeframe.
+ 	 */
+ #define HPET_RESOURCE_NAME_SIZE 9
+-	hpet_res = alloc_bootmem(sizeof(*hpet_res) + HPET_RESOURCE_NAME_SIZE);
++	hpet_res = memblock_alloc(sizeof(*hpet_res) + HPET_RESOURCE_NAME_SIZE,
++				  0);
+ 
+ 	hpet_res->name = (void *)&hpet_res[1];
+ 	hpet_res->flags = IORESOURCE_MEM;
+diff --git a/arch/x86/kernel/apic/io_apic.c b/arch/x86/kernel/apic/io_apic.c
+index e25118f..8c74509 100644
+--- a/arch/x86/kernel/apic/io_apic.c
++++ b/arch/x86/kernel/apic/io_apic.c
+@@ -2578,7 +2578,7 @@ static struct resource * __init ioapic_setup_resources(void)
+ 	n = IOAPIC_RESOURCE_NAME_SIZE + sizeof(struct resource);
+ 	n *= nr_ioapics;
+ 
+-	mem = alloc_bootmem(n);
++	mem = memblock_alloc(n, 0);
+ 	res = (void *)mem;
+ 
+ 	mem += sizeof(struct resource) * nr_ioapics;
+diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+index c88c23c..7ea8748 100644
+--- a/arch/x86/kernel/e820.c
++++ b/arch/x86/kernel/e820.c
+@@ -1094,7 +1094,7 @@ void __init e820__reserve_resources(void)
+ 	struct resource *res;
+ 	u64 end;
+ 
+-	res = alloc_bootmem(sizeof(*res) * e820_table->nr_entries);
++	res = memblock_alloc(sizeof(*res) * e820_table->nr_entries, 0);
+ 	e820_res = res;
+ 
+ 	for (i = 0; i < e820_table->nr_entries; i++) {
+diff --git a/arch/x86/platform/olpc/olpc_dt.c b/arch/x86/platform/olpc/olpc_dt.c
+index d6ee929..140cd76 100644
+--- a/arch/x86/platform/olpc/olpc_dt.c
++++ b/arch/x86/platform/olpc/olpc_dt.c
+@@ -141,7 +141,7 @@ void * __init prom_early_alloc(unsigned long size)
+ 		 * fast enough on the platforms we care about while minimizing
+ 		 * wasted bootmem) and hand off chunks of it to callers.
+ 		 */
+-		res = alloc_bootmem(chunk_size);
++		res = memblock_alloc(chunk_size, 0);
+ 		BUG_ON(!res);
+ 		prom_early_allocated += chunk_size;
+ 		memset(res, 0, chunk_size);
+diff --git a/arch/xtensa/platforms/iss/network.c b/arch/xtensa/platforms/iss/network.c
+index d027ddd..206b9d4 100644
+--- a/arch/xtensa/platforms/iss/network.c
++++ b/arch/xtensa/platforms/iss/network.c
+@@ -646,7 +646,7 @@ static int __init iss_net_setup(char *str)
+ 		return 1;
  	}
- }
-diff --git a/arch/sparc/mm/init_32.c b/arch/sparc/mm/init_32.c
-index 92634d4..885dd38 100644
---- a/arch/sparc/mm/init_32.c
-+++ b/arch/sparc/mm/init_32.c
-@@ -265,7 +265,7 @@ void __init mem_init(void)
- 	i = last_valid_pfn >> ((20 - PAGE_SHIFT) + 5);
- 	i += 1;
- 	sparc_valid_addr_bitmap = (unsigned long *)
--		__alloc_bootmem(i << 2, SMP_CACHE_BYTES, 0UL);
-+		memblock_alloc_from(i << 2, SMP_CACHE_BYTES, 0UL);
  
- 	if (sparc_valid_addr_bitmap == NULL) {
- 		prom_printf("mem_init: Cannot alloc valid_addr_bitmap.\n");
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index 578ec3d..51cd583 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -1810,7 +1810,8 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
- 		if (pgd_none(*pgd)) {
- 			pud_t *new;
+-	new = alloc_bootmem(sizeof(*new));
++	new = memblock_alloc(sizeof(*new), 0);
+ 	if (new == NULL) {
+ 		pr_err("Alloc_bootmem failed\n");
+ 		return 1;
+diff --git a/drivers/macintosh/smu.c b/drivers/macintosh/smu.c
+index e8ae2e5..332fcca 100644
+--- a/drivers/macintosh/smu.c
++++ b/drivers/macintosh/smu.c
+@@ -493,7 +493,7 @@ int __init smu_init (void)
+ 		goto fail_np;
+ 	}
  
--			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
-+			new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE,
-+						  PAGE_SIZE);
- 			alloc_bytes += PAGE_SIZE;
- 			pgd_populate(&init_mm, pgd, new);
+-	smu = alloc_bootmem(sizeof(struct smu_device));
++	smu = memblock_alloc(sizeof(struct smu_device), 0);
+ 
+ 	spin_lock_init(&smu->lock);
+ 	INIT_LIST_HEAD(&smu->cmd_list);
+diff --git a/init/main.c b/init/main.c
+index d0b92bd..99a9e99 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -768,8 +768,8 @@ static int __init initcall_blacklist(char *str)
+ 		str_entry = strsep(&str, ",");
+ 		if (str_entry) {
+ 			pr_debug("blacklisting initcall %s\n", str_entry);
+-			entry = alloc_bootmem(sizeof(*entry));
+-			entry->buf = alloc_bootmem(strlen(str_entry) + 1);
++			entry = memblock_alloc(sizeof(*entry), 0);
++			entry->buf = memblock_alloc(strlen(str_entry) + 1, 0);
+ 			strcpy(entry->buf, str_entry);
+ 			list_add(&entry->next, &blacklisted_initcalls);
  		}
-@@ -1822,7 +1823,8 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
- 				vstart = kernel_map_hugepud(vstart, vend, pud);
- 				continue;
- 			}
--			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
-+			new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE,
-+						  PAGE_SIZE);
- 			alloc_bytes += PAGE_SIZE;
- 			pud_populate(&init_mm, pud, new);
- 		}
-@@ -1835,7 +1837,8 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
- 				vstart = kernel_map_hugepmd(vstart, vend, pmd);
- 				continue;
- 			}
--			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
-+			new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE,
-+						  PAGE_SIZE);
- 			alloc_bytes += PAGE_SIZE;
- 			pmd_populate_kernel(&init_mm, pmd, new);
- 		}
-diff --git a/arch/sparc/mm/srmmu.c b/arch/sparc/mm/srmmu.c
-index be9cb00..b48fea5 100644
---- a/arch/sparc/mm/srmmu.c
-+++ b/arch/sparc/mm/srmmu.c
-@@ -303,13 +303,13 @@ static void __init srmmu_nocache_init(void)
- 
- 	bitmap_bits = srmmu_nocache_size >> SRMMU_NOCACHE_BITMAP_SHIFT;
- 
--	srmmu_nocache_pool = __alloc_bootmem(srmmu_nocache_size,
--		SRMMU_NOCACHE_ALIGN_MAX, 0UL);
-+	srmmu_nocache_pool = memblock_alloc_from(srmmu_nocache_size,
-+						 SRMMU_NOCACHE_ALIGN_MAX, 0UL);
- 	memset(srmmu_nocache_pool, 0, srmmu_nocache_size);
- 
- 	srmmu_nocache_bitmap =
--		__alloc_bootmem(BITS_TO_LONGS(bitmap_bits) * sizeof(long),
--				SMP_CACHE_BYTES, 0UL);
-+		memblock_alloc_from(BITS_TO_LONGS(bitmap_bits) * sizeof(long),
-+				    SMP_CACHE_BYTES, 0UL);
- 	bit_map_init(&srmmu_nocache_map, srmmu_nocache_bitmap, bitmap_bits);
- 
- 	srmmu_swapper_pg_dir = __srmmu_get_nocache(SRMMU_PGD_TABLE_SIZE, SRMMU_PGD_TABLE_SIZE);
-@@ -467,7 +467,7 @@ static void __init sparc_context_init(int numctx)
- 	unsigned long size;
- 
- 	size = numctx * sizeof(struct ctx_list);
--	ctx_list_pool = __alloc_bootmem(size, SMP_CACHE_BYTES, 0UL);
-+	ctx_list_pool = memblock_alloc_from(size, SMP_CACHE_BYTES, 0UL);
- 
- 	for (ctx = 0; ctx < numctx; ctx++) {
- 		struct ctx_list *clist;
-diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
-index 3896af2..c97c105 100644
---- a/include/linux/bootmem.h
-+++ b/include/linux/bootmem.h
-@@ -122,6 +122,14 @@ static inline void * __init memblock_alloc_raw(
- 					    NUMA_NO_NODE);
- }
- 
-+static inline void * __init memblock_alloc_from(
-+		phys_addr_t size, phys_addr_t align, phys_addr_t min_addr)
-+{
-+	return memblock_alloc_try_nid(size, align, min_addr,
-+				      BOOTMEM_ALLOC_ACCESSIBLE,
-+				      NUMA_NO_NODE);
-+}
-+
- static inline void * __init memblock_alloc_nopanic(
- 					phys_addr_t size, phys_addr_t align)
- {
 -- 
 2.7.4
