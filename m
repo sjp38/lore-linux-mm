@@ -1,74 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 363868E0001
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 05:11:03 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id p51-v6so3453602eda.18
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 02:11:03 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w15-v6si1517350edq.75.2018.09.14.02.11.01
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D39FD8E0001
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 05:28:13 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id t46-v6so3253141otf.13
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 02:28:13 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id y207-v6si3455963oia.346.2018.09.14.02.28.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Sep 2018 02:11:01 -0700 (PDT)
-Date: Fri, 14 Sep 2018 11:10:53 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] memory_hotplug: Free pages as pageblock_order
-Message-ID: <20180914091053.GJ20287@dhcp22.suse.cz>
-References: <1536744405-16752-1-git-send-email-arunks@codeaurora.org>
- <20180912103853.GC10951@dhcp22.suse.cz>
- <20180912125743.GB8537@350D>
- <20180912131724.GH10951@dhcp22.suse.cz>
- <9d8dfd50046036a7b4e730738940014d@codeaurora.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9d8dfd50046036a7b4e730738940014d@codeaurora.org>
+        Fri, 14 Sep 2018 02:28:12 -0700 (PDT)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8E9O5m6048438
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 05:28:11 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mg9yy94eg-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 05:28:11 -0400
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Fri, 14 Sep 2018 10:28:07 +0100
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH v4 0/3] docs/core-api: add memory allocation guide
+Date: Fri, 14 Sep 2018 12:27:55 +0300
+Message-Id: <1536917278-31191-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arun KS <arunks@codeaurora.org>
-Cc: Balbir Singh <bsingharora@gmail.com>, akpm@linux-foundation.org, dan.j.williams@intel.com, vbabka@suse.cz, pasha.tatashin@oracle.com, iamjoonsoo.kim@lge.com, osalvador@suse.de, malat@debian.org, gregkh@linuxfoundation.org, yasu.isimatu@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, arunks.linux@gmail.com, vinmenon@codeaurora.org
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, Randy Dunlap <rdunlap@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On Wed 12-09-18 20:12:30, Arun KS wrote:
-> On 2018-09-12 18:47, Michal Hocko wrote:
-> > On Wed 12-09-18 22:57:43, Balbir Singh wrote:
-> > > On Wed, Sep 12, 2018 at 12:38:53PM +0200, Michal Hocko wrote:
-> > > > On Wed 12-09-18 14:56:45, Arun KS wrote:
-> > > > > When free pages are done with pageblock_order, time spend on
-> > > > > coalescing pages by buddy allocator can be reduced. With
-> > > > > section size of 256MB, hot add latency of a single section
-> > > > > shows improvement from 50-60 ms to less than 1 ms, hence
-> > > > > improving the hot add latency by 60%.
-> > > >
-> > > > Where does the improvement come from? You are still doing the same
-> > > > amount of work except that the number of callbacks is lower. Is this the
-> > > > real source of 60% improvement?
-> > > >
-> > > 
-> > > It looks like only the first page of the pageblock is initialized, is
-> > > some of the cost amortized in terms of doing one initialization for
-> > > the page with order (order) and then relying on split_page and helpers
-> > > to do the rest? Of course the number of callbacks reduce by a
-> > > significant
-> > > number as well.
-> > 
-> > Ohh, I have missed that part. Now when re-reading I can see the reason
-> > for the perf improvement. It is most likely the higher order free which
-> > ends up being much cheaper. This part makes some sense.
-> > 
-> > How much is this feasible is another question. Do not forget we have
-> > those external providers of the online callback and those would need to
-> > be updated as well.
-> Sure Michal, I ll look into this.
-> 
-> > 
-> > Btw. the normal memmap init code path does the same per-page free as
-> > well. If we really want to speed the hotplug path then I guess the init
-> > one would see a bigger improvement and those two should be in sync.
-> Thanks for pointers, Will look further.
+Hi,
 
-I haven't looked closer and I will be travelling next week so just hint.
-Have a look at the nobootmem and how it frees pages to the page
-allocator in __free_pages_boot_core. Seems exactly what you want and it
-also answers your question about reference counting.
+As Vlastimil mentioned at [1], it would be nice to have some guide about
+memory allocation. This set adds such guide that summarizes the "best
+practices". 
+
+The changes from the RFC include additions and corrections from Michal and
+Randy. I've also added markup to cross-reference the kernel-doc
+documentation.
+
+I've split the patch into three to separate labels addition to the exiting
+files from the new contents.
+
+v3 -> v4:
+  * make GFP_*USER* description less confusing
+
+v2 -> v3:
+  * s/HW/hardware
+
+[1] https://www.spinics.net/lists/netfilter-devel/msg55542.html
+
+Mike Rapoport (3):
+  docs: core-api/gfp_mask-from-fs-io: add a label for cross-referencing
+  docs: core-api/mm-api: add a lable for GFP flags section
+  docs: core-api: add memory allocation guide
+
+ Documentation/core-api/gfp_mask-from-fs-io.rst |   2 +
+ Documentation/core-api/index.rst               |   1 +
+ Documentation/core-api/memory-allocation.rst   | 122 +++++++++++++++++++++++++
+ Documentation/core-api/mm-api.rst              |   2 +
+ 4 files changed, 127 insertions(+)
+ create mode 100644 Documentation/core-api/memory-allocation.rst
+
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
