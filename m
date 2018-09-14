@@ -1,157 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 93C9B8E0001
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 04:42:42 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id n23-v6so3194262otl.2
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 01:42:42 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id v6-v6si3352405oix.348.2018.09.14.01.42.41
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 363868E0001
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 05:11:03 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id p51-v6so3453602eda.18
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 02:11:03 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w15-v6si1517350edq.75.2018.09.14.02.11.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Sep 2018 01:42:41 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8E8cZCT130954
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 04:42:40 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2mg70xxuaf-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 04:42:40 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Fri, 14 Sep 2018 09:42:39 +0100
-Date: Fri, 14 Sep 2018 11:42:32 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH V8 2/2] ksm: replace jhash2 with xxhash
-References: <20180913214102.28269-1-timofey.titovets@synesis.ru>
- <20180913214102.28269-3-timofey.titovets@synesis.ru>
+        Fri, 14 Sep 2018 02:11:01 -0700 (PDT)
+Date: Fri, 14 Sep 2018 11:10:53 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC] memory_hotplug: Free pages as pageblock_order
+Message-ID: <20180914091053.GJ20287@dhcp22.suse.cz>
+References: <1536744405-16752-1-git-send-email-arunks@codeaurora.org>
+ <20180912103853.GC10951@dhcp22.suse.cz>
+ <20180912125743.GB8537@350D>
+ <20180912131724.GH10951@dhcp22.suse.cz>
+ <9d8dfd50046036a7b4e730738940014d@codeaurora.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180913214102.28269-3-timofey.titovets@synesis.ru>
-Message-Id: <20180914084232.GF15191@rapoport-lnx>
+In-Reply-To: <9d8dfd50046036a7b4e730738940014d@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Timofey Titovets <timofey.titovets@synesis.ru>
-Cc: linux-mm@kvack.org, Timofey Titovets <nefelim4ag@gmail.com>, leesioh <solee@os.korea.ac.kr>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org
+To: Arun KS <arunks@codeaurora.org>
+Cc: Balbir Singh <bsingharora@gmail.com>, akpm@linux-foundation.org, dan.j.williams@intel.com, vbabka@suse.cz, pasha.tatashin@oracle.com, iamjoonsoo.kim@lge.com, osalvador@suse.de, malat@debian.org, gregkh@linuxfoundation.org, yasu.isimatu@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, arunks.linux@gmail.com, vinmenon@codeaurora.org
 
-On Fri, Sep 14, 2018 at 12:41:02AM +0300, Timofey Titovets wrote:
-> From: Timofey Titovets <nefelim4ag@gmail.com>
+On Wed 12-09-18 20:12:30, Arun KS wrote:
+> On 2018-09-12 18:47, Michal Hocko wrote:
+> > On Wed 12-09-18 22:57:43, Balbir Singh wrote:
+> > > On Wed, Sep 12, 2018 at 12:38:53PM +0200, Michal Hocko wrote:
+> > > > On Wed 12-09-18 14:56:45, Arun KS wrote:
+> > > > > When free pages are done with pageblock_order, time spend on
+> > > > > coalescing pages by buddy allocator can be reduced. With
+> > > > > section size of 256MB, hot add latency of a single section
+> > > > > shows improvement from 50-60 ms to less than 1 ms, hence
+> > > > > improving the hot add latency by 60%.
+> > > >
+> > > > Where does the improvement come from? You are still doing the same
+> > > > amount of work except that the number of callbacks is lower. Is this the
+> > > > real source of 60% improvement?
+> > > >
+> > > 
+> > > It looks like only the first page of the pageblock is initialized, is
+> > > some of the cost amortized in terms of doing one initialization for
+> > > the page with order (order) and then relying on split_page and helpers
+> > > to do the rest? Of course the number of callbacks reduce by a
+> > > significant
+> > > number as well.
+> > 
+> > Ohh, I have missed that part. Now when re-reading I can see the reason
+> > for the perf improvement. It is most likely the higher order free which
+> > ends up being much cheaper. This part makes some sense.
+> > 
+> > How much is this feasible is another question. Do not forget we have
+> > those external providers of the online callback and those would need to
+> > be updated as well.
+> Sure Michal, I ll look into this.
 > 
-> Replace jhash2 with xxhash.
-> 
-> Perf numbers:
-> Intel(R) Xeon(R) CPU E5-2420 v2 @ 2.20GHz
-> ksm: crc32c   hash() 12081 MB/s
-> ksm: xxh64    hash()  8770 MB/s
-> ksm: xxh32    hash()  4529 MB/s
-> ksm: jhash2   hash()  1569 MB/s
-> 
-> From Sioh Lee:
-> crc32c_intel: 1084.10ns
-> crc32c (no hardware acceleration): 7012.51ns
-> xxhash32: 2227.75ns
-> xxhash64: 1413.16ns
-> jhash2: 5128.30ns
-> 
-> As jhash2 always will be slower (for data size like PAGE_SIZE).
-> Don't use it in ksm at all.
-> 
-> Use only xxhash for now, because for using crc32c,
-> cryptoapi must be initialized first - that require some
-> tricky solution to work good in all situations.
-> 
-> Thanks.
-> 
-> Changes:
->   v1 -> v2:
->     - Move xxhash() to xxhash.h/c and separate patches
->   v2 -> v3:
->     - Move xxhash() xxhash.c -> xxhash.h
->     - replace xxhash_t with 'unsigned long'
->     - update kerneldoc above xxhash()
->   v3 -> v4:
->     - Merge xxhash/crc32 patches
->     - Replace crc32 with crc32c (crc32 have same as jhash2 speed)
->     - Add auto speed test and auto choice of fastest hash function
->   v4 -> v5:
->     - Pickup missed xxhash patch
->     - Update code with compile time choicen xxhash
->     - Add more macros to make code more readable
->     - As now that only possible use xxhash or crc32c,
->       on crc32c allocation error, skip speed test and fallback to xxhash
->     - For workaround too early init problem (crc32c not avaliable),
->       move zero_checksum init to first call of fastcall()
->     - Don't alloc page for hash testing, use arch zero pages for that
->   v5 -> v6:
->     - Use libcrc32c instead of CRYPTO API, mainly for
->       code/Kconfig deps Simplification
->     - Add crc32c_available():
->       libcrc32c will BUG_ON on crc32c problems,
->       so test crc32c avaliable by crc32c_available()
->     - Simplify choice_fastest_hash()
->     - Simplify fasthash()
->     - struct rmap_item && stable_node have sizeof == 64 on x86_64,
->       that makes them cache friendly. As we don't suffer from hash collisions,
->       change hash type from unsigned long back to u32.
->     - Fix kbuild robot warning, make all local functions static
->   v6 -> v7:
->     - Drop crc32c for now and use only xxhash in ksm.
->   v7 -> v8:
->     - Remove empty line changes
-> 
-> Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
-> Signed-off-by: leesioh <solee@os.korea.ac.kr>
-> Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+> > 
+> > Btw. the normal memmap init code path does the same per-page free as
+> > well. If we really want to speed the hotplug path then I guess the init
+> > one would see a bigger improvement and those two should be in sync.
+> Thanks for pointers, Will look further.
 
-Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-
-> CC: Andrea Arcangeli <aarcange@redhat.com>
-> CC: linux-mm@kvack.org
-> CC: kvm@vger.kernel.org
-> ---
->  mm/Kconfig | 1 +
->  mm/ksm.c   | 4 ++--
->  2 files changed, 3 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index a550635ea5c3..b5f923081bce 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -297,6 +297,7 @@ config MMU_NOTIFIER
->  config KSM
->  	bool "Enable KSM for page merging"
->  	depends on MMU
-> +	select XXHASH
->  	help
->  	  Enable Kernel Samepage Merging: KSM periodically scans those areas
->  	  of an application's address space that an app has advised may be
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> index 5b0894b45ee5..1a088306ef81 100644
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -25,7 +25,7 @@
->  #include <linux/pagemap.h>
->  #include <linux/rmap.h>
->  #include <linux/spinlock.h>
-> -#include <linux/jhash.h>
-> +#include <linux/xxhash.h>
->  #include <linux/delay.h>
->  #include <linux/kthread.h>
->  #include <linux/wait.h>
-> @@ -1009,7 +1009,7 @@ static u32 calc_checksum(struct page *page)
->  {
->  	u32 checksum;
->  	void *addr = kmap_atomic(page);
-> -	checksum = jhash2(addr, PAGE_SIZE / 4, 17);
-> +	checksum = xxhash(addr, PAGE_SIZE, 0);
->  	kunmap_atomic(addr);
->  	return checksum;
->  }
-> -- 
-> 2.19.0
-> 
-
+I haven't looked closer and I will be travelling next week so just hint.
+Have a look at the nobootmem and how it frees pages to the page
+allocator in __free_pages_boot_core. Seems exactly what you want and it
+also answers your question about reference counting.
 -- 
-Sincerely yours,
-Mike.
+Michal Hocko
+SUSE Labs
