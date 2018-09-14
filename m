@@ -1,142 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 151F08E0001
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 16:51:23 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id 3-v6so4858102plq.6
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 13:51:23 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id s59-v6si7990654plb.341.2018.09.14.13.51.21
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DDE2A8E0001
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 17:10:52 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id l14-v6so10984647oii.9
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 14:10:52 -0700 (PDT)
+Received: from g4t3425.houston.hpe.com (g4t3425.houston.hpe.com. [15.241.140.78])
+        by mx.google.com with ESMTPS id h6-v6si4283702oib.203.2018.09.14.14.10.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Sep 2018 13:51:21 -0700 (PDT)
-Message-ID: <1536958012.12990.14.camel@intel.com>
-Subject: Re: [RFC PATCH v3 19/24] x86/cet/shstk: Introduce WRUSS instruction
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Date: Fri, 14 Sep 2018 13:46:52 -0700
-In-Reply-To: <CALCETrV_aDasfkd6LD1cT11Hs1dO064uHjROLQPyhQfy_iuS8w@mail.gmail.com>
-References: <20180830143904.3168-1-yu-cheng.yu@intel.com>
-	 <20180830143904.3168-20-yu-cheng.yu@intel.com>
-	 <CAG48ez3uZrC-9uJ0uMoVPTtxRXRN8D+3zs5FknZD2woTT6mazg@mail.gmail.com>
-	 <CALCETrW78UKt6AQJeN8GkhtxjuASnH1PV5QSpzQtDz9-2d3Asw@mail.gmail.com>
-	 <1535646146.26689.11.camel@intel.com> <1535752180.31230.4.camel@intel.com>
-	 <CALCETrV_aDasfkd6LD1cT11Hs1dO064uHjROLQPyhQfy_iuS8w@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Fri, 14 Sep 2018 14:10:51 -0700 (PDT)
+From: "Kani, Toshi" <toshi.kani@hpe.com>
+Subject: Re: [PATCH 1/5] ioremap: Rework pXd_free_pYd_page() API
+Date: Fri, 14 Sep 2018 21:10:49 +0000
+Message-ID: <db3f513bf3bfafb85b99f57f741f5bb07952af70.camel@hpe.com>
+References: <1536747974-25875-1-git-send-email-will.deacon@arm.com>
+	 <1536747974-25875-2-git-send-email-will.deacon@arm.com>
+	 <71baefb8e0838fba89ee06262bbb2456e9091c7a.camel@hpe.com>
+In-Reply-To: <71baefb8e0838fba89ee06262bbb2456e9091c7a.camel@hpe.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <6BBA5E9960E2D24F94F5733855EE94A0@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Jann Horn <jannh@google.com>, the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "will.deacon@arm.com" <will.deacon@arm.com>
+Cc: "tglx@linutronix.de" <tglx@linutronix.de>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "Hocko, Michal" <MHocko@suse.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On Fri, 2018-08-31 at 15:16 -0700, Andy Lutomirski wrote:
-> On Fri, Aug 31, 2018 at 2:49 PM, Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
-> > 
-> > On Thu, 2018-08-30 at 09:22 -0700, Yu-cheng Yu wrote:
-> > > 
-> > > On Thu, 2018-08-30 at 08:55 -0700, Andy Lutomirski wrote:
-> > > > 
-> > > > 
-> > > > On Thu, Aug 30, 2018 at 8:39 AM, Jann Horn <jannh@google.com>
-> > > > wrote:
-> > > > > 
-> > > > > 
-> > > > > 
-> > > > > On Thu, Aug 30, 2018 at 4:44 PM Yu-cheng Yu <yu-cheng.yu@intel.c
-> > > > > om
-> > > > > > 
-> > > > > > 
-> > > > > > wrote:
-> > > > > > 
-> > > > > > 
-> > > > > > WRUSS is a new kernel-mode instruction but writes directly
-> > > > > > to user shadow stack memory.A A This is used to construct
-> > > > > > a return address on the shadow stack for the signal
-> > > > > > handler.
-> > > > > > 
-> > > > > > This instruction can fault if the user shadow stack is
-> > > > > > invalid shadow stack memory.A A In that case, the kernel does
-> > > > > > fixup.
-> > > > > > 
-> > > > > > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> > > > > [...]
-> > > > > > 
-> > > > > > 
-> > > > > > 
-> > > > > > +static inline int write_user_shstk_64(unsigned long addr,
-> > > > > > unsigned long val)
-> > > > > > +{
-> > > > > > +A A A A A A A int err = 0;
-> > > > > > +
-> > > > > > +A A A A A A A asm volatile("1: wrussq %1, (%0)\n"
-> > > > > > +A A A A A A A A A A A A A A A A A A A A "2:\n"
-> > > > > > +A A A A A A A A A A A A A A A A A A A A _ASM_EXTABLE_HANDLE(1b, 2b,
-> > > > > > ex_handler_wruss)
-> > > > > > +A A A A A A A A A A A A A A A A A A A A :
-> > > > > > +A A A A A A A A A A A A A A A A A A A A : "r" (addr), "r" (val));
-> > > > > > +
-> > > > > > +A A A A A A A return err;
-> > > > > > +}
-> > > > > What's up with "err"? You set it to zero, and then you return
-> > > > > it,
-> > > > > but
-> > > > > nothing can ever set it to non-zero, right?
-> > > > > 
-> > > > > > 
-> > > > > > 
-> > > > > > 
-> > > > > > +__visible bool ex_handler_wruss(const struct
-> > > > > > exception_table_entry *fixup,
-> > > > > > +A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A struct pt_regs *regs, int
-> > > > > > trapnr)
-> > > > > > +{
-> > > > > > +A A A A A A A regs->ip = ex_fixup_addr(fixup);
-> > > > > > +A A A A A A A regs->ax = -1;
-> > > > > > +A A A A A A A return true;
-> > > > > > +}
-> > > > > And here you just write into regs->ax, but your "asm volatile"
-> > > > > doesn't
-> > > > > reserve that register. This looks wrong to me.
-> > > > > 
-> > > > > I think you probably want to add something like an explicit
-> > > > > `"+&a"(err)` output to the asm statements.
-> > > > We require asm goto support these days.A A How about using
-> > > > that?A A You
-> > > > won't even need a special exception handler.
-> > Maybe something like this?A A It looks simple now.
-> > 
-> > static inline int write_user_shstk_64(unsigned long addr, unsigned
-> > long val)
-> > {
-> > A A A A A A A A asm_volatile_goto("wrussq %1, (%0)\n"
-> > A A A A A A A A A A A A A A A A A A A A A "jmp %l[ok]\n"
-> > A A A A A A A A A A A A A A A A A A A A A ".section .fixup,\"ax\"n"
-> > A A A A A A A A A A A A A A A A A A A A A "jmp %l[fail]\n"
-> > A A A A A A A A A A A A A A A A A A A A A ".previous\n"
-> > A A A A A A A A A A A A A A A A A A A A A :: "r" (addr), "r" (val)
-> > A A A A A A A A A A A A A A A A A A A A A :: ok, fail);
-> > ok:
-> > A A A A A A A A return 0;
-> > fail:
-> > A A A A A A A A return -1;
-> > }
-> > 
-> I think you can get rid of 'jmp %l[ok]' and the ok label and just fall
-> through.A A And you don't need an explicit jmp to fail -- just set the
-> _EX_HANDLER entry to land on the fail label.
-
-Thanks! A This now looks simple and much better.
-
-Yu-cheng
-
-
-
-+static inline int write_user_shstk_64(unsigned long addr, unsigned long val)
-+{
-+	asm_volatile_goto("1: wrussq %1, (%0)\n"
-+			A A _ASM_EXTABLE(1b, %l[fail])
-+			A A :: "r" (addr), "r" (val)
-+			A A :: fail);
-+	return 0;
-+fail:
-+	return -1;
-+}
+T24gRnJpLCAyMDE4LTA5LTE0IGF0IDE0OjM2IC0wNjAwLCBUb3NoaSBLYW5pIHdyb3RlOg0KPiBP
+biBXZWQsIDIwMTgtMDktMTIgYXQgMTE6MjYgKzAxMDAsIFdpbGwgRGVhY29uIHdyb3RlOg0KPiA+
+IFRoZSByZWNlbnRseSBtZXJnZWQgQVBJIGZvciBlbnN1cmluZyBicmVhay1iZWZvcmUtbWFrZSBv
+biBwYWdlLXRhYmxlDQo+ID4gZW50cmllcyB3aGVuIGluc3RhbGxpbmcgaHVnZSBtYXBwaW5ncyBp
+biB0aGUgdm1hbGxvYy9pb3JlbWFwIHJlZ2lvbiBpcw0KPiA+IGZhaXJseSBjb3VudGVyLWludHVp
+dGl2ZSwgcmVzdWx0aW5nIGluIHRoZSBhcmNoIGZyZWVpbmcgZnVuY3Rpb25zDQo+ID4gKGUuZy4g
+cG1kX2ZyZWVfcHRlX3BhZ2UoKSkgYmVpbmcgY2FsbGVkIGV2ZW4gb24gZW50cmllcyB0aGF0IGFy
+ZW4ndA0KPiA+IHByZXNlbnQuIFRoaXMgcmVzdWx0ZWQgaW4gYSBtaW5vciBidWcgaW4gdGhlIGFy
+bTY0IGltcGxlbWVudGF0aW9uLCBnaXZpbmcNCj4gPiByaXNlIHRvIHNwdXJpb3VzIFZNX1dBUk4g
+bWVzc2FnZXMuDQo+ID4gDQo+ID4gVGhpcyBwYXRjaCBtb3ZlcyB0aGUgcFhkX3ByZXNlbnQoKSBj
+aGVja3Mgb3V0IGludG8gdGhlIGNvcmUgY29kZSwNCj4gPiByZWZhY3RvcmluZyB0aGUgY2FsbHNp
+dGVzIGF0IHRoZSBzYW1lIHRpbWUgc28gdGhhdCB3ZSBhdm9pZCB0aGUgY29tcGxleA0KPiA+IGNv
+bmp1bmN0aW9ucyB3aGVuIGRldGVybWluaW5nIHdoZXRoZXIgb3Igbm90IHdlIGNhbiBwdXQgZG93
+biBhIGh1Z2UNCj4gPiBtYXBwaW5nLg0KPiA+IA0KPiA+IENjOiBDaGludGFuIFBhbmR5YSA8Y3Bh
+bmR5YUBjb2RlYXVyb3JhLm9yZz4NCj4gPiBDYzogVG9zaGkgS2FuaSA8dG9zaGkua2FuaUBocGUu
+Y29tPg0KPiA+IENjOiBUaG9tYXMgR2xlaXhuZXIgPHRnbHhAbGludXRyb25peC5kZT4NCj4gPiBD
+YzogTWljaGFsIEhvY2tvIDxtaG9ja29Ac3VzZS5jb20+DQo+ID4gQ2M6IEFuZHJldyBNb3J0b24g
+PGFrcG1AbGludXgtZm91bmRhdGlvbi5vcmc+DQo+ID4gU3VnZ2VzdGVkLWJ5OiBMaW51cyBUb3J2
+YWxkcyA8dG9ydmFsZHNAbGludXgtZm91bmRhdGlvbi5vcmc+DQo+ID4gU2lnbmVkLW9mZi1ieTog
+V2lsbCBEZWFjb24gPHdpbGwuZGVhY29uQGFybS5jb20+DQo+IA0KPiBZZXMsIHRoaXMgbG9va3Mg
+bmljZXIuDQo+IA0KPiBSZXZpZXdlZC1ieTogVG9zaGkgS2FuaSA8dG9zaGkua2FuaUBocGUuY29t
+Pg0KDQpTb3JyeSwgSSB0YWtlIGl0IGJhY2sgc2luY2UgSSBnb3QgYSBxdWVzdGlvbi4uLg0KDQor
+c3RhdGljIGludCBpb3JlbWFwX3RyeV9odWdlX3BtZChwbWRfdCAqcG1kLCB1bnNpZ25lZCBsb25n
+IGFkZHIsDQo+ICsJCQkJdW5zaWduZWQgbG9uZyBlbmQsIHBoeXNfYWRkcl90DQpwaHlzX2FkZHIs
+DQo+ICsJCQkJcGdwcm90X3QgcHJvdCkNCj4gK3sNCj4gKwlpZiAoIWlvcmVtYXBfcG1kX2VuYWJs
+ZWQoKSkNCj4gKwkJcmV0dXJuIDA7DQo+ICsNCj4gKwlpZiAoKGVuZCAtIGFkZHIpICE9IFBNRF9T
+SVpFKQ0KPiArCQlyZXR1cm4gMDsNCj4gKw0KPiArCWlmICghSVNfQUxJR05FRChwaHlzX2FkZHIs
+IFBNRF9TSVpFKSkNCj4gKwkJcmV0dXJuIDA7DQo+ICsNCj4gKwlpZiAocG1kX3ByZXNlbnQoKnBt
+ZCkgJiYgIXBtZF9mcmVlX3B0ZV9wYWdlKHBtZCwgYWRkcikpDQo+ICsJCXJldHVybiAwOw0KDQpJ
+cyBwbV9wcmVzZW50KCkgYSBwcm9wZXIgY2hlY2sgaGVyZT8gIFdlIHByb2JhYmx5IGRvIG5vdCBo
+YXZlIHRoaXMgY2FzZQ0KZm9yIGlvbWFwLCBidXQgSSB3b25kZXIgaWYgb25lIGNhbiBkcm9wIHAt
+Yml0IHdoaWxlIGl0IGhhcyBhIHB0ZSBwYWdlDQp1bmRlcm5lYXRoLg0KDQpUaGFua3MsDQotVG9z
+aGkNCg0KDQo+ICsNCj4gKwlyZXR1cm4gcG1kX3NldF9odWdlKHBtZCwgcGh5c19hZGRyLCBwcm90
+KTsNCj4gK30NCj4gKw0KDQoNCg==
