@@ -1,705 +1,897 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B7CC48E0001
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:28 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id p14-v6so9355080oip.0
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 05:11:28 -0700 (PDT)
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AD8F8E0001
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:35 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id j17-v6so9176680oii.8
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 05:11:35 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id o32-v6si1523160otd.338.2018.09.14.05.11.26
+        by mx.google.com with ESMTPS id g10-v6si1523182otf.369.2018.09.14.05.11.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Sep 2018 05:11:26 -0700 (PDT)
+        Fri, 14 Sep 2018 05:11:33 -0700 (PDT)
 Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8EC4YCm096285
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:26 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mgay24v1f-1
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8EC4YRE096286
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:32 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mgay24v6k-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:25 -0400
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:32 -0400
 Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Fri, 14 Sep 2018 13:11:22 +0100
+	Fri, 14 Sep 2018 13:11:29 +0100
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 03/30] mm: remove CONFIG_HAVE_MEMBLOCK
-Date: Fri, 14 Sep 2018 15:10:18 +0300
+Subject: [PATCH 04/30] mm: remove bootmem allocator implementation.
+Date: Fri, 14 Sep 2018 15:10:19 +0300
 In-Reply-To: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com>
 References: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1536927045-23536-4-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1536927045-23536-5-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, "David S. Miller" <davem@davemloft.net>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jonas Bonn <jonas@southpole.se>, Jonathan Corbet <corbet@lwn.net>, Ley Foon Tan <lftan@altera.com>, Mark Salter <msalter@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matt Turner <mattst88@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Palmer Dabbelt <palmer@sifive.com>, Paul Burton <paul.burton@mips.com>, Richard Kuo <rkuo@codeaurora.org>, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Serge Semin <fancer.lancer@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, nios2-dev@lists.rocketboards.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-All architecures use memblock for early memory management. There is no need
-for the CONFIG_HAVE_MEMBLOCK configuration option.
+All architectures have been converted to use MEMBLOCK + NO_BOOTMEM. The
+bootmem allocator implementation can be removed.
 
 Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- arch/alpha/Kconfig                  |   1 -
- arch/arc/Kconfig                    |   1 -
- arch/arm/Kconfig                    |   1 -
- arch/arm64/Kconfig                  |   1 -
- arch/c6x/Kconfig                    |   1 -
- arch/h8300/Kconfig                  |   1 -
- arch/hexagon/Kconfig                |   1 -
- arch/ia64/Kconfig                   |   1 -
- arch/m68k/Kconfig                   |   1 -
- arch/microblaze/Kconfig             |   1 -
- arch/mips/Kconfig                   |   1 -
- arch/nds32/Kconfig                  |   1 -
- arch/nios2/Kconfig                  |   1 -
- arch/openrisc/Kconfig               |   1 -
- arch/parisc/Kconfig                 |   1 -
- arch/powerpc/Kconfig                |   1 -
- arch/riscv/Kconfig                  |   1 -
- arch/s390/Kconfig                   |   1 -
- arch/sh/Kconfig                     |   1 -
- arch/sparc/Kconfig                  |   1 -
- arch/um/Kconfig                     |   1 -
- arch/unicore32/Kconfig              |   1 -
- arch/x86/Kconfig                    |   1 -
- arch/xtensa/Kconfig                 |   1 -
- drivers/of/fdt.c                    |   2 -
- drivers/of/of_reserved_mem.c        |  13 +----
- drivers/staging/android/ion/Kconfig |   2 +-
- fs/pstore/Kconfig                   |   1 -
- include/linux/bootmem.h             | 112 ------------------------------------
- include/linux/memblock.h            |   2 -
- include/linux/mm.h                  |   2 +-
- lib/Kconfig.debug                   |   3 +-
- mm/Kconfig                          |   5 +-
- mm/Makefile                         |   2 +-
- mm/nobootmem.c                      |   4 --
- mm/page_alloc.c                     |   4 +-
- 36 files changed, 8 insertions(+), 168 deletions(-)
+ include/linux/bootmem.h |  16 -
+ mm/bootmem.c            | 811 ------------------------------------------------
+ 2 files changed, 827 deletions(-)
+ delete mode 100644 mm/bootmem.c
 
-diff --git a/arch/alpha/Kconfig b/arch/alpha/Kconfig
-index 04de6be..5b4f883 100644
---- a/arch/alpha/Kconfig
-+++ b/arch/alpha/Kconfig
-@@ -31,7 +31,6 @@ config ALPHA
- 	select ODD_RT_SIGACTION
- 	select OLD_SIGSUSPEND
- 	select CPU_NO_EFFICIENT_FFS if !ALPHA_EV67
--	select HAVE_MEMBLOCK
- 	help
- 	  The Alpha is a 64-bit general-purpose processor designed and
- 	  marketed by the Digital Equipment Corporation of blessed memory,
-diff --git a/arch/arc/Kconfig b/arch/arc/Kconfig
-index 04ebead..5260440 100644
---- a/arch/arc/Kconfig
-+++ b/arch/arc/Kconfig
-@@ -37,7 +37,6 @@ config ARC
- 	select HAVE_KERNEL_LZMA
- 	select HAVE_KPROBES
- 	select HAVE_KRETPROBES
--	select HAVE_MEMBLOCK
- 	select HAVE_MOD_ARCH_SPECIFIC
- 	select HAVE_OPROFILE
- 	select HAVE_PERF_EVENTS
-diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index a961d70..33f4653 100644
---- a/arch/arm/Kconfig
-+++ b/arch/arm/Kconfig
-@@ -82,7 +82,6 @@ config ARM
- 	select HAVE_KERNEL_XZ
- 	select HAVE_KPROBES if !XIP_KERNEL && !CPU_ENDIAN_BE32 && !CPU_V7M
- 	select HAVE_KRETPROBES if (HAVE_KPROBES)
--	select HAVE_MEMBLOCK
- 	select HAVE_MOD_ARCH_SPECIFIC
- 	select HAVE_NMI
- 	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 1795eaa..23ae619 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -134,7 +134,6 @@ config ARM64
- 	select HAVE_GENERIC_DMA_COHERENT
- 	select HAVE_HW_BREAKPOINT if PERF_EVENTS
- 	select HAVE_IRQ_TIME_ACCOUNTING
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP if NUMA
- 	select HAVE_NMI
- 	select HAVE_PATA_PLATFORM
-diff --git a/arch/c6x/Kconfig b/arch/c6x/Kconfig
-index a641b0b..833fdb0 100644
---- a/arch/c6x/Kconfig
-+++ b/arch/c6x/Kconfig
-@@ -13,7 +13,6 @@ config C6X
- 	select GENERIC_ATOMIC64
- 	select GENERIC_IRQ_SHOW
- 	select HAVE_ARCH_TRACEHOOK
--	select HAVE_MEMBLOCK
- 	select SPARSE_IRQ
- 	select IRQ_DOMAIN
- 	select OF
-diff --git a/arch/h8300/Kconfig b/arch/h8300/Kconfig
-index 5e89d40..d19c6b16 100644
---- a/arch/h8300/Kconfig
-+++ b/arch/h8300/Kconfig
-@@ -15,7 +15,6 @@ config H8300
- 	select OF
- 	select OF_IRQ
- 	select OF_EARLY_FLATTREE
--	select HAVE_MEMBLOCK
- 	select TIMER_OF
- 	select H8300_TMR8
- 	select HAVE_KERNEL_GZIP
-diff --git a/arch/hexagon/Kconfig b/arch/hexagon/Kconfig
-index 24a6da9..d9ae82b 100644
---- a/arch/hexagon/Kconfig
-+++ b/arch/hexagon/Kconfig
-@@ -31,7 +31,6 @@ config HEXAGON
- 	select GENERIC_CLOCKEVENTS_BROADCAST
- 	select MODULES_USE_ELF_RELA
- 	select GENERIC_CPU_DEVICES
--	select HAVE_MEMBLOCK
- 	select ARCH_DISCARD_MEMBLOCK
- 	---help---
- 	  Qualcomm Hexagon is a processor architecture designed for high
-diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
-index 2bf4ef7..36773de 100644
---- a/arch/ia64/Kconfig
-+++ b/arch/ia64/Kconfig
-@@ -26,7 +26,6 @@ config IA64
- 	select HAVE_FUNCTION_TRACER
- 	select TTY
- 	select HAVE_ARCH_TRACEHOOK
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_VIRT_CPU_ACCOUNTING
- 	select ARCH_HAS_DMA_MARK_CLEAN
-diff --git a/arch/m68k/Kconfig b/arch/m68k/Kconfig
-index 8c7111d..e88588b 100644
---- a/arch/m68k/Kconfig
-+++ b/arch/m68k/Kconfig
-@@ -27,7 +27,6 @@ config M68K
- 	select OLD_SIGSUSPEND3
- 	select OLD_SIGACTION
- 	select DMA_NONCOHERENT_OPS if HAS_DMA
--	select HAVE_MEMBLOCK
- 	select ARCH_DISCARD_MEMBLOCK
- 
- config CPU_BIG_ENDIAN
-diff --git a/arch/microblaze/Kconfig b/arch/microblaze/Kconfig
-index 56379b9..c77eaef 100644
---- a/arch/microblaze/Kconfig
-+++ b/arch/microblaze/Kconfig
-@@ -28,7 +28,6 @@ config MICROBLAZE
- 	select HAVE_FTRACE_MCOUNT_RECORD
- 	select HAVE_FUNCTION_GRAPH_TRACER
- 	select HAVE_FUNCTION_TRACER
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_OPROFILE
- 	select IRQ_DOMAIN
-diff --git a/arch/mips/Kconfig b/arch/mips/Kconfig
-index 54532f2..3484768 100644
---- a/arch/mips/Kconfig
-+++ b/arch/mips/Kconfig
-@@ -60,7 +60,6 @@ config MIPS
- 	select HAVE_IRQ_TIME_ACCOUNTING
- 	select HAVE_KPROBES
- 	select HAVE_KRETPROBES
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_MOD_ARCH_SPECIFIC
- 	select HAVE_NMI
-diff --git a/arch/nds32/Kconfig b/arch/nds32/Kconfig
-index 06b1259..605d148 100644
---- a/arch/nds32/Kconfig
-+++ b/arch/nds32/Kconfig
-@@ -29,7 +29,6 @@ config NDS32
- 	select HANDLE_DOMAIN_IRQ
- 	select HAVE_ARCH_TRACEHOOK
- 	select HAVE_DEBUG_KMEMLEAK
--	select HAVE_MEMBLOCK
- 	select HAVE_REGS_AND_STACK_ACCESS_API
- 	select IRQ_DOMAIN
- 	select LOCKDEP_SUPPORT
-diff --git a/arch/nios2/Kconfig b/arch/nios2/Kconfig
-index ebfae50..6f43bc4 100644
---- a/arch/nios2/Kconfig
-+++ b/arch/nios2/Kconfig
-@@ -23,7 +23,6 @@ config NIOS2
- 	select SPARSE_IRQ
- 	select USB_ARCH_HAS_HCD if USB_SUPPORT
- 	select CPU_NO_EFFICIENT_FFS
--	select HAVE_MEMBLOCK
- 	select ARCH_DISCARD_MEMBLOCK
- 
- config GENERIC_CSUM
-diff --git a/arch/openrisc/Kconfig b/arch/openrisc/Kconfig
-index 25c6c2e..2ba6c6d 100644
---- a/arch/openrisc/Kconfig
-+++ b/arch/openrisc/Kconfig
-@@ -12,7 +12,6 @@ config OPENRISC
- 	select OF_EARLY_FLATTREE
- 	select IRQ_DOMAIN
- 	select HANDLE_DOMAIN_IRQ
--	select HAVE_MEMBLOCK
- 	select GPIOLIB
-         select HAVE_ARCH_TRACEHOOK
- 	select SPARSE_IRQ
-diff --git a/arch/parisc/Kconfig b/arch/parisc/Kconfig
-index 1d6332c..c8a6fda 100644
---- a/arch/parisc/Kconfig
-+++ b/arch/parisc/Kconfig
-@@ -15,7 +15,6 @@ config PARISC
- 	select RTC_CLASS
- 	select RTC_DRV_GENERIC
- 	select INIT_ALL_POSSIBLE
--	select HAVE_MEMBLOCK
- 	select BUG
- 	select BUILDTIME_EXTABLE_SORT
- 	select HAVE_PERF_EVENTS
-diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index 304cdce..47c16ae 100644
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -203,7 +203,6 @@ config PPC
- 	select HAVE_KRETPROBES
- 	select HAVE_LD_DEAD_CODE_DATA_ELIMINATION
- 	select HAVE_LIVEPATCH			if HAVE_DYNAMIC_FTRACE_WITH_REGS
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_MOD_ARCH_SPECIFIC
- 	select HAVE_NMI				if PERF_EVENTS || (PPC64 && PPC_BOOK3S)
-diff --git a/arch/riscv/Kconfig b/arch/riscv/Kconfig
-index 63301c8..b92ee2f 100644
---- a/arch/riscv/Kconfig
-+++ b/arch/riscv/Kconfig
-@@ -28,7 +28,6 @@ config RISCV
- 	select GENERIC_STRNLEN_USER
- 	select GENERIC_SMP_IDLE_THREAD
- 	select GENERIC_ATOMIC64 if !64BIT || !RISCV_ISA_A
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_DMA_CONTIGUOUS
- 	select HAVE_GENERIC_DMA_COHERENT
-diff --git a/arch/s390/Kconfig b/arch/s390/Kconfig
-index b388e05..2ccad0b 100644
---- a/arch/s390/Kconfig
-+++ b/arch/s390/Kconfig
-@@ -154,7 +154,6 @@ config S390
- 	select HAVE_LIVEPATCH
- 	select HAVE_PERF_REGS
- 	select HAVE_PERF_USER_STACK_DUMP
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_MEMBLOCK_PHYS_MAP
- 	select HAVE_MOD_ARCH_SPECIFIC
-diff --git a/arch/sh/Kconfig b/arch/sh/Kconfig
-index e254226..f89a172 100644
---- a/arch/sh/Kconfig
-+++ b/arch/sh/Kconfig
-@@ -8,7 +8,6 @@ config SUPERH
- 	select HAVE_PATA_PLATFORM
- 	select CLKDEV_LOOKUP
- 	select HAVE_IDE if HAS_IOPORT_MAP
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select ARCH_DISCARD_MEMBLOCK
- 	select HAVE_OPROFILE
-diff --git a/arch/sparc/Kconfig b/arch/sparc/Kconfig
-index 5e8aaee..3b2a2f3 100644
---- a/arch/sparc/Kconfig
-+++ b/arch/sparc/Kconfig
-@@ -45,7 +45,6 @@ config SPARC
- 	select LOCKDEP_SMALL if LOCKDEP
- 	select NEED_DMA_MAP_STATE
- 	select NEED_SG_DMA_LENGTH
--	select HAVE_MEMBLOCK
- 
- config SPARC32
- 	def_bool !64BIT
-diff --git a/arch/um/Kconfig b/arch/um/Kconfig
-index ce3d562..6b99389 100644
---- a/arch/um/Kconfig
-+++ b/arch/um/Kconfig
-@@ -12,7 +12,6 @@ config UML
- 	select HAVE_UID16
- 	select HAVE_FUTEX_CMPXCHG if FUTEX
- 	select HAVE_DEBUG_KMEMLEAK
--	select HAVE_MEMBLOCK
- 	select GENERIC_IRQ_SHOW
- 	select GENERIC_CPU_DEVICES
- 	select GENERIC_CLOCKEVENTS
-diff --git a/arch/unicore32/Kconfig b/arch/unicore32/Kconfig
-index 60eae74..8726acd 100644
---- a/arch/unicore32/Kconfig
-+++ b/arch/unicore32/Kconfig
-@@ -4,7 +4,6 @@ config UNICORE32
- 	select ARCH_HAS_DEVMEM_IS_ALLOWED
- 	select ARCH_MIGHT_HAVE_PC_PARPORT
- 	select ARCH_MIGHT_HAVE_PC_SERIO
--	select HAVE_MEMBLOCK
- 	select HAVE_GENERIC_DMA_COHERENT
- 	select HAVE_KERNEL_GZIP
- 	select HAVE_KERNEL_BZIP2
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 859bf9a..13b10cd 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -167,7 +167,6 @@ config X86
- 	select HAVE_KRETPROBES
- 	select HAVE_KVM
- 	select HAVE_LIVEPATCH			if X86_64
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_MIXED_BREAKPOINTS_REGS
- 	select HAVE_MOD_ARCH_SPECIFIC
-diff --git a/arch/xtensa/Kconfig b/arch/xtensa/Kconfig
-index e4f7d12..2f7c086 100644
---- a/arch/xtensa/Kconfig
-+++ b/arch/xtensa/Kconfig
-@@ -27,7 +27,6 @@ config XTENSA
- 	select HAVE_FUTEX_CMPXCHG if !MMU
- 	select HAVE_HW_BREAKPOINT if PERF_EVENTS
- 	select HAVE_IRQ_TIME_ACCOUNTING
--	select HAVE_MEMBLOCK
- 	select HAVE_OPROFILE
- 	select HAVE_PERF_EVENTS
- 	select HAVE_STACKPROTECTOR
-diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
-index 76c83c1..bd841bb 100644
---- a/drivers/of/fdt.c
-+++ b/drivers/of/fdt.c
-@@ -1115,13 +1115,11 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
- 	return 1;
- }
- 
--#ifdef CONFIG_HAVE_MEMBLOCK
- #ifndef MIN_MEMBLOCK_ADDR
- #define MIN_MEMBLOCK_ADDR	__pa(PAGE_OFFSET)
- #endif
- #ifndef MAX_MEMBLOCK_ADDR
- #define MAX_MEMBLOCK_ADDR	((phys_addr_t)~0)
--#endif
- 
- void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
- {
-diff --git a/drivers/of/of_reserved_mem.c b/drivers/of/of_reserved_mem.c
-index 895c83e..d6255c2 100644
---- a/drivers/of/of_reserved_mem.c
-+++ b/drivers/of/of_reserved_mem.c
-@@ -20,13 +20,12 @@
- #include <linux/of_reserved_mem.h>
- #include <linux/sort.h>
- #include <linux/slab.h>
-+#include <linux/memblock.h>
- 
- #define MAX_RESERVED_REGIONS	32
- static struct reserved_mem reserved_mem[MAX_RESERVED_REGIONS];
- static int reserved_mem_count;
- 
--#if defined(CONFIG_HAVE_MEMBLOCK)
--#include <linux/memblock.h>
- int __init __weak early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
- 	phys_addr_t align, phys_addr_t start, phys_addr_t end, bool nomap,
- 	phys_addr_t *res_base)
-@@ -54,16 +53,6 @@ int __init __weak early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
- 		return memblock_remove(base, size);
- 	return 0;
- }
--#else
--int __init __weak early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
--	phys_addr_t align, phys_addr_t start, phys_addr_t end, bool nomap,
--	phys_addr_t *res_base)
--{
--	pr_err("Reserved memory not supported, ignoring region 0x%llx%s\n",
--		  size, nomap ? " (nomap)" : "");
--	return -ENOSYS;
--}
--#endif
- 
- /**
-  * res_mem_save_node() - save fdt node for second pass initialization
-diff --git a/drivers/staging/android/ion/Kconfig b/drivers/staging/android/ion/Kconfig
-index c16dd16..0fdda6f 100644
---- a/drivers/staging/android/ion/Kconfig
-+++ b/drivers/staging/android/ion/Kconfig
-@@ -1,6 +1,6 @@
- menuconfig ION
- 	bool "Ion Memory Manager"
--	depends on HAVE_MEMBLOCK && HAS_DMA && MMU
-+	depends on HAS_DMA && MMU
- 	select GENERIC_ALLOCATOR
- 	select DMA_SHARED_BUFFER
- 	help
-diff --git a/fs/pstore/Kconfig b/fs/pstore/Kconfig
-index 503086f..0d19d19 100644
---- a/fs/pstore/Kconfig
-+++ b/fs/pstore/Kconfig
-@@ -141,7 +141,6 @@ config PSTORE_RAM
- 	tristate "Log panic/oops to a RAM buffer"
- 	depends on PSTORE
- 	depends on HAS_IOMEM
--	depends on HAVE_MEMBLOCK
- 	select REED_SOLOMON
- 	select REED_SOLOMON_ENC8
- 	select REED_SOLOMON_DEC8
 diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
-index 1f005b5..ee61ac3 100644
+index ee61ac3..fce6278 100644
 --- a/include/linux/bootmem.h
 +++ b/include/linux/bootmem.h
-@@ -132,9 +132,6 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
- #define alloc_bootmem_low_pages_node(pgdat, x) \
- 	__alloc_bootmem_low_node(pgdat, x, PAGE_SIZE, 0)
+@@ -26,14 +26,6 @@ extern unsigned long max_pfn;
+  */
+ extern unsigned long long max_possible_pfn;
  
+-extern unsigned long bootmem_bootmap_pages(unsigned long);
 -
--#if defined(CONFIG_HAVE_MEMBLOCK)
+-extern unsigned long init_bootmem_node(pg_data_t *pgdat,
+-				       unsigned long freepfn,
+-				       unsigned long startpfn,
+-				       unsigned long endpfn);
+-extern unsigned long init_bootmem(unsigned long addr, unsigned long memend);
 -
- /* FIXME: use MEMBLOCK_ALLOC_* variants here */
- #define BOOTMEM_ALLOC_ACCESSIBLE	0
- #define BOOTMEM_ALLOC_ANYWHERE		(~(phys_addr_t)0)
-@@ -234,115 +231,6 @@ static inline void __init memblock_free_late(
- 	__memblock_free_late(base, size);
- }
+ extern unsigned long free_all_bootmem(void);
+ extern void reset_node_managed_pages(pg_data_t *pgdat);
+ extern void reset_all_zones_managed_pages(void);
+@@ -55,14 +47,6 @@ extern void free_bootmem_late(unsigned long physaddr, unsigned long size);
+ #define BOOTMEM_DEFAULT		0
+ #define BOOTMEM_EXCLUSIVE	(1<<0)
  
--#else
+-extern int reserve_bootmem(unsigned long addr,
+-			   unsigned long size,
+-			   int flags);
+-extern int reserve_bootmem_node(pg_data_t *pgdat,
+-				unsigned long physaddr,
+-				unsigned long size,
+-				int flags);
 -
--#define BOOTMEM_ALLOC_ACCESSIBLE	0
+ extern void *__alloc_bootmem(unsigned long size,
+ 			     unsigned long align,
+ 			     unsigned long goal);
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+deleted file mode 100644
+index 97db0e8..0000000
+--- a/mm/bootmem.c
++++ /dev/null
+@@ -1,811 +0,0 @@
+-// SPDX-License-Identifier: GPL-2.0
+-/*
+- *  bootmem - A boot-time physical memory allocator and configurator
+- *
+- *  Copyright (C) 1999 Ingo Molnar
+- *                1999 Kanoj Sarcar, SGI
+- *                2008 Johannes Weiner
+- *
+- * Access to this subsystem has to be serialized externally (which is true
+- * for the boot process anyway).
+- */
+-#include <linux/init.h>
+-#include <linux/pfn.h>
+-#include <linux/slab.h>
+-#include <linux/export.h>
+-#include <linux/kmemleak.h>
+-#include <linux/range.h>
+-#include <linux/bug.h>
+-#include <linux/io.h>
+-#include <linux/bootmem.h>
 -
+-#include "internal.h"
 -
--/* Fall back to all the existing bootmem APIs */
--static inline void * __init memblock_virt_alloc(
--					phys_addr_t size,  phys_addr_t align)
--{
--	if (!align)
--		align = SMP_CACHE_BYTES;
--	return __alloc_bootmem(size, align, BOOTMEM_LOW_LIMIT);
--}
+-/**
+- * DOC: bootmem overview
+- *
+- * Bootmem is a boot-time physical memory allocator and configurator.
+- *
+- * It is used early in the boot process before the page allocator is
+- * set up.
+- *
+- * Bootmem is based on the most basic of allocators, a First Fit
+- * allocator which uses a bitmap to represent memory. If a bit is 1,
+- * the page is allocated and 0 if unallocated. To satisfy allocations
+- * of sizes smaller than a page, the allocator records the Page Frame
+- * Number (PFN) of the last allocation and the offset the allocation
+- * ended at. Subsequent small allocations are merged together and
+- * stored on the same page.
+- *
+- * The information used by the bootmem allocator is represented by
+- * :c:type:`struct bootmem_data`. An array to hold up to %MAX_NUMNODES
+- * such structures is statically allocated and then it is discarded
+- * when the system initialization completes. Each entry in this array
+- * corresponds to a node with memory. For UMA systems only entry 0 is
+- * used.
+- *
+- * The bootmem allocator is initialized during early architecture
+- * specific setup. Each architecture is required to supply a
+- * :c:func:`setup_arch` function which, among other tasks, is
+- * responsible for acquiring the necessary parameters to initialise
+- * the boot memory allocator. These parameters define limits of usable
+- * physical memory:
+- *
+- * * @min_low_pfn - the lowest PFN that is available in the system
+- * * @max_low_pfn - the highest PFN that may be addressed by low
+- *   memory (%ZONE_NORMAL)
+- * * @max_pfn - the last PFN available to the system.
+- *
+- * After those limits are determined, the :c:func:`init_bootmem` or
+- * :c:func:`init_bootmem_node` function should be called to initialize
+- * the bootmem allocator. The UMA case should use the `init_bootmem`
+- * function. It will initialize ``contig_page_data`` structure that
+- * represents the only memory node in the system. In the NUMA case the
+- * `init_bootmem_node` function should be called to initialize the
+- * bootmem allocator for each node.
+- *
+- * Once the allocator is set up, it is possible to use either single
+- * node or NUMA variant of the allocation APIs.
+- */
 -
--static inline void * __init memblock_virt_alloc_raw(
--					phys_addr_t size,  phys_addr_t align)
--{
--	if (!align)
--		align = SMP_CACHE_BYTES;
--	return __alloc_bootmem_nopanic(size, align, BOOTMEM_LOW_LIMIT);
--}
--
--static inline void * __init memblock_virt_alloc_nopanic(
--					phys_addr_t size, phys_addr_t align)
--{
--	if (!align)
--		align = SMP_CACHE_BYTES;
--	return __alloc_bootmem_nopanic(size, align, BOOTMEM_LOW_LIMIT);
--}
--
--static inline void * __init memblock_virt_alloc_low(
--					phys_addr_t size, phys_addr_t align)
--{
--	if (!align)
--		align = SMP_CACHE_BYTES;
--	return __alloc_bootmem_low(size, align, 0);
--}
--
--static inline void * __init memblock_virt_alloc_low_nopanic(
--					phys_addr_t size, phys_addr_t align)
--{
--	if (!align)
--		align = SMP_CACHE_BYTES;
--	return __alloc_bootmem_low_nopanic(size, align, 0);
--}
--
--static inline void * __init memblock_virt_alloc_from_nopanic(
--		phys_addr_t size, phys_addr_t align, phys_addr_t min_addr)
--{
--	return __alloc_bootmem_nopanic(size, align, min_addr);
--}
--
--static inline void * __init memblock_virt_alloc_node(
--						phys_addr_t size, int nid)
--{
--	return __alloc_bootmem_node(NODE_DATA(nid), size, SMP_CACHE_BYTES,
--				     BOOTMEM_LOW_LIMIT);
--}
--
--static inline void * __init memblock_virt_alloc_node_nopanic(
--						phys_addr_t size, int nid)
--{
--	return __alloc_bootmem_node_nopanic(NODE_DATA(nid), size,
--					     SMP_CACHE_BYTES,
--					     BOOTMEM_LOW_LIMIT);
--}
--
--static inline void * __init memblock_virt_alloc_try_nid(phys_addr_t size,
--	phys_addr_t align, phys_addr_t min_addr, phys_addr_t max_addr, int nid)
--{
--	return __alloc_bootmem_node_high(NODE_DATA(nid), size, align,
--					  min_addr);
--}
--
--static inline void * __init memblock_virt_alloc_try_nid_raw(
--			phys_addr_t size, phys_addr_t align,
--			phys_addr_t min_addr, phys_addr_t max_addr, int nid)
--{
--	return ___alloc_bootmem_node_nopanic(NODE_DATA(nid), size, align,
--				min_addr, max_addr);
--}
--
--static inline void * __init memblock_virt_alloc_try_nid_nopanic(
--			phys_addr_t size, phys_addr_t align,
--			phys_addr_t min_addr, phys_addr_t max_addr, int nid)
--{
--	return ___alloc_bootmem_node_nopanic(NODE_DATA(nid), size, align,
--				min_addr, max_addr);
--}
--
--static inline void __init memblock_free_early(
--					phys_addr_t base, phys_addr_t size)
--{
--	free_bootmem(base, size);
--}
--
--static inline void __init memblock_free_early_nid(
--				phys_addr_t base, phys_addr_t size, int nid)
--{
--	free_bootmem_node(NODE_DATA(nid), base, size);
--}
--
--static inline void __init memblock_free_late(
--					phys_addr_t base, phys_addr_t size)
--{
--	free_bootmem_late(base, size);
--}
--#endif /* defined(CONFIG_HAVE_MEMBLOCK) */
--
- extern void *alloc_large_system_hash(const char *tablename,
- 				     unsigned long bucketsize,
- 				     unsigned long numentries,
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 5169205..4ae91fc 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -2,7 +2,6 @@
- #define _LINUX_MEMBLOCK_H
- #ifdef __KERNEL__
- 
--#ifdef CONFIG_HAVE_MEMBLOCK
- /*
-  * Logical memory blocks.
-  *
-@@ -460,7 +459,6 @@ static inline phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align)
- {
- 	return 0;
- }
--#endif /* CONFIG_HAVE_MEMBLOCK */
- 
- #endif /* __KERNEL__ */
- 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index d63d163f..06d7d75 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2143,7 +2143,7 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
- 					struct mminit_pfnnid_cache *state);
- #endif
- 
--#if defined(CONFIG_HAVE_MEMBLOCK) && !defined(CONFIG_FLAT_NODE_MEM_MAP)
-+#if !defined(CONFIG_FLAT_NODE_MEM_MAP)
- void zero_resv_unavail(void);
- #else
- static inline void zero_resv_unavail(void) {}
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 121d869..321117f 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -1311,7 +1311,7 @@ config DEBUG_KOBJECT
- 	depends on DEBUG_KERNEL
- 	help
- 	  If you say Y here, some extra kobject debugging messages will be sent
--	  to the syslog. 
-+	  to the syslog.
- 
- config DEBUG_KOBJECT_RELEASE
- 	bool "kobject release debugging"
-@@ -1988,7 +1988,6 @@ endif # RUNTIME_TESTING_MENU
- 
- config MEMTEST
- 	bool "Memtest"
--	depends on HAVE_MEMBLOCK
- 	---help---
- 	  This option adds a kernel parameter 'memtest', which allows memtest
- 	  to be set.
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 16ceea0..c6a0d82 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -127,9 +127,6 @@ config SPARSEMEM_VMEMMAP
- 	 pfn_to_page and page_to_pfn operations.  This is the most
- 	 efficient option when sufficient kernel resources are available.
- 
--config HAVE_MEMBLOCK
--	bool
--
- config HAVE_MEMBLOCK_NODE_MAP
- 	bool
- 
-@@ -481,7 +478,7 @@ config FRONTSWAP
- 
- config CMA
- 	bool "Contiguous Memory Allocator"
--	depends on HAVE_MEMBLOCK && MMU
-+	depends on MMU
- 	select MIGRATION
- 	select MEMORY_ISOLATION
- 	help
-diff --git a/mm/Makefile b/mm/Makefile
-index ea53338..ca3c844 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -43,11 +43,11 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
- 
- obj-y += init-mm.o
- obj-y += nobootmem.o
-+obj-y += memblock.o
- 
- ifdef CONFIG_MMU
- 	obj-$(CONFIG_ADVISE_SYSCALLS)	+= madvise.o
- endif
--obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.o
- 
- obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o swap_slots.o
- obj-$(CONFIG_FRONTSWAP)	+= frontswap.o
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index 439af3b..d4d0cd4 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -23,10 +23,6 @@
- 
- #include "internal.h"
- 
--#ifndef CONFIG_HAVE_MEMBLOCK
--#error CONFIG_HAVE_MEMBLOCK not defined
+-#ifndef CONFIG_NEED_MULTIPLE_NODES
+-struct pglist_data __refdata contig_page_data = {
+-	.bdata = &bootmem_node_data[0]
+-};
+-EXPORT_SYMBOL(contig_page_data);
 -#endif
 -
- #ifndef CONFIG_NEED_MULTIPLE_NODES
- struct pglist_data __refdata contig_page_data;
- EXPORT_SYMBOL(contig_page_data);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 712cab1..3f3094d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6432,7 +6432,7 @@ void __init free_area_init_node(int nid, unsigned long *zones_size,
- 	free_area_init_core(pgdat);
- }
- 
--#if defined(CONFIG_HAVE_MEMBLOCK) && !defined(CONFIG_FLAT_NODE_MEM_MAP)
-+#if !defined(CONFIG_FLAT_NODE_MEM_MAP)
- /*
-  * Only struct pages that are backed by physical memory are zeroed and
-  * initialized by going through __init_single_page(). But, there are some
-@@ -6473,7 +6473,7 @@ void __init zero_resv_unavail(void)
- 	if (pgcnt)
- 		pr_info("Reserved but unavailable: %lld pages", pgcnt);
- }
--#endif /* CONFIG_HAVE_MEMBLOCK && !CONFIG_FLAT_NODE_MEM_MAP */
-+#endif /* !CONFIG_FLAT_NODE_MEM_MAP */
- 
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 
+-unsigned long max_low_pfn;
+-unsigned long min_low_pfn;
+-unsigned long max_pfn;
+-unsigned long long max_possible_pfn;
+-
+-bootmem_data_t bootmem_node_data[MAX_NUMNODES] __initdata;
+-
+-static struct list_head bdata_list __initdata = LIST_HEAD_INIT(bdata_list);
+-
+-static int bootmem_debug;
+-
+-static int __init bootmem_debug_setup(char *buf)
+-{
+-	bootmem_debug = 1;
+-	return 0;
+-}
+-early_param("bootmem_debug", bootmem_debug_setup);
+-
+-#define bdebug(fmt, args...) ({				\
+-	if (unlikely(bootmem_debug))			\
+-		pr_info("bootmem::%s " fmt,		\
+-			__func__, ## args);		\
+-})
+-
+-static unsigned long __init bootmap_bytes(unsigned long pages)
+-{
+-	unsigned long bytes = DIV_ROUND_UP(pages, BITS_PER_BYTE);
+-
+-	return ALIGN(bytes, sizeof(long));
+-}
+-
+-/**
+- * bootmem_bootmap_pages - calculate bitmap size in pages
+- * @pages: number of pages the bitmap has to represent
+- *
+- * Return: the number of pages needed to hold the bitmap.
+- */
+-unsigned long __init bootmem_bootmap_pages(unsigned long pages)
+-{
+-	unsigned long bytes = bootmap_bytes(pages);
+-
+-	return PAGE_ALIGN(bytes) >> PAGE_SHIFT;
+-}
+-
+-/*
+- * link bdata in order
+- */
+-static void __init link_bootmem(bootmem_data_t *bdata)
+-{
+-	bootmem_data_t *ent;
+-
+-	list_for_each_entry(ent, &bdata_list, list) {
+-		if (bdata->node_min_pfn < ent->node_min_pfn) {
+-			list_add_tail(&bdata->list, &ent->list);
+-			return;
+-		}
+-	}
+-
+-	list_add_tail(&bdata->list, &bdata_list);
+-}
+-
+-/*
+- * Called once to set up the allocator itself.
+- */
+-static unsigned long __init init_bootmem_core(bootmem_data_t *bdata,
+-	unsigned long mapstart, unsigned long start, unsigned long end)
+-{
+-	unsigned long mapsize;
+-
+-	mminit_validate_memmodel_limits(&start, &end);
+-	bdata->node_bootmem_map = phys_to_virt(PFN_PHYS(mapstart));
+-	bdata->node_min_pfn = start;
+-	bdata->node_low_pfn = end;
+-	link_bootmem(bdata);
+-
+-	/*
+-	 * Initially all pages are reserved - setup_arch() has to
+-	 * register free RAM areas explicitly.
+-	 */
+-	mapsize = bootmap_bytes(end - start);
+-	memset(bdata->node_bootmem_map, 0xff, mapsize);
+-
+-	bdebug("nid=%td start=%lx map=%lx end=%lx mapsize=%lx\n",
+-		bdata - bootmem_node_data, start, mapstart, end, mapsize);
+-
+-	return mapsize;
+-}
+-
+-/**
+- * init_bootmem_node - register a node as boot memory
+- * @pgdat: node to register
+- * @freepfn: pfn where the bitmap for this node is to be placed
+- * @startpfn: first pfn on the node
+- * @endpfn: first pfn after the node
+- *
+- * Return: the number of bytes needed to hold the bitmap for this node.
+- */
+-unsigned long __init init_bootmem_node(pg_data_t *pgdat, unsigned long freepfn,
+-				unsigned long startpfn, unsigned long endpfn)
+-{
+-	return init_bootmem_core(pgdat->bdata, freepfn, startpfn, endpfn);
+-}
+-
+-/**
+- * init_bootmem - register boot memory
+- * @start: pfn where the bitmap is to be placed
+- * @pages: number of available physical pages
+- *
+- * Return: the number of bytes needed to hold the bitmap.
+- */
+-unsigned long __init init_bootmem(unsigned long start, unsigned long pages)
+-{
+-	max_low_pfn = pages;
+-	min_low_pfn = start;
+-	return init_bootmem_core(NODE_DATA(0)->bdata, start, 0, pages);
+-}
+-
+-void __init free_bootmem_late(unsigned long physaddr, unsigned long size)
+-{
+-	unsigned long cursor, end;
+-
+-	kmemleak_free_part_phys(physaddr, size);
+-
+-	cursor = PFN_UP(physaddr);
+-	end = PFN_DOWN(physaddr + size);
+-
+-	for (; cursor < end; cursor++) {
+-		__free_pages_bootmem(pfn_to_page(cursor), cursor, 0);
+-		totalram_pages++;
+-	}
+-}
+-
+-static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+-{
+-	struct page *page;
+-	unsigned long *map, start, end, pages, cur, count = 0;
+-
+-	if (!bdata->node_bootmem_map)
+-		return 0;
+-
+-	map = bdata->node_bootmem_map;
+-	start = bdata->node_min_pfn;
+-	end = bdata->node_low_pfn;
+-
+-	bdebug("nid=%td start=%lx end=%lx\n",
+-		bdata - bootmem_node_data, start, end);
+-
+-	while (start < end) {
+-		unsigned long idx, vec;
+-		unsigned shift;
+-
+-		idx = start - bdata->node_min_pfn;
+-		shift = idx & (BITS_PER_LONG - 1);
+-		/*
+-		 * vec holds at most BITS_PER_LONG map bits,
+-		 * bit 0 corresponds to start.
+-		 */
+-		vec = ~map[idx / BITS_PER_LONG];
+-
+-		if (shift) {
+-			vec >>= shift;
+-			if (end - start >= BITS_PER_LONG)
+-				vec |= ~map[idx / BITS_PER_LONG + 1] <<
+-					(BITS_PER_LONG - shift);
+-		}
+-		/*
+-		 * If we have a properly aligned and fully unreserved
+-		 * BITS_PER_LONG block of pages in front of us, free
+-		 * it in one go.
+-		 */
+-		if (IS_ALIGNED(start, BITS_PER_LONG) && vec == ~0UL) {
+-			int order = ilog2(BITS_PER_LONG);
+-
+-			__free_pages_bootmem(pfn_to_page(start), start, order);
+-			count += BITS_PER_LONG;
+-			start += BITS_PER_LONG;
+-		} else {
+-			cur = start;
+-
+-			start = ALIGN(start + 1, BITS_PER_LONG);
+-			while (vec && cur != start) {
+-				if (vec & 1) {
+-					page = pfn_to_page(cur);
+-					__free_pages_bootmem(page, cur, 0);
+-					count++;
+-				}
+-				vec >>= 1;
+-				++cur;
+-			}
+-		}
+-	}
+-
+-	cur = bdata->node_min_pfn;
+-	page = virt_to_page(bdata->node_bootmem_map);
+-	pages = bdata->node_low_pfn - bdata->node_min_pfn;
+-	pages = bootmem_bootmap_pages(pages);
+-	count += pages;
+-	while (pages--)
+-		__free_pages_bootmem(page++, cur++, 0);
+-	bdata->node_bootmem_map = NULL;
+-
+-	bdebug("nid=%td released=%lx\n", bdata - bootmem_node_data, count);
+-
+-	return count;
+-}
+-
+-static int reset_managed_pages_done __initdata;
+-
+-void reset_node_managed_pages(pg_data_t *pgdat)
+-{
+-	struct zone *z;
+-
+-	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+-		z->managed_pages = 0;
+-}
+-
+-void __init reset_all_zones_managed_pages(void)
+-{
+-	struct pglist_data *pgdat;
+-
+-	if (reset_managed_pages_done)
+-		return;
+-
+-	for_each_online_pgdat(pgdat)
+-		reset_node_managed_pages(pgdat);
+-
+-	reset_managed_pages_done = 1;
+-}
+-
+-unsigned long __init free_all_bootmem(void)
+-{
+-	unsigned long total_pages = 0;
+-	bootmem_data_t *bdata;
+-
+-	reset_all_zones_managed_pages();
+-
+-	list_for_each_entry(bdata, &bdata_list, list)
+-		total_pages += free_all_bootmem_core(bdata);
+-
+-	totalram_pages += total_pages;
+-
+-	return total_pages;
+-}
+-
+-static void __init __free(bootmem_data_t *bdata,
+-			unsigned long sidx, unsigned long eidx)
+-{
+-	unsigned long idx;
+-
+-	bdebug("nid=%td start=%lx end=%lx\n", bdata - bootmem_node_data,
+-		sidx + bdata->node_min_pfn,
+-		eidx + bdata->node_min_pfn);
+-
+-	if (WARN_ON(bdata->node_bootmem_map == NULL))
+-		return;
+-
+-	if (bdata->hint_idx > sidx)
+-		bdata->hint_idx = sidx;
+-
+-	for (idx = sidx; idx < eidx; idx++)
+-		if (!test_and_clear_bit(idx, bdata->node_bootmem_map))
+-			BUG();
+-}
+-
+-static int __init __reserve(bootmem_data_t *bdata, unsigned long sidx,
+-			unsigned long eidx, int flags)
+-{
+-	unsigned long idx;
+-	int exclusive = flags & BOOTMEM_EXCLUSIVE;
+-
+-	bdebug("nid=%td start=%lx end=%lx flags=%x\n",
+-		bdata - bootmem_node_data,
+-		sidx + bdata->node_min_pfn,
+-		eidx + bdata->node_min_pfn,
+-		flags);
+-
+-	if (WARN_ON(bdata->node_bootmem_map == NULL))
+-		return 0;
+-
+-	for (idx = sidx; idx < eidx; idx++)
+-		if (test_and_set_bit(idx, bdata->node_bootmem_map)) {
+-			if (exclusive) {
+-				__free(bdata, sidx, idx);
+-				return -EBUSY;
+-			}
+-			bdebug("silent double reserve of PFN %lx\n",
+-				idx + bdata->node_min_pfn);
+-		}
+-	return 0;
+-}
+-
+-static int __init mark_bootmem_node(bootmem_data_t *bdata,
+-				unsigned long start, unsigned long end,
+-				int reserve, int flags)
+-{
+-	unsigned long sidx, eidx;
+-
+-	bdebug("nid=%td start=%lx end=%lx reserve=%d flags=%x\n",
+-		bdata - bootmem_node_data, start, end, reserve, flags);
+-
+-	BUG_ON(start < bdata->node_min_pfn);
+-	BUG_ON(end > bdata->node_low_pfn);
+-
+-	sidx = start - bdata->node_min_pfn;
+-	eidx = end - bdata->node_min_pfn;
+-
+-	if (reserve)
+-		return __reserve(bdata, sidx, eidx, flags);
+-	else
+-		__free(bdata, sidx, eidx);
+-	return 0;
+-}
+-
+-static int __init mark_bootmem(unsigned long start, unsigned long end,
+-				int reserve, int flags)
+-{
+-	unsigned long pos;
+-	bootmem_data_t *bdata;
+-
+-	pos = start;
+-	list_for_each_entry(bdata, &bdata_list, list) {
+-		int err;
+-		unsigned long max;
+-
+-		if (pos < bdata->node_min_pfn ||
+-		    pos >= bdata->node_low_pfn) {
+-			BUG_ON(pos != start);
+-			continue;
+-		}
+-
+-		max = min(bdata->node_low_pfn, end);
+-
+-		err = mark_bootmem_node(bdata, pos, max, reserve, flags);
+-		if (reserve && err) {
+-			mark_bootmem(start, pos, 0, 0);
+-			return err;
+-		}
+-
+-		if (max == end)
+-			return 0;
+-		pos = bdata->node_low_pfn;
+-	}
+-	BUG();
+-}
+-
+-void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
+-			      unsigned long size)
+-{
+-	unsigned long start, end;
+-
+-	kmemleak_free_part_phys(physaddr, size);
+-
+-	start = PFN_UP(physaddr);
+-	end = PFN_DOWN(physaddr + size);
+-
+-	mark_bootmem_node(pgdat->bdata, start, end, 0, 0);
+-}
+-
+-void __init free_bootmem(unsigned long physaddr, unsigned long size)
+-{
+-	unsigned long start, end;
+-
+-	kmemleak_free_part_phys(physaddr, size);
+-
+-	start = PFN_UP(physaddr);
+-	end = PFN_DOWN(physaddr + size);
+-
+-	mark_bootmem(start, end, 0, 0);
+-}
+-
+-/**
+- * reserve_bootmem_node - mark a page range as reserved
+- * @pgdat: node the range resides on
+- * @physaddr: starting address of the range
+- * @size: size of the range in bytes
+- * @flags: reservation flags (see linux/bootmem.h)
+- *
+- * Partial pages will be reserved.
+- *
+- * The range must reside completely on the specified node.
+- *
+- * Return: 0 on success, -errno on failure.
+- */
+-int __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
+-				 unsigned long size, int flags)
+-{
+-	unsigned long start, end;
+-
+-	start = PFN_DOWN(physaddr);
+-	end = PFN_UP(physaddr + size);
+-
+-	return mark_bootmem_node(pgdat->bdata, start, end, 1, flags);
+-}
+-
+-/**
+- * reserve_bootmem - mark a page range as reserved
+- * @addr: starting address of the range
+- * @size: size of the range in bytes
+- * @flags: reservation flags (see linux/bootmem.h)
+- *
+- * Partial pages will be reserved.
+- *
+- * The range must be contiguous but may span node boundaries.
+- *
+- * Return: 0 on success, -errno on failure.
+- */
+-int __init reserve_bootmem(unsigned long addr, unsigned long size,
+-			    int flags)
+-{
+-	unsigned long start, end;
+-
+-	start = PFN_DOWN(addr);
+-	end = PFN_UP(addr + size);
+-
+-	return mark_bootmem(start, end, 1, flags);
+-}
+-
+-static unsigned long __init align_idx(struct bootmem_data *bdata,
+-				      unsigned long idx, unsigned long step)
+-{
+-	unsigned long base = bdata->node_min_pfn;
+-
+-	/*
+-	 * Align the index with respect to the node start so that the
+-	 * combination of both satisfies the requested alignment.
+-	 */
+-
+-	return ALIGN(base + idx, step) - base;
+-}
+-
+-static unsigned long __init align_off(struct bootmem_data *bdata,
+-				      unsigned long off, unsigned long align)
+-{
+-	unsigned long base = PFN_PHYS(bdata->node_min_pfn);
+-
+-	/* Same as align_idx for byte offsets */
+-
+-	return ALIGN(base + off, align) - base;
+-}
+-
+-static void * __init alloc_bootmem_bdata(struct bootmem_data *bdata,
+-					unsigned long size, unsigned long align,
+-					unsigned long goal, unsigned long limit)
+-{
+-	unsigned long fallback = 0;
+-	unsigned long min, max, start, sidx, midx, step;
+-
+-	bdebug("nid=%td size=%lx [%lu pages] align=%lx goal=%lx limit=%lx\n",
+-		bdata - bootmem_node_data, size, PAGE_ALIGN(size) >> PAGE_SHIFT,
+-		align, goal, limit);
+-
+-	BUG_ON(!size);
+-	BUG_ON(align & (align - 1));
+-	BUG_ON(limit && goal + size > limit);
+-
+-	if (!bdata->node_bootmem_map)
+-		return NULL;
+-
+-	min = bdata->node_min_pfn;
+-	max = bdata->node_low_pfn;
+-
+-	goal >>= PAGE_SHIFT;
+-	limit >>= PAGE_SHIFT;
+-
+-	if (limit && max > limit)
+-		max = limit;
+-	if (max <= min)
+-		return NULL;
+-
+-	step = max(align >> PAGE_SHIFT, 1UL);
+-
+-	if (goal && min < goal && goal < max)
+-		start = ALIGN(goal, step);
+-	else
+-		start = ALIGN(min, step);
+-
+-	sidx = start - bdata->node_min_pfn;
+-	midx = max - bdata->node_min_pfn;
+-
+-	if (bdata->hint_idx > sidx) {
+-		/*
+-		 * Handle the valid case of sidx being zero and still
+-		 * catch the fallback below.
+-		 */
+-		fallback = sidx + 1;
+-		sidx = align_idx(bdata, bdata->hint_idx, step);
+-	}
+-
+-	while (1) {
+-		int merge;
+-		void *region;
+-		unsigned long eidx, i, start_off, end_off;
+-find_block:
+-		sidx = find_next_zero_bit(bdata->node_bootmem_map, midx, sidx);
+-		sidx = align_idx(bdata, sidx, step);
+-		eidx = sidx + PFN_UP(size);
+-
+-		if (sidx >= midx || eidx > midx)
+-			break;
+-
+-		for (i = sidx; i < eidx; i++)
+-			if (test_bit(i, bdata->node_bootmem_map)) {
+-				sidx = align_idx(bdata, i, step);
+-				if (sidx == i)
+-					sidx += step;
+-				goto find_block;
+-			}
+-
+-		if (bdata->last_end_off & (PAGE_SIZE - 1) &&
+-				PFN_DOWN(bdata->last_end_off) + 1 == sidx)
+-			start_off = align_off(bdata, bdata->last_end_off, align);
+-		else
+-			start_off = PFN_PHYS(sidx);
+-
+-		merge = PFN_DOWN(start_off) < sidx;
+-		end_off = start_off + size;
+-
+-		bdata->last_end_off = end_off;
+-		bdata->hint_idx = PFN_UP(end_off);
+-
+-		/*
+-		 * Reserve the area now:
+-		 */
+-		if (__reserve(bdata, PFN_DOWN(start_off) + merge,
+-				PFN_UP(end_off), BOOTMEM_EXCLUSIVE))
+-			BUG();
+-
+-		region = phys_to_virt(PFN_PHYS(bdata->node_min_pfn) +
+-				start_off);
+-		memset(region, 0, size);
+-		/*
+-		 * The min_count is set to 0 so that bootmem allocated blocks
+-		 * are never reported as leaks.
+-		 */
+-		kmemleak_alloc(region, size, 0, 0);
+-		return region;
+-	}
+-
+-	if (fallback) {
+-		sidx = align_idx(bdata, fallback - 1, step);
+-		fallback = 0;
+-		goto find_block;
+-	}
+-
+-	return NULL;
+-}
+-
+-static void * __init alloc_bootmem_core(unsigned long size,
+-					unsigned long align,
+-					unsigned long goal,
+-					unsigned long limit)
+-{
+-	bootmem_data_t *bdata;
+-	void *region;
+-
+-	if (WARN_ON_ONCE(slab_is_available()))
+-		return kzalloc(size, GFP_NOWAIT);
+-
+-	list_for_each_entry(bdata, &bdata_list, list) {
+-		if (goal && bdata->node_low_pfn <= PFN_DOWN(goal))
+-			continue;
+-		if (limit && bdata->node_min_pfn >= PFN_DOWN(limit))
+-			break;
+-
+-		region = alloc_bootmem_bdata(bdata, size, align, goal, limit);
+-		if (region)
+-			return region;
+-	}
+-
+-	return NULL;
+-}
+-
+-static void * __init ___alloc_bootmem_nopanic(unsigned long size,
+-					      unsigned long align,
+-					      unsigned long goal,
+-					      unsigned long limit)
+-{
+-	void *ptr;
+-
+-restart:
+-	ptr = alloc_bootmem_core(size, align, goal, limit);
+-	if (ptr)
+-		return ptr;
+-	if (goal) {
+-		goal = 0;
+-		goto restart;
+-	}
+-
+-	return NULL;
+-}
+-
+-void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
+-					unsigned long goal)
+-{
+-	unsigned long limit = 0;
+-
+-	return ___alloc_bootmem_nopanic(size, align, goal, limit);
+-}
+-
+-static void * __init ___alloc_bootmem(unsigned long size, unsigned long align,
+-					unsigned long goal, unsigned long limit)
+-{
+-	void *mem = ___alloc_bootmem_nopanic(size, align, goal, limit);
+-
+-	if (mem)
+-		return mem;
+-	/*
+-	 * Whoops, we cannot satisfy the allocation request.
+-	 */
+-	pr_alert("bootmem alloc of %lu bytes failed!\n", size);
+-	panic("Out of memory");
+-	return NULL;
+-}
+-
+-void * __init __alloc_bootmem(unsigned long size, unsigned long align,
+-			      unsigned long goal)
+-{
+-	unsigned long limit = 0;
+-
+-	return ___alloc_bootmem(size, align, goal, limit);
+-}
+-
+-void * __init ___alloc_bootmem_node_nopanic(pg_data_t *pgdat,
+-				unsigned long size, unsigned long align,
+-				unsigned long goal, unsigned long limit)
+-{
+-	void *ptr;
+-
+-	if (WARN_ON_ONCE(slab_is_available()))
+-		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+-again:
+-
+-	/* do not panic in alloc_bootmem_bdata() */
+-	if (limit && goal + size > limit)
+-		limit = 0;
+-
+-	ptr = alloc_bootmem_bdata(pgdat->bdata, size, align, goal, limit);
+-	if (ptr)
+-		return ptr;
+-
+-	ptr = alloc_bootmem_core(size, align, goal, limit);
+-	if (ptr)
+-		return ptr;
+-
+-	if (goal) {
+-		goal = 0;
+-		goto again;
+-	}
+-
+-	return NULL;
+-}
+-
+-void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned long size,
+-				   unsigned long align, unsigned long goal)
+-{
+-	return ___alloc_bootmem_node_nopanic(pgdat, size, align, goal, 0);
+-}
+-
+-void * __init ___alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
+-				    unsigned long align, unsigned long goal,
+-				    unsigned long limit)
+-{
+-	void *ptr;
+-
+-	ptr = ___alloc_bootmem_node_nopanic(pgdat, size, align, goal, 0);
+-	if (ptr)
+-		return ptr;
+-
+-	pr_alert("bootmem alloc of %lu bytes failed!\n", size);
+-	panic("Out of memory");
+-	return NULL;
+-}
+-
+-void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
+-				   unsigned long align, unsigned long goal)
+-{
+-	if (WARN_ON_ONCE(slab_is_available()))
+-		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+-
+-	return  ___alloc_bootmem_node(pgdat, size, align, goal, 0);
+-}
+-
+-void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long size,
+-				   unsigned long align, unsigned long goal)
+-{
+-#ifdef MAX_DMA32_PFN
+-	unsigned long end_pfn;
+-
+-	if (WARN_ON_ONCE(slab_is_available()))
+-		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+-
+-	/* update goal according ...MAX_DMA32_PFN */
+-	end_pfn = pgdat_end_pfn(pgdat);
+-
+-	if (end_pfn > MAX_DMA32_PFN + (128 >> (20 - PAGE_SHIFT)) &&
+-	    (goal >> PAGE_SHIFT) < MAX_DMA32_PFN) {
+-		void *ptr;
+-		unsigned long new_goal;
+-
+-		new_goal = MAX_DMA32_PFN << PAGE_SHIFT;
+-		ptr = alloc_bootmem_bdata(pgdat->bdata, size, align,
+-						 new_goal, 0);
+-		if (ptr)
+-			return ptr;
+-	}
+-#endif
+-
+-	return __alloc_bootmem_node(pgdat, size, align, goal);
+-
+-}
+-
+-void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
+-				  unsigned long goal)
+-{
+-	return ___alloc_bootmem(size, align, goal, ARCH_LOW_ADDRESS_LIMIT);
+-}
+-
+-void * __init __alloc_bootmem_low_nopanic(unsigned long size,
+-					  unsigned long align,
+-					  unsigned long goal)
+-{
+-	return ___alloc_bootmem_nopanic(size, align, goal,
+-					ARCH_LOW_ADDRESS_LIMIT);
+-}
+-
+-void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
+-				       unsigned long align, unsigned long goal)
+-{
+-	if (WARN_ON_ONCE(slab_is_available()))
+-		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+-
+-	return ___alloc_bootmem_node(pgdat, size, align,
+-				     goal, ARCH_LOW_ADDRESS_LIMIT);
+-}
 -- 
 2.7.4
