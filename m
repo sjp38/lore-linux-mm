@@ -1,90 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E4CE8E0001
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 10:07:23 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id l14-v6so9661854oii.9
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 07:07:23 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id k91-v6si1519498otc.259.2018.09.14.07.07.21
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EA5768E0001
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 10:15:00 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id r25-v6so3879000edc.7
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 07:15:00 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 38-v6si609672edt.374.2018.09.14.07.14.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Sep 2018 07:07:22 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8EE49jQ048822
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 10:07:21 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mgdsvt4xd-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 10:07:21 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Fri, 14 Sep 2018 15:07:19 +0100
-Date: Fri, 14 Sep 2018 16:07:14 +0200
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [RFC][PATCH 01/11] asm-generic/tlb: Provide a comment
-In-Reply-To: <20180914130207.GD24106@hirez.programming.kicks-ass.net>
-References: <20180913092110.817204997@infradead.org>
-	<20180913092811.894806629@infradead.org>
-	<20180913123014.0d9321b8@mschwideX1>
-	<20180913105738.GW24124@hirez.programming.kicks-ass.net>
-	<20180913141827.1776985e@mschwideX1>
-	<20180913123937.GX24124@hirez.programming.kicks-ass.net>
-	<20180914122824.181d9778@mschwideX1>
-	<20180914130207.GD24106@hirez.programming.kicks-ass.net>
+        Fri, 14 Sep 2018 07:14:59 -0700 (PDT)
+Date: Fri, 14 Sep 2018 16:14:57 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 0/3] rework mmap-exit vs. oom_reaper handover
+Message-ID: <20180914141457.GB6081@dhcp22.suse.cz>
+References: <70a92ca8-ca3e-2586-d52a-36c5ef6f7e43@i-love.sakura.ne.jp>
+ <20180912075054.GZ10951@dhcp22.suse.cz>
+ <20180912134203.GJ10951@dhcp22.suse.cz>
+ <4ed2213e-c4ca-4ef2-2cc0-17b5c5447325@i-love.sakura.ne.jp>
+ <20180913090950.GD20287@dhcp22.suse.cz>
+ <c70a8b7c-d1d2-66de-d87e-13a4a410335b@i-love.sakura.ne.jp>
+ <20180913113538.GE20287@dhcp22.suse.cz>
+ <0897639b-a1d9-2da1-0a1e-a3eeed799a0f@i-love.sakura.ne.jp>
+ <20180913134032.GF20287@dhcp22.suse.cz>
+ <792a95e1-b81d-b220-f00b-27b7abf969f4@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Message-Id: <20180914160714.45a11f13@mschwideX1>
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <792a95e1-b81d-b220-f00b-27b7abf969f4@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: will.deacon@arm.com, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, npiggin@gmail.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@armlinux.org.uk, heiko.carstens@de.ibm.com, Linus Torvalds <torvalds@linux-foundation.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
 
-On Fri, 14 Sep 2018 15:02:07 +0200
-Peter Zijlstra <peterz@infradead.org> wrote:
+On Fri 14-09-18 22:54:45, Tetsuo Handa wrote:
+> On 2018/09/13 22:40, Michal Hocko wrote:
+> > On Thu 13-09-18 20:53:24, Tetsuo Handa wrote:
+> >> On 2018/09/13 20:35, Michal Hocko wrote:
+> >>>> Next question.
+> >>>>
+> >>>>         /* Use -1 here to ensure all VMAs in the mm are unmapped */
+> >>>>         unmap_vmas(&tlb, vma, 0, -1);
+> >>>>
+> >>>> in exit_mmap() will now race with the OOM reaper. And unmap_vmas() will handle
+> >>>> VM_HUGETLB or VM_PFNMAP or VM_SHARED or !vma_is_anonymous() vmas, won't it?
+> >>>> Then, is it guaranteed to be safe if the OOM reaper raced with unmap_vmas() ?
+> >>>
+> >>> I do not understand the question. unmap_vmas is basically MADV_DONTNEED
+> >>> and that doesn't require the exclusive mmap_sem lock so yes it should be
+> >>> safe those two to race (modulo bugs of course but I am not aware of any
+> >>> there).
+> >>>  
+> >>
+> >> You need to verify that races we observed with VM_LOCKED can't happen
+> >> for VM_HUGETLB / VM_PFNMAP / VM_SHARED / !vma_is_anonymous() cases.
+> > 
+> > Well, VM_LOCKED is kind of special because that is not a permanent state
+> > which might change. VM_HUGETLB, VM_PFNMAP resp VM_SHARED are not changed
+> > throughout the vma lifetime.
+> > 
+> OK, next question.
+> Is it guaranteed that arch_exit_mmap(mm) is safe with the OOM reaper?
 
-> On Fri, Sep 14, 2018 at 12:28:24PM +0200, Martin Schwidefsky wrote:
-> 
-> > I spent some time to get s390 converted to the common mmu_gather code.
-> > There is one thing I would like to request, namely the ability to
-> > disable the page gather part of mmu_gather. For my prototype patch
-> > see below, it defines the negative HAVE_RCU_NO_GATHER_PAGES Kconfig
-> > symbol that if defined will remove some parts from common code.
-> > Ugly but good enough for the prototype to convey the idea.
-> > For the final solution we better use a positive Kconfig symbol and
-> > add that to all arch Kconfig files except for s390.  
-> 
-> In a private thread ealier Linus raised the point that the batching and
-> freeing of lots of pages at once is probably better for I$.
-
-That would be something to try. For now I would like to do a conversion
-that more or less preserves the old behavior. You know these pesky TLB
-related bugs..
-
-> > +config HAVE_RCU_NO_GATHER_PAGES
-> > +	bool  
-> 
-> I have a problem with the name more than anything else; this name
-> suggests it is the RCU table freeing that should not batch, which is not
-> the case, you want the regular page gather gone, but very much require
-> the RCU table gather to batch.
-> 
-> So I would like to propose calling it:
-> 
-> config HAVE_MMU_GATHER_NO_GATHER
-> 
-> Or something along those lines.
+I do not see any obvious problem and we used to allow to race unmaping
+in exit and oom_reaper paths before we had to handle mlocked vmas
+specially.
  
-Imho a positive config option like HAVE_MMU_GATHER_PAGES would make the
-most sense. It has the downside that it needs to be added to all
-arch/*/Kconfig files except for s390. 
+> Well, anyway, diffstat of your proposal would be
+> 
+>  include/linux/oom.h |  2 --
+>  mm/internal.h       |  3 +++
+>  mm/memory.c         | 28 ++++++++++++--------
+>  mm/mmap.c           | 73 +++++++++++++++++++++++++++++++----------------------
+>  mm/oom_kill.c       | 46 ++++++++++++++++++++++++---------
+>  5 files changed, 98 insertions(+), 54 deletions(-)
+> 
+> trying to hand over only __free_pgtables() part at the risk of
+> setting MMF_OOM_SKIP without reclaiming any memory due to dropping
+> __oom_reap_task_mm() and scattering down_write()/up_write() inside
+> exit_mmap(), while diffstat of my proposal (not tested yet) would be
+> 
+>  include/linux/mm_types.h |   2 +
+>  include/linux/oom.h      |   3 +-
+>  include/linux/sched.h    |   2 +-
+>  kernel/fork.c            |  11 +++
+>  mm/mmap.c                |  42 ++++-------
+>  mm/oom_kill.c            | 182 ++++++++++++++++++++++-------------------------
+>  6 files changed, 117 insertions(+), 125 deletions(-)
+> 
+> trying to wait until __mmput() completes and also trying to handle
+> multiple OOM victims in parallel.
+> 
+> You are refusing timeout based approach but I don't think this is
+> something we have to be frayed around the edge about possibility of
+> overlooking races/bugs because you don't want to use timeout. And you
+> have never showed that timeout based approach cannot work well enough.
 
-But I am not hung-up on a name, whatever does not sound to awful will do
-for me. HAVE_MMU_GATHER_NO_GATHER would be ok.
+I have tried to explain why I do not like the timeout based approach
+several times alreay and I am getting fed up repeating it over and over
+again.  The main point though is that we know _what_ we are waiting for
+and _how_ we are synchronizing different parts rather than let's wait
+some time and hopefully something happens.
 
+Moreover, we have a backoff mechanism. The new class of oom victims
+with a large amount of memory in page tables can fit into that
+model. The new model adds few more branches to the exit path so if this
+is acceptable for other mm developers then I think this is much more
+preferrable to add a diffrent retry mechanism.
 -- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+Michal Hocko
+SUSE Labs
