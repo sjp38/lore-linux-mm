@@ -1,149 +1,589 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 195068E0001
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:42 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id v4-v6so9331628oix.2
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 05:11:42 -0700 (PDT)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D0F3E8E0001
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:49 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id a21-v6so3496204otf.8
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 05:11:49 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id i7-v6si3433296oib.262.2018.09.14.05.11.40
+        by mx.google.com with ESMTPS id g62-v6si3467187oif.321.2018.09.14.05.11.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Sep 2018 05:11:40 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8EC5NN4006137
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:40 -0400
+        Fri, 14 Sep 2018 05:11:47 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8EC5Lnj144930
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:46 -0400
 Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mgb9y3svm-1
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mgcfxgth0-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:39 -0400
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 08:11:46 -0400
 Received: from localhost
 	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Fri, 14 Sep 2018 13:11:36 +0100
+	Fri, 14 Sep 2018 13:11:42 +0100
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 05/30] mm: nobootmem: remove dead code
-Date: Fri, 14 Sep 2018 15:10:20 +0300
+Subject: [PATCH 06/30] memblock: rename memblock_alloc{_nid,_try_nid} to memblock_phys_alloc*
+Date: Fri, 14 Sep 2018 15:10:21 +0300
 In-Reply-To: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com>
 References: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1536927045-23536-6-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1536927045-23536-7-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, "David S. Miller" <davem@davemloft.net>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jonas Bonn <jonas@southpole.se>, Jonathan Corbet <corbet@lwn.net>, Ley Foon Tan <lftan@altera.com>, Mark Salter <msalter@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matt Turner <mattst88@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Palmer Dabbelt <palmer@sifive.com>, Paul Burton <paul.burton@mips.com>, Richard Kuo <rkuo@codeaurora.org>, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Serge Semin <fancer.lancer@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, nios2-dev@lists.rocketboards.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-Several bootmem functions and macros are not used. Remove them.
+Make it explicit that the caller gets a physical address rather than a
+virtual one.
+
+This will also allow using meblock_alloc prefix for memblock allocations
+returning virtual address, which is done in the following patches.
+
+The conversion is done using the following semantic patch:
+
+@@
+expression e1, e2, e3;
+@@
+(
+- memblock_alloc(e1, e2)
++ memblock_phys_alloc(e1, e2)
+|
+- memblock_alloc_nid(e1, e2, e3)
++ memblock_phys_alloc_nid(e1, e2, e3)
+|
+- memblock_alloc_try_nid(e1, e2, e3)
++ memblock_phys_alloc_try_nid(e1, e2, e3)
+)
 
 Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/bootmem.h | 26 --------------------------
- mm/nobootmem.c          | 35 -----------------------------------
- 2 files changed, 61 deletions(-)
+ arch/arm/mm/mmu.c                     |  2 +-
+ arch/arm64/mm/mmu.c                   |  2 +-
+ arch/arm64/mm/numa.c                  |  2 +-
+ arch/c6x/mm/dma-coherent.c            |  4 ++--
+ arch/nds32/mm/init.c                  |  8 ++++----
+ arch/openrisc/mm/init.c               |  2 +-
+ arch/openrisc/mm/ioremap.c            |  2 +-
+ arch/powerpc/kernel/dt_cpu_ftrs.c     |  4 +---
+ arch/powerpc/kernel/paca.c            |  2 +-
+ arch/powerpc/kernel/prom.c            |  2 +-
+ arch/powerpc/kernel/setup-common.c    |  3 +--
+ arch/powerpc/kernel/setup_32.c        | 10 +++++-----
+ arch/powerpc/mm/numa.c                |  2 +-
+ arch/powerpc/mm/pgtable_32.c          |  2 +-
+ arch/powerpc/mm/ppc_mmu_32.c          |  2 +-
+ arch/powerpc/platforms/pasemi/iommu.c |  2 +-
+ arch/powerpc/platforms/powernv/opal.c |  2 +-
+ arch/powerpc/sysdev/dart_iommu.c      |  2 +-
+ arch/s390/kernel/crash_dump.c         |  2 +-
+ arch/s390/kernel/setup.c              |  3 ++-
+ arch/s390/mm/vmem.c                   |  4 ++--
+ arch/s390/numa/numa.c                 |  2 +-
+ arch/sparc/kernel/mdesc.c             |  2 +-
+ arch/sparc/kernel/prom_64.c           |  2 +-
+ arch/sparc/mm/init_64.c               | 11 ++++++-----
+ arch/unicore32/mm/mmu.c               |  2 +-
+ arch/x86/mm/numa.c                    |  2 +-
+ drivers/firmware/efi/memmap.c         |  2 +-
+ include/linux/memblock.h              |  6 +++---
+ mm/memblock.c                         |  8 ++++----
+ 30 files changed, 50 insertions(+), 51 deletions(-)
 
-diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
-index fce6278..b74bafd1 100644
---- a/include/linux/bootmem.h
-+++ b/include/linux/bootmem.h
-@@ -36,17 +36,6 @@ extern void free_bootmem_node(pg_data_t *pgdat,
- extern void free_bootmem(unsigned long physaddr, unsigned long size);
- extern void free_bootmem_late(unsigned long physaddr, unsigned long size);
+diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
+index e46a6a4..f5cc1cc 100644
+--- a/arch/arm/mm/mmu.c
++++ b/arch/arm/mm/mmu.c
+@@ -721,7 +721,7 @@ EXPORT_SYMBOL(phys_mem_access_prot);
  
--/*
-- * Flags for reserve_bootmem (also if CONFIG_HAVE_ARCH_BOOTMEM_NODE,
-- * the architecture-specific code should honor this).
-- *
-- * If flags is BOOTMEM_DEFAULT, then the return value is always 0 (success).
-- * If flags contains BOOTMEM_EXCLUSIVE, then -EBUSY is returned if the memory
-- * already was reserved.
-- */
--#define BOOTMEM_DEFAULT		0
--#define BOOTMEM_EXCLUSIVE	(1<<0)
--
- extern void *__alloc_bootmem(unsigned long size,
- 			     unsigned long align,
- 			     unsigned long goal);
-@@ -73,13 +62,6 @@ void *___alloc_bootmem_node_nopanic(pg_data_t *pgdat,
- extern void *__alloc_bootmem_low(unsigned long size,
- 				 unsigned long align,
- 				 unsigned long goal) __malloc;
--void *__alloc_bootmem_low_nopanic(unsigned long size,
--				 unsigned long align,
--				 unsigned long goal) __malloc;
--extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
--				      unsigned long size,
--				      unsigned long align,
--				      unsigned long goal) __malloc;
- 
- /* We are using top down, so it is safe to use 0 here */
- #define BOOTMEM_LOW_LIMIT 0
-@@ -92,8 +74,6 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
- 	__alloc_bootmem(x, SMP_CACHE_BYTES, BOOTMEM_LOW_LIMIT)
- #define alloc_bootmem_align(x, align) \
- 	__alloc_bootmem(x, align, BOOTMEM_LOW_LIMIT)
--#define alloc_bootmem_nopanic(x) \
--	__alloc_bootmem_nopanic(x, SMP_CACHE_BYTES, BOOTMEM_LOW_LIMIT)
- #define alloc_bootmem_pages(x) \
- 	__alloc_bootmem(x, PAGE_SIZE, BOOTMEM_LOW_LIMIT)
- #define alloc_bootmem_pages_nopanic(x) \
-@@ -104,17 +84,11 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
- 	__alloc_bootmem_node_nopanic(pgdat, x, SMP_CACHE_BYTES, BOOTMEM_LOW_LIMIT)
- #define alloc_bootmem_pages_node(pgdat, x) \
- 	__alloc_bootmem_node(pgdat, x, PAGE_SIZE, BOOTMEM_LOW_LIMIT)
--#define alloc_bootmem_pages_node_nopanic(pgdat, x) \
--	__alloc_bootmem_node_nopanic(pgdat, x, PAGE_SIZE, BOOTMEM_LOW_LIMIT)
- 
- #define alloc_bootmem_low(x) \
- 	__alloc_bootmem_low(x, SMP_CACHE_BYTES, 0)
--#define alloc_bootmem_low_pages_nopanic(x) \
--	__alloc_bootmem_low_nopanic(x, PAGE_SIZE, 0)
- #define alloc_bootmem_low_pages(x) \
- 	__alloc_bootmem_low(x, PAGE_SIZE, 0)
--#define alloc_bootmem_low_pages_node(pgdat, x) \
--	__alloc_bootmem_low_node(pgdat, x, PAGE_SIZE, 0)
- 
- /* FIXME: use MEMBLOCK_ALLOC_* variants here */
- #define BOOTMEM_ALLOC_ACCESSIBLE	0
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index d4d0cd4..44ce7de 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -404,38 +404,3 @@ void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
+ static void __init *early_alloc_aligned(unsigned long sz, unsigned long align)
  {
- 	return ___alloc_bootmem(size, align, goal, ARCH_LOW_ADDRESS_LIMIT);
+-	void *ptr = __va(memblock_alloc(sz, align));
++	void *ptr = __va(memblock_phys_alloc(sz, align));
+ 	memset(ptr, 0, sz);
+ 	return ptr;
  }
--
--void * __init __alloc_bootmem_low_nopanic(unsigned long size,
--					  unsigned long align,
--					  unsigned long goal)
--{
--	return ___alloc_bootmem_nopanic(size, align, goal,
--					ARCH_LOW_ADDRESS_LIMIT);
--}
--
--/**
-- * __alloc_bootmem_low_node - allocate low boot memory from a specific node
-- * @pgdat: node to allocate from
-- * @size: size of the request in bytes
-- * @align: alignment of the region
-- * @goal: preferred starting address of the region
-- *
-- * The goal is dropped if it can not be satisfied and the allocation will
-- * fall back to memory below @goal.
-- *
-- * Allocation may fall back to any node in the system if the specified node
-- * can not hold the requested memory.
-- *
-- * The function panics if the request can not be satisfied.
-- *
-- * Return: address of the allocated region.
-- */
--void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
--				       unsigned long align, unsigned long goal)
--{
--	if (WARN_ON_ONCE(slab_is_available()))
--		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
--
--	return ___alloc_bootmem_node(pgdat, size, align, goal,
--				     ARCH_LOW_ADDRESS_LIMIT);
--}
+diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+index 8080c9f..b8e037b 100644
+--- a/arch/arm64/mm/mmu.c
++++ b/arch/arm64/mm/mmu.c
+@@ -83,7 +83,7 @@ static phys_addr_t __init early_pgtable_alloc(void)
+ 	phys_addr_t phys;
+ 	void *ptr;
+ 
+-	phys = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
++	phys = memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE);
+ 
+ 	/*
+ 	 * The FIX_{PGD,PUD,PMD} slots may be in active use, but the FIX_PTE
+diff --git a/arch/arm64/mm/numa.c b/arch/arm64/mm/numa.c
+index 146c04c..e5aacd6 100644
+--- a/arch/arm64/mm/numa.c
++++ b/arch/arm64/mm/numa.c
+@@ -237,7 +237,7 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
+ 	if (start_pfn >= end_pfn)
+ 		pr_info("Initmem setup node %d [<memory-less node>]\n", nid);
+ 
+-	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
++	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
+ 	nd = __va(nd_pa);
+ 
+ 	/* report and initialize */
+diff --git a/arch/c6x/mm/dma-coherent.c b/arch/c6x/mm/dma-coherent.c
+index d0a8e0c..01305c7 100644
+--- a/arch/c6x/mm/dma-coherent.c
++++ b/arch/c6x/mm/dma-coherent.c
+@@ -135,8 +135,8 @@ void __init coherent_mem_init(phys_addr_t start, u32 size)
+ 	if (dma_size & (PAGE_SIZE - 1))
+ 		++dma_pages;
+ 
+-	bitmap_phys = memblock_alloc(BITS_TO_LONGS(dma_pages) * sizeof(long),
+-				     sizeof(long));
++	bitmap_phys = memblock_phys_alloc(BITS_TO_LONGS(dma_pages) * sizeof(long),
++					  sizeof(long));
+ 
+ 	dma_bitmap = phys_to_virt(bitmap_phys);
+ 	memset(dma_bitmap, 0, dma_pages * PAGE_SIZE);
+diff --git a/arch/nds32/mm/init.c b/arch/nds32/mm/init.c
+index c713d2a..5af81b8 100644
+--- a/arch/nds32/mm/init.c
++++ b/arch/nds32/mm/init.c
+@@ -81,7 +81,7 @@ static void __init map_ram(void)
+ 		}
+ 
+ 		/* Alloc one page for holding PTE's... */
+-		pte = (pte_t *) __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
++		pte = (pte_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
+ 		memset(pte, 0, PAGE_SIZE);
+ 		set_pmd(pme, __pmd(__pa(pte) + _PAGE_KERNEL_TABLE));
+ 
+@@ -114,7 +114,7 @@ static void __init fixedrange_init(void)
+ 	pgd = swapper_pg_dir + pgd_index(vaddr);
+ 	pud = pud_offset(pgd, vaddr);
+ 	pmd = pmd_offset(pud, vaddr);
+-	fixmap_pmd_p = (pmd_t *) __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
++	fixmap_pmd_p = (pmd_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
+ 	memset(fixmap_pmd_p, 0, PAGE_SIZE);
+ 	set_pmd(pmd, __pmd(__pa(fixmap_pmd_p) + _PAGE_KERNEL_TABLE));
+ 
+@@ -127,7 +127,7 @@ static void __init fixedrange_init(void)
+ 	pgd = swapper_pg_dir + pgd_index(vaddr);
+ 	pud = pud_offset(pgd, vaddr);
+ 	pmd = pmd_offset(pud, vaddr);
+-	pte = (pte_t *) __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
++	pte = (pte_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
+ 	memset(pte, 0, PAGE_SIZE);
+ 	set_pmd(pmd, __pmd(__pa(pte) + _PAGE_KERNEL_TABLE));
+ 	pkmap_page_table = pte;
+@@ -153,7 +153,7 @@ void __init paging_init(void)
+ 	fixedrange_init();
+ 
+ 	/* allocate space for empty_zero_page */
+-	zero_page = __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
++	zero_page = __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
+ 	memset(zero_page, 0, PAGE_SIZE);
+ 	zone_sizes_init();
+ 
+diff --git a/arch/openrisc/mm/init.c b/arch/openrisc/mm/init.c
+index 6972d5d..b7670de 100644
+--- a/arch/openrisc/mm/init.c
++++ b/arch/openrisc/mm/init.c
+@@ -106,7 +106,7 @@ static void __init map_ram(void)
+ 			}
+ 
+ 			/* Alloc one page for holding PTE's... */
+-			pte = (pte_t *) __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
++			pte = (pte_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
+ 			set_pmd(pme, __pmd(_KERNPG_TABLE + __pa(pte)));
+ 
+ 			/* Fill the newly allocated page with PTE'S */
+diff --git a/arch/openrisc/mm/ioremap.c b/arch/openrisc/mm/ioremap.c
+index 2175e4b..c969752 100644
+--- a/arch/openrisc/mm/ioremap.c
++++ b/arch/openrisc/mm/ioremap.c
+@@ -126,7 +126,7 @@ pte_t __ref *pte_alloc_one_kernel(struct mm_struct *mm,
+ 	if (likely(mem_init_done)) {
+ 		pte = (pte_t *) __get_free_page(GFP_KERNEL);
+ 	} else {
+-		pte = (pte_t *) __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
++		pte = (pte_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
+ 	}
+ 
+ 	if (pte)
+diff --git a/arch/powerpc/kernel/dt_cpu_ftrs.c b/arch/powerpc/kernel/dt_cpu_ftrs.c
+index f432054..8be3721 100644
+--- a/arch/powerpc/kernel/dt_cpu_ftrs.c
++++ b/arch/powerpc/kernel/dt_cpu_ftrs.c
+@@ -1008,9 +1008,7 @@ static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
+ 	/* Count and allocate space for cpu features */
+ 	of_scan_flat_dt_subnodes(node, count_cpufeatures_subnodes,
+ 						&nr_dt_cpu_features);
+-	dt_cpu_features = __va(
+-		memblock_alloc(sizeof(struct dt_cpu_feature)*
+-				nr_dt_cpu_features, PAGE_SIZE));
++	dt_cpu_features = __va(memblock_phys_alloc(sizeof(struct dt_cpu_feature) * nr_dt_cpu_features, PAGE_SIZE));
+ 
+ 	cpufeatures_setup_start(isa);
+ 
+diff --git a/arch/powerpc/kernel/paca.c b/arch/powerpc/kernel/paca.c
+index 0ee3e6d..f331a00 100644
+--- a/arch/powerpc/kernel/paca.c
++++ b/arch/powerpc/kernel/paca.c
+@@ -198,7 +198,7 @@ void __init allocate_paca_ptrs(void)
+ 	paca_nr_cpu_ids = nr_cpu_ids;
+ 
+ 	paca_ptrs_size = sizeof(struct paca_struct *) * nr_cpu_ids;
+-	paca_ptrs = __va(memblock_alloc(paca_ptrs_size, 0));
++	paca_ptrs = __va(memblock_phys_alloc(paca_ptrs_size, 0));
+ 	memset(paca_ptrs, 0x88, paca_ptrs_size);
+ }
+ 
+diff --git a/arch/powerpc/kernel/prom.c b/arch/powerpc/kernel/prom.c
+index c4d7078..fe758ce 100644
+--- a/arch/powerpc/kernel/prom.c
++++ b/arch/powerpc/kernel/prom.c
+@@ -126,7 +126,7 @@ static void __init move_device_tree(void)
+ 	if ((memory_limit && (start + size) > PHYSICAL_START + memory_limit) ||
+ 			overlaps_crashkernel(start, size) ||
+ 			overlaps_initrd(start, size)) {
+-		p = __va(memblock_alloc(size, PAGE_SIZE));
++		p = __va(memblock_phys_alloc(size, PAGE_SIZE));
+ 		memcpy(p, initial_boot_params, size);
+ 		initial_boot_params = p;
+ 		DBG("Moved device tree to 0x%p\n", p);
+diff --git a/arch/powerpc/kernel/setup-common.c b/arch/powerpc/kernel/setup-common.c
+index 93fa0c9..710ff98 100644
+--- a/arch/powerpc/kernel/setup-common.c
++++ b/arch/powerpc/kernel/setup-common.c
+@@ -459,8 +459,7 @@ void __init smp_setup_cpu_maps(void)
+ 
+ 	DBG("smp_setup_cpu_maps()\n");
+ 
+-	cpu_to_phys_id = __va(memblock_alloc(nr_cpu_ids * sizeof(u32),
+-							__alignof__(u32)));
++	cpu_to_phys_id = __va(memblock_phys_alloc(nr_cpu_ids * sizeof(u32), __alignof__(u32)));
+ 	memset(cpu_to_phys_id, 0, nr_cpu_ids * sizeof(u32));
+ 
+ 	for_each_node_by_type(dn, "cpu") {
+diff --git a/arch/powerpc/kernel/setup_32.c b/arch/powerpc/kernel/setup_32.c
+index 8c507be..8190960 100644
+--- a/arch/powerpc/kernel/setup_32.c
++++ b/arch/powerpc/kernel/setup_32.c
+@@ -206,9 +206,9 @@ void __init irqstack_early_init(void)
+ 	 * as the memblock is limited to lowmem by default */
+ 	for_each_possible_cpu(i) {
+ 		softirq_ctx[i] = (struct thread_info *)
+-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
++			__va(memblock_phys_alloc(THREAD_SIZE, THREAD_SIZE));
+ 		hardirq_ctx[i] = (struct thread_info *)
+-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
++			__va(memblock_phys_alloc(THREAD_SIZE, THREAD_SIZE));
+ 	}
+ }
+ 
+@@ -227,12 +227,12 @@ void __init exc_lvl_early_init(void)
+ #endif
+ 
+ 		critirq_ctx[hw_cpu] = (struct thread_info *)
+-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
++			__va(memblock_phys_alloc(THREAD_SIZE, THREAD_SIZE));
+ #ifdef CONFIG_BOOKE
+ 		dbgirq_ctx[hw_cpu] = (struct thread_info *)
+-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
++			__va(memblock_phys_alloc(THREAD_SIZE, THREAD_SIZE));
+ 		mcheckirq_ctx[hw_cpu] = (struct thread_info *)
+-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
++			__va(memblock_phys_alloc(THREAD_SIZE, THREAD_SIZE));
+ #endif
+ 	}
+ }
+diff --git a/arch/powerpc/mm/numa.c b/arch/powerpc/mm/numa.c
+index 35ac542..5fc0587 100644
+--- a/arch/powerpc/mm/numa.c
++++ b/arch/powerpc/mm/numa.c
+@@ -788,7 +788,7 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
+ 	void *nd;
+ 	int tnid;
+ 
+-	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
++	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
+ 	nd = __va(nd_pa);
+ 
+ 	/* report and initialize */
+diff --git a/arch/powerpc/mm/pgtable_32.c b/arch/powerpc/mm/pgtable_32.c
+index 120a49b..989a1c2 100644
+--- a/arch/powerpc/mm/pgtable_32.c
++++ b/arch/powerpc/mm/pgtable_32.c
+@@ -50,7 +50,7 @@ __ref pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
+ 	if (slab_is_available()) {
+ 		pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
+ 	} else {
+-		pte = __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
++		pte = __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
+ 		if (pte)
+ 			clear_page(pte);
+ 	}
+diff --git a/arch/powerpc/mm/ppc_mmu_32.c b/arch/powerpc/mm/ppc_mmu_32.c
+index bea6c54..9ee0357 100644
+--- a/arch/powerpc/mm/ppc_mmu_32.c
++++ b/arch/powerpc/mm/ppc_mmu_32.c
+@@ -224,7 +224,7 @@ void __init MMU_init_hw(void)
+ 	 * Find some memory for the hash table.
+ 	 */
+ 	if ( ppc_md.progress ) ppc_md.progress("hash:find piece", 0x322);
+-	Hash = __va(memblock_alloc(Hash_size, Hash_size));
++	Hash = __va(memblock_phys_alloc(Hash_size, Hash_size));
+ 	memset(Hash, 0, Hash_size);
+ 	_SDR1 = __pa(Hash) | SDR1_LOW_BITS;
+ 
+diff --git a/arch/powerpc/platforms/pasemi/iommu.c b/arch/powerpc/platforms/pasemi/iommu.c
+index f06c83f..f297152 100644
+--- a/arch/powerpc/platforms/pasemi/iommu.c
++++ b/arch/powerpc/platforms/pasemi/iommu.c
+@@ -213,7 +213,7 @@ static int __init iob_init(struct device_node *dn)
+ 	pr_info("IOBMAP L2 allocated at: %p\n", iob_l2_base);
+ 
+ 	/* Allocate a spare page to map all invalid IOTLB pages. */
+-	tmp = memblock_alloc(IOBMAP_PAGE_SIZE, IOBMAP_PAGE_SIZE);
++	tmp = memblock_phys_alloc(IOBMAP_PAGE_SIZE, IOBMAP_PAGE_SIZE);
+ 	if (!tmp)
+ 		panic("IOBMAP: Cannot allocate spare page!");
+ 	/* Empty l1 is marked invalid */
+diff --git a/arch/powerpc/platforms/powernv/opal.c b/arch/powerpc/platforms/powernv/opal.c
+index 38fe408..9431921 100644
+--- a/arch/powerpc/platforms/powernv/opal.c
++++ b/arch/powerpc/platforms/powernv/opal.c
+@@ -171,7 +171,7 @@ int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
+ 	/*
+ 	 * Allocate a buffer to hold the MC recoverable ranges.
+ 	 */
+-	mc_recoverable_range =__va(memblock_alloc(size, __alignof__(u64)));
++	mc_recoverable_range =__va(memblock_phys_alloc(size, __alignof__(u64)));
+ 	memset(mc_recoverable_range, 0, size);
+ 
+ 	for (i = 0; i < mc_recoverable_range_len; i++) {
+diff --git a/arch/powerpc/sysdev/dart_iommu.c b/arch/powerpc/sysdev/dart_iommu.c
+index 5ca3e22..a5b40d1 100644
+--- a/arch/powerpc/sysdev/dart_iommu.c
++++ b/arch/powerpc/sysdev/dart_iommu.c
+@@ -261,7 +261,7 @@ static void allocate_dart(void)
+ 	 * that to work around what looks like a problem with the HT bridge
+ 	 * prefetching into invalid pages and corrupting data
+ 	 */
+-	tmp = memblock_alloc(DART_PAGE_SIZE, DART_PAGE_SIZE);
++	tmp = memblock_phys_alloc(DART_PAGE_SIZE, DART_PAGE_SIZE);
+ 	dart_emptyval = DARTMAP_VALID | ((tmp >> DART_PAGE_SHIFT) &
+ 					 DARTMAP_RPNMASK);
+ 
+diff --git a/arch/s390/kernel/crash_dump.c b/arch/s390/kernel/crash_dump.c
+index 376f6b6..d17566a 100644
+--- a/arch/s390/kernel/crash_dump.c
++++ b/arch/s390/kernel/crash_dump.c
+@@ -61,7 +61,7 @@ struct save_area * __init save_area_alloc(bool is_boot_cpu)
+ {
+ 	struct save_area *sa;
+ 
+-	sa = (void *) memblock_alloc(sizeof(*sa), 8);
++	sa = (void *) memblock_phys_alloc(sizeof(*sa), 8);
+ 	if (is_boot_cpu)
+ 		list_add(&sa->list, &dump_save_areas);
+ 	else
+diff --git a/arch/s390/kernel/setup.c b/arch/s390/kernel/setup.c
+index c637c12..2f2ee43 100644
+--- a/arch/s390/kernel/setup.c
++++ b/arch/s390/kernel/setup.c
+@@ -843,7 +843,8 @@ static void __init setup_randomness(void)
+ {
+ 	struct sysinfo_3_2_2 *vmms;
+ 
+-	vmms = (struct sysinfo_3_2_2 *) memblock_alloc(PAGE_SIZE, PAGE_SIZE);
++	vmms = (struct sysinfo_3_2_2 *) memblock_phys_alloc(PAGE_SIZE,
++							    PAGE_SIZE);
+ 	if (stsi(vmms, 3, 2, 2) == 0 && vmms->count)
+ 		add_device_randomness(&vmms->vm, sizeof(vmms->vm[0]) * vmms->count);
+ 	memblock_free((unsigned long) vmms, PAGE_SIZE);
+diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
+index db55561..04638b0 100644
+--- a/arch/s390/mm/vmem.c
++++ b/arch/s390/mm/vmem.c
+@@ -36,7 +36,7 @@ static void __ref *vmem_alloc_pages(unsigned int order)
+ 
+ 	if (slab_is_available())
+ 		return (void *)__get_free_pages(GFP_KERNEL, order);
+-	return (void *) memblock_alloc(size, size);
++	return (void *) memblock_phys_alloc(size, size);
+ }
+ 
+ void *vmem_crst_alloc(unsigned long val)
+@@ -57,7 +57,7 @@ pte_t __ref *vmem_pte_alloc(void)
+ 	if (slab_is_available())
+ 		pte = (pte_t *) page_table_alloc(&init_mm);
+ 	else
+-		pte = (pte_t *) memblock_alloc(size, size);
++		pte = (pte_t *) memblock_phys_alloc(size, size);
+ 	if (!pte)
+ 		return NULL;
+ 	memset64((u64 *)pte, _PAGE_INVALID, PTRS_PER_PTE);
+diff --git a/arch/s390/numa/numa.c b/arch/s390/numa/numa.c
+index 5bd3744..297f5d8 100644
+--- a/arch/s390/numa/numa.c
++++ b/arch/s390/numa/numa.c
+@@ -64,7 +64,7 @@ static __init pg_data_t *alloc_node_data(void)
+ {
+ 	pg_data_t *res;
+ 
+-	res = (pg_data_t *) memblock_alloc(sizeof(pg_data_t), 8);
++	res = (pg_data_t *) memblock_phys_alloc(sizeof(pg_data_t), 8);
+ 	memset(res, 0, sizeof(pg_data_t));
+ 	return res;
+ }
+diff --git a/arch/sparc/kernel/mdesc.c b/arch/sparc/kernel/mdesc.c
+index 39a2503..59131e7 100644
+--- a/arch/sparc/kernel/mdesc.c
++++ b/arch/sparc/kernel/mdesc.c
+@@ -170,7 +170,7 @@ static struct mdesc_handle * __init mdesc_memblock_alloc(unsigned int mdesc_size
+ 		       mdesc_size);
+ 	alloc_size = PAGE_ALIGN(handle_size);
+ 
+-	paddr = memblock_alloc(alloc_size, PAGE_SIZE);
++	paddr = memblock_phys_alloc(alloc_size, PAGE_SIZE);
+ 
+ 	hp = NULL;
+ 	if (paddr) {
+diff --git a/arch/sparc/kernel/prom_64.c b/arch/sparc/kernel/prom_64.c
+index baeaeed..c37955d 100644
+--- a/arch/sparc/kernel/prom_64.c
++++ b/arch/sparc/kernel/prom_64.c
+@@ -34,7 +34,7 @@
+ 
+ void * __init prom_early_alloc(unsigned long size)
+ {
+-	unsigned long paddr = memblock_alloc(size, SMP_CACHE_BYTES);
++	unsigned long paddr = memblock_phys_alloc(size, SMP_CACHE_BYTES);
+ 	void *ret;
+ 
+ 	if (!paddr) {
+diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
+index f396048..578ec3d 100644
+--- a/arch/sparc/mm/init_64.c
++++ b/arch/sparc/mm/init_64.c
+@@ -1092,7 +1092,8 @@ static void __init allocate_node_data(int nid)
+ #ifdef CONFIG_NEED_MULTIPLE_NODES
+ 	unsigned long paddr;
+ 
+-	paddr = memblock_alloc_try_nid(sizeof(struct pglist_data), SMP_CACHE_BYTES, nid);
++	paddr = memblock_phys_alloc_try_nid(sizeof(struct pglist_data),
++					    SMP_CACHE_BYTES, nid);
+ 	if (!paddr) {
+ 		prom_printf("Cannot allocate pglist_data for nid[%d]\n", nid);
+ 		prom_halt();
+@@ -1266,8 +1267,8 @@ static int __init grab_mlgroups(struct mdesc_handle *md)
+ 	if (!count)
+ 		return -ENOENT;
+ 
+-	paddr = memblock_alloc(count * sizeof(struct mdesc_mlgroup),
+-			  SMP_CACHE_BYTES);
++	paddr = memblock_phys_alloc(count * sizeof(struct mdesc_mlgroup),
++				    SMP_CACHE_BYTES);
+ 	if (!paddr)
+ 		return -ENOMEM;
+ 
+@@ -1307,8 +1308,8 @@ static int __init grab_mblocks(struct mdesc_handle *md)
+ 	if (!count)
+ 		return -ENOENT;
+ 
+-	paddr = memblock_alloc(count * sizeof(struct mdesc_mblock),
+-			  SMP_CACHE_BYTES);
++	paddr = memblock_phys_alloc(count * sizeof(struct mdesc_mblock),
++				    SMP_CACHE_BYTES);
+ 	if (!paddr)
+ 		return -ENOMEM;
+ 
+diff --git a/arch/unicore32/mm/mmu.c b/arch/unicore32/mm/mmu.c
+index 0c94b7b..18b355a 100644
+--- a/arch/unicore32/mm/mmu.c
++++ b/arch/unicore32/mm/mmu.c
+@@ -144,7 +144,7 @@ static void __init build_mem_type_table(void)
+ 
+ static void __init *early_alloc(unsigned long sz)
+ {
+-	void *ptr = __va(memblock_alloc(sz, sz));
++	void *ptr = __va(memblock_phys_alloc(sz, sz));
+ 	memset(ptr, 0, sz);
+ 	return ptr;
+ }
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index fa15085..16e37d7 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -196,7 +196,7 @@ static void __init alloc_node_data(int nid)
+ 	 * Allocate node data.  Try node-local memory and then any node.
+ 	 * Never allocate in DMA zone.
+ 	 */
+-	nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
++	nd_pa = memblock_phys_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
+ 	if (!nd_pa) {
+ 		nd_pa = __memblock_alloc_base(nd_size, SMP_CACHE_BYTES,
+ 					      MEMBLOCK_ALLOC_ACCESSIBLE);
+diff --git a/drivers/firmware/efi/memmap.c b/drivers/firmware/efi/memmap.c
+index 5fc7052..ef618bc 100644
+--- a/drivers/firmware/efi/memmap.c
++++ b/drivers/firmware/efi/memmap.c
+@@ -15,7 +15,7 @@
+ 
+ static phys_addr_t __init __efi_memmap_alloc_early(unsigned long size)
+ {
+-	return memblock_alloc(size, 0);
++	return memblock_phys_alloc(size, 0);
+ }
+ 
+ static phys_addr_t __init __efi_memmap_alloc_late(unsigned long size)
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 4ae91fc..f16833c 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -315,10 +315,10 @@ static inline int memblock_get_region_node(const struct memblock_region *r)
+ }
+ #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+ 
+-phys_addr_t memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid);
+-phys_addr_t memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid);
++phys_addr_t memblock_phys_alloc_nid(phys_addr_t size, phys_addr_t align, int nid);
++phys_addr_t memblock_phys_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid);
+ 
+-phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align);
++phys_addr_t memblock_phys_alloc(phys_addr_t size, phys_addr_t align);
+ 
+ /*
+  * Set the allocation direction to bottom-up or top-down.
+diff --git a/mm/memblock.c b/mm/memblock.c
+index bba8d4e..f8b6b79 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1320,7 +1320,7 @@ phys_addr_t __init memblock_alloc_base_nid(phys_addr_t size,
+ 	return memblock_alloc_range_nid(size, align, 0, max_addr, nid, flags);
+ }
+ 
+-phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid)
++phys_addr_t __init memblock_phys_alloc_nid(phys_addr_t size, phys_addr_t align, int nid)
+ {
+ 	enum memblock_flags flags = choose_memblock_flags();
+ 	phys_addr_t ret;
+@@ -1355,14 +1355,14 @@ phys_addr_t __init memblock_alloc_base(phys_addr_t size, phys_addr_t align, phys
+ 	return alloc;
+ }
+ 
+-phys_addr_t __init memblock_alloc(phys_addr_t size, phys_addr_t align)
++phys_addr_t __init memblock_phys_alloc(phys_addr_t size, phys_addr_t align)
+ {
+ 	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
+ }
+ 
+-phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid)
++phys_addr_t __init memblock_phys_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid)
+ {
+-	phys_addr_t res = memblock_alloc_nid(size, align, nid);
++	phys_addr_t res = memblock_phys_alloc_nid(size, align, nid);
+ 
+ 	if (res)
+ 		return res;
 -- 
 2.7.4
