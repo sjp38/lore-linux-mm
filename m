@@ -1,95 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CC2F78E0001
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 21:31:14 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id s5-v6so10742654iop.3
-        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 18:31:14 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id c52-v6si5622093jak.49.2018.09.14.18.31.12
+Received: from mail-ua1-f71.google.com (mail-ua1-f71.google.com [209.85.222.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F1408E0001
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2018 22:55:27 -0400 (EDT)
+Received: by mail-ua1-f71.google.com with SMTP id m19-v6so3501954uap.3
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2018 19:55:27 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q6-v6sor2238479vsi.22.2018.09.14.19.55.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Sep 2018 18:31:13 -0700 (PDT)
-Message-ID: <5B9C60D4.30106@oracle.com>
-Date: Fri, 14 Sep 2018 18:31:00 -0700
-From: Prakash Sangappa <prakash.sangappa@oracle.com>
+        (Google Transport Security);
+        Fri, 14 Sep 2018 19:55:25 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH V2 0/6] VA to numa node information
-References: <1536783844-4145-1-git-send-email-prakash.sangappa@oracle.com> <20180913084011.GC20287@dhcp22.suse.cz> <375951d0-f103-dec3-34d8-bbeb2f45f666@oracle.com> <20180913171016.55dca2453c0773fc21044972@linux-foundation.org> <3c77cc75-976f-1fb8-9380-cc6ab9854a26@intel.com>
-In-Reply-To: <3c77cc75-976f-1fb8-9380-cc6ab9854a26@intel.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+References: <CAOuPNLj1wx4sznrtLdKjcvuTf0dECPWzPaR946FoYRXB6YAGCw@mail.gmail.com>
+ <CAHbLzkojdPxgrEiPLcJUX9c4muw8eupStJ_0xPnAuFM7g4V1jA@mail.gmail.com>
+In-Reply-To: <CAHbLzkojdPxgrEiPLcJUX9c4muw8eupStJ_0xPnAuFM7g4V1jA@mail.gmail.com>
+From: Pintu Kumar <pintu.ping@gmail.com>
+Date: Sat, 15 Sep 2018 08:25:13 +0530
+Message-ID: <CAOuPNLgYYhrTf2EPG9C3K6Tqr4OqCehMKhyfFzh9Jz8ryZZbUA@mail.gmail.com>
+Subject: Re: KSM not working in 4.9 Kernel
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nao.horiguchi@gmail.com, kirill.shutemov@linux.intel.com, khandual@linux.vnet.ibm.com, steven.sistare@oracle.com
+To: shy828301@gmail.com
+Cc: open list <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
 
-On 9/13/2018 5:25 PM, Dave Hansen wrote:
-> On 09/13/2018 05:10 PM, Andrew Morton wrote:
->>> Also, VMAs having THP pages can have a mix of 4k pages and hugepages.
->>> The page walks would be efficient in scanning and determining if it is
->>> a THP huge page and step over it. Whereas using the API, the application
->>> would not know what page size mapping is used for a given VA and so would
->>> have to again scan the VMA in units of 4k page size.
->>>
->>> If this sounds reasonable, I can add it to the commit / patch description.
-> As we are judging whether this is a "good" interface, can you tell us a
-> bit about its scalability?  For instance, let's say someone has a 1TB
-> VMA that's populated with interleaved 4k pages.  How much data comes
-> out?  How long does it take to parse?  Will we effectively deadlock the
-> system if someone accidentally cat's the wrong /proc file?
-
-For the worst case scenario you describe, it would be one line(range) 
-for each 4k. Which would
-be similar to what you get with  '/proc/*/pagemap'. The amount of data 
-copied out at a
-time is based on the buffer size used in the kernel. Which is 1024. That 
-is if one line(one range)
-printed is about 40 bytes(char), that means  about 25 lines per copy 
-out.  Main concern would
-be holding  'mmap_sem' lock, which can cause hangs. When the 1024 buffer 
-gets filled the
-mmap_sem is dropped and the buffer content is copied out to the user 
-buffer. Then the
-mmap_sem lock is reacquired and the page walk continues as needed until 
-the specified user
-buffer size is filed or till end of process address space is reached.
-
-One potential issue could be that there is  a large VA range with all 
-pages populated from
-one numa node, then the page walk could take longer while holding 
-mmap_sem lock. This
-can be addressed by dropping and re-acquiring the mmap_sem lock after 
-certain number of
-pages have been walked(Say 512 - which is what happens in 
-'/proc/*/pagemap' case).
-
+On Fri, 14 Sep 2018, 10:42 pm Yang Shi, <shy828301@gmail.com> wrote:
 >
-> /proc seems like a really simple way to implement this, but it seems a
-> *really* odd choice for something that needs to collect a large amount
-> of data.  The lseek() stuff is a nice addition, but I wonder if it's
-> unwieldy to use in practice.  For instance, if you want to read data for
-> the VMA at 0x1000000 you lseek(fd, 0x1000000, SEEK_SET, right?  You read
-> ~20 bytes of data and then the fd is at 0x1000020.  But, you're getting
-> data out at the next read() for (at least) the next page, which is also
-> available at 0x1001000.  Seems funky.  Do other /proc files behave this way?
+> Hi Pintu,
 >
-Yes, SEEK_SET to the VA.  The lseek offset is the process VA. So it is 
-not going to be
-different from reading a normal text file.  Expect that  /proc files are 
-special. Ex In
-/proc/*/pagemap' file case, read enforces that seek/file offset and the 
-user buffer size
-passed in to  be a  multiple of the pagemap_entry_t  size or else the 
-read would fail.
+> I recall there are some ksm test cases in LTP. Did you try them out?
 
-The usage for numa_vamaps file will be to SEEK_SET to the VA from where 
-VA range
-to numa node information needs to be read.
+No. I haven't seen the LTP test. I will check out now.
+But I wonder what is the problem with my test?
 
-The  'fd' offset is not taken into consideration here, just the VA. Say 
-each va range to numa
-node id printed is about 40 bytes(chars). Now if  the read only read 20 
-bytes, it would have read
-part of the line. Subsequent read would read the remaining bytes of the 
-line, which will
-be stored in the kernel buffer.
+
+> On Fri, Sep 14, 2018 at 7:28 AM Pintu Kumar <pintu.ping@gmail.com> wrote:
+> >
+> > Hi All,
+> >
+> > Board: Hikey620 ARM64
+> > Kernel: 4.9.20
+> >
+> > I am trying to verify KSM (Kernel Same Page Merging) functionality on
+> > 4.9 Kernel using "mmap" and madvise user space test utility.
+> > But to my observation, it seems KSM is not working for me.
+> > CONFIG_KSM=y is enabled in kernel.
+> > ksm_init is also called during boot up.
+> >   443 ?        SN     0:00 [ksmd]
+> >
+> > ksmd thread is also running.
+> >
+> > However, when I see the sysfs, no values are written.
+> > ~ # grep -H '' /sys/kernel/mm/ksm/*
+> > /sys/kernel/mm/ksm/pages_hashed:0
+> > /sys/kernel/mm/ksm/pages_scanned:0
+> > /sys/kernel/mm/ksm/pages_shared:0
+> > /sys/kernel/mm/ksm/pages_sharing:0
+> > /sys/kernel/mm/ksm/pages_to_scan:200
+> > /sys/kernel/mm/ksm/pages_unshared:0
+> > /sys/kernel/mm/ksm/pages_volatile:0
+> > /sys/kernel/mm/ksm/run:1
+> > /sys/kernel/mm/ksm/sleep_millisecs:1000
+> >
+> > So, please let me know if I am doing any thing wrong.
+> >
+> > This is the test utility:
+> > int main(int argc, char *argv[])
+> > {
+> >         int i, n, size;
+> >         char *buffer;
+> >         void *addr;
+> >
+> >         n = 100;
+> >         size = 100 * getpagesize();
+> >         for (i = 0; i < n; i++) {
+> >                 buffer = (char *)malloc(size);
+> >                 memset(buffer, 0xff, size);
+> >                 addr =  mmap(NULL, size,
+> >                            PROT_READ | PROT_EXEC | PROT_WRITE,
+> > MAP_PRIVATE | MAP_ANONYMOUS,
+> >                            -1, 0);
+> >                 madvise(addr, size, MADV_MERGEABLE);
+> >                 sleep(1);
+> >         }
+> >         printf("Done....press ^C\n");
+> >
+> >         pause();
+> >
+> >         return 0;
+> > }
+> >
+> >
+> >
+> > Thanks,
+> > Pintu
+> >
