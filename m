@@ -1,90 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C8CA18E0001
-	for <linux-mm@kvack.org>; Sat, 15 Sep 2018 06:10:51 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id u13-v6so5860733pfm.8
-        for <linux-mm@kvack.org>; Sat, 15 Sep 2018 03:10:51 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id k6-v6si8779595pgb.446.2018.09.15.03.10.49
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BC9D8E0001
+	for <linux-mm@kvack.org>; Sat, 15 Sep 2018 08:58:19 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id k18-v6so6216371otl.16
+        for <linux-mm@kvack.org>; Sat, 15 Sep 2018 05:58:19 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id t187-v6si4588630oie.215.2018.09.15.05.58.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 15 Sep 2018 03:10:49 -0700 (PDT)
-Date: Sat, 15 Sep 2018 03:10:42 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC v10 PATCH 0/3] mm: zap pages with read mmap_sem in munmap
- for large mapping
-Message-ID: <20180915101042.GD31572@bombadil.infradead.org>
-References: <1536957299-43536-1-git-send-email-yang.shi@linux.alibaba.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 15 Sep 2018 05:58:17 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8FCrdkE144923
+	for <linux-mm@kvack.org>; Sat, 15 Sep 2018 08:58:16 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mgwd3g8s5-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 15 Sep 2018 08:58:16 -0400
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Sat, 15 Sep 2018 13:58:14 +0100
+Date: Sat, 15 Sep 2018 15:58:07 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2] mips: switch to NO_BOOTMEM
+References: <1536571398-29194-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <20180914195300.7wnmsph2qhpixm7s@pburton-laptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1536957299-43536-1-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <20180914195300.7wnmsph2qhpixm7s@pburton-laptop>
+Message-Id: <20180915125806.GH15191@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: mhocko@kernel.org, ldufour@linux.vnet.ibm.com, vbabka@suse.cz, kirill@shutemov.name, akpm@linux-foundation.org, dave.hansen@intel.com, oleg@redhat.com, srikar@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Paul Burton <paul.burton@mips.com>
+Cc: Serge Semin <fancer.lancer@gmail.com>, Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>, Huacai Chen <chenhc@lemote.com>, Michal Hocko <mhocko@kernel.org>, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, Sep 15, 2018 at 04:34:56AM +0800, Yang Shi wrote:
-> Regression and performance data:
-> Did the below regression test with setting thresh to 4K manually in the code:
->   * Full LTP
->   * Trinity (munmap/all vm syscalls)
->   * Stress-ng: mmap/mmapfork/mmapfixed/mmapaddr/mmapmany/vm
->   * mm-tests: kernbench, phpbench, sysbench-mariadb, will-it-scale
->   * vm-scalability
+On Fri, Sep 14, 2018 at 12:53:00PM -0700, Paul Burton wrote:
+> Hi Mike,
 > 
-> With the patches, exclusive mmap_sem hold time when munmap a 80GB address
-> space on a machine with 32 cores of E5-2680 @ 2.70GHz dropped to us level
-> from second.
+> On Mon, Sep 10, 2018 at 12:23:18PM +0300, Mike Rapoport wrote:
+> > MIPS already has memblock support and all the memory is already registered
+> > with it.
+> > 
+> > This patch replaces bootmem memory reservations with memblock ones and
+> > removes the bootmem initialization.
+> > 
+> > Since memblock allocates memory in top-down mode, we ensure that memblock
+> > limit is max_low_pfn to prevent allocations from the high memory.
+> > 
+> > To have the exceptions base in the lower 512M of the physical memory, its
+> > allocation in arch/mips/kernel/traps.c::traps_init() is using bottom-up
+> > mode.
+> > 
+> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> > ---
+> > v2:
+> > * set memblock limit to max_low_pfn to avoid allocation attempts from high
+> > memory
+> > * use boottom-up mode for allocation of the exceptions base
+> > 
+> > Build tested with *_defconfig.
+> > Boot tested with qemu-system-mips64el for 32r6el, 64r6el and fuloong2e
+> > defconfigs.
+> > Boot tested with qemu-system-mipsel for malta defconfig.
+> > 
+> >  arch/mips/Kconfig                      |  1 +
+> >  arch/mips/kernel/setup.c               | 99 ++++++++--------------------------
+> >  arch/mips/kernel/traps.c               |  3 ++
+> >  arch/mips/loongson64/loongson-3/numa.c | 34 ++++++------
+> >  arch/mips/sgi-ip27/ip27-memory.c       | 11 ++--
+> >  5 files changed, 46 insertions(+), 102 deletions(-)
 > 
-> munmap_test-15002 [008]   594.380138: funcgraph_entry: |  __vm_munmap {
-> munmap_test-15002 [008]   594.380146: funcgraph_entry:      !2485684 us |    unmap_region();
-> munmap_test-15002 [008]   596.865836: funcgraph_exit:       !2485692 us |  }
+> Thanks - applied to mips-next for 4.20.
 > 
-> Here the excution time of unmap_region() is used to evaluate the time of
-> holding read mmap_sem, then the remaining time is used with holding
-> exclusive lock.
+> Apologies for the delay, my son decided to be born a few weeks early &
+> scupper my plans :)
 
-Something I've been wondering about for a while is whether we should "sort"
-the readers together.  ie if the acquirers look like this:
+Congratulations! :)
+ 
+> Paul
+> 
 
-A write
-B read
-C read
-D write
-E read
-F read
-G write
-
-then we should grant the lock to A, BCEF, D, G rather than A, BC, D, EF, G.
-A quick way to test this is in __rwsem_down_read_failed_common do
-something like:
-
--	if (list_empty(&sem->wait_list))
-+	if (list_empty(&sem->wait_list)) {
- 		adjustment += RWSEM_WAITING_BIAS;
-+		list_add(&waiter.list, &sem->wait_list);
-+	} else {
-+		struct rwsem_waiter *first = list_first_entry(&sem->wait_list,
-+						struct rwsem_waiter, list);
-+		if (first.type == RWSEM_WAITING_FOR_READ)
-+			list_add(&waiter.list, &sem->wait_list);
-+		else
-+			list_add_tail(&waiter.list, &sem->wait_list);
-+	}
--	list_add_tail(&waiter.list, &sem->wait_list);
-
-It'd be interesting to know if this makes any difference with your tests.
-
-(this isn't perfect, of course; it'll fail to sort readers together if there's
-a writer at the head of the queue; eg:
-
-A write
-B write
-C read
-D write
-E read
-F write
-G read
-
-but it won't do any worse than we have at the moment).
+-- 
+Sincerely yours,
+Mike.
