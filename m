@@ -1,86 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BC9D8E0001
-	for <linux-mm@kvack.org>; Sat, 15 Sep 2018 08:58:19 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id k18-v6so6216371otl.16
-        for <linux-mm@kvack.org>; Sat, 15 Sep 2018 05:58:19 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id t187-v6si4588630oie.215.2018.09.15.05.58.17
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A81AD8E0001
+	for <linux-mm@kvack.org>; Sat, 15 Sep 2018 12:34:47 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id x2-v6so5158768pgp.4
+        for <linux-mm@kvack.org>; Sat, 15 Sep 2018 09:34:47 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id u10-v6si9862703plr.58.2018.09.15.09.34.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 15 Sep 2018 05:58:17 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8FCrdkE144923
-	for <linux-mm@kvack.org>; Sat, 15 Sep 2018 08:58:16 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mgwd3g8s5-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 15 Sep 2018 08:58:16 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Sat, 15 Sep 2018 13:58:14 +0100
-Date: Sat, 15 Sep 2018 15:58:07 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2] mips: switch to NO_BOOTMEM
-References: <1536571398-29194-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180914195300.7wnmsph2qhpixm7s@pburton-laptop>
+        Sat, 15 Sep 2018 09:34:46 -0700 (PDT)
+Subject: [PATCH 0/3] mm: Randomize free memory
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Sat, 15 Sep 2018 09:23:02 -0700
+Message-ID: <153702858249.1603922.12913911825267831671.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180914195300.7wnmsph2qhpixm7s@pburton-laptop>
-Message-Id: <20180915125806.GH15191@rapoport-lnx>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Burton <paul.burton@mips.com>
-Cc: Serge Semin <fancer.lancer@gmail.com>, Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>, Huacai Chen <chenhc@lemote.com>, Michal Hocko <mhocko@kernel.org>, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kees Cook <keescook@chromium.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Sep 14, 2018 at 12:53:00PM -0700, Paul Burton wrote:
-> Hi Mike,
-> 
-> On Mon, Sep 10, 2018 at 12:23:18PM +0300, Mike Rapoport wrote:
-> > MIPS already has memblock support and all the memory is already registered
-> > with it.
-> > 
-> > This patch replaces bootmem memory reservations with memblock ones and
-> > removes the bootmem initialization.
-> > 
-> > Since memblock allocates memory in top-down mode, we ensure that memblock
-> > limit is max_low_pfn to prevent allocations from the high memory.
-> > 
-> > To have the exceptions base in the lower 512M of the physical memory, its
-> > allocation in arch/mips/kernel/traps.c::traps_init() is using bottom-up
-> > mode.
-> > 
-> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> > ---
-> > v2:
-> > * set memblock limit to max_low_pfn to avoid allocation attempts from high
-> > memory
-> > * use boottom-up mode for allocation of the exceptions base
-> > 
-> > Build tested with *_defconfig.
-> > Boot tested with qemu-system-mips64el for 32r6el, 64r6el and fuloong2e
-> > defconfigs.
-> > Boot tested with qemu-system-mipsel for malta defconfig.
-> > 
-> >  arch/mips/Kconfig                      |  1 +
-> >  arch/mips/kernel/setup.c               | 99 ++++++++--------------------------
-> >  arch/mips/kernel/traps.c               |  3 ++
-> >  arch/mips/loongson64/loongson-3/numa.c | 34 ++++++------
-> >  arch/mips/sgi-ip27/ip27-memory.c       | 11 ++--
-> >  5 files changed, 46 insertions(+), 102 deletions(-)
-> 
-> Thanks - applied to mips-next for 4.20.
-> 
-> Apologies for the delay, my son decided to be born a few weeks early &
-> scupper my plans :)
+Data exfiltration attacks via speculative execution and
+return-oriented-programming attacks rely on the ability to infer the
+location of sensitive data objects. The kernel page allocator, has
+predictable first-in-first-out behavior for physical pages. Pages are
+freed in physical address order when first onlined. There are also
+mechanisms like CMA that can free large contiguous areas at once
+increasing the predictability of allocations in physical memory.
 
-Congratulations! :)
- 
-> Paul
-> 
+In addition to the security implications this randomization also
+stabilizes the average performance of direct-mapped memory-side caches.
+This includes memory-side caches like the one on the Knights Landing
+processor and those generally described by the ACPI HMAT (Heterogeneous
+Memory Attributes Table [1]). Cache conflicts are spread over a random
+distribution rather than localized.
 
--- 
-Sincerely yours,
-Mike.
+Given the performance sensitivity of the page allocator this
+randomization is only performed for MAX_ORDER (4MB by default) pages. A
+kernel parameter, page_alloc.shuffle_page_order, is included to change
+the page size where randomization occurs.
+
+[1]: See ACPI 6.2 Section 5.2.27.5 Memory Side Cache Information Structure 
+
+---
+
+Dan Williams (3):
+      mm: Shuffle initial free memory
+      mm: Move buddy list manipulations into helpers
+      mm: Maintain randomization of page free lists
+
+
+ include/linux/list.h     |   17 +++
+ include/linux/mm.h       |    5 -
+ include/linux/mm_types.h |    3 +
+ include/linux/mmzone.h   |   57 ++++++++++
+ mm/bootmem.c             |    9 +-
+ mm/compaction.c          |    4 -
+ mm/nobootmem.c           |    7 +
+ mm/page_alloc.c          |  267 +++++++++++++++++++++++++++++++++++++++-------
+ 8 files changed, 317 insertions(+), 52 deletions(-)
