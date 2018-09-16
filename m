@@ -1,89 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3719B8E0001
-	for <linux-mm@kvack.org>; Sat, 15 Sep 2018 14:50:14 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id e6-v6so2453476ljl.9
-        for <linux-mm@kvack.org>; Sat, 15 Sep 2018 11:50:14 -0700 (PDT)
-Received: from smtp2.it.da.ut.ee (smtp2.it.da.ut.ee. [2001:bb8:2002:500::47])
-        by mx.google.com with ESMTP id z5-v6si13042991lfj.6.2018.09.15.11.50.12
-        for <linux-mm@kvack.org>;
-        Sat, 15 Sep 2018 11:50:12 -0700 (PDT)
-Date: Sat, 15 Sep 2018 21:50:09 +0300 (EEST)
-From: Meelis Roos <mroos@linux.ee>
-Subject: Re: [PATCH] Revert "x86/mm/legacy: Populate the user page-table with
- user pgd's"
-In-Reply-To: <1536922754-31379-1-git-send-email-joro@8bytes.org>
-Message-ID: <alpine.LRH.2.21.1809152128450.21274@math.ut.ee>
-References: <1536922754-31379-1-git-send-email-joro@8bytes.org>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CC5B8E0001
+	for <linux-mm@kvack.org>; Sun, 16 Sep 2018 11:32:48 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id w185-v6so15584879oig.19
+        for <linux-mm@kvack.org>; Sun, 16 Sep 2018 08:32:48 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id a30-v6si3737032otc.76.2018.09.16.08.32.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 16 Sep 2018 08:32:47 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8GFTTYQ147583
+	for <linux-mm@kvack.org>; Sun, 16 Sep 2018 11:32:46 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2mhf3arsx7-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 16 Sep 2018 11:32:46 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Sun, 16 Sep 2018 16:32:44 +0100
+Date: Sun, 16 Sep 2018 18:32:38 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: KSM not working in 4.9 Kernel
+References: <CAOuPNLj1wx4sznrtLdKjcvuTf0dECPWzPaR946FoYRXB6YAGCw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAOuPNLj1wx4sznrtLdKjcvuTf0dECPWzPaR946FoYRXB6YAGCw@mail.gmail.com>
+Message-Id: <20180916153237.GC15699@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, x86@kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bp@alien8.de>, Andrea Arcangeli <aarcange@redhat.com>, Joerg Roedel <jroedel@suse.de>
+To: Pintu Kumar <pintu.ping@gmail.com>
+Cc: open list <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
 
-It works as expected - when PAE is off, PTI can not be selected, and 
-with PAE on, it can be selected and seems to work.
-
-> Reported-by: Meelis Roos <mroos@linux.ee>
-
-Tested-by: Meelis Roos <mroos@linux.ee>
-
-> Fixes: 7757d607c6b3 ('x86/pti: Allow CONFIG_PAGE_TABLE_ISOLATION for x86_32')
-> Signed-off-by: Joerg Roedel <jroedel@suse.de>
-> ---
->  arch/x86/include/asm/pgtable-2level.h | 9 ---------
->  security/Kconfig                      | 2 +-
->  2 files changed, 1 insertion(+), 10 deletions(-)
+On Fri, Sep 14, 2018 at 07:58:01PM +0530, Pintu Kumar wrote:
+> Hi All,
 > 
-> diff --git a/arch/x86/include/asm/pgtable-2level.h b/arch/x86/include/asm/pgtable-2level.h
-> index 24c6cf5f16b7..60d0f9015317 100644
-> --- a/arch/x86/include/asm/pgtable-2level.h
-> +++ b/arch/x86/include/asm/pgtable-2level.h
-> @@ -19,9 +19,6 @@ static inline void native_set_pte(pte_t *ptep , pte_t pte)
->  
->  static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
->  {
-> -#ifdef CONFIG_PAGE_TABLE_ISOLATION
-> -	pmd.pud.p4d.pgd = pti_set_user_pgtbl(&pmdp->pud.p4d.pgd, pmd.pud.p4d.pgd);
-> -#endif
->  	*pmdp = pmd;
->  }
->  
-> @@ -61,9 +58,6 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
->  #ifdef CONFIG_SMP
->  static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
->  {
-> -#ifdef CONFIG_PAGE_TABLE_ISOLATION
-> -	pti_set_user_pgtbl(&xp->pud.p4d.pgd, __pgd(0));
-> -#endif
->  	return __pmd(xchg((pmdval_t *)xp, 0));
->  }
->  #else
-> @@ -73,9 +67,6 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
->  #ifdef CONFIG_SMP
->  static inline pud_t native_pudp_get_and_clear(pud_t *xp)
->  {
-> -#ifdef CONFIG_PAGE_TABLE_ISOLATION
-> -	pti_set_user_pgtbl(&xp->p4d.pgd, __pgd(0));
-> -#endif
->  	return __pud(xchg((pudval_t *)xp, 0));
->  }
->  #else
-> diff --git a/security/Kconfig b/security/Kconfig
-> index 27d8b2688f75..d9aa521b5206 100644
-> --- a/security/Kconfig
-> +++ b/security/Kconfig
-> @@ -57,7 +57,7 @@ config SECURITY_NETWORK
->  config PAGE_TABLE_ISOLATION
->  	bool "Remove the kernel mapping in user mode"
->  	default y
-> -	depends on X86 && !UML
-> +	depends on (X86_64 || X86_PAE) && !UML
->  	help
->  	  This feature reduces the number of hardware side channels by
->  	  ensuring that the majority of kernel addresses are not mapped
+> Board: Hikey620 ARM64
+> Kernel: 4.9.20
+> 
+> I am trying to verify KSM (Kernel Same Page Merging) functionality on
+> 4.9 Kernel using "mmap" and madvise user space test utility.
+> But to my observation, it seems KSM is not working for me.
+> CONFIG_KSM=y is enabled in kernel.
+> ksm_init is also called during boot up.
+>   443 ?        SN     0:00 [ksmd]
+> 
+> ksmd thread is also running.
+> 
+> However, when I see the sysfs, no values are written.
+> ~ # grep -H '' /sys/kernel/mm/ksm/*
+> /sys/kernel/mm/ksm/pages_hashed:0
+> /sys/kernel/mm/ksm/pages_scanned:0
+> /sys/kernel/mm/ksm/pages_shared:0
+> /sys/kernel/mm/ksm/pages_sharing:0
+> /sys/kernel/mm/ksm/pages_to_scan:200
+> /sys/kernel/mm/ksm/pages_unshared:0
+> /sys/kernel/mm/ksm/pages_volatile:0
+> /sys/kernel/mm/ksm/run:1
+> /sys/kernel/mm/ksm/sleep_millisecs:1000
+> 
+> So, please let me know if I am doing any thing wrong.
+> 
+> This is the test utility:
+> int main(int argc, char *argv[])
+> {
+>         int i, n, size;
+>         char *buffer;
+>         void *addr;
+> 
+>         n = 100;
+>         size = 100 * getpagesize();
+>         for (i = 0; i < n; i++) {
+>                 buffer = (char *)malloc(size);
+>                 memset(buffer, 0xff, size);
+>                 addr =  mmap(NULL, size,
+>                            PROT_READ | PROT_EXEC | PROT_WRITE,
+> MAP_PRIVATE | MAP_ANONYMOUS,
+>                            -1, 0);
+>                 madvise(addr, size, MADV_MERGEABLE);
+
+Just mmap'ing an area does not allocate any physical pages, so KSM has
+nothing to merge.
+
+You need to memset(addr,...) after mmap().
+
+>                 sleep(1);
+>         }
+>         printf("Done....press ^C\n");
+> 
+>         pause();
+> 
+>         return 0;
+> }
+> 
+> 
+> 
+> Thanks,
+> Pintu
 > 
 
 -- 
-Meelis Roos (mroos@ut.ee)      http://www.cs.ut.ee/~mroos/
+Sincerely yours,
+Mike.
