@@ -1,77 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 268698E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 15:12:03 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id e62-v6so14125565itb.3
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 12:12:03 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 258608E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 15:34:07 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id w11-v6so8126225plq.8
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 12:34:07 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x3-v6sor9427664iog.108.2018.09.17.12.12.01
+        by mx.google.com with SMTPS id d29-v6sor2509973pfj.97.2018.09.17.12.34.05
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 17 Sep 2018 12:12:02 -0700 (PDT)
+        Mon, 17 Sep 2018 12:34:05 -0700 (PDT)
+Date: Mon, 17 Sep 2018 12:33:47 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: Patch "x86/kexec: Allocate 8k PGDs for PTI" has been added to
+ the 3.18-stable tree
+In-Reply-To: <1537177617126129@kroah.com>
+Message-ID: <alpine.LSU.2.11.1809171213560.1601@eggly.anvils>
+References: <1537177617126129@kroah.com>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+ZwLnk7V1cY-EAHbrfXPBxs6qyynZPhxoSKZZDWSK8Fuw@mail.gmail.com>
-References: <cover.1535462971.git.andreyknvl@google.com> <f5e73b5ead3355932ad8b5fc96b141c3f5b8c16c.1535462971.git.andreyknvl@google.com>
- <CACT4Y+ZwLnk7V1cY-EAHbrfXPBxs6qyynZPhxoSKZZDWSK8Fuw@mail.gmail.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Mon, 17 Sep 2018 21:12:00 +0200
-Message-ID: <CAAeHK+wVgmp2G63c5w4sMH1i97Ju-YW7RUQgOQjr5d8aMgh1EQ@mail.gmail.com>
-Subject: Re: [PATCH v6 15/18] khwasan, arm64: add brk handler for inline instrumentation
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: gregkh@linuxfoundation.org
+Cc: 1532533683-5988-4-git-send-email-joro@8bytes.org, David.Laight@aculab.com, aarcange@redhat.com, acme@kernel.org, alexander.levin@microsoft.com, alexander.shishkin@linux.intel.com, aliguori@amazon.com, boris.ostrovsky@oracle.com, bp@alien8.de, brgerst@gmail.com, daniel.gruss@iaik.tugraz.at, dave.hansen@intel.com, dhgutteridge@sympatico.ca, dvlasenk@redhat.com, eduval@amazon.com, hpa@zytor.com, hughd@google.com, jgross@suse.com, jkosina@suse.cz, jolsa@redhat.comjoro@8bytes.org, jpoimboe@redhat.com, jroedel@suse.de, keescook@google.com, linux-mm@kvack.org, llong@redhat.com, luto@kernel.org, namhyung@kernel.org, pavel@ucw.cz, peterz@infradead.org, tglx@linutronix.de, torvalds@linux-foundation.org, will.deacon@arm.com, stable-commits@vger.kernel.org, stable@vger.kernel.org
 
-On Wed, Sep 12, 2018 at 7:13 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> On Wed, Aug 29, 2018 at 1:35 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
+On Mon, 17 Sep 2018, gregkh@linuxfoundation.org wrote:
+> 
+> This is a note to let you know that I've just added the patch titled
+> 
+>     x86/kexec: Allocate 8k PGDs for PTI
+> 
+> to the 3.18-stable tree which can be found at:
+>     http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
+> 
+> The filename of the patch is:
+>      x86-kexec-allocate-8k-pgds-for-pti.patch
+> and it can be found in the queue-3.18 subdirectory.
+> 
+> If you, or anyone else, feels it should not be added to the stable tree,
+> please let <stable@vger.kernel.org> know about it.
 
->> +static int khwasan_handler(struct pt_regs *regs, unsigned int esr)
->> +{
->> +       bool recover = esr & KHWASAN_ESR_RECOVER;
->> +       bool write = esr & KHWASAN_ESR_WRITE;
->> +       size_t size = KHWASAN_ESR_SIZE(esr);
->> +       u64 addr = regs->regs[0];
->> +       u64 pc = regs->pc;
->> +
->> +       if (user_mode(regs))
->> +               return DBG_HOOK_ERROR;
->> +
->> +       kasan_report(addr, size, write, pc);
->> +
->> +       /*
->> +        * The instrumentation allows to control whether we can proceed after
->> +        * a crash was detected. This is done by passing the -recover flag to
->> +        * the compiler. Disabling recovery allows to generate more compact
->> +        * code.
->> +        *
->> +        * Unfortunately disabling recovery doesn't work for the kernel right
->> +        * now. KHWASAN reporting is disabled in some contexts (for example when
->> +        * the allocator accesses slab object metadata; same is true for KASAN;
->> +        * this is controlled by current->kasan_depth). All these accesses are
->> +        * detected by the tool, even though the reports for them are not
->> +        * printed.
->
->
-> I am not following this part.
-> Slab accesses metadata. OK.
-> This is detected as bad access. OK.
-> Report is not printed. OK.
-> We skip BRK and resume execution.
-> What is the problem?
+I believe this commit is an example of the auto-selector being too
+eager, and this should not be in *any* of the stable trees.  As the
+commit message indicates, it's a fix by Joerg for his PTI-x86-32
+implementation - which has not been backported to any of the stable
+trees (yet), has it?
 
-When the kernel is compiled with -fsanitize=kernel-hwaddress without
-any additional flags (like it's done now with KASAN_HW) everything
-works as you described and there's no problem. However if one were to
-recompile the kernel with hwasan recovery disabled, KHWASAN wouldn't
-work due to the reasons described in the comment. Should I make it
-more clear?
+In several of the recent stable trees, I think this will not do any
+actual harm; but it looks as if it will prevent relevant x86-32 configs
+from building on 3.18 (I see no definition of PGD_ALLOCATION_ORDER in
+linux-3.18.y - you preferred not to have any PTI in that tree), and I
+haven't checked whether its definition in older backports will build
+correctly here or not.
 
->
->
->
->> +        *
->> +        * This is something that might be fixed at some point in the future.
->> +        */
->> +       if (!recover)
->> +               die("Oops - KHWASAN", regs, 0);
+Hugh
+
+> 
+> 
+> From foo@baz Mon Sep 17 11:45:57 CEST 2018
+> From: Joerg Roedel <jroedel@suse.de>
+> Date: Wed, 25 Jul 2018 17:48:03 +0200
+> Subject: x86/kexec: Allocate 8k PGDs for PTI
+> 
+> From: Joerg Roedel <jroedel@suse.de>
+> 
+> [ Upstream commit ca38dc8f2724d101038b1205122c93a1c7f38f11 ]
+> 
+> Fuzzing the PTI-x86-32 code with trinity showed unhandled
+> kernel paging request oops-messages that looked a lot like
+> silent data corruption.
+> 
+> Lot's of debugging and testing lead to the kexec-32bit code,
+> which is still allocating 4k PGDs when PTI is enabled. But
+> since it uses native_set_pud() to build the page-table, it
+> will unevitably call into __pti_set_user_pgtbl(), which
+> writes beyond the allocated 4k page.
+> 
+> Use PGD_ALLOCATION_ORDER to allocate PGDs in the kexec code
+> to fix the issue.
+> 
+> Signed-off-by: Joerg Roedel <jroedel@suse.de>
+> Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+> Tested-by: David H. Gutteridge <dhgutteridge@sympatico.ca>
+> Cc: "H . Peter Anvin" <hpa@zytor.com>
+> Cc: linux-mm@kvack.org
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+> Cc: Juergen Gross <jgross@suse.com>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Borislav Petkov <bp@alien8.de>
+> Cc: Jiri Kosina <jkosina@suse.cz>
+> Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+> Cc: Brian Gerst <brgerst@gmail.com>
+> Cc: David Laight <David.Laight@aculab.com>
+> Cc: Denys Vlasenko <dvlasenk@redhat.com>
+> Cc: Eduardo Valentin <eduval@amazon.com>
+> Cc: Greg KH <gregkh@linuxfoundation.org>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: aliguori@amazon.com
+> Cc: daniel.gruss@iaik.tugraz.at
+> Cc: hughd@google.com
+> Cc: keescook@google.com
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Waiman Long <llong@redhat.com>
+> Cc: Pavel Machek <pavel@ucw.cz>
+> Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
+> Cc: Alexander Shishkin <alexander.shishkin@linux.intel.com>
+> Cc: Jiri Olsa <jolsa@redhat.com>
+> Cc: Namhyung Kim <namhyung@kernel.org>
+> Cc: joro@8bytes.org
+> Link: https://lkml.kernel.org/r/1532533683-5988-4-git-send-email-joro@8bytes.org
+> Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
+> Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> ---
+>  arch/x86/kernel/machine_kexec_32.c |    5 +++--
+>  1 file changed, 3 insertions(+), 2 deletions(-)
+> 
+> --- a/arch/x86/kernel/machine_kexec_32.c
+> +++ b/arch/x86/kernel/machine_kexec_32.c
+> @@ -69,7 +69,7 @@ static void load_segments(void)
+>  
+>  static void machine_kexec_free_page_tables(struct kimage *image)
+>  {
+> -	free_page((unsigned long)image->arch.pgd);
+> +	free_pages((unsigned long)image->arch.pgd, PGD_ALLOCATION_ORDER);
+>  	image->arch.pgd = NULL;
+>  #ifdef CONFIG_X86_PAE
+>  	free_page((unsigned long)image->arch.pmd0);
+> @@ -85,7 +85,8 @@ static void machine_kexec_free_page_tabl
+>  
+>  static int machine_kexec_alloc_page_tables(struct kimage *image)
+>  {
+> -	image->arch.pgd = (pgd_t *)get_zeroed_page(GFP_KERNEL);
+> +	image->arch.pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+> +						    PGD_ALLOCATION_ORDER);
+>  #ifdef CONFIG_X86_PAE
+>  	image->arch.pmd0 = (pmd_t *)get_zeroed_page(GFP_KERNEL);
+>  	image->arch.pmd1 = (pmd_t *)get_zeroed_page(GFP_KERNEL);
+> 
+> 
+> Patches currently in stable-queue which might be from jroedel@suse.de are
+> 
+> queue-3.18/x86-kexec-allocate-8k-pgds-for-pti.patch
+> queue-3.18/x86-mm-remove-in_nmi-warning-from-vmalloc_fault.patch
+> 
