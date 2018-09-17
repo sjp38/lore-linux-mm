@@ -1,90 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B06CC8E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 03:32:43 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id a70-v6so13703362qkb.16
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 00:32:43 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m18-v6si4653463qka.155.2018.09.17.00.32.42
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 30C148E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 05:05:36 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id k18-v6so10216767otl.16
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 02:05:36 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id x126-v6si6509587oif.359.2018.09.17.02.05.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Sep 2018 00:32:42 -0700 (PDT)
-Subject: Re: [PATCH RFCv2 3/6] mm/memory_hotplug: fix online/offline_pages
- called w.o. mem_hotplug_lock
-References: <20180821104418.12710-1-david@redhat.com>
- <20180821104418.12710-4-david@redhat.com>
- <70372ef5-e332-6c07-f08c-50f8808bde6d@gmail.com>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <5f80ca56-9f34-4e6e-bc83-8f8b3c888163@redhat.com>
-Date: Mon, 17 Sep 2018 09:32:27 +0200
+        Mon, 17 Sep 2018 02:05:34 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8H94VeM003639
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 05:05:34 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mj7en4wa1-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 05:05:32 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Mon, 17 Sep 2018 10:03:56 +0100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: Re: How to handle PTE tables with non contiguous entries ?
+In-Reply-To: <ddc3bb56-4da0-c093-256f-185d4a612b5c@c-s.fr>
+References: <ddc3bb56-4da0-c093-256f-185d4a612b5c@c-s.fr>
+Date: Mon, 17 Sep 2018 14:33:50 +0530
 MIME-Version: 1.0
-In-Reply-To: <70372ef5-e332-6c07-f08c-50f8808bde6d@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
+Message-Id: <87tvmoh4w9.fsf@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rashmica <rashmica.g@gmail.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, Stephen Hemminger <sthemmin@microsoft.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Michael Neuling <mikey@neuling.org>, Balbir Singh <bsingharora@gmail.com>, Kate Stewart <kstewart@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Vlastimil Babka <vbabka@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Oscar Salvador <osalvador@suse.de>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Mathieu Malaterre <malat@debian.org>
+To: Christophe Leroy <christophe.leroy@c-s.fr>, akpm@linux-foundation.org, linux-mm@kvack.org, aneesh.kumar@linux.vnet.ibm.com, Nicholas Piggin <npiggin@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org
+Cc: LKML <linux-kernel@vger.kernel.org>
 
-Am 03.09.18 um 02:36 schrieb Rashmica:
-> Hi David,
-> 
-> 
-> On 21/08/18 20:44, David Hildenbrand wrote:
-> 
->> There seem to be some problems as result of 30467e0b3be ("mm, hotplug:
->> fix concurrent memory hot-add deadlock"), which tried to fix a possible
->> lock inversion reported and discussed in [1] due to the two locks
->> 	a) device_lock()
->> 	b) mem_hotplug_lock
->>
->> While add_memory() first takes b), followed by a) during
->> bus_probe_device(), onlining of memory from user space first took b),
->> followed by a), exposing a possible deadlock.
-> 
-> Do you mean "onlining of memory from user space first took a),
-> followed by b)"? 
+Christophe Leroy <christophe.leroy@c-s.fr> writes:
 
-Very right, thanks.
+> Hi,
+>
+> I'm having a hard time figuring out the best way to handle the following 
+> situation:
+>
+> On the powerpc8xx, handling 16k size pages requires to have page tables 
+> with 4 identical entries.
 
-> 
->> In [1], and it was decided to not make use of device_hotplug_lock, but
->> rather to enforce a locking order.
->>
->> The problems I spotted related to this:
->>
->> 1. Memory block device attributes: While .state first calls
->>    mem_hotplug_begin() and the calls device_online() - which takes
->>    device_lock() - .online does no longer call mem_hotplug_begin(), so
->>    effectively calls online_pages() without mem_hotplug_lock.
->>
->> 2. device_online() should be called under device_hotplug_lock, however
->>    onlining memory during add_memory() does not take care of that.
->>
->> In addition, I think there is also something wrong about the locking in
->>
->> 3. arch/powerpc/platforms/powernv/memtrace.c calls offline_pages()
->>    without locks. This was introduced after 30467e0b3be. And skimming over
->>    the code, I assume it could need some more care in regards to locking
->>    (e.g. device_online() called without device_hotplug_lock - but I'll
->>    not touch that for now).
-> 
-> Can you mention that you fixed this in later patches?
+I assume that hugetlb page size? If so isn't that similar to FSL hugetlb
+page table layout?
 
-Sure!
+>
+> Initially I was thinking about handling this by simply modifying 
+> pte_index() which changing pte_t type in order to have one entry every 
+> 16 bytes, then replicate the PTE value at *ptep, *ptep+1,*ptep+2 and 
+> *ptep+3 both in set_pte_at() and pte_update().
+>
+> However, this doesn't work because many many places in the mm core part 
+> of the kernel use loops on ptep with single ptep++ increment.
+>
+> Therefore did it with the following hack:
+>
+>   /* PTE level */
+> +#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
+> +typedef struct { pte_basic_t pte, pte1, pte2, pte3; } pte_t;
+> +#else
+>   typedef struct { pte_basic_t pte; } pte_t;
+> +#endif
+>
+> @@ -181,7 +192,13 @@ static inline unsigned long pte_update(pte_t *p,
+>          : "cc" );
+>   #else /* PTE_ATOMIC_UPDATES */
+>          unsigned long old = pte_val(*p);
+> -       *p = __pte((old & ~clr) | set);
+> +       unsigned long new = (old & ~clr) | set;
+> +
+> +#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
+> +       p->pte = p->pte1 = p->pte2 = p->pte3 = new;
+> +#else
+> +       *p = __pte(new);
+> +#endif
+>   #endif /* !PTE_ATOMIC_UPDATES */
+>
+>   #ifdef CONFIG_44x
+>
+>
+> @@ -161,7 +161,11 @@ static inline void __set_pte_at(struct mm_struct 
+> *mm, unsigned long addr,
+>          /* Anything else just stores the PTE normally. That covers all 
+> 64-bit
+>           * cases, and 32-bit non-hash with 32-bit PTEs.
+>           */
+> +#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
+> +       ptep->pte = ptep->pte1 = ptep->pte2 = ptep->pte3 = pte_val(pte);
+> +#else
+>          *ptep = pte;
+> +#endif
+>
+>
+>
+> But I'm not too happy with it as it means pte_t is not a single type 
+> anymore so passing it from one function to the other is quite heavy.
+>
+>
+> Would someone have an idea of an elegent way to handle that ?
+>
+> Thanks
+> Christophe
 
-> 
-> 
-> The series looks good to me. Feel free to add my reviewed-by:
-> 
-> Reviewed-by: Rashmica Gupta <rashmica.g@gmail.com>
-> 
+Why would pte_update bother about updating all the 4 entries?. Can you
+help me understand the issue?
 
-Thanks, r-b only for this patch or all of the series?
-
--- 
-
-Thanks,
-
-David / dhildenb
+-aneesh
