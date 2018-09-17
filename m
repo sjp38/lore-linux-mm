@@ -1,147 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 258608E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 15:34:07 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id w11-v6so8126225plq.8
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 12:34:07 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d29-v6sor2509973pfj.97.2018.09.17.12.34.05
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 150BD8E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 15:50:36 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id x19-v6so8937321pfh.15
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 12:50:36 -0700 (PDT)
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id y8-v6si17248007pfk.75.2018.09.17.12.50.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 17 Sep 2018 12:34:05 -0700 (PDT)
-Date: Mon, 17 Sep 2018 12:33:47 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: Patch "x86/kexec: Allocate 8k PGDs for PTI" has been added to
- the 3.18-stable tree
-In-Reply-To: <1537177617126129@kroah.com>
-Message-ID: <alpine.LSU.2.11.1809171213560.1601@eggly.anvils>
-References: <1537177617126129@kroah.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Sep 2018 12:50:34 -0700 (PDT)
+Subject: Re: [RFC v10 PATCH 1/3] mm: mmap: zap pages with read mmap_sem in
+ munmap
+References: <1536957299-43536-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1536957299-43536-2-git-send-email-yang.shi@linux.alibaba.com>
+ <20180915092101.GA31572@bombadil.infradead.org>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <578efe1c-0de0-d71d-ac14-cf5b74e2a713@linux.alibaba.com>
+Date: Mon, 17 Sep 2018 12:49:49 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20180915092101.GA31572@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org
-Cc: 1532533683-5988-4-git-send-email-joro@8bytes.org, David.Laight@aculab.com, aarcange@redhat.com, acme@kernel.org, alexander.levin@microsoft.com, alexander.shishkin@linux.intel.com, aliguori@amazon.com, boris.ostrovsky@oracle.com, bp@alien8.de, brgerst@gmail.com, daniel.gruss@iaik.tugraz.at, dave.hansen@intel.com, dhgutteridge@sympatico.ca, dvlasenk@redhat.com, eduval@amazon.com, hpa@zytor.com, hughd@google.com, jgross@suse.com, jkosina@suse.cz, jolsa@redhat.comjoro@8bytes.org, jpoimboe@redhat.com, jroedel@suse.de, keescook@google.com, linux-mm@kvack.org, llong@redhat.com, luto@kernel.org, namhyung@kernel.org, pavel@ucw.cz, peterz@infradead.org, tglx@linutronix.de, torvalds@linux-foundation.org, will.deacon@arm.com, stable-commits@vger.kernel.org, stable@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: mhocko@kernel.org, ldufour@linux.vnet.ibm.com, vbabka@suse.cz, kirill@shutemov.name, akpm@linux-foundation.org, dave.hansen@intel.com, oleg@redhat.com, srikar@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 17 Sep 2018, gregkh@linuxfoundation.org wrote:
-> 
-> This is a note to let you know that I've just added the patch titled
-> 
->     x86/kexec: Allocate 8k PGDs for PTI
-> 
-> to the 3.18-stable tree which can be found at:
->     http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
-> 
-> The filename of the patch is:
->      x86-kexec-allocate-8k-pgds-for-pti.patch
-> and it can be found in the queue-3.18 subdirectory.
-> 
-> If you, or anyone else, feels it should not be added to the stable tree,
-> please let <stable@vger.kernel.org> know about it.
 
-I believe this commit is an example of the auto-selector being too
-eager, and this should not be in *any* of the stable trees.  As the
-commit message indicates, it's a fix by Joerg for his PTI-x86-32
-implementation - which has not been backported to any of the stable
-trees (yet), has it?
 
-In several of the recent stable trees, I think this will not do any
-actual harm; but it looks as if it will prevent relevant x86-32 configs
-from building on 3.18 (I see no definition of PGD_ALLOCATION_ORDER in
-linux-3.18.y - you preferred not to have any PTI in that tree), and I
-haven't checked whether its definition in older backports will build
-correctly here or not.
+On 9/15/18 2:21 AM, Matthew Wilcox wrote:
+> On Sat, Sep 15, 2018 at 04:34:57AM +0800, Yang Shi wrote:
+>> Suggested-by: Michal Hocko <mhocko@kernel.org>
+>> Suggested-by: Kirill A. Shutemov <kirill@shutemov.name>
+>> Suggested-by: Matthew Wilcox <willy@infradead.org>
+> Reviewed-by: Matthew Wilcox <willy@infradead.org>
+>
+> Looks good!  Thanks for sticking with this patch series.
 
-Hugh
+Thanks for reviewing this patch series. I'm going to wait for one or two 
+days to see whether anyone else has more comments before I have the 
+spelling error fixed.
 
-> 
-> 
-> From foo@baz Mon Sep 17 11:45:57 CEST 2018
-> From: Joerg Roedel <jroedel@suse.de>
-> Date: Wed, 25 Jul 2018 17:48:03 +0200
-> Subject: x86/kexec: Allocate 8k PGDs for PTI
-> 
-> From: Joerg Roedel <jroedel@suse.de>
-> 
-> [ Upstream commit ca38dc8f2724d101038b1205122c93a1c7f38f11 ]
-> 
-> Fuzzing the PTI-x86-32 code with trinity showed unhandled
-> kernel paging request oops-messages that looked a lot like
-> silent data corruption.
-> 
-> Lot's of debugging and testing lead to the kexec-32bit code,
-> which is still allocating 4k PGDs when PTI is enabled. But
-> since it uses native_set_pud() to build the page-table, it
-> will unevitably call into __pti_set_user_pgtbl(), which
-> writes beyond the allocated 4k page.
-> 
-> Use PGD_ALLOCATION_ORDER to allocate PGDs in the kexec code
-> to fix the issue.
-> 
-> Signed-off-by: Joerg Roedel <jroedel@suse.de>
-> Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-> Tested-by: David H. Gutteridge <dhgutteridge@sympatico.ca>
-> Cc: "H . Peter Anvin" <hpa@zytor.com>
-> Cc: linux-mm@kvack.org
-> Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-> Cc: Juergen Gross <jgross@suse.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Borislav Petkov <bp@alien8.de>
-> Cc: Jiri Kosina <jkosina@suse.cz>
-> Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-> Cc: Brian Gerst <brgerst@gmail.com>
-> Cc: David Laight <David.Laight@aculab.com>
-> Cc: Denys Vlasenko <dvlasenk@redhat.com>
-> Cc: Eduardo Valentin <eduval@amazon.com>
-> Cc: Greg KH <gregkh@linuxfoundation.org>
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: aliguori@amazon.com
-> Cc: daniel.gruss@iaik.tugraz.at
-> Cc: hughd@google.com
-> Cc: keescook@google.com
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Waiman Long <llong@redhat.com>
-> Cc: Pavel Machek <pavel@ucw.cz>
-> Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
-> Cc: Alexander Shishkin <alexander.shishkin@linux.intel.com>
-> Cc: Jiri Olsa <jolsa@redhat.com>
-> Cc: Namhyung Kim <namhyung@kernel.org>
-> Cc: joro@8bytes.org
-> Link: https://lkml.kernel.org/r/1532533683-5988-4-git-send-email-joro@8bytes.org
-> Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
-> Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> ---
->  arch/x86/kernel/machine_kexec_32.c |    5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
-> 
-> --- a/arch/x86/kernel/machine_kexec_32.c
-> +++ b/arch/x86/kernel/machine_kexec_32.c
-> @@ -69,7 +69,7 @@ static void load_segments(void)
->  
->  static void machine_kexec_free_page_tables(struct kimage *image)
->  {
-> -	free_page((unsigned long)image->arch.pgd);
-> +	free_pages((unsigned long)image->arch.pgd, PGD_ALLOCATION_ORDER);
->  	image->arch.pgd = NULL;
->  #ifdef CONFIG_X86_PAE
->  	free_page((unsigned long)image->arch.pmd0);
-> @@ -85,7 +85,8 @@ static void machine_kexec_free_page_tabl
->  
->  static int machine_kexec_alloc_page_tables(struct kimage *image)
->  {
-> -	image->arch.pgd = (pgd_t *)get_zeroed_page(GFP_KERNEL);
-> +	image->arch.pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
-> +						    PGD_ALLOCATION_ORDER);
->  #ifdef CONFIG_X86_PAE
->  	image->arch.pmd0 = (pmd_t *)get_zeroed_page(GFP_KERNEL);
->  	image->arch.pmd1 = (pmd_t *)get_zeroed_page(GFP_KERNEL);
-> 
-> 
-> Patches currently in stable-queue which might be from jroedel@suse.de are
-> 
-> queue-3.18/x86-kexec-allocate-8k-pgds-for-pti.patch
-> queue-3.18/x86-mm-remove-in_nmi-warning-from-vmalloc_fault.patch
-> 
+Yang
+
+>
+> Minor spelling fixes:
+>
+>> -	/*
+>> -	 * Remove the vma's, and unmap the actual pages
+>> -	 */
+>> +	/* Detatch vmas from rbtree */
+> "Detach"
+>
+>> +	/*
+>> +	 * mpx unmap need to be handled with write mmap_sem. It is safe to
+>> +	 * deal with it before unmap_region().
+>> +	 */
+> 	 * mpx unmap needs to be called with mmap_sem held for write.
+> 	 * It is safe to call it before unmap_region()
+>
+>> +	ret = __do_munmap(mm, start, len, &uf, downgrade);
+>> +	/*
+>> +	 * Returning 1 indicates mmap_sem is down graded.
+>> +	 * But 1 is not legal return value of vm_munmap() and munmap(), reset
+>> +	 * it to 0 before return.
+>> +	 */
+> "downgraded" is one word.
