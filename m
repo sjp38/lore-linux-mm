@@ -1,51 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B8DDB8E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 09:29:50 -0400 (EDT)
-Received: by mail-lf1-f71.google.com with SMTP id h4-v6so910266lfc.22
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 06:29:50 -0700 (PDT)
-Received: from SELDSEGREL01.sonyericsson.com (seldsegrel01.sonyericsson.com. [37.139.156.29])
-        by mx.google.com with ESMTPS id o21-v6si10461565lff.74.2018.09.17.06.29.49
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 767DE8E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 09:38:30 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id g12-v6so7868446plo.1
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 06:38:30 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id h9-v6si18178009plk.461.2018.09.17.06.38.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Sep 2018 06:29:49 -0700 (PDT)
-Subject: Re: [PATCH 0/9] psi: pressure stall information for CPU, memory, and
- IO v4
-References: <20180828172258.3185-1-hannes@cmpxchg.org>
- <20180905214303.GA30178@cmpxchg.org>
- <20180907110407.GQ24106@hirez.programming.kicks-ass.net>
- <20180907150955.GC11088@cmpxchg.org>
- <CAJuCfpG1=pXOg=1GwC33Uy0BcXNq-BsR6dO0JJq4Jnm5TyNENQ@mail.gmail.com>
-From: peter enderborg <peter.enderborg@sony.com>
-Message-ID: <29f0bb2c-31d4-0b2e-d816-68076b90e9d3@sony.com>
-Date: Mon, 17 Sep 2018 15:29:41 +0200
-MIME-Version: 1.0
-In-Reply-To: <CAJuCfpG1=pXOg=1GwC33Uy0BcXNq-BsR6dO0JJq4Jnm5TyNENQ@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Content-Language: en-GB
+        Mon, 17 Sep 2018 06:38:28 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2] mm, thp: Fix mlocking THP page with migration enabled
+Date: Mon, 17 Sep 2018 16:38:16 +0300
+Message-Id: <20180917133816.43995-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Suren Baghdasaryan <surenb@google.com>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Daniel Drake <drake@endlessm.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Shakeel Butt <shakeelb@google.com>, Mike Galbraith <efault@gmx.de>, linux-mm <linux-mm@kvack.org>, cgroups@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, kernel-team@fb.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vegard Nossum <vegard.nossum@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, stable@vger.kernel.org, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>
 
-Will it be part of the backport to 4.9 google android or is it for test only?
-I guess that this patch is to big for the LTS tree.
+A transparent huge page is represented by a single entry on an LRU list.
+Therefore, we can only make unevictable an entire compound page, not
+individual subpages.
 
-On 09/07/2018 05:58 PM, Suren Baghdasaryan wrote:
-> Thanks for the new patchset! Backported to 4.9 and retested on ARMv8 8
-> code system running Android. Signals behave as expected reacting to
-> memory pressure, no jumps in "total" counters that would indicate an
-> overflow/underflow issues. Nicely done!
->
-> Tested-by: Suren Baghdasaryan <surenb@google.com>
->
-> On Fri, Sep 7, 2018 at 8:09 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
->> On Fri, Sep 07, 2018 at 01:04:07PM +0200, Peter Zijlstra wrote:
->>> So yeah, grudingly acked. Did you want me to pick this up through the
->>> scheduler tree since most of this lives there?
->> Thanks for the ack.
->>
->> As for routing it, I'll leave that decision to you and Andrew. It
->> touches stuff all over, so it could result in quite a few conflicts
->> between trees (although I don't expect any of them to be non-trivial).
+If a user tries to mlock() part of a huge page, we want the rest of the
+page to be reclaimable.
+
+We handle this by keeping PTE-mapped huge pages on normal LRU lists: the
+PMD on border of VM_LOCKED VMA will be split into PTE table.
+
+Introduction of THP migration breaks[1] the rules around mlocking THP
+pages. If we had a single PMD mapping of the page in mlocked VMA, the
+page will get mlocked, regardless of PTE mappings of the page.
+
+For tmpfs/shmem it's easy to fix by checking PageDoubleMap() in
+remove_migration_pmd().
+
+Anon THP pages can only be shared between processes via fork(). Mlocked
+page can only be shared if parent mlocked it before forking, otherwise
+CoW will be triggered on mlock().
+
+For Anon-THP, we can fix the issue by munlocking the page on removing PTE
+migration entry for the page. PTEs for the page will always come after
+mlocked PMD: rmap walks VMAs from oldest to newest.
+
+Test-case:
+
+	#include <unistd.h>
+	#include <sys/mman.h>
+	#include <sys/wait.h>
+	#include <linux/mempolicy.h>
+	#include <numaif.h>
+
+	int main(void)
+	{
+	        unsigned long nodemask = 4;
+	        void *addr;
+
+		addr = mmap((void *)0x20000000UL, 2UL << 20, PROT_READ | PROT_WRITE,
+			MAP_PRIVATE | MAP_ANONYMOUS | MAP_LOCKED, -1, 0);
+
+	        if (fork()) {
+			wait(NULL);
+			return 0;
+	        }
+
+	        mlock(addr, 4UL << 10);
+	        mbind(addr, 2UL << 20, MPOL_PREFERRED | MPOL_F_RELATIVE_NODES,
+	                &nodemask, 4, MPOL_MF_MOVE);
+
+	        return 0;
+	}
+
+[1] https://lkml.kernel.org/r/CAOMGZ=G52R-30rZvhGxEbkTw7rLLwBGadVYeo--iizcD3upL3A@mail.gmail.com
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-by: Vegard Nossum <vegard.nossum@oracle.com>
+Fixes: 616b8371539a ("mm: thp: enable thp migration in generic path")
+Cc: <stable@vger.kernel.org> [v4.14+]
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+---
+ mm/huge_memory.c | 2 +-
+ mm/migrate.c     | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 533f9b00147d..00704060b7f7 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2931,7 +2931,7 @@ void remove_migration_pmd(struct page_vma_mapped_walk *pvmw, struct page *new)
+ 	else
+ 		page_add_file_rmap(new, true);
+ 	set_pmd_at(mm, mmun_start, pvmw->pmd, pmde);
+-	if (vma->vm_flags & VM_LOCKED)
++	if ((vma->vm_flags & VM_LOCKED) && !PageDoubleMap(new))
+ 		mlock_vma_page(new);
+ 	update_mmu_cache_pmd(vma, address, pvmw->pmd);
+ }
+diff --git a/mm/migrate.c b/mm/migrate.c
+index d6a2e89b086a..9d374011c244 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -275,6 +275,9 @@ static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
+ 		if (vma->vm_flags & VM_LOCKED && !PageTransCompound(new))
+ 			mlock_vma_page(new);
+ 
++		if (PageTransHuge(page) && PageMlocked(page))
++			clear_page_mlock(page);
++
+ 		/* No need to invalidate - it was non-present before */
+ 		update_mmu_cache(vma, pvmw.address, pvmw.pte);
+ 	}
+-- 
+2.18.0
