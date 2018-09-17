@@ -1,65 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B5BE18E0006
-	for <linux-mm@kvack.org>; Sun, 16 Sep 2018 23:07:52 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id z72-v6so11685792itc.8
-        for <linux-mm@kvack.org>; Sun, 16 Sep 2018 20:07:52 -0700 (PDT)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0113.outbound.protection.outlook.com. [104.47.38.113])
-        by mx.google.com with ESMTPS id a4-v6si7968517ioc.119.2018.09.16.20.07.51
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 516C28E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 00:37:34 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id v4-v6so17078349oix.2
+        for <linux-mm@kvack.org>; Sun, 16 Sep 2018 21:37:34 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 7-v6si6819096oik.113.2018.09.16.21.37.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 16 Sep 2018 20:07:51 -0700 (PDT)
-From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: [PATCH AUTOSEL 3.18 03/29] x86/numa_emulation: Fix
- emulated-to-physical node mapping
-Date: Mon, 17 Sep 2018 03:05:38 +0000
-Message-ID: <20180917030533.592-3-alexander.levin@microsoft.com>
-References: <20180917030533.592-1-alexander.levin@microsoft.com>
-In-Reply-To: <20180917030533.592-1-alexander.levin@microsoft.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 16 Sep 2018 21:37:32 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8H4YenF122538
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 00:37:32 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2mhx1wbtgt-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 00:37:32 -0400
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Mon, 17 Sep 2018 05:37:30 +0100
+Date: Mon, 17 Sep 2018 07:37:24 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: KSM not working in 4.9 Kernel
+References: <CAOuPNLj1wx4sznrtLdKjcvuTf0dECPWzPaR946FoYRXB6YAGCw@mail.gmail.com>
+ <20180916153237.GC15699@rapoport-lnx>
+ <CAOuPNLj0HyC+yzwTpN-EWpzHTJ58u7pBfOja1MyweF4pbct1eQ@mail.gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAOuPNLj0HyC+yzwTpN-EWpzHTJ58u7pBfOja1MyweF4pbct1eQ@mail.gmail.com>
+Message-Id: <20180917043724.GA12866@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Wei Yang <richard.weiyang@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@kernel.org>, Sasha Levin <Alexander.Levin@microsoft.com>
+To: Pintu Kumar <pintu.ping@gmail.com>
+Cc: open list <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
 
-From: Dan Williams <dan.j.williams@intel.com>
+On Sun, Sep 16, 2018 at 10:35:17PM +0530, Pintu Kumar wrote:
+> On Sun, Sep 16, 2018 at 9:02 PM Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+> >
+> > On Fri, Sep 14, 2018 at 07:58:01PM +0530, Pintu Kumar wrote:
+> > > Hi All,
+> > >
+> > > Board: Hikey620 ARM64
+> > > Kernel: 4.9.20
+> > >
+> > > I am trying to verify KSM (Kernel Same Page Merging) functionality on
+> > > 4.9 Kernel using "mmap" and madvise user space test utility.
+> > > But to my observation, it seems KSM is not working for me.
+> > > CONFIG_KSM=y is enabled in kernel.
+> > > ksm_init is also called during boot up.
+> > >   443 ?        SN     0:00 [ksmd]
+> > >
+> > > ksmd thread is also running.
+> > >
+> > > However, when I see the sysfs, no values are written.
+> > > ~ # grep -H '' /sys/kernel/mm/ksm/*
+> > > /sys/kernel/mm/ksm/pages_hashed:0
+> > > /sys/kernel/mm/ksm/pages_scanned:0
+> > > /sys/kernel/mm/ksm/pages_shared:0
+> > > /sys/kernel/mm/ksm/pages_sharing:0
+> > > /sys/kernel/mm/ksm/pages_to_scan:200
+> > > /sys/kernel/mm/ksm/pages_unshared:0
+> > > /sys/kernel/mm/ksm/pages_volatile:0
+> > > /sys/kernel/mm/ksm/run:1
+> > > /sys/kernel/mm/ksm/sleep_millisecs:1000
+> > >
+> > > So, please let me know if I am doing any thing wrong.
+> > >
+> > > This is the test utility:
+> > > int main(int argc, char *argv[])
+> > > {
+> > >         int i, n, size;
+> > >         char *buffer;
+> > >         void *addr;
+> > >
+> > >         n = 100;
+> > >         size = 100 * getpagesize();
+> > >         for (i = 0; i < n; i++) {
+> > >                 buffer = (char *)malloc(size);
+> > >                 memset(buffer, 0xff, size);
+> > >                 addr =  mmap(NULL, size,
+> > >                            PROT_READ | PROT_EXEC | PROT_WRITE,
+> > > MAP_PRIVATE | MAP_ANONYMOUS,
+> > >                            -1, 0);
+> > >                 madvise(addr, size, MADV_MERGEABLE);
+> >
+> > Just mmap'ing an area does not allocate any physical pages, so KSM has
+> > nothing to merge.
+> >
+> > You need to memset(addr,...) after mmap().
+> >
+> 
+> Yes, I am doing memset also.
+> memset(addr, 0xff, size);
+> 
+> But still no effect.
+> And I checked LTP test cases. It almost doing the same thing.
+> 
+> I observed that [ksmd] thread is not waking up at all.
+> I gave some print inside it, but I could never saw that prints coming.
+> I could not find it running either in top command during the operation.
+> Is there anything needs to be done, to wakw up ksmd?
+> I already set: echo 1 > /sys/kernel/mm/ksm.
 
-[ Upstream commit 3b6c62f363a19ce82bf378187ab97c9dc01e3927 ]
+It should be echo 1 > /sys/kernel/mm/ksm/run
+ 
+> 
+> 
+> > >                 sleep(1);
+> > >         }
+> > >         printf("Done....press ^C\n");
+> > >
+> > >         pause();
+> > >
+> > >         return 0;
+> > > }
+> > >
+> > >
+> > >
+> > > Thanks,
+> > > Pintu
+> > >
+> >
+> > --
+> > Sincerely yours,
+> > Mike.
+> >
+> 
 
-Without this change the distance table calculation for emulated nodes
-may use the wrong numa node and report an incorrect distance.
-
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Wei Yang <richard.weiyang@gmail.com>
-Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/153089328103.27680.14778434392225818887.stgi=
-t@dwillia2-desk3.amr.corp.intel.com
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
----
- arch/x86/mm/numa_emulation.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/arch/x86/mm/numa_emulation.c b/arch/x86/mm/numa_emulation.c
-index a8f90ce3dedf..dc6d99017f3f 100644
---- a/arch/x86/mm/numa_emulation.c
-+++ b/arch/x86/mm/numa_emulation.c
-@@ -60,7 +60,7 @@ static int __init emu_setup_memblk(struct numa_meminfo *e=
-i,
- 	eb->nid =3D nid;
-=20
- 	if (emu_nid_to_phys[nid] =3D=3D NUMA_NO_NODE)
--		emu_nid_to_phys[nid] =3D nid;
-+		emu_nid_to_phys[nid] =3D pb->nid;
-=20
- 	pb->start +=3D size;
- 	if (pb->start >=3D pb->end) {
---=20
-2.17.1
+-- 
+Sincerely yours,
+Mike.
