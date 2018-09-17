@@ -1,97 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B1838E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 18:34:26 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id x85-v6so9089572pfe.13
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 15:34:26 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id f185-v6si16061111pgc.625.2018.09.17.15.34.24
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 78C6E8E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 18:50:12 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id h65-v6so9023082pfk.18
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 15:50:12 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id f62-v6si16884447plf.164.2018.09.17.15.50.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Sep 2018 15:34:25 -0700 (PDT)
-From: "Huang, Kai" <kai.huang@intel.com>
-Subject: RE: [RFC 11/12] keys/mktme: Add a new key service type for memory
- encryption keys
-Date: Mon, 17 Sep 2018 22:34:20 +0000
-Message-ID: <105F7BF4D0229846AF094488D65A09893543401B@PGSMSX112.gar.corp.intel.com>
-References: <cover.1536356108.git.alison.schofield@intel.com>
- <1a14a6feb02f968c5e6b98360f6f16106b633b58.1536356108.git.alison.schofield@intel.com>
- <105F7BF4D0229846AF094488D65A098935424C2D@PGSMSX112.gar.corp.intel.com>
- <20180915000639.GA28666@alison-desk.jf.intel.com>
- <105F7BF4D0229846AF094488D65A098935432E09@PGSMSX112.gar.corp.intel.com>
-In-Reply-To: <105F7BF4D0229846AF094488D65A098935432E09@PGSMSX112.gar.corp.intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Mon, 17 Sep 2018 15:50:11 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.4 33/56] x86/mm: Remove in_nmi() warning from vmalloc_fault()
+Date: Tue, 18 Sep 2018 00:42:06 +0200
+Message-Id: <20180917213829.301295044@linuxfoundation.org>
+In-Reply-To: <20180917213827.913122591@linuxfoundation.org>
+References: <20180917213827.913122591@linuxfoundation.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Kai" <kai.huang@intel.com>, "Schofield, Alison" <alison.schofield@intel.com>
-Cc: "dhowells@redhat.com" <dhowells@redhat.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "Nakajima, Jun" <jun.nakajima@intel.com>, "Shutemov,
- Kirill" <kirill.shutemov@intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>, "jmorris@namei.org" <jmorris@namei.org>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Joerg Roedel <jroedel@suse.de>, Thomas Gleixner <tglx@linutronix.de>, "David H. Gutteridge" <dhgutteridge@sympatico.ca>, "H . Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, joro@8bytes.org, Sasha Levin <alexander.levin@microsoft.com>
 
-> > On Sun, Sep 09, 2018 at 08:29:29PM -0700, Huang, Kai wrote:
-> > > > + */
-> > > > +static int mktme_build_cpumask(void) {
-> > > > +	int online_cpu, mktme_cpu;
-> > > > +	int online_pkgid, mktme_pkgid =3D -1;
-> > > > +
-> > > > +	if (!zalloc_cpumask_var(&mktme_cpumask, GFP_KERNEL))
-> > > > +		return -ENOMEM;
-> > > > +
-> > > > +	for_each_online_cpu(online_cpu) {
-> > > > +		online_pkgid =3D topology_physical_package_id(online_cpu);
-> > > > +
-> > > > +		for_each_cpu(mktme_cpu, mktme_cpumask) {
-> > > > +			mktme_pkgid =3D
-> > > > topology_physical_package_id(mktme_cpu);
-> > > > +			if (mktme_pkgid =3D=3D online_pkgid)
-> > > > +				break;
-> > > > +		}
-> > > > +		if (mktme_pkgid !=3D online_pkgid)
-> > > > +			cpumask_set_cpu(online_cpu, mktme_cpumask);
-> > > > +	}
-> > >
-> > > Could we use 'for_each_online_node', 'cpumask_first/next', etc to
-> > > simplify the
-> > logic?
-> >
-> > Kai,
-> >
-> > I tried to simplify it and came up with code that looked like this:
-> >
-> > 	int lead_cpu, node;
-> > 	for_each_online_node(node) {
-> > 		lead_cpu =3D cpumask_first(cpumask_of_node(node));
-> > 		if (lead_cpu < nr_cpu_ids)
-> > 			cpumask_set_cpu(lead_cpu, mktme_cpumask_NEW);
-> > 	}
-> > When I test it on an SNC (Sub Numa Cluster) system it gives me too many
-> CPU's.
-> > I get a CPU per Node (just like i asked for;) instead of per Socket.
-> > It has 2 sockets and 4 NUMA nodes.
-> >
-> > I kind of remember this when I originally coded it, hence the bottoms
-> > up approach using topology_physical_package_id()
-> >
-> > Any ideas?
->=20
-> Hmm.. I forgot the SNC case, sorry :(
->=20
-> So in case of SNC, is PCONFIG per-package, or per-node? I am not quite su=
-re
-> about this.
+4.4-stable review patch.  If anyone has any objections, please let me know.
 
-I have confirmed internally that PCONFIG is per-package even in SNC.
+------------------
 
-Thanks,
--Kai
->=20
-> If PCONFIG is per-package, I don't have better idea than your original on=
-e. :)
->=20
-> Thanks,
-> -Kai
-> >
-> > Alison
-> >
+From: Joerg Roedel <jroedel@suse.de>
+
+[ Upstream commit 6863ea0cda8725072522cd78bda332d9a0b73150 ]
+
+It is perfectly okay to take page-faults, especially on the
+vmalloc area while executing an NMI handler. Remove the
+warning.
+
+Signed-off-by: Joerg Roedel <jroedel@suse.de>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Tested-by: David H. Gutteridge <dhgutteridge@sympatico.ca>
+Cc: "H . Peter Anvin" <hpa@zytor.com>
+Cc: linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Juergen Gross <jgross@suse.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Jiri Kosina <jkosina@suse.cz>
+Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: David Laight <David.Laight@aculab.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: Eduardo Valentin <eduval@amazon.com>
+Cc: Greg KH <gregkh@linuxfoundation.org>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: aliguori@amazon.com
+Cc: daniel.gruss@iaik.tugraz.at
+Cc: hughd@google.com
+Cc: keescook@google.com
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Waiman Long <llong@redhat.com>
+Cc: Pavel Machek <pavel@ucw.cz>
+Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
+Cc: Alexander Shishkin <alexander.shishkin@linux.intel.com>
+Cc: Jiri Olsa <jolsa@redhat.com>
+Cc: Namhyung Kim <namhyung@kernel.org>
+Cc: joro@8bytes.org
+Link: https://lkml.kernel.org/r/1532533683-5988-2-git-send-email-joro@8bytes.org
+Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+---
+ arch/x86/mm/fault.c |    2 --
+ 1 file changed, 2 deletions(-)
+
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -273,8 +273,6 @@ static noinline int vmalloc_fault(unsign
+ 	if (!(address >= VMALLOC_START && address < VMALLOC_END))
+ 		return -1;
+ 
+-	WARN_ON_ONCE(in_nmi());
+-
+ 	/*
+ 	 * Synchronize this task's top level page-table
+ 	 * with the 'reference' page table.
