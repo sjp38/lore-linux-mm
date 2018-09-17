@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 515CF8E0001
-	for <linux-mm@kvack.org>; Sun, 16 Sep 2018 23:05:39 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id c5-v6so7304250plo.2
-        for <linux-mm@kvack.org>; Sun, 16 Sep 2018 20:05:39 -0700 (PDT)
-Received: from NAM04-CO1-obe.outbound.protection.outlook.com (mail-eopbgr690113.outbound.protection.outlook.com. [40.107.69.113])
-        by mx.google.com with ESMTPS id t80-v6si15339436pfk.228.2018.09.16.20.05.38
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AB3A48E0001
+	for <linux-mm@kvack.org>; Sun, 16 Sep 2018 23:06:33 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id w19-v6so7981979pfa.14
+        for <linux-mm@kvack.org>; Sun, 16 Sep 2018 20:06:33 -0700 (PDT)
+Received: from NAM04-CO1-obe.outbound.protection.outlook.com (mail-eopbgr690136.outbound.protection.outlook.com. [40.107.69.136])
+        by mx.google.com with ESMTPS id s20-v6si14191696pgk.87.2018.09.16.20.06.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 16 Sep 2018 20:05:38 -0700 (PDT)
+        Sun, 16 Sep 2018 20:06:32 -0700 (PDT)
 From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: [PATCH AUTOSEL 4.9 04/57] x86/numa_emulation: Fix
+Subject: [PATCH AUTOSEL 4.4 04/43] x86/numa_emulation: Fix
  emulated-to-physical node mapping
-Date: Mon, 17 Sep 2018 03:03:46 +0000
-Message-ID: <20180917030340.378-4-alexander.levin@microsoft.com>
-References: <20180917030340.378-1-alexander.levin@microsoft.com>
-In-Reply-To: <20180917030340.378-1-alexander.levin@microsoft.com>
+Date: Mon, 17 Sep 2018 03:04:51 +0000
+Message-ID: <20180917030445.484-4-alexander.levin@microsoft.com>
+References: <20180917030445.484-1-alexander.levin@microsoft.com>
+In-Reply-To: <20180917030445.484-1-alexander.levin@microsoft.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
