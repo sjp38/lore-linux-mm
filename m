@@ -1,109 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C82EB8E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 06:17:44 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id h4-v6so7604755pls.17
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 03:17:44 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d10-v6si15289681pla.436.2018.09.17.03.17.43
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AA858E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 06:19:56 -0400 (EDT)
+Received: by mail-lj1-f200.google.com with SMTP id r21-v6so3355534ljd.6
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 03:19:55 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p24-v6sor291934lfc.72.2018.09.17.03.19.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Sep 2018 03:17:43 -0700 (PDT)
-Subject: Patch "x86/mm: Remove in_nmi() warning from vmalloc_fault()" has been added to the 4.4-stable tree
-From: <gregkh@linuxfoundation.org>
-Date: Mon, 17 Sep 2018 12:15:39 +0200
-Message-ID: <1537179339199235@kroah.com>
+        (Google Transport Security);
+        Mon, 17 Sep 2018 03:19:54 -0700 (PDT)
+Date: Mon, 17 Sep 2018 04:19:50 -0600
+From: Tycho Andersen <tycho@tycho.ws>
+Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
+ in mind (for KVM to isolate its guests per CPU)
+Message-ID: <20180917101950.GG4672@cisco>
+References: <CA+55aFxyUdhYjnQdnmWAt8tTwn4HQ1xz3SAMZJiawkLpMiJ_+w@mail.gmail.com>
+ <ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com>
+ <CA+55aFzHj_GNZWG4K2oDu4DPP9sZdTZ9PY7sBxGB6WoN9g8d=A@mail.gmail.com>
+ <ciirm8zhwyiqh4.fsf@u54ee758033e858cfa736.ant.amazon.com>
+ <ciirm8efdy916l.fsf@u54ee758033e858cfa736.ant.amazon.com>
+ <CADLDEKsxx=MSFu=4_4JLX1afUMr3GVjNxSQ-726NrbLn8KQaQg@mail.gmail.com>
+ <ciirm8r2hs30kh.fsf@u54ee758033e858cfa736.ant.amazon.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <ciirm8r2hs30kh.fsf@u54ee758033e858cfa736.ant.amazon.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 1532533683-5988-2-git-send-email-joro@8bytes.org, David.Laight@aculab.com, aarcange@redhat.com, acme@kernel.org, alexander.levin@microsoft.com, alexander.shishkin@linux.intel.com, aliguori@amazon.com, boris.ostrovsky@oracle.com, bp@alien8.de, brgerst@gmail.com, daniel.gruss@iaik.tugraz.at, dave.hansen@intel.com, dhgutteridge@sympatico.ca, dvlasenk@redhat.com, eduval@amazon.com, gregkh@linuxfoundation.org, hpa@zytor.com, hughd@google.com, jgross@suse.com, jkosina@suse.cz, jolsa@redhat.comjoro@8bytes.org, jpoimboe@redhat.com, jroedel@suse.de, keescook@google.com, linux-mm@kvack.org, llong@redhat.com, luto@kernel.org, namhyung@kernel.org, pavel@ucw.cz, peterz@infradead.org, tglx@linutronix.de, torvalds@linux-foundation.org, will.deacon@arm.com
-Cc: stable-commits@vger.kernel.org
+To: Julian Stecklina <jsteckli@amazon.de>
+Cc: Juerg Haefliger <juergh@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, deepa.srinivasan@oracle.com, Jim Mattson <jmattson@google.com>, Andrew Cooper <andrew.cooper3@citrix.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, joao.m.martins@oracle.com, pradeep.vincent@oracle.com, Andi Kleen <ak@linux.intel.com>, Khalid Aziz <khalid.aziz@oracle.com>, kanth.ghatraju@oracle.com, Liran Alon <liran.alon@oracle.com>, Kees Cook <keescook@google.com>, Kernel Hardening <kernel-hardening@lists.openwall.com>, chris.hyser@oracle.com, Tyler Hicks <tyhicks@canonical.com>, John Haxby <john.haxby@oracle.com>, Jon Masters <jcm@redhat.com>
 
+On Mon, Sep 17, 2018 at 12:01:02PM +0200, Julian Stecklina wrote:
+> Juerg Haefliger <juergh@gmail.com> writes:
+> 
+> >> I've updated my XPFO branch[1] to make some of the debugging optional
+> >> and also integrated the XPFO bookkeeping with struct page, instead of
+> >> requiring CONFIG_PAGE_EXTENSION, which removes some checks in the hot
+> >> path.
+> >
+> > FWIW, that was my original design but there was some resistance to
+> > adding more to the page struct and page extension was suggested
+> > instead.
+> 
+> From looking at both versions, I have to say that having the metadata in
+> struct page makes the code easier to understand and removes some special
+> cases and bookkeeping.
+> 
+> > I'm wondering how much performance we're loosing by having to split
+> > hugepages. Any chance this can be quantified somehow? Maybe we can
+> > have a pool of some sorts reserved for userpages and group allocations
+> > so that we can track the XPFO state at the hugepage level instead of
+> > at the 4k level to prevent/reduce page splitting. Not sure if that
+> > causes issues or has any unwanted side effects though...
+> 
+> Optimizing the allocation/deallocation path might be worthwhile, because
+> that's where most of the overhead goes. I haven't looked into how to do
+> this yet. I'd appreciate if someone has pointers to code that tries to
+> achieve similar functionality to get me started.
+> 
+> That being said, I'm wondering whether we have unrealistic expectations
+> about the overhead here and whether it's worth turning this patch into
+> something far more complicated. Opinions?
 
-This is a note to let you know that I've just added the patch titled
+I think that implementing Dave Hansen's suggestions of not doing
+flushes/other work on every map/unmap, but only when pages are added
+to the various free lists will probably help out a lot. That's where I
+got stuck last time when I was trying to do it, though :)
 
-    x86/mm: Remove in_nmi() warning from vmalloc_fault()
+Cheers,
 
-to the 4.4-stable tree which can be found at:
-    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
-
-The filename of the patch is:
-     x86-mm-remove-in_nmi-warning-from-vmalloc_fault.patch
-and it can be found in the queue-4.4 subdirectory.
-
-If you, or anyone else, feels it should not be added to the stable tree,
-please let <stable@vger.kernel.org> know about it.
-
-
->From foo@baz Mon Sep 17 12:15:09 CEST 2018
-From: Joerg Roedel <jroedel@suse.de>
-Date: Wed, 25 Jul 2018 17:48:01 +0200
-Subject: x86/mm: Remove in_nmi() warning from vmalloc_fault()
-
-From: Joerg Roedel <jroedel@suse.de>
-
-[ Upstream commit 6863ea0cda8725072522cd78bda332d9a0b73150 ]
-
-It is perfectly okay to take page-faults, especially on the
-vmalloc area while executing an NMI handler. Remove the
-warning.
-
-Signed-off-by: Joerg Roedel <jroedel@suse.de>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Tested-by: David H. Gutteridge <dhgutteridge@sympatico.ca>
-Cc: "H . Peter Anvin" <hpa@zytor.com>
-Cc: linux-mm@kvack.org
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Jiri Kosina <jkosina@suse.cz>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: David Laight <David.Laight@aculab.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: Eduardo Valentin <eduval@amazon.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: aliguori@amazon.com
-Cc: daniel.gruss@iaik.tugraz.at
-Cc: hughd@google.com
-Cc: keescook@google.com
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Waiman Long <llong@redhat.com>
-Cc: Pavel Machek <pavel@ucw.cz>
-Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
-Cc: Alexander Shishkin <alexander.shishkin@linux.intel.com>
-Cc: Jiri Olsa <jolsa@redhat.com>
-Cc: Namhyung Kim <namhyung@kernel.org>
-Cc: joro@8bytes.org
-Link: https://lkml.kernel.org/r/1532533683-5988-2-git-send-email-joro@8bytes.org
-Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
----
- arch/x86/mm/fault.c |    2 --
- 1 file changed, 2 deletions(-)
-
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -273,8 +273,6 @@ static noinline int vmalloc_fault(unsign
- 	if (!(address >= VMALLOC_START && address < VMALLOC_END))
- 		return -1;
- 
--	WARN_ON_ONCE(in_nmi());
--
- 	/*
- 	 * Synchronize this task's top level page-table
- 	 * with the 'reference' page table.
-
-
-Patches currently in stable-queue which might be from jroedel@suse.de are
-
-queue-4.4/x86-kexec-allocate-8k-pgds-for-pti.patch
-queue-4.4/iommu-ipmmu-vmsa-fix-allocation-in-atomic-context.patch
-queue-4.4/x86-mm-remove-in_nmi-warning-from-vmalloc_fault.patch
+Tycho
