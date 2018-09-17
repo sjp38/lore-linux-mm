@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B28468E0001
-	for <linux-mm@kvack.org>; Sun, 16 Sep 2018 23:03:32 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id c18-v6so16947311oiy.3
-        for <linux-mm@kvack.org>; Sun, 16 Sep 2018 20:03:32 -0700 (PDT)
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0113.outbound.protection.outlook.com. [104.47.42.113])
-        by mx.google.com with ESMTPS id 109-v6si4356708otg.148.2018.09.16.20.03.31
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 515CF8E0001
+	for <linux-mm@kvack.org>; Sun, 16 Sep 2018 23:05:39 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id c5-v6so7304250plo.2
+        for <linux-mm@kvack.org>; Sun, 16 Sep 2018 20:05:39 -0700 (PDT)
+Received: from NAM04-CO1-obe.outbound.protection.outlook.com (mail-eopbgr690113.outbound.protection.outlook.com. [40.107.69.113])
+        by mx.google.com with ESMTPS id t80-v6si15339436pfk.228.2018.09.16.20.05.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 16 Sep 2018 20:03:31 -0700 (PDT)
+        Sun, 16 Sep 2018 20:05:38 -0700 (PDT)
 From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: [PATCH AUTOSEL 4.14 05/87] x86/numa_emulation: Fix
+Subject: [PATCH AUTOSEL 4.9 04/57] x86/numa_emulation: Fix
  emulated-to-physical node mapping
-Date: Mon, 17 Sep 2018 03:02:27 +0000
-Message-ID: <20180917030220.245686-5-alexander.levin@microsoft.com>
-References: <20180917030220.245686-1-alexander.levin@microsoft.com>
-In-Reply-To: <20180917030220.245686-1-alexander.levin@microsoft.com>
+Date: Mon, 17 Sep 2018 03:03:46 +0000
+Message-ID: <20180917030340.378-4-alexander.levin@microsoft.com>
+References: <20180917030340.378-1-alexander.levin@microsoft.com>
+In-Reply-To: <20180917030340.378-1-alexander.levin@microsoft.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
@@ -48,10 +48,10 @@ Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/arch/x86/mm/numa_emulation.c b/arch/x86/mm/numa_emulation.c
-index 34a2a3bfde9c..22cbad56acab 100644
+index a8f90ce3dedf..dc6d99017f3f 100644
 --- a/arch/x86/mm/numa_emulation.c
 +++ b/arch/x86/mm/numa_emulation.c
-@@ -61,7 +61,7 @@ static int __init emu_setup_memblk(struct numa_meminfo *e=
+@@ -60,7 +60,7 @@ static int __init emu_setup_memblk(struct numa_meminfo *e=
 i,
  	eb->nid =3D nid;
 =20
