@@ -1,60 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 58D368E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 09:27:47 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id u6-v6so6384465pgn.10
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 06:27:47 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id p16-v6si15265719pgb.38.2018.09.17.06.27.45
+Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B8DDB8E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 09:29:50 -0400 (EDT)
+Received: by mail-lf1-f71.google.com with SMTP id h4-v6so910266lfc.22
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 06:29:50 -0700 (PDT)
+Received: from SELDSEGREL01.sonyericsson.com (seldsegrel01.sonyericsson.com. [37.139.156.29])
+        by mx.google.com with ESMTPS id o21-v6si10461565lff.74.2018.09.17.06.29.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 17 Sep 2018 06:27:45 -0700 (PDT)
-Date: Mon, 17 Sep 2018 06:27:25 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
- in mind (for KVM to isolate its guests per CPU)
-Message-ID: <20180917132725.GA3633@infradead.org>
-References: <CA+55aFxyUdhYjnQdnmWAt8tTwn4HQ1xz3SAMZJiawkLpMiJ_+w@mail.gmail.com>
- <ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com>
- <CA+55aFzHj_GNZWG4K2oDu4DPP9sZdTZ9PY7sBxGB6WoN9g8d=A@mail.gmail.com>
- <ciirm8zhwyiqh4.fsf@u54ee758033e858cfa736.ant.amazon.com>
- <ciirm8efdy916l.fsf@u54ee758033e858cfa736.ant.amazon.com>
- <CADLDEKsxx=MSFu=4_4JLX1afUMr3GVjNxSQ-726NrbLn8KQaQg@mail.gmail.com>
- <ciirm8r2hs30kh.fsf@u54ee758033e858cfa736.ant.amazon.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Sep 2018 06:29:49 -0700 (PDT)
+Subject: Re: [PATCH 0/9] psi: pressure stall information for CPU, memory, and
+ IO v4
+References: <20180828172258.3185-1-hannes@cmpxchg.org>
+ <20180905214303.GA30178@cmpxchg.org>
+ <20180907110407.GQ24106@hirez.programming.kicks-ass.net>
+ <20180907150955.GC11088@cmpxchg.org>
+ <CAJuCfpG1=pXOg=1GwC33Uy0BcXNq-BsR6dO0JJq4Jnm5TyNENQ@mail.gmail.com>
+From: peter enderborg <peter.enderborg@sony.com>
+Message-ID: <29f0bb2c-31d4-0b2e-d816-68076b90e9d3@sony.com>
+Date: Mon, 17 Sep 2018 15:29:41 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ciirm8r2hs30kh.fsf@u54ee758033e858cfa736.ant.amazon.com>
+In-Reply-To: <CAJuCfpG1=pXOg=1GwC33Uy0BcXNq-BsR6dO0JJq4Jnm5TyNENQ@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Content-Language: en-GB
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Julian Stecklina <jsteckli@amazon.de>
-Cc: Juerg Haefliger <juergh@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, deepa.srinivasan@oracle.com, Jim Mattson <jmattson@google.com>, Andrew Cooper <andrew.cooper3@citrix.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, joao.m.martins@oracle.com, pradeep.vincent@oracle.com, Andi Kleen <ak@linux.intel.com>, Khalid Aziz <khalid.aziz@oracle.com>, kanth.ghatraju@oracle.com, Liran Alon <liran.alon@oracle.com>, Kees Cook <keescook@google.com>, Kernel Hardening <kernel-hardening@lists.openwall.com>, chris.hyser@oracle.com, Tyler Hicks <tyhicks@canonical.com>, John Haxby <john.haxby@oracle.com>, Jon Masters <jcm@redhat.com>
+To: Suren Baghdasaryan <surenb@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Daniel Drake <drake@endlessm.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Shakeel Butt <shakeelb@google.com>, Mike Galbraith <efault@gmx.de>, linux-mm <linux-mm@kvack.org>, cgroups@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, kernel-team@fb.com
 
-On Mon, Sep 17, 2018 at 12:01:02PM +0200, Julian Stecklina wrote:
-> Juerg Haefliger <juergh@gmail.com> writes:
-> 
-> >> I've updated my XPFO branch[1] to make some of the debugging optional
-> >> and also integrated the XPFO bookkeeping with struct page, instead of
-> >> requiring CONFIG_PAGE_EXTENSION, which removes some checks in the hot
-> >> path.
-> >
-> > FWIW, that was my original design but there was some resistance to
-> > adding more to the page struct and page extension was suggested
-> > instead.
-> 
-> >From looking at both versions, I have to say that having the metadata in
-> struct page makes the code easier to understand and removes some special
-> cases and bookkeeping.
+Will it be part of the backport to 4.9 google android or is it for test only?
+I guess that this patch is to big for the LTS tree.
 
-Btw, can xpfo_lock be replaced with a bit spinlock in the page?
-Growing struct page too much might cause performance issues.  Then again
-going beyong the 64 byte cache line might already cause that, and even
-then it propbably is still way better than the page extensions.
-
-OTOH if you keep the spinlock it might be worth to use
-atomic_dec_and_lock on the count.  Maybe the answer is an hash of
-spinlock, as we obviously can't take all that many of them at the same
-time anyway.
-
-Also for your trasitions froms zero it might be worth at looking at
-atomic_inc_unless_zero.
+On 09/07/2018 05:58 PM, Suren Baghdasaryan wrote:
+> Thanks for the new patchset! Backported to 4.9 and retested on ARMv8 8
+> code system running Android. Signals behave as expected reacting to
+> memory pressure, no jumps in "total" counters that would indicate an
+> overflow/underflow issues. Nicely done!
+>
+> Tested-by: Suren Baghdasaryan <surenb@google.com>
+>
+> On Fri, Sep 7, 2018 at 8:09 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+>> On Fri, Sep 07, 2018 at 01:04:07PM +0200, Peter Zijlstra wrote:
+>>> So yeah, grudingly acked. Did you want me to pick this up through the
+>>> scheduler tree since most of this lives there?
+>> Thanks for the ack.
+>>
+>> As for routing it, I'll leave that decision to you and Andrew. It
+>> touches stuff all over, so it could result in quite a few conflicts
+>> between trees (although I don't expect any of them to be non-trivial).
