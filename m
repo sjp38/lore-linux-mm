@@ -1,87 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C4708E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 19:02:57 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id c5-v6so13730plo.2
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 16:02:57 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k80-v6si17472204pfg.42.2018.09.17.16.02.55
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DD048E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 19:10:51 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id x204-v6so33698qka.6
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 16:10:51 -0700 (PDT)
+Received: from smtp-fw-6001.amazon.com (smtp-fw-6001.amazon.com. [52.95.48.154])
+        by mx.google.com with ESMTPS id s65-v6si5858743qkf.79.2018.09.17.16.10.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Sep 2018 16:02:55 -0700 (PDT)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.14 063/126] x86/mm: Remove in_nmi() warning from vmalloc_fault()
-Date: Tue, 18 Sep 2018 00:41:51 +0200
-Message-Id: <20180917211708.511655650@linuxfoundation.org>
-In-Reply-To: <20180917211703.481236999@linuxfoundation.org>
-References: <20180917211703.481236999@linuxfoundation.org>
+        Mon, 17 Sep 2018 16:10:50 -0700 (PDT)
+From: "Um, Taeil" <taeilum@amazon.com>
+Subject: zswap: use PAGE_SIZE * 2 for compression dst buffer size when calling
+ crypto compression API
+Date: Mon, 17 Sep 2018 23:10:35 +0000
+Message-ID: <D4C91DBA-CF56-4991-BD7F-6BE334A2C048@amazon.com>
+Content-Language: en-US
+Content-Type: multipart/alternative;
+	boundary="_000_D4C91DBACF564991BD7F6BE334A2C048amazoncom_"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Joerg Roedel <jroedel@suse.de>, Thomas Gleixner <tglx@linutronix.de>, "David H. Gutteridge" <dhgutteridge@sympatico.ca>, "H . Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, joro@8bytes.org, Sasha Levin <alexander.levin@microsoft.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "sjenning@redhat.com" <sjenning@redhat.com>, "ddstreet@ieee.org" <ddstreet@ieee.org>
 
-4.14-stable review patch.  If anyone has any objections, please let me know.
+--_000_D4C91DBACF564991BD7F6BE334A2C048amazoncom_
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 
-------------------
+Q3VycmVudGx5LCB3ZSBhbGxvY2F0ZSBQQUdFX1NJWkUgKiAyIGZvciB6c3dhcF9kc3RtZW0gd2hp
+Y2ggaXMgdXNlZCBhcyBjb21wcmVzc2lvbiBkZXN0aW5hdGlvbiBidWZmZXIuDQpIb3dldmVyLCB3
+ZSBwYXNzIG9ubHkgaGFsZiBvZiB0aGUgc2l6ZSAoUEFHRV9TSVpFKSB0byBjcnlwdG9fY29tcF9j
+b21wcmVzcy4NClRoaXMgbWlnaHQgbm90IGJlIGEgcHJvYmxlbSBmb3IgQ1BVIGJhc2VkIGV4aXN0
+aW5nIGx6bywgbHo0IGNyeXB0byBjb21wcmVzc2lvbiBkcml2ZXIgaW1wbGFudGF0aW9uLg0KSG93
+ZXZlciwgdGhpcyBjb3VsZCBiZSBhIHByb2JsZW0gZm9yIHNvbWUgSC9XIGFjY2VsZXJhdGlvbiBj
+b21wcmVzc2lvbiBkcml2ZXJzLCB3aGljaCBob25vciBkZXN0aW5hdGlvbiBidWZmZXIgc2l6ZSB3
+aGVuIGl0IHByZXBhcmVzIEgvVyByZXNvdXJjZXMuDQpBY3R1YWxseSwgdGhpcyBwYXRjaCBpcyBh
+bGlnbmVkIHdpdGggd2hhdCB6cmFtIGlzIHBhc3Npbmcgd2hlbiBpdCBjYWxscyBjcnlwdG9fY29t
+cF9jb21wcmVzcy4NClRoZSBmb2xsb3dpbmcgc2ltcGxlIHBhdGNoIHdpbGwgc29sdmUgdGhpcyBw
+cm9ibGVtLiBJIHRlc3RlZCBpdCB3aXRoIGV4aXN0aW5nIGNyeXB0by9sem8uYyBhbmQgY3J5cHRv
+L2x6NC5jIGNvbXByZXNzaW9uIGRyaXZlciBhbmQgaXQgd29ya3MgZmluZS4NCg0KDQotLS0gbW0v
+enN3YXAuYy5vcmlnICAgICAgIDIwMTgtMDktMTQgMTQ6MzY6MzcuOTg0MTk5MjMyIC0wNzAwDQor
+KysgbW0venN3YXAuYyAgICAgICAgICAgICAyMDE4LTA5LTE0IDE0OjM2OjUzLjM0MDE4OTY4MSAt
+MDcwMA0KQEAgLTEwMDEsNyArMTAwMSw3IEBAIHN0YXRpYyBpbnQgenN3YXBfZnJvbnRzd2FwX3N0
+b3JlKHVuc2lnbmUNCiAgICAgICAgICAgICAgICBzdHJ1Y3QgenN3YXBfZW50cnkgKmVudHJ5LCAq
+ZHVwZW50cnk7DQogICAgICAgICAgICAgICAgc3RydWN0IGNyeXB0b19jb21wICp0Zm07DQogICAg
+ICAgICAgICAgICAgaW50IHJldDsNCi0gICAgICAgICAgICAgIHVuc2lnbmVkIGludCBobGVuLCBk
+bGVuID0gUEFHRV9TSVpFOw0KKyAgICAgICAgICAgICB1bnNpZ25lZCBpbnQgaGxlbiwgZGxlbiA9
+IFBBR0VfU0laRSAqIDI7DQogICAgICAgICAgICAgICAgdW5zaWduZWQgbG9uZyBoYW5kbGUsIHZh
+bHVlOw0KICAgICAgICAgICAgICAgIGNoYXIgKmJ1ZjsNCiAgICAgICAgICAgICAgICB1OCAqc3Jj
+LCAqZHN0Ow0KDQoNCg0KVGhhbmsgeW91LA0KVGFlaWwNCg0K
 
-From: Joerg Roedel <jroedel@suse.de>
+--_000_D4C91DBACF564991BD7F6BE334A2C048amazoncom_
+Content-Type: text/html; charset="utf-8"
+Content-ID: <BE394CCE7616914198E2D663272CB6E1@amazon.com>
+Content-Transfer-Encoding: base64
 
-[ Upstream commit 6863ea0cda8725072522cd78bda332d9a0b73150 ]
+PGh0bWwgeG1sbnM6bz0idXJuOnNjaGVtYXMtbWljcm9zb2Z0LWNvbTpvZmZpY2U6b2ZmaWNlIiB4
+bWxuczp3PSJ1cm46c2NoZW1hcy1taWNyb3NvZnQtY29tOm9mZmljZTp3b3JkIiB4bWxuczptPSJo
+dHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL29mZmljZS8yMDA0LzEyL29tbWwiIHhtbG5zPSJo
+dHRwOi8vd3d3LnczLm9yZy9UUi9SRUMtaHRtbDQwIj4NCjxoZWFkPg0KPG1ldGEgaHR0cC1lcXVp
+dj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0L2h0bWw7IGNoYXJzZXQ9dXRmLTgiPg0KPG1l
+dGEgbmFtZT0iR2VuZXJhdG9yIiBjb250ZW50PSJNaWNyb3NvZnQgV29yZCAxNSAoZmlsdGVyZWQg
+bWVkaXVtKSI+DQo8c3R5bGU+PCEtLQ0KLyogRm9udCBEZWZpbml0aW9ucyAqLw0KQGZvbnQtZmFj
+ZQ0KCXtmb250LWZhbWlseToiQ2FtYnJpYSBNYXRoIjsNCglwYW5vc2UtMToyIDQgNSAzIDUgNCA2
+IDMgMiA0O30NCkBmb250LWZhY2UNCgl7Zm9udC1mYW1pbHk6Q2FsaWJyaTsNCglwYW5vc2UtMToy
+IDE1IDUgMiAyIDIgNCAzIDIgNDt9DQpAZm9udC1mYWNlDQoJe2ZvbnQtZmFtaWx5OiJNYWxndW4g
+R290aGljIjsNCglwYW5vc2UtMToyIDExIDUgMyAyIDAgMCAyIDAgNDt9DQpAZm9udC1mYWNlDQoJ
+e2ZvbnQtZmFtaWx5OiJcQE1hbGd1biBHb3RoaWMiO30NCi8qIFN0eWxlIERlZmluaXRpb25zICov
+DQpwLk1zb05vcm1hbCwgbGkuTXNvTm9ybWFsLCBkaXYuTXNvTm9ybWFsDQoJe21hcmdpbjowaW47
+DQoJbWFyZ2luLWJvdHRvbTouMDAwMXB0Ow0KCWZvbnQtc2l6ZToxMi4wcHQ7DQoJZm9udC1mYW1p
+bHk6IkNhbGlicmkiLHNhbnMtc2VyaWY7fQ0KYTpsaW5rLCBzcGFuLk1zb0h5cGVybGluaw0KCXtt
+c28tc3R5bGUtcHJpb3JpdHk6OTk7DQoJY29sb3I6IzA1NjNDMTsNCgl0ZXh0LWRlY29yYXRpb246
+dW5kZXJsaW5lO30NCmE6dmlzaXRlZCwgc3Bhbi5Nc29IeXBlcmxpbmtGb2xsb3dlZA0KCXttc28t
+c3R5bGUtcHJpb3JpdHk6OTk7DQoJY29sb3I6Izk1NEY3MjsNCgl0ZXh0LWRlY29yYXRpb246dW5k
+ZXJsaW5lO30NCnAubXNvbm9ybWFsMCwgbGkubXNvbm9ybWFsMCwgZGl2Lm1zb25vcm1hbDANCgl7
+bXNvLXN0eWxlLW5hbWU6bXNvbm9ybWFsOw0KCW1zby1tYXJnaW4tdG9wLWFsdDphdXRvOw0KCW1h
+cmdpbi1yaWdodDowaW47DQoJbXNvLW1hcmdpbi1ib3R0b20tYWx0OmF1dG87DQoJbWFyZ2luLWxl
+ZnQ6MGluOw0KCWZvbnQtc2l6ZToxMS4wcHQ7DQoJZm9udC1mYW1pbHk6IkNhbGlicmkiLHNhbnMt
+c2VyaWY7fQ0Kc3Bhbi5FbWFpbFN0eWxlMTgNCgl7bXNvLXN0eWxlLXR5cGU6cGVyc29uYWw7DQoJ
+Zm9udC1mYW1pbHk6IkNhbGlicmkiLHNhbnMtc2VyaWY7DQoJY29sb3I6d2luZG93dGV4dDt9DQou
+TXNvQ2hwRGVmYXVsdA0KCXttc28tc3R5bGUtdHlwZTpleHBvcnQtb25seTsNCglmb250LXNpemU6
+MTAuMHB0Ow0KCWZvbnQtZmFtaWx5OiJDYWxpYnJpIixzYW5zLXNlcmlmO30NCkBwYWdlIFdvcmRT
+ZWN0aW9uMQ0KCXtzaXplOjguNWluIDExLjBpbjsNCgltYXJnaW46MS4waW4gMS4waW4gMS4waW4g
+MS4waW47fQ0KZGl2LldvcmRTZWN0aW9uMQ0KCXtwYWdlOldvcmRTZWN0aW9uMTt9DQotLT48L3N0
+eWxlPg0KPC9oZWFkPg0KPGJvZHkgbGFuZz0iRU4tVVMiIGxpbms9IiMwNTYzQzEiIHZsaW5rPSIj
+OTU0RjcyIj4NCjxkaXYgY2xhc3M9IldvcmRTZWN0aW9uMSI+DQo8cCBjbGFzcz0iTXNvTm9ybWFs
+Ij48c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBwdCI+Q3VycmVudGx5LCB3ZSBhbGxvY2F0ZSBQ
+QUdFX1NJWkUgKiAyIGZvciB6c3dhcF9kc3RtZW0gd2hpY2ggaXMgdXNlZCBhcyBjb21wcmVzc2lv
+biBkZXN0aW5hdGlvbiBidWZmZXIuPG86cD48L286cD48L3NwYW4+PC9wPg0KPHAgY2xhc3M9Ik1z
+b05vcm1hbCI+PHNwYW4gc3R5bGU9ImZvbnQtc2l6ZToxMS4wcHQiPkhvd2V2ZXIsIHdlIHBhc3Mg
+b25seSBoYWxmIG9mIHRoZSBzaXplIChQQUdFX1NJWkUpIHRvIGNyeXB0b19jb21wX2NvbXByZXNz
+LjxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxl
+PSJmb250LXNpemU6MTEuMHB0Ij5UaGlzIG1pZ2h0IG5vdCBiZSBhIHByb2JsZW0gZm9yIENQVSBi
+YXNlZCBleGlzdGluZyBsem8sIGx6NCBjcnlwdG8gY29tcHJlc3Npb24gZHJpdmVyIGltcGxhbnRh
+dGlvbi48bzpwPjwvbzpwPjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48c3BhbiBz
+dHlsZT0iZm9udC1zaXplOjExLjBwdCI+SG93ZXZlciwgdGhpcyBjb3VsZCBiZSBhIHByb2JsZW0g
+Zm9yIHNvbWUgSC9XIGFjY2VsZXJhdGlvbiBjb21wcmVzc2lvbiBkcml2ZXJzLCB3aGljaCBob25v
+ciBkZXN0aW5hdGlvbiBidWZmZXIgc2l6ZSB3aGVuIGl0IHByZXBhcmVzIEgvVyByZXNvdXJjZXMu
+PG86cD48L286cD48L3NwYW4+PC9wPg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5bGU9
+ImZvbnQtc2l6ZToxMS4wcHQiPkFjdHVhbGx5LCB0aGlzIHBhdGNoIGlzIGFsaWduZWQgd2l0aCB3
+aGF0IHpyYW0gaXMgcGFzc2luZyB3aGVuIGl0IGNhbGxzIGNyeXB0b19jb21wX2NvbXByZXNzLjxv
+OnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJm
+b250LXNpemU6MTEuMHB0Ij5UaGUgZm9sbG93aW5nIHNpbXBsZSBwYXRjaCB3aWxsIHNvbHZlIHRo
+aXMgcHJvYmxlbS4gSSB0ZXN0ZWQgaXQgd2l0aCBleGlzdGluZyBjcnlwdG8vbHpvLmMgYW5kIGNy
+eXB0by9sejQuYyBjb21wcmVzc2lvbiBkcml2ZXIgYW5kIGl0IHdvcmtzIGZpbmUuPG86cD48L286
+cD48L3NwYW4+PC9wPg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5bGU9ImZvbnQtc2l6
+ZToxMS4wcHQiPjxvOnA+Jm5ic3A7PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3Jt
+YWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij48bzpwPiZuYnNwOzwvbzpwPjwvc3Bh
+bj48L3A+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBw
+dCI+LS0tIG1tL3pzd2FwLmMub3JpZyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
+OyAyMDE4LTA5LTE0IDE0OjM2OjM3Ljk4NDE5OTIzMiAtMDcwMDxvOnA+PC9vOnA+PC9zcGFuPjwv
+cD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij4m
+IzQzOyYjNDM7JiM0MzsgbW0venN3YXAuYyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZu
+YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyAyMDE4LTA5LTE0IDE0OjM2
+OjUzLjM0MDE4OTY4MSAtMDcwMDxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29O
+b3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij5AQCAtMTAwMSw3ICYjNDM7MTAw
+MSw3IEBAIHN0YXRpYyBpbnQgenN3YXBfZnJvbnRzd2FwX3N0b3JlKHVuc2lnbmU8bzpwPjwvbzpw
+Pjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXpl
+OjExLjBwdCI+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IHN0cnVjdCB6c3dhcF9l
+bnRyeSAqZW50cnksICpkdXBlbnRyeTs8bzpwPjwvbzpwPjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0i
+TXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBwdCI+Jm5ic3A7Jm5ic3A7Jm5i
+c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7IHN0cnVjdCBjcnlwdG9fY29tcCAqdGZtOzxvOnA+PC9vOnA+PC9z
+cGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEu
+MHB0Ij4mbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgaW50IHJldDs8bzpwPjwvbzpw
+Pjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXpl
+OjExLjBwdCI+LSZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
+OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyB1bnNpZ25lZCBpbnQgaGxlbiwgZGxlbiA9
+IFBBR0VfU0laRTs8bzpwPjwvbzpwPjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48
+c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBwdCI+JiM0MzsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgdW5zaWdu
+ZWQgaW50IGhsZW4sIGRsZW4gPSBQQUdFX1NJWkUgKiAyOzxvOnA+PC9vOnA+PC9zcGFuPjwvcD4N
+CjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij4mbmJz
+cDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsm
+bmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgdW5zaWduZWQgbG9uZyBoYW5kbGUsIHZhbHVl
+OzxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxl
+PSJmb250LXNpemU6MTEuMHB0Ij4mbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsm
+bmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgY2hh
+ciAqYnVmOzxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFu
+IHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij4mbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsm
+bmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDsgdTggKnNyYywgKmRzdDs8bzpwPjwvbzpwPjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0iTXNvTm9y
+bWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBwdCI+PG86cD4mbmJzcDs8L286cD48L3Nw
+YW4+PC9wPg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5bGU9ImZvbnQtc2l6ZToxMS4w
+cHQiPjxvOnA+Jm5ic3A7PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxz
+cGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij48bzpwPiZuYnNwOzwvbzpwPjwvc3Bhbj48L3A+
+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBwdCI+VGhh
+bmsgeW91LDxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFu
+IHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij5UYWVpbDxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxw
+IGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij48bzpwPiZu
+YnNwOzwvbzpwPjwvc3Bhbj48L3A+DQo8L2Rpdj4NCjwvYm9keT4NCjwvaHRtbD4NCg==
 
-It is perfectly okay to take page-faults, especially on the
-vmalloc area while executing an NMI handler. Remove the
-warning.
-
-Signed-off-by: Joerg Roedel <jroedel@suse.de>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Tested-by: David H. Gutteridge <dhgutteridge@sympatico.ca>
-Cc: "H . Peter Anvin" <hpa@zytor.com>
-Cc: linux-mm@kvack.org
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Jiri Kosina <jkosina@suse.cz>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: David Laight <David.Laight@aculab.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: Eduardo Valentin <eduval@amazon.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: aliguori@amazon.com
-Cc: daniel.gruss@iaik.tugraz.at
-Cc: hughd@google.com
-Cc: keescook@google.com
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Waiman Long <llong@redhat.com>
-Cc: Pavel Machek <pavel@ucw.cz>
-Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
-Cc: Alexander Shishkin <alexander.shishkin@linux.intel.com>
-Cc: Jiri Olsa <jolsa@redhat.com>
-Cc: Namhyung Kim <namhyung@kernel.org>
-Cc: joro@8bytes.org
-Link: https://lkml.kernel.org/r/1532533683-5988-2-git-send-email-joro@8bytes.org
-Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
----
- arch/x86/mm/fault.c |    2 --
- 1 file changed, 2 deletions(-)
-
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -317,8 +317,6 @@ static noinline int vmalloc_fault(unsign
- 	if (!(address >= VMALLOC_START && address < VMALLOC_END))
- 		return -1;
- 
--	WARN_ON_ONCE(in_nmi());
--
- 	/*
- 	 * Synchronize this task's top level page-table
- 	 * with the 'reference' page table.
+--_000_D4C91DBACF564991BD7F6BE334A2C048amazoncom_--
