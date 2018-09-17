@@ -1,93 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F2638E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 14:42:39 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id q5-v6so14042255ith.1
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 11:42:39 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 15-v6sor9407257ioc.311.2018.09.17.11.42.37
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B0AF18E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 14:43:06 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id s1-v6so8800576pfm.22
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 11:43:06 -0700 (PDT)
+Received: from g4t3425.houston.hpe.com (g4t3425.houston.hpe.com. [15.241.140.78])
+        by mx.google.com with ESMTPS id f67-v6si16380190pfa.73.2018.09.17.11.43.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 17 Sep 2018 11:42:37 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Sep 2018 11:43:05 -0700 (PDT)
+From: "Kani, Toshi" <toshi.kani@hpe.com>
+Subject: Re: [PATCH 3/5] x86: pgtable: Drop pXd_none() checks from
+ pXd_free_pYd_table()
+Date: Mon, 17 Sep 2018 18:43:02 +0000
+Message-ID: <62056eebf0627d9aeaa1e208f77e660977e158af.camel@hpe.com>
+References: <1536747974-25875-1-git-send-email-will.deacon@arm.com>
+	 <1536747974-25875-4-git-send-email-will.deacon@arm.com>
+	 <dc8b03de1e3318e3dd577d80482260f99ab4e9a5.camel@hpe.com>
+	 <20180917113321.GB22717@arm.com>
+In-Reply-To: <20180917113321.GB22717@arm.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <645DCF0DA2CC8A46ADF9017624263C3B@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+baDKvmpKJ4SKoEuZG4ir2xRGscQ7Ro4hkVAX3jwiWnFg@mail.gmail.com>
-References: <cover.1535462971.git.andreyknvl@google.com> <868c9168481ff5103034ac1e37b830d28ed5f4ee.1535462971.git.andreyknvl@google.com>
- <CACT4Y+baDKvmpKJ4SKoEuZG4ir2xRGscQ7Ro4hkVAX3jwiWnFg@mail.gmail.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Mon, 17 Sep 2018 20:42:36 +0200
-Message-ID: <CAAeHK+yvVgV6LA8PgJz6ysCo+X38tCyLrMVhKOe08tFyZP_F0Q@mail.gmail.com>
-Subject: Re: [PATCH v6 03/18] khwasan: add CONFIG_KASAN_GENERIC and CONFIG_KASAN_HW
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: "will.deacon@arm.com" <will.deacon@arm.com>
+Cc: "tglx@linutronix.de" <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "Hocko, Michal" <MHocko@suse.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On Wed, Sep 12, 2018 at 4:47 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> On Wed, Aug 29, 2018 at 1:35 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-
->>
->>  #define __no_sanitize_address __attribute__((no_sanitize("address")))
->> +#define __no_sanitize_hwaddress __attribute__((no_sanitize("hwaddress")))
->
-> It seems that it would be better to have just 1 attribute for both types.
-> Currently __no_sanitize_address is used just in a single place. But if
-> it ever used more, people will need to always spell both which looks
-> unnecessary, or, worse will only fix asan but forget about khwasan.
->
-> If we do just:
->
-> #define __no_sanitize_address __attribute__((no_sanitize("address",
-> "hwaddress")))
->
-> Then we don't need any changes in compiler-gcc.h nor in compiler.h,
-> and no chance or forgetting one of them.
-
-Will do in v7.
-
->>  config KASAN
->> -       bool "KASan: runtime memory debugger"
->> +       bool "KASAN: runtime memory debugger"
->> +       help
->> +         Enables KASAN (KernelAddressSANitizer) - runtime memory debugger,
->> +         designed to find out-of-bounds accesses and use-after-free bugs.
->
-> Perhaps also give link to Documentation/dev-tools/kasan.rst while we are here.
-
-Will do in v7.
-
->
->> +
->> +choice
->> +       prompt "KASAN mode"
->> +       depends on KASAN
->> +       default KASAN_GENERIC
->> +       help
->> +         KASAN has two modes: KASAN (a classic version, similar to userspace
->
-> In these few sentences we call the old mode with 3 different terms:
-> "generic", "classic" and "KASAN" :)
-> This is somewhat confusing. Let's call it "generic" throughout (here
-> and in the docs patch). "Generic" as in "supported on multiple arch
-> and not-dependent on hardware features". "Classic" makes sense for
-> people who knew KASAN before, but for future readers in won't make
-> sense.
-
-Will use "generic" in v7.
-
->>
->> +if HAVE_ARCH_KASAN_HW
->
-> This choice looks somewhat weird on non-arm64. It's kinda a choice
-> menu, but one can't really choose anything. Should we put the whole
-> choice under HAVE_ARCH_KASAN_HW, and just select KASAN_GENERIC
-> otherwise? I don't know what't the practice here. Andrey R?
-
-I think having one option that is auto selected is fine.
-
->> +config KASAN_HW
->> +       bool "KHWASAN: the hardware assisted mode"
-
-Do we need a hyphen here? hardware-assisted?
-
-Yes, will fix in v7.
+T24gTW9uLCAyMDE4LTA5LTE3IGF0IDEyOjMzICswMTAwLCBXaWxsIERlYWNvbiB3cm90ZToNCj4g
+T24gRnJpLCBTZXAgMTQsIDIwMTggYXQgMDg6Mzc6NDhQTSArMDAwMCwgS2FuaSwgVG9zaGkgd3Jv
+dGU6DQo+ID4gT24gV2VkLCAyMDE4LTA5LTEyIGF0IDExOjI2ICswMTAwLCBXaWxsIERlYWNvbiB3
+cm90ZToNCj4gPiA+IE5vdyB0aGF0IHRoZSBjb3JlIGNvZGUgY2hlY2tzIHRoaXMgZm9yIHVzLCB3
+ZSBkb24ndCBuZWVkIHRvIGRvIGl0IGluIHRoZQ0KPiA+ID4gYmFja2VuZC4NCj4gPiA+IA0KPiA+
+ID4gQ2M6IENoaW50YW4gUGFuZHlhIDxjcGFuZHlhQGNvZGVhdXJvcmEub3JnPg0KPiA+ID4gQ2M6
+IFRvc2hpIEthbmkgPHRvc2hpLmthbmlAaHBlLmNvbT4NCj4gPiA+IENjOiBUaG9tYXMgR2xlaXhu
+ZXIgPHRnbHhAbGludXRyb25peC5kZT4NCj4gPiA+IENjOiBNaWNoYWwgSG9ja28gPG1ob2Nrb0Bz
+dXNlLmNvbT4NCj4gPiA+IENjOiBBbmRyZXcgTW9ydG9uIDxha3BtQGxpbnV4LWZvdW5kYXRpb24u
+b3JnPg0KPiA+ID4gU2lnbmVkLW9mZi1ieTogV2lsbCBEZWFjb24gPHdpbGwuZGVhY29uQGFybS5j
+b20+DQo+ID4gPiAtLS0NCj4gPiA+ICBhcmNoL3g4Ni9tbS9wZ3RhYmxlLmMgfCA2IC0tLS0tLQ0K
+PiA+ID4gIDEgZmlsZSBjaGFuZ2VkLCA2IGRlbGV0aW9ucygtKQ0KPiA+ID4gDQo+ID4gPiBkaWZm
+IC0tZ2l0IGEvYXJjaC94ODYvbW0vcGd0YWJsZS5jIGIvYXJjaC94ODYvbW0vcGd0YWJsZS5jDQo+
+ID4gPiBpbmRleCBhZTM5NDU1MmZiOTQuLmI0OTE5YzQ0YTE5NCAxMDA2NDQNCj4gPiA+IC0tLSBh
+L2FyY2gveDg2L21tL3BndGFibGUuYw0KPiA+ID4gKysrIGIvYXJjaC94ODYvbW0vcGd0YWJsZS5j
+DQo+ID4gPiBAQCAtNzk2LDkgKzc5Niw2IEBAIGludCBwdWRfZnJlZV9wbWRfcGFnZShwdWRfdCAq
+cHVkLCB1bnNpZ25lZCBsb25nIGFkZHIpDQo+ID4gPiAgCXB0ZV90ICpwdGU7DQo+ID4gPiAgCWlu
+dCBpOw0KPiA+ID4gIA0KPiA+ID4gLQlpZiAocHVkX25vbmUoKnB1ZCkpDQo+ID4gPiAtCQlyZXR1
+cm4gMTsNCj4gPiA+IC0NCj4gPiANCj4gPiBEbyB3ZSBuZWVkIHRvIHJlbW92ZSB0aGlzIHNhZmUg
+Z3VhcmQ/ICBJIGZlZWwgbGlzdCB0aGlzIGlzIHNhbWUgYXMNCj4gPiBrZnJlZSgpIGFjY2VwdGlu
+ZyBOVUxMLg0KPiANCj4gSSB0aGluayB0d28gYmlnIGRpZmZlcmVuY2VzIHdpdGgga2ZyZWUoKSBh
+cmUgKDEpIHRoYXQgdGhpcyBmdW5jdGlvbiBoYXMNCj4gZXhhY3RseSBvbmUgY2FsbGVyIGluIHRo
+ZSB0cmVlIGFuZCAoMikgaXQncyBpbXBsZW1lbnRlZCBwZXItYXJjaC4gVGhlcmVmb3JlDQo+IHdl
+J3JlIGluIGEgZ29vZCBwb3NpdGlvbiB0byBnaXZlIGl0IHNvbWUgc2ltcGxlIHNlbWFudGljcyBh
+bmQgaW1wbGVtZW50DQo+IHRob3NlLiBPZiBjb3Vyc2UsIGlmIHRoZSB4ODYgcGVvcGxlIHdvdWxk
+IGxpa2UgdG8ga2VlcCB0aGUgcmVkdW5kYW50IGNoZWNrLA0KPiB0aGF0J3MgdXAgdG8gdGhlbSwg
+YnV0IEkgdGhpbmsgaXQgbWFrZXMgdGhlIGZ1bmN0aW9uIG1vcmUgY29uZnVzaW5nIGFuZA0KPiB0
+ZW1wdHMgcGVvcGxlIGludG8gY2FsbGluZyBpdCBmb3IgcHJlc2VudCBlbnRyaWVzLg0KDQpXaXRo
+IHBhdGNoIDEvNSBjaGFuZ2UgdG8gaGF2ZSBwWGRfcHJlc2VudCgpIGNoZWNrLCBJIGFncmVlIHRo
+YXQgd2UgY2FuDQpyZW1vdmUgdGhpcyBwWGRfbm9uZSgpIGNoZWNrIHRvIGF2b2lkIGFueSBjb25m
+dXNpb24uDQoNClJldmlld2VkLWJ5OiBUb3NoaSBLYW5pIDx0b3NoaS5rYW5pQGhwZS5jb20+DQoN
+ClRoYW5rcywNCi1Ub3NoaQ0KDQo=
