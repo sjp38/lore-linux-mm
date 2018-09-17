@@ -1,110 +1,240 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 30C148E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 05:05:36 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id k18-v6so10216767otl.16
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 02:05:36 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id x126-v6si6509587oif.359.2018.09.17.02.05.34
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4739D8E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 05:32:40 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id j6-v6so22621783wrr.15
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 02:32:40 -0700 (PDT)
+Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de. [178.250.10.56])
+        by mx.google.com with ESMTPS id f16-v6si13648715wrv.180.2018.09.17.02.32.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Sep 2018 02:05:34 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8H94VeM003639
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 05:05:34 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mj7en4wa1-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 05:05:32 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Mon, 17 Sep 2018 10:03:56 +0100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: Re: How to handle PTE tables with non contiguous entries ?
-In-Reply-To: <ddc3bb56-4da0-c093-256f-185d4a612b5c@c-s.fr>
-References: <ddc3bb56-4da0-c093-256f-185d4a612b5c@c-s.fr>
-Date: Mon, 17 Sep 2018 14:33:50 +0530
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 17 Sep 2018 02:32:38 -0700 (PDT)
+Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+References: <20180828081837.GG10223@dhcp22.suse.cz>
+ <D5F4A33C-0A37-495C-9468-D6866A862097@cs.rutgers.edu>
+ <20180829142816.GX10223@dhcp22.suse.cz>
+ <20180829143545.GY10223@dhcp22.suse.cz>
+ <82CA00EB-BF8E-4137-953B-8BC4B74B99AF@cs.rutgers.edu>
+ <20180829154744.GC10223@dhcp22.suse.cz>
+ <39BE14E6-D0FB-428A-B062-8B5AEDC06E61@cs.rutgers.edu>
+ <20180829162528.GD10223@dhcp22.suse.cz>
+ <20180829192451.GG10223@dhcp22.suse.cz>
+ <20180912172925.GK1719@techsingularity.net>
+ <20180917061107.GB26286@dhcp22.suse.cz>
+ <e43348ae-c2db-e327-8dd6-c4f6f0e0cac0@profihost.ag>
+Message-ID: <87ca7b90-9b84-5722-bd18-a3113c2e20e4@profihost.ag>
+Date: Mon, 17 Sep 2018 11:32:37 +0200
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87tvmoh4w9.fsf@linux.ibm.com>
+In-Reply-To: <e43348ae-c2db-e327-8dd6-c4f6f0e0cac0@profihost.ag>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christophe Leroy <christophe.leroy@c-s.fr>, akpm@linux-foundation.org, linux-mm@kvack.org, aneesh.kumar@linux.vnet.ibm.com, Nicholas Piggin <npiggin@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org
-Cc: LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
 
-Christophe Leroy <christophe.leroy@c-s.fr> writes:
+May be amissing piece:
+vm.overcommit_memory=0
 
+Greets,
+Stefan
+
+Am 17.09.2018 um 09:04 schrieb Stefan Priebe - Profihost AG:
 > Hi,
->
-> I'm having a hard time figuring out the best way to handle the following 
-> situation:
->
-> On the powerpc8xx, handling 16k size pages requires to have page tables 
-> with 4 identical entries.
-
-I assume that hugetlb page size? If so isn't that similar to FSL hugetlb
-page table layout?
-
->
-> Initially I was thinking about handling this by simply modifying 
-> pte_index() which changing pte_t type in order to have one entry every 
-> 16 bytes, then replicate the PTE value at *ptep, *ptep+1,*ptep+2 and 
-> *ptep+3 both in set_pte_at() and pte_update().
->
-> However, this doesn't work because many many places in the mm core part 
-> of the kernel use loops on ptep with single ptep++ increment.
->
-> Therefore did it with the following hack:
->
->   /* PTE level */
-> +#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
-> +typedef struct { pte_basic_t pte, pte1, pte2, pte3; } pte_t;
-> +#else
->   typedef struct { pte_basic_t pte; } pte_t;
-> +#endif
->
-> @@ -181,7 +192,13 @@ static inline unsigned long pte_update(pte_t *p,
->          : "cc" );
->   #else /* PTE_ATOMIC_UPDATES */
->          unsigned long old = pte_val(*p);
-> -       *p = __pte((old & ~clr) | set);
-> +       unsigned long new = (old & ~clr) | set;
-> +
-> +#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
-> +       p->pte = p->pte1 = p->pte2 = p->pte3 = new;
-> +#else
-> +       *p = __pte(new);
-> +#endif
->   #endif /* !PTE_ATOMIC_UPDATES */
->
->   #ifdef CONFIG_44x
->
->
-> @@ -161,7 +161,11 @@ static inline void __set_pte_at(struct mm_struct 
-> *mm, unsigned long addr,
->          /* Anything else just stores the PTE normally. That covers all 
-> 64-bit
->           * cases, and 32-bit non-hash with 32-bit PTEs.
->           */
-> +#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
-> +       ptep->pte = ptep->pte1 = ptep->pte2 = ptep->pte3 = pte_val(pte);
-> +#else
->          *ptep = pte;
-> +#endif
->
->
->
-> But I'm not too happy with it as it means pte_t is not a single type 
-> anymore so passing it from one function to the other is quite heavy.
->
->
-> Would someone have an idea of an elegent way to handle that ?
->
-> Thanks
-> Christophe
-
-Why would pte_update bother about updating all the 4 entries?. Can you
-help me understand the issue?
-
--aneesh
+> 
+> i had multiple memory stalls this weekend again. All kvm processes where
+> spinning trying to get > 100% CPU and i was not able to even login to
+> ssh. After 5-10 minutes i was able to login.
+> 
+> There were about 150GB free mem on the host.
+> 
+> Relevant settings (no local storage involved):
+>         vm.dirty_background_ratio:
+>             3
+>         vm.dirty_ratio:
+>             10
+>         vm.min_free_kbytes:
+>             10567004
+> 
+> # cat /sys/kernel/mm/transparent_hugepage/defrag
+> always defer [defer+madvise] madvise never
+> 
+> # cat /sys/kernel/mm/transparent_hugepage/enabled
+> [always] madvise never
+> 
+> After that i had the following traces on the host node:
+> https://pastebin.com/raw/0VhyQmAv
+> 
+> Thanks!
+> 
+> Greets,
+> Stefan
+> 
+> 
+> Am 17.09.2018 um 08:11 schrieb Michal Hocko:
+>> [sorry I've missed your reply]
+>>
+>> On Wed 12-09-18 18:29:25, Mel Gorman wrote:
+>>> On Wed, Aug 29, 2018 at 09:24:51PM +0200, Michal Hocko wrote:
+>> [...]
+>>> I recognise that this fix means that users that expect zone_reclaim_mode==1
+>>> type behaviour may get burned but the users that benefit from that should
+>>> also be users that benefit from sizing their workload to a node. They should
+>>> be able to replicate that with mempolicies or at least use prepation scripts
+>>> to clear memory on a target node (e.g. membind a memhog to the desired size,
+>>> exit and then start the target workload).
+>>
+>> As I've said in other email. We probably want to add a new mempolicy
+>> which has zone_reclaim_mode-like semantic.
+>>
+>> [...]
+>>
+>>>> diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+>>>> index 5228c62af416..bac395f1d00a 100644
+>>>> --- a/include/linux/mempolicy.h
+>>>> +++ b/include/linux/mempolicy.h
+>>>> @@ -139,6 +139,8 @@ struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
+>>>>  struct mempolicy *get_task_policy(struct task_struct *p);
+>>>>  struct mempolicy *__get_vma_policy(struct vm_area_struct *vma,
+>>>>  		unsigned long addr);
+>>>> +struct mempolicy *get_vma_policy(struct vm_area_struct *vma,
+>>>> +						unsigned long addr);
+>>>>  bool vma_policy_mof(struct vm_area_struct *vma);
+>>>>  
+>>>>  extern void numa_default_policy(void);
+>>>> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+>>>> index c3bc7e9c9a2a..94472bf9a31b 100644
+>>>> --- a/mm/huge_memory.c
+>>>> +++ b/mm/huge_memory.c
+>>>> @@ -629,21 +629,30 @@ static vm_fault_t __do_huge_pmd_anonymous_page(struct vm_fault *vmf,
+>>>>   *	    available
+>>>>   * never: never stall for any thp allocation
+>>>>   */
+>>>> -static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
+>>>> +static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma, unsigned long addr)
+>>>>  {
+>>>>  	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
+>>>> +	gfp_t this_node = 0;
+>>>> +	struct mempolicy *pol;
+>>>> +
+>>>> +#ifdef CONFIG_NUMA
+>>>> +	/* __GFP_THISNODE makes sense only if there is no explicit binding */
+>>>> +	pol = get_vma_policy(vma, addr);
+>>>> +	if (pol->mode != MPOL_BIND)
+>>>> +		this_node = __GFP_THISNODE;
+>>>> +#endif
+>>>>  
+>>>
+>>> Where is the mpol_cond_put? Historically it might not have mattered
+>>> because THP could not be used with a shared possibility but it probably
+>>> matters now that tmpfs can be backed by THP.
+>>
+>> http://lkml.kernel.org/r/20180830064732.GA2656@dhcp22.suse.cz
+>>
+>>> The comment needs more expansion as well. Arguably it only makes sense in
+>>> the event we are explicitly bound to one node because if we are bound to
+>>> two nodes without interleaving then why not fall back? The answer to that
+>>> is outside the scope of the patch but the comment as-is will cause head
+>>> scratches in a years time.
+>>
+>> Do you have any specific wording in mind? I have a bit hard time to come
+>> up with something more precise and do not go into details too much.
+>>  
+>>>>  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
+>>>> -		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
+>>>> +		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY | this_node);
+>>>>  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
+>>>> -		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
+>>>> +		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM | this_node;
+>>>>  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags))
+>>>>  		return GFP_TRANSHUGE_LIGHT | (vma_madvised ? __GFP_DIRECT_RECLAIM :
+>>>> -							     __GFP_KSWAPD_RECLAIM);
+>>>> +							     __GFP_KSWAPD_RECLAIM | this_node);
+>>>>  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
+>>>>  		return GFP_TRANSHUGE_LIGHT | (vma_madvised ? __GFP_DIRECT_RECLAIM :
+>>>> -							     0);
+>>>> -	return GFP_TRANSHUGE_LIGHT;
+>>>> +							     this_node);
+>>>> +	return GFP_TRANSHUGE_LIGHT | this_node;
+>>>>  }
+>>>>  
+>>>>  /* Caller must hold page table lock. */
+>>>> @@ -715,7 +724,7 @@ vm_fault_t do_huge_pmd_anonymous_page(struct vm_fault *vmf)
+>>>>  			pte_free(vma->vm_mm, pgtable);
+>>>>  		return ret;
+>>>>  	}
+>>>> -	gfp = alloc_hugepage_direct_gfpmask(vma);
+>>>> +	gfp = alloc_hugepage_direct_gfpmask(vma, haddr);
+>>>>  	page = alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
+>>>>  	if (unlikely(!page)) {
+>>>>  		count_vm_event(THP_FAULT_FALLBACK);
+>>>> @@ -1290,7 +1299,7 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
+>>>>  alloc:
+>>>>  	if (transparent_hugepage_enabled(vma) &&
+>>>>  	    !transparent_hugepage_debug_cow()) {
+>>>> -		huge_gfp = alloc_hugepage_direct_gfpmask(vma);
+>>>> +		huge_gfp = alloc_hugepage_direct_gfpmask(vma, haddr);
+>>>>  		new_page = alloc_hugepage_vma(huge_gfp, vma, haddr, HPAGE_PMD_ORDER);
+>>>>  	} else
+>>>>  		new_page = NULL;
+>>>> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+>>>> index da858f794eb6..75bbfc3d6233 100644
+>>>> --- a/mm/mempolicy.c
+>>>> +++ b/mm/mempolicy.c
+>>>> @@ -1648,7 +1648,7 @@ struct mempolicy *__get_vma_policy(struct vm_area_struct *vma,
+>>>>   * freeing by another task.  It is the caller's responsibility to free the
+>>>>   * extra reference for shared policies.
+>>>>   */
+>>>> -static struct mempolicy *get_vma_policy(struct vm_area_struct *vma,
+>>>> +struct mempolicy *get_vma_policy(struct vm_area_struct *vma,
+>>>>  						unsigned long addr)
+>>>>  {
+>>>>  	struct mempolicy *pol = __get_vma_policy(vma, addr);
+>>>> @@ -2026,32 +2026,6 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+>>>>  		goto out;
+>>>>  	}
+>>>>  
+>>>> -	if (unlikely(IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) && hugepage)) {
+>>>> -		int hpage_node = node;
+>>>> -
+>>>> -		/*
+>>>> -		 * For hugepage allocation and non-interleave policy which
+>>>> -		 * allows the current node (or other explicitly preferred
+>>>> -		 * node) we only try to allocate from the current/preferred
+>>>> -		 * node and don't fall back to other nodes, as the cost of
+>>>> -		 * remote accesses would likely offset THP benefits.
+>>>> -		 *
+>>>> -		 * If the policy is interleave, or does not allow the current
+>>>> -		 * node in its nodemask, we allocate the standard way.
+>>>> -		 */
+>>>> -		if (pol->mode == MPOL_PREFERRED &&
+>>>> -						!(pol->flags & MPOL_F_LOCAL))
+>>>> -			hpage_node = pol->v.preferred_node;
+>>>> -
+>>>> -		nmask = policy_nodemask(gfp, pol);
+>>>> -		if (!nmask || node_isset(hpage_node, *nmask)) {
+>>>> -			mpol_cond_put(pol);
+>>>> -			page = __alloc_pages_node(hpage_node,
+>>>> -						gfp | __GFP_THISNODE, order);
+>>>> -			goto out;
+>>>> -		}
+>>>> -	}
+>>>> -
+>>>
+>>> The hugepage flag passed into this function is now redundant and that
+>>> means that callers of alloc_hugepage_vma need to move back to using
+>>> alloc_pages_vma() directly and remove the API entirely. This block of
+>>> code is about both GFP flag settings and node selection but at a glance I
+>>> cannot see the point of it because it's very similar to the base page code.
+>>> The whole point may be to get around the warning in policy_node and that
+>>> could just as easily be side-stepped in alloc_hugepage_direct_gfpmask
+>>> as you do already in this patch. There should be no reason why THP has a
+>>> different policy than a base page within a single VMA.
+>>
+>> OK, I can follow up with a cleanup patch once we settle down with this
+>> approach to fix the issue.
+>>
+>> Thanks!
+>>
