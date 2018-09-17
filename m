@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AC19F8E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 18:57:59 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id m3-v6so1883plt.9
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 15:57:59 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C4708E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 19:02:57 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id c5-v6so13730plo.2
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 16:02:57 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i22-v6si17087949pgi.52.2018.09.17.15.57.58
+        by mx.google.com with ESMTPS id k80-v6si17472204pfg.42.2018.09.17.16.02.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Sep 2018 15:57:58 -0700 (PDT)
+        Mon, 17 Sep 2018 16:02:55 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.9 43/70] x86/mm: Remove in_nmi() warning from vmalloc_fault()
-Date: Tue, 18 Sep 2018 00:42:16 +0200
-Message-Id: <20180917211652.657673636@linuxfoundation.org>
-In-Reply-To: <20180917211649.099135838@linuxfoundation.org>
-References: <20180917211649.099135838@linuxfoundation.org>
+Subject: [PATCH 4.14 063/126] x86/mm: Remove in_nmi() warning from vmalloc_fault()
+Date: Tue, 18 Sep 2018 00:41:51 +0200
+Message-Id: <20180917211708.511655650@linuxfoundation.org>
+In-Reply-To: <20180917211703.481236999@linuxfoundation.org>
+References: <20180917211703.481236999@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -23,7 +23,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Joerg Roedel <jroedel@suse.de>, Thomas Gleixner <tglx@linutronix.de>, "David H. Gutteridge" <dhgutteridge@sympatico.ca>, "H . Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, joro@8bytes.org, Sasha Levin <alexander.levin@microsoft.com>
 
-4.9-stable review patch.  If anyone has any objections, please let me know.
+4.14-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
@@ -76,7 +76,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 --- a/arch/x86/mm/fault.c
 +++ b/arch/x86/mm/fault.c
-@@ -330,8 +330,6 @@ static noinline int vmalloc_fault(unsign
+@@ -317,8 +317,6 @@ static noinline int vmalloc_fault(unsign
  	if (!(address >= VMALLOC_START && address < VMALLOC_END))
  		return -1;
  
