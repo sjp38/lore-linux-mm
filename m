@@ -1,109 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 69C368E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 06:49:46 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id f32-v6so6252808pgm.14
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 03:49:46 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id v9-v6si16147776pfg.123.2018.09.17.03.49.45
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 68FB68E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 07:27:58 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id m3-v6so7734340plt.9
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 04:27:58 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b35-v6si16364152pla.420.2018.09.17.04.27.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Sep 2018 03:49:45 -0700 (PDT)
-Subject: Patch "x86/mm: Remove in_nmi() warning from vmalloc_fault()" has been added to the 4.18-stable tree
-From: <gregkh@linuxfoundation.org>
-Date: Mon, 17 Sep 2018 12:40:05 +0200
-Message-ID: <153718080524233@kroah.com>
+        Mon, 17 Sep 2018 04:27:56 -0700 (PDT)
+Date: Mon, 17 Sep 2018 13:27:51 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
+Message-ID: <20180917112751.GD26286@dhcp22.suse.cz>
+References: <20180829142816.GX10223@dhcp22.suse.cz>
+ <20180829143545.GY10223@dhcp22.suse.cz>
+ <82CA00EB-BF8E-4137-953B-8BC4B74B99AF@cs.rutgers.edu>
+ <20180829154744.GC10223@dhcp22.suse.cz>
+ <39BE14E6-D0FB-428A-B062-8B5AEDC06E61@cs.rutgers.edu>
+ <20180829162528.GD10223@dhcp22.suse.cz>
+ <20180829192451.GG10223@dhcp22.suse.cz>
+ <20180912172925.GK1719@techsingularity.net>
+ <20180917061107.GB26286@dhcp22.suse.cz>
+ <e43348ae-c2db-e327-8dd6-c4f6f0e0cac0@profihost.ag>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e43348ae-c2db-e327-8dd6-c4f6f0e0cac0@profihost.ag>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 1532533683-5988-2-git-send-email-joro@8bytes.org, David.Laight@aculab.com, aarcange@redhat.com, acme@kernel.org, alexander.levin@microsoft.com, alexander.shishkin@linux.intel.com, aliguori@amazon.com, boris.ostrovsky@oracle.com, bp@alien8.de, brgerst@gmail.com, daniel.gruss@iaik.tugraz.at, dave.hansen@intel.com, dhgutteridge@sympatico.ca, dvlasenk@redhat.com, eduval@amazon.com, gregkh@linuxfoundation.org, hpa@zytor.com, hughd@google.com, jgross@suse.com, jkosina@suse.cz, jolsa@redhat.comjoro@8bytes.org, jpoimboe@redhat.com, jroedel@suse.de, keescook@google.com, linux-mm@kvack.org, llong@redhat.com, luto@kernel.org, namhyung@kernel.org, pavel@ucw.cz, peterz@infradead.org, tglx@linutronix.de, torvalds@linux-foundation.org, will.deacon@arm.com
-Cc: stable-commits@vger.kernel.org
+To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Zi Yan <zi.yan@cs.rutgers.edu>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
 
+On Mon 17-09-18 09:04:02, Stefan Priebe - Profihost AG wrote:
+> Hi,
+> 
+> i had multiple memory stalls this weekend again. All kvm processes where
+> spinning trying to get > 100% CPU and i was not able to even login to
+> ssh. After 5-10 minutes i was able to login.
+> 
+> There were about 150GB free mem on the host.
+> 
+> Relevant settings (no local storage involved):
+>         vm.dirty_background_ratio:
+>             3
+>         vm.dirty_ratio:
+>             10
+>         vm.min_free_kbytes:
+>             10567004
+> 
+> # cat /sys/kernel/mm/transparent_hugepage/defrag
+> always defer [defer+madvise] madvise never
+> 
+> # cat /sys/kernel/mm/transparent_hugepage/enabled
+> [always] madvise never
+> 
+> After that i had the following traces on the host node:
+> https://pastebin.com/raw/0VhyQmAv
 
-This is a note to let you know that I've just added the patch titled
-
-    x86/mm: Remove in_nmi() warning from vmalloc_fault()
-
-to the 4.18-stable tree which can be found at:
-    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
-
-The filename of the patch is:
-     x86-mm-remove-in_nmi-warning-from-vmalloc_fault.patch
-and it can be found in the queue-4.18 subdirectory.
-
-If you, or anyone else, feels it should not be added to the stable tree,
-please let <stable@vger.kernel.org> know about it.
-
-
->From foo@baz Mon Sep 17 12:37:52 CEST 2018
-From: Joerg Roedel <jroedel@suse.de>
-Date: Wed, 25 Jul 2018 17:48:01 +0200
-Subject: x86/mm: Remove in_nmi() warning from vmalloc_fault()
-
-From: Joerg Roedel <jroedel@suse.de>
-
-[ Upstream commit 6863ea0cda8725072522cd78bda332d9a0b73150 ]
-
-It is perfectly okay to take page-faults, especially on the
-vmalloc area while executing an NMI handler. Remove the
-warning.
-
-Signed-off-by: Joerg Roedel <jroedel@suse.de>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Tested-by: David H. Gutteridge <dhgutteridge@sympatico.ca>
-Cc: "H . Peter Anvin" <hpa@zytor.com>
-Cc: linux-mm@kvack.org
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Jiri Kosina <jkosina@suse.cz>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: David Laight <David.Laight@aculab.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: Eduardo Valentin <eduval@amazon.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: aliguori@amazon.com
-Cc: daniel.gruss@iaik.tugraz.at
-Cc: hughd@google.com
-Cc: keescook@google.com
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Waiman Long <llong@redhat.com>
-Cc: Pavel Machek <pavel@ucw.cz>
-Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
-Cc: Alexander Shishkin <alexander.shishkin@linux.intel.com>
-Cc: Jiri Olsa <jolsa@redhat.com>
-Cc: Namhyung Kim <namhyung@kernel.org>
-Cc: joro@8bytes.org
-Link: https://lkml.kernel.org/r/1532533683-5988-2-git-send-email-joro@8bytes.org
-Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
----
- arch/x86/mm/fault.c |    2 --
- 1 file changed, 2 deletions(-)
-
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -317,8 +317,6 @@ static noinline int vmalloc_fault(unsign
- 	if (!(address >= VMALLOC_START && address < VMALLOC_END))
- 		return -1;
- 
--	WARN_ON_ONCE(in_nmi());
--
- 	/*
- 	 * Synchronize this task's top level page-table
- 	 * with the 'reference' page table.
-
-
-Patches currently in stable-queue which might be from jroedel@suse.de are
-
-queue-4.18/x86-kexec-allocate-8k-pgds-for-pti.patch
-queue-4.18/iommu-ipmmu-vmsa-fix-allocation-in-atomic-context.patch
-queue-4.18/x86-mm-remove-in_nmi-warning-from-vmalloc_fault.patch
+I would suggest reporting this in a new email thread. I would also
+recommend to CC kvm guys (see MAINTAINERS file in the kernel source
+tree) and trace qemu/kvm processes to see what they are doing at the
+time when you see the stall.
+-- 
+Michal Hocko
+SUSE Labs
