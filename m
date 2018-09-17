@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 746FC8E0001
-	for <linux-mm@kvack.org>; Sun, 16 Sep 2018 23:00:26 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id c18-v6so16940234oiy.3
-        for <linux-mm@kvack.org>; Sun, 16 Sep 2018 20:00:26 -0700 (PDT)
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0103.outbound.protection.outlook.com. [104.47.42.103])
-        by mx.google.com with ESMTPS id j12-v6si5778284oib.280.2018.09.16.20.00.24
+	by kanga.kvack.org (Postfix) with ESMTP id B28468E0001
+	for <linux-mm@kvack.org>; Sun, 16 Sep 2018 23:03:32 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id c18-v6so16947311oiy.3
+        for <linux-mm@kvack.org>; Sun, 16 Sep 2018 20:03:32 -0700 (PDT)
+Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0113.outbound.protection.outlook.com. [104.47.42.113])
+        by mx.google.com with ESMTPS id 109-v6si4356708otg.148.2018.09.16.20.03.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 16 Sep 2018 20:00:24 -0700 (PDT)
+        Sun, 16 Sep 2018 20:03:31 -0700 (PDT)
 From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: [PATCH AUTOSEL 4.18 011/136] x86/numa_emulation: Fix
+Subject: [PATCH AUTOSEL 4.14 05/87] x86/numa_emulation: Fix
  emulated-to-physical node mapping
-Date: Mon, 17 Sep 2018 03:00:18 +0000
-Message-ID: <20180917030006.245495-11-alexander.levin@microsoft.com>
-References: <20180917030006.245495-1-alexander.levin@microsoft.com>
-In-Reply-To: <20180917030006.245495-1-alexander.levin@microsoft.com>
+Date: Mon, 17 Sep 2018 03:02:27 +0000
+Message-ID: <20180917030220.245686-5-alexander.levin@microsoft.com>
+References: <20180917030220.245686-1-alexander.levin@microsoft.com>
+In-Reply-To: <20180917030220.245686-1-alexander.levin@microsoft.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
