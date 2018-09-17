@@ -1,156 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DD048E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 19:10:51 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id x204-v6so33698qka.6
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 16:10:51 -0700 (PDT)
-Received: from smtp-fw-6001.amazon.com (smtp-fw-6001.amazon.com. [52.95.48.154])
-        by mx.google.com with ESMTPS id s65-v6si5858743qkf.79.2018.09.17.16.10.50
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 84DFB8E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 19:11:09 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id 13-v6so64438oiq.1
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 16:11:09 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id k13-v6si5615788otb.239.2018.09.17.16.11.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Sep 2018 16:10:50 -0700 (PDT)
-From: "Um, Taeil" <taeilum@amazon.com>
-Subject: zswap: use PAGE_SIZE * 2 for compression dst buffer size when calling
- crypto compression API
-Date: Mon, 17 Sep 2018 23:10:35 +0000
-Message-ID: <D4C91DBA-CF56-4991-BD7F-6BE334A2C048@amazon.com>
+        Mon, 17 Sep 2018 16:11:08 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: [PATCH RESEND] mm: don't raise MEMCG_OOM event due to failed
+ high-order allocation
+Date: Mon, 17 Sep 2018 23:10:59 +0000
+Message-ID: <20180917230846.31027-1-guro@fb.com>
 Content-Language: en-US
-Content-Type: multipart/alternative;
-	boundary="_000_D4C91DBACF564991BD7F6BE334A2C048amazoncom_"
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "sjenning@redhat.com" <sjenning@redhat.com>, "ddstreet@ieee.org" <ddstreet@ieee.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
---_000_D4C91DBACF564991BD7F6BE334A2C048amazoncom_
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+The memcg OOM killer is never invoked due to a failed high-order
+allocation, however the MEMCG_OOM event can be raised.
 
-Q3VycmVudGx5LCB3ZSBhbGxvY2F0ZSBQQUdFX1NJWkUgKiAyIGZvciB6c3dhcF9kc3RtZW0gd2hp
-Y2ggaXMgdXNlZCBhcyBjb21wcmVzc2lvbiBkZXN0aW5hdGlvbiBidWZmZXIuDQpIb3dldmVyLCB3
-ZSBwYXNzIG9ubHkgaGFsZiBvZiB0aGUgc2l6ZSAoUEFHRV9TSVpFKSB0byBjcnlwdG9fY29tcF9j
-b21wcmVzcy4NClRoaXMgbWlnaHQgbm90IGJlIGEgcHJvYmxlbSBmb3IgQ1BVIGJhc2VkIGV4aXN0
-aW5nIGx6bywgbHo0IGNyeXB0byBjb21wcmVzc2lvbiBkcml2ZXIgaW1wbGFudGF0aW9uLg0KSG93
-ZXZlciwgdGhpcyBjb3VsZCBiZSBhIHByb2JsZW0gZm9yIHNvbWUgSC9XIGFjY2VsZXJhdGlvbiBj
-b21wcmVzc2lvbiBkcml2ZXJzLCB3aGljaCBob25vciBkZXN0aW5hdGlvbiBidWZmZXIgc2l6ZSB3
-aGVuIGl0IHByZXBhcmVzIEgvVyByZXNvdXJjZXMuDQpBY3R1YWxseSwgdGhpcyBwYXRjaCBpcyBh
-bGlnbmVkIHdpdGggd2hhdCB6cmFtIGlzIHBhc3Npbmcgd2hlbiBpdCBjYWxscyBjcnlwdG9fY29t
-cF9jb21wcmVzcy4NClRoZSBmb2xsb3dpbmcgc2ltcGxlIHBhdGNoIHdpbGwgc29sdmUgdGhpcyBw
-cm9ibGVtLiBJIHRlc3RlZCBpdCB3aXRoIGV4aXN0aW5nIGNyeXB0by9sem8uYyBhbmQgY3J5cHRv
-L2x6NC5jIGNvbXByZXNzaW9uIGRyaXZlciBhbmQgaXQgd29ya3MgZmluZS4NCg0KDQotLS0gbW0v
-enN3YXAuYy5vcmlnICAgICAgIDIwMTgtMDktMTQgMTQ6MzY6MzcuOTg0MTk5MjMyIC0wNzAwDQor
-KysgbW0venN3YXAuYyAgICAgICAgICAgICAyMDE4LTA5LTE0IDE0OjM2OjUzLjM0MDE4OTY4MSAt
-MDcwMA0KQEAgLTEwMDEsNyArMTAwMSw3IEBAIHN0YXRpYyBpbnQgenN3YXBfZnJvbnRzd2FwX3N0
-b3JlKHVuc2lnbmUNCiAgICAgICAgICAgICAgICBzdHJ1Y3QgenN3YXBfZW50cnkgKmVudHJ5LCAq
-ZHVwZW50cnk7DQogICAgICAgICAgICAgICAgc3RydWN0IGNyeXB0b19jb21wICp0Zm07DQogICAg
-ICAgICAgICAgICAgaW50IHJldDsNCi0gICAgICAgICAgICAgIHVuc2lnbmVkIGludCBobGVuLCBk
-bGVuID0gUEFHRV9TSVpFOw0KKyAgICAgICAgICAgICB1bnNpZ25lZCBpbnQgaGxlbiwgZGxlbiA9
-IFBBR0VfU0laRSAqIDI7DQogICAgICAgICAgICAgICAgdW5zaWduZWQgbG9uZyBoYW5kbGUsIHZh
-bHVlOw0KICAgICAgICAgICAgICAgIGNoYXIgKmJ1ZjsNCiAgICAgICAgICAgICAgICB1OCAqc3Jj
-LCAqZHN0Ow0KDQoNCg0KVGhhbmsgeW91LA0KVGFlaWwNCg0K
+As shown below, it can happen under conditions, which are very
+far from a real OOM: e.g. there is plenty of clean pagecache
+and low memory pressure.
 
---_000_D4C91DBACF564991BD7F6BE334A2C048amazoncom_
-Content-Type: text/html; charset="utf-8"
-Content-ID: <BE394CCE7616914198E2D663272CB6E1@amazon.com>
-Content-Transfer-Encoding: base64
+There is no sense in raising an OOM event in such a case,
+as it might confuse a user and lead to wrong and excessive actions.
 
-PGh0bWwgeG1sbnM6bz0idXJuOnNjaGVtYXMtbWljcm9zb2Z0LWNvbTpvZmZpY2U6b2ZmaWNlIiB4
-bWxuczp3PSJ1cm46c2NoZW1hcy1taWNyb3NvZnQtY29tOm9mZmljZTp3b3JkIiB4bWxuczptPSJo
-dHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL29mZmljZS8yMDA0LzEyL29tbWwiIHhtbG5zPSJo
-dHRwOi8vd3d3LnczLm9yZy9UUi9SRUMtaHRtbDQwIj4NCjxoZWFkPg0KPG1ldGEgaHR0cC1lcXVp
-dj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0L2h0bWw7IGNoYXJzZXQ9dXRmLTgiPg0KPG1l
-dGEgbmFtZT0iR2VuZXJhdG9yIiBjb250ZW50PSJNaWNyb3NvZnQgV29yZCAxNSAoZmlsdGVyZWQg
-bWVkaXVtKSI+DQo8c3R5bGU+PCEtLQ0KLyogRm9udCBEZWZpbml0aW9ucyAqLw0KQGZvbnQtZmFj
-ZQ0KCXtmb250LWZhbWlseToiQ2FtYnJpYSBNYXRoIjsNCglwYW5vc2UtMToyIDQgNSAzIDUgNCA2
-IDMgMiA0O30NCkBmb250LWZhY2UNCgl7Zm9udC1mYW1pbHk6Q2FsaWJyaTsNCglwYW5vc2UtMToy
-IDE1IDUgMiAyIDIgNCAzIDIgNDt9DQpAZm9udC1mYWNlDQoJe2ZvbnQtZmFtaWx5OiJNYWxndW4g
-R290aGljIjsNCglwYW5vc2UtMToyIDExIDUgMyAyIDAgMCAyIDAgNDt9DQpAZm9udC1mYWNlDQoJ
-e2ZvbnQtZmFtaWx5OiJcQE1hbGd1biBHb3RoaWMiO30NCi8qIFN0eWxlIERlZmluaXRpb25zICov
-DQpwLk1zb05vcm1hbCwgbGkuTXNvTm9ybWFsLCBkaXYuTXNvTm9ybWFsDQoJe21hcmdpbjowaW47
-DQoJbWFyZ2luLWJvdHRvbTouMDAwMXB0Ow0KCWZvbnQtc2l6ZToxMi4wcHQ7DQoJZm9udC1mYW1p
-bHk6IkNhbGlicmkiLHNhbnMtc2VyaWY7fQ0KYTpsaW5rLCBzcGFuLk1zb0h5cGVybGluaw0KCXtt
-c28tc3R5bGUtcHJpb3JpdHk6OTk7DQoJY29sb3I6IzA1NjNDMTsNCgl0ZXh0LWRlY29yYXRpb246
-dW5kZXJsaW5lO30NCmE6dmlzaXRlZCwgc3Bhbi5Nc29IeXBlcmxpbmtGb2xsb3dlZA0KCXttc28t
-c3R5bGUtcHJpb3JpdHk6OTk7DQoJY29sb3I6Izk1NEY3MjsNCgl0ZXh0LWRlY29yYXRpb246dW5k
-ZXJsaW5lO30NCnAubXNvbm9ybWFsMCwgbGkubXNvbm9ybWFsMCwgZGl2Lm1zb25vcm1hbDANCgl7
-bXNvLXN0eWxlLW5hbWU6bXNvbm9ybWFsOw0KCW1zby1tYXJnaW4tdG9wLWFsdDphdXRvOw0KCW1h
-cmdpbi1yaWdodDowaW47DQoJbXNvLW1hcmdpbi1ib3R0b20tYWx0OmF1dG87DQoJbWFyZ2luLWxl
-ZnQ6MGluOw0KCWZvbnQtc2l6ZToxMS4wcHQ7DQoJZm9udC1mYW1pbHk6IkNhbGlicmkiLHNhbnMt
-c2VyaWY7fQ0Kc3Bhbi5FbWFpbFN0eWxlMTgNCgl7bXNvLXN0eWxlLXR5cGU6cGVyc29uYWw7DQoJ
-Zm9udC1mYW1pbHk6IkNhbGlicmkiLHNhbnMtc2VyaWY7DQoJY29sb3I6d2luZG93dGV4dDt9DQou
-TXNvQ2hwRGVmYXVsdA0KCXttc28tc3R5bGUtdHlwZTpleHBvcnQtb25seTsNCglmb250LXNpemU6
-MTAuMHB0Ow0KCWZvbnQtZmFtaWx5OiJDYWxpYnJpIixzYW5zLXNlcmlmO30NCkBwYWdlIFdvcmRT
-ZWN0aW9uMQ0KCXtzaXplOjguNWluIDExLjBpbjsNCgltYXJnaW46MS4waW4gMS4waW4gMS4waW4g
-MS4waW47fQ0KZGl2LldvcmRTZWN0aW9uMQ0KCXtwYWdlOldvcmRTZWN0aW9uMTt9DQotLT48L3N0
-eWxlPg0KPC9oZWFkPg0KPGJvZHkgbGFuZz0iRU4tVVMiIGxpbms9IiMwNTYzQzEiIHZsaW5rPSIj
-OTU0RjcyIj4NCjxkaXYgY2xhc3M9IldvcmRTZWN0aW9uMSI+DQo8cCBjbGFzcz0iTXNvTm9ybWFs
-Ij48c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBwdCI+Q3VycmVudGx5LCB3ZSBhbGxvY2F0ZSBQ
-QUdFX1NJWkUgKiAyIGZvciB6c3dhcF9kc3RtZW0gd2hpY2ggaXMgdXNlZCBhcyBjb21wcmVzc2lv
-biBkZXN0aW5hdGlvbiBidWZmZXIuPG86cD48L286cD48L3NwYW4+PC9wPg0KPHAgY2xhc3M9Ik1z
-b05vcm1hbCI+PHNwYW4gc3R5bGU9ImZvbnQtc2l6ZToxMS4wcHQiPkhvd2V2ZXIsIHdlIHBhc3Mg
-b25seSBoYWxmIG9mIHRoZSBzaXplIChQQUdFX1NJWkUpIHRvIGNyeXB0b19jb21wX2NvbXByZXNz
-LjxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxl
-PSJmb250LXNpemU6MTEuMHB0Ij5UaGlzIG1pZ2h0IG5vdCBiZSBhIHByb2JsZW0gZm9yIENQVSBi
-YXNlZCBleGlzdGluZyBsem8sIGx6NCBjcnlwdG8gY29tcHJlc3Npb24gZHJpdmVyIGltcGxhbnRh
-dGlvbi48bzpwPjwvbzpwPjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48c3BhbiBz
-dHlsZT0iZm9udC1zaXplOjExLjBwdCI+SG93ZXZlciwgdGhpcyBjb3VsZCBiZSBhIHByb2JsZW0g
-Zm9yIHNvbWUgSC9XIGFjY2VsZXJhdGlvbiBjb21wcmVzc2lvbiBkcml2ZXJzLCB3aGljaCBob25v
-ciBkZXN0aW5hdGlvbiBidWZmZXIgc2l6ZSB3aGVuIGl0IHByZXBhcmVzIEgvVyByZXNvdXJjZXMu
-PG86cD48L286cD48L3NwYW4+PC9wPg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5bGU9
-ImZvbnQtc2l6ZToxMS4wcHQiPkFjdHVhbGx5LCB0aGlzIHBhdGNoIGlzIGFsaWduZWQgd2l0aCB3
-aGF0IHpyYW0gaXMgcGFzc2luZyB3aGVuIGl0IGNhbGxzIGNyeXB0b19jb21wX2NvbXByZXNzLjxv
-OnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJm
-b250LXNpemU6MTEuMHB0Ij5UaGUgZm9sbG93aW5nIHNpbXBsZSBwYXRjaCB3aWxsIHNvbHZlIHRo
-aXMgcHJvYmxlbS4gSSB0ZXN0ZWQgaXQgd2l0aCBleGlzdGluZyBjcnlwdG8vbHpvLmMgYW5kIGNy
-eXB0by9sejQuYyBjb21wcmVzc2lvbiBkcml2ZXIgYW5kIGl0IHdvcmtzIGZpbmUuPG86cD48L286
-cD48L3NwYW4+PC9wPg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5bGU9ImZvbnQtc2l6
-ZToxMS4wcHQiPjxvOnA+Jm5ic3A7PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3Jt
-YWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij48bzpwPiZuYnNwOzwvbzpwPjwvc3Bh
-bj48L3A+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBw
-dCI+LS0tIG1tL3pzd2FwLmMub3JpZyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
-OyAyMDE4LTA5LTE0IDE0OjM2OjM3Ljk4NDE5OTIzMiAtMDcwMDxvOnA+PC9vOnA+PC9zcGFuPjwv
-cD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij4m
-IzQzOyYjNDM7JiM0MzsgbW0venN3YXAuYyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZu
-YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyAyMDE4LTA5LTE0IDE0OjM2
-OjUzLjM0MDE4OTY4MSAtMDcwMDxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29O
-b3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij5AQCAtMTAwMSw3ICYjNDM7MTAw
-MSw3IEBAIHN0YXRpYyBpbnQgenN3YXBfZnJvbnRzd2FwX3N0b3JlKHVuc2lnbmU8bzpwPjwvbzpw
-Pjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXpl
-OjExLjBwdCI+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
-Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IHN0cnVjdCB6c3dhcF9l
-bnRyeSAqZW50cnksICpkdXBlbnRyeTs8bzpwPjwvbzpwPjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0i
-TXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBwdCI+Jm5ic3A7Jm5ic3A7Jm5i
-c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
-Jm5ic3A7Jm5ic3A7Jm5ic3A7IHN0cnVjdCBjcnlwdG9fY29tcCAqdGZtOzxvOnA+PC9vOnA+PC9z
-cGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEu
-MHB0Ij4mbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
-cDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgaW50IHJldDs8bzpwPjwvbzpw
-Pjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXpl
-OjExLjBwdCI+LSZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
-OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyB1bnNpZ25lZCBpbnQgaGxlbiwgZGxlbiA9
-IFBBR0VfU0laRTs8bzpwPjwvbzpwPjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48
-c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBwdCI+JiM0MzsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
-cDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgdW5zaWdu
-ZWQgaW50IGhsZW4sIGRsZW4gPSBQQUdFX1NJWkUgKiAyOzxvOnA+PC9vOnA+PC9zcGFuPjwvcD4N
-CjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij4mbmJz
-cDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsm
-bmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgdW5zaWduZWQgbG9uZyBoYW5kbGUsIHZhbHVl
-OzxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxl
-PSJmb250LXNpemU6MTEuMHB0Ij4mbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsm
-bmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgY2hh
-ciAqYnVmOzxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFu
-IHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij4mbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsm
-bmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
-cDsgdTggKnNyYywgKmRzdDs8bzpwPjwvbzpwPjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0iTXNvTm9y
-bWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBwdCI+PG86cD4mbmJzcDs8L286cD48L3Nw
-YW4+PC9wPg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5bGU9ImZvbnQtc2l6ZToxMS4w
-cHQiPjxvOnA+Jm5ic3A7PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxz
-cGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij48bzpwPiZuYnNwOzwvbzpwPjwvc3Bhbj48L3A+
-DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBwdCI+VGhh
-bmsgeW91LDxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFu
-IHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij5UYWVpbDxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxw
-IGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij48bzpwPiZu
-YnNwOzwvbzpwPjwvc3Bhbj48L3A+DQo8L2Rpdj4NCjwvYm9keT4NCjwvaHRtbD4NCg==
+Let's look at the charging path in try_caharge(). If the memory usage
+is about memory.max, which is absolutely natural for most memory cgroups,
+we try to reclaim some pages. Even if we were able to reclaim
+enough memory for the allocation, the following check can fail due to
+a race with another concurrent allocation:
 
---_000_D4C91DBACF564991BD7F6BE334A2C048amazoncom_--
+    if (mem_cgroup_margin(mem_over_limit) >=3D nr_pages)
+        goto retry;
+
+For regular pages the following condition will save us from triggering
+the OOM:
+
+   if (nr_reclaimed && nr_pages <=3D (1 << PAGE_ALLOC_COSTLY_ORDER))
+       goto retry;
+
+But for high-order allocation this condition will intentionally fail.
+The reason behind is that we'll likely fall to regular pages anyway,
+so it's ok and even preferred to return ENOMEM.
+
+In this case the idea of raising MEMCG_OOM looks dubious.
+
+Fix this by moving MEMCG_OOM raising to mem_cgroup_oom() after
+allocation order check, so that the event won't be raised for high
+order allocations. This change doesn't affect regular pages allocation
+and charging.
+
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Acked-by: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+---
+ mm/memcontrol.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index fcec9b39e2a3..103ca3c31c04 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1669,6 +1669,8 @@ static enum oom_status mem_cgroup_oom(struct mem_cgro=
+up *memcg, gfp_t mask, int
+ 	if (order > PAGE_ALLOC_COSTLY_ORDER)
+ 		return OOM_SKIPPED;
+=20
++	memcg_memory_event(memcg, MEMCG_OOM);
++
+ 	/*
+ 	 * We are in the middle of the charge context here, so we
+ 	 * don't want to block when potentially sitting on a callstack
+@@ -2250,8 +2252,6 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t=
+ gfp_mask,
+ 	if (fatal_signal_pending(current))
+ 		goto force;
+=20
+-	memcg_memory_event(mem_over_limit, MEMCG_OOM);
+-
+ 	/*
+ 	 * keep retrying as long as the memcg oom killer is able to make
+ 	 * a forward progress or bypass the charge if the oom killer
+--=20
+2.17.1
