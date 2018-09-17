@@ -1,128 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EFB68E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 06:38:56 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id n4-v6so7639076plk.7
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 03:38:56 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id v7-v6si15496392pgn.431.2018.09.17.03.38.54
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C13DD8E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 06:48:44 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id 186-v6so6205610pgc.12
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 03:48:44 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id 3-v6si15274476plz.351.2018.09.17.03.48.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Sep 2018 03:38:55 -0700 (PDT)
-Subject: Patch "x86/kexec: Allocate 8k PGDs for PTI" has been added to the 4.14-stable tree
-From: <gregkh@linuxfoundation.org>
-Date: Mon, 17 Sep 2018 12:34:34 +0200
-Message-ID: <153718047410851@kroah.com>
+        Mon, 17 Sep 2018 03:48:43 -0700 (PDT)
+From: "Huang, Kai" <kai.huang@intel.com>
+Subject: RE: [RFC 11/12] keys/mktme: Add a new key service type for memory
+ encryption keys
+Date: Mon, 17 Sep 2018 10:48:33 +0000
+Message-ID: <105F7BF4D0229846AF094488D65A098935432E09@PGSMSX112.gar.corp.intel.com>
+References: <cover.1536356108.git.alison.schofield@intel.com>
+ <1a14a6feb02f968c5e6b98360f6f16106b633b58.1536356108.git.alison.schofield@intel.com>
+ <105F7BF4D0229846AF094488D65A098935424C2D@PGSMSX112.gar.corp.intel.com>
+ <20180915000639.GA28666@alison-desk.jf.intel.com>
+In-Reply-To: <20180915000639.GA28666@alison-desk.jf.intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 1532533683-5988-4-git-send-email-joro@8bytes.org, David.Laight@aculab.com, aarcange@redhat.com, acme@kernel.org, alexander.levin@microsoft.com, alexander.shishkin@linux.intel.com, aliguori@amazon.com, boris.ostrovsky@oracle.com, bp@alien8.de, brgerst@gmail.com, daniel.gruss@iaik.tugraz.at, dave.hansen@intel.com, dhgutteridge@sympatico.ca, dvlasenk@redhat.com, eduval@amazon.com, gregkh@linuxfoundation.org, hpa@zytor.com, hughd@google.com, jgross@suse.com, jkosina@suse.cz, jolsa@redhat.comjoro@8bytes.org, jpoimboe@redhat.com, jroedel@suse.de, keescook@google.com, linux-mm@kvack.org, llong@redhat.com, luto@kernel.org, namhyung@kernel.org, pavel@ucw.cz, peterz@infradead.org, tglx@linutronix.de, torvalds@linux-foundation.org, will.deacon@arm.com
-Cc: stable-commits@vger.kernel.org
+To: "Schofield, Alison" <alison.schofield@intel.com>
+Cc: "dhowells@redhat.com" <dhowells@redhat.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "Nakajima, Jun" <jun.nakajima@intel.com>, "Shutemov,
+ Kirill" <kirill.shutemov@intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>, "jmorris@namei.org" <jmorris@namei.org>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
+> -----Original Message-----
+> From: Schofield, Alison
+> Sent: Saturday, September 15, 2018 12:07 PM
+> To: Huang, Kai <kai.huang@intel.com>
+> Cc: dhowells@redhat.com; tglx@linutronix.de; Nakajima, Jun
+> <jun.nakajima@intel.com>; Shutemov, Kirill <kirill.shutemov@intel.com>;
+> Hansen, Dave <dave.hansen@intel.com>; Sakkinen, Jarkko
+> <jarkko.sakkinen@intel.com>; jmorris@namei.org; keyrings@vger.kernel.org;
+> linux-security-module@vger.kernel.org; mingo@redhat.com; hpa@zytor.com;
+> x86@kernel.org; linux-mm@kvack.org
+> Subject: Re: [RFC 11/12] keys/mktme: Add a new key service type for memor=
+y
+> encryption keys
+>=20
+> On Sun, Sep 09, 2018 at 08:29:29PM -0700, Huang, Kai wrote:
+> > > + */
+> > > +static int mktme_build_cpumask(void) {
+> > > +	int online_cpu, mktme_cpu;
+> > > +	int online_pkgid, mktme_pkgid =3D -1;
+> > > +
+> > > +	if (!zalloc_cpumask_var(&mktme_cpumask, GFP_KERNEL))
+> > > +		return -ENOMEM;
+> > > +
+> > > +	for_each_online_cpu(online_cpu) {
+> > > +		online_pkgid =3D topology_physical_package_id(online_cpu);
+> > > +
+> > > +		for_each_cpu(mktme_cpu, mktme_cpumask) {
+> > > +			mktme_pkgid =3D
+> > > topology_physical_package_id(mktme_cpu);
+> > > +			if (mktme_pkgid =3D=3D online_pkgid)
+> > > +				break;
+> > > +		}
+> > > +		if (mktme_pkgid !=3D online_pkgid)
+> > > +			cpumask_set_cpu(online_cpu, mktme_cpumask);
+> > > +	}
+> >
+> > Could we use 'for_each_online_node', 'cpumask_first/next', etc to simpl=
+ify the
+> logic?
+>=20
+> Kai,
+>=20
+> I tried to simplify it and came up with code that looked like this:
+>=20
+> 	int lead_cpu, node;
+> 	for_each_online_node(node) {
+> 		lead_cpu =3D cpumask_first(cpumask_of_node(node));
+> 		if (lead_cpu < nr_cpu_ids)
+> 			cpumask_set_cpu(lead_cpu, mktme_cpumask_NEW);
+> 	}
+> When I test it on an SNC (Sub Numa Cluster) system it gives me too many C=
+PU's.
+> I get a CPU per Node (just like i asked for;) instead of per Socket.
+> It has 2 sockets and 4 NUMA nodes.
+>=20
+> I kind of remember this when I originally coded it, hence the bottoms up
+> approach using topology_physical_package_id()
+>=20
+> Any ideas?
 
-This is a note to let you know that I've just added the patch titled
+Hmm.. I forgot the SNC case, sorry :(
 
-    x86/kexec: Allocate 8k PGDs for PTI
+So in case of SNC, is PCONFIG per-package, or per-node? I am not quite sure=
+ about this.
 
-to the 4.14-stable tree which can be found at:
-    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
+If PCONFIG is per-package, I don't have better idea than your original one.=
+ :)
 
-The filename of the patch is:
-     x86-kexec-allocate-8k-pgds-for-pti.patch
-and it can be found in the queue-4.14 subdirectory.
-
-If you, or anyone else, feels it should not be added to the stable tree,
-please let <stable@vger.kernel.org> know about it.
-
-
->From foo@baz Mon Sep 17 12:33:31 CEST 2018
-From: Joerg Roedel <jroedel@suse.de>
-Date: Wed, 25 Jul 2018 17:48:03 +0200
-Subject: x86/kexec: Allocate 8k PGDs for PTI
-
-From: Joerg Roedel <jroedel@suse.de>
-
-[ Upstream commit ca38dc8f2724d101038b1205122c93a1c7f38f11 ]
-
-Fuzzing the PTI-x86-32 code with trinity showed unhandled
-kernel paging request oops-messages that looked a lot like
-silent data corruption.
-
-Lot's of debugging and testing lead to the kexec-32bit code,
-which is still allocating 4k PGDs when PTI is enabled. But
-since it uses native_set_pud() to build the page-table, it
-will unevitably call into __pti_set_user_pgtbl(), which
-writes beyond the allocated 4k page.
-
-Use PGD_ALLOCATION_ORDER to allocate PGDs in the kexec code
-to fix the issue.
-
-Signed-off-by: Joerg Roedel <jroedel@suse.de>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Tested-by: David H. Gutteridge <dhgutteridge@sympatico.ca>
-Cc: "H . Peter Anvin" <hpa@zytor.com>
-Cc: linux-mm@kvack.org
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Jiri Kosina <jkosina@suse.cz>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: David Laight <David.Laight@aculab.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: Eduardo Valentin <eduval@amazon.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: aliguori@amazon.com
-Cc: daniel.gruss@iaik.tugraz.at
-Cc: hughd@google.com
-Cc: keescook@google.com
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Waiman Long <llong@redhat.com>
-Cc: Pavel Machek <pavel@ucw.cz>
-Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
-Cc: Alexander Shishkin <alexander.shishkin@linux.intel.com>
-Cc: Jiri Olsa <jolsa@redhat.com>
-Cc: Namhyung Kim <namhyung@kernel.org>
-Cc: joro@8bytes.org
-Link: https://lkml.kernel.org/r/1532533683-5988-4-git-send-email-joro@8bytes.org
-Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
----
- arch/x86/kernel/machine_kexec_32.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
---- a/arch/x86/kernel/machine_kexec_32.c
-+++ b/arch/x86/kernel/machine_kexec_32.c
-@@ -56,7 +56,7 @@ static void load_segments(void)
- 
- static void machine_kexec_free_page_tables(struct kimage *image)
- {
--	free_page((unsigned long)image->arch.pgd);
-+	free_pages((unsigned long)image->arch.pgd, PGD_ALLOCATION_ORDER);
- 	image->arch.pgd = NULL;
- #ifdef CONFIG_X86_PAE
- 	free_page((unsigned long)image->arch.pmd0);
-@@ -72,7 +72,8 @@ static void machine_kexec_free_page_tabl
- 
- static int machine_kexec_alloc_page_tables(struct kimage *image)
- {
--	image->arch.pgd = (pgd_t *)get_zeroed_page(GFP_KERNEL);
-+	image->arch.pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
-+						    PGD_ALLOCATION_ORDER);
- #ifdef CONFIG_X86_PAE
- 	image->arch.pmd0 = (pmd_t *)get_zeroed_page(GFP_KERNEL);
- 	image->arch.pmd1 = (pmd_t *)get_zeroed_page(GFP_KERNEL);
-
-
-Patches currently in stable-queue which might be from jroedel@suse.de are
-
-queue-4.14/x86-kexec-allocate-8k-pgds-for-pti.patch
-queue-4.14/iommu-ipmmu-vmsa-fix-allocation-in-atomic-context.patch
-queue-4.14/x86-mm-remove-in_nmi-warning-from-vmalloc_fault.patch
+Thanks,
+-Kai
+>=20
+> Alison
+>=20
