@@ -1,98 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 61EA08E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 13:01:03 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id q5-v6so13613965ith.1
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 10:01:03 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 36B438E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 13:53:47 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id f32-v6so6630801pgm.14
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 10:53:47 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y124-v6sor9112038iof.62.2018.09.17.10.01.01
+        by mx.google.com with SMTPS id c64-v6sor2593329pfe.54.2018.09.17.10.53.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 17 Sep 2018 10:01:02 -0700 (PDT)
+        Mon, 17 Sep 2018 10:53:45 -0700 (PDT)
+Date: Tue, 18 Sep 2018 03:53:37 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH 3/3] mm: optimise pte dirty/accessed bit setting by
+ demand based pte insertion
+Message-ID: <20180918035337.0727dad0@roar.ozlabs.ibm.com>
+In-Reply-To: <20180905142951.GA15680@roeck-us.net>
+References: <20180828112034.30875-1-npiggin@gmail.com>
+	<20180828112034.30875-4-npiggin@gmail.com>
+	<20180905142951.GA15680@roeck-us.net>
 MIME-Version: 1.0
-In-Reply-To: <20180911164152.GA29166@arrakis.emea.arm.com>
-References: <cover.1535629099.git.andreyknvl@google.com> <5d54526e5ff2e5ad63d0dfdd9ab17cf359afa4f2.1535629099.git.andreyknvl@google.com>
- <CA+55aFyW9N2tSb2bQvkthbVVyY6nt5yFeWQRLHp1zruBmb5ocw@mail.gmail.com>
- <CA+55aFy2t_MHgr_CgwbhtFkL+djaCq2qMM1G+f2DwJ0qEr1URQ@mail.gmail.com>
- <20180907152600.myidisza5o4kdmvf@armageddon.cambridge.arm.com>
- <CA+55aFzQ+ykLu10q3AdyaaKJx8SDWWL9Qiu6WH2jbN_ugRUTOg@mail.gmail.com> <20180911164152.GA29166@arrakis.emea.arm.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Mon, 17 Sep 2018 19:01:00 +0200
-Message-ID: <CAAeHK+z4HOF_PobxSys8svftWt8dhbuUXEpq2sdXBTCXwTEH2g@mail.gmail.com>
-Subject: Re: [PATCH v6 11/11] arm64: annotate user pointers casts detected by sparse
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Will Deacon <will.deacon@arm.com>, linux-mm <linux-mm@kvack.org>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Jacob Bramley <Jacob.Bramley@arm.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Evgenii Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Murphy <robin.murphy@arm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Guenter Roeck <linux@roeck-us.net>
+Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ley Foon Tan <lftan@altera.com>, nios2-dev@lists.rocketboards.org
 
-I took another look at the changes this patchset does to the kernel
-and here are my thoughts:
+On Wed, 5 Sep 2018 07:29:51 -0700
+Guenter Roeck <linux@roeck-us.net> wrote:
 
-I see two ways how a (potentially tagged) user pointer gets into the kernel:
+> Hi,
+> 
+> On Tue, Aug 28, 2018 at 09:20:34PM +1000, Nicholas Piggin wrote:
+> > Similarly to the previous patch, this tries to optimise dirty/accessed
+> > bits in ptes to avoid access costs of hardware setting them.
+> >   
+> 
+> This patch results in silent nios2 boot failures, silent meaning that
+> the boot stalls.
 
-1. A pointer is passed to a syscall (directly as an argument or
-indirectly as a struct field).
-2. A pointer is extracted from user context (registers, etc.) by some
-kind of a trap/fault handler.
-(Is there something else?)
+Okay I just got back to looking at this. The reason for the hang is
+I think a bug in the nios2 TLB code, but maybe other archs have similar
+issues.
 
-In case 1 we also have a special case of a pointer passed to one of
-the memory syscalls (mmap, mprotect, etc.). These syscalls "are not
-doing memory accesses but rather dealing with the memory range, hence
-an untagged pointer is better suited" as pointed out by Catalin (these
-syscalls do not always use "unsigned long" instead of "void __user *"
-though, for example shmat uses "void __user *").
+In case of a missing / !present Linux pte, nios2 installs a TLB entry
+with no permissions via its fast TLB exception handler (software TLB
+fill). Then it relies on that causing a TLB permission exception in a
+slower handler that calls handle_mm_fault to set the Linux pte and
+flushes the old TLB. Then the fast exception handler will find the new
+Linux pte.
 
-Looking at patch #8 ("usb, arm64: untag user addresses in devio") in
-this series, it seems that that devio ioctl actually accepts a pointer
-into a vma, so we shouldn't actually be untagging its argument and the
-patch needs to be dropped. Otherwise there's quite a few more cases
-that needs to be changed (like tcp_zerocopy_receive() for example,
-more can be found by grepping find_vma() in generic code).
+With this patch, nios2 has a case where handle_mm_fault does not flush
+the old TLB, which results in the TLB permission exception continually
+being retried.
 
-Regarding case 2, it seems that analyzing casts of __user pointers
-won't really help, since the code (arch/arm64/mm/fault.c) doesn't
-really use them. However all of this code is arch specific, so it
-shouldn't really change over time (right?). It looks like dealing with
-tags passed to the kernel through these fault handlers is already
-resolved with these patches (and therefore patch #6 ("arm64: untag
-user address in __do_user_fault") in this series is not actually
-needed and can be dropped (need to test that)):
+What happens now is that fault paths like do_read_fault will install a
+Linux pte with the young bit clear and return. That will cause nios2 to
+fault again but this time go down the bottom of handle_pte_fault and to
+the access flags update with the young bit set. The young bit is seen to
+be different, so that causes ptep_set_access_flags to do a TLB flush and
+that finally allows the fast TLB handler to fire and pick up the new
+Linux pte.
 
-276e9327 ("arm64: entry: improve data abort handling of tagged pointers"),
-81cddd65 ("arm64: traps: fix userspace cache maintenance emulation on
-a tagged pointer")
-7dcd9dd8 ("arm64: hw_breakpoint: fix watchpoint matching for tagged pointers")
+With this patch, the young bit is set in the first handle_mm_fault, so
+the second handle_mm_fault no longer sees the ptes are different and
+does not flush the TLB. The spurious fault handler also does not flush
+them unless FAULT_FLAG_WRITE is set.
 
-Now, I also see two cases when kernel behavior changes depending on
-whether a pointer is tagged:
+What nios2 should do is invalidate the TLB in update_mmu_cache. What it
+*really* should do is install the new TLB entry, I have some patches to
+make that work in qemu I can submit. But I would like to try getting
+these dirty/accessed bit optimisation in 4.20, so I will send a simple
+path to just do the TLB invalidate that could go in Andrew's git tree.
 
-1. Kernel code checks that a pointer belongs to userspace by comparing
-it with TASK_SIZE/addr_limit/user_addr_max()/USER_DS/... .
-2. A pointer gets passed to find_vma() or similar functions.
-(Is there something else?)
+Is that agreeable with the nios2 maintainers?
 
-The initial thought that I had here is that the pointers that reach
-find_vma() must be passed through memory syscalls and therefore
-shouldn't be untagged and don't require any fixes. There are at least
-two exceptions to this: 1. get_user_pages() (see patch #4 ("mm, arm64:
-untag user addresses in mm/gup.c") in this patch series) and 2.
-__do_page_fault() in arch/arm64/mm/fault.c. Are there any other
-obvious exceptions? I've tried adding BUG_ON(has_tag(addr)) to
-find_vma() and running a modified syzkaller version that passes tagged
-pointers to the kernel and failed to find anything else.
-
-As for case 1, the places where pointers are compared with TASK_SIZE
-and others can be found with grep. Maybe it makes sense to introduce
-some kind of routine like is_user_pointer() that handles tagged
-pointers and refactor the existing code to use it? And maybe add a
-rule to checkpatch.pl that forbids the direct usage of TASK_SIZE and
-others.
-
-So I think detecting direct comparisons with TASK_SIZE and others
-would more useful than finding __user pointer casts (it seems that the
-latter requires a lot of annotations to be fixed/added), and I should
-just drop this patch with annotations.
-
-WDYT?
+Thanks,
+Nick
