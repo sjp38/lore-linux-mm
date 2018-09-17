@@ -1,105 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 011318E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 16:01:21 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id a23-v6so8858113pfo.23
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 13:01:20 -0700 (PDT)
-Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
-        by mx.google.com with ESMTPS id n7-v6si15985142plk.204.2018.09.17.13.01.18
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C2E48E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 16:22:59 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id p5-v6so8898839pfh.11
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 13:22:59 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id m86-v6si17191811pfj.48.2018.09.17.13.22.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Sep 2018 13:01:19 -0700 (PDT)
-Subject: Re: [RFC v10 PATCH 0/3] mm: zap pages with read mmap_sem in munmap
- for large mapping
-References: <1536957299-43536-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180915101042.GD31572@bombadil.infradead.org>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <d00aea15-cf08-1980-dcdf-bf24334e6848@linux.alibaba.com>
-Date: Mon, 17 Sep 2018 13:00:58 -0700
+        Mon, 17 Sep 2018 13:22:57 -0700 (PDT)
+Date: Mon, 17 Sep 2018 22:22:38 +0200
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: Patch "x86/kexec: Allocate 8k PGDs for PTI" has been added to
+ the 3.18-stable tree
+Message-ID: <20180917202238.GA9048@kroah.com>
+References: <1537177617126129@kroah.com>
+ <alpine.LSU.2.11.1809171213560.1601@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <20180915101042.GD31572@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1809171213560.1601@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: mhocko@kernel.org, ldufour@linux.vnet.ibm.com, vbabka@suse.cz, kirill@shutemov.name, akpm@linux-foundation.org, dave.hansen@intel.com, oleg@redhat.com, srikar@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: 1532533683-5988-4-git-send-email-joro@8bytes.org, David.Laight@aculab.com, aarcange@redhat.com, acme@kernel.org, alexander.levin@microsoft.com, alexander.shishkin@linux.intel.com, aliguori@amazon.com, boris.ostrovsky@oracle.com, bp@alien8.de, brgerst@gmail.com, daniel.gruss@iaik.tugraz.at, dave.hansen@intel.com, dhgutteridge@sympatico.ca, dvlasenk@redhat.com, eduval@amazon.com, hpa@zytor.com, jgross@suse.com, jkosina@suse.cz, jolsa@redhat.comjoro@8bytes.org, jpoimboe@redhat.com, jroedel@suse.de, keescook@google.com, linux-mm@kvack.org, llong@redhat.com, luto@kernel.org, namhyung@kernel.org, pavel@ucw.cz, peterz@infradead.org, tglx@linutronix.de, torvalds@linux-foundation.org, will.deacon@arm.com, stable-commits@vger.kernel.org, stable@vger.kernel.org
 
+On Mon, Sep 17, 2018 at 12:33:47PM -0700, Hugh Dickins wrote:
+> On Mon, 17 Sep 2018, gregkh@linuxfoundation.org wrote:
+> > 
+> > This is a note to let you know that I've just added the patch titled
+> > 
+> >     x86/kexec: Allocate 8k PGDs for PTI
+> > 
+> > to the 3.18-stable tree which can be found at:
+> >     http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
+> > 
+> > The filename of the patch is:
+> >      x86-kexec-allocate-8k-pgds-for-pti.patch
+> > and it can be found in the queue-3.18 subdirectory.
+> > 
+> > If you, or anyone else, feels it should not be added to the stable tree,
+> > please let <stable@vger.kernel.org> know about it.
+> 
+> I believe this commit is an example of the auto-selector being too
+> eager, and this should not be in *any* of the stable trees.  As the
+> commit message indicates, it's a fix by Joerg for his PTI-x86-32
+> implementation - which has not been backported to any of the stable
+> trees (yet), has it?
+> 
+> In several of the recent stable trees, I think this will not do any
+> actual harm; but it looks as if it will prevent relevant x86-32 configs
+> from building on 3.18 (I see no definition of PGD_ALLOCATION_ORDER in
+> linux-3.18.y - you preferred not to have any PTI in that tree), and I
+> haven't checked whether its definition in older backports will build
+> correctly here or not.
 
+Ah, you are right, I just got a build failure report from the 4.4.y tree
+with this exact error.
 
-On 9/15/18 3:10 AM, Matthew Wilcox wrote:
-> On Sat, Sep 15, 2018 at 04:34:56AM +0800, Yang Shi wrote:
->> Regression and performance data:
->> Did the below regression test with setting thresh to 4K manually in the code:
->>    * Full LTP
->>    * Trinity (munmap/all vm syscalls)
->>    * Stress-ng: mmap/mmapfork/mmapfixed/mmapaddr/mmapmany/vm
->>    * mm-tests: kernbench, phpbench, sysbench-mariadb, will-it-scale
->>    * vm-scalability
->>
->> With the patches, exclusive mmap_sem hold time when munmap a 80GB address
->> space on a machine with 32 cores of E5-2680 @ 2.70GHz dropped to us level
->> from second.
->>
->> munmap_test-15002 [008]   594.380138: funcgraph_entry: |  __vm_munmap {
->> munmap_test-15002 [008]   594.380146: funcgraph_entry:      !2485684 us |    unmap_region();
->> munmap_test-15002 [008]   596.865836: funcgraph_exit:       !2485692 us |  }
->>
->> Here the excution time of unmap_region() is used to evaluate the time of
->> holding read mmap_sem, then the remaining time is used with holding
->> exclusive lock.
-> Something I've been wondering about for a while is whether we should "sort"
-> the readers together.  ie if the acquirers look like this:
->
-> A write
-> B read
-> C read
-> D write
-> E read
-> F read
-> G write
->
-> then we should grant the lock to A, BCEF, D, G rather than A, BC, D, EF, G.
+Thanks for letting me know, I'll go drop this from all of the stable
+tree queues right now.
 
-I'm not sure how much this can help to the real world workload.
-
-Typically, there are multi threads to contend for one mmap_sem. So, they 
-are trying to read/write the same address space. There might be 
-dependency or synchronization among them. Sorting read together might 
-break the dependency?
-
-Thanks,
-Yang
-
-> A quick way to test this is in __rwsem_down_read_failed_common do
-> something like:
->
-> -	if (list_empty(&sem->wait_list))
-> +	if (list_empty(&sem->wait_list)) {
->   		adjustment += RWSEM_WAITING_BIAS;
-> +		list_add(&waiter.list, &sem->wait_list);
-> +	} else {
-> +		struct rwsem_waiter *first = list_first_entry(&sem->wait_list,
-> +						struct rwsem_waiter, list);
-> +		if (first.type == RWSEM_WAITING_FOR_READ)
-> +			list_add(&waiter.list, &sem->wait_list);
-> +		else
-> +			list_add_tail(&waiter.list, &sem->wait_list);
-> +	}
-> -	list_add_tail(&waiter.list, &sem->wait_list);
->
-> It'd be interesting to know if this makes any difference with your tests.
->
-> (this isn't perfect, of course; it'll fail to sort readers together if there's
-> a writer at the head of the queue; eg:
->
-> A write
-> B write
-> C read
-> D write
-> E read
-> F write
-> G read
->
-> but it won't do any worse than we have at the moment).
+greg k-h
