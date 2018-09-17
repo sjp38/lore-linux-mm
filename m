@@ -1,67 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 68FB68E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 07:27:58 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id m3-v6so7734340plt.9
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 04:27:58 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b35-v6si16364152pla.420.2018.09.17.04.27.56
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Sep 2018 04:27:56 -0700 (PDT)
-Date: Mon, 17 Sep 2018 13:27:51 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
-Message-ID: <20180917112751.GD26286@dhcp22.suse.cz>
-References: <20180829142816.GX10223@dhcp22.suse.cz>
- <20180829143545.GY10223@dhcp22.suse.cz>
- <82CA00EB-BF8E-4137-953B-8BC4B74B99AF@cs.rutgers.edu>
- <20180829154744.GC10223@dhcp22.suse.cz>
- <39BE14E6-D0FB-428A-B062-8B5AEDC06E61@cs.rutgers.edu>
- <20180829162528.GD10223@dhcp22.suse.cz>
- <20180829192451.GG10223@dhcp22.suse.cz>
- <20180912172925.GK1719@techsingularity.net>
- <20180917061107.GB26286@dhcp22.suse.cz>
- <e43348ae-c2db-e327-8dd6-c4f6f0e0cac0@profihost.ag>
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CB27D8E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 07:33:05 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id j65-v6so10474461otc.5
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 04:33:05 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g30-v6si4443223oth.207.2018.09.17.04.33.04
+        for <linux-mm@kvack.org>;
+        Mon, 17 Sep 2018 04:33:04 -0700 (PDT)
+Date: Mon, 17 Sep 2018 12:33:22 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH 3/5] x86: pgtable: Drop pXd_none() checks from
+ pXd_free_pYd_table()
+Message-ID: <20180917113321.GB22717@arm.com>
+References: <1536747974-25875-1-git-send-email-will.deacon@arm.com>
+ <1536747974-25875-4-git-send-email-will.deacon@arm.com>
+ <dc8b03de1e3318e3dd577d80482260f99ab4e9a5.camel@hpe.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <e43348ae-c2db-e327-8dd6-c4f6f0e0cac0@profihost.ag>
+In-Reply-To: <dc8b03de1e3318e3dd577d80482260f99ab4e9a5.camel@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Zi Yan <zi.yan@cs.rutgers.edu>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
+To: "Kani, Toshi" <toshi.kani@hpe.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "Hocko, Michal" <MHocko@suse.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On Mon 17-09-18 09:04:02, Stefan Priebe - Profihost AG wrote:
-> Hi,
+On Fri, Sep 14, 2018 at 08:37:48PM +0000, Kani, Toshi wrote:
+> On Wed, 2018-09-12 at 11:26 +0100, Will Deacon wrote:
+> > Now that the core code checks this for us, we don't need to do it in the
+> > backend.
+> > 
+> > Cc: Chintan Pandya <cpandya@codeaurora.org>
+> > Cc: Toshi Kani <toshi.kani@hpe.com>
+> > Cc: Thomas Gleixner <tglx@linutronix.de>
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Signed-off-by: Will Deacon <will.deacon@arm.com>
+> > ---
+> >  arch/x86/mm/pgtable.c | 6 ------
+> >  1 file changed, 6 deletions(-)
+> > 
+> > diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+> > index ae394552fb94..b4919c44a194 100644
+> > --- a/arch/x86/mm/pgtable.c
+> > +++ b/arch/x86/mm/pgtable.c
+> > @@ -796,9 +796,6 @@ int pud_free_pmd_page(pud_t *pud, unsigned long addr)
+> >  	pte_t *pte;
+> >  	int i;
+> >  
+> > -	if (pud_none(*pud))
+> > -		return 1;
+> > -
 > 
-> i had multiple memory stalls this weekend again. All kvm processes where
-> spinning trying to get > 100% CPU and i was not able to even login to
-> ssh. After 5-10 minutes i was able to login.
-> 
-> There were about 150GB free mem on the host.
-> 
-> Relevant settings (no local storage involved):
->         vm.dirty_background_ratio:
->             3
->         vm.dirty_ratio:
->             10
->         vm.min_free_kbytes:
->             10567004
-> 
-> # cat /sys/kernel/mm/transparent_hugepage/defrag
-> always defer [defer+madvise] madvise never
-> 
-> # cat /sys/kernel/mm/transparent_hugepage/enabled
-> [always] madvise never
-> 
-> After that i had the following traces on the host node:
-> https://pastebin.com/raw/0VhyQmAv
+> Do we need to remove this safe guard?  I feel list this is same as
+> kfree() accepting NULL.
 
-I would suggest reporting this in a new email thread. I would also
-recommend to CC kvm guys (see MAINTAINERS file in the kernel source
-tree) and trace qemu/kvm processes to see what they are doing at the
-time when you see the stall.
--- 
-Michal Hocko
-SUSE Labs
+I think two big differences with kfree() are (1) that this function has
+exactly one caller in the tree and (2) it's implemented per-arch. Therefore
+we're in a good position to give it some simple semantics and implement
+those. Of course, if the x86 people would like to keep the redundant check,
+that's up to them, but I think it makes the function more confusing and
+tempts people into calling it for present entries.
+
+Will
