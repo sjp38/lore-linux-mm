@@ -1,101 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua1-f69.google.com (mail-ua1-f69.google.com [209.85.222.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FA558E0001
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 07:55:40 -0400 (EDT)
-Received: by mail-ua1-f69.google.com with SMTP id l22-v6so5425761uak.2
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 04:55:40 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i18-v6sor7412869uap.30.2018.09.17.04.55.38
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 75A558E0001
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2018 09:13:34 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id c8-v6so7832906plz.0
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 06:13:34 -0700 (PDT)
+Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
+        by mx.google.com with ESMTPS id u20-v6si15487657plq.210.2018.09.17.06.13.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 17 Sep 2018 04:55:39 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Sep 2018 06:13:33 -0700 (PDT)
+From: YueHaibing <yuehaibing@huawei.com>
+Subject: [PATCH -next] mm: swap: remove duplicated include from swap.c
+Date: Mon, 17 Sep 2018 21:13:08 +0800
+Message-ID: <20180917131308.16420-1-yuehaibing@huawei.com>
 MIME-Version: 1.0
-References: <CAOuPNLj1wx4sznrtLdKjcvuTf0dECPWzPaR946FoYRXB6YAGCw@mail.gmail.com>
- <20180916153237.GC15699@rapoport-lnx> <CAOuPNLj0HyC+yzwTpN-EWpzHTJ58u7pBfOja1MyweF4pbct1eQ@mail.gmail.com>
- <20180917043724.GA12866@rapoport-lnx> <CAOuPNLidXFHgkBmwOPj_xFkU_OpLaXbpJg04Le7MPxu8cYg_RQ@mail.gmail.com>
-In-Reply-To: <CAOuPNLidXFHgkBmwOPj_xFkU_OpLaXbpJg04Le7MPxu8cYg_RQ@mail.gmail.com>
-From: Pintu Kumar <pintu.ping@gmail.com>
-Date: Mon, 17 Sep 2018 17:25:27 +0530
-Message-ID: <CAOuPNLj+4pMnEy5EyZmzDWszqMb_PQb3q7t_hvG_50BTz1He2Q@mail.gmail.com>
-Subject: Re: KSM not working in 4.9 Kernel
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rppt@linux.vnet.ibm.com
-Cc: open list <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, jack@suse.cz, rppt@linux.vnet.ibm.com, dan.j.williams@intel.com, shakeelb@google.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, YueHaibing <yuehaibing@huawei.com>
 
-On Mon, Sep 17, 2018 at 11:46 AM Pintu Kumar <pintu.ping@gmail.com> wrote:
-> > > But still no effect.
-> > > And I checked LTP test cases. It almost doing the same thing.
-> > >
-> > > I observed that [ksmd] thread is not waking up at all.
-> > > I gave some print inside it, but I could never saw that prints coming.
-> > > I could not find it running either in top command during the operation.
-> > > Is there anything needs to be done, to wakw up ksmd?
-> > > I already set: echo 1 > /sys/kernel/mm/ksm.
-> >
-> > It should be echo 1 > /sys/kernel/mm/ksm/run
-> >
->
-> Oh yes, sorry for the typo.
-> I tried the same, but still ksm is not getting invoked.
-> Could someone confirm if KSM was working in 4.9 kernel?
->
+Remove duplicated include linux/memremap.h
 
-Ok, it's working now. I have to explicitly stop the ksm thread to see
-the statistics.
-Also there was some internal patch that was setting vm_flags to
-VM_MERGABLE thus causing ksm_advise call to return.
+Signed-off-by: YueHaibing <yuehaibing@huawei.com>
+---
+ mm/swap.c | 1 -
+ 1 file changed, 1 deletion(-)
 
-# echo 1 > /sys/kernel/mm/ksm/run
-# ./malloc-test.out &
-# echo 0 > /sys/kernel/mm/ksm/run
-
-~ # grep -H '' /sys/kernel/mm/ksm/*
-/sys/kernel/mm/ksm/full_scans:105
-/sys/kernel/mm/ksm/pages_shared:1
-/sys/kernel/mm/ksm/pages_sharing:999
-/sys/kernel/mm/ksm/pages_to_scan:100
-/sys/kernel/mm/ksm/pages_unshared:0
-/sys/kernel/mm/ksm/pages_volatile:0
-/sys/kernel/mm/ksm/run:0
-/sys/kernel/mm/ksm/sleep_millisecs:20
-
-
-However, I have one doubt.
-Is the above data correct, for the below program?
-
-int main(int argc, char *argv[])
-{
-        int i, n, size, ret;
-        char *buffer;
-        void *addr;
-
-        n = 10;
-        size = 100 * getpagesize();
-        for (i = 0; i < n; i++) {
-                buffer = (char *)malloc(size);
-                memset(buffer, 0xff, size);
-                madvise(buffer, size, MADV_MERGEABLE);
-                addr =  mmap(NULL, size,
-                           PROT_READ | PROT_EXEC | PROT_WRITE,
-MAP_PRIVATE | MAP_ANONYMOUS,
-                           -1, 0);
-                memset(addr, 0xff, size);
-                ret = madvise(addr, size, MADV_MERGEABLE);
-                if (ret < 0) {
-                        fprintf(stderr, "madvise failed: ret: %d,
-reason: %s\n", ret, strerror(errno));
-                }
-                usleep(500);
-        }
-        printf("Done....press ^C\n");
-
-        pause();
-
-        return 0;
-}
-
-
-Thanks,
-Pintu
+diff --git a/mm/swap.c b/mm/swap.c
+index 26fc9b5..87a54c8 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -29,7 +29,6 @@
+ #include <linux/cpu.h>
+ #include <linux/notifier.h>
+ #include <linux/backing-dev.h>
+-#include <linux/memremap.h>
+ #include <linux/memcontrol.h>
+ #include <linux/gfp.h>
+ #include <linux/uio.h>
+-- 
+2.7.0
