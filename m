@@ -1,366 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EDF6D8E0001
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 19:00:36 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id t3-v6so3537098oif.20
-        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 16:00:36 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id l66-v6si8685624oib.164.2018.09.18.16.00.33
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B5088E0001
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 19:48:16 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id y130-v6so2667174qka.1
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 16:48:16 -0700 (PDT)
+Received: from smtp-fw-33001.amazon.com (smtp-fw-33001.amazon.com. [207.171.190.10])
+        by mx.google.com with ESMTPS id f14-v6si2293527qvr.256.2018.09.18.16.48.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Sep 2018 16:00:34 -0700 (PDT)
-Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
- in mind (for KVM to isolate its guests per CPU)
-References: <CA+55aFxyUdhYjnQdnmWAt8tTwn4HQ1xz3SAMZJiawkLpMiJ_+w@mail.gmail.com>
- <ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com>
- <CA+55aFzHj_GNZWG4K2oDu4DPP9sZdTZ9PY7sBxGB6WoN9g8d=A@mail.gmail.com>
- <ciirm8zhwyiqh4.fsf@u54ee758033e858cfa736.ant.amazon.com>
- <ciirm8efdy916l.fsf@u54ee758033e858cfa736.ant.amazon.com>
- <5efc291c-b0ed-577e-02d1-285d080c293d@oracle.com>
- <ciirm8va743105.fsf@u54ee758033e858cfa736.ant.amazon.com>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Message-ID: <7221975d-6b67-effa-2747-06c22c041e78@oracle.com>
-Date: Tue, 18 Sep 2018 17:00:12 -0600
-MIME-Version: 1.0
-In-Reply-To: <ciirm8va743105.fsf@u54ee758033e858cfa736.ant.amazon.com>
-Content-Type: text/plain; charset=utf-8
+        Tue, 18 Sep 2018 16:48:15 -0700 (PDT)
+From: "Um, Taeil" <taeilum@amazon.com>
+Subject: Re: zswap: use PAGE_SIZE * 2 for compression dst buffer size when
+ calling crypto compression API
+Date: Tue, 18 Sep 2018 23:48:11 +0000
+Message-ID: <EEC089E8-9F85-483A-8C83-4C8459BA1345@amazon.com>
+References: <D4C91DBA-CF56-4991-BD7F-6BE334A2C048@amazon.com>
+ <CALZtONDpUDAz_PLrt03CaajzAoY_Wr6Tm=PgvqAWyir9=fCd8A@mail.gmail.com>
+ <EAFEF5B5-DE5D-42C7-AEF1-9DF6A800E95D@amazon.com>
+ <CALZtONC5FYhmq+U6fga7RbDA4mEB4rTihsLGXG50a-XUCdtxiA@mail.gmail.com>
+In-Reply-To: <CALZtONC5FYhmq+U6fga7RbDA4mEB4rTihsLGXG50a-XUCdtxiA@mail.gmail.com>
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <760C381C4108CD4B86029B608EE31BBA@amazon.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Julian Stecklina <jsteckli@amazon.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, juerg.haefliger@hpe.com, deepa.srinivasan@oracle.com, Jim Mattson <jmattson@google.com>, Andrew Cooper <andrew.cooper3@citrix.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, joao.m.martins@oracle.com, pradeep.vincent@oracle.com, Andi Kleen <ak@linux.intel.com>, kanth.ghatraju@oracle.com, Liran Alon <liran.alon@oracle.com>, Kees Cook <keescook@google.com>, Kernel Hardening <kernel-hardening@lists.openwall.com>, chris.hyser@oracle.com, Tyler Hicks <tyhicks@canonical.com>, John Haxby <john.haxby@oracle.com>, Jon Masters <jcm@redhat.com>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Linux-MM <linux-mm@kvack.org>, Seth Jennings <sjenning@redhat.com>
 
-On 09/17/2018 03:51 AM, Julian Stecklina wrote:
-> Khalid Aziz <khalid.aziz@oracle.com> writes:
-> 
->> I ran tests with your updated code and gathered lock statistics. Change in
->> system time for "make -j60" was in the noise margin (It actually went up by
->> about 2%). There is some contention on xpfo_lock. Average wait time does not
->> look high compared to other locks. Max hold time looks a little long. From
->> /proc/lock_stat:
->>
->>                &(&page->xpfo_lock)->rlock:         29698          29897           0.06         134.39       15345.58           0.51      422474670      960222532           0.05       30362.05   195807002.62           0.20
->>
->> Nevertheless even a smaller average wait time can add up.
-> 
-> Thanks for doing this!
-> 
-> I've spent some time optimizing spinlock usage in the code. See the two
-> last commits in my xpfo-master branch[1]. The optimization in
-> xpfo_kunmap is pretty safe. The last commit that optimizes locking in
-> xpfo_kmap is tricky, though, and I'm not sure this is the right
-> approach. FWIW, I've modeled this locking strategy in Spin and it
-> doesn't find any problems with it.
-> 
-> I've tested the result on a box with 72 hardware threads and I didn't
-> see a meaningful difference in kernel compile performance. It's still
-> hovering around 2%. So the question is, whether it's actually useful to
-> do these optimizations.
-> 
-> Khalid, you mentioned 5% overhead. Can you give the new code a spin and
-> see whether anything changes?
-
-Hi Julian,
-
-I tested the kernel with this new code. When booted without "xpfotlbflush", 
-there is no meaningful change in system time with kernel compile. Kernel 
-locks up during bootup when booted with xpfotlbflush:
-
-[   52.967060] RIP: 0010:queued_spin_lock_slowpath+0xf6/0x1e0
-[   52.967061] Code: 48 03 34 c5 80 97 12 82 48 89 16 8b 42 08 85 c0 75 09 f3 90 8b 42 08 85 c0 74 f7 48 8b 32 48 85 f6 74 07 0f 0d 0e eb 02 f3 90 <8b> 07 66 85 c0 75 f7 41 89 c0 66 45 31 c0 41 39 c8 0f 84 93 00 00
-[   52.967061] RSP: 0018:ffffc9001cc83a00 EFLAGS: 00000002
-[   52.967062] RAX: 0000000000340101 RBX: ffffea06c16292e8 RCX: 0000000000580000
-[   52.967062] RDX: ffff88603c9e3980 RSI: 0000000000000000 RDI: ffffea06c16292e8
-[   52.967063] RBP: ffffea06c1629300 R08: 0000000000000001 R09: 0000000000000000
-[   52.967063] R10: 0000000000000000 R11: 0000000000000001 R12: ffff88c02765a000
-[   52.967063] R13: 0000000000000000 R14: ffff8860152a0d00 R15: 0000000000000000
-[   52.967064] FS:  00007f41ad1658c0(0000) GS:ffff88603c800000(0000) knlGS:0000000000000000
-[   52.967064] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[   52.967064] CR2: ffff88c02765a000 CR3: 00000060252e4003 CR4: 00000000007606e0
-[   52.967065] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[   52.967065] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-[   52.967065] PKRU: 55555554
-[   52.967066] Call Trace:
-[   52.967066]  do_raw_spin_lock+0x6d/0xa0
-[   52.967066]  _raw_spin_lock+0x53/0x70
-[   52.967067]  ? xpfo_do_map+0x1b/0x52
-[   52.967067]  xpfo_do_map+0x1b/0x52
-[   52.967067]  xpfo_spurious_fault+0xac/0xae
-[   52.967068]  __do_page_fault+0x3cc/0x4e0
-[   52.967068]  ? __lock_acquire.isra.31+0x165/0x710
-[   52.967068]  do_page_fault+0x32/0x180
-[   52.967068]  page_fault+0x1e/0x30
-[   52.967069] RIP: 0010:memcpy_erms+0x6/0x10
-[   52.967069] Code: 90 90 90 90 eb 1e 0f 1f 00 48 89 f8 48 89 d1 48 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 c3 66 0f 1f 44 00 00 48 89 f8 48 89 d1 <f3> a4 c3 0f 1f 80 00 00 00 00 48 89 f8 48 83 fa 20 72 7e 40 38 fe
-[   52.967070] RSP: 0018:ffffc9001cc83bb8 EFLAGS: 00010246
-[   52.967070] RAX: ffff8860299d0f00 RBX: ffffc9001cc83dc8 RCX: 0000000000000080
-[   52.967071] RDX: 0000000000000080 RSI: ffff88c02765a000 RDI: ffff8860299d0f00
-[   52.967071] RBP: 0000000000000080 R08: ffffc9001cc83d90 R09: 0000000000000001
-[   52.967071] R10: 0000000000000000 R11: 0000000000000001 R12: 0000000000000080
-[   52.967072] R13: 0000000000000080 R14: 0000000000000000 R15: ffff88c02765a080
-[   52.967072]  _copy_to_iter+0x3b6/0x430
-[   52.967072]  copy_page_to_iter+0x1cf/0x390
-[   52.967073]  ? pagecache_get_page+0x26/0x200
-[   52.967073]  generic_file_read_iter+0x620/0xaf0
-[   52.967073]  ? avc_has_perm+0x12e/0x200
-[   52.967074]  ? avc_has_perm+0x34/0x200
-[   52.967074]  ? sched_clock+0x5/0x10
-[   52.967074]  __vfs_read+0x112/0x190
-[   52.967074]  vfs_read+0x8c/0x140
-[   52.967075]  kernel_read+0x2c/0x40
-[   52.967075]  prepare_binprm+0x121/0x230
-[   52.967075]  __do_execve_file.isra.32+0x56f/0x930
-[   52.967076]  ? __do_execve_file.isra.32+0x140/0x930
-[   52.967076]  __x64_sys_execve+0x44/0x50
-[   52.967076]  do_syscall_64+0x5b/0x190
-[   52.967077]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
-[   52.967077] RIP: 0033:0x7f41abd898c7
-[   52.967078] Code: ff ff 76 df 89 c6 f7 de 64 41 89 32 eb d5 89 c6 f7 de 64 41 89 32 eb db 66 2e 0f 1f 84 00 00 00 00 00 90 b8 3b 00 00 00 0f 05 <48> 3d 00 f0 ff ff 77 02 f3 c3 48 8b 15 98 05 30 00 f7 d8 64 89 02
-[   52.967078] RSP: 002b:00007ffc34b18f48 EFLAGS: 00000207 ORIG_RAX: 000000000000003b
-[   52.967078] RAX: ffffffffffffffda RBX: 00007ffc34b190a0 RCX: 00007f41abd898c7
-[   52.967079] RDX: 00005573e1da99d0 RSI: 00007ffc34b190a0 RDI: 00007ffc34b194a0
-[   52.967079] RBP: 00005573e0895140 R08: 0000000000000008 R09: 0000000000000383
-[   52.967080] R10: 0000000000000008 R11: 0000000000000207 R12: 00005573e1da99d0
-[   52.967080] R13: 0000000000000007 R14: 000000000000000c R15: 00007ffc34b1ad10
-[   52.967080] Kernel panic - not syncing: Hard LOCKUP
-[   52.967081] CPU: 21 PID: 1127 Comm: systemd-udevd Not tainted 4.19.0-rc3-xpfo+ #3
-[   52.967081] Hardware name: Oracle Corporation ORACLE SERVER X7-2/ASM, MB, X7-2, BIOS 41017600 10/06/2017
-[   52.967081] Call Trace:
-[   52.967082]  <NMI>
-[   52.967082]  dump_stack+0x5a/0x73
-[   52.967082]  panic+0xe8/0x25c
-[   52.967082]  nmi_panic+0x37/0x40
-[   52.967083]  watchdog_overflow_callback+0xef/0x110
-[   52.967083]  __perf_event_overflow+0x51/0xe0
-[   52.967083]  intel_pmu_handle_irq+0x222/0x4c0
-[   52.967084]  ? _raw_spin_unlock+0x24/0x30
-[   52.967084]  ? ghes_copy_tofrom_phys+0xf2/0x1a0
-[   52.967084]  ? ghes_read_estatus+0x91/0x160
-[   52.967085]  perf_event_nmi_handler+0x2e/0x50
-[   52.967085]  nmi_handle+0x9a/0x180
-[   52.967085]  ? nmi_handle+0x5/0x180
-[   52.967086]  default_do_nmi+0xca/0x120
-[   52.967086]  do_nmi+0x100/0x160
-[   52.967086]  end_repeat_nmi+0x16/0x50
-[   52.967086] RIP: 0010:queued_spin_lock_slowpath+0xf6/0x1e0
-[   52.967087] Code: 48 03 34 c5 80 97 12 82 48 89 16 8b 42 08 85 c0 75 09 f3 90 8b 42 08 85 c0 74 f7 48 8b 32 48 85 f6 74 07 0f 0d 0e eb 02 f3 90 <8b> 07 66 85 c0 75 f7 41 89 c0 66 45 31 c0 41 39 c8 0f 84 93 00 00
-[   52.967087] RSP: 0018:ffffc9001cc83a00 EFLAGS: 00000002
-[   52.967088] RAX: 0000000000340101 RBX: ffffea06c16292e8 RCX: 0000000000580000
-[   52.967088] RDX: ffff88603c9e3980 RSI: 0000000000000000 RDI: ffffea06c16292e8
-[   52.967089] RBP: ffffea06c1629300 R08: 0000000000000001 R09: 0000000000000000
-[   52.967089] R10: 0000000000000000 R11: 0000000000000001 R12: ffff88c02765a000
-[   52.967089] R13: 0000000000000000 R14: ffff8860152a0d00 R15: 0000000000000000
-[   52.967090]  ? queued_spin_lock_slowpath+0xf6/0x1e0
-[   52.967090]  ? queued_spin_lock_slowpath+0xf6/0x1e0
-[   52.967090]  </NMI>
-[   52.967091]  do_raw_spin_lock+0x6d/0xa0
-[   52.967091]  _raw_spin_lock+0x53/0x70
-[   52.967091]  ? xpfo_do_map+0x1b/0x52
-[   52.967092]  xpfo_do_map+0x1b/0x52
-[   52.967092]  xpfo_spurious_fault+0xac/0xae
-[   52.967092]  __do_page_fault+0x3cc/0x4e0
-[   52.967092]  ? __lock_acquire.isra.31+0x165/0x710
-[   52.967093]  do_page_fault+0x32/0x180
-[   52.967093]  page_fault+0x1e/0x30
-[   52.967093] RIP: 0010:memcpy_erms+0x6/0x10
-[   52.967094] Code: 90 90 90 90 eb 1e 0f 1f 00 48 89 f8 48 89 d1 48 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 c3 66 0f 1f 44 00 00 48 89 f8 48 89 d1 <f3> a4 c3 0f 1f 80 00 00 00 00 48 89 f8 48 83 fa 20 72 7e 40 38 fe
-[   52.967094] RSP: 0018:ffffc9001cc83bb8 EFLAGS: 00010246
-[   52.967095] RAX: ffff8860299d0f00 RBX: ffffc9001cc83dc8 RCX: 0000000000000080
-[   52.967095] RDX: 0000000000000080 RSI: ffff88c02765a000 RDI: ffff8860299d0f00
-[   52.967096] RBP: 0000000000000080 R08: ffffc9001cc83d90 R09: 0000000000000001
-[   52.967096] R10: 0000000000000000 R11: 0000000000000001 R12: 0000000000000080
-[   52.967096] R13: 0000000000000080 R14: 0000000000000000 R15: ffff88c02765a080
-[   52.967097]  _copy_to_iter+0x3b6/0x430
-[   52.967097]  copy_page_to_iter+0x1cf/0x390
-[   52.967097]  ? pagecache_get_page+0x26/0x200
-[   52.967098]  generic_file_read_iter+0x620/0xaf0
-[   52.967098]  ? avc_has_perm+0x12e/0x200
-[   52.967098]  ? avc_has_perm+0x34/0x200
-[   52.967098]  ? sched_clock+0x5/0x10
-[   52.967099]  __vfs_read+0x112/0x190
-[   52.967099]  vfs_read+0x8c/0x140
-[   52.967099]  kernel_read+0x2c/0x40
-[   52.967100]  prepare_binprm+0x121/0x230
-[   52.967100]  __do_execve_file.isra.32+0x56f/0x930
-[   52.967100]  ? __do_execve_file.isra.32+0x140/0x930
-[   52.967101]  __x64_sys_execve+0x44/0x50
-[   52.967101]  do_syscall_64+0x5b/0x190
-[   52.967101]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
-[   52.967102] RIP: 0033:0x7f41abd898c7
-[   52.967102] Code: ff ff 76 df 89 c6 f7 de 64 41 89 32 eb d5 89 c6 f7 de 64 41 89 32 eb db 66 2e 0f 1f 84 00 00 00 00 00 90 b8 3b 00 00 00 0f 05 <48> 3d 00 f0 ff ff 77 02 f3 c3 48 8b 15 98 05 30 00 f7 d8 64 89 02
-[   52.967102] RSP: 002b:00007ffc34b18f48 EFLAGS: 00000207 ORIG_RAX: 000000000000003b
-[   52.967103] RAX: ffffffffffffffda RBX: 00007ffc34b190a0 RCX: 00007f41abd898c7
-[   52.967103] RDX: 00005573e1da99d0 RSI: 00007ffc34b190a0 RDI: 00007ffc34b194a0
-[   52.967104] RBP: 00005573e0895140 R08: 0000000000000008 R09: 0000000000000383
-[   52.967104] R10: 0000000000000008 R11: 0000000000000207 R12: 00005573e1da99d0
-[   52.967104] R13: 0000000000000007 R14: 000000000000000c R15: 00007ffc34b1ad10
-[   54.001888] Shutting down cpus with NMI
-[   54.001889] Kernel Offset: disabled
-[   54.860701] ---[ end Kernel panic - not syncing: Hard LOCKUP ]---
-[   54.867733] ------------[ cut here ]------------
-[   54.867734] unchecked MSR access error: WRMSR to 0x83f (tried to write 0x00000000000000f6) at rIP: 0xffffffff81055864 (native_write_msr+0x4/0x20)
-[   54.867734] Call Trace:
-[   54.867734]  <IRQ>
-[   54.867735]  native_apic_msr_write+0x2e/0x40
-[   54.867735]  arch_irq_work_raise+0x28/0x40
-[   54.867735]  irq_work_queue+0x69/0x70
-[   54.867736]  printk_safe_log_store+0xd0/0xf0
-[   54.867736]  printk+0x58/0x6f
-[   54.867736]  __warn_printk+0x46/0x90
-[   54.867737]  ? enqueue_task_fair+0x8e/0x760
-[   54.867737]  native_smp_send_reschedule+0x39/0x40
-[   54.867737]  check_preempt_curr+0x75/0xb0
-[   54.867738]  ttwu_do_wakeup+0x19/0x190
-[   54.867738]  try_to_wake_up+0x21e/0x4f0
-[   54.867738]  __wake_up_common+0x9d/0x190
-[   54.867738]  ep_poll_callback+0xd5/0x370
-[   54.867739]  ? ep_poll_callback+0x2b5/0x370
-[   54.867739]  __wake_up_common+0x9d/0x190
-[   54.867739]  __wake_up_common_lock+0x7a/0xc0
-[   54.867740]  irq_work_run_list+0x4c/0x70
-[   54.867740]  smp_call_function_interrupt+0x59/0x110
-[   54.867740]  call_function_interrupt+0xf/0x20
-[   54.867741]  </IRQ>
-[   54.867741]  <NMI>
-[   54.867741] RIP: 0010:panic+0x206/0x25c
-[   54.867742] Code: 83 3d 11 83 c9 01 00 74 05 e8 d2 87 02 00 48 c7 c6 80 15 d1 82 48 c7 c7 80 fe 06 82 31 c0 e8 71 ed 06 00 fb 66 0f 1f 44 00 00 <45> 31 e4 e8 de 11 0e 00 4d 39 ec 7c 1e 41 83 f6 01 48 8b 05 ce 82
-[   54.867742] RSP: 0018:fffffe00003a4b58 EFLAGS: 00000246 ORIG_RAX: ffffffffffffff03
-[   54.867743] RAX: 0000000000000038 RBX: fffffe00003a4e00 RCX: 0000000000000000
-[   54.867743] RDX: 0000000000000000 RSI: 0000000000000038 RDI: ffff88603c9d5d08
-[   54.867744] RBP: fffffe00003a4bc8 R08: 0000000000000000 R09: ffff88603c9d5d47
-[   54.867744] R10: 000000000000000b R11: 0000000000000000 R12: ffffffff8207b979
-[   54.867744] R13: 0000000000000000 R14: 0000000000000000 R15: ffff88603c80f560
-[   54.867745]  ? panic+0x1ff/0x25c
-[   54.867745]  nmi_panic+0x37/0x40
-[   54.867745]  watchdog_overflow_callback+0xef/0x110
-[   54.867746]  __perf_event_overflow+0x51/0xe0
-[   54.867746]  intel_pmu_handle_irq+0x222/0x4c0
-[   54.867746]  ? _raw_spin_unlock+0x24/0x30
-[   54.867747]  ? ghes_copy_tofrom_phys+0xf2/0x1a0
-[   54.867747]  ? ghes_read_estatus+0x91/0x160
-[   54.867747]  perf_event_nmi_handler+0x2e/0x50
-[   54.867748]  nmi_handle+0x9a/0x180
-[   54.867748]  ? nmi_handle+0x5/0x180
-[   54.867748]  default_do_nmi+0xca/0x120
-[   54.867748]  do_nmi+0x100/0x160
-[   54.867749]  end_repeat_nmi+0x16/0x50
-[   54.867749] RIP: 0010:queued_spin_lock_slowpath+0xf6/0x1e0
-[   54.867750] Code: 48 03 34 c5 80 97 12 82 48 89 16 8b 42 08 85 c0 75 09 f3 90 8b 42 08 85 c0 74 f7 48 8b 32 48 85 f6 74 07 0f 0d 0e eb 02 f3 90 <8b> 07 66 85 c0 75 f7 41 89 c0 66 45 31 c0 41 39 c8 0f 84 93 00 00
-[   54.867750] RSP: 0018:ffffc9001cc83a00 EFLAGS: 00000002
-[   54.867751] RAX: 0000000000340101 RBX: ffffea06c16292e8 RCX: 0000000000580000
-[   54.867751] RDX: ffff88603c9e3980 RSI: 0000000000000000 RDI: ffffea06c16292e8
-[   54.867751] RBP: ffffea06c1629300 R08: 0000000000000001 R09: 0000000000000000
-[   54.867752] R10: 0000000000000000 R11: 0000000000000001 R12: ffff88c02765a000
-[   54.867752] R13: 0000000000000000 R14: ffff8860152a0d00 R15: 0000000000000000
-[   54.867752]  ? queued_spin_lock_slowpath+0xf6/0x1e0
-[   54.867753]  ? queued_spin_lock_slowpath+0xf6/0x1e0
-[   54.867753]  </NMI>
-[   54.867753]  do_raw_spin_lock+0x6d/0xa0
-[   54.867754]  _raw_spin_lock+0x53/0x70
-[   54.867754]  ? xpfo_do_map+0x1b/0x52
-[   54.867754]  xpfo_do_map+0x1b/0x52
-[   54.867754]  xpfo_spurious_fault+0xac/0xae
-[   54.867755]  __do_page_fault+0x3cc/0x4e0
-[   54.867755]  ? __lock_acquire.isra.31+0x165/0x710
-[   54.867755]  do_page_fault+0x32/0x180
-[   54.867756]  page_fault+0x1e/0x30
-[   54.867756] RIP: 0010:memcpy_erms+0x6/0x10
-[   54.867757] Code: 90 90 90 90 eb 1e 0f 1f 00 48 89 f8 48 89 d1 48 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 c3 66 0f 1f 44 00 00 48 89 f8 48 89 d1 <f3> a4 c3 0f 1f 80 00 00 00 00 48 89 f8 48 83 fa 20 72 7e 40 38 fe
-[   54.867757] RSP: 0018:ffffc9001cc83bb8 EFLAGS: 00010246
-[   54.867758] RAX: ffff8860299d0f00 RBX: ffffc9001cc83dc8 RCX: 0000000000000080
-[   54.867758] RDX: 0000000000000080 RSI: ffff88c02765a000 RDI: ffff8860299d0f00
-[   54.867758] RBP: 0000000000000080 R08: ffffc9001cc83d90 R09: 0000000000000001
-[   54.867759] R10: 0000000000000000 R11: 0000000000000001 R12: 0000000000000080
-[   54.867759] R13: 0000000000000080 R14: 0000000000000000 R15: ffff88c02765a080
-[   54.867759]  _copy_to_iter+0x3b6/0x430
-[   54.867760]  copy_page_to_iter+0x1cf/0x390
-[   54.867760]  ? pagecache_get_page+0x26/0x200
-[   54.867760]  generic_file_read_iter+0x620/0xaf0
-[   54.867761]  ? avc_has_perm+0x12e/0x200
-[   54.867761]  ? avc_has_perm+0x34/0x200
-[   54.867761]  ? sched_clock+0x5/0x10
-[   54.867761]  __vfs_read+0x112/0x190
-[   54.867762]  vfs_read+0x8c/0x140
-[   54.867762]  kernel_read+0x2c/0x40
-[   54.867762]  prepare_binprm+0x121/0x230
-[   54.867763]  __do_execve_file.isra.32+0x56f/0x930
-[   54.867763]  ? __do_execve_file.isra.32+0x140/0x930
-[   54.867763]  __x64_sys_execve+0x44/0x50
-[   54.867764]  do_syscall_64+0x5b/0x190
-[   54.867764]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
-[   54.867764] RIP: 0033:0x7f41abd898c7
-[   54.867765] Code: ff ff 76 df 89 c6 f7 de 64 41 89 32 eb d5 89 c6 f7 de 64 41 89 32 eb db 66 2e 0f 1f 84 00 00 00 00 00 90 b8 3b 00 00 00 0f 05 <48> 3d 00 f0 ff ff 77 02 f3 c3 48 8b 15 98 05 30 00 f7 d8 64 89 02
-[   54.867765] RSP: 002b:00007ffc34b18f48 EFLAGS: 00000207 ORIG_RAX: 000000000000003b
-[   54.867766] RAX: ffffffffffffffda RBX: 00007ffc34b190a0 RCX: 00007f41abd898c7
-[   54.867766] RDX: 00005573e1da99d0 RSI: 00007ffc34b190a0 RDI: 00007ffc34b194a0
-[   54.867767] RBP: 00005573e0895140 R08: 0000000000000008 R09: 0000000000000383
-[   54.867767] R10: 0000000000000008 R11: 0000000000000207 R12: 00005573e1da99d0
-[   54.867767] R13: 0000000000000007 R14: 000000000000000c R15: 00007ffc34b1ad10
-[   54.867768] sched: Unexpected reschedule of offline CPU#4!
-[   54.867768] WARNING: CPU: 21 PID: 1127 at arch/x86/kernel/smp.c:128 native_smp_send_reschedule+0x39/0x40
-[   54.867768] Modules linked in: crc32c_intel nvme nvme_core igb megaraid_sas ahci i2c_algo_bit bnxt_en libahci i2c_core libata dca dm_mirror dm_region_hash dm_log dm_mod
-[   54.867773] CPU: 21 PID: 1127 Comm: systemd-udevd Not tainted 4.19.0-rc3-xpfo+ #3
-[   54.867773] Hardware name: Oracle Corporation ORACLE SERVER X7-2/ASM, MB, X7-2, BIOS 41017600 10/06/2017
-[   54.867773] RIP: 0010:native_smp_send_reschedule+0x39/0x40
-[   54.867774] Code: 0f 92 c0 84 c0 74 15 48 8b 05 13 84 0f 01 be fd 00 00 00 48 8b 40 30 e9 e5 16 bc 00 89 fe 48 c7 c7 d8 48 06 82 e8 67 71 03 00 <0f> 0b c3 0f 1f 40 00 0f 1f 44 00 00 53 be 20 00 48 00 48 89 fb 48
-[   54.867774] RSP: 0018:ffff88603c803db8 EFLAGS: 00010086
-[   54.867775] RAX: 0000000000000000 RBX: ffff88603a7e2c80 RCX: 0000000000000000
-[   54.867775] RDX: 0000000000000000 RSI: 0000000000001277 RDI: ffff88603c9d5d08
-[   54.867776] RBP: ffff88603a7e2c80 R08: 0000000000000000 R09: 0000000000000000
-[   54.867776] R10: 0000000000000000 R11: 0000000000000000 R12: ffff8860250a8000
-[   54.867776] R13: ffff88603c803e00 R14: 0000000000000000 R15: ffff88603a7e2c98
-[   54.867777] FS:  00007f41ad1658c0(0000) GS:ffff88603c800000(0000) knlGS:0000000000000000
-[   54.867777] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[   54.867778] CR2: ffff88c02765a000 CR3: 00000060252e4003 CR4: 00000000007606e0
-[   54.867778] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[   54.867778] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-[   54.867779] PKRU: 55555554
-[   54.867779] Call Trace:
-[   54.867779]  <IRQ>
-[   54.867779]  check_preempt_curr+0x75/0xb0
-[   54.867780]  ttwu_do_wakeup+0x19/0x190
-[   54.867780]  try_to_wake_up+0x21e/0x4f0
-[   54.867780]  __wake_up_common+0x9d/0x190
-[   54.867781]  ep_poll_callback+0xd5/0x370
-[   54.867781]  ? ep_poll_callback+0x2b5/0x370
-[   54.867781]  __wake_up_common+0x9d/0x190
-[   54.867782]  __wake_up_common_lock+0x7a/0xc0
-[   54.867782]  irq_work_run_list+0x4c/0x70
-[   54.867782]  smp_call_function_interrupt+0x59/0x110
-[   54.867782]  call_function_interrupt+0xf/0x20
-[   54.867783]  </IRQ>
-[   54.867783]  <NMI>
-[   54.867783] RIP: 0010:panic+0x206/0x25c
-[   54.867784] Code: 83 3d 11 83 c9 01 00 74 05 e8 d2 87 02 00 48 c7 c6 80 15 d1 82 48 c7 c7 80 fe 06 82 31 c0 e8 71 ed 06 00 fb 66 0f 1f 44 00 00 <45> 31 e4 e8 de 11 0e 00 4d 39 ec 7c 1e 41 83 f6 01 48 8b 05 ce 82
-[   54.867784] RSP: 0018:fffffe00003a4b58 EFLAGS: 00000246 ORIG_RAX: ffffffffffffff03
-[   54.867785] RAX: 0000000000000038 RBX: fffffe00003a4e00 RCX: 0000000000000000
-[   54.867785] RDX: 0000000000000000 RSI: 0000000000000038 RDI: ffff88603c9d5d08
-[   54.867786] RBP: fffffe00003a4bc8 R08: 0000000000000000 R09: ffff88603c9d5d47
-[   54.867786] R10: 000000000000000b R11: 0000000000000000 R12: ffffffff8207b979
-[   54.867786] R13: 0000000000000000 R14: 0000000000000000 R15: ffff88603c80f560
-[   54.867787]  ? panic+0x1ff/0x25c
-[   54.867787]  nmi_panic+0x37/0x40
-[   54.867787]  watchdog_overflow_callback+0xef/0x110
-[   54.867787]  __perf_event_overflow+0x51/0xe0
-[   54.867788]  intel_pmu_handle_irq+0x222/0x4c0
-[   54.867788]  ? _raw_spin_unlock+0x24/0x30
-[   54.867788]  ? ghes_copy_tofrom_phys+0xf2/0x1a0
-[   54.867789]  ? ghes_read_estatus+0x91/0x160
-[   54.867789]  perf_event_nmi_handler+0x2e/0x50
-[   54.867789]  nmi_handle+0x9a/0x180
-[   54.867790]  ? nmi_handle+0x5/0x180
-[   54.867790]  default_do_nmi+0xca/0x120
-[   54.867790]  do_nmi+0x100/0x160
-[   54.867791]  end_repeat_nmi+0x16/0x50
-[   54.867791] RIP: 0010:queued_spin_lock_slowpath+0xf6/0x1e0
-[   54.867791] Code: 48 03 34 c5 80 97 12 82 48 89 16 8b 42 08 85 c0 75 09 f3 90 8b 42 08 85 c0 74 f7 48 8b 32 48 85 f6 74 07 0f 0d 0e eb 02 f3 90 <8b> 07 66 85 c0 75 f7 41 89 c0 66 45 31 c0 41 39 c8 0f 84 93 00 00
-[   54.867792] RSP: 0018:ffffc9001cc83a00 EFLAGS: 00000002
-[   54.867792] RAX: 0000000000340101 RBX: ffffea06c16292e8 RCX: 0000000000580000
-[   54.867793] RDX: ffff88603c9e3980 RSI: 0000000000000000 RDI: ffffea06c16292e8
-[   54.867793] RBP: ffffea06c1629300 R08: 0000000000000001 R09: 0000000000000000
-[   54.867793] R1
-[   54.867794] Lost 48 message(s)!
-
---
-Khalid
+V2UgY2FuIHRlbGwgd2hldGhlciBjb21wcmVzc2VkIHNpemUgaXMgZ3JlYXRlciB0aGFuIFBBR0Vf
+U0laRSBieSBsb29raW5nIGF0IHRoZSByZXR1cm5lZCAqZGxlbiB2YWx1ZSBmcm9tIGNyeXB0b19j
+b21wX2NvbXByZXNzLiBUaGlzIHNob3VsZCBiZSBmYWlybHkgZWFzeS4NClRoaXMgaXMgYWN0dWFs
+bHkgd2hhdCB6cmFtIGlzIGRvaW5nIHRvZGF5LiB6cmFtIGxvb2tzIGZvciAqZGxlbiBhbmQgbm90
+IHRha2UgdGhlIGNvbXByZXNzZWQgcmVzdWx0IGlmICpkbGVuIGlzIGdyZWF0ZXIgdGhhbiBjZXJ0
+YWluIHNpemUuDQpJIHRoaW5rIGVycm9ycyBmcm9tIGNyeXB0b19jb21wX2NvbXByZXNzIHNob3Vs
+ZCBiZSByZWFsIGVycm9ycy4gDQoNClRvZGF5IGluIGtlcm5lbCBjb21wcmVzc2lvbiBkcml2ZXJz
+IHN1Y2ggYXMgbHpvIGFuZCBsejQsIHRoZXkgZG8gbm90IHN0b3AganVzdCBiZWNhdXNlIGNvbXBy
+ZXNzaW9uIHJlc3VsdCBzaXplIGlzIGdyZWF0ZXIgdGhhbiBzb3VyY2Ugc2l6ZS4NCkFsc28sIHNv
+bWUgSC9XIGFjY2VsZXJhdG9ycyB3b3VsZCBub3QgaGF2ZSB0aGUgb3B0aW9uIG9mIHN0b3BwaW5n
+IGNvbXByZXNzaW9uIGp1c3QgYmVjYXVzZSBvZiB0aGUgcmVzdWx0IHNpemUgaXMgZ3JlYXRlciB0
+aGFuIHNvdXJjZSBzaXplLg0KDQpUaGFuayB5b3UsDQpUYWVpbA0KDQrvu79PbiA5LzE4LzE4LCAy
+OjQ0IFBNLCAiRGFuIFN0cmVldG1hbiIgPGRkc3RyZWV0QGllZWUub3JnPiB3cm90ZToNCg0KICAg
+IE9uIFR1ZSwgU2VwIDE4LCAyMDE4IGF0IDI6NTIgUE0gVW0sIFRhZWlsIDx0YWVpbHVtQGFtYXpv
+bi5jb20+IHdyb3RlOg0KICAgID4NCiAgICA+IFByb2JsZW0gc3RhdGVtZW50Og0KICAgID4gImNv
+bXByZXNzZWQgZGF0YSBhcmUgbm90IGZ1bGx5IGNvcGllZCB0byBkZXN0aW5hdGlvbiBidWZmZXIg
+d2hlbiBjb21wcmVzc2VkIGRhdGEgc2l6ZSBpcyBncmVhdGVyIHRoYW4gc291cmNlIGRhdGEiDQog
+ICAgPg0KICAgID4gV2h5Og0KICAgID4gNXRoIGFyZ3VtZW50IG9mIGNyeXB0b19jb21wX2NvbXBy
+ZXNzIGZ1bmN0aW9uIGlzICpkbGVuLCB3aGljaCB0ZWxsIHRoZSBjb21wcmVzc2lvbiBkcml2ZXIg
+aG93IG1hbnkgYnl0ZXMgdGhlIGRlc3RpbmF0aW9uIGJ1ZmZlciBzcGFjZSBpcyBhbGxvY2F0ZWQg
+KGFsbG93ZWQgdG8gd3JpdGUgZGF0YSkuDQogICAgPiBUaGlzICpkbGVuIGlzIGltcG9ydGFudCBl
+c3BlY2lhbGx5IGZvciBIL1cgYWNjZWxlcmF0b3IgYmFzZWQgY29tcHJlc3Npb24gZHJpdmVyIGJl
+Y2F1c2UgaXQgaXMgZGFuZ2Vyb3VzIGlmIHdlIGFsbG93IHRoZSBIL1cgYWNjZWxlcmF0b3IgdG8g
+YWNjZXNzIG1lbW9yeSBiZXlvbmQgKmRzdCArICpkbGVuLg0KICAgID4gTm90ZSB0aGF0IGJ1ZmZl
+ciBsb2NhdGlvbiB3b3VsZCBiZSBwYXNzZWQgYXMgcGh5c2ljYWwgYWRkcmVzcy4NCiAgICA+IER1
+ZSB0byB0aGUgYWJvdmUgcmVhc29uLCBIL1cgYWNjZWxlcmF0b3IgYmFzZWQgY29tcHJlc3Npb24g
+ZHJpdmVyIG5lZWQgdG8gaG9ub3IgKmRsZW4gdmFsdWUgd2hlbiBpdCBzZXJ2ZXMgY3J5cHRvX2Nv
+bXBfY29tcHJlc3MgQVBJLg0KICAgIA0KICAgIGFuZCB0aGF0J3MgZXhhY3RseSB3aGF0IHpzd2Fw
+IHdhbnRzIHRvIGhhcHBlbiAtIGFueSBjb21wcmVzc29yIChodyBvcg0KICAgIHN3KSBzaG91bGQg
+ZmFpbCB3aXRoIGFuIGVycm9yIGNvZGUgKEVOT1NQQyBtYWtlcyB0aGUgbW9zdCBzZW5zZSwgYnV0
+DQogICAgenN3YXAgZG9lc24ndCBhY3R1YWxseSBjYXJlKSBpZiB0aGUgY29tcHJlc3NlZCBkYXRh
+IHNpemUgaXMgbGFyZ2VyDQogICAgdGhhbiB0aGUgcHJvdmlkZWQgZGF0YSBidWZmZXIuDQogICAg
+DQogICAgPiBUb2RheSwgd2UgcGFzcyBzbGVuID0gUEFHRV9TSVpFIGFuZCAqZGxlbj1QQUdFX1NJ
+WkUgdG8gY3J5cHRvX2NvbXBfY29tcHJlc3MgaW4genN3YXAuYy4NCiAgICA+IElmIGNvbXByZXNz
+ZWQgZGF0YSBzaXplIGlzIGdyZWF0ZXIgdGhhbiBzb3VyY2UgKHVuY29tcHJlc3NlZCkgZGF0YSBz
+aXplLCAgSC9XIGFjY2VsZXJhdG9yIGNhbm5vdCBjb3B5IChkZWxpdmVyKSB0aGUgZW50aXJlIGNv
+bXByZXNzZWQgZGF0YS4NCiAgICANCiAgICBJZiB0aGUgImNvbXByZXNzZWQiIGRhdGEgaXMgbGFy
+Z2VyIHRoYW4gMSBwYWdlLCB0aGVuIHRoZXJlIGlzIG5vIHBvaW50DQogICAgaW4gc3RvcmluZyB0
+aGUgcGFnZSBpbiB6c3dhcC4NCiAgICANCiAgICByZW1lbWJlciB0aGF0IHpzd2FwIGlzIGRpZmZl
+cmVudCB0aGFuIHpyYW07IGluIHpyYW0sIHRoZXJlJ3Mgbm8gb3RoZXINCiAgICBwbGFjZSB0byBz
+dG9yZSB0aGUgZGF0YS4gIEhvd2V2ZXIsIHdpdGggenN3YXAsIGlmIGNvbXByZXNzaW9uIGZhaWxz
+IG9yDQogICAgaXNuJ3QgZ29vZCwgd2UgY2FuIGp1c3QgcGFzcyB0aGUgdW5jb21wcmVzc2VkIHBh
+Z2UgZG93biB0byB0aGUgc3dhcA0KICAgIGRldmljZS4NCiAgICANCiAgICA+DQogICAgPiBUaGFu
+ayB5b3UsDQogICAgPiBUYWVpbA0KICAgID4NCiAgICA+IE9uIDkvMTgvMTgsIDc6MTUgQU0sICJE
+YW4gU3RyZWV0bWFuIiA8ZGRzdHJlZXRAaWVlZS5vcmc+IHdyb3RlOg0KICAgID4NCiAgICA+ICAg
+ICBPbiBNb24sIFNlcCAxNywgMjAxOCBhdCA3OjEwIFBNIFVtLCBUYWVpbCA8dGFlaWx1bUBhbWF6
+b24uY29tPiB3cm90ZToNCiAgICA+ICAgICA+DQogICAgPiAgICAgPiBDdXJyZW50bHksIHdlIGFs
+bG9jYXRlIFBBR0VfU0laRSAqIDIgZm9yIHpzd2FwX2RzdG1lbSB3aGljaCBpcyB1c2VkIGFzIGNv
+bXByZXNzaW9uIGRlc3RpbmF0aW9uIGJ1ZmZlci4NCiAgICA+ICAgICA+DQogICAgPiAgICAgPiBI
+b3dldmVyLCB3ZSBwYXNzIG9ubHkgaGFsZiBvZiB0aGUgc2l6ZSAoUEFHRV9TSVpFKSB0byBjcnlw
+dG9fY29tcF9jb21wcmVzcy4NCiAgICA+ICAgICA+DQogICAgPiAgICAgPiBUaGlzIG1pZ2h0IG5v
+dCBiZSBhIHByb2JsZW0gZm9yIENQVSBiYXNlZCBleGlzdGluZyBsem8sIGx6NCBjcnlwdG8gY29t
+cHJlc3Npb24gZHJpdmVyIGltcGxhbnRhdGlvbi4NCiAgICA+ICAgICA+DQogICAgPiAgICAgPiBI
+b3dldmVyLCB0aGlzIGNvdWxkIGJlIGEgcHJvYmxlbSBmb3Igc29tZSBIL1cgYWNjZWxlcmF0aW9u
+IGNvbXByZXNzaW9uIGRyaXZlcnMsIHdoaWNoIGhvbm9yIGRlc3RpbmF0aW9uIGJ1ZmZlciBzaXpl
+IHdoZW4gaXQgcHJlcGFyZXMgSC9XIHJlc291cmNlcy4NCiAgICA+DQogICAgPiAgICAgSG93IGV4
+YWN0bHkgY291bGQgaXQgYmUgYSBwcm9ibGVtPw0KICAgID4NCiAgICA+ICAgICA+DQogICAgPiAg
+ICAgPiBBY3R1YWxseSwgdGhpcyBwYXRjaCBpcyBhbGlnbmVkIHdpdGggd2hhdCB6cmFtIGlzIHBh
+c3Npbmcgd2hlbiBpdCBjYWxscyBjcnlwdG9fY29tcF9jb21wcmVzcy4NCiAgICA+ICAgICA+DQog
+ICAgPiAgICAgPiBUaGUgZm9sbG93aW5nIHNpbXBsZSBwYXRjaCB3aWxsIHNvbHZlIHRoaXMgcHJv
+YmxlbS4gSSB0ZXN0ZWQgaXQgd2l0aCBleGlzdGluZyBjcnlwdG8vbHpvLmMgYW5kIGNyeXB0by9s
+ejQuYyBjb21wcmVzc2lvbiBkcml2ZXIgYW5kIGl0IHdvcmtzIGZpbmUuDQogICAgPiAgICAgPg0K
+ICAgID4gICAgID4NCiAgICA+ICAgICA+DQogICAgPiAgICAgPg0KICAgID4gICAgID4NCiAgICA+
+ICAgICA+IC0tLSBtbS96c3dhcC5jLm9yaWcgICAgICAgMjAxOC0wOS0xNCAxNDozNjozNy45ODQx
+OTkyMzIgLTA3MDANCiAgICA+ICAgICA+DQogICAgPiAgICAgPiArKysgbW0venN3YXAuYyAgICAg
+ICAgICAgICAyMDE4LTA5LTE0IDE0OjM2OjUzLjM0MDE4OTY4MSAtMDcwMA0KICAgID4gICAgID4N
+CiAgICA+ICAgICA+IEBAIC0xMDAxLDcgKzEwMDEsNyBAQCBzdGF0aWMgaW50IHpzd2FwX2Zyb250
+c3dhcF9zdG9yZSh1bnNpZ25lDQogICAgPiAgICAgPg0KICAgID4gICAgID4gICAgICAgICAgICAg
+ICAgIHN0cnVjdCB6c3dhcF9lbnRyeSAqZW50cnksICpkdXBlbnRyeTsNCiAgICA+ICAgICA+DQog
+ICAgPiAgICAgPiAgICAgICAgICAgICAgICAgc3RydWN0IGNyeXB0b19jb21wICp0Zm07DQogICAg
+PiAgICAgPg0KICAgID4gICAgID4gICAgICAgICAgICAgICAgIGludCByZXQ7DQogICAgPiAgICAg
+Pg0KICAgID4gICAgID4gLSAgICAgICAgICAgICAgdW5zaWduZWQgaW50IGhsZW4sIGRsZW4gPSBQ
+QUdFX1NJWkU7DQogICAgPiAgICAgPg0KICAgID4gICAgID4gKyAgICAgICAgICAgICB1bnNpZ25l
+ZCBpbnQgaGxlbiwgZGxlbiA9IFBBR0VfU0laRSAqIDI7DQogICAgPiAgICAgPg0KICAgID4gICAg
+ID4gICAgICAgICAgICAgICAgIHVuc2lnbmVkIGxvbmcgaGFuZGxlLCB2YWx1ZTsNCiAgICA+ICAg
+ICA+DQogICAgPiAgICAgPiAgICAgICAgICAgICAgICAgY2hhciAqYnVmOw0KICAgID4gICAgID4N
+CiAgICA+ICAgICA+ICAgICAgICAgICAgICAgICB1OCAqc3JjLCAqZHN0Ow0KICAgID4gICAgID4N
+CiAgICA+ICAgICA+DQogICAgPiAgICAgPg0KICAgID4gICAgID4NCiAgICA+ICAgICA+DQogICAg
+PiAgICAgPg0KICAgID4gICAgID4NCiAgICA+ICAgICA+IFRoYW5rIHlvdSwNCiAgICA+ICAgICA+
+DQogICAgPiAgICAgPiBUYWVpbA0KICAgID4gICAgID4NCiAgICA+ICAgICA+DQogICAgPg0KICAg
+ID4NCiAgICA+DQogICAgDQogICAgDQoNCg==
