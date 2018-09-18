@@ -1,131 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DD8E28E0001
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 07:47:26 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id q130-v6so1383498oic.22
-        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 04:47:26 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 59-v6si5288407otr.231.2018.09.18.04.47.25
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C65A8E0001
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 07:48:38 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id 1-v6so1111594qtp.10
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 04:48:38 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u47-v6si561499qta.385.2018.09.18.04.48.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Sep 2018 04:47:25 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8IBiVJ5121738
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 07:47:25 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2mjxe95ujj-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 07:47:24 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Tue, 18 Sep 2018 12:47:22 +0100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: Re: How to handle PTE tables with non contiguous entries ?
-In-Reply-To: <d1be61a4-8dc7-cfe0-e4e7-82ce5f57ced3@c-s.fr>
-References: <ddc3bb56-4da0-c093-256f-185d4a612b5c@c-s.fr> <87tvmoh4w9.fsf@linux.ibm.com> <d1be61a4-8dc7-cfe0-e4e7-82ce5f57ced3@c-s.fr>
-Date: Tue, 18 Sep 2018 17:17:16 +0530
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <87pnxbgh8b.fsf@linux.ibm.com>
+        Tue, 18 Sep 2018 04:48:37 -0700 (PDT)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH v1 0/6] mm: online/offline_pages called w.o. mem_hotplug_lock
+Date: Tue, 18 Sep 2018 13:48:16 +0200
+Message-Id: <20180918114822.21926-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christophe LEROY <christophe.leroy@c-s.fr>, akpm@linux-foundation.org, linux-mm@kvack.org, aneesh.kumar@linux.vnet.ibm.com, Nicholas Piggin <npiggin@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org
-Cc: LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, David Hildenbrand <david@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, John Allen <jallen@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Len Brown <lenb@kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Mathieu Malaterre <malat@debian.org>, Michael Ellerman <mpe@ellerman.id.au>, Michael Neuling <mikey@neuling.org>, Michal Hocko <mhocko@suse.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Oscar Salvador <osalvador@suse.de>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Philippe Ombredanne <pombredanne@nexb.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Rashmica Gupta <rashmica.g@gmail.com>, Stephen Hemminger <sthemmin@microsoft.com>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
 
-Christophe LEROY <christophe.leroy@c-s.fr> writes:
+Reading through the code and studying how mem_hotplug_lock is to be used,
+I noticed that there are two places where we can end up calling
+device_online()/device_offline() - online_pages()/offline_pages() without
+the mem_hotplug_lock. And there are other places where we call
+device_online()/device_offline() without the device_hotplug_lock.
 
-> Le 17/09/2018 =C3=A0 11:03, Aneesh Kumar K.V a =C3=A9crit=C2=A0:
->> Christophe Leroy <christophe.leroy@c-s.fr> writes:
->>=20
->>> Hi,
->>>
->>> I'm having a hard time figuring out the best way to handle the following
->>> situation:
->>>
->>> On the powerpc8xx, handling 16k size pages requires to have page tables
->>> with 4 identical entries.
->>=20
->> I assume that hugetlb page size? If so isn't that similar to FSL hugetlb
->> page table layout?
->
-> No, it is not for 16k hugepage size with a standard page size of 4k.
->
-> Here I'm trying to handle the case of CONFIG_PPC_16K_PAGES.
-> As of today, it is implemented by using the standard Linux page layout,=20
-> ie one PTE entry for each 16k page. This forbids the use the 8xx HW=20
-> assistance.
->
->>=20
->>>
->>> Initially I was thinking about handling this by simply modifying
->>> pte_index() which changing pte_t type in order to have one entry every
->>> 16 bytes, then replicate the PTE value at *ptep, *ptep+1,*ptep+2 and
->>> *ptep+3 both in set_pte_at() and pte_update().
->>>
->>> However, this doesn't work because many many places in the mm core part
->>> of the kernel use loops on ptep with single ptep++ increment.
->>>
->>> Therefore did it with the following hack:
->>>
->>>    /* PTE level */
->>> +#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
->>> +typedef struct { pte_basic_t pte, pte1, pte2, pte3; } pte_t;
->>> +#else
->>>    typedef struct { pte_basic_t pte; } pte_t;
->>> +#endif
->>>
->>> @@ -181,7 +192,13 @@ static inline unsigned long pte_update(pte_t *p,
->>>           : "cc" );
->>>    #else /* PTE_ATOMIC_UPDATES */
->>>           unsigned long old =3D pte_val(*p);
->>> -       *p =3D __pte((old & ~clr) | set);
->>> +       unsigned long new =3D (old & ~clr) | set;
->>> +
->>> +#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
->>> +       p->pte =3D p->pte1 =3D p->pte2 =3D p->pte3 =3D new;
->>> +#else
->>> +       *p =3D __pte(new);
->>> +#endif
->>>    #endif /* !PTE_ATOMIC_UPDATES */
->>>
->>>    #ifdef CONFIG_44x
->>>
->>>
->>> @@ -161,7 +161,11 @@ static inline void __set_pte_at(struct mm_struct
->>> *mm, unsigned long addr,
->>>           /* Anything else just stores the PTE normally. That covers all
->>> 64-bit
->>>            * cases, and 32-bit non-hash with 32-bit PTEs.
->>>            */
->>> +#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
->>> +       ptep->pte =3D ptep->pte1 =3D ptep->pte2 =3D ptep->pte3 =3D pte_=
-val(pte);
->>> +#else
->>>           *ptep =3D pte;
->>> +#endif
->>>
->>>
->>>
->>> But I'm not too happy with it as it means pte_t is not a single type
->>> anymore so passing it from one function to the other is quite heavy.
->>>
->>>
->>> Would someone have an idea of an elegent way to handle that ?
->>>
->>> Thanks
->>> Christophe
->>=20
->> Why would pte_update bother about updating all the 4 entries?. Can you
->> help me understand the issue?
->
-> Because the 8xx HW assistance expects 4 identical entries for each 16k=20
-> page, so everytime a PTE is updated the 4 entries have to be updated.
->
+While e.g.
+	echo "online" > /sys/devices/system/memory/memory9/state
+is fine, e.g.
+	echo 1 > /sys/devices/system/memory/memory9/online
+Will not take the mem_hotplug_lock. However the device_lock() and
+device_hotplug_lock.
 
-What you suggested in the original mail is what matches that best isn't it?
-That is a linux pte update involves updating 4 slot. Hence a linux pte
-consist of 4 unsigned long?
+E.g. via memory_probe_store(), we can end up calling
+add_memory()->online_pages() without the device_hotplug_lock. So we can
+have concurrent callers in online_pages(). We e.g. touch in online_pages()
+basically unprotected zone->present_pages then.
 
--aneesh
+Looks like there is a longer history to that (see Patch #2 for details),
+and fixing it to work the way it was intended is not really possible. We
+would e.g. have to take the mem_hotplug_lock in device/base/core.c, which
+sounds wrong.
+
+Summary: We had a lock inversion on mem_hotplug_lock and device_lock().
+More details can be found in patch 3 and patch 6.
+
+I propose the general rules (documentation added in patch 6):
+
+1. add_memory/add_memory_resource() must only be called with
+   device_hotplug_lock.
+2. remove_memory() must only be called with device_hotplug_lock. This is
+   already documented and holds for all callers.
+3. device_online()/device_offline() must only be called with
+   device_hotplug_lock. This is already documented and true for now in core
+   code. Other callers (related to memory hotplug) have to be fixed up.
+4. mem_hotplug_lock is taken inside of add_memory/remove_memory/
+   online_pages/offline_pages.
+
+To me, this looks way cleaner than what we have right now (and easier to
+verify). And looking at the documentation of remove_memory, using
+lock_device_hotplug also for add_memory() feels natural.
+
+
+RFCv2 -> v1:
+- Dropped an unnecessary _ref from remove_memory() in patch #1
+- Minor patch description fixes.
+- Added rb's
+
+RFC -> RFCv2:
+- Don't export device_hotplug_lock, provide proper remove_memory/add_memory
+  wrappers.
+- Split up the patches a bit.
+- Try to improve powernv memtrace locking
+- Add some documentation for locking that matches my knowledge
+
+David Hildenbrand (6):
+  mm/memory_hotplug: make remove_memory() take the device_hotplug_lock
+  mm/memory_hotplug: make add_memory() take the device_hotplug_lock
+  mm/memory_hotplug: fix online/offline_pages called w.o.
+    mem_hotplug_lock
+  powerpc/powernv: hold device_hotplug_lock when calling device_online()
+  powerpc/powernv: hold device_hotplug_lock in memtrace_offline_pages()
+  memory-hotplug.txt: Add some details about locking internals
+
+ Documentation/memory-hotplug.txt              | 39 +++++++++++-
+ arch/powerpc/platforms/powernv/memtrace.c     | 14 +++--
+ .../platforms/pseries/hotplug-memory.c        |  8 +--
+ drivers/acpi/acpi_memhotplug.c                |  4 +-
+ drivers/base/memory.c                         | 22 +++----
+ drivers/xen/balloon.c                         |  3 +
+ include/linux/memory_hotplug.h                |  4 +-
+ mm/memory_hotplug.c                           | 59 +++++++++++++++----
+ 8 files changed, 115 insertions(+), 38 deletions(-)
+
+-- 
+2.17.1
