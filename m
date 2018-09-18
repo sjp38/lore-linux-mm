@@ -1,83 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B1A58E0001
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 01:53:38 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id t26-v6so559804pfh.0
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 22:53:38 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id r14-v6si17877529pfa.44.2018.09.17.22.53.31
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CA788E0001
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 02:40:22 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id f13-v6so559824pgs.15
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2018 23:40:22 -0700 (PDT)
+Received: from EX13-EDG-OU-002.vmware.com (ex13-edg-ou-002.vmware.com. [208.91.0.190])
+        by mx.google.com with ESMTPS id f8-v6si17201045pgl.383.2018.09.17.23.40.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Sep 2018 22:53:32 -0700 (PDT)
-Date: Tue, 18 Sep 2018 22:31:49 +0800
-From: Yi Zhang <yi.z.zhang@linux.intel.com>
-Subject: Re: [PATCH V5 0/4] Fix kvm misconceives NVDIMM pages as reserved mmio
-Message-ID: <20180918143148.GB70800@tiger-server>
-References: <cover.1536342881.git.yi.z.zhang@linux.intel.com>
- <20180907170451.GA5771@darwi-kernel>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 17 Sep 2018 23:40:20 -0700 (PDT)
+From: Nadav Amit <namit@vmware.com>
+Subject: [PATCH 14/19] mm/balloon_compaction: suppress allocation warnings
+Date: Mon, 17 Sep 2018 23:38:48 -0700
+Message-ID: <20180918063853.198332-15-namit@vmware.com>
+In-Reply-To: <20180918063853.198332-1-namit@vmware.com>
+References: <20180918063853.198332-1-namit@vmware.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20180907170451.GA5771@darwi-kernel>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Ahmed S. Darwish" <darwish.07@gmail.com>
-Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pbonzini@redhat.com, dan.j.williams@intel.com, dave.jiang@intel.com, yu.c.zhang@intel.com, pagupta@redhat.com, david@redhat.com, jack@suse.cz, hch@lst.de, linux-mm@kvack.org, rkrcmar@redhat.com, jglisse@redhat.com, yi.z.zhang@intel.com
+To: Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: linux-kernel@vger.kernel.org, Nadav Amit <namit@vmware.com>, "Michael S.
+ Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, virtualization@lists.linux-foundation.org, linux-mm@kvack.org
 
-Thanks Darwi's remind, Will follow that next time.
+There is no reason to print warnings when balloon page allocation fails.
 
-Thanks.
-Yi
+Cc: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Jason Wang <jasowang@redhat.com>
+Cc: virtualization@lists.linux-foundation.org
+Cc: linux-mm@kvack.org
+Reviewed-by: Xavier Deguillard <xdeguillard@vmware.com>
+Signed-off-by: Nadav Amit <namit@vmware.com>
+---
+ mm/balloon_compaction.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-On 2018-09-07 at 17:04:51 +0000, Ahmed S. Darwish wrote:
-> Hi!
-> 
-> On Sat, Sep 08, 2018 at 02:03:02AM +0800, Zhang Yi wrote:
-> [...]
-> >
-> > V1:
-> > https://lkml.org/lkml/2018/7/4/91
-> >
-> > V2:
-> > https://lkml.org/lkml/2018/7/10/135
-> >
-> > V3:
-> > https://lkml.org/lkml/2018/8/9/17
-> >
-> > V4:
-> > https://lkml.org/lkml/2018/8/22/17
-> >
-> 
-> Can we please avoid referencing "lkml.org"?
-> 
-> It's just an unreliable broken website. [1][2] Much more important
-> though is that its URLs _hide_ the Message-Id field; running the
-> threat of losing the e-mail reference forever at some point in the
-> future.
-> 
-> From Documentation/process/submitting-patches.rst:
-> 
->     If the patch follows from a mailing list discussion, give a
->     URL to the mailing list archive; use the https://lkml.kernel.org/
->     redirector with a ``Message-Id``, to ensure that the links
->     cannot become stale.
-> 
-> So the V1 link above should've been either:
-> 
->     https://lore.kernel.org/lkml/cover.1530716899.git.yi.z.zhang@linux.intel.com
-> 
-> or:
-> 
->     https://lkml.kernel.org/r/cover.1530716899.git.yi.z.zhang@linux.intel.com
-> 
-> and so on..
-> 
-> Thanks,
-> 
-> [1] https://www.theregister.co.uk/2018/01/14/linux_kernel_mailing_list_archives_will_return_soon
-> [2] The threading interface is also broken and in a lot of cases
->     does not show all messages in a thread
-> 
-> --
-> Darwi
-> http://darwish.chasingpointers.com
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index ef858d547e2d..a6c0efb3544f 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -22,7 +22,8 @@
+ struct page *balloon_page_alloc(void)
+ {
+ 	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
+-				       __GFP_NOMEMALLOC | __GFP_NORETRY);
++				       __GFP_NOMEMALLOC | __GFP_NORETRY |
++				       __GFP_NOWARN);
+ 	return page;
+ }
+ EXPORT_SYMBOL_GPL(balloon_page_alloc);
+-- 
+2.17.1
