@@ -1,77 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4111A8E0001
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 14:52:35 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id b5-v6so2187193qtk.4
-        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 11:52:35 -0700 (PDT)
-Received: from smtp-fw-6001.amazon.com (smtp-fw-6001.amazon.com. [52.95.48.154])
-        by mx.google.com with ESMTPS id 199-v6si543804qkn.10.2018.09.18.11.52.33
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B8378E0001
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 16:28:25 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id z17-v6so2295715qka.9
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 13:28:25 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e23-v6si273457qta.54.2018.09.18.13.28.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Sep 2018 11:52:34 -0700 (PDT)
-From: "Um, Taeil" <taeilum@amazon.com>
-Subject: Re: zswap: use PAGE_SIZE * 2 for compression dst buffer size when
- calling crypto compression API
-Date: Tue, 18 Sep 2018 18:52:30 +0000
-Message-ID: <EAFEF5B5-DE5D-42C7-AEF1-9DF6A800E95D@amazon.com>
-References: <D4C91DBA-CF56-4991-BD7F-6BE334A2C048@amazon.com>
- <CALZtONDpUDAz_PLrt03CaajzAoY_Wr6Tm=PgvqAWyir9=fCd8A@mail.gmail.com>
-In-Reply-To: <CALZtONDpUDAz_PLrt03CaajzAoY_Wr6Tm=PgvqAWyir9=fCd8A@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <99DA2C5906A560479D3ED28DF1AE4F1E@amazon.com>
-Content-Transfer-Encoding: base64
+        Tue, 18 Sep 2018 13:28:24 -0700 (PDT)
+Date: Tue, 18 Sep 2018 16:28:19 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH v5 2/7] mm, devm_memremap_pages: Kill mapping "System
+ RAM" support
+Message-ID: <20180918202818.GB14689@redhat.com>
+References: <153680531988.453305.8080706591516037706.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <153680533172.453305.5701902165148172434.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <153680533172.453305.5701902165148172434.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Seth Jennings <sjenning@redhat.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Christoph Hellwig <hch@lst.de>, Logan Gunthorpe <logang@deltatee.com>, alexander.h.duyck@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-UHJvYmxlbSBzdGF0ZW1lbnQ6IA0KImNvbXByZXNzZWQgZGF0YSBhcmUgbm90IGZ1bGx5IGNvcGll
-ZCB0byBkZXN0aW5hdGlvbiBidWZmZXIgd2hlbiBjb21wcmVzc2VkIGRhdGEgc2l6ZSBpcyBncmVh
-dGVyIHRoYW4gc291cmNlIGRhdGEiDQoNCldoeTogDQo1dGggYXJndW1lbnQgb2YgY3J5cHRvX2Nv
-bXBfY29tcHJlc3MgZnVuY3Rpb24gaXMgKmRsZW4sIHdoaWNoIHRlbGwgdGhlIGNvbXByZXNzaW9u
-IGRyaXZlciBob3cgbWFueSBieXRlcyB0aGUgZGVzdGluYXRpb24gYnVmZmVyIHNwYWNlIGlzIGFs
-bG9jYXRlZCAoYWxsb3dlZCB0byB3cml0ZSBkYXRhKS4NClRoaXMgKmRsZW4gaXMgaW1wb3J0YW50
-IGVzcGVjaWFsbHkgZm9yIEgvVyBhY2NlbGVyYXRvciBiYXNlZCBjb21wcmVzc2lvbiBkcml2ZXIg
-YmVjYXVzZSBpdCBpcyBkYW5nZXJvdXMgaWYgd2UgYWxsb3cgdGhlIEgvVyBhY2NlbGVyYXRvciB0
-byBhY2Nlc3MgbWVtb3J5IGJleW9uZCAqZHN0ICsgKmRsZW4uDQpOb3RlIHRoYXQgYnVmZmVyIGxv
-Y2F0aW9uIHdvdWxkIGJlIHBhc3NlZCBhcyBwaHlzaWNhbCBhZGRyZXNzLg0KRHVlIHRvIHRoZSBh
-Ym92ZSByZWFzb24sIEgvVyBhY2NlbGVyYXRvciBiYXNlZCBjb21wcmVzc2lvbiBkcml2ZXIgbmVl
-ZCB0byBob25vciAqZGxlbiB2YWx1ZSB3aGVuIGl0IHNlcnZlcyBjcnlwdG9fY29tcF9jb21wcmVz
-cyBBUEkuDQpUb2RheSwgd2UgcGFzcyBzbGVuID0gUEFHRV9TSVpFIGFuZCAqZGxlbj1QQUdFX1NJ
-WkUgdG8gY3J5cHRvX2NvbXBfY29tcHJlc3MgaW4genN3YXAuYy4NCklmIGNvbXByZXNzZWQgZGF0
-YSBzaXplIGlzIGdyZWF0ZXIgdGhhbiBzb3VyY2UgKHVuY29tcHJlc3NlZCkgZGF0YSBzaXplLCAg
-SC9XIGFjY2VsZXJhdG9yIGNhbm5vdCBjb3B5IChkZWxpdmVyKSB0aGUgZW50aXJlIGNvbXByZXNz
-ZWQgZGF0YS4NCg0KVGhhbmsgeW91LA0KVGFlaWwNCg0K77u/T24gOS8xOC8xOCwgNzoxNSBBTSwg
-IkRhbiBTdHJlZXRtYW4iIDxkZHN0cmVldEBpZWVlLm9yZz4gd3JvdGU6DQoNCiAgICBPbiBNb24s
-IFNlcCAxNywgMjAxOCBhdCA3OjEwIFBNIFVtLCBUYWVpbCA8dGFlaWx1bUBhbWF6b24uY29tPiB3
-cm90ZToNCiAgICA+DQogICAgPiBDdXJyZW50bHksIHdlIGFsbG9jYXRlIFBBR0VfU0laRSAqIDIg
-Zm9yIHpzd2FwX2RzdG1lbSB3aGljaCBpcyB1c2VkIGFzIGNvbXByZXNzaW9uIGRlc3RpbmF0aW9u
-IGJ1ZmZlci4NCiAgICA+DQogICAgPiBIb3dldmVyLCB3ZSBwYXNzIG9ubHkgaGFsZiBvZiB0aGUg
-c2l6ZSAoUEFHRV9TSVpFKSB0byBjcnlwdG9fY29tcF9jb21wcmVzcy4NCiAgICA+DQogICAgPiBU
-aGlzIG1pZ2h0IG5vdCBiZSBhIHByb2JsZW0gZm9yIENQVSBiYXNlZCBleGlzdGluZyBsem8sIGx6
-NCBjcnlwdG8gY29tcHJlc3Npb24gZHJpdmVyIGltcGxhbnRhdGlvbi4NCiAgICA+DQogICAgPiBI
-b3dldmVyLCB0aGlzIGNvdWxkIGJlIGEgcHJvYmxlbSBmb3Igc29tZSBIL1cgYWNjZWxlcmF0aW9u
-IGNvbXByZXNzaW9uIGRyaXZlcnMsIHdoaWNoIGhvbm9yIGRlc3RpbmF0aW9uIGJ1ZmZlciBzaXpl
-IHdoZW4gaXQgcHJlcGFyZXMgSC9XIHJlc291cmNlcy4NCiAgICANCiAgICBIb3cgZXhhY3RseSBj
-b3VsZCBpdCBiZSBhIHByb2JsZW0/DQogICAgDQogICAgPg0KICAgID4gQWN0dWFsbHksIHRoaXMg
-cGF0Y2ggaXMgYWxpZ25lZCB3aXRoIHdoYXQgenJhbSBpcyBwYXNzaW5nIHdoZW4gaXQgY2FsbHMg
-Y3J5cHRvX2NvbXBfY29tcHJlc3MuDQogICAgPg0KICAgID4gVGhlIGZvbGxvd2luZyBzaW1wbGUg
-cGF0Y2ggd2lsbCBzb2x2ZSB0aGlzIHByb2JsZW0uIEkgdGVzdGVkIGl0IHdpdGggZXhpc3Rpbmcg
-Y3J5cHRvL2x6by5jIGFuZCBjcnlwdG8vbHo0LmMgY29tcHJlc3Npb24gZHJpdmVyIGFuZCBpdCB3
-b3JrcyBmaW5lLg0KICAgID4NCiAgICA+DQogICAgPg0KICAgID4NCiAgICA+DQogICAgPiAtLS0g
-bW0venN3YXAuYy5vcmlnICAgICAgIDIwMTgtMDktMTQgMTQ6MzY6MzcuOTg0MTk5MjMyIC0wNzAw
-DQogICAgPg0KICAgID4gKysrIG1tL3pzd2FwLmMgICAgICAgICAgICAgMjAxOC0wOS0xNCAxNDoz
-Njo1My4zNDAxODk2ODEgLTA3MDANCiAgICA+DQogICAgPiBAQCAtMTAwMSw3ICsxMDAxLDcgQEAg
-c3RhdGljIGludCB6c3dhcF9mcm9udHN3YXBfc3RvcmUodW5zaWduZQ0KICAgID4NCiAgICA+ICAg
-ICAgICAgICAgICAgICBzdHJ1Y3QgenN3YXBfZW50cnkgKmVudHJ5LCAqZHVwZW50cnk7DQogICAg
-Pg0KICAgID4gICAgICAgICAgICAgICAgIHN0cnVjdCBjcnlwdG9fY29tcCAqdGZtOw0KICAgID4N
-CiAgICA+ICAgICAgICAgICAgICAgICBpbnQgcmV0Ow0KICAgID4NCiAgICA+IC0gICAgICAgICAg
-ICAgIHVuc2lnbmVkIGludCBobGVuLCBkbGVuID0gUEFHRV9TSVpFOw0KICAgID4NCiAgICA+ICsg
-ICAgICAgICAgICAgdW5zaWduZWQgaW50IGhsZW4sIGRsZW4gPSBQQUdFX1NJWkUgKiAyOw0KICAg
-ID4NCiAgICA+ICAgICAgICAgICAgICAgICB1bnNpZ25lZCBsb25nIGhhbmRsZSwgdmFsdWU7DQog
-ICAgPg0KICAgID4gICAgICAgICAgICAgICAgIGNoYXIgKmJ1ZjsNCiAgICA+DQogICAgPiAgICAg
-ICAgICAgICAgICAgdTggKnNyYywgKmRzdDsNCiAgICA+DQogICAgPg0KICAgID4NCiAgICA+DQog
-ICAgPg0KICAgID4NCiAgICA+DQogICAgPiBUaGFuayB5b3UsDQogICAgPg0KICAgID4gVGFlaWwN
-CiAgICA+DQogICAgPg0KICAgIA0KICAgIA0KDQo=
+On Wed, Sep 12, 2018 at 07:22:11PM -0700, Dan Williams wrote:
+> Given the fact that devm_memremap_pages() requires a percpu_ref that is
+> torn down by devm_memremap_pages_release() the current support for
+> mapping RAM is broken.
+> 
+> Support for remapping "System RAM" has been broken since the beginning
+> and there is no existing user of this this code path, so just kill the
+> support and make it an explicit error.
+> 
+> This cleanup also simplifies a follow-on patch to fix the error path
+> when setting a devm release action for devm_memremap_pages_release()
+> fails.
+> 
+> Cc: Christoph Hellwig <hch@lst.de>
+
+Reviewed-by: Jerome Glisse <jglisse@redhat.com>
+
+> Cc: Logan Gunthorpe <logang@deltatee.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  kernel/memremap.c |    9 +++------
+>  1 file changed, 3 insertions(+), 6 deletions(-)
+> 
+> diff --git a/kernel/memremap.c b/kernel/memremap.c
+> index f95c7833db6d..92e838127767 100644
+> --- a/kernel/memremap.c
+> +++ b/kernel/memremap.c
+> @@ -202,15 +202,12 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+>  	is_ram = region_intersects(align_start, align_size,
+>  		IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
+>  
+> -	if (is_ram == REGION_MIXED) {
+> -		WARN_ONCE(1, "%s attempted on mixed region %pr\n",
+> -				__func__, res);
+> +	if (is_ram != REGION_DISJOINT) {
+> +		WARN_ONCE(1, "%s attempted on %s region %pr\n", __func__,
+> +				is_ram == REGION_MIXED ? "mixed" : "ram", res);
+>  		return ERR_PTR(-ENXIO);
+>  	}
+>  
+> -	if (is_ram == REGION_INTERSECTS)
+> -		return __va(res->start);
+> -
+>  	if (!pgmap->ref)
+>  		return ERR_PTR(-EINVAL);
+>  
+> 
