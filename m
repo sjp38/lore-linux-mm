@@ -1,56 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AAD7E8E0001
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 09:00:33 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id k1-v6so1872009wrl.13
-        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 06:00:33 -0700 (PDT)
-Received: from fuzix.org (www.llwyncelyn.cymru. [82.70.14.225])
-        by mx.google.com with ESMTPS id a34-v6si18042142wrc.100.2018.09.18.06.00.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 18 Sep 2018 06:00:32 -0700 (PDT)
-Date: Tue, 18 Sep 2018 14:00:30 +0100
-From: Alan Cox <gnomes@lxorguk.ukuu.org.uk>
-Subject: Re: 32-bit PTI with THP = userspace corruption
-Message-ID: <20180918140030.248afa21@alans-desktop>
-In-Reply-To: <20180911121128.ikwptix6e4slvpt2@suse.de>
-References: <alpine.LRH.2.21.1808301639570.15669@math.ut.ee>
-	<20180830205527.dmemjwxfbwvkdzk2@suse.de>
-	<alpine.LRH.2.21.1808310711380.17865@math.ut.ee>
-	<20180831070722.wnulbbmillxkw7ke@suse.de>
-	<alpine.DEB.2.21.1809081223450.1402@nanos.tec.linutronix.de>
-	<20180911114927.gikd3uf3otxn2ekq@suse.de>
-	<alpine.LRH.2.21.1809111454100.29433@math.ut.ee>
-	<20180911121128.ikwptix6e4slvpt2@suse.de>
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C52118E0001
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 10:10:18 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id r10-v6so1684134oti.19
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 07:10:18 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g24-v6si6829653otf.185.2018.09.18.07.10.16
+        for <linux-mm@kvack.org>;
+        Tue, 18 Sep 2018 07:10:17 -0700 (PDT)
+Date: Tue, 18 Sep 2018 15:10:34 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [RFC][PATCH 07/11] arm/tlb: Convert to generic mmu_gather
+Message-ID: <20180918141034.GF16498@arm.com>
+References: <20180913092110.817204997@infradead.org>
+ <20180913092812.247989787@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180913092812.247989787@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <jroedel@suse.de>
-Cc: Meelis Roos <mroos@linux.ee>, Thomas Gleixner <tglx@linutronix.de>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, npiggin@gmail.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@armlinux.org.uk, heiko.carstens@de.ibm.com
 
-On Tue, 11 Sep 2018 14:12:22 +0200
-Joerg Roedel <jroedel@suse.de> wrote:
+Hi Peter,
 
-> On Tue, Sep 11, 2018 at 02:58:10PM +0300, Meelis Roos wrote:
-> > The machines where I have PAE off are the ones that have less memory. 
-> > PAE is off just for performance reasons, not lack of PAE. PAE should be 
-> > present on all of my affected machines anyway and current distributions 
-> > seem to mostly assume 686 and PAE anyway for 32-bit systems.  
+On Thu, Sep 13, 2018 at 11:21:17AM +0200, Peter Zijlstra wrote:
+> Generic mmu_gather provides everything that ARM needs:
 > 
-> Right, most distributions don't even provide a non-PAE kernel for their
-> users anymore.
+>  - range tracking
+>  - RCU table free
+>  - VM_EXEC tracking
+>  - VIPT cache flushing
 > 
-> How big is the performance impact of using PAE over legacy paging?
+> The one notable curiosity is the 'funny' range tracking for classical
+> ARM in __pte_free_tlb().
+> 
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Nick Piggin <npiggin@gmail.com>
+> Cc: Russell King <linux@armlinux.org.uk>
+> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+> ---
+>  arch/arm/include/asm/tlb.h |  255 ++-------------------------------------------
+>  1 file changed, 14 insertions(+), 241 deletions(-)
 
-On what system. In the days of the original 36bit PAE Xeons it was around
-10% when we measured it at Red Hat, but that was long ago and as you go
-newer it really ought to be vanishingly small.
+So whilst I was reviewing this, I realised that I think we should be
+selecting HAVE_RCU_TABLE_INVALIDATE for arch/arm/ if HAVE_RCU_TABLE_FREE.
 
-There are pretty much no machines that don't support PAE and are still
-even vaguely able to boot a modern Linux kernel. The oddity is the
-Pentium-M but most distros shipped a hack to use PAE on the Pentium M
-anyway as it seems to work fine.
+Whilst we don't distinguish between invalidation of intermediate and leaf
+levels on 32-bit, the CPU is still permitted to cache partial translation
+table walks even if the leaf entry indicates a fault. That means that
+after tearing down the PTEs, we can still get walk cache allocations and
+so if the RCU batching of the page tables fails, we need to invalidate
+the TLB after clearing the intermediate entries but before freeing them.
 
-Alan
+> -static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
+> -	unsigned long addr)
+> +__pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte, unsigned long addr)
+>  {
+>  	pgtable_page_dtor(pte);
+>  
+> -#ifdef CONFIG_ARM_LPAE
+> -	tlb_add_flush(tlb, addr);
+> -#else
+> +#ifndef CONFIG_ARM_LPAE
+>  	/*
+>  	 * With the classic ARM MMU, a pte page has two corresponding pmd
+>  	 * entries, each covering 1MB.
+>  	 */
+> -	addr &= PMD_MASK;
+> -	tlb_add_flush(tlb, addr + SZ_1M - PAGE_SIZE);
+> -	tlb_add_flush(tlb, addr + SZ_1M);
+> +	addr = (addr & PMD_MASK) + SZ_1M;
+> +	__tlb_adjust_range(tlb, addr - PAGE_SIZE, addr + PAGE_SIZE);
+
+Hmm, I don't think you've got the range correct here. Don't we want
+something like:
+
+	__tlb_adjust_range(tlb, addr - PAGE_SIZE, 2 * PAGE_SIZE)
+
+to ensure that we flush on both sides of the 1M boundary?
+
+Will
