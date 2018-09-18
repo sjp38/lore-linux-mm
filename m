@@ -1,70 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A6A7B8E0001
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 08:25:56 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id r131-v6so1524856oie.14
-        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 05:25:56 -0700 (PDT)
-Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
-        by mx.google.com with ESMTPS id f10-v6si6110845otb.21.2018.09.18.05.25.53
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 25A408E0001
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 08:27:35 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id g36-v6so969895plb.5
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 05:27:35 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 2-v6si18545930pla.495.2018.09.18.05.27.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Sep 2018 05:25:55 -0700 (PDT)
-Date: Tue, 18 Sep 2018 13:24:57 +0100
-From: Jonathan Cameron <jonathan.cameron@huawei.com>
-Subject: Re: [RFC] mm/memory_hotplug: wrong node identified if memory was
- never on-lined.
-Message-ID: <20180918132457.00007c48@huawei.com>
-In-Reply-To: <20180918121342.GA29130@techadventures.net>
-References: <20180912150218.00002cbc@huawei.com>
-	<20180918121342.GA29130@techadventures.net>
+        Tue, 18 Sep 2018 05:27:33 -0700 (PDT)
+Date: Tue, 18 Sep 2018 14:27:29 +0200
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH 00/19] vmw_balloon: compaction, shrinker, 64-bit, etc.
+Message-ID: <20180918122729.GA13598@kroah.com>
+References: <20180918063853.198332-1-namit@vmware.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180918063853.198332-1-namit@vmware.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>, linuxarm@huawei.com
-Cc: linux-mm@kvack.org
+To: Nadav Amit <namit@vmware.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, linux-kernel@vger.kernel.org, Xavier Deguillard <xdeguillard@vmware.com>, "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, linux-mm@kvack.org, virtualization@lists.linux-foundation.org
 
-On Tue, 18 Sep 2018 14:13:42 +0200
-Oscar Salvador <osalvador@techadventures.net> wrote:
+On Mon, Sep 17, 2018 at 11:38:34PM -0700, Nadav Amit wrote:
+> This patch-set adds the following enhancements to the VMware balloon
+> driver:
+> 
+> 1. Balloon compaction support.
+> 2. Report the number of inflated/deflated ballooned pages through vmstat.
+> 3. Memory shrinker to avoid balloon over-inflation (and OOM).
+> 4. Support VMs with memory limit that is greater than 16TB.
+> 5. Faster and more aggressive inflation.
+> 
+> To support compaction we wish to use the existing infrastructure.
+> However, we need to make slight adaptions for it. We add a new list
+> interface to balloon-compaction, which is more generic and efficient,
+> since it does not require as many IRQ save/restore operations. We leave
+> the old interface that is used by the virtio balloon.
+> 
+> Big parts of this patch-set are cleanup and documentation. Patches 1-13
+> simplify the balloon code, document its behavior and allow the balloon
+> code to run concurrently. The support for concurrency is required for
+> compaction and the shrinker interface.
+> 
+> For documentation we use the kernel-doc format. We are aware that the
+> balloon interface is not public, but following the kernel-doc format may
+> be useful one day.
 
-> On Wed, Sep 12, 2018 at 03:02:18PM +0100, Jonathan Cameron wrote:
-> > Now I'm not sure what the preferred fix for this would be.
-> > 1) Actually set the nid for each pfn during hot add rather than waiting for
-> >    online.
-> > 2) Modify the whole call chain to pass the nid through as we know it at the
-> >    remove_memory call for hotplug cases...  
-> 
-> Hi Jonathan,
-Hi Oscar,
+kbuild seems to not like this patch series, so I'm going to drop it from
+my queue and wait for a v2 respin before looking at it.
 
-> 
-> I am back from vacation after four weeks, so I might still be in a bubble.
-> 
-> I was cleaning up unregister_mem_sect_under_nodes in [1], but I failed
-> to see this.
-> I think that we can pass the node down the chain.
-> 
-> Looking closer, we might be able to get rid of the nodemask var there,
-> but I need to take a closer look.
-> 
-> I had a RFCv2 sent a month ago [2] to fix another problem.
-Ah. Yes I hadn't made the connection that it would be doing most of what is
-needed here as well. Thanks.
+thanks,
 
-> That patchset, among other things, replaces the zone paramater with the nid.
-> 
-> I was about to send a new version of that patchset, without RFC this time, so
-> if you do not mind, I could add this change in there and you can comment it.
-That would be great.
-
-Thanks,
-
-Jonathan
-> 
-> What do you think?
-> 
-> [1] https://patchwork.kernel.org/patch/10568547/
-> [2] https://patchwork.kernel.org/patch/10569085/
-> 
-> Thanks
+greg k-h
