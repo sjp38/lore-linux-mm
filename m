@@ -1,91 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 787E88E0001
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 05:43:14 -0400 (EDT)
-Received: by mail-wm1-f71.google.com with SMTP id s18-v6so741070wmc.5
-        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 02:43:14 -0700 (PDT)
-Received: from EUR04-DB3-obe.outbound.protection.outlook.com (mail-eopbgr60091.outbound.protection.outlook.com. [40.107.6.91])
-        by mx.google.com with ESMTPS id d16-v6si17153061wrp.194.2018.09.18.02.43.12
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FFE48E0001
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 05:58:28 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id i68-v6so899316pfb.9
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 02:58:28 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t2-v6si17722984pge.64.2018.09.18.02.58.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 18 Sep 2018 02:43:12 -0700 (PDT)
-Subject: Re: [LKP] [vfree, kvfree] a79ed8bfb2:
- BUG:sleeping_function_called_from_invalid_context_at_mm/util.c
-References: <20180918085252.GR7632@shao2-debian>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <7e19e4df-b1a6-29bd-9ae7-0266d50bef1d@virtuozzo.com>
-Date: Tue, 18 Sep 2018 12:43:31 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Sep 2018 02:58:26 -0700 (PDT)
+Date: Tue, 18 Sep 2018 11:58:22 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [BUG] mm: direct I/O (using GUP) can write to COW anonymous pages
+Message-ID: <20180918095822.GH10257@quack2.suse.cz>
+References: <CAG48ez17Of=dnymzm8GAN_CNG1okMg1KTeMtBQhXGP2dyB5uJw@mail.gmail.com>
+ <alpine.LSU.2.11.1809171628190.2225@eggly.anvils>
+ <CAG48ez1hk5evqQpyvticPzLFOcESfo2NoWnqrLZk6N4PXwdsOw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180918085252.GR7632@shao2-debian>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAG48ez1hk5evqQpyvticPzLFOcESfo2NoWnqrLZk6N4PXwdsOw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel test robot <rong.a.chen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lkp@01.org
+To: Jann Horn <jannh@google.com>
+Cc: Hugh Dickins <hughd@google.com>, Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, sqazi@google.com, "Michael S. Tsirkin" <mst@redhat.com>, jack@suse.cz, kernel list <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Miklos Szeredi <miklos@szeredi.hu>, john.hubbard@gmail.com
 
-On 09/18/2018 11:52 AM, kernel test robot wrote:
+On Tue 18-09-18 02:35:43, Jann Horn wrote:
+> On Tue, Sep 18, 2018 at 2:05 AM Hugh Dickins <hughd@google.com> wrote:
 
+Thanks for CC Hugh.
+
+> > On Mon, 17 Sep 2018, Jann Horn wrote:
+> >
+> > > [I'm not sure who the best people to ask about this are, I hope the
+> > > recipient list resembles something reasonable...]
+> > >
+> > > I have noticed that the dup_mmap() logic on fork() doesn't handle
+> > > pages with active direct I/O properly: dup_mmap() seems to assume that
+> > > making the PTE referencing a page readonly will always prevent future
+> > > writes to the page, but if the kernel has acquired a direct reference
+> > > to the page before (e.g. via get_user_pages_fast()), writes can still
+> > > happen that way.
+> > >
+> > > The worst-case effect of this - as far as I can tell - is that when a
+> > > multithreaded process forks while one thread is in the middle of
+> > > sys_read() on a file that uses direct I/O with get_user_pages_fast(),
+> > > the read data can become visible in the child while the parent's
+> > > buffer stays uninitialized if the parent writes to a relevant page
+> > > post-fork before either the I/O completes or the child writes to it.
+> >
+> > Yes: you're understandably more worried by the one seeing the other's
+> > data;
 > 
-> [    3.265372] BUG: sleeping function called from invalid context at mm/util.c:449
-> [    3.288552] in_atomic(): 0, irqs_disabled(): 0, pid: 142, name: rhashtable_thra
-> [    3.301548] INFO: lockdep is turned off.
-> [    3.302214] Preemption disabled at:
-> [    3.302221] [<c163e86f>] get_random_u32+0x4f/0x100
-> [    3.327556] CPU: 0 PID: 142 Comm: rhashtable_thra Tainted: G        W       T 4.19.0-rc3-00266-ga79ed8bf #656
-> [    3.328540] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1 04/01/2014
-> [    3.328540] Call Trace:
-> [    3.328540]  ? dump_stack+0x55/0x7b
-> [    3.328540]  ? get_random_u32+0x4f/0x100
-> [    3.328540]  ? ___might_sleep+0x11d/0x170
-> [    3.328540]  ? kvfree+0x61/0x70
-> [    3.328540]  ? bucket_table_free+0x18/0x80
-> [    3.328540]  ? bucket_table_alloc+0x79/0x160
-> [    3.328540]  ? rhashtable_insert_slow+0x25d/0x2d0
-> [    3.328540]  ? insert_retry+0x1df/0x320
-> [    3.328540]  ? threadfunc+0xa3/0x3fe
-> [    3.328540]  ? kzalloc+0x14/0x14
-> [    3.328540]  ? _raw_spin_unlock_irqrestore+0x30/0x50
-> [    3.328540]  ? kthread+0xd1/0x100
-> [    3.328540]  ? insert_retry+0x320/0x320
-> [    3.328540]  ? kthread_delayed_work_timer_fn+0x80/0x80
-> [    3.328540]  ? ret_from_fork+0x2e/0x38
+> Actually, I was mostly just trying to find a scenario in which the
+> parent doesn't get the data it's asking for, and this is the simplest
+> I could come up with. :)
+> 
+> I was also vaguely worried about whether some other part of the mm
+> subsystem might assume that COW pages are immutable, but I haven't
+> found anything like that so far, so that might've been unwarranted
+> paranoia.
 
+It's actually warranted paranoia. There are situations where filesystems
+don't expect *shared file* page to be written when all pages tables are
+write-protected - you can have a look at https://lwn.net/Articles/753027/
+for a discussion from LSF/MM on this.  And as I've learned from Nick Piggin
+people were aware of this problem over 10 years ago -
+https://lkml.org/lkml/2018/7/9/217. Just nobody put enough effort into
+fixing this.
 
-Seems like we need to drop might_sleep_if() from kvfree().
+> > we've tended in the past to be more worried about the one getting
+> > corruption, and the other not seeing the data it asked for (and usually
+> > in the context of RDMA, rather than filesystem direct I/O).
+> >
+> > I've added some Cc's: I might be misremembering, but I think both
+> > Andrea and Konstantin have offered approaches to this in the past,
+> > and I believe Salman is taking a look at it currently.
+> >
+> > But my own interest ended when Michael added MADV_DONTFORK: beyond
+> > that, we've rated it a "Patient: It hurts when I do this. Doctor:
+> > Don't do that then" - more complexity and overhead to solve, than
+> > we have had appetite to get into.
+> 
+> Makes sense, I guess.
+> 
+> I wonder whether there's a concise way to express this in the fork.2
+> manpage, or something like that. Maybe I'll take a stab at writing
+> something. The biggest issue I see with documenting this edgecase is
+> that, as an application developer, if you don't know whether some file
+> might be coming from a FUSE filesystem that has opted out of using the
+> disk cache, the "don't do that" essentially becomes "don't read() into
+> heap buffers while fork()ing in another thread", since with FUSE,
+> direct I/O can happen even if you don't open files as O_DIRECT as long
+> as the filesystem requests direct I/O, and get_user_pages_fast() will
+> AFAIU be used for non-page-aligned buffers, meaning that an adjacent
+> heap memory access could trigger CoW page duplication. But then, FUSE
+> filesystems that opt out of the disk cache are probably so rare that
+> it's not a concern in practice...
 
-	rcu_read_lock()
-		rhashtable_insert_rehash()
-			new_tbl = bucket_table_alloc(ht, size, GFP_ATOMIC | __GFP_NOWARN);
-				->kvmalloc();
+So at least for shared file mappings we do need to fix this issue as it's
+currently userspace triggerable Oops if you try hard enough. And with RDMA
+you don't even have to try that hard. Properly dealing with private
+mappings should not be that hard once the infrastructure is there I hope
+but I didn't seriously look into that. I've added Miklos and John to CC as
+they are interested as well. John was working on fixing this problem -
+https://lkml.org/lkml/2018/7/9/158 - but I didn't hear from him for quite a
+while so I'm not sure whether it died off or what's the current situation.
 
-		bucket_table_free(new_tbl);
-			->kvfree()
-	rcu_read_unlock()
-
-kvmalloc(..., GFP_ATOMIC) simply always kmalloc:
-	if ((flags & GFP_KERNEL) != GFP_KERNEL)
-		return kmalloc_node(size, flags, node);
-
-So in the above case, kvfree() always frees kmalloced memory -> and never calls vfree().
-
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
----
- mm/util.c | 2 --
- 1 file changed, 2 deletions(-)
-
-diff --git a/mm/util.c b/mm/util.c
-index 929ed1795bc1..7f1f165f46af 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -446,8 +446,6 @@ EXPORT_SYMBOL(kvmalloc_node);
-  */
- void kvfree(const void *addr)
- {
--	might_sleep_if(!in_interrupt());
--
- 	if (is_vmalloc_addr(addr))
- 		vfree(addr);
- 	else
+								Honza
 -- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
