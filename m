@@ -1,216 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8454E8E0001
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 17:20:01 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id s69-v6so3041950ota.13
-        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 14:20:01 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 9-v6sor11964832ott.137.2018.09.18.14.20.00
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 026868E0001
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 17:44:39 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id o4-v6so3929117iob.12
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 14:44:38 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id w24-v6sor11923970jah.148.2018.09.18.14.44.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 18 Sep 2018 14:20:00 -0700 (PDT)
+        Tue, 18 Sep 2018 14:44:37 -0700 (PDT)
 MIME-Version: 1.0
-References: <20180918114822.21926-1-david@redhat.com> <20180918114822.21926-3-david@redhat.com>
-In-Reply-To: <20180918114822.21926-3-david@redhat.com>
-From: "Rafael J. Wysocki" <rafael@kernel.org>
-Date: Tue, 18 Sep 2018 23:19:48 +0200
-Message-ID: <CAJZ5v0htjOEJp=FH1Hnr=xp8AL7BJA72uaF__78AC97GYCmFFQ@mail.gmail.com>
-Subject: Re: [PATCH v1 2/6] mm/memory_hotplug: make add_memory() take the device_hotplug_lock
+References: <D4C91DBA-CF56-4991-BD7F-6BE334A2C048@amazon.com>
+ <CALZtONDpUDAz_PLrt03CaajzAoY_Wr6Tm=PgvqAWyir9=fCd8A@mail.gmail.com> <EAFEF5B5-DE5D-42C7-AEF1-9DF6A800E95D@amazon.com>
+In-Reply-To: <EAFEF5B5-DE5D-42C7-AEF1-9DF6A800E95D@amazon.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Tue, 18 Sep 2018 17:44:00 -0400
+Message-ID: <CALZtONC5FYhmq+U6fga7RbDA4mEB4rTihsLGXG50a-XUCdtxiA@mail.gmail.com>
+Subject: Re: zswap: use PAGE_SIZE * 2 for compression dst buffer size when
+ calling crypto compression API
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, nfont@linux.vnet.ibm.com, jallen@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, osalvador@suse.de, malat@debian.org, pavel.tatashin@microsoft.com, yasu.isimatu@gmail.com
+To: taeilum@amazon.com
+Cc: Linux-MM <linux-mm@kvack.org>, Seth Jennings <sjenning@redhat.com>
 
-On Tue, Sep 18, 2018 at 1:48 PM David Hildenbrand <david@redhat.com> wrote:
+On Tue, Sep 18, 2018 at 2:52 PM Um, Taeil <taeilum@amazon.com> wrote:
 >
-> add_memory() currently does not take the device_hotplug_lock, however
-> is aleady called under the lock from
->         arch/powerpc/platforms/pseries/hotplug-memory.c
->         drivers/acpi/acpi_memhotplug.c
-> to synchronize against CPU hot-remove and similar.
+> Problem statement:
+> "compressed data are not fully copied to destination buffer when compress=
+ed data size is greater than source data"
 >
-> In general, we should hold the device_hotplug_lock when adding memory
-> to synchronize against online/offline request (e.g. from user space) -
-> which already resulted in lock inversions due to device_lock() and
-> mem_hotplug_lock - see 30467e0b3be ("mm, hotplug: fix concurrent memory
-> hot-add deadlock"). add_memory()/add_memory_resource() will create memory
-> block devices, so this really feels like the right thing to do.
->
-> Holding the device_hotplug_lock makes sure that a memory block device
-> can really only be accessed (e.g. via .online/.state) from user space,
-> once the memory has been fully added to the system.
->
-> The lock is not held yet in
->         drivers/xen/balloon.c
->         arch/powerpc/platforms/powernv/memtrace.c
->         drivers/s390/char/sclp_cmd.c
->         drivers/hv/hv_balloon.c
-> So, let's either use the locked variants or take the lock.
->
-> Don't export add_memory_resource(), as it once was exported to be used
-> by XEN, which is never built as a module. If somebody requires it, we
-> also have to export a locked variant (as device_hotplug_lock is never
-> exported).
->
-> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> Cc: Paul Mackerras <paulus@samba.org>
-> Cc: Michael Ellerman <mpe@ellerman.id.au>
-> Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-> Cc: Len Brown <lenb@kernel.org>
-> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-> Cc: Juergen Gross <jgross@suse.com>
-> Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>
-> Cc: John Allen <jallen@linux.vnet.ibm.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Oscar Salvador <osalvador@suse.de>
-> Cc: Mathieu Malaterre <malat@debian.org>
-> Cc: Pavel Tatashin <pavel.tatashin@microsoft.com>
-> Cc: YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
-> Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
-> Signed-off-by: David Hildenbrand <david@redhat.com>
-> ---
->  .../platforms/pseries/hotplug-memory.c        |  2 +-
->  drivers/acpi/acpi_memhotplug.c                |  2 +-
->  drivers/base/memory.c                         |  9 ++++++--
->  drivers/xen/balloon.c                         |  3 +++
->  include/linux/memory_hotplug.h                |  1 +
->  mm/memory_hotplug.c                           | 22 ++++++++++++++++---
->  6 files changed, 32 insertions(+), 7 deletions(-)
->
-> diff --git a/arch/powerpc/platforms/pseries/hotplug-memory.c b/arch/powerpc/platforms/pseries/hotplug-memory.c
-> index b3f54466e25f..2e6f41dc103a 100644
-> --- a/arch/powerpc/platforms/pseries/hotplug-memory.c
-> +++ b/arch/powerpc/platforms/pseries/hotplug-memory.c
-> @@ -702,7 +702,7 @@ static int dlpar_add_lmb(struct drmem_lmb *lmb)
->         nid = memory_add_physaddr_to_nid(lmb->base_addr);
->
->         /* Add the memory */
-> -       rc = add_memory(nid, lmb->base_addr, block_sz);
-> +       rc = __add_memory(nid, lmb->base_addr, block_sz);
->         if (rc) {
->                 dlpar_remove_device_tree_lmb(lmb);
->                 return rc;
-> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-> index 811148415993..8fe0960ea572 100644
-> --- a/drivers/acpi/acpi_memhotplug.c
-> +++ b/drivers/acpi/acpi_memhotplug.c
-> @@ -228,7 +228,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
->                 if (node < 0)
->                         node = memory_add_physaddr_to_nid(info->start_addr);
->
-> -               result = add_memory(node, info->start_addr, info->length);
-> +               result = __add_memory(node, info->start_addr, info->length);
->
->                 /*
->                  * If the memory block has been used by the kernel, add_memory()
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index 817320c7c4c1..40cac122ec73 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -519,15 +519,20 @@ memory_probe_store(struct device *dev, struct device_attribute *attr,
->         if (phys_addr & ((pages_per_block << PAGE_SHIFT) - 1))
->                 return -EINVAL;
->
-> +       ret = lock_device_hotplug_sysfs();
-> +       if (ret)
-> +               goto out;
-> +
->         nid = memory_add_physaddr_to_nid(phys_addr);
-> -       ret = add_memory(nid, phys_addr,
-> -                        MIN_MEMORY_BLOCK_SIZE * sections_per_block);
-> +       ret = __add_memory(nid, phys_addr,
-> +                          MIN_MEMORY_BLOCK_SIZE * sections_per_block);
->
->         if (ret)
->                 goto out;
->
->         ret = count;
->  out:
-> +       unlock_device_hotplug();
->         return ret;
->  }
->
-> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-> index e12bb256036f..6bab019a82b1 100644
-> --- a/drivers/xen/balloon.c
-> +++ b/drivers/xen/balloon.c
-> @@ -395,7 +395,10 @@ static enum bp_state reserve_additional_memory(void)
->          * callers drop the mutex before trying again.
->          */
->         mutex_unlock(&balloon_mutex);
-> +       /* add_memory_resource() requires the device_hotplug lock */
-> +       lock_device_hotplug();
->         rc = add_memory_resource(nid, resource, memhp_auto_online);
-> +       unlock_device_hotplug();
->         mutex_lock(&balloon_mutex);
->
->         if (rc) {
-> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-> index 1f096852f479..ffd9cd10fcf3 100644
-> --- a/include/linux/memory_hotplug.h
-> +++ b/include/linux/memory_hotplug.h
-> @@ -324,6 +324,7 @@ static inline void __remove_memory(int nid, u64 start, u64 size) {}
->  extern void __ref free_area_init_core_hotplug(int nid);
->  extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
->                 void *arg, int (*func)(struct memory_block *, void *));
-> +extern int __add_memory(int nid, u64 start, u64 size);
->  extern int add_memory(int nid, u64 start, u64 size);
->  extern int add_memory_resource(int nid, struct resource *resource, bool online);
->  extern int arch_add_memory(int nid, u64 start, u64 size,
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index b8b1bd970322..ef5444145c88 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1111,7 +1111,12 @@ static int online_memory_block(struct memory_block *mem, void *arg)
->         return device_online(&mem->dev);
->  }
->
-> -/* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
-> +/*
-> + * NOTE: The caller must call lock_device_hotplug() to serialize hotplug
-> + * and online/offline operations (triggered e.g. by sysfs).
-> + *
-> + * we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG
-> + */
->  int __ref add_memory_resource(int nid, struct resource *res, bool online)
->  {
->         u64 start, size;
-> @@ -1180,9 +1185,9 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
->         mem_hotplug_done();
->         return ret;
->  }
-> -EXPORT_SYMBOL_GPL(add_memory_resource);
->
-> -int __ref add_memory(int nid, u64 start, u64 size)
-> +/* requires device_hotplug_lock, see add_memory_resource() */
-> +int __ref __add_memory(int nid, u64 start, u64 size)
->  {
->         struct resource *res;
->         int ret;
-> @@ -1196,6 +1201,17 @@ int __ref add_memory(int nid, u64 start, u64 size)
->                 release_memory_resource(res);
->         return ret;
->  }
-> +
-> +int add_memory(int nid, u64 start, u64 size)
-> +{
-> +       int rc;
-> +
-> +       lock_device_hotplug();
-> +       rc = __add_memory(nid, start, size);
-> +       unlock_device_hotplug();
-> +
-> +       return rc;
-> +}
->  EXPORT_SYMBOL_GPL(add_memory);
->
->  #ifdef CONFIG_MEMORY_HOTREMOVE
-> --
+> Why:
+> 5th argument of crypto_comp_compress function is *dlen, which tell the co=
+mpression driver how many bytes the destination buffer space is allocated (=
+allowed to write data).
+> This *dlen is important especially for H/W accelerator based compression =
+driver because it is dangerous if we allow the H/W accelerator to access me=
+mory beyond *dst + *dlen.
+> Note that buffer location would be passed as physical address.
+> Due to the above reason, H/W accelerator based compression driver need to=
+ honor *dlen value when it serves crypto_comp_compress API.
 
-Reviewed-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+and that's exactly what zswap wants to happen - any compressor (hw or
+sw) should fail with an error code (ENOSPC makes the most sense, but
+zswap doesn't actually care) if the compressed data size is larger
+than the provided data buffer.
+
+> Today, we pass slen =3D PAGE_SIZE and *dlen=3DPAGE_SIZE to crypto_comp_co=
+mpress in zswap.c.
+> If compressed data size is greater than source (uncompressed) data size, =
+ H/W accelerator cannot copy (deliver) the entire compressed data.
+
+If the "compressed" data is larger than 1 page, then there is no point
+in storing the page in zswap.
+
+remember that zswap is different than zram; in zram, there's no other
+place to store the data.  However, with zswap, if compression fails or
+isn't good, we can just pass the uncompressed page down to the swap
+device.
+
+>
+> Thank you,
+> Taeil
+>
+> =EF=BB=BFOn 9/18/18, 7:15 AM, "Dan Streetman" <ddstreet@ieee.org> wrote:
+>
+>     On Mon, Sep 17, 2018 at 7:10 PM Um, Taeil <taeilum@amazon.com> wrote:
+>     >
+>     > Currently, we allocate PAGE_SIZE * 2 for zswap_dstmem which is used=
+ as compression destination buffer.
+>     >
+>     > However, we pass only half of the size (PAGE_SIZE) to crypto_comp_c=
+ompress.
+>     >
+>     > This might not be a problem for CPU based existing lzo, lz4 crypto =
+compression driver implantation.
+>     >
+>     > However, this could be a problem for some H/W acceleration compress=
+ion drivers, which honor destination buffer size when it prepares H/W resou=
+rces.
+>
+>     How exactly could it be a problem?
+>
+>     >
+>     > Actually, this patch is aligned with what zram is passing when it c=
+alls crypto_comp_compress.
+>     >
+>     > The following simple patch will solve this problem. I tested it wit=
+h existing crypto/lzo.c and crypto/lz4.c compression driver and it works fi=
+ne.
+>     >
+>     >
+>     >
+>     >
+>     >
+>     > --- mm/zswap.c.orig       2018-09-14 14:36:37.984199232 -0700
+>     >
+>     > +++ mm/zswap.c             2018-09-14 14:36:53.340189681 -0700
+>     >
+>     > @@ -1001,7 +1001,7 @@ static int zswap_frontswap_store(unsigne
+>     >
+>     >                 struct zswap_entry *entry, *dupentry;
+>     >
+>     >                 struct crypto_comp *tfm;
+>     >
+>     >                 int ret;
+>     >
+>     > -              unsigned int hlen, dlen =3D PAGE_SIZE;
+>     >
+>     > +             unsigned int hlen, dlen =3D PAGE_SIZE * 2;
+>     >
+>     >                 unsigned long handle, value;
+>     >
+>     >                 char *buf;
+>     >
+>     >                 u8 *src, *dst;
+>     >
+>     >
+>     >
+>     >
+>     >
+>     >
+>     >
+>     > Thank you,
+>     >
+>     > Taeil
+>     >
+>     >
+>
+>
+>
