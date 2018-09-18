@@ -1,307 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C8DD08E0001
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 16:35:42 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id e88-v6so2407634qtb.1
-        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 13:35:42 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a8-v6si7301934qvn.86.2018.09.18.13.35.41
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3654B8E0001
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 17:18:55 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id c46-v6so2995349otd.12
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 14:18:55 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b201-v6sor16688714oii.82.2018.09.18.14.18.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Sep 2018 13:35:41 -0700 (PDT)
-Date: Tue, 18 Sep 2018 16:35:37 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH v5 6/7] mm, hmm: Replace hmm_devmem_pages_create() with
- devm_memremap_pages()
-Message-ID: <20180918203537.GF14689@redhat.com>
-References: <153680531988.453305.8080706591516037706.stgit@dwillia2-desk3.amr.corp.intel.com>
- <153680535314.453305.11205770267271657025.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (Google Transport Security);
+        Tue, 18 Sep 2018 14:18:53 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <153680535314.453305.11205770267271657025.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <20180918114822.21926-1-david@redhat.com> <20180918114822.21926-2-david@redhat.com>
+In-Reply-To: <20180918114822.21926-2-david@redhat.com>
+From: "Rafael J. Wysocki" <rafael@kernel.org>
+Date: Tue, 18 Sep 2018 23:18:41 +0200
+Message-ID: <CAJZ5v0gDDEvBrNCbB8E3Stq4QE_+6X72Pbu0Wyj8bQoSPXs3WA@mail.gmail.com>
+Subject: Re: [PATCH v1 1/6] mm/memory_hotplug: make remove_memory() take the device_hotplug_lock
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Christoph Hellwig <hch@lst.de>, Logan Gunthorpe <logang@deltatee.com>, alexander.h.duyck@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Hildenbrand <david@redhat.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, rashmica.g@gmail.com, Michael Neuling <mikey@neuling.org>, Balbir Singh <bsingharora@gmail.com>, nfont@linux.vnet.ibm.com, jallen@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Pavel Tatashin <pasha.tatashin@oracle.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, osalvador@suse.de, yasu.isimatu@gmail.com, malat@debian.org
 
-On Wed, Sep 12, 2018 at 07:22:33PM -0700, Dan Williams wrote:
-> Commit e8d513483300 "memremap: change devm_memremap_pages interface to
-> use struct dev_pagemap" refactored devm_memremap_pages() to allow a
-> dev_pagemap instance to be supplied. Passing in a dev_pagemap interface
-> simplifies the design of pgmap type drivers in that they can rely on
-> container_of() to lookup any private data associated with the given
-> dev_pagemap instance.
-> 
-> In addition to the cleanups this also gives hmm users multi-order-radix
-> improvements that arrived with commit ab1b597ee0e4 "mm,
-> devm_memremap_pages: use multi-order radix for ZONE_DEVICE lookups"
-> 
-> As part of the conversion to the devm_memremap_pages() method of
-> handling the percpu_ref relative to when pages are put, the percpu_ref
-> completion needs to move to hmm_devmem_ref_exit(). See commit
-> 71389703839e ("mm, zone_device: Replace {get, put}_zone_device_page...")
-> for details.
-> 
-> Reviewed-by: Christoph Hellwig <hch@lst.de>
-
-Reviewed-by: Jerome Glisse <jglisse@redhat.com>
-
-> Cc: Logan Gunthorpe <logang@deltatee.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+On Tue, Sep 18, 2018 at 1:48 PM David Hildenbrand <david@redhat.com> wrote:
+>
+> remove_memory() is exported right now but requires the
+> device_hotplug_lock, which is not exported. So let's provide a variant
+> that takes the lock and only export that one.
+>
+> The lock is already held in
+>         arch/powerpc/platforms/pseries/hotplug-memory.c
+>         drivers/acpi/acpi_memhotplug.c
+> So, let's use the locked variant.
+>
+> The lock is not held (but taken in)
+>         arch/powerpc/platforms/powernv/memtrace.c
+> So let's keep using the (now) locked variant.
+>
+> Apart from that, there are not other users in the tree.
+>
+> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Cc: Paul Mackerras <paulus@samba.org>
+> Cc: Michael Ellerman <mpe@ellerman.id.au>
+> Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+> Cc: Len Brown <lenb@kernel.org>
+> Cc: Rashmica Gupta <rashmica.g@gmail.com>
+> Cc: Michael Neuling <mikey@neuling.org>
+> Cc: Balbir Singh <bsingharora@gmail.com>
+> Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>
+> Cc: John Allen <jallen@linux.vnet.ibm.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Cc: YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
+> Cc: Mathieu Malaterre <malat@debian.org>
+> Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+> Signed-off-by: David Hildenbrand <david@redhat.com>
 > ---
->  mm/hmm.c |  194 ++++++++------------------------------------------------------
->  1 file changed, 26 insertions(+), 168 deletions(-)
-> 
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index ec1d9eccf176..c6cab5205b99 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -938,17 +938,16 @@ static void hmm_devmem_ref_exit(void *data)
->  	struct hmm_devmem *devmem;
->  
->  	devmem = container_of(ref, struct hmm_devmem, ref);
-> +	wait_for_completion(&devmem->completion);
->  	percpu_ref_exit(ref);
+>  arch/powerpc/platforms/powernv/memtrace.c       | 2 --
+>  arch/powerpc/platforms/pseries/hotplug-memory.c | 6 +++---
+>  drivers/acpi/acpi_memhotplug.c                  | 2 +-
+>  include/linux/memory_hotplug.h                  | 3 ++-
+>  mm/memory_hotplug.c                             | 9 ++++++++-
+>  5 files changed, 14 insertions(+), 8 deletions(-)
+>
+> diff --git a/arch/powerpc/platforms/powernv/memtrace.c b/arch/powerpc/platforms/powernv/memtrace.c
+> index 51dc398ae3f7..8f1cd4f3bfd5 100644
+> --- a/arch/powerpc/platforms/powernv/memtrace.c
+> +++ b/arch/powerpc/platforms/powernv/memtrace.c
+> @@ -90,9 +90,7 @@ static bool memtrace_offline_pages(u32 nid, u64 start_pfn, u64 nr_pages)
+>         walk_memory_range(start_pfn, end_pfn, (void *)MEM_OFFLINE,
+>                           change_memblock_state);
+>
+> -       lock_device_hotplug();
+>         remove_memory(nid, start_pfn << PAGE_SHIFT, nr_pages << PAGE_SHIFT);
+> -       unlock_device_hotplug();
+>
+>         return true;
 >  }
->  
-> -static void hmm_devmem_ref_kill(void *data)
-> +static void hmm_devmem_ref_kill(struct percpu_ref *ref)
+> diff --git a/arch/powerpc/platforms/pseries/hotplug-memory.c b/arch/powerpc/platforms/pseries/hotplug-memory.c
+> index c1578f54c626..b3f54466e25f 100644
+> --- a/arch/powerpc/platforms/pseries/hotplug-memory.c
+> +++ b/arch/powerpc/platforms/pseries/hotplug-memory.c
+> @@ -334,7 +334,7 @@ static int pseries_remove_memblock(unsigned long base, unsigned int memblock_siz
+>         nid = memory_add_physaddr_to_nid(base);
+>
+>         for (i = 0; i < sections_per_block; i++) {
+> -               remove_memory(nid, base, MIN_MEMORY_BLOCK_SIZE);
+> +               __remove_memory(nid, base, MIN_MEMORY_BLOCK_SIZE);
+>                 base += MIN_MEMORY_BLOCK_SIZE;
+>         }
+>
+> @@ -423,7 +423,7 @@ static int dlpar_remove_lmb(struct drmem_lmb *lmb)
+>         block_sz = pseries_memory_block_size();
+>         nid = memory_add_physaddr_to_nid(lmb->base_addr);
+>
+> -       remove_memory(nid, lmb->base_addr, block_sz);
+> +       __remove_memory(nid, lmb->base_addr, block_sz);
+>
+>         /* Update memory regions for memory remove */
+>         memblock_remove(lmb->base_addr, block_sz);
+> @@ -710,7 +710,7 @@ static int dlpar_add_lmb(struct drmem_lmb *lmb)
+>
+>         rc = dlpar_online_lmb(lmb);
+>         if (rc) {
+> -               remove_memory(nid, lmb->base_addr, block_sz);
+> +               __remove_memory(nid, lmb->base_addr, block_sz);
+>                 dlpar_remove_device_tree_lmb(lmb);
+>         } else {
+>                 lmb->flags |= DRCONF_MEM_ASSIGNED;
+> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+> index 6b0d3ef7309c..811148415993 100644
+> --- a/drivers/acpi/acpi_memhotplug.c
+> +++ b/drivers/acpi/acpi_memhotplug.c
+> @@ -282,7 +282,7 @@ static void acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
+>                         nid = memory_add_physaddr_to_nid(info->start_addr);
+>
+>                 acpi_unbind_memory_blocks(info);
+> -               remove_memory(nid, info->start_addr, info->length);
+> +               __remove_memory(nid, info->start_addr, info->length);
+>                 list_del(&info->list);
+>                 kfree(info);
+>         }
+> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> index 34a28227068d..1f096852f479 100644
+> --- a/include/linux/memory_hotplug.h
+> +++ b/include/linux/memory_hotplug.h
+> @@ -301,6 +301,7 @@ extern bool is_mem_section_removable(unsigned long pfn, unsigned long nr_pages);
+>  extern void try_offline_node(int nid);
+>  extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+>  extern void remove_memory(int nid, u64 start, u64 size);
+> +extern void __remove_memory(int nid, u64 start, u64 size);
+>
+>  #else
+>  static inline bool is_mem_section_removable(unsigned long pfn,
+> @@ -317,6 +318,7 @@ static inline int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
+>  }
+>
+>  static inline void remove_memory(int nid, u64 start, u64 size) {}
+> +static inline void __remove_memory(int nid, u64 start, u64 size) {}
+>  #endif /* CONFIG_MEMORY_HOTREMOVE */
+>
+>  extern void __ref free_area_init_core_hotplug(int nid);
+> @@ -330,7 +332,6 @@ extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+>                 unsigned long nr_pages, struct vmem_altmap *altmap);
+>  extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+>  extern bool is_memblock_offlined(struct memory_block *mem);
+> -extern void remove_memory(int nid, u64 start, u64 size);
+>  extern int sparse_add_one_section(struct pglist_data *pgdat,
+>                 unsigned long start_pfn, struct vmem_altmap *altmap);
+>  extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 38d94b703e9d..b8b1bd970322 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1873,7 +1873,7 @@ EXPORT_SYMBOL(try_offline_node);
+>   * and online/offline operations before this call, as required by
+>   * try_offline_node().
+>   */
+> -void __ref remove_memory(int nid, u64 start, u64 size)
+> +void __ref __remove_memory(int nid, u64 start, u64 size)
 >  {
-> -	struct percpu_ref *ref = data;
->  	struct hmm_devmem *devmem;
->  
->  	devmem = container_of(ref, struct hmm_devmem, ref);
->  	percpu_ref_kill(ref);
-> -	wait_for_completion(&devmem->completion);
+>         int ret;
+>
+> @@ -1902,5 +1902,12 @@ void __ref remove_memory(int nid, u64 start, u64 size)
+>
+>         mem_hotplug_done();
 >  }
->  
->  static int hmm_devmem_fault(struct vm_area_struct *vma,
-> @@ -971,152 +970,6 @@ static void hmm_devmem_free(struct page *page, void *data)
->  	devmem->ops->free(devmem, page);
->  }
->  
-> -static DEFINE_MUTEX(hmm_devmem_lock);
-> -static RADIX_TREE(hmm_devmem_radix, GFP_KERNEL);
-> -
-> -static void hmm_devmem_radix_release(struct resource *resource)
-> -{
-> -	resource_size_t key;
-> -
-> -	mutex_lock(&hmm_devmem_lock);
-> -	for (key = resource->start;
-> -	     key <= resource->end;
-> -	     key += PA_SECTION_SIZE)
-> -		radix_tree_delete(&hmm_devmem_radix, key >> PA_SECTION_SHIFT);
-> -	mutex_unlock(&hmm_devmem_lock);
-> -}
-> -
-> -static void hmm_devmem_release(void *data)
-> -{
-> -	struct hmm_devmem *devmem = data;
-> -	struct resource *resource = devmem->resource;
-> -	unsigned long start_pfn, npages;
-> -	struct zone *zone;
-> -	struct page *page;
-> -
-> -	/* pages are dead and unused, undo the arch mapping */
-> -	start_pfn = (resource->start & ~(PA_SECTION_SIZE - 1)) >> PAGE_SHIFT;
-> -	npages = ALIGN(resource_size(resource), PA_SECTION_SIZE) >> PAGE_SHIFT;
-> -
-> -	page = pfn_to_page(start_pfn);
-> -	zone = page_zone(page);
-> -
-> -	mem_hotplug_begin();
-> -	if (resource->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY)
-> -		__remove_pages(zone, start_pfn, npages, NULL);
-> -	else
-> -		arch_remove_memory(start_pfn << PAGE_SHIFT,
-> -				   npages << PAGE_SHIFT, NULL);
-> -	mem_hotplug_done();
-> -
-> -	hmm_devmem_radix_release(resource);
-> -}
-> -
-> -static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
-> -{
-> -	resource_size_t key, align_start, align_size, align_end;
-> -	struct device *device = devmem->device;
-> -	int ret, nid, is_ram;
-> -	unsigned long pfn;
-> -
-> -	align_start = devmem->resource->start & ~(PA_SECTION_SIZE - 1);
-> -	align_size = ALIGN(devmem->resource->start +
-> -			   resource_size(devmem->resource),
-> -			   PA_SECTION_SIZE) - align_start;
-> -
-> -	is_ram = region_intersects(align_start, align_size,
-> -				   IORESOURCE_SYSTEM_RAM,
-> -				   IORES_DESC_NONE);
-> -	if (is_ram == REGION_MIXED) {
-> -		WARN_ONCE(1, "%s attempted on mixed region %pr\n",
-> -				__func__, devmem->resource);
-> -		return -ENXIO;
-> -	}
-> -	if (is_ram == REGION_INTERSECTS)
-> -		return -ENXIO;
-> -
-> -	if (devmem->resource->desc == IORES_DESC_DEVICE_PUBLIC_MEMORY)
-> -		devmem->pagemap.type = MEMORY_DEVICE_PUBLIC;
-> -	else
-> -		devmem->pagemap.type = MEMORY_DEVICE_PRIVATE;
-> -
-> -	devmem->pagemap.res = *devmem->resource;
-> -	devmem->pagemap.page_fault = hmm_devmem_fault;
-> -	devmem->pagemap.page_free = hmm_devmem_free;
-> -	devmem->pagemap.dev = devmem->device;
-> -	devmem->pagemap.ref = &devmem->ref;
-> -	devmem->pagemap.data = devmem;
-> -
-> -	mutex_lock(&hmm_devmem_lock);
-> -	align_end = align_start + align_size - 1;
-> -	for (key = align_start; key <= align_end; key += PA_SECTION_SIZE) {
-> -		struct hmm_devmem *dup;
-> -
-> -		dup = radix_tree_lookup(&hmm_devmem_radix,
-> -					key >> PA_SECTION_SHIFT);
-> -		if (dup) {
-> -			dev_err(device, "%s: collides with mapping for %s\n",
-> -				__func__, dev_name(dup->device));
-> -			mutex_unlock(&hmm_devmem_lock);
-> -			ret = -EBUSY;
-> -			goto error;
-> -		}
-> -		ret = radix_tree_insert(&hmm_devmem_radix,
-> -					key >> PA_SECTION_SHIFT,
-> -					devmem);
-> -		if (ret) {
-> -			dev_err(device, "%s: failed: %d\n", __func__, ret);
-> -			mutex_unlock(&hmm_devmem_lock);
-> -			goto error_radix;
-> -		}
-> -	}
-> -	mutex_unlock(&hmm_devmem_lock);
-> -
-> -	nid = dev_to_node(device);
-> -	if (nid < 0)
-> -		nid = numa_mem_id();
-> -
-> -	mem_hotplug_begin();
-> -	/*
-> -	 * For device private memory we call add_pages() as we only need to
-> -	 * allocate and initialize struct page for the device memory. More-
-> -	 * over the device memory is un-accessible thus we do not want to
-> -	 * create a linear mapping for the memory like arch_add_memory()
-> -	 * would do.
-> -	 *
-> -	 * For device public memory, which is accesible by the CPU, we do
-> -	 * want the linear mapping and thus use arch_add_memory().
-> -	 */
-> -	if (devmem->pagemap.type == MEMORY_DEVICE_PUBLIC)
-> -		ret = arch_add_memory(nid, align_start, align_size, NULL,
-> -				false);
-> -	else
-> -		ret = add_pages(nid, align_start >> PAGE_SHIFT,
-> -				align_size >> PAGE_SHIFT, NULL, false);
-> -	if (ret) {
-> -		mem_hotplug_done();
-> -		goto error_add_memory;
-> -	}
-> -	move_pfn_range_to_zone(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
-> -				align_start >> PAGE_SHIFT,
-> -				align_size >> PAGE_SHIFT, NULL);
-> -	mem_hotplug_done();
-> -
-> -	for (pfn = devmem->pfn_first; pfn < devmem->pfn_last; pfn++) {
-> -		struct page *page = pfn_to_page(pfn);
-> -
-> -		page->pgmap = &devmem->pagemap;
-> -	}
-> -	return 0;
-> -
-> -error_add_memory:
-> -	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
-> -error_radix:
-> -	hmm_devmem_radix_release(devmem->resource);
-> -error:
-> -	return ret;
-> -}
-> -
->  /*
->   * hmm_devmem_add() - hotplug ZONE_DEVICE memory for device memory
->   *
-> @@ -1140,6 +993,7 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
->  {
->  	struct hmm_devmem *devmem;
->  	resource_size_t addr;
-> +	void *result;
->  	int ret;
->  
->  	dev_pagemap_get_ops();
-> @@ -1194,14 +1048,18 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
->  	devmem->pfn_last = devmem->pfn_first +
->  			   (resource_size(devmem->resource) >> PAGE_SHIFT);
->  
-> -	ret = hmm_devmem_pages_create(devmem);
-> -	if (ret)
-> -		return ERR_PTR(ret);
-> -
-> -	ret = devm_add_action_or_reset(device, hmm_devmem_release, devmem);
-> -	if (ret)
-> -		return ERR_PTR(ret);
-> +	devmem->pagemap.type = MEMORY_DEVICE_PRIVATE;
-> +	devmem->pagemap.res = *devmem->resource;
-> +	devmem->pagemap.page_fault = hmm_devmem_fault;
-> +	devmem->pagemap.page_free = hmm_devmem_free;
-> +	devmem->pagemap.altmap_valid = false;
-> +	devmem->pagemap.ref = &devmem->ref;
-> +	devmem->pagemap.data = devmem;
->  
-> +	result = devm_memremap_pages(devmem->device, &devmem->pagemap,
-> +			hmm_devmem_ref_kill);
-> +	if (IS_ERR(result))
-> +		return result;
->  	return devmem;
->  }
->  EXPORT_SYMBOL(hmm_devmem_add);
-> @@ -1211,6 +1069,7 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
->  					   struct resource *res)
->  {
->  	struct hmm_devmem *devmem;
-> +	void *result;
->  	int ret;
->  
->  	if (res->desc != IORES_DESC_DEVICE_PUBLIC_MEMORY)
-> @@ -1243,19 +1102,18 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
->  	devmem->pfn_last = devmem->pfn_first +
->  			   (resource_size(devmem->resource) >> PAGE_SHIFT);
->  
-> -	ret = hmm_devmem_pages_create(devmem);
-> -	if (ret)
-> -		return ERR_PTR(ret);
-> -
-> -	ret = devm_add_action_or_reset(device, hmm_devmem_release, devmem);
-> -	if (ret)
-> -		return ERR_PTR(ret);
-> -
-> -	ret = devm_add_action_or_reset(device, hmm_devmem_ref_kill,
-> -			&devmem->ref);
-> -	if (ret)
-> -		return ERR_PTR(ret);
-> +	devmem->pagemap.type = MEMORY_DEVICE_PUBLIC;
-> +	devmem->pagemap.res = *devmem->resource;
-> +	devmem->pagemap.page_fault = hmm_devmem_fault;
-> +	devmem->pagemap.page_free = hmm_devmem_free;
-> +	devmem->pagemap.altmap_valid = false;
-> +	devmem->pagemap.ref = &devmem->ref;
-> +	devmem->pagemap.data = devmem;
->  
-> +	result = devm_memremap_pages(devmem->device, &devmem->pagemap,
-> +			hmm_devmem_ref_kill);
-> +	if (IS_ERR(result))
-> +		return result;
->  	return devmem;
->  }
->  EXPORT_SYMBOL(hmm_devmem_add_resource);
-> 
+> +
+> +void remove_memory(int nid, u64 start, u64 size)
+> +{
+> +       lock_device_hotplug();
+> +       __remove_memory(nid, start, size);
+> +       unlock_device_hotplug();
+> +}
+>  EXPORT_SYMBOL_GPL(remove_memory);
+>  #endif /* CONFIG_MEMORY_HOTREMOVE */
+> --
+
+Reviewed-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
