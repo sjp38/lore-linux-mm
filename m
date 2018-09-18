@@ -1,55 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 210848E0001
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 12:45:15 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id a21-v6so2230440otf.8
-        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 09:45:15 -0700 (PDT)
-Received: from NAM05-BY2-obe.outbound.protection.outlook.com (mail-by2nam05on0605.outbound.protection.outlook.com. [2a01:111:f400:fe52::605])
-        by mx.google.com with ESMTPS id q40-v6si6171864otg.210.2018.09.18.09.45.13
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 917FD8E0001
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 12:50:47 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id u195-v6so3776698ith.2
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 09:50:47 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w197-v6sor10777162iof.194.2018.09.18.09.50.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 18 Sep 2018 09:45:13 -0700 (PDT)
-From: Nadav Amit <namit@vmware.com>
-Subject: Re: [PATCH 00/19] vmw_balloon: compaction, shrinker, 64-bit, etc.
-Date: Tue, 18 Sep 2018 16:42:57 +0000
-Message-ID: <B27D8BAC-28E2-4807-8D96-90A6938305F3@vmware.com>
-References: <20180918063853.198332-1-namit@vmware.com>
- <20180918122729.GA13598@kroah.com>
-In-Reply-To: <20180918122729.GA13598@kroah.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <A0DDE62851C5714E8E5C2F370CF0BEFA@namprd05.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Tue, 18 Sep 2018 09:50:46 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <CACT4Y+awX48sFAYFCgx1Q-nJ=QrBhr08psMmHr+hDeCsQc0NRw@mail.gmail.com>
+References: <cover.1535462971.git.andreyknvl@google.com> <95b5beb7ec13b7e998efe84c9a7a5c1fa49a9fe3.1535462971.git.andreyknvl@google.com>
+ <CACT4Y+awX48sFAYFCgx1Q-nJ=QrBhr08psMmHr+hDeCsQc0NRw@mail.gmail.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Tue, 18 Sep 2018 18:50:45 +0200
+Message-ID: <CAAeHK+z3W+JqC2d=-ZddsLv5D7BWa6oKpEdJFiyS1DbEYVnmqA@mail.gmail.com>
+Subject: Re: [PATCH v6 08/18] khwasan: preassign tags to objects with ctors or SLAB_TYPESAFE_BY_RCU
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, LKML <linux-kernel@vger.kernel.org>, Xavier Deguillard <xdeguillard@vmware.com>, "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
 
-YXQgNToyNyBBTSwgR3JlZyBLcm9haC1IYXJ0bWFuIDxncmVna2hAbGludXhmb3VuZGF0aW9uLm9y
-Zz4gd3JvdGU6DQoNCj4gT24gTW9uLCBTZXAgMTcsIDIwMTggYXQgMTE6Mzg6MzRQTSAtMDcwMCwg
-TmFkYXYgQW1pdCB3cm90ZToNCj4+IFRoaXMgcGF0Y2gtc2V0IGFkZHMgdGhlIGZvbGxvd2luZyBl
-bmhhbmNlbWVudHMgdG8gdGhlIFZNd2FyZSBiYWxsb29uDQo+PiBkcml2ZXI6DQo+PiANCj4+IDEu
-IEJhbGxvb24gY29tcGFjdGlvbiBzdXBwb3J0Lg0KPj4gMi4gUmVwb3J0IHRoZSBudW1iZXIgb2Yg
-aW5mbGF0ZWQvZGVmbGF0ZWQgYmFsbG9vbmVkIHBhZ2VzIHRocm91Z2ggdm1zdGF0Lg0KPj4gMy4g
-TWVtb3J5IHNocmlua2VyIHRvIGF2b2lkIGJhbGxvb24gb3Zlci1pbmZsYXRpb24gKGFuZCBPT00p
-Lg0KPj4gNC4gU3VwcG9ydCBWTXMgd2l0aCBtZW1vcnkgbGltaXQgdGhhdCBpcyBncmVhdGVyIHRo
-YW4gMTZUQi4NCj4+IDUuIEZhc3RlciBhbmQgbW9yZSBhZ2dyZXNzaXZlIGluZmxhdGlvbi4NCj4+
-IA0KPj4gVG8gc3VwcG9ydCBjb21wYWN0aW9uIHdlIHdpc2ggdG8gdXNlIHRoZSBleGlzdGluZyBp
-bmZyYXN0cnVjdHVyZS4NCj4+IEhvd2V2ZXIsIHdlIG5lZWQgdG8gbWFrZSBzbGlnaHQgYWRhcHRp
-b25zIGZvciBpdC4gV2UgYWRkIGEgbmV3IGxpc3QNCj4+IGludGVyZmFjZSB0byBiYWxsb29uLWNv
-bXBhY3Rpb24sIHdoaWNoIGlzIG1vcmUgZ2VuZXJpYyBhbmQgZWZmaWNpZW50LA0KPj4gc2luY2Ug
-aXQgZG9lcyBub3QgcmVxdWlyZSBhcyBtYW55IElSUSBzYXZlL3Jlc3RvcmUgb3BlcmF0aW9ucy4g
-V2UgbGVhdmUNCj4+IHRoZSBvbGQgaW50ZXJmYWNlIHRoYXQgaXMgdXNlZCBieSB0aGUgdmlydGlv
-IGJhbGxvb24uDQo+PiANCj4+IEJpZyBwYXJ0cyBvZiB0aGlzIHBhdGNoLXNldCBhcmUgY2xlYW51
-cCBhbmQgZG9jdW1lbnRhdGlvbi4gUGF0Y2hlcyAxLTEzDQo+PiBzaW1wbGlmeSB0aGUgYmFsbG9v
-biBjb2RlLCBkb2N1bWVudCBpdHMgYmVoYXZpb3IgYW5kIGFsbG93IHRoZSBiYWxsb29uDQo+PiBj
-b2RlIHRvIHJ1biBjb25jdXJyZW50bHkuIFRoZSBzdXBwb3J0IGZvciBjb25jdXJyZW5jeSBpcyBy
-ZXF1aXJlZCBmb3INCj4+IGNvbXBhY3Rpb24gYW5kIHRoZSBzaHJpbmtlciBpbnRlcmZhY2UuDQo+
-PiANCj4+IEZvciBkb2N1bWVudGF0aW9uIHdlIHVzZSB0aGUga2VybmVsLWRvYyBmb3JtYXQuIFdl
-IGFyZSBhd2FyZSB0aGF0IHRoZQ0KPj4gYmFsbG9vbiBpbnRlcmZhY2UgaXMgbm90IHB1YmxpYywg
-YnV0IGZvbGxvd2luZyB0aGUga2VybmVsLWRvYyBmb3JtYXQgbWF5DQo+PiBiZSB1c2VmdWwgb25l
-IGRheS4NCj4gDQo+IGtidWlsZCBzZWVtcyB0byBub3QgbGlrZSB0aGlzIHBhdGNoIHNlcmllcywg
-c28gSSdtIGdvaW5nIHRvIGRyb3AgaXQgZnJvbQ0KPiBteSBxdWV1ZSBhbmQgd2FpdCBmb3IgYSB2
-MiByZXNwaW4gYmVmb3JlIGxvb2tpbmcgYXQgaXQuDQoNClN1cmUuIEnigJlsbCBzZW5kIHYyIGlu
-IGEgZGF5IG9yIHR3by4NCg0KTmFkYXYgDQoNCg0K
+On Wed, Sep 12, 2018 at 6:36 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> On Wed, Aug 29, 2018 at 1:35 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
+
+>>         if (!shuffle) {
+>> +               start = khwasan_preset_slub_tag(s, start);
+>>                 for_each_object_idx(p, idx, s, start, page->objects) {
+>>                         setup_object(s, page, p);
+>> +                       p = khwasan_preset_slub_tag(s, p);
+>
+>
+> As I commented in the previous patch, can't we do this in
+> kasan_init_slab_obj(), which should be called in all the right places
+> already?
+>
+
+As per offline discussion, will do in v7.
