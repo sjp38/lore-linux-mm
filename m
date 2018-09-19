@@ -1,77 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FBFB8E0001
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 11:43:21 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id w126-v6so4123084qka.11
-        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 08:43:21 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i19-v6sor7283044qtc.128.2018.09.19.08.43.20
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C41B28E0001
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 11:47:47 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id e6-v6so8122490itc.7
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 08:47:47 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id t128-v6sor6014860ita.98.2018.09.19.08.47.46
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 19 Sep 2018 08:43:20 -0700 (PDT)
+        Wed, 19 Sep 2018 08:47:46 -0700 (PDT)
 MIME-Version: 1.0
-References: <20180820212556.GC2230@char.us.oracle.com> <CA+55aFxZCyVZc4ZpRyZ3uDyakRSOG_=2XvnwMo4oejpsieF9=A@mail.gmail.com>
- <1534801939.10027.24.camel@amazon.co.uk> <20180919010337.GC8537@350D>
-In-Reply-To: <20180919010337.GC8537@350D>
-From: Jonathan Adams <jwadams@google.com>
-Date: Wed, 19 Sep 2018 08:43:07 -0700
-Message-ID: <CA+VK+GM6CaPnGKcPjEn7U=4ubtC-JWZ9k98BTxzRH_TthaFXDw@mail.gmail.com>
-Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
- in mind (for KVM to isolate its guests per CPU)
+References: <D4C91DBA-CF56-4991-BD7F-6BE334A2C048@amazon.com>
+ <CALZtONDpUDAz_PLrt03CaajzAoY_Wr6Tm=PgvqAWyir9=fCd8A@mail.gmail.com>
+ <EAFEF5B5-DE5D-42C7-AEF1-9DF6A800E95D@amazon.com> <CALZtONC5FYhmq+U6fga7RbDA4mEB4rTihsLGXG50a-XUCdtxiA@mail.gmail.com>
+ <EEC089E8-9F85-483A-8C83-4C8459BA1345@amazon.com>
+In-Reply-To: <EEC089E8-9F85-483A-8C83-4C8459BA1345@amazon.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Wed, 19 Sep 2018 11:47:08 -0400
+Message-ID: <CALZtONB-y=ePYMZjtRiyfCYbWJ=R-xaR2NHPafzYMohtKOUSYg@mail.gmail.com>
+Subject: Re: zswap: use PAGE_SIZE * 2 for compression dst buffer size when
+ calling crypto compression API
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bsingharora@gmail.com
-Cc: dwmw@amazon.co.uk, torvalds@linux-foundation.org, konrad.wilk@oracle.com, deepa.srinivasan@oracle.com, Jim Mattson <jmattson@google.com>, andrew.cooper3@citrix.com, linux-kernel@vger.kernel.org, boris.ostrovsky@oracle.com, linux-mm@kvack.org, tglx@linutronix.de, joao.m.martins@oracle.com, pradeep.vincent@oracle.com, ak@linux.intel.com, khalid.aziz@oracle.com, kanth.ghatraju@oracle.com, liran.alon@oracle.com, keescook@google.com, jsteckli@os.inf.tu-dresden.de, kernel-hardening@lists.openwall.com, chris.hyser@oracle.com, tyhicks@canonical.com, john.haxby@oracle.com, jcm@redhat.com
+To: taeilum@amazon.com
+Cc: Linux-MM <linux-mm@kvack.org>, Seth Jennings <sjenning@redhat.com>
 
-(apologies again; resending due to formatting issues)
-On Tue, Sep 18, 2018 at 6:03 PM Balbir Singh <bsingharora@gmail.com> wrote:
+On Tue, Sep 18, 2018 at 7:48 PM Um, Taeil <taeilum@amazon.com> wrote:
 >
-> On Mon, Aug 20, 2018 at 09:52:19PM +0000, Woodhouse, David wrote:
-> > On Mon, 2018-08-20 at 14:48 -0700, Linus Torvalds wrote:
-> > >
-> > > Of course, after the long (and entirely unrelated) discussion about
-> > > the TLB flushing bug we had, I'm starting to worry about my own
-> > > competence, and maybe I'm missing something really fundamental, and
-> > > the XPFO patches do something else than what I think they do, or my
-> > > "hey, let's use our Meltdown code" idea has some fundamental weakness
-> > > that I'm missing.
-> >
-> > The interesting part is taking the user (and other) pages out of the
-> > kernel's 1:1 physmap.
-> >
-> > It's the *kernel* we don't want being able to access those pages,
-> > because of the multitude of unfixable cache load gadgets.
+> We can tell whether compressed size is greater than PAGE_SIZE by looking =
+at the returned *dlen value from crypto_comp_compress. This should be fairl=
+y easy.
+> This is actually what zram is doing today. zram looks for *dlen and not t=
+ake the compressed result if *dlen is greater than certain size.
+> I think errors from crypto_comp_compress should be real errors.
 >
-> I am missing why we need this since the kernel can't access
-> (SMAP) unless we go through to the copy/to/from interface
-> or execute any of the user pages. Is it because of the dependency
-> on the availability of those features?
+> Today in kernel compression drivers such as lzo and lz4, they do not stop=
+ just because compression result size is greater than source size.
+> Also, some H/W accelerators would not have the option of stopping compres=
+sion just because of the result size is greater than source size.
+
+do you have a specific example of how this causes any actual problem?
+
+personally, i'd prefer reducing zswap_dstmem down to 1 page to save
+memory, since there is no case where zswap would ever want to use a
+compressed page larger than that.
+
 >
-SMAP protects against kernel accesses to non-PRIV (i.e. userspace)
-mappings, but that isn't relevant to what's being discussed here.
-
-Davis is talking about the kernel Direct Map, which is a PRIV (i.e.
-kernel) mapping of all physical memory on the system, at
-  VA = (base + PA).
-Since this mapping exists for all physical addresses, speculative
-load gadgets (and the processor's prefetch mechanism, etc.) can
-load arbitrary data even if it is only otherwise mapped into user
-space.
-
-XPFO fixes this by unmapping the Direct Map translations when the
-page is allocated as a user page. The mapping is only restored:
-   1. temporarily if the kernel needs direct access to the page
-      (i.e. to zero it, access it from a device driver, etc),
-   2. when the page is freed
-
-And in so doing, significantly reduces the amount of non-kernel data
-vulnerable to speculative execution attacks against the kernel.
-(and reduces what data can be loaded into the L1 data cache while
-in kernel mode, to be peeked at by the recent L1 Terminal Fault
-vulnerability).
-
-Does that make sense?
-
-Cheers,
-- jonathan
+> Thank you,
+> Taeil
+>
+> =EF=BB=BFOn 9/18/18, 2:44 PM, "Dan Streetman" <ddstreet@ieee.org> wrote:
+>
+>     On Tue, Sep 18, 2018 at 2:52 PM Um, Taeil <taeilum@amazon.com> wrote:
+>     >
+>     > Problem statement:
+>     > "compressed data are not fully copied to destination buffer when co=
+mpressed data size is greater than source data"
+>     >
+>     > Why:
+>     > 5th argument of crypto_comp_compress function is *dlen, which tell =
+the compression driver how many bytes the destination buffer space is alloc=
+ated (allowed to write data).
+>     > This *dlen is important especially for H/W accelerator based compre=
+ssion driver because it is dangerous if we allow the H/W accelerator to acc=
+ess memory beyond *dst + *dlen.
+>     > Note that buffer location would be passed as physical address.
+>     > Due to the above reason, H/W accelerator based compression driver n=
+eed to honor *dlen value when it serves crypto_comp_compress API.
+>
+>     and that's exactly what zswap wants to happen - any compressor (hw or
+>     sw) should fail with an error code (ENOSPC makes the most sense, but
+>     zswap doesn't actually care) if the compressed data size is larger
+>     than the provided data buffer.
+>
+>     > Today, we pass slen =3D PAGE_SIZE and *dlen=3DPAGE_SIZE to crypto_c=
+omp_compress in zswap.c.
+>     > If compressed data size is greater than source (uncompressed) data =
+size,  H/W accelerator cannot copy (deliver) the entire compressed data.
+>
+>     If the "compressed" data is larger than 1 page, then there is no poin=
+t
+>     in storing the page in zswap.
+>
+>     remember that zswap is different than zram; in zram, there's no other
+>     place to store the data.  However, with zswap, if compression fails o=
+r
+>     isn't good, we can just pass the uncompressed page down to the swap
+>     device.
+>
+>     >
+>     > Thank you,
+>     > Taeil
+>     >
+>     > On 9/18/18, 7:15 AM, "Dan Streetman" <ddstreet@ieee.org> wrote:
+>     >
+>     >     On Mon, Sep 17, 2018 at 7:10 PM Um, Taeil <taeilum@amazon.com> =
+wrote:
+>     >     >
+>     >     > Currently, we allocate PAGE_SIZE * 2 for zswap_dstmem which i=
+s used as compression destination buffer.
+>     >     >
+>     >     > However, we pass only half of the size (PAGE_SIZE) to crypto_=
+comp_compress.
+>     >     >
+>     >     > This might not be a problem for CPU based existing lzo, lz4 c=
+rypto compression driver implantation.
+>     >     >
+>     >     > However, this could be a problem for some H/W acceleration co=
+mpression drivers, which honor destination buffer size when it prepares H/W=
+ resources.
+>     >
+>     >     How exactly could it be a problem?
+>     >
+>     >     >
+>     >     > Actually, this patch is aligned with what zram is passing whe=
+n it calls crypto_comp_compress.
+>     >     >
+>     >     > The following simple patch will solve this problem. I tested =
+it with existing crypto/lzo.c and crypto/lz4.c compression driver and it wo=
+rks fine.
+>     >     >
+>     >     >
+>     >     >
+>     >     >
+>     >     >
+>     >     > --- mm/zswap.c.orig       2018-09-14 14:36:37.984199232 -0700
+>     >     >
+>     >     > +++ mm/zswap.c             2018-09-14 14:36:53.340189681 -070=
+0
+>     >     >
+>     >     > @@ -1001,7 +1001,7 @@ static int zswap_frontswap_store(unsign=
+e
+>     >     >
+>     >     >                 struct zswap_entry *entry, *dupentry;
+>     >     >
+>     >     >                 struct crypto_comp *tfm;
+>     >     >
+>     >     >                 int ret;
+>     >     >
+>     >     > -              unsigned int hlen, dlen =3D PAGE_SIZE;
+>     >     >
+>     >     > +             unsigned int hlen, dlen =3D PAGE_SIZE * 2;
+>     >     >
+>     >     >                 unsigned long handle, value;
+>     >     >
+>     >     >                 char *buf;
+>     >     >
+>     >     >                 u8 *src, *dst;
+>     >     >
+>     >     >
+>     >     >
+>     >     >
+>     >     >
+>     >     >
+>     >     >
+>     >     > Thank you,
+>     >     >
+>     >     > Taeil
+>     >     >
+>     >     >
+>     >
+>     >
+>     >
+>
+>
+>
