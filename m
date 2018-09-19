@@ -1,52 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 92AA08E0001
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 14:41:55 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id 1-v6so2998726ywd.9
-        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 11:41:55 -0700 (PDT)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F2A228E0001
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 14:43:34 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id 203-v6so2881779ybf.19
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 11:43:34 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f3-v6sor2558280ywc.361.2018.09.19.11.41.49
+        by mx.google.com with SMTPS id x2-v6sor2373644ybj.49.2018.09.19.11.43.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 19 Sep 2018 11:41:50 -0700 (PDT)
-Date: Wed, 19 Sep 2018 14:41:47 -0400
+        Wed, 19 Sep 2018 11:43:33 -0700 (PDT)
+Date: Wed, 19 Sep 2018 14:43:31 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v7 1/6] mm: split SWP_FILE into SWP_ACTIVATED and SWP_FS
-Message-ID: <20180919184147.GA19595@cmpxchg.org>
+Subject: Re: [PATCH v7 2/6] mm: export add_swap_extent()
+Message-ID: <20180919184331.GA20181@cmpxchg.org>
 References: <cover.1536704650.git.osandov@fb.com>
- <6d63d8668c4287a4f6d203d65696e96f80abdfc7.1536704650.git.osandov@fb.com>
- <20180919180232.GB18068@cmpxchg.org>
- <20180919181202.GJ479@vader>
+ <bb1208575e02829aae51b538709476964f97b1ea.1536704650.git.osandov@fb.com>
+ <20180919180909.GC18068@cmpxchg.org>
+ <20180919182800.GK479@vader>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180919181202.GJ479@vader>
+In-Reply-To: <20180919182800.GK479@vader>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Omar Sandoval <osandov@osandov.com>
 Cc: linux-btrfs@vger.kernel.org, kernel-team@fb.com, linux-mm@kvack.org
 
-On Wed, Sep 19, 2018 at 11:12:02AM -0700, Omar Sandoval wrote:
-> On Wed, Sep 19, 2018 at 02:02:32PM -0400, Johannes Weiner wrote:
-> > On Tue, Sep 11, 2018 at 03:34:44PM -0700, Omar Sandoval wrote:
-> > > @@ -2411,8 +2412,10 @@ static int setup_swap_extents(struct swap_info_struct *sis, sector_t *span)
-> > >  
-> > >  	if (mapping->a_ops->swap_activate) {
-> > >  		ret = mapping->a_ops->swap_activate(sis, swap_file, span);
-> > > +		if (ret >= 0)
-> > > +			sis->flags |= SWP_ACTIVATED;
-> > >  		if (!ret) {
-> > > -			sis->flags |= SWP_FILE;
-> > > +			sis->flags |= SWP_FS;
-> > >  			ret = add_swap_extent(sis, 0, sis->max, 0);
+On Wed, Sep 19, 2018 at 11:28:00AM -0700, Omar Sandoval wrote:
+> On Wed, Sep 19, 2018 at 02:09:09PM -0400, Johannes Weiner wrote:
+> > On Tue, Sep 11, 2018 at 03:34:45PM -0700, Omar Sandoval wrote:
+> > > From: Omar Sandoval <osandov@fb.com>
+> > > 
+> > > Btrfs will need this for swap file support.
+> > > 
+> > > Signed-off-by: Omar Sandoval <osandov@fb.com>
 > > 
-> > Won't this single, linear extent be in conflict with the discontiguous
-> > extents you set up in your swap_activate callback in the last patch?
+> > That looks reasonable. After reading the last patch, it's somewhat
+> > understandable why you cannot simply implemnet ->bmap and use the
+> > generic activation code. But it would be good to explain the reason(s)
+> > for why you can't here briefly to justify this patch.
 > 
-> That's only in the case that ->swap_activate() returned 0, which only
-> nfs_swap_activate() will do. btrfs_swap_activate() and
-> iomap_swapfile_activate() both return the number of extents they set up.
+> I'll rewrite it to:
+> 
+> Btrfs currently does not support swap files because swap's use of bmap
+> does not work with copy-on-write and multiple devices. See 35054394c4b3
+> ("Btrfs: stop providing a bmap operation to avoid swapfile
+> corruptions"). However, the swap code has a mechanism for the filesystem
+> to manually add swap extents using add_swap_extent() from the
+> ->swap_activate() aop. iomap has done this since 67482129cdab ("iomap:
+> add a swapfile activation function"). Btrfs will do the same in a later
+> patch, so export add_swap_extent().
 
-Ah yes, I missed that.
-
-That's a little under-documented I guess, but that's not your fault.
+That explains it perfectly. Thanks!
