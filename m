@@ -1,43 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DAF898E0001
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 18:27:25 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id s69-v6so6662261ota.13
-        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 15:27:25 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k185-v6sor19123368oif.68.2018.09.19.15.27.24
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B4538E0001
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 18:38:27 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id bh1-v6so3236085plb.15
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 15:38:27 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id 13-v6si22184720pgp.563.2018.09.19.15.38.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 19 Sep 2018 15:27:24 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Sep 2018 15:38:26 -0700 (PDT)
+Date: Wed, 19 Sep 2018 16:40:19 -0600
+From: Keith Busch <keith.busch@intel.com>
+Subject: Re: [PATCH 6/7] mm/gup: Combine parameters into struct
+Message-ID: <20180919224019.GB29003@localhost.localdomain>
+References: <20180919210250.28858-1-keith.busch@intel.com>
+ <20180919210250.28858-7-keith.busch@intel.com>
 MIME-Version: 1.0
-References: <20180919210250.28858-1-keith.busch@intel.com> <40b392d0-0642-2d9b-5325-664a328ff677@intel.com>
-In-Reply-To: <40b392d0-0642-2d9b-5325-664a328ff677@intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 19 Sep 2018 15:27:13 -0700
-Message-ID: <CAPcyv4iVpKD=yLS=YM18+_LGQp3_y+h4Cx4s3Bc9gHmdRrimAg@mail.gmail.com>
-Subject: Re: [PATCH 0/7] mm: faster get user pages
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180919210250.28858-7-keith.busch@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Keith Busch <keith.busch@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Kirill Shutemov <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Wed, Sep 19, 2018 at 2:15 PM Dave Hansen <dave.hansen@intel.com> wrote:
->
-> On 09/19/2018 02:02 PM, Keith Busch wrote:
-> > Pinning user pages out of nvdimm dax memory is significantly slower
-> > compared to system ram. Analysis points to software overhead incurred
-> > from a radix tree lookup. This patch series fixes that by removing the
-> > relatively costly dev_pagemap lookup that was repeated for each page,
-> > significantly increasing gup time.
->
-> Could you also remind us why DAX pages are such special snowflakes and
-> *require* radix tree lookups in the first place?
+On Wed, Sep 19, 2018 at 03:02:49PM -0600, Keith Busch wrote:
+>  	if (is_hugepd(__hugepd(pmd_val(pmdval)))) {
+> -		page = follow_huge_pd(vma, address,
+> -				      __hugepd(pmd_val(pmdval)), flags,
+> -				      PMD_SHIFT);
+> +		page = follow_huge_pd(ctx->vma, ctx->address,
+> +				      __hugepd(pmd_val(pmdval)),
+> +				      ctx->flags, PGDIR_SHIFT);
 
-They are special because they need to check backing device live-ness
-when taking new references. We manage a percpu-ref for each device
-that registers physical memory with devm_memremap_pages(). When that
-device is disabled we kill the percpu-ref to block new references
-being taken, and then wait for existing references to drain. This
-allows for disabling persistent-memory namepace-devices at will
-relative to new get_user_pages() requests.
+Shoot, that should have been PMD_SHIFT.
+
+I'll let this current set sit a little longer before considering v2.
