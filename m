@@ -1,103 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 03EC28E0001
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 06:03:14 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id y130-v6so3524498qka.1
-        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 03:03:13 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h42-v6si1072434qte.159.2018.09.19.03.03.12
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D8948E0001
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 06:08:40 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id a37-v6so5293357wrc.5
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 03:08:40 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x10-v6sor9412482wmg.17.2018.09.19.03.08.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Sep 2018 03:03:13 -0700 (PDT)
-Date: Wed, 19 Sep 2018 18:02:57 +0800
-From: Ming Lei <ming.lei@redhat.com>
-Subject: Re: block: DMA alignment of IO buffer allocated from slab
-Message-ID: <20180919100256.GD23172@ming.t460p>
-References: <CACVXFVOBq3L_EjSTCoiqUL1PH=HMR5EuNNQV0hNndFpGxmUK6g@mail.gmail.com>
- <877ejh3jv0.fsf@vitty.brq.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <877ejh3jv0.fsf@vitty.brq.redhat.com>
+        (Google Transport Security);
+        Wed, 19 Sep 2018 03:08:39 -0700 (PDT)
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: [PATCH 0/5] Refactor node_states_check_changes_online/offline
+Date: Wed, 19 Sep 2018 12:08:14 +0200
+Message-Id: <20180919100819.25518-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com, dan.j.williams@intel.com, david@redhat.com, Pavel.Tatashin@microsoft.com, Jonathan.Cameron@huawei.com, yasu.isimatu@gmail.com, malat@debian.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-Hi Vitaly,
+From: Oscar Salvador <osalvador@suse.de>
 
-On Wed, Sep 19, 2018 at 11:41:07AM +0200, Vitaly Kuznetsov wrote:
-> Ming Lei <tom.leiming@gmail.com> writes:
-> 
-> > Hi Guys,
-> >
-> > Some storage controllers have DMA alignment limit, which is often set via
-> > blk_queue_dma_alignment(), such as 512-byte alignment for IO buffer.
-> 
-> While mostly drivers use 512-byte alignment it is not a rule of thumb,
-> 'git grep' tell me we have:
-> ide-cd.c with 32-byte alignment
-> ps3disk.c and rsxx/dev.c with variable alignment.
-> 
-> What if our block configuration consists of several devices (in raid
-> array, for example) with different requirements, e.g. one requiring
-> 512-byte alignment and the other requiring 256?
+This patchset refactors/clean ups node_states_check_changes_online/offline
+functions together with node_states_set/clear_node.
 
-512-byte alignment is also 256-byte aligned, and the sector size is 512 byte.
+The main reason behind this patchset is that currently, these
+functions are suboptimal and confusing.
 
-> 
-> >
-> > Block layer now only checks if this limit is respected for buffer of
-> > pass-through request,
-> > see blk_rq_map_user_iov(), bio_map_user_iov().
-> >
-> > The userspace buffer for direct IO is checked in dio path, see
-> > do_blockdev_direct_IO().
-> > IO buffer from page cache should be fine wrt. this limit too.
-> >
-> > However, some file systems, such as XFS, may allocate single sector IO buffer
-> > via slab. Usually I guess kmalloc-512 should be fine to return
-> > 512-aligned buffer.
-> > But once KASAN or other slab debug options are enabled, looks this
-> > isn't true any
-> > more, kmalloc-512 may not return 512-aligned buffer. Then data corruption
-> > can be observed because the IO buffer from fs layer doesn't respect the DMA
-> > alignment limit any more.
-> >
-> > Follows several related questions:
-> >
-> > 1) does kmalloc-N slab guarantee to return N-byte aligned buffer?  If
-> > yes, is it a stable rule?
-> >
-> > 2) If it is a rule for kmalloc-N slab to return N-byte aligned buffer,
-> > seems KASAN violates this
-> > rule?
-> 
-> (as I was kinda involved in debugging): the issue was observed with SLUB
-> allocator KASAN is not to blame, everything wich requires aditional
-> metadata space will break this, see e.g. calculate_sizes() in slub.c
+For example, they contain wrong statements like:
 
-Buffer allocated via kmalloc() should be aligned with L1 HW cache size
-at least.
+if (N_MEMORY == N_NORMAL_MEMORY)
+if (N_MEMORY =! N_NORMAL_MEMORY)
+if (N_MEMORY != N_HIGH_MEMORY)
+if (N_MEMORY == N_HIGH_MEMORY)
 
-I have raised the question: does kmalloc-512 slab guarantee to return
-512-byte aligned buffer, let's see what the answer is from MM guys,:-) 
+These comparasions are wrong, as N_MEMORY will never be equal
+to either N_NORMAL_MEMORY or N_HIGH_MEMORY.
+Although the statements do not "affect" the flow because in the way
+they are placed, they are completely wrong and confusing.
 
->From the Red Hat BZ, looks I understand this issue is only triggered when
-KASAN is enabled, or you have figured out how to reproduce it without
-KASAN involved?
+I caught another misuse of this in [1].
 
-> 
-> >
-> > 3) If slab can't guarantee to return 512-aligned buffer, how to fix
-> > this data corruption issue?
-> 
-> I'm no expert in block layer but in case of complex block device
-> configurations when bio submitter can't know all the requirements I see
-> no other choice than bouncing.
+Another thing that this patchset addresses is the fact that
+some functions get called twice, or even unconditionally, without
+any need.
 
-I guess that might be the last straw, given the current way without
-bouncing works for decades, and seems no one complains before.
+Examples of this are:
 
-Thanks,
-Ming
+- node_states_set_node()->node_set_state(node, N_MEMORY)
+
+* node_states_set_node() gets called whenever we online pages,
+  so we end up calling node_set_state(node, N_MEMORY) everytime.
+  To avoid this, we should check if the node is already in
+  node_state[N_MEMORY].
+
+- node_states_set_node()->node_set_state(node, N_HIGH_MEMORY)
+
+* On !CONFIG_HIGH_MEMORY, N_HIGH_MEMORY == N_NORMAL_MEMORY,
+  but the current code sets:
+  status_change_nid_high = status_change_nid_normal
+  This means that we will call node_set_state(node, N_NORMAL_MEMORY) twice.
+  The fix here is to set status_change_nid_normal = -1 on such systems,
+  so we skip the second call.
+
+[1] https://patchwork.kernel.org/patch/10579155/
+
+Oscar Salvador (5):
+  mm/memory_hotplug: Spare unnecessary calls to node_set_state
+  mm/memory_hotplug: Avoid node_set/clear_state(N_HIGH_MEMORY) when
+    !CONFIG_HIGHMEM
+  mm/memory_hotplug: Tidy up node_states_clear_node
+  mm/memory_hotplug: Simplify node_states_check_changes_online
+  mm/memory_hotplug: Clean up node_states_check_changes_offline
+
+ mm/memory_hotplug.c | 153 +++++++++++++++++++++-------------------------------
+ 1 file changed, 60 insertions(+), 93 deletions(-)
+
+-- 
+2.13.6
