@@ -1,81 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D1698E0001
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 22:48:05 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id w126-v6so2823309qka.11
-        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 19:48:05 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r13-v6si3575438qtm.243.2018.09.18.19.48.03
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 994388E0001
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 22:53:45 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id u74-v6so3976238oie.16
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 19:53:45 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 12-v6sor13535270oix.130.2018.09.18.19.53.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Sep 2018 19:48:04 -0700 (PDT)
-Date: Tue, 18 Sep 2018 22:48:02 -0400 (EDT)
-From: Pankaj Gupta <pagupta@redhat.com>
-Message-ID: <373427884.13987814.1537325282516.JavaMail.zimbra@redhat.com>
-In-Reply-To: <044309496afbb4121447dff6a453bd6b96d6068d.1534934405.git.yi.z.zhang@linux.intel.com>
-References: <cover.1534934405.git.yi.z.zhang@linux.intel.com> <044309496afbb4121447dff6a453bd6b96d6068d.1534934405.git.yi.z.zhang@linux.intel.com>
-Subject: Re: [PATCH V4 3/4] mm: add a function to differentiate the pages is
- from DAX device memory
+        (Google Transport Security);
+        Tue, 18 Sep 2018 19:53:44 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+References: <cover.1536342881.git.yi.z.zhang@linux.intel.com> <4e8c2e0facd46cfaf4ab79e19c9115958ab6f218.1536342881.git.yi.z.zhang@linux.intel.com>
+In-Reply-To: <4e8c2e0facd46cfaf4ab79e19c9115958ab6f218.1536342881.git.yi.z.zhang@linux.intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 18 Sep 2018 19:53:32 -0700
+Message-ID: <CAPcyv4ifg2BZMTNfu6mg0xxtPWs3BVgkfEj51v1CQ6jp2S70fw@mail.gmail.com>
+Subject: Re: [PATCH V5 4/4] kvm: add a check if pfn is from NVDIMM pmem.
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Zhang Yi <yi.z.zhang@linux.intel.com>
-Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pbonzini@redhat.com, dan j williams <dan.j.williams@intel.com>, dave jiang <dave.jiang@intel.com>, yu c zhang <yu.c.zhang@intel.com>, david@redhat.com, jack@suse.cz, hch@lst.de, linux-mm@kvack.org, rkrcmar@redhat.com, jglisse@redhat.com, yi z zhang <yi.z.zhang@intel.com>
+Cc: KVM list <kvm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Paolo Bonzini <pbonzini@redhat.com>, Dave Jiang <dave.jiang@intel.com>, "Zhang, Yu C" <yu.c.zhang@intel.com>, Pankaj Gupta <pagupta@redhat.com>, David Hildenbrand <david@redhat.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, rkrcmar@redhat.com, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, "Zhang, Yi Z" <yi.z.zhang@intel.com>
 
-
-> 
-> DAX driver hotplug the device memory and move it to memory zone, these
-> pages will be marked reserved flag, however, some other kernel componet
-> will misconceive these pages are reserved mmio (ex: we map these dev_dax
-> or fs_dax pages to kvm for DIMM/NVDIMM backend). Together with the type
-> MEMORY_DEVICE_FS_DAX, we can use is_dax_page() to differentiate the pages
-> is DAX device memory or not.
-> 
+On Fri, Sep 7, 2018 at 2:25 AM Zhang Yi <yi.z.zhang@linux.intel.com> wrote:
+>
+> For device specific memory space, when we move these area of pfn to
+> memory zone, we will set the page reserved flag at that time, some of
+> these reserved for device mmio, and some of these are not, such as
+> NVDIMM pmem.
+>
+> Now, we map these dev_dax or fs_dax pages to kvm for DIMM/NVDIMM
+> backend, since these pages are reserved, the check of
+> kvm_is_reserved_pfn() misconceives those pages as MMIO. Therefor, we
+> introduce 2 page map types, MEMORY_DEVICE_FS_DAX/MEMORY_DEVICE_DEV_DAX,
+> to identify these pages are from NVDIMM pmem and let kvm treat these
+> as normal pages.
+>
+> Without this patch, many operations will be missed due to this
+> mistreatment to pmem pages, for example, a page may not have chance to
+> be unpinned for KVM guest(in kvm_release_pfn_clean), not able to be
+> marked as dirty/accessed(in kvm_set_pfn_dirty/accessed) etc.
+>
 > Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
-> Signed-off-by: Zhang Yu <yu.c.zhang@linux.intel.com>
-> Acked-by: Jan Kara <jack@suse.cz>
+> Acked-by: Pankaj Gupta <pagupta@redhat.com>
 > ---
->  include/linux/mm.h | 12 ++++++++++++
->  1 file changed, 12 insertions(+)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 68a5121..de5cbc3 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -889,6 +889,13 @@ static inline bool is_device_public_page(const struct
-> page *page)
->  		page->pgmap->type == MEMORY_DEVICE_PUBLIC;
->  }
->  
-> +static inline bool is_dax_page(const struct page *page)
-> +{
-> +	return is_zone_device_page(page) &&
-> +		(page->pgmap->type == MEMORY_DEVICE_FS_DAX ||
-> +		page->pgmap->type == MEMORY_DEVICE_DEV_DAX);
-> +}
-> +
->  #else /* CONFIG_DEV_PAGEMAP_OPS */
->  static inline void dev_pagemap_get_ops(void)
+>  virt/kvm/kvm_main.c | 16 ++++++++++++++--
+>  1 file changed, 14 insertions(+), 2 deletions(-)
+>
+> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+> index c44c406..9c49634 100644
+> --- a/virt/kvm/kvm_main.c
+> +++ b/virt/kvm/kvm_main.c
+> @@ -147,8 +147,20 @@ __weak void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+>
+>  bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
 >  {
-> @@ -912,6 +919,11 @@ static inline bool is_device_public_page(const struct
-> page *page)
->  {
->  	return false;
->  }
+> -       if (pfn_valid(pfn))
+> -               return PageReserved(pfn_to_page(pfn));
+> +       struct page *page;
 > +
-> +static inline bool is_dax_page(const struct page *page)
-> +{
-> +	return false;
-> +}
->  #endif /* CONFIG_DEV_PAGEMAP_OPS */
->  
->  static inline void get_page(struct page *page)
-> --
+> +       if (pfn_valid(pfn)) {
+> +               page = pfn_to_page(pfn);
+> +
+> +               /*
+> +                * For device specific memory space, there is a case
+> +                * which we need pass MEMORY_DEVICE_FS[DEV]_DAX pages
+> +                * to kvm, these pages marked reserved flag as it is a
+> +                * zone device memory, we need to identify these pages
+> +                * and let kvm treat these as normal pages
+> +                */
+> +               return PageReserved(page) && !is_dax_page(page);
 
-Reviewed-by: Pankaj Gupta <pagupta@redhat.com>
+Should we consider just not setting PageReserved for
+devm_memremap_pages()? Perhaps kvm is not be the only component making
+these assumptions about this flag?
 
-> 2.7.4
-> 
-> 
+Why is MEMORY_DEVICE_PUBLIC memory specifically excluded?
+
+This has less to do with "dax" pages and more to do with
+devm_memremap_pages() established ranges. P2PDMA is another producer
+of these pages. If either MEMORY_DEVICE_PUBLIC or P2PDMA pages can be
+used in these kvm paths then I think this points to consider clearing
+the Reserved flag.
+
+That said I haven't audited all the locations that test PageReserved().
+
+Sorry for not responding sooner I was on extended leave.
