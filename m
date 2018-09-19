@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F3EB78E0001
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 06:08:40 -0400 (EDT)
-Received: by mail-wm1-f70.google.com with SMTP id b186-v6so3047872wmh.8
-        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 03:08:40 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F4E88E0001
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 06:08:41 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id i11-v6so5195641wrr.10
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 03:08:41 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l23-v6sor9496244wmc.6.2018.09.19.03.08.39
+        by mx.google.com with SMTPS id y191-v6sor9532365wmc.9.2018.09.19.03.08.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 19 Sep 2018 03:08:39 -0700 (PDT)
+        Wed, 19 Sep 2018 03:08:40 -0700 (PDT)
 From: Oscar Salvador <osalvador@techadventures.net>
-Subject: [PATCH 1/5] mm/memory_hotplug: Spare unnecessary calls to node_set_state
-Date: Wed, 19 Sep 2018 12:08:15 +0200
-Message-Id: <20180919100819.25518-2-osalvador@techadventures.net>
+Subject: [PATCH 2/5] mm/memory_hotplug: Avoid node_set/clear_state(N_HIGH_MEMORY) when !CONFIG_HIGHMEM
+Date: Wed, 19 Sep 2018 12:08:16 +0200
+Message-Id: <20180919100819.25518-3-osalvador@techadventures.net>
 In-Reply-To: <20180919100819.25518-1-osalvador@techadventures.net>
 References: <20180919100819.25518-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
@@ -22,37 +22,51 @@ Cc: mhocko@suse.com, dan.j.williams@intel.com, david@redhat.com, Pavel.Tatashin@
 
 From: Oscar Salvador <osalvador@suse.de>
 
-In node_states_check_changes_online, we check if the node will
-have to be set for any of the N_*_MEMORY states after the pages
-have been onlined.
+Currently, when !CONFIG_HIGHMEM, status_change_nid_high is being set
+to status_change_nid_normal, but on such systems N_HIGH_MEMORY falls
+back to N_NORMAL_MEMORY.
+That means that if status_change_nid_normal is not -1,
+we will perform two calls to node_set_state for the same memory type.
 
-Later on, we perform the activation in node_states_set_node.
-Currently, in node_states_set_node we set the node to N_MEMORY
-unconditionally.
-This means that we call node_set_state for N_MEMORY every time
-pages go online, but we only need to do it if the node has not yet been
-set for N_MEMORY.
+Set status_change_nid_high to -1 for !CONFIG_HIGHMEM, so we skip the
+double call in node_states_set_node.
 
-Fix this by checking status_change_nid.
+The same goes for node_clear_state.
 
 Signed-off-by: Oscar Salvador <osalvador@suse.de>
 ---
- mm/memory_hotplug.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ mm/memory_hotplug.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 38d94b703e9d..63facfc57224 100644
+index 63facfc57224..c2c7359bd0a7 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -753,7 +753,8 @@ static void node_states_set_node(int node, struct memory_notify *arg)
- 	if (arg->status_change_nid_high >= 0)
- 		node_set_state(node, N_HIGH_MEMORY);
+@@ -731,7 +731,11 @@ static void node_states_check_changes_online(unsigned long nr_pages,
+ 	else
+ 		arg->status_change_nid_high = -1;
+ #else
+-	arg->status_change_nid_high = arg->status_change_nid_normal;
++	/*
++	 * When !CONFIG_HIGHMEM, N_HIGH_MEMORY equals N_NORMAL_MEMORY
++	 * so setting the node for N_NORMAL_MEMORY is enough.
++	 */
++	arg->status_change_nid_high = -1;
+ #endif
  
--	node_set_state(node, N_MEMORY);
-+	if (arg->status_change_nid >= 0)
-+		node_set_state(node, N_MEMORY);
- }
+ 	/*
+@@ -1555,7 +1559,11 @@ static void node_states_check_changes_offline(unsigned long nr_pages,
+ 	else
+ 		arg->status_change_nid_high = -1;
+ #else
+-	arg->status_change_nid_high = arg->status_change_nid_normal;
++	/*
++	 * When !CONFIG_HIGHMEM, N_HIGH_MEMORY equals N_NORMAL_MEMORY
++	 * so clearing the node for N_NORMAL_MEMORY is enough.
++	 */
++	arg->status_change_nid_high = -1;
+ #endif
  
- static void __meminit resize_zone_range(struct zone *zone, unsigned long start_pfn,
+ 	/*
 -- 
 2.13.6
