@@ -1,79 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E9B18E0001
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 21:18:28 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id e15-v6so1892787pfi.5
-        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 18:18:28 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id 29-v6si20644314pgv.292.2018.09.18.18.18.26
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 771D48E0001
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 21:22:13 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id 132-v6so1637736pga.18
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 18:22:13 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h125-v6sor1868736pgc.242.2018.09.18.18.22.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Sep 2018 18:18:27 -0700 (PDT)
+        (Google Transport Security);
+        Tue, 18 Sep 2018 18:22:12 -0700 (PDT)
+Date: Wed, 19 Sep 2018 11:22:07 +1000
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [PATCH v1 0/6] mm: online/offline_pages called w.o.
+ mem_hotplug_lock
+Message-ID: <20180919012207.GD8537@350D>
+References: <20180918114822.21926-1-david@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII;
- format=flowed
-Content-Transfer-Encoding: 7bit
-Date: Wed, 19 Sep 2018 06:48:25 +0530
-From: Arun KS <arunks@codeaurora.org>
-Subject: Re: [RFC] memory_hotplug: Free pages as pageblock_order
-In-Reply-To: <20180914091053.GJ20287@dhcp22.suse.cz>
-References: <1536744405-16752-1-git-send-email-arunks@codeaurora.org>
- <20180912103853.GC10951@dhcp22.suse.cz> <20180912125743.GB8537@350D>
- <20180912131724.GH10951@dhcp22.suse.cz>
- <9d8dfd50046036a7b4e730738940014d@codeaurora.org>
- <20180914091053.GJ20287@dhcp22.suse.cz>
-Message-ID: <28e613e9a092a434cfa9b38f7b0f8eea@codeaurora.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180918114822.21926-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Balbir Singh <bsingharora@gmail.com>, akpm@linux-foundation.org, dan.j.williams@intel.com, vbabka@suse.cz, pasha.tatashin@oracle.com, iamjoonsoo.kim@lge.com, osalvador@suse.de, malat@debian.org, gregkh@linuxfoundation.org, yasu.isimatu@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, arunks.linux@gmail.com, vinmenon@codeaurora.org
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, John Allen <jallen@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Len Brown <lenb@kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Mathieu Malaterre <malat@debian.org>, Michael Ellerman <mpe@ellerman.id.au>, Michael Neuling <mikey@neuling.org>, Michal Hocko <mhocko@suse.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Oscar Salvador <osalvador@suse.de>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Philippe Ombredanne <pombredanne@nexb.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Rashmica Gupta <rashmica.g@gmail.com>, Stephen Hemminger <sthemmin@microsoft.com>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
 
-On 2018-09-14 14:40, Michal Hocko wrote:
-> On Wed 12-09-18 20:12:30, Arun KS wrote:
->> On 2018-09-12 18:47, Michal Hocko wrote:
->> > On Wed 12-09-18 22:57:43, Balbir Singh wrote:
->> > > On Wed, Sep 12, 2018 at 12:38:53PM +0200, Michal Hocko wrote:
->> > > > On Wed 12-09-18 14:56:45, Arun KS wrote:
->> > > > > When free pages are done with pageblock_order, time spend on
->> > > > > coalescing pages by buddy allocator can be reduced. With
->> > > > > section size of 256MB, hot add latency of a single section
->> > > > > shows improvement from 50-60 ms to less than 1 ms, hence
->> > > > > improving the hot add latency by 60%.
->> > > >
->> > > > Where does the improvement come from? You are still doing the same
->> > > > amount of work except that the number of callbacks is lower. Is this the
->> > > > real source of 60% improvement?
->> > > >
->> > >
->> > > It looks like only the first page of the pageblock is initialized, is
->> > > some of the cost amortized in terms of doing one initialization for
->> > > the page with order (order) and then relying on split_page and helpers
->> > > to do the rest? Of course the number of callbacks reduce by a
->> > > significant
->> > > number as well.
->> >
->> > Ohh, I have missed that part. Now when re-reading I can see the reason
->> > for the perf improvement. It is most likely the higher order free which
->> > ends up being much cheaper. This part makes some sense.
->> >
->> > How much is this feasible is another question. Do not forget we have
->> > those external providers of the online callback and those would need to
->> > be updated as well.
->> Sure Michal, I ll look into this.
->> 
->> >
->> > Btw. the normal memmap init code path does the same per-page free as
->> > well. If we really want to speed the hotplug path then I guess the init
->> > one would see a bigger improvement and those two should be in sync.
->> Thanks for pointers, Will look further.
+On Tue, Sep 18, 2018 at 01:48:16PM +0200, David Hildenbrand wrote:
+> Reading through the code and studying how mem_hotplug_lock is to be used,
+> I noticed that there are two places where we can end up calling
+> device_online()/device_offline() - online_pages()/offline_pages() without
+> the mem_hotplug_lock. And there are other places where we call
+> device_online()/device_offline() without the device_hotplug_lock.
 > 
-> I haven't looked closer and I will be travelling next week so just 
-> hint.
-> Have a look at the nobootmem and how it frees pages to the page
-> allocator in __free_pages_boot_core. Seems exactly what you want and it
-> also answers your question about reference counting.
+> While e.g.
+> 	echo "online" > /sys/devices/system/memory/memory9/state
+> is fine, e.g.
+> 	echo 1 > /sys/devices/system/memory/memory9/online
+> Will not take the mem_hotplug_lock. However the device_lock() and
+> device_hotplug_lock.
+> 
+> E.g. via memory_probe_store(), we can end up calling
+> add_memory()->online_pages() without the device_hotplug_lock. So we can
+> have concurrent callers in online_pages(). We e.g. touch in online_pages()
+> basically unprotected zone->present_pages then.
+> 
+> Looks like there is a longer history to that (see Patch #2 for details),
+> and fixing it to work the way it was intended is not really possible. We
+> would e.g. have to take the mem_hotplug_lock in device/base/core.c, which
+> sounds wrong.
+> 
+> Summary: We had a lock inversion on mem_hotplug_lock and device_lock().
+> More details can be found in patch 3 and patch 6.
+> 
+> I propose the general rules (documentation added in patch 6):
+> 
+> 1. add_memory/add_memory_resource() must only be called with
+>    device_hotplug_lock.
+> 2. remove_memory() must only be called with device_hotplug_lock. This is
+>    already documented and holds for all callers.
+> 3. device_online()/device_offline() must only be called with
+>    device_hotplug_lock. This is already documented and true for now in core
+>    code. Other callers (related to memory hotplug) have to be fixed up.
+> 4. mem_hotplug_lock is taken inside of add_memory/remove_memory/
+>    online_pages/offline_pages.
+> 
+> To me, this looks way cleaner than what we have right now (and easier to
+> verify). And looking at the documentation of remove_memory, using
+> lock_device_hotplug also for add_memory() feels natural.
+>
 
-Thanks Michal. Will send a new version after testing.
+That seems reasonable, but also implies that device_online() would hold
+back add/remove memory, could you please also document what mode
+read/write the locks need to be held? For example can the device_hotplug_lock
+be held in read mode while add/remove memory via (mem_hotplug_lock) is held
+in write mode?
 
-Regards,
-Arun
+Balbir Singh.
+ 
