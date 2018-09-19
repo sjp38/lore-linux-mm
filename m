@@ -1,44 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D95C68E0001
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 12:51:07 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id q21-v6so3032521pff.21
-        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 09:51:07 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r75-v6sor3358359pfd.125.2018.09.19.09.51.05
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 577178E0001
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 13:04:11 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id d132-v6so2639189pgc.22
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 10:04:11 -0700 (PDT)
+Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
+        by mx.google.com with ESMTPS id x3-v6si21452649pgo.542.2018.09.19.10.04.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 19 Sep 2018 09:51:06 -0700 (PDT)
-From: "haiqing.shq" <leviathan0992@gmail.com>
-Subject: [PATCH] mm/filemap.c: Use existing variable
-Date: Wed, 19 Sep 2018 16:50:55 +0000
-Message-Id: <1537375855-2088-1-git-send-email-leviathan0992@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Sep 2018 10:04:09 -0700 (PDT)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [v11 PATCH 2/3] mm: unmap VM_HUGETLB mappings with optimized path
+Date: Thu, 20 Sep 2018 01:03:40 +0800
+Message-Id: <1537376621-51150-3-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <1537376621-51150-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1537376621-51150-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: jack@suse.cz, mgorman@techsingularity.net, ak@linux.intel.com, yang.s@alibaba-inc.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "haiqing.shq" <leviathan0992@gmail.com>
+To: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, vbabka@suse.cz, kirill@shutemov.name, akpm@linux-foundation.org
+Cc: dave.hansen@intel.com, oleg@redhat.com, srikar@linux.vnet.ibm.com, yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: "haiqing.shq" <leviathan0992@gmail.com>
+When unmapping VM_HUGETLB mappings, vm flags need to be updated. Since
+the vmas have been detached, so it sounds safe to update vm flags with
+read mmap_sem.
 
-Use the variable write_len instead of ov_iter_count(from).
-
-Signed-off-by: haiqing.shq <leviathan0992@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Reviewed-by: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
- mm/filemap.c | 2 +-
+ mm/mmap.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 52517f2..4a699ef 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -3012,7 +3012,7 @@ int pagecache_write_end(struct file *file, struct address_space *mapping,
- 	if (iocb->ki_flags & IOCB_NOWAIT) {
- 		/* If there are pages to writeback, return */
- 		if (filemap_range_has_page(inode->i_mapping, pos,
--					   pos + iov_iter_count(from)))
-+					   pos + write_len))
- 			return -EAGAIN;
- 	} else {
- 		written = filemap_write_and_wait_range(mapping, pos,
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 982dd00..490340e 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2777,7 +2777,7 @@ static int __do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 			 * update vm_flags.
+ 			 */
+ 			if (downgrade &&
+-			    (tmp->vm_flags & (VM_HUGETLB | VM_PFNMAP)))
++			    (tmp->vm_flags & VM_PFNMAP))
+ 				downgrade = false;
+ 
+ 			tmp = tmp->vm_next;
 -- 
 1.8.3.1
