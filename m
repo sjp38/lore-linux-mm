@@ -1,112 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B5088E0001
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 19:48:16 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id y130-v6so2667174qka.1
-        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 16:48:16 -0700 (PDT)
-Received: from smtp-fw-33001.amazon.com (smtp-fw-33001.amazon.com. [207.171.190.10])
-        by mx.google.com with ESMTPS id f14-v6si2293527qvr.256.2018.09.18.16.48.14
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 940558E0001
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 20:45:13 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id a12-v6so1755815ybe.21
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 17:45:13 -0700 (PDT)
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id 133-v6sor2339360ywm.438.2018.09.18.17.45.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Sep 2018 16:48:15 -0700 (PDT)
-From: "Um, Taeil" <taeilum@amazon.com>
-Subject: Re: zswap: use PAGE_SIZE * 2 for compression dst buffer size when
- calling crypto compression API
-Date: Tue, 18 Sep 2018 23:48:11 +0000
-Message-ID: <EEC089E8-9F85-483A-8C83-4C8459BA1345@amazon.com>
-References: <D4C91DBA-CF56-4991-BD7F-6BE334A2C048@amazon.com>
- <CALZtONDpUDAz_PLrt03CaajzAoY_Wr6Tm=PgvqAWyir9=fCd8A@mail.gmail.com>
- <EAFEF5B5-DE5D-42C7-AEF1-9DF6A800E95D@amazon.com>
- <CALZtONC5FYhmq+U6fga7RbDA4mEB4rTihsLGXG50a-XUCdtxiA@mail.gmail.com>
-In-Reply-To: <CALZtONC5FYhmq+U6fga7RbDA4mEB4rTihsLGXG50a-XUCdtxiA@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <760C381C4108CD4B86029B608EE31BBA@amazon.com>
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        (Google Transport Security);
+        Tue, 18 Sep 2018 17:45:12 -0700 (PDT)
+Date: Tue, 18 Sep 2018 17:45:01 -0700
+Message-Id: <20180919004501.178023-1-shakeelb@google.com>
+Mime-Version: 1.0
+Subject: [PATCH] memcg: remove memcg_kmem_skip_account
+From: Shakeel Butt <shakeelb@google.com>
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Seth Jennings <sjenning@redhat.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
 
-V2UgY2FuIHRlbGwgd2hldGhlciBjb21wcmVzc2VkIHNpemUgaXMgZ3JlYXRlciB0aGFuIFBBR0Vf
-U0laRSBieSBsb29raW5nIGF0IHRoZSByZXR1cm5lZCAqZGxlbiB2YWx1ZSBmcm9tIGNyeXB0b19j
-b21wX2NvbXByZXNzLiBUaGlzIHNob3VsZCBiZSBmYWlybHkgZWFzeS4NClRoaXMgaXMgYWN0dWFs
-bHkgd2hhdCB6cmFtIGlzIGRvaW5nIHRvZGF5LiB6cmFtIGxvb2tzIGZvciAqZGxlbiBhbmQgbm90
-IHRha2UgdGhlIGNvbXByZXNzZWQgcmVzdWx0IGlmICpkbGVuIGlzIGdyZWF0ZXIgdGhhbiBjZXJ0
-YWluIHNpemUuDQpJIHRoaW5rIGVycm9ycyBmcm9tIGNyeXB0b19jb21wX2NvbXByZXNzIHNob3Vs
-ZCBiZSByZWFsIGVycm9ycy4gDQoNClRvZGF5IGluIGtlcm5lbCBjb21wcmVzc2lvbiBkcml2ZXJz
-IHN1Y2ggYXMgbHpvIGFuZCBsejQsIHRoZXkgZG8gbm90IHN0b3AganVzdCBiZWNhdXNlIGNvbXBy
-ZXNzaW9uIHJlc3VsdCBzaXplIGlzIGdyZWF0ZXIgdGhhbiBzb3VyY2Ugc2l6ZS4NCkFsc28sIHNv
-bWUgSC9XIGFjY2VsZXJhdG9ycyB3b3VsZCBub3QgaGF2ZSB0aGUgb3B0aW9uIG9mIHN0b3BwaW5n
-IGNvbXByZXNzaW9uIGp1c3QgYmVjYXVzZSBvZiB0aGUgcmVzdWx0IHNpemUgaXMgZ3JlYXRlciB0
-aGFuIHNvdXJjZSBzaXplLg0KDQpUaGFuayB5b3UsDQpUYWVpbA0KDQrvu79PbiA5LzE4LzE4LCAy
-OjQ0IFBNLCAiRGFuIFN0cmVldG1hbiIgPGRkc3RyZWV0QGllZWUub3JnPiB3cm90ZToNCg0KICAg
-IE9uIFR1ZSwgU2VwIDE4LCAyMDE4IGF0IDI6NTIgUE0gVW0sIFRhZWlsIDx0YWVpbHVtQGFtYXpv
-bi5jb20+IHdyb3RlOg0KICAgID4NCiAgICA+IFByb2JsZW0gc3RhdGVtZW50Og0KICAgID4gImNv
-bXByZXNzZWQgZGF0YSBhcmUgbm90IGZ1bGx5IGNvcGllZCB0byBkZXN0aW5hdGlvbiBidWZmZXIg
-d2hlbiBjb21wcmVzc2VkIGRhdGEgc2l6ZSBpcyBncmVhdGVyIHRoYW4gc291cmNlIGRhdGEiDQog
-ICAgPg0KICAgID4gV2h5Og0KICAgID4gNXRoIGFyZ3VtZW50IG9mIGNyeXB0b19jb21wX2NvbXBy
-ZXNzIGZ1bmN0aW9uIGlzICpkbGVuLCB3aGljaCB0ZWxsIHRoZSBjb21wcmVzc2lvbiBkcml2ZXIg
-aG93IG1hbnkgYnl0ZXMgdGhlIGRlc3RpbmF0aW9uIGJ1ZmZlciBzcGFjZSBpcyBhbGxvY2F0ZWQg
-KGFsbG93ZWQgdG8gd3JpdGUgZGF0YSkuDQogICAgPiBUaGlzICpkbGVuIGlzIGltcG9ydGFudCBl
-c3BlY2lhbGx5IGZvciBIL1cgYWNjZWxlcmF0b3IgYmFzZWQgY29tcHJlc3Npb24gZHJpdmVyIGJl
-Y2F1c2UgaXQgaXMgZGFuZ2Vyb3VzIGlmIHdlIGFsbG93IHRoZSBIL1cgYWNjZWxlcmF0b3IgdG8g
-YWNjZXNzIG1lbW9yeSBiZXlvbmQgKmRzdCArICpkbGVuLg0KICAgID4gTm90ZSB0aGF0IGJ1ZmZl
-ciBsb2NhdGlvbiB3b3VsZCBiZSBwYXNzZWQgYXMgcGh5c2ljYWwgYWRkcmVzcy4NCiAgICA+IER1
-ZSB0byB0aGUgYWJvdmUgcmVhc29uLCBIL1cgYWNjZWxlcmF0b3IgYmFzZWQgY29tcHJlc3Npb24g
-ZHJpdmVyIG5lZWQgdG8gaG9ub3IgKmRsZW4gdmFsdWUgd2hlbiBpdCBzZXJ2ZXMgY3J5cHRvX2Nv
-bXBfY29tcHJlc3MgQVBJLg0KICAgIA0KICAgIGFuZCB0aGF0J3MgZXhhY3RseSB3aGF0IHpzd2Fw
-IHdhbnRzIHRvIGhhcHBlbiAtIGFueSBjb21wcmVzc29yIChodyBvcg0KICAgIHN3KSBzaG91bGQg
-ZmFpbCB3aXRoIGFuIGVycm9yIGNvZGUgKEVOT1NQQyBtYWtlcyB0aGUgbW9zdCBzZW5zZSwgYnV0
-DQogICAgenN3YXAgZG9lc24ndCBhY3R1YWxseSBjYXJlKSBpZiB0aGUgY29tcHJlc3NlZCBkYXRh
-IHNpemUgaXMgbGFyZ2VyDQogICAgdGhhbiB0aGUgcHJvdmlkZWQgZGF0YSBidWZmZXIuDQogICAg
-DQogICAgPiBUb2RheSwgd2UgcGFzcyBzbGVuID0gUEFHRV9TSVpFIGFuZCAqZGxlbj1QQUdFX1NJ
-WkUgdG8gY3J5cHRvX2NvbXBfY29tcHJlc3MgaW4genN3YXAuYy4NCiAgICA+IElmIGNvbXByZXNz
-ZWQgZGF0YSBzaXplIGlzIGdyZWF0ZXIgdGhhbiBzb3VyY2UgKHVuY29tcHJlc3NlZCkgZGF0YSBz
-aXplLCAgSC9XIGFjY2VsZXJhdG9yIGNhbm5vdCBjb3B5IChkZWxpdmVyKSB0aGUgZW50aXJlIGNv
-bXByZXNzZWQgZGF0YS4NCiAgICANCiAgICBJZiB0aGUgImNvbXByZXNzZWQiIGRhdGEgaXMgbGFy
-Z2VyIHRoYW4gMSBwYWdlLCB0aGVuIHRoZXJlIGlzIG5vIHBvaW50DQogICAgaW4gc3RvcmluZyB0
-aGUgcGFnZSBpbiB6c3dhcC4NCiAgICANCiAgICByZW1lbWJlciB0aGF0IHpzd2FwIGlzIGRpZmZl
-cmVudCB0aGFuIHpyYW07IGluIHpyYW0sIHRoZXJlJ3Mgbm8gb3RoZXINCiAgICBwbGFjZSB0byBz
-dG9yZSB0aGUgZGF0YS4gIEhvd2V2ZXIsIHdpdGggenN3YXAsIGlmIGNvbXByZXNzaW9uIGZhaWxz
-IG9yDQogICAgaXNuJ3QgZ29vZCwgd2UgY2FuIGp1c3QgcGFzcyB0aGUgdW5jb21wcmVzc2VkIHBh
-Z2UgZG93biB0byB0aGUgc3dhcA0KICAgIGRldmljZS4NCiAgICANCiAgICA+DQogICAgPiBUaGFu
-ayB5b3UsDQogICAgPiBUYWVpbA0KICAgID4NCiAgICA+IE9uIDkvMTgvMTgsIDc6MTUgQU0sICJE
-YW4gU3RyZWV0bWFuIiA8ZGRzdHJlZXRAaWVlZS5vcmc+IHdyb3RlOg0KICAgID4NCiAgICA+ICAg
-ICBPbiBNb24sIFNlcCAxNywgMjAxOCBhdCA3OjEwIFBNIFVtLCBUYWVpbCA8dGFlaWx1bUBhbWF6
-b24uY29tPiB3cm90ZToNCiAgICA+ICAgICA+DQogICAgPiAgICAgPiBDdXJyZW50bHksIHdlIGFs
-bG9jYXRlIFBBR0VfU0laRSAqIDIgZm9yIHpzd2FwX2RzdG1lbSB3aGljaCBpcyB1c2VkIGFzIGNv
-bXByZXNzaW9uIGRlc3RpbmF0aW9uIGJ1ZmZlci4NCiAgICA+ICAgICA+DQogICAgPiAgICAgPiBI
-b3dldmVyLCB3ZSBwYXNzIG9ubHkgaGFsZiBvZiB0aGUgc2l6ZSAoUEFHRV9TSVpFKSB0byBjcnlw
-dG9fY29tcF9jb21wcmVzcy4NCiAgICA+ICAgICA+DQogICAgPiAgICAgPiBUaGlzIG1pZ2h0IG5v
-dCBiZSBhIHByb2JsZW0gZm9yIENQVSBiYXNlZCBleGlzdGluZyBsem8sIGx6NCBjcnlwdG8gY29t
-cHJlc3Npb24gZHJpdmVyIGltcGxhbnRhdGlvbi4NCiAgICA+ICAgICA+DQogICAgPiAgICAgPiBI
-b3dldmVyLCB0aGlzIGNvdWxkIGJlIGEgcHJvYmxlbSBmb3Igc29tZSBIL1cgYWNjZWxlcmF0aW9u
-IGNvbXByZXNzaW9uIGRyaXZlcnMsIHdoaWNoIGhvbm9yIGRlc3RpbmF0aW9uIGJ1ZmZlciBzaXpl
-IHdoZW4gaXQgcHJlcGFyZXMgSC9XIHJlc291cmNlcy4NCiAgICA+DQogICAgPiAgICAgSG93IGV4
-YWN0bHkgY291bGQgaXQgYmUgYSBwcm9ibGVtPw0KICAgID4NCiAgICA+ICAgICA+DQogICAgPiAg
-ICAgPiBBY3R1YWxseSwgdGhpcyBwYXRjaCBpcyBhbGlnbmVkIHdpdGggd2hhdCB6cmFtIGlzIHBh
-c3Npbmcgd2hlbiBpdCBjYWxscyBjcnlwdG9fY29tcF9jb21wcmVzcy4NCiAgICA+ICAgICA+DQog
-ICAgPiAgICAgPiBUaGUgZm9sbG93aW5nIHNpbXBsZSBwYXRjaCB3aWxsIHNvbHZlIHRoaXMgcHJv
-YmxlbS4gSSB0ZXN0ZWQgaXQgd2l0aCBleGlzdGluZyBjcnlwdG8vbHpvLmMgYW5kIGNyeXB0by9s
-ejQuYyBjb21wcmVzc2lvbiBkcml2ZXIgYW5kIGl0IHdvcmtzIGZpbmUuDQogICAgPiAgICAgPg0K
-ICAgID4gICAgID4NCiAgICA+ICAgICA+DQogICAgPiAgICAgPg0KICAgID4gICAgID4NCiAgICA+
-ICAgICA+IC0tLSBtbS96c3dhcC5jLm9yaWcgICAgICAgMjAxOC0wOS0xNCAxNDozNjozNy45ODQx
-OTkyMzIgLTA3MDANCiAgICA+ICAgICA+DQogICAgPiAgICAgPiArKysgbW0venN3YXAuYyAgICAg
-ICAgICAgICAyMDE4LTA5LTE0IDE0OjM2OjUzLjM0MDE4OTY4MSAtMDcwMA0KICAgID4gICAgID4N
-CiAgICA+ICAgICA+IEBAIC0xMDAxLDcgKzEwMDEsNyBAQCBzdGF0aWMgaW50IHpzd2FwX2Zyb250
-c3dhcF9zdG9yZSh1bnNpZ25lDQogICAgPiAgICAgPg0KICAgID4gICAgID4gICAgICAgICAgICAg
-ICAgIHN0cnVjdCB6c3dhcF9lbnRyeSAqZW50cnksICpkdXBlbnRyeTsNCiAgICA+ICAgICA+DQog
-ICAgPiAgICAgPiAgICAgICAgICAgICAgICAgc3RydWN0IGNyeXB0b19jb21wICp0Zm07DQogICAg
-PiAgICAgPg0KICAgID4gICAgID4gICAgICAgICAgICAgICAgIGludCByZXQ7DQogICAgPiAgICAg
-Pg0KICAgID4gICAgID4gLSAgICAgICAgICAgICAgdW5zaWduZWQgaW50IGhsZW4sIGRsZW4gPSBQ
-QUdFX1NJWkU7DQogICAgPiAgICAgPg0KICAgID4gICAgID4gKyAgICAgICAgICAgICB1bnNpZ25l
-ZCBpbnQgaGxlbiwgZGxlbiA9IFBBR0VfU0laRSAqIDI7DQogICAgPiAgICAgPg0KICAgID4gICAg
-ID4gICAgICAgICAgICAgICAgIHVuc2lnbmVkIGxvbmcgaGFuZGxlLCB2YWx1ZTsNCiAgICA+ICAg
-ICA+DQogICAgPiAgICAgPiAgICAgICAgICAgICAgICAgY2hhciAqYnVmOw0KICAgID4gICAgID4N
-CiAgICA+ICAgICA+ICAgICAgICAgICAgICAgICB1OCAqc3JjLCAqZHN0Ow0KICAgID4gICAgID4N
-CiAgICA+ICAgICA+DQogICAgPiAgICAgPg0KICAgID4gICAgID4NCiAgICA+ICAgICA+DQogICAg
-PiAgICAgPg0KICAgID4gICAgID4NCiAgICA+ICAgICA+IFRoYW5rIHlvdSwNCiAgICA+ICAgICA+
-DQogICAgPiAgICAgPiBUYWVpbA0KICAgID4gICAgID4NCiAgICA+ICAgICA+DQogICAgPg0KICAg
-ID4NCiAgICA+DQogICAgDQogICAgDQoNCg==
+The flag memcg_kmem_skip_account was added during the era of opt-out
+kmem accounting. There is no need for such flag in the opt-in world as
+there aren't any __GFP_ACCOUNT allocations within
+memcg_create_cache_enqueue().
+
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
+---
+ include/linux/sched.h |  3 ---
+ mm/memcontrol.c       | 24 +-----------------------
+ 2 files changed, 1 insertion(+), 26 deletions(-)
+
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 977cb57d7bc9..c30e3cd4b81c 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -723,9 +723,6 @@ struct task_struct {
+ #endif
+ #ifdef CONFIG_MEMCG
+ 	unsigned			in_user_fault:1;
+-#ifdef CONFIG_MEMCG_KMEM
+-	unsigned			memcg_kmem_skip_account:1;
+-#endif
+ #endif
+ #ifdef CONFIG_COMPAT_BRK
+ 	unsigned			brk_randomized:1;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index e79cb59552d9..bde698a0bb99 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2460,7 +2460,7 @@ static void memcg_kmem_cache_create_func(struct work_struct *w)
+ /*
+  * Enqueue the creation of a per-memcg kmem_cache.
+  */
+-static void __memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
++static void memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
+ 					       struct kmem_cache *cachep)
+ {
+ 	struct memcg_kmem_cache_create_work *cw;
+@@ -2478,25 +2478,6 @@ static void __memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
+ 	queue_work(memcg_kmem_cache_wq, &cw->work);
+ }
+ 
+-static void memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
+-					     struct kmem_cache *cachep)
+-{
+-	/*
+-	 * We need to stop accounting when we kmalloc, because if the
+-	 * corresponding kmalloc cache is not yet created, the first allocation
+-	 * in __memcg_schedule_kmem_cache_create will recurse.
+-	 *
+-	 * However, it is better to enclose the whole function. Depending on
+-	 * the debugging options enabled, INIT_WORK(), for instance, can
+-	 * trigger an allocation. This too, will make us recurse. Because at
+-	 * this point we can't allow ourselves back into memcg_kmem_get_cache,
+-	 * the safest choice is to do it like this, wrapping the whole function.
+-	 */
+-	current->memcg_kmem_skip_account = 1;
+-	__memcg_schedule_kmem_cache_create(memcg, cachep);
+-	current->memcg_kmem_skip_account = 0;
+-}
+-
+ static inline bool memcg_kmem_bypass(void)
+ {
+ 	if (in_interrupt() || !current->mm || (current->flags & PF_KTHREAD))
+@@ -2531,9 +2512,6 @@ struct kmem_cache *memcg_kmem_get_cache(struct kmem_cache *cachep)
+ 	if (memcg_kmem_bypass())
+ 		return cachep;
+ 
+-	if (current->memcg_kmem_skip_account)
+-		return cachep;
+-
+ 	memcg = get_mem_cgroup_from_current();
+ 	kmemcg_id = READ_ONCE(memcg->kmemcg_id);
+ 	if (kmemcg_id < 0)
+-- 
+2.19.0.397.gdd90340f6a-goog
