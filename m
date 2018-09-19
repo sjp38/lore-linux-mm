@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C93D8E0001
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 23:18:38 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id 2-v6so1814095plc.11
-        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 20:18:38 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B7A078E0001
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 23:18:43 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id u6-v6so1808015pgn.10
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 20:18:43 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c17-v6sor2234835pgf.80.2018.09.18.20.18.36
+        by mx.google.com with SMTPS id g12-v6sor3752618pll.149.2018.09.18.20.18.42
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 18 Sep 2018 20:18:37 -0700 (PDT)
+        Tue, 18 Sep 2018 20:18:42 -0700 (PDT)
 From: Pingfan Liu <kernelfans@gmail.com>
-Subject: [PATCH 2/3] drivers/base/memory: introduce a new state 'isolate' for memblock
-Date: Wed, 19 Sep 2018 11:17:45 +0800
-Message-Id: <1537327066-27852-3-git-send-email-kernelfans@gmail.com>
+Subject: [PATCH 3/3] drivers/base/node: create a partial offline hints under each node
+Date: Wed, 19 Sep 2018 11:17:46 +0800
+Message-Id: <1537327066-27852-4-git-send-email-kernelfans@gmail.com>
 In-Reply-To: <1537327066-27852-1-git-send-email-kernelfans@gmail.com>
 References: <1537327066-27852-1-git-send-email-kernelfans@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,26 +20,13 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Pingfan Liu <kernelfans@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@techsingularity.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Michal Hocko <mhocko@suse.com>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-Currently, offline pages in the unit of memblock, and normally, it is done
-one by one on each memblock. If there is only one numa node, then the dst
-pages may come from the next memblock to be offlined, which wastes time
-during memory offline. For a system with multi numa node, if only replacing
-part of mem on a node, and the migration dst page can be allocated from
-local node (which is done by [3/3]), it also faces such issue.
-This patch suggests to introduce a new state, named 'isolate', the state
-transition can be isolate -> online or reversion. And another slight
-benefit of "isolated" state is no further allocation on this memblock,
-which can block potential unmovable page allocated again from this
-memblock for a long time.
-
-After this patch, the suggested ops to offline pages
-will looks like:
-  for i in {s..e}; do  echo isolate > memory$i/state; done
-  for i in {s..e}; do  echo offline > memory$i/state; done
-
-Since this patch does not change the original offline path, hence
-  for i in (s..e); do  echo offline > memory$i/state; done
-still works.
+When offline mem, there are two cases: 1st, offline all of memblock under a
+node. 2nd, only offline and replace part of mem under a node. For the 2nd
+case, there is not need to alloc new page from other nodes, which may incur
+extra numa fault to resolve the misplaced issue, and place unnecessary mem
+pressure on other nodes. The patch suggests to introduce an interface
+ /sys/../node/nodeX/partial_offline to let the user order how to
+allocate a new page, i.e. from local node or other nodes.
 
 Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -53,105 +40,138 @@ Cc: Dan Williams <dan.j.williams@intel.com>
 Cc: "H. Peter Anvin" <hpa@zytor.com>
 Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- drivers/base/memory.c  | 31 ++++++++++++++++++++++++++++++-
- include/linux/memory.h |  1 +
- 2 files changed, 31 insertions(+), 1 deletion(-)
+ drivers/base/node.c    | 33 +++++++++++++++++++++++++++++++++
+ include/linux/mmzone.h |  1 +
+ mm/memory_hotplug.c    | 31 +++++++++++++++++++------------
+ 3 files changed, 53 insertions(+), 12 deletions(-)
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index c8a1cb0..3b714be 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -19,6 +19,7 @@
- #include <linux/memory.h>
- #include <linux/memory_hotplug.h>
- #include <linux/mm.h>
-+#include <linux/page-isolation.h>
- #include <linux/mutex.h>
- #include <linux/stat.h>
- #include <linux/slab.h>
-@@ -166,6 +167,9 @@ static ssize_t show_mem_state(struct device *dev,
- 	case MEM_GOING_OFFLINE:
- 		len = sprintf(buf, "going-offline\n");
- 		break;
-+	case MEM_ISOLATED:
-+		len = sprintf(buf, "isolated\n");
-+		break;
- 	default:
- 		len = sprintf(buf, "ERROR-UNKNOWN-%ld\n",
- 				mem->state);
-@@ -323,6 +327,9 @@ store_mem_state(struct device *dev,
- {
- 	struct memory_block *mem = to_memory_block(dev);
- 	int ret, online_type;
-+	int isolated = 0;
-+	unsigned long start_pfn;
-+	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
- 
- 	ret = lock_device_hotplug_sysfs();
- 	if (ret)
-@@ -336,7 +343,13 @@ store_mem_state(struct device *dev,
- 		online_type = MMOP_ONLINE_KEEP;
- 	else if (sysfs_streq(buf, "offline"))
- 		online_type = MMOP_OFFLINE;
--	else {
-+	else if (sysfs_streq(buf, "isolate")) {
-+		isolated = 1;
-+		goto memblock_isolated;
-+	} else if (sysfs_streq(buf, "unisolate")) {
-+		isolated = -1;
-+		goto memblock_isolated;
-+	} else {
- 		ret = -EINVAL;
- 		goto err;
- 	}
-@@ -366,6 +379,20 @@ store_mem_state(struct device *dev,
- 
- 	mem_hotplug_done();
- err:
-+memblock_isolated:
-+	if (isolated == 1 && mem->state == MEM_ONLINE) {
-+		start_pfn = section_nr_to_pfn(mem->start_section_nr);
-+		ret = start_isolate_page_range(start_pfn, start_pfn + nr_pages,
-+			MIGRATE_MOVABLE, true, true);
-+		if (!ret)
-+			mem->state = MEM_ISOLATED;
-+	} else if (isolated == -1 && mem->state == MEM_ISOLATED) {
-+		start_pfn = section_nr_to_pfn(mem->start_section_nr);
-+		ret = undo_isolate_page_range(start_pfn, start_pfn + nr_pages,
-+			MIGRATE_MOVABLE, true);
-+		if (!ret)
-+			mem->state = MEM_ONLINE;
-+	}
- 	unlock_device_hotplug();
- 
- 	if (ret < 0)
-@@ -455,6 +482,7 @@ static DEVICE_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
- static DEVICE_ATTR(state, 0644, show_mem_state, store_mem_state);
- static DEVICE_ATTR(phys_device, 0444, show_phys_device, NULL);
- static DEVICE_ATTR(removable, 0444, show_mem_removable, NULL);
-+//static DEVICE_ATTR(isolate, 0600, show_mem_isolate, store_mem_isolate);
- 
- /*
-  * Block size attribute stuff
-@@ -631,6 +659,7 @@ static struct attribute *memory_memblk_attrs[] = {
- #ifdef CONFIG_MEMORY_HOTREMOVE
- 	&dev_attr_valid_zones.attr,
- #endif
-+	//&dev_attr_isolate.attr,
- 	NULL
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 1ac4c36..64b0cb8 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -25,6 +25,36 @@ static struct bus_type node_subsys = {
+ 	.dev_name = "node",
  };
  
-diff --git a/include/linux/memory.h b/include/linux/memory.h
-index a6ddefc..e00f22c 100644
---- a/include/linux/memory.h
-+++ b/include/linux/memory.h
-@@ -47,6 +47,7 @@ int set_memory_block_size_order(unsigned int order);
- #define	MEM_GOING_ONLINE	(1<<3)
- #define	MEM_CANCEL_ONLINE	(1<<4)
- #define	MEM_CANCEL_OFFLINE	(1<<5)
-+#define	MEM_ISOLATED	(1<<6)
++static ssize_t read_partial_offline(struct device *dev,
++	struct device_attribute *attr, char *buf)
++{
++	int nid = dev->id;
++	struct pglist_data *pgdat = NODE_DATA(nid);
++	ssize_t len = 0;
++
++	if (pgdat->partial_offline)
++		len = sprintf(buf, "1\n");
++	else
++		len = sprintf(buf, "0\n");
++
++	return len;
++}
++
++static ssize_t write_partial_offline(struct device *dev,
++	struct device_attribute *attr, const char *buf, size_t count)
++{
++	int nid = dev->id;
++	struct pglist_data *pgdat = NODE_DATA(nid);
++
++	if (sysfs_streq(buf, "1"))
++		pgdat->partial_offline = true;
++	else if (sysfs_streq(buf, "0"))
++		pgdat->partial_offline = false;
++	else
++		return -EINVAL;
++
++	return strlen(buf);
++}
  
- struct memory_notify {
- 	unsigned long start_pfn;
+ static ssize_t node_read_cpumap(struct device *dev, bool list, char *buf)
+ {
+@@ -56,6 +86,8 @@ static inline ssize_t node_read_cpulist(struct device *dev,
+ 	return node_read_cpumap(dev, true, buf);
+ }
+ 
++static DEVICE_ATTR(partial_offline, 0600, read_partial_offline,
++	write_partial_offline);
+ static DEVICE_ATTR(cpumap,  S_IRUGO, node_read_cpumask, NULL);
+ static DEVICE_ATTR(cpulist, S_IRUGO, node_read_cpulist, NULL);
+ 
+@@ -235,6 +267,7 @@ static struct attribute *node_dev_attrs[] = {
+ 	&dev_attr_numastat.attr,
+ 	&dev_attr_distance.attr,
+ 	&dev_attr_vmstat.attr,
++	&dev_attr_partial_offline.attr,
+ 	NULL
+ };
+ ATTRIBUTE_GROUPS(node_dev);
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 1e22d96..80c44c8 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -722,6 +722,7 @@ typedef struct pglist_data {
+ 	/* Per-node vmstats */
+ 	struct per_cpu_nodestat __percpu *per_cpu_nodestats;
+ 	atomic_long_t		vm_stat[NR_VM_NODE_STAT_ITEMS];
++	bool	partial_offline;
+ } pg_data_t;
+ 
+ #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 228de4d..3c66075 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1346,18 +1346,10 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
+ 
+ static struct page *new_node_page(struct page *page, unsigned long private)
+ {
+-	int nid = page_to_nid(page);
+-	nodemask_t nmask = node_states[N_MEMORY];
+-
+-	/*
+-	 * try to allocate from a different node but reuse this node if there
+-	 * are no other online nodes to be used (e.g. we are offlining a part
+-	 * of the only existing node)
+-	 */
+-	node_clear(nid, nmask);
+-	if (nodes_empty(nmask))
+-		node_set(nid, nmask);
++	nodemask_t nmask = *(nodemask_t *)private;
++	int nid;
+ 
++	nid = page_to_nid(page);
+ 	return new_page_nodemask(page, nid, &nmask);
+ }
+ 
+@@ -1371,6 +1363,8 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+ 	int not_managed = 0;
+ 	int ret = 0;
+ 	LIST_HEAD(source);
++	int nid;
++	nodemask_t nmask = node_states[N_MEMORY];
+ 
+ 	for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
+ 		if (!pfn_valid(pfn))
+@@ -1430,8 +1424,21 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+ 			goto out;
+ 		}
+ 
++		page = list_entry(source.next, struct page, lru);
++		nid = page_to_nid(page);
++		if (!NODE_DATA(nid)->partial_offline) {
++			/*
++			 * try to allocate from a different node but reuse this
++			 * node if there are no other online nodes to be used
++			 * (e.g. we are offlining a part of the only existing
++			 * node)
++			 */
++			node_clear(nid, nmask);
++			if (nodes_empty(nmask))
++				node_set(nid, nmask);
++		}
+ 		/* Allocate a new page from the nearest neighbor node */
+-		ret = migrate_pages(&source, new_node_page, NULL, 0,
++		ret = migrate_pages(&source, new_node_page, NULL, &nmask,
+ 					MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
+ 		if (ret)
+ 			putback_movable_pages(&source);
 -- 
 2.7.4
