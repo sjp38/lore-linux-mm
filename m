@@ -1,165 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 092EB8E0001
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 06:08:43 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id g3-v6so2826680wrr.11
-        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 03:08:42 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g11-v6sor9504931wmg.19.2018.09.19.03.08.41
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CE3A8E0001
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 06:35:13 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id d6-v6so4515992oth.9
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 03:35:13 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id h68-v6si7596748oth.17.2018.09.19.03.35.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 19 Sep 2018 03:08:41 -0700 (PDT)
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: [PATCH 5/5] mm/memory_hotplug: Clean up node_states_check_changes_offline
-Date: Wed, 19 Sep 2018 12:08:19 +0200
-Message-Id: <20180919100819.25518-6-osalvador@techadventures.net>
-In-Reply-To: <20180919100819.25518-1-osalvador@techadventures.net>
-References: <20180919100819.25518-1-osalvador@techadventures.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Sep 2018 03:35:11 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8JAXhUX124103
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 06:35:10 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2mkky2t8w1-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 06:35:10 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Wed, 19 Sep 2018 11:35:08 +0100
+Date: Wed, 19 Sep 2018 13:34:57 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 03/29] mm: remove CONFIG_HAVE_MEMBLOCK
+References: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1536163184-26356-4-git-send-email-rppt@linux.vnet.ibm.com>
+ <20180919100449.00006df9@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180919100449.00006df9@huawei.com>
+Message-Id: <20180919103457.GA20545@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, dan.j.williams@intel.com, david@redhat.com, Pavel.Tatashin@microsoft.com, Jonathan.Cameron@huawei.com, yasu.isimatu@gmail.com, malat@debian.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Jonathan Cameron <jonathan.cameron@huawei.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ingo Molnar <mingo@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Paul Burton <paul.burton@mips.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linuxarm@huawei.com
 
-From: Oscar Salvador <osalvador@suse.de>
+Hi Jonathan,
 
-This patch, as the previous one, gets rid of the wrong if statements.
-While at it, I realized that the comments are sometimes very confusing,
-to say the least, and wrong.
-For example:
+On Wed, Sep 19, 2018 at 10:04:49AM +0100, Jonathan Cameron wrote:
+> On Wed, 5 Sep 2018 18:59:18 +0300
+> Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+> 
+> > All architecures use memblock for early memory management. There is no need
+> > for the CONFIG_HAVE_MEMBLOCK configuration option.
+> > 
+> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> 
+> Hi Mike,
+> 
+> A minor editing issue in here that is stopping boot on arm64 platforms with latest
+> version of the mm tree.
 
----
-zone_last = ZONE_MOVABLE;
-
-/*
- * check whether node_states[N_HIGH_MEMORY] will be changed
- * If we try to offline the last present @nr_pages from the node,
- * we can determind we will need to clear the node from
- * node_states[N_HIGH_MEMORY].
- */
-
-for (; zt <= zone_last; zt++)
-	present_pages += pgdat->node_zones[zt].present_pages;
-if (nr_pages >= present_pages)
-	arg->status_change_nid = zone_to_nid(zone);
-else
-	arg->status_change_nid = -1;
----
-
-In case the node gets empry, it must be removed from N_MEMORY.
-We already check N_HIGH_MEMORY a bit above within the CONFIG_HIGHMEM
-ifdef code.
-Not to say that status_change_nid is for N_MEMORY, and not for
-N_HIGH_MEMORY.
-
-So I re-wrote some of the comments to what I think is better.
-
-Signed-off-by: Oscar Salvador <osalvador@suse.de>
----
- mm/memory_hotplug.c | 71 +++++++++++++++++++++--------------------------------
- 1 file changed, 28 insertions(+), 43 deletions(-)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index ab3c1de18c5d..15ecf3d7a554 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1485,51 +1485,36 @@ static void node_states_check_changes_offline(unsigned long nr_pages,
- {
- 	struct pglist_data *pgdat = zone->zone_pgdat;
- 	unsigned long present_pages = 0;
--	enum zone_type zt, zone_last = ZONE_NORMAL;
-+	enum zone_type zt;
- 
- 	/*
--	 * If we have HIGHMEM or movable node, node_states[N_NORMAL_MEMORY]
--	 * contains nodes which have zones of 0...ZONE_NORMAL,
--	 * set zone_last to ZONE_NORMAL.
--	 *
--	 * If we don't have HIGHMEM nor movable node,
--	 * node_states[N_NORMAL_MEMORY] contains nodes which have zones of
--	 * 0...ZONE_MOVABLE, set zone_last to ZONE_MOVABLE.
-+	 * Check whether node_states[N_NORMAL_MEMORY] will be changed.
-+	 * If the memory to be offline is within the range
-+	 * [0..ZONE_NORMAL], and it is the last present memory there,
-+	 * the zones in that range will become empty after the offlining,
-+	 * thus we can determine that we need to clear the node from
-+	 * node_states[N_NORMAL_MEMORY].
- 	 */
--	if (N_MEMORY == N_NORMAL_MEMORY)
--		zone_last = ZONE_MOVABLE;
--
--	/*
--	 * check whether node_states[N_NORMAL_MEMORY] will be changed.
--	 * If the memory to be offline is in a zone of 0...zone_last,
--	 * and it is the last present memory, 0...zone_last will
--	 * become empty after offline , thus we can determind we will
--	 * need to clear the node from node_states[N_NORMAL_MEMORY].
--	 */
--	for (zt = 0; zt <= zone_last; zt++)
-+	for (zt = 0; zt <= ZONE_NORMAL; zt++)
- 		present_pages += pgdat->node_zones[zt].present_pages;
--	if (zone_idx(zone) <= zone_last && nr_pages >= present_pages)
-+	if (zone_idx(zone) <= ZONE_NORMAL && nr_pages >= present_pages)
- 		arg->status_change_nid_normal = zone_to_nid(zone);
- 	else
- 		arg->status_change_nid_normal = -1;
- 
- #ifdef CONFIG_HIGHMEM
- 	/*
--	 * If we have movable node, node_states[N_HIGH_MEMORY]
--	 * contains nodes which have zones of 0...ZONE_HIGHMEM,
--	 * set zone_last to ZONE_HIGHMEM.
--	 *
--	 * If we don't have movable node, node_states[N_NORMAL_MEMORY]
--	 * contains nodes which have zones of 0...ZONE_MOVABLE,
--	 * set zone_last to ZONE_MOVABLE.
-+	 * node_states[N_HIGH_MEMORY] contains nodes which
-+	 * have normal memory or high memory.
-+	 * Here we add the present_pages belonging to ZONE_HIGHMEM.
-+	 * If the zone is within the range of [0..ZONE_HIGHMEM), and
-+	 * we determine that the zones in that range become empty,
-+	 * we need to clear the node for N_HIGH_MEMORY.
- 	 */
--	zone_last = ZONE_HIGHMEM;
--	if (N_MEMORY == N_HIGH_MEMORY)
--		zone_last = ZONE_MOVABLE;
-+	zt = ZONE_HIGHMEM;
-+	present_pages += pgdat->node_zones[zt].present_pages;
- 
--	for (; zt <= zone_last; zt++)
--		present_pages += pgdat->node_zones[zt].present_pages;
--	if (zone_idx(zone) <= zone_last && nr_pages >= present_pages)
-+	if (zone_idx(zone) <= zt && nr_pages >= present_pages)
- 		arg->status_change_nid_high = zone_to_nid(zone);
- 	else
- 		arg->status_change_nid_high = -1;
-@@ -1542,18 +1527,18 @@ static void node_states_check_changes_offline(unsigned long nr_pages,
- #endif
- 
- 	/*
--	 * node_states[N_HIGH_MEMORY] contains nodes which have 0...ZONE_MOVABLE
-+	 * We have accounted the pages from [0..ZONE_NORMAL), and
-+	 * in case of CONFIG_HIGHMEM the pages from ZONE_HIGHMEM
-+	 * as well.
-+	 * Here we count the possible pages from ZONE_MOVABLE.
-+	 * If after having accounted all the pages, we see that the nr_pages
-+	 * to be offlined is over or equal to the accounted pages,
-+	 * we know that the node will become empty, and so, we can clear
-+	 * it for N_MEMORY as well.
- 	 */
--	zone_last = ZONE_MOVABLE;
-+	zt = ZONE_MOVABLE;
-+	present_pages += pgdat->node_zones[zt].present_pages;
- 
--	/*
--	 * check whether node_states[N_HIGH_MEMORY] will be changed
--	 * If we try to offline the last present @nr_pages from the node,
--	 * we can determind we will need to clear the node from
--	 * node_states[N_HIGH_MEMORY].
--	 */
--	for (; zt <= zone_last; zt++)
--		present_pages += pgdat->node_zones[zt].present_pages;
- 	if (nr_pages >= present_pages)
- 		arg->status_change_nid = zone_to_nid(zone);
- 	else
--- 
-2.13.6
+Can you please try the following patch:
