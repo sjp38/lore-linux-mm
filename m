@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F4E88E0001
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id ED8658E0001
 	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 06:08:41 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id i11-v6so5195641wrr.10
+Received: by mail-wr1-f71.google.com with SMTP id g3-v6so2826643wrr.11
         for <linux-mm@kvack.org>; Wed, 19 Sep 2018 03:08:41 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y191-v6sor9532365wmc.9.2018.09.19.03.08.40
+        by mx.google.com with SMTPS id c10-v6sor15438814wrm.23.2018.09.19.03.08.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
         Wed, 19 Sep 2018 03:08:40 -0700 (PDT)
 From: Oscar Salvador <osalvador@techadventures.net>
-Subject: [PATCH 2/5] mm/memory_hotplug: Avoid node_set/clear_state(N_HIGH_MEMORY) when !CONFIG_HIGHMEM
-Date: Wed, 19 Sep 2018 12:08:16 +0200
-Message-Id: <20180919100819.25518-3-osalvador@techadventures.net>
+Subject: [PATCH 3/5] mm/memory_hotplug: Tidy up node_states_clear_node
+Date: Wed, 19 Sep 2018 12:08:17 +0200
+Message-Id: <20180919100819.25518-4-osalvador@techadventures.net>
 In-Reply-To: <20180919100819.25518-1-osalvador@techadventures.net>
 References: <20180919100819.25518-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
@@ -22,51 +22,47 @@ Cc: mhocko@suse.com, dan.j.williams@intel.com, david@redhat.com, Pavel.Tatashin@
 
 From: Oscar Salvador <osalvador@suse.de>
 
-Currently, when !CONFIG_HIGHMEM, status_change_nid_high is being set
-to status_change_nid_normal, but on such systems N_HIGH_MEMORY falls
-back to N_NORMAL_MEMORY.
-That means that if status_change_nid_normal is not -1,
-we will perform two calls to node_set_state for the same memory type.
+node_states_clear has the following if statements:
 
-Set status_change_nid_high to -1 for !CONFIG_HIGHMEM, so we skip the
-double call in node_states_set_node.
+if ((N_MEMORY != N_NORMAL_MEMORY) &&
+    (arg->status_change_nid_high >= 0))
+        ...
 
-The same goes for node_clear_state.
+if ((N_MEMORY != N_HIGH_MEMORY) &&
+    (arg->status_change_nid >= 0))
+        ...
+
+N_MEMORY can never be equal to neither N_NORMAL_MEMORY nor
+N_HIGH_MEMORY.
+
+Similar problem was found in [1].
+Since this is wrong, let us get rid of it.
+
+[1] https://patchwork.kernel.org/patch/10579155/
 
 Signed-off-by: Oscar Salvador <osalvador@suse.de>
 ---
- mm/memory_hotplug.c | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ mm/memory_hotplug.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 63facfc57224..c2c7359bd0a7 100644
+index c2c7359bd0a7..131c08106d54 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -731,7 +731,11 @@ static void node_states_check_changes_online(unsigned long nr_pages,
- 	else
- 		arg->status_change_nid_high = -1;
- #else
--	arg->status_change_nid_high = arg->status_change_nid_normal;
-+	/*
-+	 * When !CONFIG_HIGHMEM, N_HIGH_MEMORY equals N_NORMAL_MEMORY
-+	 * so setting the node for N_NORMAL_MEMORY is enough.
-+	 */
-+	arg->status_change_nid_high = -1;
- #endif
+@@ -1590,12 +1590,10 @@ static void node_states_clear_node(int node, struct memory_notify *arg)
+ 	if (arg->status_change_nid_normal >= 0)
+ 		node_clear_state(node, N_NORMAL_MEMORY);
  
- 	/*
-@@ -1555,7 +1559,11 @@ static void node_states_check_changes_offline(unsigned long nr_pages,
- 	else
- 		arg->status_change_nid_high = -1;
- #else
--	arg->status_change_nid_high = arg->status_change_nid_normal;
-+	/*
-+	 * When !CONFIG_HIGHMEM, N_HIGH_MEMORY equals N_NORMAL_MEMORY
-+	 * so clearing the node for N_NORMAL_MEMORY is enough.
-+	 */
-+	arg->status_change_nid_high = -1;
- #endif
+-	if ((N_MEMORY != N_NORMAL_MEMORY) &&
+-	    (arg->status_change_nid_high >= 0))
++	if (arg->status_change_nid_high >= 0)
+ 		node_clear_state(node, N_HIGH_MEMORY);
  
- 	/*
+-	if ((N_MEMORY != N_HIGH_MEMORY) &&
+-	    (arg->status_change_nid >= 0))
++	if (arg->status_change_nid >= 0)
+ 		node_clear_state(node, N_MEMORY);
+ }
+ 
 -- 
 2.13.6
