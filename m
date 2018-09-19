@@ -1,43 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ED4DD8E0001
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 18:26:07 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id l65-v6so3043018pge.17
-        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 15:26:07 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id r14-v6si22808275pfa.44.2018.09.19.15.26.06
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DAF898E0001
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 18:27:25 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id s69-v6so6662261ota.13
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 15:27:25 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k185-v6sor19123368oif.68.2018.09.19.15.27.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Sep 2018 15:26:06 -0700 (PDT)
-Date: Wed, 19 Sep 2018 16:26:22 -0600
-From: Keith Busch <keith.busch@intel.com>
-Subject: Re: [PATCH 0/7] mm: faster get user pages
-Message-ID: <20180919222621.GA29003@localhost.localdomain>
-References: <20180919210250.28858-1-keith.busch@intel.com>
- <40b392d0-0642-2d9b-5325-664a328ff677@intel.com>
+        (Google Transport Security);
+        Wed, 19 Sep 2018 15:27:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+References: <20180919210250.28858-1-keith.busch@intel.com> <40b392d0-0642-2d9b-5325-664a328ff677@intel.com>
 In-Reply-To: <40b392d0-0642-2d9b-5325-664a328ff677@intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 19 Sep 2018 15:27:13 -0700
+Message-ID: <CAPcyv4iVpKD=yLS=YM18+_LGQp3_y+h4Cx4s3Bc9gHmdRrimAg@mail.gmail.com>
+Subject: Re: [PATCH 0/7] mm: faster get user pages
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
+Cc: Keith Busch <keith.busch@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Sep 19, 2018 at 02:15:28PM -0700, Dave Hansen wrote:
+On Wed, Sep 19, 2018 at 2:15 PM Dave Hansen <dave.hansen@intel.com> wrote:
+>
 > On 09/19/2018 02:02 PM, Keith Busch wrote:
 > > Pinning user pages out of nvdimm dax memory is significantly slower
 > > compared to system ram. Analysis points to software overhead incurred
 > > from a radix tree lookup. This patch series fixes that by removing the
 > > relatively costly dev_pagemap lookup that was repeated for each page,
 > > significantly increasing gup time.
-> 
+>
 > Could you also remind us why DAX pages are such special snowflakes and
 > *require* radix tree lookups in the first place?
 
-Yeah, ZONE_DEVICE memory is special. It has struct page mappings, but
-not for online general use. The dev_pagemap is the metadata to the zone
-device memory, and that metadata is stashed in a radix tree.
-
-We're looking up the dev_pagemap in this path to take a reference so
-the zone device can't be unmapped.
+They are special because they need to check backing device live-ness
+when taking new references. We manage a percpu-ref for each device
+that registers physical memory with devm_memremap_pages(). When that
+device is disabled we kill the percpu-ref to block new references
+being taken, and then wait for existing references to drain. This
+allows for disabling persistent-memory namepace-devices at will
+relative to new get_user_pages() requests.
