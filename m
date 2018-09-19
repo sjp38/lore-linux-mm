@@ -1,140 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 72ED28E0001
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 08:25:31 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id c16-v6so2500827edc.21
-        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 05:25:31 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q40-v6si6254234edd.107.2018.09.19.05.25.29
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 765B68E0001
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 08:39:03 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id x19-v6so2772938pfh.15
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 05:39:03 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id j15-v6si20156858pfn.366.2018.09.19.05.39.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Sep 2018 05:25:29 -0700 (PDT)
-Date: Wed, 19 Sep 2018 14:25:22 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: kernel BUG at include/linux/page-flags.h:LINE!
-Message-ID: <20180919122522.GL10257@quack2.suse.cz>
-References: <00000000000017d92b0576267d0f@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 19 Sep 2018 05:39:02 -0700 (PDT)
+Date: Wed, 19 Sep 2018 14:38:49 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 2/2] s390/tlb: convert to generic mmu_gather
+Message-ID: <20180919123849.GF24124@hirez.programming.kicks-ass.net>
+References: <20180918125151.31744-1-schwidefsky@de.ibm.com>
+ <20180918125151.31744-3-schwidefsky@de.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <00000000000017d92b0576267d0f@google.com>
+In-Reply-To: <20180918125151.31744-3-schwidefsky@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzbot <syzbot+5373a556df9f9fec7e90@syzkaller.appspotmail.com>
-Cc: ak@linux.intel.com, akpm@linux-foundation.org, dhowells@redhat.com, jack@suse.cz, jrdr.linux@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mawilcox@microsoft.com, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: will.deacon@arm.com, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, npiggin@gmail.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@armlinux.org.uk, heiko.carstens@de.ibm.com, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Tue 18-09-18 07:56:03, syzbot wrote:
-> Hello,
-> 
-> syzbot found the following crash on:
-> 
-> HEAD commit:    c0747ad363ff Merge tag 'linux-kselftest-4.19-rc5' of git:/..
-> git tree:       upstream
-> console output: https://syzkaller.appspot.com/x/log.txt?x=1483a8c9400000
-> kernel config:  https://syzkaller.appspot.com/x/.config?x=5fa12be50bca08d8
-> dashboard link: https://syzkaller.appspot.com/bug?extid=5373a556df9f9fec7e90
-> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
-> 
-> Unfortunately, I don't have any reproducer for this crash yet.
-> 
-> IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> Reported-by: syzbot+5373a556df9f9fec7e90@syzkaller.appspotmail.com
-> 
-> ------------[ cut here ]------------
-> kernel BUG at include/linux/page-flags.h:273!
+On Tue, Sep 18, 2018 at 02:51:51PM +0200, Martin Schwidefsky wrote:
+> +#define pte_free_tlb pte_free_tlb
+> +#define pmd_free_tlb pmd_free_tlb
+> +#define p4d_free_tlb p4d_free_tlb
+> +#define pud_free_tlb pud_free_tlb
 
-Hum, looks like PageTail (i.e. the lowest bit of LRU pointer) got set for a
-pagecache page we try to writeback. No idea how that's possible...
+> @@ -121,9 +62,18 @@ static inline void tlb_remove_page_size(struct mmu_gather *tlb,
+>   * page table from the tlb.
+>   */
+>  static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
+> +                                unsigned long address)
+>  {
+> +	__tlb_adjust_range(tlb, address, PAGE_SIZE);
+> +	tlb->mm->context.flush_mm = 1;
+> +	tlb->freed_tables = 1;
+> +	tlb->cleared_ptes = 1;
+> +	/*
+> +	 * page_table_free_rcu takes care of the allocation bit masks
+> +	 * of the 2K table fragments in the 4K page table page,
+> +	 * then calls tlb_remove_table.
+> +	 */
+> +        page_table_free_rcu(tlb, (unsigned long *) pte, address);
 
-								Honza
+(whitespace damage, fixed)
 
-> invalid opcode: 0000 [#1] PREEMPT SMP KASAN
-> CPU: 1 PID: 9734 Comm: kworker/u4:1 Not tainted 4.19.0-rc4+ #18
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> Google 01/01/2011
-> Workqueue: writeback wb_workfn (flush-7:4)
-> RIP: 0010:PageWaiters include/linux/page-flags.h:273 [inline]
-> RIP: 0010:wake_up_page mm/filemap.c:1069 [inline]
-> RIP: 0010:end_page_writeback+0x769/0x950 mm/filemap.c:1233
-> Code: ff e8 6b 25 e2 ff 48 8b 85 30 fe ff ff 4c 8d 70 ff e9 d9 fa ff ff e8
-> 56 25 e2 ff 48 c7 c6 e0 24 12 88 48 89 df e8 a7 cc 13 00 <0f> 0b e8 40 25 e2
-> ff 48 c7 c6 60 25 12 88 48 89 df e8 91 cc 13 00
-> RSP: 0018:ffff8801b91e5288 EFLAGS: 00010246
-> RAX: 0000000000000000 RBX: ffffea00064dabc0 RCX: 0000000000000000
-> RDX: 0000000000000000 RSI: ffffffff81b08db9 RDI: ffffed003723ca42
-> RBP: ffff8801b91e5460 R08: ffff880157a40400 R09: ffffed003b5e4fe8
-> kobject: 'loop0' (00000000d6ad330d): kobject_uevent_env
-> R10: ffffed003b5e4fe8 R11: ffff8801daf27f47 R12: 0000000000000001
-> R13: 1ffff1003723ca53 R14: 1ffff1003723ca7f R15: dffffc0000000000
-> FS:  0000000000000000(0000) GS:ffff8801daf00000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 00007f6134b6cc90 CR3: 00000001cc363000 CR4: 00000000001406e0
-> kobject: 'loop0' (00000000d6ad330d): fill_kobj_path: path =
-> '/devices/virtual/block/loop0'
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> Call Trace:
->  page_endio+0x67c/0xb60 mm/filemap.c:1260
->  mpage_end_io+0x144/0x1e0 fs/mpage.c:54
->  bio_endio+0x5d2/0xb80 block/bio.c:1774
->  generic_make_request_checks+0x5f6/0x26c0 block/blk-core.c:2347
->  generic_make_request+0x2bd/0x15a0 block/blk-core.c:2401
->  submit_bio+0xba/0x460 block/blk-core.c:2566
->  mpage_bio_submit fs/mpage.c:66 [inline]
->  __mpage_writepage+0x1515/0x1d30 fs/mpage.c:627
->  write_cache_pages+0xd8e/0x1e50 mm/page-writeback.c:2239
->  mpage_writepages+0x14c/0x320 fs/mpage.c:730
->  fat_writepages+0x24/0x30 fs/fat/inode.c:198
->  do_writepages+0x9a/0x1a0 mm/page-writeback.c:2340
->  __writeback_single_inode+0x20a/0x1620 fs/fs-writeback.c:1323
->  writeback_sb_inodes+0x71f/0x11d0 fs/fs-writeback.c:1587
->  __writeback_inodes_wb+0x1b9/0x340 fs/fs-writeback.c:1656
->  wb_writeback+0xa73/0xfc0 fs/fs-writeback.c:1765
->  wb_check_start_all fs/fs-writeback.c:1889 [inline]
->  wb_do_writeback fs/fs-writeback.c:1915 [inline]
->  wb_workfn+0xee9/0x1790 fs/fs-writeback.c:1949
->  process_one_work+0xc90/0x1b90 kernel/workqueue.c:2153
->  worker_thread+0x17f/0x1390 kernel/workqueue.c:2296
->  kthread+0x35a/0x420 kernel/kthread.c:246
->  ret_from_fork+0x3a/0x50 arch/x86/entry/entry_64.S:413
-> Modules linked in:
-> kobject: 'loop5' (0000000003a73ee3): kobject_uevent_env
-> kobject: 'loop5' (0000000003a73ee3): fill_kobj_path: path =
-> '/devices/virtual/block/loop5'
-> ---[ end trace b1bf6d33e16c103c ]---
-> RIP: 0010:PageWaiters include/linux/page-flags.h:273 [inline]
-> RIP: 0010:wake_up_page mm/filemap.c:1069 [inline]
-> RIP: 0010:end_page_writeback+0x769/0x950 mm/filemap.c:1233
-> Code: ff e8 6b 25 e2 ff 48 8b 85 30 fe ff ff 4c 8d 70 ff e9 d9 fa ff ff e8
-> 56 25 e2 ff 48 c7 c6 e0 24 12 88 48 89 df e8 a7 cc 13 00 <0f> 0b e8 40 25 e2
-> ff 48 c7 c6 60 25 12 88 48 89 df e8 91 cc 13 00
-> RSP: 0018:ffff8801b91e5288 EFLAGS: 00010246
-> RAX: 0000000000000000 RBX: ffffea00064dabc0 RCX: 0000000000000000
-> RDX: 0000000000000000 RSI: ffffffff81b08db9 RDI: ffffed003723ca42
-> kobject: 'loop2' (0000000001c28b7c): kobject_uevent_env
-> RBP: ffff8801b91e5460 R08: ffff880157a40400 R09: ffffed003b5e4fe8
-> kobject: 'loop2' (0000000001c28b7c): fill_kobj_path: path =
-> '/devices/virtual/block/loop2'
-> R10: ffffed003b5e4fe8 R11: ffff8801daf27f47 R12: 0000000000000001
-> R13: 1ffff1003723ca53 R14: 1ffff1003723ca7f R15: dffffc0000000000
-> FS:  0000000000000000(0000) GS:ffff8801daf00000(0000) knlGS:0000000000000000
-> kobject: 'loop3' (0000000091672ed1): kobject_uevent_env
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> kobject: 'loop3' (0000000091672ed1): fill_kobj_path: path =
-> '/devices/virtual/block/loop3'
-> CR2: 0000001b3202d000 CR3: 00000001cad9f000 CR4: 00000000001406e0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> 
-> 
-> ---
-> This bug is generated by a bot. It may contain errors.
-> See https://goo.gl/tpsmEJ for more information about syzbot.
-> syzbot engineers can be reached at syzkaller@googlegroups.com.
-> 
-> syzbot will keep track of this bug report. See:
-> https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with
-> syzbot.
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Also, could you perhaps explain the need for that
+page_table_alloc/page_table_free code? That is, I get the comment about
+using 2K page-table fragments out of 4k physical page, but why this
+custom allocator instead of kmem_cache? It feels like there's a little
+extra complication, but it's not immediately obvious what.
+
+>  }
+
+We _could_ use __pte_free_tlb() here I suppose, but...
+
+>  /*
+> @@ -139,6 +89,10 @@ static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
+>  	if (tlb->mm->context.asce_limit <= _REGION3_SIZE)
+>  		return;
+>  	pgtable_pmd_page_dtor(virt_to_page(pmd));
+> +	__tlb_adjust_range(tlb, address, PAGE_SIZE);
+> +	tlb->mm->context.flush_mm = 1;
+> +	tlb->freed_tables = 1;
+> +	tlb->cleared_puds = 1;
+>  	tlb_remove_table(tlb, pmd);
+>  }
+>  
+> @@ -154,6 +108,10 @@ static inline void p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d,
+>  {
+>  	if (tlb->mm->context.asce_limit <= _REGION1_SIZE)
+>  		return;
+> +	__tlb_adjust_range(tlb, address, PAGE_SIZE);
+> +	tlb->mm->context.flush_mm = 1;
+> +	tlb->freed_tables = 1;
+> +	tlb->cleared_p4ds = 1;
+>  	tlb_remove_table(tlb, p4d);
+>  }
+>  
+> @@ -169,19 +127,11 @@ static inline void pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
+>  {
+>  	if (tlb->mm->context.asce_limit <= _REGION2_SIZE)
+>  		return;
+> +	tlb->mm->context.flush_mm = 1;
+> +	tlb->freed_tables = 1;
+> +	tlb->cleared_puds = 1;
+>  	tlb_remove_table(tlb, pud);
+>  }
+
+It's that ASCE limit that makes it impossible to use the generic
+helpers, right?
