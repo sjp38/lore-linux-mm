@@ -1,141 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 27D118E0001
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 03:20:32 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id 123-v6so3277731qkl.3
-        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 00:20:32 -0700 (PDT)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A4CD78E0001
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 03:35:21 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id q26-v6so3401541qtj.14
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 00:35:21 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b37-v6si1106575qkb.397.2018.09.19.00.20.30
+        by mx.google.com with ESMTPS id t79-v6si8872062qkt.282.2018.09.19.00.35.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Sep 2018 00:20:30 -0700 (PDT)
-Subject: Re: [PATCH V5 4/4] kvm: add a check if pfn is from NVDIMM pmem.
-References: <cover.1536342881.git.yi.z.zhang@linux.intel.com>
- <4e8c2e0facd46cfaf4ab79e19c9115958ab6f218.1536342881.git.yi.z.zhang@linux.intel.com>
- <CAPcyv4ifg2BZMTNfu6mg0xxtPWs3BVgkfEj51v1CQ6jp2S70fw@mail.gmail.com>
+        Wed, 19 Sep 2018 00:35:20 -0700 (PDT)
+Subject: Re: [PATCH v1 0/6] mm: online/offline_pages called w.o.
+ mem_hotplug_lock
+References: <20180918114822.21926-1-david@redhat.com>
+ <20180919012207.GD8537@350D>
 From: David Hildenbrand <david@redhat.com>
-Message-ID: <fefbd66e-623d-b6a5-7202-5309dd4f5b32@redhat.com>
-Date: Wed, 19 Sep 2018 09:20:25 +0200
+Message-ID: <f3a13f6a-b34c-8561-884a-23fd9aa60331@redhat.com>
+Date: Wed, 19 Sep 2018 09:35:07 +0200
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4ifg2BZMTNfu6mg0xxtPWs3BVgkfEj51v1CQ6jp2S70fw@mail.gmail.com>
+In-Reply-To: <20180919012207.GD8537@350D>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>
-Cc: KVM list <kvm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Paolo Bonzini <pbonzini@redhat.com>, Dave Jiang <dave.jiang@intel.com>, "Zhang, Yu C" <yu.c.zhang@intel.com>, Pankaj Gupta <pagupta@redhat.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, rkrcmar@redhat.com, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, "Zhang, Yi Z" <yi.z.zhang@intel.com>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, John Allen <jallen@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Len Brown <lenb@kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Mathieu Malaterre <malat@debian.org>, Michael Ellerman <mpe@ellerman.id.au>, Michael Neuling <mikey@neuling.org>, Michal Hocko <mhocko@suse.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Oscar Salvador <osalvador@suse.de>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Philippe Ombredanne <pombredanne@nexb.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Rashmica Gupta <rashmica.g@gmail.com>, Stephen Hemminger <sthemmin@microsoft.com>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
 
-Am 19.09.18 um 04:53 schrieb Dan Williams:
-> On Fri, Sep 7, 2018 at 2:25 AM Zhang Yi <yi.z.zhang@linux.intel.com> wrote:
+Am 19.09.18 um 03:22 schrieb Balbir Singh:
+> On Tue, Sep 18, 2018 at 01:48:16PM +0200, David Hildenbrand wrote:
+>> Reading through the code and studying how mem_hotplug_lock is to be used,
+>> I noticed that there are two places where we can end up calling
+>> device_online()/device_offline() - online_pages()/offline_pages() without
+>> the mem_hotplug_lock. And there are other places where we call
+>> device_online()/device_offline() without the device_hotplug_lock.
 >>
->> For device specific memory space, when we move these area of pfn to
->> memory zone, we will set the page reserved flag at that time, some of
->> these reserved for device mmio, and some of these are not, such as
->> NVDIMM pmem.
+>> While e.g.
+>> 	echo "online" > /sys/devices/system/memory/memory9/state
+>> is fine, e.g.
+>> 	echo 1 > /sys/devices/system/memory/memory9/online
+>> Will not take the mem_hotplug_lock. However the device_lock() and
+>> device_hotplug_lock.
 >>
->> Now, we map these dev_dax or fs_dax pages to kvm for DIMM/NVDIMM
->> backend, since these pages are reserved, the check of
->> kvm_is_reserved_pfn() misconceives those pages as MMIO. Therefor, we
->> introduce 2 page map types, MEMORY_DEVICE_FS_DAX/MEMORY_DEVICE_DEV_DAX,
->> to identify these pages are from NVDIMM pmem and let kvm treat these
->> as normal pages.
+>> E.g. via memory_probe_store(), we can end up calling
+>> add_memory()->online_pages() without the device_hotplug_lock. So we can
+>> have concurrent callers in online_pages(). We e.g. touch in online_pages()
+>> basically unprotected zone->present_pages then.
 >>
->> Without this patch, many operations will be missed due to this
->> mistreatment to pmem pages, for example, a page may not have chance to
->> be unpinned for KVM guest(in kvm_release_pfn_clean), not able to be
->> marked as dirty/accessed(in kvm_set_pfn_dirty/accessed) etc.
+>> Looks like there is a longer history to that (see Patch #2 for details),
+>> and fixing it to work the way it was intended is not really possible. We
+>> would e.g. have to take the mem_hotplug_lock in device/base/core.c, which
+>> sounds wrong.
 >>
->> Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
->> Acked-by: Pankaj Gupta <pagupta@redhat.com>
->> ---
->>  virt/kvm/kvm_main.c | 16 ++++++++++++++--
->>  1 file changed, 14 insertions(+), 2 deletions(-)
+>> Summary: We had a lock inversion on mem_hotplug_lock and device_lock().
+>> More details can be found in patch 3 and patch 6.
 >>
->> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
->> index c44c406..9c49634 100644
->> --- a/virt/kvm/kvm_main.c
->> +++ b/virt/kvm/kvm_main.c
->> @@ -147,8 +147,20 @@ __weak void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+>> I propose the general rules (documentation added in patch 6):
 >>
->>  bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
->>  {
->> -       if (pfn_valid(pfn))
->> -               return PageReserved(pfn_to_page(pfn));
->> +       struct page *page;
->> +
->> +       if (pfn_valid(pfn)) {
->> +               page = pfn_to_page(pfn);
->> +
->> +               /*
->> +                * For device specific memory space, there is a case
->> +                * which we need pass MEMORY_DEVICE_FS[DEV]_DAX pages
->> +                * to kvm, these pages marked reserved flag as it is a
->> +                * zone device memory, we need to identify these pages
->> +                * and let kvm treat these as normal pages
->> +                */
->> +               return PageReserved(page) && !is_dax_page(page);
+>> 1. add_memory/add_memory_resource() must only be called with
+>>    device_hotplug_lock.
+>> 2. remove_memory() must only be called with device_hotplug_lock. This is
+>>    already documented and holds for all callers.
+>> 3. device_online()/device_offline() must only be called with
+>>    device_hotplug_lock. This is already documented and true for now in core
+>>    code. Other callers (related to memory hotplug) have to be fixed up.
+>> 4. mem_hotplug_lock is taken inside of add_memory/remove_memory/
+>>    online_pages/offline_pages.
+>>
+>> To me, this looks way cleaner than what we have right now (and easier to
+>> verify). And looking at the documentation of remove_memory, using
+>> lock_device_hotplug also for add_memory() feels natural.
+>>
 > 
-> Should we consider just not setting PageReserved for
-> devm_memremap_pages()? Perhaps kvm is not be the only component making
-> these assumptions about this flag?
+> That seems reasonable, but also implies that device_online() would hold
+> back add/remove memory, could you please also document what mode
+> read/write the locks need to be held? For example can the device_hotplug_lock
+> be held in read mode while add/remove memory via (mem_hotplug_lock) is held
+> in write mode?
 
-I was asking the exact same question in v3 or so.
+device_hotplug_lock is an ordinary mutex. So no option there.
 
-I was recently going through all PageReserved users, trying to clean up
-and document how it is used.
+Only mem_hotplug_lock is a per CPU RW mutex. And as of now it only
+exists to not require get_online_mems()/put_online_mems() to take the
+device_hotplug_lock. Which is perfectly valid, because these users only
+care about memory (not any other devices) not suddenly vanish. And that
+RW lock makes things fast.
 
-PG_reserved used to be a marker "not available for the page allocator".
-This is only partially true and not really helpful I think. My current
-understanding:
+Any modifications (online/offline/add/remove) require the
+mem_hotplug_lock in write.
 
-"
-PG_reserved is set for special pages, struct pages of such pages should
-in general not be touched except by their owner. Pages marked as
-reserved include:
-- Kernel image (including vDSO) and similar (e.g. BIOS, initrd)
-- Pages allocated early during boot (bootmem, memblock)
-- Zero pages
-- Pages that have been associated with a zone but were not onlined
-  (e.g. NVDIMM/pmem, online_page_callback used by XEN)
-- Pages to exclude from the hibernation image (e.g. loaded kexec images)
-- MCA (memory error) pages on ia64
-- Offline pages
-Some architectures don't allow to ioremap RAM pages that are not marked
-as reserved. Allocated pages might have to be set reserved to allow for
-that - if there is a good reason to enforce this. Consequently,
-PG_reserved part of a user space table might be the indicator for the
-zero page, pmem or MMIO pages.
-"
+I can add some more details to documentation in patch #6.
 
-Swapping code does not care about PageReserved at all as far as I
-remember. This seems to be fine as it only looks at the way pages have
-been mapped into user space.
+"... we should always hold the mem_hotplug_lock (via
+mem_hotplug_begin/mem_hotplug_done) in write mode to serialize memory
+hotplug" ..."
 
-I don't really see a good reason to set pmem pages as reserved. One
-question would be, how/if to exclude them from the hibernation image.
-But that could also be solved differently (we would have to double check
-how they are handled in hibernation code).
+"In addition, mem_hotplug_lock (in contrast to device_hotplug_lock) in
+read mode allows for a quite efficient get_online_mems/put_online_mems
+implementation, so code accessing memory can protect from that memory
+vanishing."
 
+Would that work for you?
 
-A similar user of PageReserved to look at is:
-
-drivers/vfio/vfio_iommu_type1.c:is_invalid_reserved_pfn()
-
-It will not mark pages dirty if they are reserved. Similar to KVM code.
+Thanks!
 
 > 
-> Why is MEMORY_DEVICE_PUBLIC memory specifically excluded?
-> 
-> This has less to do with "dax" pages and more to do with
-> devm_memremap_pages() established ranges. P2PDMA is another producer
-> of these pages. If either MEMORY_DEVICE_PUBLIC or P2PDMA pages can be
-> used in these kvm paths then I think this points to consider clearing
-> the Reserved flag.
-> 
-> That said I haven't audited all the locations that test PageReserved().
-> 
-> Sorry for not responding sooner I was on extended leave.
+> Balbir Singh.
+>  
 > 
 
 
