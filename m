@@ -1,98 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 940558E0001
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 20:45:13 -0400 (EDT)
-Received: by mail-yb1-f199.google.com with SMTP id a12-v6so1755815ybe.21
-        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 17:45:13 -0700 (PDT)
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id 133-v6sor2339360ywm.438.2018.09.18.17.45.11
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DE458E0001
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 21:03:44 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id d132-v6so1611475pgc.22
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 18:03:44 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t190-v6sor1819369pgd.413.2018.09.18.18.03.42
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 18 Sep 2018 17:45:12 -0700 (PDT)
-Date: Tue, 18 Sep 2018 17:45:01 -0700
-Message-Id: <20180919004501.178023-1-shakeelb@google.com>
-Mime-Version: 1.0
-Subject: [PATCH] memcg: remove memcg_kmem_skip_account
-From: Shakeel Butt <shakeelb@google.com>
-Content-Type: text/plain; charset="UTF-8"
+        Tue, 18 Sep 2018 18:03:42 -0700 (PDT)
+Date: Wed, 19 Sep 2018 11:03:37 +1000
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
+ in mind (for KVM to isolate its guests per CPU)
+Message-ID: <20180919010337.GC8537@350D>
+References: <20180820212556.GC2230@char.us.oracle.com>
+ <CA+55aFxZCyVZc4ZpRyZ3uDyakRSOG_=2XvnwMo4oejpsieF9=A@mail.gmail.com>
+ <1534801939.10027.24.camel@amazon.co.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1534801939.10027.24.camel@amazon.co.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
+To: "Woodhouse, David" <dwmw@amazon.co.uk>
+Cc: "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>, "juerg.haefliger@hpe.com" <juerg.haefliger@hpe.com>, "deepa.srinivasan@oracle.com" <deepa.srinivasan@oracle.com>, "jmattson@google.com" <jmattson@google.com>, "andrew.cooper3@citrix.com" <andrew.cooper3@citrix.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "boris.ostrovsky@oracle.com" <boris.ostrovsky@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "joao.m.martins@oracle.com" <joao.m.martins@oracle.com>, "pradeep.vincent@oracle.com" <pradeep.vincent@oracle.com>, "ak@linux.intel.com" <ak@linux.intel.com>, "khalid.aziz@oracle.com" <khalid.aziz@oracle.com>, "kanth.ghatraju@oracle.com" <kanth.ghatraju@oracle.com>, "liran.alon@oracle.com" <liran.alon@oracle.com>, "keescook@google.com" <keescook@google.com>, "jsteckli@os.inf.tu-dresden.de" <jsteckli@os.inf.tu-dresden.de>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "chris.hyser@oracle.com" <chris.hyser@oracle.com>, "tyhicks@canonical.com" <tyhicks@canonical.com>, "john.haxby@oracle.com" <john.haxby@oracle.com>, "jcm@redhat.com" <jcm@redhat.com>
 
-The flag memcg_kmem_skip_account was added during the era of opt-out
-kmem accounting. There is no need for such flag in the opt-in world as
-there aren't any __GFP_ACCOUNT allocations within
-memcg_create_cache_enqueue().
+On Mon, Aug 20, 2018 at 09:52:19PM +0000, Woodhouse, David wrote:
+> On Mon, 2018-08-20 at 14:48 -0700, Linus Torvalds wrote:
+> > 
+> > Of course, after the long (and entirely unrelated) discussion about
+> > the TLB flushing bug we had, I'm starting to worry about my own
+> > competence, and maybe I'm missing something really fundamental, and
+> > the XPFO patches do something else than what I think they do, or my
+> > "hey, let's use our Meltdown code" idea has some fundamental weakness
+> > that I'm missing.
+> 
+> The interesting part is taking the user (and other) pages out of the
+> kernel's 1:1 physmap.
+> 
+> It's the *kernel* we don't want being able to access those pages,
+> because of the multitude of unfixable cache load gadgets.
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
----
- include/linux/sched.h |  3 ---
- mm/memcontrol.c       | 24 +-----------------------
- 2 files changed, 1 insertion(+), 26 deletions(-)
+I am missing why we need this since the kernel can't access
+(SMAP) unless we go through to the copy/to/from interface
+or execute any of the user pages. Is it because of the dependency
+on the availability of those features?
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 977cb57d7bc9..c30e3cd4b81c 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -723,9 +723,6 @@ struct task_struct {
- #endif
- #ifdef CONFIG_MEMCG
- 	unsigned			in_user_fault:1;
--#ifdef CONFIG_MEMCG_KMEM
--	unsigned			memcg_kmem_skip_account:1;
--#endif
- #endif
- #ifdef CONFIG_COMPAT_BRK
- 	unsigned			brk_randomized:1;
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e79cb59552d9..bde698a0bb99 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2460,7 +2460,7 @@ static void memcg_kmem_cache_create_func(struct work_struct *w)
- /*
-  * Enqueue the creation of a per-memcg kmem_cache.
-  */
--static void __memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
-+static void memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
- 					       struct kmem_cache *cachep)
- {
- 	struct memcg_kmem_cache_create_work *cw;
-@@ -2478,25 +2478,6 @@ static void __memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
- 	queue_work(memcg_kmem_cache_wq, &cw->work);
- }
- 
--static void memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
--					     struct kmem_cache *cachep)
--{
--	/*
--	 * We need to stop accounting when we kmalloc, because if the
--	 * corresponding kmalloc cache is not yet created, the first allocation
--	 * in __memcg_schedule_kmem_cache_create will recurse.
--	 *
--	 * However, it is better to enclose the whole function. Depending on
--	 * the debugging options enabled, INIT_WORK(), for instance, can
--	 * trigger an allocation. This too, will make us recurse. Because at
--	 * this point we can't allow ourselves back into memcg_kmem_get_cache,
--	 * the safest choice is to do it like this, wrapping the whole function.
--	 */
--	current->memcg_kmem_skip_account = 1;
--	__memcg_schedule_kmem_cache_create(memcg, cachep);
--	current->memcg_kmem_skip_account = 0;
--}
--
- static inline bool memcg_kmem_bypass(void)
- {
- 	if (in_interrupt() || !current->mm || (current->flags & PF_KTHREAD))
-@@ -2531,9 +2512,6 @@ struct kmem_cache *memcg_kmem_get_cache(struct kmem_cache *cachep)
- 	if (memcg_kmem_bypass())
- 		return cachep;
- 
--	if (current->memcg_kmem_skip_account)
--		return cachep;
--
- 	memcg = get_mem_cgroup_from_current();
- 	kmemcg_id = READ_ONCE(memcg->kmemcg_id);
- 	if (kmemcg_id < 0)
--- 
-2.19.0.397.gdd90340f6a-goog
+Balbir Singh.
