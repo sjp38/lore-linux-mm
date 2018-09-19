@@ -1,86 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DF4AA8E0001
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 05:05:13 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id m3-v6so2287749plt.9
-        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 02:05:13 -0700 (PDT)
-Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
-        by mx.google.com with ESMTPS id e6-v6si24896486pln.265.2018.09.19.02.05.12
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C709D8E0001
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 05:15:56 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id i11-v6so5049838wrr.10
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 02:15:56 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y199-v6sor9327175wmd.8.2018.09.19.02.15.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Sep 2018 02:05:12 -0700 (PDT)
-Date: Wed, 19 Sep 2018 10:04:49 +0100
-From: Jonathan Cameron <jonathan.cameron@huawei.com>
-Subject: Re: [RFC PATCH 03/29] mm: remove CONFIG_HAVE_MEMBLOCK
-Message-ID: <20180919100449.00006df9@huawei.com>
-In-Reply-To: <1536163184-26356-4-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
-	<1536163184-26356-4-git-send-email-rppt@linux.vnet.ibm.com>
+        (Google Transport Security);
+        Wed, 19 Sep 2018 02:15:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+From: Ming Lei <tom.leiming@gmail.com>
+Date: Wed, 19 Sep 2018 17:15:43 +0800
+Message-ID: <CACVXFVOBq3L_EjSTCoiqUL1PH=HMR5EuNNQV0hNndFpGxmUK6g@mail.gmail.com>
+Subject: block: DMA alignment of IO buffer allocated from slab
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "David
- S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ingo Molnar <mingo@redhat.com>, Michael
- Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Paul Burton <paul.burton@mips.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linuxarm@huawei.com
+To: linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>, Ming Lei <ming.lei@redhat.com>
 
-On Wed, 5 Sep 2018 18:59:18 +0300
-Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+Hi Guys,
 
-> All architecures use memblock for early memory management. There is no need
-> for the CONFIG_HAVE_MEMBLOCK configuration option.
-> 
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Some storage controllers have DMA alignment limit, which is often set via
+blk_queue_dma_alignment(), such as 512-byte alignment for IO buffer.
 
-Hi Mike,
+Block layer now only checks if this limit is respected for buffer of
+pass-through request,
+see blk_rq_map_user_iov(), bio_map_user_iov().
 
-A minor editing issue in here that is stopping boot on arm64 platforms with latest
-version of the mm tree.
+The userspace buffer for direct IO is checked in dio path, see
+do_blockdev_direct_IO().
+IO buffer from page cache should be fine wrt. this limit too.
 
-> diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
-> index 76c83c1..bd841bb 100644
-> --- a/drivers/of/fdt.c
-> +++ b/drivers/of/fdt.c
-> @@ -1115,13 +1115,11 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
->  	return 1;
->  }
->  
-> -#ifdef CONFIG_HAVE_MEMBLOCK
->  #ifndef MIN_MEMBLOCK_ADDR
->  #define MIN_MEMBLOCK_ADDR	__pa(PAGE_OFFSET)
->  #endif
->  #ifndef MAX_MEMBLOCK_ADDR
->  #define MAX_MEMBLOCK_ADDR	((phys_addr_t)~0)
-> -#endif
+However, some file systems, such as XFS, may allocate single sector IO buffer
+via slab. Usually I guess kmalloc-512 should be fine to return
+512-aligned buffer.
+But once KASAN or other slab debug options are enabled, looks this
+isn't true any
+more, kmalloc-512 may not return 512-aligned buffer. Then data corruption
+can be observed because the IO buffer from fs layer doesn't respect the DMA
+alignment limit any more.
 
-This isn't the right #endif. It is matching with the #ifndef MAX_MEMBLOCK_ADDR
-not the intented #ifdef CONFIG_HAVE_MEMBLOCK.
+Follows several related questions:
 
-Now I haven't chased through the exact reason this is causing my acpi
-arm64 system not to boot on the basis it is obviously miss-matched anyway
-and I'm inherently lazy.  It's resulting in stubs replacing the following weak
-functions.
+1) does kmalloc-N slab guarantee to return N-byte aligned buffer?  If
+yes, is it a stable rule?
 
-early_init_dt_add_memory_arch
-(this is defined elsewhere for some architectures but not arm)
+2) If it is a rule for kmalloc-N slab to return N-byte aligned buffer,
+seems KASAN violates this
+rule?
 
-early_init_dt_mark_hotplug_memory_arch
-(there is only one definition of this in the kernel so it doesn't
- need to be weak or in the header etc).
-
-early_init_dt_reserve_memory_arch
-(defined on mips but nothing else)
-
-Taking out the right endif also lets you drop an #else removing some stub
-functions further down in here.
-
-Nice cleanup in general btw.
+3) If slab can't guarantee to return 512-aligned buffer, how to fix
+this data corruption issue?
 
 Thanks,
-
-Jonathan
->  
->  void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
->  {
+Ming Lei
