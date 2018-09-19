@@ -1,55 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F0588E0001
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 21:24:21 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id o16-v6so1653856pgv.21
-        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 18:24:21 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z3-v6sor1916145pgi.217.2018.09.18.18.24.19
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2405F8E0001
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2018 21:57:29 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id e15-v6so1950095pfi.5
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2018 18:57:29 -0700 (PDT)
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id m10-v6si20521828pgc.105.2018.09.18.18.57.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 18 Sep 2018 18:24:20 -0700 (PDT)
-Date: Wed, 19 Sep 2018 11:24:15 +1000
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: Re: [PATCH v5 6/7] mm, hmm: Replace hmm_devmem_pages_create() with
- devm_memremap_pages()
-Message-ID: <20180919012415.GE8537@350D>
-References: <153680531988.453305.8080706591516037706.stgit@dwillia2-desk3.amr.corp.intel.com>
- <153680535314.453305.11205770267271657025.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Sep 2018 18:57:27 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 2/2] mm: zero remaining unavailable struct pages
+Date: Wed, 19 Sep 2018 01:54:40 +0000
+Message-ID: <20180919015440.GA2581@hori1.linux.bs1.fc.nec.co.jp>
+References: <20180823182513.8801-1-msys.mizuma@gmail.com>
+ <20180823182513.8801-2-msys.mizuma@gmail.com>
+ <7c773dec-ded0-7a1e-b3ad-6c6826851015@microsoft.com>
+ <484388a7-1e75-0782-fdfb-20345e1bda0d@gmail.com>
+ <20180831025536.GA29753@hori1.linux.bs1.fc.nec.co.jp>
+ <20180917132605.eln6tlc6hf7vfjy2@gabell>
+In-Reply-To: <20180917132605.eln6tlc6hf7vfjy2@gabell>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <CB043011886D704ABA9CFEE60E3D37B7@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <153680535314.453305.11205770267271657025.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Christoph Hellwig <hch@lst.de>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, alexander.h.duyck@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Masayoshi Mizuma <msys.mizuma@gmail.com>
+Cc: "Pavel.Tatashin@microsoft.com" <Pavel.Tatashin@microsoft.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>
 
-On Wed, Sep 12, 2018 at 07:22:33PM -0700, Dan Williams wrote:
-> Commit e8d513483300 "memremap: change devm_memremap_pages interface to
-> use struct dev_pagemap" refactored devm_memremap_pages() to allow a
-> dev_pagemap instance to be supplied. Passing in a dev_pagemap interface
-> simplifies the design of pgmap type drivers in that they can rely on
-> container_of() to lookup any private data associated with the given
-> dev_pagemap instance.
-> 
-> In addition to the cleanups this also gives hmm users multi-order-radix
-> improvements that arrived with commit ab1b597ee0e4 "mm,
-> devm_memremap_pages: use multi-order radix for ZONE_DEVICE lookups"
-> 
-> As part of the conversion to the devm_memremap_pages() method of
-> handling the percpu_ref relative to when pages are put, the percpu_ref
-> completion needs to move to hmm_devmem_ref_exit(). See commit
-> 71389703839e ("mm, zone_device: Replace {get, put}_zone_device_page...")
-> for details.
-> 
-> Reviewed-by: Christoph Hellwig <hch@lst.de>
-> Cc: "Jerome Glisse" <jglisse@redhat.com>
-> Cc: Logan Gunthorpe <logang@deltatee.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> ---
+On Mon, Sep 17, 2018 at 09:26:07AM -0400, Masayoshi Mizuma wrote:
+> On Fri, Aug 31, 2018 at 02:55:36AM +0000, Naoya Horiguchi wrote:
+> > On Wed, Aug 29, 2018 at 11:16:30AM -0400, Masayoshi Mizuma wrote:
+> > > Hi Horiguchi-san and Pavel
+> > >=20
+> > > Thank you for your comments!
+> > > The Pavel's additional patch looks good to me, so I will add it to th=
+is series.
+> > >=20
+> > > However, unfortunately, the movable_node option has something wrong y=
+et...
+> > > When I offline the memory which belongs to movable zone, I got the fo=
+llowing
+> > > warning. I'm trying to debug it.
+> > >=20
+> > > I try to describe the issue as following.=20
+> > > If you have any comments, please let me know.
+> > >=20
+> > > WARNING: CPU: 156 PID: 25611 at mm/page_alloc.c:7730 has_unmovable_pa=
+ges+0x1bf/0x200
+> > > RIP: 0010:has_unmovable_pages+0x1bf/0x200
+> > > ...
+> > > Call Trace:
+> > >  is_mem_section_removable+0xd3/0x160
+> > >  show_mem_removable+0x8e/0xb0
+> > >  dev_attr_show+0x1c/0x50
+> > >  sysfs_kf_seq_show+0xb3/0x110
+> > >  seq_read+0xee/0x480
+> > >  __vfs_read+0x36/0x190
+> > >  vfs_read+0x89/0x130
+> > >  ksys_read+0x52/0xc0
+> > >  do_syscall_64+0x5b/0x180
+> > >  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+> > > RIP: 0033:0x7fe7b7823f70
+> > > ...
+> > >=20
+> > > I added a printk to catch the unmovable page.
+> > > ---
+> > > @@ -7713,8 +7719,12 @@ bool has_unmovable_pages(struct zone *zone, st=
+ruct page *page, int count,
+> > >                  * is set to both of a memory hole page and a _used_ =
+kernel
+> > >                  * page at boot.
+> > >                  */
+> > > -               if (found > count)
+> > > +               if (found > count) {
+> > > +                       pr_info("DEBUG: %s zone: %lx page: %lx pfn: %=
+lx flags: %lx found: %ld count: %ld \n",
+> > > +                               __func__, zone, page, page_to_pfn(pag=
+e), page->flags, found, count);
+> > >                         goto unmovable;
+> > > +               }
+> > > ---
+> > >=20
+> > > Then I got the following. The page (PFN: 0x1c0ff130d) flag is=20
+> > > 0xdfffffc0040048 (uptodate|active|swapbacked)
+> > >=20
+> > > ---
+> > > DEBUG: has_unmovable_pages zone: 0xffff8c0ffff80380 page: 0xffffea703=
+fc4c340 pfn: 0x1c0ff130d flags: 0xdfffffc0040048 found: 1 count: 0=20
+> > > ---
+> > >=20
+> > > And I got the owner from /sys/kernel/debug/page_owner.
+> > >=20
+> > > Page allocated via order 0, mask 0x6280ca(GFP_HIGHUSER_MOVABLE|__GFP_=
+ZERO)
+> > > PFN 7532909325 type Movable Block 14712713 type Movable Flags 0xdffff=
+fc0040048(uptodate|active|swapbacked)
+> > >  __alloc_pages_nodemask+0xfc/0x270
+> > >  alloc_pages_vma+0x7c/0x1e0
+> > >  handle_pte_fault+0x399/0xe50
+> > >  __handle_mm_fault+0x38e/0x520
+> > >  handle_mm_fault+0xdc/0x210
+> > >  __do_page_fault+0x243/0x4c0
+> > >  do_page_fault+0x31/0x130
+> > >  page_fault+0x1e/0x30
+> > >=20
+> > > The page is allocated as anonymous page via page fault.
+> > > I'm not sure, but lru flag should be added to the page...?
+> >=20
+> > There is a small window of no PageLRU flag just after page allocation
+> > until the page is linked to some LRU list.
+> > This kind of unmovability is transient, so retrying can work.
+> >=20
+> > I guess that this warning seems to be visible since commit 15c30bc09085
+> > ("mm, memory_hotplug: make has_unmovable_pages more robust")
+> > which turned off the optimization based on the assumption that pages
+> > under ZONE_MOVABLE are always movable.
+> > I think that it helps developers find the issue that permanently
+> > unmovable pages are accidentally located in ZONE_MOVABLE zone.
+> > But even ZONE_MOVABLE zone could have transiently unmovable pages,
+> > so the reported warning seems to me a false charge and should be avoide=
+d.
+> > Doing lru_add_drain_all()/drain_all_pages() before has_unmovable_pages(=
+)
+> > might be helpful?
+>=20
+> Thanks you for your proposal! And sorry for delayed responce.
+>=20
+> lru_add_drain_all()/drain_all_pages() might be helpful, but it=20
+> seems that the window is not very small because I tried to do
+> offline some times, and every offline failed...
 
-Looks like a good cleanup
+OK, so this doesn't work, thank you for trying.
 
-Acked-by: Balbir Singh <bsingharora@gmail.com>
+>=20
+> I have another idea. I found that if the page is belonged to
+> Movable zone and it has Uptodate flag, the page will go lru
+> soon, so I think we can pass the page.
+> Does the idea make sence? As far as I tested it, it works well.
+>=20
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 52d9efe8c9fb..ecf87bec8ac6 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7758,6 +7758,9 @@ bool has_unmovable_pages(struct zone *zone, struct =
+page *page, int count,
+>                 if (__PageMovable(page))
+>                         continue;
+>=20
+> +               if ((zone_idx(zone) =3D=3D ZONE_MOVABLE) && PageUptodate(=
+page))
+> +                       continue;
+> +
+
+We have many call sites calling SetPageUptodate (many are from filesystems,=
+)
+so I'm concerned that some caller might set PageUptodate on non-LRU pages.
+Could you explain a little more how/why this check is a clear separation b/=
+w
+movable pages and unmovable pages?
+(Filesystem metadata is never allocated from ZONE_MOVABLE?)
+
+Thanks,
+Naoya Horiguchi=
