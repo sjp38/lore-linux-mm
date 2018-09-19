@@ -1,53 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B15B8E0001
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 13:17:52 -0400 (EDT)
-Received: by mail-yb1-f197.google.com with SMTP id v16-v6so2753684ybm.2
-        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 10:17:52 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 170578E0001
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2018 13:27:55 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id z20-v6so7199522iol.1
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 10:27:55 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 139-v6sor2403581ywx.246.2018.09.19.10.17.46
+        by mx.google.com with SMTPS id 195-v6sor6081566itz.80.2018.09.19.10.27.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 19 Sep 2018 10:17:46 -0700 (PDT)
-Date: Wed, 19 Sep 2018 13:17:44 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2] mm: memcg: update memcg OOM messages on cgroup2
-Message-ID: <20180919171744.GA18068@cmpxchg.org>
-References: <20180803175743.GW1206094@devbig004.ftw2.facebook.com>
- <20180806161529.GA410235@devbig004.ftw2.facebook.com>
- <20180806110845.f2cc110df0341b8cbd54d16c@linux-foundation.org>
- <20180806181926.GF410235@devbig004.ftw2.facebook.com>
+        Wed, 19 Sep 2018 10:27:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180806181926.GF410235@devbig004.ftw2.facebook.com>
+In-Reply-To: <CACT4Y+Z4zLSBdXGtk-6nH64UpOVA8s5TJZSpokAqEu4pE8LpCA@mail.gmail.com>
+References: <cover.1535462971.git.andreyknvl@google.com> <b4ba65afa55f2fdfd2856fb03c5aba99c7a8bdd7.1535462971.git.andreyknvl@google.com>
+ <CACT4Y+Z4zLSBdXGtk-6nH64UpOVA8s5TJZSpokAqEu4pE8LpCA@mail.gmail.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Wed, 19 Sep 2018 19:27:52 +0200
+Message-ID: <CAAeHK+ySaS_jUe_wNQ192kE4bUgZUOMdSyQeRp5Tx2nCD41vBQ@mail.gmail.com>
+Subject: Re: [PATCH v6 04/18] khwasan, arm64: adjust shadow size for CONFIG_KASAN_HW
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
 
-On Mon, Aug 06, 2018 at 11:19:26AM -0700, Tejun Heo wrote:
-> On Mon, Aug 06, 2018 at 11:08:45AM -0700, Andrew Morton wrote:
-> > On Mon, 6 Aug 2018 09:15:29 -0700 Tejun Heo <tj@kernel.org> wrote:
-> > 
-> > > mem_cgroup_print_oom_info() currently prints the same info for cgroup1
-> > > and cgroup2 OOMs.  It doesn't make much sense on cgroup2, which
-> > > doesn't use memsw or separate kmem accounting - the information
-> > > reported is both superflous and insufficient.  This patch updates the
-> > > memcg OOM messages on cgroup2 so that
-> > > 
-> > > * It prints memory and swap usages and limits used on cgroup2.
-> > > 
-> > > * It shows the same information as memory.stat.
-> > > 
-> > > I took out the recursive printing for cgroup2 because the amount of
-> > > output could be a lot and the benefits aren't clear.  An example dump
-> > > follows.
-> > 
-> > This conflicts rather severely with Shakeel's "memcg: reduce memcg tree
-> > traversals for stats collection".  Can we please park this until after
-> > 4.19-rc1?
-> 
-> Sure, or I can refresh the patch on top of -mm too.
+On Wed, Sep 12, 2018 at 4:54 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> On Wed, Aug 29, 2018 at 1:35 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
 
-Now that 4.19 is released, do you mind refreshing this for 4.20?
+>>  /*
+>> - * KASAN requires 1/8th of the kernel virtual address space for the shadow
+>> - * region. KASAN can bloat the stack significantly, so double the (minimum)
+>> - * stack size when KASAN is in use.
+>> + * KASAN and KHWASAN require 1/8th and 1/16th of the kernel virtual address
+>
+>
+> I am somewhat confused by the terminology.
+> "KASAN" is not actually "CONFIG_KASAN" below, it is actually
+> "CONFIG_KASAN_GENERIC". While "KHWASAN" translates to "KASAN_HW" few
+> lines later.
+> I think we need some consistent terminology for comments and config
+> names until it's too late.
+>
+
+As per offline discussion will rename in v7.
