@@ -1,108 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E72A08E0001
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 18:51:55 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id t79-v6so846133wmt.3
-        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 15:51:55 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id f143-v6si754736wmf.153.2018.09.20.15.51.54
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DA5D8E0001
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 18:59:47 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id c46-v6so10186214otd.12
+        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 15:59:47 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f14-v6sor16988430oth.32.2018.09.20.15.59.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 20 Sep 2018 15:51:54 -0700 (PDT)
-Date: Fri, 21 Sep 2018 00:51:52 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: x86/mm: Found insecure W+X mapping at address
- (ptrval)/0xc00a0000
-In-Reply-To: <0922cc1b-ed51-06e9-df81-57fd5aa8e7de@molgen.mpg.de>
-Message-ID: <alpine.DEB.2.21.1809210045220.1434@nanos.tec.linutronix.de>
-References: <e75fa739-4bcc-dc30-2606-25d2539d2653@molgen.mpg.de> <alpine.DEB.2.21.1809191004580.1468@nanos.tec.linutronix.de> <0922cc1b-ed51-06e9-df81-57fd5aa8e7de@molgen.mpg.de>
+        (Google Transport Security);
+        Thu, 20 Sep 2018 15:59:45 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <20180920215824.19464.8884.stgit@localhost.localdomain> <20180920222951.19464.39241.stgit@localhost.localdomain>
+In-Reply-To: <20180920222951.19464.39241.stgit@localhost.localdomain>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 20 Sep 2018 15:59:34 -0700
+Message-ID: <CAPcyv4hAEOUOBU4GENaFOb-xXi33g_ugCexfmY3DrLH27Z6MKg@mail.gmail.com>
+Subject: Re: [PATCH v4 5/5] nvdimm: Schedule device registration on node local
+ to the device
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Menzel <pmenzel@molgen.mpg.de>
-Cc: linux-mm@kvack.org, x86@kernel.org
+To: alexander.h.duyck@linux.intel.com
+Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Paul,
+On Thu, Sep 20, 2018 at 3:31 PM Alexander Duyck
+<alexander.h.duyck@linux.intel.com> wrote:
+>
+> This patch is meant to force the device registration for nvdimm devices to
+> be closer to the actual device. This is achieved by using either the NUMA
+> node ID of the region, or of the parent. By doing this we can have
+> everything above the region based on the region, and everything below the
+> region based on the nvdimm bus.
+>
+> One additional change I made is that we hold onto a reference to the parent
+> while we are going through registration. By doing this we can guarantee we
+> can complete the registration before we have the parent device removed.
+>
+> By guaranteeing NUMA locality I see an improvement of as high as 25% for
+> per-node init of a system with 12TB of persistent memory.
+>
+> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> ---
+>  drivers/nvdimm/bus.c |   19 +++++++++++++++++--
+>  1 file changed, 17 insertions(+), 2 deletions(-)
+>
+> diff --git a/drivers/nvdimm/bus.c b/drivers/nvdimm/bus.c
+> index 8aae6dcc839f..ca935296d55e 100644
+> --- a/drivers/nvdimm/bus.c
+> +++ b/drivers/nvdimm/bus.c
+> @@ -487,7 +487,9 @@ static void nd_async_device_register(void *d, async_cookie_t cookie)
+>                 dev_err(dev, "%s: failed\n", __func__);
+>                 put_device(dev);
+>         }
+> +
+>         put_device(dev);
+> +       put_device(dev->parent);
 
-On Thu, 20 Sep 2018, Paul Menzel wrote:
+Good catch. The child does not pin the parent until registration, but
+we need to make sure the parent isn't gone while were waiting for the
+registration work to run.
 
-> As always, thank you for the quick response.
+Let's break this reference count fix out into its own separate patch,
+because this looks to be covering a gap that may need to be
+recommended for -stable.
 
-Thank you for providing the info!
 
-> Am 19.09.2018 um 10:09 schrieb Thomas Gleixner:
-> > On Wed, 19 Sep 2018, Paul Menzel wrote:
-> > > 
-> > > With Linux 4.19-rc4+ and `CONFIG_DEBUG_WX=y`, I see the message below on
-> > > the ASRock E350M1.
-> > > 
-> > > > [    1.813378] Freeing unused kernel image memory: 1112K
-> > > > [    1.818662] Write protecting the kernel text: 8708k
-> > > > [    1.818987] Write protecting the kernel read-only data: 2864k
-> > > > [    1.818989] NX-protecting the kernel data: 5628k
-> > > > [    1.819265] ------------[ cut here ]------------
-> > > > [    1.819272] x86/mm: Found insecure W+X mapping at address
-> > > > (ptrval)/0xc00a0000
-> > > 
-> > > I do not notice any problems with the system, but maybe something can be
-> > > done
-> > > to get rid of these.
-> > 
-> > Can you please enable CONFIG_X86_PTDUMP and provide the output of the files
-> > in /sys/kernel/debug/page_tables/ ?
-> 
-> By accident, I noticed that this issue does not happen with GRUB as coreboot
-> payload, and only with SeaBIOS. (I only tested on the ASRock E350M1.) A
-> coreboot developer said, that SeaBIOS does not do mapping though.
+>
+>  static void nd_async_device_unregister(void *d, async_cookie_t cookie)
+> @@ -504,12 +506,25 @@ static void nd_async_device_unregister(void *d, async_cookie_t cookie)
+>
+>  void __nd_device_register(struct device *dev)
+>  {
+> +       int node;
+> +
+>         if (!dev)
+>                 return;
+> +
+>         dev->bus = &nvdimm_bus_type;
+> +       get_device(dev->parent);
+>         get_device(dev);
+> -       async_schedule_domain(nd_async_device_register, dev,
+> -                       &nd_async_domain);
+> +
+> +       /*
+> +        * For a region we can break away from the parent node,
+> +        * otherwise for all other devices we just inherit the node from
+> +        * the parent.
+> +        */
+> +       node = is_nd_region(dev) ? to_nd_region(dev)->numa_node :
+> +                                  dev_to_node(dev->parent);
 
-Interesting, but I can't spot what causes that. 
-
-Can you please apply the patch below, and provide full dmesg of a seabios
-and a grub boot along with the page table files for each?
-
-Thanks,
-
-	tglx
-
-8<------------------
-diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-index faca978ebf9d..2190d40d99a5 100644
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -794,6 +794,7 @@ void free_kernel_image_pages(void *begin, void *end)
- 	unsigned long len_pages = (end_ul - begin_ul) >> PAGE_SHIFT;
- 
- 
-+	pr_info("Freeing init [mem %#010lx-%#010lx]\n", begin_ul, end_ul - 1);
- 	free_init_pages("unused kernel image", begin_ul, end_ul);
- 
- 	/*
-diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-index 979e0a02cbe1..651447261798 100644
---- a/arch/x86/mm/init_32.c
-+++ b/arch/x86/mm/init_32.c
-@@ -915,6 +915,7 @@ static void mark_nxdata_nx(void)
- 	 */
- 	unsigned long size = (((unsigned long)__init_end + HPAGE_SIZE) & HPAGE_MASK) - start;
- 
-+	pr_info("NX data: 0x%08lx - 0x%08lx\n", start, start + size - 1);
- 	if (__supported_pte_mask & _PAGE_NX)
- 		printk(KERN_INFO "NX-protecting the kernel data: %luk\n", size >> 10);
- 	set_pages_nx(virt_to_page(start), size >> PAGE_SHIFT);
-@@ -925,6 +926,7 @@ void mark_rodata_ro(void)
- 	unsigned long start = PFN_ALIGN(_text);
- 	unsigned long size = PFN_ALIGN(_etext) - start;
- 
-+	pr_info("RO text: 0x%08lx - 0x%08lx\n", start, start + size - 1);
- 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
- 	printk(KERN_INFO "Write protecting the kernel text: %luk\n",
- 		size >> 10);
-@@ -942,6 +944,7 @@ void mark_rodata_ro(void)
- 
- 	start += size;
- 	size = (unsigned long)__end_rodata - start;
-+	pr_info("RO data: 0x%08lx - 0x%08lx\n", start, start + size - 1);
- 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
- 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
- 		size >> 10);
+Devices already automatically inherit the node of their parent, so I'm
+not understanding why this is needed?
