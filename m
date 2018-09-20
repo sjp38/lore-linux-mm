@@ -1,101 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C2B738E0001
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 17:19:29 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id s69-v6so9993168ota.13
-        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 14:19:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 93-v6sor14547166ote.14.2018.09.20.14.19.28
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D19F78E0001
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 18:24:22 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id r130-v6so4689268pgr.13
+        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 15:24:22 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id b23-v6si24995048pgj.571.2018.09.20.15.24.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 20 Sep 2018 14:19:28 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Sep 2018 15:24:21 -0700 (PDT)
+Subject: [PATCH v4 0/5] Address issues slowing persistent memory
+ initialization
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Date: Thu, 20 Sep 2018 15:24:09 -0700
+Message-ID: <20180920215824.19464.8884.stgit@localhost.localdomain>
 MIME-Version: 1.0
-References: <cover.1536342881.git.yi.z.zhang@linux.intel.com>
- <4e8c2e0facd46cfaf4ab79e19c9115958ab6f218.1536342881.git.yi.z.zhang@linux.intel.com>
- <CAPcyv4ifg2BZMTNfu6mg0xxtPWs3BVgkfEj51v1CQ6jp2S70fw@mail.gmail.com>
- <fefbd66e-623d-b6a5-7202-5309dd4f5b32@redhat.com> <20180920224953.GA53363@tiger-server>
-In-Reply-To: <20180920224953.GA53363@tiger-server>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 20 Sep 2018 14:19:17 -0700
-Message-ID: <CAPcyv4g6OS=_uSjJenn5WVmpx7zCRCbzJaBr_m0Bq=qyEyVagg@mail.gmail.com>
-Subject: Re: [PATCH V5 4/4] kvm: add a check if pfn is from NVDIMM pmem.
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>, KVM list <kvm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Paolo Bonzini <pbonzini@redhat.com>, Dave Jiang <dave.jiang@intel.com>, "Zhang, Yu C" <yu.c.zhang@intel.com>, Pankaj Gupta <pagupta@redhat.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, rkrcmar@redhat.com, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, "Zhang, Yi Z" <yi.z.zhang@intel.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org
+Cc: pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com, mingo@kernel.org, dave.hansen@intel.com, jglisse@redhat.com, akpm@linux-foundation.org, logang@deltatee.com, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com
 
-On Thu, Sep 20, 2018 at 7:11 AM Yi Zhang <yi.z.zhang@linux.intel.com> wrote:
->
-> On 2018-09-19 at 09:20:25 +0200, David Hildenbrand wrote:
-> > Am 19.09.18 um 04:53 schrieb Dan Williams:
-> > >
-> > > Should we consider just not setting PageReserved for
-> > > devm_memremap_pages()? Perhaps kvm is not be the only component making
-> > > these assumptions about this flag?
-> >
-> > I was asking the exact same question in v3 or so.
-> >
-> > I was recently going through all PageReserved users, trying to clean up
-> > and document how it is used.
-> >
-> > PG_reserved used to be a marker "not available for the page allocator".
-> > This is only partially true and not really helpful I think. My current
-> > understanding:
-> >
-> > "
-> > PG_reserved is set for special pages, struct pages of such pages should
-> > in general not be touched except by their owner. Pages marked as
-> > reserved include:
-> > - Kernel image (including vDSO) and similar (e.g. BIOS, initrd)
-> > - Pages allocated early during boot (bootmem, memblock)
-> > - Zero pages
-> > - Pages that have been associated with a zone but were not onlined
-> >   (e.g. NVDIMM/pmem, online_page_callback used by XEN)
-> > - Pages to exclude from the hibernation image (e.g. loaded kexec images)
-> > - MCA (memory error) pages on ia64
-> > - Offline pages
-> > Some architectures don't allow to ioremap RAM pages that are not marked
-> > as reserved. Allocated pages might have to be set reserved to allow for
-> > that - if there is a good reason to enforce this. Consequently,
-> > PG_reserved part of a user space table might be the indicator for the
-> > zero page, pmem or MMIO pages.
-> > "
-> >
-> > Swapping code does not care about PageReserved at all as far as I
-> > remember. This seems to be fine as it only looks at the way pages have
-> > been mapped into user space.
-> >
-> > I don't really see a good reason to set pmem pages as reserved. One
-> > question would be, how/if to exclude them from the hibernation image.
-> > But that could also be solved differently (we would have to double check
-> > how they are handled in hibernation code).
-> >
-> >
-> > A similar user of PageReserved to look at is:
-> >
-> > drivers/vfio/vfio_iommu_type1.c:is_invalid_reserved_pfn()
-> >
-> > It will not mark pages dirty if they are reserved. Similar to KVM code.
-> Yes, kvm is not the only one user of the dax reserved page.
-> >
-> > >
-> > > Why is MEMORY_DEVICE_PUBLIC memory specifically excluded?
-> > >
-> > > This has less to do with "dax" pages and more to do with
-> > > devm_memremap_pages() established ranges. P2PDMA is another producer
-> > > of these pages. If either MEMORY_DEVICE_PUBLIC or P2PDMA pages can be
-> > > used in these kvm paths then I think this points to consider clearing
-> > > the Reserved flag.
->
-> Thanks Dan/David's comments.
-> for MEMORY_DEVICE_PUBLIC memory, since host driver could manager the
-> memory resource to share to guest, Jerome says we could ignore it at
-> this time.
->
-> And p2pmem, it seems mapped in a PCI bar space which should most likely
-> a mmio. I think kvm should treated as a reserved page.
+This patch set is meant to be a v4 to my earlier patch set "Address issues
+slowing memory init"[1], and a follow-up to my earlier patch set "Address
+issues slowing persistent memory initialization"[2].
 
-Ok, but the question you left unanswered is whether it would be better
-for devm_memremap_pages() to clear the PageReserved flag for
-MEMORY_DEVICE_{FS,DEV}_DAX rather than introduce a local kvm-only hack
-for what looks like a global problem.
+Excluding any gains seen from using the vm_debug option to disable page
+init poisoning I see a total reduction in file-system init time of about
+two and a half minutes, or 65%, for a system initializing btrfs on a 12TB
+block of persistent memory split evenly over 4 NUMA nodes.
+
+Since the last patch set I have reworked the first patch to provide a more
+generic disable implementation that can be extended in the future.
+
+I tweaked the commit message for the second patch slightly to reflect why
+we might want to use a non-atomic __set_bit versus the atomic set_bit.
+
+I have modified the third patch to make it so that it can merge onto either
+the linux git tree or the linux-next git tree. The patch set that Dan
+Williams has outstanding may end up conflicting with this patch depending
+on the merge order. If his are merged first I believe the code I changed
+in mm/hmm.c could be dropped entirely.
+
+The fourth patch has been split into two and focused more on the async
+scheduling portion of the nvdimm code. The result is much cleaner than the
+original approach in that instead of having two threads running we are now
+getting the thread running where we wanted it to be.
+
+The last change for all patches is that I have updated my email address to
+alexander.h.duyck@linux.intel.com to reflect the fact that I have changed
+teams within Intel. I will be trying to use that for correspondence going
+forward instead of my gmail account.
+
+[1]: https://lkml.org/lkml/2018/9/5/924
+[2]: https://lkml.org/lkml/2018/9/11/10
+[3]: https://lkml.org/lkml/2018/9/13/104
+
+---
+
+Alexander Duyck (5):
+      mm: Provide kernel parameter to allow disabling page init poisoning
+      mm: Create non-atomic version of SetPageReserved for init use
+      mm: Defer ZONE_DEVICE page initialization to the point where we init pgmap
+      async: Add support for queueing on specific node
+      nvdimm: Schedule device registration on node local to the device
+
+
+ Documentation/admin-guide/kernel-parameters.txt |   12 +++
+ drivers/nvdimm/bus.c                            |   19 ++++
+ include/linux/async.h                           |   20 ++++-
+ include/linux/mm.h                              |    2 
+ include/linux/page-flags.h                      |    9 ++
+ kernel/async.c                                  |   36 ++++++--
+ kernel/memremap.c                               |   24 ++---
+ mm/debug.c                                      |   46 ++++++++++
+ mm/hmm.c                                        |   12 ++-
+ mm/memblock.c                                   |    5 -
+ mm/page_alloc.c                                 |  101 ++++++++++++++++++++++-
+ mm/sparse.c                                     |    4 -
+ 12 files changed, 243 insertions(+), 47 deletions(-)
+
+--
