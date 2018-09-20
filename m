@@ -1,79 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E5FCA8E0001
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 00:29:40 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id t3-v6so7399177oif.20
-        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 21:29:40 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id w65-v6si8873640otb.455.2018.09.19.21.29.39
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 44B568E0001
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 02:04:11 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id b4-v6so3678465ede.4
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2018 23:04:11 -0700 (PDT)
+Received: from relay1-d.mail.gandi.net (relay1-d.mail.gandi.net. [217.70.183.193])
+        by mx.google.com with ESMTPS id y43-v6si902992edd.416.2018.09.19.23.04.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Sep 2018 21:29:39 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8K4Sld0056503
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 00:29:38 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2mm3yw95sh-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 00:29:38 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Thu, 20 Sep 2018 05:29:37 +0100
-Date: Thu, 20 Sep 2018 07:29:30 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH v4 0/3] docs/core-api: add memory allocation guide
-References: <1536917278-31191-1-git-send-email-rppt@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1536917278-31191-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <20180920042930.GA19495@rapoport-lnx>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 19 Sep 2018 23:04:09 -0700 (PDT)
+From: Alexandre Ghiti <alex@ghiti.fr>
+Subject: [PATCH v7 00/11] hugetlb: Factorize hugetlb architecture primitives 
+Date: Thu, 20 Sep 2018 06:03:47 +0000
+Message-Id: <20180920060358.16606-1-alex@ghiti.fr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, Randy Dunlap <rdunlap@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, mike.kravetz@oracle.com, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, tony.luck@intel.com, fenghua.yu@intel.com, ralf@linux-mips.org, paul.burton@mips.com, jhogan@kernel.org, jejb@parisc-linux.org, deller@gmx.de, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, ysato@users.sourceforge.jp, dalias@libc.org, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, arnd@arndb.de, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, Alexandre Ghiti <alex@ghiti.fr>
 
-Ping?
+Hi Andrew,
 
-On Fri, Sep 14, 2018 at 12:27:55PM +0300, Mike Rapoport wrote:
-> Hi,
-> 
-> As Vlastimil mentioned at [1], it would be nice to have some guide about
-> memory allocation. This set adds such guide that summarizes the "best
-> practices". 
-> 
-> The changes from the RFC include additions and corrections from Michal and
-> Randy. I've also added markup to cross-reference the kernel-doc
-> documentation.
-> 
-> I've split the patch into three to separate labels addition to the exiting
-> files from the new contents.
-> 
-> v3 -> v4:
->   * make GFP_*USER* description less confusing
-> 
-> v2 -> v3:
->   * s/HW/hardware
-> 
-> [1] https://www.spinics.net/lists/netfilter-devel/msg55542.html
-> 
-> Mike Rapoport (3):
->   docs: core-api/gfp_mask-from-fs-io: add a label for cross-referencing
->   docs: core-api/mm-api: add a lable for GFP flags section
->   docs: core-api: add memory allocation guide
-> 
->  Documentation/core-api/gfp_mask-from-fs-io.rst |   2 +
->  Documentation/core-api/index.rst               |   1 +
->  Documentation/core-api/memory-allocation.rst   | 122 +++++++++++++++++++++++++
->  Documentation/core-api/mm-api.rst              |   2 +
->  4 files changed, 127 insertions(+)
->  create mode 100644 Documentation/core-api/memory-allocation.rst
-> 
-> -- 
-> 2.7.4
-> 
+As suggested by people who reviewed/acked this series, please consider
+including this series into -mm tree.
+
+In order to reduce copy/paste of functions across architectures and then         
+make riscv hugetlb port (and future ports) simpler and smaller, this             
+patchset intends to factorize the numerous hugetlb primitives that are           
+defined across all the architectures.                                            
+                                                                                 
+Except for prepare_hugepage_range, this patchset moves the versions that         
+are just pass-through to standard pte primitives into                            
+asm-generic/hugetlb.h by using the same #ifdef semantic that can be              
+found in asm-generic/pgtable.h, i.e. __HAVE_ARCH_***.                            
+                                                                                 
+s390 architecture has not been tackled in this serie since it does not           
+use asm-generic/hugetlb.h at all.                                                
+                                                                                 
+This patchset has been compiled on all addressed architectures with              
+success (except for parisc, but the problem does not come from this              
+series).                 
+
+v7:
+  Add Ingo Molnar Acked-By for x86.
+
+v6:                                                                              
+  - Remove nohash/32 and book3s/32 powerpc specific implementations in
+    order to use the generic ones.                                                        
+  - Add all the Reviewed-by, Acked-by and Tested-by in the commits,              
+    thanks to everyone.                                                          
+                                                                                 
+v5:                                                                              
+  As suggested by Mike Kravetz, no need to move the #include                     
+  <asm-generic/hugetlb.h> for arm and x86 architectures, let it live at          
+  the top of the file.                                                           
+                                                                                 
+v4:                                                                              
+  Fix powerpc build error due to misplacing of #include                          
+  <asm-generic/hugetlb.h> outside of #ifdef CONFIG_HUGETLB_PAGE, as              
+  pointed by Christophe Leroy.                                                   
+                                                                                 
+v1, v2, v3:                                                                      
+  Same version, just problems with email provider and misuse of                  
+  --batch-size option of git send-email
+
+Alexandre Ghiti (11):
+  hugetlb: Harmonize hugetlb.h arch specific defines with pgtable.h
+  hugetlb: Introduce generic version of hugetlb_free_pgd_range
+  hugetlb: Introduce generic version of set_huge_pte_at
+  hugetlb: Introduce generic version of huge_ptep_get_and_clear
+  hugetlb: Introduce generic version of huge_ptep_clear_flush
+  hugetlb: Introduce generic version of huge_pte_none
+  hugetlb: Introduce generic version of huge_pte_wrprotect
+  hugetlb: Introduce generic version of prepare_hugepage_range
+  hugetlb: Introduce generic version of huge_ptep_set_wrprotect
+  hugetlb: Introduce generic version of huge_ptep_set_access_flags
+  hugetlb: Introduce generic version of huge_ptep_get
+
+ arch/arm/include/asm/hugetlb-3level.h        | 32 +---------
+ arch/arm/include/asm/hugetlb.h               | 30 ----------
+ arch/arm64/include/asm/hugetlb.h             | 39 +++---------
+ arch/ia64/include/asm/hugetlb.h              | 47 ++-------------
+ arch/mips/include/asm/hugetlb.h              | 40 +++----------
+ arch/parisc/include/asm/hugetlb.h            | 33 +++--------
+ arch/powerpc/include/asm/book3s/32/pgtable.h |  6 --
+ arch/powerpc/include/asm/book3s/64/pgtable.h |  1 +
+ arch/powerpc/include/asm/hugetlb.h           | 43 ++------------
+ arch/powerpc/include/asm/nohash/32/pgtable.h |  6 --
+ arch/powerpc/include/asm/nohash/64/pgtable.h |  1 +
+ arch/sh/include/asm/hugetlb.h                | 54 ++---------------
+ arch/sparc/include/asm/hugetlb.h             | 40 +++----------
+ arch/x86/include/asm/hugetlb.h               | 69 ----------------------
+ include/asm-generic/hugetlb.h                | 88 +++++++++++++++++++++++++++-
+ 15 files changed, 135 insertions(+), 394 deletions(-)
 
 -- 
-Sincerely yours,
-Mike.
+2.16.2
