@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C9C738E0001
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 12:34:57 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id u13-v6so4940587pfm.8
-        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 09:34:57 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B01D8E0001
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 12:35:20 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id s11-v6so4347548pgv.9
+        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 09:35:20 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u10-v6sor5198655plu.19.2018.09.20.09.34.56
+        by mx.google.com with SMTPS id f31-v6sor4840934plb.14.2018.09.20.09.35.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 20 Sep 2018 09:34:56 -0700 (PDT)
-Date: Thu, 20 Sep 2018 09:39:06 -0700
+        Thu, 20 Sep 2018 09:35:19 -0700 (PDT)
+Date: Thu, 20 Sep 2018 09:39:28 -0700
 From: Bjorn Andersson <bjorn.andersson@linaro.org>
-Subject: Re: [PATCH v2 3/4] devres: provide devm_kstrdup_const()
-Message-ID: <20180920163905.GH1367@tuxbook-pro>
+Subject: Re: [PATCH v2 4/4] clk: pmc-atom: use devm_kstrdup_const()
+Message-ID: <20180920163928.GI1367@tuxbook-pro>
 References: <20180828093332.20674-1-brgl@bgdev.pl>
- <20180828093332.20674-4-brgl@bgdev.pl>
+ <20180828093332.20674-5-brgl@bgdev.pl>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180828093332.20674-4-brgl@bgdev.pl>
+In-Reply-To: <20180828093332.20674-5-brgl@bgdev.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Bartosz Golaszewski <brgl@bgdev.pl>
@@ -26,11 +26,10 @@ Cc: Michael Turquette <mturquette@baylibre.com>, Stephen Boyd <sboyd@kernel.org>
 
 On Tue 28 Aug 02:33 PDT 2018, Bartosz Golaszewski wrote:
 
-> Provide a resource managed version of kstrdup_const(). This variant
-> internally calls devm_kstrdup() on pointers that are outside of
-> .rodata section and returns the string as is otherwise.
+> Use devm_kstrdup_const() in the pmc-atom driver. This mostly serves as
+> an example of how to use this new routine to shrink driver code.
 > 
-> Also provide a corresponding version of devm_kfree().
+> While we're at it: replace a call to kcalloc() with devm_kcalloc().
 > 
 > Signed-off-by: Bartosz Golaszewski <brgl@bgdev.pl>
 
@@ -40,87 +39,72 @@ Regards,
 Bjorn
 
 > ---
->  drivers/base/devres.c  | 38 ++++++++++++++++++++++++++++++++++++++
->  include/linux/device.h |  3 +++
->  2 files changed, 41 insertions(+)
+>  drivers/clk/x86/clk-pmc-atom.c | 19 ++++---------------
+>  1 file changed, 4 insertions(+), 15 deletions(-)
 > 
-> diff --git a/drivers/base/devres.c b/drivers/base/devres.c
-> index 438c91a43508..48185d57bc5b 100644
-> --- a/drivers/base/devres.c
-> +++ b/drivers/base/devres.c
-> @@ -11,6 +11,8 @@
->  #include <linux/slab.h>
->  #include <linux/percpu.h>
->  
-> +#include <asm/sections.h>
-> +
->  #include "base.h"
->  
->  struct devres_node {
-> @@ -822,6 +824,28 @@ char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp)
+> diff --git a/drivers/clk/x86/clk-pmc-atom.c b/drivers/clk/x86/clk-pmc-atom.c
+> index 08ef69945ffb..daa2192e6568 100644
+> --- a/drivers/clk/x86/clk-pmc-atom.c
+> +++ b/drivers/clk/x86/clk-pmc-atom.c
+> @@ -253,14 +253,6 @@ static void plt_clk_unregister_fixed_rate_loop(struct clk_plt_data *data,
+>  		plt_clk_unregister_fixed_rate(data->parents[i]);
 >  }
->  EXPORT_SYMBOL_GPL(devm_kstrdup);
 >  
-> +/**
-> + * devm_kstrdup_const - resource managed conditional string duplication
-> + * @dev: device for which to duplicate the string
-> + * @s: the string to duplicate
-> + * @gfp: the GFP mask used in the kmalloc() call when allocating memory
-> + *
-> + * Strings allocated by devm_kstrdup_const will be automatically freed when
-> + * the associated device is detached.
-> + *
-> + * RETURNS:
-> + * Source string if it is in .rodata section otherwise it falls back to
-> + * devm_kstrdup.
-> + */
-> +const char *devm_kstrdup_const(struct device *dev, const char *s, gfp_t gfp)
-> +{
-> +	if (is_kernel_rodata((unsigned long)s))
-> +		return s;
-> +
-> +	return devm_kstrdup(dev, s, gfp);
-> +}
-> +EXPORT_SYMBOL(devm_kstrdup_const);
-> +
->  /**
->   * devm_kvasprintf - Allocate resource managed space and format a string
->   *		     into that.
-> @@ -895,6 +919,20 @@ void devm_kfree(struct device *dev, const void *p)
->  }
->  EXPORT_SYMBOL_GPL(devm_kfree);
+> -static void plt_clk_free_parent_names_loop(const char **parent_names,
+> -					   unsigned int i)
+> -{
+> -	while (i--)
+> -		kfree_const(parent_names[i]);
+> -	kfree(parent_names);
+> -}
+> -
+>  static void plt_clk_unregister_loop(struct clk_plt_data *data,
+>  				    unsigned int i)
+>  {
+> @@ -286,8 +278,8 @@ static const char **plt_clk_register_parents(struct platform_device *pdev,
+>  	if (!data->parents)
+>  		return ERR_PTR(-ENOMEM);
 >  
-> +/**
-> + * devm_kfree_const - Resource managed conditional kfree
-> + * @dev: device this memory belongs to
-> + * @p: memory to free
-> + *
-> + * Function calls devm_kfree only if @p is not in .rodata section.
-> + */
-> +void devm_kfree_const(struct device *dev, const void *p)
-> +{
-> +	if (!is_kernel_rodata((unsigned long)p))
-> +		devm_kfree(dev, p);
-> +}
-> +EXPORT_SYMBOL(devm_kfree_const);
-> +
->  /**
->   * devm_kmemdup - Resource-managed kmemdup
->   * @dev: Device this memory belongs to
-> diff --git a/include/linux/device.h b/include/linux/device.h
-> index 33f7cb271fbb..79ccc6eb0975 100644
-> --- a/include/linux/device.h
-> +++ b/include/linux/device.h
-> @@ -693,7 +693,10 @@ static inline void *devm_kcalloc(struct device *dev,
->  	return devm_kmalloc_array(dev, n, size, flags | __GFP_ZERO);
+> -	parent_names = kcalloc(nparents, sizeof(*parent_names),
+> -			       GFP_KERNEL);
+> +	parent_names = devm_kcalloc(&pdev->dev, nparents,
+> +				    sizeof(*parent_names), GFP_KERNEL);
+>  	if (!parent_names)
+>  		return ERR_PTR(-ENOMEM);
+>  
+> @@ -300,7 +292,8 @@ static const char **plt_clk_register_parents(struct platform_device *pdev,
+>  			err = PTR_ERR(data->parents[i]);
+>  			goto err_unreg;
+>  		}
+> -		parent_names[i] = kstrdup_const(clks[i].name, GFP_KERNEL);
+> +		parent_names[i] = devm_kstrdup_const(&pdev->dev,
+> +						     clks[i].name, GFP_KERNEL);
+>  	}
+>  
+>  	data->nparents = nparents;
+> @@ -308,7 +301,6 @@ static const char **plt_clk_register_parents(struct platform_device *pdev,
+>  
+>  err_unreg:
+>  	plt_clk_unregister_fixed_rate_loop(data, i);
+> -	plt_clk_free_parent_names_loop(parent_names, i);
+>  	return ERR_PTR(err);
 >  }
->  extern void devm_kfree(struct device *dev, const void *p);
-> +extern void devm_kfree_const(struct device *dev, const void *p);
->  extern char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp) __malloc;
-> +extern const char *devm_kstrdup_const(struct device *dev,
-> +				      const char *s, gfp_t gfp);
->  extern void *devm_kmemdup(struct device *dev, const void *src, size_t len,
->  			  gfp_t gfp);
+>  
+> @@ -351,15 +343,12 @@ static int plt_clk_probe(struct platform_device *pdev)
+>  		goto err_unreg_clk_plt;
+>  	}
+>  
+> -	plt_clk_free_parent_names_loop(parent_names, data->nparents);
+> -
+>  	platform_set_drvdata(pdev, data);
+>  	return 0;
+>  
+>  err_unreg_clk_plt:
+>  	plt_clk_unregister_loop(data, i);
+>  	plt_clk_unregister_parents(data);
+> -	plt_clk_free_parent_names_loop(parent_names, data->nparents);
+>  	return err;
+>  }
 >  
 > -- 
 > 2.18.0
