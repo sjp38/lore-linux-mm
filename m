@@ -1,108 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DEDE18E0001
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 10:10:45 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id g12-v6so4468796plo.1
-        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 07:10:45 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id 5-v6si25589354pls.431.2018.09.20.07.10.44
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D49B78E0001
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 12:33:55 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id v9-v6so4618835ply.13
+        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 09:33:55 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f26-v6sor2785989pgf.275.2018.09.20.09.33.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Sep 2018 07:10:44 -0700 (PDT)
-Date: Fri, 21 Sep 2018 06:49:54 +0800
-From: Yi Zhang <yi.z.zhang@linux.intel.com>
-Subject: Re: [PATCH V5 4/4] kvm: add a check if pfn is from NVDIMM pmem.
-Message-ID: <20180920224953.GA53363@tiger-server>
-References: <cover.1536342881.git.yi.z.zhang@linux.intel.com>
- <4e8c2e0facd46cfaf4ab79e19c9115958ab6f218.1536342881.git.yi.z.zhang@linux.intel.com>
- <CAPcyv4ifg2BZMTNfu6mg0xxtPWs3BVgkfEj51v1CQ6jp2S70fw@mail.gmail.com>
- <fefbd66e-623d-b6a5-7202-5309dd4f5b32@redhat.com>
+        (Google Transport Security);
+        Thu, 20 Sep 2018 09:33:53 -0700 (PDT)
+Date: Thu, 20 Sep 2018 09:38:02 -0700
+From: Bjorn Andersson <bjorn.andersson@linaro.org>
+Subject: Re: [PATCH v2 1/4] devres: constify p in devm_kfree()
+Message-ID: <20180920163802.GF1367@tuxbook-pro>
+References: <20180828093332.20674-1-brgl@bgdev.pl>
+ <20180828093332.20674-2-brgl@bgdev.pl>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fefbd66e-623d-b6a5-7202-5309dd4f5b32@redhat.com>
+In-Reply-To: <20180828093332.20674-2-brgl@bgdev.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>, Dan Williams <dan.j.williams@intel.com>
-Cc: KVM list <kvm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Paolo Bonzini <pbonzini@redhat.com>, Dave Jiang <dave.jiang@intel.com>, "Zhang, Yu C" <yu.c.zhang@intel.com>, Pankaj Gupta <pagupta@redhat.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, rkrcmar@redhat.com, =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, "Zhang, Yi Z" <yi.z.zhang@intel.com>
+To: Bartosz Golaszewski <brgl@bgdev.pl>
+Cc: Michael Turquette <mturquette@baylibre.com>, Stephen Boyd <sboyd@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Arend van Spriel <aspriel@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, Bjorn Helgaas <bhelgaas@google.com>, Vivek Gautam <vivek.gautam@codeaurora.org>, Robin Murphy <robin.murphy@arm.com>, Joe Perches <joe@perches.com>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Roman Gushchin <guro@fb.com>, Huang Ying <ying.huang@intel.com>, Kees Cook <keescook@chromium.org>, Arnd Bergmann <arnd@arndb.de>, linux-clk@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 2018-09-19 at 09:20:25 +0200, David Hildenbrand wrote:
-> Am 19.09.18 um 04:53 schrieb Dan Williams:
-> > 
-> > Should we consider just not setting PageReserved for
-> > devm_memremap_pages()? Perhaps kvm is not be the only component making
-> > these assumptions about this flag?
-> 
-> I was asking the exact same question in v3 or so.
-> 
-> I was recently going through all PageReserved users, trying to clean up
-> and document how it is used.
-> 
-> PG_reserved used to be a marker "not available for the page allocator".
-> This is only partially true and not really helpful I think. My current
-> understanding:
-> 
-> "
-> PG_reserved is set for special pages, struct pages of such pages should
-> in general not be touched except by their owner. Pages marked as
-> reserved include:
-> - Kernel image (including vDSO) and similar (e.g. BIOS, initrd)
-> - Pages allocated early during boot (bootmem, memblock)
-> - Zero pages
-> - Pages that have been associated with a zone but were not onlined
->   (e.g. NVDIMM/pmem, online_page_callback used by XEN)
-> - Pages to exclude from the hibernation image (e.g. loaded kexec images)
-> - MCA (memory error) pages on ia64
-> - Offline pages
-> Some architectures don't allow to ioremap RAM pages that are not marked
-> as reserved. Allocated pages might have to be set reserved to allow for
-> that - if there is a good reason to enforce this. Consequently,
-> PG_reserved part of a user space table might be the indicator for the
-> zero page, pmem or MMIO pages.
-> "
-> 
-> Swapping code does not care about PageReserved at all as far as I
-> remember. This seems to be fine as it only looks at the way pages have
-> been mapped into user space.
-> 
-> I don't really see a good reason to set pmem pages as reserved. One
-> question would be, how/if to exclude them from the hibernation image.
-> But that could also be solved differently (we would have to double check
-> how they are handled in hibernation code).
-> 
-> 
-> A similar user of PageReserved to look at is:
-> 
-> drivers/vfio/vfio_iommu_type1.c:is_invalid_reserved_pfn()
-> 
-> It will not mark pages dirty if they are reserved. Similar to KVM code.
-Yes, kvm is not the only one user of the dax reserved page. 
-> 
-> > 
-> > Why is MEMORY_DEVICE_PUBLIC memory specifically excluded?
-> > 
-> > This has less to do with "dax" pages and more to do with
-> > devm_memremap_pages() established ranges. P2PDMA is another producer
-> > of these pages. If either MEMORY_DEVICE_PUBLIC or P2PDMA pages can be
-> > used in these kvm paths then I think this points to consider clearing
-> > the Reserved flag.
+On Tue 28 Aug 02:33 PDT 2018, Bartosz Golaszewski wrote:
 
-Thanks Dan/David's comments.
-for MEMORY_DEVICE_PUBLIC memory, since host driver could manager the
-memory resource to share to guest, Jerome says we could ignore it at
-this time.
+> Make devm_kfree() signature uniform with that of kfree(). To avoid
+> compiler warnings: cast p to (void *) when calling devres_destroy().
+> 
 
-And p2pmem, it seems mapped in a PCI bar space which should most likely
-a mmio. I think kvm should treated as a reserved page.
-> > 
-> > That said I haven't audited all the locations that test PageReserved().
-> > 
-> > Sorry for not responding sooner I was on extended leave.
-> > 
+Reviewed-by: Bjorn Andersson <bjorn.andersson@linaro.org>
+
+Regards,
+Bjorn
+
+> Signed-off-by: Bartosz Golaszewski <brgl@bgdev.pl>
+> ---
+>  drivers/base/devres.c  | 5 +++--
+>  include/linux/device.h | 2 +-
+>  2 files changed, 4 insertions(+), 3 deletions(-)
 > 
-> 
+> diff --git a/drivers/base/devres.c b/drivers/base/devres.c
+> index f98a097e73f2..438c91a43508 100644
+> --- a/drivers/base/devres.c
+> +++ b/drivers/base/devres.c
+> @@ -885,11 +885,12 @@ EXPORT_SYMBOL_GPL(devm_kasprintf);
+>   *
+>   * Free memory allocated with devm_kmalloc().
+>   */
+> -void devm_kfree(struct device *dev, void *p)
+> +void devm_kfree(struct device *dev, const void *p)
+>  {
+>  	int rc;
+>  
+> -	rc = devres_destroy(dev, devm_kmalloc_release, devm_kmalloc_match, p);
+> +	rc = devres_destroy(dev, devm_kmalloc_release,
+> +			    devm_kmalloc_match, (void *)p);
+>  	WARN_ON(rc);
+>  }
+>  EXPORT_SYMBOL_GPL(devm_kfree);
+> diff --git a/include/linux/device.h b/include/linux/device.h
+> index 8f882549edee..33f7cb271fbb 100644
+> --- a/include/linux/device.h
+> +++ b/include/linux/device.h
+> @@ -692,7 +692,7 @@ static inline void *devm_kcalloc(struct device *dev,
+>  {
+>  	return devm_kmalloc_array(dev, n, size, flags | __GFP_ZERO);
+>  }
+> -extern void devm_kfree(struct device *dev, void *p);
+> +extern void devm_kfree(struct device *dev, const void *p);
+>  extern char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp) __malloc;
+>  extern void *devm_kmemdup(struct device *dev, const void *src, size_t len,
+>  			  gfp_t gfp);
 > -- 
+> 2.18.0
 > 
-> Thanks,
-> 
-> David / dhildenb
