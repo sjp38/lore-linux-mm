@@ -1,176 +1,298 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 800A08E0001
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 14:54:34 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id a23-v6so5136108pfo.23
-        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 11:54:34 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id x13-v6si22682867pgr.153.2018.09.20.11.54.33
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 89A748E0001
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 15:10:51 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id 43-v6so11261ple.19
+        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 12:10:51 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id c31-v6si5346429pgb.348.2018.09.20.12.10.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Sep 2018 11:54:33 -0700 (PDT)
-Date: Thu, 20 Sep 2018 21:54:28 +0300
-From: Leon Romanovsky <leon@kernel.org>
-Subject: Re: Linux RDMA mini-conf at Plumbers 2018
-Message-ID: <20180920185428.GT3519@mtr-leonro.mtl.com>
-References: <20180920181923.GA6542@mellanox.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="M0YLxmUXciMpOLPE"
-Content-Disposition: inline
-In-Reply-To: <20180920181923.GA6542@mellanox.com>
+        Thu, 20 Sep 2018 12:10:49 -0700 (PDT)
+Date: Thu, 20 Sep 2018 12:10:47 -0700
+From: akpm@linux-foundation.org
+Subject: mmotm 2018-09-20-12-10 uploaded
+Message-ID: <20180920191047.N7-CCe4vS%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Gunthorpe <jgg@mellanox.com>
-Cc: linux-rdma@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alex Rosenbaum <alexr@mellanox.com>, Alex Williamson <alex.williamson@redhat.com>, Bjorn Helgaas <bhelgaas@google.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Christoph Hellwig <hch@lst.de>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, Don Dutile <ddutile@redhat.com>, Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>, John Hubbard <jhubbard@nvidia.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, Matthew Wilcox <willy@infradead.org>, Nicholas Piggin <npiggin@gmail.com>, Noa Osherovich <noaos@mellanox.com>, Parav Pandit <parav@mellanox.com>, Stephen Bates <sbates@raithlin.com>
+To: broonie@kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org, sfr@canb.auug.org.au
+
+The mm-of-the-moment snapshot 2018-09-20-12-10 has been uploaded to
+
+   http://www.ozlabs.org/~akpm/mmotm/
+
+mmotm-readme.txt says
+
+README for mm-of-the-moment:
+
+http://www.ozlabs.org/~akpm/mmotm/
+
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
+
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
+
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
 
 
---M0YLxmUXciMpOLPE
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
 
-On Thu, Sep 20, 2018 at 12:19:23PM -0600, Jason Gunthorpe wrote:
-> This is just a friendly reminder that registration deadlines are
-> approaching for this conference. Please see
->
-> https://www.linuxplumbersconf.org/event/2/page/7-attend
->
-> For details.
->
-> This year we expect to have close to a day set aside for RDMA related
-> topics. Including up to half a day for the thorny general kernel issues
-> related to get_user_pages(), particularly as exasperated by RDMA.
->
-> We have been working on the following concepts for sessions, I've
-> roughly marked names based on past participation in related email
-> threads. As we get closer to the conference date we will be organizing
-> leaders for each section based on these lists, please let us know of
-> any changes, or desire to be a leader!
->
-> RDMA and get_user_pages
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->   Dan Williams <dan.j.williams@intel.com>
->   Matthew Wilcox <willy@infradead.org>
->   John Hubbard <jhubbard@nvidia.com>
->   Nicholas Piggin <npiggin@gmail.com>
->   Jan Kara <jack@suse.cz>
->
->  RDMA, DAX and persistant memory co-existence.
->
->  Explore the limits of what is possible without using On
->  Demand Paging Memory Registration. Discuss 'shootdown'
->  of userspace MRs
->
->  Dirtying pages obtained with get_user_pages() can oops ext4
->  discuss open solutions.
->
-> RDMA and PCI peer to peer
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D
->   Don Dutile <ddutile@redhat.com>
->   Alex Williamson <alex.williamson@redhat.com>
->   Christoph Hellwig <hch@lst.de>
->   Stephen Bates <sbates@raithlin.com>
->   Logan Gunthorpe <logang@deltatee.com>
->   J=E9r=F4me Glisse <jglisse@redhat.com>
->   Christian K=F6nig <christian.koenig@amd.com>
->   Bjorn Helgaas <bhelgaas@google.com>
->
->  RDMA and PCI peer to peer transactions. IOMMU issues. Integration
->  with HMM. How to expose PCI BAR memory to userspace and other
->  drivers as a DMA target.
->
-> Improving testing of RDMA with syzkaller, RXE and Python
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D
->  Noa Osherovich <noaos@mellanox.com>
->  Don Dutile <ddutile@redhat.com>
->  Jason Gunthorpe <jgg@mellanox.com>
->
->  Problem solve RDMA's distinct lack of public tests.
->  Provide a better framework for all drivers to test with,
->  and a framework for basic testing in userspace.
->
->  Worst remaining unfixed syzkaller bugs and how to try to fix them
->
->  How to hook syzkaller more deeply into RDMA.
->
-> IOCTL conversion and new kABI topics
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->  Jason Gunthorpe <jgg@mellanox.com>
->  Alex Rosenbaum <alexr@mellanox.com>
->
->  Attempt to close on the remaining tasks to complete the project
->
->  Restore fork() support to userspace
->
-> Container and namespaces for RDMA topics
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->  Parav Pandit <parav@mellanox.com>
->  Doug Ledford <dledford@redhat.com>
->
->  Remaining sticky situations with containers
->
->  namespaces in sysfs and legacy all-namespace operation
->
->  Remaining CM issues
->
->  Security isolation problems
->
-> Very large Contiguous regions in userspace
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->  Christopher Lameter <cl@linux.com>
->  Parav Pandit <parav@mellanox.com>
->
->  Poor performance of get_user_pages on very large virtual ranges
->
->  No standardized API to allocate regions to user space
->
->  Carry over from last year
->
-> As we get closer to the conference date the exact schedule will be
-> published on the conference web site. I belive we have the Thursday
-> set aside right now.
->
-> If there are any last minute topics people would like to see please
-> let us know.
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
 
-I want to remind you that Mike wanted to bring the topic of enhancing
-remote page faults during post-copy container migration in CRIU over
-RDMA.
+To develop on top of mmotm git:
 
-Thanks
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
 
->
-> See you all in Vancouver!
->
-> Thanks,
-> Jason & Leon
->
+To rebase a branch with older patches to a new mmotm release:
 
---M0YLxmUXciMpOLPE
-Content-Type: application/pgp-signature; name="signature.asc"
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
 
------BEGIN PGP SIGNATURE-----
 
-iQIcBAEBAgAGBQJbo+zkAAoJEORje4g2clinH6IP+wfLFZ7fzsARxS15q/RbnRf1
-fwsHV80uj2xr5fRwGyIvA+zkhOQyzdEyF2Pfo6fK9jtR5lIJDMHv0KLkfkgYhQrB
-YMTkWW9KcczlA2d/d1iOMaK7Xg/o/rids7KgTVTPGY8unyfWxUpYNd+R2kSnmmc0
-7VkS/uciKu4tacsunPxSHdOjOmU4a3FWZk4U2HpQkRaYfsJIDjcUmdZcN5QOZJcr
-4lv3n8xV+u2Hn6O/A0tagh7WWbQay99xQQX6ZEay8Y7Rb+N6sxnsapZf0K3EKK+d
-GFWV9lG1+IisMhAvV58zy7nAdWUHGgudqs9eKxcksMWMG1gd6Kf+lnQxqbaixeiE
-v15SZNF/zGTmbxzgHbpf9XEznSRIUW9WQmmQU1ncZ4mG7GAJK9aErzpj7nJS3/fi
-kk/eRyPeV5mFDZ1uTYV+ppy7azRCmRhVJWhgbHnx6XCBJl3aSXg7RNA7YmzfU3DW
-nneLe7HlEENgN/FQjAI540wFnzey1vS384Y0PgcA2h6RaSUzAMlfJxkkauWmECB7
-90d6S+Fo/wxPe46Tm4Wz/LFwyQ/LTS+RrobRJn7qJNRZZDLP1YOPSsf2rWRfDCP3
-2c7V9p9AVZe7LumdmgO9Te0P6bOZFF8G0/MRSiGL6zxAqqiB6abzFH1DKwI9fRam
-W/AMQ5XL93NxGwA/c9G9
-=LW6p
------END PGP SIGNATURE-----
 
---M0YLxmUXciMpOLPE--
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 4.19-rc4:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+* fork-report-pid-exhaustion-correctly.patch
+* mm-disable-deferred-struct-page-for-32-bit-arches.patch
+* proc-kcore-fix-invalid-memory-access-in-multi-page-read-optimization-v3.patch
+* mm-shmem-correctly-annotate-new-inodes-for-lockdep.patch
+* kernel-remove-duplicated-include-from-sysc.patch
+* mm-slowly-shrink-slabs-with-a-relatively-small-number-of-objects.patch
+* ocfs2-fix-ocfs2-read-block-panic.patch
+* mm-migration-fix-migration-of-huge-pmd-shared-pages.patch
+* mm-migration-fix-migration-of-huge-pmd-shared-pages-v7.patch
+* hugetlb-take-pmd-sharing-into-account-when-flushing-tlb-caches.patch
+* fix-crash-on-ocfs2_duplicate_clusters_by_page.patch
+* fix-crash-on-ocfs2_duplicate_clusters_by_page-v5.patch
+* fix-crash-on-ocfs2_duplicate_clusters_by_page-v5-checkpatch-fixes.patch
+* mm-thp-fix-mlocking-thp-page-with-migration-enabled.patch
+* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
+* linkageh-align-weak-symbols.patch
+* arm64-lib-use-c-string-functions-with-kasan-enabled.patch
+* lib-test_kasan-add-tests-for-several-string-memory-api-functions.patch
+* scripts-tags-add-declare_hashtable.patch
+* ocfs2-fix-a-gcc-compiled-warning.patch
+* ocfs2-get-rid-of-ocfs2_is_o2cb_active-function.patch
+* ocfs2-without-quota-support-try-to-avoid-calling-quota-recovery.patch
+* ocfs2-dont-use-iocb-when-eiocbqueued-returns.patch
+* ocfs2-fix-a-misuse-a-of-brelse-after-failing-ocfs2_check_dir_entry.patch
+* ocfs2-dont-put-and-assigning-null-to-bh-allocated-outside.patch
+* ocfs2-dlmglue-clean-up-timestamp-handling.patch
+* fix-dead-lock-caused-by-ocfs2_defrag_extent.patch
+* ocfs2-fix-dead-lock-caused-by-ocfs2_defrag_extent.patch
+* fix-clusters-leak-in-ocfs2_defrag_extent.patch
+* fix-clusters-leak-in-ocfs2_defrag_extent-fix.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* vfs-allow-dedupe-of-user-owned-read-only-files.patch
+* vfs-dedupe-should-return-eperm-if-permission-is-not-granted.patch
+* fs-iomap-change-return-type-to-vm_fault_t.patch
+* xtensa-use-generic-vgah.patch
+  mm.patch
+* mm-slubc-switch-to-bitmap_zalloc.patch
+* mm-rework-memcg-kernel-stack-accounting.patch
+* mm-drain-memcg-stocks-on-css-offlining.patch
+* mm-dont-miss-the-last-page-because-of-round-off-error.patch
+* mm-dont-miss-the-last-page-because-of-round-off-error-fix.patch
+* mmpage_alloc-pf_wq_worker-threads-must-sleep-at-should_reclaim_retry.patch
+* mmpage_alloc-pf_wq_worker-threads-must-sleep-at-should_reclaim_retry-fix.patch
+* mm-mmu_notifier-be-explicit-about-range-invalition-non-blocking-mode.patch
+* revert-mm-mmu_notifier-annotate-mmu-notifiers-with-blockable-invalidate-callbacks.patch
+* kmemleak-add-module-param-to-print-warnings-to-dmesg.patch
+* swap-use-__try_to_reclaim_swap-in-free_swap_and_cache.patch
+* swap-call-free_swap_slot-in-__swap_entry_free.patch
+* swap-clear-si-swap_map-in-swap_free_cluster.patch
+* mm-page_alloc-clean-up-check_for_memory.patch
+* mm-conveted-to-use-vm_fault_t.patch
+* cramfs-convert-to-use-vmf_insert_mixed-v2.patch
+* mm-remove-vm_insert_mixed.patch
+* mm-introduce-vmf_insert_pfn_prot.patch
+* x86-convert-vdso-to-use-vm_fault_t.patch
+* mm-make-vm_insert_pfn_prot-static.patch
+* mm-remove-references-to-vm_insert_pfn.patch
+* mm-remove-vm_insert_pfn.patch
+* mm-inline-vm_insert_pfn_prot-into-caller.patch
+* mm-convert-__vm_insert_mixed-to-vm_fault_t.patch
+* mm-convert-insert_pfn-to-vm_fault_t.patch
+* hexagon-switch-to-no_bootmem.patch
+* of-ignore-sub-page-memory-regions.patch
+* nios2-use-generic-early_init_dt_add_memory_arch.patch
+* nios2-switch-to-no_bootmem.patch
+* um-setup_physmem-stop-using-global-variables.patch
+* um-switch-to-no_bootmem.patch
+* unicore32-switch-to-no_bootmem.patch
+* alpha-switch-to-no_bootmem.patch
+* userfaultfd-allow-get_mempolicympol_f_nodempol_f_addr-to-trigger-userfaults.patch
+* arm-arm64-introduce-config_have_memblock_pfn_valid.patch
+* mm-page_alloc-remain-memblock_next_valid_pfn-on-arm-arm64.patch
+* mm-page_alloc-reduce-unnecessary-binary-search-in-memblock_next_valid_pfn.patch
+* mm-slab-combine-kmalloc_caches-and-kmalloc_dma_caches.patch
+* mm-slab-slub-introduce-kmalloc-reclaimable-caches.patch
+* dcache-allocate-external-names-from-reclaimable-kmalloc-caches.patch
+* mm-rename-and-change-semantics-of-nr_indirectly_reclaimable_bytes.patch
+* mm-proc-add-kreclaimable-to-proc-meminfo.patch
+* mm-slab-shorten-kmalloc-cache-names-for-large-sizes.patch
+* mm-workingset-dont-drop-refault-information-prematurely.patch
+* mm-workingset-tell-cache-transitions-from-workingset-thrashing.patch
+* delayacct-track-delays-from-thrashing-cache-pages.patch
+* sched-loadavg-consolidate-load_int-load_frac-calc_load.patch
+* sched-loadavg-consolidate-load_int-load_frac-calc_load-fix.patch
+* sched-loadavg-consolidate-load_int-load_frac-calc_load-fix-fix.patch
+* sched-loadavg-make-calc_load_n-public.patch
+* sched-schedh-make-rq-locking-and-clock-functions-available-in-statsh.patch
+* sched-introduce-this_rq_lock_irq.patch
+* psi-pressure-stall-information-for-cpu-memory-and-io.patch
+* psi-pressure-stall-information-for-cpu-memory-and-io-fix.patch
+* psi-pressure-stall-information-for-cpu-memory-and-io-fix-2.patch
+* psi-pressure-stall-information-for-cpu-memory-and-io-fix-3.patch
+* psi-pressure-stall-information-for-cpu-memory-and-io-fix-4.patch
+* psi-cgroup-support.patch
+* mm-page_alloc-drop-should_suppress_show_mem.patch
+* mm-swap-remove-duplicated-include-from-swapc.patch
+* mm-use-match_string-helper-to-simplify-the-code.patch
+* kvfree-fix-misleading-comment.patch
+* mm-vmalloc-improve-vfree-kerneldoc.patch
+* vfree-kvfree-add-debug-might-sleeps.patch
+* vfree-kvfree-add-debug-might-sleeps-fix.patch
+* mm-mmap-zap-pages-with-read-mmap_sem-in-munmap.patch
+* mm-unmap-vm_hugetlb-mappings-with-optimized-path.patch
+* mm-unmap-vm_pfnmap-mappings-with-optimized-path.patch
+* mm-filemapc-use-existing-variable.patch
+* mm-memory_hotplug-spare-unnecessary-calls-to-node_set_state.patch
+* mm-memory_hotplug-avoid-node_set-clear_staten_high_memory-when-config_highmem.patch
+* mm-memory_hotplug-tidy-up-node_states_clear_node.patch
+* mm-memory_hotplug-simplify-node_states_check_changes_online.patch
+* mm-memory_hotplug-clean-up-node_states_check_changes_offline.patch
+* memcg-remove-memcg_kmem_skip_account.patch
+* z3fold-fix-wrong-handling-of-headless-pages.patch
+* mm-make-memmap_init-a-proper-function.patch
+* mm-calculate-deferred-pages-after-skipping-mirrored-memory.patch
+* mm-calculate-deferred-pages-after-skipping-mirrored-memory-v2.patch
+* mm-calculate-deferred-pages-after-skipping-mirrored-memory-fix.patch
+* mm-move-mirrored-memory-specific-code-outside-of-memmap_init_zone.patch
+* mm-move-mirrored-memory-specific-code-outside-of-memmap_init_zone-v2.patch
+* mm-swap-fix-race-between-swapoff-and-some-swap-operations.patch
+* mm-swap-fix-race-between-swapoff-and-some-swap-operations-v6.patch
+* mm-fix-race-between-swapoff-and-mincore.patch
+* list_lru-prefetch-neighboring-list-entries-before-acquiring-lock.patch
+* list_lru-prefetch-neighboring-list-entries-before-acquiring-lock-fix.patch
+* mm-add-strictlimit-knob-v2.patch
+* mm-dont-expose-page-to-fast-gup-before-its-ready.patch
+* mm-page_owner-align-with-pageblock_nr_pages.patch
+* mm-page_owner-align-with-pageblock_nr-pages.patch
+* info-task-hung-in-generic_file_write_iter.patch
+* fs-proc-vmcorec-convert-to-use-vmf_error.patch
+* include-linux-compilerh-add-version-detection-to-asm_volatile_goto.patch
+* treewide-remove-current_text_addr.patch
+* lib-bitmapc-remove-wrong-documentation.patch
+* linux-bitmaph-handle-constant-zero-size-bitmaps-correctly.patch
+* linux-bitmaph-remove-redundant-uses-of-small_const_nbits.patch
+* linux-bitmaph-fix-type-of-nbits-in-bitmap_shift_right.patch
+* linux-bitmaph-relax-comment-on-compile-time-constant-nbits.patch
+* lib-bitmapc-fix-remaining-space-computation-in-bitmap_print_to_pagebuf.patch
+* lib-bitmapc-fix-remaining-space-computation-in-bitmap_print_to_pagebuf-fix.patch
+* lib-bitmapc-fix-remaining-space-computation-in-bitmap_print_to_pagebuf-fix-fix.patch
+* lib-bitmapc-simplify-bitmap_print_to_pagebuf.patch
+* lib-parserc-switch-match_strdup-over-to-use-kmemdup_nul.patch
+* lib-parserc-switch-match_u64int-over-to-use-match_strdup.patch
+* lib-parserc-switch-match_number-over-to-use-match_strdup.patch
+* zlib-remove-fall-through-warnings.patch
+* radix-tree-use-div_round_up-instead-of-reimplementing-its-function.patch
+* lib-sg_pool-remove-unnecessary-null-check-when-free-the-object.patch
+* checkpatch-remove-gcc_binary_constant-warning.patch
+* init-do_mountsc-add-root=partlabel=name-support.patch
+* hfsplus-prevent-btree-data-loss-on-root-split.patch
+* hfsplus-fix-bug-on-bnode-parent-update.patch
+* hfs-prevent-btree-data-loss-on-root-split.patch
+* hfs-fix-bug-on-bnode-parent-update.patch
+* hfsplus-prevent-btree-data-loss-on-enospc.patch
+* hfs-prevent-btree-data-loss-on-enospc.patch
+* reiserfs-propagate-errors-from-fill_with_dentries-properly.patch
+* bfs-add-sanity-check-at-bfs_fill_super.patch
+* ipc-ipcmni-limit-check-for-msgmni-and-shmmni.patch
+* ipc-ipcmni-limit-check-for-semmni.patch
+* ipc-allow-boot-time-extension-of-ipcmni-from-32k-to-8m.patch
+* ipc-allow-boot-time-extension-of-ipcmni-from-32k-to-8m-checkpatch-fixes.patch
+* ipc-conserve-sequence-numbers-in-extended-ipcmni-mode.patch
+* ipc-shm-use-err_cast-for-shm_lock-error-return.patch
+* lib-lz4-update-lz4-decompressor-module.patch
+  linux-next.patch
+  linux-next-rejects.patch
+  linux-next-git-rejects.patch
+* percpu-cleanup-per_cpu_def_attributes-macro.patch
+* mm-remove-config_no_bootmem.patch
+* mm-remove-config_have_memblock.patch
+* mm-remove-config_have_memblock-fix.patch
+* mm-remove-bootmem-allocator-implementation.patch
+* mm-nobootmem-remove-dead-code.patch
+* memblock-rename-memblock_alloc_nid_try_nid-to-memblock_phys_alloc.patch
+* memblock-remove-_virt-from-apis-returning-virtual-address.patch
+* memblock-replace-alloc_bootmem_align-with-memblock_alloc.patch
+* memblock-replace-alloc_bootmem_low-with-memblock_alloc_low.patch
+* memblock-replace-__alloc_bootmem_node_nopanic-with-memblock_alloc_try_nid_nopanic.patch
+* memblock-replace-alloc_bootmem_pages_nopanic-with-memblock_alloc_nopanic.patch
+* memblock-replace-alloc_bootmem_low-with-memblock_alloc_low-2.patch
+* memblock-replace-__alloc_bootmem_nopanic-with-memblock_alloc_from_nopanic.patch
+* memblock-add-align-parameter-to-memblock_alloc_node.patch
+* memblock-replace-alloc_bootmem_pages_node-with-memblock_alloc_node.patch
+* memblock-replace-__alloc_bootmem_node-with-appropriate-memblock_-api.patch
+* memblock-replace-alloc_bootmem_node-with-memblock_alloc_node.patch
+* memblock-replace-alloc_bootmem_low_pages-with-memblock_alloc_low.patch
+* memblock-replace-alloc_bootmem_pages-with-memblock_alloc.patch
+* memblock-replace-__alloc_bootmem-with-memblock_alloc_from.patch
+* memblock-replace-alloc_bootmem-with-memblock_alloc.patch
+* mm-nobootmem-remove-bootmem-allocation-apis.patch
+* memblock-replace-free_bootmem_node-with-memblock_free.patch
+* memblock-replace-free_bootmem_late-with-memblock_free_late.patch
+* memblock-rename-free_all_bootmem-to-memblock_free_all.patch
+* memblock-rename-__free_pages_bootmem-to-memblock_free_pages.patch
+* mm-remove-nobootmem.patch
+* memblock-replace-bootmem_alloc_-with-memblock-variants.patch
+* mm-remove-include-linux-bootmemh.patch
+* docs-boot-time-mm-remove-bootmem-documentation.patch
+* android-binder-replace-vm_insert_page-with-vmf_insert_page.patch
+* vfs-replace-current_kernel_time64-with-ktime-equivalent.patch
+* fix-read-buffer-overflow-in-delta-ipc.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  mutex-subsystem-synchro-test-module.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  slab-leaks3-default-y.patch
+  workaround-for-a-pci-restoring-bug.patch
