@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BFD768E0001
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 18:27:57 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id v186-v6so3668312pgb.14
-        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 15:27:57 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id p7-v6si24646254plo.159.2018.09.20.15.27.56
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E6E458E0001
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 18:29:47 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id q21-v6so5429931pff.21
+        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 15:29:47 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id t9-v6si23641437pgo.68.2018.09.20.15.29.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Sep 2018 15:27:56 -0700 (PDT)
-Subject: [PATCH v4 2/5] mm: Create non-atomic version of SetPageReserved for
- init use
+        Thu, 20 Sep 2018 15:29:46 -0700 (PDT)
+Subject: [PATCH v4 3/5] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
 From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Date: Thu, 20 Sep 2018 15:27:53 -0700
-Message-ID: <20180920222641.19464.75787.stgit@localhost.localdomain>
+Date: Thu, 20 Sep 2018 15:29:33 -0700
+Message-ID: <20180920222758.19464.83992.stgit@localhost.localdomain>
 In-Reply-To: <20180920215824.19464.8884.stgit@localhost.localdomain>
 References: <20180920215824.19464.8884.stgit@localhost.localdomain>
 MIME-Version: 1.0
@@ -24,72 +24,232 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org
 Cc: pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com, mingo@kernel.org, dave.hansen@intel.com, jglisse@redhat.com, akpm@linux-foundation.org, logang@deltatee.com, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com
 
-It doesn't make much sense to use the atomic SetPageReserved at init time
-when we are using memset to clear the memory and manipulating the page
-flags via simple "&=" and "|=" operations in __init_single_page.
+The ZONE_DEVICE pages were being initialized in two locations. One was with
+the memory_hotplug lock held and another was outside of that lock. The
+problem with this is that it was nearly doubling the memory initialization
+time. Instead of doing this twice, once while holding a global lock and
+once without, I am opting to defer the initialization to the one outside of
+the lock. This allows us to avoid serializing the overhead for memory init
+and we can instead focus on per-node init times.
 
-This patch adds a non-atomic version __SetPageReserved that can be used
-during page init and shows about a 10% improvement in initialization times
-on the systems I have available for testing. On those systems I saw
-initialization times drop from around 35 seconds to around 32 seconds to
-initialize a 3TB block of persistent memory. I believe the main advantage
-of this is that it allows for more compiler optimization as the __set_bit
-operation can be reordered whereas the atomic version cannot.
+One issue I encountered is that devm_memremap_pages and
+hmm_devmmem_pages_create were initializing only the pgmap field the same
+way. One wasn't initializing hmm_data, and the other was initializing it to
+a poison value. Since this is something that is exposed to the driver in
+the case of hmm I am opting for a third option and just initializing
+hmm_data to 0 since this is going to be exposed to unknown third party
+drivers.
 
-I tried adding a bit of documentation based on commit <f1dd2cd13c4> ("mm,
-memory_hotplug: do not associate hotadded memory to zones until online").
-
-Ideally the reserved flag should be set earlier since there is a brief
-window where the page is initialization via __init_single_page and we have
-not set the PG_Reserved flag. I'm leaving that for a future patch set as
-that will require a more significant refactor.
-
-Acked-by: Michal Hocko <mhocko@suse.com>
 Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 ---
 
-v4: Added comment about __set_bit vs set_bit to the patch description
+v4: Moved moved memmap_init_zone_device to below memmmap_init_zone to avoid
+    merge conflicts with other changes in the kernel.
 
- include/linux/page-flags.h |    1 +
- mm/page_alloc.c            |    9 +++++++--
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ include/linux/mm.h |    2 +
+ kernel/memremap.c  |   24 +++++---------
+ mm/hmm.c           |   12 ++++---
+ mm/page_alloc.c    |   92 ++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 4 files changed, 107 insertions(+), 23 deletions(-)
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 934f91ef3f54..50ce1bddaf56 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -303,6 +303,7 @@ static inline void page_init_poison(struct page *page, size_t size)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index d63d163f341d..25c89615d303 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -848,6 +848,8 @@ static inline bool is_zone_device_page(const struct page *page)
+ {
+ 	return page_zonenum(page) == ZONE_DEVICE;
+ }
++extern void memmap_init_zone_device(struct zone *, unsigned long,
++				    unsigned long, struct dev_pagemap *);
+ #else
+ static inline bool is_zone_device_page(const struct page *page)
+ {
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index 5b8600d39931..d0c32e473f82 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -175,10 +175,10 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+ 	struct vmem_altmap *altmap = pgmap->altmap_valid ?
+ 			&pgmap->altmap : NULL;
+ 	struct resource *res = &pgmap->res;
+-	unsigned long pfn, pgoff, order;
++	struct dev_pagemap *conflict_pgmap;
+ 	pgprot_t pgprot = PAGE_KERNEL;
++	unsigned long pgoff, order;
+ 	int error, nid, is_ram;
+-	struct dev_pagemap *conflict_pgmap;
  
- PAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
- 	__CLEARPAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
-+	__SETPAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
- PAGEFLAG(SwapBacked, swapbacked, PF_NO_TAIL)
- 	__CLEARPAGEFLAG(SwapBacked, swapbacked, PF_NO_TAIL)
- 	__SETPAGEFLAG(SwapBacked, swapbacked, PF_NO_TAIL)
+ 	align_start = res->start & ~(SECTION_SIZE - 1);
+ 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
+@@ -256,19 +256,13 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+ 	if (error)
+ 		goto err_add_memory;
+ 
+-	for_each_device_pfn(pfn, pgmap) {
+-		struct page *page = pfn_to_page(pfn);
+-
+-		/*
+-		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
+-		 * pointer.  It is a bug if a ZONE_DEVICE page is ever
+-		 * freed or placed on a driver-private list.  Seed the
+-		 * storage with LIST_POISON* values.
+-		 */
+-		list_del(&page->lru);
+-		page->pgmap = pgmap;
+-		percpu_ref_get(pgmap->ref);
+-	}
++	/*
++	 * Initialization of the pages has been deferred until now in order
++	 * to allow us to do the work while not holding the hotplug lock.
++	 */
++	memmap_init_zone_device(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
++				align_start >> PAGE_SHIFT,
++				align_size >> PAGE_SHIFT, pgmap);
+ 
+ 	devm_add_action(dev, devm_memremap_pages_release, pgmap);
+ 
+diff --git a/mm/hmm.c b/mm/hmm.c
+index c968e49f7a0c..774d684fa2b4 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -1024,7 +1024,6 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
+ 	resource_size_t key, align_start, align_size, align_end;
+ 	struct device *device = devmem->device;
+ 	int ret, nid, is_ram;
+-	unsigned long pfn;
+ 
+ 	align_start = devmem->resource->start & ~(PA_SECTION_SIZE - 1);
+ 	align_size = ALIGN(devmem->resource->start +
+@@ -1109,11 +1108,14 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
+ 				align_size >> PAGE_SHIFT, NULL);
+ 	mem_hotplug_done();
+ 
+-	for (pfn = devmem->pfn_first; pfn < devmem->pfn_last; pfn++) {
+-		struct page *page = pfn_to_page(pfn);
++	/*
++	 * Initialization of the pages has been deferred until now in order
++	 * to allow us to do the work while not holding the hotplug lock.
++	 */
++	memmap_init_zone_device(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
++				align_start >> PAGE_SHIFT,
++				align_size >> PAGE_SHIFT, &devmem->pagemap);
+ 
+-		page->pgmap = &devmem->pagemap;
+-	}
+ 	return 0;
+ 
+ error_add_memory:
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 712cab17f86f..29bd662fffd7 100644
+index 29bd662fffd7..ac1fa0efdea0 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1239,7 +1239,12 @@ void __meminit reserve_bootmem_region(phys_addr_t start, phys_addr_t end)
- 			/* Avoid false-positive PageTail() */
- 			INIT_LIST_HEAD(&page->lru);
+@@ -5490,12 +5490,23 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 	if (highest_memmap_pfn < end_pfn - 1)
+ 		highest_memmap_pfn = end_pfn - 1;
  
--			SetPageReserved(page);
-+			/*
-+			 * no need for atomic set_bit because the struct
-+			 * page is not visible yet so nobody should
-+			 * access it yet.
-+			 */
-+			__SetPageReserved(page);
- 		}
++#ifdef CONFIG_ZONE_DEVICE
+ 	/*
+ 	 * Honor reservation requested by the driver for this ZONE_DEVICE
+-	 * memory
++	 * memory. We limit the total number of pages to initialize to just
++	 * those that might contain the memory mapping. We will defer the
++	 * ZONE_DEVICE page initialization until after we have released
++	 * the hotplug lock.
+ 	 */
+-	if (altmap && start_pfn == altmap->base_pfn)
+-		start_pfn += altmap->reserve;
++	if (zone == ZONE_DEVICE) {
++		if (!altmap)
++			return;
++
++		if (start_pfn == altmap->base_pfn)
++			start_pfn += altmap->reserve;
++		end_pfn = altmap->base_pfn + vmem_altmap_offset(altmap);
++	}
++#endif
+ 
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+ 		/*
+@@ -5539,6 +5550,81 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
  	}
  }
-@@ -5513,7 +5518,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		page = pfn_to_page(pfn);
- 		__init_single_page(page, pfn, zone, nid);
- 		if (context == MEMMAP_HOTPLUG)
--			SetPageReserved(page);
-+			__SetPageReserved(page);
  
- 		/*
- 		 * Mark the block movable so that blocks are reserved for
++#ifdef CONFIG_ZONE_DEVICE
++void __ref memmap_init_zone_device(struct zone *zone,
++				   unsigned long start_pfn,
++				   unsigned long size,
++				   struct dev_pagemap *pgmap)
++{
++	unsigned long pfn, end_pfn = start_pfn + size;
++	struct pglist_data *pgdat = zone->zone_pgdat;
++	unsigned long zone_idx = zone_idx(zone);
++	unsigned long start = jiffies;
++	int nid = pgdat->node_id;
++
++	if (WARN_ON_ONCE(!pgmap || !is_dev_zone(zone)))
++		return;
++
++	/*
++	 * The call to memmap_init_zone should have already taken care
++	 * of the pages reserved for the memmap, so we can just jump to
++	 * the end of that region and start processing the device pages.
++	 */
++	if (pgmap->altmap_valid) {
++		struct vmem_altmap *altmap = &pgmap->altmap;
++
++		start_pfn = altmap->base_pfn + vmem_altmap_offset(altmap);
++		size = end_pfn - start_pfn;
++	}
++
++	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
++		struct page *page = pfn_to_page(pfn);
++
++		__init_single_page(page, pfn, zone_idx, nid);
++
++		/*
++		 * Mark page reserved as it will need to wait for onlining
++		 * phase for it to be fully associated with a zone.
++		 *
++		 * We can use the non-atomic __set_bit operation for setting
++		 * the flag as we are still initializing the pages.
++		 */
++		__SetPageReserved(page);
++
++		/*
++		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
++		 * pointer and hmm_data.  It is a bug if a ZONE_DEVICE
++		 * page is ever freed or placed on a driver-private list.
++		 */
++		page->pgmap = pgmap;
++		page->hmm_data = 0;
++
++		/*
++		 * Mark the block movable so that blocks are reserved for
++		 * movable at startup. This will force kernel allocations
++		 * to reserve their blocks rather than leaking throughout
++		 * the address space during boot when many long-lived
++		 * kernel allocations are made.
++		 *
++		 * bitmap is created for zone's valid pfn range. but memmap
++		 * can be created for invalid pages (for alignment)
++		 * check here not to call set_pageblock_migratetype() against
++		 * pfn out of zone.
++		 *
++		 * Please note that MEMMAP_HOTPLUG path doesn't clear memmap
++		 * because this is done early in sparse_add_one_section
++		 */
++		if (!(pfn & (pageblock_nr_pages - 1))) {
++			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
++			cond_resched();
++		}
++	}
++
++	pr_info("%s initialised, %lu pages in %ums\n", dev_name(pgmap->dev),
++		size, jiffies_to_msecs(jiffies - start));
++}
++
++#endif
+ static void __meminit zone_init_free_lists(struct zone *zone)
+ {
+ 	unsigned int order, t;
