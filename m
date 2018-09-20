@@ -1,234 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 010CF8E0004
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 13:31:50 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id p22-v6so5073438pfj.7
-        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 10:31:50 -0700 (PDT)
-Received: from EX13-EDG-OU-001.vmware.com (ex13-edg-ou-001.vmware.com. [208.91.0.189])
-        by mx.google.com with ESMTPS id x29-v6si4687310pga.674.2018.09.20.10.31.49
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9825A8E0001
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 14:19:34 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id k96-v6so10264920wrc.3
+        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 11:19:34 -0700 (PDT)
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50065.outbound.protection.outlook.com. [40.107.5.65])
+        by mx.google.com with ESMTPS id g14-v6si1395823wmh.93.2018.09.20.11.19.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 20 Sep 2018 10:31:49 -0700 (PDT)
-From: Nadav Amit <namit@vmware.com>
-Subject: [PATCH v2 16/20] mm/balloon_compaction: list interfaces
-Date: Thu, 20 Sep 2018 10:30:22 -0700
-Message-ID: <20180920173026.141333-17-namit@vmware.com>
-In-Reply-To: <20180920173026.141333-1-namit@vmware.com>
-References: <20180920173026.141333-1-namit@vmware.com>
+        Thu, 20 Sep 2018 11:19:33 -0700 (PDT)
+Date: Thu, 20 Sep 2018 12:19:23 -0600
+From: Jason Gunthorpe <jgg@mellanox.com>
+Subject: Linux RDMA mini-conf at Plumbers 2018
+Message-ID: <20180920181923.GA6542@mellanox.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Arnd Bergmann <arnd@arndb.de>
-Cc: linux-kernel@vger.kernel.org, Xavier Deguillard <xdeguillard@vmware.com>, Nadav Amit <namit@vmware.com>, "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, linux-mm@kvack.org, virtualization@lists.linux-foundation.org
+To: linux-rdma@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Alex Rosenbaum <alexr@mellanox.com>, Alex Williamson <alex.williamson@redhat.com>, Bjorn Helgaas <bhelgaas@google.com>, Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>, Christoph Hellwig <hch@lst.de>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, Don Dutile <ddutile@redhat.com>, Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@mellanox.com>, John Hubbard <jhubbard@nvidia.com>, =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, Matthew Wilcox <willy@infradead.org>, Nicholas Piggin <npiggin@gmail.com>, Noa Osherovich <noaos@mellanox.com>, Parav Pandit <parav@mellanox.com>, Stephen Bates <sbates@raithlin.com>
 
-Introduce interfaces for ballooning enqueueing and dequeueing of a list
-of pages. These interfaces reduce the overhead of storing and restoring
-IRQs by batching the operations. In addition they do not panic if the
-list of pages is empty.
+This is just a friendly reminder that registration deadlines are
+approaching for this conference. Please see
 
-Cc: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Jason Wang <jasowang@redhat.com>
-Cc: linux-mm@kvack.org
-Cc: virtualization@lists.linux-foundation.org
-Reviewed-by: Xavier Deguillard <xdeguillard@vmware.com>
-Signed-off-by: Nadav Amit <namit@vmware.com>
----
- include/linux/balloon_compaction.h |   4 +
- mm/balloon_compaction.c            | 139 +++++++++++++++++++++--------
- 2 files changed, 105 insertions(+), 38 deletions(-)
+https://www.linuxplumbersconf.org/event/2/page/7-attend
 
-diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
-index 53051f3d8f25..2c5a8e09e413 100644
---- a/include/linux/balloon_compaction.h
-+++ b/include/linux/balloon_compaction.h
-@@ -72,6 +72,10 @@ extern struct page *balloon_page_alloc(void);
- extern void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
- 				 struct page *page);
- extern struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info);
-+extern void balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
-+				      struct list_head *pages);
-+extern int balloon_page_list_dequeue(struct balloon_dev_info *b_dev_info,
-+				     struct list_head *pages, int n_req_pages);
- 
- static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
- {
-diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-index a6c0efb3544f..b920c2a10d6f 100644
---- a/mm/balloon_compaction.c
-+++ b/mm/balloon_compaction.c
-@@ -10,6 +10,100 @@
- #include <linux/export.h>
- #include <linux/balloon_compaction.h>
- 
-+static int balloon_page_enqueue_one(struct balloon_dev_info *b_dev_info,
-+				     struct page *page)
-+{
-+	/*
-+	 * Block others from accessing the 'page' when we get around to
-+	 * establishing additional references. We should be the only one
-+	 * holding a reference to the 'page' at this point.
-+	 */
-+	if (!trylock_page(page)) {
-+		WARN_ONCE(1, "balloon inflation failed to enqueue page\n");
-+		return -EFAULT;
-+	}
-+	list_del(&page->lru);
-+	balloon_page_insert(b_dev_info, page);
-+	unlock_page(page);
-+	__count_vm_event(BALLOON_INFLATE);
-+	return 0;
-+}
-+
-+/**
-+ * balloon_page_list_enqueue() - inserts a list of pages into the balloon page
-+ *				 list.
-+ * @b_dev_info: balloon device descriptor where we will insert a new page to
-+ * @pages: pages to enqueue - allocated using balloon_page_alloc.
-+ *
-+ * Driver must call it to properly enqueue a balloon pages before definitively
-+ * removing it from the guest system.
-+ */
-+void balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
-+			       struct list_head *pages)
-+{
-+	struct page *page, *tmp;
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
-+	list_for_each_entry_safe(page, tmp, pages, lru)
-+		balloon_page_enqueue_one(b_dev_info, page);
-+	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
-+}
-+EXPORT_SYMBOL_GPL(balloon_page_list_enqueue);
-+
-+/**
-+ * balloon_page_list_dequeue() - removes pages from balloon's page list and
-+ *				 returns a list of the pages.
-+ * @b_dev_info: balloon device decriptor where we will grab a page from.
-+ * @pages: pointer to the list of pages that would be returned to the caller.
-+ * @n_req_pages: number of requested pages.
-+ *
-+ * Driver must call it to properly de-allocate a previous enlisted balloon pages
-+ * before definetively releasing it back to the guest system. This function
-+ * tries to remove @n_req_pages from the ballooned pages and return it to the
-+ * caller in the @pages list.
-+ *
-+ * Note that this function may fail to dequeue some pages temporarily empty due
-+ * to compaction isolated pages.
-+ *
-+ * Return: number of pages that were added to the @pages list.
-+ */
-+int balloon_page_list_dequeue(struct balloon_dev_info *b_dev_info,
-+			       struct list_head *pages, int n_req_pages)
-+{
-+	struct page *page, *tmp;
-+	unsigned long flags;
-+	int n_pages = 0;
-+
-+	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
-+	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
-+		/*
-+		 * Block others from accessing the 'page' while we get around
-+		 * establishing additional references and preparing the 'page'
-+		 * to be released by the balloon driver.
-+		 */
-+		if (!trylock_page(page))
-+			continue;
-+
-+		if (IS_ENABLED(CONFIG_BALLOON_COMPACTION) &&
-+		    PageIsolated(page)) {
-+			/* raced with isolation */
-+			unlock_page(page);
-+			continue;
-+		}
-+		balloon_page_delete(page);
-+		__count_vm_event(BALLOON_DEFLATE);
-+		unlock_page(page);
-+		list_add(&page->lru, pages);
-+		if (++n_pages >= n_req_pages)
-+			break;
-+	}
-+	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
-+
-+	return n_pages;
-+}
-+EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
-+
- /*
-  * balloon_page_alloc - allocates a new page for insertion into the balloon
-  *			  page list.
-@@ -44,17 +138,9 @@ void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
- {
- 	unsigned long flags;
- 
--	/*
--	 * Block others from accessing the 'page' when we get around to
--	 * establishing additional references. We should be the only one
--	 * holding a reference to the 'page' at this point.
--	 */
--	BUG_ON(!trylock_page(page));
- 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
--	balloon_page_insert(b_dev_info, page);
--	__count_vm_event(BALLOON_INFLATE);
-+	balloon_page_enqueue_one(b_dev_info, page);
- 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
--	unlock_page(page);
- }
- EXPORT_SYMBOL_GPL(balloon_page_enqueue);
- 
-@@ -71,36 +157,13 @@ EXPORT_SYMBOL_GPL(balloon_page_enqueue);
-  */
- struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
- {
--	struct page *page, *tmp;
- 	unsigned long flags;
--	bool dequeued_page;
-+	LIST_HEAD(pages);
-+	int n_pages;
- 
--	dequeued_page = false;
--	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
--	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
--		/*
--		 * Block others from accessing the 'page' while we get around
--		 * establishing additional references and preparing the 'page'
--		 * to be released by the balloon driver.
--		 */
--		if (trylock_page(page)) {
--#ifdef CONFIG_BALLOON_COMPACTION
--			if (PageIsolated(page)) {
--				/* raced with isolation */
--				unlock_page(page);
--				continue;
--			}
--#endif
--			balloon_page_delete(page);
--			__count_vm_event(BALLOON_DEFLATE);
--			unlock_page(page);
--			dequeued_page = true;
--			break;
--		}
--	}
--	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
-+	n_pages = balloon_page_list_dequeue(b_dev_info, &pages, 1);
- 
--	if (!dequeued_page) {
-+	if (n_pages != 1) {
- 		/*
- 		 * If we are unable to dequeue a balloon page because the page
- 		 * list is empty and there is no isolated pages, then something
-@@ -113,9 +176,9 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
- 			     !b_dev_info->isolated_pages))
- 			BUG();
- 		spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
--		page = NULL;
-+		return NULL;
- 	}
--	return page;
-+	return list_first_entry(&pages, struct page, lru);
- }
- EXPORT_SYMBOL_GPL(balloon_page_dequeue);
- 
--- 
-2.17.1
+For details.
+
+This year we expect to have close to a day set aside for RDMA related
+topics. Including up to half a day for the thorny general kernel issues
+related to get_user_pages(), particularly as exasperated by RDMA.
+
+We have been working on the following concepts for sessions, I've
+roughly marked names based on past participation in related email
+threads. As we get closer to the conference date we will be organizing
+leaders for each section based on these lists, please let us know of
+any changes, or desire to be a leader!
+
+RDMA and get_user_pages
+=======================
+  Dan Williams <dan.j.williams@intel.com>
+  Matthew Wilcox <willy@infradead.org>
+  John Hubbard <jhubbard@nvidia.com>
+  Nicholas Piggin <npiggin@gmail.com>
+  Jan Kara <jack@suse.cz>
+
+ RDMA, DAX and persistant memory co-existence.
+
+ Explore the limits of what is possible without using On
+ Demand Paging Memory Registration. Discuss 'shootdown'
+ of userspace MRs
+
+ Dirtying pages obtained with get_user_pages() can oops ext4
+ discuss open solutions.
+
+RDMA and PCI peer to peer
+=========================
+  Don Dutile <ddutile@redhat.com>
+  Alex Williamson <alex.williamson@redhat.com>
+  Christoph Hellwig <hch@lst.de>
+  Stephen Bates <sbates@raithlin.com>
+  Logan Gunthorpe <logang@deltatee.com>
+  JA(C)rA'me Glisse <jglisse@redhat.com>
+  Christian KA?nig <christian.koenig@amd.com>
+  Bjorn Helgaas <bhelgaas@google.com>
+
+ RDMA and PCI peer to peer transactions. IOMMU issues. Integration
+ with HMM. How to expose PCI BAR memory to userspace and other
+ drivers as a DMA target.
+
+Improving testing of RDMA with syzkaller, RXE and Python
+========================================================
+ Noa Osherovich <noaos@mellanox.com>
+ Don Dutile <ddutile@redhat.com>
+ Jason Gunthorpe <jgg@mellanox.com>
+
+ Problem solve RDMA's distinct lack of public tests.
+ Provide a better framework for all drivers to test with,
+ and a framework for basic testing in userspace.
+
+ Worst remaining unfixed syzkaller bugs and how to try to fix them
+
+ How to hook syzkaller more deeply into RDMA.
+
+IOCTL conversion and new kABI topics
+====================================
+ Jason Gunthorpe <jgg@mellanox.com>
+ Alex Rosenbaum <alexr@mellanox.com>
+
+ Attempt to close on the remaining tasks to complete the project
+
+ Restore fork() support to userspace
+
+Container and namespaces for RDMA topics
+========================================
+ Parav Pandit <parav@mellanox.com>
+ Doug Ledford <dledford@redhat.com>
+
+ Remaining sticky situations with containers
+
+ namespaces in sysfs and legacy all-namespace operation
+
+ Remaining CM issues
+
+ Security isolation problems
+
+Very large Contiguous regions in userspace
+==========================================
+ Christopher Lameter <cl@linux.com>
+ Parav Pandit <parav@mellanox.com>
+
+ Poor performance of get_user_pages on very large virtual ranges
+
+ No standardized API to allocate regions to user space
+
+ Carry over from last year
+
+As we get closer to the conference date the exact schedule will be
+published on the conference web site. I belive we have the Thursday
+set aside right now.
+
+If there are any last minute topics people would like to see please
+let us know.
+
+See you all in Vancouver!
+
+Thanks,
+Jason & Leon
