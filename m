@@ -1,54 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BC59C8E0001
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 13:05:03 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id r130-v6so4392534pgr.13
-        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 10:05:03 -0700 (PDT)
-Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
-        by mx.google.com with ESMTPS id e10-v6si26848291pln.161.2018.09.20.10.05.02
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CD6EF8E0001
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 13:31:50 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id v186-v6so3407195pgb.14
+        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 10:31:50 -0700 (PDT)
+Received: from EX13-EDG-OU-001.vmware.com (ex13-edg-ou-001.vmware.com. [208.91.0.189])
+        by mx.google.com with ESMTPS id x29-v6si4687310pga.674.2018.09.20.10.31.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Sep 2018 10:05:02 -0700 (PDT)
-Date: Thu, 20 Sep 2018 11:04:58 -0600
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [PATCH v4 0/3] docs/core-api: add memory allocation guide
-Message-ID: <20180920110458.07d5a1c7@lwn.net>
-In-Reply-To: <20180920042930.GA19495@rapoport-lnx>
-References: <1536917278-31191-1-git-send-email-rppt@linux.vnet.ibm.com>
-	<20180920042930.GA19495@rapoport-lnx>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 20 Sep 2018 10:31:49 -0700 (PDT)
+From: Nadav Amit <namit@vmware.com>
+Subject: [PATCH v2 15/20] mm/balloon_compaction: suppress allocation warnings
+Date: Thu, 20 Sep 2018 10:30:21 -0700
+Message-ID: <20180920173026.141333-16-namit@vmware.com>
+In-Reply-To: <20180920173026.141333-1-namit@vmware.com>
+References: <20180920173026.141333-1-namit@vmware.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, Randy Dunlap <rdunlap@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Arnd Bergmann <arnd@arndb.de>
+Cc: linux-kernel@vger.kernel.org, Xavier Deguillard <xdeguillard@vmware.com>, Nadav Amit <namit@vmware.com>, "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, virtualization@lists.linux-foundation.org, linux-mm@kvack.org
 
-On Thu, 20 Sep 2018 07:29:30 +0300
-Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+There is no reason to print warnings when balloon page allocation fails.
 
-> Ping?
-> 
-> On Fri, Sep 14, 2018 at 12:27:55PM +0300, Mike Rapoport wrote:
-> > Hi,
-> > 
-> > As Vlastimil mentioned at [1], it would be nice to have some guide about
-> > memory allocation. This set adds such guide that summarizes the "best
-> > practices". 
-> > 
-> > The changes from the RFC include additions and corrections from Michal and
-> > Randy. I've also added markup to cross-reference the kernel-doc
-> > documentation.
-> > 
-> > I've split the patch into three to separate labels addition to the exiting
-> > files from the new contents.
-> > 
-> > v3 -> v4:
-> >   * make GFP_*USER* description less confusing
+Cc: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Jason Wang <jasowang@redhat.com>
+Cc: virtualization@lists.linux-foundation.org
+Cc: linux-mm@kvack.org
+Reviewed-by: Xavier Deguillard <xdeguillard@vmware.com>
+Signed-off-by: Nadav Amit <namit@vmware.com>
+---
+ mm/balloon_compaction.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-Sorry...but it's been less than a week.  And this week has been ...
-busy ...
-
-Anyway, I've applied the set now, thanks.
-
-jon
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index ef858d547e2d..a6c0efb3544f 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -22,7 +22,8 @@
+ struct page *balloon_page_alloc(void)
+ {
+ 	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
+-				       __GFP_NOMEMALLOC | __GFP_NORETRY);
++				       __GFP_NOMEMALLOC | __GFP_NORETRY |
++				       __GFP_NOWARN);
+ 	return page;
+ }
+ EXPORT_SYMBOL_GPL(balloon_page_alloc);
+-- 
+2.17.1
