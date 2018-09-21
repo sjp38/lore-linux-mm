@@ -1,46 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FF9E8E0025
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 19:21:14 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id r130-v6so6159113pgr.13
-        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 16:21:14 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 162818E0025
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 19:34:16 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id n17-v6so7122943pff.17
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 16:34:16 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id o3-v6si4898970plk.95.2018.09.21.16.21.12
+        by mx.google.com with ESMTPS id r7-v6si4955122pgf.620.2018.09.21.16.34.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Sep 2018 16:21:12 -0700 (PDT)
-Date: Fri, 21 Sep 2018 16:21:10 -0700
+        Fri, 21 Sep 2018 16:34:14 -0700 (PDT)
+Date: Fri, 21 Sep 2018 16:34:12 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: possible deadlock in __do_page_fault
-Message-Id: <20180921162110.e22d09a9e281d194db3c8359@linux-foundation.org>
-In-Reply-To: <CAEXW_YSot+3AMQ=jmDRowmqoOmQmujp9r8Dh18KJJN1EDmyHOw@mail.gmail.com>
-References: <000000000000f7a28e057653dc6e@google.com>
-	<20180920141058.4ed467594761e073606eafe2@linux-foundation.org>
-	<CAHRSSEzX5HOUEQ6DgEF76OLGrwS1isWMdtvneBLOEEnwoMxVrA@mail.gmail.com>
-	<CAEXW_YSot+3AMQ=jmDRowmqoOmQmujp9r8Dh18KJJN1EDmyHOw@mail.gmail.com>
+Subject: Re: [PATCH v2] slub: extend slub debug to handle multiple slabs
+Message-Id: <20180921163412.de1b331a639a8031aaf85d4f@linux-foundation.org>
+In-Reply-To: <20180920200016.11003-1-atomlin@redhat.com>
+References: <20180920200016.11003-1-atomlin@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joel Fernandes <joel@joelfernandes.org>
-Cc: Todd Kjos <tkjos@google.com>, Joel Fernandes <joelaf@google.com>, syzbot+a76129f18c89f3e2ddd4@syzkaller.appspotmail.com, ak@linux.intel.com, Johannes Weiner <hannes@cmpxchg.org>, jack@suse.cz, jrdr.linux@gmail.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, mawilcox@microsoft.com, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com, Arve =?ISO-8859-1?Q?Hj=F8nnev=E5g?= <arve@android.com>, Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Aaron Tomlin <atomlin@redhat.com>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 20 Sep 2018 19:33:15 -0400 Joel Fernandes <joel@joelfernandes.org> wrote:
+On Thu, 20 Sep 2018 21:00:16 +0100 Aaron Tomlin <atomlin@redhat.com> wrote:
 
-> On Thu, Sep 20, 2018 at 5:12 PM Todd Kjos <tkjos@google.com> wrote:
-> >
-> > +Joel Fernandes
-> >
-> > On Thu, Sep 20, 2018 at 2:11 PM Andrew Morton <akpm@linux-foundation.org> wrote:
-> > >
-> > >
-> > > Thanks.  Let's cc the ashmem folks.
-> > >
+> Extend the slub_debug syntax to "slub_debug=<flags>[,<slub>]*", where <slub>
+> may contain an asterisk at the end.  For example, the following would poison
+> all kmalloc slabs:
 > 
-> This should be fixed by https://patchwork.kernel.org/patch/10572477/
+> 	slub_debug=P,kmalloc*
 > 
-> It has Neil Brown's Reviewed-by but looks like didn't yet appear in
-> anyone's tree, could Greg take this patch?
+> and the following would apply the default flags to all kmalloc and all block IO
+> slabs:
+> 
+> 	slub_debug=,bio*,kmalloc*
+> 
+> Please note that a similar patch was posted by Iliyan Malchev some time ago but
+> was never merged:
+> 
+> 	https://marc.info/?l=linux-mm&m=131283905330474&w=2
 
-All is well.  That went into mainline yesterday, with a cc:stable.
+Fair enough, I guess.
+
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1283,9 +1283,37 @@ slab_flags_t kmem_cache_flags(unsigned int object_size,
+>  	/*
+>  	 * Enable debugging if selected on the kernel commandline.
+>  	 */
+
+The above comment is in a strange place.  Can we please move it to
+above the function definition in the usual fashion?  And make it
+better, if anything seems to be missing.
+
+> -	if (slub_debug && (!slub_debug_slabs || (name &&
+> -		!strncmp(slub_debug_slabs, name, strlen(slub_debug_slabs)))))
+> -		flags |= slub_debug;
+> +
+> +	char *end, *n, *glob;
+
+`end' and `glob' could be local to the loop which uses them, which I
+find a bit nicer.
+
+`n' is a rotten identifier.  Can't we think of something which
+communicates meaning?
+
+> +	int len = strlen(name);
+> +
+> +	/* If slub_debug = 0, it folds into the if conditional. */
+> +	if (!slub_debug_slabs)
+> +		return flags | slub_debug;
+
+If we take the above return, the call to strlen() was wasted cycles. 
+Presumably gcc is smart enough to prevent that, but why risk it.
+
+> +	n = slub_debug_slabs;
+> +	while (*n) {
+> +		int cmplen;
+> +
+> +		end = strchr(n, ',');
+> +		if (!end)
+> +			end = n + strlen(n);
+> +
+> +		glob = strnchr(n, end - n, '*');
+> +		if (glob)
+> +			cmplen = glob - n;
+> +		else
+> +			cmplen = max(len, (int)(end - n));
+
+max_t() exists for this.  Or maybe make `len' size_t, but I expect that
+will still warn - that subtraction returns a ptrdiff_t, yes?
+
+> +
+> +		if (!strncmp(name, n, cmplen)) {
+> +			flags |= slub_debug;
+> +			break;
+> +		}
+> +
+> +		if (!*end)
+> +			break;
+> +		n = end + 1;
+> +	}
+
+The code in this loop hurts my brain a bit. I hope it's correct ;)
