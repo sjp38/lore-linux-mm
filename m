@@ -1,85 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2754F8E0001
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 10:28:30 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id w19-v6so21527676ioa.10
-        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 07:28:30 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k77-v6sor16227261iok.317.2018.09.21.07.28.28
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 74BE18E0001
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 10:46:49 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id f13-v6so5784347pgs.15
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 07:46:49 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id d1-v6si27677465plr.455.2018.09.21.07.46.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 21 Sep 2018 07:28:29 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Sep 2018 07:46:47 -0700 (PDT)
+Subject: Re: [PATCH v4 5/5] nvdimm: Schedule device registration on node local
+ to the device
+References: <20180920215824.19464.8884.stgit@localhost.localdomain>
+ <20180920222951.19464.39241.stgit@localhost.localdomain>
+ <CAPcyv4hAEOUOBU4GENaFOb-xXi33g_ugCexfmY3DrLH27Z6MKg@mail.gmail.com>
+ <b7e87e64-95d7-5118-6c7d-ad78d68dc92e@linux.intel.com>
+ <CAPcyv4iE=mrvdfXQ94O1r_u1geLbxpF0so3_3z4JLky4SuUNdw@mail.gmail.com>
+ <0d6525c1-2e8b-0e5d-7dae-193bf697a4ec@linux.intel.com>
+ <CAPcyv4hqERm3YbgsE19M=8SRfrhyEo__LrLdcEj_YsLr2bLviA@mail.gmail.com>
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Message-ID: <6e17294f-4847-9e7a-2396-6fffaf8a8f4a@linux.intel.com>
+Date: Fri, 21 Sep 2018 07:46:46 -0700
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+aD=ghemsrBaw2N_FJWtrWNf3r=BWxjWLkKBjNB-s=4Vg@mail.gmail.com>
-References: <cover.1537383101.git.andreyknvl@google.com> <d3f5102da9792370158ed02203d8066dd5e07ff7.1537383101.git.andreyknvl@google.com>
- <CACT4Y+aD=ghemsrBaw2N_FJWtrWNf3r=BWxjWLkKBjNB-s=4Vg@mail.gmail.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Fri, 21 Sep 2018 16:28:27 +0200
-Message-ID: <CAAeHK+wBcmoikVedBZFSGC4UGsF578AKCzFhNFNgMuJe6oWvZA@mail.gmail.com>
-Subject: Re: [PATCH v8 16/20] kasan: add hooks implementation for tag-based mode
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CAPcyv4hqERm3YbgsE19M=8SRfrhyEo__LrLdcEj_YsLr2bLviA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Fri, Sep 21, 2018 at 1:37 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> On Wed, Sep 19, 2018 at 8:54 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
 
->> +       /*
->> +        * Since it's desirable to only call object contructors ones during
->
-> s/ones/once/
 
-Will fix.
+On 9/20/2018 7:46 PM, Dan Williams wrote:
+> On Thu, Sep 20, 2018 at 6:34 PM Alexander Duyck
+> <alexander.h.duyck@linux.intel.com> wrote:
+>>
+>>
+>>
+>> On 9/20/2018 5:36 PM, Dan Williams wrote:
+>>> On Thu, Sep 20, 2018 at 5:26 PM Alexander Duyck
+>>> <alexander.h.duyck@linux.intel.com> wrote:
+>>>>
+>>>> On 9/20/2018 3:59 PM, Dan Williams wrote:
+>>>>> On Thu, Sep 20, 2018 at 3:31 PM Alexander Duyck
+>>>>> <alexander.h.duyck@linux.intel.com> wrote:
+>>>>>>
+>>>>>> This patch is meant to force the device registration for nvdimm devices to
+>>>>>> be closer to the actual device. This is achieved by using either the NUMA
+>>>>>> node ID of the region, or of the parent. By doing this we can have
+>>>>>> everything above the region based on the region, and everything below the
+>>>>>> region based on the nvdimm bus.
+>>>>>>
+>>>>>> One additional change I made is that we hold onto a reference to the parent
+>>>>>> while we are going through registration. By doing this we can guarantee we
+>>>>>> can complete the registration before we have the parent device removed.
+>>>>>>
+>>>>>> By guaranteeing NUMA locality I see an improvement of as high as 25% for
+>>>>>> per-node init of a system with 12TB of persistent memory.
+>>>>>>
+>>>>>> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+>>>>>> ---
+>>>>>>     drivers/nvdimm/bus.c |   19 +++++++++++++++++--
+>>>>>>     1 file changed, 17 insertions(+), 2 deletions(-)
+>>>>>>
+>>>>>> diff --git a/drivers/nvdimm/bus.c b/drivers/nvdimm/bus.c
+>>>>>> index 8aae6dcc839f..ca935296d55e 100644
+>>>>>> --- a/drivers/nvdimm/bus.c
+>>>>>> +++ b/drivers/nvdimm/bus.c
+>>>>>> @@ -487,7 +487,9 @@ static void nd_async_device_register(void *d, async_cookie_t cookie)
+>>>>>>                    dev_err(dev, "%s: failed\n", __func__);
+>>>>>>                    put_device(dev);
+>>>>>>            }
+>>>>>> +
+>>>>>>            put_device(dev);
+>>>>>> +       put_device(dev->parent);
+>>>>>
+>>>>> Good catch. The child does not pin the parent until registration, but
+>>>>> we need to make sure the parent isn't gone while were waiting for the
+>>>>> registration work to run.
+>>>>>
+>>>>> Let's break this reference count fix out into its own separate patch,
+>>>>> because this looks to be covering a gap that may need to be
+>>>>> recommended for -stable.
+>>>>
+>>>> Okay, I guess I can do that.
+>>>>
+>>>>>
+>>>>>>
+>>>>>>     static void nd_async_device_unregister(void *d, async_cookie_t cookie)
+>>>>>> @@ -504,12 +506,25 @@ static void nd_async_device_unregister(void *d, async_cookie_t cookie)
+>>>>>>
+>>>>>>     void __nd_device_register(struct device *dev)
+>>>>>>     {
+>>>>>> +       int node;
+>>>>>> +
+>>>>>>            if (!dev)
+>>>>>>                    return;
+>>>>>> +
+>>>>>>            dev->bus = &nvdimm_bus_type;
+>>>>>> +       get_device(dev->parent);
+>>>>>>            get_device(dev);
+>>>>>> -       async_schedule_domain(nd_async_device_register, dev,
+>>>>>> -                       &nd_async_domain);
+>>>>>> +
+>>>>>> +       /*
+>>>>>> +        * For a region we can break away from the parent node,
+>>>>>> +        * otherwise for all other devices we just inherit the node from
+>>>>>> +        * the parent.
+>>>>>> +        */
+>>>>>> +       node = is_nd_region(dev) ? to_nd_region(dev)->numa_node :
+>>>>>> +                                  dev_to_node(dev->parent);
+>>>>>
+>>>>> Devices already automatically inherit the node of their parent, so I'm
+>>>>> not understanding why this is needed?
+>>>>
+>>>> That doesn't happen until you call device_add, which you don't call
+>>>> until nd_async_device_register. All that has been called on the device
+>>>> up to now is device_initialize which leaves the node at NUMA_NO_NODE.
+>>>
+>>> Ooh, yeah, missed that. I think I'd prefer this policy to moved out to
+>>> where we set the dev->parent before calling __nd_device_register, or
+>>> at least a comment here about *why* we know region devices are special
+>>> (i.e. because the nd_region_desc specified the node at region creation
+>>> time).
+>>>
+>>
+>> Are you talking about pulling the scheduling out or just adding a node
+>> value to the nd_device_register call so it can be set directly from the
+>> caller?
+> 
+> I was thinking everywhere we set dev->parent before registering, also
+> set the node...
 
->
->> +        * slab allocation, we preassign tags to all such objects.
->
-> While we are here, it can make sense to mention that we can't repaint
-> objects with ctors after reallocation (even for
-> non-SLAB_TYPESAFE_BY_RCU) because the ctor code can memorize pointer
-> to the object somewhere (e.g. in the object itself). Then if we
-> repaint it, the old memorized pointer will become invalid.
+That will not work unless we move the call to device_initialize to 
+somewhere before you are setting the node. That is why I was thinking it 
+might work to put the node assignment in nd_device_register itself since 
+it looks like the regions don't call __nd_device_register directly.
 
-Will mention.
+I guess we could get rid of nd_device_register if we wanted to go that 
+route.
 
->> -       kasan_unpoison_shadow(object, size);
->> +       /* See the comment in kasan_init_slab_obj regarding preassigned tags */
->> +       if (IS_ENABLED(CONFIG_KASAN_SW_TAGS) &&
->> +                       (cache->ctor || cache->flags & SLAB_TYPESAFE_BY_RCU)) {
->> +#ifdef CONFIG_SLAB
->> +               struct page *page = virt_to_page(object);
->> +
->> +               tag = (u8)obj_to_index(cache, page, (void *)object);
->> +#else
->> +               tag = get_tag(object);
->> +#endif
->
-> This kinda _almost_ matches the chunk of code in kasan_init_slab_obj,
-> but not exactly. Wonder if there is some nice way to unify this code?
->
-> Maybe something like:
->
-> static u8 tag_for_object(struct kmem_cache *cache, const void *object, new bool)
-> {
->     if (!IS_ENABLED(CONFIG_KASAN_SW_TAGS) ||
->         !cache->ctor && !(cache->flags & SLAB_TYPESAFE_BY_RCU))
->         return random_tag();
-> #ifdef CONFIG_SLAB
->     struct page *page = virt_to_page(object);
->     return (u8)obj_to_index(cache, page, (void *)object);
-> #else
->     return new ? random_tag() : get_tag(object);
-> #endif
-> }
->
-> Then we can call this in both places.
+>> If you wanted what I could do is pull the set_dev_node call from
+>> nvdimm_bus_uevent and place it in nd_device_register. That should stick
+>> as the node doesn't get overwritten by the parent if it is set after
+>> device_initialize. If I did that along with the parent bit I was already
+>> doing then all that would be left to do in is just use the dev_to_node
+>> call on the device itself.
+> 
+> ...but this is even better.
+> 
 
-Will do, however I think it's better to do the CONFIG_KASAN_SW_TAGS
-check outside this helper function.
-
-> As a side effect this will assign tags to pointers during slab
-> initialization even if we don't have ctors, but it should be fine (?).
-
-We don't have to assign tag in this case, can just leave 0xff.
+I'm not sure it adds that much. Basically My thought was we just need to 
+make sure to set the device node after the call to device_initialize but 
+before the call to device_add. This just seems like a bunch more work 
+spread the device_initialize calls all over and introduce possible 
+regressions.
