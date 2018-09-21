@@ -1,48 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E26448E0001
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 05:50:52 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id h4-v6so5932040pls.17
-        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 02:50:52 -0700 (PDT)
-Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
-        by mx.google.com with ESMTPS id cf16-v6si28489724plb.254.2018.09.21.02.50.51
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 667DB8E0001
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 06:30:32 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id z17-v6so12176898wrr.16
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 03:30:32 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q1-v6sor4096891wrw.17.2018.09.21.03.30.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Sep 2018 02:50:51 -0700 (PDT)
-From: YueHaibing <yuehaibing@huawei.com>
-Subject: [PATCH -next] mm/gup_benchmark: Fix unsigned comparison to zero in __gup_benchmark_ioctl
-Date: Fri, 21 Sep 2018 17:50:15 +0800
-Message-ID: <20180921095015.26088-1-yuehaibing@huawei.com>
+        (Google Transport Security);
+        Fri, 21 Sep 2018 03:30:31 -0700 (PDT)
+Date: Fri, 21 Sep 2018 12:30:29 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH 4/5] mm/memory_hotplug: Simplify
+ node_states_check_changes_online
+Message-ID: <20180921103029.GA15555@techadventures.net>
+References: <20180919100819.25518-1-osalvador@techadventures.net>
+ <20180919100819.25518-5-osalvador@techadventures.net>
+ <71676241-8aa5-2b58-b2fa-706bf21b9cfb@microsoft.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <71676241-8aa5-2b58-b2fa-706bf21b9cfb@microsoft.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mst@redhat.com, keescook@chromium.org, kirill.shutemov@linux.intel.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, YueHaibing <yuehaibing@huawei.com>
+To: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@suse.com" <mhocko@suse.com>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "david@redhat.com" <david@redhat.com>, "Jonathan.Cameron@huawei.com" <Jonathan.Cameron@huawei.com>, "yasu.isimatu@gmail.com" <yasu.isimatu@gmail.com>, "malat@debian.org" <malat@debian.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oscar Salvador <osalvador@suse.de>
 
-get_user_pages_fast will return negative value if no pages were pinned,
-then be converted to a unsigned, which is compared to zero, giving
-the wrong result.
+On Fri, Sep 21, 2018 at 12:15:53AM +0000, Pasha Tatashin wrote:
 
-Fixes: 09e35a4a1ca8 ("mm/gup_benchmark: handle gup failures")
-Signed-off-by: YueHaibing <yuehaibing@huawei.com>
----
- mm/gup_benchmark.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+Hi Pavel,
 
-diff --git a/mm/gup_benchmark.c b/mm/gup_benchmark.c
-index 6a47370..7405c9d8 100644
---- a/mm/gup_benchmark.c
-+++ b/mm/gup_benchmark.c
-@@ -19,7 +19,8 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
- 		struct gup_benchmark *gup)
- {
- 	ktime_t start_time, end_time;
--	unsigned long i, nr, nr_pages, addr, next;
-+	unsigned long i, nr_pages, addr, next;
-+	int nr;
- 	struct page **pages;
- 
- 	nr_pages = gup->size / PAGE_SIZE;
+> But what if that changes, will this function need to change as well?
+
+That's true.
+
+> Should not we have:
+> 			else
+> 				arg->status_change_nid_high = -1; ?
+> 
+> > +		} else
+> > +			arg->status_change_nid_high = -1;
+
+Yes, I forgot about that else.
+
+> I think it is simpler to have something like this:
+> 
+>         int nid = zone_to_nid(zone);
+> 
+>         arg->status_change_nid_high = -1;
+>         arg->status_change_nid = -1;
+>         arg->status_change_nid = -1;
+> 
+>         if (!node_state(nid, N_MEMORY))
+>                 arg->status_change_nid = nid; 
+>         if (zone_idx(zone) <= ZONE_NORMAL && !node_state(nid, N_NORMAL_MEMORY))
+>                 arg->status_change_nid_normal = nid; 
+> #ifdef CONFIG_HIGHMEM
+>         if (zone_idx(zone) <= N_HIGH_MEMORY && !node_state(nid, N_HIGH_MEMORY))
+>                 arg->status_change_nid_high = nid; 
+> #endif
+
+I can write it that way, I also like it more.
+
+I will send it in V2.
+
+Thanks for reviewing it!
 -- 
-2.7.0
+Oscar Salvador
+SUSE L3
