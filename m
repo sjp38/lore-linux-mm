@@ -1,51 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 19C8D8E0001
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 11:00:35 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id x5-v6so21727122ioa.6
-        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 08:00:35 -0700 (PDT)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 398A78E0001
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 11:01:43 -0400 (EDT)
+Received: by mail-yb1-f197.google.com with SMTP id h10-v6so2216965ybm.3
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 08:01:43 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v66-v6sor16088407ioe.128.2018.09.21.08.00.33
+        by mx.google.com with SMTPS id 9-v6sor3002815yby.44.2018.09.21.08.01.41
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 21 Sep 2018 08:00:33 -0700 (PDT)
-Subject: Re: block: DMA alignment of IO buffer allocated from slab
-References: <CACVXFVOBq3L_EjSTCoiqUL1PH=HMR5EuNNQV0hNndFpGxmUK6g@mail.gmail.com>
- <20180920063129.GB12913@lst.de> <87h8ij0zot.fsf@vitty.brq.redhat.com>
- <20180921130504.GA22551@lst.de>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <98996e39-7d29-354c-9009-d4b1a1bbdeb0@kernel.dk>
-Date: Fri, 21 Sep 2018 09:00:31 -0600
+        Fri, 21 Sep 2018 08:01:41 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180921130504.GA22551@lst.de>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+From: Chulmin Kim <cmkim.laika@gmail.com>
+Date: Sat, 22 Sep 2018 00:01:30 +0900
+Message-ID: <CANYKp7ufttxsNkewBqgYDexMAoyVnMxgoy-EydCqmHadxyn+QQ@mail.gmail.com>
+Subject: Question about a pte with PTE_PROT_NONE and !PTE_VALID on !PROT_NONE vma
+Content-Type: multipart/alternative; boundary="000000000000be7814057662ea05"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>, Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Ming Lei <ming.lei@redhat.com>, Christoph Lameter <cl@linux.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 9/21/18 7:05 AM, Christoph Hellwig wrote:
-> On Fri, Sep 21, 2018 at 03:04:18PM +0200, Vitaly Kuznetsov wrote:
->> Christoph Hellwig <hch@lst.de> writes:
->>
->>> On Wed, Sep 19, 2018 at 05:15:43PM +0800, Ming Lei wrote:
->>>> 1) does kmalloc-N slab guarantee to return N-byte aligned buffer?  If
->>>> yes, is it a stable rule?
->>>
->>> This is the assumption in a lot of the kernel, so I think if somethings
->>> breaks this we are in a lot of pain.
->>
->> It seems that SLUB debug breaks this assumption. Kernel built with
->>
->> CONFIG_SLUB_DEBUG=y
->> CONFIG_SLUB=y
->> CONFIG_SLUB_DEBUG_ON=y
-> 
-> Looks like we should fix SLUB debug then..
+--000000000000be7814057662ea05
+Content-Type: text/plain; charset="UTF-8"
 
-Fully agree, it's such a fundamental property.
+Hi all.
+I am developing an android smartphone.
 
--- 
-Jens Axboe
+I am facing a problem that a thread is looping the page fault routine
+forever.
+(The kernel version is around v4.4 though it may differ from the mainline
+slightly
+as the problem occurs in a device being developed in my company.)
+
+The pte corresponding to the fault address is with PTE_PROT_NONE and
+!PTE_VALID.
+(by the way, the pte is mapped to anon page (ashmem))
+The weird thing, in my opinion, is that
+the VMA of the fault address is not with PROT_NONE but with PROT_READ &
+PROT_WRITE.
+So, the page fault routine (handle_pte_fault()) returns 0 and fault loops
+forever.
+
+I don't think this is a normal situation.
+
+As I didn't enable NUMA, a pte with PROT_NONE and !PTE_VALID is likely set
+by mprotect().
+1. mprotect(PROT_NONE) -> vma split & set pte with PROT_NONE
+2. mprotect(PROT_READ & WRITE) -> vma merge & revert pte
+I suspect that the revert pte in #2 didn't work somehow
+but no clue.
+
+I googled and found a similar situation (
+http://linux-kernel.2935.n7.nabble.com/pipe-page-fault-oddness-td953839.html)
+which is relevant to NUMA and huge pagetable configs
+while my device is nothing to do with those configs.
+
+Am I missing any possible scenario? or is it already known BUG?
+It will be pleasure if you can give any idea about this problem.
+
+Thanks.
+Chulmin Kim
+
+--000000000000be7814057662ea05
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div dir=3D"ltr">Hi all.<div>I am developing an android sm=
+artphone.</div><div><br></div><div>I am facing a problem that a thread is l=
+ooping the page fault routine forever.<br></div><div>(The kernel version is=
+ around v4.4 though it may differ from the mainline slightly=C2=A0</div><di=
+v>as the problem occurs in a device being developed in my company.)</div><d=
+iv><br></div><div>The pte corresponding to the fault address is with PTE_PR=
+OT_NONE and !PTE_VALID.</div><div>(by the way, the pte is mapped to anon pa=
+ge (ashmem))</div><div>The weird thing, in my opinion, is that</div><div>th=
+e VMA of the fault address is not with=C2=A0PROT_NONE=C2=A0but with PROT_RE=
+AD &amp; PROT_WRITE.</div><div>So, the page fault routine (handle_pte_fault=
+()) returns 0 and fault loops forever.</div><div><br></div><div>I don&#39;t=
+ think this is a normal situation.</div><div><br></div><div>As I didn&#39;t=
+ enable NUMA, a pte with PROT_NONE and !PTE_VALID is likely set by mprotect=
+().</div><div>1. mprotect(PROT_NONE) -&gt; vma split &amp; set pte with PRO=
+T_NONE</div><div>2. mprotect(PROT_READ &amp; WRITE) -&gt; vma merge &amp; r=
+evert pte=C2=A0</div><div>I suspect that the revert pte in #2 didn&#39;t wo=
+rk somehow</div><div>but no clue.</div><div><br></div><div>I googled and fo=
+und a similar situation (<a href=3D"http://linux-kernel.2935.n7.nabble.com/=
+pipe-page-fault-oddness-td953839.html">http://linux-kernel.2935.n7.nabble.c=
+om/pipe-page-fault-oddness-td953839.html</a>) which is relevant to NUMA and=
+ huge pagetable configs</div><div>while my device is nothing to do with tho=
+se configs.</div><div><br></div><div>Am I missing any possible scenario? or=
+ is it already known BUG?<br></div><div>It will be pleasure if you can give=
+ any idea about this problem.<br></div><div><br></div><div>Thanks.</div><di=
+v>Chulmin Kim</div></div></div>
+
+--000000000000be7814057662ea05--
