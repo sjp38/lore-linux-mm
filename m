@@ -1,53 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E61B48E0001
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 15:05:59 -0400 (EDT)
-Received: by mail-yb1-f199.google.com with SMTP id v12-v6so6058157ybe.23
-        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 12:05:59 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z62-v6sor2875966ybf.35.2018.09.21.12.05.58
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A0FA8E0001
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 15:08:34 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id n23-v6so13627492qkn.19
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 12:08:34 -0700 (PDT)
+Received: from NAM05-BY2-obe.outbound.protection.outlook.com (mail-by2nam05on072a.outbound.protection.outlook.com. [2a01:111:f400:fe52::72a])
+        by mx.google.com with ESMTPS id m40-v6si2739418qtc.259.2018.09.21.12.08.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 21 Sep 2018 12:05:59 -0700 (PDT)
-Received: from mail-yw1-f50.google.com (mail-yw1-f50.google.com. [209.85.161.50])
-        by smtp.gmail.com with ESMTPSA id r84-v6sm7199291ywe.10.2018.09.21.12.05.56
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Sep 2018 12:05:56 -0700 (PDT)
-Received: by mail-yw1-f50.google.com with SMTP id x83-v6so5611306ywd.4
-        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 12:05:56 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 21 Sep 2018 12:08:32 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Subject: Re: [PATCH v4 2/5] mm: Create non-atomic version of SetPageReserved
+ for init use
+Date: Fri, 21 Sep 2018 19:06:30 +0000
+Message-ID: <b3a1bf0a-3cce-21a7-0543-716627c753db@microsoft.com>
+References: <20180920215824.19464.8884.stgit@localhost.localdomain>
+ <20180920222641.19464.75787.stgit@localhost.localdomain>
+In-Reply-To: <20180920222641.19464.75787.stgit@localhost.localdomain>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <D98AE5FDAC9A084687AB3C1C63482F26@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <1536874298-23492-1-git-send-email-rick.p.edgecombe@intel.com>
-References: <1536874298-23492-1-git-send-email-rick.p.edgecombe@intel.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Fri, 21 Sep 2018 12:05:55 -0700
-Message-ID: <CAGXu5jKpwGHRJ92q7yCc+y8esdG6orFVOiZGoGMCi1XiY0JBoQ@mail.gmail.com>
-Subject: Re: [PATCH v6 0/4] KASLR feature to randomize each loadable module
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Daniel Borkmann <daniel@iogearbox.net>, Jann Horn <jannh@google.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, Kristen Carlson Accardi <kristen@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>
+To: Alexander Duyck <alexander.h.duyck@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+Cc: "mhocko@suse.com" <mhocko@suse.com>, "dave.jiang@intel.com" <dave.jiang@intel.com>, "mingo@kernel.org" <mingo@kernel.org>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "jglisse@redhat.com" <jglisse@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "logang@deltatee.com" <logang@deltatee.com>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
 
-On Thu, Sep 13, 2018 at 2:31 PM, Rick Edgecombe
-<rick.p.edgecombe@intel.com> wrote:
-> This is V6 of the "KASLR feature to randomize each loadable module" patchset.
-> The purpose is to increase the randomization and also to make the modules
-> randomized in relation to each other instead of just the base, so that if one
-> module leaks the location of the others can't be inferred.
-
-I'm excited for this! :)
-
-> Rick Edgecombe (4):
->   vmalloc: Add __vmalloc_node_try_addr function
->   x86/modules: Increase randomization for modules
->   vmalloc: Add debugfs modfraginfo
->   Kselftest for module text allocation benchmarking
-
-Yay for self-tests! This is much appreciated.
-
--Kees
-
--- 
-Kees Cook
-Pixel Security
+DQoNCk9uIDkvMjAvMTggNjoyNyBQTSwgQWxleGFuZGVyIER1eWNrIHdyb3RlOg0KPiBJdCBkb2Vz
+bid0IG1ha2UgbXVjaCBzZW5zZSB0byB1c2UgdGhlIGF0b21pYyBTZXRQYWdlUmVzZXJ2ZWQgYXQg
+aW5pdCB0aW1lDQo+IHdoZW4gd2UgYXJlIHVzaW5nIG1lbXNldCB0byBjbGVhciB0aGUgbWVtb3J5
+IGFuZCBtYW5pcHVsYXRpbmcgdGhlIHBhZ2UNCj4gZmxhZ3MgdmlhIHNpbXBsZSAiJj0iIGFuZCAi
+fD0iIG9wZXJhdGlvbnMgaW4gX19pbml0X3NpbmdsZV9wYWdlLg0KPiANCj4gVGhpcyBwYXRjaCBh
+ZGRzIGEgbm9uLWF0b21pYyB2ZXJzaW9uIF9fU2V0UGFnZVJlc2VydmVkIHRoYXQgY2FuIGJlIHVz
+ZWQNCj4gZHVyaW5nIHBhZ2UgaW5pdCBhbmQgc2hvd3MgYWJvdXQgYSAxMCUgaW1wcm92ZW1lbnQg
+aW4gaW5pdGlhbGl6YXRpb24gdGltZXMNCj4gb24gdGhlIHN5c3RlbXMgSSBoYXZlIGF2YWlsYWJs
+ZSBmb3IgdGVzdGluZy4gT24gdGhvc2Ugc3lzdGVtcyBJIHNhdw0KPiBpbml0aWFsaXphdGlvbiB0
+aW1lcyBkcm9wIGZyb20gYXJvdW5kIDM1IHNlY29uZHMgdG8gYXJvdW5kIDMyIHNlY29uZHMgdG8N
+Cj4gaW5pdGlhbGl6ZSBhIDNUQiBibG9jayBvZiBwZXJzaXN0ZW50IG1lbW9yeS4gSSBiZWxpZXZl
+IHRoZSBtYWluIGFkdmFudGFnZQ0KPiBvZiB0aGlzIGlzIHRoYXQgaXQgYWxsb3dzIGZvciBtb3Jl
+IGNvbXBpbGVyIG9wdGltaXphdGlvbiBhcyB0aGUgX19zZXRfYml0DQo+IG9wZXJhdGlvbiBjYW4g
+YmUgcmVvcmRlcmVkIHdoZXJlYXMgdGhlIGF0b21pYyB2ZXJzaW9uIGNhbm5vdC4NCj4gDQo+IEkg
+dHJpZWQgYWRkaW5nIGEgYml0IG9mIGRvY3VtZW50YXRpb24gYmFzZWQgb24gY29tbWl0IDxmMWRk
+MmNkMTNjND4gKCJtbSwNCj4gbWVtb3J5X2hvdHBsdWc6IGRvIG5vdCBhc3NvY2lhdGUgaG90YWRk
+ZWQgbWVtb3J5IHRvIHpvbmVzIHVudGlsIG9ubGluZSIpLg0KPiANCj4gSWRlYWxseSB0aGUgcmVz
+ZXJ2ZWQgZmxhZyBzaG91bGQgYmUgc2V0IGVhcmxpZXIgc2luY2UgdGhlcmUgaXMgYSBicmllZg0K
+PiB3aW5kb3cgd2hlcmUgdGhlIHBhZ2UgaXMgaW5pdGlhbGl6YXRpb24gdmlhIF9faW5pdF9zaW5n
+bGVfcGFnZSBhbmQgd2UgaGF2ZQ0KPiBub3Qgc2V0IHRoZSBQR19SZXNlcnZlZCBmbGFnLiBJJ20g
+bGVhdmluZyB0aGF0IGZvciBhIGZ1dHVyZSBwYXRjaCBzZXQgYXMNCj4gdGhhdCB3aWxsIHJlcXVp
+cmUgYSBtb3JlIHNpZ25pZmljYW50IHJlZmFjdG9yLg0KPiANCj4gQWNrZWQtYnk6IE1pY2hhbCBI
+b2NrbyA8bWhvY2tvQHN1c2UuY29tPg0KPiBTaWduZWQtb2ZmLWJ5OiBBbGV4YW5kZXIgRHV5Y2sg
+PGFsZXhhbmRlci5oLmR1eWNrQGxpbnV4LmludGVsLmNvbT4NCg0KUmV2aWV3ZWQtYnk6IFBhdmVs
+IFRhdGFzaGluIDxwYXZlbC50YXRhc2hpbkBtaWNyb3NvZnQuY29tPg0KDQo+IC0tLQ0KPiANCj4g
+djQ6IEFkZGVkIGNvbW1lbnQgYWJvdXQgX19zZXRfYml0IHZzIHNldF9iaXQgdG8gdGhlIHBhdGNo
+IGRlc2NyaXB0aW9uDQo+IA0KPiAgaW5jbHVkZS9saW51eC9wYWdlLWZsYWdzLmggfCAgICAxICsN
+Cj4gIG1tL3BhZ2VfYWxsb2MuYyAgICAgICAgICAgIHwgICAgOSArKysrKysrLS0NCj4gIDIgZmls
+ZXMgY2hhbmdlZCwgOCBpbnNlcnRpb25zKCspLCAyIGRlbGV0aW9ucygtKQ0KPiANCj4gZGlmZiAt
+LWdpdCBhL2luY2x1ZGUvbGludXgvcGFnZS1mbGFncy5oIGIvaW5jbHVkZS9saW51eC9wYWdlLWZs
+YWdzLmgNCj4gaW5kZXggOTM0ZjkxZWYzZjU0Li41MGNlMWJkZGFmNTYgMTAwNjQ0DQo+IC0tLSBh
+L2luY2x1ZGUvbGludXgvcGFnZS1mbGFncy5oDQo+ICsrKyBiL2luY2x1ZGUvbGludXgvcGFnZS1m
+bGFncy5oDQo+IEBAIC0zMDMsNiArMzAzLDcgQEAgc3RhdGljIGlubGluZSB2b2lkIHBhZ2VfaW5p
+dF9wb2lzb24oc3RydWN0IHBhZ2UgKnBhZ2UsIHNpemVfdCBzaXplKQ0KPiAgDQo+ICBQQUdFRkxB
+RyhSZXNlcnZlZCwgcmVzZXJ2ZWQsIFBGX05PX0NPTVBPVU5EKQ0KPiAgCV9fQ0xFQVJQQUdFRkxB
+RyhSZXNlcnZlZCwgcmVzZXJ2ZWQsIFBGX05PX0NPTVBPVU5EKQ0KPiArCV9fU0VUUEFHRUZMQUco
+UmVzZXJ2ZWQsIHJlc2VydmVkLCBQRl9OT19DT01QT1VORCkNCj4gIFBBR0VGTEFHKFN3YXBCYWNr
+ZWQsIHN3YXBiYWNrZWQsIFBGX05PX1RBSUwpDQo+ICAJX19DTEVBUlBBR0VGTEFHKFN3YXBCYWNr
+ZWQsIHN3YXBiYWNrZWQsIFBGX05PX1RBSUwpDQo+ICAJX19TRVRQQUdFRkxBRyhTd2FwQmFja2Vk
+LCBzd2FwYmFja2VkLCBQRl9OT19UQUlMKQ0KPiBkaWZmIC0tZ2l0IGEvbW0vcGFnZV9hbGxvYy5j
+IGIvbW0vcGFnZV9hbGxvYy5jDQo+IGluZGV4IDcxMmNhYjE3Zjg2Zi4uMjliZDY2MmZmZmQ3IDEw
+MDY0NA0KPiAtLS0gYS9tbS9wYWdlX2FsbG9jLmMNCj4gKysrIGIvbW0vcGFnZV9hbGxvYy5jDQo+
+IEBAIC0xMjM5LDcgKzEyMzksMTIgQEAgdm9pZCBfX21lbWluaXQgcmVzZXJ2ZV9ib290bWVtX3Jl
+Z2lvbihwaHlzX2FkZHJfdCBzdGFydCwgcGh5c19hZGRyX3QgZW5kKQ0KPiAgCQkJLyogQXZvaWQg
+ZmFsc2UtcG9zaXRpdmUgUGFnZVRhaWwoKSAqLw0KPiAgCQkJSU5JVF9MSVNUX0hFQUQoJnBhZ2Ut
+PmxydSk7DQo+ICANCj4gLQkJCVNldFBhZ2VSZXNlcnZlZChwYWdlKTsNCj4gKwkJCS8qDQo+ICsJ
+CQkgKiBubyBuZWVkIGZvciBhdG9taWMgc2V0X2JpdCBiZWNhdXNlIHRoZSBzdHJ1Y3QNCj4gKwkJ
+CSAqIHBhZ2UgaXMgbm90IHZpc2libGUgeWV0IHNvIG5vYm9keSBzaG91bGQNCj4gKwkJCSAqIGFj
+Y2VzcyBpdCB5ZXQuDQo+ICsJCQkgKi8NCj4gKwkJCV9fU2V0UGFnZVJlc2VydmVkKHBhZ2UpOw0K
+PiAgCQl9DQo+ICAJfQ0KPiAgfQ0KPiBAQCAtNTUxMyw3ICs1NTE4LDcgQEAgdm9pZCBfX21lbWlu
+aXQgbWVtbWFwX2luaXRfem9uZSh1bnNpZ25lZCBsb25nIHNpemUsIGludCBuaWQsIHVuc2lnbmVk
+IGxvbmcgem9uZSwNCj4gIAkJcGFnZSA9IHBmbl90b19wYWdlKHBmbik7DQo+ICAJCV9faW5pdF9z
+aW5nbGVfcGFnZShwYWdlLCBwZm4sIHpvbmUsIG5pZCk7DQo+ICAJCWlmIChjb250ZXh0ID09IE1F
+TU1BUF9IT1RQTFVHKQ0KPiAtCQkJU2V0UGFnZVJlc2VydmVkKHBhZ2UpOw0KPiArCQkJX19TZXRQ
+YWdlUmVzZXJ2ZWQocGFnZSk7DQo+ICANCj4gIAkJLyoNCj4gIAkJICogTWFyayB0aGUgYmxvY2sg
+bW92YWJsZSBzbyB0aGF0IGJsb2NrcyBhcmUgcmVzZXJ2ZWQgZm9yDQo+IA==
