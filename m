@@ -1,53 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 98AD08E0001
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 15:41:23 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id x5-v6so24435620ioa.6
-        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 12:41:23 -0700 (PDT)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id p65-v6si18126892iop.187.2018.09.21.12.41.22
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E6928E0001
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 15:50:21 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id u22-v6so13684330qkk.10
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 12:50:21 -0700 (PDT)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0128.outbound.protection.outlook.com. [104.47.33.128])
+        by mx.google.com with ESMTPS id m6-v6si455454qte.33.2018.09.21.12.50.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 21 Sep 2018 12:41:22 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 21 Sep 2018 12:50:20 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Subject: Re: [PATCH v4 3/5] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
+Date: Fri, 21 Sep 2018 19:50:18 +0000
+Message-ID: <2254cfe1-5cd3-eedc-1f24-8e011dcf3575@microsoft.com>
 References: <20180920215824.19464.8884.stgit@localhost.localdomain>
- <20180920222415.19464.38400.stgit@localhost.localdomain>
- <a40a78c0-207b-03b7-344c-847b12a4f896@microsoft.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <4d984974-ff16-35e4-76ff-f5e43e5e90da@deltatee.com>
-Date: Fri, 21 Sep 2018 13:41:12 -0600
-MIME-Version: 1.0
-In-Reply-To: <a40a78c0-207b-03b7-344c-847b12a4f896@microsoft.com>
-Content-Type: text/plain; charset=utf-8
+ <20180920222758.19464.83992.stgit@localhost.localdomain>
+In-Reply-To: <20180920222758.19464.83992.stgit@localhost.localdomain>
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH v4 1/5] mm: Provide kernel parameter to allow disabling
- page init poisoning
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <4F32675E3C009940AEFBAB1DADA60897@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <Pavel.Tatashin@microsoft.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
-Cc: "mhocko@suse.com" <mhocko@suse.com>, "dave.jiang@intel.com" <dave.jiang@intel.com>, "mingo@kernel.org" <mingo@kernel.org>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "jglisse@redhat.com" <jglisse@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
+To: Alexander Duyck <alexander.h.duyck@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+Cc: "mhocko@suse.com" <mhocko@suse.com>, "dave.jiang@intel.com" <dave.jiang@intel.com>, "mingo@kernel.org" <mingo@kernel.org>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "jglisse@redhat.com" <jglisse@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "logang@deltatee.com" <logang@deltatee.com>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
 
-On 2018-09-21 1:04 PM, Pasha Tatashin wrote:
-> 
->> +			pr_err("vm_debug option '%c' unknown. skipped\n",
->> +			       *str);
->> +		}
->> +
->> +		str++;
->> +	}
->> +out:
->> +	if (page_init_poisoning && !__page_init_poisoning)
->> +		pr_warn("Page struct poisoning disabled by kernel command line option 'vm_debug'\n");
-> 
-> New lines '\n' can be removed, they are not needed for kprintfs.
-
-No, that's not correct.
-
-A printk without a newline termination is not emitted
-as output until the next printk call. (To support KERN_CONT).
-Therefore removing the '\n' causes a printk to not be printed when it is
-called which can cause long delayed messages and subtle problems when
-debugging. Always keep the newline in place even though the kernel will
-add one for you if it's missing.
-
-Logan
+DQoNCk9uIDkvMjAvMTggNjoyOSBQTSwgQWxleGFuZGVyIER1eWNrIHdyb3RlOg0KPiBUaGUgWk9O
+RV9ERVZJQ0UgcGFnZXMgd2VyZSBiZWluZyBpbml0aWFsaXplZCBpbiB0d28gbG9jYXRpb25zLiBP
+bmUgd2FzIHdpdGgNCj4gdGhlIG1lbW9yeV9ob3RwbHVnIGxvY2sgaGVsZCBhbmQgYW5vdGhlciB3
+YXMgb3V0c2lkZSBvZiB0aGF0IGxvY2suIFRoZQ0KPiBwcm9ibGVtIHdpdGggdGhpcyBpcyB0aGF0
+IGl0IHdhcyBuZWFybHkgZG91YmxpbmcgdGhlIG1lbW9yeSBpbml0aWFsaXphdGlvbg0KPiB0aW1l
+LiBJbnN0ZWFkIG9mIGRvaW5nIHRoaXMgdHdpY2UsIG9uY2Ugd2hpbGUgaG9sZGluZyBhIGdsb2Jh
+bCBsb2NrIGFuZA0KPiBvbmNlIHdpdGhvdXQsIEkgYW0gb3B0aW5nIHRvIGRlZmVyIHRoZSBpbml0
+aWFsaXphdGlvbiB0byB0aGUgb25lIG91dHNpZGUgb2YNCj4gdGhlIGxvY2suIFRoaXMgYWxsb3dz
+IHVzIHRvIGF2b2lkIHNlcmlhbGl6aW5nIHRoZSBvdmVyaGVhZCBmb3IgbWVtb3J5IGluaXQNCj4g
+YW5kIHdlIGNhbiBpbnN0ZWFkIGZvY3VzIG9uIHBlci1ub2RlIGluaXQgdGltZXMuDQo+IA0KPiBP
+bmUgaXNzdWUgSSBlbmNvdW50ZXJlZCBpcyB0aGF0IGRldm1fbWVtcmVtYXBfcGFnZXMgYW5kDQo+
+IGhtbV9kZXZtbWVtX3BhZ2VzX2NyZWF0ZSB3ZXJlIGluaXRpYWxpemluZyBvbmx5IHRoZSBwZ21h
+cCBmaWVsZCB0aGUgc2FtZQ0KPiB3YXkuIE9uZSB3YXNuJ3QgaW5pdGlhbGl6aW5nIGhtbV9kYXRh
+LCBhbmQgdGhlIG90aGVyIHdhcyBpbml0aWFsaXppbmcgaXQgdG8NCj4gYSBwb2lzb24gdmFsdWUu
+IFNpbmNlIHRoaXMgaXMgc29tZXRoaW5nIHRoYXQgaXMgZXhwb3NlZCB0byB0aGUgZHJpdmVyIGlu
+DQo+IHRoZSBjYXNlIG9mIGhtbSBJIGFtIG9wdGluZyBmb3IgYSB0aGlyZCBvcHRpb24gYW5kIGp1
+c3QgaW5pdGlhbGl6aW5nDQo+IGhtbV9kYXRhIHRvIDAgc2luY2UgdGhpcyBpcyBnb2luZyB0byBi
+ZSBleHBvc2VkIHRvIHVua25vd24gdGhpcmQgcGFydHkNCj4gZHJpdmVycy4NCj4gDQo+IFNpZ25l
+ZC1vZmYtYnk6IEFsZXhhbmRlciBEdXljayA8YWxleGFuZGVyLmguZHV5Y2tAbGludXguaW50ZWwu
+Y29tPg0KDQo+ICt2b2lkIF9fcmVmIG1lbW1hcF9pbml0X3pvbmVfZGV2aWNlKHN0cnVjdCB6b25l
+ICp6b25lLA0KPiArCQkJCSAgIHVuc2lnbmVkIGxvbmcgc3RhcnRfcGZuLA0KPiArCQkJCSAgIHVu
+c2lnbmVkIGxvbmcgc2l6ZSwNCj4gKwkJCQkgICBzdHJ1Y3QgZGV2X3BhZ2VtYXAgKnBnbWFwKQ0K
+PiArew0KPiArCXVuc2lnbmVkIGxvbmcgcGZuLCBlbmRfcGZuID0gc3RhcnRfcGZuICsgc2l6ZTsN
+Cj4gKwlzdHJ1Y3QgcGdsaXN0X2RhdGEgKnBnZGF0ID0gem9uZS0+em9uZV9wZ2RhdDsNCj4gKwl1
+bnNpZ25lZCBsb25nIHpvbmVfaWR4ID0gem9uZV9pZHgoem9uZSk7DQo+ICsJdW5zaWduZWQgbG9u
+ZyBzdGFydCA9IGppZmZpZXM7DQo+ICsJaW50IG5pZCA9IHBnZGF0LT5ub2RlX2lkOw0KPiArDQo+
+ICsJaWYgKFdBUk5fT05fT05DRSghcGdtYXAgfHwgIWlzX2Rldl96b25lKHpvbmUpKSkNCj4gKwkJ
+cmV0dXJuOw0KPiArDQo+ICsJLyoNCj4gKwkgKiBUaGUgY2FsbCB0byBtZW1tYXBfaW5pdF96b25l
+IHNob3VsZCBoYXZlIGFscmVhZHkgdGFrZW4gY2FyZQ0KPiArCSAqIG9mIHRoZSBwYWdlcyByZXNl
+cnZlZCBmb3IgdGhlIG1lbW1hcCwgc28gd2UgY2FuIGp1c3QganVtcCB0bw0KPiArCSAqIHRoZSBl
+bmQgb2YgdGhhdCByZWdpb24gYW5kIHN0YXJ0IHByb2Nlc3NpbmcgdGhlIGRldmljZSBwYWdlcy4N
+Cj4gKwkgKi8NCj4gKwlpZiAocGdtYXAtPmFsdG1hcF92YWxpZCkgew0KPiArCQlzdHJ1Y3Qgdm1l
+bV9hbHRtYXAgKmFsdG1hcCA9ICZwZ21hcC0+YWx0bWFwOw0KPiArDQo+ICsJCXN0YXJ0X3BmbiA9
+IGFsdG1hcC0+YmFzZV9wZm4gKyB2bWVtX2FsdG1hcF9vZmZzZXQoYWx0bWFwKTsNCj4gKwkJc2l6
+ZSA9IGVuZF9wZm4gLSBzdGFydF9wZm47DQo+ICsJfQ0KPiArDQo+ICsJZm9yIChwZm4gPSBzdGFy
+dF9wZm47IHBmbiA8IGVuZF9wZm47IHBmbisrKSB7DQo+ICsJCXN0cnVjdCBwYWdlICpwYWdlID0g
+cGZuX3RvX3BhZ2UocGZuKTsNCj4gKw0KPiArCQlfX2luaXRfc2luZ2xlX3BhZ2UocGFnZSwgcGZu
+LCB6b25lX2lkeCwgbmlkKTsNCj4gKw0KPiArCQkvKg0KPiArCQkgKiBNYXJrIHBhZ2UgcmVzZXJ2
+ZWQgYXMgaXQgd2lsbCBuZWVkIHRvIHdhaXQgZm9yIG9ubGluaW5nDQo+ICsJCSAqIHBoYXNlIGZv
+ciBpdCB0byBiZSBmdWxseSBhc3NvY2lhdGVkIHdpdGggYSB6b25lLg0KPiArCQkgKg0KPiArCQkg
+KiBXZSBjYW4gdXNlIHRoZSBub24tYXRvbWljIF9fc2V0X2JpdCBvcGVyYXRpb24gZm9yIHNldHRp
+bmcNCj4gKwkJICogdGhlIGZsYWcgYXMgd2UgYXJlIHN0aWxsIGluaXRpYWxpemluZyB0aGUgcGFn
+ZXMuDQo+ICsJCSAqLw0KPiArCQlfX1NldFBhZ2VSZXNlcnZlZChwYWdlKTsNCj4gKw0KPiArCQkv
+Kg0KPiArCQkgKiBaT05FX0RFVklDRSBwYWdlcyB1bmlvbiAtPmxydSB3aXRoIGEgLT5wZ21hcCBi
+YWNrDQo+ICsJCSAqIHBvaW50ZXIgYW5kIGhtbV9kYXRhLiAgSXQgaXMgYSBidWcgaWYgYSBaT05F
+X0RFVklDRQ0KPiArCQkgKiBwYWdlIGlzIGV2ZXIgZnJlZWQgb3IgcGxhY2VkIG9uIGEgZHJpdmVy
+LXByaXZhdGUgbGlzdC4NCj4gKwkJICovDQo+ICsJCXBhZ2UtPnBnbWFwID0gcGdtYXA7DQo+ICsJ
+CXBhZ2UtPmhtbV9kYXRhID0gMDsNCg0KX19pbml0X3NpbmdsZV9wYWdlKCkNCiAgbW1femVyb19z
+dHJ1Y3RfcGFnZSgpDQoNClRha2VzIGNhcmUgb2YgemVyb2luZywgbm8gbmVlZCB0byBkbyBhbm90
+aGVyIHN0b3JlIGhlcmUuDQoNCg0KTG9va3MgZ29vZCBvdGhlcndpc2UuDQoNClJldmlld2VkLWJ5
+OiBQYXZlbCBUYXRhc2hpbiA8cGF2ZWwudGF0YXNoaW5AbWljcm9zb2Z0LmNvbT4NCg==
