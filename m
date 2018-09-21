@@ -1,85 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A0FA8E0001
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 15:08:34 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id n23-v6so13627492qkn.19
-        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 12:08:34 -0700 (PDT)
-Received: from NAM05-BY2-obe.outbound.protection.outlook.com (mail-by2nam05on072a.outbound.protection.outlook.com. [2a01:111:f400:fe52::72a])
-        by mx.google.com with ESMTPS id m40-v6si2739418qtc.259.2018.09.21.12.08.32
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E8BD08E0001
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 15:12:35 -0400 (EDT)
+Received: by mail-yb1-f197.google.com with SMTP id v8-v6so2866138ybl.5
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 12:12:35 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c68-v6sor2730864ywf.553.2018.09.21.12.12.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 21 Sep 2018 12:08:32 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [PATCH v4 2/5] mm: Create non-atomic version of SetPageReserved
- for init use
-Date: Fri, 21 Sep 2018 19:06:30 +0000
-Message-ID: <b3a1bf0a-3cce-21a7-0543-716627c753db@microsoft.com>
-References: <20180920215824.19464.8884.stgit@localhost.localdomain>
- <20180920222641.19464.75787.stgit@localhost.localdomain>
-In-Reply-To: <20180920222641.19464.75787.stgit@localhost.localdomain>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <D98AE5FDAC9A084687AB3C1C63482F26@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Fri, 21 Sep 2018 12:12:34 -0700 (PDT)
+Received: from mail-yb1-f172.google.com (mail-yb1-f172.google.com. [209.85.219.172])
+        by smtp.gmail.com with ESMTPSA id z125-v6sm9920395ywg.57.2018.09.21.12.12.32
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Sep 2018 12:12:32 -0700 (PDT)
+Received: by mail-yb1-f172.google.com with SMTP id d14-v6so787971ybs.8
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 12:12:32 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20180917161245.c4bb8546d2c6069b0506c5dd@linux-foundation.org>
+References: <153702858249.1603922.12913911825267831671.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180917161245.c4bb8546d2c6069b0506c5dd@linux-foundation.org>
+From: Kees Cook <keescook@chromium.org>
+Date: Fri, 21 Sep 2018 12:12:30 -0700
+Message-ID: <CAGXu5jLRuWOMPTfXAFFiVSb6CUKaa_TD4gncef+MT84pcazW6w@mail.gmail.com>
+Subject: Re: [PATCH 0/3] mm: Randomize free memory
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
-Cc: "mhocko@suse.com" <mhocko@suse.com>, "dave.jiang@intel.com" <dave.jiang@intel.com>, "mingo@kernel.org" <mingo@kernel.org>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "jglisse@redhat.com" <jglisse@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "logang@deltatee.com" <logang@deltatee.com>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-DQoNCk9uIDkvMjAvMTggNjoyNyBQTSwgQWxleGFuZGVyIER1eWNrIHdyb3RlOg0KPiBJdCBkb2Vz
-bid0IG1ha2UgbXVjaCBzZW5zZSB0byB1c2UgdGhlIGF0b21pYyBTZXRQYWdlUmVzZXJ2ZWQgYXQg
-aW5pdCB0aW1lDQo+IHdoZW4gd2UgYXJlIHVzaW5nIG1lbXNldCB0byBjbGVhciB0aGUgbWVtb3J5
-IGFuZCBtYW5pcHVsYXRpbmcgdGhlIHBhZ2UNCj4gZmxhZ3MgdmlhIHNpbXBsZSAiJj0iIGFuZCAi
-fD0iIG9wZXJhdGlvbnMgaW4gX19pbml0X3NpbmdsZV9wYWdlLg0KPiANCj4gVGhpcyBwYXRjaCBh
-ZGRzIGEgbm9uLWF0b21pYyB2ZXJzaW9uIF9fU2V0UGFnZVJlc2VydmVkIHRoYXQgY2FuIGJlIHVz
-ZWQNCj4gZHVyaW5nIHBhZ2UgaW5pdCBhbmQgc2hvd3MgYWJvdXQgYSAxMCUgaW1wcm92ZW1lbnQg
-aW4gaW5pdGlhbGl6YXRpb24gdGltZXMNCj4gb24gdGhlIHN5c3RlbXMgSSBoYXZlIGF2YWlsYWJs
-ZSBmb3IgdGVzdGluZy4gT24gdGhvc2Ugc3lzdGVtcyBJIHNhdw0KPiBpbml0aWFsaXphdGlvbiB0
-aW1lcyBkcm9wIGZyb20gYXJvdW5kIDM1IHNlY29uZHMgdG8gYXJvdW5kIDMyIHNlY29uZHMgdG8N
-Cj4gaW5pdGlhbGl6ZSBhIDNUQiBibG9jayBvZiBwZXJzaXN0ZW50IG1lbW9yeS4gSSBiZWxpZXZl
-IHRoZSBtYWluIGFkdmFudGFnZQ0KPiBvZiB0aGlzIGlzIHRoYXQgaXQgYWxsb3dzIGZvciBtb3Jl
-IGNvbXBpbGVyIG9wdGltaXphdGlvbiBhcyB0aGUgX19zZXRfYml0DQo+IG9wZXJhdGlvbiBjYW4g
-YmUgcmVvcmRlcmVkIHdoZXJlYXMgdGhlIGF0b21pYyB2ZXJzaW9uIGNhbm5vdC4NCj4gDQo+IEkg
-dHJpZWQgYWRkaW5nIGEgYml0IG9mIGRvY3VtZW50YXRpb24gYmFzZWQgb24gY29tbWl0IDxmMWRk
-MmNkMTNjND4gKCJtbSwNCj4gbWVtb3J5X2hvdHBsdWc6IGRvIG5vdCBhc3NvY2lhdGUgaG90YWRk
-ZWQgbWVtb3J5IHRvIHpvbmVzIHVudGlsIG9ubGluZSIpLg0KPiANCj4gSWRlYWxseSB0aGUgcmVz
-ZXJ2ZWQgZmxhZyBzaG91bGQgYmUgc2V0IGVhcmxpZXIgc2luY2UgdGhlcmUgaXMgYSBicmllZg0K
-PiB3aW5kb3cgd2hlcmUgdGhlIHBhZ2UgaXMgaW5pdGlhbGl6YXRpb24gdmlhIF9faW5pdF9zaW5n
-bGVfcGFnZSBhbmQgd2UgaGF2ZQ0KPiBub3Qgc2V0IHRoZSBQR19SZXNlcnZlZCBmbGFnLiBJJ20g
-bGVhdmluZyB0aGF0IGZvciBhIGZ1dHVyZSBwYXRjaCBzZXQgYXMNCj4gdGhhdCB3aWxsIHJlcXVp
-cmUgYSBtb3JlIHNpZ25pZmljYW50IHJlZmFjdG9yLg0KPiANCj4gQWNrZWQtYnk6IE1pY2hhbCBI
-b2NrbyA8bWhvY2tvQHN1c2UuY29tPg0KPiBTaWduZWQtb2ZmLWJ5OiBBbGV4YW5kZXIgRHV5Y2sg
-PGFsZXhhbmRlci5oLmR1eWNrQGxpbnV4LmludGVsLmNvbT4NCg0KUmV2aWV3ZWQtYnk6IFBhdmVs
-IFRhdGFzaGluIDxwYXZlbC50YXRhc2hpbkBtaWNyb3NvZnQuY29tPg0KDQo+IC0tLQ0KPiANCj4g
-djQ6IEFkZGVkIGNvbW1lbnQgYWJvdXQgX19zZXRfYml0IHZzIHNldF9iaXQgdG8gdGhlIHBhdGNo
-IGRlc2NyaXB0aW9uDQo+IA0KPiAgaW5jbHVkZS9saW51eC9wYWdlLWZsYWdzLmggfCAgICAxICsN
-Cj4gIG1tL3BhZ2VfYWxsb2MuYyAgICAgICAgICAgIHwgICAgOSArKysrKysrLS0NCj4gIDIgZmls
-ZXMgY2hhbmdlZCwgOCBpbnNlcnRpb25zKCspLCAyIGRlbGV0aW9ucygtKQ0KPiANCj4gZGlmZiAt
-LWdpdCBhL2luY2x1ZGUvbGludXgvcGFnZS1mbGFncy5oIGIvaW5jbHVkZS9saW51eC9wYWdlLWZs
-YWdzLmgNCj4gaW5kZXggOTM0ZjkxZWYzZjU0Li41MGNlMWJkZGFmNTYgMTAwNjQ0DQo+IC0tLSBh
-L2luY2x1ZGUvbGludXgvcGFnZS1mbGFncy5oDQo+ICsrKyBiL2luY2x1ZGUvbGludXgvcGFnZS1m
-bGFncy5oDQo+IEBAIC0zMDMsNiArMzAzLDcgQEAgc3RhdGljIGlubGluZSB2b2lkIHBhZ2VfaW5p
-dF9wb2lzb24oc3RydWN0IHBhZ2UgKnBhZ2UsIHNpemVfdCBzaXplKQ0KPiAgDQo+ICBQQUdFRkxB
-RyhSZXNlcnZlZCwgcmVzZXJ2ZWQsIFBGX05PX0NPTVBPVU5EKQ0KPiAgCV9fQ0xFQVJQQUdFRkxB
-RyhSZXNlcnZlZCwgcmVzZXJ2ZWQsIFBGX05PX0NPTVBPVU5EKQ0KPiArCV9fU0VUUEFHRUZMQUco
-UmVzZXJ2ZWQsIHJlc2VydmVkLCBQRl9OT19DT01QT1VORCkNCj4gIFBBR0VGTEFHKFN3YXBCYWNr
-ZWQsIHN3YXBiYWNrZWQsIFBGX05PX1RBSUwpDQo+ICAJX19DTEVBUlBBR0VGTEFHKFN3YXBCYWNr
-ZWQsIHN3YXBiYWNrZWQsIFBGX05PX1RBSUwpDQo+ICAJX19TRVRQQUdFRkxBRyhTd2FwQmFja2Vk
-LCBzd2FwYmFja2VkLCBQRl9OT19UQUlMKQ0KPiBkaWZmIC0tZ2l0IGEvbW0vcGFnZV9hbGxvYy5j
-IGIvbW0vcGFnZV9hbGxvYy5jDQo+IGluZGV4IDcxMmNhYjE3Zjg2Zi4uMjliZDY2MmZmZmQ3IDEw
-MDY0NA0KPiAtLS0gYS9tbS9wYWdlX2FsbG9jLmMNCj4gKysrIGIvbW0vcGFnZV9hbGxvYy5jDQo+
-IEBAIC0xMjM5LDcgKzEyMzksMTIgQEAgdm9pZCBfX21lbWluaXQgcmVzZXJ2ZV9ib290bWVtX3Jl
-Z2lvbihwaHlzX2FkZHJfdCBzdGFydCwgcGh5c19hZGRyX3QgZW5kKQ0KPiAgCQkJLyogQXZvaWQg
-ZmFsc2UtcG9zaXRpdmUgUGFnZVRhaWwoKSAqLw0KPiAgCQkJSU5JVF9MSVNUX0hFQUQoJnBhZ2Ut
-PmxydSk7DQo+ICANCj4gLQkJCVNldFBhZ2VSZXNlcnZlZChwYWdlKTsNCj4gKwkJCS8qDQo+ICsJ
-CQkgKiBubyBuZWVkIGZvciBhdG9taWMgc2V0X2JpdCBiZWNhdXNlIHRoZSBzdHJ1Y3QNCj4gKwkJ
-CSAqIHBhZ2UgaXMgbm90IHZpc2libGUgeWV0IHNvIG5vYm9keSBzaG91bGQNCj4gKwkJCSAqIGFj
-Y2VzcyBpdCB5ZXQuDQo+ICsJCQkgKi8NCj4gKwkJCV9fU2V0UGFnZVJlc2VydmVkKHBhZ2UpOw0K
-PiAgCQl9DQo+ICAJfQ0KPiAgfQ0KPiBAQCAtNTUxMyw3ICs1NTE4LDcgQEAgdm9pZCBfX21lbWlu
-aXQgbWVtbWFwX2luaXRfem9uZSh1bnNpZ25lZCBsb25nIHNpemUsIGludCBuaWQsIHVuc2lnbmVk
-IGxvbmcgem9uZSwNCj4gIAkJcGFnZSA9IHBmbl90b19wYWdlKHBmbik7DQo+ICAJCV9faW5pdF9z
-aW5nbGVfcGFnZShwYWdlLCBwZm4sIHpvbmUsIG5pZCk7DQo+ICAJCWlmIChjb250ZXh0ID09IE1F
-TU1BUF9IT1RQTFVHKQ0KPiAtCQkJU2V0UGFnZVJlc2VydmVkKHBhZ2UpOw0KPiArCQkJX19TZXRQ
-YWdlUmVzZXJ2ZWQocGFnZSk7DQo+ICANCj4gIAkJLyoNCj4gIAkJICogTWFyayB0aGUgYmxvY2sg
-bW92YWJsZSBzbyB0aGF0IGJsb2NrcyBhcmUgcmVzZXJ2ZWQgZm9yDQo+IA==
+On Mon, Sep 17, 2018 at 4:12 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Sat, 15 Sep 2018 09:23:02 -0700 Dan Williams <dan.j.williams@intel.com> wrote:
+>
+>> Data exfiltration attacks via speculative execution and
+>> return-oriented-programming attacks rely on the ability to infer the
+>> location of sensitive data objects. The kernel page allocator, has
+>> predictable first-in-first-out behavior for physical pages. Pages are
+>> freed in physical address order when first onlined. There are also
+>> mechanisms like CMA that can free large contiguous areas at once
+>> increasing the predictability of allocations in physical memory.
+>>
+>> In addition to the security implications this randomization also
+>> stabilizes the average performance of direct-mapped memory-side caches.
+>> This includes memory-side caches like the one on the Knights Landing
+>> processor and those generally described by the ACPI HMAT (Heterogeneous
+>> Memory Attributes Table [1]). Cache conflicts are spread over a random
+>> distribution rather than localized.
+>>
+>> Given the performance sensitivity of the page allocator this
+>> randomization is only performed for MAX_ORDER (4MB by default) pages. A
+>> kernel parameter, page_alloc.shuffle_page_order, is included to change
+>> the page size where randomization occurs.
+>>
+>> [1]: See ACPI 6.2 Section 5.2.27.5 Memory Side Cache Information Structure
+>
+> I'm struggling to understand the justification of all of this.  Are
+> such attacks known to exist?  Or reasonably expected to exist in the
+> future?  What is the likelihood and what is their cost?  Or is this all
+> academic and speculative and possibly pointless?
+
+While we already have a base-address randomization
+(CONFIG_RANDOMIZE_MEMORY), attacks against the same hardware and
+memory layouts would certainly be using the predictability of
+allocation ordering (i.e. for attacks where the base address isn't
+important: only the relative positions between allocated memory). This
+is common in lots of heap-style attacks. They try to gain control over
+ordering by spraying allocations, etc.
+
+I'd really like to see this because it gives us something similar to
+CONFIG_SLAB_FREELIST_RANDOM but for the page allocator. (This may be
+worth mentioning in the series, especially as a comparison to its
+behavior and this.)
+
+> ie, something must have motivated you to do this work rather than
+> <something-else>.  Please spell out that motivation.
+
+I'd be curious to hear more about the mentioned cache performance
+improvements. I love it when a security feature actually _improves_
+performance. :)
+
+Thanks for working on this!
+
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
