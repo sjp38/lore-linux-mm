@@ -1,59 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2562F8E0001
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 09:26:50 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id v6-v6so1368448wrr.20
-        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 06:26:50 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 143-v6sor4139853wmb.14.2018.09.21.06.26.48
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6489B8E0001
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 10:09:40 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id 132-v6so5683644pga.18
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 07:09:40 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id f1-v6si27230552pld.174.2018.09.21.07.09.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 21 Sep 2018 06:26:48 -0700 (PDT)
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: [PATCH v2 1/4] mm/memory_hotplug: Spare unnecessary calls to node_set_state
-Date: Fri, 21 Sep 2018 15:26:31 +0200
-Message-Id: <20180921132634.10103-2-osalvador@techadventures.net>
-In-Reply-To: <20180921132634.10103-1-osalvador@techadventures.net>
-References: <20180921132634.10103-1-osalvador@techadventures.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Sep 2018 07:09:38 -0700 (PDT)
+Date: Sat, 22 Sep 2018 06:47:39 +0800
+From: Yi Zhang <yi.z.zhang@linux.intel.com>
+Subject: Re: [PATCH V5 4/4] kvm: add a check if pfn is from NVDIMM pmem.
+Message-ID: <20180921224739.GA33892@tiger-server>
+References: <cover.1536342881.git.yi.z.zhang@linux.intel.com>
+ <4e8c2e0facd46cfaf4ab79e19c9115958ab6f218.1536342881.git.yi.z.zhang@linux.intel.com>
+ <CAPcyv4ifg2BZMTNfu6mg0xxtPWs3BVgkfEj51v1CQ6jp2S70fw@mail.gmail.com>
+ <fefbd66e-623d-b6a5-7202-5309dd4f5b32@redhat.com>
+ <20180920224953.GA53363@tiger-server>
+ <CAPcyv4g6OS=_uSjJenn5WVmpx7zCRCbzJaBr_m0Bq=qyEyVagg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4g6OS=_uSjJenn5WVmpx7zCRCbzJaBr_m0Bq=qyEyVagg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, dan.j.williams@intel.com, david@redhat.com, Pavel.Tatashin@microsoft.com, Jonathan.Cameron@huawei.com, yasu.isimatu@gmail.com, malat@debian.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: David Hildenbrand <david@redhat.com>, KVM list <kvm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Paolo Bonzini <pbonzini@redhat.com>, Dave Jiang <dave.jiang@intel.com>, "Zhang, Yu C" <yu.c.zhang@intel.com>, Pankaj Gupta <pagupta@redhat.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, rkrcmar@redhat.com, =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, "Zhang, Yi Z" <yi.z.zhang@intel.com>
 
-From: Oscar Salvador <osalvador@suse.de>
+On 2018-09-20 at 14:19:17 -0700, Dan Williams wrote:
+> On Thu, Sep 20, 2018 at 7:11 AM Yi Zhang <yi.z.zhang@linux.intel.com> wrote:
+> >
+> > On 2018-09-19 at 09:20:25 +0200, David Hildenbrand wrote:
+> > > Am 19.09.18 um 04:53 schrieb Dan Williams:
+> > > >
+> > > > Should we consider just not setting PageReserved for
+> > > > devm_memremap_pages()? Perhaps kvm is not be the only component making
+> > > > these assumptions about this flag?
+> > >
+> > > I was asking the exact same question in v3 or so.
+> > >
+> > > I was recently going through all PageReserved users, trying to clean up
+> > > and document how it is used.
+> > >
+> > > PG_reserved used to be a marker "not available for the page allocator".
+> > > This is only partially true and not really helpful I think. My current
+> > > understanding:
+> > >
+> > > "
+> > > PG_reserved is set for special pages, struct pages of such pages should
+> > > in general not be touched except by their owner. Pages marked as
+> > > reserved include:
+> > > - Kernel image (including vDSO) and similar (e.g. BIOS, initrd)
+> > > - Pages allocated early during boot (bootmem, memblock)
+> > > - Zero pages
+> > > - Pages that have been associated with a zone but were not onlined
+> > >   (e.g. NVDIMM/pmem, online_page_callback used by XEN)
+> > > - Pages to exclude from the hibernation image (e.g. loaded kexec images)
+> > > - MCA (memory error) pages on ia64
+> > > - Offline pages
+> > > Some architectures don't allow to ioremap RAM pages that are not marked
+> > > as reserved. Allocated pages might have to be set reserved to allow for
+> > > that - if there is a good reason to enforce this. Consequently,
+> > > PG_reserved part of a user space table might be the indicator for the
+> > > zero page, pmem or MMIO pages.
+> > > "
+> > >
+> > > Swapping code does not care about PageReserved at all as far as I
+> > > remember. This seems to be fine as it only looks at the way pages have
+> > > been mapped into user space.
+> > >
+> > > I don't really see a good reason to set pmem pages as reserved. One
+> > > question would be, how/if to exclude them from the hibernation image.
+> > > But that could also be solved differently (we would have to double check
+> > > how they are handled in hibernation code).
+> > >
+> > >
+> > > A similar user of PageReserved to look at is:
+> > >
+> > > drivers/vfio/vfio_iommu_type1.c:is_invalid_reserved_pfn()
+> > >
+> > > It will not mark pages dirty if they are reserved. Similar to KVM code.
+> > Yes, kvm is not the only one user of the dax reserved page.
+> > >
+> > > >
+> > > > Why is MEMORY_DEVICE_PUBLIC memory specifically excluded?
+> > > >
+> > > > This has less to do with "dax" pages and more to do with
+> > > > devm_memremap_pages() established ranges. P2PDMA is another producer
+> > > > of these pages. If either MEMORY_DEVICE_PUBLIC or P2PDMA pages can be
+> > > > used in these kvm paths then I think this points to consider clearing
+> > > > the Reserved flag.
+> >
+> > Thanks Dan/David's comments.
+> > for MEMORY_DEVICE_PUBLIC memory, since host driver could manager the
+> > memory resource to share to guest, Jerome says we could ignore it at
+> > this time.
+> >
+> > And p2pmem, it seems mapped in a PCI bar space which should most likely
+> > a mmio. I think kvm should treated as a reserved page.
+> 
+> Ok, but the question you left unanswered is whether it would be better
+> for devm_memremap_pages() to clear the PageReserved flag for
+> MEMORY_DEVICE_{FS,DEV}_DAX rather than introduce a local kvm-only hack
+> for what looks like a global problem.
 
-In node_states_check_changes_online, we check if the node will
-have to be set for any of the N_*_MEMORY states after the pages
-have been onlined.
-
-Later on, we perform the activation in node_states_set_node.
-Currently, in node_states_set_node we set the node to N_MEMORY
-unconditionally.
-This means that we call node_set_state for N_MEMORY every time
-pages go online, but we only need to do it if the node has not yet been
-set for N_MEMORY.
-
-Fix this by checking status_change_nid.
-
-Signed-off-by: Oscar Salvador <osalvador@suse.de>
-Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
----
- mm/memory_hotplug.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 38d94b703e9d..63facfc57224 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -753,7 +753,8 @@ static void node_states_set_node(int node, struct memory_notify *arg)
- 	if (arg->status_change_nid_high >= 0)
- 		node_set_state(node, N_HIGH_MEMORY);
- 
--	node_set_state(node, N_MEMORY);
-+	if (arg->status_change_nid >= 0)
-+		node_set_state(node, N_MEMORY);
- }
- 
- static void __meminit resize_zone_range(struct zone *zone, unsigned long start_pfn,
--- 
-2.13.6
+Remove the PageReserved flag sounds more reasonable. 
+And Could we still have a flag to identify it is a device private memory, or
+where these pages coming from?
+> _______________________________________________
+> Linux-nvdimm mailing list
+> Linux-nvdimm@lists.01.org
+> https://lists.01.org/mailman/listinfo/linux-nvdimm
