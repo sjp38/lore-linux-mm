@@ -1,143 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D33A78E0001
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 21:01:50 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id o190-v6so9351685qkc.21
-        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 18:01:50 -0700 (PDT)
-Received: from smtp-fw-9101.amazon.com (smtp-fw-9101.amazon.com. [207.171.184.25])
-        by mx.google.com with ESMTPS id o26-v6si1694945qtl.234.2018.09.20.18.01.48
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DC7C68E0001
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 21:33:47 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id 186-v6so4913675pgc.12
+        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 18:33:47 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id m28-v6si23859170pgd.358.2018.09.20.18.33.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Sep 2018 18:01:49 -0700 (PDT)
-From: "Um, Taeil" <taeilum@amazon.com>
-Subject: Re: zswap: use PAGE_SIZE * 2 for compression dst buffer size when
- calling crypto compression API
-Date: Fri, 21 Sep 2018 01:01:43 +0000
-Message-ID: <A5D25E6B-137C-4E09-9353-30B36C2B192E@amazon.com>
-References: <D4C91DBA-CF56-4991-BD7F-6BE334A2C048@amazon.com>
- <CALZtONDpUDAz_PLrt03CaajzAoY_Wr6Tm=PgvqAWyir9=fCd8A@mail.gmail.com>
- <EAFEF5B5-DE5D-42C7-AEF1-9DF6A800E95D@amazon.com>
- <CALZtONC5FYhmq+U6fga7RbDA4mEB4rTihsLGXG50a-XUCdtxiA@mail.gmail.com>
- <EEC089E8-9F85-483A-8C83-4C8459BA1345@amazon.com>
- <CALZtONB-y=ePYMZjtRiyfCYbWJ=R-xaR2NHPafzYMohtKOUSYg@mail.gmail.com>
-In-Reply-To: <CALZtONB-y=ePYMZjtRiyfCYbWJ=R-xaR2NHPafzYMohtKOUSYg@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <FBFFB04D34D69046BE9042597CB5A601@amazon.com>
-Content-Transfer-Encoding: base64
+        Thu, 20 Sep 2018 18:33:46 -0700 (PDT)
+Subject: Re: [PATCH v4 5/5] nvdimm: Schedule device registration on node local
+ to the device
+References: <20180920215824.19464.8884.stgit@localhost.localdomain>
+ <20180920222951.19464.39241.stgit@localhost.localdomain>
+ <CAPcyv4hAEOUOBU4GENaFOb-xXi33g_ugCexfmY3DrLH27Z6MKg@mail.gmail.com>
+ <b7e87e64-95d7-5118-6c7d-ad78d68dc92e@linux.intel.com>
+ <CAPcyv4iE=mrvdfXQ94O1r_u1geLbxpF0so3_3z4JLky4SuUNdw@mail.gmail.com>
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Message-ID: <0d6525c1-2e8b-0e5d-7dae-193bf697a4ec@linux.intel.com>
+Date: Thu, 20 Sep 2018 18:33:26 -0700
 MIME-Version: 1.0
+In-Reply-To: <CAPcyv4iE=mrvdfXQ94O1r_u1geLbxpF0so3_3z4JLky4SuUNdw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Seth Jennings <sjenning@redhat.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-ICAgPiBkbyB5b3UgaGF2ZSBhIHNwZWNpZmljIGV4YW1wbGUgb2YgaG93IHRoaXMgY2F1c2VzIGFu
-eSBhY3R1YWwgcHJvYmxlbT8NClllcywgSSBoYXZlIGEgSC9XIGFjY2VsZXJhdG9yIHRoYXQgdHJp
-ZXMgdG8gZmluaXNoIGNvbXByZXNzaW9uIGV2ZW4gaWYgY29tcHJlc3NlZCBkYXRhIHNpemUgaXMg
-Z3JlYXRlciB0aGFuIHNvdXJjZSBkYXRhIHNpemUuDQoNCiAgID4gcGVyc29uYWxseSwgaSdkIHBy
-ZWZlciByZWR1Y2luZyB6c3dhcF9kc3RtZW0gZG93biB0byAxIHBhZ2UgdG8gc2F2ZQ0KICAgPiBt
-ZW1vcnksIHNpbmNlIHRoZXJlIGlzIG5vIGNhc2Ugd2hlcmUgenN3YXAgd291bGQgZXZlciB3YW50
-IHRvIHVzZSBhDQogICA+IGNvbXByZXNzZWQgcGFnZSBsYXJnZXIgdGhhbiB0aGF0Lg0KSSBkb24n
-dCB0aGluayAicmVkdWNpbmcgenN3YXBfZHN0bWVtIGRvd24gdG8gMSBwYWdlIiB3b3JrcyBpbiB0
-b2RheSdzIGx6byBhbmQgbHo0IGtlcm5lbCBpbXBsZW1lbnRhdGlvbi4NCklmIEkgcmVhZCBrZXJu
-ZWwncyBsem8sIGx6NCBjb2RlIGNvcnJlY3RseSwgaXQgZG9lcyBub3Qgc3RvcCBjb21wcmVzc2lv
-biB3aGVuIGNvbXByZXNzZWQgZGF0YSBzaXplIGlzIGdyZWF0ZXIgdGhhbiBzb3VyY2UgZGF0YSBz
-aXplLiANCg0K77u/T24gOS8xOS8xOCwgODo0NyBBTSwgIkRhbiBTdHJlZXRtYW4iIDxkZHN0cmVl
-dEBpZWVlLm9yZz4gd3JvdGU6DQoNCiAgICBPbiBUdWUsIFNlcCAxOCwgMjAxOCBhdCA3OjQ4IFBN
-IFVtLCBUYWVpbCA8dGFlaWx1bUBhbWF6b24uY29tPiB3cm90ZToNCiAgICA+DQogICAgPiBXZSBj
-YW4gdGVsbCB3aGV0aGVyIGNvbXByZXNzZWQgc2l6ZSBpcyBncmVhdGVyIHRoYW4gUEFHRV9TSVpF
-IGJ5IGxvb2tpbmcgYXQgdGhlIHJldHVybmVkICpkbGVuIHZhbHVlIGZyb20gY3J5cHRvX2NvbXBf
-Y29tcHJlc3MuIFRoaXMgc2hvdWxkIGJlIGZhaXJseSBlYXN5Lg0KICAgID4gVGhpcyBpcyBhY3R1
-YWxseSB3aGF0IHpyYW0gaXMgZG9pbmcgdG9kYXkuIHpyYW0gbG9va3MgZm9yICpkbGVuIGFuZCBu
-b3QgdGFrZSB0aGUgY29tcHJlc3NlZCByZXN1bHQgaWYgKmRsZW4gaXMgZ3JlYXRlciB0aGFuIGNl
-cnRhaW4gc2l6ZS4NCiAgICA+IEkgdGhpbmsgZXJyb3JzIGZyb20gY3J5cHRvX2NvbXBfY29tcHJl
-c3Mgc2hvdWxkIGJlIHJlYWwgZXJyb3JzLg0KICAgID4NCiAgICA+IFRvZGF5IGluIGtlcm5lbCBj
-b21wcmVzc2lvbiBkcml2ZXJzIHN1Y2ggYXMgbHpvIGFuZCBsejQsIHRoZXkgZG8gbm90IHN0b3Ag
-anVzdCBiZWNhdXNlIGNvbXByZXNzaW9uIHJlc3VsdCBzaXplIGlzIGdyZWF0ZXIgdGhhbiBzb3Vy
-Y2Ugc2l6ZS4NCiAgICA+IEFsc28sIHNvbWUgSC9XIGFjY2VsZXJhdG9ycyB3b3VsZCBub3QgaGF2
-ZSB0aGUgb3B0aW9uIG9mIHN0b3BwaW5nIGNvbXByZXNzaW9uIGp1c3QgYmVjYXVzZSBvZiB0aGUg
-cmVzdWx0IHNpemUgaXMgZ3JlYXRlciB0aGFuIHNvdXJjZSBzaXplLg0KICAgIA0KICAgIGRvIHlv
-dSBoYXZlIGEgc3BlY2lmaWMgZXhhbXBsZSBvZiBob3cgdGhpcyBjYXVzZXMgYW55IGFjdHVhbCBw
-cm9ibGVtPw0KICAgIA0KICAgIHBlcnNvbmFsbHksIGknZCBwcmVmZXIgcmVkdWNpbmcgenN3YXBf
-ZHN0bWVtIGRvd24gdG8gMSBwYWdlIHRvIHNhdmUNCiAgICBtZW1vcnksIHNpbmNlIHRoZXJlIGlz
-IG5vIGNhc2Ugd2hlcmUgenN3YXAgd291bGQgZXZlciB3YW50IHRvIHVzZSBhDQogICAgY29tcHJl
-c3NlZCBwYWdlIGxhcmdlciB0aGFuIHRoYXQuDQogICAgDQogICAgPg0KICAgID4gVGhhbmsgeW91
-LA0KICAgID4gVGFlaWwNCiAgICA+DQogICAgPiBPbiA5LzE4LzE4LCAyOjQ0IFBNLCAiRGFuIFN0
-cmVldG1hbiIgPGRkc3RyZWV0QGllZWUub3JnPiB3cm90ZToNCiAgICA+DQogICAgPiAgICAgT24g
-VHVlLCBTZXAgMTgsIDIwMTggYXQgMjo1MiBQTSBVbSwgVGFlaWwgPHRhZWlsdW1AYW1hem9uLmNv
-bT4gd3JvdGU6DQogICAgPiAgICAgPg0KICAgID4gICAgID4gUHJvYmxlbSBzdGF0ZW1lbnQ6DQog
-ICAgPiAgICAgPiAiY29tcHJlc3NlZCBkYXRhIGFyZSBub3QgZnVsbHkgY29waWVkIHRvIGRlc3Rp
-bmF0aW9uIGJ1ZmZlciB3aGVuIGNvbXByZXNzZWQgZGF0YSBzaXplIGlzIGdyZWF0ZXIgdGhhbiBz
-b3VyY2UgZGF0YSINCiAgICA+ICAgICA+DQogICAgPiAgICAgPiBXaHk6DQogICAgPiAgICAgPiA1
-dGggYXJndW1lbnQgb2YgY3J5cHRvX2NvbXBfY29tcHJlc3MgZnVuY3Rpb24gaXMgKmRsZW4sIHdo
-aWNoIHRlbGwgdGhlIGNvbXByZXNzaW9uIGRyaXZlciBob3cgbWFueSBieXRlcyB0aGUgZGVzdGlu
-YXRpb24gYnVmZmVyIHNwYWNlIGlzIGFsbG9jYXRlZCAoYWxsb3dlZCB0byB3cml0ZSBkYXRhKS4N
-CiAgICA+ICAgICA+IFRoaXMgKmRsZW4gaXMgaW1wb3J0YW50IGVzcGVjaWFsbHkgZm9yIEgvVyBh
-Y2NlbGVyYXRvciBiYXNlZCBjb21wcmVzc2lvbiBkcml2ZXIgYmVjYXVzZSBpdCBpcyBkYW5nZXJv
-dXMgaWYgd2UgYWxsb3cgdGhlIEgvVyBhY2NlbGVyYXRvciB0byBhY2Nlc3MgbWVtb3J5IGJleW9u
-ZCAqZHN0ICsgKmRsZW4uDQogICAgPiAgICAgPiBOb3RlIHRoYXQgYnVmZmVyIGxvY2F0aW9uIHdv
-dWxkIGJlIHBhc3NlZCBhcyBwaHlzaWNhbCBhZGRyZXNzLg0KICAgID4gICAgID4gRHVlIHRvIHRo
-ZSBhYm92ZSByZWFzb24sIEgvVyBhY2NlbGVyYXRvciBiYXNlZCBjb21wcmVzc2lvbiBkcml2ZXIg
-bmVlZCB0byBob25vciAqZGxlbiB2YWx1ZSB3aGVuIGl0IHNlcnZlcyBjcnlwdG9fY29tcF9jb21w
-cmVzcyBBUEkuDQogICAgPg0KICAgID4gICAgIGFuZCB0aGF0J3MgZXhhY3RseSB3aGF0IHpzd2Fw
-IHdhbnRzIHRvIGhhcHBlbiAtIGFueSBjb21wcmVzc29yIChodyBvcg0KICAgID4gICAgIHN3KSBz
-aG91bGQgZmFpbCB3aXRoIGFuIGVycm9yIGNvZGUgKEVOT1NQQyBtYWtlcyB0aGUgbW9zdCBzZW5z
-ZSwgYnV0DQogICAgPiAgICAgenN3YXAgZG9lc24ndCBhY3R1YWxseSBjYXJlKSBpZiB0aGUgY29t
-cHJlc3NlZCBkYXRhIHNpemUgaXMgbGFyZ2VyDQogICAgPiAgICAgdGhhbiB0aGUgcHJvdmlkZWQg
-ZGF0YSBidWZmZXIuDQogICAgPg0KICAgID4gICAgID4gVG9kYXksIHdlIHBhc3Mgc2xlbiA9IFBB
-R0VfU0laRSBhbmQgKmRsZW49UEFHRV9TSVpFIHRvIGNyeXB0b19jb21wX2NvbXByZXNzIGluIHpz
-d2FwLmMuDQogICAgPiAgICAgPiBJZiBjb21wcmVzc2VkIGRhdGEgc2l6ZSBpcyBncmVhdGVyIHRo
-YW4gc291cmNlICh1bmNvbXByZXNzZWQpIGRhdGEgc2l6ZSwgIEgvVyBhY2NlbGVyYXRvciBjYW5u
-b3QgY29weSAoZGVsaXZlcikgdGhlIGVudGlyZSBjb21wcmVzc2VkIGRhdGEuDQogICAgPg0KICAg
-ID4gICAgIElmIHRoZSAiY29tcHJlc3NlZCIgZGF0YSBpcyBsYXJnZXIgdGhhbiAxIHBhZ2UsIHRo
-ZW4gdGhlcmUgaXMgbm8gcG9pbnQNCiAgICA+ICAgICBpbiBzdG9yaW5nIHRoZSBwYWdlIGluIHpz
-d2FwLg0KICAgID4NCiAgICA+ICAgICByZW1lbWJlciB0aGF0IHpzd2FwIGlzIGRpZmZlcmVudCB0
-aGFuIHpyYW07IGluIHpyYW0sIHRoZXJlJ3Mgbm8gb3RoZXINCiAgICA+ICAgICBwbGFjZSB0byBz
-dG9yZSB0aGUgZGF0YS4gIEhvd2V2ZXIsIHdpdGggenN3YXAsIGlmIGNvbXByZXNzaW9uIGZhaWxz
-IG9yDQogICAgPiAgICAgaXNuJ3QgZ29vZCwgd2UgY2FuIGp1c3QgcGFzcyB0aGUgdW5jb21wcmVz
-c2VkIHBhZ2UgZG93biB0byB0aGUgc3dhcA0KICAgID4gICAgIGRldmljZS4NCiAgICA+DQogICAg
-PiAgICAgPg0KICAgID4gICAgID4gVGhhbmsgeW91LA0KICAgID4gICAgID4gVGFlaWwNCiAgICA+
-ICAgICA+DQogICAgPiAgICAgPiBPbiA5LzE4LzE4LCA3OjE1IEFNLCAiRGFuIFN0cmVldG1hbiIg
-PGRkc3RyZWV0QGllZWUub3JnPiB3cm90ZToNCiAgICA+ICAgICA+DQogICAgPiAgICAgPiAgICAg
-T24gTW9uLCBTZXAgMTcsIDIwMTggYXQgNzoxMCBQTSBVbSwgVGFlaWwgPHRhZWlsdW1AYW1hem9u
-LmNvbT4gd3JvdGU6DQogICAgPiAgICAgPiAgICAgPg0KICAgID4gICAgID4gICAgID4gQ3VycmVu
-dGx5LCB3ZSBhbGxvY2F0ZSBQQUdFX1NJWkUgKiAyIGZvciB6c3dhcF9kc3RtZW0gd2hpY2ggaXMg
-dXNlZCBhcyBjb21wcmVzc2lvbiBkZXN0aW5hdGlvbiBidWZmZXIuDQogICAgPiAgICAgPiAgICAg
-Pg0KICAgID4gICAgID4gICAgID4gSG93ZXZlciwgd2UgcGFzcyBvbmx5IGhhbGYgb2YgdGhlIHNp
-emUgKFBBR0VfU0laRSkgdG8gY3J5cHRvX2NvbXBfY29tcHJlc3MuDQogICAgPiAgICAgPiAgICAg
-Pg0KICAgID4gICAgID4gICAgID4gVGhpcyBtaWdodCBub3QgYmUgYSBwcm9ibGVtIGZvciBDUFUg
-YmFzZWQgZXhpc3RpbmcgbHpvLCBsejQgY3J5cHRvIGNvbXByZXNzaW9uIGRyaXZlciBpbXBsYW50
-YXRpb24uDQogICAgPiAgICAgPiAgICAgPg0KICAgID4gICAgID4gICAgID4gSG93ZXZlciwgdGhp
-cyBjb3VsZCBiZSBhIHByb2JsZW0gZm9yIHNvbWUgSC9XIGFjY2VsZXJhdGlvbiBjb21wcmVzc2lv
-biBkcml2ZXJzLCB3aGljaCBob25vciBkZXN0aW5hdGlvbiBidWZmZXIgc2l6ZSB3aGVuIGl0IHBy
-ZXBhcmVzIEgvVyByZXNvdXJjZXMuDQogICAgPiAgICAgPg0KICAgID4gICAgID4gICAgIEhvdyBl
-eGFjdGx5IGNvdWxkIGl0IGJlIGEgcHJvYmxlbT8NCiAgICA+ICAgICA+DQogICAgPiAgICAgPiAg
-ICAgPg0KICAgID4gICAgID4gICAgID4gQWN0dWFsbHksIHRoaXMgcGF0Y2ggaXMgYWxpZ25lZCB3
-aXRoIHdoYXQgenJhbSBpcyBwYXNzaW5nIHdoZW4gaXQgY2FsbHMgY3J5cHRvX2NvbXBfY29tcHJl
-c3MuDQogICAgPiAgICAgPiAgICAgPg0KICAgID4gICAgID4gICAgID4gVGhlIGZvbGxvd2luZyBz
-aW1wbGUgcGF0Y2ggd2lsbCBzb2x2ZSB0aGlzIHByb2JsZW0uIEkgdGVzdGVkIGl0IHdpdGggZXhp
-c3RpbmcgY3J5cHRvL2x6by5jIGFuZCBjcnlwdG8vbHo0LmMgY29tcHJlc3Npb24gZHJpdmVyIGFu
-ZCBpdCB3b3JrcyBmaW5lLg0KICAgID4gICAgID4gICAgID4NCiAgICA+ICAgICA+ICAgICA+DQog
-ICAgPiAgICAgPiAgICAgPg0KICAgID4gICAgID4gICAgID4NCiAgICA+ICAgICA+ICAgICA+DQog
-ICAgPiAgICAgPiAgICAgPiAtLS0gbW0venN3YXAuYy5vcmlnICAgICAgIDIwMTgtMDktMTQgMTQ6
-MzY6MzcuOTg0MTk5MjMyIC0wNzAwDQogICAgPiAgICAgPiAgICAgPg0KICAgID4gICAgID4gICAg
-ID4gKysrIG1tL3pzd2FwLmMgICAgICAgICAgICAgMjAxOC0wOS0xNCAxNDozNjo1My4zNDAxODk2
-ODEgLTA3MDANCiAgICA+ICAgICA+ICAgICA+DQogICAgPiAgICAgPiAgICAgPiBAQCAtMTAwMSw3
-ICsxMDAxLDcgQEAgc3RhdGljIGludCB6c3dhcF9mcm9udHN3YXBfc3RvcmUodW5zaWduZQ0KICAg
-ID4gICAgID4gICAgID4NCiAgICA+ICAgICA+ICAgICA+ICAgICAgICAgICAgICAgICBzdHJ1Y3Qg
-enN3YXBfZW50cnkgKmVudHJ5LCAqZHVwZW50cnk7DQogICAgPiAgICAgPiAgICAgPg0KICAgID4g
-ICAgID4gICAgID4gICAgICAgICAgICAgICAgIHN0cnVjdCBjcnlwdG9fY29tcCAqdGZtOw0KICAg
-ID4gICAgID4gICAgID4NCiAgICA+ICAgICA+ICAgICA+ICAgICAgICAgICAgICAgICBpbnQgcmV0
-Ow0KICAgID4gICAgID4gICAgID4NCiAgICA+ICAgICA+ICAgICA+IC0gICAgICAgICAgICAgIHVu
-c2lnbmVkIGludCBobGVuLCBkbGVuID0gUEFHRV9TSVpFOw0KICAgID4gICAgID4gICAgID4NCiAg
-ICA+ICAgICA+ICAgICA+ICsgICAgICAgICAgICAgdW5zaWduZWQgaW50IGhsZW4sIGRsZW4gPSBQ
-QUdFX1NJWkUgKiAyOw0KICAgID4gICAgID4gICAgID4NCiAgICA+ICAgICA+ICAgICA+ICAgICAg
-ICAgICAgICAgICB1bnNpZ25lZCBsb25nIGhhbmRsZSwgdmFsdWU7DQogICAgPiAgICAgPiAgICAg
-Pg0KICAgID4gICAgID4gICAgID4gICAgICAgICAgICAgICAgIGNoYXIgKmJ1ZjsNCiAgICA+ICAg
-ICA+ICAgICA+DQogICAgPiAgICAgPiAgICAgPiAgICAgICAgICAgICAgICAgdTggKnNyYywgKmRz
-dDsNCiAgICA+ICAgICA+ICAgICA+DQogICAgPiAgICAgPiAgICAgPg0KICAgID4gICAgID4gICAg
-ID4NCiAgICA+ICAgICA+ICAgICA+DQogICAgPiAgICAgPiAgICAgPg0KICAgID4gICAgID4gICAg
-ID4NCiAgICA+ICAgICA+ICAgICA+DQogICAgPiAgICAgPiAgICAgPiBUaGFuayB5b3UsDQogICAg
-PiAgICAgPiAgICAgPg0KICAgID4gICAgID4gICAgID4gVGFlaWwNCiAgICA+ICAgICA+ICAgICA+
-DQogICAgPiAgICAgPiAgICAgPg0KICAgID4gICAgID4NCiAgICA+ICAgICA+DQogICAgPiAgICAg
-Pg0KICAgID4NCiAgICA+DQogICAgPg0KICAgIA0KICAgIA0KDQo=
+
+
+On 9/20/2018 5:36 PM, Dan Williams wrote:
+> On Thu, Sep 20, 2018 at 5:26 PM Alexander Duyck
+> <alexander.h.duyck@linux.intel.com> wrote:
+>>
+>> On 9/20/2018 3:59 PM, Dan Williams wrote:
+>>> On Thu, Sep 20, 2018 at 3:31 PM Alexander Duyck
+>>> <alexander.h.duyck@linux.intel.com> wrote:
+>>>>
+>>>> This patch is meant to force the device registration for nvdimm devices to
+>>>> be closer to the actual device. This is achieved by using either the NUMA
+>>>> node ID of the region, or of the parent. By doing this we can have
+>>>> everything above the region based on the region, and everything below the
+>>>> region based on the nvdimm bus.
+>>>>
+>>>> One additional change I made is that we hold onto a reference to the parent
+>>>> while we are going through registration. By doing this we can guarantee we
+>>>> can complete the registration before we have the parent device removed.
+>>>>
+>>>> By guaranteeing NUMA locality I see an improvement of as high as 25% for
+>>>> per-node init of a system with 12TB of persistent memory.
+>>>>
+>>>> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+>>>> ---
+>>>>    drivers/nvdimm/bus.c |   19 +++++++++++++++++--
+>>>>    1 file changed, 17 insertions(+), 2 deletions(-)
+>>>>
+>>>> diff --git a/drivers/nvdimm/bus.c b/drivers/nvdimm/bus.c
+>>>> index 8aae6dcc839f..ca935296d55e 100644
+>>>> --- a/drivers/nvdimm/bus.c
+>>>> +++ b/drivers/nvdimm/bus.c
+>>>> @@ -487,7 +487,9 @@ static void nd_async_device_register(void *d, async_cookie_t cookie)
+>>>>                   dev_err(dev, "%s: failed\n", __func__);
+>>>>                   put_device(dev);
+>>>>           }
+>>>> +
+>>>>           put_device(dev);
+>>>> +       put_device(dev->parent);
+>>>
+>>> Good catch. The child does not pin the parent until registration, but
+>>> we need to make sure the parent isn't gone while were waiting for the
+>>> registration work to run.
+>>>
+>>> Let's break this reference count fix out into its own separate patch,
+>>> because this looks to be covering a gap that may need to be
+>>> recommended for -stable.
+>>
+>> Okay, I guess I can do that.
+>>
+>>>
+>>>>
+>>>>    static void nd_async_device_unregister(void *d, async_cookie_t cookie)
+>>>> @@ -504,12 +506,25 @@ static void nd_async_device_unregister(void *d, async_cookie_t cookie)
+>>>>
+>>>>    void __nd_device_register(struct device *dev)
+>>>>    {
+>>>> +       int node;
+>>>> +
+>>>>           if (!dev)
+>>>>                   return;
+>>>> +
+>>>>           dev->bus = &nvdimm_bus_type;
+>>>> +       get_device(dev->parent);
+>>>>           get_device(dev);
+>>>> -       async_schedule_domain(nd_async_device_register, dev,
+>>>> -                       &nd_async_domain);
+>>>> +
+>>>> +       /*
+>>>> +        * For a region we can break away from the parent node,
+>>>> +        * otherwise for all other devices we just inherit the node from
+>>>> +        * the parent.
+>>>> +        */
+>>>> +       node = is_nd_region(dev) ? to_nd_region(dev)->numa_node :
+>>>> +                                  dev_to_node(dev->parent);
+>>>
+>>> Devices already automatically inherit the node of their parent, so I'm
+>>> not understanding why this is needed?
+>>
+>> That doesn't happen until you call device_add, which you don't call
+>> until nd_async_device_register. All that has been called on the device
+>> up to now is device_initialize which leaves the node at NUMA_NO_NODE.
+> 
+> Ooh, yeah, missed that. I think I'd prefer this policy to moved out to
+> where we set the dev->parent before calling __nd_device_register, or
+> at least a comment here about *why* we know region devices are special
+> (i.e. because the nd_region_desc specified the node at region creation
+> time).
+> 
+
+Are you talking about pulling the scheduling out or just adding a node 
+value to the nd_device_register call so it can be set directly from the 
+caller?
+
+If you wanted what I could do is pull the set_dev_node call from 
+nvdimm_bus_uevent and place it in nd_device_register. That should stick 
+as the node doesn't get overwritten by the parent if it is set after 
+device_initialize. If I did that along with the parent bit I was already 
+doing then all that would be left to do in is just use the dev_to_node 
+call on the device itself.
