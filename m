@@ -1,131 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DC7C68E0001
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 21:33:47 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id 186-v6so4913675pgc.12
-        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 18:33:47 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id m28-v6si23859170pgd.358.2018.09.20.18.33.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Sep 2018 18:33:46 -0700 (PDT)
-Subject: Re: [PATCH v4 5/5] nvdimm: Schedule device registration on node local
- to the device
-References: <20180920215824.19464.8884.stgit@localhost.localdomain>
- <20180920222951.19464.39241.stgit@localhost.localdomain>
- <CAPcyv4hAEOUOBU4GENaFOb-xXi33g_ugCexfmY3DrLH27Z6MKg@mail.gmail.com>
- <b7e87e64-95d7-5118-6c7d-ad78d68dc92e@linux.intel.com>
- <CAPcyv4iE=mrvdfXQ94O1r_u1geLbxpF0so3_3z4JLky4SuUNdw@mail.gmail.com>
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Message-ID: <0d6525c1-2e8b-0e5d-7dae-193bf697a4ec@linux.intel.com>
-Date: Thu, 20 Sep 2018 18:33:26 -0700
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CC2FF8E0001
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2018 21:56:14 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id n4-v6so5328706plk.7
+        for <linux-mm@kvack.org>; Thu, 20 Sep 2018 18:56:14 -0700 (PDT)
+Received: from ipmail03.adl2.internode.on.net (ipmail03.adl2.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id w68-v6si26076420pfw.308.2018.09.20.18.56.12
+        for <linux-mm@kvack.org>;
+        Thu, 20 Sep 2018 18:56:13 -0700 (PDT)
+Date: Fri, 21 Sep 2018 11:56:08 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: block: DMA alignment of IO buffer allocated from slab
+Message-ID: <20180921015608.GA31060@dastard>
+References: <CACVXFVOBq3L_EjSTCoiqUL1PH=HMR5EuNNQV0hNndFpGxmUK6g@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4iE=mrvdfXQ94O1r_u1geLbxpF0so3_3z4JLky4SuUNdw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACVXFVOBq3L_EjSTCoiqUL1PH=HMR5EuNNQV0hNndFpGxmUK6g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Ming Lei <tom.leiming@gmail.com>
+Cc: linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>, Ming Lei <ming.lei@redhat.com>
 
-
-
-On 9/20/2018 5:36 PM, Dan Williams wrote:
-> On Thu, Sep 20, 2018 at 5:26 PM Alexander Duyck
-> <alexander.h.duyck@linux.intel.com> wrote:
->>
->> On 9/20/2018 3:59 PM, Dan Williams wrote:
->>> On Thu, Sep 20, 2018 at 3:31 PM Alexander Duyck
->>> <alexander.h.duyck@linux.intel.com> wrote:
->>>>
->>>> This patch is meant to force the device registration for nvdimm devices to
->>>> be closer to the actual device. This is achieved by using either the NUMA
->>>> node ID of the region, or of the parent. By doing this we can have
->>>> everything above the region based on the region, and everything below the
->>>> region based on the nvdimm bus.
->>>>
->>>> One additional change I made is that we hold onto a reference to the parent
->>>> while we are going through registration. By doing this we can guarantee we
->>>> can complete the registration before we have the parent device removed.
->>>>
->>>> By guaranteeing NUMA locality I see an improvement of as high as 25% for
->>>> per-node init of a system with 12TB of persistent memory.
->>>>
->>>> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
->>>> ---
->>>>    drivers/nvdimm/bus.c |   19 +++++++++++++++++--
->>>>    1 file changed, 17 insertions(+), 2 deletions(-)
->>>>
->>>> diff --git a/drivers/nvdimm/bus.c b/drivers/nvdimm/bus.c
->>>> index 8aae6dcc839f..ca935296d55e 100644
->>>> --- a/drivers/nvdimm/bus.c
->>>> +++ b/drivers/nvdimm/bus.c
->>>> @@ -487,7 +487,9 @@ static void nd_async_device_register(void *d, async_cookie_t cookie)
->>>>                   dev_err(dev, "%s: failed\n", __func__);
->>>>                   put_device(dev);
->>>>           }
->>>> +
->>>>           put_device(dev);
->>>> +       put_device(dev->parent);
->>>
->>> Good catch. The child does not pin the parent until registration, but
->>> we need to make sure the parent isn't gone while were waiting for the
->>> registration work to run.
->>>
->>> Let's break this reference count fix out into its own separate patch,
->>> because this looks to be covering a gap that may need to be
->>> recommended for -stable.
->>
->> Okay, I guess I can do that.
->>
->>>
->>>>
->>>>    static void nd_async_device_unregister(void *d, async_cookie_t cookie)
->>>> @@ -504,12 +506,25 @@ static void nd_async_device_unregister(void *d, async_cookie_t cookie)
->>>>
->>>>    void __nd_device_register(struct device *dev)
->>>>    {
->>>> +       int node;
->>>> +
->>>>           if (!dev)
->>>>                   return;
->>>> +
->>>>           dev->bus = &nvdimm_bus_type;
->>>> +       get_device(dev->parent);
->>>>           get_device(dev);
->>>> -       async_schedule_domain(nd_async_device_register, dev,
->>>> -                       &nd_async_domain);
->>>> +
->>>> +       /*
->>>> +        * For a region we can break away from the parent node,
->>>> +        * otherwise for all other devices we just inherit the node from
->>>> +        * the parent.
->>>> +        */
->>>> +       node = is_nd_region(dev) ? to_nd_region(dev)->numa_node :
->>>> +                                  dev_to_node(dev->parent);
->>>
->>> Devices already automatically inherit the node of their parent, so I'm
->>> not understanding why this is needed?
->>
->> That doesn't happen until you call device_add, which you don't call
->> until nd_async_device_register. All that has been called on the device
->> up to now is device_initialize which leaves the node at NUMA_NO_NODE.
+On Wed, Sep 19, 2018 at 05:15:43PM +0800, Ming Lei wrote:
+> Hi Guys,
 > 
-> Ooh, yeah, missed that. I think I'd prefer this policy to moved out to
-> where we set the dev->parent before calling __nd_device_register, or
-> at least a comment here about *why* we know region devices are special
-> (i.e. because the nd_region_desc specified the node at region creation
-> time).
+> Some storage controllers have DMA alignment limit, which is often set via
+> blk_queue_dma_alignment(), such as 512-byte alignment for IO buffer.
 > 
+> Block layer now only checks if this limit is respected for buffer of
+> pass-through request,
+> see blk_rq_map_user_iov(), bio_map_user_iov().
+> 
+> The userspace buffer for direct IO is checked in dio path, see
+> do_blockdev_direct_IO().
+> IO buffer from page cache should be fine wrt. this limit too.
+> 
+> However, some file systems, such as XFS, may allocate single sector IO buffer
+> via slab. Usually I guess kmalloc-512 should be fine to return
+> 512-aligned buffer.
+> But once KASAN or other slab debug options are enabled, looks this
+> isn't true any
+> more, kmalloc-512 may not return 512-aligned buffer. Then data corruption
+> can be observed because the IO buffer from fs layer doesn't respect the DMA
+> alignment limit any more.
+> 
+> Follows several related questions:
+> 
+> 1) does kmalloc-N slab guarantee to return N-byte aligned buffer?  If
+> yes, is it a stable rule?
 
-Are you talking about pulling the scheduling out or just adding a node 
-value to the nd_device_register call so it can be set directly from the 
-caller?
+It has behaved like this for both slab and slub for many, many
+years.  A quick check indicates that at least XFS and hfsplus feed
+kmalloc()d buffers straight to bios without any memory buffer
+alignment checks at all.
 
-If you wanted what I could do is pull the set_dev_node call from 
-nvdimm_bus_uevent and place it in nd_device_register. That should stick 
-as the node doesn't get overwritten by the parent if it is set after 
-device_initialize. If I did that along with the parent bit I was already 
-doing then all that would be left to do in is just use the dev_to_node 
-call on the device itself.
+> 2) If it is a rule for kmalloc-N slab to return N-byte aligned buffer,
+> seems KASAN violates this
+> rule?
+
+XFS has been using kmalloc()d memory like this since 2012 and lots
+of people use KASAN on XFS systems, including me. From this, it
+would seem that the problem of mishandling unaligned memory buffers
+is not widespread in the storage subsystem - it's taken years of
+developers using slub debug and/or KASAN to find a driver that has
+choked on an inappropriately aligned memory buffer....
+
+> 3) If slab can't guarantee to return 512-aligned buffer, how to fix
+> this data corruption issue?
+
+I think that the block layer needs to check the alignment of memory
+buffers passed to it and take appropriate action rather than
+corrupting random memory and returning a sucess status to the bad
+bio.
+
+IMO, trusting higher layers of kernel code to get everything right
+is somewhat naive. The block layer does not trust userspace to get
+everything right for good reason and those same reasons extend to
+kernel code. i.e. all software has bugs, we have an impossible
+complex kernel config test matrix, and even if correctly written,
+proven bug-free software existed, that perfect code can still
+misbehave when things like memory corruption from other bad code or
+hardware occurs.
+
+>From that persepective, I think that if the the receiver of a bio
+has specific alignment requirements and the bio does not meet them,
+then it needs to either enforce the alignment requirements (i.e.
+error out) or make it right by bouncing the bio to an acceptible
+alignment. Erroring out will cause things to fail hard until
+whatever problem causing the error is fixed, while bouncing them
+provides the "everything just works normally" solution...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
