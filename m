@@ -1,65 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 042028E0001
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 08:25:02 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id z20-v6so14598281ioh.2
-        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 05:25:01 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y127-v6sor13998098iod.36.2018.09.21.05.25.00
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 461E98E0001
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 09:04:28 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id q20-v6so522387qke.21
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 06:04:28 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s17-v6si1220360qke.302.2018.09.21.06.04.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 21 Sep 2018 05:25:00 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Sep 2018 06:04:26 -0700 (PDT)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: Re: block: DMA alignment of IO buffer allocated from slab
+References: <CACVXFVOBq3L_EjSTCoiqUL1PH=HMR5EuNNQV0hNndFpGxmUK6g@mail.gmail.com>
+	<20180920063129.GB12913@lst.de>
+Date: Fri, 21 Sep 2018 15:04:18 +0200
+In-Reply-To: <20180920063129.GB12913@lst.de> (Christoph Hellwig's message of
+	"Thu, 20 Sep 2018 08:31:29 +0200")
+Message-ID: <87h8ij0zot.fsf@vitty.brq.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+aoFSySFTd9FzA0xzRYQXSbs-wzX7B67hD3jTGAQEXBOA@mail.gmail.com>
-References: <cover.1537383101.git.andreyknvl@google.com> <d74e710797323db0e43f047ea698fbc85060fc57.1537383101.git.andreyknvl@google.com>
- <CACT4Y+aoFSySFTd9FzA0xzRYQXSbs-wzX7B67hD3jTGAQEXBOA@mail.gmail.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Fri, 21 Sep 2018 14:24:59 +0200
-Message-ID: <CAAeHK+zBh0BiYq65QDxD-nxkHHF0QL6UQx8fs40K39R6XJJfzA@mail.gmail.com>
-Subject: Re: [PATCH v8 09/20] kasan: preassign tags to objects with ctors or SLAB_TYPESAFE_BY_RCU
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Ming Lei <ming.lei@redhat.com>, Christoph Lameter <cl@linux.com>
 
-On Fri, Sep 21, 2018 at 1:25 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> On Wed, Sep 19, 2018 at 8:54 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
+Christoph Hellwig <hch@lst.de> writes:
 
->>         if (!shuffle) {
->>                 for_each_object_idx(p, idx, s, start, page->objects) {
->> -                       setup_object(s, page, p);
->> -                       if (likely(idx < page->objects))
->> -                               set_freepointer(s, p, p + s->size);
->> -                       else
->> +                       if (likely(idx < page->objects)) {
->> +                               next = p + s->size;
->> +                               next = setup_object(s, page, next);
->> +                               set_freepointer(s, p, next);
->> +                       } else
->>                                 set_freepointer(s, p, NULL);
->>                 }
->> -               page->freelist = fixup_red_left(s, start);
->> +               start = fixup_red_left(s, start);
->> +               start = setup_object(s, page, start);
->> +               page->freelist = start;
->>         }
+> On Wed, Sep 19, 2018 at 05:15:43PM +0800, Ming Lei wrote:
+>> 1) does kmalloc-N slab guarantee to return N-byte aligned buffer?  If
+>> yes, is it a stable rule?
 >
-> Just want to double-check that this is correct.
-> We now do an additional setup_object call after the loop, but we do 1
-> less in the loop. So total number of calls should be the same, right?
-> However, after the loop we call setup_object for the first object (?),
-> but inside of the loop we skip the call for the last object (?). Am I
-> missing something, or we call ctor twice for the last object and don't
-> call it for the first one?
+> This is the assumption in a lot of the kernel, so I think if somethings
+> breaks this we are in a lot of pain.
 
-Inside the loop we call setup_object for the "next" object. So we
-start iterating on the first one, but call setup_object for the
-second. Then the loop moves on to the second one and calls
-setup_object for the third. And so on. So the loop calls setup_object
-for every object (including the last one) except for the first one.
+It seems that SLUB debug breaks this assumption. Kernel built with
 
-The idea is that we want the freelist pointer that is stored in the
-current object to have a tagged pointer to the next one, so we need to
-assign a tag to the next object before storing the pointer in the
-current one.
+CONFIG_SLUB_DEBUG=y
+CONFIG_SLUB=y
+CONFIG_SLUB_DEBUG_ON=y
+
+And the following patch:
+diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
+index 3b20607d581b..56713b201921 100644
+--- a/arch/x86/kernel/acpi/boot.c
++++ b/arch/x86/kernel/acpi/boot.c
+@@ -1771,3 +1771,28 @@ void __init arch_reserve_mem_area(acpi_physical_address addr, size_t size)
+        e820__range_add(addr, size, E820_TYPE_ACPI);
+        e820__update_table_print();
+ }
++
++#define KMALLOCS 16
++
++static __init int kmalloc_check_512(void)
++{
++       void *buf[KMALLOCS];
++       int i;
++
++       pr_info("kmalloc_check_512: start\n");
++
++       for (i = 0; i < KMALLOCS; i++) {
++               buf[i] = kmalloc(512, GFP_KERNEL);
++       }
++
++       for (i = 0; i < KMALLOCS; i++) {
++               pr_info("%lx %x\n", (unsigned long)buf[i], ((unsigned long)buf[i]) % 512);
++               kfree(buf[i]);
++       }
++
++       pr_info("kmalloc_check_512: done\n");
++
++       return 0;
++}
++
++late_initcall(kmalloc_check_512);
+
+gives me the following output:
+
+[    8.417468] kmalloc_check_512: start
+[    8.429572] ffff9a3258bb09f8 1f8
+[    8.435513] ffff9a3258bb70a8 a8
+[    8.441352] ffff9a3258bb0d48 148
+[    8.447139] ffff9a3258bb6d58 158
+[    8.452864] ffff9a3258bb1098 98
+[    8.458536] ffff9a3258bb6a08 8
+[    8.464103] ffff9a3258bb13e8 1e8
+[    8.469534] ffff9a3258bb66b8 b8
+[    8.474907] ffff9a3258bb1738 138
+[    8.480214] ffff9a3258bb6368 168
+[    8.480217] ffff9a3258bb1a88 88
+[    8.496178] ffff9a3258bb6018 18
+[    8.501218] ffff9a3258bb1dd8 1d8
+[    8.506138] ffff9a3258bb5cc8 c8
+[    8.511010] ffff9a3258bb2128 128
+[    8.515795] ffff9a3258bb5978 178
+[    8.520517] kmalloc_check_512: done
+
+(without SLUB_DEBUG_ON all addresses are 512b aligned).
+
+-- 
+  Vitaly
