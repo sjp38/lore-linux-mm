@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 390638E0001
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 09:26:43 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id 199-v6so2450206wme.1
-        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 06:26:43 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e14-v6sor20062277wrv.6.2018.09.21.06.26.41
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 53F138E0001
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 09:26:44 -0400 (EDT)
+Received: by mail-wm1-f69.google.com with SMTP id v1-v6so2457655wmh.4
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 06:26:44 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o6-v6sor4220764wmg.12.2018.09.21.06.26.42
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 21 Sep 2018 06:26:41 -0700 (PDT)
+        Fri, 21 Sep 2018 06:26:42 -0700 (PDT)
 From: Oscar Salvador <osalvador@techadventures.net>
-Subject: [PATCH v2 0/4] Refactor node_states_check_changes_online/offline
-Date: Fri, 21 Sep 2018 15:26:30 +0200
-Message-Id: <20180921132634.10103-1-osalvador@techadventures.net>
+Subject: [PATCH v2 2/4] mm/memory_hotplug: Tidy up node_states_clear_node
+Date: Fri, 21 Sep 2018 15:26:32 +0200
+Message-Id: <20180921132634.10103-3-osalvador@techadventures.net>
+In-Reply-To: <20180921132634.10103-1-osalvador@techadventures.net>
+References: <20180921132634.10103-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
@@ -20,64 +22,48 @@ Cc: mhocko@suse.com, dan.j.williams@intel.com, david@redhat.com, Pavel.Tatashin@
 
 From: Oscar Salvador <osalvador@suse.de>
 
-v1 -> v2:
-        - Address feedback from Pavel
-        - Re-write patch4 his way, as it is better
-        - Add Reviewed-by from Pavel
+node_states_clear has the following if statements:
 
----
+if ((N_MEMORY != N_NORMAL_MEMORY) &&
+    (arg->status_change_nid_high >= 0))
+        ...
 
-This patchset refactors/clean ups node_states_check_changes_online/offline
-functions together with node_states_set/clear_node.
+if ((N_MEMORY != N_HIGH_MEMORY) &&
+    (arg->status_change_nid >= 0))
+        ...
 
-The main reason behind this patchset is that currently, these
-functions are suboptimal and confusing.
+N_MEMORY can never be equal to neither N_NORMAL_MEMORY nor
+N_HIGH_MEMORY.
 
-For example, they contain wrong statements like:
-
-if (N_MEMORY == N_NORMAL_MEMORY)
-if (N_MEMORY =! N_NORMAL_MEMORY)
-if (N_MEMORY != N_HIGH_MEMORY)
-if (N_MEMORY == N_HIGH_MEMORY)
-
-These comparasions are wrong, as N_MEMORY will never be equal
-to either N_NORMAL_MEMORY or N_HIGH_MEMORY.
-Although the statements do not "affect" the flow because in the way
-they are placed, they are completely wrong and confusing.
-
-I caught another misuse of this in [1].
-
-Another thing that this patchset addresses is the fact that
-some functions get called twice, or even unconditionally, without
-any need.
-
-Examples of this are:
-
-- node_states_set_node()->node_set_state(node, N_MEMORY)
-
-* node_states_set_node() gets called whenever we online pages,
-  so we end up calling node_set_state(node, N_MEMORY) everytime.
-  To avoid this, we should check if the node is already in node_state[N_MEMORY].
-
-- node_states_set_node()->node_set_state(node, N_HIGH_MEMORY)
-
-* On !CONFIG_HIGH_MEMORY, N_HIGH_MEMORY == N_NORMAL_MEMORY,
-  but the current code sets:
-  status_change_nid_high = status_change_nid_normal
-  This means that we will call node_set_state(node, N_NORMAL_MEMORY) twice.
-  The fix here is to set status_change_nid_normal = -1 on such systems,
-  so we skip the second call.
+Similar problem was found in [1].
+Since this is wrong, let us get rid of it.
 
 [1] https://patchwork.kernel.org/patch/10579155/
 
-Oscar Salvador (4):
-  mm/memory_hotplug: Spare unnecessary calls to node_set_state
-  mm/memory_hotplug: Tidy up node_states_clear_node
-  mm/memory_hotplug: Simplify node_states_check_changes_online
-  mm/memory_hotplug: Clean up node_states_check_changes_offline
+Signed-off-by: Oscar Salvador <osalvador@suse.de>
+Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+---
+ mm/memory_hotplug.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
- mm/memory_hotplug.c | 146 ++++++++++++++--------------------------------------
- 1 file changed, 40 insertions(+), 106 deletions(-)
-
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 63facfc57224..561c44761f95 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1582,12 +1582,10 @@ static void node_states_clear_node(int node, struct memory_notify *arg)
+ 	if (arg->status_change_nid_normal >= 0)
+ 		node_clear_state(node, N_NORMAL_MEMORY);
+ 
+-	if ((N_MEMORY != N_NORMAL_MEMORY) &&
+-	    (arg->status_change_nid_high >= 0))
++	if (arg->status_change_nid_high >= 0)
+ 		node_clear_state(node, N_HIGH_MEMORY);
+ 
+-	if ((N_MEMORY != N_HIGH_MEMORY) &&
+-	    (arg->status_change_nid >= 0))
++	if (arg->status_change_nid >= 0)
+ 		node_clear_state(node, N_MEMORY);
+ }
+ 
 -- 
 2.13.6
