@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D6688E0030
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 11:13:58 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id c2-v6so6827874wrt.17
-        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 08:13:58 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A08E8E0030
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 11:14:00 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id 129-v6so2630164wma.8
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 08:14:00 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b198-v6sor4447764wme.27.2018.09.21.08.13.57
+        by mx.google.com with SMTPS id x5-v6sor20956137wrd.41.2018.09.21.08.13.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 21 Sep 2018 08:13:57 -0700 (PDT)
+        Fri, 21 Sep 2018 08:13:58 -0700 (PDT)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v9 06/20] kasan: initialize shadow to 0xff for tag-based mode
-Date: Fri, 21 Sep 2018 17:13:28 +0200
-Message-Id: <4021682747e0fdc24ffffd5c22f006b74d4d4089.1537542735.git.andreyknvl@google.com>
+Subject: [PATCH v9 07/20] kasan, arm64: untag address in __kimg_to_phys and _virt_addr_is_linear
+Date: Fri, 21 Sep 2018 17:13:29 +0200
+Message-Id: <1324a622035ee2a6fecd1e729a62af22542d9f3e.1537542735.git.andreyknvl@google.com>
 In-Reply-To: <cover.1537542735.git.andreyknvl@google.com>
 References: <cover.1537542735.git.andreyknvl@google.com>
 MIME-Version: 1.0
@@ -22,107 +22,55 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
 Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-A tag-based KASAN shadow memory cell contains a memory tag, that
-corresponds to the tag in the top byte of the pointer, that points to that
-memory. The native top byte value of kernel pointers is 0xff, so with
-tag-based KASAN we need to initialize shadow memory to 0xff.
+__kimg_to_phys (which is used by virt_to_phys) and _virt_addr_is_linear
+(which is used by virt_addr_valid) assume that the top byte of the address
+is 0xff, which isn't always the case with tag-based KASAN.
+
+This patch resets the tag in those macros.
 
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- arch/arm64/mm/kasan_init.c | 16 ++++++++++++++--
- include/linux/kasan.h      |  8 ++++++++
- mm/kasan/common.c          |  3 ++-
- 3 files changed, 24 insertions(+), 3 deletions(-)
+ arch/arm64/include/asm/memory.h | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
 
-diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
-index 12145874c02b..7a31e8ccbad2 100644
---- a/arch/arm64/mm/kasan_init.c
-+++ b/arch/arm64/mm/kasan_init.c
-@@ -44,6 +44,15 @@ static phys_addr_t __init kasan_alloc_zeroed_page(int node)
- 	return __pa(p);
- }
- 
-+static phys_addr_t __init kasan_alloc_raw_page(int node)
-+{
-+	void *p = memblock_virt_alloc_try_nid_raw(PAGE_SIZE, PAGE_SIZE,
-+						  __pa(MAX_DMA_ADDRESS),
-+						  MEMBLOCK_ALLOC_ACCESSIBLE,
-+						  node);
-+	return __pa(p);
-+}
-+
- static pte_t *__init kasan_pte_offset(pmd_t *pmdp, unsigned long addr, int node,
- 				      bool early)
- {
-@@ -89,7 +98,9 @@ static void __init kasan_pte_populate(pmd_t *pmdp, unsigned long addr,
- 
- 	do {
- 		phys_addr_t page_phys = early ? __pa_symbol(kasan_zero_page)
--					      : kasan_alloc_zeroed_page(node);
-+					      : kasan_alloc_raw_page(node);
-+		if (!early)
-+			memset(__va(page_phys), KASAN_SHADOW_INIT, PAGE_SIZE);
- 		next = addr + PAGE_SIZE;
- 		set_pte(ptep, pfn_pte(__phys_to_pfn(page_phys), PAGE_KERNEL));
- 	} while (ptep++, addr = next, addr != end && pte_none(READ_ONCE(*ptep)));
-@@ -139,6 +150,7 @@ asmlinkage void __init kasan_early_init(void)
- 		KASAN_SHADOW_END - (1UL << (64 - KASAN_SHADOW_SCALE_SHIFT)));
- 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, PGDIR_SIZE));
- 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE));
-+
- 	kasan_pgd_populate(KASAN_SHADOW_START, KASAN_SHADOW_END, NUMA_NO_NODE,
- 			   true);
- }
-@@ -235,7 +247,7 @@ void __init kasan_init(void)
- 		set_pte(&kasan_zero_pte[i],
- 			pfn_pte(sym_to_pfn(kasan_zero_page), PAGE_KERNEL_RO));
- 
--	memset(kasan_zero_page, 0, PAGE_SIZE);
-+	memset(kasan_zero_page, KASAN_SHADOW_INIT, PAGE_SIZE);
- 	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
- 
- 	/* At this point kasan is fully initialized. Enable error messages */
-diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index b66fdf5ea7ab..7f6574c35c62 100644
---- a/include/linux/kasan.h
-+++ b/include/linux/kasan.h
-@@ -153,6 +153,8 @@ static inline size_t kasan_metadata_size(struct kmem_cache *cache) { return 0; }
- 
- #ifdef CONFIG_KASAN_GENERIC
- 
-+#define KASAN_SHADOW_INIT 0
-+
- void kasan_cache_shrink(struct kmem_cache *cache);
- void kasan_cache_shutdown(struct kmem_cache *cache);
- 
-@@ -163,4 +165,10 @@ static inline void kasan_cache_shutdown(struct kmem_cache *cache) {}
- 
- #endif /* CONFIG_KASAN_GENERIC */
+diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
+index 0f1e024a951f..3226a0218b0b 100644
+--- a/arch/arm64/include/asm/memory.h
++++ b/arch/arm64/include/asm/memory.h
+@@ -92,6 +92,15 @@
+ #define KASAN_THREAD_SHIFT	0
+ #endif
  
 +#ifdef CONFIG_KASAN_SW_TAGS
++#define KASAN_TAG_SHIFTED(tag)		((unsigned long)(tag) << 56)
++#define KASAN_SET_TAG(addr, tag)	(((addr) & ~KASAN_TAG_SHIFTED(0xff)) | \
++						KASAN_TAG_SHIFTED(tag))
++#define KASAN_RESET_TAG(addr)		KASAN_SET_TAG(addr, 0xff)
++#else
++#define KASAN_RESET_TAG(addr)		addr
++#endif
 +
-+#define KASAN_SHADOW_INIT 0xFF
-+
-+#endif /* CONFIG_KASAN_SW_TAGS */
-+
- #endif /* LINUX_KASAN_H */
-diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index 5f68c93734ba..7134e75447ff 100644
---- a/mm/kasan/common.c
-+++ b/mm/kasan/common.c
-@@ -473,11 +473,12 @@ int kasan_module_alloc(void *addr, size_t size)
+ #define MIN_THREAD_SHIFT	(14 + KASAN_THREAD_SHIFT)
  
- 	ret = __vmalloc_node_range(shadow_size, 1, shadow_start,
- 			shadow_start + shadow_size,
--			GFP_KERNEL | __GFP_ZERO,
-+			GFP_KERNEL,
- 			PAGE_KERNEL, VM_NO_GUARD, NUMA_NO_NODE,
- 			__builtin_return_address(0));
+ /*
+@@ -232,7 +241,7 @@ static inline unsigned long kaslr_offset(void)
+ #define __is_lm_address(addr)	(!!((addr) & BIT(VA_BITS - 1)))
  
- 	if (ret) {
-+		__memset(ret, KASAN_SHADOW_INIT, shadow_size);
- 		find_vm_area(addr)->flags |= VM_KASAN;
- 		kmemleak_ignore(ret);
- 		return 0;
+ #define __lm_to_phys(addr)	(((addr) & ~PAGE_OFFSET) + PHYS_OFFSET)
+-#define __kimg_to_phys(addr)	((addr) - kimage_voffset)
++#define __kimg_to_phys(addr)	(KASAN_RESET_TAG(addr) - kimage_voffset)
+ 
+ #define __virt_to_phys_nodebug(x) ({					\
+ 	phys_addr_t __x = (phys_addr_t)(x);				\
+@@ -308,7 +317,8 @@ static inline void *phys_to_virt(phys_addr_t x)
+ #endif
+ #endif
+ 
+-#define _virt_addr_is_linear(kaddr)	(((u64)(kaddr)) >= PAGE_OFFSET)
++#define _virt_addr_is_linear(kaddr)	(KASAN_RESET_TAG((u64)(kaddr)) >= \
++						PAGE_OFFSET)
+ #define virt_addr_valid(kaddr)		(_virt_addr_is_linear(kaddr) && \
+ 					 _virt_addr_valid(kaddr))
+ 
 -- 
 2.19.0.444.g18242da7ef-goog
