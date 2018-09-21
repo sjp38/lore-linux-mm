@@ -1,41 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 17D508E0001
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 14:17:27 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id j5-v6so12727579oiw.13
-        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 11:17:27 -0700 (PDT)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 45A2A8E0001
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 14:46:44 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id l2-v6so6303537ywb.6
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 11:46:44 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w131-v6sor18538664oig.152.2018.09.21.11.17.24
+        by mx.google.com with SMTPS id z3-v6sor3057847ybn.99.2018.09.21.11.46.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 21 Sep 2018 11:17:25 -0700 (PDT)
+        Fri, 21 Sep 2018 11:46:43 -0700 (PDT)
+Received: from mail-yw1-f44.google.com (mail-yw1-f44.google.com. [209.85.161.44])
+        by smtp.gmail.com with ESMTPSA id n187-v6sm15974830ywn.76.2018.09.21.11.46.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Sep 2018 11:46:40 -0700 (PDT)
+Received: by mail-yw1-f44.google.com with SMTP id 14-v6so5584374ywe.2
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 11:46:40 -0700 (PDT)
 MIME-Version: 1.0
-References: <cover.1536342881.git.yi.z.zhang@linux.intel.com>
- <4e8c2e0facd46cfaf4ab79e19c9115958ab6f218.1536342881.git.yi.z.zhang@linux.intel.com>
- <CAPcyv4ifg2BZMTNfu6mg0xxtPWs3BVgkfEj51v1CQ6jp2S70fw@mail.gmail.com>
- <fefbd66e-623d-b6a5-7202-5309dd4f5b32@redhat.com> <20180920224953.GA53363@tiger-server>
- <CAPcyv4g6OS=_uSjJenn5WVmpx7zCRCbzJaBr_m0Bq=qyEyVagg@mail.gmail.com>
- <20180921224739.GA33892@tiger-server> <c8ad8ed7-ca8c-4dd7-819b-8d9c856fbe04@redhat.com>
-In-Reply-To: <c8ad8ed7-ca8c-4dd7-819b-8d9c856fbe04@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 21 Sep 2018 11:17:13 -0700
-Message-ID: <CAPcyv4j9K-wkq8oK-8_twWViKhyGSHD7cOE5UoRN-09xKXPq7A@mail.gmail.com>
-Subject: Re: [PATCH V5 4/4] kvm: add a check if pfn is from NVDIMM pmem.
+In-Reply-To: <1536874298-23492-2-git-send-email-rick.p.edgecombe@intel.com>
+References: <1536874298-23492-1-git-send-email-rick.p.edgecombe@intel.com> <1536874298-23492-2-git-send-email-rick.p.edgecombe@intel.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Fri, 21 Sep 2018 11:46:39 -0700
+Message-ID: <CAGXu5jKTiPioDjC7rrjN+fG=ZK8mdQ542GwEJW6Fa7GUA8x2uQ@mail.gmail.com>
+Subject: Re: [PATCH v6 1/4] vmalloc: Add __vmalloc_node_try_addr function
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: KVM list <kvm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Paolo Bonzini <pbonzini@redhat.com>, Dave Jiang <dave.jiang@intel.com>, "Zhang, Yu C" <yu.c.zhang@intel.com>, Pankaj Gupta <pagupta@redhat.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, rkrcmar@redhat.com, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, "Zhang, Yi Z" <yi.z.zhang@intel.com>
+To: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Daniel Borkmann <daniel@iogearbox.net>, Jann Horn <jannh@google.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, Kristen Carlson Accardi <kristen@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Matthew Wilcox <willy@infradead.org>
 
-On Fri, Sep 21, 2018 at 7:24 AM David Hildenbrand <david@redhat.com> wrote:
-[..]
-> > Remove the PageReserved flag sounds more reasonable.
-> > And Could we still have a flag to identify it is a device private memory, or
-> > where these pages coming from?
+On Thu, Sep 13, 2018 at 2:31 PM, Rick Edgecombe
+<rick.p.edgecombe@intel.com> wrote:
+> Create __vmalloc_node_try_addr function that tries to allocate at a specific
+> address and supports caller specified behavior for whether any lazy purging
+> happens if there is a collision.
 >
-> We could use a page type for that or what you proposed. (as I said, we
-> might have to change hibernation code to skip the pages once we drop the
-> reserved flag).
+> This new function draws from the __vmalloc_node_range implementation. Attempts
+> to merge the two into a single allocator resulted in logic that was difficult
+> to follow, so they are left separate.
+>
+> Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 
-I think it would be reasonable to reject all ZONE_DEVICE pages in
-saveable_page().
+Reviewed-by: Kees Cook <keescook@chromium.org>
+
+I'd love to get some more mm folks to look this over too.
+
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
