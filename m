@@ -1,52 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 85CC98E0025
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 19:48:25 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id e8-v6so1120196pls.23
-        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 16:48:25 -0700 (PDT)
-Received: from g4t3426.houston.hpe.com (g4t3426.houston.hpe.com. [15.241.140.75])
-        by mx.google.com with ESMTPS id v129-v6si32166938pfv.278.2018.09.21.16.48.24
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E83038E0025
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 20:01:09 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id h1-v6so2062943pld.21
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 17:01:09 -0700 (PDT)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id 3-v6si27222134plx.173.2018.09.21.17.01.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Sep 2018 16:48:24 -0700 (PDT)
-From: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
-Subject: RE: [PATCH 0/3] mm: Randomize free memory
-Date: Fri, 21 Sep 2018 23:48:18 +0000
-Message-ID: <AT5PR8401MB1169D656C8B5E121752FC0F8AB120@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
-References: <153702858249.1603922.12913911825267831671.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180917161245.c4bb8546d2c6069b0506c5dd@linux-foundation.org>
- <CAGXu5jLRuWOMPTfXAFFiVSb6CUKaa_TD4gncef+MT84pcazW6w@mail.gmail.com>
-In-Reply-To: <CAGXu5jLRuWOMPTfXAFFiVSb6CUKaa_TD4gncef+MT84pcazW6w@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        Fri, 21 Sep 2018 17:01:07 -0700 (PDT)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [Question] Why do clear VM_ACCOUNT before do_munmap() in mremap()
+Message-ID: <80280fc6-3916-d6e0-7fb0-c5cbc7013221@linux.alibaba.com>
+Date: Fri, 21 Sep 2018 17:00:52 -0700
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, "Hocko, Michal" <MHocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Kani, Toshi" <toshi.kani@hpe.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-DQo+IC0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+IEZyb206IGxpbnV4LWtlcm5lbC1vd25l
-ckB2Z2VyLmtlcm5lbC5vcmcgPGxpbnV4LWtlcm5lbC0NCj4gb3duZXJAdmdlci5rZXJuZWwub3Jn
-PiBPbiBCZWhhbGYgT2YgS2VlcyBDb29rDQo+IFNlbnQ6IEZyaWRheSwgU2VwdGVtYmVyIDIxLCAy
-MDE4IDI6MTMgUE0NCj4gU3ViamVjdDogUmU6IFtQQVRDSCAwLzNdIG1tOiBSYW5kb21pemUgZnJl
-ZSBtZW1vcnkNCi4uLg0KPiBJJ2QgYmUgY3VyaW91cyB0byBoZWFyIG1vcmUgYWJvdXQgdGhlIG1l
-bnRpb25lZCBjYWNoZSBwZXJmb3JtYW5jZQ0KPiBpbXByb3ZlbWVudHMuIEkgbG92ZSBpdCB3aGVu
-IGEgc2VjdXJpdHkgZmVhdHVyZSBhY3R1YWxseSBfaW1wcm92ZXNfDQo+IHBlcmZvcm1hbmNlLiA6
-KQ0KDQpJdCdzIGJlZW4gYSBwcm9ibGVtIGluIHRoZSBIUEMgc3BhY2U6DQpodHRwOi8vd3d3Lm5l
-cnNjLmdvdi9yZXNlYXJjaC1hbmQtZGV2ZWxvcG1lbnQva25sLWNhY2hlLW1vZGUtcGVyZm9ybWFu
-Y2UtY29lLw0KDQpBIGtlcm5lbCBtb2R1bGUgY2FsbGVkIHpvbmVzb3J0IGlzIGF2YWlsYWJsZSB0
-byB0cnkgdG8gaGVscDoNCmh0dHBzOi8vc29mdHdhcmUuaW50ZWwuY29tL2VuLXVzL2FydGljbGVz
-L3hlb24tcGhpLXNvZnR3YXJlDQoNCmFuZCB0aGlzIGFiYW5kb25lZCBwYXRjaCBzZXJpZXMgcHJv
-cG9zZWQgdGhhdCBmb3IgdGhlIGtlcm5lbDoNCmh0dHBzOi8vbGttbC5vcmcvbGttbC8yMDE3Lzgv
-MjMvMTk1DQoNCkRhbidzIHBhdGNoIHNlcmllcyBkb2Vzbid0IGF0dGVtcHQgdG8gZW5zdXJlIGJ1
-ZmZlcnMgd29uJ3QgY29uZmxpY3QsIGJ1dA0KYWxzbyByZWR1Y2VzIHRoZSBjaGFuY2UgdGhhdCB0
-aGUgYnVmZmVycyB3aWxsLiBUaGlzIHdpbGwgbWFrZSBwZXJmb3JtYW5jZQ0KbW9yZSBjb25zaXN0
-ZW50LCBhbGJlaXQgc2xvd2VyIHRoYW4gIm9wdGltYWwiICh3aGljaCBpcyBuZWFyIGltcG9zc2li
-bGUNCnRvIGF0dGFpbiBpbiBhIGdlbmVyYWwtcHVycG9zZSBrZXJuZWwpLiAgVGhhdCdzIGJldHRl
-ciB0aGFuIGZvcmNpbmcNCnVzZXJzIHRvIGRlcGxveSByZW1lZGllcyBsaWtlOg0KICAgICJUbyBl
-bGltaW5hdGUgdGhpcyBncmFkdWFsIGRlZ3JhZGF0aW9uLCB3ZSBoYXZlIGFkZGVkIGEgU3RyZWFt
-DQogICAgIG1lYXN1cmVtZW50IHRvIHRoZSBOb2RlIEhlYWx0aCBDaGVjayB0aGF0IGZvbGxvd3Mg
-ZWFjaCBqb2I7DQogICAgIG5vZGVzIGFyZSByZWJvb3RlZCB3aGVuZXZlciB0aGVpciBtZWFzdXJl
-ZCBtZW1vcnkgYmFuZHdpZHRoDQogICAgIGZhbGxzIGJlbG93IDMwMCBHQi9zLiINCg0KLS0tDQpS
-b2JlcnQgRWxsaW90dCwgSFBFIFBlcnNpc3RlbnQgTWVtb3J5DQoNCg0K
+Hi folks,
+
+
+When reading the mremap() code, I found the below code fragmentation:
+
+
+ A A A A A A A  /* Conceal VM_ACCOUNT so old reservation is not undone */
+ A A A A A A A  if (vm_flags & VM_ACCOUNT) {
+ A A A A A A A A A A A A A A A  vma->vm_flags &= ~VM_ACCOUNT;
+ A A A A A A A A A A A A A A A  excess = vma->vm_end - vma->vm_start - old_len;
+ A A A A A A A A A A A A A A A  if (old_addr > vma->vm_start &&
+ A A A A A A A A A A A A A A A A A A A  old_addr + old_len < vma->vm_end)
+ A A A A A A A A A A A A A A A A A A A A A A A  split = 1;
+ A A A A A A A  }
+
+ A A A A A A A  ...
+
+ A A A A A A A  do_munmap(mm, old_addr, old_len, uf_unmap)
+
+ A A A A A A A  ...
+
+ A A A A A A A  /* Restore VM_ACCOUNT if one or two pieces of vma left */
+ A A A A A A A  if (excess) {
+ A A A A A A A A A A A A A A A  vma->vm_flags |= VM_ACCOUNT;
+ A A A A A A A A A A A A A A A  if (split)
+ A A A A A A A A A A A A A A A A A A A A A A A  vma->vm_next->vm_flags |= VM_ACCOUNT;
+ A A A A A A A  }
+
+
+I don't get why it conceals VM_ACCOUNT, then restores it. This change is 
+pre git period, so there is not commit log about why this is needed. Any 
+hint is appreciated.
+
+
+Thanks,
+
+Yang
