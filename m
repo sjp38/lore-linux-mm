@@ -1,60 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E83038E0025
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 20:01:09 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id h1-v6so2062943pld.21
-        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 17:01:09 -0700 (PDT)
-Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
-        by mx.google.com with ESMTPS id 3-v6si27222134plx.173.2018.09.21.17.01.07
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 419E78E0025
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2018 20:06:37 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id 13-v6so13727859oiq.1
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2018 17:06:37 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z9-v6sor19326794ota.203.2018.09.21.17.06.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Sep 2018 17:01:07 -0700 (PDT)
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [Question] Why do clear VM_ACCOUNT before do_munmap() in mremap()
-Message-ID: <80280fc6-3916-d6e0-7fb0-c5cbc7013221@linux.alibaba.com>
-Date: Fri, 21 Sep 2018 17:00:52 -0700
+        (Google Transport Security);
+        Fri, 21 Sep 2018 17:06:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+References: <153702858249.1603922.12913911825267831671.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180917161245.c4bb8546d2c6069b0506c5dd@linux-foundation.org>
+ <CAGXu5jLRuWOMPTfXAFFiVSb6CUKaa_TD4gncef+MT84pcazW6w@mail.gmail.com> <AT5PR8401MB1169D656C8B5E121752FC0F8AB120@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
+In-Reply-To: <AT5PR8401MB1169D656C8B5E121752FC0F8AB120@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 21 Sep 2018 17:06:24 -0700
+Message-ID: <CAPcyv4iuRkQWsWa-YfTMDJUTUr1QouEsS6zD_LAjcpbLGXCPEQ@mail.gmail.com>
+Subject: Re: [PATCH 0/3] mm: Randomize free memory
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
+Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <MHocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Toshi Kani <toshi.kani@hpe.com>
 
-Hi folks,
+On Fri, Sep 21, 2018 at 4:51 PM Elliott, Robert (Persistent Memory)
+<elliott@hpe.com> wrote:
+>
+>
+> > -----Original Message-----
+> > From: linux-kernel-owner@vger.kernel.org <linux-kernel-
+> > owner@vger.kernel.org> On Behalf Of Kees Cook
+> > Sent: Friday, September 21, 2018 2:13 PM
+> > Subject: Re: [PATCH 0/3] mm: Randomize free memory
+> ...
+> > I'd be curious to hear more about the mentioned cache performance
+> > improvements. I love it when a security feature actually _improves_
+> > performance. :)
+>
+> It's been a problem in the HPC space:
+> http://www.nersc.gov/research-and-development/knl-cache-mode-performance-coe/
+>
+> A kernel module called zonesort is available to try to help:
+> https://software.intel.com/en-us/articles/xeon-phi-software
+>
+> and this abandoned patch series proposed that for the kernel:
+> https://lkml.org/lkml/2017/8/23/195
+>
+> Dan's patch series doesn't attempt to ensure buffers won't conflict, but
+> also reduces the chance that the buffers will. This will make performance
+> more consistent, albeit slower than "optimal" (which is near impossible
+> to attain in a general-purpose kernel).  That's better than forcing
+> users to deploy remedies like:
+>     "To eliminate this gradual degradation, we have added a Stream
+>      measurement to the Node Health Check that follows each job;
+>      nodes are rebooted whenever their measured memory bandwidth
+>      falls below 300 GB/s."
 
-
-When reading the mremap() code, I found the below code fragmentation:
-
-
- A A A A A A A  /* Conceal VM_ACCOUNT so old reservation is not undone */
- A A A A A A A  if (vm_flags & VM_ACCOUNT) {
- A A A A A A A A A A A A A A A  vma->vm_flags &= ~VM_ACCOUNT;
- A A A A A A A A A A A A A A A  excess = vma->vm_end - vma->vm_start - old_len;
- A A A A A A A A A A A A A A A  if (old_addr > vma->vm_start &&
- A A A A A A A A A A A A A A A A A A A  old_addr + old_len < vma->vm_end)
- A A A A A A A A A A A A A A A A A A A A A A A  split = 1;
- A A A A A A A  }
-
- A A A A A A A  ...
-
- A A A A A A A  do_munmap(mm, old_addr, old_len, uf_unmap)
-
- A A A A A A A  ...
-
- A A A A A A A  /* Restore VM_ACCOUNT if one or two pieces of vma left */
- A A A A A A A  if (excess) {
- A A A A A A A A A A A A A A A  vma->vm_flags |= VM_ACCOUNT;
- A A A A A A A A A A A A A A A  if (split)
- A A A A A A A A A A A A A A A A A A A A A A A  vma->vm_next->vm_flags |= VM_ACCOUNT;
- A A A A A A A  }
-
-
-I don't get why it conceals VM_ACCOUNT, then restores it. This change is 
-pre git period, so there is not commit log about why this is needed. Any 
-hint is appreciated.
-
-
-Thanks,
-
-Yang
+Robert, thanks for that! Yes, instead of run-to-run variations
+alternating between almost-never-conflict and nearly-always-conflict,
+we'll get a random / average distribution of cache conflicts.
