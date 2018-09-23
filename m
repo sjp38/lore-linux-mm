@@ -1,58 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 37D6B8E0001
-	for <linux-mm@kvack.org>; Sat, 22 Sep 2018 10:53:58 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id 3-v6so7496009plq.6
-        for <linux-mm@kvack.org>; Sat, 22 Sep 2018 07:53:58 -0700 (PDT)
-Received: from mail1.windriver.com (mail1.windriver.com. [147.11.146.13])
-        by mx.google.com with ESMTPS id h14-v6si29898117pgg.540.2018.09.22.07.53.56
+	by kanga.kvack.org (Postfix) with ESMTP id 1EFDC8E0001
+	for <linux-mm@kvack.org>; Sat, 22 Sep 2018 22:33:23 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id c5-v6so8217450plo.2
+        for <linux-mm@kvack.org>; Sat, 22 Sep 2018 19:33:23 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g10-v6sor4622716pfi.39.2018.09.22.19.33.21
         for <linux-mm@kvack.org>
-        (version=TLS1_1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sat, 22 Sep 2018 07:53:56 -0700 (PDT)
-From: <zhe.he@windriver.com>
-Subject: [PATCH v2 2/2] mm/page_alloc: Add KBUILD_MODNAME
-Date: Sat, 22 Sep 2018 22:53:33 +0800
-Message-ID: <1537628013-243902-2-git-send-email-zhe.he@windriver.com>
-In-Reply-To: <1537628013-243902-1-git-send-email-zhe.he@windriver.com>
-References: <1537628013-243902-1-git-send-email-zhe.he@windriver.com>
+        (Google Transport Security);
+        Sat, 22 Sep 2018 19:33:21 -0700 (PDT)
+Date: Sun, 23 Sep 2018 12:33:15 +1000
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
+ in mind (for KVM to isolate its guests per CPU)
+Message-ID: <20180923023315.GF8537@350D>
+References: <20180820212556.GC2230@char.us.oracle.com>
+ <CA+55aFxZCyVZc4ZpRyZ3uDyakRSOG_=2XvnwMo4oejpsieF9=A@mail.gmail.com>
+ <1534801939.10027.24.camel@amazon.co.uk>
+ <20180919010337.GC8537@350D>
+ <CA+VK+GM6CaPnGKcPjEn7U=4ubtC-JWZ9k98BTxzRH_TthaFXDw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+VK+GM6CaPnGKcPjEn7U=4ubtC-JWZ9k98BTxzRH_TthaFXDw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, mgorman@techsingularity.net, aaron.lu@intel.com, osalvador@suse.de, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhe.he@windriver.com
+To: Jonathan Adams <jwadams@google.com>
+Cc: dwmw@amazon.co.uk, torvalds@linux-foundation.org, konrad.wilk@oracle.com, deepa.srinivasan@oracle.com, Jim Mattson <jmattson@google.com>, andrew.cooper3@citrix.com, linux-kernel@vger.kernel.org, boris.ostrovsky@oracle.com, linux-mm@kvack.org, tglx@linutronix.de, joao.m.martins@oracle.com, pradeep.vincent@oracle.com, ak@linux.intel.com, khalid.aziz@oracle.com, kanth.ghatraju@oracle.com, liran.alon@oracle.com, keescook@google.com, jsteckli@os.inf.tu-dresden.de, kernel-hardening@lists.openwall.com, chris.hyser@oracle.com, tyhicks@canonical.com, john.haxby@oracle.com, jcm@redhat.com
 
-From: He Zhe <zhe.he@windriver.com>
+On Wed, Sep 19, 2018 at 08:43:07AM -0700, Jonathan Adams wrote:
+> (apologies again; resending due to formatting issues)
+> On Tue, Sep 18, 2018 at 6:03 PM Balbir Singh <bsingharora@gmail.com> wrote:
+> >
+> > On Mon, Aug 20, 2018 at 09:52:19PM +0000, Woodhouse, David wrote:
+> > > On Mon, 2018-08-20 at 14:48 -0700, Linus Torvalds wrote:
+> > > >
+> > > > Of course, after the long (and entirely unrelated) discussion about
+> > > > the TLB flushing bug we had, I'm starting to worry about my own
+> > > > competence, and maybe I'm missing something really fundamental, and
+> > > > the XPFO patches do something else than what I think they do, or my
+> > > > "hey, let's use our Meltdown code" idea has some fundamental weakness
+> > > > that I'm missing.
+> > >
+> > > The interesting part is taking the user (and other) pages out of the
+> > > kernel's 1:1 physmap.
+> > >
+> > > It's the *kernel* we don't want being able to access those pages,
+> > > because of the multitude of unfixable cache load gadgets.
+> >
+> > I am missing why we need this since the kernel can't access
+> > (SMAP) unless we go through to the copy/to/from interface
+> > or execute any of the user pages. Is it because of the dependency
+> > on the availability of those features?
+> >
+> SMAP protects against kernel accesses to non-PRIV (i.e. userspace)
+> mappings, but that isn't relevant to what's being discussed here.
+> 
+> Davis is talking about the kernel Direct Map, which is a PRIV (i.e.
+> kernel) mapping of all physical memory on the system, at
+>   VA = (base + PA).
+> Since this mapping exists for all physical addresses, speculative
+> load gadgets (and the processor's prefetch mechanism, etc.) can
+> load arbitrary data even if it is only otherwise mapped into user
+> space.
 
-Add KBUILD_MODNAME to make prints more clear.
+Load aribtrary data with no permission checks (strict RWX).
 
-Signed-off-by: He Zhe <zhe.he@windriver.com>
-Cc: akpm@linux-foundation.org
-Cc: mhocko@suse.com
-Cc: vbabka@suse.cz
-Cc: pasha.tatashin@oracle.com
-Cc: mgorman@techsingularity.net
-Cc: aaron.lu@intel.com
-Cc: osalvador@suse.de
-Cc: iamjoonsoo.kim@lge.com
----
-v2:
-Split the addition of KBUILD_MODNAME out
+> 
+> XPFO fixes this by unmapping the Direct Map translations when the
+> page is allocated as a user page. The mapping is only restored:
+>    1. temporarily if the kernel needs direct access to the page
+>       (i.e. to zero it, access it from a device driver, etc),
+>    2. when the page is freed
+> 
+> And in so doing, significantly reduces the amount of non-kernel data
+> vulnerable to speculative execution attacks against the kernel.
+> (and reduces what data can be loaded into the L1 data cache while
+> in kernel mode, to be peeked at by the recent L1 Terminal Fault
+> vulnerability).
 
- mm/page_alloc.c | 2 ++
- 1 file changed, 2 insertions(+)
+I see and there is no way for gadgets to invoke this path from
+user space to make their speculation successful? We still have to
+flush L1, indepenedent of whether XPFO is enabled or not right?
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f34cae1..ead9556 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -14,6 +14,8 @@
-  *          (lots of bits borrowed from Ingo Molnar & Andrew Morton)
-  */
- 
-+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-+
- #include <linux/stddef.h>
- #include <linux/mm.h>
- #include <linux/swap.h>
--- 
-2.7.4
+Balbir Singh.
