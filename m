@@ -1,86 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EFDC8E0001
-	for <linux-mm@kvack.org>; Sat, 22 Sep 2018 22:33:23 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id c5-v6so8217450plo.2
-        for <linux-mm@kvack.org>; Sat, 22 Sep 2018 19:33:23 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EE1E8E0001
+	for <linux-mm@kvack.org>; Sat, 22 Sep 2018 22:34:58 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id n17-v6so8605770pff.17
+        for <linux-mm@kvack.org>; Sat, 22 Sep 2018 19:34:58 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g10-v6sor4622716pfi.39.2018.09.22.19.33.21
+        by mx.google.com with SMTPS id j62-v6sor3142157pgd.313.2018.09.22.19.34.57
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 22 Sep 2018 19:33:21 -0700 (PDT)
-Date: Sun, 23 Sep 2018 12:33:15 +1000
+        Sat, 22 Sep 2018 19:34:57 -0700 (PDT)
+Date: Sun, 23 Sep 2018 12:34:52 +1000
 From: Balbir Singh <bsingharora@gmail.com>
-Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
- in mind (for KVM to isolate its guests per CPU)
-Message-ID: <20180923023315.GF8537@350D>
-References: <20180820212556.GC2230@char.us.oracle.com>
- <CA+55aFxZCyVZc4ZpRyZ3uDyakRSOG_=2XvnwMo4oejpsieF9=A@mail.gmail.com>
- <1534801939.10027.24.camel@amazon.co.uk>
- <20180919010337.GC8537@350D>
- <CA+VK+GM6CaPnGKcPjEn7U=4ubtC-JWZ9k98BTxzRH_TthaFXDw@mail.gmail.com>
+Subject: Re: [PATCH v1 0/6] mm: online/offline_pages called w.o.
+ mem_hotplug_lock
+Message-ID: <20180923023452.GG8537@350D>
+References: <20180918114822.21926-1-david@redhat.com>
+ <20180919012207.GD8537@350D>
+ <f3a13f6a-b34c-8561-884a-23fd9aa60331@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+VK+GM6CaPnGKcPjEn7U=4ubtC-JWZ9k98BTxzRH_TthaFXDw@mail.gmail.com>
+In-Reply-To: <f3a13f6a-b34c-8561-884a-23fd9aa60331@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Adams <jwadams@google.com>
-Cc: dwmw@amazon.co.uk, torvalds@linux-foundation.org, konrad.wilk@oracle.com, deepa.srinivasan@oracle.com, Jim Mattson <jmattson@google.com>, andrew.cooper3@citrix.com, linux-kernel@vger.kernel.org, boris.ostrovsky@oracle.com, linux-mm@kvack.org, tglx@linutronix.de, joao.m.martins@oracle.com, pradeep.vincent@oracle.com, ak@linux.intel.com, khalid.aziz@oracle.com, kanth.ghatraju@oracle.com, liran.alon@oracle.com, keescook@google.com, jsteckli@os.inf.tu-dresden.de, kernel-hardening@lists.openwall.com, chris.hyser@oracle.com, tyhicks@canonical.com, john.haxby@oracle.com, jcm@redhat.com
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, John Allen <jallen@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Len Brown <lenb@kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Mathieu Malaterre <malat@debian.org>, Michael Ellerman <mpe@ellerman.id.au>, Michael Neuling <mikey@neuling.org>, Michal Hocko <mhocko@suse.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Oscar Salvador <osalvador@suse.de>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Philippe Ombredanne <pombredanne@nexb.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Rashmica Gupta <rashmica.g@gmail.com>, Stephen Hemminger <sthemmin@microsoft.com>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
 
-On Wed, Sep 19, 2018 at 08:43:07AM -0700, Jonathan Adams wrote:
-> (apologies again; resending due to formatting issues)
-> On Tue, Sep 18, 2018 at 6:03 PM Balbir Singh <bsingharora@gmail.com> wrote:
-> >
-> > On Mon, Aug 20, 2018 at 09:52:19PM +0000, Woodhouse, David wrote:
-> > > On Mon, 2018-08-20 at 14:48 -0700, Linus Torvalds wrote:
-> > > >
-> > > > Of course, after the long (and entirely unrelated) discussion about
-> > > > the TLB flushing bug we had, I'm starting to worry about my own
-> > > > competence, and maybe I'm missing something really fundamental, and
-> > > > the XPFO patches do something else than what I think they do, or my
-> > > > "hey, let's use our Meltdown code" idea has some fundamental weakness
-> > > > that I'm missing.
-> > >
-> > > The interesting part is taking the user (and other) pages out of the
-> > > kernel's 1:1 physmap.
-> > >
-> > > It's the *kernel* we don't want being able to access those pages,
-> > > because of the multitude of unfixable cache load gadgets.
-> >
-> > I am missing why we need this since the kernel can't access
-> > (SMAP) unless we go through to the copy/to/from interface
-> > or execute any of the user pages. Is it because of the dependency
-> > on the availability of those features?
-> >
-> SMAP protects against kernel accesses to non-PRIV (i.e. userspace)
-> mappings, but that isn't relevant to what's being discussed here.
+On Wed, Sep 19, 2018 at 09:35:07AM +0200, David Hildenbrand wrote:
+> Am 19.09.18 um 03:22 schrieb Balbir Singh:
+> > On Tue, Sep 18, 2018 at 01:48:16PM +0200, David Hildenbrand wrote:
+> >> Reading through the code and studying how mem_hotplug_lock is to be used,
+> >> I noticed that there are two places where we can end up calling
+> >> device_online()/device_offline() - online_pages()/offline_pages() without
+> >> the mem_hotplug_lock. And there are other places where we call
+> >> device_online()/device_offline() without the device_hotplug_lock.
+> >>
+> >> While e.g.
+> >> 	echo "online" > /sys/devices/system/memory/memory9/state
+> >> is fine, e.g.
+> >> 	echo 1 > /sys/devices/system/memory/memory9/online
+> >> Will not take the mem_hotplug_lock. However the device_lock() and
+> >> device_hotplug_lock.
+> >>
+> >> E.g. via memory_probe_store(), we can end up calling
+> >> add_memory()->online_pages() without the device_hotplug_lock. So we can
+> >> have concurrent callers in online_pages(). We e.g. touch in online_pages()
+> >> basically unprotected zone->present_pages then.
+> >>
+> >> Looks like there is a longer history to that (see Patch #2 for details),
+> >> and fixing it to work the way it was intended is not really possible. We
+> >> would e.g. have to take the mem_hotplug_lock in device/base/core.c, which
+> >> sounds wrong.
+> >>
+> >> Summary: We had a lock inversion on mem_hotplug_lock and device_lock().
+> >> More details can be found in patch 3 and patch 6.
+> >>
+> >> I propose the general rules (documentation added in patch 6):
+> >>
+> >> 1. add_memory/add_memory_resource() must only be called with
+> >>    device_hotplug_lock.
+> >> 2. remove_memory() must only be called with device_hotplug_lock. This is
+> >>    already documented and holds for all callers.
+> >> 3. device_online()/device_offline() must only be called with
+> >>    device_hotplug_lock. This is already documented and true for now in core
+> >>    code. Other callers (related to memory hotplug) have to be fixed up.
+> >> 4. mem_hotplug_lock is taken inside of add_memory/remove_memory/
+> >>    online_pages/offline_pages.
+> >>
+> >> To me, this looks way cleaner than what we have right now (and easier to
+> >> verify). And looking at the documentation of remove_memory, using
+> >> lock_device_hotplug also for add_memory() feels natural.
+> >>
+> > 
+> > That seems reasonable, but also implies that device_online() would hold
+> > back add/remove memory, could you please also document what mode
+> > read/write the locks need to be held? For example can the device_hotplug_lock
+> > be held in read mode while add/remove memory via (mem_hotplug_lock) is held
+> > in write mode?
 > 
-> Davis is talking about the kernel Direct Map, which is a PRIV (i.e.
-> kernel) mapping of all physical memory on the system, at
->   VA = (base + PA).
-> Since this mapping exists for all physical addresses, speculative
-> load gadgets (and the processor's prefetch mechanism, etc.) can
-> load arbitrary data even if it is only otherwise mapped into user
-> space.
-
-Load aribtrary data with no permission checks (strict RWX).
-
+> device_hotplug_lock is an ordinary mutex. So no option there.
 > 
-> XPFO fixes this by unmapping the Direct Map translations when the
-> page is allocated as a user page. The mapping is only restored:
->    1. temporarily if the kernel needs direct access to the page
->       (i.e. to zero it, access it from a device driver, etc),
->    2. when the page is freed
+> Only mem_hotplug_lock is a per CPU RW mutex. And as of now it only
+> exists to not require get_online_mems()/put_online_mems() to take the
+> device_hotplug_lock. Which is perfectly valid, because these users only
+> care about memory (not any other devices) not suddenly vanish. And that
+> RW lock makes things fast.
 > 
-> And in so doing, significantly reduces the amount of non-kernel data
-> vulnerable to speculative execution attacks against the kernel.
-> (and reduces what data can be loaded into the L1 data cache while
-> in kernel mode, to be peeked at by the recent L1 Terminal Fault
-> vulnerability).
+> Any modifications (online/offline/add/remove) require the
+> mem_hotplug_lock in write.
+> 
+> I can add some more details to documentation in patch #6.
+> 
+> "... we should always hold the mem_hotplug_lock (via
+> mem_hotplug_begin/mem_hotplug_done) in write mode to serialize memory
+> hotplug" ..."
+> 
+> "In addition, mem_hotplug_lock (in contrast to device_hotplug_lock) in
+> read mode allows for a quite efficient get_online_mems/put_online_mems
+> implementation, so code accessing memory can protect from that memory
+> vanishing."
+> 
+> Would that work for you?
 
-I see and there is no way for gadgets to invoke this path from
-user space to make their speculation successful? We still have to
-flush L1, indepenedent of whether XPFO is enabled or not right?
+Yes, Thanks
 
 Balbir Singh.
