@@ -1,161 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F20CA8E0001
-	for <linux-mm@kvack.org>; Sun, 23 Sep 2018 11:17:51 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id v4-v6so17143500oix.2
-        for <linux-mm@kvack.org>; Sun, 23 Sep 2018 08:17:51 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id s128-v6si15580495ois.140.2018.09.23.08.17.50
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DA8E18E0001
+	for <linux-mm@kvack.org>; Sun, 23 Sep 2018 12:33:59 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id s15-v6so35246360iob.11
+        for <linux-mm@kvack.org>; Sun, 23 Sep 2018 09:33:59 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m191-v6sor6861200jab.142.2018.09.23.09.33.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 23 Sep 2018 08:17:50 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8NFE9mJ112893
-	for <linux-mm@kvack.org>; Sun, 23 Sep 2018 11:17:49 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mp36f7put-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 23 Sep 2018 11:17:49 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Sun, 23 Sep 2018 16:17:46 +0100
-Date: Sun, 23 Sep 2018 18:17:24 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: Linux RDMA mini-conf at Plumbers 2018
-References: <20180920181923.GA6542@mellanox.com>
- <20180920185428.GT3519@mtr-leonro.mtl.com>
+        (Google Transport Security);
+        Sun, 23 Sep 2018 09:33:58 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180920185428.GT3519@mtr-leonro.mtl.com>
-Message-Id: <20180923151724.GA2469@rapoport-lnx>
+In-Reply-To: <CAKdAkRS7PSXv65MTnvKOewqESxt0_FtKohd86ioOuYR3R0z9dw@mail.gmail.com>
+References: <000000000000e5f76c057664e73d@google.com> <CAKdAkRS7PSXv65MTnvKOewqESxt0_FtKohd86ioOuYR3R0z9dw@mail.gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Sun, 23 Sep 2018 18:33:37 +0200
+Message-ID: <CACT4Y+YOb6M=xuPG64PAvd=0bcteicGtwQO60CevN_V67SJ=MQ@mail.gmail.com>
+Subject: Re: WARNING: kmalloc bug in input_mt_init_slots
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Leon Romanovsky <leon@kernel.org>
-Cc: Jason Gunthorpe <jgg@mellanox.com>, linux-rdma@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alex Rosenbaum <alexr@mellanox.com>, Alex Williamson <alex.williamson@redhat.com>, Bjorn Helgaas <bhelgaas@google.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Christoph Hellwig <hch@lst.de>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, Don Dutile <ddutile@redhat.com>, Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>, John Hubbard <jhubbard@nvidia.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, Matthew Wilcox <willy@infradead.org>, Nicholas Piggin <npiggin@gmail.com>, Noa Osherovich <noaos@mellanox.com>, Parav Pandit <parav@mellanox.com>, Stephen Bates <sbates@raithlin.com>, Joel Nider <joeln@il.ibm.com>
+To: Dmitry Torokhov <dmitry.torokhov@gmail.com>
+Cc: syzbot+87829a10073277282ad1@syzkaller.appspotmail.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, "linux-input@vger.kernel.org" <linux-input@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>, Henrik Rydberg <rydberg@bitmath.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
 
-On Thu, Sep 20, 2018 at 09:54:28PM +0300, Leon Romanovsky wrote:
-> On Thu, Sep 20, 2018 at 12:19:23PM -0600, Jason Gunthorpe wrote:
-> > This is just a friendly reminder that registration deadlines are
-> > approaching for this conference. Please see
-> >
-> > https://www.linuxplumbersconf.org/event/2/page/7-attend
-> >
-> > For details.
-> >
-> > This year we expect to have close to a day set aside for RDMA related
-> > topics. Including up to half a day for the thorny general kernel issues
-> > related to get_user_pages(), particularly as exasperated by RDMA.
-> >
-> > We have been working on the following concepts for sessions, I've
-> > roughly marked names based on past participation in related email
-> > threads. As we get closer to the conference date we will be organizing
-> > leaders for each section based on these lists, please let us know of
-> > any changes, or desire to be a leader!
-> >
-> > RDMA and get_user_pages
-> > =======================
-> >   Dan Williams <dan.j.williams@intel.com>
-> >   Matthew Wilcox <willy@infradead.org>
-> >   John Hubbard <jhubbard@nvidia.com>
-> >   Nicholas Piggin <npiggin@gmail.com>
-> >   Jan Kara <jack@suse.cz>
-> >
-> >  RDMA, DAX and persistant memory co-existence.
-> >
-> >  Explore the limits of what is possible without using On
-> >  Demand Paging Memory Registration. Discuss 'shootdown'
-> >  of userspace MRs
-> >
-> >  Dirtying pages obtained with get_user_pages() can oops ext4
-> >  discuss open solutions.
-> >
-> > RDMA and PCI peer to peer
-> > =========================
-> >   Don Dutile <ddutile@redhat.com>
-> >   Alex Williamson <alex.williamson@redhat.com>
-> >   Christoph Hellwig <hch@lst.de>
-> >   Stephen Bates <sbates@raithlin.com>
-> >   Logan Gunthorpe <logang@deltatee.com>
-> >   Jerome Glisse <jglisse@redhat.com>
-> >   Christian Konig <christian.koenig@amd.com>
-> >   Bjorn Helgaas <bhelgaas@google.com>
-> >
-> >  RDMA and PCI peer to peer transactions. IOMMU issues. Integration
-> >  with HMM. How to expose PCI BAR memory to userspace and other
-> >  drivers as a DMA target.
-> >
-> > Improving testing of RDMA with syzkaller, RXE and Python
-> > ========================================================
-> >  Noa Osherovich <noaos@mellanox.com>
-> >  Don Dutile <ddutile@redhat.com>
-> >  Jason Gunthorpe <jgg@mellanox.com>
-> >
-> >  Problem solve RDMA's distinct lack of public tests.
-> >  Provide a better framework for all drivers to test with,
-> >  and a framework for basic testing in userspace.
-> >
-> >  Worst remaining unfixed syzkaller bugs and how to try to fix them
-> >
-> >  How to hook syzkaller more deeply into RDMA.
-> >
-> > IOCTL conversion and new kABI topics
-> > ====================================
-> >  Jason Gunthorpe <jgg@mellanox.com>
-> >  Alex Rosenbaum <alexr@mellanox.com>
-> >
-> >  Attempt to close on the remaining tasks to complete the project
-> >
-> >  Restore fork() support to userspace
-> >
-> > Container and namespaces for RDMA topics
-> > ========================================
-> >  Parav Pandit <parav@mellanox.com>
-> >  Doug Ledford <dledford@redhat.com>
-> >
-> >  Remaining sticky situations with containers
-> >
-> >  namespaces in sysfs and legacy all-namespace operation
-> >
-> >  Remaining CM issues
-> >
-> >  Security isolation problems
-> >
-> > Very large Contiguous regions in userspace
-> > ==========================================
-> >  Christopher Lameter <cl@linux.com>
-> >  Parav Pandit <parav@mellanox.com>
-> >
-> >  Poor performance of get_user_pages on very large virtual ranges
-> >
-> >  No standardized API to allocate regions to user space
-> >
-> >  Carry over from last year
-> >
-> > As we get closer to the conference date the exact schedule will be
-> > published on the conference web site. I belive we have the Thursday
-> > set aside right now.
-> >
-> > If there are any last minute topics people would like to see please
-> > let us know.
-> 
-> I want to remind you that Mike wanted to bring the topic of enhancing
-> remote page faults during post-copy container migration in CRIU over
-> RDMA.
- 
-It's more Joel's topic, but thanks for the reminder anyway :)
+On Fri, Sep 21, 2018 at 7:52 PM, Dmitry Torokhov
+<dmitry.torokhov@gmail.com> wrote:
+> On Fri, Sep 21, 2018 at 10:24 AM syzbot
+> <syzbot+87829a10073277282ad1@syzkaller.appspotmail.com> wrote:
+>>
+>> Hello,
+>>
+>> syzbot found the following crash on:
+>>
+>> HEAD commit:    234b69e3e089 ocfs2: fix ocfs2 read block panic
+>> git tree:       upstream
+>> console output: https://syzkaller.appspot.com/x/log.txt?x=131f761a400000
+>> kernel config:  https://syzkaller.appspot.com/x/.config?x=5fa12be50bca08d8
+>> dashboard link: https://syzkaller.appspot.com/bug?extid=87829a10073277282ad1
+>> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+>> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=126ca61a400000
+>> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=119d6511400000
+>>
+>> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+>> Reported-by: syzbot+87829a10073277282ad1@syzkaller.appspotmail.com
+>>
+>> input: syz0 as /devices/virtual/input/input25382
+>> WARNING: CPU: 0 PID: 11238 at mm/slab_common.c:1031 kmalloc_slab+0x56/0x70
+>> mm/slab_common.c:1031
+>> Kernel panic - not syncing: panic_on_warn set ...
+>
+> This is coming from:
+>
+> commit 6286ae97d10ea2b5cd90532163797ab217bfdbdf
+> Author: Christoph Lameter <cl@linux.com>
+> Date:   Fri May 3 15:43:18 2013 +0000
+>
+>    slab: Return NULL for oversized allocations
+>
+>    The inline path seems to have changed the SLAB behavior for very large
+>    kmalloc allocations with  commit e3366016 ("slab: Use common
+>    kmalloc_index/kmalloc_size functions"). This patch restores the old
+>    behavior but also adds diagnostics so that we can figure where in the
+>    code these large allocations occur.
+>
+>    Reported-and-tested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+>    Signed-off-by: Christoph Lameter <cl@linux.com>
+>    Link: http://lkml.kernel.org/r/201305040348.CIF81716.OStQOHFJMFLOVF@I-love.SAKURA.ne.jp
+>    [ penberg@kernel.org: use WARN_ON_ONCE ]
+>    Signed-off-by: Pekka Enberg <penberg@kernel.org>
+>
+> You'll have to convince Cristoph that WARN_ON_ONCE() there is evil and
+> has to be eradicated so that KASAN can run (but then we'd not know
+> easily that some allocation failed because it was too big and never
+> had a chance of succeeding vs. ordinary memory failure).
+>
+> Can I recommend that maybe you introduce infrastructure for
+> panic_on_warn to ignore certain "well known" warnings?
 
-> Thanks
-> 
-> >
-> > See you all in Vancouver!
-> >
-> > Thanks,
-> > Jason & Leon
-> >
+Hi Christoph,
 
--- 
-Sincerely yours,
-Mike.
+What was the motivation behind that WARNING about large allocations in
+kmalloc? Why do we want to know about them? Is the general policy that
+kmalloc calls with potentially large size requests need to use NOWARN?
+If this WARNING still considered useful? Or we should change it to
+pr_err?
