@@ -1,112 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CB3EA8E0001
-	for <linux-mm@kvack.org>; Sun, 23 Sep 2018 05:23:24 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id a4-v6so107749pfi.16
-        for <linux-mm@kvack.org>; Sun, 23 Sep 2018 02:23:24 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 3-v6sor5921354pls.69.2018.09.23.02.23.23
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F20CA8E0001
+	for <linux-mm@kvack.org>; Sun, 23 Sep 2018 11:17:51 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id v4-v6so17143500oix.2
+        for <linux-mm@kvack.org>; Sun, 23 Sep 2018 08:17:51 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id s128-v6si15580495ois.140.2018.09.23.08.17.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 23 Sep 2018 02:23:23 -0700 (PDT)
-Date: Sun, 23 Sep 2018 19:23:15 +1000
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: [PATCH 3/3] mm: optimise pte dirty/accessed bit setting by
- demand based pte insertion
-Message-ID: <20180923192315.13cb4114@roar.ozlabs.ibm.com>
-In-Reply-To: <1537519325.19048.0.camel@intel.com>
-References: <20180828112034.30875-1-npiggin@gmail.com>
-	<20180828112034.30875-4-npiggin@gmail.com>
-	<20180905142951.GA15680@roeck-us.net>
-	<20180918035337.0727dad0@roar.ozlabs.ibm.com>
-	<1537519325.19048.0.camel@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 23 Sep 2018 08:17:50 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8NFE9mJ112893
+	for <linux-mm@kvack.org>; Sun, 23 Sep 2018 11:17:49 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mp36f7put-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 23 Sep 2018 11:17:49 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Sun, 23 Sep 2018 16:17:46 +0100
+Date: Sun, 23 Sep 2018 18:17:24 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: Linux RDMA mini-conf at Plumbers 2018
+References: <20180920181923.GA6542@mellanox.com>
+ <20180920185428.GT3519@mtr-leonro.mtl.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180920185428.GT3519@mtr-leonro.mtl.com>
+Message-Id: <20180923151724.GA2469@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ley Foon Tan <ley.foon.tan@intel.com>
-Cc: Guenter Roeck <linux@roeck-us.net>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ley Foon Tan <lftan@altera.com>, nios2-dev@lists.rocketboards.org
+To: Leon Romanovsky <leon@kernel.org>
+Cc: Jason Gunthorpe <jgg@mellanox.com>, linux-rdma@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alex Rosenbaum <alexr@mellanox.com>, Alex Williamson <alex.williamson@redhat.com>, Bjorn Helgaas <bhelgaas@google.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Christoph Hellwig <hch@lst.de>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, Don Dutile <ddutile@redhat.com>, Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>, John Hubbard <jhubbard@nvidia.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, Matthew Wilcox <willy@infradead.org>, Nicholas Piggin <npiggin@gmail.com>, Noa Osherovich <noaos@mellanox.com>, Parav Pandit <parav@mellanox.com>, Stephen Bates <sbates@raithlin.com>, Joel Nider <joeln@il.ibm.com>
 
-On Fri, 21 Sep 2018 16:42:05 +0800
-Ley Foon Tan <ley.foon.tan@intel.com> wrote:
-
-> On Tue, 2018-09-18 at 03:53 +1000, Nicholas Piggin wrote:
-> > On Wed, 5 Sep 2018 07:29:51 -0700
-> > Guenter Roeck <linux@roeck-us.net> wrote:
-> >   
-> > > 
-> > > Hi,
-> > > 
-> > > On Tue, Aug 28, 2018 at 09:20:34PM +1000, Nicholas Piggin wrote:  
-> > > > 
-> > > > Similarly to the previous patch, this tries to optimise
-> > > > dirty/accessed
-> > > > bits in ptes to avoid access costs of hardware setting them.
-> > > >   
-> > > This patch results in silent nios2 boot failures, silent meaning
-> > > that
-> > > the boot stalls.  
-> > Okay I just got back to looking at this. The reason for the hang is
-> > I think a bug in the nios2 TLB code, but maybe other archs have
-> > similar
-> > issues.
-> > 
-> > In case of a missing / !present Linux pte, nios2 installs a TLB entry
-> > with no permissions via its fast TLB exception handler (software TLB
-> > fill). Then it relies on that causing a TLB permission exception in a
-> > slower handler that calls handle_mm_fault to set the Linux pte and
-> > flushes the old TLB. Then the fast exception handler will find the
-> > new
-> > Linux pte.
-> > 
-> > With this patch, nios2 has a case where handle_mm_fault does not
-> > flush
-> > the old TLB, which results in the TLB permission exception
-> > continually
-> > being retried.
-> > 
-> > What happens now is that fault paths like do_read_fault will install
-> > a
-> > Linux pte with the young bit clear and return. That will cause nios2
-> > to
-> > fault again but this time go down the bottom of handle_pte_fault and
-> > to
-> > the access flags update with the young bit set. The young bit is seen
-> > to
-> > be different, so that causes ptep_set_access_flags to do a TLB flush
-> > and
-> > that finally allows the fast TLB handler to fire and pick up the new
-> > Linux pte.
-> > 
-> > With this patch, the young bit is set in the first handle_mm_fault,
-> > so
-> > the second handle_mm_fault no longer sees the ptes are different and
-> > does not flush the TLB. The spurious fault handler also does not
-> > flush
-> > them unless FAULT_FLAG_WRITE is set.
-> > 
-> > What nios2 should do is invalidate the TLB in update_mmu_cache. What
-> > it
-> > *really* should do is install the new TLB entry, I have some patches
-> > to
-> > make that work in qemu I can submit. But I would like to try getting
-> > these dirty/accessed bit optimisation in 4.20, so I will send a
-> > simple
-> > path to just do the TLB invalidate that could go in Andrew's git
-> > tree.
-> > 
-> > Is that agreeable with the nios2 maintainers?
-> > 
-> > Thanks,
-> > Nick
-> >   
-> Hi
+On Thu, Sep 20, 2018 at 09:54:28PM +0300, Leon Romanovsky wrote:
+> On Thu, Sep 20, 2018 at 12:19:23PM -0600, Jason Gunthorpe wrote:
+> > This is just a friendly reminder that registration deadlines are
+> > approaching for this conference. Please see
+> >
+> > https://www.linuxplumbersconf.org/event/2/page/7-attend
+> >
+> > For details.
+> >
+> > This year we expect to have close to a day set aside for RDMA related
+> > topics. Including up to half a day for the thorny general kernel issues
+> > related to get_user_pages(), particularly as exasperated by RDMA.
+> >
+> > We have been working on the following concepts for sessions, I've
+> > roughly marked names based on past participation in related email
+> > threads. As we get closer to the conference date we will be organizing
+> > leaders for each section based on these lists, please let us know of
+> > any changes, or desire to be a leader!
+> >
+> > RDMA and get_user_pages
+> > =======================
+> >   Dan Williams <dan.j.williams@intel.com>
+> >   Matthew Wilcox <willy@infradead.org>
+> >   John Hubbard <jhubbard@nvidia.com>
+> >   Nicholas Piggin <npiggin@gmail.com>
+> >   Jan Kara <jack@suse.cz>
+> >
+> >  RDMA, DAX and persistant memory co-existence.
+> >
+> >  Explore the limits of what is possible without using On
+> >  Demand Paging Memory Registration. Discuss 'shootdown'
+> >  of userspace MRs
+> >
+> >  Dirtying pages obtained with get_user_pages() can oops ext4
+> >  discuss open solutions.
+> >
+> > RDMA and PCI peer to peer
+> > =========================
+> >   Don Dutile <ddutile@redhat.com>
+> >   Alex Williamson <alex.williamson@redhat.com>
+> >   Christoph Hellwig <hch@lst.de>
+> >   Stephen Bates <sbates@raithlin.com>
+> >   Logan Gunthorpe <logang@deltatee.com>
+> >   Jerome Glisse <jglisse@redhat.com>
+> >   Christian Konig <christian.koenig@amd.com>
+> >   Bjorn Helgaas <bhelgaas@google.com>
+> >
+> >  RDMA and PCI peer to peer transactions. IOMMU issues. Integration
+> >  with HMM. How to expose PCI BAR memory to userspace and other
+> >  drivers as a DMA target.
+> >
+> > Improving testing of RDMA with syzkaller, RXE and Python
+> > ========================================================
+> >  Noa Osherovich <noaos@mellanox.com>
+> >  Don Dutile <ddutile@redhat.com>
+> >  Jason Gunthorpe <jgg@mellanox.com>
+> >
+> >  Problem solve RDMA's distinct lack of public tests.
+> >  Provide a better framework for all drivers to test with,
+> >  and a framework for basic testing in userspace.
+> >
+> >  Worst remaining unfixed syzkaller bugs and how to try to fix them
+> >
+> >  How to hook syzkaller more deeply into RDMA.
+> >
+> > IOCTL conversion and new kABI topics
+> > ====================================
+> >  Jason Gunthorpe <jgg@mellanox.com>
+> >  Alex Rosenbaum <alexr@mellanox.com>
+> >
+> >  Attempt to close on the remaining tasks to complete the project
+> >
+> >  Restore fork() support to userspace
+> >
+> > Container and namespaces for RDMA topics
+> > ========================================
+> >  Parav Pandit <parav@mellanox.com>
+> >  Doug Ledford <dledford@redhat.com>
+> >
+> >  Remaining sticky situations with containers
+> >
+> >  namespaces in sysfs and legacy all-namespace operation
+> >
+> >  Remaining CM issues
+> >
+> >  Security isolation problems
+> >
+> > Very large Contiguous regions in userspace
+> > ==========================================
+> >  Christopher Lameter <cl@linux.com>
+> >  Parav Pandit <parav@mellanox.com>
+> >
+> >  Poor performance of get_user_pages on very large virtual ranges
+> >
+> >  No standardized API to allocate regions to user space
+> >
+> >  Carry over from last year
+> >
+> > As we get closer to the conference date the exact schedule will be
+> > published on the conference web site. I belive we have the Thursday
+> > set aside right now.
+> >
+> > If there are any last minute topics people would like to see please
+> > let us know.
 > 
-> Do you have patches to test?
+> I want to remind you that Mike wanted to bring the topic of enhancing
+> remote page faults during post-copy container migration in CRIU over
+> RDMA.
+ 
+It's more Joel's topic, but thanks for the reminder anyway :)
 
-I've been working on some, it has taken longer than I expected, I'll
-hopefully have something to send out by tomorrow.
+> Thanks
+> 
+> >
+> > See you all in Vancouver!
+> >
+> > Thanks,
+> > Jason & Leon
+> >
 
-Thanks,
-Nick
+-- 
+Sincerely yours,
+Mike.
