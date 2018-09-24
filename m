@@ -1,87 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 135948E0001
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 07:39:27 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id c5-v6so9870689plo.2
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 04:39:27 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id e13-v6si763287pge.0.2018.09.24.04.39.25
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AB9D58E0001
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 07:44:31 -0400 (EDT)
+Received: by mail-it1-f198.google.com with SMTP id z72-v6so3633367itc.8
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 04:44:31 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 17-v6sor6933539itz.91.2018.09.24.04.44.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Sep 2018 04:39:25 -0700 (PDT)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 3.18 050/105] x86/mm: Remove in_nmi() warning from vmalloc_fault()
-Date: Mon, 24 Sep 2018 13:33:36 +0200
-Message-Id: <20180924113118.835054671@linuxfoundation.org>
-In-Reply-To: <20180924113113.268650190@linuxfoundation.org>
-References: <20180924113113.268650190@linuxfoundation.org>
+        (Google Transport Security);
+        Mon, 24 Sep 2018 04:44:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+References: <20180924101150.23349-1-brgl@bgdev.pl> <20180924101150.23349-5-brgl@bgdev.pl>
+ <20180924112303.GM15943@smile.fi.intel.com>
+In-Reply-To: <20180924112303.GM15943@smile.fi.intel.com>
+From: Bartosz Golaszewski <brgl@bgdev.pl>
+Date: Mon, 24 Sep 2018 13:44:19 +0200
+Message-ID: <CAMRc=McegRtV88BfYja5wdKZuNDEMG3dqWjG7xHoyo6EHhyEqg@mail.gmail.com>
+Subject: Re: [PATCH v3 4/4] clk: pmc-atom: use devm_kstrdup_const()
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Joerg Roedel <jroedel@suse.de>, Thomas Gleixner <tglx@linutronix.de>, "David H. Gutteridge" <dhgutteridge@sympatico.ca>, "H . Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, joro@8bytes.org, Sasha Levin <alexander.levin@microsoft.com>
+To: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+Cc: Michael Turquette <mturquette@baylibre.com>, Stephen Boyd <sboyd@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Arend van Spriel <aspriel@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, Bjorn Helgaas <bhelgaas@google.com>, Vivek Gautam <vivek.gautam@codeaurora.org>, Robin Murphy <robin.murphy@arm.com>, Joe Perches <joe@perches.com>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Roman Gushchin <guro@fb.com>, Huang Ying <ying.huang@intel.com>, Kees Cook <keescook@chromium.org>, Bjorn Andersson <bjorn.andersson@linaro.org>, Arnd Bergmann <arnd@arndb.de>, linux-clk <linux-clk@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-3.18-stable review patch.  If anyone has any objections, please let me know.
+pon., 24 wrz 2018 o 13:23 Andy Shevchenko
+<andriy.shevchenko@linux.intel.com> napisa=C5=82(a):
+>
+> On Mon, Sep 24, 2018 at 12:11:50PM +0200, Bartosz Golaszewski wrote:
+> > Use devm_kstrdup_const() in the pmc-atom driver. This mostly serves as
+> > an example of how to use this new routine to shrink driver code.
+> >
+> > While we're at it: replace a call to kcalloc() with devm_kcalloc().
+>
+> > @@ -352,8 +344,6 @@ static int plt_clk_probe(struct platform_device *pd=
+ev)
+> >               goto err_drop_mclk;
+> >       }
+> >
+> > -     plt_clk_free_parent_names_loop(parent_names, data->nparents);
+> > -
+> >       platform_set_drvdata(pdev, data);
+> >       return 0;
+>
+> I don't think this is a good example.
+>
+> You changed a behaviour here in the way that you keep all chunks of memor=
+y
+> (even small enough for pointers) during entire life time of the driver, w=
+hich
+> pretty likely would be forever till next boot.
+>
+> In the original case the memory was freed immediately in probe either it =
+fails
+> or returns with success.
+>
+> NAK, sorry.
+>
+>
 
-------------------
+I see.
 
-From: Joerg Roedel <jroedel@suse.de>
+I'd like to still merge patches 1-3 and then I'd come up with better
+examples for the next release cycle once these are in?
 
-[ Upstream commit 6863ea0cda8725072522cd78bda332d9a0b73150 ]
-
-It is perfectly okay to take page-faults, especially on the
-vmalloc area while executing an NMI handler. Remove the
-warning.
-
-Signed-off-by: Joerg Roedel <jroedel@suse.de>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Tested-by: David H. Gutteridge <dhgutteridge@sympatico.ca>
-Cc: "H . Peter Anvin" <hpa@zytor.com>
-Cc: linux-mm@kvack.org
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Jiri Kosina <jkosina@suse.cz>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: David Laight <David.Laight@aculab.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: Eduardo Valentin <eduval@amazon.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: aliguori@amazon.com
-Cc: daniel.gruss@iaik.tugraz.at
-Cc: hughd@google.com
-Cc: keescook@google.com
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Waiman Long <llong@redhat.com>
-Cc: Pavel Machek <pavel@ucw.cz>
-Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
-Cc: Alexander Shishkin <alexander.shishkin@linux.intel.com>
-Cc: Jiri Olsa <jolsa@redhat.com>
-Cc: Namhyung Kim <namhyung@kernel.org>
-Cc: joro@8bytes.org
-Link: https://lkml.kernel.org/r/1532533683-5988-2-git-send-email-joro@8bytes.org
-Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
----
- arch/x86/mm/fault.c |    2 --
- 1 file changed, 2 deletions(-)
-
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -271,8 +271,6 @@ static noinline int vmalloc_fault(unsign
- 	if (!(address >= VMALLOC_START && address < VMALLOC_END))
- 		return -1;
- 
--	WARN_ON_ONCE(in_nmi());
--
- 	/*
- 	 * Synchronize this task's top level page-table
- 	 * with the 'reference' page table.
+Bart
