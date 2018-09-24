@@ -1,77 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 51B9E8E0001
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 10:42:58 -0400 (EDT)
-Received: by mail-wm1-f71.google.com with SMTP id b5-v6so1468085wmj.6
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 07:42:58 -0700 (PDT)
-Received: from EUR04-DB3-obe.outbound.protection.outlook.com (mail-eopbgr60107.outbound.protection.outlook.com. [40.107.6.107])
-        by mx.google.com with ESMTPS id 199-v6si9101132wme.114.2018.09.24.07.42.56
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EA088E0001
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 10:46:00 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id l11-v6so22538978qkk.0
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 07:46:00 -0700 (PDT)
+Received: from smtp-fw-9101.amazon.com (smtp-fw-9101.amazon.com. [207.171.184.25])
+        by mx.google.com with ESMTPS id j12-v6si2669454qvo.267.2018.09.24.07.45.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 24 Sep 2018 07:42:56 -0700 (PDT)
-Subject: Re: block: DMA alignment of IO buffer allocated from slab
-References: <CACVXFVOBq3L_EjSTCoiqUL1PH=HMR5EuNNQV0hNndFpGxmUK6g@mail.gmail.com>
- <20180920063129.GB12913@lst.de> <87h8ij0zot.fsf@vitty.brq.redhat.com>
- <20180923224206.GA13618@ming.t460p>
- <38c03920-0fd0-0a39-2a6e-70cd8cb4ef34@virtuozzo.com>
- <20a20568-5089-541d-3cee-546e549a0bc8@acm.org>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <12eee877-affa-c822-c9d5-fda3aa0a50da@virtuozzo.com>
-Date: Mon, 24 Sep 2018 17:43:10 +0300
-MIME-Version: 1.0
-In-Reply-To: <20a20568-5089-541d-3cee-546e549a0bc8@acm.org>
-Content-Type: text/plain; charset=utf-8
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Sep 2018 07:45:59 -0700 (PDT)
+From: "Stecklina, Julian" <jsteckli@amazon.de>
+Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
+ in mind (for KVM to isolate its guests per CPU)
+Date: Mon, 24 Sep 2018 14:45:41 +0000
+Message-ID: <1537800341.9745.20.camel@amazon.de>
+References: <CA+55aFxyUdhYjnQdnmWAt8tTwn4HQ1xz3SAMZJiawkLpMiJ_+w@mail.gmail.com>
+	 <ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com>
+	 <CA+55aFzHj_GNZWG4K2oDu4DPP9sZdTZ9PY7sBxGB6WoN9g8d=A@mail.gmail.com>
+	 <ciirm8zhwyiqh4.fsf@u54ee758033e858cfa736.ant.amazon.com>
+	 <ciirm8efdy916l.fsf@u54ee758033e858cfa736.ant.amazon.com>
+	 <5efc291c-b0ed-577e-02d1-285d080c293d@oracle.com>
+	 <ciirm8va743105.fsf@u54ee758033e858cfa736.ant.amazon.com>
+	 <7221975d-6b67-effa-2747-06c22c041e78@oracle.com>
+In-Reply-To: <7221975d-6b67-effa-2747-06c22c041e78@oracle.com>
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <D5DA42683F56B14396B5512A9BB52777@amazon.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bart Van Assche <bvanassche@acm.org>, Ming Lei <ming.lei@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: Christoph Hellwig <hch@lst.de>, Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: "khalid.aziz@oracle.com" <khalid.aziz@oracle.com>
+Cc: "juerg.haefliger@hpe.com" <juerg.haefliger@hpe.com>, "deepa.srinivasan@oracle.com" <deepa.srinivasan@oracle.com>, "jmattson@google.com" <jmattson@google.com>, "andrew.cooper3@citrix.com" <andrew.cooper3@citrix.com>, "Woodhouse, David" <dwmw@amazon.co.uk>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "boris.ostrovsky@oracle.com" <boris.ostrovsky@oracle.com>, "pradeep.vincent@oracle.com" <pradeep.vincent@oracle.com>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "kanth.ghatraju@oracle.com" <kanth.ghatraju@oracle.com>, "joao.m.martins@oracle.com" <joao.m.martins@oracle.com>, "liran.alon@oracle.com" <liran.alon@oracle.com>, "ak@linux.intel.com" <ak@linux.intel.com>, "keescook@google.com" <keescook@google.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "chris.hyser@oracle.com" <chris.hyser@oracle.com>, "tyhicks@canonical.com" <tyhicks@canonical.com>, "john.haxby@oracle.com" <john.haxby@oracle.com>, "jcm@redhat.com" <jcm@redhat.com>
 
-
-
-On 09/24/2018 05:19 PM, Bart Van Assche wrote:
-> On 9/24/18 2:46 AM, Andrey Ryabinin wrote:
->> On 09/24/2018 01:42 AM, Ming Lei wrote:
->>> On Fri, Sep 21, 2018 at 03:04:18PM +0200, Vitaly Kuznetsov wrote:
->>>> Christoph Hellwig <hch@lst.de> writes:
->>>>
->>>>> On Wed, Sep 19, 2018 at 05:15:43PM +0800, Ming Lei wrote:
->>>>>> 1) does kmalloc-N slab guarantee to return N-byte aligned buffer?A  If
->>>>>> yes, is it a stable rule?
->>>>>
->>>>> This is the assumption in a lot of the kernel, so I think if somethings
->>>>> breaks this we are in a lot of pain.
->>
->> This assumption is not correct. And it's not correct at least from the beginning of the
->> git era, which is even before SLUB allocator appeared. With CONFIG_DEBUG_SLAB=y
->> the same as with CONFIG_SLUB_DEBUG_ON=y kmalloc return 'unaligned' objects.
->> The guaranteed arch-and-config-independent alignment of kmalloc() result is "sizeof(void*)".
-
-
-Correction sizeof(unsigned long long), so 8-byte alignment guarantee.
-
->>
->> If objects has higher alignment requirement, the could be allocated via specifically created kmem_cache.
-> 
-> Hello Andrey,
-> 
-> The above confuses me. Can you explain to me why the following comment is present in include/linux/slab.h?
-> 
-> /*
-> A * kmalloc and friends return ARCH_KMALLOC_MINALIGN aligned
-> A * pointers. kmem_cache_alloc and friends return ARCH_SLAB_MINALIGN
-> A * aligned pointers.
-> A */
-> 
-
-ARCH_KMALLOC_MINALIGN - guaranteed alignment of the kmalloc() result.
-ARCH_SLAB_MINALIGN - guaranteed alignment of kmem_cache_alloc() result.
-
-If the 'align' argument passed into kmem_cache_create() is bigger than ARCH_SLAB_MINALIGN
-than kmem_cache_alloc() from that cache should return 'align'-aligned pointers.
-
-
-> Thanks,
-> 
-> Bart.
+T24gVHVlLCAyMDE4LTA5LTE4IGF0IDE3OjAwIC0wNjAwLCBLaGFsaWQgQXppeiB3cm90ZToNCj4g
+SSB0ZXN0ZWQgdGhlIGtlcm5lbCB3aXRoIHRoaXMgbmV3IGNvZGUuIFdoZW4gYm9vdGVkIHdpdGhv
+dXQNCj4gInhwZm90bGJmbHVzaCIswqANCj4gdGhlcmUgaXMgbm8gbWVhbmluZ2Z1bCBjaGFuZ2Ug
+aW4gc3lzdGVtIHRpbWUgd2l0aCBrZXJuZWwgY29tcGlsZS4gDQoNClRoYXQncyBnb29kIG5ld3Mh
+IFNvIHRoZSBsb2NrIG9wdGltaXphdGlvbnMgc2VlbSB0byBoZWxwLg0KDQo+IEtlcm5lbMKgDQo+
+IGxvY2tzIHVwIGR1cmluZyBib290dXAgd2hlbiBib290ZWQgd2l0aCB4cGZvdGxiZmx1c2g6DQoN
+CkkgZGlkbid0IHRlc3QgdGhlIHZlcnNpb24gd2l0aCBUTEIgZmx1c2hlcywgYmVjYXVzZSBpdCdz
+IGNsZWFyIHRoYXQgdGhlDQpvdmVyaGVhZCBpcyBzbyBiYWQgdGhhdCBubyBvbmUgd2FudHMgdG8g
+dXNlIHRoaXMuDQoNCkl0IHNob3VsZG4ndCBsb2NrIHVwIHRob3VnaCwgc28gbWF5YmUgdGhlcmUg
+aXMgc3RpbGwgYSByYWNlIGNvbmRpdGlvbg0Kc29tZXdoZXJlLiBJJ2xsIGdpdmUgdGhpcyBhIHNw
+aW4gb24gbXkgZW5kIGxhdGVyIHRoaXMgd2Vlay4NCg0KVGhhbmtzIGZvciB0cnlpbmcgdGhpcyBv
+dXQhDQoNCkp1bGlhbg0KQW1hem9uIERldmVsb3BtZW50IENlbnRlciBHZXJtYW55IEdtYkgKQmVy
+bGluIC0gRHJlc2RlbiAtIEFhY2hlbgptYWluIG9mZmljZTogS3JhdXNlbnN0ci4gMzgsIDEwMTE3
+IEJlcmxpbgpHZXNjaGFlZnRzZnVlaHJlcjogRHIuIFJhbGYgSGVyYnJpY2gsIENocmlzdGlhbiBT
+Y2hsYWVnZXIKVXN0LUlEOiBERTI4OTIzNzg3OQpFaW5nZXRyYWdlbiBhbSBBbXRzZ2VyaWNodCBD
+aGFybG90dGVuYnVyZyBIUkIgMTQ5MTczIEIK
