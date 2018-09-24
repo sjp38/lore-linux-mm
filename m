@@ -1,46 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 22E7E8E0001
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 14:09:41 -0400 (EDT)
-Received: by mail-it1-f200.google.com with SMTP id w132-v6so4839253ita.6
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 11:09:41 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p55-v6sor7328952jak.100.2018.09.24.11.09.40
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 22F088E0001
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 14:27:56 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b4-v6so9802143ede.4
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 11:27:56 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g45-v6si2314191edg.399.2018.09.24.11.27.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 24 Sep 2018 11:09:40 -0700 (PDT)
-Subject: Re: block: DMA alignment of IO buffer allocated from slab
-References: <CACVXFVOBq3L_EjSTCoiqUL1PH=HMR5EuNNQV0hNndFpGxmUK6g@mail.gmail.com>
- <20180920063129.GB12913@lst.de> <87h8ij0zot.fsf@vitty.brq.redhat.com>
- <20180921130504.GA22551@lst.de>
- <010001660c54fb65-b9d3a770-6678-40d0-8088-4db20af32280-000000@email.amazonses.com>
- <1f88f59a-2cac-e899-4c2e-402e919b1034@kernel.dk>
- <010001660cbd51ea-56e96208-564d-4f5d-a5fb-119a938762a9-000000@email.amazonses.com>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <1a5b255f-682e-783a-7f99-9d02e39c4af2@kernel.dk>
-Date: Mon, 24 Sep 2018 12:09:37 -0600
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Sep 2018 11:27:54 -0700 (PDT)
+Subject: Re: [patch] mm, thp: always specify ineligible vmas as nh in smaps
+References: <alpine.DEB.2.21.1809241054050.224429@chino.kir.corp.google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <e2f159f3-5373-dda4-5904-ed24d029de3c@suse.cz>
+Date: Mon, 24 Sep 2018 20:25:15 +0200
 MIME-Version: 1.0
-In-Reply-To: <010001660cbd51ea-56e96208-564d-4f5d-a5fb-119a938762a9-000000@email.amazonses.com>
+In-Reply-To: <alpine.DEB.2.21.1809241054050.224429@chino.kir.corp.google.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Christoph Hellwig <hch@lst.de>, Vitaly Kuznetsov <vkuznets@redhat.com>, Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Ming Lei <ming.lei@redhat.com>
+To: David Rientjes <rientjes@google.com>, Alexey Dobriyan <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, Linux-MM layout <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
 
-On 9/24/18 12:00 PM, Christopher Lameter wrote:
-> On Mon, 24 Sep 2018, Jens Axboe wrote:
++CC linux-mm linux-api
+
+On 9/24/18 7:55 PM, David Rientjes wrote:
+> Commit 1860033237d4 ("mm: make PR_SET_THP_DISABLE immediately active")
+> introduced a regression in that userspace cannot always determine the set
+> of vmas where thp is ineligible.
 > 
->> The situation is making me a little uncomfortable, though. If we export
->> such a setting, we really should be honoring it...
+> Userspace relies on the "nh" flag being emitted as part of /proc/pid/smaps
+> to determine if a vma is eligible to be backed by hugepages.
 > 
-> Various subsystems create custom slab arrays with their particular
-> alignment requirement for these allocations.
+> Previous to this commit, prctl(PR_SET_THP_DISABLE, 1) would cause thp to
+> be disabled and emit "nh" as a flag for the corresponding vmas as part of
+> /proc/pid/smaps.  After the commit, thp is disabled by means of an mm
+> flag and "nh" is not emitted.
+> 
+> This causes smaps parsing libraries to assume a vma is eligible for thp
+> and ends up puzzling the user on why its memory is not backed by thp.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Oh yeah, I think the solution is basic enough for XFS, for instance.
-They just have to error on the side of being cautious, by going full
-sector alignment for memory...
+Fixes: 1860033237d4 ("mm: make PR_SET_THP_DISABLE immediately active")
 
--- 
-Jens Axboe
+Not worth for stable IMO, but makes sense otherwise.
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+A question below:
+
+> ---
+>  fs/proc/task_mmu.c | 12 +++++++++++-
+>  1 file changed, 11 insertions(+), 1 deletion(-)
+> 
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -653,13 +653,23 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+>  #endif
+>  #endif /* CONFIG_ARCH_HAS_PKEYS */
+>  	};
+> +	unsigned long flags = vma->vm_flags;
+>  	size_t i;
+>  
+> +	/*
+> +	 * Disabling thp is possible through both MADV_NOHUGEPAGE and
+> +	 * PR_SET_THP_DISABLE.  Both historically used VM_NOHUGEPAGE.  Since
+> +	 * the introduction of MMF_DISABLE_THP, however, userspace needs the
+> +	 * ability to detect vmas where thp is not eligible in the same manner.
+> +	 */
+> +	if (vma->vm_mm && test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
+> +		flags |= VM_NOHUGEPAGE;
+
+Should it also clear VM_HUGEPAGE? In case MMF_DISABLE_THP overrides a
+madvise(MADV_HUGEPAGE)'d vma? (I expect it does?)
+
+> +
+>  	seq_puts(m, "VmFlags: ");
+>  	for (i = 0; i < BITS_PER_LONG; i++) {
+>  		if (!mnemonics[i][0])
+>  			continue;
+> -		if (vma->vm_flags & (1UL << i)) {
+> +		if (flags & (1UL << i)) {
+>  			seq_putc(m, mnemonics[i][0]);
+>  			seq_putc(m, mnemonics[i][1]);
+>  			seq_putc(m, ' ');
+> 
