@@ -1,82 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 715C08E0001
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 10:24:12 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id g11-v6so9149968edi.8
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 07:24:12 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C20678E0001
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 10:26:11 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id v14-v6so2001242edq.10
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 07:26:11 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z20-v6si5484384edc.189.2018.09.24.07.24.10
+        by mx.google.com with ESMTPS id s3-v6si2114725edr.14.2018.09.24.07.26.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Sep 2018 07:24:10 -0700 (PDT)
-Date: Mon, 24 Sep 2018 16:24:08 +0200
+        Mon, 24 Sep 2018 07:26:10 -0700 (PDT)
+Date: Mon, 24 Sep 2018 16:26:09 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 1/2] mm/page_alloc: Fix panic caused by passing
- debug_guardpage_minorder or kernelcore to command line
-Message-ID: <20180924142408.GC18685@dhcp22.suse.cz>
+Subject: Re: [PATCH v2 2/2] mm/page_alloc: Add KBUILD_MODNAME
+Message-ID: <20180924142609.GD18685@dhcp22.suse.cz>
 References: <1537628013-243902-1-git-send-email-zhe.he@windriver.com>
+ <1537628013-243902-2-git-send-email-zhe.he@windriver.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1537628013-243902-1-git-send-email-zhe.he@windriver.com>
+In-Reply-To: <1537628013-243902-2-git-send-email-zhe.he@windriver.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: zhe.he@windriver.com
 Cc: akpm@linux-foundation.org, vbabka@suse.cz, pasha.tatashin@oracle.com, mgorman@techsingularity.net, aaron.lu@intel.com, osalvador@suse.de, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat 22-09-18 22:53:32, zhe.he@windriver.com wrote:
+On Sat 22-09-18 22:53:33, zhe.he@windriver.com wrote:
 > From: He Zhe <zhe.he@windriver.com>
 > 
-> debug_guardpage_minorder_setup and cmdline_parse_kernelcore do not check
-> input argument before using it. The argument would be a NULL pointer if
-> "debug_guardpage_minorder" or "kernelcore", without its value, is set in
-> command line and thus causes the following panic.
-> 
-> PANIC: early exception 0xe3 IP 10:ffffffffa08146f1 error 0 cr2 0x0
-> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 4.19.0-rc4-yocto-standard+ #11
-> [    0.000000] RIP: 0010:parse_option_str+0x11/0x90
-> ...
-> [    0.000000] Call Trace:
-> [    0.000000]  cmdline_parse_kernelcore+0x19/0x41
-> [    0.000000]  do_early_param+0x57/0x8e
-> [    0.000000]  parse_args+0x208/0x320
-> [    0.000000]  ? rdinit_setup+0x30/0x30
-> [    0.000000]  parse_early_options+0x29/0x2d
-> [    0.000000]  ? rdinit_setup+0x30/0x30
-> [    0.000000]  parse_early_param+0x36/0x4d
-> [    0.000000]  setup_arch+0x336/0x99e
-> [    0.000000]  start_kernel+0x6f/0x4ee
-> [    0.000000]  x86_64_start_reservations+0x24/0x26
-> [    0.000000]  x86_64_start_kernel+0x6f/0x72
-> [    0.000000]  secondary_startup_64+0xa4/0xb0
-> 
-> This patch adds a check to prevent the panic
+> Add KBUILD_MODNAME to make prints more clear.
 
-Is this something we deeply care about? The kernel command line
-interface is to be used by admins who know what they are doing.  Using
-random or wrong values for these parameters can have detrimental effects
-on the system. This particular case would blow up early, good. At least
-it is visible immediately. This and many other parameters could have a
-seemingly valid input (e.g. not a missing value) and subtle runtime
-effect. You won't blow up immediately but the system is hardly usable
-and the early checking cannot possible catch all those cases. Take a
-mem=$N copied from one machine to another with a different memory
-layout. While 2G can be perfectly fine on one a different machine might
-result on a completely unusable system because the available RAM is
-place higher.
-
-So I am really wondering. Do we really want a lot of code to catch
-kernel command line incorrect inputs? Does it really lead to better
-quality overall? IMHO, we do have a proper documentation and we should
-trust those starting the kernel.
-
-> and adds KBUILD_MODNAME to prints.
-
-This doesn't seem to be done in this patch. Probably a left over
-from the previous version.
+Please be more explicit. Examples of before and after would be really
+helpful.
 
 > Signed-off-by: He Zhe <zhe.he@windriver.com>
-> Cc: stable@vger.kernel.org
 > Cc: akpm@linux-foundation.org
 > Cc: mhocko@suse.com
 > Cc: vbabka@suse.cz
@@ -87,41 +43,24 @@ from the previous version.
 > Cc: iamjoonsoo.kim@lge.com
 > ---
 > v2:
-> Use more clear error info
 > Split the addition of KBUILD_MODNAME out
 > 
->  mm/page_alloc.c | 11 +++++++++++
->  1 file changed, 11 insertions(+)
+>  mm/page_alloc.c | 2 ++
+>  1 file changed, 2 insertions(+)
 > 
 > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 89d2a2a..f34cae1 100644
+> index f34cae1..ead9556 100644
 > --- a/mm/page_alloc.c
 > +++ b/mm/page_alloc.c
-> @@ -630,6 +630,12 @@ static int __init debug_guardpage_minorder_setup(char *buf)
->  {
->  	unsigned long res;
->  
-> +	if (!buf) {
-> +		pr_err("kernel option debug_guardpage_minorder requires an \
-> +			argument\n");
-> +		return -EINVAL;
-> +	}
-> +
->  	if (kstrtoul(buf, 10, &res) < 0 ||  res > MAX_ORDER / 2) {
->  		pr_err("Bad debug_guardpage_minorder value\n");
->  		return 0;
-> @@ -6952,6 +6958,11 @@ static int __init cmdline_parse_core(char *p, unsigned long *core,
+> @@ -14,6 +14,8 @@
+>   *          (lots of bits borrowed from Ingo Molnar & Andrew Morton)
 >   */
->  static int __init cmdline_parse_kernelcore(char *p)
->  {
-> +	if (!p) {
-> +		pr_err("kernel option kernelcore requires an argument\n");
-> +		return -EINVAL;
-> +	}
+>  
+> +#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 > +
->  	/* parse kernelcore=mirror */
->  	if (parse_option_str(p, "mirror")) {
->  		mirrored_kernelcore = true;
+>  #include <linux/stddef.h>
+>  #include <linux/mm.h>
+>  #include <linux/swap.h>
 > -- 
 > 2.7.4
 > 
