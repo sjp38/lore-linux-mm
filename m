@@ -1,68 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 48FE38E0001
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 10:30:30 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id g18-v6so9476647edg.14
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 07:30:30 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a27-v6si8306384edb.300.2018.09.24.07.30.28
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 51B9E8E0001
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 10:42:58 -0400 (EDT)
+Received: by mail-wm1-f71.google.com with SMTP id b5-v6so1468085wmj.6
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 07:42:58 -0700 (PDT)
+Received: from EUR04-DB3-obe.outbound.protection.outlook.com (mail-eopbgr60107.outbound.protection.outlook.com. [40.107.6.107])
+        by mx.google.com with ESMTPS id 199-v6si9101132wme.114.2018.09.24.07.42.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Sep 2018 07:30:29 -0700 (PDT)
-Date: Mon, 24 Sep 2018 16:30:27 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/migrate: Split only transparent huge pages when
- allocation fails
-Message-ID: <20180924143027.GE18685@dhcp22.suse.cz>
-References: <1537798495-4996-1-git-send-email-anshuman.khandual@arm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 24 Sep 2018 07:42:56 -0700 (PDT)
+Subject: Re: block: DMA alignment of IO buffer allocated from slab
+References: <CACVXFVOBq3L_EjSTCoiqUL1PH=HMR5EuNNQV0hNndFpGxmUK6g@mail.gmail.com>
+ <20180920063129.GB12913@lst.de> <87h8ij0zot.fsf@vitty.brq.redhat.com>
+ <20180923224206.GA13618@ming.t460p>
+ <38c03920-0fd0-0a39-2a6e-70cd8cb4ef34@virtuozzo.com>
+ <20a20568-5089-541d-3cee-546e549a0bc8@acm.org>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <12eee877-affa-c822-c9d5-fda3aa0a50da@virtuozzo.com>
+Date: Mon, 24 Sep 2018 17:43:10 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1537798495-4996-1-git-send-email-anshuman.khandual@arm.com>
+In-Reply-To: <20a20568-5089-541d-3cee-546e549a0bc8@acm.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Bart Van Assche <bvanassche@acm.org>, Ming Lei <ming.lei@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: Christoph Hellwig <hch@lst.de>, Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On Mon 24-09-18 19:44:55, Anshuman Khandual wrote:
-> When unmap_and_move[_huge_page] function fails due to lack of memory, the
-> splitting should happen only for transparent huge pages not for HugeTLB
-> pages. PageTransHuge() returns true for both THP and HugeTLB pages. Hence
-> the conditonal check should test PagesHuge() flag to make sure that given
-> pages is not a HugeTLB one.
 
-Well spotted! Have you actually seen this happening or this is review
-driven? I am wondering what would be the real effect of this mismatch?
-I have tried to follow to code path but I suspect
-split_huge_page_to_list would fail for hugetlbfs pages. If there is a
-more serious effect then we should mark the patch for stable as well.
 
+On 09/24/2018 05:19 PM, Bart Van Assche wrote:
+> On 9/24/18 2:46 AM, Andrey Ryabinin wrote:
+>> On 09/24/2018 01:42 AM, Ming Lei wrote:
+>>> On Fri, Sep 21, 2018 at 03:04:18PM +0200, Vitaly Kuznetsov wrote:
+>>>> Christoph Hellwig <hch@lst.de> writes:
+>>>>
+>>>>> On Wed, Sep 19, 2018 at 05:15:43PM +0800, Ming Lei wrote:
+>>>>>> 1) does kmalloc-N slab guarantee to return N-byte aligned buffer?A  If
+>>>>>> yes, is it a stable rule?
+>>>>>
+>>>>> This is the assumption in a lot of the kernel, so I think if somethings
+>>>>> breaks this we are in a lot of pain.
+>>
+>> This assumption is not correct. And it's not correct at least from the beginning of the
+>> git era, which is even before SLUB allocator appeared. With CONFIG_DEBUG_SLAB=y
+>> the same as with CONFIG_SLUB_DEBUG_ON=y kmalloc return 'unaligned' objects.
+>> The guaranteed arch-and-config-independent alignment of kmalloc() result is "sizeof(void*)".
+
+
+Correction sizeof(unsigned long long), so 8-byte alignment guarantee.
+
+>>
+>> If objects has higher alignment requirement, the could be allocated via specifically created kmem_cache.
 > 
-> Fixes: 94723aafb9 ("mm: unclutter THP migration")
-> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/migrate.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> Hello Andrey,
 > 
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index d6a2e89..d2297fe 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -1411,7 +1411,7 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
->  				 * we encounter them after the rest of the list
->  				 * is processed.
->  				 */
-> -				if (PageTransHuge(page)) {
-> +				if (PageTransHuge(page) && !PageHuge(page)) {
->  					lock_page(page);
->  					rc = split_huge_page_to_list(page, from);
->  					unlock_page(page);
-> -- 
-> 2.7.4
+> The above confuses me. Can you explain to me why the following comment is present in include/linux/slab.h?
+> 
+> /*
+> A * kmalloc and friends return ARCH_KMALLOC_MINALIGN aligned
+> A * pointers. kmem_cache_alloc and friends return ARCH_SLAB_MINALIGN
+> A * aligned pointers.
+> A */
+> 
 
--- 
-Michal Hocko
-SUSE Labs
+ARCH_KMALLOC_MINALIGN - guaranteed alignment of the kmalloc() result.
+ARCH_SLAB_MINALIGN - guaranteed alignment of kmem_cache_alloc() result.
+
+If the 'align' argument passed into kmem_cache_create() is bigger than ARCH_SLAB_MINALIGN
+than kmem_cache_alloc() from that cache should return 'align'-aligned pointers.
+
+
+> Thanks,
+> 
+> Bart.
