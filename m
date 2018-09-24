@@ -1,40 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BC8278E0001
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 12:47:54 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id d194-v6so22457437qkb.12
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 09:47:54 -0700 (PDT)
-Received: from a9-114.smtp-out.amazonses.com (a9-114.smtp-out.amazonses.com. [54.240.9.114])
-        by mx.google.com with ESMTPS id c29-v6si161542qvh.13.2018.09.24.09.47.53
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D13D8E0001
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 12:48:18 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id v16-v6so9016738ybm.2
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 09:48:18 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id s19-v6si3717474ybs.312.2018.09.24.09.48.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 24 Sep 2018 09:47:53 -0700 (PDT)
-Date: Mon, 24 Sep 2018 16:47:53 +0000
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: block: DMA alignment of IO buffer allocated from slab
-In-Reply-To: <1537805984.195115.14.camel@acm.org>
-Message-ID: <010001660c7ae798-2c446e83-392a-40bd-a89d-8da2f20dd1b8-000000@email.amazonses.com>
-References: <CACVXFVOBq3L_EjSTCoiqUL1PH=HMR5EuNNQV0hNndFpGxmUK6g@mail.gmail.com> <20180920063129.GB12913@lst.de> <87h8ij0zot.fsf@vitty.brq.redhat.com> <20180923224206.GA13618@ming.t460p> <38c03920-0fd0-0a39-2a6e-70cd8cb4ef34@virtuozzo.com>
- <20a20568-5089-541d-3cee-546e549a0bc8@acm.org> <12eee877-affa-c822-c9d5-fda3aa0a50da@virtuozzo.com> <1537801706.195115.7.camel@acm.org> <c844c598-be1d-bef4-fb99-09cf99571fd7@virtuozzo.com> <1537804720.195115.9.camel@acm.org> <10c706fd-2252-f11b-312e-ae0d97d9a538@virtuozzo.com>
- <1537805984.195115.14.camel@acm.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Sep 2018 09:48:17 -0700 (PDT)
+Subject: Re: [PATCH] mm/hugetlb: Add mmap() encodings for 32MB and 512MB page
+ sizes
+References: <1537797985-2406-1-git-send-email-anshuman.khandual@arm.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <541d31f2-b4b7-e401-2fe9-7965d81b2f0a@oracle.com>
+Date: Mon, 24 Sep 2018 09:48:05 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <1537797985-2406-1-git-send-email-anshuman.khandual@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bart Van Assche <bvanassche@acm.org>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Ming Lei <ming.lei@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Christoph Hellwig <hch@lst.de>, Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Linus Torvalds <torvalds@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@kernel.org, punit.agrawal@arm.com, will.deacon@arm.com, akpm@linux-foundation.org
 
-On Mon, 24 Sep 2018, Bart Van Assche wrote:
+On 9/24/18 7:06 AM, Anshuman Khandual wrote:
+> ARM64 architecture also supports 32MB and 512MB HugeTLB page sizes.
+> This just adds mmap() system call argument encoding for them.
+> 
+> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+> ---
+>  include/uapi/asm-generic/hugetlb_encode.h | 2 ++
+>  include/uapi/linux/mman.h                 | 2 ++
+>  2 files changed, 4 insertions(+)
 
-> That means that two buffers allocated with kmalloc() may share a cache line on
-> x86-64. Since it is allowed to use a buffer allocated by kmalloc() for DMA, can
-> this lead to data corruption, e.g. if the CPU writes into one buffer allocated
-> with kmalloc() and a device performs a DMA write to another kmalloc() buffer and
-> both write operations affect the same cache line?
+Thanks Anshuman,
 
-The devices writes to the cacheline through the processor which serializes
-access appropriately.
+However, I think we should also add similar definitions in:
+uapi/linux/memfd.h
+uapi/linux/shm.h
 
-The DMA device cannot write directly to memory after all on current Intel
-processors. Other architectures have bus protocols that prevent situations
-like that.
+-- 
+Mike Kravetz
