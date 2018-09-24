@@ -1,58 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C51068E0001
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 12:19:48 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id l65-v6so7904755pge.17
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 09:19:48 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t16-v6sor5780666pfh.9.2018.09.24.09.19.47
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 24 Sep 2018 09:19:47 -0700 (PDT)
-Message-ID: <1537805984.195115.14.camel@acm.org>
-Subject: Re: block: DMA alignment of IO buffer allocated from slab
-From: Bart Van Assche <bvanassche@acm.org>
-Date: Mon, 24 Sep 2018 09:19:44 -0700
-In-Reply-To: <10c706fd-2252-f11b-312e-ae0d97d9a538@virtuozzo.com>
-References: 
-	<CACVXFVOBq3L_EjSTCoiqUL1PH=HMR5EuNNQV0hNndFpGxmUK6g@mail.gmail.com>
-	 <20180920063129.GB12913@lst.de> <87h8ij0zot.fsf@vitty.brq.redhat.com>
-	 <20180923224206.GA13618@ming.t460p>
-	 <38c03920-0fd0-0a39-2a6e-70cd8cb4ef34@virtuozzo.com>
-	 <20a20568-5089-541d-3cee-546e549a0bc8@acm.org>
-	 <12eee877-affa-c822-c9d5-fda3aa0a50da@virtuozzo.com>
-	 <1537801706.195115.7.camel@acm.org>
-	 <c844c598-be1d-bef4-fb99-09cf99571fd7@virtuozzo.com>
-	 <1537804720.195115.9.camel@acm.org>
-	 <10c706fd-2252-f11b-312e-ae0d97d9a538@virtuozzo.com>
-Content-Type: text/plain; charset="UTF-7"
-Mime-Version: 1.0
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 288A18E0001
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 12:40:37 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id c24-v6so3360472otm.4
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 09:40:37 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id o203-v6si14868352oif.198.2018.09.24.09.40.35
+        for <linux-mm@kvack.org>;
+        Mon, 24 Sep 2018 09:40:35 -0700 (PDT)
+Subject: Re: [PATCH] mm/migrate: Split only transparent huge pages when
+ allocation fails
+References: <1537798495-4996-1-git-send-email-anshuman.khandual@arm.com>
+ <20180924143027.GE18685@dhcp22.suse.cz>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <421f9b78-cb0f-01ce-dca0-93ff6eae0816@arm.com>
+Date: Mon, 24 Sep 2018 22:10:30 +0530
+MIME-Version: 1.0
+In-Reply-To: <20180924143027.GE18685@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Ming Lei <ming.lei@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: Christoph Hellwig <hch@lst.de>, Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 
-On Mon, 2018-09-24 at 19:07 +-0300, Andrey Ryabinin wrote:
-+AD4 On 09/24/2018 06:58 PM, Bart Van Assche wrote:
-+AD4 +AD4 On Mon, 2018-09-24 at 18:52 +-0300, Andrey Ryabinin wrote:
-+AD4 +AD4 +AD4 Yes, with CONFIG+AF8-DEBUG+AF8-SLAB+AD0-y, CONFIG+AF8-SLUB+AF8-DEBUG+AF8-ON+AD0-y kmalloc() guarantees
-+AD4 +AD4 +AD4 that result is aligned on ARCH+AF8-KMALLOC+AF8-MINALIGN boundary.
-+AD4 +AD4 
-+AD4 +AD4 Had you noticed that Vitaly Kuznetsov showed that this is not the case? See
-+AD4 +AD4 also https://lore.kernel.org/lkml/87h8ij0zot.fsf+AEA-vitty.brq.redhat.com/.
-+AD4 
-+AD4 I'm not following. On x86-64 ARCH+AF8-KMALLOC+AF8-MINALIGN is 8, all pointers that
-+AD4 Vitaly Kuznetsov showed are 8-byte aligned.
 
-Hi Andrey,
 
-That means that two buffers allocated with kmalloc() may share a cache line on
-x86-64. Since it is allowed to use a buffer allocated by kmalloc() for DMA, can
-this lead to data corruption, e.g. if the CPU writes into one buffer allocated
-with kmalloc() and a device performs a DMA write to another kmalloc() buffer and
-both write operations affect the same cache line?
+On 09/24/2018 08:00 PM, Michal Hocko wrote:
+> On Mon 24-09-18 19:44:55, Anshuman Khandual wrote:
+>> When unmap_and_move[_huge_page] function fails due to lack of memory, the
+>> splitting should happen only for transparent huge pages not for HugeTLB
+>> pages. PageTransHuge() returns true for both THP and HugeTLB pages. Hence
+>> the conditonal check should test PagesHuge() flag to make sure that given
+>> pages is not a HugeTLB one.
+> 
+> Well spotted! Have you actually seen this happening or this is review
+> driven? I am wondering what would be the real effect of this mismatch?
+> I have tried to follow to code path but I suspect
+> split_huge_page_to_list would fail for hugetlbfs pages. If there is a
+> more serious effect then we should mark the patch for stable as well.
 
-Thanks,
+split_huge_page_to_list() fails on HugeTLB pages. I was experimenting around
+moving 32MB contig HugeTLB pages on arm64 (with a debug patch applied) hit
+the following stack trace when the kernel crashed.
 
-Bart.
+[ 3732.462797] Call trace:
+[ 3732.462835]  split_huge_page_to_list+0x3b0/0x858
+[ 3732.462913]  migrate_pages+0x728/0xc20
+[ 3732.462999]  soft_offline_page+0x448/0x8b0
+[ 3732.463097]  __arm64_sys_madvise+0x724/0x850
+[ 3732.463197]  el0_svc_handler+0x74/0x110
+[ 3732.463297]  el0_svc+0x8/0xc
+[ 3732.463347] Code: d1000400 f90b0e60 f2fbd5a2 a94982a1 (f9000420)
