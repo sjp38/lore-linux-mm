@@ -1,62 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 560E18E0001
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 10:19:21 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id e6-v6so374234pge.5
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 07:19:21 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p33-v6sor7189768pld.54.2018.09.24.07.19.20
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 715C08E0001
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 10:24:12 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id g11-v6so9149968edi.8
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 07:24:12 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z20-v6si5484384edc.189.2018.09.24.07.24.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 24 Sep 2018 07:19:20 -0700 (PDT)
-Subject: Re: block: DMA alignment of IO buffer allocated from slab
-References: <CACVXFVOBq3L_EjSTCoiqUL1PH=HMR5EuNNQV0hNndFpGxmUK6g@mail.gmail.com>
- <20180920063129.GB12913@lst.de> <87h8ij0zot.fsf@vitty.brq.redhat.com>
- <20180923224206.GA13618@ming.t460p>
- <38c03920-0fd0-0a39-2a6e-70cd8cb4ef34@virtuozzo.com>
-From: Bart Van Assche <bvanassche@acm.org>
-Message-ID: <20a20568-5089-541d-3cee-546e549a0bc8@acm.org>
-Date: Mon, 24 Sep 2018 07:19:17 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Sep 2018 07:24:10 -0700 (PDT)
+Date: Mon, 24 Sep 2018 16:24:08 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 1/2] mm/page_alloc: Fix panic caused by passing
+ debug_guardpage_minorder or kernelcore to command line
+Message-ID: <20180924142408.GC18685@dhcp22.suse.cz>
+References: <1537628013-243902-1-git-send-email-zhe.he@windriver.com>
 MIME-Version: 1.0
-In-Reply-To: <38c03920-0fd0-0a39-2a6e-70cd8cb4ef34@virtuozzo.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1537628013-243902-1-git-send-email-zhe.he@windriver.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Ming Lei <ming.lei@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: Christoph Hellwig <hch@lst.de>, Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: zhe.he@windriver.com
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, pasha.tatashin@oracle.com, mgorman@techsingularity.net, aaron.lu@intel.com, osalvador@suse.de, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 9/24/18 2:46 AM, Andrey Ryabinin wrote:
-> On 09/24/2018 01:42 AM, Ming Lei wrote:
->> On Fri, Sep 21, 2018 at 03:04:18PM +0200, Vitaly Kuznetsov wrote:
->>> Christoph Hellwig <hch@lst.de> writes:
->>>
->>>> On Wed, Sep 19, 2018 at 05:15:43PM +0800, Ming Lei wrote:
->>>>> 1) does kmalloc-N slab guarantee to return N-byte aligned buffer?  If
->>>>> yes, is it a stable rule?
->>>>
->>>> This is the assumption in a lot of the kernel, so I think if somethings
->>>> breaks this we are in a lot of pain.
+On Sat 22-09-18 22:53:32, zhe.he@windriver.com wrote:
+> From: He Zhe <zhe.he@windriver.com>
 > 
-> This assumption is not correct. And it's not correct at least from the beginning of the
-> git era, which is even before SLUB allocator appeared. With CONFIG_DEBUG_SLAB=y
-> the same as with CONFIG_SLUB_DEBUG_ON=y kmalloc return 'unaligned' objects.
-> The guaranteed arch-and-config-independent alignment of kmalloc() result is "sizeof(void*)".
+> debug_guardpage_minorder_setup and cmdline_parse_kernelcore do not check
+> input argument before using it. The argument would be a NULL pointer if
+> "debug_guardpage_minorder" or "kernelcore", without its value, is set in
+> command line and thus causes the following panic.
 > 
-> If objects has higher alignment requirement, the could be allocated via specifically created kmem_cache.
+> PANIC: early exception 0xe3 IP 10:ffffffffa08146f1 error 0 cr2 0x0
+> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 4.19.0-rc4-yocto-standard+ #11
+> [    0.000000] RIP: 0010:parse_option_str+0x11/0x90
+> ...
+> [    0.000000] Call Trace:
+> [    0.000000]  cmdline_parse_kernelcore+0x19/0x41
+> [    0.000000]  do_early_param+0x57/0x8e
+> [    0.000000]  parse_args+0x208/0x320
+> [    0.000000]  ? rdinit_setup+0x30/0x30
+> [    0.000000]  parse_early_options+0x29/0x2d
+> [    0.000000]  ? rdinit_setup+0x30/0x30
+> [    0.000000]  parse_early_param+0x36/0x4d
+> [    0.000000]  setup_arch+0x336/0x99e
+> [    0.000000]  start_kernel+0x6f/0x4ee
+> [    0.000000]  x86_64_start_reservations+0x24/0x26
+> [    0.000000]  x86_64_start_kernel+0x6f/0x72
+> [    0.000000]  secondary_startup_64+0xa4/0xb0
+> 
+> This patch adds a check to prevent the panic
 
-Hello Andrey,
+Is this something we deeply care about? The kernel command line
+interface is to be used by admins who know what they are doing.  Using
+random or wrong values for these parameters can have detrimental effects
+on the system. This particular case would blow up early, good. At least
+it is visible immediately. This and many other parameters could have a
+seemingly valid input (e.g. not a missing value) and subtle runtime
+effect. You won't blow up immediately but the system is hardly usable
+and the early checking cannot possible catch all those cases. Take a
+mem=$N copied from one machine to another with a different memory
+layout. While 2G can be perfectly fine on one a different machine might
+result on a completely unusable system because the available RAM is
+place higher.
 
-The above confuses me. Can you explain to me why the following comment 
-is present in include/linux/slab.h?
+So I am really wondering. Do we really want a lot of code to catch
+kernel command line incorrect inputs? Does it really lead to better
+quality overall? IMHO, we do have a proper documentation and we should
+trust those starting the kernel.
 
-/*
-  * kmalloc and friends return ARCH_KMALLOC_MINALIGN aligned
-  * pointers. kmem_cache_alloc and friends return ARCH_SLAB_MINALIGN
-  * aligned pointers.
-  */
+> and adds KBUILD_MODNAME to prints.
 
-Thanks,
+This doesn't seem to be done in this patch. Probably a left over
+from the previous version.
 
-Bart.
+> Signed-off-by: He Zhe <zhe.he@windriver.com>
+> Cc: stable@vger.kernel.org
+> Cc: akpm@linux-foundation.org
+> Cc: mhocko@suse.com
+> Cc: vbabka@suse.cz
+> Cc: pasha.tatashin@oracle.com
+> Cc: mgorman@techsingularity.net
+> Cc: aaron.lu@intel.com
+> Cc: osalvador@suse.de
+> Cc: iamjoonsoo.kim@lge.com
+> ---
+> v2:
+> Use more clear error info
+> Split the addition of KBUILD_MODNAME out
+> 
+>  mm/page_alloc.c | 11 +++++++++++
+>  1 file changed, 11 insertions(+)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 89d2a2a..f34cae1 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -630,6 +630,12 @@ static int __init debug_guardpage_minorder_setup(char *buf)
+>  {
+>  	unsigned long res;
+>  
+> +	if (!buf) {
+> +		pr_err("kernel option debug_guardpage_minorder requires an \
+> +			argument\n");
+> +		return -EINVAL;
+> +	}
+> +
+>  	if (kstrtoul(buf, 10, &res) < 0 ||  res > MAX_ORDER / 2) {
+>  		pr_err("Bad debug_guardpage_minorder value\n");
+>  		return 0;
+> @@ -6952,6 +6958,11 @@ static int __init cmdline_parse_core(char *p, unsigned long *core,
+>   */
+>  static int __init cmdline_parse_kernelcore(char *p)
+>  {
+> +	if (!p) {
+> +		pr_err("kernel option kernelcore requires an argument\n");
+> +		return -EINVAL;
+> +	}
+> +
+>  	/* parse kernelcore=mirror */
+>  	if (parse_option_str(p, "mirror")) {
+>  		mirrored_kernelcore = true;
+> -- 
+> 2.7.4
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
