@@ -1,68 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B31728E0001
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 09:09:09 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id h1-v6so5267254pld.21
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 06:09:09 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0067.outbound.protection.outlook.com. [104.47.40.67])
-        by mx.google.com with ESMTPS id a21-v6si9092211pls.372.2018.09.24.06.09.07
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 24 Sep 2018 06:09:07 -0700 (PDT)
-From: Yury Norov <ynorov@caviumnetworks.com>
-Subject: [PATCH] mm: fix COW faults after mlock()
-Date: Mon, 24 Sep 2018 16:08:52 +0300
-Message-Id: <20180924130852.12996-1-ynorov@caviumnetworks.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B22C8E0001
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 10:06:35 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id c24-v6so2877650otm.4
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 07:06:35 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id c7-v6si13399426otb.56.2018.09.24.07.06.33
+        for <linux-mm@kvack.org>;
+        Mon, 24 Sep 2018 07:06:34 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: [PATCH] mm/hugetlb: Add mmap() encodings for 32MB and 512MB page sizes
+Date: Mon, 24 Sep 2018 19:36:25 +0530
+Message-Id: <1537797985-2406-1-git-send-email-anshuman.khandual@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Dan Williams <dan.j.williams@intel.com>, Huang Ying <ying.huang@intel.com>, "Michael S . Tsirkin" <mst@redhat.com>, Michel Lespinasse <walken@google.com>, Souptick Joarder <jrdr.linux@gmail.com>, Willy Tarreau <w@1wt.eu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Yury Norov <ynorov@caviumnetworks.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mike.kravetz@oracle.com, mhocko@kernel.org, punit.agrawal@arm.com, will.deacon@arm.com, akpm@linux-foundation.org
 
-After mlock() on newly mmap()ed shared memory I observe page faults.
+ARM64 architecture also supports 32MB and 512MB HugeTLB page sizes.
+This just adds mmap() system call argument encoding for them.
 
-The problem is that populate_vma_page_range() doesn't set FOLL_WRITE
-flag for writable shared memory in mlock() path, arguing that like:
-/*
- * We want to touch writable mappings with a write fault in order
- * to break COW, except for shared mappings because these don't COW
- * and we would not want to dirty them for nothing.
- */
-
-But they are actually COWed. The most straightforward way to avoid it
-is to set FOLL_WRITE flag for shared mappings as well as for private ones.
-
-This is the partial revert of commit 5ecfda041e4b4 ("mlock: avoid
-dirtying pages and triggering writeback"). So it re-enables dirtying.
-
-The fix works for me (arm64, kernel v4.19-rc4 and v4.9), but after digging
-into the code I still don't understand why we need to do copy-on-write on
-shared memory. If comment above was correct when 5ecfda041e4b4 became
-upstreamed (2011), shared mappings were not COWed back in 2011, but are
-COWed now. If so, this is another issue to be fixed.
-
-Signed-off-by: Yury Norov <ynorov@caviumnetworks.com>
+Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
 ---
- mm/gup.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ include/uapi/asm-generic/hugetlb_encode.h | 2 ++
+ include/uapi/linux/mman.h                 | 2 ++
+ 2 files changed, 4 insertions(+)
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 1abc8b4afff6..1899e8bac06b 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -1202,10 +1202,9 @@ long populate_vma_page_range(struct vm_area_struct *vma,
- 		gup_flags &= ~FOLL_POPULATE;
- 	/*
- 	 * We want to touch writable mappings with a write fault in order
--	 * to break COW, except for shared mappings because these don't COW
--	 * and we would not want to dirty them for nothing.
-+	 * to break COW.
- 	 */
--	if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
-+	if (vma->vm_flags & VM_WRITE)
- 		gup_flags |= FOLL_WRITE;
- 
- 	/*
+diff --git a/include/uapi/asm-generic/hugetlb_encode.h b/include/uapi/asm-generic/hugetlb_encode.h
+index e4732d3..b0f8e87 100644
+--- a/include/uapi/asm-generic/hugetlb_encode.h
++++ b/include/uapi/asm-generic/hugetlb_encode.h
+@@ -26,7 +26,9 @@
+ #define HUGETLB_FLAG_ENCODE_2MB		(21 << HUGETLB_FLAG_ENCODE_SHIFT)
+ #define HUGETLB_FLAG_ENCODE_8MB		(23 << HUGETLB_FLAG_ENCODE_SHIFT)
+ #define HUGETLB_FLAG_ENCODE_16MB	(24 << HUGETLB_FLAG_ENCODE_SHIFT)
++#define HUGETLB_FLAG_ENCODE_32MB	(25 << HUGETLB_FLAG_ENCODE_SHIFT)
+ #define HUGETLB_FLAG_ENCODE_256MB	(28 << HUGETLB_FLAG_ENCODE_SHIFT)
++#define HUGETLB_FLAG_ENCODE_512MB	(29 << HUGETLB_FLAG_ENCODE_SHIFT)
+ #define HUGETLB_FLAG_ENCODE_1GB		(30 << HUGETLB_FLAG_ENCODE_SHIFT)
+ #define HUGETLB_FLAG_ENCODE_2GB		(31 << HUGETLB_FLAG_ENCODE_SHIFT)
+ #define HUGETLB_FLAG_ENCODE_16GB	(34 << HUGETLB_FLAG_ENCODE_SHIFT)
+diff --git a/include/uapi/linux/mman.h b/include/uapi/linux/mman.h
+index bfd5938..d0f515d 100644
+--- a/include/uapi/linux/mman.h
++++ b/include/uapi/linux/mman.h
+@@ -28,7 +28,9 @@
+ #define MAP_HUGE_2MB	HUGETLB_FLAG_ENCODE_2MB
+ #define MAP_HUGE_8MB	HUGETLB_FLAG_ENCODE_8MB
+ #define MAP_HUGE_16MB	HUGETLB_FLAG_ENCODE_16MB
++#define MAP_HUGE_32MB	HUGETLB_FLAG_ENCODE_32MB
+ #define MAP_HUGE_256MB	HUGETLB_FLAG_ENCODE_256MB
++#define MAP_HUGE_512MB	HUGETLB_FLAG_ENCODE_512MB
+ #define MAP_HUGE_1GB	HUGETLB_FLAG_ENCODE_1GB
+ #define MAP_HUGE_2GB	HUGETLB_FLAG_ENCODE_2GB
+ #define MAP_HUGE_16GB	HUGETLB_FLAG_ENCODE_16GB
 -- 
-2.17.1
+2.7.4
