@@ -1,73 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 65CE38E0041
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 16:46:32 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id a4-v6so1898867pfi.16
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 13:46:32 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m11-v6si337019pgs.33.2018.09.24.13.46.30
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 64B8F8E0041
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 16:54:05 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id q12-v6so8252910pgp.6
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 13:54:05 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x3-v6sor38743pgi.251.2018.09.24.13.54.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Sep 2018 13:46:31 -0700 (PDT)
-Subject: Re: [patch v2] mm, thp: always specify ineligible vmas as nh in smaps
-References: <alpine.DEB.2.21.1809241054050.224429@chino.kir.corp.google.com>
- <e2f159f3-5373-dda4-5904-ed24d029de3c@suse.cz>
- <alpine.DEB.2.21.1809241215170.239142@chino.kir.corp.google.com>
- <alpine.DEB.2.21.1809241227370.241621@chino.kir.corp.google.com>
- <20180924195603.GJ18685@dhcp22.suse.cz>
- <20180924200258.GK18685@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <0aa3eb55-82c0-eba3-b12c-2ba22e052a8e@suse.cz>
-Date: Mon, 24 Sep 2018 22:43:49 +0200
-MIME-Version: 1.0
-In-Reply-To: <20180924200258.GK18685@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+        (Google Transport Security);
+        Mon, 24 Sep 2018 13:54:04 -0700 (PDT)
+Message-ID: <1537822441.195115.32.camel@acm.org>
+Subject: Re: block: DMA alignment of IO buffer allocated from slab
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Mon, 24 Sep 2018 13:54:01 -0700
+In-Reply-To: <20180924204148.GA2542@bombadil.infradead.org>
+References: <38c03920-0fd0-0a39-2a6e-70cd8cb4ef34@virtuozzo.com>
+	 <20a20568-5089-541d-3cee-546e549a0bc8@acm.org>
+	 <12eee877-affa-c822-c9d5-fda3aa0a50da@virtuozzo.com>
+	 <1537801706.195115.7.camel@acm.org>
+	 <c844c598-be1d-bef4-fb99-09cf99571fd7@virtuozzo.com>
+	 <1537804720.195115.9.camel@acm.org>
+	 <10c706fd-2252-f11b-312e-ae0d97d9a538@virtuozzo.com>
+	 <1537805984.195115.14.camel@acm.org>
+	 <20180924185753.GA32269@bombadil.infradead.org>
+	 <1537818978.195115.25.camel@acm.org>
+	 <20180924204148.GA2542@bombadil.infradead.org>
+Content-Type: text/plain; charset="UTF-7"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Ming Lei <ming.lei@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Christoph Hellwig <hch@lst.de>, Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On 9/24/18 10:02 PM, Michal Hocko wrote:
-> On Mon 24-09-18 21:56:03, Michal Hocko wrote:
->> On Mon 24-09-18 12:30:07, David Rientjes wrote:
->>> Commit 1860033237d4 ("mm: make PR_SET_THP_DISABLE immediately active")
->>> introduced a regression in that userspace cannot always determine the set
->>> of vmas where thp is ineligible.
->>>
->>> Userspace relies on the "nh" flag being emitted as part of /proc/pid/smaps
->>> to determine if a vma is eligible to be backed by hugepages.
->>
->> I was under impression that nh resp hg flags only tell about the madvise
->> status. How do you exactly use these flags in an application?
->>
->> Your eligible rules as defined here:
->>
->>> + [*] A process mapping is eligible to be backed by transparent hugepages (thp)
->>> +     depending on system-wide settings and the mapping itself.  See
->>> +     Documentation/admin-guide/mm/transhuge.rst for default behavior.  If a
->>> +     mapping has a flag of "nh", it is not eligible to be backed by hugepages
->>> +     in any condition, either because of prctl(PR_SET_THP_DISABLE) or
->>> +     madvise(MADV_NOHUGEPAGE).  PR_SET_THP_DISABLE takes precedence over any
->>> +     MADV_HUGEPAGE.
->>
->> doesn't seem to match the reality. I do not see all the file backed
->> mappings to be nh marked. So is this really about eligibility rather
->> than the madvise status? Maybe it is just the above documentation that
->> needs to be updated.
+On Mon, 2018-09-24 at 13:41 -0700, Matthew Wilcox wrote:
++AD4 On Mon, Sep 24, 2018 at 12:56:18PM -0700, Bart Van Assche wrote:
++AD4 +AD4 On Mon, 2018-09-24 at 11:57 -0700, Matthew Wilcox wrote:
++AD4 +AD4 +AD4 You're not supposed to use kmalloc memory for DMA.  This is why we have
++AD4 +AD4 +AD4 dma+AF8-alloc+AF8-coherent() and friends.
++AD4 +AD4 
++AD4 +AD4 Are you claiming that all drivers that use DMA should use coherent DMA only? If
++AD4 +AD4 coherent DMA is the only DMA style that should be used, why do the following
++AD4 +AD4 function pointers exist in struct dma+AF8-map+AF8-ops?
++AD4 
++AD4 Good job snipping the part of my reply which addressed this.  Go read
++AD4 DMA-API.txt yourself.  Carefully.
 
-Yeah the change from madvise to eligibility in the doc seems to go too far.
+The snipped part did not contradict your claim that +ACI-You're not supposed to use
+kmalloc memory for DMA.+ACI In the DMA-API.txt document however there are multiple
+explicit statements that support allocating memory for DMA with kmalloc(). Here
+is one example from the DMA-API.txt section about dma+AF8-map+AF8-single():
 
->> That being said, I do not object to the patch, I am just trying to
->> understand what is the intended usage for the flag that does try to say
->> more than the madvise status.
-> 
-> And moreover, how is the PR_SET_THP_DISABLE any different from the
-> global THP disabled case. Do we want to set all vmas to nh as well?
+	Not all memory regions in a machine can be mapped by this API.
+	Further, contiguous kernel virtual space may not be contiguous as
+	physical memory.  Since this API does not provide any scatter/gather
+	capability, it will fail if the user tries to map a non-physically
+	contiguous piece of memory.  For this reason, memory to be mapped by
+	this API should be obtained from sources which guarantee it to be
+	physically contiguous (like kmalloc).
 
-Probably not. It's easy to check the global status, but is it possible
-to query for the prctl flags of a process? We are looking at process or
-even vma-specific flags here. If the prctl was historically implemented
-via VM_NOHUGEPAGE and thus reported as such in smaps, it makes sense to
-do so even with the MMF_ flag IMHO?
+Bart.
