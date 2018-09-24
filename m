@@ -1,72 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 407BD8E0001
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 08:12:07 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id d40-v6so9897192pla.14
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 05:12:07 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id k198-v6si5196964pga.12.2018.09.24.05.12.06
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 30E148E0001
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 08:16:13 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id b17-v6so240813pfo.20
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 05:16:13 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id k185-v6si12340214pgk.183.2018.09.24.05.16.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Sep 2018 05:12:06 -0700 (PDT)
-Date: Mon, 24 Sep 2018 15:11:38 +0300
-From: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
-Subject: Re: [PATCH v3 4/4] clk: pmc-atom: use devm_kstrdup_const()
-Message-ID: <20180924121138.GN15943@smile.fi.intel.com>
-References: <20180924101150.23349-1-brgl@bgdev.pl>
- <20180924101150.23349-5-brgl@bgdev.pl>
- <20180924112303.GM15943@smile.fi.intel.com>
- <CAMRc=McegRtV88BfYja5wdKZuNDEMG3dqWjG7xHoyo6EHhyEqg@mail.gmail.com>
+        Mon, 24 Sep 2018 05:16:12 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.14 073/173] x86/mm/pti: Add an overflow check to pti_clone_pmds()
+Date: Mon, 24 Sep 2018 13:51:47 +0200
+Message-Id: <20180924113121.409580745@linuxfoundation.org>
+In-Reply-To: <20180924113114.334025954@linuxfoundation.org>
+References: <20180924113114.334025954@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAMRc=McegRtV88BfYja5wdKZuNDEMG3dqWjG7xHoyo6EHhyEqg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartosz Golaszewski <brgl@bgdev.pl>
-Cc: Michael Turquette <mturquette@baylibre.com>, Stephen Boyd <sboyd@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Arend van Spriel <aspriel@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, Bjorn Helgaas <bhelgaas@google.com>, Vivek Gautam <vivek.gautam@codeaurora.org>, Robin Murphy <robin.murphy@arm.com>, Joe Perches <joe@perches.com>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Roman Gushchin <guro@fb.com>, Huang Ying <ying.huang@intel.com>, Kees Cook <keescook@chromium.org>, Bjorn Andersson <bjorn.andersson@linaro.org>, Arnd Bergmann <arnd@arndb.de>, linux-clk <linux-clk@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Joerg Roedel <jroedel@suse.de>, Thomas Gleixner <tglx@linutronix.de>, Pavel Machek <pavel@ucw.cz>, "H . Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, joro@8bytes.org, Sasha Levin <alexander.levin@microsoft.com>
 
-On Mon, Sep 24, 2018 at 01:44:19PM +0200, Bartosz Golaszewski wrote:
-> pon., 24 wrz 2018 o 13:23 Andy Shevchenko
-> <andriy.shevchenko@linux.intel.com> napisaA?(a):
-> >
-> > On Mon, Sep 24, 2018 at 12:11:50PM +0200, Bartosz Golaszewski wrote:
-> > > Use devm_kstrdup_const() in the pmc-atom driver. This mostly serves as
-> > > an example of how to use this new routine to shrink driver code.
-> > >
-> > > While we're at it: replace a call to kcalloc() with devm_kcalloc().
-> >
-> > > @@ -352,8 +344,6 @@ static int plt_clk_probe(struct platform_device *pdev)
-> > >               goto err_drop_mclk;
-> > >       }
-> > >
-> > > -     plt_clk_free_parent_names_loop(parent_names, data->nparents);
-> > > -
-> > >       platform_set_drvdata(pdev, data);
-> > >       return 0;
-> >
-> > I don't think this is a good example.
-> >
-> > You changed a behaviour here in the way that you keep all chunks of memory
-> > (even small enough for pointers) during entire life time of the driver, which
-> > pretty likely would be forever till next boot.
-> >
-> > In the original case the memory was freed immediately in probe either it fails
-> > or returns with success.
-> >
-> > NAK, sorry.
-> >
-> >
-> 
-> I see.
-> 
-> I'd like to still merge patches 1-3 and then I'd come up with better
-> examples for the next release cycle once these are in?
+4.14-stable review patch.  If anyone has any objections, please let me know.
 
-I'm fine with first three, though I can't come up with better example for you
-now. My previous comment solely to clk-pmc-atom code.
+------------------
 
--- 
-With Best Regards,
-Andy Shevchenko
+From: Joerg Roedel <jroedel@suse.de>
+
+[ Upstream commit 935232ce28dfabff1171e5a7113b2d865fa9ee63 ]
+
+The addr counter will overflow if the last PMD of the address space is
+cloned, resulting in an endless loop.
+
+Check for that and bail out of the loop when it happens.
+
+Signed-off-by: Joerg Roedel <jroedel@suse.de>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Tested-by: Pavel Machek <pavel@ucw.cz>
+Cc: "H . Peter Anvin" <hpa@zytor.com>
+Cc: linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Juergen Gross <jgross@suse.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Jiri Kosina <jkosina@suse.cz>
+Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: David Laight <David.Laight@aculab.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: Eduardo Valentin <eduval@amazon.com>
+Cc: Greg KH <gregkh@linuxfoundation.org>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: aliguori@amazon.com
+Cc: daniel.gruss@iaik.tugraz.at
+Cc: hughd@google.com
+Cc: keescook@google.com
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Waiman Long <llong@redhat.com>
+Cc: "David H . Gutteridge" <dhgutteridge@sympatico.ca>
+Cc: joro@8bytes.org
+Link: https://lkml.kernel.org/r/1531906876-13451-25-git-send-email-joro@8bytes.org
+Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+---
+ arch/x86/mm/pti.c |    4 ++++
+ 1 file changed, 4 insertions(+)
+
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -291,6 +291,10 @@ pti_clone_pmds(unsigned long start, unsi
+ 		p4d_t *p4d;
+ 		pud_t *pud;
+ 
++		/* Overflow check */
++		if (addr < start)
++			break;
++
+ 		pgd = pgd_offset_k(addr);
+ 		if (WARN_ON(pgd_none(*pgd)))
+ 			return;
