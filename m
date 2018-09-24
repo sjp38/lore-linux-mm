@@ -1,82 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D19DC8E0001
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 08:07:20 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id b17-v6so234137pfo.20
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 05:07:20 -0700 (PDT)
-Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id l6-v6si35877539pfc.298.2018.09.24.05.07.18
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 407BD8E0001
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 08:12:07 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id d40-v6so9897192pla.14
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 05:12:07 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id k198-v6si5196964pga.12.2018.09.24.05.12.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Sep 2018 05:07:19 -0700 (PDT)
-Date: Mon, 24 Sep 2018 13:07:01 +0100
-From: Jonathan Cameron <jonathan.cameron@huawei.com>
-Subject: Warning after memory hotplug then online.
-Message-ID: <20180924130701.00006a7b@huawei.com>
+        Mon, 24 Sep 2018 05:12:06 -0700 (PDT)
+Date: Mon, 24 Sep 2018 15:11:38 +0300
+From: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+Subject: Re: [PATCH v3 4/4] clk: pmc-atom: use devm_kstrdup_const()
+Message-ID: <20180924121138.GN15943@smile.fi.intel.com>
+References: <20180924101150.23349-1-brgl@bgdev.pl>
+ <20180924101150.23349-5-brgl@bgdev.pl>
+ <20180924112303.GM15943@smile.fi.intel.com>
+ <CAMRc=McegRtV88BfYja5wdKZuNDEMG3dqWjG7xHoyo6EHhyEqg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAMRc=McegRtV88BfYja5wdKZuNDEMG3dqWjG7xHoyo6EHhyEqg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, cgroups@vger.kernel.org
-Cc: linuxarm@huawei.com
+To: Bartosz Golaszewski <brgl@bgdev.pl>
+Cc: Michael Turquette <mturquette@baylibre.com>, Stephen Boyd <sboyd@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Arend van Spriel <aspriel@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, Bjorn Helgaas <bhelgaas@google.com>, Vivek Gautam <vivek.gautam@codeaurora.org>, Robin Murphy <robin.murphy@arm.com>, Joe Perches <joe@perches.com>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Roman Gushchin <guro@fb.com>, Huang Ying <ying.huang@intel.com>, Kees Cook <keescook@chromium.org>, Bjorn Andersson <bjorn.andersson@linaro.org>, Arnd Bergmann <arnd@arndb.de>, linux-clk <linux-clk@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
+On Mon, Sep 24, 2018 at 01:44:19PM +0200, Bartosz Golaszewski wrote:
+> pon., 24 wrz 2018 o 13:23 Andy Shevchenko
+> <andriy.shevchenko@linux.intel.com> napisaA?(a):
+> >
+> > On Mon, Sep 24, 2018 at 12:11:50PM +0200, Bartosz Golaszewski wrote:
+> > > Use devm_kstrdup_const() in the pmc-atom driver. This mostly serves as
+> > > an example of how to use this new routine to shrink driver code.
+> > >
+> > > While we're at it: replace a call to kcalloc() with devm_kcalloc().
+> >
+> > > @@ -352,8 +344,6 @@ static int plt_clk_probe(struct platform_device *pdev)
+> > >               goto err_drop_mclk;
+> > >       }
+> > >
+> > > -     plt_clk_free_parent_names_loop(parent_names, data->nparents);
+> > > -
+> > >       platform_set_drvdata(pdev, data);
+> > >       return 0;
+> >
+> > I don't think this is a good example.
+> >
+> > You changed a behaviour here in the way that you keep all chunks of memory
+> > (even small enough for pointers) during entire life time of the driver, which
+> > pretty likely would be forever till next boot.
+> >
+> > In the original case the memory was freed immediately in probe either it fails
+> > or returns with success.
+> >
+> > NAK, sorry.
+> >
+> >
+> 
+> I see.
+> 
+> I'd like to still merge patches 1-3 and then I'd come up with better
+> examples for the next release cycle once these are in?
 
-Hi All,
+I'm fine with first three, though I can't come up with better example for you
+now. My previous comment solely to clk-pmc-atom code.
 
-This is with some additional patches on top of the mm tree to support
-arm64 memory hot plug, but this particular issue doesn't (at first glance)
-seem to be connected to that.  It's not a recent issue as IIRC I
-disabled Kconfig for cgroups when starting to work on this some time ago
-as a quick and dirty work around for this.
-
-arm64 defconfig + the bits and pieces needed for the hot plug patchset.
-
-[  125.865690] WARNING: CPU: 13 PID: 294 at kernel/cgroup/cgroup.c:4346 
-css_task_iter_start+0xb0/0xb8
-[  125.883686] Modules linked in:
-[  125.889808] CPU: 13 PID: 294 Comm: kworker/13:1 Not tainted 
-4.19.0-rc4-mm1-00209-g70dc260f963a #912
-[  125.907978] Hardware name: Huawei Taishan 2280 /D05, BIOS Hisilicon 
-D05 IT20 Nemo 2.0 RC0 03/30/2018
-[  125.926329] Workqueue: events cpuset_hotplug_workfn
-[  125.945728] pc : css_task_iter_start+0xb0/0xb8
-[  125.954641] lr : update_tasks_nodemask+0x78/0x128
-[  125.964077] sp : ffff00000ae2bc40
-[  125.970718] x29: ffff00000ae2bc40 x28: 0000000000000000
-[  125.981379] x27: 0000000000000000 x26: ffff0000091579a0
-[  125.992040] x25: ffff000009157aa8 x24: 0000000000000000
-[  126.002700] x23: ffff0000092c5b58 x22: 0000000000000000
-[  126.013361] x21: ffff0000091579a0 x20: ffff0000091579a0
-[  126.026018] x19: ffff00000ae2bcc8 x18: 0000000000000400
-[  126.036679] x17: 0000000000000000 x16: 0000000000000000
-[  126.047339] x15: 0000000000000400 x14: 0000000000000400
-[  126.057999] x13: 0000000000000000 x12: 0000000000000001
-[  126.068659] x11: 0000000000000001 x10: 0000000000000960
-[  126.079319] x9 : ffff00000ae2bd70 x8 : ffff8011f39d6680
-[  126.089980] x7 : fefefefefefefeff x6 : 0000000000000000
-[  126.100640] x5 : ffff000009139000 x4 : 0000000000000000
-[  126.111300] x3 : ffff000009139000 x2 : ffff00000ae2bcc8
-[  126.121960] x1 : 0000000000000000 x0 : 0000000000000000
-[  126.132621] Call trace:
-[  126.137517]  css_task_iter_start+0xb0/0xb8
-[  126.145730]  update_tasks_nodemask+0x78/0x128
-[  126.154469]  cpuset_hotplug_workfn+0x1b4/0x6b8
-[  126.163383]  process_one_work+0x1e0/0x318
-[  126.171422]  worker_thread+0x40/0x450
-[  126.178763]  kthread+0x128/0x130
-[  126.185232]  ret_from_fork+0x10/0x18
-[  126.192397] ---[ end trace 08fa9eb01e348a8b ]---
-
-I'm running with an initrd only and very minimal setup indeed.
-
-There superficially doesn't seem to be anything to stop this path being called
-after memory hotplug and we clearly shouldn't be doing this.
-
-The cpuset_hotplug_workfn correctly identifies that we have some new memory.
-
-Thoughts? (Or am I doing something stupid?)
-
-Thanks,
-
-Jonathan
+-- 
+With Best Regards,
+Andy Shevchenko
