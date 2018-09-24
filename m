@@ -1,69 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 320898E0041
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 17:30:00 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id v12-v6so9259677ybe.23
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 14:30:00 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i1-v6sor59202ybe.103.2018.09.24.14.29.59
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 24 Sep 2018 14:29:59 -0700 (PDT)
-Received: from mail-yb1-f178.google.com (mail-yb1-f178.google.com. [209.85.219.178])
-        by smtp.gmail.com with ESMTPSA id g126-v6sm666465ywd.41.2018.09.24.14.29.55
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 900118E0041
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 17:42:20 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id e85-v6so3528420pfk.1
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 14:42:20 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id k3-v6si444458pgb.72.2018.09.24.14.42.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Sep 2018 14:29:55 -0700 (PDT)
-Received: by mail-yb1-f178.google.com with SMTP id y12-v6so5667011ybj.11
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 14:29:55 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1537824509.19013.63.camel@intel.com>
-References: <1536874298-23492-1-git-send-email-rick.p.edgecombe@intel.com>
- <1536874298-23492-3-git-send-email-rick.p.edgecombe@intel.com>
- <CAGXu5jJ9nZYbVn5xdi7nsMJRD6ScLeWP2DWjrD8yEfwi-XXcRw@mail.gmail.com>
- <1537815484.19013.48.camel@intel.com> <CAGXu5jKho6Ui0sP6-4FN=i6zZ1+gXcd9Zyctqhvg+4r1cz-Mqw@mail.gmail.com>
- <1537824509.19013.63.camel@intel.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Mon, 24 Sep 2018 14:29:54 -0700
-Message-ID: <CAGXu5jJENPaYsYvVdKRESK43Rc04jmAa=mgyV_S61oFLm3xt_A@mail.gmail.com>
-Subject: Re: [PATCH v6 2/4] x86/modules: Increase randomization for modules
-Content-Type: text/plain; charset="UTF-8"
+        Mon, 24 Sep 2018 14:42:19 -0700 (PDT)
+Date: Mon, 24 Sep 2018 14:42:17 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 1/2] mm/page_alloc: Fix panic caused by passing
+ debug_guardpage_minorder or kernelcore to command line
+Message-Id: <20180924144217.6cabee9f41d0d0ad1757866a@linux-foundation.org>
+In-Reply-To: <20180924142408.GC18685@dhcp22.suse.cz>
+References: <1537628013-243902-1-git-send-email-zhe.he@windriver.com>
+	<20180924142408.GC18685@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "arjan@linux.intel.com" <arjan@linux.intel.com>, "jannh@google.com" <jannh@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "alexei.starovoitov@gmail.com" <alexei.starovoitov@gmail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "Hansen, Dave" <dave.hansen@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: zhe.he@windriver.com, vbabka@suse.cz, pasha.tatashin@oracle.com, mgorman@techsingularity.net, aaron.lu@intel.com, osalvador@suse.de, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Sep 24, 2018 at 2:27 PM, Edgecombe, Rick P
-<rick.p.edgecombe@intel.com> wrote:
-> On Mon, 2018-09-24 at 12:58 -0700, Kees Cook wrote:
->> On Mon, Sep 24, 2018 at 11:57 AM, Edgecombe, Rick P
->> <rick.p.edgecombe@intel.com> wrote:
->> > > Instead of having two open-coded __vmalloc_node_range() calls left in
->> > > this after the change, can this be done in terms of a call to
->> > > try_module_alloc() instead? I see they're slightly different, but it
->> > > might be nice for making the two paths share more code.
->> > Not sure what you mean. Across the whole change, there is one call
->> > to __vmalloc_node_range, and one to __vmalloc_node_try_addr.
->> I guess I meant the vmalloc calls -- one for node_range and one for
->> node_try_addr. I was wondering if the logic could be combined in some
->> way so that the __vmalloc_node_range() could be made in terms of the
->> the helper that try_module_randomize_each() uses. But this could just
->> be me hoping for nice-to-read changes. ;)
->>
->> -Kees
-> One thing I had been considering was to move the whole "try random locations,
-> then use backup" logic to vmalloc.c, and just have parameters for random area
-> size, number of tries, etc. This way it could be possibly be re-used for other
-> architectures for modules. Also on our list is to look at randomizing vmalloc
-> space (especially stacks), which may or may not involve using a similar method.
->
-> So maybe bit pre-mature refactoring, but would also clean up the code in
-> module.c. Do you think it would be worth it?
+On Mon, 24 Sep 2018 16:24:08 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 
-I'd love to hear thoughts from -mm folks. Andrew, Matthew?
+> On Sat 22-09-18 22:53:32, zhe.he@windriver.com wrote:
+> > From: He Zhe <zhe.he@windriver.com>
+> > 
+> > debug_guardpage_minorder_setup and cmdline_parse_kernelcore do not check
+> > input argument before using it. The argument would be a NULL pointer if
+> > "debug_guardpage_minorder" or "kernelcore", without its value, is set in
+> > command line and thus causes the following panic.
+> > 
+> > PANIC: early exception 0xe3 IP 10:ffffffffa08146f1 error 0 cr2 0x0
+> > [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 4.19.0-rc4-yocto-standard+ #11
+> > [    0.000000] RIP: 0010:parse_option_str+0x11/0x90
+> > ...
+> > [    0.000000] Call Trace:
+> > [    0.000000]  cmdline_parse_kernelcore+0x19/0x41
+> > [    0.000000]  do_early_param+0x57/0x8e
+> > [    0.000000]  parse_args+0x208/0x320
+> > [    0.000000]  ? rdinit_setup+0x30/0x30
+> > [    0.000000]  parse_early_options+0x29/0x2d
+> > [    0.000000]  ? rdinit_setup+0x30/0x30
+> > [    0.000000]  parse_early_param+0x36/0x4d
+> > [    0.000000]  setup_arch+0x336/0x99e
+> > [    0.000000]  start_kernel+0x6f/0x4ee
+> > [    0.000000]  x86_64_start_reservations+0x24/0x26
+> > [    0.000000]  x86_64_start_kernel+0x6f/0x72
+> > [    0.000000]  secondary_startup_64+0xa4/0xb0
+> > 
+> > This patch adds a check to prevent the panic
+> 
+> Is this something we deeply care about? The kernel command line
+> interface is to be used by admins who know what they are doing.  Using
+> random or wrong values for these parameters can have detrimental effects
+> on the system. This particular case would blow up early, good. At least
+> it is visible immediately. This and many other parameters could have a
+> seemingly valid input (e.g. not a missing value) and subtle runtime
+> effect. You won't blow up immediately but the system is hardly usable
+> and the early checking cannot possible catch all those cases. Take a
+> mem=$N copied from one machine to another with a different memory
+> layout. While 2G can be perfectly fine on one a different machine might
+> result on a completely unusable system because the available RAM is
+> place higher.
+> 
+> So I am really wondering. Do we really want a lot of code to catch
+> kernel command line incorrect inputs? Does it really lead to better
+> quality overall? IMHO, we do have a proper documentation and we should
+> trust those starting the kernel.
 
--Kees
+No, it's not very important.  It might help some people understand why
+their kernel went splat in rare circumstances.  And it's __init code so
+the runtime impact is nil.
 
--- 
-Kees Cook
-Pixel Security
+It bothers me that there are many other kernel parameters which have
+the same undesirable behaviour.  I'd much prefer a general fixup which
+gave all of them this treatment, but it's unclear how to do this.
