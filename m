@@ -1,101 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D3DFF8E0001
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 06:12:10 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id b17-v6so21382652wrq.0
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 03:12:10 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b15-v6sor8653784wrf.36.2018.09.24.03.12.09
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 42CE98E0001
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 06:32:05 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id a21-v6so19479914otf.8
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 03:32:05 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id v22-v6si13055876ota.331.2018.09.24.03.32.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 24 Sep 2018 03:12:09 -0700 (PDT)
-From: Bartosz Golaszewski <brgl@bgdev.pl>
-Subject: [PATCH v3 4/4] clk: pmc-atom: use devm_kstrdup_const()
-Date: Mon, 24 Sep 2018 12:11:50 +0200
-Message-Id: <20180924101150.23349-5-brgl@bgdev.pl>
-In-Reply-To: <20180924101150.23349-1-brgl@bgdev.pl>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Sep 2018 03:32:04 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8OATU0F135052
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 06:32:03 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2mpx7gr338-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 06:32:03 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Mon, 24 Sep 2018 11:32:00 +0100
+Date: Mon, 24 Sep 2018 13:31:45 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 2/4] mm: move is_kernel_rodata() to
+ asm-generic/sections.h
 References: <20180924101150.23349-1-brgl@bgdev.pl>
+ <20180924101150.23349-3-brgl@bgdev.pl>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180924101150.23349-3-brgl@bgdev.pl>
+Message-Id: <20180924103144.GB6264@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Turquette <mturquette@baylibre.com>, Stephen Boyd <sboyd@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Arend van Spriel <aspriel@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, Bjorn Helgaas <bhelgaas@google.com>, Vivek Gautam <vivek.gautam@codeaurora.org>, Robin Murphy <robin.murphy@arm.com>, Joe Perches <joe@perches.com>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Roman Gushchin <guro@fb.com>, Huang Ying <ying.huang@intel.com>, Kees Cook <keescook@chromium.org>, Bjorn Andersson <bjorn.andersson@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>
-Cc: linux-clk@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Bartosz Golaszewski <brgl@bgdev.pl>
+To: Bartosz Golaszewski <brgl@bgdev.pl>
+Cc: Michael Turquette <mturquette@baylibre.com>, Stephen Boyd <sboyd@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Arend van Spriel <aspriel@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, Bjorn Helgaas <bhelgaas@google.com>, Vivek Gautam <vivek.gautam@codeaurora.org>, Robin Murphy <robin.murphy@arm.com>, Joe Perches <joe@perches.com>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Roman Gushchin <guro@fb.com>, Huang Ying <ying.huang@intel.com>, Kees Cook <keescook@chromium.org>, Bjorn Andersson <bjorn.andersson@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, linux-clk@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Use devm_kstrdup_const() in the pmc-atom driver. This mostly serves as
-an example of how to use this new routine to shrink driver code.
+On Mon, Sep 24, 2018 at 12:11:48PM +0200, Bartosz Golaszewski wrote:
+> Export this routine so that we can use it later in devm_kstrdup_const()
+> and devm_kfree_const().
+> 
+> Signed-off-by: Bartosz Golaszewski <brgl@bgdev.pl>
+> Reviewed-by: Bjorn Andersson <bjorn.andersson@linaro.org>
 
-While we're at it: replace a call to kcalloc() with devm_kcalloc().
+Acked-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-Signed-off-by: Bartosz Golaszewski <brgl@bgdev.pl>
-Reviewed-by: Stephen Boyd <sboyd@kernel.org>
-Reviewed-by: Bjorn Andersson <bjorn.andersson@linaro.org>
----
- drivers/clk/x86/clk-pmc-atom.c | 19 ++++---------------
- 1 file changed, 4 insertions(+), 15 deletions(-)
+> ---
+>  include/asm-generic/sections.h | 14 ++++++++++++++
+>  mm/util.c                      |  7 -------
+>  2 files changed, 14 insertions(+), 7 deletions(-)
+> 
+> diff --git a/include/asm-generic/sections.h b/include/asm-generic/sections.h
+> index 849cd8eb5ca0..d79abca81a52 100644
+> --- a/include/asm-generic/sections.h
+> +++ b/include/asm-generic/sections.h
+> @@ -141,4 +141,18 @@ static inline bool init_section_intersects(void *virt, size_t size)
+>  	return memory_intersects(__init_begin, __init_end, virt, size);
+>  }
+> 
+> +/**
+> + * is_kernel_rodata - checks if the pointer address is located in the
+> + *                    .rodata section
+> + *
+> + * @addr: address to check
+> + *
+> + * Returns: true if the address is located in .rodata, false otherwise.
+> + */
+> +static inline bool is_kernel_rodata(unsigned long addr)
+> +{
+> +	return addr >= (unsigned long)__start_rodata &&
+> +	       addr < (unsigned long)__end_rodata;
+> +}
+> +
+>  #endif /* _ASM_GENERIC_SECTIONS_H_ */
+> diff --git a/mm/util.c b/mm/util.c
+> index 9e3ebd2ef65f..470f5cd80b64 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -15,17 +15,10 @@
+>  #include <linux/vmalloc.h>
+>  #include <linux/userfaultfd_k.h>
+> 
+> -#include <asm/sections.h>
+>  #include <linux/uaccess.h>
+> 
+>  #include "internal.h"
+> 
+> -static inline int is_kernel_rodata(unsigned long addr)
+> -{
+> -	return addr >= (unsigned long)__start_rodata &&
+> -		addr < (unsigned long)__end_rodata;
+> -}
+> -
+>  /**
+>   * kfree_const - conditionally free memory
+>   * @x: pointer to the memory
+> -- 
+> 2.18.0
+> 
 
-diff --git a/drivers/clk/x86/clk-pmc-atom.c b/drivers/clk/x86/clk-pmc-atom.c
-index d977193842df..239197799ea3 100644
---- a/drivers/clk/x86/clk-pmc-atom.c
-+++ b/drivers/clk/x86/clk-pmc-atom.c
-@@ -247,14 +247,6 @@ static void plt_clk_unregister_fixed_rate_loop(struct clk_plt_data *data,
- 		plt_clk_unregister_fixed_rate(data->parents[i]);
- }
- 
--static void plt_clk_free_parent_names_loop(const char **parent_names,
--					   unsigned int i)
--{
--	while (i--)
--		kfree_const(parent_names[i]);
--	kfree(parent_names);
--}
--
- static void plt_clk_unregister_loop(struct clk_plt_data *data,
- 				    unsigned int i)
- {
-@@ -280,8 +272,8 @@ static const char **plt_clk_register_parents(struct platform_device *pdev,
- 	if (!data->parents)
- 		return ERR_PTR(-ENOMEM);
- 
--	parent_names = kcalloc(nparents, sizeof(*parent_names),
--			       GFP_KERNEL);
-+	parent_names = devm_kcalloc(&pdev->dev, nparents,
-+				    sizeof(*parent_names), GFP_KERNEL);
- 	if (!parent_names)
- 		return ERR_PTR(-ENOMEM);
- 
-@@ -294,7 +286,8 @@ static const char **plt_clk_register_parents(struct platform_device *pdev,
- 			err = PTR_ERR(data->parents[i]);
- 			goto err_unreg;
- 		}
--		parent_names[i] = kstrdup_const(clks[i].name, GFP_KERNEL);
-+		parent_names[i] = devm_kstrdup_const(&pdev->dev,
-+						     clks[i].name, GFP_KERNEL);
- 	}
- 
- 	data->nparents = nparents;
-@@ -302,7 +295,6 @@ static const char **plt_clk_register_parents(struct platform_device *pdev,
- 
- err_unreg:
- 	plt_clk_unregister_fixed_rate_loop(data, i);
--	plt_clk_free_parent_names_loop(parent_names, i);
- 	return ERR_PTR(err);
- }
- 
-@@ -352,8 +344,6 @@ static int plt_clk_probe(struct platform_device *pdev)
- 		goto err_drop_mclk;
- 	}
- 
--	plt_clk_free_parent_names_loop(parent_names, data->nparents);
--
- 	platform_set_drvdata(pdev, data);
- 	return 0;
- 
-@@ -362,7 +352,6 @@ static int plt_clk_probe(struct platform_device *pdev)
- err_unreg_clk_plt:
- 	plt_clk_unregister_loop(data, i);
- 	plt_clk_unregister_parents(data);
--	plt_clk_free_parent_names_loop(parent_names, data->nparents);
- 	return err;
- }
- 
 -- 
-2.18.0
+Sincerely yours,
+Mike.
