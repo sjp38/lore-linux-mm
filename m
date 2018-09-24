@@ -1,66 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 158AE8E0041
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 15:56:22 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id a18-v6so3747557pgn.10
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 12:56:22 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 140AE8E0041
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 15:58:58 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id w23-v6so10535480ywg.11
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 12:58:58 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id be1-v6sor41706plb.91.2018.09.24.12.56.20
+        by mx.google.com with SMTPS id a7-v6sor16101ywc.431.2018.09.24.12.58.57
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 24 Sep 2018 12:56:20 -0700 (PDT)
-Message-ID: <1537818978.195115.25.camel@acm.org>
-Subject: Re: block: DMA alignment of IO buffer allocated from slab
-From: Bart Van Assche <bvanassche@acm.org>
-Date: Mon, 24 Sep 2018 12:56:18 -0700
-In-Reply-To: <20180924185753.GA32269@bombadil.infradead.org>
-References: <87h8ij0zot.fsf@vitty.brq.redhat.com>
-	 <20180923224206.GA13618@ming.t460p>
-	 <38c03920-0fd0-0a39-2a6e-70cd8cb4ef34@virtuozzo.com>
-	 <20a20568-5089-541d-3cee-546e549a0bc8@acm.org>
-	 <12eee877-affa-c822-c9d5-fda3aa0a50da@virtuozzo.com>
-	 <1537801706.195115.7.camel@acm.org>
-	 <c844c598-be1d-bef4-fb99-09cf99571fd7@virtuozzo.com>
-	 <1537804720.195115.9.camel@acm.org>
-	 <10c706fd-2252-f11b-312e-ae0d97d9a538@virtuozzo.com>
-	 <1537805984.195115.14.camel@acm.org>
-	 <20180924185753.GA32269@bombadil.infradead.org>
-Content-Type: text/plain; charset="UTF-7"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Mon, 24 Sep 2018 12:58:57 -0700 (PDT)
+Received: from mail-yw1-f53.google.com (mail-yw1-f53.google.com. [209.85.161.53])
+        by smtp.gmail.com with ESMTPSA id g2-v6sm79243ywb.84.2018.09.24.12.58.53
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Sep 2018 12:58:54 -0700 (PDT)
+Received: by mail-yw1-f53.google.com with SMTP id d126-v6so1714907ywa.5
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 12:58:53 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1537815484.19013.48.camel@intel.com>
+References: <1536874298-23492-1-git-send-email-rick.p.edgecombe@intel.com>
+ <1536874298-23492-3-git-send-email-rick.p.edgecombe@intel.com>
+ <CAGXu5jJ9nZYbVn5xdi7nsMJRD6ScLeWP2DWjrD8yEfwi-XXcRw@mail.gmail.com> <1537815484.19013.48.camel@intel.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Mon, 24 Sep 2018 12:58:51 -0700
+Message-ID: <CAGXu5jKho6Ui0sP6-4FN=i6zZ1+gXcd9Zyctqhvg+4r1cz-Mqw@mail.gmail.com>
+Subject: Re: [PATCH v6 2/4] x86/modules: Increase randomization for modules
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Ming Lei <ming.lei@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Christoph Hellwig <hch@lst.de>, Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "jannh@google.com" <jannh@google.com>, "arjan@linux.intel.com" <arjan@linux.intel.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "alexei.starovoitov@gmail.com" <alexei.starovoitov@gmail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "Hansen, Dave" <dave.hansen@intel.com>
 
-On Mon, 2018-09-24 at 11:57 -0700, Matthew Wilcox wrote:
-+AD4 On Mon, Sep 24, 2018 at 09:19:44AM -0700, Bart Van Assche wrote:
-+AD4 +AD4 That means that two buffers allocated with kmalloc() may share a cache line on
-+AD4 +AD4 x86-64. Since it is allowed to use a buffer allocated by kmalloc() for DMA, can
-+AD4 +AD4 this lead to data corruption, e.g. if the CPU writes into one buffer allocated
-+AD4 +AD4 with kmalloc() and a device performs a DMA write to another kmalloc() buffer and
-+AD4 +AD4 both write operations affect the same cache line?
-+AD4 
-+AD4 You're not supposed to use kmalloc memory for DMA.  This is why we have
-+AD4 dma+AF8-alloc+AF8-coherent() and friends.
+On Mon, Sep 24, 2018 at 11:57 AM, Edgecombe, Rick P
+<rick.p.edgecombe@intel.com> wrote:
+> On Fri, 2018-09-21 at 12:05 -0700, Kees Cook wrote:
+>> On Thu, Sep 13, 2018 at 2:31 PM, Rick Edgecombe
+>> <rick.p.edgecombe@intel.com> wrote:
+>> I would find this much more readable as:
+>> static unsigned long get_module_vmalloc_start(void)
+>> {
+>>        unsigned long addr = MODULES_VADDR;
+>>
+>>        if (kaslr_randomize_base())
+>>               addr += get_module_load_offset();
+>>
+>>        if (kaslr_randomize_each_module())
+>>                addr += get_modules_rand_len();
+>>
+>>        return addr;
+>> }
+> Thanks, that looks better.
+>
+>>
+>> >  void *module_alloc(unsigned long size)
+>> >  {
+>> > @@ -84,16 +201,18 @@ void *module_alloc(unsigned long size)
+>> >         if (PAGE_ALIGN(size) > MODULES_LEN)
+>> >                 return NULL;
+>> >
+>> > -       p = __vmalloc_node_range(size, MODULE_ALIGN,
+>> > -                                   MODULES_VADDR +
+>> > get_module_load_offset(),
+>> > -                                   MODULES_END, GFP_KERNEL,
+>> > -                                   PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
+>> > -                                   __builtin_return_address(0));
+>> > +       p = try_module_randomize_each(size);
+>> > +
+>> > +       if (!p)
+>> > +               p = __vmalloc_node_range(size, MODULE_ALIGN,
+>> > +                               get_module_vmalloc_start(), MODULES_END,
+>> > +                               GFP_KERNEL, PAGE_KERNEL_EXEC, 0,
+>> > +                               NUMA_NO_NODE, __builtin_return_address(0));
+>> Instead of having two open-coded __vmalloc_node_range() calls left in
+>> this after the change, can this be done in terms of a call to
+>> try_module_alloc() instead? I see they're slightly different, but it
+>> might be nice for making the two paths share more code.
+> Not sure what you mean. Across the whole change, there is one call
+> to __vmalloc_node_range, and one to __vmalloc_node_try_addr.
 
-Are you claiming that all drivers that use DMA should use coherent DMA only? If
-coherent DMA is the only DMA style that should be used, why do the following
-function pointers exist in struct dma+AF8-map+AF8-ops?
+I guess I meant the vmalloc calls -- one for node_range and one for
+node_try_addr. I was wondering if the logic could be combined in some
+way so that the __vmalloc_node_range() could be made in terms of the
+the helper that try_module_randomize_each() uses. But this could just
+be me hoping for nice-to-read changes. ;)
 
-	void (+ACo-sync+AF8-single+AF8-for+AF8-cpu)(struct device +ACo-dev,
-				    dma+AF8-addr+AF8-t dma+AF8-handle, size+AF8-t size,
-				    enum dma+AF8-data+AF8-direction dir)+ADs
-	void (+ACo-sync+AF8-single+AF8-for+AF8-device)(struct device +ACo-dev,
-				       dma+AF8-addr+AF8-t dma+AF8-handle, size+AF8-t size,
-				       enum dma+AF8-data+AF8-direction dir)+ADs
-	void (+ACo-sync+AF8-sg+AF8-for+AF8-cpu)(struct device +ACo-dev,
-				struct scatterlist +ACo-sg, int nents,
-				enum dma+AF8-data+AF8-direction dir)+ADs
-	void (+ACo-sync+AF8-sg+AF8-for+AF8-device)(struct device +ACo-dev,
-				   struct scatterlist +ACo-sg, int nents,
-				   enum dma+AF8-data+AF8-direction dir)+ADs
+-Kees
 
-Thanks,
-
-Bart.
+-- 
+Kees Cook
+Pixel Security
