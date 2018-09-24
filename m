@@ -1,91 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 22F088E0001
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 14:27:56 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id b4-v6so9802143ede.4
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 11:27:56 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g45-v6si2314191edg.399.2018.09.24.11.27.54
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 160D38E0001
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 14:42:04 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id s15-v6so1805963pgv.9
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 11:42:04 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a19-v6sor5282pgj.334.2018.09.24.11.42.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Sep 2018 11:27:54 -0700 (PDT)
-Subject: Re: [patch] mm, thp: always specify ineligible vmas as nh in smaps
-References: <alpine.DEB.2.21.1809241054050.224429@chino.kir.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <e2f159f3-5373-dda4-5904-ed24d029de3c@suse.cz>
-Date: Mon, 24 Sep 2018 20:25:15 +0200
+        (Google Transport Security);
+        Mon, 24 Sep 2018 11:42:02 -0700 (PDT)
+Date: Mon, 24 Sep 2018 11:41:58 -0700
+From: Dmitry Torokhov <dmitry.torokhov@gmail.com>
+Subject: Re: WARNING: kmalloc bug in input_mt_init_slots
+Message-ID: <20180924184158.GA156847@dtor-ws>
+References: <000000000000e5f76c057664e73d@google.com>
+ <CAKdAkRS7PSXv65MTnvKOewqESxt0_FtKohd86ioOuYR3R0z9dw@mail.gmail.com>
+ <CACT4Y+YOb6M=xuPG64PAvd=0bcteicGtwQO60CevN_V67SJ=MQ@mail.gmail.com>
+ <010001660c1fafb2-6d0dc7e1-d898-4589-874c-1be1af94e22d-000000@email.amazonses.com>
+ <CACT4Y+ayX8vzd2JPrLeFhf3K_Quf4x6SDtmtkNJuwNLyOh67tQ@mail.gmail.com>
+ <010001660c4a8bbe-91200766-00df-48bd-bc60-a03da2ccdb7d-000000@email.amazonses.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.21.1809241054050.224429@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <010001660c4a8bbe-91200766-00df-48bd-bc60-a03da2ccdb7d-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Alexey Dobriyan <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, Linux-MM layout <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
+To: Christopher Lameter <cl@linux.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, syzbot+87829a10073277282ad1@syzkaller.appspotmail.com, Pekka Enberg <penberg@kernel.org>, "linux-input@vger.kernel.org" <linux-input@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>, Henrik Rydberg <rydberg@bitmath.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
 
-+CC linux-mm linux-api
-
-On 9/24/18 7:55 PM, David Rientjes wrote:
-> Commit 1860033237d4 ("mm: make PR_SET_THP_DISABLE immediately active")
-> introduced a regression in that userspace cannot always determine the set
-> of vmas where thp is ineligible.
+On Mon, Sep 24, 2018 at 03:55:04PM +0000, Christopher Lameter wrote:
+> On Mon, 24 Sep 2018, Dmitry Vyukov wrote:
 > 
-> Userspace relies on the "nh" flag being emitted as part of /proc/pid/smaps
-> to determine if a vma is eligible to be backed by hugepages.
+> > On Mon, Sep 24, 2018 at 5:08 PM, Christopher Lameter <cl@linux.com> wrote:
+> > > On Sun, 23 Sep 2018, Dmitry Vyukov wrote:
+> > >
+> > >> What was the motivation behind that WARNING about large allocations in
+> > >> kmalloc? Why do we want to know about them? Is the general policy that
+> > >> kmalloc calls with potentially large size requests need to use NOWARN?
+> > >> If this WARNING still considered useful? Or we should change it to
+> > >> pr_err?
+> > >
+> > > In general large allocs should be satisfied by the page allocator. The
+> > > slab allocators are used for allocating and managing small objects. The
+> > > page allocator has mechanisms to deal with large objects (compound pages,
+> > > multiple page sized allocs etc).
+> >
+> > I am asking more about the status of this warning. If it fires in
+> > input_mt_init_slots(), does it mean that input_mt_init_slots() needs
+> > to be fixed? If not, then we need to change this warning to something
+> > else.
 > 
-> Previous to this commit, prctl(PR_SET_THP_DISABLE, 1) would cause thp to
-> be disabled and emit "nh" as a flag for the corresponding vmas as part of
-> /proc/pid/smaps.  After the commit, thp is disabled by means of an mm
-> flag and "nh" is not emitted.
+> Hmmm.. kmalloc falls back to the page allocator already?
 > 
-> This causes smaps parsing libraries to assume a vma is eligible for thp
-> and ends up puzzling the user on why its memory is not backed by thp.
+> See
 > 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> static __always_inline void *kmalloc(size_t size, gfp_t flags)
+> {
+>         if (__builtin_constant_p(size)) {
 
-Fixes: 1860033237d4 ("mm: make PR_SET_THP_DISABLE immediately active")
+It would not be a constant here though.
 
-Not worth for stable IMO, but makes sense otherwise.
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-A question below:
-
-> ---
->  fs/proc/task_mmu.c | 12 +++++++++++-
->  1 file changed, 11 insertions(+), 1 deletion(-)
+>                 if (size > KMALLOC_MAX_CACHE_SIZE)
+>                         return kmalloc_large(size, flags);
 > 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -653,13 +653,23 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
->  #endif
->  #endif /* CONFIG_ARCH_HAS_PKEYS */
->  	};
-> +	unsigned long flags = vma->vm_flags;
->  	size_t i;
->  
-> +	/*
-> +	 * Disabling thp is possible through both MADV_NOHUGEPAGE and
-> +	 * PR_SET_THP_DISABLE.  Both historically used VM_NOHUGEPAGE.  Since
-> +	 * the introduction of MMF_DISABLE_THP, however, userspace needs the
-> +	 * ability to detect vmas where thp is not eligible in the same manner.
-> +	 */
-> +	if (vma->vm_mm && test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
-> +		flags |= VM_NOHUGEPAGE;
-
-Should it also clear VM_HUGEPAGE? In case MMF_DISABLE_THP overrides a
-madvise(MADV_HUGEPAGE)'d vma? (I expect it does?)
-
-> +
->  	seq_puts(m, "VmFlags: ");
->  	for (i = 0; i < BITS_PER_LONG; i++) {
->  		if (!mnemonics[i][0])
->  			continue;
-> -		if (vma->vm_flags & (1UL << i)) {
-> +		if (flags & (1UL << i)) {
->  			seq_putc(m, mnemonics[i][0]);
->  			seq_putc(m, mnemonics[i][1]);
->  			seq_putc(m, ' ');
 > 
+> Note that this uses KMALLOC_MAX_CACHE_SIZE which should be smaller than
+> KMALLOC_MAX_SIZE.
+> 
+> 
+> How large is the allocation? AFACIT nRequests larger than KMALLOC_MAX_SIZE
+> are larger than the maximum allowed by the page allocator. Thus the warning
+> and the NULL return.
+
+The size in this particular case is being derived from a value passed
+from userspace. Input core does not care about any limits on size of
+memory kmalloc() can support and is perfectly happy with getting NULL
+and telling userspace to go away with their silly requests by returning
+-ENOMEM.
+
+For the record: I definitely do not want to pre-sanitize size neither in
+uinput nor in input core.
+
+Thanks.
+
+-- 
+Dmitry
