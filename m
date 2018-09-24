@@ -1,73 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6537B8E0041
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 17:08:53 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id t17-v6so6875255qtq.12
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 14:08:53 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i25-v6si277835qta.379.2018.09.24.14.08.52
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A39098E0041
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 17:09:19 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id n17-v6so10699350pff.17
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 14:09:19 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id g189-v6si355394pgc.204.2018.09.24.14.09.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Sep 2018 14:08:52 -0700 (PDT)
-Date: Mon, 24 Sep 2018 17:08:50 -0400
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: Question about a pte with PTE_PROT_NONE and !PTE_VALID on
- !PROT_NONE vma
-Message-ID: <20180924210850.GV28957@redhat.com>
-References: <CGME20180921150147epcas5p33964436b2e609016311e4f12b715779d@epcas5p3.samsung.com>
- <CANYKp7ufttxsNkewBqgYDexMAoyVnMxgoy-EydCqmHadxyn+QQ@mail.gmail.com>
- <10146a73-4788-ba89-001f-f928bbb314f5@samsung.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 24 Sep 2018 14:09:17 -0700 (PDT)
+Date: Mon, 24 Sep 2018 14:09:13 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: block: DMA alignment of IO buffer allocated from slab
+Message-ID: <20180924210913.GB2542@bombadil.infradead.org>
+References: <12eee877-affa-c822-c9d5-fda3aa0a50da@virtuozzo.com>
+ <1537801706.195115.7.camel@acm.org>
+ <c844c598-be1d-bef4-fb99-09cf99571fd7@virtuozzo.com>
+ <1537804720.195115.9.camel@acm.org>
+ <10c706fd-2252-f11b-312e-ae0d97d9a538@virtuozzo.com>
+ <1537805984.195115.14.camel@acm.org>
+ <20180924185753.GA32269@bombadil.infradead.org>
+ <1537818978.195115.25.camel@acm.org>
+ <20180924204148.GA2542@bombadil.infradead.org>
+ <1537822441.195115.32.camel@acm.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <10146a73-4788-ba89-001f-f928bbb314f5@samsung.com>
+In-Reply-To: <1537822441.195115.32.camel@acm.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chulmin Kim <cmlaika.kim@samsung.com>
-Cc: Chulmin Kim <cmkim.laika@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Bart Van Assche <bvanassche@acm.org>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Ming Lei <ming.lei@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Christoph Hellwig <hch@lst.de>, Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-Hello,
+On Mon, Sep 24, 2018 at 01:54:01PM -0700, Bart Van Assche wrote:
+> On Mon, 2018-09-24 at 13:41 -0700, Matthew Wilcox wrote:
+> > Good job snipping the part of my reply which addressed this.  Go read
+> > DMA-API.txt yourself.  Carefully.
+> 
+> The snipped part did not contradict your claim that "You're not supposed to use
+> kmalloc memory for DMA." In the DMA-API.txt document however there are multiple
+> explicit statements that support allocating memory for DMA with kmalloc(). Here
+> is one example from the DMA-API.txt section about dma_map_single():
+> 
+> 	Not all memory regions in a machine can be mapped by this API.
+> 	Further, contiguous kernel virtual space may not be contiguous as
+> 	physical memory.  Since this API does not provide any scatter/gather
+> 	capability, it will fail if the user tries to map a non-physically
+> 	contiguous piece of memory.  For this reason, memory to be mapped by
+> 	this API should be obtained from sources which guarantee it to be
+> 	physically contiguous (like kmalloc).
 
-On Sat, Sep 22, 2018 at 01:38:07PM +0900, Chulmin Kim wrote:
-> Dear Arcangeli,
-> 
-> 
-> I think this problem is very much related with
-> 
-> the race condition shown in the below commit.
-> 
-> (e86f15ee64d8, mm: vma_merge: fix vm_page_prot SMP race condition 
-> against rmap_walk)
-> 
-> 
-> I checked that
-> 
-> the the thread and its child threads are doing mprotect(PROT_{NONE or 
-> R|W}) things repeatedly
-> 
-> while I didn't reproduce the problem yet.
-> 
-> 
-> Do you think this is one of the phenomenon you expected
-> 
-> from the race condition shown in the above commit?
+Since you're only interested in reading the parts which support your
+viewpoint, I'll do the work for you.
 
-Yes that commit will fix your problem in a v4.4 based tree that misses
-that fix. You just need to cherry-pick that commit to fix the problem.
-
-Page migrate sets the pte to PROT_NONE by mistake because it runs
-concurrently with the mprotect that transitions an adjacent vma from
-PROT_NONE to PROT_READ|WRITE. vma_merge (before the fix) temporarily
-shown an erratic PROT_NONE vma prot for the virtual range under page
-migration.
-
-With NUMA disabled, it's likely compaction that triggered page migrate
-for you. Disabling compaction at build time would have likely hidden
-the problem. Compaction uses migration and you most certainly have
-CONFIG_COMPACTION=y (rightfully so).
-
-On a side note, I suggest to cherry pick the last upstream commit of
-mm/vmacache.c too.
-
-Hope this helps,
-Andrea
+        Memory coherency operates at a granularity called the cache
+        line width.  In order for memory mapped by this API to operate
+        correctly, the mapped region must begin exactly on a cache line
+        boundary and end exactly on one (to prevent two separately mapped
+        regions from sharing a single cache line).  Since the cache line size
+        may not be known at compile time, the API will not enforce this
+        requirement.  THEREFORE, IT IS RECOMMENDED THAT DRIVER WRITERS WHO
+        DON'T TAKE SPECIAL CARE TO DETERMINE THE CACHE LINE SIZE AT RUN TIME
+        ONLY MAP VIRTUAL REGIONS THAT BEGIN AND END ON PAGE BOUNDARIES (WHICH
+        ARE GUARANTEED ALSO TO BE CACHE LINE BOUNDARIES).
