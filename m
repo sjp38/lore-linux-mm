@@ -1,56 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EED758E0001
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 05:46:08 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id p192-v6so20633430qke.13
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 02:46:08 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0119.outbound.protection.outlook.com. [104.47.1.119])
-        by mx.google.com with ESMTPS id r7-v6si3751662qvm.102.2018.09.24.02.46.07
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 87B608E0001
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 06:12:04 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id t79-v6so9472836wmt.3
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 03:12:04 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t66-v6sor8652595wmg.28.2018.09.24.03.12.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 24 Sep 2018 02:46:07 -0700 (PDT)
-Subject: Re: block: DMA alignment of IO buffer allocated from slab
-References: <CACVXFVOBq3L_EjSTCoiqUL1PH=HMR5EuNNQV0hNndFpGxmUK6g@mail.gmail.com>
- <20180920063129.GB12913@lst.de> <87h8ij0zot.fsf@vitty.brq.redhat.com>
- <20180923224206.GA13618@ming.t460p>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <38c03920-0fd0-0a39-2a6e-70cd8cb4ef34@virtuozzo.com>
-Date: Mon, 24 Sep 2018 12:46:27 +0300
-MIME-Version: 1.0
-In-Reply-To: <20180923224206.GA13618@ming.t460p>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Mon, 24 Sep 2018 03:12:02 -0700 (PDT)
+From: Bartosz Golaszewski <brgl@bgdev.pl>
+Subject: [PATCH v3 0/4] devres: provide and use devm_kstrdup_const()
+Date: Mon, 24 Sep 2018 12:11:46 +0200
+Message-Id: <20180924101150.23349-1-brgl@bgdev.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: Christoph Hellwig <hch@lst.de>, Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Michael Turquette <mturquette@baylibre.com>, Stephen Boyd <sboyd@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Arend van Spriel <aspriel@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, Bjorn Helgaas <bhelgaas@google.com>, Vivek Gautam <vivek.gautam@codeaurora.org>, Robin Murphy <robin.murphy@arm.com>, Joe Perches <joe@perches.com>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Roman Gushchin <guro@fb.com>, Huang Ying <ying.huang@intel.com>, Kees Cook <keescook@chromium.org>, Bjorn Andersson <bjorn.andersson@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+Cc: linux-clk@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Bartosz Golaszewski <brgl@bgdev.pl>
 
-On 09/24/2018 01:42 AM, Ming Lei wrote:
-> On Fri, Sep 21, 2018 at 03:04:18PM +0200, Vitaly Kuznetsov wrote:
->> Christoph Hellwig <hch@lst.de> writes:
->>
->>> On Wed, Sep 19, 2018 at 05:15:43PM +0800, Ming Lei wrote:
->>>> 1) does kmalloc-N slab guarantee to return N-byte aligned buffer?  If
->>>> yes, is it a stable rule?
->>>
->>> This is the assumption in a lot of the kernel, so I think if somethings
->>> breaks this we are in a lot of pain.
+This series implements devm_kstrdup_const() together with some
+prerequisite changes and uses it in pmc-atom driver.
 
-This assumption is not correct. And it's not correct at least from the beginning of the
-git era, which is even before SLUB allocator appeared. With CONFIG_DEBUG_SLAB=y
-the same as with CONFIG_SLUB_DEBUG_ON=y kmalloc return 'unaligned' objects.
-The guaranteed arch-and-config-independent alignment of kmalloc() result is "sizeof(void*)".
+v1 -> v2:
+- fixed the changelog in the patch implementing devm_kstrdup_const()
+- fixed the kernel doc
+- moved is_kernel_rodata() to asm-generic/sections.h
+- fixed constness
 
-If objects has higher alignment requirement, the could be allocated via specifically created kmem_cache.
+v2 -> v3:
+- rebased on top of 4.19-rc5 as there were some conflicts in the
+  pmc-atom driver
+- collected Reviewed-by tags
 
+Bartosz Golaszewski (4):
+  devres: constify p in devm_kfree()
+  mm: move is_kernel_rodata() to asm-generic/sections.h
+  devres: provide devm_kstrdup_const()
+  clk: pmc-atom: use devm_kstrdup_const()
 
-> 
-> Even some of buffer address is _not_ L1 cache size aligned, this way is
-> totally broken wrt. DMA to/from this buffer.
-> 
-> So this issue has to be fixed in slab debug side.
-> 
+ drivers/base/devres.c          | 43 ++++++++++++++++++++++++++++++++--
+ drivers/clk/x86/clk-pmc-atom.c | 19 ++++-----------
+ include/asm-generic/sections.h | 14 +++++++++++
+ include/linux/device.h         |  5 +++-
+ mm/util.c                      |  7 ------
+ 5 files changed, 63 insertions(+), 25 deletions(-)
 
-Well, this definitely would increase memory consumption. Many (probably most) of the kmalloc()
-users doesn't need such alignment, why should they pay the cost? 
+-- 
+2.18.0
