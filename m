@@ -1,44 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AC2BE8E0041
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 00:44:27 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id a4-v6so2756454pfi.16
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 21:44:27 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id t2-v6si1329647pgg.422.2018.09.24.21.44.26
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C9F228E0041
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 01:42:53 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id f89-v6so561616pff.7
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 22:42:53 -0700 (PDT)
+Received: from alexa-out-blr.qualcomm.com (alexa-out-blr-02.qualcomm.com. [103.229.18.198])
+        by mx.google.com with ESMTPS id 8-v6si1560571pla.252.2018.09.24.22.42.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 24 Sep 2018 21:44:26 -0700 (PDT)
-Date: Mon, 24 Sep 2018 21:44:21 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: block: DMA alignment of IO buffer allocated from slab
-Message-ID: <20180925044421.GA11163@bombadil.infradead.org>
-References: <12eee877-affa-c822-c9d5-fda3aa0a50da@virtuozzo.com>
- <1537801706.195115.7.camel@acm.org>
- <c844c598-be1d-bef4-fb99-09cf99571fd7@virtuozzo.com>
- <1537804720.195115.9.camel@acm.org>
- <10c706fd-2252-f11b-312e-ae0d97d9a538@virtuozzo.com>
- <1537805984.195115.14.camel@acm.org>
- <20180924185753.GA32269@bombadil.infradead.org>
- <20180925001615.GA14386@ming.t460p>
- <20180925032826.GA4110@bombadil.infradead.org>
- <4a19ac2f-82c1-db55-9b93-4005ace5e2fe@acm.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4a19ac2f-82c1-db55-9b93-4005ace5e2fe@acm.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Sep 2018 22:42:52 -0700 (PDT)
+From: Arun KS <arunks@codeaurora.org>
+Subject: [PATCH v2] memory_hotplug: Free pages as higher order
+Date: Tue, 25 Sep 2018 11:12:38 +0530
+Message-Id: <1537854158-9766-1-git-send-email-arunks@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bart Van Assche <bvanassche@acm.org>
-Cc: Ming Lei <ming.lei@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Christoph Hellwig <hch@lst.de>, Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, osalvador@suse.de, malat@debian.org, yasu.isimatu@gmail.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org
+Cc: vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com, Arun KS <arunks@codeaurora.org>
 
-On Mon, Sep 24, 2018 at 09:10:43PM -0700, Bart Van Assche wrote:
-> On 9/24/18 8:28 PM, Matthew Wilcox wrote:
-> > [ ... ] Because if we have to
-> > round all allocations below 64 bytes up to 64 bytes, [ ... ]
-> Have you noticed that in another e-mail in this thread it has been explained
-> why it is not necessary on x86 to align buffers allocated by kmalloc() on a
-> 64-byte boundary even if these buffers are used for DMA?
+When free pages are done with higher order, time spend on
+coalescing pages by buddy allocator can be reduced. With
+section size of 256MB, hot add latency of a single section
+shows improvement from 50-60 ms to less than 1 ms, hence
+improving the hot add latency by 60%.
 
-Oh, so drivers which do this only break on !x86.  Yes, that'll work
-out great.
+Modify external providers of online callback to align with
+the change.
+
+Signed-off-by: Arun KS <arunks@codeaurora.org>
+---
+Changes since v1:
+- Removed prefetch()
+
+Changes since RFC:
+- Rebase.
+- As suggested by Michal Hocko remove pages_per_block.
+- Modifed external providers of online_page_callback.
+
+v1: https://lore.kernel.org/patchwork/patch/989445/
+RFC: https://lore.kernel.org/patchwork/patch/984754/
+---
+ drivers/hv/hv_balloon.c        |  6 +++--
+ drivers/xen/balloon.c          | 18 ++++++++++++---
+ include/linux/memory_hotplug.h |  2 +-
+ mm/memory_hotplug.c            | 51 ++++++++++++++++++++++++++++++++----------
+ 4 files changed, 59 insertions(+), 18 deletions(-)
+
+diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
+index b1b7880..c5bc0b5 100644
+--- a/drivers/hv/hv_balloon.c
++++ b/drivers/hv/hv_balloon.c
+@@ -771,7 +771,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
+ 	}
+ }
+ 
+-static void hv_online_page(struct page *pg)
++static int hv_online_page(struct page *pg, unsigned int order)
+ {
+ 	struct hv_hotadd_state *has;
+ 	unsigned long flags;
+@@ -783,10 +783,12 @@ static void hv_online_page(struct page *pg)
+ 		if ((pfn < has->start_pfn) || (pfn >= has->end_pfn))
+ 			continue;
+ 
+-		hv_page_online_one(has, pg);
++		hv_bring_pgs_online(has, pfn, (1UL << order));
+ 		break;
+ 	}
+ 	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
++
++	return 0;
+ }
+ 
+ static int pfn_covered(unsigned long start_pfn, unsigned long pfn_cnt)
+diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+index e12bb25..010cf4d 100644
+--- a/drivers/xen/balloon.c
++++ b/drivers/xen/balloon.c
+@@ -390,8 +390,8 @@ static enum bp_state reserve_additional_memory(void)
+ 
+ 	/*
+ 	 * add_memory_resource() will call online_pages() which in its turn
+-	 * will call xen_online_page() callback causing deadlock if we don't
+-	 * release balloon_mutex here. Unlocking here is safe because the
++	 * will call xen_bring_pgs_online() callback causing deadlock if we
++	 * don't release balloon_mutex here. Unlocking here is safe because the
+ 	 * callers drop the mutex before trying again.
+ 	 */
+ 	mutex_unlock(&balloon_mutex);
+@@ -422,6 +422,18 @@ static void xen_online_page(struct page *page)
+ 	mutex_unlock(&balloon_mutex);
+ }
+ 
++static int xen_bring_pgs_online(struct page *pg, unsigned int order)
++{
++	unsigned long i, size = (1 << order);
++	unsigned long start_pfn = page_to_pfn(pg);
++
++	pr_debug("Online %lu pages starting at pfn 0x%lx\n", size, start_pfn);
++	for (i = 0; i < size; i++)
++		xen_online_page(pfn_to_page(start_pfn + i));
++
++	return 0;
++}
++
+ static int xen_memory_notifier(struct notifier_block *nb, unsigned long val, void *v)
+ {
+ 	if (val == MEM_ONLINE)
+@@ -744,7 +756,7 @@ static int __init balloon_init(void)
+ 	balloon_stats.max_retry_count = RETRY_UNLIMITED;
+ 
+ #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
+-	set_online_page_callback(&xen_online_page);
++	set_online_page_callback(&xen_bring_pgs_online);
+ 	register_memory_notifier(&xen_memory_nb);
+ 	register_sysctl_table(xen_root);
+ 
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 34a2822..7b04c1d 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -87,7 +87,7 @@ extern int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
+ 	unsigned long *valid_start, unsigned long *valid_end);
+ extern void __offline_isolated_pages(unsigned long, unsigned long);
+ 
+-typedef void (*online_page_callback_t)(struct page *page);
++typedef int (*online_page_callback_t)(struct page *page, unsigned int order);
+ 
+ extern int set_online_page_callback(online_page_callback_t callback);
+ extern int restore_online_page_callback(online_page_callback_t callback);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 38d94b7..9f67794 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -47,7 +47,7 @@
+  * and restore_online_page_callback() for generic callback restore.
+  */
+ 
+-static void generic_online_page(struct page *page);
++static int generic_online_page(struct page *page, unsigned int order);
+ 
+ static online_page_callback_t online_page_callback = generic_online_page;
+ static DEFINE_MUTEX(online_page_callback_lock);
+@@ -655,26 +655,53 @@ void __online_page_free(struct page *page)
+ }
+ EXPORT_SYMBOL_GPL(__online_page_free);
+ 
+-static void generic_online_page(struct page *page)
++static int generic_online_page(struct page *page, unsigned int order)
+ {
+-	__online_page_set_limits(page);
+-	__online_page_increment_counters(page);
+-	__online_page_free(page);
++	unsigned long nr_pages = 1 << order;
++	struct page *p = page;
++	unsigned int loop;
++
++	for (loop = 0 ; loop < nr_pages ; loop++, p++) {
++		__ClearPageReserved(p);
++		set_page_count(p, 0);
++	}
++
++	adjust_managed_page_count(page, nr_pages);
++	set_page_refcounted(page);
++	__free_pages(page, order);
++
++	return 0;
++}
++
++static int online_pages_blocks(unsigned long start, unsigned long nr_pages)
++{
++	unsigned long end = start + nr_pages;
++	int order, ret, onlined_pages = 0;
++
++	while (start < end) {
++		order = min(MAX_ORDER - 1UL, __ffs(start));
++
++		while (start + (1UL << order) > end)
++			order--;
++
++		ret = (*online_page_callback)(pfn_to_page(start), order);
++		if (!ret)
++			onlined_pages += (1UL << order);
++		else if (ret > 0)
++			onlined_pages += ret;
++
++		start += (1UL << order);
++	}
++	return onlined_pages;
+ }
+ 
+ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
+ 			void *arg)
+ {
+-	unsigned long i;
+ 	unsigned long onlined_pages = *(unsigned long *)arg;
+-	struct page *page;
+ 
+ 	if (PageReserved(pfn_to_page(start_pfn)))
+-		for (i = 0; i < nr_pages; i++) {
+-			page = pfn_to_page(start_pfn + i);
+-			(*online_page_callback)(page);
+-			onlined_pages++;
+-		}
++		onlined_pages = online_pages_blocks(start_pfn, nr_pages);
+ 
+ 	online_mem_sections(start_pfn, start_pfn + nr_pages);
+ 
+-- 
+1.9.1
