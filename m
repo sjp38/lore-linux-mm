@@ -1,70 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 48DAC8E00A4
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 12:02:38 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id k9-v6so46975148iob.16
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 09:02:38 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l26-v6sor1442802ioh.285.2018.09.25.09.02.37
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CBD238E00A4
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 12:27:35 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id z18-v6so12888920pfe.19
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 09:27:35 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id s87-v6si2526171pfj.43.2018.09.25.09.27.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 25 Sep 2018 09:02:37 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 25 Sep 2018 09:27:34 -0700 (PDT)
+Date: Tue, 25 Sep 2018 18:27:05 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC PATCH v4 01/27] x86/cpufeatures: Add CPUIDs for
+ Control-flow Enforcement Technology (CET)
+Message-ID: <20180925162705.GB30146@hirez.programming.kicks-ass.net>
+References: <20180921150351.20898-1-yu-cheng.yu@intel.com>
+ <20180921150351.20898-2-yu-cheng.yu@intel.com>
 MIME-Version: 1.0
-References: <20180925124629.20710-1-brgl@bgdev.pl> <c25df148-718a-d29d-9c1d-20701a0e4534@arm.com>
- <a729cfd1102ef280650074dd8bec32c6b12636db.camel@perches.com>
-In-Reply-To: <a729cfd1102ef280650074dd8bec32c6b12636db.camel@perches.com>
-From: Bartosz Golaszewski <brgl@bgdev.pl>
-Date: Tue, 25 Sep 2018 18:02:25 +0200
-Message-ID: <CAMRc=MeSte7oQ+oLm0f-Re0LgO1c203xPZRQF9mky9oLCTkeKg@mail.gmail.com>
-Subject: Re: [PATCH v4 0/4] devres: provide and use devm_kstrdup_const()
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180921150351.20898-2-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: Robin Murphy <robin.murphy@arm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael@kernel.org>, Jassi Brar <jassisinghbrar@gmail.com>, Thierry Reding <thierry.reding@gmail.com>, Jonathan Hunter <jonathanh@nvidia.com>, Arnd Bergmann <arnd@arndb.de>, Ulf Hansson <ulf.hansson@linaro.org>, Rob Herring <robh@kernel.org>, Bjorn Helgaas <bhelgaas@google.com>, Arend van Spriel <aspriel@gmail.com>, Vivek Gautam <vivek.gautam@codeaurora.org>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Bjorn Andersson <bjorn.andersson@linaro.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-tegra@vger.kernel.org, "open list:GENERIC INCLUDE/ASM HEADER FILES" <linux-arch@vger.kernel.org>, linux-mm@kvack.org
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-wt., 25 wrz 2018 o 17:48 Joe Perches <joe@perches.com> napisa=C5=82(a):
->
-> On Tue, 2018-09-25 at 13:51 +0100, Robin Murphy wrote:
-> > On 25/09/18 13:46, Bartosz Golaszewski wrote:
-> > > This series implements devm_kstrdup_const() together with some
-> > > prerequisite changes and uses it in pmc-atom driver.
-> >
-> > Is anyone expecting me to review this series,
->
-> Probably not.
->
-> > or am I just here because
-> > I once made a couple of entirely unrelated changes to device.h?
->
-> Most likely yes.
->
-> It is likely that Bartosz should update his use of the
-> get_maintainer.pl script to add "--nogit --nogit-fallback"
-> so drive-by patch submitters are not also cc'd on these
-> sorts of series.
->
-> $ ./scripts/get_maintainer.pl -f \
->         drivers/base/devres.c \
->         drivers/mailbox/tegra-hsp.c \
->         include/asm-generic/sections.h \
->         include/linux/device.h \
->         mm/util.c | \
->   wc -l
-> 26
->
-> $ ./scripts/get_maintainer.pl -f --nogit --nogit-fallback \
->         drivers/base/devres.c \
->         drivers/mailbox/tegra-hsp.c \
->         include/asm-generic/sections.h \
->         include/linux/device.h \
->         mm/util.c | \
->   wc -l
-> 10
->
->
+On Fri, Sep 21, 2018 at 08:03:25AM -0700, Yu-cheng Yu wrote:
 
-Hi, sorry for that. Got it and will use next time.
+> diff --git a/arch/x86/kernel/cpu/scattered.c b/arch/x86/kernel/cpu/scattered.c
+> index 772c219b6889..63cbb4d9938e 100644
+> --- a/arch/x86/kernel/cpu/scattered.c
+> +++ b/arch/x86/kernel/cpu/scattered.c
+> @@ -21,6 +21,7 @@ struct cpuid_bit {
+>  static const struct cpuid_bit cpuid_bits[] = {
+>  	{ X86_FEATURE_APERFMPERF,       CPUID_ECX,  0, 0x00000006, 0 },
+>  	{ X86_FEATURE_EPB,		CPUID_ECX,  3, 0x00000006, 0 },
+> +	{ X86_FEATURE_IBT,		CPUID_EDX, 20, 0x00000007, 0},
+                                                                   ^^
+missing white space at the end there.
 
-Bartosz
+>  	{ X86_FEATURE_CAT_L3,		CPUID_EBX,  1, 0x00000010, 0 },
+>  	{ X86_FEATURE_CAT_L2,		CPUID_EBX,  2, 0x00000010, 0 },
+>  	{ X86_FEATURE_CDP_L3,		CPUID_ECX,  2, 0x00000010, 1 },
+> -- 
+> 2.17.1
+> 
