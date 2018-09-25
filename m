@@ -1,85 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AF798E0072
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 03:49:15 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id d132-v6so9325387pgc.22
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 00:49:15 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id 14-v6si1698899pgm.488.2018.09.25.00.49.12
-        for <linux-mm@kvack.org>;
-        Tue, 25 Sep 2018 00:49:13 -0700 (PDT)
-Date: Tue, 25 Sep 2018 17:49:10 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: block: DMA alignment of IO buffer allocated from slab
-Message-ID: <20180925074910.GB31060@dastard>
-References: <CACVXFVOBq3L_EjSTCoiqUL1PH=HMR5EuNNQV0hNndFpGxmUK6g@mail.gmail.com>
- <20180920063129.GB12913@lst.de>
- <87h8ij0zot.fsf@vitty.brq.redhat.com>
- <20180921130504.GA22551@lst.de>
- <010001660c54fb65-b9d3a770-6678-40d0-8088-4db20af32280-000000@email.amazonses.com>
- <1f88f59a-2cac-e899-4c2e-402e919b1034@kernel.dk>
- <010001660cbd51ea-56e96208-564d-4f5d-a5fb-119a938762a9-000000@email.amazonses.com>
- <1a5b255f-682e-783a-7f99-9d02e39c4af2@kernel.dk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1a5b255f-682e-783a-7f99-9d02e39c4af2@kernel.dk>
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 743348E0072
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 05:15:17 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id d194-v6so24960493qkb.12
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 02:15:17 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k32-v6si1479075qtd.303.2018.09.25.02.15.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Sep 2018 02:15:16 -0700 (PDT)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH v2 0/6] mm: online/offline_pages called w.o. mem_hotplug_lock
+Date: Tue, 25 Sep 2018 11:14:51 +0200
+Message-Id: <20180925091457.28651-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: Christopher Lameter <cl@linux.com>, Christoph Hellwig <hch@lst.de>, Vitaly Kuznetsov <vkuznets@redhat.com>, Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Ming Lei <ming.lei@redhat.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, David Hildenbrand <david@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, John Allen <jallen@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Len Brown <lenb@kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Mathieu Malaterre <malat@debian.org>, Michael Ellerman <mpe@ellerman.id.au>, Michael Neuling <mikey@neuling.org>, Michal Hocko <mhocko@suse.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Oscar Salvador <osalvador@suse.de>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Philippe Ombredanne <pombredanne@nexb.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Rashmica Gupta <rashmica.g@gmail.com>, Stephen Hemminger <sthemmin@microsoft.com>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
 
-On Mon, Sep 24, 2018 at 12:09:37PM -0600, Jens Axboe wrote:
-> On 9/24/18 12:00 PM, Christopher Lameter wrote:
-> > On Mon, 24 Sep 2018, Jens Axboe wrote:
-> > 
-> >> The situation is making me a little uncomfortable, though. If we export
-> >> such a setting, we really should be honoring it...
+Reading through the code and studying how mem_hotplug_lock is to be used,
+I noticed that there are two places where we can end up calling
+device_online()/device_offline() - online_pages()/offline_pages() without
+the mem_hotplug_lock. And there are other places where we call
+device_online()/device_offline() without the device_hotplug_lock.
 
-That's what I said up front, but you replied to this with:
+While e.g.
+	echo "online" > /sys/devices/system/memory/memory9/state
+is fine, e.g.
+	echo 1 > /sys/devices/system/memory/memory9/online
+Will not take the mem_hotplug_lock. However the device_lock() and
+device_hotplug_lock.
 
-| I think this is all crazy talk. We've never done this, [...]
+E.g. via memory_probe_store(), we can end up calling
+add_memory()->online_pages() without the device_hotplug_lock. So we can
+have concurrent callers in online_pages(). We e.g. touch in online_pages()
+basically unprotected zone->present_pages then.
 
-Now I'm not sure what you are saying we should do....
+Looks like there is a longer history to that (see Patch #2 for details),
+and fixing it to work the way it was intended is not really possible. We
+would e.g. have to take the mem_hotplug_lock in device/base/core.c, which
+sounds wrong.
 
-> > Various subsystems create custom slab arrays with their particular
-> > alignment requirement for these allocations.
-> 
-> Oh yeah, I think the solution is basic enough for XFS, for instance.
-> They just have to error on the side of being cautious, by going full
-> sector alignment for memory...
+Summary: We had a lock inversion on mem_hotplug_lock and device_lock().
+More details can be found in patch 3 and patch 6.
 
-How does the filesystem find out about hardware alignment
-requirements? Isn't probing through the block device to find out
-about the request queue configurations considered a layering
-violation?
+I propose the general rules (documentation added in patch 6):
 
-What if sector alignment is not sufficient?  And how would this work
-if we start supporting sector sizes larger than page size? (which the
-XFS buffer cache supports just fine, even if nothing else in
-Linux does).
+1. add_memory/add_memory_resource() must only be called with
+   device_hotplug_lock.
+2. remove_memory() must only be called with device_hotplug_lock. This is
+   already documented and holds for all callers.
+3. device_online()/device_offline() must only be called with
+   device_hotplug_lock. This is already documented and true for now in core
+   code. Other callers (related to memory hotplug) have to be fixed up.
+4. mem_hotplug_lock is taken inside of add_memory/remove_memory/
+   online_pages/offline_pages.
 
-But even ignoring sector size > page size, implementing this
-requires a bunch of new slab caches, especially for 64k page
-machines because XFS supports sector sizes up to 32k.  And every
-other filesystem that uses sector sized buffers (e.g. HFS) would
-have to do the same thing. Seems somewhat wasteful to require
-everyone to implement their own aligned sector slab cache...
+To me, this looks way cleaner than what we have right now (and easier to
+verify). And looking at the documentation of remove_memory, using
+lock_device_hotplug also for add_memory() feels natural.
 
-Perhaps we should take the filesystem out of this completely - maybe
-the block layer could provide a generic "sector heap" and have all
-filesystems that use sector sized buffers allocate from it. e.g.
-something like
 
-	mem = bdev_alloc_sector_buffer(bdev, sector_size)
+v1 -> v2:
+- Upstream changes in powerpc/powernv code required modifications to
+  patch #1, #4 and #5.
+- Minor patch description changes.
+- Added more locking details in patch #6.
+- Added rb's
 
-That way we don't have to rely on filesystems knowing anything about
-the alignment limitations of the devices or assumptions about DMA
-to work correctly...
+RFCv2 -> v1:
+- Dropped an unnecessary _ref from remove_memory() in patch #1
+- Minor patch description fixes.
+- Added rb's
 
-Cheers,
+RFC -> RFCv2:
+- Don't export device_hotplug_lock, provide proper remove_memory/add_memory
+  wrappers.
+- Split up the patches a bit.
+- Try to improve powernv memtrace locking
+- Add some documentation for locking that matches my knowledge
 
-Dave.
+David Hildenbrand (6):
+  mm/memory_hotplug: make remove_memory() take the device_hotplug_lock
+  mm/memory_hotplug: make add_memory() take the device_hotplug_lock
+  mm/memory_hotplug: fix online/offline_pages called w.o.
+    mem_hotplug_lock
+  powerpc/powernv: hold device_hotplug_lock when calling device_online()
+  powerpc/powernv: hold device_hotplug_lock when calling
+    memtrace_offline_pages()
+  memory-hotplug.txt: Add some details about locking internals
+
+ Documentation/memory-hotplug.txt              | 42 ++++++++++++-
+ arch/powerpc/platforms/powernv/memtrace.c     |  8 ++-
+ .../platforms/pseries/hotplug-memory.c        |  8 +--
+ drivers/acpi/acpi_memhotplug.c                |  4 +-
+ drivers/base/memory.c                         | 22 +++----
+ drivers/xen/balloon.c                         |  3 +
+ include/linux/memory_hotplug.h                |  4 +-
+ mm/memory_hotplug.c                           | 59 +++++++++++++++----
+ 8 files changed, 114 insertions(+), 36 deletions(-)
+
 -- 
-Dave Chinner
-david@fromorbit.com
+2.17.1
