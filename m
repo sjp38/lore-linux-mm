@@ -1,65 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CF8C88E00A4
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 12:38:14 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id a26-v6so10315106pgw.7
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 09:38:14 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id u129-v6si2547954pfb.247.2018.09.25.09.38.13
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 96DF98E00A4
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 12:39:44 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id b15-v6so2495130ybg.6
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 09:39:44 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id l202-v6si710388ywc.611.2018.09.25.09.39.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 25 Sep 2018 09:38:13 -0700 (PDT)
-Date: Tue, 25 Sep 2018 18:37:45 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC PATCH v4 02/27] x86/fpu/xstate: Change some names to
- separate XSAVES system and user states
-Message-ID: <20180925163745.GC30146@hirez.programming.kicks-ass.net>
-References: <20180921150351.20898-1-yu-cheng.yu@intel.com>
- <20180921150351.20898-3-yu-cheng.yu@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Sep 2018 09:39:43 -0700 (PDT)
+Subject: Re: [PATCH V2] mm/hugetlb: Add mmap() encodings for 32MB and 512MB
+ page sizes
+References: <1537797985-2406-1-git-send-email-anshuman.khandual@arm.com>
+ <1537841300-6979-1-git-send-email-anshuman.khandual@arm.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <f395fc79-4a64-8534-cd31-7a36bfb50cd1@oracle.com>
+Date: Tue, 25 Sep 2018 09:39:34 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180921150351.20898-3-yu-cheng.yu@intel.com>
+In-Reply-To: <1537841300-6979-1-git-send-email-anshuman.khandual@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@kernel.org, punit.agrawal@arm.com, will.deacon@arm.com, akpm@linux-foundation.org
 
-On Fri, Sep 21, 2018 at 08:03:26AM -0700, Yu-cheng Yu wrote:
+On 9/24/18 7:08 PM, Anshuman Khandual wrote:
+> ARM64 architecture also supports 32MB and 512MB HugeTLB page sizes.
+> This just adds mmap() system call argument encoding for them.
+> 
+> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+> ---
+> 
+> Changes in V2:
+> - Updated SHM and MFD definitions per Mike
 
-> diff --git a/arch/x86/include/asm/fpu/internal.h b/arch/x86/include/asm/fpu/internal.h
-> index a38bf5a1e37a..f1f9bf91a0ab 100644
-> --- a/arch/x86/include/asm/fpu/internal.h
-> +++ b/arch/x86/include/asm/fpu/internal.h
-> @@ -93,7 +93,8 @@ static inline void fpstate_init_xstate(struct xregs_state *xsave)
->  	 * XRSTORS requires these bits set in xcomp_bv, or it will
->  	 * trigger #GP:
->  	 */
-> -	xsave->header.xcomp_bv = XCOMP_BV_COMPACTED_FORMAT | xfeatures_mask;
-> +	xsave->header.xcomp_bv = XCOMP_BV_COMPACTED_FORMAT |
-> +			xfeatures_mask_user;
+Thanks Anshuman,
 
-I would be OK with that line extending to 82 characters..
+Acked-by: Mike Kravetz <mike.kravetz@oracle.com>
 
->  }
->  
->  static inline void fpstate_init_fxstate(struct fxregs_state *fx)
+-- 
+Mike Kravetz
 
-> diff --git a/arch/x86/kernel/fpu/xstate.c b/arch/x86/kernel/fpu/xstate.c
-> index 87a57b7642d3..19f8df54c72a 100644
-> --- a/arch/x86/kernel/fpu/xstate.c
-> +++ b/arch/x86/kernel/fpu/xstate.c
-
-> @@ -421,7 +421,8 @@ static void __init setup_init_fpu_buf(void)
->  	print_xstate_features();
->  
->  	if (boot_cpu_has(X86_FEATURE_XSAVES))
-> -		init_fpstate.xsave.header.xcomp_bv = (u64)1 << 63 | xfeatures_mask;
-> +		init_fpstate.xsave.header.xcomp_bv =
-> +			BIT_ULL(63) | xfeatures_mask_user;
-
-If you do that, the if () needs { } per coding style.
-
->  
->  	/*
->  	 * Init all the features state with header.xfeatures being 0x0
+> 
+>  include/uapi/asm-generic/hugetlb_encode.h | 2 ++
+>  include/uapi/linux/memfd.h                | 2 ++
+>  include/uapi/linux/mman.h                 | 2 ++
+>  include/uapi/linux/shm.h                  | 2 ++
+>  4 files changed, 8 insertions(+)
+> 
+> diff --git a/include/uapi/asm-generic/hugetlb_encode.h b/include/uapi/asm-generic/hugetlb_encode.h
+> index e4732d3..b0f8e87 100644
+> --- a/include/uapi/asm-generic/hugetlb_encode.h
+> +++ b/include/uapi/asm-generic/hugetlb_encode.h
+> @@ -26,7 +26,9 @@
+>  #define HUGETLB_FLAG_ENCODE_2MB		(21 << HUGETLB_FLAG_ENCODE_SHIFT)
+>  #define HUGETLB_FLAG_ENCODE_8MB		(23 << HUGETLB_FLAG_ENCODE_SHIFT)
+>  #define HUGETLB_FLAG_ENCODE_16MB	(24 << HUGETLB_FLAG_ENCODE_SHIFT)
+> +#define HUGETLB_FLAG_ENCODE_32MB	(25 << HUGETLB_FLAG_ENCODE_SHIFT)
+>  #define HUGETLB_FLAG_ENCODE_256MB	(28 << HUGETLB_FLAG_ENCODE_SHIFT)
+> +#define HUGETLB_FLAG_ENCODE_512MB	(29 << HUGETLB_FLAG_ENCODE_SHIFT)
+>  #define HUGETLB_FLAG_ENCODE_1GB		(30 << HUGETLB_FLAG_ENCODE_SHIFT)
+>  #define HUGETLB_FLAG_ENCODE_2GB		(31 << HUGETLB_FLAG_ENCODE_SHIFT)
+>  #define HUGETLB_FLAG_ENCODE_16GB	(34 << HUGETLB_FLAG_ENCODE_SHIFT)
+> diff --git a/include/uapi/linux/memfd.h b/include/uapi/linux/memfd.h
+> index 015a4c0..7a8a267 100644
+> --- a/include/uapi/linux/memfd.h
+> +++ b/include/uapi/linux/memfd.h
+> @@ -25,7 +25,9 @@
+>  #define MFD_HUGE_2MB	HUGETLB_FLAG_ENCODE_2MB
+>  #define MFD_HUGE_8MB	HUGETLB_FLAG_ENCODE_8MB
+>  #define MFD_HUGE_16MB	HUGETLB_FLAG_ENCODE_16MB
+> +#define MFD_HUGE_32MB	HUGETLB_FLAG_ENCODE_32MB
+>  #define MFD_HUGE_256MB	HUGETLB_FLAG_ENCODE_256MB
+> +#define MFD_HUGE_512MB	HUGETLB_FLAG_ENCODE_512MB
+>  #define MFD_HUGE_1GB	HUGETLB_FLAG_ENCODE_1GB
+>  #define MFD_HUGE_2GB	HUGETLB_FLAG_ENCODE_2GB
+>  #define MFD_HUGE_16GB	HUGETLB_FLAG_ENCODE_16GB
+> diff --git a/include/uapi/linux/mman.h b/include/uapi/linux/mman.h
+> index bfd5938..d0f515d 100644
+> --- a/include/uapi/linux/mman.h
+> +++ b/include/uapi/linux/mman.h
+> @@ -28,7 +28,9 @@
+>  #define MAP_HUGE_2MB	HUGETLB_FLAG_ENCODE_2MB
+>  #define MAP_HUGE_8MB	HUGETLB_FLAG_ENCODE_8MB
+>  #define MAP_HUGE_16MB	HUGETLB_FLAG_ENCODE_16MB
+> +#define MAP_HUGE_32MB	HUGETLB_FLAG_ENCODE_32MB
+>  #define MAP_HUGE_256MB	HUGETLB_FLAG_ENCODE_256MB
+> +#define MAP_HUGE_512MB	HUGETLB_FLAG_ENCODE_512MB
+>  #define MAP_HUGE_1GB	HUGETLB_FLAG_ENCODE_1GB
+>  #define MAP_HUGE_2GB	HUGETLB_FLAG_ENCODE_2GB
+>  #define MAP_HUGE_16GB	HUGETLB_FLAG_ENCODE_16GB
+> diff --git a/include/uapi/linux/shm.h b/include/uapi/linux/shm.h
+> index dde1344..6507ad0 100644
+> --- a/include/uapi/linux/shm.h
+> +++ b/include/uapi/linux/shm.h
+> @@ -65,7 +65,9 @@ struct shmid_ds {
+>  #define SHM_HUGE_2MB	HUGETLB_FLAG_ENCODE_2MB
+>  #define SHM_HUGE_8MB	HUGETLB_FLAG_ENCODE_8MB
+>  #define SHM_HUGE_16MB	HUGETLB_FLAG_ENCODE_16MB
+> +#define SHM_HUGE_32MB	HUGETLB_FLAG_ENCODE_32MB
+>  #define SHM_HUGE_256MB	HUGETLB_FLAG_ENCODE_256MB
+> +#define SHM_HUGE_512MB	HUGETLB_FLAG_ENCODE_512MB
+>  #define SHM_HUGE_1GB	HUGETLB_FLAG_ENCODE_1GB
+>  #define SHM_HUGE_2GB	HUGETLB_FLAG_ENCODE_2GB
+>  #define SHM_HUGE_16GB	HUGETLB_FLAG_ENCODE_16GB
+> 
