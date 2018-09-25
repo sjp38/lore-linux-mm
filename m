@@ -1,61 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2ABA58E00A4
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 14:30:22 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id g18-v6so11472778edg.14
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 11:30:22 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E1408E00A4
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 14:58:49 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id x24-v6so11486210edm.13
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 11:58:49 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a21-v6si11104275edr.179.2018.09.25.11.30.20
+        by mx.google.com with ESMTPS id m12-v6si17669151edl.377.2018.09.25.11.58.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Sep 2018 11:30:20 -0700 (PDT)
-Date: Tue, 25 Sep 2018 20:30:19 +0200
+        Tue, 25 Sep 2018 11:58:48 -0700 (PDT)
+Date: Tue, 25 Sep 2018 20:58:45 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Disable movable allocation for TRANSHUGE pages
-Message-ID: <20180925183019.GB22630@dhcp22.suse.cz>
-References: <1537860333-28416-1-git-send-email-amhetre@nvidia.com>
- <20180925115153.z5b5ekijf5jzhzmn@kshutemo-mobl1>
+Subject: Re: [PATCH RESEND] mm: don't raise MEMCG_OOM event due to failed
+ high-order allocation
+Message-ID: <20180925185845.GX18685@dhcp22.suse.cz>
+References: <20180917230846.31027-1-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180925115153.z5b5ekijf5jzhzmn@kshutemo-mobl1>
+In-Reply-To: <20180917230846.31027-1-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Ashish Mhetre <amhetre@nvidia.com>, linux-mm@kvack.org, akpm@linux-foundation.org, vdumpa@nvidia.com, Snikam@nvidia.com
+To: Roman Gushchin <guro@fb.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Tue 25-09-18 14:51:53, Kirill A. Shutemov wrote:
-> On Tue, Sep 25, 2018 at 12:55:33PM +0530, Ashish Mhetre wrote:
-> > TRANSHUGE pages have no migration support.
+On Mon 17-09-18 23:10:59, Roman Gushchin wrote:
+> The memcg OOM killer is never invoked due to a failed high-order
+> allocation, however the MEMCG_OOM event can be raised.
 > 
-> Transparent pages have migration support since v4.14.
+> As shown below, it can happen under conditions, which are very
+> far from a real OOM: e.g. there is plenty of clean pagecache
+> and low memory pressure.
+> 
+> There is no sense in raising an OOM event in such a case,
+> as it might confuse a user and lead to wrong and excessive actions.
+> 
+> Let's look at the charging path in try_caharge(). If the memory usage
+> is about memory.max, which is absolutely natural for most memory cgroups,
+> we try to reclaim some pages. Even if we were able to reclaim
+> enough memory for the allocation, the following check can fail due to
+> a race with another concurrent allocation:
+> 
+>     if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
+>         goto retry;
+> 
+> For regular pages the following condition will save us from triggering
+> the OOM:
+> 
+>    if (nr_reclaimed && nr_pages <= (1 << PAGE_ALLOC_COSTLY_ORDER))
+>        goto retry;
+> 
+> But for high-order allocation this condition will intentionally fail.
+> The reason behind is that we'll likely fall to regular pages anyway,
+> so it's ok and even preferred to return ENOMEM.
+> 
+> In this case the idea of raising MEMCG_OOM looks dubious.
 
-This is true but not for all architectures AFAICS. In fact git grep
-suggests that only x86 supports the migration. So unless I am missing
-something the patch has some merit. But the implementation is simply
-wrong. If anything it should be something like
+I would really appreciate an example of application that would get
+confused by consuming this event and an explanation why. I do agree that
+the event itself is kinda weird because it doesn't give you any context
+for what kind of requests the memcg is OOM. Costly orders are a little
+different story than others and users shouldn't care about this because
+this is a mere implementation detail.
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 76f8db0b0e71..2aff77966d92 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -297,7 +297,14 @@ struct vm_area_struct;
- #define GFP_DMA32	__GFP_DMA32
- #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
- #define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
--#define GFP_TRANSHUGE_LIGHT	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
-+
-+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-+#define GFP_TRANSHUGE_MOVABLE __GFP_MOVABLE
-+#else
-+#define GFP_TRANSHUGE_MOVABLE 0
-+#endif
-+
-+#define GFP_TRANSHUGE_LIGHT	((GFP_HIGHUSER |GFP_TRANSHUGE_MOVABLE | __GFP_COMP | \
- 			 __GFP_NOMEMALLOC | __GFP_NOWARN) & ~__GFP_RECLAIM)
- #define GFP_TRANSHUGE	(GFP_TRANSHUGE_LIGHT | __GFP_DIRECT_RECLAIM)
- 
+In other words, do we have any users to actually care about this half
+baked event at all? Shouldn't we simply stop emiting it (or make it an
+alias of OOM_KILL) rather than making it slightly better but yet kinda
+incomplete?
 
+Jeez, we really suck at defining proper interfaces. Things seem so cool
+when they are proposed, then those users come and ruin our lives...
 -- 
 Michal Hocko
 SUSE Labs
