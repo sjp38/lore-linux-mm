@@ -1,35 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 313258E00A4
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 14:18:31 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id e11so975660edv.20
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 11:18:31 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ABA58E00A4
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 14:30:22 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id g18-v6so11472778edg.14
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 11:30:22 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z36-v6si6109946ede.349.2018.09.25.11.18.29
+        by mx.google.com with ESMTPS id a21-v6si11104275edr.179.2018.09.25.11.30.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Sep 2018 11:18:29 -0700 (PDT)
-Date: Tue, 25 Sep 2018 20:18:26 +0200
+        Tue, 25 Sep 2018 11:30:20 -0700 (PDT)
+Date: Tue, 25 Sep 2018 20:30:19 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] memory_hotplug: Free pages as higher order
-Message-ID: <20180925181826.GW18685@dhcp22.suse.cz>
-References: <1537854158-9766-1-git-send-email-arunks@codeaurora.org>
- <ccdbaf76-cbdd-759e-c6de-c5b738f156e9@suse.cz>
+Subject: Re: [PATCH] mm: Disable movable allocation for TRANSHUGE pages
+Message-ID: <20180925183019.GB22630@dhcp22.suse.cz>
+References: <1537860333-28416-1-git-send-email-amhetre@nvidia.com>
+ <20180925115153.z5b5ekijf5jzhzmn@kshutemo-mobl1>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <ccdbaf76-cbdd-759e-c6de-c5b738f156e9@suse.cz>
+In-Reply-To: <20180925115153.z5b5ekijf5jzhzmn@kshutemo-mobl1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arun KS <arunks@codeaurora.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, akpm@linux-foundation.org, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, osalvador@suse.de, malat@debian.org, yasu.isimatu@gmail.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Ashish Mhetre <amhetre@nvidia.com>, linux-mm@kvack.org, akpm@linux-foundation.org, vdumpa@nvidia.com, Snikam@nvidia.com
 
-On Tue 25-09-18 11:59:09, Vlastimil Babka wrote:
-[...]
-> This seems like almost complete copy of __free_pages_boot_core(), could
-> you do some code reuse instead? I think Michal Hocko also suggested that.
+On Tue 25-09-18 14:51:53, Kirill A. Shutemov wrote:
+> On Tue, Sep 25, 2018 at 12:55:33PM +0530, Ashish Mhetre wrote:
+> > TRANSHUGE pages have no migration support.
+> 
+> Transparent pages have migration support since v4.14.
 
-Yes, please try to reuse as much code as possible
+This is true but not for all architectures AFAICS. In fact git grep
+suggests that only x86 supports the migration. So unless I am missing
+something the patch has some merit. But the implementation is simply
+wrong. If anything it should be something like
+
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 76f8db0b0e71..2aff77966d92 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -297,7 +297,14 @@ struct vm_area_struct;
+ #define GFP_DMA32	__GFP_DMA32
+ #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
+ #define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
+-#define GFP_TRANSHUGE_LIGHT	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
++
++#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++#define GFP_TRANSHUGE_MOVABLE __GFP_MOVABLE
++#else
++#define GFP_TRANSHUGE_MOVABLE 0
++#endif
++
++#define GFP_TRANSHUGE_LIGHT	((GFP_HIGHUSER |GFP_TRANSHUGE_MOVABLE | __GFP_COMP | \
+ 			 __GFP_NOMEMALLOC | __GFP_NOWARN) & ~__GFP_RECLAIM)
+ #define GFP_TRANSHUGE	(GFP_TRANSHUGE_LIGHT | __GFP_DIRECT_RECLAIM)
+ 
 
 -- 
 Michal Hocko
