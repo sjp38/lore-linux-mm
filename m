@@ -1,86 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A6248E0072
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 03:26:10 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id f126-v6so11232717ywh.4
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 00:26:10 -0700 (PDT)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id a140-v6si428178ywh.411.2018.09.25.00.26.09
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 830128E0072
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 03:40:14 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id m15-v6so44244506ioj.22
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 00:40:14 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c65-v6sor637004itc.93.2018.09.25.00.40.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Sep 2018 00:26:09 -0700 (PDT)
-From: Ashish Mhetre <amhetre@nvidia.com>
-Subject: [PATCH] mm: Disable movable allocation for TRANSHUGE pages
-Date: Tue, 25 Sep 2018 12:55:33 +0530
-Message-ID: <1537860333-28416-1-git-send-email-amhetre@nvidia.com>
+        (Google Transport Security);
+        Tue, 25 Sep 2018 00:40:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20180924184158.GA156847@dtor-ws>
+References: <000000000000e5f76c057664e73d@google.com> <CAKdAkRS7PSXv65MTnvKOewqESxt0_FtKohd86ioOuYR3R0z9dw@mail.gmail.com>
+ <CACT4Y+YOb6M=xuPG64PAvd=0bcteicGtwQO60CevN_V67SJ=MQ@mail.gmail.com>
+ <010001660c1fafb2-6d0dc7e1-d898-4589-874c-1be1af94e22d-000000@email.amazonses.com>
+ <CACT4Y+ayX8vzd2JPrLeFhf3K_Quf4x6SDtmtkNJuwNLyOh67tQ@mail.gmail.com>
+ <010001660c4a8bbe-91200766-00df-48bd-bc60-a03da2ccdb7d-000000@email.amazonses.com>
+ <20180924184158.GA156847@dtor-ws>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Tue, 25 Sep 2018 09:39:52 +0200
+Message-ID: <CACT4Y+ZPrngv8GTC-Cw68PBDxZ2T5x1kKMNXL3DmP24Xd0m_5g@mail.gmail.com>
+Subject: Re: WARNING: kmalloc bug in input_mt_init_slots
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: amhetre@nvidia.com, vdumpa@nvidia.com, Snikam@nvidia.com
+To: Dmitry Torokhov <dmitry.torokhov@gmail.com>
+Cc: Christopher Lameter <cl@linux.com>, syzbot+87829a10073277282ad1@syzkaller.appspotmail.com, Pekka Enberg <penberg@kernel.org>, "linux-input@vger.kernel.org" <linux-input@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>, Henrik Rydberg <rydberg@bitmath.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
 
-TRANSHUGE pages have no migration support. Using CMA memory
-for TRANSHUGE pages makes the memory reclaim not possible.
-If TRANSHUGE pages are allocated as movable then the
-allocations can come from CMA memory and make CMA reclaim fail.
-To avoid this, disable movable page allocations for TRANSHUGE
-pages.
+On Mon, Sep 24, 2018 at 8:41 PM, Dmitry Torokhov
+<dmitry.torokhov@gmail.com> wrote:
+> On Mon, Sep 24, 2018 at 03:55:04PM +0000, Christopher Lameter wrote:
+>> On Mon, 24 Sep 2018, Dmitry Vyukov wrote:
+>>
+>> > On Mon, Sep 24, 2018 at 5:08 PM, Christopher Lameter <cl@linux.com> wrote:
+>> > > On Sun, 23 Sep 2018, Dmitry Vyukov wrote:
+>> > >
+>> > >> What was the motivation behind that WARNING about large allocations in
+>> > >> kmalloc? Why do we want to know about them? Is the general policy that
+>> > >> kmalloc calls with potentially large size requests need to use NOWARN?
+>> > >> If this WARNING still considered useful? Or we should change it to
+>> > >> pr_err?
+>> > >
+>> > > In general large allocs should be satisfied by the page allocator. The
+>> > > slab allocators are used for allocating and managing small objects. The
+>> > > page allocator has mechanisms to deal with large objects (compound pages,
+>> > > multiple page sized allocs etc).
+>> >
+>> > I am asking more about the status of this warning. If it fires in
+>> > input_mt_init_slots(), does it mean that input_mt_init_slots() needs
+>> > to be fixed? If not, then we need to change this warning to something
+>> > else.
+>>
+>> Hmmm.. kmalloc falls back to the page allocator already?
+>>
+>> See
+>>
+>> static __always_inline void *kmalloc(size_t size, gfp_t flags)
+>> {
+>>         if (__builtin_constant_p(size)) {
+>
+> It would not be a constant here though.
+>
+>>                 if (size > KMALLOC_MAX_CACHE_SIZE)
+>>                         return kmalloc_large(size, flags);
+>>
+>>
+>> Note that this uses KMALLOC_MAX_CACHE_SIZE which should be smaller than
+>> KMALLOC_MAX_SIZE.
+>>
+>>
+>> How large is the allocation? AFACIT nRequests larger than KMALLOC_MAX_SIZE
+>> are larger than the maximum allowed by the page allocator. Thus the warning
+>> and the NULL return.
+>
+> The size in this particular case is being derived from a value passed
+> from userspace. Input core does not care about any limits on size of
+> memory kmalloc() can support and is perfectly happy with getting NULL
+> and telling userspace to go away with their silly requests by returning
+> -ENOMEM.
+>
+> For the record: I definitely do not want to pre-sanitize size neither in
+> uinput nor in input core.
 
-Signed-off-by: Ashish Mhetre <amhetre@nvidia.com>
----
- mm/huge_memory.c | 29 ++++++++++++++++++-----------
- 1 file changed, 18 insertions(+), 11 deletions(-)
+Christopher,
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 63edf18..bef509d 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -631,19 +631,26 @@ static vm_fault_t __do_huge_pmd_anonymous_page(struct vm_fault *vmf,
-  */
- static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
- {
-+	gfp_t gfp = GFP_TRANSHUGE_LIGHT;
- 	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
- 
--	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
--		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
--	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
--		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
--	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags))
--		return GFP_TRANSHUGE_LIGHT | (vma_madvised ? __GFP_DIRECT_RECLAIM :
--							     __GFP_KSWAPD_RECLAIM);
--	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
--		return GFP_TRANSHUGE_LIGHT | (vma_madvised ? __GFP_DIRECT_RECLAIM :
--							     0);
--	return GFP_TRANSHUGE_LIGHT;
-+	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
-+				&transparent_hugepage_flags))
-+		gfp = GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
-+	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
-+				&transparent_hugepage_flags))
-+		gfp = GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
-+	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG,
-+					&transparent_hugepage_flags))
-+		gfp = GFP_TRANSHUGE_LIGHT | (vma_madvised ?
-+			__GFP_DIRECT_RECLAIM : __GFP_KSWAPD_RECLAIM);
-+	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
-+					&transparent_hugepage_flags))
-+		gfp = GFP_TRANSHUGE_LIGHT | (vma_madvised ?
-+					__GFP_DIRECT_RECLAIM : 0);
-+	gfp &= ~__GFP_MOVABLE;
-+
-+	return gfp;
- }
- 
- /* Caller must hold page table lock. */
--- 
-2.1.4
-
-
------------------------------------------------------------------------------------
-This email message is for the sole use of the intended recipient(s) and may contain
-confidential information.  Any unauthorized review, use, disclosure or distribution
-is prohibited.  If you are not the intended recipient, please contact the sender by
-reply email and destroy all copies of the original message.
------------------------------------------------------------------------------------
+Assuming that the size is large enough to fail in all allocators, is
+this warning still useful? How? Should we remove it?
