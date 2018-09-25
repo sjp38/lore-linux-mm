@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C0A78E0041
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 03:13:30 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id m4-v6so9419619pgq.19
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 00:13:30 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id CC8A68E0041
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 03:13:33 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id v186-v6so8333674pgb.14
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 00:13:33 -0700 (PDT)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id z4-v6si1623480pln.462.2018.09.25.00.13.28
+        by mx.google.com with ESMTPS id z4-v6si1623480pln.462.2018.09.25.00.13.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Sep 2018 00:13:29 -0700 (PDT)
+        Tue, 25 Sep 2018 00:13:32 -0700 (PDT)
 From: Huang Ying <ying.huang@intel.com>
-Subject: [PATCH -V5 RESEND 01/21] swap: Enable PMD swap operations for CONFIG_THP_SWAP
-Date: Tue, 25 Sep 2018 15:13:28 +0800
-Message-Id: <20180925071348.31458-2-ying.huang@intel.com>
+Subject: [PATCH -V5 RESEND 02/21] swap: Add __swap_duplicate_locked()
+Date: Tue, 25 Sep 2018 15:13:29 +0800
+Message-Id: <20180925071348.31458-3-ying.huang@intel.com>
 In-Reply-To: <20180925071348.31458-1-ying.huang@intel.com>
 References: <20180925071348.31458-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,18 +20,13 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-Currently, "the swap entry" in the page tables is used for a number of
-things outside of actual swap, like page migration, etc.  We support
-the THP/PMD "swap entry" for page migration currently and the
-functions behind this are tied to page migration's config
-option (CONFIG_ARCH_ENABLE_THP_MIGRATION).
+The part of __swap_duplicate() with lock held is separated into a new
+function __swap_duplicate_locked().  Because we will add more logic
+about the PMD swap mapping into __swap_duplicate() and keep the most
+PTE swap mapping related logic in __swap_duplicate_locked().
 
-But, we also need them for THP swap optimization.  So a new config
-option (CONFIG_HAVE_PMD_SWAP_ENTRY) is added.  It is enabled when
-either CONFIG_ARCH_ENABLE_THP_MIGRATION or CONFIG_THP_SWAP is enabled.
-And PMD swap entry functions are tied to this new config option
-instead.  Some functions enabled by CONFIG_ARCH_ENABLE_THP_MIGRATION
-are for page migration only, they are still enabled only for that.
+Just mechanical code refactoring, there is no any functional change in
+this patch.
 
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
@@ -47,125 +42,105 @@ Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Zi Yan <zi.yan@cs.rutgers.edu>
 Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- arch/x86/include/asm/pgtable.h |  2 +-
- include/asm-generic/pgtable.h  |  2 +-
- include/linux/swapops.h        | 44 ++++++++++++++++++++++--------------------
- mm/Kconfig                     |  8 ++++++++
- 4 files changed, 33 insertions(+), 23 deletions(-)
+ mm/swapfile.c | 63 +++++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 35 insertions(+), 28 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 40616e805292..e830ab345551 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -1333,7 +1333,7 @@ static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
- 	return pte_clear_flags(pte, _PAGE_SWP_SOFT_DIRTY);
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 97a1bd1a7c9a..6a570ef00fa7 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -3436,32 +3436,12 @@ void si_swapinfo(struct sysinfo *val)
+ 	spin_unlock(&swap_lock);
  }
  
--#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-+#ifdef CONFIG_HAVE_PMD_SWAP_ENTRY
- static inline pmd_t pmd_swp_mksoft_dirty(pmd_t pmd)
+-/*
+- * Verify that a swap entry is valid and increment its swap map count.
+- *
+- * Returns error code in following case.
+- * - success -> 0
+- * - swp_entry is invalid -> EINVAL
+- * - swp_entry is migration entry -> EINVAL
+- * - swap-cache reference is requested but there is already one. -> EEXIST
+- * - swap-cache reference is requested but the entry is not used. -> ENOENT
+- * - swap-mapped reference requested but needs continued swap count. -> ENOMEM
+- */
+-static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
++static int __swap_duplicate_locked(struct swap_info_struct *p,
++				   unsigned long offset, unsigned char usage)
  {
- 	return pmd_set_flags(pmd, _PAGE_SWP_SOFT_DIRTY);
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 5657a20e0c59..eb1e9d17371b 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -675,7 +675,7 @@ static inline void ptep_modify_prot_commit(struct mm_struct *mm,
- #endif
+-	struct swap_info_struct *p;
+-	struct swap_cluster_info *ci;
+-	unsigned long offset;
+ 	unsigned char count;
+ 	unsigned char has_cache;
+-	int err = -EINVAL;
+-
+-	p = get_swap_device(entry);
+-	if (!p)
+-		goto out;
+-
+-	offset = swp_offset(entry);
+-	ci = lock_cluster_or_swap_info(p, offset);
++	int err = 0;
  
- #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
--#ifndef CONFIG_ARCH_ENABLE_THP_MIGRATION
-+#ifndef CONFIG_HAVE_PMD_SWAP_ENTRY
- static inline pmd_t pmd_swp_mksoft_dirty(pmd_t pmd)
- {
- 	return pmd;
-diff --git a/include/linux/swapops.h b/include/linux/swapops.h
-index 22af9d8a84ae..79ccbf8789d5 100644
---- a/include/linux/swapops.h
-+++ b/include/linux/swapops.h
-@@ -259,17 +259,7 @@ static inline int is_write_migration_entry(swp_entry_t entry)
+ 	count = p->swap_map[offset];
  
- #endif
+@@ -3471,12 +3451,11 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
+ 	 */
+ 	if (unlikely(swap_count(count) == SWAP_MAP_BAD)) {
+ 		err = -ENOENT;
+-		goto unlock_out;
++		goto out;
+ 	}
  
--struct page_vma_mapped_walk;
--
--#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
--extern void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
--		struct page *page);
--
--extern void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
--		struct page *new);
--
--extern void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd);
--
-+#ifdef CONFIG_HAVE_PMD_SWAP_ENTRY
- static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
- {
- 	swp_entry_t arch_entry;
-@@ -287,6 +277,28 @@ static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
- 	arch_entry = __swp_entry(swp_type(entry), swp_offset(entry));
- 	return __swp_entry_to_pmd(arch_entry);
+ 	has_cache = count & SWAP_HAS_CACHE;
+ 	count &= ~SWAP_HAS_CACHE;
+-	err = 0;
+ 
+ 	if (usage == SWAP_HAS_CACHE) {
+ 
+@@ -3503,11 +3482,39 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
+ 
+ 	p->swap_map[offset] = count | has_cache;
+ 
+-unlock_out:
++out:
++	return err;
++}
++
++/*
++ * Verify that a swap entry is valid and increment its swap map count.
++ *
++ * Returns error code in following case.
++ * - success -> 0
++ * - swp_entry is invalid -> EINVAL
++ * - swp_entry is migration entry -> EINVAL
++ * - swap-cache reference is requested but there is already one. -> EEXIST
++ * - swap-cache reference is requested but the entry is not used. -> ENOENT
++ * - swap-mapped reference requested but needs continued swap count. -> ENOMEM
++ */
++static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
++{
++	struct swap_info_struct *p;
++	struct swap_cluster_info *ci;
++	unsigned long offset;
++	int err = -EINVAL;
++
++	p = get_swap_device(entry);
++	if (!p)
++		goto out;
++
++	offset = swp_offset(entry);
++	ci = lock_cluster_or_swap_info(p, offset);
++	err = __swap_duplicate_locked(p, offset, usage);
+ 	unlock_cluster_or_swap_info(p, ci);
++
++	put_swap_device(p);
+ out:
+-	if (p)
+-		put_swap_device(p);
+ 	return err;
  }
-+#else
-+static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
-+{
-+	return swp_entry(0, 0);
-+}
-+
-+static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
-+{
-+	return __pmd(0);
-+}
-+#endif
-+
-+struct page_vma_mapped_walk;
-+
-+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-+extern void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
-+		struct page *page);
-+
-+extern void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
-+		struct page *new);
-+
-+extern void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd);
  
- static inline int is_pmd_migration_entry(pmd_t pmd)
- {
-@@ -307,16 +319,6 @@ static inline void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
- 
- static inline void pmd_migration_entry_wait(struct mm_struct *m, pmd_t *p) { }
- 
--static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
--{
--	return swp_entry(0, 0);
--}
--
--static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
--{
--	return __pmd(0);
--}
--
- static inline int is_pmd_migration_entry(pmd_t pmd)
- {
- 	return 0;
-diff --git a/mm/Kconfig b/mm/Kconfig
-index c6a0d82af45f..b7f7fb145d0f 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -424,6 +424,14 @@ config THP_SWAP
- 
- 	  For selection by architectures with reasonable THP sizes.
- 
-+#
-+# "PMD swap entry" in the page table is used both for migration and
-+# actual swap.
-+#
-+config HAVE_PMD_SWAP_ENTRY
-+	def_bool y
-+	depends on THP_SWAP || ARCH_ENABLE_THP_MIGRATION
-+
- config	TRANSPARENT_HUGE_PAGECACHE
- 	def_bool y
- 	depends on TRANSPARENT_HUGEPAGE
 -- 
 2.16.4
