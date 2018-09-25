@@ -1,44 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 31B158E00A4
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 17:00:09 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id x19-v6so13319756pfh.15
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 14:00:09 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 37-v6sor438954pgm.152.2018.09.25.14.00.07
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4434E8E00A4
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 17:04:22 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id e6-v6so3286364pge.5
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 14:04:22 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.133])
+        by mx.google.com with ESMTPS id x63-v6si3111559pfb.299.2018.09.25.14.04.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 25 Sep 2018 14:00:08 -0700 (PDT)
-Date: Wed, 26 Sep 2018 00:00:02 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: Disable movable allocation for TRANSHUGE pages
-Message-ID: <20180925210001.j4olzx3fru4jpfys@kshutemo-mobl1>
-References: <1537860333-28416-1-git-send-email-amhetre@nvidia.com>
- <20180925115153.z5b5ekijf5jzhzmn@kshutemo-mobl1>
- <20180925183019.GB22630@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 25 Sep 2018 14:04:20 -0700 (PDT)
+Date: Tue, 25 Sep 2018 14:04:18 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: block: DMA alignment of IO buffer allocated from slab
+Message-ID: <20180925210418.GA9854@bombadil.infradead.org>
+References: <CACVXFVOBq3L_EjSTCoiqUL1PH=HMR5EuNNQV0hNndFpGxmUK6g@mail.gmail.com>
+ <20180920063129.GB12913@lst.de>
+ <87h8ij0zot.fsf@vitty.brq.redhat.com>
+ <20180921130504.GA22551@lst.de>
+ <010001660c54fb65-b9d3a770-6678-40d0-8088-4db20af32280-000000@email.amazonses.com>
+ <1f88f59a-2cac-e899-4c2e-402e919b1034@kernel.dk>
+ <010001660cbd51ea-56e96208-564d-4f5d-a5fb-119a938762a9-000000@email.amazonses.com>
+ <1a5b255f-682e-783a-7f99-9d02e39c4af2@kernel.dk>
+ <20180925074910.GB31060@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180925183019.GB22630@dhcp22.suse.cz>
+In-Reply-To: <20180925074910.GB31060@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Ashish Mhetre <amhetre@nvidia.com>, linux-mm@kvack.org, akpm@linux-foundation.org, vdumpa@nvidia.com, Snikam@nvidia.com
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jens Axboe <axboe@kernel.dk>, Christopher Lameter <cl@linux.com>, Christoph Hellwig <hch@lst.de>, Vitaly Kuznetsov <vkuznets@redhat.com>, Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Ming Lei <ming.lei@redhat.com>
 
-On Tue, Sep 25, 2018 at 08:30:19PM +0200, Michal Hocko wrote:
-> On Tue 25-09-18 14:51:53, Kirill A. Shutemov wrote:
-> > On Tue, Sep 25, 2018 at 12:55:33PM +0530, Ashish Mhetre wrote:
-> > > TRANSHUGE pages have no migration support.
-> > 
-> > Transparent pages have migration support since v4.14.
+On Tue, Sep 25, 2018 at 05:49:10PM +1000, Dave Chinner wrote:
+> On Mon, Sep 24, 2018 at 12:09:37PM -0600, Jens Axboe wrote:
+> > On 9/24/18 12:00 PM, Christopher Lameter wrote:
+> > > On Mon, 24 Sep 2018, Jens Axboe wrote:
+> > > 
+> > >> The situation is making me a little uncomfortable, though. If we export
+> > >> such a setting, we really should be honoring it...
 > 
-> This is true but not for all architectures AFAICS. In fact git grep
-> suggests that only x86 supports the migration. So unless I am missing
-> something the patch has some merit.
+> That's what I said up front, but you replied to this with:
+> 
+> | I think this is all crazy talk. We've never done this, [...]
+> 
+> Now I'm not sure what you are saying we should do....
+> 
+> > > Various subsystems create custom slab arrays with their particular
+> > > alignment requirement for these allocations.
+> > 
+> > Oh yeah, I think the solution is basic enough for XFS, for instance.
+> > They just have to error on the side of being cautious, by going full
+> > sector alignment for memory...
+> 
+> How does the filesystem find out about hardware alignment
+> requirements? Isn't probing through the block device to find out
+> about the request queue configurations considered a layering
+> violation?
+> 
+> What if sector alignment is not sufficient?  And how would this work
+> if we start supporting sector sizes larger than page size? (which the
+> XFS buffer cache supports just fine, even if nothing else in
+> Linux does).
 
-THP pages are movable from the beginning. Before 4.14, the cost of
-migration was THP split. From my PoV __GFP_MOVABLE is justified and we
-should keep it there.
+I've never quite understood the O_DIRECT sector size alignment
+restriction.  The sector size has literally nothing to do with the
+limitations of the controller that's doing the DMA.  OK, NVMe smooshes the
+two components into one, but back in the SCSI era, the DMA abilities were
+the HBA's responsibility and the sector size was a property of the LUN!
 
--- 
- Kirill A. Shutemov
+Heck, with a sufficiently advanced HBA (eg supporting scatterlists with
+bitbuckets), you could even ask for sub-sector-*sized* IOs.  Not terribly
+useful since the bytes still had to be transferred over the SCSI cable,
+but you'd save transferring them across the PCI bus.
+
+Anyway, why would we require *larger* than 512 byte alignment for
+in-kernel users?  I doubt there are any remaining HBAs that can't do
+8-byte aligned I/Os (for the record, NVMe requires controllers to be
+able to do 4-byte aligned I/Os).
