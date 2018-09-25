@@ -1,95 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F1B68E00A4
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 11:44:59 -0400 (EDT)
-Received: by mail-it1-f198.google.com with SMTP id c1-v6so5348890itb.2
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 08:44:59 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q139-v6sor1008648itb.37.2018.09.25.08.44.58
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 38B9A8E00A4
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 11:49:00 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id m15-v6so46468622ioj.22
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 08:49:00 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0101.hostedemail.com. [216.40.44.101])
+        by mx.google.com with ESMTPS id s16-v6si1676974ioa.88.2018.09.25.08.48.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 25 Sep 2018 08:44:58 -0700 (PDT)
-Subject: Re: block: DMA alignment of IO buffer allocated from slab
-References: <CACVXFVOBq3L_EjSTCoiqUL1PH=HMR5EuNNQV0hNndFpGxmUK6g@mail.gmail.com>
- <20180920063129.GB12913@lst.de> <87h8ij0zot.fsf@vitty.brq.redhat.com>
- <20180921130504.GA22551@lst.de>
- <010001660c54fb65-b9d3a770-6678-40d0-8088-4db20af32280-000000@email.amazonses.com>
- <1f88f59a-2cac-e899-4c2e-402e919b1034@kernel.dk>
- <010001660cbd51ea-56e96208-564d-4f5d-a5fb-119a938762a9-000000@email.amazonses.com>
- <1a5b255f-682e-783a-7f99-9d02e39c4af2@kernel.dk>
- <20180925074910.GB31060@dastard>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <3d63a42f-837a-4bf6-665a-c3a8c8cb46e8@kernel.dk>
-Date: Tue, 25 Sep 2018 09:44:54 -0600
-MIME-Version: 1.0
-In-Reply-To: <20180925074910.GB31060@dastard>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Sep 2018 08:48:59 -0700 (PDT)
+Message-ID: <a729cfd1102ef280650074dd8bec32c6b12636db.camel@perches.com>
+Subject: Re: [PATCH v4 0/4] devres: provide and use devm_kstrdup_const()
+From: Joe Perches <joe@perches.com>
+Date: Tue, 25 Sep 2018 08:48:52 -0700
+In-Reply-To: <c25df148-718a-d29d-9c1d-20701a0e4534@arm.com>
+References: <20180925124629.20710-1-brgl@bgdev.pl>
+	 <c25df148-718a-d29d-9c1d-20701a0e4534@arm.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Christopher Lameter <cl@linux.com>, Christoph Hellwig <hch@lst.de>, Vitaly Kuznetsov <vkuznets@redhat.com>, Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Ming Lei <ming.lei@redhat.com>
+To: Robin Murphy <robin.murphy@arm.com>, Bartosz Golaszewski <brgl@bgdev.pl>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael
+ J . Wysocki" <rafael@kernel.org>, Jassi Brar <jassisinghbrar@gmail.com>, Thierry Reding <thierry.reding@gmail.com>, Jonathan Hunter <jonathanh@nvidia.com>, Arnd Bergmann <arnd@arndb.de>, Ulf Hansson <ulf.hansson@linaro.org>, Rob Herring <robh@kernel.org>, Bjorn Helgaas <bhelgaas@google.com>, Arend van Spriel <aspriel@gmail.com>, Vivek Gautam <vivek.gautam@codeaurora.org>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Bjorn Andersson <bjorn.andersson@linaro.org>
+Cc: linux-kernel@vger.kernel.org, linux-tegra@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
-On 9/25/18 1:49 AM, Dave Chinner wrote:
-> On Mon, Sep 24, 2018 at 12:09:37PM -0600, Jens Axboe wrote:
->> On 9/24/18 12:00 PM, Christopher Lameter wrote:
->>> On Mon, 24 Sep 2018, Jens Axboe wrote:
->>>
->>>> The situation is making me a little uncomfortable, though. If we export
->>>> such a setting, we really should be honoring it...
+On Tue, 2018-09-25 at 13:51 +0100, Robin Murphy wrote:
+> On 25/09/18 13:46, Bartosz Golaszewski wrote:
+> > This series implements devm_kstrdup_const() together with some
+> > prerequisite changes and uses it in pmc-atom driver.
 > 
-> That's what I said up front, but you replied to this with:
-> 
-> | I think this is all crazy talk. We've never done this, [...]
-> 
-> Now I'm not sure what you are saying we should do....
-> 
->>> Various subsystems create custom slab arrays with their particular
->>> alignment requirement for these allocations.
->>
->> Oh yeah, I think the solution is basic enough for XFS, for instance.
->> They just have to error on the side of being cautious, by going full
->> sector alignment for memory...
-> 
-> How does the filesystem find out about hardware alignment
-> requirements? Isn't probing through the block device to find out
-> about the request queue configurations considered a layering
-> violation?
+> Is anyone expecting me to review this series,
 
-Right now it isn't a stacked property, so answering the question
-isn't even possible beyond "what does the top device require".
+Probably not.
 
-> What if sector alignment is not sufficient?  And how would this work
-> if we start supporting sector sizes larger than page size? (which the
-> XFS buffer cache supports just fine, even if nothing else in
-> Linux does).
+> or am I just here because 
+> I once made a couple of entirely unrelated changes to device.h?
 
-If sector alignment isn't sufficient, then we'd need to bounce 512b
-formats... But I don't want to over-design something that isn't
-relevant to real life setups. I'm not aware of anything that needs
-memory aligned to that degree.
+Most likely yes.
 
-> But even ignoring sector size > page size, implementing this
-> requires a bunch of new slab caches, especially for 64k page
-> machines because XFS supports sector sizes up to 32k.  And every
-> other filesystem that uses sector sized buffers (e.g. HFS) would
-> have to do the same thing. Seems somewhat wasteful to require
-> everyone to implement their own aligned sector slab cache...
-> 
-> Perhaps we should take the filesystem out of this completely - maybe
-> the block layer could provide a generic "sector heap" and have all
-> filesystems that use sector sized buffers allocate from it. e.g.
-> something like
-> 
-> 	mem = bdev_alloc_sector_buffer(bdev, sector_size)
-> 
-> That way we don't have to rely on filesystems knowing anything about
-> the alignment limitations of the devices or assumptions about DMA
-> to work correctly...
+It is likely that Bartosz should update his use of the
+get_maintainer.pl script to add "--nogit --nogit-fallback"
+so drive-by patch submitters are not also cc'd on these
+sorts of series.
 
-I like that idea, would probably also need a mempool backing for
-certain cases.
+$ ./scripts/get_maintainer.pl -f \
+	drivers/base/devres.c \
+	drivers/mailbox/tegra-hsp.c \
+	include/asm-generic/sections.h \
+	include/linux/device.h \
+	mm/util.c | \
+  wc -l
+26
 
--- 
-Jens Axboe
+$ ./scripts/get_maintainer.pl -f --nogit --nogit-fallback \
+	drivers/base/devres.c \
+	drivers/mailbox/tegra-hsp.c \
+	include/asm-generic/sections.h \
+	include/linux/device.h \
+	mm/util.c | \
+  wc -l
+10
