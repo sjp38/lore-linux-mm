@@ -1,52 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EEA038E00A4
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 13:28:33 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id i189-v6so1183551pge.6
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 10:28:33 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id v18-v6si1035977pgi.421.2018.09.25.10.28.32
+	by kanga.kvack.org (Postfix) with ESMTP id 8A89A8E00A4
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 14:16:46 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id 186-v6so10461418pgc.12
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 11:16:46 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id m75-v6si3034742pga.481.2018.09.25.11.16.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Sep 2018 10:28:32 -0700 (PDT)
-Message-ID: <57ab71005afeaeb195a49c72ae8c76481023130f.camel@intel.com>
-Subject: Re: [RFC PATCH v4 03/27] x86/fpu/xstate: Enable XSAVES system states
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Date: Tue, 25 Sep 2018 10:23:57 -0700
-In-Reply-To: <20180925170355.GD30146@hirez.programming.kicks-ass.net>
-References: <20180921150351.20898-1-yu-cheng.yu@intel.com>
-	 <20180921150351.20898-4-yu-cheng.yu@intel.com>
-	 <20180925170355.GD30146@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Tue, 25 Sep 2018 11:16:45 -0700 (PDT)
+Date: Tue, 25 Sep 2018 20:15:48 +0200
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH v2 00/20] vmw_balloon: compaction, shrinker, 64-bit, etc.
+Message-ID: <20180925181548.GB25458@kroah.com>
+References: <20180920173026.141333-1-namit@vmware.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180920173026.141333-1-namit@vmware.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Nadav Amit <namit@vmware.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, linux-kernel@vger.kernel.org, Xavier Deguillard <xdeguillard@vmware.com>, "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, linux-mm@kvack.org, virtualization@lists.linux-foundation.org
 
-On Tue, 2018-09-25 at 19:03 +0200, Peter Zijlstra wrote:
-> On Fri, Sep 21, 2018 at 08:03:27AM -0700, Yu-cheng Yu wrote:
-> > diff --git a/arch/x86/kernel/fpu/core.c b/arch/x86/kernel/fpu/core.c
-> > index 4bd56079048f..9f51b0e1da25 100644
-> > --- a/arch/x86/kernel/fpu/core.c
-> > +++ b/arch/x86/kernel/fpu/core.c
-> > @@ -365,8 +365,13 @@ void fpu__drop(struct fpu *fpu)
-> >   */
-> >  static inline void copy_init_user_fpstate_to_fpregs(void)
-> >  {
-> > +	/*
-> > +	 * Only XSAVES user states are copied.
-> > +	 * System states are preserved.
-> > +	 */
-> >  	if (use_xsave())
-> > -		copy_kernel_to_xregs(&init_fpstate.xsave, -1);
-> > +		copy_kernel_to_xregs(&init_fpstate.xsave,
-> > +				     xfeatures_mask_user);
+On Thu, Sep 20, 2018 at 10:30:06AM -0700, Nadav Amit wrote:
+> This patch-set adds the following enhancements to the VMware balloon
+> driver:
 > 
-> By my counting, that doesn't qualify for a line-break, it hits 80.
+> 1. Balloon compaction support.
+> 2. Report the number of inflated/deflated ballooned pages through vmstat.
+> 3. Memory shrinker to avoid balloon over-inflation (and OOM).
+> 4. Support VMs with memory limit that is greater than 16TB.
+> 5. Faster and more aggressive inflation.
 > 
-> If you were to do this line-break, coding style would have you liberally
-> sprinkle {} around.
+> To support compaction we wish to use the existing infrastructure.
+> However, we need to make slight adaptions for it. We add a new list
+> interface to balloon-compaction, which is more generic and efficient,
+> since it does not require as many IRQ save/restore operations. We leave
+> the old interface that is used by the virtio balloon.
+> 
+> Big parts of this patch-set are cleanup and documentation. Patches 1-13
+> simplify the balloon code, document its behavior and allow the balloon
+> code to run concurrently. The support for concurrency is required for
+> compaction and the shrinker interface.
+> 
+> For documentation we use the kernel-doc format. We are aware that the
+> balloon interface is not public, but following the kernel-doc format may
+> be useful one day.
 
-Ok, will fix it.
+I applied the first 16 patches.  Please fix up 17 and resend.
+
+thanks,
+
+greg k-h
