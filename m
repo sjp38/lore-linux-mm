@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 13AD78E0041
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 02:27:32 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id 191-v6so9197044pgb.23
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 23:27:32 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 583D48E0041
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 02:30:36 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id 11-v6so4302665pgd.1
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 23:30:36 -0700 (PDT)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id t2-v6si1566256pge.64.2018.09.24.23.27.30
+        by mx.google.com with ESMTPS id 69-v6si1530356pla.505.2018.09.24.23.30.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Sep 2018 23:27:30 -0700 (PDT)
-Subject: [PATCH v6 3/7] mm, devm_memremap_pages: Fix shutdown handling
+        Mon, 24 Sep 2018 23:30:35 -0700 (PDT)
+Subject: [PATCH v6 4/7] mm,
+ devm_memremap_pages: Add MEMORY_DEVICE_PRIVATE support
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 24 Sep 2018 23:15:10 -0700
-Message-ID: <153785611023.283091.14768029396517384268.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Mon, 24 Sep 2018 23:15:15 -0700
+Message-ID: <153785611587.283091.3545117308977274134.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <153785609460.283091.17422092801700439095.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <153785609460.283091.17422092801700439095.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -21,262 +22,92 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: stable@vger.kernel.org, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>, alexander.h.duyck@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@lst.de>, Logan Gunthorpe <logang@deltatee.com>Logan Gunthorpe <logang@deltatee.com>, alexander.h.duyck@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The last step before devm_memremap_pages() returns success is to
-allocate a release action, devm_memremap_pages_release(), to tear the
-entire setup down. However, the result from devm_add_action() is not
-checked.
+In preparation for consolidating all ZONE_DEVICE enabling via
+devm_memremap_pages(), teach it how to handle the constraints of
+MEMORY_DEVICE_PRIVATE ranges.
 
-Checking the error from devm_add_action() is not enough. The api
-currently relies on the fact that the percpu_ref it is using is killed
-by the time the devm_memremap_pages_release() is run. Rather than
-continue this awkward situation, offload the responsibility of killing
-the percpu_ref to devm_memremap_pages_release() directly. This allows
-devm_memremap_pages() to do the right thing  relative to init failures
-and shutdown.
-
-Without this change we could fail to register the teardown of
-devm_memremap_pages(). The likelihood of hitting this failure is tiny as
-small memory allocations almost always succeed. However, the impact of
-the failure is large given any future reconfiguration, or
-disable/enable, of an nvdimm namespace will fail forever as subsequent
-calls to devm_memremap_pages() will fail to setup the pgmap_radix since
-there will be stale entries for the physical address range.
-
-An argument could be made to require that the ->kill() operation be set
-in the @pgmap arg rather than passed in separately. However, it helps
-code readability, tracking the lifetime of a given instance, to be able
-to grep the kill routine directly at the devm_memremap_pages() call
-site.
-
-Cc: <stable@vger.kernel.org>
-Fixes: e8d513483300 ("memremap: change devm_memremap_pages interface...")
-Reviewed-by: "JA(C)rA'me Glisse" <jglisse@redhat.com>
+Reviewed-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+[jglisse: call move_pfn_range_to_zone for MEMORY_DEVICE_PRIVATE]
+Acked-by: Christoph Hellwig <hch@lst.de>
 Reported-by: Logan Gunthorpe <logang@deltatee.com>
 Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/dax/pmem.c                |   14 +++-----------
- drivers/nvdimm/pmem.c             |   13 +++++--------
- include/linux/memremap.h          |    2 ++
- kernel/memremap.c                 |   31 +++++++++++++++----------------
- tools/testing/nvdimm/test/iomap.c |   15 ++++++++++++++-
- 5 files changed, 39 insertions(+), 36 deletions(-)
+ kernel/memremap.c |   53 +++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 41 insertions(+), 12 deletions(-)
 
-diff --git a/drivers/dax/pmem.c b/drivers/dax/pmem.c
-index 99e2aace8078..2c1f459c0c63 100644
---- a/drivers/dax/pmem.c
-+++ b/drivers/dax/pmem.c
-@@ -48,9 +48,8 @@ static void dax_pmem_percpu_exit(void *data)
- 	percpu_ref_exit(ref);
- }
- 
--static void dax_pmem_percpu_kill(void *data)
-+static void dax_pmem_percpu_kill(struct percpu_ref *ref)
- {
--	struct percpu_ref *ref = data;
- 	struct dax_pmem *dax_pmem = to_dax_pmem(ref);
- 
- 	dev_dbg(dax_pmem->dev, "trace\n");
-@@ -112,17 +111,10 @@ static int dax_pmem_probe(struct device *dev)
- 	}
- 
- 	dax_pmem->pgmap.ref = &dax_pmem->ref;
-+	dax_pmem->pgmap.kill = dax_pmem_percpu_kill;
- 	addr = devm_memremap_pages(dev, &dax_pmem->pgmap);
--	if (IS_ERR(addr)) {
--		devm_remove_action(dev, dax_pmem_percpu_exit, &dax_pmem->ref);
--		percpu_ref_exit(&dax_pmem->ref);
-+	if (IS_ERR(addr))
- 		return PTR_ERR(addr);
--	}
--
--	rc = devm_add_action_or_reset(dev, dax_pmem_percpu_kill,
--							&dax_pmem->ref);
--	if (rc)
--		return rc;
- 
- 	/* adjust the dax_region resource to the start of data */
- 	memcpy(&res, &dax_pmem->pgmap.res, sizeof(res));
-diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index 6071e2942053..52f72ad8fe1e 100644
---- a/drivers/nvdimm/pmem.c
-+++ b/drivers/nvdimm/pmem.c
-@@ -309,8 +309,11 @@ static void pmem_release_queue(void *q)
- 	blk_cleanup_queue(q);
- }
- 
--static void pmem_freeze_queue(void *q)
-+static void pmem_freeze_queue(struct percpu_ref *ref)
- {
-+	struct request_queue *q;
-+
-+	q = container_of(ref, typeof(*q), q_usage_counter);
- 	blk_freeze_queue_start(q);
- }
- 
-@@ -402,6 +405,7 @@ static int pmem_attach_disk(struct device *dev,
- 
- 	pmem->pfn_flags = PFN_DEV;
- 	pmem->pgmap.ref = &q->q_usage_counter;
-+	pmem->pgmap.kill = pmem_freeze_queue;
- 	if (is_nd_pfn(dev)) {
- 		if (setup_pagemap_fsdax(dev, &pmem->pgmap))
- 			return -ENOMEM;
-@@ -425,13 +429,6 @@ static int pmem_attach_disk(struct device *dev,
- 		addr = devm_memremap(dev, pmem->phys_addr,
- 				pmem->size, ARCH_MEMREMAP_PMEM);
- 
--	/*
--	 * At release time the queue must be frozen before
--	 * devm_memremap_pages is unwound
--	 */
--	if (devm_add_action_or_reset(dev, pmem_freeze_queue, q))
--		return -ENOMEM;
--
- 	if (IS_ERR(addr))
- 		return PTR_ERR(addr);
- 	pmem->virt_addr = addr;
-diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-index f91f9e763557..a84572cdc438 100644
---- a/include/linux/memremap.h
-+++ b/include/linux/memremap.h
-@@ -106,6 +106,7 @@ typedef void (*dev_page_free_t)(struct page *page, void *data);
-  * @altmap: pre-allocated/reserved memory for vmemmap allocations
-  * @res: physical address range covered by @ref
-  * @ref: reference count that pins the devm_memremap_pages() mapping
-+ * @kill: callback to transition @ref to the dead state
-  * @dev: host device of the mapping for debug
-  * @data: private data pointer for page_free()
-  * @type: memory type: see MEMORY_* in memory_hotplug.h
-@@ -117,6 +118,7 @@ struct dev_pagemap {
- 	bool altmap_valid;
- 	struct resource res;
- 	struct percpu_ref *ref;
-+	void (*kill)(struct percpu_ref *ref);
- 	struct device *dev;
- 	void *data;
- 	enum memory_type type;
 diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 92e838127767..fe2a9cd0b9c1 100644
+index fe2a9cd0b9c1..6e32fe36b460 100644
 --- a/kernel/memremap.c
 +++ b/kernel/memremap.c
-@@ -122,14 +122,10 @@ static void devm_memremap_pages_release(void *data)
- 	resource_size_t align_start, align_size;
- 	unsigned long pfn;
- 
-+	pgmap->kill(pgmap->ref);
- 	for_each_device_pfn(pfn, pgmap)
- 		put_page(pfn_to_page(pfn));
- 
--	if (percpu_ref_tryget_live(pgmap->ref)) {
--		dev_WARN(dev, "%s: page mapping is still live!\n", __func__);
--		percpu_ref_put(pgmap->ref);
--	}
--
- 	/* pages are dead and unused, undo the arch mapping */
- 	align_start = res->start & ~(SECTION_SIZE - 1);
- 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
-@@ -150,7 +146,7 @@ static void devm_memremap_pages_release(void *data)
- /**
-  * devm_memremap_pages - remap and provide memmap backing for the given resource
-  * @dev: hosting device for @res
-- * @pgmap: pointer to a struct dev_pgmap
-+ * @pgmap: pointer to a struct dev_pagemap
-  *
-  * Notes:
-  * 1/ At a minimum the res, ref and type members of @pgmap must be initialized
-@@ -159,11 +155,8 @@ static void devm_memremap_pages_release(void *data)
-  * 2/ The altmap field may optionally be initialized, in which case altmap_valid
-  *    must be set to true
-  *
-- * 3/ pgmap.ref must be 'live' on entry and 'dead' before devm_memunmap_pages()
-- *    time (or devm release event). The expected order of events is that ref has
-- *    been through percpu_ref_kill() before devm_memremap_pages_release(). The
-- *    wait for the completion of all references being dropped and
-- *    percpu_ref_exit() must occur after devm_memremap_pages_release().
-+ * 3/ pgmap->ref must be 'live' on entry and will be killed at
-+ *    devm_memremap_pages_release() time, or if this routine fails.
-  *
-  * 4/ res is expected to be a host memory range that could feasibly be
-  *    treated as a "System RAM" range, i.e. not a device mmio range, but
-@@ -180,6 +173,9 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 	int error, nid, is_ram;
- 	struct dev_pagemap *conflict_pgmap;
- 
-+	if (!pgmap->ref || !pgmap->kill)
-+		return ERR_PTR(-EINVAL);
-+
- 	align_start = res->start & ~(SECTION_SIZE - 1);
- 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
+@@ -132,9 +132,15 @@ static void devm_memremap_pages_release(void *data)
  		- align_start;
-@@ -205,12 +201,10 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 	if (is_ram != REGION_DISJOINT) {
- 		WARN_ONCE(1, "%s attempted on %s region %pr\n", __func__,
- 				is_ram == REGION_MIXED ? "mixed" : "ram", res);
--		return ERR_PTR(-ENXIO);
-+		error = -ENXIO;
-+		goto err_init;
- 	}
  
--	if (!pgmap->ref)
--		return ERR_PTR(-EINVAL);
--
- 	pgmap->dev = dev;
- 
- 	mutex_lock(&pgmap_lock);
-@@ -267,7 +261,10 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 		percpu_ref_get(pgmap->ref);
- 	}
- 
--	devm_add_action(dev, devm_memremap_pages_release, pgmap);
-+	error = devm_add_action_or_reset(dev, devm_memremap_pages_release,
-+			pgmap);
-+	if (error)
-+		return ERR_PTR(error);
- 
- 	return __va(res->start);
- 
-@@ -278,6 +275,8 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
-  err_pfn_remap:
-  err_radix:
- 	pgmap_radix_release(res, pgoff);
-+ err_init:
-+	pgmap->kill(pgmap->ref);
- 	return ERR_PTR(error);
- }
- EXPORT_SYMBOL_GPL(devm_memremap_pages);
-diff --git a/tools/testing/nvdimm/test/iomap.c b/tools/testing/nvdimm/test/iomap.c
-index ed18a0cbc0c8..c6635fee27d8 100644
---- a/tools/testing/nvdimm/test/iomap.c
-+++ b/tools/testing/nvdimm/test/iomap.c
-@@ -104,13 +104,26 @@ void *__wrap_devm_memremap(struct device *dev, resource_size_t offset,
- }
- EXPORT_SYMBOL(__wrap_devm_memremap);
- 
-+static void nfit_test_kill(void *_pgmap)
-+{
-+	struct dev_pagemap *pgmap = _pgmap;
-+
-+	pgmap->kill(pgmap->ref);
-+}
-+
- void *__wrap_devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- {
- 	resource_size_t offset = pgmap->res.start;
- 	struct nfit_test_resource *nfit_res = get_nfit_res(offset);
- 
--	if (nfit_res)
-+	if (nfit_res) {
-+		int rc;
-+
-+		rc = devm_add_action_or_reset(dev, nfit_test_kill, pgmap);
-+		if (rc)
-+			return ERR_PTR(rc);
- 		return nfit_res->buf + offset - nfit_res->res.start;
+ 	mem_hotplug_begin();
+-	arch_remove_memory(align_start, align_size, pgmap->altmap_valid ?
+-			&pgmap->altmap : NULL);
+-	kasan_remove_zero_shadow(__va(align_start), align_size);
++	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
++		pfn = align_start >> PAGE_SHIFT;
++		__remove_pages(page_zone(pfn_to_page(pfn)), pfn,
++				align_size >> PAGE_SHIFT, NULL);
++	} else {
++		arch_remove_memory(align_start, align_size,
++				pgmap->altmap_valid ? &pgmap->altmap : NULL);
++		kasan_remove_zero_shadow(__va(align_start), align_size);
 +	}
- 	return devm_memremap_pages(dev, pgmap);
- }
- EXPORT_SYMBOL_GPL(__wrap_devm_memremap_pages);
+ 	mem_hotplug_done();
+ 
+ 	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
+@@ -232,17 +238,40 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+ 		goto err_pfn_remap;
+ 
+ 	mem_hotplug_begin();
+-	error = kasan_add_zero_shadow(__va(align_start), align_size);
+-	if (error) {
+-		mem_hotplug_done();
+-		goto err_kasan;
++
++	/*
++	 * For device private memory we call add_pages() as we only need to
++	 * allocate and initialize struct page for the device memory. More-
++	 * over the device memory is un-accessible thus we do not want to
++	 * create a linear mapping for the memory like arch_add_memory()
++	 * would do.
++	 *
++	 * For all other device memory types, which are accessible by
++	 * the CPU, we do want the linear mapping and thus use
++	 * arch_add_memory().
++	 */
++	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
++		error = add_pages(nid, align_start >> PAGE_SHIFT,
++				align_size >> PAGE_SHIFT, NULL, false);
++	} else {
++		error = kasan_add_zero_shadow(__va(align_start), align_size);
++		if (error) {
++			mem_hotplug_done();
++			goto err_kasan;
++		}
++
++		error = arch_add_memory(nid, align_start, align_size, altmap,
++				false);
++	}
++
++	if (!error) {
++		struct zone *zone;
++
++		zone = &NODE_DATA(nid)->node_zones[ZONE_DEVICE];
++		move_pfn_range_to_zone(zone, align_start >> PAGE_SHIFT,
++				align_size >> PAGE_SHIFT, altmap);
+ 	}
+ 
+-	error = arch_add_memory(nid, align_start, align_size, altmap, false);
+-	if (!error)
+-		move_pfn_range_to_zone(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
+-					align_start >> PAGE_SHIFT,
+-					align_size >> PAGE_SHIFT, altmap);
+ 	mem_hotplug_done();
+ 	if (error)
+ 		goto err_add_memory;
