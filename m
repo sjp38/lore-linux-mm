@@ -1,112 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 91D938E0041
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 19:48:58 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id z17-v6so24195297qka.9
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 16:48:58 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0074.outbound.protection.outlook.com. [104.47.33.74])
-        by mx.google.com with ESMTPS id j128-v6si549806qke.154.2018.09.24.16.48.57
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F8B08E0041
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 20:16:33 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id v14-v6so4237949qkg.8
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 17:16:33 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a9-v6si589580qkj.205.2018.09.24.17.16.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 24 Sep 2018 16:48:57 -0700 (PDT)
-Date: Tue, 25 Sep 2018 02:48:43 +0300
-From: Yury Norov <ynorov@caviumnetworks.com>
-Subject: Re: [PATCH] mm: fix COW faults after mlock()
-Message-ID: <20180924234843.GA23726@yury-thinkpad>
-References: <20180924130852.12996-1-ynorov@caviumnetworks.com>
- <20180924212246.vmmsmgd5qw6xkfwh@kshutemo-mobl1>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Sep 2018 17:16:32 -0700 (PDT)
+Date: Tue, 25 Sep 2018 08:16:16 +0800
+From: Ming Lei <ming.lei@redhat.com>
+Subject: Re: block: DMA alignment of IO buffer allocated from slab
+Message-ID: <20180925001615.GA14386@ming.t460p>
+References: <20180923224206.GA13618@ming.t460p>
+ <38c03920-0fd0-0a39-2a6e-70cd8cb4ef34@virtuozzo.com>
+ <20a20568-5089-541d-3cee-546e549a0bc8@acm.org>
+ <12eee877-affa-c822-c9d5-fda3aa0a50da@virtuozzo.com>
+ <1537801706.195115.7.camel@acm.org>
+ <c844c598-be1d-bef4-fb99-09cf99571fd7@virtuozzo.com>
+ <1537804720.195115.9.camel@acm.org>
+ <10c706fd-2252-f11b-312e-ae0d97d9a538@virtuozzo.com>
+ <1537805984.195115.14.camel@acm.org>
+ <20180924185753.GA32269@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180924212246.vmmsmgd5qw6xkfwh@kshutemo-mobl1>
+In-Reply-To: <20180924185753.GA32269@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Dan Williams <dan.j.williams@intel.com>, Huang Ying <ying.huang@intel.com>, "Michael S . Tsirkin" <mst@redhat.com>, Michel Lespinasse <walken@google.com>, Souptick Joarder <jrdr.linux@gmail.com>, Willy Tarreau <w@1wt.eu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Bart Van Assche <bvanassche@acm.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Christoph Hellwig <hch@lst.de>, Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On Tue, Sep 25, 2018 at 12:22:47AM +0300, Kirill A. Shutemov wrote:
-> External Email
+On Mon, Sep 24, 2018 at 11:57:53AM -0700, Matthew Wilcox wrote:
+> On Mon, Sep 24, 2018 at 09:19:44AM -0700, Bart Van Assche wrote:
+> > That means that two buffers allocated with kmalloc() may share a cache line on
+> > x86-64. Since it is allowed to use a buffer allocated by kmalloc() for DMA, can
+> > this lead to data corruption, e.g. if the CPU writes into one buffer allocated
+> > with kmalloc() and a device performs a DMA write to another kmalloc() buffer and
+> > both write operations affect the same cache line?
 > 
-> On Mon, Sep 24, 2018 at 04:08:52PM +0300, Yury Norov wrote:
-> > After mlock() on newly mmap()ed shared memory I observe page faults.
-> >
-> > The problem is that populate_vma_page_range() doesn't set FOLL_WRITE
-> > flag for writable shared memory in mlock() path, arguing that like:
-> > /*
-> >  * We want to touch writable mappings with a write fault in order
-> >  * to break COW, except for shared mappings because these don't COW
-> >  * and we would not want to dirty them for nothing.
-> >  */
-> >
-> > But they are actually COWed. The most straightforward way to avoid it
-> > is to set FOLL_WRITE flag for shared mappings as well as for private ones.
-> 
-> Huh? How do shared mapping get CoWed?
-> 
-> In this context CoW means to create a private copy of the  page for the
-> process. It only makes sense for private mappings as all pages in shared
-> mappings do not belong to the process.
-> 
-> Shared mappings will still get faults, but a bit later -- after the page
-> is written back to disc, the page get clear and write protected to catch
-> the next write access.
-> 
-> Noticeable exception is tmpfs/shmem. These pages do not belong to normal
-> write back process. But the code path is used for other filesystems as
-> well.
-> 
-> Therefore, NAK. You only create unneeded write back traffic.
+> You're not supposed to use kmalloc memory for DMA.  This is why we have
+> dma_alloc_coherent() and friends.  Also, from DMA-API.txt:
 
-Hi Kirill,
+Please take a look at USB drivers, or storage drivers or scsi layer. Lot of
+DMA buffers are allocated via kmalloc.
 
-(My first reaction was exactly like yours indeed, but) on my real
-system (Cavium OcteonTX2), and on my qemu simulation I can reproduce
-the same behavior: just mlock()ed memory causes faults. That faults
-happen because page is mapped to the process as read-only, while
-underlying VMA is read-write. So faults get resolved well by just
-setting write access to the page.
+Also see the following description in DMA-API-HOWTO.txt:
 
-Maybe I use term COW wrongly here, but this is how faultin_page()
-works, and it sets FOLL_COW bit before return (which is ignored 
-on upper level).
+	If the device supports DMA, the driver sets up a buffer using kmalloc() or
+	a similar interface, which returns a virtual address (X).  The virtual
+	memory system maps X to a physical address (Y) in system RAM.  The driver
+	can use virtual address X to access the buffer, but the device itself
+	cannot because DMA doesn't go through the CPU virtual memory system.
 
-I realize that proper fix may be more complex, and if so I'll
-thankfully take it and drop this patch from my tree, but this is
-all that I have so far to address the problem.
+Also still see DMA-API-HOWTO.txt:
 
-The user code below is reproducer. 
+Types of DMA mappings
+=====================
+
+There are two types of DMA mappings:
+
+- Consistent DMA mappings which are usually mapped at driver
+  initialization, unmapped at the end and for which the hardware should
+  guarantee that the device and the CPU can access the data
+  in parallel and will see updates made by each other without any
+  explicit software flushing.
+
+  Think of "consistent" as "synchronous" or "coherent".
+
+
+- Streaming DMA mappings which are usually mapped for one DMA
+  transfer, unmapped right after it (unless you use dma_sync_* below)
+  and for which hardware can optimize for sequential accesses.
+
+
 
 Thanks,
-Yury
-
-        int i, ret, len = getpagesize() * 1000;
-        char tmpfile[] = "/tmp/my_tmp-XXXXXX";
-        int fd = mkstemp(tmpfile);
-
-        ret = ftruncate(fd, len);
-        if (ret) {
-                printf("Failed to ftruncate: %d\n", errno);
-                goto out;
-        }
-
-        ptr = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-        if (ptr == MAP_FAILED) {
-                printf("Failed to mmap memory: %d\n", errno);
-                goto out;
-        }
-
-        ret = mlock(ptr, len);
-        if (ret) {
-                printf("Failed to mlock: %d\n", errno);
-                goto out;
-        }
-
-        printf("Touch...\n");
-
-        for (i = 0; i < len; i++)
-                ptr[i] = (char) i; /* Faults here. */
-
-        printf("\t... done\n");
-out:
-        close(fd);
-        unlink(tmpfile);
+Ming
