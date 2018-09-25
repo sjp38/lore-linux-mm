@@ -1,53 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 664A98E0072
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 08:46:41 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id q15-v6so14868048wrw.1
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 05:46:41 -0700 (PDT)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B70B68E0072
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 08:46:42 -0400 (EDT)
+Received: by mail-wm1-f71.google.com with SMTP id b12-v6so12294120wmj.9
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 05:46:42 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b124-v6sor1626950wmg.0.2018.09.25.05.46.39
+        by mx.google.com with SMTPS id j12-v6sor1615815wrt.26.2018.09.25.05.46.41
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 25 Sep 2018 05:46:39 -0700 (PDT)
+        Tue, 25 Sep 2018 05:46:41 -0700 (PDT)
 From: Bartosz Golaszewski <brgl@bgdev.pl>
-Subject: [PATCH v4 0/4] devres: provide and use devm_kstrdup_const()
-Date: Tue, 25 Sep 2018 14:46:25 +0200
-Message-Id: <20180925124629.20710-1-brgl@bgdev.pl>
+Subject: [PATCH v4 1/4] devres: constify p in devm_kfree()
+Date: Tue, 25 Sep 2018 14:46:26 +0200
+Message-Id: <20180925124629.20710-2-brgl@bgdev.pl>
+In-Reply-To: <20180925124629.20710-1-brgl@bgdev.pl>
+References: <20180925124629.20710-1-brgl@bgdev.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael@kernel.org>, Jassi Brar <jassisinghbrar@gmail.com>, Thierry Reding <thierry.reding@gmail.com>, Jonathan Hunter <jonathanh@nvidia.com>, Arnd Bergmann <arnd@arndb.de>, Ulf Hansson <ulf.hansson@linaro.org>, Rob Herring <robh@kernel.org>, Bjorn Helgaas <bhelgaas@google.com>, Arend van Spriel <aspriel@gmail.com>, Robin Murphy <robin.murphy@arm.com>, Vivek Gautam <vivek.gautam@codeaurora.org>, Joe Perches <joe@perches.com>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Bjorn Andersson <bjorn.andersson@linaro.org>
 Cc: linux-kernel@vger.kernel.org, linux-tegra@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Bartosz Golaszewski <brgl@bgdev.pl>
 
-This series implements devm_kstrdup_const() together with some
-prerequisite changes and uses it in pmc-atom driver.
+Make devm_kfree() signature uniform with that of kfree(). To avoid
+compiler warnings: cast p to (void *) when calling devres_destroy().
 
-v1 -> v2:
-- fixed the changelog in the patch implementing devm_kstrdup_const()
-- fixed the kernel doc
-- moved is_kernel_rodata() to asm-generic/sections.h
-- fixed constness
+Signed-off-by: Bartosz Golaszewski <brgl@bgdev.pl>
+Reviewed-by: Bjorn Andersson <bjorn.andersson@linaro.org>
+---
+ drivers/base/devres.c  | 5 +++--
+ include/linux/device.h | 2 +-
+ 2 files changed, 4 insertions(+), 3 deletions(-)
 
-v2 -> v3:
-- rebased on top of 4.19-rc5 as there were some conflicts in the
-  pmc-atom driver
-- collected Reviewed-by tags
-
-v3 -> v4:
-- Andy NAK'ed patch 4/4 so I added a different example
-- collected more tags
-
-Bartosz Golaszewski (4):
-  devres: constify p in devm_kfree()
-  mm: move is_kernel_rodata() to asm-generic/sections.h
-  devres: provide devm_kstrdup_const()
-  mailbox: tegra-hsp: use devm_kstrdup_const()
-
- drivers/base/devres.c          | 43 ++++++++++++++++++++++++++++++++--
- drivers/mailbox/tegra-hsp.c    | 41 +++++++-------------------------
- include/asm-generic/sections.h | 14 +++++++++++
- include/linux/device.h         |  5 +++-
- mm/util.c                      |  7 ------
- 5 files changed, 68 insertions(+), 42 deletions(-)
-
+diff --git a/drivers/base/devres.c b/drivers/base/devres.c
+index f98a097e73f2..438c91a43508 100644
+--- a/drivers/base/devres.c
++++ b/drivers/base/devres.c
+@@ -885,11 +885,12 @@ EXPORT_SYMBOL_GPL(devm_kasprintf);
+  *
+  * Free memory allocated with devm_kmalloc().
+  */
+-void devm_kfree(struct device *dev, void *p)
++void devm_kfree(struct device *dev, const void *p)
+ {
+ 	int rc;
+ 
+-	rc = devres_destroy(dev, devm_kmalloc_release, devm_kmalloc_match, p);
++	rc = devres_destroy(dev, devm_kmalloc_release,
++			    devm_kmalloc_match, (void *)p);
+ 	WARN_ON(rc);
+ }
+ EXPORT_SYMBOL_GPL(devm_kfree);
+diff --git a/include/linux/device.h b/include/linux/device.h
+index 8f882549edee..33f7cb271fbb 100644
+--- a/include/linux/device.h
++++ b/include/linux/device.h
+@@ -692,7 +692,7 @@ static inline void *devm_kcalloc(struct device *dev,
+ {
+ 	return devm_kmalloc_array(dev, n, size, flags | __GFP_ZERO);
+ }
+-extern void devm_kfree(struct device *dev, void *p);
++extern void devm_kfree(struct device *dev, const void *p);
+ extern char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp) __malloc;
+ extern void *devm_kmemdup(struct device *dev, const void *src, size_t len,
+ 			  gfp_t gfp);
 -- 
 2.18.0
