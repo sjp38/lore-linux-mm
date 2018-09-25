@@ -1,116 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 81FE88E0041
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 22:37:21 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id d132-v6so8720058pgc.22
-        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 19:37:21 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id z11-v6si1003421pgf.66.2018.09.24.19.37.19
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D37ED8E0041
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2018 23:28:36 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id x6-v6so2893700pfn.21
+        for <linux-mm@kvack.org>; Mon, 24 Sep 2018 20:28:36 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id k70-v6si1090181pge.379.2018.09.24.20.28.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Sep 2018 19:37:19 -0700 (PDT)
-Date: Tue, 25 Sep 2018 10:37:09 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [RFC PATCH 0/9] Improve zone lock scalability using Daniel
- Jordan's list work
-Message-ID: <20180925023709.GA28604@intel.com>
-References: <20180911053616.6894-1-aaron.lu@intel.com>
- <20180921174536.7igaoi36rg76auy4@ca-dmjordan1.us.oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 24 Sep 2018 20:28:35 -0700 (PDT)
+Date: Mon, 24 Sep 2018 20:28:26 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: block: DMA alignment of IO buffer allocated from slab
+Message-ID: <20180925032826.GA4110@bombadil.infradead.org>
+References: <38c03920-0fd0-0a39-2a6e-70cd8cb4ef34@virtuozzo.com>
+ <20a20568-5089-541d-3cee-546e549a0bc8@acm.org>
+ <12eee877-affa-c822-c9d5-fda3aa0a50da@virtuozzo.com>
+ <1537801706.195115.7.camel@acm.org>
+ <c844c598-be1d-bef4-fb99-09cf99571fd7@virtuozzo.com>
+ <1537804720.195115.9.camel@acm.org>
+ <10c706fd-2252-f11b-312e-ae0d97d9a538@virtuozzo.com>
+ <1537805984.195115.14.camel@acm.org>
+ <20180924185753.GA32269@bombadil.infradead.org>
+ <20180925001615.GA14386@ming.t460p>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180921174536.7igaoi36rg76auy4@ca-dmjordan1.us.oracle.com>
+In-Reply-To: <20180925001615.GA14386@ming.t460p>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Tariq Toukan <tariqt@mellanox.com>, Yosef Lev <levyossi@icloud.com>, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Bart Van Assche <bvanassche@acm.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Christoph Hellwig <hch@lst.de>, Ming Lei <tom.leiming@gmail.com>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Dave Chinner <dchinner@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On Fri, Sep 21, 2018 at 10:45:36AM -0700, Daniel Jordan wrote:
-> On Tue, Sep 11, 2018 at 01:36:07PM +0800, Aaron Lu wrote:
-> > Daniel Jordan and others proposed an innovative technique to make
-> > multiple threads concurrently use list_del() at any position of the
-> > list and list_add() at head position of the list without taking a lock
-> > in this year's MM summit[0].
-> > 
-> > People think this technique may be useful to improve zone lock
-> > scalability so here is my try.
+On Tue, Sep 25, 2018 at 08:16:16AM +0800, Ming Lei wrote:
+> On Mon, Sep 24, 2018 at 11:57:53AM -0700, Matthew Wilcox wrote:
+> > On Mon, Sep 24, 2018 at 09:19:44AM -0700, Bart Van Assche wrote:
+> > You're not supposed to use kmalloc memory for DMA.  This is why we have
+> > dma_alloc_coherent() and friends.  Also, from DMA-API.txt:
 > 
-> Nice, this uses the smp_list_* functions well in spite of the limitations you
-> encountered with them here.
+> Please take a look at USB drivers, or storage drivers or scsi layer. Lot of
+> DMA buffers are allocated via kmalloc.
+
+Then we have lots of broken places.  I mean, this isn't new.  We used
+to have lots of broken places that did DMA to the stack.  And then
+the stack was changed to be vmalloc'ed and all those places got fixed.
+The difference this time is that it's only certain rare configurations
+that are broken, and the brokenness is only found by corruption in some
+fairly unlikely scenarios.
+
+> Also see the following description in DMA-API-HOWTO.txt:
 > 
-> > Performance wise on 56 cores/112 threads Intel Skylake 2 sockets server
-> > using will-it-scale/page_fault1 process mode(higher is better):
-> > 
-> > kernel        performance      zone lock contention
-> > patch1         9219349         76.99%
-> > patch7         2461133 -73.3%  54.46%(another 34.66% on smp_list_add())
-> > patch8        11712766 +27.0%  68.14%
-> > patch9        11386980 +23.5%  67.18%
-> 
-> Is "zone lock contention" the percentage that readers and writers combined
-> spent waiting?  I'm curious to see read and write wait time broken out, since
-> it seems there are writers (very likely on the allocation side) spoiling the
-> parallelism we get with the read lock.
+> 	If the device supports DMA, the driver sets up a buffer using kmalloc() or
+> 	a similar interface, which returns a virtual address (X).  The virtual
+> 	memory system maps X to a physical address (Y) in system RAM.  The driver
+> 	can use virtual address X to access the buffer, but the device itself
+> 	cannot because DMA doesn't go through the CPU virtual memory system.
 
-lock contention is combined, read side consumes about 31% while write
-side consumes 35%. Write side definitely is blocking read side.
+Sure, but that's not addressing the cacheline coherency problem.
 
-I also tried not taking lock in read mode on free path to avoid free
-path blocking on allocation path, but that caused other unplesant
-consequences for allocation path, namely the free_list head->next can
-be NULL when allocating pages due to free path can be adding pages to
-the list using smp_list_add/splice so I had to use free_list head->prev
-instead to fetch pages on allocation path. Also, the fetched page can be
-merged in the mean time on free path so need to confirm if it is really
-usable, etc. This complicated allocation path and didn't deliver good
-results so I gave up this idea.
+Regardless of what the docs did or didn't say, let's try answering
+the question: what makes for a more useful system?
 
-> If the contention is from allocation, I wonder whether it's feasible to make
-> that path use SMP list functions.  Something like smp_list_cut_position
-> combined with using page clusters from [*] to cut off a chunk of list.  Many
-> details to keep in mind there, though, like having to unset PageBuddy in that
-> list chunk when other tasks can be concurrently merging pages that are part of
-> it.
+A: A kmalloc implementation which always returns an address suitable
+for mapping using the DMA interfaces
 
-As you put here, the PageBuddy flag is a problem. If I cut off a batch
-of pages from free_list and then dropping the lock, these pages will
-have PageBuddy flag set and free path can attempt a merge with any of
-these pages and cause problems.
+B: A kmalloc implementation which is more efficient, but requires drivers
+to use a different interface for allocating space for the purposes of DMA
 
-PageBuddy flag can not be cleared with lock held since that would
-require accessing 'struct page's for these pages and it is the most time
-consuming part among all operations that happened on allocation path
-under zone lock.
+I genuinely don't know the answer to this question, and I think there are
+various people in this thread who believe A or B quite strongly.
 
-This is doable in your referenced no_merge+cluster_alloc approach because
-we skipped merge most of the time. And when merge really needs to
-happen like in compaction, cluser_alloc will be disabled.
+I would also like to ask people who believe in A what should happen in
+this situation:
 
-> Or maybe what's needed is a more scalable data structure than an array of
-> lists, since contention on the heads seems to be the limiting factor.  A simple
-> list that keeps the pages in most-recently-used order (except when adding to
-> the list tail) is good for cache warmth, but I wonder how helpful that is when
-> all CPUs can allocate from the front.  Having multiple places to put pages of a
-> given order/mt would ease the contention.
+        blocks = kmalloc(4, GFP_KERNEL);
+        sg_init_one(&sg, blocks, 4);
+...
+        result = ntohl(*blocks);
+        kfree(blocks);
 
-Agree.
+(this is just one example; there are others).  Because if we have to
+round all allocations below 64 bytes up to 64 bytes, that's going to be
+a memory consumption problem.  On my laptop:
 
-> > Though lock contention reduced a lot for patch7, the performance dropped
-> > considerably due to severe cache bouncing on free list head among
-> > multiple threads doing page free at the same time, because every page free
-> > will need to add the page to the free list head.
-> 
-> Could be beneficial to take an MCS-style approach in smp_list_splice/add so
-> that multiple waiters aren't bouncing the same cacheline around.  This is
-> something I'm planning to try on lru_lock.
+kmalloc-96         11527  15792     96   42    1 : slabdata    376    376      0
+kmalloc-64         54406  62912     64   64    1 : slabdata    983    983      0
+kmalloc-32         80325  84096     32  128    1 : slabdata    657    657      0
+kmalloc-16         26844  30208     16  256    1 : slabdata    118    118      0
+kmalloc-8          17141  21504      8  512    1 : slabdata     42     42      0
 
-That's a good idea.
-If that is done, we can at least parallelise free path and gain
-something by not paying the penalty of cache bouncing on list head.
-
-> 
-> Daniel
-> 
-> [*] https://lkml.kernel.org/r/20180509085450.3524-1-aaron.lu@intel.com
-
-And thanks a lot for the comments!
+I make that an extra 1799 pages (7MB).  Not the end of the world, but
+not free either.
