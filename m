@@ -1,54 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 128E68E00A4
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 17:11:27 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id d28-v6so15889edb.17
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 14:11:27 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q25-v6si30177edi.5.2018.09.25.14.11.25
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2828D8E00A4
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 17:45:23 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id c8-v6so13340908pfn.2
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 14:45:23 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id x9-v6sor379326pgj.120.2018.09.25.14.45.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Sep 2018 14:11:25 -0700 (PDT)
-Date: Tue, 25 Sep 2018 23:11:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Disable movable allocation for TRANSHUGE pages
-Message-ID: <20180925211123.GZ18685@dhcp22.suse.cz>
-References: <1537860333-28416-1-git-send-email-amhetre@nvidia.com>
- <20180925115153.z5b5ekijf5jzhzmn@kshutemo-mobl1>
- <20180925183019.GB22630@dhcp22.suse.cz>
- <20180925210001.j4olzx3fru4jpfys@kshutemo-mobl1>
+        (Google Transport Security);
+        Tue, 25 Sep 2018 14:45:21 -0700 (PDT)
+Date: Tue, 25 Sep 2018 14:45:19 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2] mm, thp: always specify ineligible vmas as nh in
+ smaps
+In-Reply-To: <20180925202959.GY18685@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.21.1809251440001.94921@chino.kir.corp.google.com>
+References: <alpine.DEB.2.21.1809241054050.224429@chino.kir.corp.google.com> <e2f159f3-5373-dda4-5904-ed24d029de3c@suse.cz> <alpine.DEB.2.21.1809241215170.239142@chino.kir.corp.google.com> <alpine.DEB.2.21.1809241227370.241621@chino.kir.corp.google.com>
+ <20180924195603.GJ18685@dhcp22.suse.cz> <20180924200258.GK18685@dhcp22.suse.cz> <0aa3eb55-82c0-eba3-b12c-2ba22e052a8e@suse.cz> <alpine.DEB.2.21.1809251248450.50347@chino.kir.corp.google.com> <20180925202959.GY18685@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180925210001.j4olzx3fru4jpfys@kshutemo-mobl1>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Ashish Mhetre <amhetre@nvidia.com>, linux-mm@kvack.org, akpm@linux-foundation.org, vdumpa@nvidia.com, Snikam@nvidia.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-On Wed 26-09-18 00:00:02, Kirill A. Shutemov wrote:
-> On Tue, Sep 25, 2018 at 08:30:19PM +0200, Michal Hocko wrote:
-> > On Tue 25-09-18 14:51:53, Kirill A. Shutemov wrote:
-> > > On Tue, Sep 25, 2018 at 12:55:33PM +0530, Ashish Mhetre wrote:
-> > > > TRANSHUGE pages have no migration support.
-> > > 
-> > > Transparent pages have migration support since v4.14.
-> > 
-> > This is true but not for all architectures AFAICS. In fact git grep
-> > suggests that only x86 supports the migration. So unless I am missing
-> > something the patch has some merit.
+On Tue, 25 Sep 2018, Michal Hocko wrote:
+
+> > This is used to identify heap mappings that should be able to fault thp 
+> > but do not, and they normally point to a low-on-memory or fragmentation 
+> > issue.  After commit 1860033237d4, our users of PR_SET_THP_DISABLE no 
+> > longer show "nh" for their heap mappings so they get reported as having a 
+> > low thp ratio when in reality it is disabled.  
 > 
-> THP pages are movable from the beginning. Before 4.14, the cost of
-> migration was THP split. From my PoV __GFP_MOVABLE is justified and we
-> should keep it there.
+> I am still not sure I understand the issue completely. How are PR_SET_THP_DISABLE
+> users any different from the global THP disabled case? Is this only
+> about the scope? E.g the one who checks for the state cannot check the
+> PR_SET_THP_DISABLE state? Besides that what are consequences of the
+> low ratio? Is this an example of somebody using the prctl and still
+> complaining or an external observer trying to do something useful which
+> ends up doing contrary?
+> 
 
-A very good point! I haven't really looked closer to what happens in the
-cma/migration code when the migration is not supported. As you've said
-THP migt be split into 4kB pages and those are migrateable by
-definition. So I take back my proposal and if this doesn't work properly
-now then it should really be handled by splitting up the thp.
+Yes, that is how I found out about this.  The system-wide policy can be 
+determined from /sys/kernel/mm/transparent_hugepage/enabled.  If it is 
+"always" and heap mappings are not being backed by hugepages and lack the 
+"nh" flag, it was considered as a likely fragmentation issue before commit 
+1860033237d4.  After commit 1860033237d4, the heap mapping for 
+PR_SET_THP_DISABLE users was not showing it actually is prevented from 
+faulting thp because of policy, not because of fragmentation.
 
-Thanks and sorry I've missed this!
--- 
-Michal Hocko
-SUSE Labs
+> > It is also used in 
+> > automated testing to ensure that vmas get disabled for thp appropriately 
+> > and we used "nh" since that is how PR_SET_THP_DISABLE previously enforced 
+> > this, and those tests now break.
+> 
+> This sounds like a bit of an abuse to me. It shows how an internal
+> implementation detail leaks out to the userspace which is something we
+> should try to avoid.
+> 
+
+Well, it's already how this has worked for years before commit 
+1860033237d4 broke it.  Changing the implementation in the kernel is fine 
+as long as you don't break userspace who relies on what is exported to it 
+and is the only way to determine if MADV_NOHUGEPAGE is preventing it from 
+being backed by hugepages.
+
+> > I'll reword this to explicitly state that "hg" and "nh" mappings either 
+> > allow or disallow thp backing.
+> 
+> How are you going to distinguish a regular THP-able mapping then? I am
+> still not sure how this is supposed to work. Could you be more specific.
+
+You look for "[heap]" in smaps to determine where the heap mapping is.
