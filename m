@@ -1,63 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A4C08E0072
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 08:45:26 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id u1-v6so1023546wrt.3
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 05:45:26 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTPS id x4-v6si2072732wrq.319.2018.09.25.05.45.24
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 664A98E0072
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 08:46:41 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id q15-v6so14868048wrw.1
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 05:46:41 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b124-v6sor1626950wmg.0.2018.09.25.05.46.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Sep 2018 05:45:24 -0700 (PDT)
-Date: Tue, 25 Sep 2018 14:45:26 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v6 00/18] APEI in_nmi() rework
-Message-ID: <20180925124526.GD23986@zn.tnic>
-References: <20180921221705.6478-1-james.morse@arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20180921221705.6478-1-james.morse@arm.com>
+        (Google Transport Security);
+        Tue, 25 Sep 2018 05:46:39 -0700 (PDT)
+From: Bartosz Golaszewski <brgl@bgdev.pl>
+Subject: [PATCH v4 0/4] devres: provide and use devm_kstrdup_const()
+Date: Tue, 25 Sep 2018 14:46:25 +0200
+Message-Id: <20180925124629.20710-1-brgl@bgdev.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael@kernel.org>, Jassi Brar <jassisinghbrar@gmail.com>, Thierry Reding <thierry.reding@gmail.com>, Jonathan Hunter <jonathanh@nvidia.com>, Arnd Bergmann <arnd@arndb.de>, Ulf Hansson <ulf.hansson@linaro.org>, Rob Herring <robh@kernel.org>, Bjorn Helgaas <bhelgaas@google.com>, Arend van Spriel <aspriel@gmail.com>, Robin Murphy <robin.murphy@arm.com>, Vivek Gautam <vivek.gautam@codeaurora.org>, Joe Perches <joe@perches.com>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Bjorn Andersson <bjorn.andersson@linaro.org>
+Cc: linux-kernel@vger.kernel.org, linux-tegra@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Bartosz Golaszewski <brgl@bgdev.pl>
 
-On Fri, Sep 21, 2018 at 11:16:47PM +0100, James Morse wrote:
-> Hello,
-> 
-> The GHES driver has collected quite a few bugs:
-> 
-> ghes_proc() at ghes_probe() time can be interrupted by an NMI that
-> will clobber the ghes->estatus fields, flags, and the buffer_paddr.
-> 
-> ghes_copy_tofrom_phys() uses in_nmi() to decide which path to take. arm64's
-> SEA taking both paths, depending on what it interrupted.
-> 
-> There is no guarantee that queued memory_failure() errors will be processed
-> before this CPU returns to user-space.
-> 
-> x86 can't TLBI from interrupt-masked code which this driver does all the
-> time.
-> 
-> 
-> This series aims to fix the first three, with an eye to fixing the
-> last one with a follow-up series.
-> 
-> Previous postings included the SDEI notification calls, which I haven't
-> finished re-testing. This series is big enough as it is.
+This series implements devm_kstrdup_const() together with some
+prerequisite changes and uses it in pmc-atom driver.
 
-Yeah, and everywhere I look, this thing looks overengineered. Like,
-for example, what's the purpose of this ghes_esource_prealloc_size()
-computing a size each time the pool changes size?
+v1 -> v2:
+- fixed the changelog in the patch implementing devm_kstrdup_const()
+- fixed the kernel doc
+- moved is_kernel_rodata() to asm-generic/sections.h
+- fixed constness
 
-AFAICT, this size can be computed exactly *once* at driver init and be
-done with it. Right?
+v2 -> v3:
+- rebased on top of 4.19-rc5 as there were some conflicts in the
+  pmc-atom driver
+- collected Reviewed-by tags
 
-Or am I missing something subtle?
+v3 -> v4:
+- Andy NAK'ed patch 4/4 so I added a different example
+- collected more tags
+
+Bartosz Golaszewski (4):
+  devres: constify p in devm_kfree()
+  mm: move is_kernel_rodata() to asm-generic/sections.h
+  devres: provide devm_kstrdup_const()
+  mailbox: tegra-hsp: use devm_kstrdup_const()
+
+ drivers/base/devres.c          | 43 ++++++++++++++++++++++++++++++++--
+ drivers/mailbox/tegra-hsp.c    | 41 +++++++-------------------------
+ include/asm-generic/sections.h | 14 +++++++++++
+ include/linux/device.h         |  5 +++-
+ mm/util.c                      |  7 ------
+ 5 files changed, 68 insertions(+), 42 deletions(-)
 
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+2.18.0
