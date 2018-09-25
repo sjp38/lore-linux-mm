@@ -1,98 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 62CAD8E0072
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 05:15:52 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id c14-v6so7974012qtc.7
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 02:15:52 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m18-v6si1297488qka.155.2018.09.25.02.15.51
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A8628E0072
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 05:59:14 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id v14-v6so3317476edq.10
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 02:59:14 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g21-v6si8312571edr.396.2018.09.25.02.59.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Sep 2018 02:15:51 -0700 (PDT)
-From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH v2 6/6] memory-hotplug.txt: Add some details about locking internals
-Date: Tue, 25 Sep 2018 11:14:57 +0200
-Message-Id: <20180925091457.28651-7-david@redhat.com>
-In-Reply-To: <20180925091457.28651-1-david@redhat.com>
-References: <20180925091457.28651-1-david@redhat.com>
+        Tue, 25 Sep 2018 02:59:12 -0700 (PDT)
+Subject: Re: [PATCH v2] memory_hotplug: Free pages as higher order
+References: <1537854158-9766-1-git-send-email-arunks@codeaurora.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <ccdbaf76-cbdd-759e-c6de-c5b738f156e9@suse.cz>
+Date: Tue, 25 Sep 2018 11:59:09 +0200
+MIME-Version: 1.0
+In-Reply-To: <1537854158-9766-1-git-send-email-arunks@codeaurora.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, David Hildenbrand <david@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Arun KS <arunks@codeaurora.org>, kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com, iamjoonsoo.kim@lge.com, osalvador@suse.de, malat@debian.org, yasu.isimatu@gmail.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org
+Cc: vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com
 
-Let's document the magic a bit, especially why device_hotplug_lock is
-required when adding/removing memory and how it all play together with
-requests to online/offline memory from user space.
+On 9/25/18 7:42 AM, Arun KS wrote:
+> When free pages are done with higher order, time spend on
+> coalescing pages by buddy allocator can be reduced. With
+> section size of 256MB, hot add latency of a single section
+> shows improvement from 50-60 ms to less than 1 ms, hence
+> improving the hot add latency by 60%.
+> 
+> Modify external providers of online callback to align with
+> the change.
+> 
+> Signed-off-by: Arun KS <arunks@codeaurora.org>
 
-Cc: Jonathan Corbet <corbet@lwn.net>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
-Reviewed-by: Rashmica Gupta <rashmica.g@gmail.com>
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- Documentation/memory-hotplug.txt | 42 +++++++++++++++++++++++++++++++-
- 1 file changed, 41 insertions(+), 1 deletion(-)
+Hi,
 
-diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
-index 7f49ebf3ddb2..ce4faa5530fa 100644
---- a/Documentation/memory-hotplug.txt
-+++ b/Documentation/memory-hotplug.txt
-@@ -3,7 +3,7 @@ Memory Hotplug
- ==============
- 
- :Created:							Jul 28 2007
--:Updated: Add description of notifier of memory hotplug:	Oct 11 2007
-+:Updated: Add some details about locking internals:		Aug 20 2018
- 
- This document is about memory hotplug including how-to-use and current status.
- Because Memory Hotplug is still under development, contents of this text will
-@@ -495,6 +495,46 @@ further processing of the notification queue.
- 
- NOTIFY_STOP stops further processing of the notification queue.
- 
-+
-+Locking Internals
-+=================
-+
-+When adding/removing memory that uses memory block devices (i.e. ordinary RAM),
-+the device_hotplug_lock should be held to:
-+
-+- synchronize against online/offline requests (e.g. via sysfs). This way, memory
-+  block devices can only be accessed (.online/.state attributes) by user
-+  space once memory has been fully added. And when removing memory, we
-+  know nobody is in critical sections.
-+- synchronize against CPU hotplug and similar (e.g. relevant for ACPI and PPC)
-+
-+Especially, there is a possible lock inversion that is avoided using
-+device_hotplug_lock when adding memory and user space tries to online that
-+memory faster than expected:
-+
-+- device_online() will first take the device_lock(), followed by
-+  mem_hotplug_lock
-+- add_memory_resource() will first take the mem_hotplug_lock, followed by
-+  the device_lock() (while creating the devices, during bus_add_device()).
-+
-+As the device is visible to user space before taking the device_lock(), this
-+can result in a lock inversion.
-+
-+onlining/offlining of memory should be done via device_online()/
-+device_offline() - to make sure it is properly synchronized to actions
-+via sysfs. Holding device_hotplug_lock is advised (to e.g. protect online_type)
-+
-+When adding/removing/onlining/offlining memory or adding/removing
-+heterogeneous/device memory, we should always hold the mem_hotplug_lock in
-+write mode to serialise memory hotplug (e.g. access to global/zone
-+variables).
-+
-+In addition, mem_hotplug_lock (in contrast to device_hotplug_lock) in read
-+mode allows for a quite efficient get_online_mems/put_online_mems
-+implementation, so code accessing memory can protect from that memory
-+vanishing.
-+
-+
- Future Work
- ===========
- 
--- 
-2.17.1
+> @@ -655,26 +655,53 @@ void __online_page_free(struct page *page)
+>  }
+>  EXPORT_SYMBOL_GPL(__online_page_free);
+>  
+> -static void generic_online_page(struct page *page)
+> +static int generic_online_page(struct page *page, unsigned int order)
+>  {
+> -	__online_page_set_limits(page);
+> -	__online_page_increment_counters(page);
+> -	__online_page_free(page);
+> +	unsigned long nr_pages = 1 << order;
+> +	struct page *p = page;
+> +	unsigned int loop;
+> +
+> +	for (loop = 0 ; loop < nr_pages ; loop++, p++) {
+> +		__ClearPageReserved(p);
+> +		set_page_count(p, 0);
+> +	}
+> +
+> +	adjust_managed_page_count(page, nr_pages);
+> +	set_page_refcounted(page);
+> +	__free_pages(page, order);
+> +
+> +	return 0;
+
+This seems like almost complete copy of __free_pages_boot_core(), could
+you do some code reuse instead? I think Michal Hocko also suggested that.
+
+Thanks,
+Vlastimil
