@@ -1,109 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 96DF98E00A4
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 12:39:44 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id b15-v6so2495130ybg.6
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 09:39:44 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id l202-v6si710388ywc.611.2018.09.25.09.39.43
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 802038E00A4
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 13:04:24 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id 191-v6so10360910pgb.23
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 10:04:24 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id x22-v6si2782400pgk.326.2018.09.25.10.04.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Sep 2018 09:39:43 -0700 (PDT)
-Subject: Re: [PATCH V2] mm/hugetlb: Add mmap() encodings for 32MB and 512MB
- page sizes
-References: <1537797985-2406-1-git-send-email-anshuman.khandual@arm.com>
- <1537841300-6979-1-git-send-email-anshuman.khandual@arm.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <f395fc79-4a64-8534-cd31-7a36bfb50cd1@oracle.com>
-Date: Tue, 25 Sep 2018 09:39:34 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 25 Sep 2018 10:04:23 -0700 (PDT)
+Date: Tue, 25 Sep 2018 19:03:55 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC PATCH v4 03/27] x86/fpu/xstate: Enable XSAVES system states
+Message-ID: <20180925170355.GD30146@hirez.programming.kicks-ass.net>
+References: <20180921150351.20898-1-yu-cheng.yu@intel.com>
+ <20180921150351.20898-4-yu-cheng.yu@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1537841300-6979-1-git-send-email-anshuman.khandual@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180921150351.20898-4-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: mhocko@kernel.org, punit.agrawal@arm.com, will.deacon@arm.com, akpm@linux-foundation.org
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-On 9/24/18 7:08 PM, Anshuman Khandual wrote:
-> ARM64 architecture also supports 32MB and 512MB HugeTLB page sizes.
-> This just adds mmap() system call argument encoding for them.
-> 
-> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
-> ---
-> 
-> Changes in V2:
-> - Updated SHM and MFD definitions per Mike
+On Fri, Sep 21, 2018 at 08:03:27AM -0700, Yu-cheng Yu wrote:
+> diff --git a/arch/x86/kernel/fpu/core.c b/arch/x86/kernel/fpu/core.c
+> index 4bd56079048f..9f51b0e1da25 100644
+> --- a/arch/x86/kernel/fpu/core.c
+> +++ b/arch/x86/kernel/fpu/core.c
+> @@ -365,8 +365,13 @@ void fpu__drop(struct fpu *fpu)
+>   */
+>  static inline void copy_init_user_fpstate_to_fpregs(void)
+>  {
+> +	/*
+> +	 * Only XSAVES user states are copied.
+> +	 * System states are preserved.
+> +	 */
+>  	if (use_xsave())
+> -		copy_kernel_to_xregs(&init_fpstate.xsave, -1);
+> +		copy_kernel_to_xregs(&init_fpstate.xsave,
+> +				     xfeatures_mask_user);
 
-Thanks Anshuman,
+By my counting, that doesn't qualify for a line-break, it hits 80.
 
-Acked-by: Mike Kravetz <mike.kravetz@oracle.com>
+If you were to do this line-break, coding style would have you liberally
+sprinkle {} around.
 
--- 
-Mike Kravetz
-
-> 
->  include/uapi/asm-generic/hugetlb_encode.h | 2 ++
->  include/uapi/linux/memfd.h                | 2 ++
->  include/uapi/linux/mman.h                 | 2 ++
->  include/uapi/linux/shm.h                  | 2 ++
->  4 files changed, 8 insertions(+)
-> 
-> diff --git a/include/uapi/asm-generic/hugetlb_encode.h b/include/uapi/asm-generic/hugetlb_encode.h
-> index e4732d3..b0f8e87 100644
-> --- a/include/uapi/asm-generic/hugetlb_encode.h
-> +++ b/include/uapi/asm-generic/hugetlb_encode.h
-> @@ -26,7 +26,9 @@
->  #define HUGETLB_FLAG_ENCODE_2MB		(21 << HUGETLB_FLAG_ENCODE_SHIFT)
->  #define HUGETLB_FLAG_ENCODE_8MB		(23 << HUGETLB_FLAG_ENCODE_SHIFT)
->  #define HUGETLB_FLAG_ENCODE_16MB	(24 << HUGETLB_FLAG_ENCODE_SHIFT)
-> +#define HUGETLB_FLAG_ENCODE_32MB	(25 << HUGETLB_FLAG_ENCODE_SHIFT)
->  #define HUGETLB_FLAG_ENCODE_256MB	(28 << HUGETLB_FLAG_ENCODE_SHIFT)
-> +#define HUGETLB_FLAG_ENCODE_512MB	(29 << HUGETLB_FLAG_ENCODE_SHIFT)
->  #define HUGETLB_FLAG_ENCODE_1GB		(30 << HUGETLB_FLAG_ENCODE_SHIFT)
->  #define HUGETLB_FLAG_ENCODE_2GB		(31 << HUGETLB_FLAG_ENCODE_SHIFT)
->  #define HUGETLB_FLAG_ENCODE_16GB	(34 << HUGETLB_FLAG_ENCODE_SHIFT)
-> diff --git a/include/uapi/linux/memfd.h b/include/uapi/linux/memfd.h
-> index 015a4c0..7a8a267 100644
-> --- a/include/uapi/linux/memfd.h
-> +++ b/include/uapi/linux/memfd.h
-> @@ -25,7 +25,9 @@
->  #define MFD_HUGE_2MB	HUGETLB_FLAG_ENCODE_2MB
->  #define MFD_HUGE_8MB	HUGETLB_FLAG_ENCODE_8MB
->  #define MFD_HUGE_16MB	HUGETLB_FLAG_ENCODE_16MB
-> +#define MFD_HUGE_32MB	HUGETLB_FLAG_ENCODE_32MB
->  #define MFD_HUGE_256MB	HUGETLB_FLAG_ENCODE_256MB
-> +#define MFD_HUGE_512MB	HUGETLB_FLAG_ENCODE_512MB
->  #define MFD_HUGE_1GB	HUGETLB_FLAG_ENCODE_1GB
->  #define MFD_HUGE_2GB	HUGETLB_FLAG_ENCODE_2GB
->  #define MFD_HUGE_16GB	HUGETLB_FLAG_ENCODE_16GB
-> diff --git a/include/uapi/linux/mman.h b/include/uapi/linux/mman.h
-> index bfd5938..d0f515d 100644
-> --- a/include/uapi/linux/mman.h
-> +++ b/include/uapi/linux/mman.h
-> @@ -28,7 +28,9 @@
->  #define MAP_HUGE_2MB	HUGETLB_FLAG_ENCODE_2MB
->  #define MAP_HUGE_8MB	HUGETLB_FLAG_ENCODE_8MB
->  #define MAP_HUGE_16MB	HUGETLB_FLAG_ENCODE_16MB
-> +#define MAP_HUGE_32MB	HUGETLB_FLAG_ENCODE_32MB
->  #define MAP_HUGE_256MB	HUGETLB_FLAG_ENCODE_256MB
-> +#define MAP_HUGE_512MB	HUGETLB_FLAG_ENCODE_512MB
->  #define MAP_HUGE_1GB	HUGETLB_FLAG_ENCODE_1GB
->  #define MAP_HUGE_2GB	HUGETLB_FLAG_ENCODE_2GB
->  #define MAP_HUGE_16GB	HUGETLB_FLAG_ENCODE_16GB
-> diff --git a/include/uapi/linux/shm.h b/include/uapi/linux/shm.h
-> index dde1344..6507ad0 100644
-> --- a/include/uapi/linux/shm.h
-> +++ b/include/uapi/linux/shm.h
-> @@ -65,7 +65,9 @@ struct shmid_ds {
->  #define SHM_HUGE_2MB	HUGETLB_FLAG_ENCODE_2MB
->  #define SHM_HUGE_8MB	HUGETLB_FLAG_ENCODE_8MB
->  #define SHM_HUGE_16MB	HUGETLB_FLAG_ENCODE_16MB
-> +#define SHM_HUGE_32MB	HUGETLB_FLAG_ENCODE_32MB
->  #define SHM_HUGE_256MB	HUGETLB_FLAG_ENCODE_256MB
-> +#define SHM_HUGE_512MB	HUGETLB_FLAG_ENCODE_512MB
->  #define SHM_HUGE_1GB	HUGETLB_FLAG_ENCODE_1GB
->  #define SHM_HUGE_2GB	HUGETLB_FLAG_ENCODE_2GB
->  #define SHM_HUGE_16GB	HUGETLB_FLAG_ENCODE_16GB
-> 
+>  	else if (static_cpu_has(X86_FEATURE_FXSR))
+>  		copy_kernel_to_fxregs(&init_fpstate.fxsave);
+>  	else
