@@ -1,103 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D0B938E0072
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 06:02:49 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id q3-v6so24799947otl.14
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 03:02:49 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id m84-v6si781609oia.51.2018.09.25.03.02.48
-        for <linux-mm@kvack.org>;
-        Tue, 25 Sep 2018 03:02:48 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [PATCH V2] mm/hugetlb: Add mmap() encodings for 32MB and 512MB page sizes
-References: <1537797985-2406-1-git-send-email-anshuman.khandual@arm.com>
-	<1537841300-6979-1-git-send-email-anshuman.khandual@arm.com>
-Date: Tue, 25 Sep 2018 11:02:45 +0100
-In-Reply-To: <1537841300-6979-1-git-send-email-anshuman.khandual@arm.com>
-	(Anshuman Khandual's message of "Tue, 25 Sep 2018 07:38:20 +0530")
-Message-ID: <871s9hsxmi.fsf@e105922-lin.cambridge.arm.com>
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D8288E0072
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 06:48:37 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id s77-v6so9813379pgs.2
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 03:48:37 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 199-v6sor260418pfz.15.2018.09.25.03.48.35
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 25 Sep 2018 03:48:35 -0700 (PDT)
+Date: Tue, 25 Sep 2018 13:48:29 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: fix COW faults after mlock()
+Message-ID: <20180925104829.jld5xd6evr7uhwfw@kshutemo-mobl1>
+References: <20180924130852.12996-1-ynorov@caviumnetworks.com>
+ <20180924212246.vmmsmgd5qw6xkfwh@kshutemo-mobl1>
+ <20180924234843.GA23726@yury-thinkpad>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180924234843.GA23726@yury-thinkpad>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mike.kravetz@oracle.com, mhocko@kernel.org, will.deacon@arm.com, akpm@linux-foundation.org
+To: Yury Norov <ynorov@caviumnetworks.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Dan Williams <dan.j.williams@intel.com>, Huang Ying <ying.huang@intel.com>, "Michael S . Tsirkin" <mst@redhat.com>, Michel Lespinasse <walken@google.com>, Souptick Joarder <jrdr.linux@gmail.com>, Willy Tarreau <w@1wt.eu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Anshuman Khandual <anshuman.khandual@arm.com> writes:
+On Tue, Sep 25, 2018 at 02:48:43AM +0300, Yury Norov wrote:
+> On Tue, Sep 25, 2018 at 12:22:47AM +0300, Kirill A. Shutemov wrote:
+> > External Email
+> > 
+> > On Mon, Sep 24, 2018 at 04:08:52PM +0300, Yury Norov wrote:
+> > > After mlock() on newly mmap()ed shared memory I observe page faults.
+> > >
+> > > The problem is that populate_vma_page_range() doesn't set FOLL_WRITE
+> > > flag for writable shared memory in mlock() path, arguing that like:
+> > > /*
+> > >  * We want to touch writable mappings with a write fault in order
+> > >  * to break COW, except for shared mappings because these don't COW
+> > >  * and we would not want to dirty them for nothing.
+> > >  */
+> > >
+> > > But they are actually COWed. The most straightforward way to avoid it
+> > > is to set FOLL_WRITE flag for shared mappings as well as for private ones.
+> > 
+> > Huh? How do shared mapping get CoWed?
+> > 
+> > In this context CoW means to create a private copy of the  page for the
+> > process. It only makes sense for private mappings as all pages in shared
+> > mappings do not belong to the process.
+> > 
+> > Shared mappings will still get faults, but a bit later -- after the page
+> > is written back to disc, the page get clear and write protected to catch
+> > the next write access.
+> > 
+> > Noticeable exception is tmpfs/shmem. These pages do not belong to normal
+> > write back process. But the code path is used for other filesystems as
+> > well.
+> > 
+> > Therefore, NAK. You only create unneeded write back traffic.
+> 
+> Hi Kirill,
+> 
+> (My first reaction was exactly like yours indeed, but) on my real
+> system (Cavium OcteonTX2), and on my qemu simulation I can reproduce
+> the same behavior: just mlock()ed memory causes faults. That faults
+> happen because page is mapped to the process as read-only, while
+> underlying VMA is read-write. So faults get resolved well by just
+> setting write access to the page.
 
-> ARM64 architecture also supports 32MB and 512MB HugeTLB page sizes.
-> This just adds mmap() system call argument encoding for them.
->
-> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+mlock() doesn't guarntee that you'll never get a *minor* fault. Write back
+or page migration will get these pages write-protected.
 
-Thanks for adding the encodings.
+Making pages write protected is what we rely on for proper dirty
+accounting: filesystems need to know when page gets dirty and allocate
+resources for properly write back the page. Once page is written back to
+storage the page gets write protected again to catch the next write access
+to the page.
 
-Acked-by: Punit Agrawal <punit.agrawal@arm.com>
+I guess we can situation a bit better for shmem/tmpfs: we can populate
+such shared mappings with FOLL_WRITE. But this patch is not good for the
+task.
 
-> ---
->
-> Changes in V2:
-> - Updated SHM and MFD definitions per Mike
->
->  include/uapi/asm-generic/hugetlb_encode.h | 2 ++
->  include/uapi/linux/memfd.h                | 2 ++
->  include/uapi/linux/mman.h                 | 2 ++
->  include/uapi/linux/shm.h                  | 2 ++
->  4 files changed, 8 insertions(+)
->
-> diff --git a/include/uapi/asm-generic/hugetlb_encode.h b/include/uapi/asm-generic/hugetlb_encode.h
-> index e4732d3..b0f8e87 100644
-> --- a/include/uapi/asm-generic/hugetlb_encode.h
-> +++ b/include/uapi/asm-generic/hugetlb_encode.h
-> @@ -26,7 +26,9 @@
->  #define HUGETLB_FLAG_ENCODE_2MB		(21 << HUGETLB_FLAG_ENCODE_SHIFT)
->  #define HUGETLB_FLAG_ENCODE_8MB		(23 << HUGETLB_FLAG_ENCODE_SHIFT)
->  #define HUGETLB_FLAG_ENCODE_16MB	(24 << HUGETLB_FLAG_ENCODE_SHIFT)
-> +#define HUGETLB_FLAG_ENCODE_32MB	(25 << HUGETLB_FLAG_ENCODE_SHIFT)
->  #define HUGETLB_FLAG_ENCODE_256MB	(28 << HUGETLB_FLAG_ENCODE_SHIFT)
-> +#define HUGETLB_FLAG_ENCODE_512MB	(29 << HUGETLB_FLAG_ENCODE_SHIFT)
->  #define HUGETLB_FLAG_ENCODE_1GB		(30 << HUGETLB_FLAG_ENCODE_SHIFT)
->  #define HUGETLB_FLAG_ENCODE_2GB		(31 << HUGETLB_FLAG_ENCODE_SHIFT)
->  #define HUGETLB_FLAG_ENCODE_16GB	(34 << HUGETLB_FLAG_ENCODE_SHIFT)
-> diff --git a/include/uapi/linux/memfd.h b/include/uapi/linux/memfd.h
-> index 015a4c0..7a8a267 100644
-> --- a/include/uapi/linux/memfd.h
-> +++ b/include/uapi/linux/memfd.h
-> @@ -25,7 +25,9 @@
->  #define MFD_HUGE_2MB	HUGETLB_FLAG_ENCODE_2MB
->  #define MFD_HUGE_8MB	HUGETLB_FLAG_ENCODE_8MB
->  #define MFD_HUGE_16MB	HUGETLB_FLAG_ENCODE_16MB
-> +#define MFD_HUGE_32MB	HUGETLB_FLAG_ENCODE_32MB
->  #define MFD_HUGE_256MB	HUGETLB_FLAG_ENCODE_256MB
-> +#define MFD_HUGE_512MB	HUGETLB_FLAG_ENCODE_512MB
->  #define MFD_HUGE_1GB	HUGETLB_FLAG_ENCODE_1GB
->  #define MFD_HUGE_2GB	HUGETLB_FLAG_ENCODE_2GB
->  #define MFD_HUGE_16GB	HUGETLB_FLAG_ENCODE_16GB
-> diff --git a/include/uapi/linux/mman.h b/include/uapi/linux/mman.h
-> index bfd5938..d0f515d 100644
-> --- a/include/uapi/linux/mman.h
-> +++ b/include/uapi/linux/mman.h
-> @@ -28,7 +28,9 @@
->  #define MAP_HUGE_2MB	HUGETLB_FLAG_ENCODE_2MB
->  #define MAP_HUGE_8MB	HUGETLB_FLAG_ENCODE_8MB
->  #define MAP_HUGE_16MB	HUGETLB_FLAG_ENCODE_16MB
-> +#define MAP_HUGE_32MB	HUGETLB_FLAG_ENCODE_32MB
->  #define MAP_HUGE_256MB	HUGETLB_FLAG_ENCODE_256MB
-> +#define MAP_HUGE_512MB	HUGETLB_FLAG_ENCODE_512MB
->  #define MAP_HUGE_1GB	HUGETLB_FLAG_ENCODE_1GB
->  #define MAP_HUGE_2GB	HUGETLB_FLAG_ENCODE_2GB
->  #define MAP_HUGE_16GB	HUGETLB_FLAG_ENCODE_16GB
-> diff --git a/include/uapi/linux/shm.h b/include/uapi/linux/shm.h
-> index dde1344..6507ad0 100644
-> --- a/include/uapi/linux/shm.h
-> +++ b/include/uapi/linux/shm.h
-> @@ -65,7 +65,9 @@ struct shmid_ds {
->  #define SHM_HUGE_2MB	HUGETLB_FLAG_ENCODE_2MB
->  #define SHM_HUGE_8MB	HUGETLB_FLAG_ENCODE_8MB
->  #define SHM_HUGE_16MB	HUGETLB_FLAG_ENCODE_16MB
-> +#define SHM_HUGE_32MB	HUGETLB_FLAG_ENCODE_32MB
->  #define SHM_HUGE_256MB	HUGETLB_FLAG_ENCODE_256MB
-> +#define SHM_HUGE_512MB	HUGETLB_FLAG_ENCODE_512MB
->  #define SHM_HUGE_1GB	HUGETLB_FLAG_ENCODE_1GB
->  #define SHM_HUGE_2GB	HUGETLB_FLAG_ENCODE_2GB
->  #define SHM_HUGE_16GB	HUGETLB_FLAG_ENCODE_16GB
+-- 
+ Kirill A. Shutemov
