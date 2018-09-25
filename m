@@ -1,75 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 70A358E00A4
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 11:59:03 -0400 (EDT)
-Received: by mail-oi1-f198.google.com with SMTP id c18-v6so148626oiy.3
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 08:59:03 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id r33-v6si1317269otc.157.2018.09.25.08.59.02
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 48DAC8E00A4
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 12:02:38 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id k9-v6so46975148iob.16
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 09:02:38 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l26-v6sor1442802ioh.285.2018.09.25.09.02.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Sep 2018 08:59:02 -0700 (PDT)
-Date: Tue, 25 Sep 2018 16:58:26 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH RESEND] mm: don't raise MEMCG_OOM event due to failed
- high-order allocation
-Message-ID: <20180925155825.GA11552@castle.DHCP.thefacebook.com>
-References: <20180917230846.31027-1-guro@fb.com>
+        (Google Transport Security);
+        Tue, 25 Sep 2018 09:02:37 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20180917230846.31027-1-guro@fb.com>
+References: <20180925124629.20710-1-brgl@bgdev.pl> <c25df148-718a-d29d-9c1d-20701a0e4534@arm.com>
+ <a729cfd1102ef280650074dd8bec32c6b12636db.camel@perches.com>
+In-Reply-To: <a729cfd1102ef280650074dd8bec32c6b12636db.camel@perches.com>
+From: Bartosz Golaszewski <brgl@bgdev.pl>
+Date: Tue, 25 Sep 2018 18:02:25 +0200
+Message-ID: <CAMRc=MeSte7oQ+oLm0f-Re0LgO1c203xPZRQF9mky9oLCTkeKg@mail.gmail.com>
+Subject: Re: [PATCH v4 0/4] devres: provide and use devm_kstrdup_const()
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, kernel-team@fb.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Joe Perches <joe@perches.com>
+Cc: Robin Murphy <robin.murphy@arm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael@kernel.org>, Jassi Brar <jassisinghbrar@gmail.com>, Thierry Reding <thierry.reding@gmail.com>, Jonathan Hunter <jonathanh@nvidia.com>, Arnd Bergmann <arnd@arndb.de>, Ulf Hansson <ulf.hansson@linaro.org>, Rob Herring <robh@kernel.org>, Bjorn Helgaas <bhelgaas@google.com>, Arend van Spriel <aspriel@gmail.com>, Vivek Gautam <vivek.gautam@codeaurora.org>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Bjorn Andersson <bjorn.andersson@linaro.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-tegra@vger.kernel.org, "open list:GENERIC INCLUDE/ASM HEADER FILES" <linux-arch@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, Sep 17, 2018 at 04:08:46PM -0700, Roman Gushchin wrote:
-> The memcg OOM killer is never invoked due to a failed high-order
-> allocation, however the MEMCG_OOM event can be raised.
-> 
-> As shown below, it can happen under conditions, which are very
-> far from a real OOM: e.g. there is plenty of clean pagecache
-> and low memory pressure.
-> 
-> There is no sense in raising an OOM event in such a case,
-> as it might confuse a user and lead to wrong and excessive actions.
-> 
-> Let's look at the charging path in try_caharge(). If the memory usage
-> is about memory.max, which is absolutely natural for most memory cgroups,
-> we try to reclaim some pages. Even if we were able to reclaim
-> enough memory for the allocation, the following check can fail due to
-> a race with another concurrent allocation:
-> 
->     if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
->         goto retry;
-> 
-> For regular pages the following condition will save us from triggering
-> the OOM:
-> 
->    if (nr_reclaimed && nr_pages <= (1 << PAGE_ALLOC_COSTLY_ORDER))
->        goto retry;
-> 
-> But for high-order allocation this condition will intentionally fail.
-> The reason behind is that we'll likely fall to regular pages anyway,
-> so it's ok and even preferred to return ENOMEM.
-> 
-> In this case the idea of raising MEMCG_OOM looks dubious.
-> 
-> Fix this by moving MEMCG_OOM raising to mem_cgroup_oom() after
-> allocation order check, so that the event won't be raised for high
-> order allocations. This change doesn't affect regular pages allocation
-> and charging.
-> 
-> Signed-off-by: Roman Gushchin <guro@fb.com>
-> Acked-by: David Rientjes <rientjes@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+wt., 25 wrz 2018 o 17:48 Joe Perches <joe@perches.com> napisa=C5=82(a):
+>
+> On Tue, 2018-09-25 at 13:51 +0100, Robin Murphy wrote:
+> > On 25/09/18 13:46, Bartosz Golaszewski wrote:
+> > > This series implements devm_kstrdup_const() together with some
+> > > prerequisite changes and uses it in pmc-atom driver.
+> >
+> > Is anyone expecting me to review this series,
+>
+> Probably not.
+>
+> > or am I just here because
+> > I once made a couple of entirely unrelated changes to device.h?
+>
+> Most likely yes.
+>
+> It is likely that Bartosz should update his use of the
+> get_maintainer.pl script to add "--nogit --nogit-fallback"
+> so drive-by patch submitters are not also cc'd on these
+> sorts of series.
+>
+> $ ./scripts/get_maintainer.pl -f \
+>         drivers/base/devres.c \
+>         drivers/mailbox/tegra-hsp.c \
+>         include/asm-generic/sections.h \
+>         include/linux/device.h \
+>         mm/util.c | \
+>   wc -l
+> 26
+>
+> $ ./scripts/get_maintainer.pl -f --nogit --nogit-fallback \
+>         drivers/base/devres.c \
+>         drivers/mailbox/tegra-hsp.c \
+>         include/asm-generic/sections.h \
+>         include/linux/device.h \
+>         mm/util.c | \
+>   wc -l
+> 10
+>
+>
 
-I've tried to address all concerns and questions in the updated
-changelog, so, hopefully, now it's clear why do we need this change.
+Hi, sorry for that. Got it and will use next time.
 
-Are there any comments, thoughts or objections left?
-
-Thanks!
+Bartosz
