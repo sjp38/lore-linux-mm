@@ -1,71 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B6558E00A4
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 15:52:21 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id o27-v6so13200302pfj.6
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 12:52:21 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id g11-v6sor699931plp.62.2018.09.25.12.52.20
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 002B98E00A4
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2018 15:56:01 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id r130-v6so10702892pgr.13
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2018 12:56:00 -0700 (PDT)
+Received: from NAM04-SN1-obe.outbound.protection.outlook.com (mail-eopbgr700067.outbound.protection.outlook.com. [40.107.70.67])
+        by mx.google.com with ESMTPS id 7-v6si2994867pgw.401.2018.09.25.12.55.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 25 Sep 2018 12:52:20 -0700 (PDT)
-Date: Tue, 25 Sep 2018 12:52:09 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2] mm, thp: always specify ineligible vmas as nh in
- smaps
-In-Reply-To: <0aa3eb55-82c0-eba3-b12c-2ba22e052a8e@suse.cz>
-Message-ID: <alpine.DEB.2.21.1809251248450.50347@chino.kir.corp.google.com>
-References: <alpine.DEB.2.21.1809241054050.224429@chino.kir.corp.google.com> <e2f159f3-5373-dda4-5904-ed24d029de3c@suse.cz> <alpine.DEB.2.21.1809241215170.239142@chino.kir.corp.google.com> <alpine.DEB.2.21.1809241227370.241621@chino.kir.corp.google.com>
- <20180924195603.GJ18685@dhcp22.suse.cz> <20180924200258.GK18685@dhcp22.suse.cz> <0aa3eb55-82c0-eba3-b12c-2ba22e052a8e@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 25 Sep 2018 12:55:59 -0700 (PDT)
+From: Nadav Amit <namit@vmware.com>
+Subject: Re: [PATCH v2 00/20] vmw_balloon: compaction, shrinker, 64-bit, etc.
+Date: Tue, 25 Sep 2018 19:55:56 +0000
+Message-ID: <4E03488E-E9EC-4676-A008-C89BC61CD05A@vmware.com>
+References: <20180920173026.141333-1-namit@vmware.com>
+ <20180925181548.GB25458@kroah.com>
+In-Reply-To: <20180925181548.GB25458@kroah.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <38E03D8D6F3DB242B54FC7FA56F287BA@namprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Xavier Deguillard <xdeguillard@vmware.com>, "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>
 
-On Mon, 24 Sep 2018, Vlastimil Babka wrote:
+at 11:15 AM, Greg Kroah-Hartman <gregkh@linuxfoundation.org> wrote:
 
-> On 9/24/18 10:02 PM, Michal Hocko wrote:
-> > On Mon 24-09-18 21:56:03, Michal Hocko wrote:
-> >> On Mon 24-09-18 12:30:07, David Rientjes wrote:
-> >>> Commit 1860033237d4 ("mm: make PR_SET_THP_DISABLE immediately active")
-> >>> introduced a regression in that userspace cannot always determine the set
-> >>> of vmas where thp is ineligible.
-> >>>
-> >>> Userspace relies on the "nh" flag being emitted as part of /proc/pid/smaps
-> >>> to determine if a vma is eligible to be backed by hugepages.
-> >>
-> >> I was under impression that nh resp hg flags only tell about the madvise
-> >> status. How do you exactly use these flags in an application?
-> >>
+> On Thu, Sep 20, 2018 at 10:30:06AM -0700, Nadav Amit wrote:
+>> This patch-set adds the following enhancements to the VMware balloon
+>> driver:
+>>=20
+>> 1. Balloon compaction support.
+>> 2. Report the number of inflated/deflated ballooned pages through vmstat=
+.
+>> 3. Memory shrinker to avoid balloon over-inflation (and OOM).
+>> 4. Support VMs with memory limit that is greater than 16TB.
+>> 5. Faster and more aggressive inflation.
+>>=20
+>> To support compaction we wish to use the existing infrastructure.
+>> However, we need to make slight adaptions for it. We add a new list
+>> interface to balloon-compaction, which is more generic and efficient,
+>> since it does not require as many IRQ save/restore operations. We leave
+>> the old interface that is used by the virtio balloon.
+>>=20
+>> Big parts of this patch-set are cleanup and documentation. Patches 1-13
+>> simplify the balloon code, document its behavior and allow the balloon
+>> code to run concurrently. The support for concurrency is required for
+>> compaction and the shrinker interface.
+>>=20
+>> For documentation we use the kernel-doc format. We are aware that the
+>> balloon interface is not public, but following the kernel-doc format may
+>> be useful one day.
+>=20
+> I applied the first 16 patches.  Please fix up 17 and resend.
 
-This is used to identify heap mappings that should be able to fault thp 
-but do not, and they normally point to a low-on-memory or fragmentation 
-issue.  After commit 1860033237d4, our users of PR_SET_THP_DISABLE no 
-longer show "nh" for their heap mappings so they get reported as having a 
-low thp ratio when in reality it is disabled.  It is also used in 
-automated testing to ensure that vmas get disabled for thp appropriately 
-and we used "nh" since that is how PR_SET_THP_DISABLE previously enforced 
-this, and those tests now break.
+Thanks. I will update it and resend later today.
 
-> >> Your eligible rules as defined here:
-> >>
-> >>> + [*] A process mapping is eligible to be backed by transparent hugepages (thp)
-> >>> +     depending on system-wide settings and the mapping itself.  See
-> >>> +     Documentation/admin-guide/mm/transhuge.rst for default behavior.  If a
-> >>> +     mapping has a flag of "nh", it is not eligible to be backed by hugepages
-> >>> +     in any condition, either because of prctl(PR_SET_THP_DISABLE) or
-> >>> +     madvise(MADV_NOHUGEPAGE).  PR_SET_THP_DISABLE takes precedence over any
-> >>> +     MADV_HUGEPAGE.
-> >>
-> >> doesn't seem to match the reality. I do not see all the file backed
-> >> mappings to be nh marked. So is this really about eligibility rather
-> >> than the madvise status? Maybe it is just the above documentation that
-> >> needs to be updated.
-> 
-> Yeah the change from madvise to eligibility in the doc seems to go too far.
-> 
-
-I'll reword this to explicitly state that "hg" and "nh" mappings either 
-allow or disallow thp backing.
+Regards,
+Nadav
