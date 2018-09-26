@@ -1,82 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 796118E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 14:25:39 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id u13-v6so14977707pfm.8
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 11:25:39 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id p1-v6si6021186plk.294.2018.09.26.11.25.37
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 982408E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 14:32:16 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id j27-v6so34332732oth.3
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 11:32:16 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id j4-v6si2816718otc.88.2018.09.26.11.32.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Sep 2018 11:25:38 -0700 (PDT)
-Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
- point where we init pgmap
-References: <20180925200551.3576.18755.stgit@localhost.localdomain>
- <20180925202053.3576.66039.stgit@localhost.localdomain>
- <20180926075540.GD6278@dhcp22.suse.cz>
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Message-ID: <6f87a5d7-05e2-00f4-8568-bb3521869cea@linux.intel.com>
-Date: Wed, 26 Sep 2018 11:25:37 -0700
+        Wed, 26 Sep 2018 11:32:15 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8QIUGxY061936
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 14:32:15 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mrejq2pkc-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 14:32:14 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Wed, 26 Sep 2018 19:32:12 +0100
+Date: Wed, 26 Sep 2018 21:31:53 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH 03/30] mm: remove CONFIG_HAVE_MEMBLOCK
+References: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1536927045-23536-4-git-send-email-rppt@linux.vnet.ibm.com>
+ <CAKgT0UdP=78RsWHMxFu4PD8a3AhA3eNcG68Z_9aGY0vhOKf7xA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180926075540.GD6278@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKgT0UdP=78RsWHMxFu4PD8a3AhA3eNcG68Z_9aGY0vhOKf7xA@mail.gmail.com>
+Message-Id: <20180926183152.GA4597@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pavel.tatashin@microsoft.com, dave.jiang@intel.com, dave.hansen@intel.com, jglisse@redhat.com, rppt@linux.vnet.ibm.com, dan.j.williams@intel.com, logang@deltatee.com, mingo@kernel.org, kirill.shutemov@linux.intel.com
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, chris@zankel.net, David Miller <davem@davemloft.net>, Geert Uytterhoeven <geert@linux-m68k.org>, green.hu@gmail.com, Greg KH <gregkh@linuxfoundation.org>, gxt@pku.edu.cn, Ingo Molnar <mingo@redhat.com>, jejb@parisc-linux.org, jonas@southpole.se, Jonathan Corbet <corbet@lwn.net>, lftan@altera.com, msalter@redhat.com, Martin Schwidefsky <schwidefsky@de.ibm.com>, mattst88@gmail.com, mpe@ellerman.id.au, Michal Hocko <mhocko@suse.com>, monstr@monstr.eu, palmer@sifive.com, paul.burton@mips.com, rkuo@codeaurora.org, richard@nod.at, dalias@libc.org, Russell King - ARM Linux <linux@armlinux.org.uk>, fancer.lancer@gmail.com, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, vgupta@synopsys.com, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, nios2-dev@lists.rocketboards.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp
 
-
-
-On 9/26/2018 12:55 AM, Michal Hocko wrote:
-> On Tue 25-09-18 13:21:24, Alexander Duyck wrote:
->> The ZONE_DEVICE pages were being initialized in two locations. One was with
->> the memory_hotplug lock held and another was outside of that lock. The
->> problem with this is that it was nearly doubling the memory initialization
->> time. Instead of doing this twice, once while holding a global lock and
->> once without, I am opting to defer the initialization to the one outside of
->> the lock. This allows us to avoid serializing the overhead for memory init
->> and we can instead focus on per-node init times.
->>
->> One issue I encountered is that devm_memremap_pages and
->> hmm_devmmem_pages_create were initializing only the pgmap field the same
->> way. One wasn't initializing hmm_data, and the other was initializing it to
->> a poison value. Since this is something that is exposed to the driver in
->> the case of hmm I am opting for a third option and just initializing
->> hmm_data to 0 since this is going to be exposed to unknown third party
->> drivers.
+On Wed, Sep 26, 2018 at 09:58:41AM -0700, Alexander Duyck wrote:
+> On Fri, Sep 14, 2018 at 5:11 AM Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+> >
+> > All architecures use memblock for early memory management. There is no need
+> > for the CONFIG_HAVE_MEMBLOCK configuration option.
+> >
+> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 > 
-> Why cannot you pull move_pfn_range_to_zone out of the hotplug lock? In
-> other words why are you making zone device even more special in the
-> generic hotplug code when it already has its own means to initialize the
-> pfn range by calling move_pfn_range_to_zone. Not to mention the code
-> duplication.
+> <snip>
+> 
+> > diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> > index 5169205..4ae91fc 100644
+> > --- a/include/linux/memblock.h
+> > +++ b/include/linux/memblock.h
+> > @@ -2,7 +2,6 @@
+> >  #define _LINUX_MEMBLOCK_H
+> >  #ifdef __KERNEL__
+> >
+> > -#ifdef CONFIG_HAVE_MEMBLOCK
+> >  /*
+> >   * Logical memory blocks.
+> >   *
+> > @@ -460,7 +459,6 @@ static inline phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align)
+> >  {
+> >         return 0;
+> >  }
+> > -#endif /* CONFIG_HAVE_MEMBLOCK */
+> >
+> >  #endif /* __KERNEL__ */
+> 
+> There was an #else above this section and I believe it and the code
+> after it needs to be stripped as well.
 
-So there were a few things I wasn't sure we could pull outside of the 
-hotplug lock. One specific example is the bits related to resizing the 
-pgdat and zone. I wanted to avoid pulling those bits outside of the 
-hotplug lock.
+Right, I've already sent the fix [1] and it's in mmots.
 
-The other bit that I left inside the hot-plug lock with this approach 
-was the initialization of the pages that contain the vmemmap.
+[1] https://lkml.org/lkml/2018/9/19/416
 
-> That being said I really dislike this patch.
-
-In my mind this was a patch that "killed two birds with one stone". I 
-had two issues to address, the first one being the fact that we were 
-performing the memmap_init_zone while holding the hotplug lock, and the 
-other being the loop that was going through and initializing pgmap in 
-the hmm and memremap calls essentially added another 20 seconds 
-(measured for 3TB of memory per node) to the init time. With this patch 
-I was able to cut my init time per node by that 20 seconds, and then 
-made it so that we could scale as we added nodes as they could run in 
-parallel.
-
-With that said I am open to suggestions if you still feel like I need to 
-follow this up with some additional work. I just want to avoid 
-introducing any regressions in regards to functionality or performance.
-
-Thanks.
-
-- Alex
+-- 
+Sincerely yours,
+Mike.
