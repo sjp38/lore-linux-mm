@@ -1,99 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E73B38E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 14:53:09 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id a21-v6so47828otf.8
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 11:53:09 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x63-v6sor4594999ota.288.2018.09.26.11.53.08
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A842E8E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 15:15:11 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id n17-v6so50568pff.17
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 12:15:11 -0700 (PDT)
+Received: from EX13-EDG-OU-002.vmware.com (ex13-edg-ou-002.vmware.com. [208.91.0.190])
+        by mx.google.com with ESMTPS id q90-v6si5539344pfa.272.2018.09.26.12.15.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 26 Sep 2018 11:53:08 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 26 Sep 2018 12:15:10 -0700 (PDT)
+From: Nadav Amit <namit@vmware.com>
+Subject: [PATCH v3 00/20] vmw_balloon: compaction, shrinker, 64-bit, etc.
+Date: Wed, 26 Sep 2018 12:13:16 -0700
+Message-ID: <20180926191336.101885-1-namit@vmware.com>
 MIME-Version: 1.0
-References: <20180925200551.3576.18755.stgit@localhost.localdomain>
- <20180925202053.3576.66039.stgit@localhost.localdomain> <20180926075540.GD6278@dhcp22.suse.cz>
- <6f87a5d7-05e2-00f4-8568-bb3521869cea@linux.intel.com>
-In-Reply-To: <6f87a5d7-05e2-00f4-8568-bb3521869cea@linux.intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 26 Sep 2018 11:52:56 -0700
-Message-ID: <CAPcyv4iVnodai0bB74yeSCD2H+hoLsZYUk4sR9jV0pPAE+Zorw@mail.gmail.com>
-Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
- point where we init pgmap
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: alexander.h.duyck@linux.intel.com
-Cc: Michal Hocko <mhocko@kernel.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Dave Jiang <dave.jiang@intel.com>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, rppt@linux.vnet.ibm.com, Logan Gunthorpe <logang@deltatee.com>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Arnd Bergmann <arnd@arndb.de>, gregkh@linuxfoundation.org
+Cc: Xavier Deguillard <xdeguillard@vmware.com>, linux-kernel@vger.kernel.org, Nadav Amit <namit@vmware.com>, "Michael S.
+ Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, linux-mm@kvack.org, virtualization@lists.linux-foundation.org
 
-On Wed, Sep 26, 2018 at 11:25 AM Alexander Duyck
-<alexander.h.duyck@linux.intel.com> wrote:
->
->
->
-> On 9/26/2018 12:55 AM, Michal Hocko wrote:
-> > On Tue 25-09-18 13:21:24, Alexander Duyck wrote:
-> >> The ZONE_DEVICE pages were being initialized in two locations. One was with
-> >> the memory_hotplug lock held and another was outside of that lock. The
-> >> problem with this is that it was nearly doubling the memory initialization
-> >> time. Instead of doing this twice, once while holding a global lock and
-> >> once without, I am opting to defer the initialization to the one outside of
-> >> the lock. This allows us to avoid serializing the overhead for memory init
-> >> and we can instead focus on per-node init times.
-> >>
-> >> One issue I encountered is that devm_memremap_pages and
-> >> hmm_devmmem_pages_create were initializing only the pgmap field the same
-> >> way. One wasn't initializing hmm_data, and the other was initializing it to
-> >> a poison value. Since this is something that is exposed to the driver in
-> >> the case of hmm I am opting for a third option and just initializing
-> >> hmm_data to 0 since this is going to be exposed to unknown third party
-> >> drivers.
-> >
-> > Why cannot you pull move_pfn_range_to_zone out of the hotplug lock? In
-> > other words why are you making zone device even more special in the
-> > generic hotplug code when it already has its own means to initialize the
-> > pfn range by calling move_pfn_range_to_zone. Not to mention the code
-> > duplication.
->
-> So there were a few things I wasn't sure we could pull outside of the
-> hotplug lock. One specific example is the bits related to resizing the
-> pgdat and zone. I wanted to avoid pulling those bits outside of the
-> hotplug lock.
->
-> The other bit that I left inside the hot-plug lock with this approach
-> was the initialization of the pages that contain the vmemmap.
->
-> > That being said I really dislike this patch.
->
-> In my mind this was a patch that "killed two birds with one stone". I
-> had two issues to address, the first one being the fact that we were
-> performing the memmap_init_zone while holding the hotplug lock, and the
-> other being the loop that was going through and initializing pgmap in
-> the hmm and memremap calls essentially added another 20 seconds
-> (measured for 3TB of memory per node) to the init time. With this patch
-> I was able to cut my init time per node by that 20 seconds, and then
-> made it so that we could scale as we added nodes as they could run in
-> parallel.
+This patch-set adds the following enhancements to the VMware balloon
+driver:
 
-Yeah, at the very least there is no reason for devm_memremap_pages()
-to do another loop through all pages, the core should handle this, but
-cleaning up the scope of the hotplug lock is needed.
+1. Balloon compaction support.
+2. Report the number of inflated/deflated ballooned pages through vmstat.
+3. Memory shrinker to avoid balloon over-inflation (and OOM).
+4. Support VMs with memory limit that is greater than 16TB.
+5. Faster and more aggressive inflation.
 
-> With that said I am open to suggestions if you still feel like I need to
-> follow this up with some additional work. I just want to avoid
-> introducing any regressions in regards to functionality or performance.
+To support compaction we wish to use the existing infrastructure.
+However, we need to make slight adaptions for it. We add a new list
+interface to balloon-compaction, which is more generic and efficient,
+since it does not require as many IRQ save/restore operations. We leave
+the old interface that is used by the virtio balloon.
 
-Could we push the hotplug lock deeper to the places that actually need
-it? What I found with my initial investigation is that we don't even
-need the hotplug lock for the vmemmap initialization with this patch
-[1].
+Big parts of this patch-set are cleanup and documentation. Patches 1-13
+simplify the balloon code, document its behavior and allow the balloon
+code to run concurrently. The support for concurrency is required for
+compaction and the shrinker interface.
 
-Alternatively it seems the hotplug lock wants to synchronize changes
-to the zone and the page init work. If the hotplug lock was an rwsem
-the zone changes would be a write lock, but the init work could be
-done as a read lock to allow parallelism. I.e. still provide a sync
-point to be able to assert that no hotplug work is in-flight will
-holding the write lock, but otherwise allow threads that are touching
-independent parts of the memmap to run at the same time.
+For documentation we use the kernel-doc format. We are aware that the
+balloon interface is not public, but following the kernel-doc format may
+be useful one day.
 
-[1]: https://patchwork.kernel.org/patch/10527229/ just focus on the
-mm/sparse-vmemmap.c changes at the end.
+v2->v3: * Moving the balloon magic-number out of uapi (Greg)
+
+v1->v2:	* Fix build error when THP is off (kbuild)
+	* Fix build error on i386 (kbuild)
+
+Cc: Xavier Deguillard <xdeguillard@vmware.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Jason Wang <jasowang@redhat.com>
+Cc: linux-mm@kvack.org
+Cc: virtualization@lists.linux-foundation.org
+
+Nadav Amit (19):
+  vmw_balloon: handle commands in a single function.
+  vmw_balloon: unify commands tracing and stats
+  vmw_balloon: merge send_lock and send_unlock path
+  vmw_balloon: simplifying batch access
+  vmw_balloon: remove sleeping allocations
+  vmw_balloon: change batch/single lock abstractions
+  vmw_balloon: treat all refused pages equally
+  vmw_balloon: rename VMW_BALLOON_2M_SHIFT to VMW_BALLOON_2M_ORDER
+  vmw_balloon: refactor change size from vmballoon_work
+  vmw_balloon: simplify vmballoon_send_get_target()
+  vmw_balloon: stats rework
+  vmw_balloon: rework the inflate and deflate loops
+  vmw_balloon: general style cleanup
+  vmw_balloon: add reset stat
+  mm/balloon_compaction: suppress allocation warnings
+  mm/balloon_compaction: list interfaces
+  vmw_balloon: compaction support
+  vmw_balloon: memory shrinker
+  vmw_balloon: split refused pages
+
+Xavier Deguillard (1):
+  vmw_balloon: support 64-bit memory limit
+
+ drivers/misc/Kconfig               |    1 +
+ drivers/misc/vmw_balloon.c         | 2198 +++++++++++++++++++---------
+ include/linux/balloon_compaction.h |    4 +
+ mm/balloon_compaction.c            |  142 +-
+ 4 files changed, 1578 insertions(+), 767 deletions(-)
+
+-- 
+2.17.1
