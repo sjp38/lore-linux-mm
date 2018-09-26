@@ -1,46 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 15DE78E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 11:45:28 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id a4-v6so6015328pfi.16
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 08:45:28 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id o5-v6si5589893pgo.250.2018.09.26.08.45.26
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 445F18E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 12:10:02 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id g26-v6so24847852qkm.20
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 09:10:02 -0700 (PDT)
+Received: from a9-92.smtp-out.amazonses.com (a9-92.smtp-out.amazonses.com. [54.240.9.92])
+        by mx.google.com with ESMTPS id n52-v6si26074qtf.91.2018.09.26.09.10.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Sep 2018 08:45:27 -0700 (PDT)
-Subject: Re: [PATCH v5 2/4] mm: Provide kernel parameter to allow disabling
- page init poisoning
-References: <20180925200551.3576.18755.stgit@localhost.localdomain>
- <20180925201921.3576.84239.stgit@localhost.localdomain>
- <20180926073831.GC6278@dhcp22.suse.cz>
- <c57da51a-009a-9500-4dc5-1d9912e78abd@linux.intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <98411844-19b7-a75b-d52c-6e2c46b40d57@intel.com>
-Date: Wed, 26 Sep 2018 08:41:29 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 26 Sep 2018 09:10:01 -0700 (PDT)
+Date: Wed, 26 Sep 2018 16:10:00 +0000
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm/slub: remove useless condition in deactivate_slab
+In-Reply-To: <1537941430-16217-1-git-send-email-kernelfans@gmail.com>
+Message-ID: <0100016616a4f0fd-f0a41fd1-117b-4693-b57a-06262bbb9297-000000@email.amazonses.com>
+References: <1537941430-16217-1-git-send-email-kernelfans@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <c57da51a-009a-9500-4dc5-1d9912e78abd@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@linux.intel.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pavel.tatashin@microsoft.com, dave.jiang@intel.com, jglisse@redhat.com, rppt@linux.vnet.ibm.com, dan.j.williams@intel.com, logang@deltatee.com, mingo@kernel.org, kirill.shutemov@linux.intel.com
+To: Pingfan Liu <kernelfans@gmail.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 09/26/2018 08:24 AM, Alexander Duyck wrote:
-> With no options it works just like slub_debug and enables all
-> available options. So in our case it is a NOP since we wanted the
-> debugging enabled by default.
+On Wed, 26 Sep 2018, Pingfan Liu wrote:
 
-Yeah, but slub_debug is different.
+> The var l should be used to reflect the original list, on which the page
+> should be. But c->page is not on any list. Furthermore, the current code
+> does not update the value of l. Hence remove the related logic
 
-First, nobody uses the slub_debug=- option because *that* is only used
-when you have SLUB_DEBUG=y *and* CONFIG_SLUB_DEBUG_ON=y, which not even
-Fedora does.
-
-slub_debug is *primarily* for *adding* debug features.  For this, we
-need to turn them off.
-
-It sounds like following slub_debug was a bad idea, especially following
-its semantics too closely when it doesn't make sense.
+Acked-by: Christoph Lameter <cl@linux.com>
