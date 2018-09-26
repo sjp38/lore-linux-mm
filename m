@@ -1,67 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 79F458E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 07:14:24 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id v14-v6so1104956edq.10
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 04:14:24 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t22-v6si1180459edr.225.2018.09.26.04.14.23
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 769038E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 07:27:54 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id q12-v6so16166495otf.20
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 04:27:54 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id v13-v6si2661385ote.41.2018.09.26.04.27.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Sep 2018 04:14:23 -0700 (PDT)
-Subject: Re: [v11 PATCH 3/3] mm: unmap VM_PFNMAP mappings with optimized path
-References: <1537376621-51150-1-git-send-email-yang.shi@linux.alibaba.com>
- <1537376621-51150-4-git-send-email-yang.shi@linux.alibaba.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <889734e0-d2a9-3191-8d48-5c95bf29fb3f@suse.cz>
-Date: Wed, 26 Sep 2018 13:11:45 +0200
+        Wed, 26 Sep 2018 04:27:53 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8QBOOtV086589
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 07:27:52 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mr7ud43pe-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 07:27:52 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Wed, 26 Sep 2018 12:27:50 +0100
+Date: Wed, 26 Sep 2018 14:27:45 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH] csky: fixups after bootmem removal
 MIME-Version: 1.0
-In-Reply-To: <1537376621-51150-4-git-send-email-yang.shi@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Message-Id: <20180926112744.GC4628@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>, mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org
-Cc: dave.hansen@intel.com, oleg@redhat.com, srikar@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Guo Ren <ren_guo@c-sky.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 9/19/18 7:03 PM, Yang Shi wrote:
-> When unmapping VM_PFNMAP mappings, vm flags need to be updated. Since
-> the vmas have been detached, so it sounds safe to update vm flags with
-> read mmap_sem.
-> 
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Reviewed-by: Matthew Wilcox <willy@infradead.org>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> ---
->  mm/mmap.c | 9 ---------
->  1 file changed, 9 deletions(-)
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 490340e..847a17d 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2771,15 +2771,6 @@ static int __do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
->  				munlock_vma_pages_all(tmp);
->  			}
->  
-> -			/*
-> -			 * Unmapping vmas, which have VM_HUGETLB or VM_PFNMAP,
+Hi,
 
-Ah, the comment should have been already updated with the previous
-patch. But nevermind as that all goes away.
+The below patch fixes the bootmem leftovers in csky. It is based on the
+current mmots and csky build there fails because of undefined reference to
+dma_direct_ops:
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+  MODPOST vmlinux.o
+kernel/dma/mapping.o: In function `dmam_alloc_attrs':
+kernel/dma/mapping.c:143: undefined reference to `dma_direct_ops'
+kernel/dma/mapping.o: In function `dmam_declare_coherent_memory':
+kernel/dma/mapping.c:184: undefined reference to `dma_direct_ops'
+mm/dmapool.o: In function `dma_free_attrs': 
+include/linux/dma-mapping.h:558: undefined reference to `dma_direct_ops'
 
-> -			 * need get done with write mmap_sem held since they may
-> -			 * update vm_flags.
-> -			 */
-> -			if (downgrade &&
-> -			    (tmp->vm_flags & VM_PFNMAP))
-> -				downgrade = false;
-> -
->  			tmp = tmp->vm_next;
->  		}
->  	}
-> 
+I've blindly added "select DMA_DIRECT_OPS" to arch/csky/Kconfig and it
+fixed the build, but I really have no idea if this the right thing to do...
