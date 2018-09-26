@@ -1,57 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ABF198E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 12:19:09 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id i189-v6so3259949pge.6
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 09:19:09 -0700 (PDT)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id d127-v6si5266593pfa.189.2018.09.26.09.19.08
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 268FA8E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 12:58:54 -0400 (EDT)
+Received: by mail-it1-f197.google.com with SMTP id w132-v6so3990570ita.6
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 09:58:54 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i15-v6sor3765292iti.76.2018.09.26.09.58.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Sep 2018 09:19:08 -0700 (PDT)
-Subject: Re: [PATCH v5 2/4] mm: Provide kernel parameter to allow disabling
- page init poisoning
-References: <20180925200551.3576.18755.stgit@localhost.localdomain>
- <20180925201921.3576.84239.stgit@localhost.localdomain>
- <20180926073831.GC6278@dhcp22.suse.cz>
- <c57da51a-009a-9500-4dc5-1d9912e78abd@linux.intel.com>
- <98411844-19b7-a75b-d52c-6e2c46b40d57@intel.com>
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Message-ID: <0845f5c1-5737-3749-69dd-e7fb5d1b75c6@linux.intel.com>
-Date: Wed, 26 Sep 2018 09:18:16 -0700
+        (Google Transport Security);
+        Wed, 26 Sep 2018 09:58:53 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <98411844-19b7-a75b-d52c-6e2c46b40d57@intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com> <1536927045-23536-4-git-send-email-rppt@linux.vnet.ibm.com>
+In-Reply-To: <1536927045-23536-4-git-send-email-rppt@linux.vnet.ibm.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Wed, 26 Sep 2018 09:58:41 -0700
+Message-ID: <CAKgT0UdP=78RsWHMxFu4PD8a3AhA3eNcG68Z_9aGY0vhOKf7xA@mail.gmail.com>
+Subject: Re: [PATCH 03/30] mm: remove CONFIG_HAVE_MEMBLOCK
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pavel.tatashin@microsoft.com, dave.jiang@intel.com, jglisse@redhat.com, rppt@linux.vnet.ibm.com, dan.j.williams@intel.com, logang@deltatee.com, mingo@kernel.org, kirill.shutemov@linux.intel.com
+To: rppt@linux.vnet.ibm.com
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, chris@zankel.net, David Miller <davem@davemloft.net>, Geert Uytterhoeven <geert@linux-m68k.org>, green.hu@gmail.com, Greg KH <gregkh@linuxfoundation.org>, gxt@pku.edu.cn, Ingo Molnar <mingo@redhat.com>, jejb@parisc-linux.org, jonas@southpole.se, Jonathan Corbet <corbet@lwn.net>, lftan@altera.com, msalter@redhat.com, Martin Schwidefsky <schwidefsky@de.ibm.com>, mattst88@gmail.com, mpe@ellerman.id.au, Michal Hocko <mhocko@suse.com>, monstr@monstr.eu, palmer@sifive.com, paul.burton@mips.com, rkuo@codeaurora.org, richard@nod.at, dalias@libc.org, Russell King - ARM Linux <linux@armlinux.org.uk>, fancer.lancer@gmail.com, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, vgupta@synopsys.com, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, nios2-dev@lists.rocketboards.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp
 
+On Fri, Sep 14, 2018 at 5:11 AM Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+>
+> All architecures use memblock for early memory management. There is no need
+> for the CONFIG_HAVE_MEMBLOCK configuration option.
+>
+> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 
+<snip>
 
-On 9/26/2018 8:41 AM, Dave Hansen wrote:
-> On 09/26/2018 08:24 AM, Alexander Duyck wrote:
->> With no options it works just like slub_debug and enables all
->> available options. So in our case it is a NOP since we wanted the
->> debugging enabled by default.
-> 
-> Yeah, but slub_debug is different.
-> 
-> First, nobody uses the slub_debug=- option because *that* is only used
-> when you have SLUB_DEBUG=y *and* CONFIG_SLUB_DEBUG_ON=y, which not even
-> Fedora does.
-> 
-> slub_debug is *primarily* for *adding* debug features.  For this, we
-> need to turn them off.
-> 
-> It sounds like following slub_debug was a bad idea, especially following
-> its semantics too closely when it doesn't make sense.
+> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> index 5169205..4ae91fc 100644
+> --- a/include/linux/memblock.h
+> +++ b/include/linux/memblock.h
+> @@ -2,7 +2,6 @@
+>  #define _LINUX_MEMBLOCK_H
+>  #ifdef __KERNEL__
+>
+> -#ifdef CONFIG_HAVE_MEMBLOCK
+>  /*
+>   * Logical memory blocks.
+>   *
+> @@ -460,7 +459,6 @@ static inline phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align)
+>  {
+>         return 0;
+>  }
+> -#endif /* CONFIG_HAVE_MEMBLOCK */
+>
+>  #endif /* __KERNEL__ */
 
-I actually like the idea of using slub_debug style semantics. It makes 
-sense when you start thinking about future features being added. Then we 
-might actually have scenarios where vm_debug=P will make sense, but for 
-right now it is probably not going to be used. Basically this all makes 
-room for future expansion. It is just ugly to read right now while we 
-only have one feature controlled by this bit.
+There was an #else above this section and I believe it and the code
+after it needs to be stripped as well.
