@@ -1,68 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D98A78E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 11:24:45 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id p192-v6so29771144qke.13
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 08:24:45 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id w7-v6sor1190846qvh.152.2018.09.26.08.24.44
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E9CB8E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 11:25:22 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id d40-v6so10891882pla.14
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 08:25:22 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id w15-v6si5151960pgc.366.2018.09.26.08.25.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 26 Sep 2018 08:24:44 -0700 (PDT)
-Date: Wed, 26 Sep 2018 11:25:23 -0400
-From: Konstantin Ryabitsev <konstantin@linuxfoundation.org>
-Subject: Re: linux-mm@ archive on lore.kernel.org (Was: [PATCH 0/2] thp
- nodereclaim fixes)
-Message-ID: <20180926152523.GA8154@chatter>
-References: <20180925120326.24392-1-mhocko@kernel.org>
- <20180926130850.vk6y6zxppn7bkovk@kshutemo-mobl1>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Sep 2018 08:25:21 -0700 (PDT)
+Subject: Re: [PATCH v5 2/4] mm: Provide kernel parameter to allow disabling
+ page init poisoning
+References: <20180925200551.3576.18755.stgit@localhost.localdomain>
+ <20180925201921.3576.84239.stgit@localhost.localdomain>
+ <20180926073831.GC6278@dhcp22.suse.cz>
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Message-ID: <c57da51a-009a-9500-4dc5-1d9912e78abd@linux.intel.com>
+Date: Wed, 26 Sep 2018 08:24:56 -0700
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="J2SCkAp4GZ/dPZZf"
-Content-Disposition: inline
-In-Reply-To: <20180926130850.vk6y6zxppn7bkovk@kshutemo-mobl1>
+In-Reply-To: <20180926073831.GC6278@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pavel.tatashin@microsoft.com, dave.jiang@intel.com, dave.hansen@intel.com, jglisse@redhat.com, rppt@linux.vnet.ibm.com, dan.j.williams@intel.com, logang@deltatee.com, mingo@kernel.org, kirill.shutemov@linux.intel.com
 
+On 9/26/2018 12:38 AM, Michal Hocko wrote:
+> On Tue 25-09-18 13:20:12, Alexander Duyck wrote:
+> [...]
+>> +	vm_debug[=options]	[KNL] Available with CONFIG_DEBUG_VM=y.
+>> +			May slow down system boot speed, especially when
+>> +			enabled on systems with a large amount of memory.
+>> +			All options are enabled by default, and this
+>> +			interface is meant to allow for selectively
+>> +			enabling or disabling specific virtual memory
+>> +			debugging features.
+>> +
+>> +			Available options are:
+>> +			  P	Enable page structure init time poisoning
+>> +			  -	Disable all of the above options
+> 
+> I agree with Dave that this is confusing as hell. So what does vm_debug
+> (without any options means). I assume it's NOP and all debugging is
+> enabled and that is the default. What if I want to disable _only_ the
+> page struct poisoning. The weird lookcing `-' will disable all other
+> options that we might gather in the future.
 
---J2SCkAp4GZ/dPZZf
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+With no options it works just like slub_debug and enables all available 
+options. So in our case it is a NOP since we wanted the debugging 
+enabled by default.
 
-On Wed, Sep 26, 2018 at 04:08:50PM +0300, Kirill A. Shutemov wrote:
->On Tue, Sep 25, 2018 at 02:03:24PM +0200, Michal Hocko wrote:
->> Thoughts, alternative patches?
->>
->> [1] http://lkml.kernel.org/r/20180820032204.9591-1-aarcange@redhat.com
->> [2] http://lkml.kernel.org/r/20180830064732.GA2656@dhcp22.suse.cz
->> [3] http://lkml.kernel.org/r/20180820032640.9896-2-aarcange@redhat.com
->
->All these links are broken. lore.kernel.org doesn't have linux-mm@ archive.
->
->Can we get it added?
+> Why cannot you simply go with [no]vm_page_poison[=on/off]?
 
-Adding linux-mm to lore.kernel.org certainly should happen, but it will=20
-not fix the above problem, because lkml.kernel.org/r/<foo> links only=20
-work for messages on LKML, not for all messages passing through vger=20
-lists (hence the word "lkml" in the name).
+That is what I had to begin with, but Dave Hansen and Dan Williams 
+suggested that I go with a slub_debug style interface so we could extend 
+it in the future.
 
-Once linux-mm is added, you should link to those discussions using=20
-lore.kernel.org/linux-mm/<msgid> links.
-
--K
-
---J2SCkAp4GZ/dPZZf
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iHUEABYIAB0WIQR2vl2yUnHhSB5njDW2xBzjVmSZbAUCW6uk4wAKCRC2xBzjVmSZ
-bJwRAQCMjR606Nwvm/8ppqVhjAIW0Nak0uvZWnyjcUZqt8xLmgD9HDeVOPWIE77M
-1X7L6stT5sKJjgA6RIG3buA8XFQlvAY=
-=mlkK
------END PGP SIGNATURE-----
-
---J2SCkAp4GZ/dPZZf--
+It would probably make more sense if we had additional options added, 
+but we only have one option for now so the only values we really have 
+are 'P' and '-' for now.
