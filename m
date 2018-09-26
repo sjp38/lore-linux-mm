@@ -1,82 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E9C768E0008
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 17:09:12 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id s22-v6so475509qkg.2
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 14:09:12 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CCF88E0008
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 17:09:14 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id d205-v6so434876qkg.16
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 14:09:14 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k22-v6sor44957qtq.95.2018.09.26.14.09.12
+        by mx.google.com with SMTPS id b54-v6sor54187qtk.74.2018.09.26.14.09.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 26 Sep 2018 14:09:12 -0700 (PDT)
+        Wed, 26 Sep 2018 14:09:13 -0700 (PDT)
 From: Josef Bacik <josef@toxicpanda.com>
-Subject: [PATCH 7/9] mm: add a flag to indicate we used a cached page
-Date: Wed, 26 Sep 2018 17:08:54 -0400
-Message-Id: <20180926210856.7895-8-josef@toxicpanda.com>
+Subject: [PATCH 8/9] mm: allow ->page_mkwrite to do retries
+Date: Wed, 26 Sep 2018 17:08:55 -0400
+Message-Id: <20180926210856.7895-9-josef@toxicpanda.com>
 In-Reply-To: <20180926210856.7895-1-josef@toxicpanda.com>
 References: <20180926210856.7895-1-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: kernel-team@fb.com, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, tj@kernel.org, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, riel@redhat.com, linux-mm@kvack.org, linux-btrfs@vger.kernel.org
 
-This is preparation for dropping the mmap_sem in page_mkwrite.  We need
-to know if we used our cached page so we can be sure it is the page we
-already did the page_mkwrite stuff on so we don't have to redo all of
-that work.
+Before we didn't set the retry flag on our vm_fault.  We want to allow
+file systems to drop the mmap_sem if they so choose, so set this flag
+and deal with VM_FAULT_RETRY appropriately.
 
 Signed-off-by: Josef Bacik <josef@toxicpanda.com>
 ---
- include/linux/mm.h | 6 +++++-
- mm/filemap.c       | 5 ++++-
- 2 files changed, 9 insertions(+), 2 deletions(-)
+ mm/memory.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 4a84ec976dfc..a7305d193c71 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -318,6 +318,9 @@ extern pgprot_t protection_map[16];
- #define FAULT_FLAG_USER		0x40	/* The fault originated in userspace */
- #define FAULT_FLAG_REMOTE	0x80	/* faulting for non current tsk/mm */
- #define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instruction fetch */
-+#define FAULT_FLAG_USED_CACHED	0x200	/* Our vmf->page was from a previous
-+					 * loop through the fault handler.
-+					 */
+diff --git a/mm/memory.c b/mm/memory.c
+index 6f8abde84986..821435855177 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2384,11 +2384,13 @@ static vm_fault_t do_page_mkwrite(struct vm_fault *vmf)
+ 	unsigned int old_flags = vmf->flags;
  
- #define FAULT_FLAG_TRACE \
- 	{ FAULT_FLAG_WRITE,		"WRITE" }, \
-@@ -328,7 +331,8 @@ extern pgprot_t protection_map[16];
- 	{ FAULT_FLAG_TRIED,		"TRIED" }, \
- 	{ FAULT_FLAG_USER,		"USER" }, \
- 	{ FAULT_FLAG_REMOTE,		"REMOTE" }, \
--	{ FAULT_FLAG_INSTRUCTION,	"INSTRUCTION" }
-+	{ FAULT_FLAG_INSTRUCTION,	"INSTRUCTION" }, \
-+	{ FAULT_FLAG_USED_CACHED,	"USED_CACHED" }
+ 	vmf->flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
++	vmf->flags |= old_flags & FAULT_FLAG_ALLOW_RETRY;
  
- /*
-  * vm_fault is filled by the the pagefault handler and passed to the vma's
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 5212ab637832..e9cb44bd35aa 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2556,6 +2556,7 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
- 		if (cached_page->mapping == mapping &&
- 		    cached_page->index == offset) {
- 			page = cached_page;
-+			vmf->flags |= FAULT_FLAG_USED_CACHED;
- 			goto have_cached_page;
+ 	ret = vmf->vma->vm_ops->page_mkwrite(vmf);
+ 	/* Restore original flags so that caller is not surprised */
+ 	vmf->flags = old_flags;
+-	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
++	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE |
++			    VM_FAULT_RETRY)))
+ 		return ret;
+ 	if (unlikely(!(ret & VM_FAULT_LOCKED))) {
+ 		lock_page(page);
+@@ -2683,7 +2685,8 @@ static vm_fault_t wp_page_shared(struct vm_fault *vmf)
+ 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+ 		tmp = do_page_mkwrite(vmf);
+ 		if (unlikely(!tmp || (tmp &
+-				      (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
++				      (VM_FAULT_ERROR | VM_FAULT_NOPAGE |
++				       VM_FAULT_RETRY)))) {
+ 			put_page(vmf->page);
+ 			return tmp;
  		}
- 		unlock_page(cached_page);
-@@ -2619,8 +2620,10 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
- 	 * We have a locked page in the page cache, now we need to check
- 	 * that it's up-to-date. If not, it is going to be due to an error.
- 	 */
--	if (unlikely(!PageUptodate(page)))
-+	if (unlikely(!PageUptodate(page))) {
-+		vmf->flags &= ~(FAULT_FLAG_USED_CACHED);
- 		goto page_not_uptodate;
-+	}
- 
- 	/*
- 	 * Found the page and have a reference on it.
+@@ -3716,7 +3719,8 @@ static vm_fault_t do_shared_fault(struct vm_fault *vmf)
+ 		unlock_page(vmf->page);
+ 		tmp = do_page_mkwrite(vmf);
+ 		if (unlikely(!tmp ||
+-				(tmp & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
++				(tmp & (VM_FAULT_ERROR | VM_FAULT_NOPAGE |
++					VM_FAULT_RETRY)))) {
+ 			put_page(vmf->page);
+ 			return tmp;
+ 		}
 -- 
 2.14.3
