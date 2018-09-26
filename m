@@ -1,44 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C1E148E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 05:38:49 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id h4-v6so995941ede.5
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 02:38:49 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0212E8E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 05:41:59 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id h4-v6so1000833ede.5
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 02:41:58 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e4-v6si8831062ede.111.2018.09.26.02.38.48
+        by mx.google.com with ESMTPS id j32-v6si1986381eda.106.2018.09.26.02.41.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Sep 2018 02:38:48 -0700 (PDT)
-Date: Wed, 26 Sep 2018 11:38:46 +0200
+        Wed, 26 Sep 2018 02:41:57 -0700 (PDT)
+Date: Wed, 26 Sep 2018 11:41:54 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 29/30] mm: remove include/linux/bootmem.h
-Message-ID: <20180926093846.GS6278@dhcp22.suse.cz>
+Subject: Re: [PATCH 00/30] mm: remove bootmem allocator
+Message-ID: <20180926094154.GT6278@dhcp22.suse.cz>
 References: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com>
- <1536927045-23536-30-git-send-email-rppt@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1536927045-23536-30-git-send-email-rppt@linux.vnet.ibm.com>
+In-Reply-To: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mike Rapoport <rppt@linux.vnet.ibm.com>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, "David S. Miller" <davem@davemloft.net>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jonas Bonn <jonas@southpole.se>, Jonathan Corbet <corbet@lwn.net>, Ley Foon Tan <lftan@altera.com>, Mark Salter <msalter@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matt Turner <mattst88@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Palmer Dabbelt <palmer@sifive.com>, Paul Burton <paul.burton@mips.com>, Richard Kuo <rkuo@codeaurora.org>, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Serge Semin <fancer.lancer@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, nios2-dev@lists.rocketboards.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp
 
-On Fri 14-09-18 15:10:44, Mike Rapoport wrote:
-> Move remaining definitions and declarations from include/linux/bootmem.h
-> into include/linux/memblock.h and remove the redundant header.
-> 
-> The includes were replaced with the semantic patch below and then
-> semi-automated removal of duplicated '#include <linux/memblock.h>
-> 
-> @@
-> @@
-> - #include <linux/bootmem.h>
-> + #include <linux/memblock.h>
-> 
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+On Fri 14-09-18 15:10:15, Mike Rapoport wrote:
+[...]
+>  326 files changed, 866 insertions(+), 2539 deletions(-)
+>  delete mode 100644 include/linux/bootmem.h
+>  delete mode 100644 mm/bootmem.c
+>  delete mode 100644 mm/nobootmem.c
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+I _really_ love this part the most! Not only we got rid of the
+translation which always has been a headache but also this nicely shows
+how having multiple allocators hurt. I believe further cleanups on top
+will make the boot allocator even a place where you look and your eyes
+do not want to jump out.
+
+I have only went through patches without my acks from the previous
+iteration and there are only minor comments. This looks good overall.
+
+Nice work Mike!
 -- 
 Michal Hocko
 SUSE Labs
