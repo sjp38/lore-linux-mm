@@ -1,85 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 19CE28E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 08:54:13 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id p23-v6so31672599otl.23
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 05:54:13 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 19-v6si2065137oij.45.2018.09.26.05.54.12
-        for <linux-mm@kvack.org>;
-        Wed, 26 Sep 2018 05:54:12 -0700 (PDT)
-Date: Wed, 26 Sep 2018 13:54:06 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH 08/18] arm/tlb: Convert to generic mmu_gather
-Message-ID: <20180926125405.GH2979@brain-police>
-References: <20180926113623.863696043@infradead.org>
- <20180926114800.927066872@infradead.org>
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B5898E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 08:56:07 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id g8-v6so481292plm.16
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 05:56:07 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id a7-v6si3239785plp.9.2018.09.26.05.56.05
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Sep 2018 05:56:05 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -V5 RESEND 03/21] swap: Support PMD swap mapping in swap_duplicate()
+References: <20180925071348.31458-1-ying.huang@intel.com>
+	<20180925071348.31458-4-ying.huang@intel.com>
+	<20180925191953.4ped5ki7u3ymafmd@ca-dmjordan1.us.oracle.com>
+Date: Wed, 26 Sep 2018 20:55:59 +0800
+In-Reply-To: <20180925191953.4ped5ki7u3ymafmd@ca-dmjordan1.us.oracle.com>
+	(Daniel Jordan's message of "Tue, 25 Sep 2018 12:19:53 -0700")
+Message-ID: <874lecifj4.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180926114800.927066872@infradead.org>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, npiggin@gmail.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@armlinux.org.uk, heiko.carstens@de.ibm.com, riel@surriel.com
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Wed, Sep 26, 2018 at 01:36:31PM +0200, Peter Zijlstra wrote:
-> Generic mmu_gather provides everything that ARM needs:
-> 
->  - range tracking
->  - RCU table free
->  - VM_EXEC tracking
->  - VIPT cache flushing
-> 
-> The one notable curiosity is the 'funny' range tracking for classical
-> ARM in __pte_free_tlb().
-> 
-> Cc: Nick Piggin <npiggin@gmail.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: Russell King <linux@armlinux.org.uk>
-> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-> ---
->  arch/arm/include/asm/tlb.h |  255 ++-------------------------------------------
->  1 file changed, 14 insertions(+), 241 deletions(-)
+Daniel Jordan <daniel.m.jordan@oracle.com> writes:
 
-[...]
+> On Tue, Sep 25, 2018 at 03:13:30PM +0800, Huang Ying wrote:
+>> @@ -3487,35 +3521,66 @@ static int __swap_duplicate_locked(struct swap_info_struct *p,
+>>  }
+>>  
+>>  /*
+>> - * Verify that a swap entry is valid and increment its swap map count.
+>> + * Verify that the swap entries from *entry is valid and increment their
+>> + * PMD/PTE swap mapping count.
+>>   *
+>>   * Returns error code in following case.
+>>   * - success -> 0
+>>   * - swp_entry is invalid -> EINVAL
+>> - * - swp_entry is migration entry -> EINVAL
+>
+> I'm assuming it wasn't possible to hit this error before this patch, and you're
+> just removing it now since you're in the area?
 
->  static inline void
-> -tlb_remove_pmd_tlb_entry(struct mmu_gather *tlb, pmd_t *pmdp, unsigned long addr)
-> +__pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp, unsigned long addr)
->  {
-> -	tlb_add_flush(tlb, addr);
-> -}
-> -
-> -#define pte_free_tlb(tlb, ptep, addr)	__pte_free_tlb(tlb, ptep, addr)
-> -#define pmd_free_tlb(tlb, pmdp, addr)	__pmd_free_tlb(tlb, pmdp, addr)
-> -#define pud_free_tlb(tlb, pudp, addr)	pud_free((tlb)->mm, pudp)
-> -
-> -#define tlb_migrate_finish(mm)		do { } while (0)
-> -
-> -static inline void tlb_change_page_size(struct mmu_gather *tlb,
-> -						     unsigned int page_size)
-> -{
-> -}
-> -
-> -static inline void tlb_flush_remove_tables(struct mm_struct *mm)
-> -{
-> -}
-> +#ifdef CONFIG_ARM_LPAE
-> +	struct page *page = virt_to_page(pmdp);
->  
-> -static inline void tlb_flush_remove_tables_local(void *arg)
-> -{
-> +	pgtable_pmd_page_dtor(page);
+Yes.
 
-The dtor() is a NOP for Arm, so I don't think you need too call it (and we
-never call the ctor() afaict). I wonder if should be caring about this on
-arm64...
+>>   * - swap-cache reference is requested but there is already one. -> EEXIST
+>>   * - swap-cache reference is requested but the entry is not used. -> ENOENT
+>>   * - swap-mapped reference requested but needs continued swap count. -> ENOMEM
+>> + * - the huge swap cluster has been split. -> ENOTDIR
+>
+> Strangely intuitive choice of error code :)
 
-Other than that:
+Thanks!  It doesn't match the error exactly, but I have no better choice
+now.  Matthew Wilcox have suggested to use an swap specific enum
+instead.  I think that is good in general, but we need only one extra
+error code, and we need to change the interface of several swap
+functions.  So I think that should be in a separate patchset if
+necessary.
 
-Acked-by: Will Deacon <will.deacon@arm.com>
+>>  /*
+>>   * Increase reference count of swap entry by 1.
+>> - * Returns 0 for success, or -ENOMEM if a swap_count_continuation is required
+>> - * but could not be atomically allocated.  Returns 0, just as if it succeeded,
+>> - * if __swap_duplicate() fails for another reason (-EINVAL or -ENOENT), which
+>> - * might occur if a page table entry has got corrupted.
+>> + *
+>> + * Return error code in following case.
+>> + * - success -> 0
+>> + * - swap_count_continuation is required but could not be atomically allocated.
+>> + *   *entry is used to return swap entry to call add_swap_count_continuation().
+>> + *								      -> ENOMEM
+>> + * - otherwise same as __swap_duplicate()
+>>   */
+>> -int swap_duplicate(swp_entry_t entry)
+>> +int swap_duplicate(swp_entry_t *entry, int entry_size)
+>>  {
+>>  	int err = 0;
+>>  
+>> -	while (!err && __swap_duplicate(entry, 1) == -ENOMEM)
+>> -		err = add_swap_count_continuation(entry, GFP_ATOMIC);
+>> +	while (!err &&
+>> +	       (err = __swap_duplicate(entry, entry_size, 1)) == -ENOMEM)
+>> +		err = add_swap_count_continuation(*entry, GFP_ATOMIC);
+>>  	return err;
+>
+> Now we're returning any error we get from __swap_duplicate, apparently to
+> accommodate ENOTDIR later in the series, which is a change from the behavior
+> introduced in 570a335b8e22 ("swap_info: swap count continuations").  This might
+> belong in a separate patch given its potential for side effects.
 
-Will
+I have checked all the calls of the function and found there will be no
+bad effect.  Do you have any side effect?
+
+> Although, I don't understand why 570a335b8e22 ignored errors other than -ENOMEM
+> when both swap_duplicate callers _seem_ from a quick read to be able to respond
+> gracefully to any error.
+
+Before 570a335b8e22, all errors are ignored in swap_duplicate() (its
+type is void).  If my understanding were correct, all errors except
+-ENOMEM are impossible before changes in this patchset.  So they are
+ignored.
+
+Best Regards,
+Huang, Ying
