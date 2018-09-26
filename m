@@ -1,42 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C6D308E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 08:36:05 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id s7-v6so5115773pgp.3
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 05:36:05 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id D5D1E8E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 08:40:38 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id 191-v6so12142305pgb.23
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 05:40:38 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x4-v6sor615394pge.88.2018.09.26.05.36.04
+        by mx.google.com with SMTPS id p17-v6sor334205pge.11.2018.09.26.05.40.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 26 Sep 2018 05:36:04 -0700 (PDT)
-Date: Wed, 26 Sep 2018 15:35:58 +0300
+        Wed, 26 Sep 2018 05:40:37 -0700 (PDT)
+Date: Wed, 26 Sep 2018 15:40:32 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [v11 PATCH 0/3] mm: zap pages with read mmap_sem in munmap for
- large mapping
-Message-ID: <20180926123558.fiutdxeexeiqbndk@kshutemo-mobl1>
-References: <1537376621-51150-1-git-send-email-yang.shi@linux.alibaba.com>
+Subject: Re: [PATCH V2] mm: Recheck page table entry with page table lock held
+Message-ID: <20180926124032.gxvo43sisumybysu@kshutemo-mobl1>
+References: <20180926031858.9692-1-aneesh.kumar@linux.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1537376621-51150-1-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <20180926031858.9692-1-aneesh.kumar@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, vbabka@suse.cz, akpm@linux-foundation.org, dave.hansen@intel.com, oleg@redhat.com, srikar@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: akpm@linux-foundation.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Sep 20, 2018 at 01:03:38AM +0800, Yang Shi wrote:
+On Wed, Sep 26, 2018 at 08:48:58AM +0530, Aneesh Kumar K.V wrote:
+> We clear the pte temporarily during read/modify/write update of the pte. If we
+> take a page fault while the pte is cleared, the application can get SIGBUS. One
+> such case is with remap_pfn_range without a backing vm_ops->fault callback.
+> do_fault will return SIGBUS in that case.
 > 
-> Yang Shi (3):
->       mm: mmap: zap pages with read mmap_sem in munmap
->       mm: unmap VM_HUGETLB mappings with optimized path
->       mm: unmap VM_PFNMAP mappings with optimized path
+> cpu 0		 				cpu1
+> mprotect()
+> ptep_modify_prot_start()/pte cleared.
+> .
+> .						page fault.
+> .
+> .
+> prep_modify_prot_commit()
 > 
->  mm/mmap.c | 50 +++++++++++++++++++++++++++++++++++++++-----------
->  1 file changed, 39 insertions(+), 11 deletions(-)
+> Fix this by taking page table lock and rechecking for pte_none.
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+> ---
+> V1:
+> * update commit message.
 
-The patchset looks good to me.
+You choosed to stick with VM_FAULT_NOPAGE, that's fine.
 
 Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
+Should it be in stable?
 
 -- 
  Kirill A. Shutemov
