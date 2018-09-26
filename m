@@ -1,83 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 224828E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 06:09:36 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id n64-v6so12384311qkd.10
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 03:09:36 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y35-v6si1128281qtk.314.2018.09.26.03.09.35
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 905268E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 06:57:10 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id e15-v6so14568205pfi.5
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 03:57:10 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id 14-v6si4962084pgm.488.2018.09.26.03.57.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Sep 2018 03:09:35 -0700 (PDT)
-Subject: Re: [PATCH v2 5/6] powerpc/powernv: hold device_hotplug_lock when
- calling memtrace_offline_pages()
-References: <20180925091457.28651-1-david@redhat.com>
- <20180925091457.28651-6-david@redhat.com> <20180925121504.GH8537@350D>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <19de0a52-2abd-6e79-1b8e-dcf17eff3fba@redhat.com>
-Date: Wed, 26 Sep 2018 12:09:10 +0200
+        Wed, 26 Sep 2018 03:57:09 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180925121504.GH8537@350D>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
 Content-Transfer-Encoding: 7bit
+Date: Wed, 26 Sep 2018 16:27:08 +0530
+From: Arun KS <arunks@codeaurora.org>
+Subject: Re: [PATCH v2] memory_hotplug: Free pages as higher order
+In-Reply-To: <20180925181826.GW18685@dhcp22.suse.cz>
+References: <1537854158-9766-1-git-send-email-arunks@codeaurora.org>
+ <ccdbaf76-cbdd-759e-c6de-c5b738f156e9@suse.cz>
+ <20180925181826.GW18685@dhcp22.suse.cz>
+Message-ID: <bdba4200b69f560af36967e2d23dde8f@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Rashmica Gupta <rashmica.g@gmail.com>, Michael Neuling <mikey@neuling.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, akpm@linux-foundation.org, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, osalvador@suse.de, malat@debian.org, yasu.isimatu@gmail.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com
 
-On 25/09/2018 14:15, Balbir Singh wrote:
-> On Tue, Sep 25, 2018 at 11:14:56AM +0200, David Hildenbrand wrote:
->> Let's perform all checking + offlining + removing under
->> device_hotplug_lock, so nobody can mess with these devices via
->> sysfs concurrently.
->>
->> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
->> Cc: Paul Mackerras <paulus@samba.org>
->> Cc: Michael Ellerman <mpe@ellerman.id.au>
->> Cc: Rashmica Gupta <rashmica.g@gmail.com>
->> Cc: Balbir Singh <bsingharora@gmail.com>
->> Cc: Michael Neuling <mikey@neuling.org>
->> Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
->> Reviewed-by: Rashmica Gupta <rashmica.g@gmail.com>
->> Signed-off-by: David Hildenbrand <david@redhat.com>
->> ---
->>  arch/powerpc/platforms/powernv/memtrace.c | 4 +++-
->>  1 file changed, 3 insertions(+), 1 deletion(-)
->>
->> diff --git a/arch/powerpc/platforms/powernv/memtrace.c b/arch/powerpc/platforms/powernv/memtrace.c
->> index fdd48f1a39f7..d84d09c56af9 100644
->> --- a/arch/powerpc/platforms/powernv/memtrace.c
->> +++ b/arch/powerpc/platforms/powernv/memtrace.c
->> @@ -70,6 +70,7 @@ static int change_memblock_state(struct memory_block *mem, void *arg)
->>  	return 0;
->>  }
->>  
->> +/* called with device_hotplug_lock held */
->>  static bool memtrace_offline_pages(u32 nid, u64 start_pfn, u64 nr_pages)
->>  {
->>  	u64 end_pfn = start_pfn + nr_pages - 1;
->> @@ -111,6 +112,7 @@ static u64 memtrace_alloc_node(u32 nid, u64 size)
->>  	end_pfn = round_down(end_pfn - nr_pages, nr_pages);
->>  
->>  	for (base_pfn = end_pfn; base_pfn > start_pfn; base_pfn -= nr_pages) {
->> +		lock_device_hotplug();
+On 2018-09-25 23:48, Michal Hocko wrote:
+> On Tue 25-09-18 11:59:09, Vlastimil Babka wrote:
+> [...]
+>> This seems like almost complete copy of __free_pages_boot_core(), 
+>> could
+>> you do some code reuse instead? I think Michal Hocko also suggested 
+>> that.
 > 
-> Why not grab the lock before the for loop? That way we can avoid bad cases like a
-> large node being scanned for a small number of pages (nr_pages). Ideally we need
-> a cond_resched() in the loop, but I guess offline_pages() has one.
+> Yes, please try to reuse as much code as possible
+Sure, Will address in next spin.
 
-Yes, it does.
-
-I can move it out of the loop, thanks!
-
-> 
-> Acked-by: Balbir Singh <bsingharora@gmail.com>
-> 
-
-
--- 
-
-Thanks,
-
-David / dhildenb
+Regards,
+Arun
