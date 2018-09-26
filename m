@@ -1,8 +1,8 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A842E8E0001
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B7CA18E0003
 	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 15:15:11 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id n17-v6so50568pff.17
+Received: by mail-pg1-f200.google.com with SMTP id d132-v6so33771pgc.22
         for <linux-mm@kvack.org>; Wed, 26 Sep 2018 12:15:11 -0700 (PDT)
 Received: from EX13-EDG-OU-002.vmware.com (ex13-edg-ou-002.vmware.com. [208.91.0.190])
         by mx.google.com with ESMTPS id q90-v6si5539344pfa.272.2018.09.26.12.15.10
@@ -10,9 +10,11 @@ Received: from EX13-EDG-OU-002.vmware.com (ex13-edg-ou-002.vmware.com. [208.91.0
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Wed, 26 Sep 2018 12:15:10 -0700 (PDT)
 From: Nadav Amit <namit@vmware.com>
-Subject: [PATCH v3 00/20] vmw_balloon: compaction, shrinker, 64-bit, etc.
-Date: Wed, 26 Sep 2018 12:13:16 -0700
-Message-ID: <20180926191336.101885-1-namit@vmware.com>
+Subject: [PATCH v3 16/20] mm/balloon_compaction: list interfaces
+Date: Wed, 26 Sep 2018 12:13:32 -0700
+Message-ID: <20180926191336.101885-17-namit@vmware.com>
+In-Reply-To: <20180926191336.101885-1-namit@vmware.com>
+References: <20180926191336.101885-1-namit@vmware.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -21,70 +23,213 @@ To: Arnd Bergmann <arnd@arndb.de>, gregkh@linuxfoundation.org
 Cc: Xavier Deguillard <xdeguillard@vmware.com>, linux-kernel@vger.kernel.org, Nadav Amit <namit@vmware.com>, "Michael S.
  Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, linux-mm@kvack.org, virtualization@lists.linux-foundation.org
 
-This patch-set adds the following enhancements to the VMware balloon
-driver:
+Introduce interfaces for ballooning enqueueing and dequeueing of a list
+of pages. These interfaces reduce the overhead of storing and restoring
+IRQs by batching the operations. In addition they do not panic if the
+list of pages is empty.
 
-1. Balloon compaction support.
-2. Report the number of inflated/deflated ballooned pages through vmstat.
-3. Memory shrinker to avoid balloon over-inflation (and OOM).
-4. Support VMs with memory limit that is greater than 16TB.
-5. Faster and more aggressive inflation.
-
-To support compaction we wish to use the existing infrastructure.
-However, we need to make slight adaptions for it. We add a new list
-interface to balloon-compaction, which is more generic and efficient,
-since it does not require as many IRQ save/restore operations. We leave
-the old interface that is used by the virtio balloon.
-
-Big parts of this patch-set are cleanup and documentation. Patches 1-13
-simplify the balloon code, document its behavior and allow the balloon
-code to run concurrently. The support for concurrency is required for
-compaction and the shrinker interface.
-
-For documentation we use the kernel-doc format. We are aware that the
-balloon interface is not public, but following the kernel-doc format may
-be useful one day.
-
-v2->v3: * Moving the balloon magic-number out of uapi (Greg)
-
-v1->v2:	* Fix build error when THP is off (kbuild)
-	* Fix build error on i386 (kbuild)
-
-Cc: Xavier Deguillard <xdeguillard@vmware.com>
 Cc: "Michael S. Tsirkin" <mst@redhat.com>
 Cc: Jason Wang <jasowang@redhat.com>
 Cc: linux-mm@kvack.org
 Cc: virtualization@lists.linux-foundation.org
+Reviewed-by: Xavier Deguillard <xdeguillard@vmware.com>
+Signed-off-by: Nadav Amit <namit@vmware.com>
+---
+ include/linux/balloon_compaction.h |   4 +
+ mm/balloon_compaction.c            | 139 +++++++++++++++++++++--------
+ 2 files changed, 105 insertions(+), 38 deletions(-)
 
-Nadav Amit (19):
-  vmw_balloon: handle commands in a single function.
-  vmw_balloon: unify commands tracing and stats
-  vmw_balloon: merge send_lock and send_unlock path
-  vmw_balloon: simplifying batch access
-  vmw_balloon: remove sleeping allocations
-  vmw_balloon: change batch/single lock abstractions
-  vmw_balloon: treat all refused pages equally
-  vmw_balloon: rename VMW_BALLOON_2M_SHIFT to VMW_BALLOON_2M_ORDER
-  vmw_balloon: refactor change size from vmballoon_work
-  vmw_balloon: simplify vmballoon_send_get_target()
-  vmw_balloon: stats rework
-  vmw_balloon: rework the inflate and deflate loops
-  vmw_balloon: general style cleanup
-  vmw_balloon: add reset stat
-  mm/balloon_compaction: suppress allocation warnings
-  mm/balloon_compaction: list interfaces
-  vmw_balloon: compaction support
-  vmw_balloon: memory shrinker
-  vmw_balloon: split refused pages
-
-Xavier Deguillard (1):
-  vmw_balloon: support 64-bit memory limit
-
- drivers/misc/Kconfig               |    1 +
- drivers/misc/vmw_balloon.c         | 2198 +++++++++++++++++++---------
- include/linux/balloon_compaction.h |    4 +
- mm/balloon_compaction.c            |  142 +-
- 4 files changed, 1578 insertions(+), 767 deletions(-)
-
+diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
+index 53051f3d8f25..2c5a8e09e413 100644
+--- a/include/linux/balloon_compaction.h
++++ b/include/linux/balloon_compaction.h
+@@ -72,6 +72,10 @@ extern struct page *balloon_page_alloc(void);
+ extern void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
+ 				 struct page *page);
+ extern struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info);
++extern void balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
++				      struct list_head *pages);
++extern int balloon_page_list_dequeue(struct balloon_dev_info *b_dev_info,
++				     struct list_head *pages, int n_req_pages);
+ 
+ static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
+ {
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index a6c0efb3544f..b920c2a10d6f 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -10,6 +10,100 @@
+ #include <linux/export.h>
+ #include <linux/balloon_compaction.h>
+ 
++static int balloon_page_enqueue_one(struct balloon_dev_info *b_dev_info,
++				     struct page *page)
++{
++	/*
++	 * Block others from accessing the 'page' when we get around to
++	 * establishing additional references. We should be the only one
++	 * holding a reference to the 'page' at this point.
++	 */
++	if (!trylock_page(page)) {
++		WARN_ONCE(1, "balloon inflation failed to enqueue page\n");
++		return -EFAULT;
++	}
++	list_del(&page->lru);
++	balloon_page_insert(b_dev_info, page);
++	unlock_page(page);
++	__count_vm_event(BALLOON_INFLATE);
++	return 0;
++}
++
++/**
++ * balloon_page_list_enqueue() - inserts a list of pages into the balloon page
++ *				 list.
++ * @b_dev_info: balloon device descriptor where we will insert a new page to
++ * @pages: pages to enqueue - allocated using balloon_page_alloc.
++ *
++ * Driver must call it to properly enqueue a balloon pages before definitively
++ * removing it from the guest system.
++ */
++void balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
++			       struct list_head *pages)
++{
++	struct page *page, *tmp;
++	unsigned long flags;
++
++	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
++	list_for_each_entry_safe(page, tmp, pages, lru)
++		balloon_page_enqueue_one(b_dev_info, page);
++	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
++}
++EXPORT_SYMBOL_GPL(balloon_page_list_enqueue);
++
++/**
++ * balloon_page_list_dequeue() - removes pages from balloon's page list and
++ *				 returns a list of the pages.
++ * @b_dev_info: balloon device decriptor where we will grab a page from.
++ * @pages: pointer to the list of pages that would be returned to the caller.
++ * @n_req_pages: number of requested pages.
++ *
++ * Driver must call it to properly de-allocate a previous enlisted balloon pages
++ * before definetively releasing it back to the guest system. This function
++ * tries to remove @n_req_pages from the ballooned pages and return it to the
++ * caller in the @pages list.
++ *
++ * Note that this function may fail to dequeue some pages temporarily empty due
++ * to compaction isolated pages.
++ *
++ * Return: number of pages that were added to the @pages list.
++ */
++int balloon_page_list_dequeue(struct balloon_dev_info *b_dev_info,
++			       struct list_head *pages, int n_req_pages)
++{
++	struct page *page, *tmp;
++	unsigned long flags;
++	int n_pages = 0;
++
++	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
++	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
++		/*
++		 * Block others from accessing the 'page' while we get around
++		 * establishing additional references and preparing the 'page'
++		 * to be released by the balloon driver.
++		 */
++		if (!trylock_page(page))
++			continue;
++
++		if (IS_ENABLED(CONFIG_BALLOON_COMPACTION) &&
++		    PageIsolated(page)) {
++			/* raced with isolation */
++			unlock_page(page);
++			continue;
++		}
++		balloon_page_delete(page);
++		__count_vm_event(BALLOON_DEFLATE);
++		unlock_page(page);
++		list_add(&page->lru, pages);
++		if (++n_pages >= n_req_pages)
++			break;
++	}
++	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
++
++	return n_pages;
++}
++EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
++
+ /*
+  * balloon_page_alloc - allocates a new page for insertion into the balloon
+  *			  page list.
+@@ -44,17 +138,9 @@ void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
+ {
+ 	unsigned long flags;
+ 
+-	/*
+-	 * Block others from accessing the 'page' when we get around to
+-	 * establishing additional references. We should be the only one
+-	 * holding a reference to the 'page' at this point.
+-	 */
+-	BUG_ON(!trylock_page(page));
+ 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+-	balloon_page_insert(b_dev_info, page);
+-	__count_vm_event(BALLOON_INFLATE);
++	balloon_page_enqueue_one(b_dev_info, page);
+ 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+-	unlock_page(page);
+ }
+ EXPORT_SYMBOL_GPL(balloon_page_enqueue);
+ 
+@@ -71,36 +157,13 @@ EXPORT_SYMBOL_GPL(balloon_page_enqueue);
+  */
+ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
+ {
+-	struct page *page, *tmp;
+ 	unsigned long flags;
+-	bool dequeued_page;
++	LIST_HEAD(pages);
++	int n_pages;
+ 
+-	dequeued_page = false;
+-	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+-	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
+-		/*
+-		 * Block others from accessing the 'page' while we get around
+-		 * establishing additional references and preparing the 'page'
+-		 * to be released by the balloon driver.
+-		 */
+-		if (trylock_page(page)) {
+-#ifdef CONFIG_BALLOON_COMPACTION
+-			if (PageIsolated(page)) {
+-				/* raced with isolation */
+-				unlock_page(page);
+-				continue;
+-			}
+-#endif
+-			balloon_page_delete(page);
+-			__count_vm_event(BALLOON_DEFLATE);
+-			unlock_page(page);
+-			dequeued_page = true;
+-			break;
+-		}
+-	}
+-	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
++	n_pages = balloon_page_list_dequeue(b_dev_info, &pages, 1);
+ 
+-	if (!dequeued_page) {
++	if (n_pages != 1) {
+ 		/*
+ 		 * If we are unable to dequeue a balloon page because the page
+ 		 * list is empty and there is no isolated pages, then something
+@@ -113,9 +176,9 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
+ 			     !b_dev_info->isolated_pages))
+ 			BUG();
+ 		spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+-		page = NULL;
++		return NULL;
+ 	}
+-	return page;
++	return list_first_entry(&pages, struct page, lru);
+ }
+ EXPORT_SYMBOL_GPL(balloon_page_dequeue);
+ 
 -- 
 2.17.1
