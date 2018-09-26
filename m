@@ -1,134 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B6F68E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 14:10:50 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id c16-v6so719148pfi.6
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 11:10:50 -0700 (PDT)
-Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
-        by mx.google.com with ESMTPS id v61-v6si6018136plb.448.2018.09.26.11.10.47
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 796118E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 14:25:39 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id u13-v6so14977707pfm.8
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 11:25:39 -0700 (PDT)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id p1-v6si6021186plk.294.2018.09.26.11.25.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Sep 2018 11:10:48 -0700 (PDT)
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [v2 PATCH 2/2 -mm] mm: brk: dwongrade mmap_sem to read when shrinking
-Date: Thu, 27 Sep 2018 02:10:34 +0800
-Message-Id: <1537985434-22655-2-git-send-email-yang.shi@linux.alibaba.com>
-In-Reply-To: <1537985434-22655-1-git-send-email-yang.shi@linux.alibaba.com>
-References: <1537985434-22655-1-git-send-email-yang.shi@linux.alibaba.com>
+        Wed, 26 Sep 2018 11:25:38 -0700 (PDT)
+Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
+References: <20180925200551.3576.18755.stgit@localhost.localdomain>
+ <20180925202053.3576.66039.stgit@localhost.localdomain>
+ <20180926075540.GD6278@dhcp22.suse.cz>
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Message-ID: <6f87a5d7-05e2-00f4-8568-bb3521869cea@linux.intel.com>
+Date: Wed, 26 Sep 2018 11:25:37 -0700
+MIME-Version: 1.0
+In-Reply-To: <20180926075540.GD6278@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, kirill@shutemov.name, willy@infradead.org, ldufour@linux.vnet.ibm.com, vbabka@suse.cz, akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pavel.tatashin@microsoft.com, dave.jiang@intel.com, dave.hansen@intel.com, jglisse@redhat.com, rppt@linux.vnet.ibm.com, dan.j.williams@intel.com, logang@deltatee.com, mingo@kernel.org, kirill.shutemov@linux.intel.com
 
-brk might be used to shinrk memory mapping too other than munmap().
-So, it may hold write mmap_sem for long time when shrinking large
-mapping, as what commit ("mm: mmap: zap pages with read mmap_sem in
-munmap") described.
 
-The brk() will not manipulate vmas anymore after __do_munmap() call for
-the mapping shrink use case. But, it may set mm->brk after
-__do_munmap(), which needs hold write mmap_sem.
 
-However, a simple trick can workaround this by setting mm->brk before
-__do_munmap(). Then restore the original value if __do_munmap() fails.
-With this trick, it is safe to downgrade to read mmap_sem.
+On 9/26/2018 12:55 AM, Michal Hocko wrote:
+> On Tue 25-09-18 13:21:24, Alexander Duyck wrote:
+>> The ZONE_DEVICE pages were being initialized in two locations. One was with
+>> the memory_hotplug lock held and another was outside of that lock. The
+>> problem with this is that it was nearly doubling the memory initialization
+>> time. Instead of doing this twice, once while holding a global lock and
+>> once without, I am opting to defer the initialization to the one outside of
+>> the lock. This allows us to avoid serializing the overhead for memory init
+>> and we can instead focus on per-node init times.
+>>
+>> One issue I encountered is that devm_memremap_pages and
+>> hmm_devmmem_pages_create were initializing only the pgmap field the same
+>> way. One wasn't initializing hmm_data, and the other was initializing it to
+>> a poison value. Since this is something that is exposed to the driver in
+>> the case of hmm I am opting for a third option and just initializing
+>> hmm_data to 0 since this is going to be exposed to unknown third party
+>> drivers.
+> 
+> Why cannot you pull move_pfn_range_to_zone out of the hotplug lock? In
+> other words why are you making zone device even more special in the
+> generic hotplug code when it already has its own means to initialize the
+> pfn range by calling move_pfn_range_to_zone. Not to mention the code
+> duplication.
 
-So, the same optimization, which downgrades mmap_sem to read for
-zapping pages, is also feasible and reasonable to this case.
+So there were a few things I wasn't sure we could pull outside of the 
+hotplug lock. One specific example is the bits related to resizing the 
+pgdat and zone. I wanted to avoid pulling those bits outside of the 
+hotplug lock.
 
-The period of holding exclusive mmap_sem for shrinking large mapping
-would be reduced significantly with this optimization.
+The other bit that I left inside the hot-plug lock with this approach 
+was the initialization of the pages that contain the vmemmap.
 
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Kirill A. Shutemov <kirill@shutemov.name>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
----
-v2: Rephrase the commit per Michal
+> That being said I really dislike this patch.
 
- mm/mmap.c | 40 ++++++++++++++++++++++++++++++----------
- 1 file changed, 30 insertions(+), 10 deletions(-)
+In my mind this was a patch that "killed two birds with one stone". I 
+had two issues to address, the first one being the fact that we were 
+performing the memmap_init_zone while holding the hotplug lock, and the 
+other being the loop that was going through and initializing pgmap in 
+the hmm and memremap calls essentially added another 20 seconds 
+(measured for 3TB of memory per node) to the init time. With this patch 
+I was able to cut my init time per node by that 20 seconds, and then 
+made it so that we could scale as we added nodes as they could run in 
+parallel.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 017bcfa..0d2fae1 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -193,9 +193,11 @@ static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long
- 	unsigned long retval;
- 	unsigned long newbrk, oldbrk;
- 	struct mm_struct *mm = current->mm;
-+	unsigned long origbrk = mm->brk;
- 	struct vm_area_struct *next;
- 	unsigned long min_brk;
- 	bool populate;
-+	bool downgrade = false;
- 	LIST_HEAD(uf);
- 
- 	if (down_write_killable(&mm->mmap_sem))
-@@ -229,14 +231,29 @@ static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long
- 
- 	newbrk = PAGE_ALIGN(brk);
- 	oldbrk = PAGE_ALIGN(mm->brk);
--	if (oldbrk == newbrk)
--		goto set_brk;
-+	if (oldbrk == newbrk) {
-+		mm->brk = brk;
-+		goto success;
-+	}
- 
--	/* Always allow shrinking brk. */
-+	/*
-+	 * Always allow shrinking brk.
-+	 * __do_munmap() may downgrade mmap_sem to read.
-+	 */
- 	if (brk <= mm->brk) {
--		if (!do_munmap(mm, newbrk, oldbrk-newbrk, &uf))
--			goto set_brk;
--		goto out;
-+		/*
-+		 * mm->brk need to be protected by write mmap_sem, update it
-+		 * before downgrading mmap_sem.
-+		 * When __do_munmap fail, it will be restored from origbrk.
-+		 */
-+		mm->brk = brk;
-+		retval = __do_munmap(mm, newbrk, oldbrk-newbrk, &uf, true);
-+		if (retval < 0) {
-+			mm->brk = origbrk;
-+			goto out;
-+		} else if (retval == 1)
-+			downgrade = true;
-+		goto success;
- 	}
- 
- 	/* Check against existing mmap mappings. */
-@@ -247,18 +264,21 @@ static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long
- 	/* Ok, looks good - let it rip. */
- 	if (do_brk_flags(oldbrk, newbrk-oldbrk, 0, &uf) < 0)
- 		goto out;
--
--set_brk:
- 	mm->brk = brk;
-+
-+success:
- 	populate = newbrk > oldbrk && (mm->def_flags & VM_LOCKED) != 0;
--	up_write(&mm->mmap_sem);
-+	if (downgrade)
-+		up_read(&mm->mmap_sem);
-+	else
-+		up_write(&mm->mmap_sem);
- 	userfaultfd_unmap_complete(mm, &uf);
- 	if (populate)
- 		mm_populate(oldbrk, newbrk - oldbrk);
- 	return brk;
- 
- out:
--	retval = mm->brk;
-+	retval = origbrk;
- 	up_write(&mm->mmap_sem);
- 	return retval;
- }
--- 
-1.8.3.1
+With that said I am open to suggestions if you still feel like I need to 
+follow this up with some additional work. I just want to avoid 
+introducing any regressions in regards to functionality or performance.
+
+Thanks.
+
+- Alex
