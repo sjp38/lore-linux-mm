@@ -1,76 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CB4818E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 10:52:00 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id w19-v6so52247862ioa.10
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 07:52:00 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id w6-v6si3253284ioc.44.2018.09.26.07.51.59
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D98A78E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 11:24:45 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id p192-v6so29771144qke.13
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 08:24:45 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id w7-v6sor1190846qvh.152.2018.09.26.08.24.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Sep 2018 07:51:59 -0700 (PDT)
-Date: Wed, 26 Sep 2018 07:51:45 -0700
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: Re: [PATCH -V5 RESEND 03/21] swap: Support PMD swap mapping in
- swap_duplicate()
-Message-ID: <20180926145145.6xp2kxpngyd54f6i@ca-dmjordan1.us.oracle.com>
-References: <20180925071348.31458-1-ying.huang@intel.com>
- <20180925071348.31458-4-ying.huang@intel.com>
- <20180925191953.4ped5ki7u3ymafmd@ca-dmjordan1.us.oracle.com>
- <874lecifj4.fsf@yhuang-dev.intel.com>
+        (Google Transport Security);
+        Wed, 26 Sep 2018 08:24:44 -0700 (PDT)
+Date: Wed, 26 Sep 2018 11:25:23 -0400
+From: Konstantin Ryabitsev <konstantin@linuxfoundation.org>
+Subject: Re: linux-mm@ archive on lore.kernel.org (Was: [PATCH 0/2] thp
+ nodereclaim fixes)
+Message-ID: <20180926152523.GA8154@chatter>
+References: <20180925120326.24392-1-mhocko@kernel.org>
+ <20180926130850.vk6y6zxppn7bkovk@kshutemo-mobl1>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="J2SCkAp4GZ/dPZZf"
 Content-Disposition: inline
-In-Reply-To: <874lecifj4.fsf@yhuang-dev.intel.com>
+In-Reply-To: <20180926130850.vk6y6zxppn7bkovk@kshutemo-mobl1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Sep 26, 2018 at 08:55:59PM +0800, Huang, Ying wrote:
-> Daniel Jordan <daniel.m.jordan@oracle.com> writes:
-> > On Tue, Sep 25, 2018 at 03:13:30PM +0800, Huang Ying wrote:
-> >>  /*
-> >>   * Increase reference count of swap entry by 1.
-> >> - * Returns 0 for success, or -ENOMEM if a swap_count_continuation is required
-> >> - * but could not be atomically allocated.  Returns 0, just as if it succeeded,
-> >> - * if __swap_duplicate() fails for another reason (-EINVAL or -ENOENT), which
-> >> - * might occur if a page table entry has got corrupted.
-> >> + *
-> >> + * Return error code in following case.
-> >> + * - success -> 0
-> >> + * - swap_count_continuation is required but could not be atomically allocated.
-> >> + *   *entry is used to return swap entry to call add_swap_count_continuation().
-> >> + *								      -> ENOMEM
-> >> + * - otherwise same as __swap_duplicate()
-> >>   */
-> >> -int swap_duplicate(swp_entry_t entry)
-> >> +int swap_duplicate(swp_entry_t *entry, int entry_size)
-> >>  {
-> >>  	int err = 0;
-> >>  
-> >> -	while (!err && __swap_duplicate(entry, 1) == -ENOMEM)
-> >> -		err = add_swap_count_continuation(entry, GFP_ATOMIC);
-> >> +	while (!err &&
-> >> +	       (err = __swap_duplicate(entry, entry_size, 1)) == -ENOMEM)
-> >> +		err = add_swap_count_continuation(*entry, GFP_ATOMIC);
-> >>  	return err;
-> >
-> > Now we're returning any error we get from __swap_duplicate, apparently to
-> > accommodate ENOTDIR later in the series, which is a change from the behavior
-> > introduced in 570a335b8e22 ("swap_info: swap count continuations").  This might
-> > belong in a separate patch given its potential for side effects.
-> 
-> I have checked all the calls of the function and found there will be no
-> bad effect.  Do you have any side effect?
 
-Before I was just being vaguely concerned about any unintended side effects,
-but looking again, yes I do.
+--J2SCkAp4GZ/dPZZf
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Now when swap_duplicate returns an error in copy_one_pte, copy_one_pte returns
-a (potentially nonzero) entry.val, which copy_pte_range interprets
-unconditionally as 'try adding a swap count continuation.'  Not what we want
-for returns other than -ENOMEM.
+On Wed, Sep 26, 2018 at 04:08:50PM +0300, Kirill A. Shutemov wrote:
+>On Tue, Sep 25, 2018 at 02:03:24PM +0200, Michal Hocko wrote:
+>> Thoughts, alternative patches?
+>>
+>> [1] http://lkml.kernel.org/r/20180820032204.9591-1-aarcange@redhat.com
+>> [2] http://lkml.kernel.org/r/20180830064732.GA2656@dhcp22.suse.cz
+>> [3] http://lkml.kernel.org/r/20180820032640.9896-2-aarcange@redhat.com
+>
+>All these links are broken. lore.kernel.org doesn't have linux-mm@ archive.
+>
+>Can we get it added?
 
-So it might make sense to have a separate patch that changes swap_duplicate's
-return and makes callers handle it.
+Adding linux-mm to lore.kernel.org certainly should happen, but it will=20
+not fix the above problem, because lkml.kernel.org/r/<foo> links only=20
+work for messages on LKML, not for all messages passing through vger=20
+lists (hence the word "lkml" in the name).
+
+Once linux-mm is added, you should link to those discussions using=20
+lore.kernel.org/linux-mm/<msgid> links.
+
+-K
+
+--J2SCkAp4GZ/dPZZf
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iHUEABYIAB0WIQR2vl2yUnHhSB5njDW2xBzjVmSZbAUCW6uk4wAKCRC2xBzjVmSZ
+bJwRAQCMjR606Nwvm/8ppqVhjAIW0Nak0uvZWnyjcUZqt8xLmgD9HDeVOPWIE77M
+1X7L6stT5sKJjgA6RIG3buA8XFQlvAY=
+=mlkK
+-----END PGP SIGNATURE-----
+
+--J2SCkAp4GZ/dPZZf--
