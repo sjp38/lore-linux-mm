@@ -1,100 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 33D978E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 04:14:05 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id e69-v6so16475467ote.17
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 01:14:05 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id z33-v6si2268666otb.227.2018.09.26.01.14.03
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C7C08E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 04:16:36 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id e11so856363edv.20
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 01:16:36 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q15-v6si5208952edd.134.2018.09.26.01.16.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Sep 2018 01:14:03 -0700 (PDT)
-Date: Wed, 26 Sep 2018 09:13:43 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH RESEND] mm: don't raise MEMCG_OOM event due to failed
- high-order allocation
-Message-ID: <20180926081337.GA23355@castle.DHCP.thefacebook.com>
-References: <20180917230846.31027-1-guro@fb.com>
- <20180925185845.GX18685@dhcp22.suse.cz>
+        Wed, 26 Sep 2018 01:16:35 -0700 (PDT)
+Date: Wed, 26 Sep 2018 10:16:33 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2 -mm] mm: mremap: dwongrade mmap_sem to read when
+ shrinking
+Message-ID: <20180926081633.GF6278@dhcp22.suse.cz>
+References: <1537922816-108051-1-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180925185845.GX18685@dhcp22.suse.cz>
+In-Reply-To: <1537922816-108051-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: kirill@shutemov.name, willy@infradead.org, ldufour@linux.vnet.ibm.com, vbabka@suse.cz, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 25, 2018 at 08:58:45PM +0200, Michal Hocko wrote:
-> On Mon 17-09-18 23:10:59, Roman Gushchin wrote:
-> > The memcg OOM killer is never invoked due to a failed high-order
-> > allocation, however the MEMCG_OOM event can be raised.
-> > 
-> > As shown below, it can happen under conditions, which are very
-> > far from a real OOM: e.g. there is plenty of clean pagecache
-> > and low memory pressure.
-> > 
-> > There is no sense in raising an OOM event in such a case,
-> > as it might confuse a user and lead to wrong and excessive actions.
-> > 
-> > Let's look at the charging path in try_caharge(). If the memory usage
-> > is about memory.max, which is absolutely natural for most memory cgroups,
-> > we try to reclaim some pages. Even if we were able to reclaim
-> > enough memory for the allocation, the following check can fail due to
-> > a race with another concurrent allocation:
-> > 
-> >     if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
-> >         goto retry;
-> > 
-> > For regular pages the following condition will save us from triggering
-> > the OOM:
-> > 
-> >    if (nr_reclaimed && nr_pages <= (1 << PAGE_ALLOC_COSTLY_ORDER))
-> >        goto retry;
-> > 
-> > But for high-order allocation this condition will intentionally fail.
-> > The reason behind is that we'll likely fall to regular pages anyway,
-> > so it's ok and even preferred to return ENOMEM.
-> > 
-> > In this case the idea of raising MEMCG_OOM looks dubious.
+On Wed 26-09-18 08:46:55, Yang Shi wrote:
+> Other than munmap, mremap might be used to shrink memory mapping too.
+> Use __do_munmap() to shrink mapping with downgrading mmap_sem to read.
+
+Please be more explicit about _why_ this is OK. It wouldn't hurt to call
+out benefits explicitly as well. You write about downgrate to the shared
+lock which suggests what is this about but we can be less cryptic ;)
+
+> MREMAP_FIXED and MREMAP_MAYMOVE are more complicated to adopt this
+> optimization since they need manipulate vmas after do_munmap(),
+> downgrading mmap_sem may create race window.
 > 
-> I would really appreciate an example of application that would get
-> confused by consuming this event and an explanation why. I do agree that
-> the event itself is kinda weird because it doesn't give you any context
-> for what kind of requests the memcg is OOM. Costly orders are a little
-> different story than others and users shouldn't care about this because
-> this is a mere implementation detail.
-
-Our container management system (called Tupperware) used the OOM event
-as a signal that a workload might be affected by the OOM killer, so
-it restarted the corresponding container.
-
-I started looking at this problem, when I was reported, that it sometimes
-happens when there is a plenty of inactive page cache, and also there were
-no signs that the OOM killer has been invoking at all.
-The proposed patch resolves this problem.
-
+> Simple mapping shrink is the low hanging fruit, and it may cover the
+> most cases of unmap with munmap.
 > 
-> In other words, do we have any users to actually care about this half
-> baked event at all? Shouldn't we simply stop emiting it (or make it an
-> alias of OOM_KILL) rather than making it slightly better but yet kinda
-> incomplete?
-
-The only problem with OOM_KILL I see is that OOM_KILL might not be raised
-at all, if the OOM killer is not able to find an appropriate victim.
-For instance, if all tasks are oom protected (oom_score_adj set to -1000).
-Also, with oom.group it might be raised multiple times.
-
-I'm not against an idea to deprecate it in some way (neither I'm completely
-sold), but in any case the proposed change isn't a step into a wrong direction:
-under the conditions I described there is absolutely no sense in raising
-the OOM event.
-
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Kirill A. Shutemov <kirill@shutemov.name>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> ---
+>  include/linux/mm.h |  2 ++
+>  mm/mmap.c          |  4 ++--
+>  mm/mremap.c        | 16 ++++++++++++----
+>  3 files changed, 16 insertions(+), 6 deletions(-)
 > 
-> Jeez, we really suck at defining proper interfaces. Things seem so cool
-> when they are proposed, then those users come and ruin our lives...
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index a61ebe8..3028028 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2286,6 +2286,8 @@ extern unsigned long do_mmap(struct file *file, unsigned long addr,
+>  	unsigned long len, unsigned long prot, unsigned long flags,
+>  	vm_flags_t vm_flags, unsigned long pgoff, unsigned long *populate,
+>  	struct list_head *uf);
+> +extern int __do_munmap(struct mm_struct *, unsigned long, size_t,
+> +		       struct list_head *uf, bool downgrade);
+>  extern int do_munmap(struct mm_struct *, unsigned long, size_t,
+>  		     struct list_head *uf);
+>  
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 847a17d..017bcfa 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -2687,8 +2687,8 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+>   * work.  This now handles partial unmappings.
+>   * Jeremy Fitzhardinge <jeremy@goop.org>
+>   */
+> -static int __do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+> -		       struct list_head *uf, bool downgrade)
+> +int __do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+> +		struct list_head *uf, bool downgrade)
+>  {
+>  	unsigned long end;
+>  	struct vm_area_struct *vma, *prev, *last;
+> diff --git a/mm/mremap.c b/mm/mremap.c
+> index 5c2e185..e608e92 100644
+> --- a/mm/mremap.c
+> +++ b/mm/mremap.c
+> @@ -525,6 +525,7 @@ static int vma_expandable(struct vm_area_struct *vma, unsigned long delta)
+>  	unsigned long ret = -EINVAL;
+>  	unsigned long charged = 0;
+>  	bool locked = false;
+> +	bool downgrade = false;
+>  	struct vm_userfaultfd_ctx uf = NULL_VM_UFFD_CTX;
+>  	LIST_HEAD(uf_unmap_early);
+>  	LIST_HEAD(uf_unmap);
+> @@ -561,12 +562,16 @@ static int vma_expandable(struct vm_area_struct *vma, unsigned long delta)
+>  	/*
+>  	 * Always allow a shrinking remap: that just unmaps
+>  	 * the unnecessary pages..
+> -	 * do_munmap does all the needed commit accounting
+> +	 * __do_munmap does all the needed commit accounting
+>  	 */
+>  	if (old_len >= new_len) {
+> -		ret = do_munmap(mm, addr+new_len, old_len - new_len, &uf_unmap);
+> -		if (ret && old_len != new_len)
+> +		ret = __do_munmap(mm, addr+new_len, old_len - new_len,
+> +				  &uf_unmap, true);
+> +		if (ret < 0 && old_len != new_len)
+>  			goto out;
+> +		/* Returning 1 indicates mmap_sem is downgraded to read. */
+> +		else if (ret == 1)
+> +			downgrade = true;
+>  		ret = addr;
+>  		goto out;
+>  	}
+> @@ -631,7 +636,10 @@ static int vma_expandable(struct vm_area_struct *vma, unsigned long delta)
+>  		vm_unacct_memory(charged);
+>  		locked = 0;
+>  	}
+> -	up_write(&current->mm->mmap_sem);
+> +	if (downgrade)
+> +		up_read(&current->mm->mmap_sem);
+> +	else
+> +		up_write(&current->mm->mmap_sem);
+>  	if (locked && new_len > old_len)
+>  		mm_populate(new_addr + old_len, new_len - old_len);
+>  	userfaultfd_unmap_complete(mm, &uf_unmap_early);
+> -- 
+> 1.8.3.1
 
-:)
-
-
-Thanks!
+-- 
+Michal Hocko
+SUSE Labs
