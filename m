@@ -1,178 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B07B8E0008
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 17:09:16 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id d18-v6so346534qtj.20
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 14:09:16 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z38-v6sor65350qtb.1.2018.09.26.14.09.15
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 941408E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 18:22:04 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id i190-v6so547316pgd.11
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 15:22:04 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id e1-v6si180812pgk.688.2018.09.26.15.22.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 26 Sep 2018 14:09:15 -0700 (PDT)
-From: Josef Bacik <josef@toxicpanda.com>
-Subject: [PATCH 9/9] btrfs: drop mmap_sem in mkwrite for btrfs
-Date: Wed, 26 Sep 2018 17:08:56 -0400
-Message-Id: <20180926210856.7895-10-josef@toxicpanda.com>
-In-Reply-To: <20180926210856.7895-1-josef@toxicpanda.com>
-References: <20180926210856.7895-1-josef@toxicpanda.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Sep 2018 15:22:03 -0700 (PDT)
+Date: Wed, 26 Sep 2018 15:22:00 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: linux-mm@ archive on lore.kernel.org (Was: [PATCH 0/2] thp
+ nodereclaim fixes)
+Message-Id: <20180926152200.8a3bfb1845de21937914feeb@linux-foundation.org>
+In-Reply-To: <20180926131445.GW6278@dhcp22.suse.cz>
+References: <20180925120326.24392-1-mhocko@kernel.org>
+	<20180926130850.vk6y6zxppn7bkovk@kshutemo-mobl1>
+	<20180926131445.GW6278@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel-team@fb.com, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, tj@kernel.org, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, riel@redhat.com, linux-mm@kvack.org, linux-btrfs@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Konstantin Ryabitsev <konstantin@linuxfoundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-->page_mkwrite is extremely expensive in btrfs.  We have to reserve
-space, which can take 6 lifetimes, and we could possibly have to wait on
-writeback on the page, another several lifetimes.  To avoid this simply
-drop the mmap_sem if we didn't have the cached page and do all of our
-work and return the appropriate retry error.  If we have the cached page
-we know we did all the right things to set this page up and we can just
-carry on.
+On Wed, 26 Sep 2018 15:14:45 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 
-Signed-off-by: Josef Bacik <josef@toxicpanda.com>
----
- fs/btrfs/inode.c   | 41 +++++++++++++++++++++++++++++++++++++++--
- include/linux/mm.h | 14 ++++++++++++++
- mm/filemap.c       |  3 ++-
- 3 files changed, 55 insertions(+), 3 deletions(-)
+> > Does anybody have good enough archive of the list to get started?
+> 
+> Maybe Andrew has. Mine is incomplete for sure.
 
-diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
-index 3ea5339603cf..6b723d29bc0c 100644
---- a/fs/btrfs/inode.c
-+++ b/fs/btrfs/inode.c
-@@ -8809,7 +8809,9 @@ static void btrfs_invalidatepage(struct page *page, unsigned int offset,
- vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf)
- {
- 	struct page *page = vmf->page;
--	struct inode *inode = file_inode(vmf->vma->vm_file);
-+	struct file *file = vmf->vma->vm_file, *fpin;
-+	struct mm_struct *mm = vmf->vma->vm_mm;
-+	struct inode *inode = file_inode(file);
- 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
- 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
- 	struct btrfs_ordered_extent *ordered;
-@@ -8828,6 +8830,29 @@ vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf)
- 
- 	reserved_space = PAGE_SIZE;
- 
-+	/*
-+	 * We have our cached page from a previous mkwrite, check it to make
-+	 * sure it's still dirty and our file size matches when we ran mkwrite
-+	 * the last time.  If everything is OK then return VM_FAULT_LOCKED,
-+	 * otherwise do the mkwrite again.
-+	 */
-+	if (vmf->flags & FAULT_FLAG_USED_CACHED) {
-+		lock_page(page);
-+		if (vmf->cached_size == i_size_read(inode) &&
-+		    PageDirty(page))
-+			return VM_FAULT_LOCKED;
-+		unlock_page(page);
-+	}
-+
-+	/*
-+	 * mkwrite is extremely expensive, and we are holding the mmap_sem
-+	 * during this, which means we can starve out anybody trying to
-+	 * down_write(mmap_sem) for a long while, especially if we throw cgroups
-+	 * into the mix.  So just drop the mmap_sem and do all of our work,
-+	 * we'll loop back through and verify everything is ok the next time and
-+	 * hopefully avoid doing the work twice.
-+	 */
-+	fpin = maybe_unlock_mmap_for_io(vmf->vma, vmf->flags);
- 	sb_start_pagefault(inode->i_sb);
- 	page_start = page_offset(page);
- 	page_end = page_start + PAGE_SIZE - 1;
-@@ -8844,7 +8869,7 @@ vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf)
- 	ret2 = btrfs_delalloc_reserve_space(inode, &data_reserved, page_start,
- 					   reserved_space);
- 	if (!ret2) {
--		ret2 = file_update_time(vmf->vma->vm_file);
-+		ret2 = file_update_time(file);
- 		reserved = 1;
- 	}
- 	if (ret2) {
-@@ -8943,6 +8968,14 @@ vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf)
- 		btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE, true);
- 		sb_end_pagefault(inode->i_sb);
- 		extent_changeset_free(data_reserved);
-+		if (fpin) {
-+			unlock_page(page);
-+			fput(fpin);
-+			get_page(page);
-+			vmf->cached_size = size;
-+			vmf->cached_page = page;
-+			return VM_FAULT_RETRY;
-+		}
- 		return VM_FAULT_LOCKED;
- 	}
- 
-@@ -8955,6 +8988,10 @@ vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf)
- out_noreserve:
- 	sb_end_pagefault(inode->i_sb);
- 	extent_changeset_free(data_reserved);
-+	if (fpin) {
-+		fput(fpin);
-+		down_read(&mm->mmap_sem);
-+	}
- 	return ret;
- }
- 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a7305d193c71..9409845d0411 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -370,6 +370,13 @@ struct vm_fault {
- 					 * next time we loop through the fault
- 					 * handler for faster lookup.
- 					 */
-+	loff_t cached_size;		/* ->page_mkwrite handlers may drop
-+					 * the mmap_sem to avoid starvation, in
-+					 * which case they need to save the
-+					 * i_size in order to verify the cached
-+					 * page we're using the next loop
-+					 * through hasn't changed under us.
-+					 */
- 	/* These three entries are valid only while holding ptl lock */
- 	pte_t *pte;			/* Pointer to pte entry matching
- 					 * the 'address'. NULL if the page
-@@ -1437,6 +1444,8 @@ extern vm_fault_t handle_mm_fault_cacheable(struct vm_fault *vmf);
- extern int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
- 			    unsigned long address, unsigned int fault_flags,
- 			    bool *unlocked);
-+extern struct file *maybe_unlock_mmap_for_io(struct vm_area_struct *vma,
-+					     int flags);
- void unmap_mapping_pages(struct address_space *mapping,
- 		pgoff_t start, pgoff_t nr, bool even_cows);
- void unmap_mapping_range(struct address_space *mapping,
-@@ -1463,6 +1472,11 @@ static inline int fixup_user_fault(struct task_struct *tsk,
- 	BUG();
- 	return -EFAULT;
- }
-+stiatc inline struct file *maybe_unlock_mmap_for_io(struct vm_area_struct *vma,
-+						    int flags)
-+{
-+	return NULL;
-+}
- static inline void unmap_mapping_pages(struct address_space *mapping,
- 		pgoff_t start, pgoff_t nr, bool even_cows) { }
- static inline void unmap_mapping_range(struct address_space *mapping,
-diff --git a/mm/filemap.c b/mm/filemap.c
-index e9cb44bd35aa..8027f082d74f 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2366,7 +2366,7 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
- EXPORT_SYMBOL(generic_file_read_iter);
- 
- #ifdef CONFIG_MMU
--static struct file *maybe_unlock_mmap_for_io(struct vm_area_struct *vma, int flags)
-+struct file *maybe_unlock_mmap_for_io(struct vm_area_struct *vma, int flags)
- {
- 	if ((flags & (FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT)) == FAULT_FLAG_ALLOW_RETRY) {
- 		struct file *file;
-@@ -2377,6 +2377,7 @@ static struct file *maybe_unlock_mmap_for_io(struct vm_area_struct *vma, int fla
- 	}
- 	return NULL;
- }
-+EXPORT_SYMBOL_GPL(maybe_unlock_mmap_for_io);
- 
- /**
-  * page_cache_read - adds requested page to the page cache if not already there
--- 
-2.14.3
+fwiw, I have everything going back to 2001.   For some reason.
