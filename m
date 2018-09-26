@@ -1,67 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 540158E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 09:44:00 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id x7-v6so10609629iop.20
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 06:44:00 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id c9-v6si3175822iob.250.2018.09.26.06.43.59
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8597C8E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 10:17:13 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id v16-v6so1387370eds.1
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 07:17:13 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z50-v6si1335522edd.360.2018.09.26.07.17.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Sep 2018 06:43:59 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8QDdJpx050479
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 09:43:58 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mraarb31g-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 09:43:58 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 26 Sep 2018 14:43:54 +0100
-Date: Wed, 26 Sep 2018 16:43:35 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH 14/30] memblock: add align parameter to
- memblock_alloc_node()
-References: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com>
- <1536927045-23536-15-git-send-email-rppt@linux.vnet.ibm.com>
- <20180926093127.GO6278@dhcp22.suse.cz>
- <20180926093648.GP6278@dhcp22.suse.cz>
+        Wed, 26 Sep 2018 07:17:11 -0700 (PDT)
+Date: Wed, 26 Sep 2018 16:17:08 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm, thp: consolidate THP gfp handling into
+ alloc_hugepage_direct_gfpmask
+Message-ID: <20180926141708.GX6278@dhcp22.suse.cz>
+References: <20180925120326.24392-1-mhocko@kernel.org>
+ <20180925120326.24392-3-mhocko@kernel.org>
+ <20180926133039.y7o5x4nafovxzh2s@kshutemo-mobl1>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180926093648.GP6278@dhcp22.suse.cz>
-Message-Id: <20180926134335.GF4628@rapoport-lnx>
+In-Reply-To: <20180926133039.y7o5x4nafovxzh2s@kshutemo-mobl1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, "David S. Miller" <davem@davemloft.net>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jonas Bonn <jonas@southpole.se>, Jonathan Corbet <corbet@lwn.net>, Ley Foon Tan <lftan@altera.com>, Mark Salter <msalter@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matt Turner <mattst88@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Palmer Dabbelt <palmer@sifive.com>, Paul Burton <paul.burton@mips.com>, Richard Kuo <rkuo@codeaurora.org>, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Serge Semin <fancer.lancer@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, nios2-dev@lists.rocketboards.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Sep 26, 2018 at 11:36:48AM +0200, Michal Hocko wrote:
-> On Wed 26-09-18 11:31:27, Michal Hocko wrote:
-> > On Fri 14-09-18 15:10:29, Mike Rapoport wrote:
-> > > With the align parameter memblock_alloc_node() can be used as drop in
-> > > replacement for alloc_bootmem_pages_node() and __alloc_bootmem_node(),
-> > > which is done in the following patches.
-> > 
-> > /me confused. Why do we need this patch at all? Maybe it should be
-> > folded into the later patch you are refereing here?
+On Wed 26-09-18 16:30:39, Kirill A. Shutemov wrote:
+> On Tue, Sep 25, 2018 at 02:03:26PM +0200, Michal Hocko wrote:
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > index c3bc7e9c9a2a..c0bcede31930 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -629,21 +629,40 @@ static vm_fault_t __do_huge_pmd_anonymous_page(struct vm_fault *vmf,
+> >   *	    available
+> >   * never: never stall for any thp allocation
+> >   */
+> > -static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
+> > +static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma, unsigned long addr)
+> >  {
+> >  	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
+> > +	gfp_t this_node = 0;
+> > +
+> > +#ifdef CONFIG_NUMA
+> > +	struct mempolicy *pol;
+> > +	/*
+> > +	 * __GFP_THISNODE is used only when __GFP_DIRECT_RECLAIM is not
+> > +	 * specified, to express a general desire to stay on the current
+> > +	 * node for optimistic allocation attempts. If the defrag mode
+> > +	 * and/or madvise hint requires the direct reclaim then we prefer
+> > +	 * to fallback to other node rather than node reclaim because that
+> > +	 * can lead to excessive reclaim even though there is free memory
+> > +	 * on other nodes. We expect that NUMA preferences are specified
+> > +	 * by memory policies.
+> > +	 */
+> > +	pol = get_vma_policy(vma, addr);
+> > +	if (pol->mode != MPOL_BIND)
+> > +		this_node = __GFP_THISNODE;
+> > +	mpol_cond_put(pol);
+> > +#endif
 > 
-> OK, I can see 1536927045-23536-17-git-send-email-rppt@linux.vnet.ibm.com
-> now. If you are going to repost for whatever reason please merge those
-> two. Also I would get rid of the implicit "0 implies SMP_CACHE_BYTES"
-> behavior. It is subtle and you have to dig deep to find that out. Why
-> not make it explicit?
+> I'm not very good with NUMA policies. Could you explain in more details how
+> the code above is equivalent to the code below?
 
-Agree. I'd just prefer to make it a separate patch rather then resend the
-whole series. 
-
+MPOL_PREFERRED is handled by policy_node() before we call __alloc_pages_nodemask.
+__GFP_THISNODE is applied only when we are not using
+__GFP_DIRECT_RECLAIM which is handled in alloc_hugepage_direct_gfpmask
+now.
+Lastly MPOL_BIND wasn't handled explicitly but in the end the removed
+late check would remove __GFP_THISNODE for it as well. So in the end we
+are doing the same thing unless I miss something
+ 
+> > @@ -2026,60 +2025,6 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+> >  		goto out;
+> >  	}
+> >  
+> > -	if (unlikely(IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) && hugepage)) {
+> > -		int hpage_node = node;
+> > -
+> > -		/*
+> > -		 * For hugepage allocation and non-interleave policy which
+> > -		 * allows the current node (or other explicitly preferred
+> > -		 * node) we only try to allocate from the current/preferred
+> > -		 * node and don't fall back to other nodes, as the cost of
+> > -		 * remote accesses would likely offset THP benefits.
+> > -		 *
+> > -		 * If the policy is interleave, or does not allow the current
+> > -		 * node in its nodemask, we allocate the standard way.
+> > -		 */
+> > -		if (pol->mode == MPOL_PREFERRED &&
+> > -						!(pol->flags & MPOL_F_LOCAL))
+> > -			hpage_node = pol->v.preferred_node;
+> > -
+> > -		nmask = policy_nodemask(gfp, pol);
+> > -		if (!nmask || node_isset(hpage_node, *nmask)) {
+> > -			mpol_cond_put(pol);
+> > -			/*
+> > -			 * We cannot invoke reclaim if __GFP_THISNODE
+> > -			 * is set. Invoking reclaim with
+> > -			 * __GFP_THISNODE set, would cause THP
+> > -			 * allocations to trigger heavy swapping
+> > -			 * despite there may be tons of free memory
+> > -			 * (including potentially plenty of THP
+> > -			 * already available in the buddy) on all the
+> > -			 * other NUMA nodes.
+> > -			 *
+> > -			 * At most we could invoke compaction when
+> > -			 * __GFP_THISNODE is set (but we would need to
+> > -			 * refrain from invoking reclaim even if
+> > -			 * compaction returned COMPACT_SKIPPED because
+> > -			 * there wasn't not enough memory to succeed
+> > -			 * compaction). For now just avoid
+> > -			 * __GFP_THISNODE instead of limiting the
+> > -			 * allocation path to a strict and single
+> > -			 * compaction invocation.
+> > -			 *
+> > -			 * Supposedly if direct reclaim was enabled by
+> > -			 * the caller, the app prefers THP regardless
+> > -			 * of the node it comes from so this would be
+> > -			 * more desiderable behavior than only
+> > -			 * providing THP originated from the local
+> > -			 * node in such case.
+> > -			 */
+> > -			if (!(gfp & __GFP_DIRECT_RECLAIM))
+> > -				gfp |= __GFP_THISNODE;
+> > -			page = __alloc_pages_node(hpage_node, gfp, order);
+> > -			goto out;
+> > -		}
+> > -	}
+> > -
+> >  	nmask = policy_nodemask(gfp, pol);
+> >  	preferred_nid = policy_node(gfp, pol, node);
+> >  	page = __alloc_pages_nodemask(gfp, order, preferred_nid, nmask);
+> 
 > -- 
-> Michal Hocko
-> SUSE Labs
-> 
+>  Kirill A. Shutemov
 
 -- 
-Sincerely yours,
-Mike.
+Michal Hocko
+SUSE Labs
