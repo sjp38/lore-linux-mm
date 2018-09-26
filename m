@@ -1,55 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 600308E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 10:23:29 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id k16-v6so1389688ede.6
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 07:23:29 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u19-v6si2312733edi.142.2018.09.26.07.23.28
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CB4818E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 10:52:00 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id w19-v6so52247862ioa.10
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 07:52:00 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id w6-v6si3253284ioc.44.2018.09.26.07.51.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Sep 2018 07:23:28 -0700 (PDT)
-Date: Wed, 26 Sep 2018 16:23:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 14/30] memblock: add align parameter to
- memblock_alloc_node()
-Message-ID: <20180926142319.GA6278@dhcp22.suse.cz>
-References: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com>
- <1536927045-23536-15-git-send-email-rppt@linux.vnet.ibm.com>
- <20180926093127.GO6278@dhcp22.suse.cz>
- <20180926093648.GP6278@dhcp22.suse.cz>
- <20180926134335.GF4628@rapoport-lnx>
+        Wed, 26 Sep 2018 07:51:59 -0700 (PDT)
+Date: Wed, 26 Sep 2018 07:51:45 -0700
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [PATCH -V5 RESEND 03/21] swap: Support PMD swap mapping in
+ swap_duplicate()
+Message-ID: <20180926145145.6xp2kxpngyd54f6i@ca-dmjordan1.us.oracle.com>
+References: <20180925071348.31458-1-ying.huang@intel.com>
+ <20180925071348.31458-4-ying.huang@intel.com>
+ <20180925191953.4ped5ki7u3ymafmd@ca-dmjordan1.us.oracle.com>
+ <874lecifj4.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180926134335.GF4628@rapoport-lnx>
+In-Reply-To: <874lecifj4.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, "David S. Miller" <davem@davemloft.net>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jonas Bonn <jonas@southpole.se>, Jonathan Corbet <corbet@lwn.net>, Ley Foon Tan <lftan@altera.com>, Mark Salter <msalter@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matt Turner <mattst88@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Palmer Dabbelt <palmer@sifive.com>, Paul Burton <paul.burton@mips.com>, Richard Kuo <rkuo@codeaurora.org>, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Serge Semin <fancer.lancer@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, nios2-dev@lists.rocketboards.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Wed 26-09-18 16:43:35, Mike Rapoport wrote:
-> On Wed, Sep 26, 2018 at 11:36:48AM +0200, Michal Hocko wrote:
-> > On Wed 26-09-18 11:31:27, Michal Hocko wrote:
-> > > On Fri 14-09-18 15:10:29, Mike Rapoport wrote:
-> > > > With the align parameter memblock_alloc_node() can be used as drop in
-> > > > replacement for alloc_bootmem_pages_node() and __alloc_bootmem_node(),
-> > > > which is done in the following patches.
-> > > 
-> > > /me confused. Why do we need this patch at all? Maybe it should be
-> > > folded into the later patch you are refereing here?
-> > 
-> > OK, I can see 1536927045-23536-17-git-send-email-rppt@linux.vnet.ibm.com
-> > now. If you are going to repost for whatever reason please merge those
-> > two. Also I would get rid of the implicit "0 implies SMP_CACHE_BYTES"
-> > behavior. It is subtle and you have to dig deep to find that out. Why
-> > not make it explicit?
+On Wed, Sep 26, 2018 at 08:55:59PM +0800, Huang, Ying wrote:
+> Daniel Jordan <daniel.m.jordan@oracle.com> writes:
+> > On Tue, Sep 25, 2018 at 03:13:30PM +0800, Huang Ying wrote:
+> >>  /*
+> >>   * Increase reference count of swap entry by 1.
+> >> - * Returns 0 for success, or -ENOMEM if a swap_count_continuation is required
+> >> - * but could not be atomically allocated.  Returns 0, just as if it succeeded,
+> >> - * if __swap_duplicate() fails for another reason (-EINVAL or -ENOENT), which
+> >> - * might occur if a page table entry has got corrupted.
+> >> + *
+> >> + * Return error code in following case.
+> >> + * - success -> 0
+> >> + * - swap_count_continuation is required but could not be atomically allocated.
+> >> + *   *entry is used to return swap entry to call add_swap_count_continuation().
+> >> + *								      -> ENOMEM
+> >> + * - otherwise same as __swap_duplicate()
+> >>   */
+> >> -int swap_duplicate(swp_entry_t entry)
+> >> +int swap_duplicate(swp_entry_t *entry, int entry_size)
+> >>  {
+> >>  	int err = 0;
+> >>  
+> >> -	while (!err && __swap_duplicate(entry, 1) == -ENOMEM)
+> >> -		err = add_swap_count_continuation(entry, GFP_ATOMIC);
+> >> +	while (!err &&
+> >> +	       (err = __swap_duplicate(entry, entry_size, 1)) == -ENOMEM)
+> >> +		err = add_swap_count_continuation(*entry, GFP_ATOMIC);
+> >>  	return err;
+> >
+> > Now we're returning any error we get from __swap_duplicate, apparently to
+> > accommodate ENOTDIR later in the series, which is a change from the behavior
+> > introduced in 570a335b8e22 ("swap_info: swap count continuations").  This might
+> > belong in a separate patch given its potential for side effects.
 > 
-> Agree. I'd just prefer to make it a separate patch rather then resend the
-> whole series. 
+> I have checked all the calls of the function and found there will be no
+> bad effect.  Do you have any side effect?
 
-Sure, no objection from me.
+Before I was just being vaguely concerned about any unintended side effects,
+but looking again, yes I do.
 
--- 
-Michal Hocko
-SUSE Labs
+Now when swap_duplicate returns an error in copy_one_pte, copy_one_pte returns
+a (potentially nonzero) entry.val, which copy_pte_range interprets
+unconditionally as 'try adding a swap count continuation.'  Not what we want
+for returns other than -ENOMEM.
+
+So it might make sense to have a separate patch that changes swap_duplicate's
+return and makes callers handle it.
