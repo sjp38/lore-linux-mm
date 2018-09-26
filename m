@@ -1,68 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C3F98E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 03:17:13 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id j1-v6so750558edq.23
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 00:17:13 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4941D8E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 03:38:38 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id b17-v6so4337557pfo.20
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 00:38:38 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 60-v6si6509643edy.200.2018.09.26.00.17.11
+        by mx.google.com with ESMTPS id h6-v6si4838675pls.150.2018.09.26.00.38.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Sep 2018 00:17:11 -0700 (PDT)
-Date: Wed, 26 Sep 2018 09:17:08 +0200
+        Wed, 26 Sep 2018 00:38:37 -0700 (PDT)
+Date: Wed, 26 Sep 2018 09:38:31 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch v3] mm, thp: always specify disabled vmas as nh in smaps
-Message-ID: <20180926071708.GB6278@dhcp22.suse.cz>
-References: <alpine.DEB.2.21.1809241054050.224429@chino.kir.corp.google.com>
- <e2f159f3-5373-dda4-5904-ed24d029de3c@suse.cz>
- <alpine.DEB.2.21.1809241215170.239142@chino.kir.corp.google.com>
- <alpine.DEB.2.21.1809241227370.241621@chino.kir.corp.google.com>
- <20180924195603.GJ18685@dhcp22.suse.cz>
- <20180924200258.GK18685@dhcp22.suse.cz>
- <0aa3eb55-82c0-eba3-b12c-2ba22e052a8e@suse.cz>
- <alpine.DEB.2.21.1809251248450.50347@chino.kir.corp.google.com>
- <alpine.DEB.2.21.1809251449060.96762@chino.kir.corp.google.com>
- <20180926061247.GB18685@dhcp22.suse.cz>
+Subject: Re: [PATCH v5 2/4] mm: Provide kernel parameter to allow disabling
+ page init poisoning
+Message-ID: <20180926073831.GC6278@dhcp22.suse.cz>
+References: <20180925200551.3576.18755.stgit@localhost.localdomain>
+ <20180925201921.3576.84239.stgit@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180926061247.GB18685@dhcp22.suse.cz>
+In-Reply-To: <20180925201921.3576.84239.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pavel.tatashin@microsoft.com, dave.jiang@intel.com, dave.hansen@intel.com, jglisse@redhat.com, rppt@linux.vnet.ibm.com, dan.j.williams@intel.com, logang@deltatee.com, mingo@kernel.org, kirill.shutemov@linux.intel.com
 
-On Wed 26-09-18 08:12:47, Michal Hocko wrote:
-> On Tue 25-09-18 14:50:52, David Rientjes wrote:
-> [...]
-> Let's put my general disagreement with the approach asside for a while.
-> If this is really the best way forward the is the implementation really
-> correct?
-> 
-> > +	/*
-> > +	 * Disabling thp is possible through both MADV_NOHUGEPAGE and
-> > +	 * PR_SET_THP_DISABLE.  Both historically used VM_NOHUGEPAGE.  Since
-> > +	 * the introduction of MMF_DISABLE_THP, however, userspace needs the
-> > +	 * ability to detect vmas where thp is not eligible in the same manner.
-> > +	 */
-> > +	if (vma->vm_mm && test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags)) {
-> > +		flags &= ~VM_HUGEPAGE;
-> > +		flags |= VM_NOHUGEPAGE;
-> > +	}
-> 
-> Do we want to report all vmas nh? Shouldn't we limit that to THP-able
-> mappings? It seems quite strange that an application started without
-> PR_SET_THP_DISABLE wouldn't report nh for most mappings while it would
-> otherwise. Also when can we have vma->vm_mm == NULL?
+On Tue 25-09-18 13:20:12, Alexander Duyck wrote:
+[...]
+> +	vm_debug[=options]	[KNL] Available with CONFIG_DEBUG_VM=y.
+> +			May slow down system boot speed, especially when
+> +			enabled on systems with a large amount of memory.
+> +			All options are enabled by default, and this
+> +			interface is meant to allow for selectively
+> +			enabling or disabling specific virtual memory
+> +			debugging features.
+> +
+> +			Available options are:
+> +			  P	Enable page structure init time poisoning
+> +			  -	Disable all of the above options
 
-Hmm, after re-reading your documentation update to "A process mapping
-may be advised to not be backed by transparent hugepages by either
-madvise(MADV_NOHUGEPAGE) or prctl(PR_SET_THP_DISABLE)." the
-implementation matches so scratch my comment.
+I agree with Dave that this is confusing as hell. So what does vm_debug
+(without any options means). I assume it's NOP and all debugging is
+enabled and that is the default. What if I want to disable _only_ the
+page struct poisoning. The weird lookcing `-' will disable all other
+options that we might gather in the future.
 
-As I've said, I am not happy about this approach but if there is a
-general agreement this is really the best we can do I will not stand in
-the way.
+Why cannot you simply go with [no]vm_page_poison[=on/off]?
 -- 
 Michal Hocko
 SUSE Labs
