@@ -1,100 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D13908E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 14:07:57 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id f64-v6so25811115ioa.8
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 11:07:57 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id k2-v6si33452ita.130.2018.09.26.11.07.56
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DAAA8E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 14:10:49 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id s1-v6so14976876pfm.22
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 11:10:49 -0700 (PDT)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id f33-v6si6125128plf.92.2018.09.26.11.10.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 26 Sep 2018 11:07:56 -0700 (PDT)
-Date: Wed, 26 Sep 2018 20:07:27 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 05/18] asm-generic/tlb: Provide generic tlb_flush
-Message-ID: <20180926180727.GA7455@hirez.programming.kicks-ass.net>
-References: <20180926113623.863696043@infradead.org>
- <20180926114800.770817616@infradead.org>
- <20180926125335.GG2979@brain-police>
- <20180926131141.GA12444@hirez.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180926131141.GA12444@hirez.programming.kicks-ass.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Sep 2018 11:10:46 -0700 (PDT)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [v2 PATCH 1/2 -mm] mm: mremap: dwongrade mmap_sem to read when shrinking
+Date: Thu, 27 Sep 2018 02:10:33 +0800
+Message-Id: <1537985434-22655-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, npiggin@gmail.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@armlinux.org.uk, heiko.carstens@de.ibm.com, riel@surriel.com
+To: mhocko@kernel.org, kirill@shutemov.name, willy@infradead.org, ldufour@linux.vnet.ibm.com, vbabka@suse.cz, akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Sep 26, 2018 at 03:11:41PM +0200, Peter Zijlstra wrote:
-> On Wed, Sep 26, 2018 at 01:53:35PM +0100, Will Deacon wrote:
+Other than munmap, mremap might be used to shrink memory mapping too.
+So, it may hold write mmap_sem for long time when shrinking large
+mapping, as what commit ("mm: mmap: zap pages with read mmap_sem in
+munmap") described.
 
-> > > +static inline void tlb_start_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
-> > > +{
-> > > +	if (tlb->fullmm)
-> > > +		return;
-> > > +
-> > > +	/*
-> > > +	 * flush_tlb_range() implementations that look at VM_HUGETLB (tile,
-> > > +	 * mips-4k) flush only large pages.
-> > > +	 *
-> > > +	 * flush_tlb_range() implementations that flush I-TLB also flush D-TLB
-> > > +	 * (tile, xtensa, arm), so it's ok to just add VM_EXEC to an existing
-> > > +	 * range.
-> > > +	 *
-> > > +	 * We rely on tlb_end_vma() to issue a flush, such that when we reset
-> > > +	 * these values the batch is empty.
-> > > +	 */
-> > > +	tlb->vma_huge = !!(vma->vm_flags & VM_HUGETLB);
-> > > +	tlb->vma_exec = !!(vma->vm_flags & VM_EXEC);
-> > 
-> > Hmm, does this result in code generation for archs that don't care about the
-> > vm_flags?
-> 
-> Yes. It's not much code, but if you deeply care we could frob things to
-> get rid of it.
+The mremap() will not manipulate vmas anymore after __do_munmap() call for
+the mapping shrink use case, so it is safe to downgrade to read mmap_sem.
 
-Something a little like the below... not particularly pretty but should
-work.
+So, the same optimization, which downgrades mmap_sem to read for zapping
+pages, is also feasible and reasonable to this case.
 
---- a/include/asm-generic/tlb.h
-+++ b/include/asm-generic/tlb.h
-@@ -305,7 +305,8 @@ static inline void __tlb_reset_range(str
- #error Default tlb_flush() relies on default tlb_start_vma() and tlb_end_vma()
- #endif
+The period of holding exclusive mmap_sem for shrinking large mapping
+would be reduced significantly with this optimization.
+
+MREMAP_FIXED and MREMAP_MAYMOVE are more complicated to adopt this
+optimization since they need manipulate vmas after do_munmap(),
+downgrading mmap_sem may create race window.
+
+Simple mapping shrink is the low hanging fruit, and it may cover the
+most cases of unmap with munmap together.
+
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Kirill A. Shutemov <kirill@shutemov.name>
+Cc: Matthew Wilcox <willy@infradead.org>
+Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+v2: Rephrase the commit log per Michal
+
+ include/linux/mm.h |  2 ++
+ mm/mmap.c          |  4 ++--
+ mm/mremap.c        | 17 +++++++++++++----
+ 3 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a61ebe8..3028028 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2286,6 +2286,8 @@ extern unsigned long do_mmap(struct file *file, unsigned long addr,
+ 	unsigned long len, unsigned long prot, unsigned long flags,
+ 	vm_flags_t vm_flags, unsigned long pgoff, unsigned long *populate,
+ 	struct list_head *uf);
++extern int __do_munmap(struct mm_struct *, unsigned long, size_t,
++		       struct list_head *uf, bool downgrade);
+ extern int do_munmap(struct mm_struct *, unsigned long, size_t,
+ 		     struct list_head *uf);
  
--#define tlb_flush tlb_flush
-+#define generic_tlb_flush
-+
- static inline void tlb_flush(struct mmu_gather *tlb)
- {
- 	if (tlb->fullmm || tlb->need_flush_all) {
-@@ -391,12 +392,12 @@ static inline unsigned long tlb_get_unma
-  * the vmas are adjusted to only cover the region to be torn down.
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 847a17d..017bcfa 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2687,8 +2687,8 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+  * work.  This now handles partial unmappings.
+  * Jeremy Fitzhardinge <jeremy@goop.org>
   */
- #ifndef tlb_start_vma
--#define tlb_start_vma tlb_start_vma
- static inline void tlb_start_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
+-static int __do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+-		       struct list_head *uf, bool downgrade)
++int __do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
++		struct list_head *uf, bool downgrade)
  {
- 	if (tlb->fullmm)
- 		return;
- 
-+#ifdef generic_tlb_flush
+ 	unsigned long end;
+ 	struct vm_area_struct *vma, *prev, *last;
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 5c2e185..8f1ec2b 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -525,6 +525,7 @@ static int vma_expandable(struct vm_area_struct *vma, unsigned long delta)
+ 	unsigned long ret = -EINVAL;
+ 	unsigned long charged = 0;
+ 	bool locked = false;
++	bool downgrade = false;
+ 	struct vm_userfaultfd_ctx uf = NULL_VM_UFFD_CTX;
+ 	LIST_HEAD(uf_unmap_early);
+ 	LIST_HEAD(uf_unmap);
+@@ -561,12 +562,17 @@ static int vma_expandable(struct vm_area_struct *vma, unsigned long delta)
  	/*
- 	 * flush_tlb_range() implementations that look at VM_HUGETLB (tile,
- 	 * mips-4k) flush only large pages.
-@@ -410,13 +411,13 @@ static inline void tlb_start_vma(struct
+ 	 * Always allow a shrinking remap: that just unmaps
+ 	 * the unnecessary pages..
+-	 * do_munmap does all the needed commit accounting
++	 * __do_munmap does all the needed commit accounting, and
++	 * downgrade mmap_sem to read.
  	 */
- 	tlb->vma_huge = !!(vma->vm_flags & VM_HUGETLB);
- 	tlb->vma_exec = !!(vma->vm_flags & VM_EXEC);
-+#endif
- 
- 	flush_cache_range(vma, vma->vm_start, vma->vm_end);
- }
- #endif
- 
- #ifndef tlb_end_vma
--#define tlb_end_vma tlb_end_vma
- static inline void tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
- {
- 	if (tlb->fullmm)
+ 	if (old_len >= new_len) {
+-		ret = do_munmap(mm, addr+new_len, old_len - new_len, &uf_unmap);
+-		if (ret && old_len != new_len)
++		ret = __do_munmap(mm, addr+new_len, old_len - new_len,
++				  &uf_unmap, true);
++		if (ret < 0 && old_len != new_len)
+ 			goto out;
++		/* Returning 1 indicates mmap_sem is downgraded to read. */
++		else if (ret == 1)
++			downgrade = true;
+ 		ret = addr;
+ 		goto out;
+ 	}
+@@ -631,7 +637,10 @@ static int vma_expandable(struct vm_area_struct *vma, unsigned long delta)
+ 		vm_unacct_memory(charged);
+ 		locked = 0;
+ 	}
+-	up_write(&current->mm->mmap_sem);
++	if (downgrade)
++		up_read(&current->mm->mmap_sem);
++	else
++		up_write(&current->mm->mmap_sem);
+ 	if (locked && new_len > old_len)
+ 		mm_populate(new_addr + old_len, new_len - old_len);
+ 	userfaultfd_unmap_complete(mm, &uf_unmap_early);
+-- 
+1.8.3.1
