@@ -1,91 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 97C228E0001
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 07:13:56 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id x24-v6so2934536edm.13
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 04:13:56 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 71C578E0001
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 07:20:43 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id w44-v6so2918253edb.16
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 04:20:43 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j8-v6si123956ejr.201.2018.09.27.04.13.55
+        by mx.google.com with ESMTPS id l4si585406edw.439.2018.09.27.04.20.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Sep 2018 04:13:55 -0700 (PDT)
-Date: Thu, 27 Sep 2018 13:13:54 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v5 07/11] filesystem-dax: Introduce
- dax_lock_mapping_entry()
-Message-ID: <20180927111354.GA16469@quack2.suse.cz>
-References: <153074042316.27838.17319837331947007626.stgit@dwillia2-desk3.amr.corp.intel.com>
- <153074046078.27838.5465590228767136915.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180924115721.75893931@gnomeregan.cam.corp.google.com>
+        Thu, 27 Sep 2018 04:20:42 -0700 (PDT)
+Date: Thu, 27 Sep 2018 13:20:41 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
+Message-ID: <20180927112041.GG6278@dhcp22.suse.cz>
+References: <20180925200551.3576.18755.stgit@localhost.localdomain>
+ <20180925202053.3576.66039.stgit@localhost.localdomain>
+ <20180926075540.GD6278@dhcp22.suse.cz>
+ <6f87a5d7-05e2-00f4-8568-bb3521869cea@linux.intel.com>
+ <CAPcyv4iVnodai0bB74yeSCD2H+hoLsZYUk4sR9jV0pPAE+Zorw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180924115721.75893931@gnomeregan.cam.corp.google.com>
+In-Reply-To: <CAPcyv4iVnodai0bB74yeSCD2H+hoLsZYUk4sR9jV0pPAE+Zorw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Barret Rhoden <brho@google.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, hch@lst.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jack@suse.cz, ross.zwisler@linux.intel.com
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: alexander.h.duyck@linux.intel.com, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Dave Jiang <dave.jiang@intel.com>, Dave Hansen <dave.hansen@intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, rppt@linux.vnet.ibm.com, Logan Gunthorpe <logang@deltatee.com>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon 24-09-18 11:57:21, Barret Rhoden wrote:
-> Hi Dan -
-> 
-> On 2018-07-04 at 14:41 Dan Williams <dan.j.williams@intel.com> wrote:
-> [snip]
-> > diff --git a/fs/dax.c b/fs/dax.c
-> > index 4de11ed463ce..57ec272038da 100644
-> > --- a/fs/dax.c
-> > +++ b/fs/dax.c
-> [snip]
-> > +bool dax_lock_mapping_entry(struct page *page)
-> > +{
-> > +	pgoff_t index;
-> > +	struct inode *inode;
-> > +	bool did_lock = false;
-> > +	void *entry = NULL, **slot;
-> > +	struct address_space *mapping;
-> > +
-> > +	rcu_read_lock();
-> > +	for (;;) {
-> > +		mapping = READ_ONCE(page->mapping);
-> > +
-> > +		if (!dax_mapping(mapping))
-> > +			break;
-> > +
-> > +		/*
-> > +		 * In the device-dax case there's no need to lock, a
-> > +		 * struct dev_pagemap pin is sufficient to keep the
-> > +		 * inode alive, and we assume we have dev_pagemap pin
-> > +		 * otherwise we would not have a valid pfn_to_page()
-> > +		 * translation.
-> > +		 */
-> > +		inode = mapping->host;
-> > +		if (S_ISCHR(inode->i_mode)) {
-> > +			did_lock = true;
-> > +			break;
-> > +		}
-> > +
-> > +		xa_lock_irq(&mapping->i_pages);
-> > +		if (mapping != page->mapping) {
-> > +			xa_unlock_irq(&mapping->i_pages);
-> > +			continue;
-> > +		}
-> > +		index = page->index;
-> > +
-> > +		entry = __get_unlocked_mapping_entry(mapping, index, &slot,
-> > +				entry_wait_revalidate);
-> > +		if (!entry) {
-> > +			xa_unlock_irq(&mapping->i_pages);
-> > +			break;
-> > +		} else if (IS_ERR(entry)) {
-> > +			WARN_ON_ONCE(PTR_ERR(entry) != -EAGAIN);
-> > +			continue;
-> 
-> In the IS_ERR case, do you need to xa_unlock the mapping?  It looks
-> like you'll deadlock the next time around the loop.
+On Wed 26-09-18 11:52:56, Dan Williams wrote:
+[...]
+> Could we push the hotplug lock deeper to the places that actually need
+> it? What I found with my initial investigation is that we don't even
+> need the hotplug lock for the vmemmap initialization with this patch
+> [1].
 
-Yep, that looks certainly wrong. I'll send a fix.
-
-								Honza
+Yes, the scope of the hotplug lock should be evaluated and _documented_.
+Then we can build on top.
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
