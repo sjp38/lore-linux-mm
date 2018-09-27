@@ -1,40 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 543B68E0001
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 09:08:21 -0400 (EDT)
-Received: by mail-it1-f197.google.com with SMTP id 204-v6so7904699itf.1
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 06:08:21 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c11-v6sor863575jaa.131.2018.09.27.06.08.20
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 149208E0001
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 09:13:34 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id b21-v6so3012184edt.18
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 06:13:34 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w10-v6si103652ejq.58.2018.09.27.06.13.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 27 Sep 2018 06:08:20 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Sep 2018 06:13:32 -0700 (PDT)
+Date: Thu, 27 Sep 2018 15:13:29 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
+Message-ID: <20180927131329.GI6278@dhcp22.suse.cz>
+References: <20180925200551.3576.18755.stgit@localhost.localdomain>
+ <20180925202053.3576.66039.stgit@localhost.localdomain>
+ <20180926075540.GD6278@dhcp22.suse.cz>
+ <6f87a5d7-05e2-00f4-8568-bb3521869cea@linux.intel.com>
+ <20180927110926.GE6278@dhcp22.suse.cz>
+ <20180927122537.GA20378@techadventures.net>
 MIME-Version: 1.0
-In-Reply-To: <01000166110bb882-0b1fa048-fe1c-4139-a1ba-702754bbc267-000000@email.amazonses.com>
-References: <000000000000e5f76c057664e73d@google.com> <CAKdAkRS7PSXv65MTnvKOewqESxt0_FtKohd86ioOuYR3R0z9dw@mail.gmail.com>
- <CACT4Y+YOb6M=xuPG64PAvd=0bcteicGtwQO60CevN_V67SJ=MQ@mail.gmail.com>
- <010001660c1fafb2-6d0dc7e1-d898-4589-874c-1be1af94e22d-000000@email.amazonses.com>
- <CACT4Y+ayX8vzd2JPrLeFhf3K_Quf4x6SDtmtkNJuwNLyOh67tQ@mail.gmail.com>
- <010001660c4a8bbe-91200766-00df-48bd-bc60-a03da2ccdb7d-000000@email.amazonses.com>
- <20180924184158.GA156847@dtor-ws> <CACT4Y+ZPrngv8GTC-Cw68PBDxZ2T5x1kKMNXL3DmP24Xd0m_5g@mail.gmail.com>
- <01000166110bb882-0b1fa048-fe1c-4139-a1ba-702754bbc267-000000@email.amazonses.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Thu, 27 Sep 2018 15:07:59 +0200
-Message-ID: <CACT4Y+aUdAmRmgiV5-KWXF-eGoCUCMhUC+ddLU-heQTQ53PhRA@mail.gmail.com>
-Subject: Re: WARNING: kmalloc bug in input_mt_init_slots
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180927122537.GA20378@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Dmitry Torokhov <dmitry.torokhov@gmail.com>, syzbot+87829a10073277282ad1@syzkaller.appspotmail.com, Pekka Enberg <penberg@kernel.org>, "linux-input@vger.kernel.org" <linux-input@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>, Henrik Rydberg <rydberg@bitmath.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
+To: Oscar Salvador <osalvador@techadventures.net>
+Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pavel.tatashin@microsoft.com, dave.jiang@intel.com, dave.hansen@intel.com, jglisse@redhat.com, rppt@linux.vnet.ibm.com, dan.j.williams@intel.com, logang@deltatee.com, mingo@kernel.org, kirill.shutemov@linux.intel.com
 
-On Tue, Sep 25, 2018 at 4:04 PM, Christopher Lameter <cl@linux.com> wrote:
-> On Tue, 25 Sep 2018, Dmitry Vyukov wrote:
->
->> Assuming that the size is large enough to fail in all allocators, is
->> this warning still useful? How? Should we remove it?
->
-> Remove it. It does not make sense because we check earlier if possible
-> without the warn.
+On Thu 27-09-18 14:25:37, Oscar Salvador wrote:
+> On Thu, Sep 27, 2018 at 01:09:26PM +0200, Michal Hocko wrote:
+> > > So there were a few things I wasn't sure we could pull outside of the
+> > > hotplug lock. One specific example is the bits related to resizing the pgdat
+> > > and zone. I wanted to avoid pulling those bits outside of the hotplug lock.
+> > 
+> > Why would that be a problem. There are dedicated locks for resizing.
+> 
+> True is that move_pfn_range_to_zone() manages the locks for pgdat/zone resizing,
+> but it also takes care of calling init_currently_empty_zone() in case the zone is empty.
+> Could not that be a problem if we take move_pfn_range_to_zone() out of the lock?
 
-Mailed "mm: don't warn about large allocations for slab" to remove the warning.
+I would have to double check but is the hotplug lock really serializing
+access to the state initialized by init_currently_empty_zone? E.g.
+zone_start_pfn is a nice example of a state that is used outside of the
+lock. zone's free lists are similar. So do we really need the hoptlug
+lock? And more broadly, what does the hotplug lock is supposed to
+serialize in general. A proper documentation would surely help to answer
+these questions. There is way too much of "do not touch this code and
+just make my particular hack" mindset which made the whole memory
+hotplug a giant pile of mess. We really should start with some proper
+engineering here finally.
+-- 
+Michal Hocko
+SUSE Labs
