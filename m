@@ -1,102 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B5AB48E0001
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 10:56:44 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id e136-v6so488944oib.11
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 07:56:44 -0700 (PDT)
-Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
-        by mx.google.com with ESMTPS id 93-v6si1096985otq.130.2018.09.27.07.56.43
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 12A238E0001
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 11:22:23 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id c22-v6so2826564qkb.18
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 08:22:23 -0700 (PDT)
+Received: from a9-46.smtp-out.amazonses.com (a9-46.smtp-out.amazonses.com. [54.240.9.46])
+        by mx.google.com with ESMTPS id p2-v6si1642422qkb.48.2018.09.27.08.22.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Sep 2018 07:56:43 -0700 (PDT)
-From: zhong jiang <zhongjiang@huawei.com>
-Subject: [STABLE PATCH] slub: make ->cpu_partial unsigned int
-Date: Thu, 27 Sep 2018 22:43:40 +0800
-Message-ID: <1538059420-14439-1-git-send-email-zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 27 Sep 2018 08:22:22 -0700 (PDT)
+Date: Thu, 27 Sep 2018 15:22:21 +0000
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: WARNING: kmalloc bug in input_mt_init_slots
+In-Reply-To: <CACT4Y+biYtFUV7hK2ne2RfrbZjMt=4FK4deE0B6WykwT2qSt2g@mail.gmail.com>
+Message-ID: <010001661b9fad1d-cdbfabdb-5553-446f-bcde-585e42837415-000000@email.amazonses.com>
+References: <000000000000e5f76c057664e73d@google.com> <CAKdAkRS7PSXv65MTnvKOewqESxt0_FtKohd86ioOuYR3R0z9dw@mail.gmail.com> <CACT4Y+YOb6M=xuPG64PAvd=0bcteicGtwQO60CevN_V67SJ=MQ@mail.gmail.com> <010001660c1fafb2-6d0dc7e1-d898-4589-874c-1be1af94e22d-000000@email.amazonses.com>
+ <CACT4Y+ayX8vzd2JPrLeFhf3K_Quf4x6SDtmtkNJuwNLyOh67tQ@mail.gmail.com> <010001660c4a8bbe-91200766-00df-48bd-bc60-a03da2ccdb7d-000000@email.amazonses.com> <20180924184158.GA156847@dtor-ws> <CACT4Y+ZPrngv8GTC-Cw68PBDxZ2T5x1kKMNXL3DmP24Xd0m_5g@mail.gmail.com>
+ <01000166110bb882-0b1fa048-fe1c-4139-a1ba-702754bbc267-000000@email.amazonses.com> <CACT4Y+aUdAmRmgiV5-KWXF-eGoCUCMhUC+ddLU-heQTQ53PhRA@mail.gmail.com> <010001661b631a3e-f398fc0a-127c-4c6e-b6ca-b2bd63bc4a9a-000000@email.amazonses.com>
+ <CACT4Y+biYtFUV7hK2ne2RfrbZjMt=4FK4deE0B6WykwT2qSt2g@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linux-foundation.org
-Cc: iamjoonsoo.kim@lge.com, rientjes@google.com, cl@linux.com, penberg@kernel.org, akpm@linux-foundation.org, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Dmitry Torokhov <dmitry.torokhov@gmail.com>, syzbot+87829a10073277282ad1@syzkaller.appspotmail.com, Pekka Enberg <penberg@kernel.org>, "linux-input@vger.kernel.org" <linux-input@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>, Henrik Rydberg <rydberg@bitmath.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
 
-From: Alexey Dobriyan <adobriyan@gmail.com>
+On Thu, 27 Sep 2018, Dmitry Vyukov wrote:
 
-        /*
-         * cpu_partial determined the maximum number of objects
-         * kept in the per cpu partial lists of a processor.
-         */
+> On Thu, Sep 27, 2018 at 4:16 PM, Christopher Lameter <cl@linux.com> wrote:
+> > On Thu, 27 Sep 2018, Dmitry Vyukov wrote:
+> >
+> >> On Tue, Sep 25, 2018 at 4:04 PM, Christopher Lameter <cl@linux.com> wrote:
+> >> > On Tue, 25 Sep 2018, Dmitry Vyukov wrote:
+> >> >
+> >> >> Assuming that the size is large enough to fail in all allocators, is
+> >> >> this warning still useful? How? Should we remove it?
+> >> >
+> >> > Remove it. It does not make sense because we check earlier if possible
+> >> > without the warn.
+> >>
+> >> Mailed "mm: don't warn about large allocations for slab" to remove the warning.
+> >>
+> >
+> > Hoe it arrives here at some point.
+>
+> It's here:
+> https://lore.kernel.org/patchwork/patch/992660/
+>
 
-Can't be negative.
-
-I hit a real issue that it will result in a large number of memory leak.
-Because Freeing slabs are in interrupt context. So it can trigger this issue.
-put_cpu_partial can be interrupted more than once.
-due to a union struct of lru and pobjects in struct page, when other core handles
-page->lru list, for eaxmple, remove_partial in freeing slab code flow, It will
-result in pobjects being a negative value(0xdead0000). Therefore, a large number
-of slabs will be added to per_cpu partial list.
-
-I had posted the issue to community before. The detailed issue description is as follows.
-
-Link: https://www.spinics.net/lists/kernel/msg2870979.html
-
-After applying the patch, The issue is fixed. So the patch is a effective bugfix.
-It should go into stable.
-
-Signed-off-by: Alexey Dobriyan <adobriyan@gmail.com>
-Acked-by: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: stable@vger.kernel.org 
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- include/linux/slub_def.h | 3 ++-
- mm/slub.c                | 6 +++---
- 2 files changed, 5 insertions(+), 4 deletions(-)
-
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index 3388511..9b681f2 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -67,7 +67,8 @@ struct kmem_cache {
- 	int size;		/* The size of an object including meta data */
- 	int object_size;	/* The size of an object without meta data */
- 	int offset;		/* Free pointer offset. */
--	int cpu_partial;	/* Number of per cpu partial objects to keep around */
-+	/* Number of per cpu partial objects to keep around */
-+	unsigned int cpu_partial;
- 	struct kmem_cache_order_objects oo;
- 
- 	/* Allocation and freeing of slabs */
-diff --git a/mm/slub.c b/mm/slub.c
-index 2284c43..c33b0e1 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1661,7 +1661,7 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
- {
- 	struct page *page, *page2;
- 	void *object = NULL;
--	int available = 0;
-+	unsigned int available = 0;
- 	int objects;
- 
- 	/*
-@@ -4674,10 +4674,10 @@ static ssize_t cpu_partial_show(struct kmem_cache *s, char *buf)
- static ssize_t cpu_partial_store(struct kmem_cache *s, const char *buf,
- 				 size_t length)
- {
--	unsigned long objects;
-+	unsigned int objects;
- 	int err;
- 
--	err = kstrtoul(buf, 10, &objects);
-+	err = kstrtouint(buf, 10, &objects);
- 	if (err)
- 		return err;
- 	if (objects && !kmem_cache_has_cpu_partial(s))
--- 
-1.7.12.4
+Please post on the mailing list and NAK to the patch. Testing against
+KMALLOC_MAX_CACHE_SIZE is not ok.
