@@ -1,103 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D64818E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 21:34:41 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id e15-v6so1127470pfi.5
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 18:34:41 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id h3-v6si600713pgc.122.2018.09.26.18.34.40
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 636468E0001
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 00:50:43 -0400 (EDT)
+Received: by mail-oi1-f198.google.com with SMTP id t3-v6so197359oif.20
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 21:50:43 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id t10-v6si441679oth.341.2018.09.26.21.50.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Sep 2018 18:34:40 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -V5 RESEND 03/21] swap: Support PMD swap mapping in swap_duplicate()
-References: <20180925071348.31458-1-ying.huang@intel.com>
-	<20180925071348.31458-4-ying.huang@intel.com>
-	<20180925191953.4ped5ki7u3ymafmd@ca-dmjordan1.us.oracle.com>
-	<874lecifj4.fsf@yhuang-dev.intel.com>
-	<20180926145145.6xp2kxpngyd54f6i@ca-dmjordan1.us.oracle.com>
-Date: Thu, 27 Sep 2018 09:34:36 +0800
-In-Reply-To: <20180926145145.6xp2kxpngyd54f6i@ca-dmjordan1.us.oracle.com>
-	(Daniel Jordan's message of "Wed, 26 Sep 2018 07:51:45 -0700")
-Message-ID: <87r2hfhger.fsf@yhuang-dev.intel.com>
+        Wed, 26 Sep 2018 21:50:42 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8R4nKVj018615
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 00:50:41 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2mrr1411au-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 00:50:41 -0400
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Thu, 27 Sep 2018 05:50:38 +0100
+Date: Thu, 27 Sep 2018 07:50:20 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH 03/30] mm: remove CONFIG_HAVE_MEMBLOCK
+References: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1536927045-23536-4-git-send-email-rppt@linux.vnet.ibm.com>
+ <CAKgT0UdP=78RsWHMxFu4PD8a3AhA3eNcG68Z_9aGY0vhOKf7xA@mail.gmail.com>
+ <20180926183152.GA4597@rapoport-lnx>
+ <CAKgT0UcC-GTtyPK9ynvj6r3YFqy8kE40iMJxzPowbNoXGf9iWg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKgT0UcC-GTtyPK9ynvj6r3YFqy8kE40iMJxzPowbNoXGf9iWg@mail.gmail.com>
+Message-Id: <20180927045019.GA16740@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, chris@zankel.net, David Miller <davem@davemloft.net>, Geert Uytterhoeven <geert@linux-m68k.org>, green.hu@gmail.com, Greg KH <gregkh@linuxfoundation.org>, gxt@pku.edu.cn, Ingo Molnar <mingo@redhat.com>, jejb@parisc-linux.org, jonas@southpole.se, Jonathan Corbet <corbet@lwn.net>, lftan@altera.com, msalter@redhat.com, Martin Schwidefsky <schwidefsky@de.ibm.com>, mattst88@gmail.com, mpe@ellerman.id.au, Michal Hocko <mhocko@suse.com>, monstr@monstr.eu, palmer@sifive.com, paul.burton@mips.com, rkuo@codeaurora.org, richard@nod.at, dalias@libc.org, Russell King - ARM Linux <linux@armlinux.org.uk>, fancer.lancer@gmail.com, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, vgupta@synopsys.com, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, nios2-dev@lists.rocketboards.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp
 
-Daniel Jordan <daniel.m.jordan@oracle.com> writes:
+On Wed, Sep 26, 2018 at 05:34:32PM -0700, Alexander Duyck wrote:
+> On Wed, Sep 26, 2018 at 11:32 AM Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+> >
+> > On Wed, Sep 26, 2018 at 09:58:41AM -0700, Alexander Duyck wrote:
+> > > On Fri, Sep 14, 2018 at 5:11 AM Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+> > > >
+> > > > All architecures use memblock for early memory management. There is no need
+> > > > for the CONFIG_HAVE_MEMBLOCK configuration option.
+> > > >
+> > > > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> > >
+> > > <snip>
+> > >
+> > > > diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> > > > index 5169205..4ae91fc 100644
+> > > > --- a/include/linux/memblock.h
+> > > > +++ b/include/linux/memblock.h
+> > > > @@ -2,7 +2,6 @@
+> > > >  #define _LINUX_MEMBLOCK_H
+> > > >  #ifdef __KERNEL__
+> > > >
+> > > > -#ifdef CONFIG_HAVE_MEMBLOCK
+> > > >  /*
+> > > >   * Logical memory blocks.
+> > > >   *
+> > > > @@ -460,7 +459,6 @@ static inline phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align)
+> > > >  {
+> > > >         return 0;
+> > > >  }
+> > > > -#endif /* CONFIG_HAVE_MEMBLOCK */
+> > > >
+> > > >  #endif /* __KERNEL__ */
+> > >
+> > > There was an #else above this section and I believe it and the code
+> > > after it needs to be stripped as well.
+> >
+> > Right, I've already sent the fix [1] and it's in mmots.
+> >
+> > [1] https://lkml.org/lkml/2018/9/19/416
+> >
+> 
+> Are you sure? The patch you reference appears to be for
+> drivers/of/fdt.c, and the bit I pointed out here is in
+> include/linux/memblock.h.
 
-> On Wed, Sep 26, 2018 at 08:55:59PM +0800, Huang, Ying wrote:
->> Daniel Jordan <daniel.m.jordan@oracle.com> writes:
->> > On Tue, Sep 25, 2018 at 03:13:30PM +0800, Huang Ying wrote:
->> >>  /*
->> >>   * Increase reference count of swap entry by 1.
->> >> - * Returns 0 for success, or -ENOMEM if a swap_count_continuation is required
->> >> - * but could not be atomically allocated.  Returns 0, just as if it succeeded,
->> >> - * if __swap_duplicate() fails for another reason (-EINVAL or -ENOENT), which
->> >> - * might occur if a page table entry has got corrupted.
->> >> + *
->> >> + * Return error code in following case.
->> >> + * - success -> 0
->> >> + * - swap_count_continuation is required but could not be atomically allocated.
->> >> + *   *entry is used to return swap entry to call add_swap_count_continuation().
->> >> + *								      -> ENOMEM
->> >> + * - otherwise same as __swap_duplicate()
->> >>   */
->> >> -int swap_duplicate(swp_entry_t entry)
->> >> +int swap_duplicate(swp_entry_t *entry, int entry_size)
->> >>  {
->> >>  	int err = 0;
->> >>  
->> >> -	while (!err && __swap_duplicate(entry, 1) == -ENOMEM)
->> >> -		err = add_swap_count_continuation(entry, GFP_ATOMIC);
->> >> +	while (!err &&
->> >> +	       (err = __swap_duplicate(entry, entry_size, 1)) == -ENOMEM)
->> >> +		err = add_swap_count_continuation(*entry, GFP_ATOMIC);
->> >>  	return err;
->> >
->> > Now we're returning any error we get from __swap_duplicate, apparently to
->> > accommodate ENOTDIR later in the series, which is a change from the behavior
->> > introduced in 570a335b8e22 ("swap_info: swap count continuations").  This might
->> > belong in a separate patch given its potential for side effects.
->> 
->> I have checked all the calls of the function and found there will be no
->> bad effect.  Do you have any side effect?
->
-> Before I was just being vaguely concerned about any unintended side effects,
-> but looking again, yes I do.
->
-> Now when swap_duplicate returns an error in copy_one_pte, copy_one_pte returns
-> a (potentially nonzero) entry.val, which copy_pte_range interprets
-> unconditionally as 'try adding a swap count continuation.'  Not what we want
-> for returns other than -ENOMEM.
+Ah, sorry. You are right, will fix. Thanks for spotting it!
+ 
+> - Alex
+> 
 
-Thanks for pointing this out!  Before the change in the patchset, the
-behavior is,
-
-Something wrong is detected in swap_duplicate(), but the error is
-ignored.  Then copy_one_pte() will think everything is OK, so that it
-can proceed to call set_pte_at().  The system will be in inconsistent
-state and some data may be polluted!
-
-But this doesn't cause any problem in practical.  Per my understanding,
-because if other part of the kernel works correctly, it's impossible for
-swap_duplicate() return any error except -ENOMEM before the change in
-this patchset.  But the error may be possible during development, and it
-may serve as some kind of document too.  So I suggest to add
-
-VM_BUG_ON(error != -ENOMEM);
-
-in swap_duplicate().  What do you think about that?
-
-> So it might make sense to have a separate patch that changes swap_duplicate's
-> return and makes callers handle it.
-
-Thanks for your help to take a deep look at this.  I want to try to fix
-all potential problems firstly, because the number of the caller is
-quite limited.  Do you agree?
-
-Best Regards,
-Huang, Ying
+-- 
+Sincerely yours,
+Mike.
