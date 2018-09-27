@@ -1,74 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B14758E0001
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 08:14:33 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id j27-v6so2822844oth.3
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 05:14:33 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id m107-v6si798174otc.217.2018.09.27.05.14.32
-        for <linux-mm@kvack.org>;
-        Thu, 27 Sep 2018 05:14:32 -0700 (PDT)
-Date: Thu, 27 Sep 2018 13:14:26 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH 05/18] asm-generic/tlb: Provide generic tlb_flush
-Message-ID: <20180927121425.GC5028@brain-police>
-References: <20180926113623.863696043@infradead.org>
- <20180926114800.770817616@infradead.org>
- <20180926125335.GG2979@brain-police>
- <20180926131141.GA12444@hirez.programming.kicks-ass.net>
- <20180926180727.GA7455@hirez.programming.kicks-ass.net>
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 68FD58E0001
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 08:25:40 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id z9-v6so2548106wrv.6
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 05:25:40 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w124-v6sor454696wmf.20.2018.09.27.05.25.39
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 27 Sep 2018 05:25:39 -0700 (PDT)
+Date: Thu, 27 Sep 2018 14:25:37 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
+Message-ID: <20180927122537.GA20378@techadventures.net>
+References: <20180925200551.3576.18755.stgit@localhost.localdomain>
+ <20180925202053.3576.66039.stgit@localhost.localdomain>
+ <20180926075540.GD6278@dhcp22.suse.cz>
+ <6f87a5d7-05e2-00f4-8568-bb3521869cea@linux.intel.com>
+ <20180927110926.GE6278@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180926180727.GA7455@hirez.programming.kicks-ass.net>
+In-Reply-To: <20180927110926.GE6278@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, npiggin@gmail.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@armlinux.org.uk, heiko.carstens@de.ibm.com, riel@surriel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pavel.tatashin@microsoft.com, dave.jiang@intel.com, dave.hansen@intel.com, jglisse@redhat.com, rppt@linux.vnet.ibm.com, dan.j.williams@intel.com, logang@deltatee.com, mingo@kernel.org, kirill.shutemov@linux.intel.com
 
-On Wed, Sep 26, 2018 at 08:07:27PM +0200, Peter Zijlstra wrote:
-> --- a/include/asm-generic/tlb.h
-> +++ b/include/asm-generic/tlb.h
-> @@ -305,7 +305,8 @@ static inline void __tlb_reset_range(str
->  #error Default tlb_flush() relies on default tlb_start_vma() and tlb_end_vma()
->  #endif
->  
-> -#define tlb_flush tlb_flush
-> +#define generic_tlb_flush
-> +
->  static inline void tlb_flush(struct mmu_gather *tlb)
->  {
->  	if (tlb->fullmm || tlb->need_flush_all) {
-> @@ -391,12 +392,12 @@ static inline unsigned long tlb_get_unma
->   * the vmas are adjusted to only cover the region to be torn down.
->   */
->  #ifndef tlb_start_vma
-> -#define tlb_start_vma tlb_start_vma
->  static inline void tlb_start_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
->  {
->  	if (tlb->fullmm)
->  		return;
->  
-> +#ifdef generic_tlb_flush
->  	/*
->  	 * flush_tlb_range() implementations that look at VM_HUGETLB (tile,
->  	 * mips-4k) flush only large pages.
-> @@ -410,13 +411,13 @@ static inline void tlb_start_vma(struct
->  	 */
->  	tlb->vma_huge = !!(vma->vm_flags & VM_HUGETLB);
->  	tlb->vma_exec = !!(vma->vm_flags & VM_EXEC);
-> +#endif
+On Thu, Sep 27, 2018 at 01:09:26PM +0200, Michal Hocko wrote:
+> > So there were a few things I wasn't sure we could pull outside of the
+> > hotplug lock. One specific example is the bits related to resizing the pgdat
+> > and zone. I wanted to avoid pulling those bits outside of the hotplug lock.
+> 
+> Why would that be a problem. There are dedicated locks for resizing.
 
-Alternatively, we could wrap the two assignments above in a macro like:
+True is that move_pfn_range_to_zone() manages the locks for pgdat/zone resizing,
+but it also takes care of calling init_currently_empty_zone() in case the zone is empty.
+Could not that be a problem if we take move_pfn_range_to_zone() out of the lock?
 
-	tlb_update_vma_flags(tlb, vma)
-
-which could be empty if the generic tlb_flush isn't in use?
-
-Anyway, as long as we resolve this one way or the other, you can add my Ack:
-
-Acked-by: Will Deacon <will.deacon@arm.com>
-
-Cheers,
-
-Will
+-- 
+Oscar Salvador
+SUSE L3
