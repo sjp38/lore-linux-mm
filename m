@@ -1,98 +1,266 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B6748E0008
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 05:26:45 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id b12-v6so1591243qtp.16
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 02:26:45 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d1-v6si919600qtl.321.2018.09.27.02.26.44
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 38EBA8E0001
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 06:09:33 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id n26-v6so2469605iog.15
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 03:09:33 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y16-v6sor747242jan.115.2018.09.27.03.09.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Sep 2018 02:26:44 -0700 (PDT)
-From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH v3 6/6] memory-hotplug.txt: Add some details about locking internals
-Date: Thu, 27 Sep 2018 11:25:54 +0200
-Message-Id: <20180927092554.13567-7-david@redhat.com>
-In-Reply-To: <20180927092554.13567-1-david@redhat.com>
-References: <20180927092554.13567-1-david@redhat.com>
+        (Google Transport Security);
+        Thu, 27 Sep 2018 03:09:31 -0700 (PDT)
+MIME-Version: 1.0
+References: <D4C91DBA-CF56-4991-BD7F-6BE334A2C048@amazon.com>
+ <CALZtONDpUDAz_PLrt03CaajzAoY_Wr6Tm=PgvqAWyir9=fCd8A@mail.gmail.com>
+ <EAFEF5B5-DE5D-42C7-AEF1-9DF6A800E95D@amazon.com> <CALZtONC5FYhmq+U6fga7RbDA4mEB4rTihsLGXG50a-XUCdtxiA@mail.gmail.com>
+ <EEC089E8-9F85-483A-8C83-4C8459BA1345@amazon.com> <CALZtONB-y=ePYMZjtRiyfCYbWJ=R-xaR2NHPafzYMohtKOUSYg@mail.gmail.com>
+ <A5D25E6B-137C-4E09-9353-30B36C2B192E@amazon.com> <CALZtONCM4KvsbtPJD0bnoocbv90q2niSQbeYypDo=w8oDTJ-CQ@mail.gmail.com>
+ <F947C649-044A-4BCF-9E78-A25032B3C7DC@amazon.com>
+In-Reply-To: <F947C649-044A-4BCF-9E78-A25032B3C7DC@amazon.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Thu, 27 Sep 2018 06:08:54 -0400
+Message-ID: <CALZtONAi2VOrqs-UG3dsoCsOkAoMKQKUackCbAniAow35+XzcQ@mail.gmail.com>
+Subject: Re: zswap: use PAGE_SIZE * 2 for compression dst buffer size when
+ calling crypto compression API
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, David Hildenbrand <david@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>
+To: taeilum@amazon.com
+Cc: Linux-MM <linux-mm@kvack.org>, Seth Jennings <sjenning@redhat.com>
 
-Let's document the magic a bit, especially why device_hotplug_lock is
-required when adding/removing memory and how it all play together with
-requests to online/offline memory from user space.
+On Wed, Sep 26, 2018 at 12:10 PM Um, Taeil <taeilum@amazon.com> wrote:
+>
+>    > compressed size > source buffer size has nothing to do with it.  the
+>    > hw compressor must not exceed the *destination* buffer size, no matt=
+er
+>    > how small or large it is.
+>
+>    > if your hw compressor can't guarantee that it won't overrun the dest
+>    > buffer, you need to use a bounce buffer that's sized large enough to
+>    > guarantee your hw won't corrupt memory.
+>
+>    > again..."greater than source data size" has nothing to do with this.
+>
+>    > if lzo or lz4 fail to check the output buffer size before writing in=
+to
+>    > it, that's a serious bug in their code that needs to be fixed.
+>
+> I see a deviation between the consumer of compression driver and owner of=
+ compression driver here.
+> See how zram is dealing with this by always passing PAGE_SIZE * 2 for des=
+tination length when it calls compression driver.
 
-Cc: Jonathan Corbet <corbet@lwn.net>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
-Reviewed-by: Rashmica Gupta <rashmica.g@gmail.com>
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- Documentation/memory-hotplug.txt | 42 +++++++++++++++++++++++++++++++-
- 1 file changed, 41 insertions(+), 1 deletion(-)
+And that's its choice, but has nothing to do with bugs in compressors
+that overrun their provided dest buffers.
 
-diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
-index 7f49ebf3ddb2..ce4faa5530fa 100644
---- a/Documentation/memory-hotplug.txt
-+++ b/Documentation/memory-hotplug.txt
-@@ -3,7 +3,7 @@ Memory Hotplug
- ==============
- 
- :Created:							Jul 28 2007
--:Updated: Add description of notifier of memory hotplug:	Oct 11 2007
-+:Updated: Add some details about locking internals:		Aug 20 2018
- 
- This document is about memory hotplug including how-to-use and current status.
- Because Memory Hotplug is still under development, contents of this text will
-@@ -495,6 +495,46 @@ further processing of the notification queue.
- 
- NOTIFY_STOP stops further processing of the notification queue.
- 
-+
-+Locking Internals
-+=================
-+
-+When adding/removing memory that uses memory block devices (i.e. ordinary RAM),
-+the device_hotplug_lock should be held to:
-+
-+- synchronize against online/offline requests (e.g. via sysfs). This way, memory
-+  block devices can only be accessed (.online/.state attributes) by user
-+  space once memory has been fully added. And when removing memory, we
-+  know nobody is in critical sections.
-+- synchronize against CPU hotplug and similar (e.g. relevant for ACPI and PPC)
-+
-+Especially, there is a possible lock inversion that is avoided using
-+device_hotplug_lock when adding memory and user space tries to online that
-+memory faster than expected:
-+
-+- device_online() will first take the device_lock(), followed by
-+  mem_hotplug_lock
-+- add_memory_resource() will first take the mem_hotplug_lock, followed by
-+  the device_lock() (while creating the devices, during bus_add_device()).
-+
-+As the device is visible to user space before taking the device_lock(), this
-+can result in a lock inversion.
-+
-+onlining/offlining of memory should be done via device_online()/
-+device_offline() - to make sure it is properly synchronized to actions
-+via sysfs. Holding device_hotplug_lock is advised (to e.g. protect online_type)
-+
-+When adding/removing/onlining/offlining memory or adding/removing
-+heterogeneous/device memory, we should always hold the mem_hotplug_lock in
-+write mode to serialise memory hotplug (e.g. access to global/zone
-+variables).
-+
-+In addition, mem_hotplug_lock (in contrast to device_hotplug_lock) in read
-+mode allows for a quite efficient get_online_mems/put_online_mems
-+implementation, so code accessing memory can protect from that memory
-+vanishing.
-+
-+
- Future Work
- ===========
- 
--- 
-2.17.1
+>
+> =EF=BB=BFOn 9/26/18, 2:01 AM, "Dan Streetman" <ddstreet@ieee.org> wrote:
+>
+>     On Thu, Sep 20, 2018 at 9:01 PM Um, Taeil <taeilum@amazon.com> wrote:
+>     >
+>     >    > do you have a specific example of how this causes any actual p=
+roblem?
+>     > Yes, I have a H/W accelerator that tries to finish compression even=
+ if compressed data size is greater than source data size.
+>
+>     compressed size > source buffer size has nothing to do with it.  the
+>     hw compressor must not exceed the *destination* buffer size, no matte=
+r
+>     how small or large it is.
+>
+>     if your hw compressor can't guarantee that it won't overrun the dest
+>     buffer, you need to use a bounce buffer that's sized large enough to
+>     guarantee your hw won't corrupt memory.
+>
+>     see the ppc PowerNV hw compressor driver for reference.
+>
+>     >
+>     >    > personally, i'd prefer reducing zswap_dstmem down to 1 page to=
+ save
+>     >    > memory, since there is no case where zswap would ever want to =
+use a
+>     >    > compressed page larger than that.
+>     > I don't think "reducing zswap_dstmem down to 1 page" works in today=
+'s lzo and lz4 kernel implementation.
+>     > If I read kernel's lzo, lz4 code correctly, it does not stop compre=
+ssion when compressed data size is greater than source data size.
+>
+>     again..."greater than source data size" has nothing to do with this.
+>
+>     if lzo or lz4 fail to check the output buffer size before writing int=
+o
+>     it, that's a serious bug in their code that needs to be fixed.
+>
+>     >
+>     > On 9/19/18, 8:47 AM, "Dan Streetman" <ddstreet@ieee.org> wrote:
+>     >
+>     >     On Tue, Sep 18, 2018 at 7:48 PM Um, Taeil <taeilum@amazon.com> =
+wrote:
+>     >     >
+>     >     > We can tell whether compressed size is greater than PAGE_SIZE=
+ by looking at the returned *dlen value from crypto_comp_compress. This sho=
+uld be fairly easy.
+>     >     > This is actually what zram is doing today. zram looks for *dl=
+en and not take the compressed result if *dlen is greater than certain size=
+.
+>     >     > I think errors from crypto_comp_compress should be real error=
+s.
+>     >     >
+>     >     > Today in kernel compression drivers such as lzo and lz4, they=
+ do not stop just because compression result size is greater than source si=
+ze.
+>     >     > Also, some H/W accelerators would not have the option of stop=
+ping compression just because of the result size is greater than source siz=
+e.
+>     >
+>     >     do you have a specific example of how this causes any actual pr=
+oblem?
+>     >
+>     >     personally, i'd prefer reducing zswap_dstmem down to 1 page to =
+save
+>     >     memory, since there is no case where zswap would ever want to u=
+se a
+>     >     compressed page larger than that.
+>     >
+>     >     >
+>     >     > Thank you,
+>     >     > Taeil
+>     >     >
+>     >     > On 9/18/18, 2:44 PM, "Dan Streetman" <ddstreet@ieee.org> wrot=
+e:
+>     >     >
+>     >     >     On Tue, Sep 18, 2018 at 2:52 PM Um, Taeil <taeilum@amazon=
+.com> wrote:
+>     >     >     >
+>     >     >     > Problem statement:
+>     >     >     > "compressed data are not fully copied to destination bu=
+ffer when compressed data size is greater than source data"
+>     >     >     >
+>     >     >     > Why:
+>     >     >     > 5th argument of crypto_comp_compress function is *dlen,=
+ which tell the compression driver how many bytes the destination buffer sp=
+ace is allocated (allowed to write data).
+>     >     >     > This *dlen is important especially for H/W accelerator =
+based compression driver because it is dangerous if we allow the H/W accele=
+rator to access memory beyond *dst + *dlen.
+>     >     >     > Note that buffer location would be passed as physical a=
+ddress.
+>     >     >     > Due to the above reason, H/W accelerator based compress=
+ion driver need to honor *dlen value when it serves crypto_comp_compress AP=
+I.
+>     >     >
+>     >     >     and that's exactly what zswap wants to happen - any compr=
+essor (hw or
+>     >     >     sw) should fail with an error code (ENOSPC makes the most=
+ sense, but
+>     >     >     zswap doesn't actually care) if the compressed data size =
+is larger
+>     >     >     than the provided data buffer.
+>     >     >
+>     >     >     > Today, we pass slen =3D PAGE_SIZE and *dlen=3DPAGE_SIZE=
+ to crypto_comp_compress in zswap.c.
+>     >     >     > If compressed data size is greater than source (uncompr=
+essed) data size,  H/W accelerator cannot copy (deliver) the entire compres=
+sed data.
+>     >     >
+>     >     >     If the "compressed" data is larger than 1 page, then ther=
+e is no point
+>     >     >     in storing the page in zswap.
+>     >     >
+>     >     >     remember that zswap is different than zram; in zram, ther=
+e's no other
+>     >     >     place to store the data.  However, with zswap, if compres=
+sion fails or
+>     >     >     isn't good, we can just pass the uncompressed page down t=
+o the swap
+>     >     >     device.
+>     >     >
+>     >     >     >
+>     >     >     > Thank you,
+>     >     >     > Taeil
+>     >     >     >
+>     >     >     > On 9/18/18, 7:15 AM, "Dan Streetman" <ddstreet@ieee.org=
+> wrote:
+>     >     >     >
+>     >     >     >     On Mon, Sep 17, 2018 at 7:10 PM Um, Taeil <taeilum@=
+amazon.com> wrote:
+>     >     >     >     >
+>     >     >     >     > Currently, we allocate PAGE_SIZE * 2 for zswap_ds=
+tmem which is used as compression destination buffer.
+>     >     >     >     >
+>     >     >     >     > However, we pass only half of the size (PAGE_SIZE=
+) to crypto_comp_compress.
+>     >     >     >     >
+>     >     >     >     > This might not be a problem for CPU based existin=
+g lzo, lz4 crypto compression driver implantation.
+>     >     >     >     >
+>     >     >     >     > However, this could be a problem for some H/W acc=
+eleration compression drivers, which honor destination buffer size when it =
+prepares H/W resources.
+>     >     >     >
+>     >     >     >     How exactly could it be a problem?
+>     >     >     >
+>     >     >     >     >
+>     >     >     >     > Actually, this patch is aligned with what zram is=
+ passing when it calls crypto_comp_compress.
+>     >     >     >     >
+>     >     >     >     > The following simple patch will solve this proble=
+m. I tested it with existing crypto/lzo.c and crypto/lz4.c compression driv=
+er and it works fine.
+>     >     >     >     >
+>     >     >     >     >
+>     >     >     >     >
+>     >     >     >     >
+>     >     >     >     >
+>     >     >     >     > --- mm/zswap.c.orig       2018-09-14 14:36:37.984=
+199232 -0700
+>     >     >     >     >
+>     >     >     >     > +++ mm/zswap.c             2018-09-14 14:36:53.34=
+0189681 -0700
+>     >     >     >     >
+>     >     >     >     > @@ -1001,7 +1001,7 @@ static int zswap_frontswap_=
+store(unsigne
+>     >     >     >     >
+>     >     >     >     >                 struct zswap_entry *entry, *dupen=
+try;
+>     >     >     >     >
+>     >     >     >     >                 struct crypto_comp *tfm;
+>     >     >     >     >
+>     >     >     >     >                 int ret;
+>     >     >     >     >
+>     >     >     >     > -              unsigned int hlen, dlen =3D PAGE_S=
+IZE;
+>     >     >     >     >
+>     >     >     >     > +             unsigned int hlen, dlen =3D PAGE_SI=
+ZE * 2;
+>     >     >     >     >
+>     >     >     >     >                 unsigned long handle, value;
+>     >     >     >     >
+>     >     >     >     >                 char *buf;
+>     >     >     >     >
+>     >     >     >     >                 u8 *src, *dst;
+>     >     >     >     >
+>     >     >     >     >
+>     >     >     >     >
+>     >     >     >     >
+>     >     >     >     >
+>     >     >     >     >
+>     >     >     >     >
+>     >     >     >     > Thank you,
+>     >     >     >     >
+>     >     >     >     > Taeil
+>     >     >     >     >
+>     >     >     >     >
+>     >     >     >
+>     >     >     >
+>     >     >     >
+>     >     >
+>     >     >
+>     >     >
+>     >
+>     >
+>     >
+>
+>
+>
