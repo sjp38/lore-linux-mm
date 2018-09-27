@@ -1,49 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6945F8E0001
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 17:09:03 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id c24-v6so4925612otm.4
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 14:09:03 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h16-v6sor1490411oih.162.2018.09.27.14.09.02
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ED7108E0001
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 17:12:34 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id h3-v6so4467914pgc.8
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 14:12:34 -0700 (PDT)
+Received: from sonic309-21.consmr.mail.gq1.yahoo.com (sonic309-21.consmr.mail.gq1.yahoo.com. [98.137.65.147])
+        by mx.google.com with ESMTPS id f9-v6si2631248plm.126.2018.09.27.14.12.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 27 Sep 2018 14:09:02 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Sep 2018 14:12:33 -0700 (PDT)
+Content-Type: text/plain; charset="utf-8"
 MIME-Version: 1.0
-References: <1538077089-14550-1-git-send-email-yang.shi@linux.alibaba.com>
-In-Reply-To: <1538077089-14550-1-git-send-email-yang.shi@linux.alibaba.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 27 Sep 2018 14:08:51 -0700
-Message-ID: <CAPcyv4jvmTUUgVXd7gCVcmMbOM0OcY8rTQGkp+Ak1NHpi+zS_g@mail.gmail.com>
-Subject: Re: [PATCH] mm: dax: add comment for PFN_SPECIAL
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+From: Alex Xu <alex_y_xu@yahoo.ca>
+In-Reply-To: <CALZtONA9r6=gnK-5a++tjaReqEnRzrBb3hzYMTFNXZ13z+UOWQ@mail.gmail.com>
+References: <1538079759.qxp8zh3nwh.astroid@alex-archsus.none>
+ <CALZtONA9r6=gnK-5a++tjaReqEnRzrBb3hzYMTFNXZ13z+UOWQ@mail.gmail.com>
+Message-ID: <153808275043.724.15980761008814866300@pink.alxu.ca>
+Subject: Re: [PATCH] mm: fix z3fold warnings on CONFIG_SMP=n
+Date: Thu, 27 Sep 2018 21:12:30 +0000
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yang.shi@linux.alibaba.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Thu, Sep 27, 2018 at 12:39 PM <yang.shi@linux.alibaba.com> wrote:
->
-> The comment for PFN_SPECIAL is missed in pfn_t.h. Add comment to get
-> consistent with other pfn flags.
->
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> ---
->  include/linux/pfn_t.h | 1 +
->  1 file changed, 1 insertion(+)
->
-> diff --git a/include/linux/pfn_t.h b/include/linux/pfn_t.h
-> index 21713dc..d2e5dd4 100644
-> --- a/include/linux/pfn_t.h
-> +++ b/include/linux/pfn_t.h
-> @@ -9,6 +9,7 @@
->   * PFN_SG_LAST - pfn references a page and is the last scatterlist entry
->   * PFN_DEV - pfn is not covered by system memmap by default
->   * PFN_MAP - pfn has a dynamic page mapping established by a device driver
-> + * PFN_SPECIAL - indicates that _PAGE_SPECIAL should be used for DAX ptes
+Quoting Dan Streetman (2018-09-27 20:41:21)
+> On Thu, Sep 27, 2018 at 4:27 PM Alex Xu (Hello71) <alex_y_xu@yahoo.ca> wr=
+ote:
+> >
+> > Spinlocks are always lockable on UP systems, even if they were just
+> > locked.
+> =
 
-That's not quite accurate, I would change this to:
+> i think it would be much better to just use either
+> assert_spin_locked() or just spin_is_locked(), instead of an #ifdef.
+> =
 
-PFN_SPECIAL - for CONFIG_FS_DAX_LIMITED builds to allow XIP, but not
-get_user_pages.
+
+I wrote a longer response and then learned about the WARN_ON_SMP macro,
+so I'll just use that instead.
+
+Original response below:
+
+I thought about using assert_spin_locked, but I wanted to keep the
+existing behavior, and it seems to make sense to try to lock the page if
+we forgot to lock it earlier? Maybe not though; I don't understand this
+code completely. I did write a version of z3fold_page_ensure_locked with
+"if (assert_spin_locked(...))" but not only did that look even worse, it
+doesn't even work, because assert_spin_locked is a statement on UP
+systems, not an expression. It might be worth adding a
+ensure_spin_locked function that does that though...
+
+spin_is_locked currently still always returns 0 "on CONFIG_SMP=3Dn builds
+with CONFIG_DEBUG_SPINLOCK=3Dn", so that would just return us to the same
+problem of checking CONFIG_SMP.
