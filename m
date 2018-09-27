@@ -1,62 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E0D08E0001
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 14:32:41 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id t24-v6so1598473eds.12
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 11:32:41 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h25-v6si3111534edw.256.2018.09.27.11.32.39
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 22D038E0001
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 15:38:32 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id i68-v6so4217685pfb.9
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 12:38:32 -0700 (PDT)
+Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
+        by mx.google.com with ESMTPS id i13-v6si2534924pgo.128.2018.09.27.12.38.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Sep 2018 11:32:39 -0700 (PDT)
-Date: Thu, 27 Sep 2018 20:32:36 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Introduce new function vm_insert_kmem_page
-Message-ID: <20180927183236.GJ6278@dhcp22.suse.cz>
-References: <20180927175123.GA16367@jordon-HP-15-Notebook-PC>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180927175123.GA16367@jordon-HP-15-Notebook-PC>
+        Thu, 27 Sep 2018 12:38:30 -0700 (PDT)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [PATCH] mm: dax: add comment for PFN_SPECIAL
+Date: Fri, 28 Sep 2018 03:38:09 +0800
+Message-Id: <1538077089-14550-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, pasha.tatashin@oracle.com, riel@redhat.com, willy@infradead.org, minchan@kernel.org, peterz@infradead.org, ying.huang@intel.com, ak@linux.intel.com, rppt@linux.vnet.ibm.com, linux@dominikbrodowski.net, arnd@arndb.de, mcgrof@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: dan.j.williams@intel.com, akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 27-09-18 23:21:23, Souptick Joarder wrote:
-> vm_insert_kmem_page is similar to vm_insert_page and will
-> be used by drivers to map kernel (kmalloc/vmalloc/pages)
-> allocated memory to user vma.
-> 
-> Previously vm_insert_page is used for both page fault
-> handlers and outside page fault handlers context. When
-> vm_insert_page is used in page fault handlers context,
-> each driver have to map errno to VM_FAULT_CODE in their
-> own way. But as part of vm_fault_t migration all the
-> page fault handlers are cleaned up by using new vmf_insert_page.
-> Going forward, vm_insert_page will be removed by converting
-> it to vmf_insert_page.
->  
-> But their are places where vm_insert_page is used outside
-> page fault handlers context and converting those to
-> vmf_insert_page is not a good approach as drivers will end
-> up with new VM_FAULT_CODE to errno conversion code and it will
-> make each user more complex.
-> 
-> So this new vm_insert_kmem_page can be used to map kernel
-> memory to user vma outside page fault handler context.
-> 
-> In short, vmf_insert_page will be used in page fault handlers
-> context and vm_insert_kmem_page will be used to map kernel
-> memory to user vma outside page fault handlers context.
-> 
-> We will slowly convert all the user of vm_insert_page to
-> vm_insert_kmem_page after this API be available in linus tree.
+The comment for PFN_SPECIAL is missed in pfn_t.h. Add comment to get
+consistent with other pfn flags.
 
-In general I do not like patches adding a new exports/functionality
-without any user added at the same time. I am not going to look at the
-implementation right now but the above opens more questions than it
-gives answers. Why do we have to distinguish #PF from other paths?
+Cc: Dan Williams <dan.j.williams@intel.com>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+ include/linux/pfn_t.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/linux/pfn_t.h b/include/linux/pfn_t.h
+index 21713dc..d2e5dd4 100644
+--- a/include/linux/pfn_t.h
++++ b/include/linux/pfn_t.h
+@@ -9,6 +9,7 @@
+  * PFN_SG_LAST - pfn references a page and is the last scatterlist entry
+  * PFN_DEV - pfn is not covered by system memmap by default
+  * PFN_MAP - pfn has a dynamic page mapping established by a device driver
++ * PFN_SPECIAL - indicates that _PAGE_SPECIAL should be used for DAX ptes
+  */
+ #define PFN_FLAGS_MASK (((u64) ~PAGE_MASK) << (BITS_PER_LONG_LONG - PAGE_SHIFT))
+ #define PFN_SG_CHAIN (1ULL << (BITS_PER_LONG_LONG - 1))
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
