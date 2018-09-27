@@ -1,41 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 68CC68E0001
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 12:06:11 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id d22-v6so3124000pfn.3
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 09:06:11 -0700 (PDT)
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTPS id v3-v6si2294734ply.358.2018.09.27.09.06.08
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EBEA8E0001
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 12:07:13 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id m4-v6so3063353pgq.19
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 09:07:13 -0700 (PDT)
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id q1-v6si2241939pgs.110.2018.09.27.09.07.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Sep 2018 09:06:10 -0700 (PDT)
+        Thu, 27 Sep 2018 09:07:12 -0700 (PDT)
 Subject: Re: [v2 PATCH 2/2 -mm] mm: brk: dwongrade mmap_sem to read when
  shrinking
 References: <1537985434-22655-1-git-send-email-yang.shi@linux.alibaba.com>
  <1537985434-22655-2-git-send-email-yang.shi@linux.alibaba.com>
- <33d52132-546f-3c8a-3445-cdbc9068589a@suse.cz>
+ <20180927125025.xnvoh2btdq5kjmai@kshutemo-mobl1>
 From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <4bcdb16d-902e-55ed-5f5d-12c5ba7cbdfd@linux.alibaba.com>
-Date: Thu, 27 Sep 2018 09:05:37 -0700
+Message-ID: <d5443d11-7422-6b5b-f6a9-db09311bc827@linux.alibaba.com>
+Date: Thu, 27 Sep 2018 09:06:29 -0700
 MIME-Version: 1.0
-In-Reply-To: <33d52132-546f-3c8a-3445-cdbc9068589a@suse.cz>
+In-Reply-To: <20180927125025.xnvoh2btdq5kjmai@kshutemo-mobl1>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, mhocko@kernel.org, kirill@shutemov.name, willy@infradead.org, ldufour@linux.vnet.ibm.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, vbabka@suse.cz, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
 
-On 9/27/18 5:14 AM, Vlastimil Babka wrote:
-> On 9/26/18 8:10 PM, Yang Shi wrote:
->
-> Again, "downgrade" in the subject
->
+On 9/27/18 5:50 AM, Kirill A. Shutemov wrote:
+> On Thu, Sep 27, 2018 at 02:10:34AM +0800, Yang Shi wrote:
 >> brk might be used to shinrk memory mapping too other than munmap().
->                         ^ shrink
+> s/shinrk/shrink/
 >
 >> So, it may hold write mmap_sem for long time when shrinking large
 >> mapping, as what commit ("mm: mmap: zap pages with read mmap_sem in
@@ -62,15 +59,104 @@ On 9/27/18 5:14 AM, Vlastimil Babka wrote:
 >> Cc: Vlastimil Babka <vbabka@suse.cz>
 >> Cc: Andrew Morton <akpm@linux-foundation.org>
 >> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
->
-> Same nit for the "bool downgrade" name as for patch 1/2.
+>> ---
+>> v2: Rephrase the commit per Michal
+>>
+>>   mm/mmap.c | 40 ++++++++++++++++++++++++++++++----------
+>>   1 file changed, 30 insertions(+), 10 deletions(-)
+>>
+>> diff --git a/mm/mmap.c b/mm/mmap.c
+>> index 017bcfa..0d2fae1 100644
+>> --- a/mm/mmap.c
+>> +++ b/mm/mmap.c
+>> @@ -193,9 +193,11 @@ static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long
+>>   	unsigned long retval;
+>>   	unsigned long newbrk, oldbrk;
+>>   	struct mm_struct *mm = current->mm;
+>> +	unsigned long origbrk = mm->brk;
+> Is it safe to read mm->brk outside the lock?
 
-Will solve in next version.
+Aha, thanks for catching this. It can be moved inside down_write().
+
+Will solve in the next version.
 
 Thanks,
 Yang
 
 >
-> Thanks,
-> Vlastimil
+>>   	struct vm_area_struct *next;
+>>   	unsigned long min_brk;
+>>   	bool populate;
+>> +	bool downgrade = false;
+> Again,
+>
+> s/downgrade/downgraded/ ?
+>
+>>   	LIST_HEAD(uf);
+>>   
+>>   	if (down_write_killable(&mm->mmap_sem))
+>> @@ -229,14 +231,29 @@ static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long
+>>   
+>>   	newbrk = PAGE_ALIGN(brk);
+>>   	oldbrk = PAGE_ALIGN(mm->brk);
+>> -	if (oldbrk == newbrk)
+>> -		goto set_brk;
+>> +	if (oldbrk == newbrk) {
+>> +		mm->brk = brk;
+>> +		goto success;
+>> +	}
+>>   
+>> -	/* Always allow shrinking brk. */
+>> +	/*
+>> +	 * Always allow shrinking brk.
+>> +	 * __do_munmap() may downgrade mmap_sem to read.
+>> +	 */
+>>   	if (brk <= mm->brk) {
+>> -		if (!do_munmap(mm, newbrk, oldbrk-newbrk, &uf))
+>> -			goto set_brk;
+>> -		goto out;
+>> +		/*
+>> +		 * mm->brk need to be protected by write mmap_sem, update it
+>> +		 * before downgrading mmap_sem.
+>> +		 * When __do_munmap fail, it will be restored from origbrk.
+>> +		 */
+>> +		mm->brk = brk;
+>> +		retval = __do_munmap(mm, newbrk, oldbrk-newbrk, &uf, true);
+>> +		if (retval < 0) {
+>> +			mm->brk = origbrk;
+>> +			goto out;
+>> +		} else if (retval == 1)
+>> +			downgrade = true;
+>> +		goto success;
+>>   	}
+>>   
+>>   	/* Check against existing mmap mappings. */
+>> @@ -247,18 +264,21 @@ static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long
+>>   	/* Ok, looks good - let it rip. */
+>>   	if (do_brk_flags(oldbrk, newbrk-oldbrk, 0, &uf) < 0)
+>>   		goto out;
+>> -
+>> -set_brk:
+>>   	mm->brk = brk;
+>> +
+>> +success:
+>>   	populate = newbrk > oldbrk && (mm->def_flags & VM_LOCKED) != 0;
+>> -	up_write(&mm->mmap_sem);
+>> +	if (downgrade)
+>> +		up_read(&mm->mmap_sem);
+>> +	else
+>> +		up_write(&mm->mmap_sem);
+>>   	userfaultfd_unmap_complete(mm, &uf);
+>>   	if (populate)
+>>   		mm_populate(oldbrk, newbrk - oldbrk);
+>>   	return brk;
+>>   
+>>   out:
+>> -	retval = mm->brk;
+>> +	retval = origbrk;
+>>   	up_write(&mm->mmap_sem);
+>>   	return retval;
+>>   }
+>> -- 
+>> 1.8.3.1
+>>
