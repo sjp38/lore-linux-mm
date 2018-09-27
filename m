@@ -1,42 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 71C578E0001
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 07:20:43 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id w44-v6so2918253edb.16
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 04:20:43 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l4si585406edw.439.2018.09.27.04.20.42
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0892F8E0001
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 07:30:18 -0400 (EDT)
+Received: by mail-lj1-f197.google.com with SMTP id v23-v6so549138ljc.8
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 04:30:17 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u125-v6sor1010991lja.19.2018.09.27.04.30.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Sep 2018 04:20:42 -0700 (PDT)
-Date: Thu, 27 Sep 2018 13:20:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
- point where we init pgmap
-Message-ID: <20180927112041.GG6278@dhcp22.suse.cz>
-References: <20180925200551.3576.18755.stgit@localhost.localdomain>
- <20180925202053.3576.66039.stgit@localhost.localdomain>
- <20180926075540.GD6278@dhcp22.suse.cz>
- <6f87a5d7-05e2-00f4-8568-bb3521869cea@linux.intel.com>
- <CAPcyv4iVnodai0bB74yeSCD2H+hoLsZYUk4sR9jV0pPAE+Zorw@mail.gmail.com>
+        (Google Transport Security);
+        Thu, 27 Sep 2018 04:30:16 -0700 (PDT)
+Subject: Re: [PATCH v3 3/4] devres: provide devm_kstrdup_const()
+References: <20180924101150.23349-1-brgl@bgdev.pl>
+ <20180924101150.23349-4-brgl@bgdev.pl>
+ <CAGXu5j+GGbRyQDU=TKKXb9EbRSczEJYqjTaDSsmeBeQn3Qdu_g@mail.gmail.com>
+ <9ad301dc-47ef-cd7d-699d-e51716d1703f@rasmusvillemoes.dk>
+ <CAMuHMdWi0TQfu093po9-TniiLa2=T1E1c5R0S0tr85F==GcaGw@mail.gmail.com>
+From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Message-ID: <c9d0cf98-628d-f2c2-016c-c13d5bdb76c7@rasmusvillemoes.dk>
+Date: Thu, 27 Sep 2018 13:30:13 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4iVnodai0bB74yeSCD2H+hoLsZYUk4sR9jV0pPAE+Zorw@mail.gmail.com>
+In-Reply-To: <CAMuHMdWi0TQfu093po9-TniiLa2=T1E1c5R0S0tr85F==GcaGw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: alexander.h.duyck@linux.intel.com, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Dave Jiang <dave.jiang@intel.com>, Dave Hansen <dave.hansen@intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, rppt@linux.vnet.ibm.com, Logan Gunthorpe <logang@deltatee.com>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Geert Uytterhoeven <geert@linux-m68k.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Cc: Kees Cook <keescook@chromium.org>, Bartosz Golaszewski <brgl@bgdev.pl>, Michael Turquette <mturquette@baylibre.com>, Stephen Boyd <sboyd@kernel.org>, Greg KH <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Arend van Spriel <aspriel@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, Bjorn Helgaas <bhelgaas@google.com>, vivek.gautam@codeaurora.org, Robin Murphy <robin.murphy@arm.com>, Joe Perches <joe@perches.com>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, guro@fb.com, Huang Ying <ying.huang@intel.com>, =?UTF-8?Q?Bj=c3=b6rn_Andersson?= <bjorn.andersson@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, linux-clk <linux-clk@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On Wed 26-09-18 11:52:56, Dan Williams wrote:
-[...]
-> Could we push the hotplug lock deeper to the places that actually need
-> it? What I found with my initial investigation is that we don't even
-> need the hotplug lock for the vmemmap initialization with this patch
-> [1].
+On 2018-09-27 13:01, Geert Uytterhoeven wrote:
+> Hi Rasmus,
+> 
+> On Thu, Sep 27, 2018 at 12:55 PM Rasmus Villemoes
+> <linux@rasmusvillemoes.dk> wrote:
+>> On 2018-09-27 01:13, Kees Cook wrote:
+>>
+>> Just drop devm_kfree_const and teach devm_kfree to ignore
+>> is_kernel_rodata(). That avoids the 50-100 bytes of overhead for adding
+>> yet another EXPORT_SYMBOL and makes it easier to port drivers to
+>> devm_kstrdup_const (and avoids the bugs Kees is worried about). devm
+>> managed resources are almost never freed explicitly, so that single
+>> extra comparison in devm_kfree shouldn't matter for performance.
+> 
+> I guess we can also teach kfree() to ignore is_kernel_rodata(), and
+> drop kfree_const()?
 
-Yes, the scope of the hotplug lock should be evaluated and _documented_.
-Then we can build on top.
--- 
-Michal Hocko
-SUSE Labs
+In principle, yes, but the difference is that kfree() is called a lot
+more frequently, and on normal code paths, whereas devm_kfree is more
+often (though not always) called on error paths.
+
+The goal of _const variants of strdup is to save some memory, so one
+place to start is to reduce the .text overhead of that feature. And it
+avoids introducing subtle bugs if some devm_kfree() call is missed
+during conversion to devm_kstrdup_const().
+
+Rasmus
