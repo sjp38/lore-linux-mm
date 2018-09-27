@@ -1,162 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EBEA8E0001
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 12:07:13 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id m4-v6so3063353pgq.19
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 09:07:13 -0700 (PDT)
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id q1-v6si2241939pgs.110.2018.09.27.09.07.10
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AA9A18E0002
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 12:24:50 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id 77-v6so3204584pgg.0
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 09:24:50 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id y8-v6si2302611pfm.141.2018.09.27.09.24.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Sep 2018 09:07:12 -0700 (PDT)
-Subject: Re: [v2 PATCH 2/2 -mm] mm: brk: dwongrade mmap_sem to read when
- shrinking
-References: <1537985434-22655-1-git-send-email-yang.shi@linux.alibaba.com>
- <1537985434-22655-2-git-send-email-yang.shi@linux.alibaba.com>
- <20180927125025.xnvoh2btdq5kjmai@kshutemo-mobl1>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <d5443d11-7422-6b5b-f6a9-db09311bc827@linux.alibaba.com>
-Date: Thu, 27 Sep 2018 09:06:29 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 27 Sep 2018 09:24:49 -0700 (PDT)
+Date: Thu, 27 Sep 2018 09:24:43 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 1/9] mm: infrastructure for page fault page caching
+Message-ID: <20180927162442.GC19006@bombadil.infradead.org>
+References: <20180926210856.7895-1-josef@toxicpanda.com>
+ <20180926210856.7895-2-josef@toxicpanda.com>
 MIME-Version: 1.0
-In-Reply-To: <20180927125025.xnvoh2btdq5kjmai@kshutemo-mobl1>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180926210856.7895-2-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, vbabka@suse.cz, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: kernel-team@fb.com, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, tj@kernel.org, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, riel@redhat.com, linux-mm@kvack.org, linux-btrfs@vger.kernel.org
+
+On Wed, Sep 26, 2018 at 05:08:48PM -0400, Josef Bacik wrote:
+> We want to be able to cache the result of a previous loop of a page
+> fault in the case that we use VM_FAULT_RETRY, so introduce
+> handle_mm_fault_cacheable that will take a struct vm_fault directly, add
+> a ->cached_page field to vm_fault, and add helpers to init/cleanup the
+> struct vm_fault.
+> 
+> I've converted x86, other arch's can follow suit if they so wish, it's
+> relatively straightforward.
+
+Here's what I did back in January ... feel free to steal any of it if you
+like it better.
 
 
-
-On 9/27/18 5:50 AM, Kirill A. Shutemov wrote:
-> On Thu, Sep 27, 2018 at 02:10:34AM +0800, Yang Shi wrote:
->> brk might be used to shinrk memory mapping too other than munmap().
-> s/shinrk/shrink/
->
->> So, it may hold write mmap_sem for long time when shrinking large
->> mapping, as what commit ("mm: mmap: zap pages with read mmap_sem in
->> munmap") described.
->>
->> The brk() will not manipulate vmas anymore after __do_munmap() call for
->> the mapping shrink use case. But, it may set mm->brk after
->> __do_munmap(), which needs hold write mmap_sem.
->>
->> However, a simple trick can workaround this by setting mm->brk before
->> __do_munmap(). Then restore the original value if __do_munmap() fails.
->> With this trick, it is safe to downgrade to read mmap_sem.
->>
->> So, the same optimization, which downgrades mmap_sem to read for
->> zapping pages, is also feasible and reasonable to this case.
->>
->> The period of holding exclusive mmap_sem for shrinking large mapping
->> would be reduced significantly with this optimization.
->>
->> Cc: Michal Hocko <mhocko@kernel.org>
->> Cc: Kirill A. Shutemov <kirill@shutemov.name>
->> Cc: Matthew Wilcox <willy@infradead.org>
->> Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>
->> Cc: Vlastimil Babka <vbabka@suse.cz>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
->> ---
->> v2: Rephrase the commit per Michal
->>
->>   mm/mmap.c | 40 ++++++++++++++++++++++++++++++----------
->>   1 file changed, 30 insertions(+), 10 deletions(-)
->>
->> diff --git a/mm/mmap.c b/mm/mmap.c
->> index 017bcfa..0d2fae1 100644
->> --- a/mm/mmap.c
->> +++ b/mm/mmap.c
->> @@ -193,9 +193,11 @@ static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long
->>   	unsigned long retval;
->>   	unsigned long newbrk, oldbrk;
->>   	struct mm_struct *mm = current->mm;
->> +	unsigned long origbrk = mm->brk;
-> Is it safe to read mm->brk outside the lock?
-
-Aha, thanks for catching this. It can be moved inside down_write().
-
-Will solve in the next version.
-
-Thanks,
-Yang
-
->
->>   	struct vm_area_struct *next;
->>   	unsigned long min_brk;
->>   	bool populate;
->> +	bool downgrade = false;
-> Again,
->
-> s/downgrade/downgraded/ ?
->
->>   	LIST_HEAD(uf);
->>   
->>   	if (down_write_killable(&mm->mmap_sem))
->> @@ -229,14 +231,29 @@ static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long
->>   
->>   	newbrk = PAGE_ALIGN(brk);
->>   	oldbrk = PAGE_ALIGN(mm->brk);
->> -	if (oldbrk == newbrk)
->> -		goto set_brk;
->> +	if (oldbrk == newbrk) {
->> +		mm->brk = brk;
->> +		goto success;
->> +	}
->>   
->> -	/* Always allow shrinking brk. */
->> +	/*
->> +	 * Always allow shrinking brk.
->> +	 * __do_munmap() may downgrade mmap_sem to read.
->> +	 */
->>   	if (brk <= mm->brk) {
->> -		if (!do_munmap(mm, newbrk, oldbrk-newbrk, &uf))
->> -			goto set_brk;
->> -		goto out;
->> +		/*
->> +		 * mm->brk need to be protected by write mmap_sem, update it
->> +		 * before downgrading mmap_sem.
->> +		 * When __do_munmap fail, it will be restored from origbrk.
->> +		 */
->> +		mm->brk = brk;
->> +		retval = __do_munmap(mm, newbrk, oldbrk-newbrk, &uf, true);
->> +		if (retval < 0) {
->> +			mm->brk = origbrk;
->> +			goto out;
->> +		} else if (retval == 1)
->> +			downgrade = true;
->> +		goto success;
->>   	}
->>   
->>   	/* Check against existing mmap mappings. */
->> @@ -247,18 +264,21 @@ static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long
->>   	/* Ok, looks good - let it rip. */
->>   	if (do_brk_flags(oldbrk, newbrk-oldbrk, 0, &uf) < 0)
->>   		goto out;
->> -
->> -set_brk:
->>   	mm->brk = brk;
->> +
->> +success:
->>   	populate = newbrk > oldbrk && (mm->def_flags & VM_LOCKED) != 0;
->> -	up_write(&mm->mmap_sem);
->> +	if (downgrade)
->> +		up_read(&mm->mmap_sem);
->> +	else
->> +		up_write(&mm->mmap_sem);
->>   	userfaultfd_unmap_complete(mm, &uf);
->>   	if (populate)
->>   		mm_populate(oldbrk, newbrk - oldbrk);
->>   	return brk;
->>   
->>   out:
->> -	retval = mm->brk;
->> +	retval = origbrk;
->>   	up_write(&mm->mmap_sem);
->>   	return retval;
->>   }
->> -- 
->> 1.8.3.1
->>
+diff --git a/mm/memory.c b/mm/memory.c
+index 5eb3d2524bdc..403934297a3d 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3977,36 +3977,28 @@ static int handle_pte_fault(struct vm_fault *vmf)
+  * The mmap_sem may have been released depending on flags and our
+  * return value.  See filemap_fault() and __lock_page_or_retry().
+  */
+-static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+-		unsigned int flags)
++static int __handle_mm_fault(struct vm_fault *vmf)
+ {
+-	struct vm_fault vmf = {
+-		.vma = vma,
+-		.address = address & PAGE_MASK,
+-		.flags = flags,
+-		.pgoff = linear_page_index(vma, address),
+-		.gfp_mask = __get_fault_gfp_mask(vma),
+-	};
+-	unsigned int dirty = flags & FAULT_FLAG_WRITE;
+-	struct mm_struct *mm = vma->vm_mm;
++	unsigned int dirty = vmf->flags & FAULT_FLAG_WRITE;
++	struct mm_struct *mm = vmf->vma->vm_mm;
+ 	pgd_t *pgd;
+ 	p4d_t *p4d;
+ 	int ret;
+ 
+-	pgd = pgd_offset(mm, address);
+-	p4d = p4d_alloc(mm, pgd, address);
++	pgd = pgd_offset(mm, vmf->address);
++	p4d = p4d_alloc(mm, pgd, vmf->address);
+ 	if (!p4d)
+ 		return VM_FAULT_OOM;
+ 
+-	vmf.pud = pud_alloc(mm, p4d, address);
+-	if (!vmf.pud)
++	vmf->pud = pud_alloc(mm, p4d, vmf->address);
++	if (!vmf->pud)
+ 		return VM_FAULT_OOM;
+-	if (pud_none(*vmf.pud) && transparent_hugepage_enabled(vma)) {
+-		ret = create_huge_pud(&vmf);
++	if (pud_none(*vmf->pud) && transparent_hugepage_enabled(vmf->vma)) {
++		ret = create_huge_pud(vmf);
+ 		if (!(ret & VM_FAULT_FALLBACK))
+ 			return ret;
+ 	} else {
+-		pud_t orig_pud = *vmf.pud;
++		pud_t orig_pud = *vmf->pud;
+ 
+ 		barrier();
+ 		if (pud_trans_huge(orig_pud) || pud_devmap(orig_pud)) {
+@@ -4014,50 +4006,51 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+ 			/* NUMA case for anonymous PUDs would go here */
+ 
+ 			if (dirty && !pud_access_permitted(orig_pud, WRITE)) {
+-				ret = wp_huge_pud(&vmf, orig_pud);
++				ret = wp_huge_pud(vmf, orig_pud);
+ 				if (!(ret & VM_FAULT_FALLBACK))
+ 					return ret;
+ 			} else {
+-				huge_pud_set_accessed(&vmf, orig_pud);
++				huge_pud_set_accessed(vmf, orig_pud);
+ 				return 0;
+ 			}
+ 		}
+ 	}
+ 
+-	vmf.pmd = pmd_alloc(mm, vmf.pud, address);
+-	if (!vmf.pmd)
++	vmf->pmd = pmd_alloc(mm, vmf->pud, vmf->address);
++	if (!vmf->pmd)
+ 		return VM_FAULT_OOM;
+-	if (pmd_none(*vmf.pmd) && transparent_hugepage_enabled(vma)) {
+-		ret = create_huge_pmd(&vmf);
++	if (pmd_none(*vmf->pmd) && transparent_hugepage_enabled(vmf->vma)) {
++		ret = create_huge_pmd(vmf);
+ 		if (!(ret & VM_FAULT_FALLBACK))
+ 			return ret;
+ 	} else {
+-		pmd_t orig_pmd = *vmf.pmd;
++		pmd_t orig_pmd = *vmf->pmd;
+ 
+ 		barrier();
+ 		if (unlikely(is_swap_pmd(orig_pmd))) {
+ 			VM_BUG_ON(thp_migration_supported() &&
+ 					  !is_pmd_migration_entry(orig_pmd));
+ 			if (is_pmd_migration_entry(orig_pmd))
+-				pmd_migration_entry_wait(mm, vmf.pmd);
++				pmd_migration_entry_wait(mm, vmf->pmd);
+ 			return 0;
+ 		}
+ 		if (pmd_trans_huge(orig_pmd) || pmd_devmap(orig_pmd)) {
+-			if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
+-				return do_huge_pmd_numa_page(&vmf, orig_pmd);
++			if (pmd_protnone(orig_pmd) &&
++						vma_is_accessible(vmf->vma))
++				return do_huge_pmd_numa_page(vmf, orig_pmd);
+ 
+ 			if (dirty && !pmd_access_permitted(orig_pmd, WRITE)) {
+-				ret = wp_huge_pmd(&vmf, orig_pmd);
++				ret = wp_huge_pmd(vmf, orig_pmd);
+ 				if (!(ret & VM_FAULT_FALLBACK))
+ 					return ret;
+ 			} else {
+-				huge_pmd_set_accessed(&vmf, orig_pmd);
++				huge_pmd_set_accessed(vmf, orig_pmd);
+ 				return 0;
+ 			}
+ 		}
+ 	}
+ 
+-	return handle_pte_fault(&vmf);
++	return handle_pte_fault(vmf);
+ }
+ 
+ /*
+@@ -4066,9 +4059,10 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+  * The mmap_sem may have been released depending on flags and our
+  * return value.  See filemap_fault() and __lock_page_or_retry().
+  */
+-int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+-		unsigned int flags)
++int vm_handle_fault(struct vm_fault *vmf)
+ {
++	unsigned int flags = vmf->flags;
++	struct vm_area_struct *vma = vmf->vma;
+ 	int ret;
+ 
+ 	__set_current_state(TASK_RUNNING);
+@@ -4092,9 +4086,9 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+ 		mem_cgroup_oom_enable();
+ 
+ 	if (unlikely(is_vm_hugetlb_page(vma)))
+-		ret = hugetlb_fault(vma->vm_mm, vma, address, flags);
++		ret = hugetlb_fault(vma->vm_mm, vma, vmf->address, flags);
+ 	else
+-		ret = __handle_mm_fault(vma, address, flags);
++		ret = __handle_mm_fault(vmf);
+ 
+ 	if (flags & FAULT_FLAG_USER) {
+ 		mem_cgroup_oom_disable();
+@@ -4110,6 +4104,26 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+ 
+ 	return ret;
+ }
++
++/*
++ * By the time we get here, we already hold the mm semaphore
++ *
++ * The mmap_sem may have been released depending on flags and our
++ * return value.  See filemap_fault() and __lock_page_or_retry().
++ */
++int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
++		unsigned int flags)
++{
++	struct vm_fault vmf = {
++		.vma = vma,
++		.address = address & PAGE_MASK,
++		.flags = flags,
++		.pgoff = linear_page_index(vma, address),
++		.gfp_mask = __get_fault_gfp_mask(vma),
++	};
++
++	return vm_handle_fault(&vmf);
++}
+ EXPORT_SYMBOL_GPL(handle_mm_fault);
+ 
+ #ifndef __PAGETABLE_P4D_FOLDED
