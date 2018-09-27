@@ -1,208 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AA9A18E0002
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 12:24:50 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id 77-v6so3204584pgg.0
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 09:24:50 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id y8-v6si2302611pfm.141.2018.09.27.09.24.48
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B0CE8E0001
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 12:59:54 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id 132-v6so3354759pga.18
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 09:59:54 -0700 (PDT)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id d4-v6si2359186pgt.687.2018.09.27.09.59.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 27 Sep 2018 09:24:49 -0700 (PDT)
-Date: Thu, 27 Sep 2018 09:24:43 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 1/9] mm: infrastructure for page fault page caching
-Message-ID: <20180927162442.GC19006@bombadil.infradead.org>
-References: <20180926210856.7895-1-josef@toxicpanda.com>
- <20180926210856.7895-2-josef@toxicpanda.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180926210856.7895-2-josef@toxicpanda.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Sep 2018 09:59:53 -0700 (PDT)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [v3 PATCH 1/2 -mm] mm: mremap: downgrade mmap_sem to read when shrinking
+Date: Fri, 28 Sep 2018 00:59:41 +0800
+Message-Id: <1538067582-60038-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josef Bacik <josef@toxicpanda.com>
-Cc: kernel-team@fb.com, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, tj@kernel.org, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, riel@redhat.com, linux-mm@kvack.org, linux-btrfs@vger.kernel.org
+To: mhocko@kernel.org, kirill@shutemov.name, willy@infradead.org, ldufour@linux.vnet.ibm.com, vbabka@suse.cz, akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Sep 26, 2018 at 05:08:48PM -0400, Josef Bacik wrote:
-> We want to be able to cache the result of a previous loop of a page
-> fault in the case that we use VM_FAULT_RETRY, so introduce
-> handle_mm_fault_cacheable that will take a struct vm_fault directly, add
-> a ->cached_page field to vm_fault, and add helpers to init/cleanup the
-> struct vm_fault.
-> 
-> I've converted x86, other arch's can follow suit if they so wish, it's
-> relatively straightforward.
+Other than munmap, mremap might be used to shrink memory mapping too.
+So, it may hold write mmap_sem for long time when shrinking large
+mapping, as what commit ("mm: mmap: zap pages with read mmap_sem in
+munmap") described.
 
-Here's what I did back in January ... feel free to steal any of it if you
-like it better.
+The mremap() will not manipulate vmas anymore after __do_munmap() call for
+the mapping shrink use case, so it is safe to downgrade to read mmap_sem.
 
+So, the same optimization, which downgrades mmap_sem to read for zapping
+pages, is also feasible and reasonable to this case.
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 5eb3d2524bdc..403934297a3d 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3977,36 +3977,28 @@ static int handle_pte_fault(struct vm_fault *vmf)
-  * The mmap_sem may have been released depending on flags and our
-  * return value.  See filemap_fault() and __lock_page_or_retry().
+The period of holding exclusive mmap_sem for shrinking large mapping
+would be reduced significantly with this optimization.
+
+MREMAP_FIXED and MREMAP_MAYMOVE are more complicated to adopt this
+optimization since they need manipulate vmas after do_munmap(),
+downgrading mmap_sem may create race window.
+
+Simple mapping shrink is the low hanging fruit, and it may cover the
+most cases of unmap with munmap together.
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>
+Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+v3: Fixed the comments from Vlastimil and Kirill. And, added their
+    Acked-by. Thanks.
+v2: Rephrase the commit log per Michal
+
+ include/linux/mm.h |  2 ++
+ mm/mmap.c          |  4 ++--
+ mm/mremap.c        | 17 +++++++++++++----
+ 3 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a61ebe8..3028028 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2286,6 +2286,8 @@ extern unsigned long do_mmap(struct file *file, unsigned long addr,
+ 	unsigned long len, unsigned long prot, unsigned long flags,
+ 	vm_flags_t vm_flags, unsigned long pgoff, unsigned long *populate,
+ 	struct list_head *uf);
++extern int __do_munmap(struct mm_struct *, unsigned long, size_t,
++		       struct list_head *uf, bool downgrade);
+ extern int do_munmap(struct mm_struct *, unsigned long, size_t,
+ 		     struct list_head *uf);
+ 
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 847a17d..017bcfa 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2687,8 +2687,8 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+  * work.  This now handles partial unmappings.
+  * Jeremy Fitzhardinge <jeremy@goop.org>
   */
--static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
--		unsigned int flags)
-+static int __handle_mm_fault(struct vm_fault *vmf)
+-static int __do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+-		       struct list_head *uf, bool downgrade)
++int __do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
++		struct list_head *uf, bool downgrade)
  {
--	struct vm_fault vmf = {
--		.vma = vma,
--		.address = address & PAGE_MASK,
--		.flags = flags,
--		.pgoff = linear_page_index(vma, address),
--		.gfp_mask = __get_fault_gfp_mask(vma),
--	};
--	unsigned int dirty = flags & FAULT_FLAG_WRITE;
--	struct mm_struct *mm = vma->vm_mm;
-+	unsigned int dirty = vmf->flags & FAULT_FLAG_WRITE;
-+	struct mm_struct *mm = vmf->vma->vm_mm;
- 	pgd_t *pgd;
- 	p4d_t *p4d;
- 	int ret;
- 
--	pgd = pgd_offset(mm, address);
--	p4d = p4d_alloc(mm, pgd, address);
-+	pgd = pgd_offset(mm, vmf->address);
-+	p4d = p4d_alloc(mm, pgd, vmf->address);
- 	if (!p4d)
- 		return VM_FAULT_OOM;
- 
--	vmf.pud = pud_alloc(mm, p4d, address);
--	if (!vmf.pud)
-+	vmf->pud = pud_alloc(mm, p4d, vmf->address);
-+	if (!vmf->pud)
- 		return VM_FAULT_OOM;
--	if (pud_none(*vmf.pud) && transparent_hugepage_enabled(vma)) {
--		ret = create_huge_pud(&vmf);
-+	if (pud_none(*vmf->pud) && transparent_hugepage_enabled(vmf->vma)) {
-+		ret = create_huge_pud(vmf);
- 		if (!(ret & VM_FAULT_FALLBACK))
- 			return ret;
- 	} else {
--		pud_t orig_pud = *vmf.pud;
-+		pud_t orig_pud = *vmf->pud;
- 
- 		barrier();
- 		if (pud_trans_huge(orig_pud) || pud_devmap(orig_pud)) {
-@@ -4014,50 +4006,51 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
- 			/* NUMA case for anonymous PUDs would go here */
- 
- 			if (dirty && !pud_access_permitted(orig_pud, WRITE)) {
--				ret = wp_huge_pud(&vmf, orig_pud);
-+				ret = wp_huge_pud(vmf, orig_pud);
- 				if (!(ret & VM_FAULT_FALLBACK))
- 					return ret;
- 			} else {
--				huge_pud_set_accessed(&vmf, orig_pud);
-+				huge_pud_set_accessed(vmf, orig_pud);
- 				return 0;
- 			}
- 		}
+ 	unsigned long end;
+ 	struct vm_area_struct *vma, *prev, *last;
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 5c2e185..3524d16 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -525,6 +525,7 @@ static int vma_expandable(struct vm_area_struct *vma, unsigned long delta)
+ 	unsigned long ret = -EINVAL;
+ 	unsigned long charged = 0;
+ 	bool locked = false;
++	bool downgraded = false;
+ 	struct vm_userfaultfd_ctx uf = NULL_VM_UFFD_CTX;
+ 	LIST_HEAD(uf_unmap_early);
+ 	LIST_HEAD(uf_unmap);
+@@ -561,12 +562,17 @@ static int vma_expandable(struct vm_area_struct *vma, unsigned long delta)
+ 	/*
+ 	 * Always allow a shrinking remap: that just unmaps
+ 	 * the unnecessary pages..
+-	 * do_munmap does all the needed commit accounting
++	 * __do_munmap does all the needed commit accounting, and
++	 * downgrade mmap_sem to read.
+ 	 */
+ 	if (old_len >= new_len) {
+-		ret = do_munmap(mm, addr+new_len, old_len - new_len, &uf_unmap);
+-		if (ret && old_len != new_len)
++		ret = __do_munmap(mm, addr+new_len, old_len - new_len,
++				  &uf_unmap, true);
++		if (ret < 0 && old_len != new_len)
+ 			goto out;
++		/* Returning 1 indicates mmap_sem is downgraded to read. */
++		else if (ret == 1)
++			downgraded = true;
+ 		ret = addr;
+ 		goto out;
  	}
- 
--	vmf.pmd = pmd_alloc(mm, vmf.pud, address);
--	if (!vmf.pmd)
-+	vmf->pmd = pmd_alloc(mm, vmf->pud, vmf->address);
-+	if (!vmf->pmd)
- 		return VM_FAULT_OOM;
--	if (pmd_none(*vmf.pmd) && transparent_hugepage_enabled(vma)) {
--		ret = create_huge_pmd(&vmf);
-+	if (pmd_none(*vmf->pmd) && transparent_hugepage_enabled(vmf->vma)) {
-+		ret = create_huge_pmd(vmf);
- 		if (!(ret & VM_FAULT_FALLBACK))
- 			return ret;
- 	} else {
--		pmd_t orig_pmd = *vmf.pmd;
-+		pmd_t orig_pmd = *vmf->pmd;
- 
- 		barrier();
- 		if (unlikely(is_swap_pmd(orig_pmd))) {
- 			VM_BUG_ON(thp_migration_supported() &&
- 					  !is_pmd_migration_entry(orig_pmd));
- 			if (is_pmd_migration_entry(orig_pmd))
--				pmd_migration_entry_wait(mm, vmf.pmd);
-+				pmd_migration_entry_wait(mm, vmf->pmd);
- 			return 0;
- 		}
- 		if (pmd_trans_huge(orig_pmd) || pmd_devmap(orig_pmd)) {
--			if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
--				return do_huge_pmd_numa_page(&vmf, orig_pmd);
-+			if (pmd_protnone(orig_pmd) &&
-+						vma_is_accessible(vmf->vma))
-+				return do_huge_pmd_numa_page(vmf, orig_pmd);
- 
- 			if (dirty && !pmd_access_permitted(orig_pmd, WRITE)) {
--				ret = wp_huge_pmd(&vmf, orig_pmd);
-+				ret = wp_huge_pmd(vmf, orig_pmd);
- 				if (!(ret & VM_FAULT_FALLBACK))
- 					return ret;
- 			} else {
--				huge_pmd_set_accessed(&vmf, orig_pmd);
-+				huge_pmd_set_accessed(vmf, orig_pmd);
- 				return 0;
- 			}
- 		}
+@@ -631,7 +637,10 @@ static int vma_expandable(struct vm_area_struct *vma, unsigned long delta)
+ 		vm_unacct_memory(charged);
+ 		locked = 0;
  	}
- 
--	return handle_pte_fault(&vmf);
-+	return handle_pte_fault(vmf);
- }
- 
- /*
-@@ -4066,9 +4059,10 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
-  * The mmap_sem may have been released depending on flags and our
-  * return value.  See filemap_fault() and __lock_page_or_retry().
-  */
--int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
--		unsigned int flags)
-+int vm_handle_fault(struct vm_fault *vmf)
- {
-+	unsigned int flags = vmf->flags;
-+	struct vm_area_struct *vma = vmf->vma;
- 	int ret;
- 
- 	__set_current_state(TASK_RUNNING);
-@@ -4092,9 +4086,9 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
- 		mem_cgroup_oom_enable();
- 
- 	if (unlikely(is_vm_hugetlb_page(vma)))
--		ret = hugetlb_fault(vma->vm_mm, vma, address, flags);
-+		ret = hugetlb_fault(vma->vm_mm, vma, vmf->address, flags);
- 	else
--		ret = __handle_mm_fault(vma, address, flags);
-+		ret = __handle_mm_fault(vmf);
- 
- 	if (flags & FAULT_FLAG_USER) {
- 		mem_cgroup_oom_disable();
-@@ -4110,6 +4104,26 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
- 
- 	return ret;
- }
-+
-+/*
-+ * By the time we get here, we already hold the mm semaphore
-+ *
-+ * The mmap_sem may have been released depending on flags and our
-+ * return value.  See filemap_fault() and __lock_page_or_retry().
-+ */
-+int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
-+		unsigned int flags)
-+{
-+	struct vm_fault vmf = {
-+		.vma = vma,
-+		.address = address & PAGE_MASK,
-+		.flags = flags,
-+		.pgoff = linear_page_index(vma, address),
-+		.gfp_mask = __get_fault_gfp_mask(vma),
-+	};
-+
-+	return vm_handle_fault(&vmf);
-+}
- EXPORT_SYMBOL_GPL(handle_mm_fault);
- 
- #ifndef __PAGETABLE_P4D_FOLDED
+-	up_write(&current->mm->mmap_sem);
++	if (downgraded)
++		up_read(&current->mm->mmap_sem);
++	else
++		up_write(&current->mm->mmap_sem);
+ 	if (locked && new_len > old_len)
+ 		mm_populate(new_addr + old_len, new_len - old_len);
+ 	userfaultfd_unmap_complete(mm, &uf_unmap_early);
+-- 
+1.8.3.1
