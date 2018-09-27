@@ -1,97 +1,236 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F1898E0001
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 01:10:38 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id s1-v6so1508321pfm.22
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 22:10:38 -0700 (PDT)
-Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
-        by mx.google.com with ESMTPS id o6-v6si1021552plk.31.2018.09.26.22.10.36
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 889918E0001
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 02:59:11 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id 77-v6so1767749pgg.0
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 23:59:11 -0700 (PDT)
+Received: from alexa-out-blr-01.qualcomm.com (alexa-out-blr-01.qualcomm.com. [103.229.18.197])
+        by mx.google.com with ESMTPS id 184-v6si1371989pfe.249.2018.09.26.23.59.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Sep 2018 22:10:36 -0700 (PDT)
-Subject: Re: Question about a pte with PTE_PROT_NONE and !PTE_VALID on
- !PROT_NONE vma
-From: Chulmin Kim <cmlaika.kim@samsung.com>
-Message-id: <c20ccba3-a0c8-66e3-c048-2e80e23bce9e@samsung.com>
-Date: Thu, 27 Sep 2018 14:10:46 +0900
-MIME-version: 1.0
-In-reply-to: <20180924210850.GV28957@redhat.com>
-Content-type: text/plain; charset="utf-8"; format="flowed"
-Content-transfer-encoding: 7bit
-Content-language: en-US
-References: <CGME20180921150147epcas5p33964436b2e609016311e4f12b715779d@epcas5p3.samsung.com>
-	<CANYKp7ufttxsNkewBqgYDexMAoyVnMxgoy-EydCqmHadxyn+QQ@mail.gmail.com>
-	<10146a73-4788-ba89-001f-f928bbb314f5@samsung.com>
-	<20180924210850.GV28957@redhat.com>
+        Wed, 26 Sep 2018 23:59:09 -0700 (PDT)
+From: Arun KS <arunks@codeaurora.org>
+Subject: [PATCH v3] memory_hotplug: Free pages as higher order
+Date: Thu, 27 Sep 2018 12:28:50 +0530
+Message-Id: <1538031530-25489-1-git-send-email-arunks@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chulmin Kim <cmkim.laika@gmail.com>
+To: kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, gregkh@linuxfoundation.org, osalvador@suse.de, malat@debian.org, kirill.shutemov@linux.intel.com, jrdr.linux@gmail.com, yasu.isimatu@gmail.com, mgorman@techsingularity.net, aaron.lu@intel.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org
+Cc: vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com, Arun KS <arunks@codeaurora.org>
 
-Hello.
+When free pages are done with higher order, time spend on
+coalescing pages by buddy allocator can be reduced. With
+section size of 256MB, hot add latency of a single section
+shows improvement from 50-60 ms to less than 1 ms, hence
+improving the hot add latency by 60%.
 
-Thanks for the reply.
+Modify external providers of online callback to align with
+the change.
 
-We are doing the test (a kind of aging test for 3 days) to prove this is 
-the fix for the problem.
+Signed-off-by: Arun KS <arunks@codeaurora.org>
+---
+Changes since v2:
+reuse code from __free_pages_boot_core()
 
-I will let you know when the test is done.
+Changes since v1:
+- Removed prefetch()
 
+Changes since RFC:
+- Rebase.
+- As suggested by Michal Hocko remove pages_per_block.
+- Modifed external providers of online_page_callback.
 
+v2: https://lore.kernel.org/patchwork/patch/991363/
+v1: https://lore.kernel.org/patchwork/patch/989445/
+RFC: https://lore.kernel.org/patchwork/patch/984754/
 
-On 09/25/2018 06:08 AM, Andrea Arcangeli wrote:
-> Hello,
->
-> On Sat, Sep 22, 2018 at 01:38:07PM +0900, Chulmin Kim wrote:
->> Dear Arcangeli,
->>
->>
->> I think this problem is very much related with
->>
->> the race condition shown in the below commit.
->>
->> (e86f15ee64d8, mm: vma_merge: fix vm_page_prot SMP race condition
->> against rmap_walk)
->>
->>
->> I checked that
->>
->> the the thread and its child threads are doing mprotect(PROT_{NONE or
->> R|W}) things repeatedly
->>
->> while I didn't reproduce the problem yet.
->>
->>
->> Do you think this is one of the phenomenon you expected
->>
->> from the race condition shown in the above commit?
-> Yes that commit will fix your problem in a v4.4 based tree that misses
-> that fix. You just need to cherry-pick that commit to fix the problem.
->
-> Page migrate sets the pte to PROT_NONE by mistake because it runs
-> concurrently with the mprotect that transitions an adjacent vma from
-> PROT_NONE to PROT_READ|WRITE. vma_merge (before the fix) temporarily
-> shown an erratic PROT_NONE vma prot for the virtual range under page
-> migration.
->
-> With NUMA disabled, it's likely compaction that triggered page migrate
-> for you. Disabling compaction at build time would have likely hidden
-> the problem. Compaction uses migration and you most certainly have
-> CONFIG_COMPACTION=y (rightfully so).
->
-> On a side note, I suggest to cherry pick the last upstream commit of
-> mm/vmacache.c too.
-Sorry but I didn't get this line correctly.
+---
+ drivers/hv/hv_balloon.c        |  6 ++++--
+ drivers/xen/balloon.c          | 18 ++++++++++++++---
+ include/linux/memory_hotplug.h |  2 +-
+ mm/internal.h                  |  1 +
+ mm/memory_hotplug.c            | 44 ++++++++++++++++++++++++++++++------------
+ mm/page_alloc.c                |  2 +-
+ 6 files changed, 54 insertions(+), 19 deletions(-)
 
-Do you meanthe commit 7a9cdebdc (mm: get rid of vmacache_flush_all() 
-entirely)?
-Could you elaborate what is the point?
-Are you saying there is another scenario that makes the problem I am seeing?
-
-> Hope this helps,
-> Andrea
->
->
->
-
-Thanks.
-Chulmin Kim
+diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
+index b1b7880..c5bc0b5 100644
+--- a/drivers/hv/hv_balloon.c
++++ b/drivers/hv/hv_balloon.c
+@@ -771,7 +771,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
+ 	}
+ }
+ 
+-static void hv_online_page(struct page *pg)
++static int hv_online_page(struct page *pg, unsigned int order)
+ {
+ 	struct hv_hotadd_state *has;
+ 	unsigned long flags;
+@@ -783,10 +783,12 @@ static void hv_online_page(struct page *pg)
+ 		if ((pfn < has->start_pfn) || (pfn >= has->end_pfn))
+ 			continue;
+ 
+-		hv_page_online_one(has, pg);
++		hv_bring_pgs_online(has, pfn, (1UL << order));
+ 		break;
+ 	}
+ 	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
++
++	return 0;
+ }
+ 
+ static int pfn_covered(unsigned long start_pfn, unsigned long pfn_cnt)
+diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+index e12bb25..010cf4d 100644
+--- a/drivers/xen/balloon.c
++++ b/drivers/xen/balloon.c
+@@ -390,8 +390,8 @@ static enum bp_state reserve_additional_memory(void)
+ 
+ 	/*
+ 	 * add_memory_resource() will call online_pages() which in its turn
+-	 * will call xen_online_page() callback causing deadlock if we don't
+-	 * release balloon_mutex here. Unlocking here is safe because the
++	 * will call xen_bring_pgs_online() callback causing deadlock if we
++	 * don't release balloon_mutex here. Unlocking here is safe because the
+ 	 * callers drop the mutex before trying again.
+ 	 */
+ 	mutex_unlock(&balloon_mutex);
+@@ -422,6 +422,18 @@ static void xen_online_page(struct page *page)
+ 	mutex_unlock(&balloon_mutex);
+ }
+ 
++static int xen_bring_pgs_online(struct page *pg, unsigned int order)
++{
++	unsigned long i, size = (1 << order);
++	unsigned long start_pfn = page_to_pfn(pg);
++
++	pr_debug("Online %lu pages starting at pfn 0x%lx\n", size, start_pfn);
++	for (i = 0; i < size; i++)
++		xen_online_page(pfn_to_page(start_pfn + i));
++
++	return 0;
++}
++
+ static int xen_memory_notifier(struct notifier_block *nb, unsigned long val, void *v)
+ {
+ 	if (val == MEM_ONLINE)
+@@ -744,7 +756,7 @@ static int __init balloon_init(void)
+ 	balloon_stats.max_retry_count = RETRY_UNLIMITED;
+ 
+ #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
+-	set_online_page_callback(&xen_online_page);
++	set_online_page_callback(&xen_bring_pgs_online);
+ 	register_memory_notifier(&xen_memory_nb);
+ 	register_sysctl_table(xen_root);
+ 
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 34a2822..7b04c1d 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -87,7 +87,7 @@ extern int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
+ 	unsigned long *valid_start, unsigned long *valid_end);
+ extern void __offline_isolated_pages(unsigned long, unsigned long);
+ 
+-typedef void (*online_page_callback_t)(struct page *page);
++typedef int (*online_page_callback_t)(struct page *page, unsigned int order);
+ 
+ extern int set_online_page_callback(online_page_callback_t callback);
+ extern int restore_online_page_callback(online_page_callback_t callback);
+diff --git a/mm/internal.h b/mm/internal.h
+index 87256ae..2b0efac 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -163,6 +163,7 @@ static inline struct page *pageblock_pfn_to_page(unsigned long start_pfn,
+ extern int __isolate_free_page(struct page *page, unsigned int order);
+ extern void __free_pages_bootmem(struct page *page, unsigned long pfn,
+ 					unsigned int order);
++extern void __free_pages_boot_core(struct page *page, unsigned int order);
+ extern void prep_compound_page(struct page *page, unsigned int order);
+ extern void post_alloc_hook(struct page *page, unsigned int order,
+ 					gfp_t gfp_flags);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 38d94b7..3c81f20 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -47,7 +47,7 @@
+  * and restore_online_page_callback() for generic callback restore.
+  */
+ 
+-static void generic_online_page(struct page *page);
++static int generic_online_page(struct page *page, unsigned int order);
+ 
+ static online_page_callback_t online_page_callback = generic_online_page;
+ static DEFINE_MUTEX(online_page_callback_lock);
+@@ -655,26 +655,46 @@ void __online_page_free(struct page *page)
+ }
+ EXPORT_SYMBOL_GPL(__online_page_free);
+ 
+-static void generic_online_page(struct page *page)
++static int generic_online_page(struct page *page, unsigned int order)
+ {
+-	__online_page_set_limits(page);
+-	__online_page_increment_counters(page);
+-	__online_page_free(page);
++	__free_pages_boot_core(page, order);
++	totalram_pages += (1UL << order);
++#ifdef CONFIG_HIGHMEM
++	if (PageHighMem(page))
++		totalhigh_pages += (1UL << order);
++#endif
++	return 0;
++}
++
++static int online_pages_blocks(unsigned long start, unsigned long nr_pages)
++{
++	unsigned long end = start + nr_pages;
++	int order, ret, onlined_pages = 0;
++
++	while (start < end) {
++		order = min(MAX_ORDER - 1UL, __ffs(start));
++
++		while (start + (1UL << order) > end)
++			order--;
++
++		ret = (*online_page_callback)(pfn_to_page(start), order);
++		if (!ret)
++			onlined_pages += (1UL << order);
++		else if (ret > 0)
++			onlined_pages += ret;
++
++		start += (1UL << order);
++	}
++	return onlined_pages;
+ }
+ 
+ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
+ 			void *arg)
+ {
+-	unsigned long i;
+ 	unsigned long onlined_pages = *(unsigned long *)arg;
+-	struct page *page;
+ 
+ 	if (PageReserved(pfn_to_page(start_pfn)))
+-		for (i = 0; i < nr_pages; i++) {
+-			page = pfn_to_page(start_pfn + i);
+-			(*online_page_callback)(page);
+-			onlined_pages++;
+-		}
++		onlined_pages = online_pages_blocks(start_pfn, nr_pages);
+ 
+ 	online_mem_sections(start_pfn, start_pfn + nr_pages);
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 89d2a2a..a442381 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1252,7 +1252,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ 	local_irq_restore(flags);
+ }
+ 
+-static void __init __free_pages_boot_core(struct page *page, unsigned int order)
++void __free_pages_boot_core(struct page *page, unsigned int order)
+ {
+ 	unsigned int nr_pages = 1 << order;
+ 	struct page *p = page;
+-- 
+1.9.1
