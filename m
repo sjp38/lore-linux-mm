@@ -1,36 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 77FE88E0001
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 11:47:51 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id k10-v6so2608314qtb.8
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 08:47:51 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DF4348E0001
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 11:51:18 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id p192-v6so2991898qke.13
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 08:51:18 -0700 (PDT)
 Received: from a9-114.smtp-out.amazonses.com (a9-114.smtp-out.amazonses.com. [54.240.9.114])
-        by mx.google.com with ESMTPS id w138-v6si1597024qka.122.2018.09.27.08.47.50
+        by mx.google.com with ESMTPS id s35-v6si1638472qvs.140.2018.09.27.08.51.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 27 Sep 2018 08:47:50 -0700 (PDT)
-Date: Thu, 27 Sep 2018 15:47:50 +0000
+        Thu, 27 Sep 2018 08:51:18 -0700 (PDT)
+Date: Thu, 27 Sep 2018 15:51:17 +0000
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: WARNING: kmalloc bug in input_mt_init_slots
-In-Reply-To: <CACT4Y+aDFD6O48nV5J9UpXLiNpTPuSFoBQ4HVC+Kg1tM_KFEiQ@mail.gmail.com>
-Message-ID: <010001661bb70227-d4c9d54f-3870-403f-8103-0296caf0b76d-000000@email.amazonses.com>
-References: <000000000000e5f76c057664e73d@google.com> <CACT4Y+YOb6M=xuPG64PAvd=0bcteicGtwQO60CevN_V67SJ=MQ@mail.gmail.com> <010001660c1fafb2-6d0dc7e1-d898-4589-874c-1be1af94e22d-000000@email.amazonses.com> <CACT4Y+ayX8vzd2JPrLeFhf3K_Quf4x6SDtmtkNJuwNLyOh67tQ@mail.gmail.com>
- <010001660c4a8bbe-91200766-00df-48bd-bc60-a03da2ccdb7d-000000@email.amazonses.com> <20180924184158.GA156847@dtor-ws> <CACT4Y+ZPrngv8GTC-Cw68PBDxZ2T5x1kKMNXL3DmP24Xd0m_5g@mail.gmail.com> <01000166110bb882-0b1fa048-fe1c-4139-a1ba-702754bbc267-000000@email.amazonses.com>
- <CACT4Y+aUdAmRmgiV5-KWXF-eGoCUCMhUC+ddLU-heQTQ53PhRA@mail.gmail.com> <010001661b631a3e-f398fc0a-127c-4c6e-b6ca-b2bd63bc4a9a-000000@email.amazonses.com> <CACT4Y+biYtFUV7hK2ne2RfrbZjMt=4FK4deE0B6WykwT2qSt2g@mail.gmail.com>
- <010001661b9fad1d-cdbfabdb-5553-446f-bcde-585e42837415-000000@email.amazonses.com> <CACT4Y+aDFD6O48nV5J9UpXLiNpTPuSFoBQ4HVC+Kg1tM_KFEiQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: don't warn about large allocations for slab
+In-Reply-To: <20180927130707.151239-1-dvyukov@gmail.com>
+Message-ID: <010001661bba2bbc-a5074e00-2009-414a-be8c-05c58545c7ec-000000@email.amazonses.com>
+References: <20180927130707.151239-1-dvyukov@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Dmitry Torokhov <dmitry.torokhov@gmail.com>, syzbot+87829a10073277282ad1@syzkaller.appspotmail.com, Pekka Enberg <penberg@kernel.org>, "linux-input@vger.kernel.org" <linux-input@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>, Henrik Rydberg <rydberg@bitmath.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
+To: Dmitry Vyukov <dvyukov@gmail.com>
+Cc: penberg@kernel.org, akpm@linux-foundation.org, rientjes@google.com, iamjoonsoo.kim@lge.com, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 On Thu, 27 Sep 2018, Dmitry Vyukov wrote:
 
-> > Please post on the mailing list
+> From: Dmitry Vyukov <dvyukov@google.com>
 >
-> It is on the  mailing lists:
-> https://lkml.org/lkml/2018/9/27/802
+> This warning does not seem to be useful. Most of the time it fires when
+> allocation size depends on syscall arguments. We could add __GFP_NOWARN
+> to these allocation sites, but having a warning only to suppress it
+> does not make lots of sense. Moreover, this warnings never fires for
+> constant-size allocations and never for slub, because there are
+> additional checks and fallback to kmalloc_large() for large allocations
+> and kmalloc_large() does not warn. So the warning only fires for
+> non-constant allocations and only with slab, which is odd to begin with.
+> The warning leads to episodic unuseful syzbot reports. Remote it.
 
+/Remove/
 
-Ok then lets continue the discussion there.
+If its only for slab then KMALLOC_MAX_CACHE_SIZE and KMALLOC_MAX_SIZE are
+the same value.
+
+> While we are here also fix the check. We should check against
+> KMALLOC_MAX_CACHE_SIZE rather than KMALLOC_MAX_SIZE. It all kinda
+> worked because for slab the constants are the same, and slub always
+> checks the size against KMALLOC_MAX_CACHE_SIZE before kmalloc_slab().
+> But if we get there with size > KMALLOC_MAX_CACHE_SIZE anyhow
+> bad things will happen.
+
+Then the WARN_ON is correct just change the constant used. Ensure that
+SLAB does the same checks as SLUB.
