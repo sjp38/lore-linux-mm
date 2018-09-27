@@ -1,57 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0892F8E0001
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 07:30:18 -0400 (EDT)
-Received: by mail-lj1-f197.google.com with SMTP id v23-v6so549138ljc.8
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 04:30:17 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u125-v6sor1010991lja.19.2018.09.27.04.30.16
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 79E498E0001
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 07:30:44 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id y4-v6so5012730wma.0
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 04:30:44 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 205-v6sor1583192wmc.18.2018.09.27.04.30.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 27 Sep 2018 04:30:16 -0700 (PDT)
-Subject: Re: [PATCH v3 3/4] devres: provide devm_kstrdup_const()
-References: <20180924101150.23349-1-brgl@bgdev.pl>
- <20180924101150.23349-4-brgl@bgdev.pl>
- <CAGXu5j+GGbRyQDU=TKKXb9EbRSczEJYqjTaDSsmeBeQn3Qdu_g@mail.gmail.com>
- <9ad301dc-47ef-cd7d-699d-e51716d1703f@rasmusvillemoes.dk>
- <CAMuHMdWi0TQfu093po9-TniiLa2=T1E1c5R0S0tr85F==GcaGw@mail.gmail.com>
-From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Message-ID: <c9d0cf98-628d-f2c2-016c-c13d5bdb76c7@rasmusvillemoes.dk>
-Date: Thu, 27 Sep 2018 13:30:13 +0200
+        Thu, 27 Sep 2018 04:30:43 -0700 (PDT)
+Date: Thu, 27 Sep 2018 14:30:40 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: linux-mm@ archive on lore.kernel.org (Was: [PATCH 0/2] thp
+ nodereclaim fixes)
+Message-ID: <20180927113040.buzebfcooivxsu5d@kshutemo-mobl1>
+References: <20180925120326.24392-1-mhocko@kernel.org>
+ <20180926130850.vk6y6zxppn7bkovk@kshutemo-mobl1>
+ <20180926152523.GA8154@chatter>
 MIME-Version: 1.0
-In-Reply-To: <CAMuHMdWi0TQfu093po9-TniiLa2=T1E1c5R0S0tr85F==GcaGw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180926152523.GA8154@chatter>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: Kees Cook <keescook@chromium.org>, Bartosz Golaszewski <brgl@bgdev.pl>, Michael Turquette <mturquette@baylibre.com>, Stephen Boyd <sboyd@kernel.org>, Greg KH <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Arend van Spriel <aspriel@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, Bjorn Helgaas <bhelgaas@google.com>, vivek.gautam@codeaurora.org, Robin Murphy <robin.murphy@arm.com>, Joe Perches <joe@perches.com>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, guro@fb.com, Huang Ying <ying.huang@intel.com>, =?UTF-8?Q?Bj=c3=b6rn_Andersson?= <bjorn.andersson@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, linux-clk <linux-clk@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 2018-09-27 13:01, Geert Uytterhoeven wrote:
-> Hi Rasmus,
+On Wed, Sep 26, 2018 at 11:25:23AM -0400, Konstantin Ryabitsev wrote:
+> On Wed, Sep 26, 2018 at 04:08:50PM +0300, Kirill A. Shutemov wrote:
+> > On Tue, Sep 25, 2018 at 02:03:24PM +0200, Michal Hocko wrote:
+> > > Thoughts, alternative patches?
+> > > 
+> > > [1] http://lkml.kernel.org/r/20180820032204.9591-1-aarcange@redhat.com
+> > > [2] http://lkml.kernel.org/r/20180830064732.GA2656@dhcp22.suse.cz
+> > > [3] http://lkml.kernel.org/r/20180820032640.9896-2-aarcange@redhat.com
+> > 
+> > All these links are broken. lore.kernel.org doesn't have linux-mm@ archive.
+> > 
+> > Can we get it added?
 > 
-> On Thu, Sep 27, 2018 at 12:55 PM Rasmus Villemoes
-> <linux@rasmusvillemoes.dk> wrote:
->> On 2018-09-27 01:13, Kees Cook wrote:
->>
->> Just drop devm_kfree_const and teach devm_kfree to ignore
->> is_kernel_rodata(). That avoids the 50-100 bytes of overhead for adding
->> yet another EXPORT_SYMBOL and makes it easier to port drivers to
->> devm_kstrdup_const (and avoids the bugs Kees is worried about). devm
->> managed resources are almost never freed explicitly, so that single
->> extra comparison in devm_kfree shouldn't matter for performance.
-> 
-> I guess we can also teach kfree() to ignore is_kernel_rodata(), and
-> drop kfree_const()?
+> Adding linux-mm to lore.kernel.org certainly should happen, but it will not
+> fix the above problem, because lkml.kernel.org/r/<foo> links only work for
+> messages on LKML, not for all messages passing through vger lists (hence the
+> word "lkml" in the name).
 
-In principle, yes, but the difference is that kfree() is called a lot
-more frequently, and on normal code paths, whereas devm_kfree is more
-often (though not always) called on error paths.
+What is the reason for the separation? From my POV it's beneficial to have
+single url scheme to refer any message in the archive regardless of the
+list.
 
-The goal of _const variants of strdup is to save some memory, so one
-place to start is to reduce the .text overhead of that feature. And it
-avoids introducing subtle bugs if some devm_kfree() call is missed
-during conversion to devm_kstrdup_const().
-
-Rasmus
+-- 
+ Kirill A. Shutemov
