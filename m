@@ -1,226 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BA9F8E0001
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 19:29:53 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id 77-v6so772741pgg.0
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 16:29:53 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id j9-v6si280914pll.407.2018.09.26.16.29.51
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E6BDB8E0001
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2018 20:34:45 -0400 (EDT)
+Received: by mail-it1-f200.google.com with SMTP id w132-v6so5791163ita.6
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 17:34:45 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f65-v6sor276306jai.29.2018.09.26.17.34.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Sep 2018 16:29:51 -0700 (PDT)
-Subject: [RFC mm PATCH 5/5] mm: Use common iterator for deferred_init_pages
- and deferred_free_pages
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Date: Wed, 26 Sep 2018 16:28:49 -0700
-Message-ID: <20180926232849.17365.28850.stgit@localhost.localdomain>
-In-Reply-To: <20180926232117.17365.72207.stgit@localhost.localdomain>
-References: <20180926232117.17365.72207.stgit@localhost.localdomain>
+        (Google Transport Security);
+        Wed, 26 Sep 2018 17:34:44 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+References: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1536927045-23536-4-git-send-email-rppt@linux.vnet.ibm.com>
+ <CAKgT0UdP=78RsWHMxFu4PD8a3AhA3eNcG68Z_9aGY0vhOKf7xA@mail.gmail.com> <20180926183152.GA4597@rapoport-lnx>
+In-Reply-To: <20180926183152.GA4597@rapoport-lnx>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Wed, 26 Sep 2018 17:34:32 -0700
+Message-ID: <CAKgT0UcC-GTtyPK9ynvj6r3YFqy8kE40iMJxzPowbNoXGf9iWg@mail.gmail.com>
+Subject: Re: [PATCH 03/30] mm: remove CONFIG_HAVE_MEMBLOCK
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com, alexander.h.duyck@linux.intel.com, dan.j.williams@intel.com, willy@infradead.org, mingo@kernel.org, khalid.aziz@oracle.com, rppt@linux.vnet.ibm.com, vbabka@suse.cz, akpm@linux-foundation.org, ldufour@linux.vnet.ibm.com, davem@davemloft.net, kirill.shutemov@linux.intel.com
+To: rppt@linux.vnet.ibm.com
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, chris@zankel.net, David Miller <davem@davemloft.net>, Geert Uytterhoeven <geert@linux-m68k.org>, green.hu@gmail.com, Greg KH <gregkh@linuxfoundation.org>, gxt@pku.edu.cn, Ingo Molnar <mingo@redhat.com>, jejb@parisc-linux.org, jonas@southpole.se, Jonathan Corbet <corbet@lwn.net>, lftan@altera.com, msalter@redhat.com, Martin Schwidefsky <schwidefsky@de.ibm.com>, mattst88@gmail.com, mpe@ellerman.id.au, Michal Hocko <mhocko@suse.com>, monstr@monstr.eu, palmer@sifive.com, paul.burton@mips.com, rkuo@codeaurora.org, richard@nod.at, dalias@libc.org, Russell King - ARM Linux <linux@armlinux.org.uk>, fancer.lancer@gmail.com, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, vgupta@synopsys.com, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, nios2-dev@lists.rocketboards.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp
 
-This patch creates a common iterator to be used by both deferred_init_pages
-and deferred_free_pages. By doing this we can cut down a bit on code
-overhead as they will likely both be inlined into the same function anyway.
+On Wed, Sep 26, 2018 at 11:32 AM Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+>
+> On Wed, Sep 26, 2018 at 09:58:41AM -0700, Alexander Duyck wrote:
+> > On Fri, Sep 14, 2018 at 5:11 AM Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+> > >
+> > > All architecures use memblock for early memory management. There is no need
+> > > for the CONFIG_HAVE_MEMBLOCK configuration option.
+> > >
+> > > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> >
+> > <snip>
+> >
+> > > diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> > > index 5169205..4ae91fc 100644
+> > > --- a/include/linux/memblock.h
+> > > +++ b/include/linux/memblock.h
+> > > @@ -2,7 +2,6 @@
+> > >  #define _LINUX_MEMBLOCK_H
+> > >  #ifdef __KERNEL__
+> > >
+> > > -#ifdef CONFIG_HAVE_MEMBLOCK
+> > >  /*
+> > >   * Logical memory blocks.
+> > >   *
+> > > @@ -460,7 +459,6 @@ static inline phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align)
+> > >  {
+> > >         return 0;
+> > >  }
+> > > -#endif /* CONFIG_HAVE_MEMBLOCK */
+> > >
+> > >  #endif /* __KERNEL__ */
+> >
+> > There was an #else above this section and I believe it and the code
+> > after it needs to be stripped as well.
+>
+> Right, I've already sent the fix [1] and it's in mmots.
+>
+> [1] https://lkml.org/lkml/2018/9/19/416
+>
 
-This new approach allows deferred_init_pages to make use of
-__init_pageblock. By doing this we can cut down on the code size by sharing
-code between both the hotplug and deferred memory init code paths.
+Are you sure? The patch you reference appears to be for
+drivers/of/fdt.c, and the bit I pointed out here is in
+include/linux/memblock.h.
 
-An additional benefit to this approach is that we improve in cache locality
-of the memory init as we can focus on the memory areas related to
-identifying if a given PFN is valid and keep that warm in the cache until
-we transition to a region of a different type. So we will stream through a
-chunk of valid blocks before we turn to initializing page structs.
-
-Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
----
- mm/page_alloc.c |  134 +++++++++++++++++++++++++++----------------------------
- 1 file changed, 65 insertions(+), 69 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1baea475f296..815ce793c73d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1480,32 +1480,6 @@ void clear_zone_contiguous(struct zone *zone)
- }
- 
- #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
--static void __init deferred_free_range(unsigned long pfn,
--				       unsigned long nr_pages)
--{
--	struct page *page;
--	unsigned long i;
--
--	if (!nr_pages)
--		return;
--
--	page = pfn_to_page(pfn);
--
--	/* Free a large naturally-aligned chunk if possible */
--	if (nr_pages == pageblock_nr_pages &&
--	    (pfn & (pageblock_nr_pages - 1)) == 0) {
--		set_pageblock_migratetype(page, MIGRATE_MOVABLE);
--		__free_pages_boot_core(page, pageblock_order);
--		return;
--	}
--
--	for (i = 0; i < nr_pages; i++, page++, pfn++) {
--		if ((pfn & (pageblock_nr_pages - 1)) == 0)
--			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
--		__free_pages_boot_core(page, 0);
--	}
--}
--
- /* Completion tracking for deferred_init_memmap() threads */
- static atomic_t pgdat_init_n_undone __initdata;
- static __initdata DECLARE_COMPLETION(pgdat_init_all_done_comp);
-@@ -1517,48 +1491,77 @@ static inline void __init pgdat_init_report_one_done(void)
- }
- 
- /*
-- * Returns true if page needs to be initialized or freed to buddy allocator.
-+ * Returns count if page range needs to be initialized or freed
-  *
-- * First we check if pfn is valid on architectures where it is possible to have
-- * holes within pageblock_nr_pages. On systems where it is not possible, this
-- * function is optimized out.
-+ * First, we check if a current large page is valid by only checking the
-+ * validity of the head pfn.
-  *
-- * Then, we check if a current large page is valid by only checking the validity
-- * of the head pfn.
-+ * Then we check if the contiguous pfns are valid on architectures where it
-+ * is possible to have holes within pageblock_nr_pages. On systems where it
-+ * is not possible, this function is optimized out.
-  */
--static inline bool __init deferred_pfn_valid(unsigned long pfn)
-+static unsigned long __next_pfn_valid_range(unsigned long *i,
-+					    unsigned long end_pfn)
- {
--	if (!pfn_valid_within(pfn))
--		return false;
--	if (!(pfn & (pageblock_nr_pages - 1)) && !pfn_valid(pfn))
--		return false;
--	return true;
-+	unsigned long pfn = *i;
-+	unsigned long count;
-+
-+	while (pfn < end_pfn) {
-+		unsigned long t = ALIGN(pfn + 1, pageblock_nr_pages);
-+		unsigned long pageblock_pfn = min(t, end_pfn);
-+
-+#ifndef CONFIG_HOLES_IN_ZONE
-+		count = pageblock_pfn - pfn;
-+		pfn = pageblock_pfn;
-+		if (!pfn_valid(pfn))
-+			continue;
-+#else
-+		for (count = 0; pfn < pageblock_pfn; pfn++) {
-+			if (pfn_valid_within(pfn)) {
-+				count++;
-+				continue;
-+			}
-+
-+			if (count)
-+				break;
-+		}
-+
-+		if (!count)
-+			continue;
-+#endif
-+		*i = pfn;
-+		return count;
-+	}
-+
-+	return 0;
- }
- 
-+#define for_each_deferred_pfn_valid_range(i, start_pfn, end_pfn, pfn, count) \
-+	for (i = (start_pfn),						     \
-+	     count = __next_pfn_valid_range(&i, (end_pfn));		     \
-+	     count && ({ pfn = i - count; 1; });			     \
-+	     count = __next_pfn_valid_range(&i, (end_pfn)))
- /*
-  * Free pages to buddy allocator. Try to free aligned pages in
-  * pageblock_nr_pages sizes.
-  */
--static void __init deferred_free_pages(unsigned long pfn,
-+static void __init deferred_free_pages(unsigned long start_pfn,
- 				       unsigned long end_pfn)
- {
--	unsigned long nr_pgmask = pageblock_nr_pages - 1;
--	unsigned long nr_free = 0;
--
--	for (; pfn < end_pfn; pfn++) {
--		if (!deferred_pfn_valid(pfn)) {
--			deferred_free_range(pfn - nr_free, nr_free);
--			nr_free = 0;
--		} else if (!(pfn & nr_pgmask)) {
--			deferred_free_range(pfn - nr_free, nr_free);
--			nr_free = 1;
--			touch_nmi_watchdog();
-+	unsigned long i, pfn, count;
-+
-+	for_each_deferred_pfn_valid_range(i, start_pfn, end_pfn, pfn, count) {
-+		struct page *page = pfn_to_page(pfn);
-+
-+		if (count == pageblock_nr_pages) {
-+			__free_pages_boot_core(page, pageblock_order);
- 		} else {
--			nr_free++;
-+			while (count--)
-+				__free_pages_boot_core(page++, 0);
- 		}
-+
-+		touch_nmi_watchdog();
- 	}
--	/* Free the last block of pages to allocator */
--	deferred_free_range(pfn - nr_free, nr_free);
- }
- 
- /*
-@@ -1567,29 +1570,22 @@ static void __init deferred_free_pages(unsigned long pfn,
-  * Return number of pages initialized.
-  */
- static unsigned long  __init deferred_init_pages(struct zone *zone,
--						 unsigned long pfn,
-+						 unsigned long start_pfn,
- 						 unsigned long end_pfn)
- {
--	unsigned long nr_pgmask = pageblock_nr_pages - 1;
-+	unsigned long i, pfn, count;
- 	int nid = zone_to_nid(zone);
- 	unsigned long nr_pages = 0;
- 	int zid = zone_idx(zone);
--	struct page *page = NULL;
- 
--	for (; pfn < end_pfn; pfn++) {
--		if (!deferred_pfn_valid(pfn)) {
--			page = NULL;
--			continue;
--		} else if (!page || !(pfn & nr_pgmask)) {
--			page = pfn_to_page(pfn);
--			touch_nmi_watchdog();
--		} else {
--			page++;
--		}
--		__init_single_page(page, pfn, zid, nid);
--		nr_pages++;
-+	for_each_deferred_pfn_valid_range(i, start_pfn, end_pfn, pfn, count) {
-+		nr_pages += count;
-+		__init_pageblock(pfn, count, zid, nid, NULL, false);
-+
-+		touch_nmi_watchdog();
- 	}
--	return (nr_pages);
-+
-+	return nr_pages;
- }
- 
- /*
+- Alex
