@@ -1,93 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 636468E0001
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 00:50:43 -0400 (EDT)
-Received: by mail-oi1-f198.google.com with SMTP id t3-v6so197359oif.20
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 21:50:43 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id t10-v6si441679oth.341.2018.09.26.21.50.42
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F6DE8E0001
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 00:52:54 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id i68-v6so1522781pfb.9
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2018 21:52:54 -0700 (PDT)
+Received: from mail142-4.mail.alibaba.com (mail142-4.mail.alibaba.com. [198.11.142.4])
+        by mx.google.com with ESMTPS id bf9-v6si1035062plb.507.2018.09.26.21.52.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Sep 2018 21:50:42 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8R4nKVj018615
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 00:50:41 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2mrr1411au-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2018 00:50:41 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Thu, 27 Sep 2018 05:50:38 +0100
-Date: Thu, 27 Sep 2018 07:50:20 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH 03/30] mm: remove CONFIG_HAVE_MEMBLOCK
-References: <1536927045-23536-1-git-send-email-rppt@linux.vnet.ibm.com>
- <1536927045-23536-4-git-send-email-rppt@linux.vnet.ibm.com>
- <CAKgT0UdP=78RsWHMxFu4PD8a3AhA3eNcG68Z_9aGY0vhOKf7xA@mail.gmail.com>
- <20180926183152.GA4597@rapoport-lnx>
- <CAKgT0UcC-GTtyPK9ynvj6r3YFqy8kE40iMJxzPowbNoXGf9iWg@mail.gmail.com>
+        Wed, 26 Sep 2018 21:52:53 -0700 (PDT)
+Date: Thu, 27 Sep 2018 12:52:38 +0800
+From: Guo Ren <ren_guo@c-sky.com>
+Subject: Re: [PATCH] csky: fixups after bootmem removal
+Message-ID: <20180927045237.GA2820@guoren>
+References: <20180926112744.GC4628@rapoport-lnx>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAKgT0UcC-GTtyPK9ynvj6r3YFqy8kE40iMJxzPowbNoXGf9iWg@mail.gmail.com>
-Message-Id: <20180927045019.GA16740@rapoport-lnx>
+In-Reply-To: <20180926112744.GC4628@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, chris@zankel.net, David Miller <davem@davemloft.net>, Geert Uytterhoeven <geert@linux-m68k.org>, green.hu@gmail.com, Greg KH <gregkh@linuxfoundation.org>, gxt@pku.edu.cn, Ingo Molnar <mingo@redhat.com>, jejb@parisc-linux.org, jonas@southpole.se, Jonathan Corbet <corbet@lwn.net>, lftan@altera.com, msalter@redhat.com, Martin Schwidefsky <schwidefsky@de.ibm.com>, mattst88@gmail.com, mpe@ellerman.id.au, Michal Hocko <mhocko@suse.com>, monstr@monstr.eu, palmer@sifive.com, paul.burton@mips.com, rkuo@codeaurora.org, richard@nod.at, dalias@libc.org, Russell King - ARM Linux <linux@armlinux.org.uk>, fancer.lancer@gmail.com, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, vgupta@synopsys.com, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, nios2-dev@lists.rocketboards.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Sep 26, 2018 at 05:34:32PM -0700, Alexander Duyck wrote:
-> On Wed, Sep 26, 2018 at 11:32 AM Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
-> >
-> > On Wed, Sep 26, 2018 at 09:58:41AM -0700, Alexander Duyck wrote:
-> > > On Fri, Sep 14, 2018 at 5:11 AM Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
-> > > >
-> > > > All architecures use memblock for early memory management. There is no need
-> > > > for the CONFIG_HAVE_MEMBLOCK configuration option.
-> > > >
-> > > > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> > >
-> > > <snip>
-> > >
-> > > > diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> > > > index 5169205..4ae91fc 100644
-> > > > --- a/include/linux/memblock.h
-> > > > +++ b/include/linux/memblock.h
-> > > > @@ -2,7 +2,6 @@
-> > > >  #define _LINUX_MEMBLOCK_H
-> > > >  #ifdef __KERNEL__
-> > > >
-> > > > -#ifdef CONFIG_HAVE_MEMBLOCK
-> > > >  /*
-> > > >   * Logical memory blocks.
-> > > >   *
-> > > > @@ -460,7 +459,6 @@ static inline phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align)
-> > > >  {
-> > > >         return 0;
-> > > >  }
-> > > > -#endif /* CONFIG_HAVE_MEMBLOCK */
-> > > >
-> > > >  #endif /* __KERNEL__ */
-> > >
-> > > There was an #else above this section and I believe it and the code
-> > > after it needs to be stripped as well.
-> >
-> > Right, I've already sent the fix [1] and it's in mmots.
-> >
-> > [1] https://lkml.org/lkml/2018/9/19/416
-> >
+On Wed, Sep 26, 2018 at 02:27:45PM +0300, Mike Rapoport wrote:
+> Hi,
 > 
-> Are you sure? The patch you reference appears to be for
-> drivers/of/fdt.c, and the bit I pointed out here is in
-> include/linux/memblock.h.
-
-Ah, sorry. You are right, will fix. Thanks for spotting it!
- 
-> - Alex
+> The below patch fixes the bootmem leftovers in csky. It is based on the
+> current mmots and csky build there fails because of undefined reference to
+> dma_direct_ops: 
 > 
+>   MODPOST vmlinux.o
+> kernel/dma/mapping.o: In function `dmam_alloc_attrs':
+> kernel/dma/mapping.c:143: undefined reference to `dma_direct_ops'
+> kernel/dma/mapping.o: In function `dmam_declare_coherent_memory':
+> kernel/dma/mapping.c:184: undefined reference to `dma_direct_ops'
+> mm/dmapool.o: In function `dma_free_attrs': 
+> include/linux/dma-mapping.h:558: undefined reference to `dma_direct_ops'
+> 
+> I've blindly added "select DMA_DIRECT_OPS" to arch/csky/Kconfig and it
+> fixed the build, but I really have no idea if this the right thing to do...
+You are almost right, the issue is come from the patch:
+https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/commit/?id=bc3ec75de5452db59b683487867ba562b950708a
 
--- 
-Sincerely yours,
-Mike.
+we need:
+-	select DMA_NONCOHERENT_OPS
++	select DMA_DIRECT_OPS
+
+I'll fixup it in my repo.
+
+> From 63c3b24e661e6cad88f0432dd460d35a16741871 Mon Sep 17 00:00:00 2001
+> From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> Date: Wed, 26 Sep 2018 13:40:13 +0300
+> Subject: [PATCH] csky: fixups after bootmem removal
+> 
+> The bootmem removal patchest didn't take into account csky architecture and
+> it still had bootmem leftovers. Remove them now.
+> 
+> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> ---
+>  arch/csky/Kconfig        | 1 -
+>  arch/csky/kernel/setup.c | 1 -
+>  arch/csky/mm/highmem.c   | 4 ++--
+>  arch/csky/mm/init.c      | 3 +--
+>  4 files changed, 3 insertions(+), 6 deletions(-)
+> 
+> diff --git a/arch/csky/Kconfig b/arch/csky/Kconfig
+> index fb2a0ae..fc25ea6 100644
+> --- a/arch/csky/Kconfig
+> +++ b/arch/csky/Kconfig
+> @@ -35,7 +35,6 @@ config CSKY
+>  	select HAVE_C_RECORDMCOUNT
+>  	select HAVE_DMA_API_DEBUG
+>  	select HAVE_DMA_CONTIGUOUS
+> -	select HAVE_MEMBLOCK
+>  	select MAY_HAVE_SPARSE_IRQ
+>  	select MODULES_USE_ELF_RELA if MODULES
+>  	select OF
+> diff --git a/arch/csky/kernel/setup.c b/arch/csky/kernel/setup.c
+> index 27f9e10..bee4d26 100644
+> --- a/arch/csky/kernel/setup.c
+> +++ b/arch/csky/kernel/setup.c
+> @@ -3,7 +3,6 @@
+>  
+>  #include <linux/console.h>
+>  #include <linux/memblock.h>
+> -#include <linux/bootmem.h>
+>  #include <linux/initrd.h>
+>  #include <linux/of.h>
+>  #include <linux/of_fdt.h>
+> diff --git a/arch/csky/mm/highmem.c b/arch/csky/mm/highmem.c
+> index 149921a..5b90501 100644
+> --- a/arch/csky/mm/highmem.c
+> +++ b/arch/csky/mm/highmem.c
+> @@ -4,7 +4,7 @@
+>  #include <linux/module.h>
+>  #include <linux/highmem.h>
+>  #include <linux/smp.h>
+> -#include <linux/bootmem.h>
+> +#include <linux/memblock.h>
+>  #include <asm/fixmap.h>
+>  #include <asm/tlbflush.h>
+>  #include <asm/cacheflush.h>
+> @@ -138,7 +138,7 @@ static void __init fixrange_init (unsigned long start, unsigned long end,
+>  			pmd = (pmd_t *)pud;
+>  			for (; (k < PTRS_PER_PMD) && (vaddr != end); pmd++, k++) {
+>  				if (pmd_none(*pmd)) {
+> -					pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
+> +					pte = (pte_t *) memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
+>  					set_pmd(pmd, __pmd(__pa(pte)));
+>  					BUG_ON(pte != pte_offset_kernel(pmd, 0));
+>  				}
+> diff --git a/arch/csky/mm/init.c b/arch/csky/mm/init.c
+> index fd2791b..46c5aaa 100644
+> --- a/arch/csky/mm/init.c
+> +++ b/arch/csky/mm/init.c
+> @@ -14,7 +14,6 @@
+>  #include <linux/ptrace.h>
+>  #include <linux/mman.h>
+>  #include <linux/mm.h>
+> -#include <linux/bootmem.h>
+>  #include <linux/highmem.h>
+>  #include <linux/memblock.h>
+>  #include <linux/swap.h>
+> @@ -44,7 +43,7 @@ void __init mem_init(void)
+>  #endif
+>  	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
+>  
+> -	free_all_bootmem();
+> +	memblock_free_all();
+>  
+>  #ifdef CONFIG_HIGHMEM
+>  	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++) {
+The patch looks good for me.
+
+Thx
+ Guo Ren
