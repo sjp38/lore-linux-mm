@@ -1,48 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 150218E0001
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 03:30:58 -0400 (EDT)
-Received: by mail-vk1-f197.google.com with SMTP id o62-v6so1406308vko.1
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 00:30:58 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a11-v6sor3162297uao.10.2018.09.28.00.30.57
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C20F8E0001
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 04:06:55 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id t36-v6so1271283oti.12
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 01:06:55 -0700 (PDT)
+Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id n13-v6si2468952ota.180.2018.09.28.01.06.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 28 Sep 2018 00:30:57 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 28 Sep 2018 01:06:54 -0700 (PDT)
+Message-ID: <5BADE115.7020701@huawei.com>
+Date: Fri, 28 Sep 2018 16:06:45 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-References: <20180928071414.30703-1-brgl@bgdev.pl> <20180928071414.30703-4-brgl@bgdev.pl>
-In-Reply-To: <20180928071414.30703-4-brgl@bgdev.pl>
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Date: Fri, 28 Sep 2018 09:30:45 +0200
-Message-ID: <CAMuHMdVF9zD+KZ8E1-BCrn4W2QngABHqnCajOhk3Y=xpq4R=Cg@mail.gmail.com>
-Subject: Re: [PATCH v5 3/4] devres: provide devm_kstrdup_const()
-Content-Type: text/plain; charset="UTF-8"
+Subject: Re: [STABLE PATCH] slub: make ->cpu_partial unsigned int
+References: <1538059420-14439-1-git-send-email-zhongjiang@huawei.com> <20180927154647.GB31654@kroah.com>
+In-Reply-To: <20180927154647.GB31654@kroah.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartosz Golaszewski <brgl@bgdev.pl>
-Cc: Greg KH <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>, Jassi Brar <jassisinghbrar@gmail.com>, Thierry Reding <thierry.reding@gmail.com>, Jon Hunter <jonathanh@nvidia.com>, Arnd Bergmann <arnd@arndb.de>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-tegra@vger.kernel.org, Linux-Arch <linux-arch@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Greg KH <gregkh@linux-foundation.org>
+Cc: iamjoonsoo.kim@lge.com, rientjes@google.com, cl@linux.com, penberg@kernel.org, akpm@linux-foundation.org, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On Fri, Sep 28, 2018 at 9:14 AM Bartosz Golaszewski <brgl@bgdev.pl> wrote:
-> Provide a resource managed version of kstrdup_const(). This variant
-> internally calls devm_kstrdup() on pointers that are outside of
-> .rodata section and returns the string as is otherwise.
+On 2018/9/27 23:46, Greg KH wrote:
+> On Thu, Sep 27, 2018 at 10:43:40PM +0800, zhong jiang wrote:
+>> From: Alexey Dobriyan <adobriyan@gmail.com>
+>>
+>>         /*
+>>          * cpu_partial determined the maximum number of objects
+>>          * kept in the per cpu partial lists of a processor.
+>>          */
+>>
+>> Can't be negative.
+>>
+>> I hit a real issue that it will result in a large number of memory leak.
+>> Because Freeing slabs are in interrupt context. So it can trigger this issue.
+>> put_cpu_partial can be interrupted more than once.
+>> due to a union struct of lru and pobjects in struct page, when other core handles
+>> page->lru list, for eaxmple, remove_partial in freeing slab code flow, It will
+>> result in pobjects being a negative value(0xdead0000). Therefore, a large number
+>> of slabs will be added to per_cpu partial list.
+>>
+>> I had posted the issue to community before. The detailed issue description is as follows.
+>>
+>> Link: https://www.spinics.net/lists/kernel/msg2870979.html
+>>
+>> After applying the patch, The issue is fixed. So the patch is a effective bugfix.
+>> It should go into stable.
+> <formletter>
 >
-> Make devm_kfree() check if the passed pointer doesn't point to .rodata
-> and if so - don't actually destroy the resource.
+> This is not the correct way to submit patches for inclusion in the
+> stable kernel tree.  Please read:
+>     https://www.kernel.org/doc/html/latest/process/stable-kernel-rules.html
+> for how to do this properly.
 >
-> Signed-off-by: Bartosz Golaszewski <brgl@bgdev.pl>
-> Reviewed-by: Bjorn Andersson <bjorn.andersson@linaro.org>
-> Acked-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> </formletter>
+Will resend with proper format.
 
-Reviewed-by: Geert Uytterhoeven <geert+renesas@glider.be>
-
-Gr{oetje,eeting}s,
-
-                        Geert
-
--- 
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+Thanks,
+zhong jiang
