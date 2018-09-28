@@ -1,153 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C1CA68E0001
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 07:11:43 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id i8-v6so929025wma.9
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 04:11:43 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j6-v6sor3507878wru.33.2018.09.28.04.11.41
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 935D48E0001
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 07:28:40 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id u1-v6so6144162wrt.3
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 04:28:40 -0700 (PDT)
+Received: from EUR04-VI1-obe.outbound.protection.outlook.com (mail-eopbgr80130.outbound.protection.outlook.com. [40.107.8.130])
+        by mx.google.com with ESMTPS id s6-v6si4477969wrg.240.2018.09.28.04.28.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 28 Sep 2018 04:11:41 -0700 (PDT)
-From: Aaron Tomlin <atomlin@redhat.com>
-Subject: [PATCH v3] slub: extend slub debug to handle multiple slabs
-Date: Fri, 28 Sep 2018 12:11:39 +0100
-Message-Id: <20180928111139.27962-1-atomlin@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 28 Sep 2018 04:28:39 -0700 (PDT)
+Subject: [PATCH] mm: Fix int overflow in callers of do_shrink_slab()
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Fri, 28 Sep 2018 14:28:32 +0300
+Message-ID: <153813407177.17544.14888305435570723973.stgit@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, atomlin@redhat.com, malchev@google.com
+To: akpm@linux-foundation.org, gorcunov@openvz.org, ktkhai@virtuozzo.com, mhocko@suse.com, aryabinin@virtuozzo.com, hannes@cmpxchg.org, penguin-kernel@I-love.SAKURA.ne.jp, shakeelb@google.com, jbacik@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Extend the slub_debug syntax to "slub_debug=<flags>[,<slub>]*", where <slub>
-may contain an asterisk at the end.  For example, the following would poison
-all kmalloc slabs:
+do_shrink_slab() returns unsigned long value, and
+the placing into int variable cuts high bytes off.
+Then we compare ret and 0xfffffffe (since SHRINK_EMPTY
+is converted to ret type).
 
-	slub_debug=P,kmalloc*
+Thus, big number of objects returned by do_shrink_slab()
+may be interpreted as SHRINK_EMPTY, if low bytes of
+their value are equal to 0xfffffffe. Fix that
+by declaration ret as unsigned long in these functions.
 
-and the following would apply the default flags to all kmalloc and all block IO
-slabs:
-
-	slub_debug=,bio*,kmalloc*
-
-Please note that a similar patch was posted by Iliyan Malchev some time ago but
-was never merged:
-
-	https://marc.info/?l=linux-mm&m=131283905330474&w=2
-
-Signed-off-by: Aaron Tomlin <atomlin@redhat.com>
+Reported-by: Cyrill Gorcunov <gorcunov@openvz.org>
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 ---
-Changes from v2 [2]:
+ mm/vmscan.c |    7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
- - Add a function and kernel-doc comment
- - Refactor code
- - Use the appropriate helper function max_t()
-
-Changes from v1 [1]:
-
- - Add appropriate cast to address compiler warning
-
-[1]: https://marc.info/?l=linux-kernel&m=153657804506284&w=2
-[2]: https://marc.info/?l=linux-kernel&m=153747362316965&w=2
----
- Documentation/vm/slub.rst | 12 +++++++++---
- mm/slub.c                 | 50 +++++++++++++++++++++++++++++++++++++++++------
- 2 files changed, 53 insertions(+), 9 deletions(-)
-
-diff --git a/Documentation/vm/slub.rst b/Documentation/vm/slub.rst
-index 3a775fd64e2d..195928808bac 100644
---- a/Documentation/vm/slub.rst
-+++ b/Documentation/vm/slub.rst
-@@ -36,9 +36,10 @@ debugging is enabled. Format:
- 
- slub_debug=<Debug-Options>
- 	Enable options for all slabs
--slub_debug=<Debug-Options>,<slab name>
--	Enable options only for select slabs
- 
-+slub_debug=<Debug-Options>,<slab name1>,<slab name2>,...
-+	Enable options only for select slabs (no spaces
-+	after a comma)
- 
- Possible debug options are::
- 
-@@ -62,7 +63,12 @@ Trying to find an issue in the dentry cache? Try::
- 
- 	slub_debug=,dentry
- 
--to only enable debugging on the dentry cache.
-+to only enable debugging on the dentry cache.  You may use an asterisk at the
-+end of the slab name, in order to cover all slabs with the same prefix.  For
-+example, here's how you can poison the dentry cache as well as all kmalloc
-+slabs:
-+
-+	slub_debug=P,kmalloc-*,dentry
- 
- Red zoning and tracking may realign the slab.  We can just apply sanity checks
- to the dentry cache with::
-diff --git a/mm/slub.c b/mm/slub.c
-index 8da34a8af53d..7927f971df0d 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1276,16 +1276,54 @@ static int __init setup_slub_debug(char *str)
- 
- __setup("slub_debug", setup_slub_debug);
- 
-+/*
-+ * kmem_cache_flags - apply debugging options to the cache
-+ * @object_size:	the size of an object without meta data
-+ * @flags:		flags to set
-+ * @name:		name of the cache
-+ * @ctor:		constructor function
-+ *
-+ * Debug option(s) are applied to @flags. In addition to the debug
-+ * option(s), if a slab name (or multiple) is specified i.e.
-+ * slub_debug=<Debug-Options>,<slab name1>,<slab name2> ...
-+ * then only the select slabs will receive the debug option(s).
-+ */
- slab_flags_t kmem_cache_flags(unsigned int object_size,
- 	slab_flags_t flags, const char *name,
- 	void (*ctor)(void *))
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 0b63d9a2dc17..8ea87586925e 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -581,8 +581,8 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+ 			struct mem_cgroup *memcg, int priority)
  {
--	/*
--	 * Enable debugging if selected on the kernel commandline.
--	 */
--	if (slub_debug && (!slub_debug_slabs || (name &&
--		!strncmp(slub_debug_slabs, name, strlen(slub_debug_slabs)))))
--		flags |= slub_debug;
-+	char *iter;
-+	size_t len;
-+
-+	/* If slub_debug = 0, it folds into the if conditional. */
-+	if (!slub_debug_slabs)
-+		return flags | slub_debug;
-+
-+	len = strlen(name);
-+	iter = slub_debug_slabs;
-+	while (*iter) {
-+		char *end, *glob;
-+		size_t cmplen;
-+
-+		end = strchr(iter, ',');
-+		if (!end)
-+			end = iter + strlen(iter);
-+
-+		glob = strnchr(iter, end - iter, '*');
-+		if (glob)
-+			cmplen = glob - iter;
-+		else
-+			cmplen = max_t(size_t, len, (end - iter));
-+
-+		if (!strncmp(name, iter, cmplen)) {
-+			flags |= slub_debug;
-+			break;
-+		}
-+
-+		if (!*end)
-+			break;
-+		iter = end + 1;
-+	}
+ 	struct memcg_shrinker_map *map;
+-	unsigned long freed = 0;
+-	int ret, i;
++	unsigned long ret, freed = 0;
++	int i;
  
- 	return flags;
- }
--- 
-2.14.4
+ 	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
+ 		return 0;
+@@ -678,9 +678,8 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 				 struct mem_cgroup *memcg,
+ 				 int priority)
+ {
++	unsigned long ret, freed = 0;
+ 	struct shrinker *shrinker;
+-	unsigned long freed = 0;
+-	int ret;
+ 
+ 	if (!mem_cgroup_is_root(memcg))
+ 		return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
