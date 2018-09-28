@@ -1,78 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A0D6B8E0001
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 11:30:12 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id w23-v6so5840804qts.11
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 08:30:12 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g11-v6si3805109qke.47.2018.09.28.08.30.11
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 08D428E0001
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 11:36:22 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id q20-v6so6286603qke.21
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 08:36:22 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x25-v6sor2067082qtb.92.2018.09.28.08.36.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Sep 2018 08:30:11 -0700 (PDT)
-Date: Fri, 28 Sep 2018 11:29:59 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 0/4] get_user_pages*() and RDMA: first steps
-Message-ID: <20180928152958.GA3321@redhat.com>
-References: <20180928053949.5381-1-jhubbard@nvidia.com>
+        (Google Transport Security);
+        Fri, 28 Sep 2018 08:36:21 -0700 (PDT)
+Date: Fri, 28 Sep 2018 11:36:18 -0400
+From: Masayoshi Mizuma <msys.mizuma@gmail.com>
+Subject: Re: [PATCH v2 3/3] mm: return zero_resv_unavail optimization
+Message-ID: <20180928153618.gdxyb337a4w32vit@gabell>
+References: <20180925153532.6206-1-msys.mizuma@gmail.com>
+ <20180925153532.6206-4-msys.mizuma@gmail.com>
+ <20180928001944.GA9242@hori1.linux.bs1.fc.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180928053949.5381-1-jhubbard@nvidia.com>
+In-Reply-To: <20180928001944.GA9242@hori1.linux.bs1.fc.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john.hubbard@gmail.com
-Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Christian Benvenuti <benve@cisco.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Michal Hocko <mhocko@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>
 
-On Thu, Sep 27, 2018 at 10:39:45PM -0700, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
+On Fri, Sep 28, 2018 at 12:19:44AM +0000, Naoya Horiguchi wrote:
+> On Tue, Sep 25, 2018 at 11:35:32AM -0400, Masayoshi Mizuma wrote:
+> > From: Pavel Tatashin <pavel.tatashin@microsoft.com>
+> > 
+> > When checking for valid pfns in zero_resv_unavail(), it is not necessary to
+> > verify that pfns within pageblock_nr_pages ranges are valid, only the first
+> > one needs to be checked. This is because memory for pages are allocated in
+> > contiguous chunks that contain pageblock_nr_pages struct pages.
+> > 
+> > Signed-off-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+> > Reviewed-off-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
 > 
-> Hi,
-> 
-> This short series prepares for eventually fixing the problem described
-> in [1], and is following a plan listed in [2].
-> 
-> I'd like to get the first two patches into the -mm tree.
-> 
-> Patch 1, although not technically critical to do now, is still nice to have,
-> because it's already been reviewed by Jan, and it's just one more thing on the
-> long TODO list here, that is ready to be checked off.
-> 
-> Patch 2 is required in order to allow me (and others, if I'm lucky) to start
-> submitting changes to convert all of the callsites of get_user_pages*() and
-> put_page().  I think this will work a lot better than trying to maintain a
-> massive patchset and submitting all at once.
-> 
-> Patch 3 converts infiniband drivers: put_page() --> put_user_page(). I picked
-> a fairly small and easy example.
-> 
-> Patch 4 converts a small driver from put_page() --> release_user_pages(). This
-> could just as easily have been done as a change from put_page() to
-> put_user_page(). The reason I did it this way is that this provides a small and
-> simple caller of the new release_user_pages() routine. I wanted both of the
-> new routines, even though just placeholders, to have callers.
-> 
-> Once these are all in, then the floodgates can open up to convert the large
-> number of get_user_pages*() callsites.
-> 
-> [1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
-> 
-> [2] https://lkml.kernel.org/r/20180709080554.21931-1-jhubbard@nvidia.com
->     Proposed steps for fixing get_user_pages() + DMA problems.
-> 
+> According to convention, review tag is formatted like "Reviewed-by: ...",
 
-So the solution is to wait (possibly for days, months, years) that the
-RDMA or GPU which did GUP and do not have mmu notifier, release the page
-(or put_user_page()) ?
+Sorry for the typo...
 
-This sounds bads. Like i said during LSF/MM there is no way to properly
-fix hardware that can not be preempted/invalidated ... most GPU are fine.
-Few RDMA are fine, most can not ...
+> Otherwise, looks good to me.
+> 
+> Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-If it is just about fixing the set_page_dirty() bug then just looking at
-refcount versus mapcount should already tell you if you can remove the
-buffer head from the page or not. Which would fix the bug without complex
-changes (i still like the put_user_page just for symetry with GUP).
+Thanks!
 
-Cheers,
-Jerome
+- Masa
+
+> 
+> > ---
+> >  mm/page_alloc.c | 46 ++++++++++++++++++++++++++--------------------
+> >  1 file changed, 26 insertions(+), 20 deletions(-)
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 3b9d89e..bd5b7e4 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -6440,6 +6440,29 @@ void __init free_area_init_node(int nid, unsigned long *zones_size,
+> >  }
+> >  
+> >  #if defined(CONFIG_HAVE_MEMBLOCK) && !defined(CONFIG_FLAT_NODE_MEM_MAP)
+> > +
+> > +/*
+> > + * Zero all valid struct pages in range [spfn, epfn), return number of struct
+> > + * pages zeroed
+> > + */
+> > +static u64 zero_pfn_range(unsigned long spfn, unsigned long epfn)
+> > +{
+> > +	unsigned long pfn;
+> > +	u64 pgcnt = 0;
+> > +
+> > +	for (pfn = spfn; pfn < epfn; pfn++) {
+> > +		if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages))) {
+> > +			pfn = ALIGN_DOWN(pfn, pageblock_nr_pages)
+> > +				+ pageblock_nr_pages - 1;
+> > +			continue;
+> > +		}
+> > +		mm_zero_struct_page(pfn_to_page(pfn));
+> > +		pgcnt++;
+> > +	}
+> > +
+> > +	return pgcnt;
+> > +}
+> > +
+> >  /*
+> >   * Only struct pages that are backed by physical memory are zeroed and
+> >   * initialized by going through __init_single_page(). But, there are some
+> > @@ -6455,7 +6478,6 @@ void __init free_area_init_node(int nid, unsigned long *zones_size,
+> >  void __init zero_resv_unavail(void)
+> >  {
+> >  	phys_addr_t start, end;
+> > -	unsigned long pfn;
+> >  	u64 i, pgcnt;
+> >  	phys_addr_t next = 0;
+> >  
+> > @@ -6465,34 +6487,18 @@ void __init zero_resv_unavail(void)
+> >  	pgcnt = 0;
+> >  	for_each_mem_range(i, &memblock.memory, NULL,
+> >  			NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end, NULL) {
+> > -		if (next < start) {
+> > -			for (pfn = PFN_DOWN(next); pfn < PFN_UP(start); pfn++) {
+> > -				if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages)))
+> > -					continue;
+> > -				mm_zero_struct_page(pfn_to_page(pfn));
+> > -				pgcnt++;
+> > -			}
+> > -		}
+> > +		if (next < start)
+> > +			pgcnt += zero_pfn_range(PFN_DOWN(next), PFN_UP(start));
+> >  		next = end;
+> >  	}
+> > -	for (pfn = PFN_DOWN(next); pfn < max_pfn; pfn++) {
+> > -		if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages)))
+> > -			continue;
+> > -		mm_zero_struct_page(pfn_to_page(pfn));
+> > -		pgcnt++;
+> > -	}
+> > -
+> > +	pgcnt += zero_pfn_range(PFN_DOWN(next), max_pfn);
+> >  
+> >  	/*
+> >  	 * Struct pages that do not have backing memory. This could be because
+> >  	 * firmware is using some of this memory, or for some other reasons.
+> > -	 * Once memblock is changed so such behaviour is not allowed: i.e.
+> > -	 * list of "reserved" memory must be a subset of list of "memory", then
+> > -	 * this code can be removed.
+> >  	 */
+> >  	if (pgcnt)
+> >  		pr_info("Zeroed struct page in unavailable ranges: %lld pages", pgcnt);
+> > -
+> >  }
+> >  #endif /* CONFIG_HAVE_MEMBLOCK && !CONFIG_FLAT_NODE_MEM_MAP */
+> >  
+> > -- 
+> > 2.18.0
+> > 
+> > 
