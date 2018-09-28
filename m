@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D86018E0001
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 03:14:26 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id v33-v6so5393624wrc.13
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 00:14:26 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E8AC88E0001
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 03:14:27 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id 199-v6so1250643wme.1
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 00:14:27 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i8-v6sor3109752wrs.28.2018.09.28.00.14.25
+        by mx.google.com with SMTPS id d9-v6sor3029036wrw.34.2018.09.28.00.14.26
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 28 Sep 2018 00:14:25 -0700 (PDT)
+        Fri, 28 Sep 2018 00:14:26 -0700 (PDT)
 From: Bartosz Golaszewski <brgl@bgdev.pl>
-Subject: [PATCH v5 2/4] mm: move is_kernel_rodata() to asm-generic/sections.h
-Date: Fri, 28 Sep 2018 09:14:12 +0200
-Message-Id: <20180928071414.30703-3-brgl@bgdev.pl>
+Subject: [PATCH v5 3/4] devres: provide devm_kstrdup_const()
+Date: Fri, 28 Sep 2018 09:14:13 +0200
+Message-Id: <20180928071414.30703-4-brgl@bgdev.pl>
 In-Reply-To: <20180928071414.30703-1-brgl@bgdev.pl>
 References: <20180928071414.30703-1-brgl@bgdev.pl>
 Sender: owner-linux-mm@kvack.org
@@ -20,61 +20,89 @@ List-ID: <linux-mm.kvack.org>
 To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael@kernel.org>, Jassi Brar <jassisinghbrar@gmail.com>, Thierry Reding <thierry.reding@gmail.com>, Jonathan Hunter <jonathanh@nvidia.com>, Arnd Bergmann <arnd@arndb.de>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
 Cc: linux-kernel@vger.kernel.org, linux-tegra@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Bartosz Golaszewski <brgl@bgdev.pl>
 
-Export this routine so that we can use it later in devm_kstrdup_const()
-and devm_kfree_const().
+Provide a resource managed version of kstrdup_const(). This variant
+internally calls devm_kstrdup() on pointers that are outside of
+.rodata section and returns the string as is otherwise.
+
+Make devm_kfree() check if the passed pointer doesn't point to .rodata
+and if so - don't actually destroy the resource.
 
 Signed-off-by: Bartosz Golaszewski <brgl@bgdev.pl>
 Reviewed-by: Bjorn Andersson <bjorn.andersson@linaro.org>
 Acked-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 ---
- include/asm-generic/sections.h | 14 ++++++++++++++
- mm/util.c                      |  7 -------
- 2 files changed, 14 insertions(+), 7 deletions(-)
+ drivers/base/devres.c  | 31 +++++++++++++++++++++++++++++++
+ include/linux/device.h |  2 ++
+ 2 files changed, 33 insertions(+)
 
-diff --git a/include/asm-generic/sections.h b/include/asm-generic/sections.h
-index 849cd8eb5ca0..d79abca81a52 100644
---- a/include/asm-generic/sections.h
-+++ b/include/asm-generic/sections.h
-@@ -141,4 +141,18 @@ static inline bool init_section_intersects(void *virt, size_t size)
- 	return memory_intersects(__init_begin, __init_end, virt, size);
+diff --git a/drivers/base/devres.c b/drivers/base/devres.c
+index 438c91a43508..00c70f0fcdcd 100644
+--- a/drivers/base/devres.c
++++ b/drivers/base/devres.c
+@@ -11,6 +11,8 @@
+ #include <linux/slab.h>
+ #include <linux/percpu.h>
+ 
++#include <asm/sections.h>
++
+ #include "base.h"
+ 
+ struct devres_node {
+@@ -822,6 +824,28 @@ char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp)
  }
+ EXPORT_SYMBOL_GPL(devm_kstrdup);
  
 +/**
-+ * is_kernel_rodata - checks if the pointer address is located in the
-+ *                    .rodata section
++ * devm_kstrdup_const - resource managed conditional string duplication
++ * @dev: device for which to duplicate the string
++ * @s: the string to duplicate
++ * @gfp: the GFP mask used in the kmalloc() call when allocating memory
 + *
-+ * @addr: address to check
++ * Strings allocated by devm_kstrdup_const will be automatically freed when
++ * the associated device is detached.
 + *
-+ * Returns: true if the address is located in .rodata, false otherwise.
++ * RETURNS:
++ * Source string if it is in .rodata section otherwise it falls back to
++ * devm_kstrdup.
 + */
-+static inline bool is_kernel_rodata(unsigned long addr)
++const char *devm_kstrdup_const(struct device *dev, const char *s, gfp_t gfp)
 +{
-+	return addr >= (unsigned long)__start_rodata &&
-+	       addr < (unsigned long)__end_rodata;
-+}
++	if (is_kernel_rodata((unsigned long)s))
++		return s;
 +
- #endif /* _ASM_GENERIC_SECTIONS_H_ */
-diff --git a/mm/util.c b/mm/util.c
-index 9e3ebd2ef65f..470f5cd80b64 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -15,17 +15,10 @@
- #include <linux/vmalloc.h>
- #include <linux/userfaultfd_k.h>
- 
--#include <asm/sections.h>
- #include <linux/uaccess.h>
- 
- #include "internal.h"
- 
--static inline int is_kernel_rodata(unsigned long addr)
--{
--	return addr >= (unsigned long)__start_rodata &&
--		addr < (unsigned long)__end_rodata;
--}
--
++	return devm_kstrdup(dev, s, gfp);
++}
++EXPORT_SYMBOL(devm_kstrdup_const);
++
  /**
-  * kfree_const - conditionally free memory
-  * @x: pointer to the memory
+  * devm_kvasprintf - Allocate resource managed space and format a string
+  *		     into that.
+@@ -889,6 +913,13 @@ void devm_kfree(struct device *dev, const void *p)
+ {
+ 	int rc;
+ 
++	/*
++	 * Special case: pointer to a string in .rodata returned by
++	 * devm_kstrdup_const().
++	 */
++	if (unlikely(is_kernel_rodata((unsigned long)p)))
++		return;
++
+ 	rc = devres_destroy(dev, devm_kmalloc_release,
+ 			    devm_kmalloc_match, (void *)p);
+ 	WARN_ON(rc);
+diff --git a/include/linux/device.h b/include/linux/device.h
+index 33f7cb271fbb..e626acb93ef5 100644
+--- a/include/linux/device.h
++++ b/include/linux/device.h
+@@ -694,6 +694,8 @@ static inline void *devm_kcalloc(struct device *dev,
+ }
+ extern void devm_kfree(struct device *dev, const void *p);
+ extern char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp) __malloc;
++extern const char *devm_kstrdup_const(struct device *dev,
++				      const char *s, gfp_t gfp);
+ extern void *devm_kmemdup(struct device *dev, const void *src, size_t len,
+ 			  gfp_t gfp);
+ 
 -- 
 2.18.0
