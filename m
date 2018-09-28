@@ -1,89 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BC9288E0001
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 13:03:20 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i68-v6so7044983pfb.9
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 10:03:20 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id x4-v6si4866860plo.459.2018.09.28.10.03.19
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C4D38E0001
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 13:04:46 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id y199-v6so1523851wmc.6
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 10:04:46 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTPS id o13-v6si5321486wrm.251.2018.09.28.10.04.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Sep 2018 10:03:19 -0700 (PDT)
-Subject: Re: [PATCH RFC] mm/memory_hotplug: Introduce memory block types
-References: <20180928150357.12942-1-david@redhat.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <5dba97a5-5a18-5df1-5493-99987679cf3a@linux.intel.com>
-Date: Fri, 28 Sep 2018 10:02:48 -0700
+        Fri, 28 Sep 2018 10:04:45 -0700 (PDT)
+Date: Fri, 28 Sep 2018 19:04:46 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v6 04/18] ACPI / APEI: Switch NOTIFY_SEA to use the
+ estatus queue
+Message-ID: <20180928170446.GE20768@zn.tnic>
+References: <20180921221705.6478-1-james.morse@arm.com>
+ <20180921221705.6478-5-james.morse@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20180928150357.12942-1-david@redhat.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Disposition: inline
+In-Reply-To: <20180921221705.6478-5-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org
-Cc: xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, linux-acpi@vger.kernel.org, linux-sh@vger.kernel.org, linux-s390@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, Stephen Hemminger <sthemmin@microsoft.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nicholas Piggin <npiggin@gmail.com>, =?UTF-8?Q?Jonathan_Neusch=c3=a4fer?= <j.neuschaefer@gmx.net>, Joe Perches <joe@perches.com>, Michael Neuling <mikey@neuling.org>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Rashmica Gupta <rashmica.g@gmail.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Rob Herring <robh@kernel.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, "mike.travis@hpe.com" <mike.travis@hpe.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Oscar Salvador <osalvador@suse.de>, Mathieu Malaterre <malat@debian.org>
+To: James Morse <james.morse@arm.com>
+Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
 
-It's really nice if these kinds of things are broken up.  First, replace
-the old want_memblock parameter, then add the parameter to the
-__add_page() calls.
+On Fri, Sep 21, 2018 at 11:16:51PM +0100, James Morse wrote:
+> Now that the estatus queue can be used by more than one notification
+> method, we can move notifications that have NMI-like behaviour over to
+> it, and start abstracting GHES's single in_nmi() path.
+> 
+> Switch NOTIFY_SEA over to use the estatus queue. This makes it behave
+> in the same way as x86's NOTIFY_NMI.
+> 
+> Signed-off-by: James Morse <james.morse@arm.com>
+> Reviewed-by: Punit Agrawal <punit.agrawal@arm.com>
+> Tested-by: Tyler Baicar <tbaicar@codeaurora.org>
+> ---
+>  drivers/acpi/apei/ghes.c | 23 +++++++++++------------
+>  1 file changed, 11 insertions(+), 12 deletions(-)
+> 
+> diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
+> index d7c46236b353..150fb184c7cb 100644
+> --- a/drivers/acpi/apei/ghes.c
+> +++ b/drivers/acpi/apei/ghes.c
+> @@ -58,6 +58,10 @@
+>  
+>  #define GHES_PFX	"GHES: "
+>  
+> +#if defined(CONFIG_HAVE_ACPI_APEI_NMI) || defined(CONFIG_ACPI_APEI_SEA)
+> +#define WANT_NMI_ESTATUS_QUEUE	1
+> +#endif
 
-> +/*
-> + * NONE:     No memory block is to be created (e.g. device memory).
-> + * NORMAL:   Memory block that represents normal (boot or hotplugged) memory
-> + *           (e.g. ACPI DIMMs) that should be onlined either automatically
-> + *           (memhp_auto_online) or manually by user space to select a
-> + *           specific zone.
-> + *           Applicable to memhp_auto_online.
-> + * STANDBY:  Memory block that represents standby memory that should only
-> + *           be onlined on demand by user space (e.g. standby memory on
-> + *           s390x), but never automatically by the kernel.
-> + *           Not applicable to memhp_auto_online.
-> + * PARAVIRT: Memory block that represents memory added by
-> + *           paravirtualized mechanisms (e.g. hyper-v, xen) that will
-> + *           always automatically get onlined. Memory will be unplugged
-> + *           using ballooning, not by relying on the MOVABLE ZONE.
-> + *           Not applicable to memhp_auto_online.
-> + */
-> +enum {
-> +	MEMORY_BLOCK_NONE,
-> +	MEMORY_BLOCK_NORMAL,
-> +	MEMORY_BLOCK_STANDBY,
-> +	MEMORY_BLOCK_PARAVIRT,
-> +};
+Is that just so that you have shorter ifdeffery lines? Because if so, an
+additional level of indirection is silly. Or maybe there's more coming -
+I'll see when I continue going through this set. :)
 
-This does not seem like the best way to expose these.
+Otherwise looks good - trying to reuse the facilities and all. Better. :)
 
-STANDBY, for instance, seems to be essentially a replacement for a check
-against running on s390 in userspace to implement a _typical_ s390
-policy.  It seems rather weird to try to make the userspace policy
-determination easier by telling userspace about the typical s390 policy
-via the kernel.
+-- 
+Regards/Gruss,
+    Boris.
 
-As for the OOM issues, that sounds like something we need to fix by
-refusing to do (or delaying) hot-add operations once we consume too much
-ZONE_NORMAL from memmap[]s rather than trying to indirectly tell
-userspace to hurry thing along.
-
-So, to my eye, we need:
-
- +enum {
- +	MEMORY_BLOCK_NONE,
- +	MEMORY_BLOCK_STANDBY, /* the default */
- +	MEMORY_BLOCK_AUTO_ONLINE,
- +};
-
-and we can probably collapse NONE into AUTO_ONLINE because userspace
-ends up doing the same thing for both: nothing.
-
->  struct memory_block {
->  	unsigned long start_section_nr;
->  	unsigned long end_section_nr;
-> @@ -34,6 +58,7 @@ struct memory_block {
->  	int (*phys_callback)(struct memory_block *);
->  	struct device dev;
->  	int nid;			/* NID for this memory block */
-> +	int type;			/* type of this memory block */
->  };
-
-Shouldn't we just be creating and using an actual named enum type?
+Good mailing practices for 400: avoid top-posting and trim the reply.
