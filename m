@@ -1,78 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 81E618E0001
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 17:32:41 -0400 (EDT)
-Received: by mail-it1-f198.google.com with SMTP id t18-v6so3863385ite.1
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 14:32:41 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id 203-v6si3609634ioo.226.2018.09.28.14.32.40
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BA2BE8E0005
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 17:49:46 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id y130-v6so7502703qka.1
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 14:49:46 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i3-v6si842228qtf.22.2018.09.28.14.49.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Sep 2018 14:32:40 -0700 (PDT)
-Date: Fri, 28 Sep 2018 14:32:24 -0700
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: Re: [PATCH -V5 RESEND 03/21] swap: Support PMD swap mapping in
- swap_duplicate()
-Message-ID: <20180928213224.tjff2rtfmxmnz5nq@ca-dmjordan1.us.oracle.com>
-References: <20180925071348.31458-1-ying.huang@intel.com>
- <20180925071348.31458-4-ying.huang@intel.com>
- <20180925191953.4ped5ki7u3ymafmd@ca-dmjordan1.us.oracle.com>
- <874lecifj4.fsf@yhuang-dev.intel.com>
- <20180926145145.6xp2kxpngyd54f6i@ca-dmjordan1.us.oracle.com>
- <87r2hfhger.fsf@yhuang-dev.intel.com>
- <20180927211238.ly3e7cyvfu3rswcv@ca-dmjordan1.us.oracle.com>
- <87lg7mf30o.fsf@yhuang-dev.intel.com>
+        Fri, 28 Sep 2018 14:49:45 -0700 (PDT)
+Date: Fri, 28 Sep 2018 17:49:37 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 0/4] get_user_pages*() and RDMA: first steps
+Message-ID: <20180928214934.GA3265@redhat.com>
+References: <20180928053949.5381-1-jhubbard@nvidia.com>
+ <20180928152958.GA3321@redhat.com>
+ <4c884529-e2ff-3808-9763-eb0e71f5a616@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <87lg7mf30o.fsf@yhuang-dev.intel.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <4c884529-e2ff-3808-9763-eb0e71f5a616@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Christian Benvenuti <benve@cisco.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>
 
-On Fri, Sep 28, 2018 at 04:19:03PM +0800, Huang, Ying wrote:
-> Daniel Jordan <daniel.m.jordan@oracle.com> writes:
-> > One way is to change
-> > copy_one_pte's return to int so we can just pass the error code back to
-> > copy_pte_range so it knows whether to try adding the continuation.
+On Fri, Sep 28, 2018 at 12:06:12PM -0700, John Hubbard wrote:
+> On 9/28/18 8:29 AM, Jerome Glisse wrote:
+> > On Thu, Sep 27, 2018 at 10:39:45PM -0700, john.hubbard@gmail.com wrote:
+> >> From: John Hubbard <jhubbard@nvidia.com>
+> >>
+> >> Hi,
+> >>
+> >> This short series prepares for eventually fixing the problem described
+> >> in [1], and is following a plan listed in [2].
+> >>
+> >> I'd like to get the first two patches into the -mm tree.
+> >>
+> >> Patch 1, although not technically critical to do now, is still nice to have,
+> >> because it's already been reviewed by Jan, and it's just one more thing on the
+> >> long TODO list here, that is ready to be checked off.
+> >>
+> >> Patch 2 is required in order to allow me (and others, if I'm lucky) to start
+> >> submitting changes to convert all of the callsites of get_user_pages*() and
+> >> put_page().  I think this will work a lot better than trying to maintain a
+> >> massive patchset and submitting all at once.
+> >>
+> >> Patch 3 converts infiniband drivers: put_page() --> put_user_page(). I picked
+> >> a fairly small and easy example.
+> >>
+> >> Patch 4 converts a small driver from put_page() --> release_user_pages(). This
+> >> could just as easily have been done as a change from put_page() to
+> >> put_user_page(). The reason I did it this way is that this provides a small and
+> >> simple caller of the new release_user_pages() routine. I wanted both of the
+> >> new routines, even though just placeholders, to have callers.
+> >>
+> >> Once these are all in, then the floodgates can open up to convert the large
+> >> number of get_user_pages*() callsites.
+> >>
+> >> [1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
+> >>
+> >> [2] https://lkml.kernel.org/r/20180709080554.21931-1-jhubbard@nvidia.com
+> >>     Proposed steps for fixing get_user_pages() + DMA problems.
+> >>
+> > 
+> > So the solution is to wait (possibly for days, months, years) that the
+> > RDMA or GPU which did GUP and do not have mmu notifier, release the page
+> > (or put_user_page()) ?
+> > 
+> > This sounds bads. Like i said during LSF/MM there is no way to properly
+> > fix hardware that can not be preempted/invalidated ... most GPU are fine.
+> > Few RDMA are fine, most can not ...
+> > 
 > 
-> There may be even more problems.  After add_swap_count_continuation(),
-> copy_one_pte() will be retried, and the CPU may hang with dead loop.
-
-That's true, it would do that.
-
-> But before the changes in this patchset, the behavior is,
-> __swap_duplicate() return an error that isn't -ENOMEM, such as -EEXIST.
-> Then copy_one_pte() would thought the operation has been done
-> successfully, and go to call set_pte_at().  This will cause the system
-> state become inconsistent, and the system may panic or hang somewhere
-> later.
+> Hi Jerome,
 > 
-> So per my understanding, if we thought page table corruption isn't a
-> real problem (that is, __swap_duplicate() will never return e.g. -EEXIST
-> if copied by copy_one_pte() indirectly), both the original and the new
-> code should be OK.
+> Personally, I'm think that this particular design is the best one I've seen
+> so far, but if other, better designs show up, than let's do those instead, sure.
 > 
-> If we thought it is a real problem, we need to fix the original code and
-> keep it fixed in the new code.  Do you agree?
-
-Yes, if it was a real problem, which seems less and less the case the more I
-stare at this.
-
-> There's several ways to fix the problem.  But the page table shouldn't
-> be corrupted in practice, unless there's some programming error.  So I
-> suggest to make it as simple as possible via adding,
+> I guess your main concern is that this might take longer than other approaches.
 > 
-> VM_BUG_ON(error != -ENOMEM);
+> As for time frame, perhaps I made it sound worse than it really is. I have patches
+> staged already for all of the simpler call sites, and for about half of the more
+> complicated ones. The core solution in mm is not large, and we've gone through a 
+> few discussion threads about it back in July or so, so it shouldn't take too long
+> to perfect it.
 > 
-> in swap_duplicate().
+> So it may be a few months to get it all reviewed and submitted, but I don't
+> see "years" by any stretch.
+
+Bit of miss-comprehention there :) By month, years, i am talking about
+the time it will take for some user to release the pin they have on the
+page. Not the time to push something upstream.
+
+AFAICT RDMA driver do not have any upper bound on how long they can hold
+a page reference and thus your solution can leave one CPU core stuck for
+as long as the pin is active. Worst case might lead to all CPU core waiting
+for something that might never happen.
+
 > 
-> Do you agree?
+> 
+> > If it is just about fixing the set_page_dirty() bug then just looking at
+> > refcount versus mapcount should already tell you if you can remove the
+> > buffer head from the page or not. Which would fix the bug without complex
+> > changes (i still like the put_user_page just for symetry with GUP).
+> > 
+> 
+> It's about more than that. The goal is to make it safe and correct to
+> use a non-CPU device to read and write to "pinned" memory, especially when
+> that memory is backed by a file system.
+> 
+> I recall there were objections to just narrowly fixing the set_page_dirty()
+> bug, because the underlying problem is large and serious. So here we are.
 
-Yes, I'm ok with that, adding in -ENOTDIR along with it.
+Except that you can not solve that issue without proper hardware. GPU are
+fine. RDMA are broken except the mellanox5 hardware which can invalidate
+at anytime its page table thus allowing to write protect the page at any
+time.
 
-The error handling in __swap_duplicate (before this series) still leaves
-something to be desired IMHO.  Why all the different returns when callers
-ignore them or only specifically check for -ENOMEM or -EEXIST?  Could maybe
-stand a cleanup, but outside this series.
+With the solution put forward here you can potentialy wait _forever_ for
+the driver that holds a pin to drop it. This was the point i was trying to
+get accross during LSF/MM. You can not fix broken hardware that decided to
+use GUP to do a feature they can't reliably do because their hardware is
+not capable to behave.
+
+Because code is easier here is what i was meaning:
+
+https://cgit.freedesktop.org/~glisse/linux/commit/?h=gup&id=a5dbc0fe7e71d347067579f13579df372ec48389
+https://cgit.freedesktop.org/~glisse/linux/commit/?h=gup&id=01677bc039c791a16d5f82b3ef84917d62fac826
+
+Cheers,
+Jerome
