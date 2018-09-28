@@ -1,56 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 964088E0001
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 04:35:27 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id q12-v6so6478383otf.20
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 01:35:27 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id s205-v6si1897916oia.249.2018.09.28.01.35.26
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E33EB8E0001
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 04:44:38 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id c11so5541046wrx.4
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 01:44:38 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id j64-v6sor935479wmd.15.2018.09.28.01.44.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Sep 2018 01:35:26 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8S8Y5EY143727
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 04:35:25 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2msfkuk19r-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 04:35:25 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <chandan@linux.vnet.ibm.com>;
-	Fri, 28 Sep 2018 09:35:23 +0100
-From: Chandan Rajendra <chandan@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 06/10] writeback: introduce super_operations->write_metadata
-Date: Fri, 28 Sep 2018 14:07:41 +0530
-In-Reply-To: <2857272.fAFXmvyrml@dhcp-9-109-247-21>
-References: <20171212180534.c5f7luqz5oyfe7c3@destiny> <20180103162922.rxs2jpvmpxa62usa@destiny> <2857272.fAFXmvyrml@dhcp-9-109-247-21>
+        (Google Transport Security);
+        Fri, 28 Sep 2018 01:44:35 -0700 (PDT)
+Date: Fri, 28 Sep 2018 10:44:33 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
+Message-ID: <20180928084433.GB25561@techadventures.net>
+References: <20180925200551.3576.18755.stgit@localhost.localdomain>
+ <20180925202053.3576.66039.stgit@localhost.localdomain>
+ <20180926075540.GD6278@dhcp22.suse.cz>
+ <6f87a5d7-05e2-00f4-8568-bb3521869cea@linux.intel.com>
+ <20180927110926.GE6278@dhcp22.suse.cz>
+ <20180927122537.GA20378@techadventures.net>
+ <20180927131329.GI6278@dhcp22.suse.cz>
+ <20180928081224.GA25561@techadventures.net>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
-Message-Id: <139844049.hOcP8gZF7I@localhost.localdomain>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180928081224.GA25561@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chandan Rajendra <chandan@linux.vnet.ibm.com>, linux-mm@kvack.org
-Cc: Josef Bacik <josef@toxicpanda.com>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pavel.tatashin@microsoft.com, dave.jiang@intel.com, dave.hansen@intel.com, jglisse@redhat.com, rppt@linux.vnet.ibm.com, dan.j.williams@intel.com, logang@deltatee.com, mingo@kernel.org, kirill.shutemov@linux.intel.com
 
-On Monday, January 29, 2018 2:36:15 PM IST Chandan Rajendra wrote:
-> On Wednesday, January 3, 2018 9:59:24 PM IST Josef Bacik wrote:
-> > On Wed, Jan 03, 2018 at 05:26:03PM +0100, Jan Kara wrote:
+On Fri, Sep 28, 2018 at 10:12:24AM +0200, Oscar Salvador wrote:
+> Although I am not sure about leaving memmap_init_zone unprotected.
+> For the normal memory, that is not a problem since the memblock's lock
+> protects us from touching the same pages at the same time in online/offline_pages,
+> but for HMM/devm the story is different.
 > 
-> > 
-> > Oh ok well if that's the case then I'll fix this up to be a ratio, test
-> > everything, and send it along probably early next week.  Thanks,
-> > 
-> 
-> Hi Josef,
-> 
-> Did you get a chance to work on the next version of this patchset?
-> 
-> 
-> 
+> I am totally unaware of HMM/devm, so I am not sure if its protected somehow.
+> e.g: what happens if devm_memremap_pages and devm_memremap_pages_release are running
+> at the same time for the same memory-range (with the assumption that the hotplug-lock
+> does not protect move_pfn_range_to_zone anymore).
 
-Josef,  Any updates on this and the "Kill Btree inode" patchset?
+I guess that this could not happen since the device is not linked to devm_memremap_pages_release
+until the end with:
 
+devm_add_action(dev, devm_memremap_pages_release, pgmap)
 -- 
-chandan
+Oscar Salvador
+SUSE L3
