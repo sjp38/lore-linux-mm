@@ -1,144 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FCD08E0001
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 03:14:29 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id z23-v6so1236676wma.2
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 00:14:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b198-v6sor807405wme.27.2018.09.28.00.14.27
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 307BE8E0001
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 03:23:46 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id h70-v6so1484973ljf.14
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 00:23:46 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s5-v6sor2646658ljj.0.2018.09.28.00.23.44
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 28 Sep 2018 00:14:27 -0700 (PDT)
-From: Bartosz Golaszewski <brgl@bgdev.pl>
-Subject: [PATCH v5 4/4] mailbox: tegra-hsp: use devm_kstrdup_const()
-Date: Fri, 28 Sep 2018 09:14:14 +0200
-Message-Id: <20180928071414.30703-5-brgl@bgdev.pl>
-In-Reply-To: <20180928071414.30703-1-brgl@bgdev.pl>
+        Fri, 28 Sep 2018 00:23:44 -0700 (PDT)
+Subject: Re: [PATCH v5 2/4] mm: move is_kernel_rodata() to
+ asm-generic/sections.h
 References: <20180928071414.30703-1-brgl@bgdev.pl>
+ <20180928071414.30703-3-brgl@bgdev.pl>
+From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Message-ID: <c7484684-8f92-8e7a-e4fb-015d50180414@rasmusvillemoes.dk>
+Date: Fri, 28 Sep 2018 09:23:39 +0200
+MIME-Version: 1.0
+In-Reply-To: <20180928071414.30703-3-brgl@bgdev.pl>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael@kernel.org>, Jassi Brar <jassisinghbrar@gmail.com>, Thierry Reding <thierry.reding@gmail.com>, Jonathan Hunter <jonathanh@nvidia.com>, Arnd Bergmann <arnd@arndb.de>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: linux-kernel@vger.kernel.org, linux-tegra@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Bartosz Golaszewski <brgl@bgdev.pl>
+To: Bartosz Golaszewski <brgl@bgdev.pl>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael@kernel.org>, Jassi Brar <jassisinghbrar@gmail.com>, Thierry Reding <thierry.reding@gmail.com>, Jonathan Hunter <jonathanh@nvidia.com>, Arnd Bergmann <arnd@arndb.de>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: linux-kernel@vger.kernel.org, linux-tegra@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
-Use devm_kstrdup_const() in the tegra-hsp driver. This mostly serves as
-an example of how to use this new routine to shrink driver code.
+On 2018-09-28 09:14, Bartosz Golaszewski wrote:
+> Export this routine so that we can use it later in devm_kstrdup_const()
+> and devm_kfree_const().
 
-Also use devm_kzalloc() instead of regular kzalloc() to get shrink the
-driver even more.
+s/devm_kfree_const/devm_kfree/.
 
-Doorbell objects are only removed in the driver's remove callback so
-it's safe to convert all memory allocations to devres.
+Apart from that nit, feel free to add my ack to 1,2,3.
 
-Signed-off-by: Bartosz Golaszewski <brgl@bgdev.pl>
----
- drivers/mailbox/tegra-hsp.c | 41 ++++++++-----------------------------
- 1 file changed, 9 insertions(+), 32 deletions(-)
-
-diff --git a/drivers/mailbox/tegra-hsp.c b/drivers/mailbox/tegra-hsp.c
-index 0cde356c11ab..106c94dedbf1 100644
---- a/drivers/mailbox/tegra-hsp.c
-+++ b/drivers/mailbox/tegra-hsp.c
-@@ -183,14 +183,15 @@ static irqreturn_t tegra_hsp_doorbell_irq(int irq, void *data)
- }
- 
- static struct tegra_hsp_channel *
--tegra_hsp_doorbell_create(struct tegra_hsp *hsp, const char *name,
--			  unsigned int master, unsigned int index)
-+tegra_hsp_doorbell_create(struct device *dev, struct tegra_hsp *hsp,
-+			  const char *name, unsigned int master,
-+			  unsigned int index)
- {
- 	struct tegra_hsp_doorbell *db;
- 	unsigned int offset;
- 	unsigned long flags;
- 
--	db = kzalloc(sizeof(*db), GFP_KERNEL);
-+	db = devm_kzalloc(dev, sizeof(*db), GFP_KERNEL);
- 	if (!db)
- 		return ERR_PTR(-ENOMEM);
- 
-@@ -200,7 +201,7 @@ tegra_hsp_doorbell_create(struct tegra_hsp *hsp, const char *name,
- 	db->channel.regs = hsp->regs + offset;
- 	db->channel.hsp = hsp;
- 
--	db->name = kstrdup_const(name, GFP_KERNEL);
-+	db->name = devm_kstrdup_const(dev, name, GFP_KERNEL);
- 	db->master = master;
- 	db->index = index;
- 
-@@ -211,13 +212,6 @@ tegra_hsp_doorbell_create(struct tegra_hsp *hsp, const char *name,
- 	return &db->channel;
- }
- 
--static void __tegra_hsp_doorbell_destroy(struct tegra_hsp_doorbell *db)
--{
--	list_del(&db->list);
--	kfree_const(db->name);
--	kfree(db);
--}
--
- static int tegra_hsp_doorbell_send_data(struct mbox_chan *chan, void *data)
- {
- 	struct tegra_hsp_doorbell *db = chan->con_priv;
-@@ -332,31 +326,16 @@ static struct mbox_chan *of_tegra_hsp_xlate(struct mbox_controller *mbox,
- 	return chan ?: ERR_PTR(-EBUSY);
- }
- 
--static void tegra_hsp_remove_doorbells(struct tegra_hsp *hsp)
--{
--	struct tegra_hsp_doorbell *db, *tmp;
--	unsigned long flags;
--
--	spin_lock_irqsave(&hsp->lock, flags);
--
--	list_for_each_entry_safe(db, tmp, &hsp->doorbells, list)
--		__tegra_hsp_doorbell_destroy(db);
--
--	spin_unlock_irqrestore(&hsp->lock, flags);
--}
--
--static int tegra_hsp_add_doorbells(struct tegra_hsp *hsp)
-+static int tegra_hsp_add_doorbells(struct device *dev, struct tegra_hsp *hsp)
- {
- 	const struct tegra_hsp_db_map *map = hsp->soc->map;
- 	struct tegra_hsp_channel *channel;
- 
- 	while (map->name) {
--		channel = tegra_hsp_doorbell_create(hsp, map->name,
-+		channel = tegra_hsp_doorbell_create(dev, hsp, map->name,
- 						    map->master, map->index);
--		if (IS_ERR(channel)) {
--			tegra_hsp_remove_doorbells(hsp);
-+		if (IS_ERR(channel))
- 			return PTR_ERR(channel);
--		}
- 
- 		map++;
- 	}
-@@ -412,7 +391,7 @@ static int tegra_hsp_probe(struct platform_device *pdev)
- 	if (!hsp->mbox.chans)
- 		return -ENOMEM;
- 
--	err = tegra_hsp_add_doorbells(hsp);
-+	err = tegra_hsp_add_doorbells(&pdev->dev, hsp);
- 	if (err < 0) {
- 		dev_err(&pdev->dev, "failed to add doorbells: %d\n", err);
- 		return err;
-@@ -423,7 +402,6 @@ static int tegra_hsp_probe(struct platform_device *pdev)
- 	err = mbox_controller_register(&hsp->mbox);
- 	if (err) {
- 		dev_err(&pdev->dev, "failed to register mailbox: %d\n", err);
--		tegra_hsp_remove_doorbells(hsp);
- 		return err;
- 	}
- 
-@@ -443,7 +421,6 @@ static int tegra_hsp_remove(struct platform_device *pdev)
- 	struct tegra_hsp *hsp = platform_get_drvdata(pdev);
- 
- 	mbox_controller_unregister(&hsp->mbox);
--	tegra_hsp_remove_doorbells(hsp);
- 
- 	return 0;
- }
--- 
-2.18.0
+Thanks,
+Rasmus
