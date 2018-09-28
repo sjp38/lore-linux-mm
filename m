@@ -1,104 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C2058E0001
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 08:27:32 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id e12-v6so1724014ljk.3
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 05:27:32 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k16-v6sor3025556ljc.38.2018.09.28.05.27.30
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D0DD28E0001
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 10:20:12 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id x204-v6so6127835qka.6
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 07:20:12 -0700 (PDT)
+Received: from a9-92.smtp-out.amazonses.com (a9-92.smtp-out.amazonses.com. [54.240.9.92])
+        by mx.google.com with ESMTPS id x33-v6si878950qtk.221.2018.09.28.07.20.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 28 Sep 2018 05:27:30 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 28 Sep 2018 07:20:11 -0700 (PDT)
+Date: Fri, 28 Sep 2018 14:20:11 +0000
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH v3] slub: extend slub debug to handle multiple slabs
+In-Reply-To: <20180928111139.27962-1-atomlin@redhat.com>
+Message-ID: <01000166208d1f55-2b13fdf8-a1a5-4a64-80f2-2e1a5314285e-000000@email.amazonses.com>
+References: <20180928111139.27962-1-atomlin@redhat.com>
 MIME-Version: 1.0
-References: <20180927175123.GA16367@jordon-HP-15-Notebook-PC> <20180927183236.GJ6278@dhcp22.suse.cz>
-In-Reply-To: <20180927183236.GJ6278@dhcp22.suse.cz>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Fri, 28 Sep 2018 17:57:17 +0530
-Message-ID: <CAFqt6zbnV+wV+O2EMi1mE4qWDjsZ=Y847MFUc+zv6g8OoVM30g@mail.gmail.com>
-Subject: Re: [PATCH] mm: Introduce new function vm_insert_kmem_page
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, pasha.tatashin@oracle.com, riel@redhat.com, Matthew Wilcox <willy@infradead.org>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Huang, Ying" <ying.huang@intel.com>, ak@linux.intel.com, rppt@linux.vnet.ibm.com, linux@dominikbrodowski.net, Arnd Bergmann <arnd@arndb.de>, mcgrof@kernel.org, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Aaron Tomlin <atomlin@redhat.com>
+Cc: penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, malchev@google.com
 
-On Fri, Sep 28, 2018 at 12:02 AM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Thu 27-09-18 23:21:23, Souptick Joarder wrote:
-> > vm_insert_kmem_page is similar to vm_insert_page and will
-> > be used by drivers to map kernel (kmalloc/vmalloc/pages)
-> > allocated memory to user vma.
-> >
-> > Previously vm_insert_page is used for both page fault
-> > handlers and outside page fault handlers context. When
-> > vm_insert_page is used in page fault handlers context,
-> > each driver have to map errno to VM_FAULT_CODE in their
-> > own way. But as part of vm_fault_t migration all the
-> > page fault handlers are cleaned up by using new vmf_insert_page.
-> > Going forward, vm_insert_page will be removed by converting
-> > it to vmf_insert_page.
-> >
-> > But their are places where vm_insert_page is used outside
-> > page fault handlers context and converting those to
-> > vmf_insert_page is not a good approach as drivers will end
-> > up with new VM_FAULT_CODE to errno conversion code and it will
-> > make each user more complex.
-> >
-> > So this new vm_insert_kmem_page can be used to map kernel
-> > memory to user vma outside page fault handler context.
-> >
-> > In short, vmf_insert_page will be used in page fault handlers
-> > context and vm_insert_kmem_page will be used to map kernel
-> > memory to user vma outside page fault handlers context.
-> >
-> > We will slowly convert all the user of vm_insert_page to
-> > vm_insert_kmem_page after this API be available in linus tree.
->
-> In general I do not like patches adding a new exports/functionality
-> without any user added at the same time. I am not going to look at the
-> implementation right now but the above opens more questions than it
-> gives answers. Why do we have to distinguish #PF from other paths?
+On Fri, 28 Sep 2018, Aaron Tomlin wrote:
 
-Going forward, the plan is to restrict future drivers not to use vm_insert_page
-( *it will generate new errno to VM_FAULT_CODE mapping code for new drivers
-which were already cleaned up for existing drivers*) in #PF context but to make
-use of vmf_insert_page which returns VMF_FAULT_CODE and that is not possible
-until both vm_insert_page and vmf_insert_page API exists.
+> Extend the slub_debug syntax to "slub_debug=<flags>[,<slub>]*", where <slub>
+> may contain an asterisk at the end.  For example, the following would poison
+> all kmalloc slabs:
 
-But there are some consumers of vm_insert_page which use it outside #PF context.
-straight forward conversion of vm_insert_page to vmf_insert_page won't
-work there as
-those function calls expects errno not vm_fault_t in return.
-
-e.g - drivers/auxdisplay/cfag12864bfb.c, line 55
-        drivers/auxdisplay/ht16k33.c, line 227
-        drivers/firewire/core-iso.c, line 115
-        drivers/gpu/drm/rockchip/rockchip_drm_gem.c, line 237
-        drivers/gpu/drm/xen/xen_drm_front_gem.c, line 253
-        drivers/iommu/dma-iommu.c, line 600
-        drivers/media/common/videobuf2/videobuf2-dma-sg.c, line 343
-        drivers/media/usb/usbvision/usbvision-video.c, line 1056
-        drivers/xen/gntalloc.c, line 548
-        drivers/xen/gntdev.c, line 1149
-        drivers/xen/privcmd-buf.c, line 184
-        mm/vmalloc.c, line 2254
-        net/ipv4/tcp.c, line 1806
-        net/packet/af_packet.c, line 4407
-
-These are the approaches which could have been taken to handle this scenario -
-
-1. Replace vm_insert_page with vmf_insert_page and then write few
-   extra lines of code to convert VM_FAULT_CODE to errno which
-   makes driver users more complex ( also the reverse mapping errno to
-   VM_FAULT_CODE have been cleaned up as part of vm_fault_t migration ,
-   not preferred to introduce anything similar again)
-
-2. Maintain both vm_insert_page and vmf_insert_page and use it in
-   respective places. But it won't gurantee that vm_insert_page will
-   never be used in #PF context.
-
-3. Introduce a similar API like vm_insert_page, convert all non #PF
-   consumer to use it and finally remove vm_insert_page by converting
-   it to vmf_insert_page.
-
-And the 3rd approach was taken by introducing vm_insert_kmem_page().
+Acked-by: Christoph Lameter <cl@linux.com>
