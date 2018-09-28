@@ -1,64 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 935D48E0001
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 07:28:40 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id u1-v6so6144162wrt.3
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 04:28:40 -0700 (PDT)
-Received: from EUR04-VI1-obe.outbound.protection.outlook.com (mail-eopbgr80130.outbound.protection.outlook.com. [40.107.8.130])
-        by mx.google.com with ESMTPS id s6-v6si4477969wrg.240.2018.09.28.04.28.38
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 811688E0001
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 07:31:56 -0400 (EDT)
+Received: by mail-it1-f198.google.com with SMTP id y73-v6so2225115ita.2
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 04:31:56 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q188-v6sor1182672iof.30.2018.09.28.04.31.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 28 Sep 2018 04:28:39 -0700 (PDT)
-Subject: [PATCH] mm: Fix int overflow in callers of do_shrink_slab()
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Fri, 28 Sep 2018 14:28:32 +0300
-Message-ID: <153813407177.17544.14888305435570723973.stgit@localhost.localdomain>
+        (Google Transport Security);
+        Fri, 28 Sep 2018 04:31:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+References: <1538079759.qxp8zh3nwh.astroid@alex-archsus.none>
+ <CALZtONA9r6=gnK-5a++tjaReqEnRzrBb3hzYMTFNXZ13z+UOWQ@mail.gmail.com>
+ <153808275043.724.15980761008814866300@pink.alxu.ca> <1538082779.246sm0vb2p.astroid@alex-archsus.none>
+In-Reply-To: <1538082779.246sm0vb2p.astroid@alex-archsus.none>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Fri, 28 Sep 2018 07:31:18 -0400
+Message-ID: <CALZtONBUR2X8hLG59=JitZqAr0aOO+TWkf6Reke9DHkVu-9_wQ@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: fix z3fold warnings on CONFIG_SMP=n
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, gorcunov@openvz.org, ktkhai@virtuozzo.com, mhocko@suse.com, aryabinin@virtuozzo.com, hannes@cmpxchg.org, penguin-kernel@I-love.SAKURA.ne.jp, shakeelb@google.com, jbacik@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: alex_y_xu@yahoo.ca, Vitaly Wool <vitalywool@gmail.com>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-do_shrink_slab() returns unsigned long value, and
-the placing into int variable cuts high bytes off.
-Then we compare ret and 0xfffffffe (since SHRINK_EMPTY
-is converted to ret type).
+On Thu, Sep 27, 2018 at 5:15 PM Alex Xu (Hello71) <alex_y_xu@yahoo.ca> wrote:
+>
+> Spinlocks are always lockable on UP systems, even if they were just
+> locked.
+>
+> Cc: Dan Streetman <ddstreet@ieee.org>
 
-Thus, big number of objects returned by do_shrink_slab()
-may be interpreted as SHRINK_EMPTY, if low bytes of
-their value are equal to 0xfffffffe. Fix that
-by declaration ret as unsigned long in these functions.
+I cc'ed Vitaly also, as this code is from him, but the change
+certainly looks correct to me.
 
-Reported-by: Cyrill Gorcunov <gorcunov@openvz.org>
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
----
- mm/vmscan.c |    7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+Acked-by: Dan Streetman <ddstreet@ieee.org>
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 0b63d9a2dc17..8ea87586925e 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -581,8 +581,8 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 			struct mem_cgroup *memcg, int priority)
- {
- 	struct memcg_shrinker_map *map;
--	unsigned long freed = 0;
--	int ret, i;
-+	unsigned long ret, freed = 0;
-+	int i;
- 
- 	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
- 		return 0;
-@@ -678,9 +678,8 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 				 struct mem_cgroup *memcg,
- 				 int priority)
- {
-+	unsigned long ret, freed = 0;
- 	struct shrinker *shrinker;
--	unsigned long freed = 0;
--	int ret;
- 
- 	if (!mem_cgroup_is_root(memcg))
- 		return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
+> Signed-off-by: Alex Xu (Hello71) <alex_y_xu@yahoo.ca>
+> ---
+>  mm/z3fold.c | 6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
+>
+> diff --git a/mm/z3fold.c b/mm/z3fold.c
+> index 4b366d181..2e8d268ac 100644
+> --- a/mm/z3fold.c
+> +++ b/mm/z3fold.c
+> @@ -277,7 +277,7 @@ static void release_z3fold_page_locked(struct kref *ref)
+>  {
+>         struct z3fold_header *zhdr = container_of(ref, struct z3fold_header,
+>                                                 refcount);
+> -       WARN_ON(z3fold_page_trylock(zhdr));
+> +       WARN_ON_SMP(z3fold_page_trylock(zhdr));
+>         __release_z3fold_page(zhdr, true);
+>  }
+>
+> @@ -289,7 +289,7 @@ static void release_z3fold_page_locked_list(struct kref *ref)
+>         list_del_init(&zhdr->buddy);
+>         spin_unlock(&zhdr->pool->lock);
+>
+> -       WARN_ON(z3fold_page_trylock(zhdr));
+> +       WARN_ON_SMP(z3fold_page_trylock(zhdr));
+>         __release_z3fold_page(zhdr, true);
+>  }
+>
+> @@ -403,7 +403,7 @@ static void do_compact_page(struct z3fold_header *zhdr, bool locked)
+>
+>         page = virt_to_page(zhdr);
+>         if (locked)
+> -               WARN_ON(z3fold_page_trylock(zhdr));
+> +               WARN_ON_SMP(z3fold_page_trylock(zhdr));
+>         else
+>                 z3fold_page_lock(zhdr);
+>         if (WARN_ON(!test_and_clear_bit(NEEDS_COMPACTING, &page->private))) {
+> --
+> 2.19.0
+>
