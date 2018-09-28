@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E8AC88E0001
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 03:14:27 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id 199-v6so1250643wme.1
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 00:14:27 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 0FCD08E0001
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 03:14:29 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id z23-v6so1236676wma.2
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 00:14:29 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d9-v6sor3029036wrw.34.2018.09.28.00.14.26
+        by mx.google.com with SMTPS id b198-v6sor807405wme.27.2018.09.28.00.14.27
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 28 Sep 2018 00:14:26 -0700 (PDT)
+        Fri, 28 Sep 2018 00:14:27 -0700 (PDT)
 From: Bartosz Golaszewski <brgl@bgdev.pl>
-Subject: [PATCH v5 3/4] devres: provide devm_kstrdup_const()
-Date: Fri, 28 Sep 2018 09:14:13 +0200
-Message-Id: <20180928071414.30703-4-brgl@bgdev.pl>
+Subject: [PATCH v5 4/4] mailbox: tegra-hsp: use devm_kstrdup_const()
+Date: Fri, 28 Sep 2018 09:14:14 +0200
+Message-Id: <20180928071414.30703-5-brgl@bgdev.pl>
 In-Reply-To: <20180928071414.30703-1-brgl@bgdev.pl>
 References: <20180928071414.30703-1-brgl@bgdev.pl>
 Sender: owner-linux-mm@kvack.org
@@ -20,89 +20,125 @@ List-ID: <linux-mm.kvack.org>
 To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael@kernel.org>, Jassi Brar <jassisinghbrar@gmail.com>, Thierry Reding <thierry.reding@gmail.com>, Jonathan Hunter <jonathanh@nvidia.com>, Arnd Bergmann <arnd@arndb.de>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
 Cc: linux-kernel@vger.kernel.org, linux-tegra@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Bartosz Golaszewski <brgl@bgdev.pl>
 
-Provide a resource managed version of kstrdup_const(). This variant
-internally calls devm_kstrdup() on pointers that are outside of
-.rodata section and returns the string as is otherwise.
+Use devm_kstrdup_const() in the tegra-hsp driver. This mostly serves as
+an example of how to use this new routine to shrink driver code.
 
-Make devm_kfree() check if the passed pointer doesn't point to .rodata
-and if so - don't actually destroy the resource.
+Also use devm_kzalloc() instead of regular kzalloc() to get shrink the
+driver even more.
+
+Doorbell objects are only removed in the driver's remove callback so
+it's safe to convert all memory allocations to devres.
 
 Signed-off-by: Bartosz Golaszewski <brgl@bgdev.pl>
-Reviewed-by: Bjorn Andersson <bjorn.andersson@linaro.org>
-Acked-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 ---
- drivers/base/devres.c  | 31 +++++++++++++++++++++++++++++++
- include/linux/device.h |  2 ++
- 2 files changed, 33 insertions(+)
+ drivers/mailbox/tegra-hsp.c | 41 ++++++++-----------------------------
+ 1 file changed, 9 insertions(+), 32 deletions(-)
 
-diff --git a/drivers/base/devres.c b/drivers/base/devres.c
-index 438c91a43508..00c70f0fcdcd 100644
---- a/drivers/base/devres.c
-+++ b/drivers/base/devres.c
-@@ -11,6 +11,8 @@
- #include <linux/slab.h>
- #include <linux/percpu.h>
- 
-+#include <asm/sections.h>
-+
- #include "base.h"
- 
- struct devres_node {
-@@ -822,6 +824,28 @@ char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp)
+diff --git a/drivers/mailbox/tegra-hsp.c b/drivers/mailbox/tegra-hsp.c
+index 0cde356c11ab..106c94dedbf1 100644
+--- a/drivers/mailbox/tegra-hsp.c
++++ b/drivers/mailbox/tegra-hsp.c
+@@ -183,14 +183,15 @@ static irqreturn_t tegra_hsp_doorbell_irq(int irq, void *data)
  }
- EXPORT_SYMBOL_GPL(devm_kstrdup);
  
-+/**
-+ * devm_kstrdup_const - resource managed conditional string duplication
-+ * @dev: device for which to duplicate the string
-+ * @s: the string to duplicate
-+ * @gfp: the GFP mask used in the kmalloc() call when allocating memory
-+ *
-+ * Strings allocated by devm_kstrdup_const will be automatically freed when
-+ * the associated device is detached.
-+ *
-+ * RETURNS:
-+ * Source string if it is in .rodata section otherwise it falls back to
-+ * devm_kstrdup.
-+ */
-+const char *devm_kstrdup_const(struct device *dev, const char *s, gfp_t gfp)
-+{
-+	if (is_kernel_rodata((unsigned long)s))
-+		return s;
-+
-+	return devm_kstrdup(dev, s, gfp);
-+}
-+EXPORT_SYMBOL(devm_kstrdup_const);
-+
- /**
-  * devm_kvasprintf - Allocate resource managed space and format a string
-  *		     into that.
-@@ -889,6 +913,13 @@ void devm_kfree(struct device *dev, const void *p)
+ static struct tegra_hsp_channel *
+-tegra_hsp_doorbell_create(struct tegra_hsp *hsp, const char *name,
+-			  unsigned int master, unsigned int index)
++tegra_hsp_doorbell_create(struct device *dev, struct tegra_hsp *hsp,
++			  const char *name, unsigned int master,
++			  unsigned int index)
  {
- 	int rc;
+ 	struct tegra_hsp_doorbell *db;
+ 	unsigned int offset;
+ 	unsigned long flags;
  
-+	/*
-+	 * Special case: pointer to a string in .rodata returned by
-+	 * devm_kstrdup_const().
-+	 */
-+	if (unlikely(is_kernel_rodata((unsigned long)p)))
-+		return;
-+
- 	rc = devres_destroy(dev, devm_kmalloc_release,
- 			    devm_kmalloc_match, (void *)p);
- 	WARN_ON(rc);
-diff --git a/include/linux/device.h b/include/linux/device.h
-index 33f7cb271fbb..e626acb93ef5 100644
---- a/include/linux/device.h
-+++ b/include/linux/device.h
-@@ -694,6 +694,8 @@ static inline void *devm_kcalloc(struct device *dev,
+-	db = kzalloc(sizeof(*db), GFP_KERNEL);
++	db = devm_kzalloc(dev, sizeof(*db), GFP_KERNEL);
+ 	if (!db)
+ 		return ERR_PTR(-ENOMEM);
+ 
+@@ -200,7 +201,7 @@ tegra_hsp_doorbell_create(struct tegra_hsp *hsp, const char *name,
+ 	db->channel.regs = hsp->regs + offset;
+ 	db->channel.hsp = hsp;
+ 
+-	db->name = kstrdup_const(name, GFP_KERNEL);
++	db->name = devm_kstrdup_const(dev, name, GFP_KERNEL);
+ 	db->master = master;
+ 	db->index = index;
+ 
+@@ -211,13 +212,6 @@ tegra_hsp_doorbell_create(struct tegra_hsp *hsp, const char *name,
+ 	return &db->channel;
  }
- extern void devm_kfree(struct device *dev, const void *p);
- extern char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp) __malloc;
-+extern const char *devm_kstrdup_const(struct device *dev,
-+				      const char *s, gfp_t gfp);
- extern void *devm_kmemdup(struct device *dev, const void *src, size_t len,
- 			  gfp_t gfp);
  
+-static void __tegra_hsp_doorbell_destroy(struct tegra_hsp_doorbell *db)
+-{
+-	list_del(&db->list);
+-	kfree_const(db->name);
+-	kfree(db);
+-}
+-
+ static int tegra_hsp_doorbell_send_data(struct mbox_chan *chan, void *data)
+ {
+ 	struct tegra_hsp_doorbell *db = chan->con_priv;
+@@ -332,31 +326,16 @@ static struct mbox_chan *of_tegra_hsp_xlate(struct mbox_controller *mbox,
+ 	return chan ?: ERR_PTR(-EBUSY);
+ }
+ 
+-static void tegra_hsp_remove_doorbells(struct tegra_hsp *hsp)
+-{
+-	struct tegra_hsp_doorbell *db, *tmp;
+-	unsigned long flags;
+-
+-	spin_lock_irqsave(&hsp->lock, flags);
+-
+-	list_for_each_entry_safe(db, tmp, &hsp->doorbells, list)
+-		__tegra_hsp_doorbell_destroy(db);
+-
+-	spin_unlock_irqrestore(&hsp->lock, flags);
+-}
+-
+-static int tegra_hsp_add_doorbells(struct tegra_hsp *hsp)
++static int tegra_hsp_add_doorbells(struct device *dev, struct tegra_hsp *hsp)
+ {
+ 	const struct tegra_hsp_db_map *map = hsp->soc->map;
+ 	struct tegra_hsp_channel *channel;
+ 
+ 	while (map->name) {
+-		channel = tegra_hsp_doorbell_create(hsp, map->name,
++		channel = tegra_hsp_doorbell_create(dev, hsp, map->name,
+ 						    map->master, map->index);
+-		if (IS_ERR(channel)) {
+-			tegra_hsp_remove_doorbells(hsp);
++		if (IS_ERR(channel))
+ 			return PTR_ERR(channel);
+-		}
+ 
+ 		map++;
+ 	}
+@@ -412,7 +391,7 @@ static int tegra_hsp_probe(struct platform_device *pdev)
+ 	if (!hsp->mbox.chans)
+ 		return -ENOMEM;
+ 
+-	err = tegra_hsp_add_doorbells(hsp);
++	err = tegra_hsp_add_doorbells(&pdev->dev, hsp);
+ 	if (err < 0) {
+ 		dev_err(&pdev->dev, "failed to add doorbells: %d\n", err);
+ 		return err;
+@@ -423,7 +402,6 @@ static int tegra_hsp_probe(struct platform_device *pdev)
+ 	err = mbox_controller_register(&hsp->mbox);
+ 	if (err) {
+ 		dev_err(&pdev->dev, "failed to register mailbox: %d\n", err);
+-		tegra_hsp_remove_doorbells(hsp);
+ 		return err;
+ 	}
+ 
+@@ -443,7 +421,6 @@ static int tegra_hsp_remove(struct platform_device *pdev)
+ 	struct tegra_hsp *hsp = platform_get_drvdata(pdev);
+ 
+ 	mbox_controller_unregister(&hsp->mbox);
+-	tegra_hsp_remove_doorbells(hsp);
+ 
+ 	return 0;
+ }
 -- 
 2.18.0
