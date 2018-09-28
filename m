@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CD3888E0001
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 07:34:22 -0400 (EDT)
-Received: by mail-lj1-f199.google.com with SMTP id e23-v6so1627036ljj.22
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 04:34:22 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C03998E0001
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 07:35:50 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id b12-v6so5297522qtp.16
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 04:35:50 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q21-v6sor1979465lfi.0.2018.09.28.04.34.20
+        by mx.google.com with SMTPS id o40-v6sor2609780qvh.118.2018.09.28.04.35.50
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 28 Sep 2018 04:34:21 -0700 (PDT)
-Date: Fri, 28 Sep 2018 14:34:18 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
+        Fri, 28 Sep 2018 04:35:50 -0700 (PDT)
+Date: Fri, 28 Sep 2018 07:35:48 -0400
+From: Josef Bacik <josef@toxicpanda.com>
 Subject: Re: [PATCH] mm: Fix int overflow in callers of do_shrink_slab()
-Message-ID: <20180928113418.GR15710@uranus>
+Message-ID: <20180928113546.sc7cztwsja4advli@destiny>
 References: <153813407177.17544.14888305435570723973.stgit@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -21,7 +21,7 @@ In-Reply-To: <153813407177.17544.14888305435570723973.stgit@localhost.localdomai
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, aryabinin@virtuozzo.com, hannes@cmpxchg.org, penguin-kernel@i-love.sakura.ne.jp, shakeelb@google.com, jbacik@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, gorcunov@openvz.org, mhocko@suse.com, aryabinin@virtuozzo.com, hannes@cmpxchg.org, penguin-kernel@I-love.SAKURA.ne.jp, shakeelb@google.com, jbacik@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 On Fri, Sep 28, 2018 at 02:28:32PM +0300, Kirill Tkhai wrote:
 > do_shrink_slab() returns unsigned long value, and
@@ -36,6 +36,9 @@ On Fri, Sep 28, 2018 at 02:28:32PM +0300, Kirill Tkhai wrote:
 > 
 > Reported-by: Cyrill Gorcunov <gorcunov@openvz.org>
 > Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-Acked-by: Cyrill Gorcunov <gorcunov@openvz.org>
 
-Thank you!
+Reviewed-by: Josef Bacik <josef@toxicpanda.com>
+
+Thanks,
+
+Josef
