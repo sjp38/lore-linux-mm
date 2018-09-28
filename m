@@ -1,99 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D1A7D8E0001
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 04:12:27 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id b186-v6so1293376wmh.8
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 01:12:27 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h7-v6sor3146900wru.5.2018.09.28.01.12.26
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AFC5C8E0001
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 04:19:21 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id k66-v6so4213191pga.21
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 01:19:21 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id bg5-v6si4210088plb.368.2018.09.28.01.19.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 28 Sep 2018 01:12:26 -0700 (PDT)
-Date: Fri, 28 Sep 2018 10:12:24 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
- point where we init pgmap
-Message-ID: <20180928081224.GA25561@techadventures.net>
-References: <20180925200551.3576.18755.stgit@localhost.localdomain>
- <20180925202053.3576.66039.stgit@localhost.localdomain>
- <20180926075540.GD6278@dhcp22.suse.cz>
- <6f87a5d7-05e2-00f4-8568-bb3521869cea@linux.intel.com>
- <20180927110926.GE6278@dhcp22.suse.cz>
- <20180927122537.GA20378@techadventures.net>
- <20180927131329.GI6278@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 28 Sep 2018 01:19:20 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -V5 RESEND 03/21] swap: Support PMD swap mapping in swap_duplicate()
+References: <20180925071348.31458-1-ying.huang@intel.com>
+	<20180925071348.31458-4-ying.huang@intel.com>
+	<20180925191953.4ped5ki7u3ymafmd@ca-dmjordan1.us.oracle.com>
+	<874lecifj4.fsf@yhuang-dev.intel.com>
+	<20180926145145.6xp2kxpngyd54f6i@ca-dmjordan1.us.oracle.com>
+	<87r2hfhger.fsf@yhuang-dev.intel.com>
+	<20180927211238.ly3e7cyvfu3rswcv@ca-dmjordan1.us.oracle.com>
+Date: Fri, 28 Sep 2018 16:19:03 +0800
+In-Reply-To: <20180927211238.ly3e7cyvfu3rswcv@ca-dmjordan1.us.oracle.com>
+	(Daniel Jordan's message of "Thu, 27 Sep 2018 14:12:39 -0700")
+Message-ID: <87lg7mf30o.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180927131329.GI6278@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pavel.tatashin@microsoft.com, dave.jiang@intel.com, dave.hansen@intel.com, jglisse@redhat.com, rppt@linux.vnet.ibm.com, dan.j.williams@intel.com, logang@deltatee.com, mingo@kernel.org, kirill.shutemov@linux.intel.com
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Thu, Sep 27, 2018 at 03:13:29PM +0200, Michal Hocko wrote:
-> I would have to double check but is the hotplug lock really serializing
-> access to the state initialized by init_currently_empty_zone? E.g.
-> zone_start_pfn is a nice example of a state that is used outside of the
-> lock. zone's free lists are similar. So do we really need the hoptlug
-> lock? And more broadly, what does the hotplug lock is supposed to
-> serialize in general. A proper documentation would surely help to answer
-> these questions. There is way too much of "do not touch this code and
-> just make my particular hack" mindset which made the whole memory
-> hotplug a giant pile of mess. We really should start with some proper
-> engineering here finally.
+Daniel Jordan <daniel.m.jordan@oracle.com> writes:
 
-* Locking rules:
-*
-* zone_start_pfn and spanned_pages are protected by span_seqlock.
-* It is a seqlock because it has to be read outside of zone->lock,
-* and it is done in the main allocator path.  But, it is written
-* quite infrequently.
-*
-* Write access to present_pages at runtime should be protected by
-* mem_hotplug_begin/end(). Any reader who can't tolerant drift of
-* present_pages should get_online_mems() to get a stable value.
+> On Thu, Sep 27, 2018 at 09:34:36AM +0800, Huang, Ying wrote:
+>> Daniel Jordan <daniel.m.jordan@oracle.com> writes:
+>> > On Wed, Sep 26, 2018 at 08:55:59PM +0800, Huang, Ying wrote:
+>> >> Daniel Jordan <daniel.m.jordan@oracle.com> writes:
+>> >> > On Tue, Sep 25, 2018 at 03:13:30PM +0800, Huang Ying wrote:
+>> >> >>  /*
+>> >> >>   * Increase reference count of swap entry by 1.
+>> >> >> - * Returns 0 for success, or -ENOMEM if a swap_count_continuation is required
+>> >> >> - * but could not be atomically allocated.  Returns 0, just as if it succeeded,
+>> >> >> - * if __swap_duplicate() fails for another reason (-EINVAL or -ENOENT), which
+>> >> >> - * might occur if a page table entry has got corrupted.
+>> >> >> + *
+>> >> >> + * Return error code in following case.
+>> >> >> + * - success -> 0
+>> >> >> + * - swap_count_continuation is required but could not be atomically allocated.
+>> >> >> + *   *entry is used to return swap entry to call add_swap_count_continuation().
+>> >> >> + *								      -> ENOMEM
+>> >> >> + * - otherwise same as __swap_duplicate()
+>> >> >>   */
+>> >> >> -int swap_duplicate(swp_entry_t entry)
+>> >> >> +int swap_duplicate(swp_entry_t *entry, int entry_size)
+>> >> >>  {
+>> >> >>  	int err = 0;
+>> >> >>  
+>> >> >> -	while (!err && __swap_duplicate(entry, 1) == -ENOMEM)
+>> >> >> -		err = add_swap_count_continuation(entry, GFP_ATOMIC);
+>> >> >> +	while (!err &&
+>> >> >> +	       (err = __swap_duplicate(entry, entry_size, 1)) == -ENOMEM)
+>> >> >> +		err = add_swap_count_continuation(*entry, GFP_ATOMIC);
+>> >> >>  	return err;
+>> >> >
+>> >> > Now we're returning any error we get from __swap_duplicate, apparently to
+>> >> > accommodate ENOTDIR later in the series, which is a change from the behavior
+>> >> > introduced in 570a335b8e22 ("swap_info: swap count continuations").  This might
+>> >> > belong in a separate patch given its potential for side effects.
+>> >> 
+>> >> I have checked all the calls of the function and found there will be no
+>> >> bad effect.  Do you have any side effect?
+>> >
+>> > Before I was just being vaguely concerned about any unintended side effects,
+>> > but looking again, yes I do.
+>> >
+>> > Now when swap_duplicate returns an error in copy_one_pte, copy_one_pte returns
+>> > a (potentially nonzero) entry.val, which copy_pte_range interprets
+>> > unconditionally as 'try adding a swap count continuation.'  Not what we want
+>> > for returns other than -ENOMEM.
+>> 
+>> Thanks for pointing this out!  Before the change in the patchset, the
+>> behavior is,
+>> 
+>> Something wrong is detected in swap_duplicate(), but the error is
+>> ignored.  Then copy_one_pte() will think everything is OK, so that it
+>> can proceed to call set_pte_at().  The system will be in inconsistent
+>> state and some data may be polluted!
+>
+> Yes, the part about page table corruption in the comment above swap_duplicate.
+>
+>> But this doesn't cause any problem in practical.  Per my understanding,
+>> because if other part of the kernel works correctly, it's impossible for
+>> swap_duplicate() return any error except -ENOMEM before the change in
+>> this patchset.
+>
+> I agree with that, but it's not what I'm trying to explain.  I didn't go into
+> enough detail, let me try again.  Hopefully I'm understanding this right.
+>
+> While running with these patches, say we're at
+>
+>   copy_pte_range
+>    copy_one_pte
+>     swap_duplicate
+>      __swap_duplicate
+>       __swap_duplicate_locked
+>     
+> And say __swap_duplicate_locked returns an error that isn't -ENOMEM, such as
+> -EEXIST.  That means __swap_duplicate and swap_duplicate also return -EEXIST.
+> copy_one_pte returns entry.val, which can be and usually is nonzero, so we
+> break out of the loop in copy_pte_range and then--erroneously--call
+> add_swap_count_continuation.
+>
+> The add_swap_count_continuation call was added in 570a335b8e22 and relies on
+> the assumption that callers can only get -ENOMEM from swap_duplicate.  This
+> patch changes that assumption.
+>
+> Not a big deal: the continuation call just returns early, no harm done, but it
+> allocs and frees a page needlessly, so we should fix it.  One way is to change
+> copy_one_pte's return to int so we can just pass the error code back to
+> copy_pte_range so it knows whether to try adding the continuation.
 
-IIUC, looks like zone_start_pfn should be envolved with
-zone_span_writelock/zone_span_writeunlock, and since zone_start_pfn is changed
-in init_currently_empty_zone, I guess that the whole function should be within
-that lock.
+There may be even more problems.  After add_swap_count_continuation(),
+copy_one_pte() will be retried, and the CPU may hang with dead loop.
 
-So, a blind shot, but could we do something like the following?
+But before the changes in this patchset, the behavior is,
+__swap_duplicate() return an error that isn't -ENOMEM, such as -EEXIST.
+Then copy_one_pte() would thought the operation has been done
+successfully, and go to call set_pte_at().  This will cause the system
+state become inconsistent, and the system may panic or hang somewhere
+later.
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 898e1f816821..49f87252f1b1 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -764,14 +764,13 @@ void __ref move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
-        int nid = pgdat->node_id;
-        unsigned long flags;
- 
--       if (zone_is_empty(zone))
--               init_currently_empty_zone(zone, start_pfn, nr_pages);
--
-        clear_zone_contiguous(zone);
- 
-        /* TODO Huh pgdat is irqsave while zone is not. It used to be like that before */
-        pgdat_resize_lock(pgdat, &flags);
-        zone_span_writelock(zone);
-+       if (zone_is_empty(zone))
-+               init_currently_empty_zone(zone, start_pfn, nr_pages);
-        resize_zone_range(zone, start_pfn, nr_pages);
-        zone_span_writeunlock(zone);
-        resize_pgdat_range(pgdat, start_pfn, nr_pages);
+So per my understanding, if we thought page table corruption isn't a
+real problem (that is, __swap_duplicate() will never return e.g. -EEXIST
+if copied by copy_one_pte() indirectly), both the original and the new
+code should be OK.
 
-Then, we could take move_pfn_range_to_zone out of the hotplug lock.
+If we thought it is a real problem, we need to fix the original code and
+keep it fixed in the new code.  Do you agree?
 
-Although I am not sure about leaving memmap_init_zone unprotected.
-For the normal memory, that is not a problem since the memblock's lock
-protects us from touching the same pages at the same time in online/offline_pages,
-but for HMM/devm the story is different.
+There's several ways to fix the problem.  But the page table shouldn't
+be corrupted in practice, unless there's some programming error.  So I
+suggest to make it as simple as possible via adding,
 
-I am totally unaware of HMM/devm, so I am not sure if its protected somehow.
-e.g: what happens if devm_memremap_pages and devm_memremap_pages_release are running
-at the same time for the same memory-range (with the assumption that the hotplug-lock
-does not protect move_pfn_range_to_zone anymore).
+VM_BUG_ON(error != -ENOMEM);
 
--- 
-Oscar Salvador
-SUSE L3
+in swap_duplicate().
+
+Do you agree?
+
+Best Regards,
+Huang, Ying
+
+> The other swap_duplicate caller, try_to_unmap_one, seems ok.
+>
+>> But the error may be possible during development, and it
+>> may serve as some kind of document too.  So I suggest to add
+>> 
+>> VM_BUG_ON(error != -ENOMEM);
+>> 
+>> in swap_duplicate().  What do you think about that?
+>
+> That doesn't seem necessary.
+>
+>> > So it might make sense to have a separate patch that changes swap_duplicate's
+>> > return and makes callers handle it.
+>> 
+>> Thanks for your help to take a deep look at this.  I want to try to fix
+>> all potential problems firstly, because the number of the caller is
+>> quite limited.  Do you agree?
+>
+> Yes, makes sense to me.
+>
+> Daniel
