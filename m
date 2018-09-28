@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6505C8E0001
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 01:39:59 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id f89-v6so5577848pff.7
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 22:39:59 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 350378E0001
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 01:40:01 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id v138-v6so3314436pgb.7
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2018 22:40:01 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t12-v6sor1121626pga.201.2018.09.27.22.39.58
+        by mx.google.com with SMTPS id d132-v6sor1043817pgc.394.2018.09.27.22.39.59
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 27 Sep 2018 22:39:58 -0700 (PDT)
+        Thu, 27 Sep 2018 22:39:59 -0700 (PDT)
 From: john.hubbard@gmail.com
-Subject: [PATCH 1/4] mm: get_user_pages: consolidate error handling
-Date: Thu, 27 Sep 2018 22:39:46 -0700
-Message-Id: <20180928053949.5381-2-jhubbard@nvidia.com>
+Subject: [PATCH 3/4] infiniband/mm: convert to the new put_user_page() call
+Date: Thu, 27 Sep 2018 22:39:47 -0700
+Message-Id: <20180928053949.5381-3-jhubbard@nvidia.com>
 In-Reply-To: <20180928053949.5381-1-jhubbard@nvidia.com>
 References: <20180928053949.5381-1-jhubbard@nvidia.com>
 MIME-Version: 1.0
@@ -20,119 +20,177 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Doug Ledford <dledford@redhat.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Christian Benvenuti <benve@cisco.com>
 
 From: John Hubbard <jhubbard@nvidia.com>
 
-An upcoming patch requires a way to operate on each page that
-any of the get_user_pages_*() variants returns.
+For code that retains pages via get_user_pages*(),
+release those pages via the new put_user_page(),
+instead of put_page().
 
-In preparation for that, consolidate the error handling for
-__get_user_pages(). This provides a single location (the "out:" label)
-for operating on the collected set of pages that are about to be returned.
+This prepares for eventually fixing the problem described
+in [1], and is following a plan listed in [2].
 
-As long every use of the "ret" variable is being edited, rename
-"ret" --> "err", so that its name matches its true role.
-This also gets rid of two shadowed variable declarations, as a
-tiny beneficial a side effect.
+[1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+[2] https://lkml.kernel.org/r/20180709080554.21931-1-jhubbard@nvidia.com
+    Proposed steps for fixing get_user_pages() + DMA problems.
+
+CC: Doug Ledford <dledford@redhat.com>
+CC: Jason Gunthorpe <jgg@ziepe.ca>
+CC: Mike Marciniszyn <mike.marciniszyn@intel.com>
+CC: Dennis Dalessandro <dennis.dalessandro@intel.com>
+CC: Christian Benvenuti <benve@cisco.com>
+
+CC: linux-rdma@vger.kernel.org
+CC: linux-kernel@vger.kernel.org
+CC: linux-mm@kvack.org
 Signed-off-by: John Hubbard <jhubbard@nvidia.com>
 ---
- mm/gup.c | 37 ++++++++++++++++++++++---------------
- 1 file changed, 22 insertions(+), 15 deletions(-)
+ drivers/infiniband/core/umem.c              | 2 +-
+ drivers/infiniband/core/umem_odp.c          | 2 +-
+ drivers/infiniband/hw/hfi1/user_pages.c     | 2 +-
+ drivers/infiniband/hw/mthca/mthca_memfree.c | 6 +++---
+ drivers/infiniband/hw/qib/qib_user_pages.c  | 2 +-
+ drivers/infiniband/hw/qib/qib_user_sdma.c   | 8 ++++----
+ drivers/infiniband/hw/usnic/usnic_uiom.c    | 2 +-
+ 7 files changed, 12 insertions(+), 12 deletions(-)
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 1abc8b4afff6..05ee7c18e59a 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -660,6 +660,7 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 		struct vm_area_struct **vmas, int *nonblocking)
- {
- 	long i = 0;
-+	int err = 0;
- 	unsigned int page_mask;
- 	struct vm_area_struct *vma = NULL;
+diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
+index a41792dbae1f..9430d697cb9f 100644
+--- a/drivers/infiniband/core/umem.c
++++ b/drivers/infiniband/core/umem.c
+@@ -60,7 +60,7 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
+ 		page = sg_page(sg);
+ 		if (!PageDirty(page) && umem->writable && dirty)
+ 			set_page_dirty_lock(page);
+-		put_page(page);
++		put_user_page(page);
+ 	}
  
-@@ -685,18 +686,19 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 		if (!vma || start >= vma->vm_end) {
- 			vma = find_extend_vma(mm, start);
- 			if (!vma && in_gate_area(mm, start)) {
--				int ret;
--				ret = get_gate_page(mm, start & PAGE_MASK,
-+				err = get_gate_page(mm, start & PAGE_MASK,
- 						gup_flags, &vma,
- 						pages ? &pages[i] : NULL);
--				if (ret)
--					return i ? : ret;
-+				if (err)
-+					goto out;
- 				page_mask = 0;
- 				goto next_page;
+ 	sg_free_table(&umem->sg_head);
+diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c
+index 6ec748eccff7..6227b89cf05c 100644
+--- a/drivers/infiniband/core/umem_odp.c
++++ b/drivers/infiniband/core/umem_odp.c
+@@ -717,7 +717,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem *umem, u64 user_virt, u64 bcnt,
+ 					ret = -EFAULT;
+ 					break;
+ 				}
+-				put_page(local_page_list[j]);
++				put_user_page(local_page_list[j]);
+ 				continue;
  			}
  
--			if (!vma || check_vma_flags(vma, gup_flags))
--				return i ? : -EFAULT;
-+			if (!vma || check_vma_flags(vma, gup_flags)) {
-+				err = -EFAULT;
-+				goto out;
-+			}
- 			if (is_vm_hugetlb_page(vma)) {
- 				i = follow_hugetlb_page(mm, vma, pages, vmas,
- 						&start, &nr_pages, i,
-@@ -709,23 +711,25 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 		 * If we have a pending SIGKILL, don't keep faulting pages and
- 		 * potentially allocating memory.
- 		 */
--		if (unlikely(fatal_signal_pending(current)))
--			return i ? i : -ERESTARTSYS;
-+		if (unlikely(fatal_signal_pending(current))) {
-+			err = -ERESTARTSYS;
-+			goto out;
-+		}
- 		cond_resched();
- 		page = follow_page_mask(vma, start, foll_flags, &page_mask);
- 		if (!page) {
--			int ret;
--			ret = faultin_page(tsk, vma, start, &foll_flags,
-+			err = faultin_page(tsk, vma, start, &foll_flags,
- 					nonblocking);
--			switch (ret) {
-+			switch (err) {
- 			case 0:
- 				goto retry;
- 			case -EFAULT:
- 			case -ENOMEM:
- 			case -EHWPOISON:
--				return i ? i : ret;
-+				goto out;
- 			case -EBUSY:
--				return i;
-+				err = 0;
-+				goto out;
- 			case -ENOENT:
- 				goto next_page;
- 			}
-@@ -737,7 +741,8 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 			 */
- 			goto next_page;
- 		} else if (IS_ERR(page)) {
--			return i ? i : PTR_ERR(page);
-+			err = PTR_ERR(page);
-+			goto out;
+diff --git a/drivers/infiniband/hw/hfi1/user_pages.c b/drivers/infiniband/hw/hfi1/user_pages.c
+index e341e6dcc388..c7516029af33 100644
+--- a/drivers/infiniband/hw/hfi1/user_pages.c
++++ b/drivers/infiniband/hw/hfi1/user_pages.c
+@@ -126,7 +126,7 @@ void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
+ 	for (i = 0; i < npages; i++) {
+ 		if (dirty)
+ 			set_page_dirty_lock(p[i]);
+-		put_page(p[i]);
++		put_user_page(p[i]);
+ 	}
+ 
+ 	if (mm) { /* during close after signal, mm can be NULL */
+diff --git a/drivers/infiniband/hw/mthca/mthca_memfree.c b/drivers/infiniband/hw/mthca/mthca_memfree.c
+index cc9c0c8ccba3..b8b12effd009 100644
+--- a/drivers/infiniband/hw/mthca/mthca_memfree.c
++++ b/drivers/infiniband/hw/mthca/mthca_memfree.c
+@@ -481,7 +481,7 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
+ 
+ 	ret = pci_map_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
+ 	if (ret < 0) {
+-		put_page(pages[0]);
++		put_user_page(pages[0]);
+ 		goto out;
+ 	}
+ 
+@@ -489,7 +489,7 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
+ 				 mthca_uarc_virt(dev, uar, i));
+ 	if (ret) {
+ 		pci_unmap_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
+-		put_page(sg_page(&db_tab->page[i].mem));
++		put_user_page(sg_page(&db_tab->page[i].mem));
+ 		goto out;
+ 	}
+ 
+@@ -555,7 +555,7 @@ void mthca_cleanup_user_db_tab(struct mthca_dev *dev, struct mthca_uar *uar,
+ 		if (db_tab->page[i].uvirt) {
+ 			mthca_UNMAP_ICM(dev, mthca_uarc_virt(dev, uar, i), 1);
+ 			pci_unmap_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
+-			put_page(sg_page(&db_tab->page[i].mem));
++			put_user_page(sg_page(&db_tab->page[i].mem));
  		}
- 		if (pages) {
- 			pages[i] = page;
-@@ -757,7 +762,9 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 		start += page_increm * PAGE_SIZE;
- 		nr_pages -= page_increm;
- 	} while (nr_pages);
--	return i;
-+
-+out:
-+	return i ? i : err;
+ 	}
+ 
+diff --git a/drivers/infiniband/hw/qib/qib_user_pages.c b/drivers/infiniband/hw/qib/qib_user_pages.c
+index 16543d5e80c3..3f8fd42dd7fc 100644
+--- a/drivers/infiniband/hw/qib/qib_user_pages.c
++++ b/drivers/infiniband/hw/qib/qib_user_pages.c
+@@ -45,7 +45,7 @@ static void __qib_release_user_pages(struct page **p, size_t num_pages,
+ 	for (i = 0; i < num_pages; i++) {
+ 		if (dirty)
+ 			set_page_dirty_lock(p[i]);
+-		put_page(p[i]);
++		put_user_page(p[i]);
+ 	}
  }
  
- static bool vma_permits_fault(struct vm_area_struct *vma,
+diff --git a/drivers/infiniband/hw/qib/qib_user_sdma.c b/drivers/infiniband/hw/qib/qib_user_sdma.c
+index 926f3c8eba69..14f94d823907 100644
+--- a/drivers/infiniband/hw/qib/qib_user_sdma.c
++++ b/drivers/infiniband/hw/qib/qib_user_sdma.c
+@@ -266,7 +266,7 @@ static void qib_user_sdma_init_frag(struct qib_user_sdma_pkt *pkt,
+ 	pkt->addr[i].length = len;
+ 	pkt->addr[i].first_desc = first_desc;
+ 	pkt->addr[i].last_desc = last_desc;
+-	pkt->addr[i].put_page = put_page;
++	pkt->addr[i].put_page = put_user_page;
+ 	pkt->addr[i].dma_mapped = dma_mapped;
+ 	pkt->addr[i].page = page;
+ 	pkt->addr[i].kvaddr = kvaddr;
+@@ -321,7 +321,7 @@ static int qib_user_sdma_page_to_frags(const struct qib_devdata *dd,
+ 		 * the caller can ignore this page.
+ 		 */
+ 		if (put) {
+-			put_page(page);
++			put_user_page(page);
+ 		} else {
+ 			/* coalesce case */
+ 			kunmap(page);
+@@ -635,7 +635,7 @@ static void qib_user_sdma_free_pkt_frag(struct device *dev,
+ 			kunmap(pkt->addr[i].page);
+ 
+ 		if (pkt->addr[i].put_page)
+-			put_page(pkt->addr[i].page);
++			put_user_page(pkt->addr[i].page);
+ 		else
+ 			__free_page(pkt->addr[i].page);
+ 	} else if (pkt->addr[i].kvaddr) {
+@@ -710,7 +710,7 @@ static int qib_user_sdma_pin_pages(const struct qib_devdata *dd,
+ 	/* if error, return all pages not managed by pkt */
+ free_pages:
+ 	while (i < j)
+-		put_page(pages[i++]);
++		put_user_page(pages[i++]);
+ 
+ done:
+ 	return ret;
+diff --git a/drivers/infiniband/hw/usnic/usnic_uiom.c b/drivers/infiniband/hw/usnic/usnic_uiom.c
+index 9dd39daa602b..0f607f31c262 100644
+--- a/drivers/infiniband/hw/usnic/usnic_uiom.c
++++ b/drivers/infiniband/hw/usnic/usnic_uiom.c
+@@ -91,7 +91,7 @@ static void usnic_uiom_put_pages(struct list_head *chunk_list, int dirty)
+ 			pa = sg_phys(sg);
+ 			if (!PageDirty(page) && dirty)
+ 				set_page_dirty_lock(page);
+-			put_page(page);
++			put_user_page(page);
+ 			usnic_dbg("pa: %pa\n", &pa);
+ 		}
+ 		kfree(chunk);
 -- 
 2.19.0
