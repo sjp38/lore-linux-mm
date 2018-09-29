@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 15B268E0001
-	for <linux-mm@kvack.org>; Sat, 29 Sep 2018 08:08:19 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id z1-v6so10033646pfn.14
-        for <linux-mm@kvack.org>; Sat, 29 Sep 2018 05:08:19 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 043E28E0001
+	for <linux-mm@kvack.org>; Sat, 29 Sep 2018 08:09:58 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id b22-v6so507112pfc.18
+        for <linux-mm@kvack.org>; Sat, 29 Sep 2018 05:09:57 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id u8-v6si159383plk.443.2018.09.29.05.08.17
+        by mx.google.com with ESMTPS id a61-v6si663154pla.430.2018.09.29.05.09.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 29 Sep 2018 05:08:17 -0700 (PDT)
-Subject: Patch "x86/numa_emulation: Fix emulated-to-physical node mapping" has been added to the 3.18-stable tree
+        Sat, 29 Sep 2018 05:09:56 -0700 (PDT)
+Subject: Patch "x86/numa_emulation: Fix emulated-to-physical node mapping" has been added to the 4.14-stable tree
 From: <gregkh@linuxfoundation.org>
-Date: Sat, 29 Sep 2018 05:06:07 -0700
-Message-ID: <1538222767119177@kroah.com>
+Date: Sat, 29 Sep 2018 05:06:23 -0700
+Message-ID: <1538222783118138@kroah.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ANSI_X3.4-1968
 Content-Transfer-Encoding: 8bit
@@ -26,18 +26,18 @@ This is a note to let you know that I've just added the patch titled
 
     x86/numa_emulation: Fix emulated-to-physical node mapping
 
-to the 3.18-stable tree which can be found at:
+to the 4.14-stable tree which can be found at:
     http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
 
 The filename of the patch is:
      x86-numa_emulation-fix-emulated-to-physical-node-mapping.patch
-and it can be found in the queue-3.18 subdirectory.
+and it can be found in the queue-4.14 subdirectory.
 
 If you, or anyone else, feels it should not be added to the stable tree,
 please let <stable@vger.kernel.org> know about it.
 
 
->From foo@baz Sat Sep 29 04:32:11 PDT 2018
+>From foo@baz Sat Sep 29 04:27:59 PDT 2018
 From: Dan Williams <dan.j.williams@intel.com>
 Date: Fri, 6 Jul 2018 09:08:01 -0700
 Subject: x86/numa_emulation: Fix emulated-to-physical node mapping
@@ -66,7 +66,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 --- a/arch/x86/mm/numa_emulation.c
 +++ b/arch/x86/mm/numa_emulation.c
-@@ -60,7 +60,7 @@ static int __init emu_setup_memblk(struc
+@@ -61,7 +61,7 @@ static int __init emu_setup_memblk(struc
  	eb->nid = nid;
  
  	if (emu_nid_to_phys[nid] == NUMA_NO_NODE)
@@ -79,4 +79,4 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 Patches currently in stable-queue which might be from dan.j.williams@intel.com are
 
-queue-3.18/x86-numa_emulation-fix-emulated-to-physical-node-mapping.patch
+queue-4.14/x86-numa_emulation-fix-emulated-to-physical-node-mapping.patch
