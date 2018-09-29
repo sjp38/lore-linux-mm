@@ -1,87 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7287C8E0001
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 20:50:34 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id y8-v6so7113689pfl.11
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 17:50:34 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id s16-v6si6029820pgg.19.2018.09.28.17.50.32
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 248A18E0001
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2018 21:36:20 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id p18-v6so13585ybe.0
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2018 18:36:20 -0700 (PDT)
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id k5-v6sor3628837ybd.71.2018.09.28.18.36.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Sep 2018 17:50:33 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -V5 RESEND 03/21] swap: Support PMD swap mapping in swap_duplicate()
-References: <20180925071348.31458-1-ying.huang@intel.com>
-	<20180925071348.31458-4-ying.huang@intel.com>
-	<20180925191953.4ped5ki7u3ymafmd@ca-dmjordan1.us.oracle.com>
-	<874lecifj4.fsf@yhuang-dev.intel.com>
-	<20180926145145.6xp2kxpngyd54f6i@ca-dmjordan1.us.oracle.com>
-	<87r2hfhger.fsf@yhuang-dev.intel.com>
-	<20180927211238.ly3e7cyvfu3rswcv@ca-dmjordan1.us.oracle.com>
-	<87lg7mf30o.fsf@yhuang-dev.intel.com>
-	<20180928213224.tjff2rtfmxmnz5nq@ca-dmjordan1.us.oracle.com>
-Date: Sat, 29 Sep 2018 08:50:29 +0800
-In-Reply-To: <20180928213224.tjff2rtfmxmnz5nq@ca-dmjordan1.us.oracle.com>
-	(Daniel Jordan's message of "Fri, 28 Sep 2018 14:32:24 -0700")
-Message-ID: <877ej5f7oq.fsf@yhuang-dev.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+        (Google Transport Security);
+        Fri, 28 Sep 2018 18:36:19 -0700 (PDT)
+Date: Sat, 29 Sep 2018 03:36:11 +0200
+Message-Id: <20180929013611.163130-1-jannh@google.com>
+Mime-Version: 1.0
+Subject: [PATCH] mm/vmstat: fix outdated vmstat_text
+From: Jann Horn <jannh@google.com>
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jannh@google.com
+Cc: Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Roman Gushchin <guro@fb.com>, Kemi Wang <kemi.wang@intel.com>, Kees Cook <keescook@chromium.org>
 
-Daniel Jordan <daniel.m.jordan@oracle.com> writes:
+commit 7a9cdebdcc17 ("mm: get rid of vmacache_flush_all() entirely")
+removed the VMACACHE_FULL_FLUSHES statistics, but didn't remove the
+corresponding entry in vmstat_text. This causes an out-of-bounds access in
+vmstat_show().
 
-> On Fri, Sep 28, 2018 at 04:19:03PM +0800, Huang, Ying wrote:
->> Daniel Jordan <daniel.m.jordan@oracle.com> writes:
->> > One way is to change
->> > copy_one_pte's return to int so we can just pass the error code back to
->> > copy_pte_range so it knows whether to try adding the continuation.
->> 
->> There may be even more problems.  After add_swap_count_continuation(),
->> copy_one_pte() will be retried, and the CPU may hang with dead loop.
->
-> That's true, it would do that.
->
->> But before the changes in this patchset, the behavior is,
->> __swap_duplicate() return an error that isn't -ENOMEM, such as -EEXIST.
->> Then copy_one_pte() would thought the operation has been done
->> successfully, and go to call set_pte_at().  This will cause the system
->> state become inconsistent, and the system may panic or hang somewhere
->> later.
->> 
->> So per my understanding, if we thought page table corruption isn't a
->> real problem (that is, __swap_duplicate() will never return e.g. -EEXIST
->> if copied by copy_one_pte() indirectly), both the original and the new
->> code should be OK.
->> 
->> If we thought it is a real problem, we need to fix the original code and
->> keep it fixed in the new code.  Do you agree?
->
-> Yes, if it was a real problem, which seems less and less the case the more I
-> stare at this.
->
->> There's several ways to fix the problem.  But the page table shouldn't
->> be corrupted in practice, unless there's some programming error.  So I
->> suggest to make it as simple as possible via adding,
->> 
->> VM_BUG_ON(error != -ENOMEM);
->> 
->> in swap_duplicate().
->> 
->> Do you agree?
->
-> Yes, I'm ok with that, adding in -ENOTDIR along with it.
+Luckily this only affects kernels with CONFIG_DEBUG_VM_VMACACHE=y, which is
+probably very rare.
 
-Sure.  I will do this.
+Having two gigantic arrays that must be kept in sync isn't exactly robust.
+To make it easier to catch such issues in the future, add a BUILD_BUG_ON().
 
-> The error handling in __swap_duplicate (before this series) still leaves
-> something to be desired IMHO.  Why all the different returns when callers
-> ignore them or only specifically check for -ENOMEM or -EEXIST?  Could maybe
-> stand a cleanup, but outside this series.
+Fixes: 7a9cdebdcc17 ("mm: get rid of vmacache_flush_all() entirely")
+Cc: stable@vger.kernel.org
+Signed-off-by: Jann Horn <jannh@google.com>
+---
+ mm/vmstat.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-Yes.  Maybe.  I guess you will work on this?
-
-Best Regards,
-Huang, Ying
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 8ba0870ecddd..db6379a3f8bf 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1283,7 +1283,6 @@ const char * const vmstat_text[] = {
+ #ifdef CONFIG_DEBUG_VM_VMACACHE
+ 	"vmacache_find_calls",
+ 	"vmacache_find_hits",
+-	"vmacache_full_flushes",
+ #endif
+ #ifdef CONFIG_SWAP
+ 	"swap_ra",
+@@ -1661,6 +1660,8 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
+ 	stat_items_size += sizeof(struct vm_event_state);
+ #endif
+ 
++	BUILD_BUG_ON(stat_items_size !=
++		     ARRAY_SIZE(vmstat_text) * sizeof(unsigned long));
+ 	v = kmalloc(stat_items_size, GFP_KERNEL);
+ 	m->private = v;
+ 	if (!v)
+-- 
+2.19.0.605.g01d371f741-goog
