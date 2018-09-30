@@ -1,114 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 83C588E0001
-	for <linux-mm@kvack.org>; Sun, 30 Sep 2018 01:46:53 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id k18-v6so11803802otl.16
-        for <linux-mm@kvack.org>; Sat, 29 Sep 2018 22:46:53 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id n15-v6si771461otb.212.2018.09.29.22.46.52
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C5788E0001
+	for <linux-mm@kvack.org>; Sun, 30 Sep 2018 02:34:09 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id f19-v6so10360863qtp.6
+        for <linux-mm@kvack.org>; Sat, 29 Sep 2018 23:34:09 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i6-v6si804775qtj.167.2018.09.29.23.34.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 29 Sep 2018 22:46:52 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w8U5hbkK096829
-	for <linux-mm@kvack.org>; Sun, 30 Sep 2018 01:46:51 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mtpc036x6-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 30 Sep 2018 01:46:51 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <daniel@linux.ibm.com>;
-	Sun, 30 Sep 2018 06:46:49 +0100
-From: Daniel Black <daniel@linux.ibm.com>
-Subject: [PATCH] mm: madvise(MADV_DODUMP) allow hugetlbfs pages
-Date: Sun, 30 Sep 2018 15:46:29 +1000
+        Sat, 29 Sep 2018 23:34:08 -0700 (PDT)
+Date: Sun, 30 Sep 2018 14:34:01 +0800
+From: Peter Xu <peterx@redhat.com>
+Subject: Re: [PATCH 1/3] userfaultfd: selftest: cleanup help messages
+Message-ID: <20180930063401.GA18728@xz-x1>
+References: <20180929084311.15600-1-peterx@redhat.com>
+ <20180929084311.15600-2-peterx@redhat.com>
+ <20180929102811.GA6429@rapoport-lnx>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <20180930054629.29150-1-daniel@linux.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20180929102811.GA6429@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, mike.kravetz@oracle.com, khlebnikov@openvz.org
-Cc: Daniel Black <daniel@linux.ibm.com>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, Shuah Khan <shuah@kernel.org>, Jerome Glisse <jglisse@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, Zi Yan <zi.yan@cs.rutgers.edu>, "Kirill A . Shutemov" <kirill@shutemov.name>, linux-kselftest@vger.kernel.org, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Reproducer, assuming 2M of hugetlbfs available:
+On Sat, Sep 29, 2018 at 01:28:12PM +0300, Mike Rapoport wrote:
 
-Hugetlbfs mounted, size=2M and option user=testuser
+[...]
 
-  # mount | grep ^hugetlbfs
-  hugetlbfs on /dev/hugepages type hugetlbfs (rw,pagesize=2M,user=dan)
-  # sysctl vm.nr_hugepages=1
-  vm.nr_hugepages = 1
-  # grep Huge /proc/meminfo
-  AnonHugePages:         0 kB
-  ShmemHugePages:        0 kB
-  HugePages_Total:       1
-  HugePages_Free:        1
-  HugePages_Rsvd:        0
-  HugePages_Surp:        0
-  Hugepagesize:       2048 kB
-  Hugetlb:            2048 kB
+> > +const char *examples =
+> > +    "# 100MiB 99999 bounces\n"
+> > +    "./userfaultfd anon 100 99999\n"
+> > +    "\n"
+> > +    "# 1GiB 99 bounces\n"
+> > +    "./userfaultfd anon 1000 99\n"
+> > +    "\n"
+> > +    "# 10MiB-~6GiB 999 bounces, continue forever unless an error triggers\n"
+> > +    "while ./userfaultfd anon $[RANDOM % 6000 + 10] 999; do true; done\n"
+> > +    "\n";
+> 
+> While at it, can you please update the examples to include other test
+> types?
 
-Code:
+Sure thing.
 
-  #include <sys/mman.h>
-  #include <stddef.h>
-  #define SIZE 2*1024*1024
-  int main()
-  {
-    void *ptr;
-    ptr = mmap(NULL, SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_HUGETLB | MAP_ANONYMOUS, -1, 0);
-    madvise(ptr, SIZE, MADV_DONTDUMP);
-    madvise(ptr, SIZE, MADV_DODUMP);
-  }
+Thanks for the quick review!
 
-Compile and strace:
+Regards,
 
-  mmap(NULL, 2097152, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB, -1, 0) = 0x7ff7c9200000
-  madvise(0x7ff7c9200000, 2097152, MADV_DONTDUMP) = 0
-  madvise(0x7ff7c9200000, 2097152, MADV_DODUMP) = -1 EINVAL (Invalid argument)
-
-hugetlbfs pages have VM_DONTEXPAND in the VmFlags driver pages based on
-author testing with analysis from Florian Weimer[1].
-
-The inclusion of VM_DONTEXPAND into the VM_SPECIAL defination
-was a consequence of the large useage of VM_DONTEXPAND in device
-drivers.
-
-A consequence of [2] is that VM_DONTEXPAND marked pages are unable to be
-marked DODUMP.
-
-A user could quite legitimately madvise(MADV_DONTDUMP) their hugetlbfs
-memory for a while and later request that madvise(MADV_DODUMP) on the
-same memory. We correct this omission by allowing madvice(MADV_DODUMP)
-on hugetlbfs pages.
-
-[1] https://stackoverflow.com/questions/52548260/madvisedodump-on-the-same-ptr-size-as-a-successful-madvisedontdump-fails-wit
-[2] commit 0103bd16fb90 ("mm: prepare VM_DONTDUMP for using in drivers")
-
-Fixes: 0103bd16fb90 ("mm: prepare VM_DONTDUMP for using in drivers")
-Reported-by: Kenneth Penza <kpenza@gmail.com>
-Signed-off-by: Daniel Black <daniel@linux.ibm.com>
-Buglink: https://lists.launchpad.net/maria-discuss/msg05245.html
-Cc: linux-mm@kvack.org
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
----
- mm/madvise.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 972a9eaa898b..71d21df2a3f3 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -96,7 +96,7 @@ static long madvise_behavior(struct vm_area_struct *vma,
- 		new_flags |= VM_DONTDUMP;
- 		break;
- 	case MADV_DODUMP:
--		if (new_flags & VM_SPECIAL) {
-+		if (!is_vm_hugetlb_page(vma) && new_flags & VM_SPECIAL) {
- 			error = -EINVAL;
- 			goto out;
- 		}
 -- 
-2.19.0
+Peter Xu
