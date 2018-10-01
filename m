@@ -1,135 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EB3516B0003
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 02:11:32 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id 87-v6so5189672pfq.8
-        for <linux-mm@kvack.org>; Sun, 30 Sep 2018 23:11:32 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id g66-v6si11900585pfk.53.2018.09.30.23.11.30
-        for <linux-mm@kvack.org>;
-        Sun, 30 Sep 2018 23:11:31 -0700 (PDT)
-Date: Mon, 1 Oct 2018 16:11:27 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 0/4] get_user_pages*() and RDMA: first steps
-Message-ID: <20181001061127.GQ31060@dastard>
-References: <20180928053949.5381-1-jhubbard@nvidia.com>
- <20180928152958.GA3321@redhat.com>
- <4c884529-e2ff-3808-9763-eb0e71f5a616@nvidia.com>
- <20180928214934.GA3265@redhat.com>
- <dfa6aaef-b97e-ebd4-6cc8-c907a7b3f9bb@nvidia.com>
- <20180929084608.GA3188@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180929084608.GA3188@redhat.com>
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BC65A6B0003
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 03:24:29 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id i76-v6so812890pfk.14
+        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 00:24:29 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id w17-v6si11690324plp.335.2018.10.01.00.24.28
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Oct 2018 00:24:28 -0700 (PDT)
+Message-ID: <1538407463.3190.1.camel@intel.com>
+Subject: Re: [RFC PATCH 01/11] nios2: update_mmu_cache clear the old entry
+ from the TLB
+From: Ley Foon Tan <ley.foon.tan@intel.com>
+Date: Mon, 01 Oct 2018 23:24:23 +0800
+In-Reply-To: <20180929113712.6dcfeeb3@roar.ozlabs.ibm.com>
+References: <20180923150830.6096-1-npiggin@gmail.com>
+	 <20180923150830.6096-2-npiggin@gmail.com>
+	 <20180929113712.6dcfeeb3@roar.ozlabs.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: John Hubbard <jhubbard@nvidia.com>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Christian Benvenuti <benve@cisco.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>
+To: Nicholas Piggin <npiggin@gmail.com>
+Cc: Guenter Roeck <linux@roeck-us.net>, nios2-dev@lists.rocketboards.org, linux-mm@kvack.org
 
-On Sat, Sep 29, 2018 at 04:46:09AM -0400, Jerome Glisse wrote:
-> On Fri, Sep 28, 2018 at 07:28:16PM -0700, John Hubbard wrote:
-> > On 9/28/18 2:49 PM, Jerome Glisse wrote:
-> > > On Fri, Sep 28, 2018 at 12:06:12PM -0700, John Hubbard wrote:
-> > >> use a non-CPU device to read and write to "pinned" memory, especially when
-> > >> that memory is backed by a file system.
+On Sat, 2018-09-29 at 11:37 +1000, Nicholas Piggin wrote:
+> Hi,
+>=20
+> Did you get a chance to look at these?
+>=20
+> This first patch 1/11 solves the lockup problem that Guenter reported
+> with my changes to core mm code. So I plan to resubmit my patches
+> to Andrew's -mm tree with this patch to avoid nios2 breakage.
+>=20
+> Thanks,
+> Nick
 
-"backed by a filesystem" is the biggest problem here.
+Do you have git repo that contains these patches? If not, can you send
+them as attachment to my email?
 
-> > >> I recall there were objections to just narrowly fixing the set_page_dirty()
-> > >> bug, because the underlying problem is large and serious. So here we are.
-> > > 
-> > > Except that you can not solve that issue without proper hardware. GPU are
-> > > fine. RDMA are broken except the mellanox5 hardware which can invalidate
-> > > at anytime its page table thus allowing to write protect the page at any
-> > > time.
-> > 
-> > Today, people are out there using RDMA without page-fault-capable hardware.
-> > And they are hitting problems, as we've seen. From the discussions so far,
-> > I don't think it's impossible to solve the problems, even for "lesser", 
-> > non-fault-capable hardware.
 
-This reminds me so much of Linux mmap() in the mid-2000s - mmap()
-worked for ext3 without being aware of page faults, so most mm/
-developers at the time were of the opinion that all the other
-filesystems should work just fine without being aware of page
-faults.
-
-But some loud-mouthed idiot at SGI kept complaining that mmap()
-could never be fixed for XFS without write fault notification
-because of delayed allocation, unwritten extents and ENOSPC had to
-be handled before mapped writes could be posted.  Eventually
-Christoph Lameter got ->page_mkwrite into the page fault path and
-the loud mouthed idiot finally got mmap() to work correctly on XFS:
-
-commit 4f57dbc6b5bae5a3978d429f45ac597ca7a3b8c6
-Author: David Chinner <dgc@sgi.com>
-Date:   Thu Jul 19 16:28:17 2007 +1000
-
-    [XFS] Implement ->page_mkwrite in XFS.
-    
-    Hook XFS up to ->page_mkwrite to ensure that we know about mmap pages
-    being written to. This allows use to do correct delayed allocation and
-    ENOSPC checking as well as remap unwritten extents so that they get
-    converted correctly during writeback. This is done via the generic
-    block_page_mkwrite code.
-    
-    SGI-PV: 940392
-    SGI-Modid: xfs-linux-melb:xfs-kern:29149a
-    
-    Signed-off-by: David Chinner <dgc@sgi.com>
-    Signed-off-by: Christoph Hellwig <hch@infradead.org>
-    Signed-off-by: Tim Shimmin <tes@sgi.com>
-
-Nowdays, ->page_mkwrite is fundamental filesystem functionality -
-copy-on-write filesystems like btrfs simply don't work if they can't
-trigger COW on mapped write accesses. These days all the main linux
-filesystems depend on write fault notifications in some way or
-another for correct operation.
-
-The way RDMA uses GUP to take references to file backed pages to
-'stop them going away' is reminiscent of mmap() back before
-->page_mkwrite(). i.e. it assumes that an initial read of the page
-will populate the page state correctly for all future operations,
-including set_page_dirty() after write accesses.
-
-This is not a valid assumption - filesystems can have different
-private clean vs dirty page state, and may need to perform
-operations to take a page from clean to dirty.  Hence calling
-set_page_dirty() on a file backed mapped page without first having
-called ->page_mkwrite() is a bug.
-
-RDMA does not call ->page_mkwrite on clean file backed pages before it
-writes to them and calls set_page_dirty(), and hence RDMA to file
-backed pages is completely unreliable. I'm not sure this can be
-solved without having page fault capable RDMA hardware....
-
-> > > With the solution put forward here you can potentialy wait _forever_ for
-> > > the driver that holds a pin to drop it. This was the point i was trying to
-> > > get accross during LSF/MM. 
-
-Right, but pinning via GUP is not an option for file backed pages
-because the filesystem is completely unaware of these references.
-i.e. waiting forever isn't an issue here because the filesystem
-never waits on them. Instead, they are a filesystem corruption
-vector because the filesystem can invalidate those mappings and free
-the backing store while they are still in use by RDMA.
-
-Hence for DAX filesystems, this leaves the RDMA app with direct
-access to the physical storage even though the filesystem has freed
-the space it is accessing. This is a use after free of the physical
-storage that the filesystem cannot control, and why DAX+RDMA is
-disabled right now.
-
-We could address these use-after-free situations via forcing RDMA to
-use file layout leases and revoke the lease when we need to modify
-the backing store on leased files. However, this doesn't solve the
-need for filesystems to receive write fault notifications via
-->page_mkwrite.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Regards
+Ley Foon
+>=20
+> On Mon, 24 Sep 2018 01:08:20 +1000
+> Nicholas Piggin <npiggin@gmail.com> wrote:
+>=20
+> >=20
+> > Fault paths like do_read_fault will install a Linux pte with the
+> > young
+> > bit clear. The CPU will fault again because the TLB has not been
+> > updated, this time a valid pte exists so handle_pte_fault will just
+> > set the young bit with ptep_set_access_flags, which flushes the
+> > TLB.
+> >=20
+> > The TLB is flushed so the next attempt will go to the fast TLB
+> > handler
+> > which loads the TLB with the new Linux pte. The access then
+> > proceeds.
+> >=20
+> > This design is fragile to depend on the young bit being clear after
+> > the initial Linux fault. A proposed core mm change to immediately
+> > set
+> > the young bit upon such a fault, results in ptep_set_access_flags
+> > not
+> > flushing the TLB because it finds no change to the pte. The
+> > spurious
+> > fault fix path only flushes the TLB if the access was a store. If
+> > it
+> > was a load, then this results in an infinite loop of page faults.
+> >=20
+> > This change adds a TLB flush in update_mmu_cache, which removes
+> > that
+> > TLB entry upon the first fault. This will cause the fast TLB
+> > handler
+> > to load the new pte and avoid the Linux page fault entirely.
+> >=20
+> > Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
+> > ---
+> > =C2=A0arch/nios2/mm/cacheflush.c | 2 ++
+> > =C2=A01 file changed, 2 insertions(+)
+> >=20
+> > diff --git a/arch/nios2/mm/cacheflush.c
+> > b/arch/nios2/mm/cacheflush.c
+> > index 506f6e1c86d5..d58e7e80dc0d 100644
+> > --- a/arch/nios2/mm/cacheflush.c
+> > +++ b/arch/nios2/mm/cacheflush.c
+> > @@ -204,6 +204,8 @@ void update_mmu_cache(struct vm_area_struct
+> > *vma,
+> > =C2=A0	struct page *page;
+> > =C2=A0	struct address_space *mapping;
+> > =C2=A0
+> > +	flush_tlb_page(vma, address);
+> > +
+> > =C2=A0	if (!pfn_valid(pfn))
+> > =C2=A0		return;
+> > =C2=A0
