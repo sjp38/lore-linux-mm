@@ -1,46 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F172B6B0003
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 13:59:56 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id z9-v6so16930546wrv.6
-        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 10:59:56 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTPS id k6-v6si10496181wri.426.2018.10.01.10.59.55
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C64D6B0003
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 14:56:35 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id p23-v6so15518710otl.23
+        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 11:56:35 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id t10-v6si6870349otj.224.2018.10.01.11.56.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Oct 2018 10:59:55 -0700 (PDT)
-Date: Mon, 1 Oct 2018 19:59:56 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v6 05/18] ACPI / APEI: Make estatus queue a Kconfig symbol
-Message-ID: <20181001175956.GF7269@zn.tnic>
-References: <20180921221705.6478-1-james.morse@arm.com>
- <20180921221705.6478-6-james.morse@arm.com>
+        Mon, 01 Oct 2018 11:56:34 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w91IsZF4052260
+	for <linux-mm@kvack.org>; Mon, 1 Oct 2018 14:56:33 -0400
+Received: from e31.co.us.ibm.com (e31.co.us.ibm.com [32.97.110.149])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mupedfdfx-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 01 Oct 2018 14:56:33 -0400
+Received: from localhost
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <mwb@linux.vnet.ibm.com>;
+	Mon, 1 Oct 2018 12:56:31 -0600
+Subject: [PATCH] migration/mm: Add WARN_ON to try_offline_node
+From: Michael Bringmann <mwb@linux.vnet.ibm.com>
+Date: Mon, 01 Oct 2018 13:56:25 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20180921221705.6478-6-james.morse@arm.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <20181001185616.11427.35521.stgit@ltcalpine2-lp9.aus.stglabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
+To: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mwb@linux.vnet.ibm.com
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Nicholas Piggin <npiggin@gmail.com>, Kees Cook <keescook@chromium.org>, Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, Russell Currey <ruscur@russell.cc>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Christophe Leroy <christophe.leroy@c-s.fr>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Oscar Salvador <osalvador@suse.de>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Mathieu Malaterre <malat@debian.org>, Juliet Kim <minkim@us.ibm.com>, Tyrel Datwyler <tyreld@linux.vnet.ibm.com>, Thomas Falcon <tlfalcon@linux.vnet.ibm.com>
 
-On Fri, Sep 21, 2018 at 11:16:52PM +0100, James Morse wrote:
-> Now that there are two users of the estatus queue, and likely to be more,
-> make it a Kconfig symbol selected by the appropriate notification. We
-> can move the ARCH_HAVE_NMI_SAFE_CMPXCHG checks in here too.
+In some LPAR migration scenarios, device-tree modifications are
+made to the affinity of the memory in the system.  For instance,
+it may occur that memory is installed to nodes 0,3 on a source
+system, and to nodes 0,2 on a target system.  Node 2 may not
+have been initialized/allocated on the target system.
 
-Ok, question: why do we need to complicate things at all? I mean, why do
-we even need a Kconfig symbol?
+After migration, if a RTAS PRRN memory remove is made to a
+memory block that was in node 3 on the source system, then
+try_offline_node tries to remove it from node 2 on the target.
+The NODE_DATA(2) block would not be initialized on the target,
+and there is no validation check in the current code to prevent
+the use of a NULL pointer.  Call traces such as the following
+may be observed:
 
-This code is being used by two arches now so why not simply build it in
-unconditionally and be done with it. The couple of KB saved are simply
-not worth the effort, especially if it is going to end up being enabled
-on 99% of the setups...
+A similar problem of moving memory to an unitialized node has
+also been observed on systems where multiple PRRN events occur
+prior to a complete update of the device-tree.
 
-Or?
+pseries-hotplug-mem: Attempting to update LMB, drc index 80000002
+Offlined Pages 4096
+...
+Oops: Kernel access of bad area, sig: 11 [#1]
+...
+Workqueue: pseries hotplug workque pseries_hp_work_fn
+...
+NIP [c0000000002bc088] try_offline_node+0x48/0x1e0
+LR [c0000000002e0b84] remove_memory+0xb4/0xf0
+Call Trace:
+[c0000002bbee7a30] [c0000002bbee7a70] 0xc0000002bbee7a70 (unreliable)
+[c0000002bbee7a70] [c0000000002e0b84] remove_memory+0xb4/0xf0
+[c0000002bbee7ab0] [c000000000097784] dlpar_remove_lmb+0xb4/0x160
+[c0000002bbee7af0] [c000000000097f38] dlpar_memory+0x328/0xcb0
+[c0000002bbee7ba0] [c0000000000906d0] handle_dlpar_errorlog+0xc0/0x130
+[c0000002bbee7c10] [c0000000000907d4] pseries_hp_work_fn+0x94/0xa0
+[c0000002bbee7c40] [c0000000000e1cd0] process_one_work+0x1a0/0x4e0
+[c0000002bbee7cd0] [c0000000000e21b0] worker_thread+0x1a0/0x610
+[c0000002bbee7d80] [c0000000000ea458] kthread+0x128/0x150
+[c0000002bbee7e30] [c00000000000982c] ret_from_kernel_thread+0x5c/0xb0
 
--- 
-Regards/Gruss,
-    Boris.
+This patch adds a check for an incorrectly initialized to the
+beginning of try_offline_node, and exits the routine.
 
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Another patch is being developed for powerpc to track the
+node Id to which an LMB belongs, so that we can remove the
+LMB from there instead of the nid as currently interpreted
+from the device tree.
+
+Signed-off-by: Michael Bringmann <mwb@linux.vnet.ibm.com>
+---
+ mm/memory_hotplug.c |   10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 38d94b7..e48a4d0 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1831,10 +1831,16 @@ static int check_and_unmap_cpu_on_node(pg_data_t *pgdat)
+ void try_offline_node(int nid)
+ {
+ 	pg_data_t *pgdat = NODE_DATA(nid);
+-	unsigned long start_pfn = pgdat->node_start_pfn;
+-	unsigned long end_pfn = start_pfn + pgdat->node_spanned_pages;
++	unsigned long start_pfn;
++	unsigned long end_pfn;
+ 	unsigned long pfn;
+ 
++	if (WARN_ON(pgdat == NULL))
++		return;
++
++	start_pfn = pgdat->node_start_pfn;
++	end_pfn = start_pfn + pgdat->node_spanned_pages;
++
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+ 		unsigned long section_nr = pfn_to_section_nr(pfn);
+ 
