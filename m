@@ -1,77 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DDA06B0003
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 09:46:50 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id n23-v6so15092602otl.2
-        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 06:46:50 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f12-v6sor720203oic.154.2018.10.01.06.46.49
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EB03F6B0003
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 10:31:46 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id v198-v6so9602473qka.16
+        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 07:31:46 -0700 (PDT)
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id p9-v6sor7931528qtq.153.2018.10.01.07.31.46
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 01 Oct 2018 06:46:49 -0700 (PDT)
-MIME-Version: 1.0
-References: <20180929013611.163130-1-jannh@google.com> <201809291116.emGRuKoB%fengguang.wu@intel.com>
-In-Reply-To: <201809291116.emGRuKoB%fengguang.wu@intel.com>
+        Mon, 01 Oct 2018 07:31:46 -0700 (PDT)
+Date: Mon,  1 Oct 2018 16:31:36 +0200
+Message-Id: <20181001143138.95119-1-jannh@google.com>
+Mime-Version: 1.0
+Subject: [PATCH v2 1/3] mm/vmstat: fix outdated vmstat_text
 From: Jann Horn <jannh@google.com>
-Date: Mon, 1 Oct 2018 15:46:22 +0200
-Message-ID: <CAG48ez1kXs9_YZkqFJUpoLTH9DdLOd614NJJ+adgmh7rbGZcqQ@mail.gmail.com>
-Subject: Re: [PATCH] mm/vmstat: fix outdated vmstat_text
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lkp@intel.com
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, guro@fb.com, kemi.wang@intel.com, Kees Cook <keescook@chromium.org>, Christopher Lameter <cl@linux.com>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, jannh@google.com
+Cc: Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Roman Gushchin <guro@fb.com>, Kemi Wang <kemi.wang@intel.com>, Kees Cook <keescook@chromium.org>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>
 
-On Sat, Sep 29, 2018 at 5:07 AM kbuild test robot <lkp@intel.com> wrote:
->
-> Hi Jann,
->
-> Thank you for the patch! Yet something to improve:
->
-> [auto build test ERROR on linus/master]
-> [also build test ERROR on v4.19-rc5 next-20180928]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
->
-> url:    https://github.com/0day-ci/linux/commits/Jann-Horn/mm-vmstat-fix-outdated-vmstat_text/20180929-102147
-> config: i386-randconfig-x005-201838 (attached as .config)
-> compiler: gcc-7 (Debian 7.3.0-1) 7.3.0
-> reproduce:
->         # save the attached .config to linux build tree
->         make ARCH=i386
->
-> All error/warnings (new ones prefixed by >>):
->
->    In file included from include/linux/export.h:45:0,
->                     from include/linux/linkage.h:7,
->                     from include/linux/fs.h:5,
->                     from mm/vmstat.c:12:
->    mm/vmstat.c: In function 'vmstat_start':
-> >> include/linux/compiler.h:358:38: error: call to '__compiletime_assert_1664' declared with attribute error: BUILD_BUG_ON failed: stat_items_size != ARRAY_SIZE(vmstat_text) * sizeof(unsigned long)
+commit 7a9cdebdcc17 ("mm: get rid of vmacache_flush_all() entirely")
+removed the VMACACHE_FULL_FLUSHES statistics, but didn't remove the
+corresponding entry in vmstat_text. This causes an out-of-bounds access in
+vmstat_show().
 
-Nice. Looks like the 0day test bot indeed found another mismatch:
+Luckily this only affects kernels with CONFIG_DEBUG_VM_VMACACHE=y, which is
+probably very rare.
 
-#ifdef CONFIG_DEBUG_TLBFLUSH
-#ifdef CONFIG_SMP
-       "nr_tlb_remote_flush",
-       "nr_tlb_remote_flush_received",
-#endif /* CONFIG_SMP */
-       "nr_tlb_local_flush_all",
-       "nr_tlb_local_flush_one",
-#endif /* CONFIG_DEBUG_TLBFLUSH */
+Fixes: 7a9cdebdcc17 ("mm: get rid of vmacache_flush_all() entirely")
+Cc: stable@vger.kernel.org
+Signed-off-by: Jann Horn <jannh@google.com>
+---
+ mm/vmstat.c | 1 -
+ 1 file changed, 1 deletion(-)
 
-vs
-
-#ifdef CONFIG_DEBUG_TLBFLUSH
-               NR_TLB_REMOTE_FLUSH,    /* cpu tried to flush others' tlbs */
-               NR_TLB_REMOTE_FLUSH_RECEIVED,/* cpu received ipi for flush */
-               NR_TLB_LOCAL_FLUSH_ALL,
-               NR_TLB_LOCAL_FLUSH_ONE,
-#endif /* CONFIG_DEBUG_TLBFLUSH */
-
-So if you build with CONFIG_VM_EVENT_COUNTERS=y &&
-CONFIG_DEBUG_TLBFLUSH=y && CONFIG_SMP=n, vmstat output is bogus.
-
-I like having my decisions to add asserts immediately validated by the
-0day test bot. ^^
-
-I'll send a v2 with that fixed up.
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 8ba0870ecddd..4cea7b8f519d 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1283,7 +1283,6 @@ const char * const vmstat_text[] = {
+ #ifdef CONFIG_DEBUG_VM_VMACACHE
+ 	"vmacache_find_calls",
+ 	"vmacache_find_hits",
+-	"vmacache_full_flushes",
+ #endif
+ #ifdef CONFIG_SWAP
+ 	"swap_ra",
+-- 
+2.19.0.605.g01d371f741-goog
