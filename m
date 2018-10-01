@@ -1,58 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B8736B000C
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 16:37:44 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id z20-v6so14770876ioh.2
-        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 13:37:44 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 196-v6sor7315634itl.137.2018.10.01.13.37.42
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A70156B000E
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 16:39:02 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id i20-v6so3105460ioh.4
+        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 13:39:02 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y191-v6sor6973073itb.19.2018.10.01.13.39.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 01 Oct 2018 13:37:43 -0700 (PDT)
+        Mon, 01 Oct 2018 13:39:01 -0700 (PDT)
 MIME-Version: 1.0
 References: <20180927194601.207765-1-wonderfly@google.com> <20181001152324.72a20bea@gandalf.local.home>
-In-Reply-To: <20181001152324.72a20bea@gandalf.local.home>
+ <20181001201309.GA9835@amd> <85b9ab27-ec57-647b-4c92-1afb9b595a2a@suse.cz>
+In-Reply-To: <85b9ab27-ec57-647b-4c92-1afb9b595a2a@suse.cz>
 From: Daniel Wang <wonderfly@google.com>
-Date: Mon, 1 Oct 2018 13:37:30 -0700
-Message-ID: <CAJmjG29Jwn_1E5zexcm8eXTG=cTWyEr1gjSfSAS2fueB_V0tfg@mail.gmail.com>
+Date: Mon, 1 Oct 2018 13:38:49 -0700
+Message-ID: <CAJmjG29JTboAWTzyEiix-aA-2NvkwAOEygKAwq3pB18RO+Etfg@mail.gmail.com>
 Subject: Re: 4.14 backport request for dbdda842fe96f: "printk: Add console
  owner and waiter logic to load balance console writes"
 Content-Type: multipart/signed; protocol="application/pkcs7-signature"; micalg=sha-256;
-	boundary="000000000000eaa109057730c633"
+	boundary="0000000000009a846a057730cbca"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rostedt@goodmis.org
-Cc: stable@vger.kernel.org, pmladek@suse.com, Alexander.Levin@microsoft.com, akpm@linux-foundation.org, byungchul.park@lge.com, dave.hansen@intel.com, hannes@cmpxchg.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mathieu.desnoyers@efficios.com, mgorman@suse.de, mhocko@kernel.org, pavel@ucw.cz, penguin-kernel@i-love.sakura.ne.jp, peterz@infradead.org, tj@kernel.org, torvalds@linux-foundation.org, vbabka@suse.cz, xiyou.wangcong@gmail.com, Peter Feiner <pfeiner@google.com>
+To: vbabka@suse.cz
+Cc: pavel@ucw.cz, rostedt@goodmis.org, stable@vger.kernel.org, pmladek@suse.com, Alexander.Levin@microsoft.com, akpm@linux-foundation.org, byungchul.park@lge.com, dave.hansen@intel.com, hannes@cmpxchg.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mathieu.desnoyers@efficios.com, mgorman@suse.de, mhocko@kernel.org, penguin-kernel@i-love.sakura.ne.jp, peterz@infradead.org, tj@kernel.org, torvalds@linux-foundation.org, xiyou.wangcong@gmail.com, Peter Feiner <pfeiner@google.com>
 
---000000000000eaa109057730c633
+--0000000000009a846a057730cbca
 Content-Type: text/plain; charset="UTF-8"
 
-On Mon, Oct 1, 2018 at 12:23 PM Steven Rostedt <rostedt@goodmis.org> wrote:
+On Mon, Oct 1, 2018 at 1:23 PM Vlastimil Babka <vbabka@suse.cz> wrote:
 >
-> > Serial console logs leading up to the deadlock. As can be seen the stack trace
-> > was incomplete because the printing path hit a timeout.
+> On 10/1/18 10:13 PM, Pavel Machek wrote:
+> >
+> > Dunno. Is the patch perhaps a bit too complex? This is not exactly
+> > trivial bugfix.
+> >
+> > pavel@duo:/data/l/clean-cg$ git show dbdda842fe96f | diffstat
+> >  printk.c |  108
+> >  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+> >
+> > I see that it is pretty critical to Daniel, but maybe kernel with
+> > console locking redone should no longer be called 4.4?
 >
-> I'm fine with having this backported.
+> In that case it probably should no longer be called 4.4 since at least
+> Meltdown/Spectre fixes :)
 
-Thanks. I can send the cherrypicks your way. Do you recommend that I
-include the three follow-up fixes though?
-
-c14376de3a1b printk: Wake klogd when passing console_lock owner
-fd5f7cde1b85 printk: Never set console_may_schedule in console_trylock()
-c162d5b4338d printk: Hide console waiter logic into helpers
-dbdda842fe96 printk: Add console owner and waiter logic to load
-balance console writes
+To clarify, I am requesting a backport to 4.14. This bug doesn't repro on 4.4.
 
 >
-> -- Steve
-
 
 
 -- 
 Best,
 Daniel
 
---000000000000eaa109057730c633
+--0000000000009a846a057730cbca
 Content-Type: application/pkcs7-signature; name="smime.p7s"
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="smime.p7s"
@@ -134,14 +136,14 @@ GIWfW2K2CeBWRj0OI1P6XUm+unjVNzVz6fE9J91Xf13NxK9Pc647cBIP4eiHNVa7ErprHQoDevx+
 OHFHle2OOiJZoAqFNvKbQSuWBg+Obv3CjPLZ7lwdB9VBg3F5qEaD+BsyHwj+kMinP7wCI+mIc1nU
 PcdI0z7gBtGEit9qr9qcJrdKjDlTMYICXjCCAloCAQEwXDBMMQswCQYDVQQGEwJCRTEZMBcGA1UE
 ChMQR2xvYmFsU2lnbiBudi1zYTEiMCAGA1UEAxMZR2xvYmFsU2lnbiBIViBTL01JTUUgQ0EgMQIM
-TmnftMpllv264rvDMA0GCWCGSAFlAwQCAQUAoIHUMC8GCSqGSIb3DQEJBDEiBCASaJD8wBwmm/kH
-SCnZ8kxliQ+dqgcx9/K4lriZCzPrcDAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3
-DQEJBTEPFw0xODEwMDEyMDM3NDJaMGkGCSqGSIb3DQEJDzFcMFowCwYJYIZIAWUDBAEqMAsGCWCG
+TmnftMpllv264rvDMA0GCWCGSAFlAwQCAQUAoIHUMC8GCSqGSIb3DQEJBDEiBCCfqu8o1ICb3sEr
+i4FU9IruXUl72sluxD9A7BIwgwLaiTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3
+DQEJBTEPFw0xODEwMDEyMDM5MDFaMGkGCSqGSIb3DQEJDzFcMFowCwYJYIZIAWUDBAEqMAsGCWCG
 SAFlAwQBFjALBglghkgBZQMEAQIwCgYIKoZIhvcNAwcwCwYJKoZIhvcNAQEKMAsGCSqGSIb3DQEB
-BzALBglghkgBZQMEAgEwDQYJKoZIhvcNAQEBBQAEggEAERCbBER3ftiovAxmuwJfWapqwS27oDqy
-KRWtUERmf53z2wkvp17xgaYH6s3Ai0ht/1YK63Qqop+Q8bmtM4PtLVQ4UMYOHrneUlZGFNPD/cvU
-JaOQdsdP0qzg5QDQKnScIIR1dloqdLgcNmkXyqJsxa796YwMu8RBwDhvGgWuUss39krH6AMprf8Z
-O1MHj/6uRW30bdas9iYxevTrblHLt1/nOvrAPYIwSoOEEktglAFxU7TIiAhg2Tg0gAB7s6NrADfB
-V1Lj4975s7+Z0k1v7yRTpgMRvXoKdhqQRf/rSJsKhC00+iR0+o1TUy60E6eN+BMaaPl3F2AkmbcC
-9ZASpQ==
---000000000000eaa109057730c633--
+BzALBglghkgBZQMEAgEwDQYJKoZIhvcNAQEBBQAEggEADhW7o2Y24WtGP/4MXpvljXpr6vRnerNy
+RMv3INLuFmqYgyuQSYoxp5uwwlsBhUncuSnw7DP9NSrW0hJJ84zOU0KLhF8C/bU79ftqUDh81lEN
+wSR/0ODGKtKwkpYlrOseMlgT3N3LJiTdXAY8bWsHjEX/PNzR/zrkoIp03NM+ZU2Lo+8MeEHqGjV3
+I26bNJG9FW8wpXZ2l6yODuc+X3saps9R9I1XRFz0xQ3ow04FNlUnYcvUCdi5yHBhFS1oQOPooQC4
+aVfbnW2K07CilzSFS/cWgicsK0EDYJpvPDDZwi6m6Qj80pnQTDOMXELzCUhaDGU1zVa9RB+kWEWY
+bi1VbA==
+--0000000000009a846a057730cbca--
