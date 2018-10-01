@@ -1,48 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 214D86B0008
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 11:31:05 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id s5-v6so14015448iop.3
-        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 08:31:05 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a28-v6sor3797117jab.38.2018.10.01.08.31.03
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B88A6B000C
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 11:39:45 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id a26-v6so9067058qtb.22
+        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 08:39:45 -0700 (PDT)
+Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
+        by mx.google.com with ESMTPS id d1-v6si40954qtl.321.2018.10.01.08.39.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 01 Oct 2018 08:31:03 -0700 (PDT)
-Date: Mon, 1 Oct 2018 09:31:01 -0600
-From: Jason Gunthorpe <jgg@ziepe.ca>
-Subject: Re: [PATCH 0/4] get_user_pages*() and RDMA: first steps
-Message-ID: <20181001153101.GA23286@ziepe.ca>
-References: <20180928053949.5381-1-jhubbard@nvidia.com>
- <20180928152958.GA3321@redhat.com>
- <4c884529-e2ff-3808-9763-eb0e71f5a616@nvidia.com>
- <20180928214934.GA3265@redhat.com>
- <dfa6aaef-b97e-ebd4-6cc8-c907a7b3f9bb@nvidia.com>
- <20180929084608.GA3188@redhat.com>
- <20181001061127.GQ31060@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181001061127.GQ31060@dastard>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Oct 2018 08:39:43 -0700 (PDT)
+Message-ID: <a43fc0dcf83c077b1df08ba0e9aaa9c9bf65d5a3.camel@surriel.com>
+Subject: Re: [PATCH 1/2] mm, numa: Remove rate-limiting of automatic numa
+ balancing migration
+From: Rik van Riel <riel@surriel.com>
+Date: Mon, 01 Oct 2018 11:39:38 -0400
+In-Reply-To: <20181001100525.29789-2-mgorman@techsingularity.net>
+References: <20181001100525.29789-1-mgorman@techsingularity.net>
+	 <20181001100525.29789-2-mgorman@techsingularity.net>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-b8SOSbGpPkVSzD2HHy3s"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Christian Benvenuti <benve@cisco.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>
+To: Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@kernel.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Jirka Hladky <jhladky@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Mon, Oct 01, 2018 at 04:11:27PM +1000, Dave Chinner wrote:
 
-> This reminds me so much of Linux mmap() in the mid-2000s - mmap()
-> worked for ext3 without being aware of page faults, so most mm/
-> developers at the time were of the opinion that all the other
-> filesystems should work just fine without being aware of page
-> faults.
+--=-b8SOSbGpPkVSzD2HHy3s
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-This is probably because RDMA was introduced around that time, before
-page_mkwrite was added.. It kind of sounds like page_mkwrite() broke
-all the writing get_user_pages users and it wasn't realized at the
-time.
+On Mon, 2018-10-01 at 11:05 +0100, Mel Gorman wrote:
+>=20
+> STREAM on 2-socket machine
+>                          4.19.0-rc5             4.19.0-rc5
+>                          numab-v1r1       noratelimit-v1r1
+> MB/sec copy     43298.52 (   0.00%)    44673.38 (   3.18%)
+> MB/sec scale    30115.06 (   0.00%)    31293.06 (   3.91%)
+> MB/sec add      32825.12 (   0.00%)    34883.62 (   6.27%)
+> MB/sec triad    32549.52 (   0.00%)    34906.60 (   7.24%
+>=20
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-BTW, we are hosting a session on this at Plumbers during the RDMA
-track, hope everyone interested will be able to attend.
+Reviewed-by: Rik van Riel <riel@surriel.com>
 
-Jason
+--=20
+All Rights Reversed.
+
+--=-b8SOSbGpPkVSzD2HHy3s
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAluyP7oACgkQznnekoTE
+3oOQvwgAl8N5coXoRiC8EPbZWHxKYiA95wq1lkYJ0lE18HgqQ70Oq3j84qPjN503
+v5tb8xHk0+BJxwTQzWRWo/9MLhHlBwIgoJHKS+k9kCm7KJxps/ntExCC0FDbmRs+
+4rrfj/ReNyyJjZEfNeapZKgWf33MXIoO/DXr6a7+GWeAOHkanyzlGxAqDMalelk+
+8OdgviZ2Ib7aNOS/gyrJ2WBmiVrcPJhikMzC+X4iaKSt6ZAYdrlSvKyHPHUyqUSM
+DhomgmtpUKDqjbRhXYqPlztYERITI1EwtHdrzZpFQaTA9/r+3khxE+I6un4mPsZp
+/5xh5t3mt28fBawHL7fgeHuxUsM1vQ==
+=OgZv
+-----END PGP SIGNATURE-----
+
+--=-b8SOSbGpPkVSzD2HHy3s--
