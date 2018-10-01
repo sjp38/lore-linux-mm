@@ -1,57 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 39F146B0266
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 16:40:27 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id y23-v6so1920838qtc.7
-        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 13:40:27 -0700 (PDT)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0132.outbound.protection.outlook.com. [104.47.38.132])
-        by mx.google.com with ESMTPS id 24-v6si2547677qvd.223.2018.10.01.13.40.26
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 857516B0003
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 17:38:33 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id y86-v6so12226060pff.6
+        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 14:38:33 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id f62-v6si14059200pfb.218.2018.10.01.14.38.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 01 Oct 2018 13:40:26 -0700 (PDT)
-From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: Re: 4.14 backport request for dbdda842fe96f: "printk: Add console
- owner and waiter logic to load balance console writes"
-Date: Mon, 1 Oct 2018 20:40:24 +0000
-Message-ID: <20181001204022.GE69414@sasha-vm>
-References: <20180927194601.207765-1-wonderfly@google.com>
- <20181001152324.72a20bea@gandalf.local.home>
- <CAJmjG29Jwn_1E5zexcm8eXTG=cTWyEr1gjSfSAS2fueB_V0tfg@mail.gmail.com>
-In-Reply-To: 
- <CAJmjG29Jwn_1E5zexcm8eXTG=cTWyEr1gjSfSAS2fueB_V0tfg@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <748043772AB90F488DD1B400A54E69CC@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Oct 2018 14:38:31 -0700 (PDT)
+From: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Subject: [PATCH v7 0/4] KASLR feature to randomize each loadable module
+Date: Mon,  1 Oct 2018 14:38:43 -0700
+Message-Id: <1538429927-17834-1-git-send-email-rick.p.edgecombe@intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Wang <wonderfly@google.com>
-Cc: "rostedt@goodmis.org" <rostedt@goodmis.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "pmladek@suse.com" <pmladek@suse.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "byungchul.park@lge.com" <byungchul.park@lge.com>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "jack@suse.cz" <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mathieu.desnoyers@efficios.com" <mathieu.desnoyers@efficios.com>, "mgorman@suse.de" <mgorman@suse.de>, "mhocko@kernel.org" <mhocko@kernel.org>, "pavel@ucw.cz" <pavel@ucw.cz>, "penguin-kernel@i-love.sakura.ne.jp" <penguin-kernel@i-love.sakura.ne.jp>, "peterz@infradead.org" <peterz@infradead.org>, "tj@kernel.org" <tj@kernel.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "xiyou.wangcong@gmail.com" <xiyou.wangcong@gmail.com>, Peter Feiner <pfeiner@google.com>
+To: akpm@linux-foundation.org, willy@infradead.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, daniel@iogearbox.net, jannh@google.com, keescook@chromium.org
+Cc: kristen@linux.intel.com, dave.hansen@intel.com, arjan@linux.intel.com, Rick Edgecombe <rick.p.edgecombe@intel.com>
 
-On Mon, Oct 01, 2018 at 01:37:30PM -0700, Daniel Wang wrote:
->On Mon, Oct 1, 2018 at 12:23 PM Steven Rostedt <rostedt@goodmis.org> wrote=
-:
->>
->> > Serial console logs leading up to the deadlock. As can be seen the sta=
-ck trace
->> > was incomplete because the printing path hit a timeout.
->>
->> I'm fine with having this backported.
->
->Thanks. I can send the cherrypicks your way. Do you recommend that I
->include the three follow-up fixes though?
->
->c14376de3a1b printk: Wake klogd when passing console_lock owner
->fd5f7cde1b85 printk: Never set console_may_schedule in console_trylock()
->c162d5b4338d printk: Hide console waiter logic into helpers
->dbdda842fe96 printk: Add console owner and waiter logic to load
->balance console writes
+This is V7 of the "KASLR feature to randomize each loadable module" patchset.
+The purpose is to increase the randomization and also to make the modules
+randomized in relation to each other instead of just the base, so that if one
+module leaks the location of the others can't be inferred.
 
-Maybe it'll also make sense to make the reproducer into a test that can
-go under tools/testing/ and we can backport that as well? It'll be
-helpful to have a way to make sure things are sane.
+This new version is some more 0-day build fixes, trying to improve the
+readability and minimize IFDEFs.
 
---
-Thanks,
-Sasha=
+On cleaning up the kaslr_enabled() weirdness, it turned out there were quite a
+few conflicts depending on where I put the config helpers. I tried modules.h,
+and kaslr.h, but this caused a bunch of conflicts related to PAGE_* macros being
+defined in multiple places, and extern variables being named the same. In the
+end I just created a new file called kaslr_modules.h.
+
+
+Changes for V7:
+ - More 0-day build fixes, readability improvements (Kees Cook)
+
+Changes for V6:
+ - 0-day build fixes by removing un-needed functional testing, more error
+   handling
+
+Changes for V5:
+ - Add module_alloc test module
+
+Changes for V4:
+ - Fix issue caused by KASAN, kmemleak being provided different allocation
+   lengths (padding).
+ - Avoid kmalloc until sure its needed in __vmalloc_node_try_addr.
+ - Fixed issues reported by 0-day.
+
+Changes for V3:
+ - Code cleanup based on internal feedback. (thanks to Dave Hansen and Andriy
+   Shevchenko)
+ - Slight refactor of existing algorithm to more cleanly live along side new
+   one.
+ - BPF synthetic benchmark
+
+Changes for V2:
+ - New implementation of __vmalloc_node_try_addr based on the
+   __vmalloc_node_range implementation, that only flushes TLB when needed.
+ - Modified module loading algorithm to try to reduce the TLB flushes further.
+ - Increase "random area" tries in order to increase the number of modules that
+   can get high randomness.
+ - Increase "random area" size to 2/3 of module area in order to increase the
+   number of modules that can get high randomness.
+ - Fix for 0day failures on other architectures.
+ - Fix for wrong debugfs permissions. (thanks to Jann Horn)
+ - Spelling fix. (thanks to Jann Horn)
+ - Data on module_alloc performance and TLB flushes. (brought up by Kees Cook
+   and Jann Horn)
+ - Data on memory usage. (suggested by Jann)
+
+
+Rick Edgecombe (4):
+  vmalloc: Add __vmalloc_node_try_addr function
+  x86/modules: Increase randomization for modules
+  vmalloc: Add debugfs modfraginfo
+  Kselftest for module text allocation benchmarking
+
+ arch/x86/Kconfig                              |   3 +
+ arch/x86/include/asm/kaslr_modules.h          |  38 +++
+ arch/x86/include/asm/pgtable_64_types.h       |   7 +
+ arch/x86/kernel/module.c                      | 139 ++++++++--
+ include/linux/vmalloc.h                       |   3 +
+ lib/Kconfig.debug                             |  10 +
+ lib/Makefile                                  |   1 +
+ lib/test_mod_alloc.c                          | 354 ++++++++++++++++++++++++++
+ mm/vmalloc.c                                  | 275 +++++++++++++++++++-
+ tools/testing/selftests/bpf/test_mod_alloc.sh |  29 +++
+ 10 files changed, 834 insertions(+), 25 deletions(-)
+ create mode 100644 arch/x86/include/asm/kaslr_modules.h
+ create mode 100644 lib/test_mod_alloc.c
+ create mode 100755 tools/testing/selftests/bpf/test_mod_alloc.sh
+
+-- 
+2.7.4
