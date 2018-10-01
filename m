@@ -1,127 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 558956B0003
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 05:34:42 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id d1-v6so13219607qth.21
-        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 02:34:42 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h13-v6si510473qkg.356.2018.10.01.02.34.41
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6445B6B0006
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 05:45:16 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id 203-v6so8283625ybf.19
+        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 02:45:16 -0700 (PDT)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id x8-v6si3016575ybg.584.2018.10.01.02.45.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Oct 2018 02:34:41 -0700 (PDT)
-Subject: Re: [PATCH RFC] mm/memory_hotplug: Introduce memory block types
-References: <20180928150357.12942-1-david@redhat.com>
- <20181001084038.GD18290@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <d54a8509-725f-f771-72f0-15a9d93e8a49@redhat.com>
-Date: Mon, 1 Oct 2018 11:34:25 +0200
+        Mon, 01 Oct 2018 02:45:15 -0700 (PDT)
+From: Ashish Mhetre <amhetre@nvidia.com>
+Subject: [PATCH] mm: Avoid swapping in interrupt context
+Date: Mon, 1 Oct 2018 15:15:15 +0530
+Message-ID: <1538387115-2363-1-git-send-email-amhetre@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <20181001084038.GD18290@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, linux-acpi@vger.kernel.org, linux-sh@vger.kernel.org, linux-s390@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, Stephen Hemminger <sthemmin@microsoft.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nicholas Piggin <npiggin@gmail.com>, =?UTF-8?Q?Jonathan_Neusch=c3=a4fer?= <j.neuschaefer@gmx.net>, Joe Perches <joe@perches.com>, Michael Neuling <mikey@neuling.org>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Rashmica Gupta <rashmica.g@gmail.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Rob Herring <robh@kernel.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, "mike.travis@hpe.com" <mike.travis@hpe.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Oscar Salvador <osalvador@suse.de>, Mathieu Malaterre <malat@debian.org>
+To: linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: vdumpa@nvidia.com, Snikam@nvidia.com, Sri Krishna chowdary <schowdary@nvidia.com>, Ashish Mhetre <amhetre@nvidia.com>
 
-On 01/10/2018 10:40, Michal Hocko wrote:
-> On Fri 28-09-18 17:03:57, David Hildenbrand wrote:
-> [...]
-> 
-> I haven't read the patch itself but I just wanted to note one thing
-> about this part
-> 
->> For paravirtualized devices it is relevant that memory is onlined as
->> quickly as possible after adding - and that it is added to the NORMAL
->> zone. Otherwise, it could happen that too much memory in a row is added
->> (but not onlined), resulting in out-of-memory conditions due to the
->> additional memory for "struct pages" and friends. MOVABLE zone as well
->> as delays might be very problematic and lead to crashes (e.g. zone
->> imbalance).
-> 
-> I have proposed (but haven't finished this due to other stuff) a
-> solution for this. Newly added memory can host memmaps itself and then
-> you do not have the problem in the first place. For vmemmap it would
-> have an advantage that you do not really have to beg for 2MB pages to
-> back the whole section but you would get it for free because the initial
-> part of the section is by definition properly aligned and unused.
+From: Sri Krishna chowdary <schowdary@nvidia.com>
 
-So the plan is to "host metadata for new memory on the memory itself".
-Just want to note that this is basically impossible for s390x with the
-current mechanisms. (added memory is dead, until onlining notifies the
-hypervisor and memory is allocated). It will also be problematic for
-paravirtualized memory devices (e.g. XEN's "not backed by the
-hypervisor" hacks).
+Pages can be swapped out from interrupt context as well.
+ZRAM uses zsmalloc allocator to make room for these pages.
+But zsmalloc is not made to be used from interrupt context.
+This can result in a kernel Oops.
 
-This would only be possible for memory DIMMs, memory that is completely
-accessible as far as I can see. Or at least, some specified "first part"
-is accessible.
+Signed-off-by: Sri Krishna chowdary <schowdary@nvidia.com>
+Signed-off-by: Ashish Mhetre <amhetre@nvidia.com>
+---
+ mm/vmscan.c | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
 
-Other problems are other metadata like extended struct pages and friends.
-
-(I really like the idea of adding memory without allocating memory in
-the hypervisor in the first place, please keep me tuned).
-
-And please note: This solves some problematic part ("adding too much
-memory to the movable zone or not onlining it"), but not the issue of
-zone imbalance in the first place. And not one issue I try to tackle
-here: don't add paravirtualized memory to the movable zone.
-
-> 
-> I yet have to think about the whole proposal but I am missing the most
-> important part. _Who_ is going to use the new exported information and
-> for what purpose. You said that distributions have hard time to
-> distinguish different types of onlinining policies but isn't this
-> something that is inherently usecase specific?
-> 
-
-Let's think about a distribution. We have a clash of use cases here
-(just what you describe). What I propose solves one part of it ("handle
-what you know how to handle right in the kernel").
-
-1. Users of DIMMs usually expect that they can be unplugged again. That
-is why you want to control how to online memory in user space (== add it
-to the movable zone).
-
-2. Users of standby memory (s390) expect that memory will never be
-onlined automatically. It will be onlined manually.
-
-3. Users of paravirtualized devices (esp. Hyper-V) don't care about
-memory unplug in the sense of MOVABLE at all. They (or Hyper-V!) will
-add a whole bunch of memory and expect that everything works fine. So
-that memory is onlined immediately and that memory is added to the
-NORMAL zone. Users never want the MOVABLE zone.
-
-1. is a reason why distributions usually don't configure
-"MEMORY_HOTPLUG_DEFAULT_ONLINE", because you really want the option for
-MOVABLE zone. That however implies, that e.g. for x86, you have to
-handle all new memory in user space, especially also HyperV memory.
-There, you then have to check for things like "isHyperV()" to decide
-"oh, yes, this should definitely not go to the MOVABLE zone".
-
-As you know, I am working on virtio-mem, which can basically be combined
-with 1 or 2. And user space has no idea about the difference between
-added memory blocks. Was it memory from a DIMM (== ZONE_MOVABLE)? Was it
-memory from a paravirtualized device (== ZONE_NORMAL)? Was it standby
-memory? (don't online)
-
-
-That part, I try to solve with this interface.
-
-To answer your question: User space will only care about "normal" memory
-and then decide how to online it (for now, usually MOVABLE, because
-that's what customers expect with DIMMs). The use case of DIMMS, we
-don't know and therefore we can't expose. The use case of the other
-cases, we know exactly already in the kernel.
-
-Existing user space hacks will continue to work but can be replaces by a
-new check against "normal" memory block types.
-
-Thanks for looking into this!
-
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 0b63d9a..d9d36a5 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -365,6 +365,16 @@ unsigned long lruvec_lru_size(struct lruvec *lruvec, enum lru_list lru, int zone
+ 
+ }
+ 
++/* If zram is being used as swap, and zram is using zsmalloc allocator
++ * then there is a potential bug when reclaim happens from interrupt
++ * context
++ */
++static void adjust_scan_control(struct scan_control *sc)
++{
++	if (in_interrupt() && IS_ENABLED(ZSMALLOC) && total_swap_pages)
++		sc->may_swap = 0;
++}
++
+ /*
+  * Add a shrinker callback to be called from the vm.
+  */
+@@ -1519,6 +1529,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+ 	unsigned long ret;
+ 	struct page *page, *next;
+ 	LIST_HEAD(clean_pages);
++	adjust_scan_control(&sc);
+ 
+ 	list_for_each_entry_safe(page, next, page_list, lru) {
+ 		if (page_is_file_cache(page) && !PageDirty(page) &&
+@@ -3232,6 +3243,8 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 		.may_swap = 1,
+ 	};
+ 
++	adjust_scan_control(&sc);
++
+ 	/*
+ 	 * scan_control uses s8 fields for order, priority, and reclaim_idx.
+ 	 * Confirm they are large enough for max values.
+@@ -3277,6 +3290,8 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
+ 	};
+ 	unsigned long lru_pages;
+ 
++	adjust_scan_control(&sc);
++
+ 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+ 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+ 
+@@ -3322,6 +3337,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 		.may_swap = may_swap,
+ 	};
+ 
++	adjust_scan_control(&sc);
+ 	/*
+ 	 * Unlike direct reclaim via alloc_pages(), memcg's reclaim doesn't
+ 	 * take care of from where we get pages. So the node where we start the
+@@ -3518,6 +3534,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ 		.may_swap = 1,
+ 	};
+ 
++	adjust_scan_control(&sc);
+ 	psi_memstall_enter(&pflags);
+ 	__fs_reclaim_acquire();
+ 
+@@ -3891,6 +3908,7 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+ 	unsigned long nr_reclaimed;
+ 	unsigned int noreclaim_flag;
+ 
++	adjust_scan_control(&sc);
+ 	fs_reclaim_acquire(sc.gfp_mask);
+ 	noreclaim_flag = memalloc_noreclaim_save();
+ 	reclaim_state.reclaimed_slab = 0;
+@@ -4076,6 +4094,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 		.reclaim_idx = gfp_zone(gfp_mask),
+ 	};
+ 
++	adjust_scan_control(&sc);
+ 	cond_resched();
+ 	fs_reclaim_acquire(sc.gfp_mask);
+ 	/*
 -- 
+2.1.4
 
-Thanks,
 
-David / dhildenb
+-----------------------------------------------------------------------------------
+This email message is for the sole use of the intended recipient(s) and may contain
+confidential information.  Any unauthorized review, use, disclosure or distribution
+is prohibited.  If you are not the intended recipient, please contact the sender by
+reply email and destroy all copies of the original message.
+-----------------------------------------------------------------------------------
