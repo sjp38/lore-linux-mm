@@ -1,195 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CCAE96B0003
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 01:23:04 -0400 (EDT)
-Received: by mail-it1-f198.google.com with SMTP id y142-v6so6111994itb.7
-        for <linux-mm@kvack.org>; Sun, 30 Sep 2018 22:23:04 -0700 (PDT)
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id n11-v6sor3957297ita.85.2018.09.30.22.23.03
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 30 Sep 2018 22:23:03 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EB3516B0003
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 02:11:32 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 87-v6so5189672pfq.8
+        for <linux-mm@kvack.org>; Sun, 30 Sep 2018 23:11:32 -0700 (PDT)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id g66-v6si11900585pfk.53.2018.09.30.23.11.30
+        for <linux-mm@kvack.org>;
+        Sun, 30 Sep 2018 23:11:31 -0700 (PDT)
+Date: Mon, 1 Oct 2018 16:11:27 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 0/4] get_user_pages*() and RDMA: first steps
+Message-ID: <20181001061127.GQ31060@dastard>
+References: <20180928053949.5381-1-jhubbard@nvidia.com>
+ <20180928152958.GA3321@redhat.com>
+ <4c884529-e2ff-3808-9763-eb0e71f5a616@nvidia.com>
+ <20180928214934.GA3265@redhat.com>
+ <dfa6aaef-b97e-ebd4-6cc8-c907a7b3f9bb@nvidia.com>
+ <20180929084608.GA3188@redhat.com>
 MIME-Version: 1.0
-Date: Sun, 30 Sep 2018 22:23:03 -0700
-In-Reply-To: <000000000000f7a28e057653dc6e@google.com>
-Message-ID: <000000000000d2c6c3057723ffc5@google.com>
-Subject: Re: possible deadlock in __do_page_fault
-From: syzbot <syzbot+a76129f18c89f3e2ddd4@syzkaller.appspotmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180929084608.GA3188@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ak@linux.intel.com, akpm@linux-foundation.org, arve@android.com, dhowells@redhat.com, dvyukov@google.com, gregkh@linuxfoundation.org, hannes@cmpxchg.org, jack@suse.cz, jlayton@kernel.org, joel@joelfernandes.org, joelaf@google.com, jrdr.linux@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, maco@android.com, mawilcox@microsoft.com, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com, tkjos@android.com, tkjos@google.com
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Christian Benvenuti <benve@cisco.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>
 
-syzbot has found a reproducer for the following crash on:
+On Sat, Sep 29, 2018 at 04:46:09AM -0400, Jerome Glisse wrote:
+> On Fri, Sep 28, 2018 at 07:28:16PM -0700, John Hubbard wrote:
+> > On 9/28/18 2:49 PM, Jerome Glisse wrote:
+> > > On Fri, Sep 28, 2018 at 12:06:12PM -0700, John Hubbard wrote:
+> > >> use a non-CPU device to read and write to "pinned" memory, especially when
+> > >> that memory is backed by a file system.
 
-HEAD commit:    17b57b1883c1 Linux 4.19-rc6
-git tree:       upstream
-console output: https://syzkaller.appspot.com/x/log.txt?x=17920a7e400000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=c0af03fe452b65fb
-dashboard link: https://syzkaller.appspot.com/bug?extid=a76129f18c89f3e2ddd4
-compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
-syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=160c0f11400000
-C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=1788de81400000
+"backed by a filesystem" is the biggest problem here.
 
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+a76129f18c89f3e2ddd4@syzkaller.appspotmail.com
+> > >> I recall there were objections to just narrowly fixing the set_page_dirty()
+> > >> bug, because the underlying problem is large and serious. So here we are.
+> > > 
+> > > Except that you can not solve that issue without proper hardware. GPU are
+> > > fine. RDMA are broken except the mellanox5 hardware which can invalidate
+> > > at anytime its page table thus allowing to write protect the page at any
+> > > time.
+> > 
+> > Today, people are out there using RDMA without page-fault-capable hardware.
+> > And they are hitting problems, as we've seen. From the discussions so far,
+> > I don't think it's impossible to solve the problems, even for "lesser", 
+> > non-fault-capable hardware.
 
-audit: type=1800 audit(1538371187.479:30): pid=5202 uid=0 auid=4294967295  
-ses=4294967295 subj=_ op=collect_data cause=failed(directio)  
-comm="startpar" name="rmnologin" dev="sda1" ino=2423 res=0
+This reminds me so much of Linux mmap() in the mid-2000s - mmap()
+worked for ext3 without being aware of page faults, so most mm/
+developers at the time were of the opinion that all the other
+filesystems should work just fine without being aware of page
+faults.
 
-======================================================
-WARNING: possible circular locking dependency detected
-4.19.0-rc6+ #39 Not tainted
-------------------------------------------------------
-syz-executor559/5371 is trying to acquire lock:
-00000000e34677d1 (&mm->mmap_sem){++++}, at: __do_page_fault+0xb70/0xed0  
-arch/x86/mm/fault.c:1331
+But some loud-mouthed idiot at SGI kept complaining that mmap()
+could never be fixed for XFS without write fault notification
+because of delayed allocation, unwritten extents and ENOSPC had to
+be handled before mapped writes could be posted.  Eventually
+Christoph Lameter got ->page_mkwrite into the page fault path and
+the loud mouthed idiot finally got mmap() to work correctly on XFS:
 
-but task is already holding lock:
-00000000b0c242ca (&sb->s_type->i_mutex_key#11){+.+.}, at: inode_lock  
-include/linux/fs.h:738 [inline]
-00000000b0c242ca (&sb->s_type->i_mutex_key#11){+.+.}, at:  
-generic_file_write_iter+0xed/0x870 mm/filemap.c:3289
+commit 4f57dbc6b5bae5a3978d429f45ac597ca7a3b8c6
+Author: David Chinner <dgc@sgi.com>
+Date:   Thu Jul 19 16:28:17 2007 +1000
 
-which lock already depends on the new lock.
+    [XFS] Implement ->page_mkwrite in XFS.
+    
+    Hook XFS up to ->page_mkwrite to ensure that we know about mmap pages
+    being written to. This allows use to do correct delayed allocation and
+    ENOSPC checking as well as remap unwritten extents so that they get
+    converted correctly during writeback. This is done via the generic
+    block_page_mkwrite code.
+    
+    SGI-PV: 940392
+    SGI-Modid: xfs-linux-melb:xfs-kern:29149a
+    
+    Signed-off-by: David Chinner <dgc@sgi.com>
+    Signed-off-by: Christoph Hellwig <hch@infradead.org>
+    Signed-off-by: Tim Shimmin <tes@sgi.com>
 
+Nowdays, ->page_mkwrite is fundamental filesystem functionality -
+copy-on-write filesystems like btrfs simply don't work if they can't
+trigger COW on mapped write accesses. These days all the main linux
+filesystems depend on write fault notifications in some way or
+another for correct operation.
 
-the existing dependency chain (in reverse order) is:
+The way RDMA uses GUP to take references to file backed pages to
+'stop them going away' is reminiscent of mmap() back before
+->page_mkwrite(). i.e. it assumes that an initial read of the page
+will populate the page state correctly for all future operations,
+including set_page_dirty() after write accesses.
 
--> #2 (&sb->s_type->i_mutex_key#11){+.+.}:
-        down_write+0x8a/0x130 kernel/locking/rwsem.c:70
-        inode_lock include/linux/fs.h:738 [inline]
-        shmem_fallocate+0x18b/0x12c0 mm/shmem.c:2651
-        ashmem_shrink_scan+0x238/0x660 drivers/staging/android/ashmem.c:455
-        ashmem_ioctl+0x3ae/0x13a0 drivers/staging/android/ashmem.c:797
-        vfs_ioctl fs/ioctl.c:46 [inline]
-        file_ioctl fs/ioctl.c:501 [inline]
-        do_vfs_ioctl+0x1de/0x1720 fs/ioctl.c:685
-        ksys_ioctl+0xa9/0xd0 fs/ioctl.c:702
-        __do_sys_ioctl fs/ioctl.c:709 [inline]
-        __se_sys_ioctl fs/ioctl.c:707 [inline]
-        __x64_sys_ioctl+0x73/0xb0 fs/ioctl.c:707
-        do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
-        entry_SYSCALL_64_after_hwframe+0x49/0xbe
+This is not a valid assumption - filesystems can have different
+private clean vs dirty page state, and may need to perform
+operations to take a page from clean to dirty.  Hence calling
+set_page_dirty() on a file backed mapped page without first having
+called ->page_mkwrite() is a bug.
 
--> #1 (ashmem_mutex){+.+.}:
-        __mutex_lock_common kernel/locking/mutex.c:925 [inline]
-        __mutex_lock+0x166/0x1700 kernel/locking/mutex.c:1072
-        mutex_lock_nested+0x16/0x20 kernel/locking/mutex.c:1087
-        ashmem_mmap+0x55/0x520 drivers/staging/android/ashmem.c:361
-        call_mmap include/linux/fs.h:1813 [inline]
-        mmap_region+0xe82/0x1cd0 mm/mmap.c:1762
-        do_mmap+0xa10/0x1220 mm/mmap.c:1535
-        do_mmap_pgoff include/linux/mm.h:2298 [inline]
-        vm_mmap_pgoff+0x213/0x2c0 mm/util.c:357
-        ksys_mmap_pgoff+0x4da/0x660 mm/mmap.c:1585
-        __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
-        __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
-        __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
-        do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
-        entry_SYSCALL_64_after_hwframe+0x49/0xbe
+RDMA does not call ->page_mkwrite on clean file backed pages before it
+writes to them and calls set_page_dirty(), and hence RDMA to file
+backed pages is completely unreliable. I'm not sure this can be
+solved without having page fault capable RDMA hardware....
 
--> #0 (&mm->mmap_sem){++++}:
-        lock_acquire+0x1ed/0x520 kernel/locking/lockdep.c:3900
-        down_read+0xb0/0x1d0 kernel/locking/rwsem.c:24
-        __do_page_fault+0xb70/0xed0 arch/x86/mm/fault.c:1331
-        do_page_fault+0xf2/0x7e0 arch/x86/mm/fault.c:1470
-        page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1161
-        fault_in_pages_readable include/linux/pagemap.h:609 [inline]
-        iov_iter_fault_in_readable+0x363/0x450 lib/iov_iter.c:421
-        generic_perform_write+0x216/0x6a0 mm/filemap.c:3129
-        __generic_file_write_iter+0x26e/0x630 mm/filemap.c:3264
-        generic_file_write_iter+0x436/0x870 mm/filemap.c:3292
-        call_write_iter include/linux/fs.h:1808 [inline]
-        new_sync_write fs/read_write.c:474 [inline]
-        __vfs_write+0x6b8/0x9f0 fs/read_write.c:487
-        vfs_write+0x1fc/0x560 fs/read_write.c:549
-        ksys_write+0x101/0x260 fs/read_write.c:598
-        __do_sys_write fs/read_write.c:610 [inline]
-        __se_sys_write fs/read_write.c:607 [inline]
-        __x64_sys_write+0x73/0xb0 fs/read_write.c:607
-        do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
-        entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> > > With the solution put forward here you can potentialy wait _forever_ for
+> > > the driver that holds a pin to drop it. This was the point i was trying to
+> > > get accross during LSF/MM. 
 
-other info that might help us debug this:
+Right, but pinning via GUP is not an option for file backed pages
+because the filesystem is completely unaware of these references.
+i.e. waiting forever isn't an issue here because the filesystem
+never waits on them. Instead, they are a filesystem corruption
+vector because the filesystem can invalidate those mappings and free
+the backing store while they are still in use by RDMA.
 
-Chain exists of:
-   &mm->mmap_sem --> ashmem_mutex --> &sb->s_type->i_mutex_key#11
+Hence for DAX filesystems, this leaves the RDMA app with direct
+access to the physical storage even though the filesystem has freed
+the space it is accessing. This is a use after free of the physical
+storage that the filesystem cannot control, and why DAX+RDMA is
+disabled right now.
 
-  Possible unsafe locking scenario:
+We could address these use-after-free situations via forcing RDMA to
+use file layout leases and revoke the lease when we need to modify
+the backing store on leased files. However, this doesn't solve the
+need for filesystems to receive write fault notifications via
+->page_mkwrite.
 
-        CPU0                    CPU1
-        ----                    ----
-   lock(&sb->s_type->i_mutex_key#11);
-                                lock(ashmem_mutex);
-                                lock(&sb->s_type->i_mutex_key#11);
-   lock(&mm->mmap_sem);
+Cheers,
 
-  *** DEADLOCK ***
-
-2 locks held by syz-executor559/5371:
-  #0: 0000000012b388bb (sb_writers#5){.+.+}, at: file_start_write  
-include/linux/fs.h:2759 [inline]
-  #0: 0000000012b388bb (sb_writers#5){.+.+}, at: vfs_write+0x42a/0x560  
-fs/read_write.c:548
-  #1: 00000000b0c242ca (&sb->s_type->i_mutex_key#11){+.+.}, at: inode_lock  
-include/linux/fs.h:738 [inline]
-  #1: 00000000b0c242ca (&sb->s_type->i_mutex_key#11){+.+.}, at:  
-generic_file_write_iter+0xed/0x870 mm/filemap.c:3289
-
-stack backtrace:
-CPU: 1 PID: 5371 Comm: syz-executor559 Not tainted 4.19.0-rc6+ #39
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x1c4/0x2b4 lib/dump_stack.c:113
-  print_circular_bug.isra.33.cold.54+0x1bd/0x27d  
-kernel/locking/lockdep.c:1221
-  check_prev_add kernel/locking/lockdep.c:1861 [inline]
-  check_prevs_add kernel/locking/lockdep.c:1974 [inline]
-  validate_chain kernel/locking/lockdep.c:2415 [inline]
-  __lock_acquire+0x33e4/0x4ec0 kernel/locking/lockdep.c:3411
-  lock_acquire+0x1ed/0x520 kernel/locking/lockdep.c:3900
-  down_read+0xb0/0x1d0 kernel/locking/rwsem.c:24
-  __do_page_fault+0xb70/0xed0 arch/x86/mm/fault.c:1331
-  do_page_fault+0xf2/0x7e0 arch/x86/mm/fault.c:1470
-  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1161
-RIP: 0010:fault_in_pages_readable include/linux/pagemap.h:609 [inline]
-RIP: 0010:iov_iter_fault_in_readable+0x363/0x450 lib/iov_iter.c:421
-Code: 00 31 ff 44 89 ee 88 55 98 e8 59 27 f4 fd 45 85 ed 74 c2 e9 7d fe ff  
-ff e8 3a 26 f4 fd 0f 1f 00 0f ae e8 48 8b 85 28 ff ff ff <8a> 00 0f 1f 00  
-31 ff 89 de 88 85 58 ff ff ff e8 29 27 f4 fd 85 db
-RSP: 0018:ffff8801bf4e77d0 EFLAGS: 00010293
-RAX: 000000002100053f RBX: 0000000000000000 RCX: ffffffff838a8de2
-RDX: 0000000000000000 RSI: ffffffff838a8f46 RDI: 0000000000000007
-RBP: ffff8801bf4e78a8 R08: ffff8801d81b24c0 R09: fffff94000da818e
-R10: fffff94000da818e R11: ffffea0006d40c77 R12: 0000000000000000
-R13: 0000000000001000 R14: 0000000000001000 R15: ffff8801bf4e7bc8
-  generic_perform_write+0x216/0x6a0 mm/filemap.c:3129
-  __generic_file_write_iter+0x26e/0x630 mm/filemap.c:3264
-  generic_file_write_iter+0x436/0x870 mm/filemap.c:3292
-  call_write_iter include/linux/fs.h:1808 [inline]
-  new_sync_write fs/read_write.c:474 [inline]
-  __vfs_write+0x6b8/0x9f0 fs/read_write.c:487
-  vfs_write+0x1fc/0x560 fs/read_write.c:549
-  ksys_write+0x101/0x260 fs/read_write.c:598
-  __do_sys_write fs/read_write.c:610 [inline]
-  __se_sys_write fs/read_write.c:607 [inline]
-  __x64_sys_write+0x73/0xb0 fs/read_write.c:607
-  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x446339
-Code: e8 2c b3 02 00 48 83 c4 18 c3 0f 1f 80 00 00 00 00 48 89 f8 48 89 f7  
-48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff  
-ff 0f 83 2b 09 fc ff c3 66 2e 0f 1f 84 00 00 00 00
-RSP: 002b:00007ff3053d5da8 EFLAGS: 00000293 ORIG_RAX: 0000000000000001
-RAX: ffffffffffffffda RBX: 00000000006dac28 RCX: 0000000000446339
-RDX: 00000000fffffda2 RSI: 0000000020000540 RDI: 0000000000000003
-RBP: 00000000006dac20 R08: 0000000000000000 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000293 R12: 00000000006dac2c
-R13: dfdd4f11168a8b2b R14: 6873612f7665642f R15: 00000000006dad2c
-kobject: 'regulatory.0' (000000004f5af2e3): kobject_uevent_env
-kobject: 'regulatory.0' (000000004f5af2e3): fill_kobj_path: path  
-= '/devices/platform/regulatory.0'
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
