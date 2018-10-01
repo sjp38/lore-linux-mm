@@ -1,63 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D79026B000E
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 11:51:55 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id 11-v6so15795450pgd.1
-        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 08:51:55 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 68-v6si12575642pld.314.2018.10.01.08.51.54
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ACC566B000A
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 11:57:00 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id c2-v6so8763907ybl.16
+        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 08:57:00 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q125-v6sor5871213ybc.123.2018.10.01.08.56.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 01 Oct 2018 08:51:54 -0700 (PDT)
-Date: Mon, 1 Oct 2018 08:51:46 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 3/4] infiniband/mm: convert to the new put_user_page()
- call
-Message-ID: <20181001155146.GA30236@infradead.org>
-References: <20180928053949.5381-1-jhubbard@nvidia.com>
- <20180928053949.5381-3-jhubbard@nvidia.com>
- <20180928153922.GA17076@ziepe.ca>
- <36bc65a3-8c2a-87df-44fc-89a1891b86db@nvidia.com>
- <20180929162117.GA31216@bombadil.infradead.org>
- <20181001125013.GA6357@infradead.org>
- <20181001152929.GA21881@bombadil.infradead.org>
+        (Google Transport Security);
+        Mon, 01 Oct 2018 08:56:59 -0700 (PDT)
+Received: from mail-yw1-f41.google.com (mail-yw1-f41.google.com. [209.85.161.41])
+        by smtp.gmail.com with ESMTPSA id v34-v6sm12819880ywh.45.2018.10.01.08.56.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Oct 2018 08:56:57 -0700 (PDT)
+Received: by mail-yw1-f41.google.com with SMTP id j202-v6so1197616ywa.13
+        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 08:56:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181001152929.GA21881@bombadil.infradead.org>
+In-Reply-To: <20181001143138.95119-1-jannh@google.com>
+References: <20181001143138.95119-1-jannh@google.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Mon, 1 Oct 2018 08:56:56 -0700
+Message-ID: <CAGXu5jKWxMeHgv=FRa_HjQZBDdiG_m2cjkyy-z6eCAUusVhWeg@mail.gmail.com>
+Subject: Re: [PATCH v2 1/3] mm/vmstat: fix outdated vmstat_text
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Christoph Hellwig <hch@infradead.org>, John Hubbard <jhubbard@nvidia.com>, Jason Gunthorpe <jgg@ziepe.ca>, john.hubbard@gmail.com, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Doug Ledford <dledford@redhat.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Christian Benvenuti <benve@cisco.com>
+To: Jann Horn <jannh@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Roman Gushchin <guro@fb.com>, Kemi Wang <kemi.wang@intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>
 
-On Mon, Oct 01, 2018 at 08:29:29AM -0700, Matthew Wilcox wrote:
-> I don't understand the dislike of the sg list.  Other than for special
-> cases which we should't be optimising for (ramfs, brd, loopback
-> filesystems), when we get a page to do I/O, we're going to want a dma
-> mapping for them.  It makes sense to already allocate space to store
-> the mapping at the outset.
+On Mon, Oct 1, 2018 at 7:31 AM, Jann Horn <jannh@google.com> wrote:
+> commit 7a9cdebdcc17 ("mm: get rid of vmacache_flush_all() entirely")
+> removed the VMACACHE_FULL_FLUSHES statistics, but didn't remove the
+> corresponding entry in vmstat_text. This causes an out-of-bounds access in
+> vmstat_show().
+>
+> Luckily this only affects kernels with CONFIG_DEBUG_VM_VMACACHE=y, which is
+> probably very rare.
+>
+> Fixes: 7a9cdebdcc17 ("mm: get rid of vmacache_flush_all() entirely")
+> Cc: stable@vger.kernel.org
+> Signed-off-by: Jann Horn <jannh@google.com>
 
-We don't actually need the space - the scatterlist forces it on us,
-otherwise we could translate directly in the on-disk format and
-save that duplicate space.  I have prototypes for NVMe and RDMA that do
-away with the scatterlist entirely.
+Reviewed-by: Kees Cook <keescook@chromium.org>
 
-And even if we are still using the scatterlist as we do right now we'd
-need a second scatterlist at least for block / file system based I/O
-as we can't plug the scatterlist into the I/O stack (nevermind that
-due to splitting merging the lower one might not map 1:1 to the upper
-one).
+-Kees
 
-> [1] Can we ever admit that the bio_vec and the skb_frag_t are actually
-> the same thing?
 
-When I brought this up years ago the networking folks insisted that
-their use of u16 offset/size fields was important for performance,
-while for bio_vecs we needed the larger ones for some cases.  Since
-then networking switched to 32-bit fields for what is now the fast
-path, so it might be worth to give it another spin.
+> ---
+>  mm/vmstat.c | 1 -
+>  1 file changed, 1 deletion(-)
+>
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 8ba0870ecddd..4cea7b8f519d 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -1283,7 +1283,6 @@ const char * const vmstat_text[] = {
+>  #ifdef CONFIG_DEBUG_VM_VMACACHE
+>         "vmacache_find_calls",
+>         "vmacache_find_hits",
+> -       "vmacache_full_flushes",
+>  #endif
+>  #ifdef CONFIG_SWAP
+>         "swap_ra",
+> --
+> 2.19.0.605.g01d371f741-goog
+>
 
-Than should also help with using my new bio_vec based dma-mapping
-helpers to batch iommu mappings in networking, which Jesper had on
-his todo list as all the indirect calls are causing performance
-issues.
+
+
+-- 
+Kees Cook
+Pixel Security
