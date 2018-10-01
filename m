@@ -1,100 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BC65A6B0003
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 03:24:29 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i76-v6so812890pfk.14
-        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 00:24:29 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id w17-v6si11690324plp.335.2018.10.01.00.24.28
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DF2456B0003
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 04:40:45 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id x10-v6so1502426edx.9
+        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 01:40:45 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u21-v6si8658167eda.251.2018.10.01.01.40.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Oct 2018 00:24:28 -0700 (PDT)
-Message-ID: <1538407463.3190.1.camel@intel.com>
-Subject: Re: [RFC PATCH 01/11] nios2: update_mmu_cache clear the old entry
- from the TLB
-From: Ley Foon Tan <ley.foon.tan@intel.com>
-Date: Mon, 01 Oct 2018 23:24:23 +0800
-In-Reply-To: <20180929113712.6dcfeeb3@roar.ozlabs.ibm.com>
-References: <20180923150830.6096-1-npiggin@gmail.com>
-	 <20180923150830.6096-2-npiggin@gmail.com>
-	 <20180929113712.6dcfeeb3@roar.ozlabs.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+        Mon, 01 Oct 2018 01:40:44 -0700 (PDT)
+Date: Mon, 1 Oct 2018 10:40:38 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH RFC] mm/memory_hotplug: Introduce memory block types
+Message-ID: <20181001084038.GD18290@dhcp22.suse.cz>
+References: <20180928150357.12942-1-david@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180928150357.12942-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: Guenter Roeck <linux@roeck-us.net>, nios2-dev@lists.rocketboards.org, linux-mm@kvack.org
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, linux-acpi@vger.kernel.org, linux-sh@vger.kernel.org, linux-s390@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, Stephen Hemminger <sthemmin@microsoft.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nicholas Piggin <npiggin@gmail.com>, Jonathan =?iso-8859-1?Q?Neusch=E4fer?= <j.neuschaefer@gmx.net>, Joe Perches <joe@perches.com>, Michael Neuling <mikey@neuling.org>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Rashmica Gupta <rashmica.g@gmail.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Rob Herring <robh@kernel.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, "mike.travis@hpe.com" <mike.travis@hpe.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Oscar Salvador <osalvador@suse.de>, Mathieu Malaterre <malat@debian.org>
 
-On Sat, 2018-09-29 at 11:37 +1000, Nicholas Piggin wrote:
-> Hi,
->=20
-> Did you get a chance to look at these?
->=20
-> This first patch 1/11 solves the lockup problem that Guenter reported
-> with my changes to core mm code. So I plan to resubmit my patches
-> to Andrew's -mm tree with this patch to avoid nios2 breakage.
->=20
-> Thanks,
-> Nick
+On Fri 28-09-18 17:03:57, David Hildenbrand wrote:
+[...]
 
-Do you have git repo that contains these patches? If not, can you send
-them as attachment to my email?
+I haven't read the patch itself but I just wanted to note one thing
+about this part
 
+> For paravirtualized devices it is relevant that memory is onlined as
+> quickly as possible after adding - and that it is added to the NORMAL
+> zone. Otherwise, it could happen that too much memory in a row is added
+> (but not onlined), resulting in out-of-memory conditions due to the
+> additional memory for "struct pages" and friends. MOVABLE zone as well
+> as delays might be very problematic and lead to crashes (e.g. zone
+> imbalance).
 
-Regards
-Ley Foon
->=20
-> On Mon, 24 Sep 2018 01:08:20 +1000
-> Nicholas Piggin <npiggin@gmail.com> wrote:
->=20
-> >=20
-> > Fault paths like do_read_fault will install a Linux pte with the
-> > young
-> > bit clear. The CPU will fault again because the TLB has not been
-> > updated, this time a valid pte exists so handle_pte_fault will just
-> > set the young bit with ptep_set_access_flags, which flushes the
-> > TLB.
-> >=20
-> > The TLB is flushed so the next attempt will go to the fast TLB
-> > handler
-> > which loads the TLB with the new Linux pte. The access then
-> > proceeds.
-> >=20
-> > This design is fragile to depend on the young bit being clear after
-> > the initial Linux fault. A proposed core mm change to immediately
-> > set
-> > the young bit upon such a fault, results in ptep_set_access_flags
-> > not
-> > flushing the TLB because it finds no change to the pte. The
-> > spurious
-> > fault fix path only flushes the TLB if the access was a store. If
-> > it
-> > was a load, then this results in an infinite loop of page faults.
-> >=20
-> > This change adds a TLB flush in update_mmu_cache, which removes
-> > that
-> > TLB entry upon the first fault. This will cause the fast TLB
-> > handler
-> > to load the new pte and avoid the Linux page fault entirely.
-> >=20
-> > Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
-> > ---
-> > =C2=A0arch/nios2/mm/cacheflush.c | 2 ++
-> > =C2=A01 file changed, 2 insertions(+)
-> >=20
-> > diff --git a/arch/nios2/mm/cacheflush.c
-> > b/arch/nios2/mm/cacheflush.c
-> > index 506f6e1c86d5..d58e7e80dc0d 100644
-> > --- a/arch/nios2/mm/cacheflush.c
-> > +++ b/arch/nios2/mm/cacheflush.c
-> > @@ -204,6 +204,8 @@ void update_mmu_cache(struct vm_area_struct
-> > *vma,
-> > =C2=A0	struct page *page;
-> > =C2=A0	struct address_space *mapping;
-> > =C2=A0
-> > +	flush_tlb_page(vma, address);
-> > +
-> > =C2=A0	if (!pfn_valid(pfn))
-> > =C2=A0		return;
-> > =C2=A0
+I have proposed (but haven't finished this due to other stuff) a
+solution for this. Newly added memory can host memmaps itself and then
+you do not have the problem in the first place. For vmemmap it would
+have an advantage that you do not really have to beg for 2MB pages to
+back the whole section but you would get it for free because the initial
+part of the section is by definition properly aligned and unused.
+
+I yet have to think about the whole proposal but I am missing the most
+important part. _Who_ is going to use the new exported information and
+for what purpose. You said that distributions have hard time to
+distinguish different types of onlinining policies but isn't this
+something that is inherently usecase specific?
+-- 
+Michal Hocko
+SUSE Labs
