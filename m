@@ -1,70 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CD2D6B0006
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 08:48:15 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id v9-v6so16448846pff.4
-        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 05:48:15 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DF41B6B0008
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 08:50:18 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id h3-v6so15139051pgc.8
+        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 05:50:18 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id t123-v6si12204692pgc.662.2018.10.01.05.48.14
+        by mx.google.com with ESMTPS id w1-v6si12467129pff.315.2018.10.01.05.50.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 01 Oct 2018 05:48:14 -0700 (PDT)
-Date: Mon, 1 Oct 2018 05:47:57 -0700
+        Mon, 01 Oct 2018 05:50:17 -0700 (PDT)
+Date: Mon, 1 Oct 2018 05:50:13 -0700
 From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 0/4] get_user_pages*() and RDMA: first steps
-Message-ID: <20181001124757.GA26218@infradead.org>
+Subject: Re: [PATCH 3/4] infiniband/mm: convert to the new put_user_page()
+ call
+Message-ID: <20181001125013.GA6357@infradead.org>
 References: <20180928053949.5381-1-jhubbard@nvidia.com>
- <20180928152958.GA3321@redhat.com>
- <4c884529-e2ff-3808-9763-eb0e71f5a616@nvidia.com>
- <20180928214934.GA3265@redhat.com>
- <dfa6aaef-b97e-ebd4-6cc8-c907a7b3f9bb@nvidia.com>
- <20180929084608.GA3188@redhat.com>
- <20181001061127.GQ31060@dastard>
+ <20180928053949.5381-3-jhubbard@nvidia.com>
+ <20180928153922.GA17076@ziepe.ca>
+ <36bc65a3-8c2a-87df-44fc-89a1891b86db@nvidia.com>
+ <20180929162117.GA31216@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181001061127.GQ31060@dastard>
+In-Reply-To: <20180929162117.GA31216@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Christian Benvenuti <benve@cisco.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: John Hubbard <jhubbard@nvidia.com>, Jason Gunthorpe <jgg@ziepe.ca>, john.hubbard@gmail.com, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Doug Ledford <dledford@redhat.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Christian Benvenuti <benve@cisco.com>
 
-On Mon, Oct 01, 2018 at 04:11:27PM +1000, Dave Chinner wrote:
-> This reminds me so much of Linux mmap() in the mid-2000s - mmap()
-> worked for ext3 without being aware of page faults,
+On Sat, Sep 29, 2018 at 09:21:17AM -0700, Matthew Wilcox wrote:
+> > being slow to pick it up. It looks like there are several patterns, and
+> > we have to support both set_page_dirty() and set_page_dirty_lock(). So
+> > the best combination looks to be adding a few variations of
+> > release_user_pages*(), but leaving put_user_page() alone, because it's
+> > the "do it yourself" basic one. Scatter-gather will be stuck with that.
+> 
+> I think our current interfaces are wrong.  We should really have a
+> get_user_sg() / put_user_sg() function that will set up / destroy an
+> SG list appropriate for that range of user memory.  This is almost
+> orthogonal to the original intent here, so please don't see this as a
+> "must do first" kind of argument that might derail the whole thing.
 
-And "worked" still is a bit of a stretch, as soon as you'd get
-ENOSPC it would still blow up badly.  Which probably makes it an
-even better analogy to the current case.
-
-> RDMA does not call ->page_mkwrite on clean file backed pages before it
-> writes to them and calls set_page_dirty(), and hence RDMA to file
-> backed pages is completely unreliable. I'm not sure this can be
-> solved without having page fault capable RDMA hardware....
-
-We can always software prefault at gup time.  And also remember that
-while RDMA might be the case at least some people care about here it
-really isn't different from any of the other gup + I/O cases, including
-doing direct I/O to a mmap area.  The only difference in the various
-cases is how long the area should be pinned down - some users like RDMA
-want a long term mapping, while others like direct I/O just need a short
-transient one.
-
-> We could address these use-after-free situations via forcing RDMA to
-> use file layout leases and revoke the lease when we need to modify
-> the backing store on leased files. However, this doesn't solve the
-> need for filesystems to receive write fault notifications via
-> ->page_mkwrite.
-
-Exactly.   We need three things here:
-
- - notification to the filesystem that a page is (possibly) beeing
-   written to
- - a way to to block fs operations while the pages are pinned
- - a way to distinguish between short and long term mappings,
-   and only allow long terms mappings if they can be broken
-   using something like leases
-
-I'm also pretty sure we already explained this a long time ago when the
-issue came up last year, so I'm not sure why this is even still
-contentious.
+The SG list really is the wrong interface, as it mixes up information
+about the pages/phys addr range and a potential dma mapping.  I think
+the right interface is an array of bio_vecs.  In fact I've recently
+been looking into a get_user_pages variant that does fill bio_vecs,
+as it fundamentally is the right thing for doing I/O on large pages,
+and will really help with direct I/O performance in that case.
