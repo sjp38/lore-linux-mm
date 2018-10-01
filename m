@@ -1,78 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AE8916B0003
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 11:41:25 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id e88-v6so14363076qtb.1
-        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 08:41:25 -0700 (PDT)
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id t16-v6si3823951qvk.221.2018.10.01.08.41.25
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D79026B000E
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2018 11:51:55 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id 11-v6so15795450pgd.1
+        for <linux-mm@kvack.org>; Mon, 01 Oct 2018 08:51:55 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 68-v6si12575642pld.314.2018.10.01.08.51.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Oct 2018 08:41:25 -0700 (PDT)
-Message-ID: <211a65a21d69ed8d358f3638d02c3f6ee63d3426.camel@surriel.com>
-Subject: Re: [PATCH 2/2] mm, numa: Migrate pages to local nodes quicker
- early in the lifetime of a task
-From: Rik van Riel <riel@surriel.com>
-Date: Mon, 01 Oct 2018 11:41:24 -0400
-In-Reply-To: <20181001100525.29789-3-mgorman@techsingularity.net>
-References: <20181001100525.29789-1-mgorman@techsingularity.net>
-	 <20181001100525.29789-3-mgorman@techsingularity.net>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-bPx8Hj1pWOxURgOTygS/"
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 01 Oct 2018 08:51:54 -0700 (PDT)
+Date: Mon, 1 Oct 2018 08:51:46 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 3/4] infiniband/mm: convert to the new put_user_page()
+ call
+Message-ID: <20181001155146.GA30236@infradead.org>
+References: <20180928053949.5381-1-jhubbard@nvidia.com>
+ <20180928053949.5381-3-jhubbard@nvidia.com>
+ <20180928153922.GA17076@ziepe.ca>
+ <36bc65a3-8c2a-87df-44fc-89a1891b86db@nvidia.com>
+ <20180929162117.GA31216@bombadil.infradead.org>
+ <20181001125013.GA6357@infradead.org>
+ <20181001152929.GA21881@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181001152929.GA21881@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Jirka Hladky <jhladky@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Christoph Hellwig <hch@infradead.org>, John Hubbard <jhubbard@nvidia.com>, Jason Gunthorpe <jgg@ziepe.ca>, john.hubbard@gmail.com, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Doug Ledford <dledford@redhat.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Christian Benvenuti <benve@cisco.com>
 
+On Mon, Oct 01, 2018 at 08:29:29AM -0700, Matthew Wilcox wrote:
+> I don't understand the dislike of the sg list.  Other than for special
+> cases which we should't be optimising for (ramfs, brd, loopback
+> filesystems), when we get a page to do I/O, we're going to want a dma
+> mapping for them.  It makes sense to already allocate space to store
+> the mapping at the outset.
 
---=-bPx8Hj1pWOxURgOTygS/
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+We don't actually need the space - the scatterlist forces it on us,
+otherwise we could translate directly in the on-disk format and
+save that duplicate space.  I have prototypes for NVMe and RDMA that do
+away with the scatterlist entirely.
 
-On Mon, 2018-10-01 at 11:05 +0100, Mel Gorman wrote:
-> With this patch applied, STREAM performance is the same as 4.17 even
-> though
-> processes are not spread cross-node prematurely. Other workloads
-> showed
-> a mix of minor gains and losses. This is somewhat expected most
-> workloads
-> are not very sensitive to the starting conditions of a process.
->=20
->                          4.19.0-rc5             4.19.0-
-> rc5                 4.17.0
->                          numab-v1r1       fastmigrate-
-> v1r1                vanilla
-> MB/sec copy     43298.52 (   0.00%)    47335.46
-> (   9.32%)    47219.24 (   9.06%)
-> MB/sec scale    30115.06 (   0.00%)    32568.12
-> (   8.15%)    32527.56 (   8.01%)
-> MB/sec add      32825.12 (   0.00%)    36078.94
-> (   9.91%)    35928.02 (   9.45%)
-> MB/sec triad    32549.52 (   0.00%)    35935.94
-> (  10.40%)    35969.88 (  10.51%)
->=20
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+And even if we are still using the scatterlist as we do right now we'd
+need a second scatterlist at least for block / file system based I/O
+as we can't plug the scatterlist into the I/O stack (nevermind that
+due to splitting merging the lower one might not map 1:1 to the upper
+one).
 
-Reviewed-by: Rik van Riel <riel@surriel.com>
---=20
-All Rights Reversed.
+> [1] Can we ever admit that the bio_vec and the skb_frag_t are actually
+> the same thing?
 
---=-bPx8Hj1pWOxURgOTygS/
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
+When I brought this up years ago the networking folks insisted that
+their use of u16 offset/size fields was important for performance,
+while for bio_vecs we needed the larger ones for some cases.  Since
+then networking switched to 32-bit fields for what is now the fast
+path, so it might be worth to give it another spin.
 
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAluyQCQACgkQznnekoTE
-3oOjhggAhKHjjlZ5+V2k2HFgnNIwP0BIaJIGI1w/SNNWSoK5lA33XfRVtj1u64Un
-f4Vv8MS7uc/zThlSck2OOnXN29+oDv9xsYdjqk+8EpWELMcaMnmkgBKke82ftMaO
-Y+kozORrA7iBMmghlnULz4cmg5VGNEWcGyewakvY9arezLd1GjIWPpbTnR4dZogw
-QFyOjzRkLdsIdXo/gA5WFv6G98M3vTO6Bv14wbvEsQ1HVq3COJGCJgoXcAepIvxa
-BUrwOG4OnjWwJFO+RjgyZW4imK59IZAdEBXiCCJLpyBzCHdn3nvAgHH8ph9hq82g
-GtxME+JN5Z37IapgSQY7DOv5QumKCg==
-=4kM/
------END PGP SIGNATURE-----
-
---=-bPx8Hj1pWOxURgOTygS/--
+Than should also help with using my new bio_vec based dma-mapping
+helpers to batch iommu mappings in networking, which Jesper had on
+his todo list as all the indirect calls are causing performance
+issues.
