@@ -1,102 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C4DFB6B000C
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 14:13:33 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id p23-v6so1928899otl.23
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 11:13:33 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id j16-v6si2899066oii.132.2018.10.02.11.13.32
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D3E3C6B000E
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 14:22:52 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id 57-v6so1734989edt.15
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 11:22:52 -0700 (PDT)
+Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
+        by mx.google.com with ESMTPS id l33-v6si847766edc.77.2018.10.02.11.22.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Oct 2018 11:13:32 -0700 (PDT)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w92IAd9v074736
-	for <linux-mm@kvack.org>; Tue, 2 Oct 2018 14:13:31 -0400
-Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mvbugmude-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 02 Oct 2018 14:13:31 -0400
-Received: from localhost
-	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <mwb@linux.vnet.ibm.com>;
-	Tue, 2 Oct 2018 14:13:29 -0400
-Subject: Re: [PATCH] migration/mm: Add WARN_ON to try_offline_node
-References: <20181001185616.11427.35521.stgit@ltcalpine2-lp9.aus.stglabs.ibm.com>
- <20181001202724.GL18290@dhcp22.suse.cz>
- <bdbca329-7d35-0535-1737-94a06a19ae28@linux.vnet.ibm.com>
- <df95f828-1963-d8b9-ab58-6d29d2d152d2@linux.vnet.ibm.com>
- <20181002145922.GZ18290@dhcp22.suse.cz>
- <d338b385-626b-0e79-9944-708178fe245d@linux.vnet.ibm.com>
- <20181002160446.GA18290@dhcp22.suse.cz>
-From: Michael Bringmann <mwb@linux.vnet.ibm.com>
-Date: Tue, 2 Oct 2018 13:13:22 -0500
+        Tue, 02 Oct 2018 11:22:51 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id BCB6B1C28CE
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 19:22:50 +0100 (IST)
+Date: Tue, 2 Oct 2018 19:22:48 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 2/2] mm, numa: Migrate pages to local nodes quicker early
+ in the lifetime of a task
+Message-ID: <20181002182248.GB7003@techsingularity.net>
+References: <20181001100525.29789-1-mgorman@techsingularity.net>
+ <20181001100525.29789-3-mgorman@techsingularity.net>
+ <20181002124149.GB4593@linux.vnet.ibm.com>
+ <20181002135459.GA7003@techsingularity.net>
+ <20181002173005.GD4593@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20181002160446.GA18290@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <e7dd66c1-d196-3a14-0115-acdaf538ebfd@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20181002173005.GD4593@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Thomas Falcon <tlfalcon@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Mathieu Malaterre <malat@debian.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Nicholas Piggin <npiggin@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Juliet Kim <minkim@us.ibm.com>, Tyrel Datwyler <tyreld@linux.vnet.ibm.com>, Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, linuxppc-dev@lists.ozlabs.org, Dan Williams <dan.j.williams@intel.com>, Oscar Salvador <osalvador@suse.de>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Jirka Hladky <jhladky@redhat.com>, Rik van Riel <riel@surriel.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-
-
-On 10/02/2018 11:04 AM, Michal Hocko wrote:
-> On Tue 02-10-18 10:14:49, Michael Bringmann wrote:
->> On 10/02/2018 09:59 AM, Michal Hocko wrote:
->>> On Tue 02-10-18 09:51:40, Michael Bringmann wrote:
->>> [...]
->>>> When the device-tree affinity attributes have changed for memory,
->>>> the 'nid' affinity calculated points to a different node for the
->>>> memory block than the one used to install it, previously on the
->>>> source system.  The newly calculated 'nid' affinity may not yet
->>>> be initialized on the target system.  The current memory tracking
->>>> mechanisms do not record the node to which a memory block was
->>>> associated when it was added.  Nathan is looking at adding this
->>>> feature to the new implementation of LMBs, but it is not there
->>>> yet, and won't be present in earlier kernels without backporting a
->>>> significant number of changes.
->>>
->>> Then the patch you have proposed here just papers over a real issue, no?
->>> IIUC then you simply do not remove the memory if you lose the race.
->>
->> The problem occurs when removing memory after an affinity change
->> references a node that was previously unreferenced.  Other code
->> in 'kernel/mm/memory_hotplug.c' deals with initializing an empty
->> node when adding memory to a system.  The 'removing memory' case is
->> specific to systems that perform LPM and allow device-tree changes.
->> The powerpc kernel does not have the option of accepting some PRRN
->> requests and accepting others.  It must perform them all.
+On Tue, Oct 02, 2018 at 11:00:05PM +0530, Srikar Dronamraju wrote:
+> > > 
+> > > This does have issues when using with workloads that access more shared faults
+> > > than private faults.
+> > > 
+> > 
+> > Not as such. It can have issues on workloads where memory is initialised
+> > by one thread, then additional threads are created and access the same
+> > memory. They are not necessarily shared once buffers are handed over. In
+> > such a case, migrating quickly is the right thing to do. If it's truely
+> > shared pages then there may be some unnecessary migrations early in the
+> > lifetime of the task but it'll settle down quickly enough.
+> > 
 > 
-> I am sorry, but you are still too cryptic for me. Either there is a
-> correctness issue and the the patch doesn't really fix anything or the
-> final race doesn't make any difference and then the ppc code should be
-> explicit about that. Checking the node inside the hotplug core code just
-> looks as a wrong layer to mitigate an arch specific problem. I am not
-> saying the patch is a no-go but if anything we want a big fat comment
-> explaining how this is possible because right now it just points to an
-> incorrect API usage.
+> Do you have a workload recommendation to try for shared fault accesses.
+
+NAS parallelised with OMP tends to be ok but I haven't quantified if it's
+perfect or a good example. I don't have an example of a workload that
+is good at targetting the specific case where pages are shared between
+tasks that tend to run on separate nodes. It would be somewhat of an
+anti-pattern for any workload regardless of automatic NUMA balancing.
+
+> > > <SNIP>
+> > >
+> > > Our numa grouping is not fast enough. It can take sometimes several
+> > > iterations before all the tasks belonging to the same group end up being
+> > > part of the group. With the current check we end up spreading memory faster
+> > > than we should hence hurting the chance of early consolidation.
+> > > 
+> > > Can we restrict to something like this?
+> > > 
+> > > if (p->numa_scan_seq >=MIN && p->numa_scan_seq <= MIN+4 &&
+> > >     (cpupid_match_pid(p, last_cpupid)))
+> > > 	return true;
+> > > 
+> > > meaning, we ran atleast MIN number of scans, and we find the task to be most likely
+> > > task using this page.
+> > > 
+> > 
 > 
-> That being said, this sounds pretty much ppc specific problem and I
-> would _prefer_ it to be handled there (along with a big fat comment of
-> course).
+> 
+> > What's MIN? Assuming it's any type of delay, note that this will regress
+> > STREAM again because it's very sensitive to the starting state.
+> > 
+> 
+> I was thinking of MIN as 3 to give a chance for things to settle.
+> but that might not help STREAM as you pointed out.
+> 
 
-Let me try again.  Regardless of the path to which we get to this condition,
-we currently crash the kernel.  This patch changes that to a WARN_ON notice
-and continues executing the kernel without shutting down the system.  I saw
-the problem during powerpc testing, because that is the focus of my work.
-There are other paths to this function besides powerpc.  I feel that the
-kernel should keep running instead of halting.
+Probably not.
 
-Regards,
+> Do you have a hint on which commit made STREAM regress?
+> 
+
+2c83362734da ("sched/fair: Consider SD_NUMA when selecting the most idle group to schedule on")
+
+Reverting it hurts workloads that communicate immediately with new processes
+or threads as workloads spread prematurely and then get pulled back just
+after clone.
+
+> if we want to prioritize STREAM like workloads (i.e private faults) one simpler
+> fix could be to change the quadtraic equation
+> 
+> from:
+> 	if (!cpupid_pid_unset(last_cpupid) &&
+> 				cpupid_to_nid(last_cpupid) != dst_nid)
+> 		return false;
+> to:
+> 	if (!cpupid_pid_unset(last_cpupid) &&
+> 				cpupid_to_nid(last_cpupid) == dst_nid)
+> 		return true;
+> 
+> i.e to say if the group tasks likely consolidated to a node or the task was
+> moved to a different node but access were private, just move the memory.
+> 
+> The drawback though is we keep pulling memory everytime the task moves
+> across nodes. (which is probably restricted for long running tasks to some
+> extent by your fix)
+> 
+
+This has way more consequences as it changes the behaviour for the entire
+lifetime of the workload. It could cause excessive migrations in the case
+where a machine is almost fully utilised and getting load balanced or in
+cases where tasks are pulled frequently cross-node (e.g. worker thread
+model or a pipelined computation).
+
+I'm only looking to address the case where the load balancer spreads a
+workload early and the memory should move to the new node quickly. If it
+turns out there are cases where that decision is wrong, it gets remedied
+quickly but if your proposal is ever wrong, the system doesn't recover.
 
 -- 
-Michael W. Bringmann
-Linux Technology Center
-IBM Corporation
-Tie-Line  363-5196
-External: (512) 286-5196
-Cell:       (512) 466-0650
-mwb@linux.vnet.ibm.com
+Mel Gorman
+SUSE Labs
