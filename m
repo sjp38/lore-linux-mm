@@ -1,113 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A0FD16B0008
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 04:18:29 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id t18-v6so435241ljc.23
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 01:18:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 10-v6sor3130179ljv.30.2018.10.02.01.18.27
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CA8D6B0003
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 04:42:30 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id t24-v6so839356eds.12
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 01:42:30 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c12-v6si5065446edt.291.2018.10.02.01.42.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 02 Oct 2018 01:18:27 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Oct 2018 01:42:29 -0700 (PDT)
+Date: Tue, 2 Oct 2018 10:42:25 +0200
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: 4.14 backport request for dbdda842fe96f: "printk: Add console
+ owner and waiter logic to load balance console writes"
+Message-ID: <20181002084225.6z2b74qem3mywukx@pathway.suse.cz>
+References: <20180927194601.207765-1-wonderfly@google.com>
+ <20181001152324.72a20bea@gandalf.local.home>
+ <CAJmjG29Jwn_1E5zexcm8eXTG=cTWyEr1gjSfSAS2fueB_V0tfg@mail.gmail.com>
 MIME-Version: 1.0
-References: <20180927175123.GA16367@jordon-HP-15-Notebook-PC>
- <20180927183236.GJ6278@dhcp22.suse.cz> <CAFqt6zbnV+wV+O2EMi1mE4qWDjsZ=Y847MFUc+zv6g8OoVM30g@mail.gmail.com>
-In-Reply-To: <CAFqt6zbnV+wV+O2EMi1mE4qWDjsZ=Y847MFUc+zv6g8OoVM30g@mail.gmail.com>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Tue, 2 Oct 2018 13:51:34 +0530
-Message-ID: <CAFqt6zaftFyrpPDigW3q+nX4d6mWeNjUVqcZH0PB51X4HP5RoA@mail.gmail.com>
-Subject: Re: [PATCH] mm: Introduce new function vm_insert_kmem_page
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJmjG29Jwn_1E5zexcm8eXTG=cTWyEr1gjSfSAS2fueB_V0tfg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, pasha.tatashin@oracle.com, riel@redhat.com, Matthew Wilcox <willy@infradead.org>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Huang, Ying" <ying.huang@intel.com>, ak@linux.intel.com, rppt@linux.vnet.ibm.com, linux@dominikbrodowski.net, Arnd Bergmann <arnd@arndb.de>, mcgrof@kernel.org, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Daniel Wang <wonderfly@google.com>
+Cc: rostedt@goodmis.org, stable@vger.kernel.org, Alexander.Levin@microsoft.com, akpm@linux-foundation.org, byungchul.park@lge.com, dave.hansen@intel.com, hannes@cmpxchg.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mathieu.desnoyers@efficios.com, mgorman@suse.de, mhocko@kernel.org, pavel@ucw.cz, penguin-kernel@i-love.sakura.ne.jp, peterz@infradead.org, tj@kernel.org, torvalds@linux-foundation.org, vbabka@suse.cz, xiyou.wangcong@gmail.com, Peter Feiner <pfeiner@google.com>
 
-Hi Michal,
-
-On Fri, Sep 28, 2018 at 5:57 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
->
-> On Fri, Sep 28, 2018 at 12:02 AM Michal Hocko <mhocko@kernel.org> wrote:
+On Mon 2018-10-01 13:37:30, Daniel Wang wrote:
+> On Mon, Oct 1, 2018 at 12:23 PM Steven Rostedt <rostedt@goodmis.org> wrote:
 > >
-> > On Thu 27-09-18 23:21:23, Souptick Joarder wrote:
-> > > vm_insert_kmem_page is similar to vm_insert_page and will
-> > > be used by drivers to map kernel (kmalloc/vmalloc/pages)
-> > > allocated memory to user vma.
-> > >
-> > > Previously vm_insert_page is used for both page fault
-> > > handlers and outside page fault handlers context. When
-> > > vm_insert_page is used in page fault handlers context,
-> > > each driver have to map errno to VM_FAULT_CODE in their
-> > > own way. But as part of vm_fault_t migration all the
-> > > page fault handlers are cleaned up by using new vmf_insert_page.
-> > > Going forward, vm_insert_page will be removed by converting
-> > > it to vmf_insert_page.
-> > >
-> > > But their are places where vm_insert_page is used outside
-> > > page fault handlers context and converting those to
-> > > vmf_insert_page is not a good approach as drivers will end
-> > > up with new VM_FAULT_CODE to errno conversion code and it will
-> > > make each user more complex.
-> > >
-> > > So this new vm_insert_kmem_page can be used to map kernel
-> > > memory to user vma outside page fault handler context.
-> > >
-> > > In short, vmf_insert_page will be used in page fault handlers
-> > > context and vm_insert_kmem_page will be used to map kernel
-> > > memory to user vma outside page fault handlers context.
-> > >
-> > > We will slowly convert all the user of vm_insert_page to
-> > > vm_insert_kmem_page after this API be available in linus tree.
+> > > Serial console logs leading up to the deadlock. As can be seen the stack trace
+> > > was incomplete because the printing path hit a timeout.
 > >
-> > In general I do not like patches adding a new exports/functionality
-> > without any user added at the same time. I am not going to look at the
-> > implementation right now but the above opens more questions than it
-> > gives answers. Why do we have to distinguish #PF from other paths?
->
-> Going forward, the plan is to restrict future drivers not to use vm_insert_page
-> ( *it will generate new errno to VM_FAULT_CODE mapping code for new drivers
-> which were already cleaned up for existing drivers*) in #PF context but to make
-> use of vmf_insert_page which returns VMF_FAULT_CODE and that is not possible
-> until both vm_insert_page and vmf_insert_page API exists.
->
-> But there are some consumers of vm_insert_page which use it outside #PF context.
-> straight forward conversion of vm_insert_page to vmf_insert_page won't
-> work there as
-> those function calls expects errno not vm_fault_t in return.
->
-> e.g - drivers/auxdisplay/cfag12864bfb.c, line 55
->         drivers/auxdisplay/ht16k33.c, line 227
->         drivers/firewire/core-iso.c, line 115
->         drivers/gpu/drm/rockchip/rockchip_drm_gem.c, line 237
->         drivers/gpu/drm/xen/xen_drm_front_gem.c, line 253
->         drivers/iommu/dma-iommu.c, line 600
->         drivers/media/common/videobuf2/videobuf2-dma-sg.c, line 343
->         drivers/media/usb/usbvision/usbvision-video.c, line 1056
->         drivers/xen/gntalloc.c, line 548
->         drivers/xen/gntdev.c, line 1149
->         drivers/xen/privcmd-buf.c, line 184
->         mm/vmalloc.c, line 2254
->         net/ipv4/tcp.c, line 1806
->         net/packet/af_packet.c, line 4407
->
-> These are the approaches which could have been taken to handle this scenario -
->
-> 1. Replace vm_insert_page with vmf_insert_page and then write few
->    extra lines of code to convert VM_FAULT_CODE to errno which
->    makes driver users more complex ( also the reverse mapping errno to
->    VM_FAULT_CODE have been cleaned up as part of vm_fault_t migration ,
->    not preferred to introduce anything similar again)
->
-> 2. Maintain both vm_insert_page and vmf_insert_page and use it in
->    respective places. But it won't gurantee that vm_insert_page will
->    never be used in #PF context.
->
-> 3. Introduce a similar API like vm_insert_page, convert all non #PF
->    consumer to use it and finally remove vm_insert_page by converting
->    it to vmf_insert_page.
->
-> And the 3rd approach was taken by introducing vm_insert_kmem_page().
+> > I'm fine with having this backported.
+> 
+> Thanks. I can send the cherrypicks your way. Do you recommend that I
+> include the three follow-up fixes though?
+> 
+> c14376de3a1b printk: Wake klogd when passing console_lock owner
+> fd5f7cde1b85 printk: Never set console_may_schedule in console_trylock()
+> c162d5b4338d printk: Hide console waiter logic into helpers
+> dbdda842fe96 printk: Add console owner and waiter logic to load
+> balance console writes
 
-Does this 3rd approach looks good or their is a better way to handle
-this scenario ?
-Remaining vm_fault_t migration work has dependency on this patch.
+This list looks complete and I am fine with backporting it to 4.14.
+
+Well, I still wonder why it helped and why you do not see it with 4.4.
+I have a feeling that the console owner switch helped only by chance.
+In fact, you might be affected by a race in
+printk_safe_flush_on_panic() that was fixed by the commit:
+
+554755be08fba31c7 printk: drop in_nmi check from printk_safe_flush_on_panic()
+
+The above one commit might be enough. Well, there was one more
+NMI-related race that was fixed by:
+
+ba552399954dde1b printk: Split the code for storing a message into the log buffer
+a338f84dc196f44b printk: Create helper function to queue deferred console handling
+03fc7f9c99c1e7ae printk/nmi: Prevent deadlock when accessing the main log buffer in NMI
+
+Best Regards,
+Petr
