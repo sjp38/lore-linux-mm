@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 872E16B0272
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 09:26:09 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id d40-v6so2230583pla.14
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 06:26:09 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EE0CF6B0273
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 09:31:38 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id f17-v6so2062611plr.1
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 06:31:38 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 186-v6si3342230pfg.163.2018.10.02.06.26.08
+        by mx.google.com with ESMTPS id c8-v6si14807466pgh.418.2018.10.02.06.31.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Oct 2018 06:26:08 -0700 (PDT)
+        Tue, 02 Oct 2018 06:31:37 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.18 011/228] x86/numa_emulation: Fix emulated-to-physical node mapping
-Date: Tue,  2 Oct 2018 06:21:48 -0700
-Message-Id: <20181002132459.789313286@linuxfoundation.org>
-In-Reply-To: <20181002132459.032960735@linuxfoundation.org>
-References: <20181002132459.032960735@linuxfoundation.org>
+Subject: [PATCH 4.14 005/137] x86/numa_emulation: Fix emulated-to-physical node mapping
+Date: Tue,  2 Oct 2018 06:23:26 -0700
+Message-Id: <20181002132458.779929451@linuxfoundation.org>
+In-Reply-To: <20181002132458.446916963@linuxfoundation.org>
+References: <20181002132458.446916963@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -23,7 +23,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Sasha Levin <alexander.levin@microsoft.com>
 
-4.18-stable review patch.  If anyone has any objections, please let me know.
+4.14-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
