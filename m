@@ -1,114 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D35CD6B026C
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 08:41:59 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id e38-v6so1199412otj.15
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 05:41:59 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id l1-v6si4000234otb.47.2018.10.02.05.41.58
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Oct 2018 05:41:58 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w92CYnLu033993
-	for <linux-mm@kvack.org>; Tue, 2 Oct 2018 08:41:57 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mv6f9nsq0-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 02 Oct 2018 08:41:57 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Tue, 2 Oct 2018 13:41:55 +0100
-Date: Tue, 2 Oct 2018 18:11:49 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/2] mm, numa: Migrate pages to local nodes quicker early
- in the lifetime of a task
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20181001100525.29789-1-mgorman@techsingularity.net>
- <20181001100525.29789-3-mgorman@techsingularity.net>
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 72EC36B0006
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 08:56:56 -0400 (EDT)
+Received: by mail-oi1-f198.google.com with SMTP id y68-v6so1157170oie.21
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 05:56:56 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f12si2067600oti.282.2018.10.02.05.56.55
+        for <linux-mm@kvack.org>;
+        Tue, 02 Oct 2018 05:56:55 -0700 (PDT)
+Subject: Re: [PATCH 1/4] mm/hugetlb: Enable PUD level huge page migration
+References: <1538482531-26883-1-git-send-email-anshuman.khandual@arm.com>
+ <1538482531-26883-2-git-send-email-anshuman.khandual@arm.com>
+ <835085a2-79c2-4eb5-2c10-13bb2893f611@arm.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <c0689b0c-4810-e0e8-354e-55c45d59b6d0@arm.com>
+Date: Tue, 2 Oct 2018 18:26:49 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20181001100525.29789-3-mgorman@techsingularity.net>
-Message-Id: <20181002124149.GB4593@linux.vnet.ibm.com>
+In-Reply-To: <835085a2-79c2-4eb5-2c10-13bb2893f611@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Jirka Hladky <jhladky@redhat.com>, Rik van Riel <riel@surriel.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
-
->
-> diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-> index 25c7c7e09cbd..7fc4a371bdd2 100644
-> --- a/kernel/sched/fair.c
-> +++ b/kernel/sched/fair.c
-> @@ -1392,6 +1392,17 @@ bool should_numa_migrate_memory(struct task_struct *p, struct page * page,
->  	int last_cpupid, this_cpupid;
->
->  	this_cpupid = cpu_pid_to_cpupid(dst_cpu, current->pid);
-> +	last_cpupid = page_cpupid_xchg_last(page, this_cpupid);
-> +
-> +	/*
-> +	 * Allow first faults or private faults to migrate immediately early in
-> +	 * the lifetime of a task. The magic number 4 is based on waiting for
-> +	 * two full passes of the "multi-stage node selection" test that is
-> +	 * executed below.
-> +	 */
-> +	if ((p->numa_preferred_nid == -1 || p->numa_scan_seq <= 4) &&
-> +	    (cpupid_pid_unset(last_cpupid) || cpupid_match_pid(p, last_cpupid)))
-> +		return true;
->
-
-This does have issues when using with workloads that access more shared faults
-than private faults.
-
-In such workloads, this change would spread the memory causing regression in
-behaviour.
-
-5 runs of on 2 socket/ 4 node power 8 box
+To: Suzuki K Poulose <suzuki.poulose@arm.com>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
+Cc: punit.agrawal@arm.com, will.deacon@arm.com, Steven.Price@arm.com, catalin.marinas@arm.com, mhocko@kernel.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
 
 
-Without this patch
-./numa01.sh      Real:  382.82    454.29    422.31    29.72
-./numa01.sh      Sys:   40.12     74.53     58.50     13.37
-./numa01.sh      User:  34230.22  46398.84  40292.62  4915.93
 
-With this patch
-./numa01.sh      Real:  415.56    555.04    473.45    51.17    -10.8016%
-./numa01.sh      Sys:   43.42     94.22     73.59     17.31    -20.5055%
-./numa01.sh      User:  35271.95  56644.19  45615.72  7165.01  -11.6694%
+On 10/02/2018 06:08 PM, Suzuki K Poulose wrote:
+> Hi Anshuman
+> 
+> On 02/10/18 13:15, Anshuman Khandual wrote:
+>> Architectures like arm64 have PUD level HugeTLB pages for certain configs
+>> (1GB huge page is PUD based on ARM64_4K_PAGES base page size) that can be
+>> enabled for migration. It can be achieved through checking for PUD_SHIFT
+>> order based HugeTLB pages during migration.
+>>
+>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+>> ---
+>> A  include/linux/hugetlb.h | 3 ++-
+>> A  1 file changed, 2 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+>> index 6b68e34..9c1b77f 100644
+>> --- a/include/linux/hugetlb.h
+>> +++ b/include/linux/hugetlb.h
+>> @@ -483,7 +483,8 @@ static inline bool hugepage_migration_supported(struct hstate *h)
+>> A  {
+>> A  #ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
+>> A A A A A  if ((huge_page_shift(h) == PMD_SHIFT) ||
+>> -A A A A A A A  (huge_page_shift(h) == PGDIR_SHIFT))
+>> +A A A A A A A  (huge_page_shift(h) == PUD_SHIFT) ||
+> 
+> 
+>> +A A A A A A A A A A A  (huge_page_shift(h) == PGDIR_SHIFT))
+> 
+> nit: Extra Tab ^^.
 
-Since we are looking at time, smaller numbers are better.
+The tab is in there when you apply this patch and all three checks are tab separated
+in a newline.
 
-----------------------------------------
-# cat numa01.sh
-#! /bin/bash
-# numa01.sh corresponds to 2 perf bench processes each having ncpus/2 threads
-# 50 loops of 3G process memory.
+> Also, if only arm64 supports PUD_SHIFT, should this be added only in the arm64 specific backend, which we introduce later ?
 
-THREADS=${THREADS:-$(($(getconf _NPROCESSORS_ONLN)/2))}
-perf bench numa mem --no-data_rand_walk -p 2 -t $THREADS -G 0 -P 3072 -T 0 -l 50 -c -s 2000 $@
-----------------------------------------
-
-I know this is a synthetic benchmark, but wonder if benchmarks run on vm
-guest show similar behaviour when noticed from host.
-
-SPECJbb did show some small loss and gains.
-
-Our numa grouping is not fast enough. It can take sometimes several
-iterations before all the tasks belonging to the same group end up being
-part of the group. With the current check we end up spreading memory faster
-than we should hence hurting the chance of early consolidation.
-
-Can we restrict to something like this?
-
-if (p->numa_scan_seq >=MIN && p->numa_scan_seq <= MIN+4 &&
-    (cpupid_match_pid(p, last_cpupid)))
-	return true;
-
-meaning, we ran atleast MIN number of scans, and we find the task to be most likely
-task using this page.
-
--- 
-Thanks and Regards
-Srikar Dronamraju
+Even if with the platform can add this up in the back end, I would think having this
+on for default fall back function makes it complete.
