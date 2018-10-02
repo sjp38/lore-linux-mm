@@ -1,328 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E33A6B0003
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 09:42:29 -0400 (EDT)
-Received: by mail-it1-f198.google.com with SMTP id f79-v6so3299761ita.3
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 06:42:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l62-v6sor5920587ita.42.2018.10.02.06.42.27
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E14D6B0005
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 09:47:46 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id x10-v6so1298590edx.9
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 06:47:46 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c9-v6si944609eja.233.2018.10.02.06.47.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 02 Oct 2018 06:42:27 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Oct 2018 06:47:45 -0700 (PDT)
+Date: Tue, 2 Oct 2018 15:47:34 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH RFC] mm/memory_hotplug: Introduce memory block types
+Message-ID: <20181002134734.GT18290@dhcp22.suse.cz>
+References: <20180928150357.12942-1-david@redhat.com>
+ <20181001084038.GD18290@dhcp22.suse.cz>
+ <d54a8509-725f-f771-72f0-15a9d93e8a49@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <47b386e1715275f60ea55f93eb00deb1f3451b3a.1537542735.git.andreyknvl@google.com>
-References: <cover.1537542735.git.andreyknvl@google.com> <47b386e1715275f60ea55f93eb00deb1f3451b3a.1537542735.git.andreyknvl@google.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Tue, 2 Oct 2018 15:42:26 +0200
-Message-ID: <CAAeHK+z2gBvmVsJUL+YFBZ==-AqQtwgi4u_HdBcQej-yhNdf4Q@mail.gmail.com>
-Subject: Re: [PATCH v9 19/20] kasan: update documentation
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d54a8509-725f-f771-72f0-15a9d93e8a49@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, linux-acpi@vger.kernel.org, linux-sh@vger.kernel.org, linux-s390@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, Stephen Hemminger <sthemmin@microsoft.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nicholas Piggin <npiggin@gmail.com>, Jonathan =?iso-8859-1?Q?Neusch=E4fer?= <j.neuschaefer@gmx.net>, Joe Perches <joe@perches.com>, Michael Neuling <mikey@neuling.org>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Rashmica Gupta <rashmica.g@gmail.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Rob Herring <robh@kernel.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, "mike.travis@hpe.com" <mike.travis@hpe.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Oscar Salvador <osalvador@suse.de>, Mathieu Malaterre <malat@debian.org>
 
-On Fri, Sep 21, 2018 at 5:13 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> This patch updates KASAN documentation to reflect the addition of the new
-> tag-based mode.
->
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> ---
->  Documentation/dev-tools/kasan.rst | 232 ++++++++++++++++++------------
->  1 file changed, 138 insertions(+), 94 deletions(-)
->
-> diff --git a/Documentation/dev-tools/kasan.rst b/Documentation/dev-tools/kasan.rst
-> index aabc8738b3d8..a407e18afd32 100644
-> --- a/Documentation/dev-tools/kasan.rst
-> +++ b/Documentation/dev-tools/kasan.rst
-> @@ -4,15 +4,25 @@ The Kernel Address Sanitizer (KASAN)
->  Overview
->  --------
->
-> -KernelAddressSANitizer (KASAN) is a dynamic memory error detector. It provides
-> -a fast and comprehensive solution for finding use-after-free and out-of-bounds
-> -bugs.
-> +KernelAddressSANitizer (KASAN) is a dynamic memory error detector designed to
-> +find out-of-bound and use-after-free bugs. KASAN has two modes: generic KASAN
-> +(similar to userspace ASan) and software tag-based KASAN (similar to userspace
-> +HWASan).
->
-> -KASAN uses compile-time instrumentation for checking every memory access,
-> -therefore you will need a GCC version 4.9.2 or later. GCC 5.0 or later is
-> -required for detection of out-of-bounds accesses to stack or global variables.
-> +KASAN uses compile-time instrumentation to insert validity checks before every
-> +memory access, and therefore requires a compiler version that supports that.
->
-> -Currently KASAN is supported only for the x86_64 and arm64 architectures.
-> +Generic KASAN is supported in both GCC and Clang. With GCC it requires version
-> +4.9.2 or later for basic support and version 5.0 or later for detection of
-> +out-of-bounds accesses for stack and global variables and for inline
-> +instrumentation mode (see the Usage section). With Clang it requires version
-> +3.7.0 or later and it doesn't support detection of out-of-bounds accesses for
+On Mon 01-10-18 11:34:25, David Hildenbrand wrote:
+> On 01/10/2018 10:40, Michal Hocko wrote:
+> > On Fri 28-09-18 17:03:57, David Hildenbrand wrote:
+> > [...]
+> > 
+> > I haven't read the patch itself but I just wanted to note one thing
+> > about this part
+> > 
+> >> For paravirtualized devices it is relevant that memory is onlined as
+> >> quickly as possible after adding - and that it is added to the NORMAL
+> >> zone. Otherwise, it could happen that too much memory in a row is added
+> >> (but not onlined), resulting in out-of-memory conditions due to the
+> >> additional memory for "struct pages" and friends. MOVABLE zone as well
+> >> as delays might be very problematic and lead to crashes (e.g. zone
+> >> imbalance).
+> > 
+> > I have proposed (but haven't finished this due to other stuff) a
+> > solution for this. Newly added memory can host memmaps itself and then
+> > you do not have the problem in the first place. For vmemmap it would
+> > have an advantage that you do not really have to beg for 2MB pages to
+> > back the whole section but you would get it for free because the initial
+> > part of the section is by definition properly aligned and unused.
+> 
+> So the plan is to "host metadata for new memory on the memory itself".
+> Just want to note that this is basically impossible for s390x with the
+> current mechanisms. (added memory is dead, until onlining notifies the
+> hypervisor and memory is allocated). It will also be problematic for
+> paravirtualized memory devices (e.g. XEN's "not backed by the
+> hypervisor" hacks).
 
-Note: this should actually be 7.0.0 and not 3.7.0 (as we need rL329612).
+OK, I understand that not all usecases can use self memmap hosting
+others do not have much choice left though. You have to allocate from
+somewhere. Well and alternative would be to have no memmap until
+onlining but I am not sure how much work that would be.
 
-> +global variables yet.
-> +
-> +Tag-based KASAN is only supported in Clang and requires version 7.0.0 or later.
-> +
-> +Currently generic KASAN is supported for the x86_64, arm64 and xtensa
-> +architectures, and tag-based KASAN is supported only for arm64.
->
->  Usage
->  -----
-> @@ -21,12 +31,14 @@ To enable KASAN configure kernel with::
->
->           CONFIG_KASAN = y
->
-> -and choose between CONFIG_KASAN_OUTLINE and CONFIG_KASAN_INLINE. Outline and
-> -inline are compiler instrumentation types. The former produces smaller binary
-> -the latter is 1.1 - 2 times faster. Inline instrumentation requires a GCC
-> -version 5.0 or later.
-> +and choose between CONFIG_KASAN_GENERIC (to enable generic KASAN) and
-> +CONFIG_KASAN_SW_TAGS (to enable software tag-based KASAN).
->
-> -KASAN works with both SLUB and SLAB memory allocators.
-> +You also need to choose between CONFIG_KASAN_OUTLINE and CONFIG_KASAN_INLINE.
-> +Outline and inline are compiler instrumentation types. The former produces
-> +smaller binary while the latter is 1.1 - 2 times faster.
-> +
-> +Both KASAN modes work with both SLUB and SLAB memory allocators.
->  For better bug detection and nicer reporting, enable CONFIG_STACKTRACE.
->
->  To disable instrumentation for specific files or directories, add a line
-> @@ -43,85 +55,85 @@ similar to the following to the respective kernel Makefile:
->  Error reports
->  ~~~~~~~~~~~~~
->
-> -A typical out of bounds access report looks like this::
-> +A typical out-of-bounds access generic KASAN report looks like this::
->
->      ==================================================================
-> -    BUG: AddressSanitizer: out of bounds access in kmalloc_oob_right+0x65/0x75 [test_kasan] at addr ffff8800693bc5d3
-> -    Write of size 1 by task modprobe/1689
-> -    =============================================================================
-> -    BUG kmalloc-128 (Not tainted): kasan error
-> -    -----------------------------------------------------------------------------
-> -
-> -    Disabling lock debugging due to kernel taint
-> -    INFO: Allocated in kmalloc_oob_right+0x3d/0x75 [test_kasan] age=0 cpu=0 pid=1689
-> -     __slab_alloc+0x4b4/0x4f0
-> -     kmem_cache_alloc_trace+0x10b/0x190
-> -     kmalloc_oob_right+0x3d/0x75 [test_kasan]
-> -     init_module+0x9/0x47 [test_kasan]
-> -     do_one_initcall+0x99/0x200
-> -     load_module+0x2cb3/0x3b20
-> -     SyS_finit_module+0x76/0x80
-> -     system_call_fastpath+0x12/0x17
-> -    INFO: Slab 0xffffea0001a4ef00 objects=17 used=7 fp=0xffff8800693bd728 flags=0x100000000004080
-> -    INFO: Object 0xffff8800693bc558 @offset=1368 fp=0xffff8800693bc720
-> -
-> -    Bytes b4 ffff8800693bc548: 00 00 00 00 00 00 00 00 5a 5a 5a 5a 5a 5a 5a 5a  ........ZZZZZZZZ
-> -    Object ffff8800693bc558: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-> -    Object ffff8800693bc568: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-> -    Object ffff8800693bc578: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-> -    Object ffff8800693bc588: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-> -    Object ffff8800693bc598: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-> -    Object ffff8800693bc5a8: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-> -    Object ffff8800693bc5b8: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-> -    Object ffff8800693bc5c8: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b a5  kkkkkkkkkkkkkkk.
-> -    Redzone ffff8800693bc5d8: cc cc cc cc cc cc cc cc                          ........
-> -    Padding ffff8800693bc718: 5a 5a 5a 5a 5a 5a 5a 5a                          ZZZZZZZZ
-> -    CPU: 0 PID: 1689 Comm: modprobe Tainted: G    B          3.18.0-rc1-mm1+ #98
-> -    Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.7.5-0-ge51488c-20140602_164612-nilsson.home.kraxel.org 04/01/2014
-> -     ffff8800693bc000 0000000000000000 ffff8800693bc558 ffff88006923bb78
-> -     ffffffff81cc68ae 00000000000000f3 ffff88006d407600 ffff88006923bba8
-> -     ffffffff811fd848 ffff88006d407600 ffffea0001a4ef00 ffff8800693bc558
-> +    BUG: KASAN: slab-out-of-bounds in kmalloc_oob_right+0xa8/0xbc [test_kasan]
-> +    Write of size 1 at addr ffff8801f44ec37b by task insmod/2760
-> +
-> +    CPU: 1 PID: 2760 Comm: insmod Not tainted 4.19.0-rc3+ #698
-> +    Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1 04/01/2014
->      Call Trace:
-> -     [<ffffffff81cc68ae>] dump_stack+0x46/0x58
-> -     [<ffffffff811fd848>] print_trailer+0xf8/0x160
-> -     [<ffffffffa00026a7>] ? kmem_cache_oob+0xc3/0xc3 [test_kasan]
-> -     [<ffffffff811ff0f5>] object_err+0x35/0x40
-> -     [<ffffffffa0002065>] ? kmalloc_oob_right+0x65/0x75 [test_kasan]
-> -     [<ffffffff8120b9fa>] kasan_report_error+0x38a/0x3f0
-> -     [<ffffffff8120a79f>] ? kasan_poison_shadow+0x2f/0x40
-> -     [<ffffffff8120b344>] ? kasan_unpoison_shadow+0x14/0x40
-> -     [<ffffffff8120a79f>] ? kasan_poison_shadow+0x2f/0x40
-> -     [<ffffffffa00026a7>] ? kmem_cache_oob+0xc3/0xc3 [test_kasan]
-> -     [<ffffffff8120a995>] __asan_store1+0x75/0xb0
-> -     [<ffffffffa0002601>] ? kmem_cache_oob+0x1d/0xc3 [test_kasan]
-> -     [<ffffffffa0002065>] ? kmalloc_oob_right+0x65/0x75 [test_kasan]
-> -     [<ffffffffa0002065>] kmalloc_oob_right+0x65/0x75 [test_kasan]
-> -     [<ffffffffa00026b0>] init_module+0x9/0x47 [test_kasan]
-> -     [<ffffffff810002d9>] do_one_initcall+0x99/0x200
-> -     [<ffffffff811e4e5c>] ? __vunmap+0xec/0x160
-> -     [<ffffffff81114f63>] load_module+0x2cb3/0x3b20
-> -     [<ffffffff8110fd70>] ? m_show+0x240/0x240
-> -     [<ffffffff81115f06>] SyS_finit_module+0x76/0x80
-> -     [<ffffffff81cd3129>] system_call_fastpath+0x12/0x17
-> +     dump_stack+0x94/0xd8
-> +     print_address_description+0x73/0x280
-> +     kasan_report+0x144/0x187
-> +     __asan_report_store1_noabort+0x17/0x20
-> +     kmalloc_oob_right+0xa8/0xbc [test_kasan]
-> +     kmalloc_tests_init+0x16/0x700 [test_kasan]
-> +     do_one_initcall+0xa5/0x3ae
-> +     do_init_module+0x1b6/0x547
-> +     load_module+0x75df/0x8070
-> +     __do_sys_init_module+0x1c6/0x200
-> +     __x64_sys_init_module+0x6e/0xb0
-> +     do_syscall_64+0x9f/0x2c0
-> +     entry_SYSCALL_64_after_hwframe+0x44/0xa9
-> +    RIP: 0033:0x7f96443109da
-> +    RSP: 002b:00007ffcf0b51b08 EFLAGS: 00000202 ORIG_RAX: 00000000000000af
-> +    RAX: ffffffffffffffda RBX: 000055dc3ee521a0 RCX: 00007f96443109da
-> +    RDX: 00007f96445cff88 RSI: 0000000000057a50 RDI: 00007f9644992000
-> +    RBP: 000055dc3ee510b0 R08: 0000000000000003 R09: 0000000000000000
-> +    R10: 00007f964430cd0a R11: 0000000000000202 R12: 00007f96445cff88
-> +    R13: 000055dc3ee51090 R14: 0000000000000000 R15: 0000000000000000
-> +
-> +    Allocated by task 2760:
-> +     save_stack+0x43/0xd0
-> +     kasan_kmalloc+0xa7/0xd0
-> +     kmem_cache_alloc_trace+0xe1/0x1b0
-> +     kmalloc_oob_right+0x56/0xbc [test_kasan]
-> +     kmalloc_tests_init+0x16/0x700 [test_kasan]
-> +     do_one_initcall+0xa5/0x3ae
-> +     do_init_module+0x1b6/0x547
-> +     load_module+0x75df/0x8070
-> +     __do_sys_init_module+0x1c6/0x200
-> +     __x64_sys_init_module+0x6e/0xb0
-> +     do_syscall_64+0x9f/0x2c0
-> +     entry_SYSCALL_64_after_hwframe+0x44/0xa9
-> +
-> +    Freed by task 815:
-> +     save_stack+0x43/0xd0
-> +     __kasan_slab_free+0x135/0x190
-> +     kasan_slab_free+0xe/0x10
-> +     kfree+0x93/0x1a0
-> +     umh_complete+0x6a/0xa0
-> +     call_usermodehelper_exec_async+0x4c3/0x640
-> +     ret_from_fork+0x35/0x40
-> +
-> +    The buggy address belongs to the object at ffff8801f44ec300
-> +     which belongs to the cache kmalloc-128 of size 128
-> +    The buggy address is located 123 bytes inside of
-> +     128-byte region [ffff8801f44ec300, ffff8801f44ec380)
-> +    The buggy address belongs to the page:
-> +    page:ffffea0007d13b00 count:1 mapcount:0 mapping:ffff8801f7001640 index:0x0
-> +    flags: 0x200000000000100(slab)
-> +    raw: 0200000000000100 ffffea0007d11dc0 0000001a0000001a ffff8801f7001640
-> +    raw: 0000000000000000 0000000080150015 00000001ffffffff 0000000000000000
-> +    page dumped because: kasan: bad access detected
-> +
->      Memory state around the buggy address:
-> -     ffff8800693bc300: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
-> -     ffff8800693bc380: fc fc 00 00 00 00 00 00 00 00 00 00 00 00 00 fc
-> -     ffff8800693bc400: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
-> -     ffff8800693bc480: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
-> -     ffff8800693bc500: fc fc fc fc fc fc fc fc fc fc fc 00 00 00 00 00
-> -    >ffff8800693bc580: 00 00 00 00 00 00 00 00 00 00 03 fc fc fc fc fc
-> -                                                 ^
-> -     ffff8800693bc600: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
-> -     ffff8800693bc680: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
-> -     ffff8800693bc700: fc fc fc fc fb fb fb fb fb fb fb fb fb fb fb fb
-> -     ffff8800693bc780: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> -     ffff8800693bc800: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> +     ffff8801f44ec200: fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb fb
-> +     ffff8801f44ec280: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
-> +    >ffff8801f44ec300: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03
-> +                                                                    ^
-> +     ffff8801f44ec380: fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb fb
-> +     ffff8801f44ec400: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
->      ==================================================================
->
-> -The header of the report discribe what kind of bug happened and what kind of
-> -access caused it. It's followed by the description of the accessed slub object
-> -(see 'SLUB Debug output' section in Documentation/vm/slub.rst for details) and
-> -the description of the accessed memory page.
-> +The header of the report provides a short summary of what kind of bug happened
-> +and what kind of access caused it. It's followed by a stack trace of the bad
-> +access, a stack trace of where the accessed memory was allocated (in case bad
-> +access happens on a slab object), and a stack trace of where the object was
-> +freed (in case of a use-after-free bug report). Next comes a description of
-> +the accessed slab object and information about the accessed memory page.
->
->  In the last section the report shows memory state around the accessed address.
->  Reading this part requires some understanding of how KASAN works.
-> @@ -138,18 +150,24 @@ inaccessible memory like redzones or freed memory (see mm/kasan/kasan.h).
->  In the report above the arrows point to the shadow byte 03, which means that
->  the accessed address is partially accessible.
->
-> +For tag-based KASAN this last report section shows the memory tags around the
-> +accessed address (see Implementation details section).
-> +
->
->  Implementation details
->  ----------------------
->
-> +Generic KASAN
-> +~~~~~~~~~~~~~
-> +
->  From a high level, our approach to memory error detection is similar to that
->  of kmemcheck: use shadow memory to record whether each byte of memory is safe
-> -to access, and use compile-time instrumentation to check shadow memory on each
-> -memory access.
-> +to access, and use compile-time instrumentation to insert checks of shadow
-> +memory on each memory access.
->
-> -AddressSanitizer dedicates 1/8 of kernel memory to its shadow memory
-> -(e.g. 16TB to cover 128TB on x86_64) and uses direct mapping with a scale and
-> -offset to translate a memory address to its corresponding shadow address.
-> +Generic KASAN dedicates 1/8th of kernel memory to its shadow memory (e.g. 16TB
-> +to cover 128TB on x86_64) and uses direct mapping with a scale and offset to
-> +translate a memory address to its corresponding shadow address.
->
->  Here is the function which translates an address to its corresponding shadow
->  address::
-> @@ -162,12 +180,38 @@ address::
->
->  where ``KASAN_SHADOW_SCALE_SHIFT = 3``.
->
-> -Compile-time instrumentation used for checking memory accesses. Compiler inserts
-> -function calls (__asan_load*(addr), __asan_store*(addr)) before each memory
-> -access of size 1, 2, 4, 8 or 16. These functions check whether memory access is
-> -valid or not by checking corresponding shadow memory.
-> +Compile-time instrumentation is used to insert memory access checks. Compiler
-> +inserts function calls (__asan_load*(addr), __asan_store*(addr)) before each
-> +memory access of size 1, 2, 4, 8 or 16. These functions check whether memory
-> +access is valid or not by checking corresponding shadow memory.
->
->  GCC 5.0 has possibility to perform inline instrumentation. Instead of making
->  function calls GCC directly inserts the code to check the shadow memory.
->  This option significantly enlarges kernel but it gives x1.1-x2 performance
->  boost over outline instrumented kernel.
-> +
-> +Software tag-based KASAN
-> +~~~~~~~~~~~~~~~~~~~~~~~~
-> +
-> +Tag-based KASAN uses the Top Byte Ignore (TBI) feature of modern arm64 CPUs to
-> +store a pointer tag in the top byte of kernel pointers. Like generic KASAN it
-> +uses shadow memory to store memory tags associated with each 16-byte memory
-> +cell (therefore it dedicates 1/16th of the kernel memory for shadow memory).
-> +
-> +On each memory allocation tag-based KASAN generates a random tag, tags the
-> +allocated memory with this tag, and embeds this tag into the returned pointer.
-> +Software tag-based KASAN uses compile-time instrumentation to insert checks
-> +before each memory access. These checks make sure that tag of the memory that
-> +is being accessed is equal to tag of the pointer that is used to access this
-> +memory. In case of a tag mismatch tag-based KASAN prints a bug report.
-> +
-> +Software tag-based KASAN also has two instrumentation modes (outline, that
-> +emits callbacks to check memory accesses; and inline, that performs the shadow
-> +memory checks inline). With outline instrumentation mode, a bug report is
-> +simply printed from the function that performs the access check. With inline
-> +instrumentation a brk instruction is emitted by the compiler, and a dedicated
-> +brk handler is used to print bug reports.
-> +
-> +A potential expansion of this mode is a hardware tag-based mode, which would
-> +use hardware memory tagging support instead of compiler instrumentation and
-> +manual shadow memory manipulation.
-> --
-> 2.19.0.444.g18242da7ef-goog
->
+> This would only be possible for memory DIMMs, memory that is completely
+> accessible as far as I can see. Or at least, some specified "first part"
+> is accessible.
+> 
+> Other problems are other metadata like extended struct pages and friends.
+
+I wouldn't really worry about extended struct pages. Those should be
+used for debugging purposes mostly. Ot at least that was the case last
+time I've checked.
+
+> (I really like the idea of adding memory without allocating memory in
+> the hypervisor in the first place, please keep me tuned).
+> 
+> And please note: This solves some problematic part ("adding too much
+> memory to the movable zone or not onlining it"), but not the issue of
+> zone imbalance in the first place. And not one issue I try to tackle
+> here: don't add paravirtualized memory to the movable zone.
+
+Zone imbalance is an inherent problem of the highmem zone. It is
+essentially the highmem zone we all loved so much back in 32b days.
+Yes the movable zone doesn't have any addressing limitations so it is a
+bit more relaxed but considering the hotplug scenarios I have seen so
+far people just want to have full NUMA nodes movable to allow replacing
+DIMMs. And then we are back to square one and the zone imbalance issue.
+You have those regardless where memmaps are allocated from.
+
+> > I yet have to think about the whole proposal but I am missing the most
+> > important part. _Who_ is going to use the new exported information and
+> > for what purpose. You said that distributions have hard time to
+> > distinguish different types of onlinining policies but isn't this
+> > something that is inherently usecase specific?
+> > 
+> 
+> Let's think about a distribution. We have a clash of use cases here
+> (just what you describe). What I propose solves one part of it ("handle
+> what you know how to handle right in the kernel").
+> 
+> 1. Users of DIMMs usually expect that they can be unplugged again. That
+> is why you want to control how to online memory in user space (== add it
+> to the movable zone).
+
+Which is only true if you really want to hotremove them. I am not going
+to tell how much I believe in this usecase but movable policy is not
+generally applicable here.
+
+> 2. Users of standby memory (s390) expect that memory will never be
+> onlined automatically. It will be onlined manually.
+
+yeah
+
+> 3. Users of paravirtualized devices (esp. Hyper-V) don't care about
+> memory unplug in the sense of MOVABLE at all. They (or Hyper-V!) will
+> add a whole bunch of memory and expect that everything works fine. So
+> that memory is onlined immediately and that memory is added to the
+> NORMAL zone. Users never want the MOVABLE zone.
+
+Then the immediate question would be why to use memory hotplug for that
+at all? Why don't you simply start with a huge pre-allocated physical
+address space and balloon memory in an out per demand. Why do you want
+to inject new memory during the runtime?
+
+> 1. is a reason why distributions usually don't configure
+> "MEMORY_HOTPLUG_DEFAULT_ONLINE", because you really want the option for
+> MOVABLE zone. That however implies, that e.g. for x86, you have to
+> handle all new memory in user space, especially also HyperV memory.
+> There, you then have to check for things like "isHyperV()" to decide
+> "oh, yes, this should definitely not go to the MOVABLE zone".
+
+Why do you need a generic hotplug rule in the first place? Why don't you
+simply provide different set of rules for different usecases? Let users
+decide which usecase they prefer rather than try to be clever which
+almost always hits weird corner cases.
+-- 
+Michal Hocko
+SUSE Labs
