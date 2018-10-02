@@ -1,116 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DB866B0006
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 09:55:06 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id d8-v6so1301166edq.11
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 06:55:06 -0700 (PDT)
-Received: from outbound-smtp25.blacknight.com (outbound-smtp25.blacknight.com. [81.17.249.193])
-        by mx.google.com with ESMTPS id k8-v6si1845533edj.67.2018.10.02.06.55.04
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 07BBB6B000E
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 09:55:18 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id y7-v6so2253714plp.16
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 06:55:17 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bj3-v6si16292237plb.12.2018.10.02.06.55.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 02 Oct 2018 06:55:04 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp25.blacknight.com (Postfix) with ESMTPS id 96B3DB886B
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 14:55:04 +0100 (IST)
-Date: Tue, 2 Oct 2018 14:54:59 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 2/2] mm, numa: Migrate pages to local nodes quicker early
- in the lifetime of a task
-Message-ID: <20181002135459.GA7003@techsingularity.net>
-References: <20181001100525.29789-1-mgorman@techsingularity.net>
- <20181001100525.29789-3-mgorman@techsingularity.net>
- <20181002124149.GB4593@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Oct 2018 06:55:16 -0700 (PDT)
+Date: Tue, 2 Oct 2018 15:55:06 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: Introduce new function vm_insert_kmem_page
+Message-ID: <20181002135506.GU18290@dhcp22.suse.cz>
+References: <20180927175123.GA16367@jordon-HP-15-Notebook-PC>
+ <20180927183236.GJ6278@dhcp22.suse.cz>
+ <CAFqt6zbnV+wV+O2EMi1mE4qWDjsZ=Y847MFUc+zv6g8OoVM30g@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181002124149.GB4593@linux.vnet.ibm.com>
+In-Reply-To: <CAFqt6zbnV+wV+O2EMi1mE4qWDjsZ=Y847MFUc+zv6g8OoVM30g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Jirka Hladky <jhladky@redhat.com>, Rik van Riel <riel@surriel.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, pasha.tatashin@oracle.com, riel@redhat.com, Matthew Wilcox <willy@infradead.org>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Huang, Ying" <ying.huang@intel.com>, ak@linux.intel.com, rppt@linux.vnet.ibm.com, linux@dominikbrodowski.net, Arnd Bergmann <arnd@arndb.de>, mcgrof@kernel.org, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On Tue, Oct 02, 2018 at 06:11:49PM +0530, Srikar Dronamraju wrote:
+On Fri 28-09-18 17:57:17, Souptick Joarder wrote:
+> On Fri, Sep 28, 2018 at 12:02 AM Michal Hocko <mhocko@kernel.org> wrote:
 > >
-> > diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-> > index 25c7c7e09cbd..7fc4a371bdd2 100644
-> > --- a/kernel/sched/fair.c
-> > +++ b/kernel/sched/fair.c
-> > @@ -1392,6 +1392,17 @@ bool should_numa_migrate_memory(struct task_struct *p, struct page * page,
-> >  	int last_cpupid, this_cpupid;
+> > On Thu 27-09-18 23:21:23, Souptick Joarder wrote:
+> > > vm_insert_kmem_page is similar to vm_insert_page and will
+> > > be used by drivers to map kernel (kmalloc/vmalloc/pages)
+> > > allocated memory to user vma.
+> > >
+> > > Previously vm_insert_page is used for both page fault
+> > > handlers and outside page fault handlers context. When
+> > > vm_insert_page is used in page fault handlers context,
+> > > each driver have to map errno to VM_FAULT_CODE in their
+> > > own way. But as part of vm_fault_t migration all the
+> > > page fault handlers are cleaned up by using new vmf_insert_page.
+> > > Going forward, vm_insert_page will be removed by converting
+> > > it to vmf_insert_page.
+> > >
+> > > But their are places where vm_insert_page is used outside
+> > > page fault handlers context and converting those to
+> > > vmf_insert_page is not a good approach as drivers will end
+> > > up with new VM_FAULT_CODE to errno conversion code and it will
+> > > make each user more complex.
+> > >
+> > > So this new vm_insert_kmem_page can be used to map kernel
+> > > memory to user vma outside page fault handler context.
+> > >
+> > > In short, vmf_insert_page will be used in page fault handlers
+> > > context and vm_insert_kmem_page will be used to map kernel
+> > > memory to user vma outside page fault handlers context.
+> > >
+> > > We will slowly convert all the user of vm_insert_page to
+> > > vm_insert_kmem_page after this API be available in linus tree.
 > >
-> >  	this_cpupid = cpu_pid_to_cpupid(dst_cpu, current->pid);
-> > +	last_cpupid = page_cpupid_xchg_last(page, this_cpupid);
-> > +
-> > +	/*
-> > +	 * Allow first faults or private faults to migrate immediately early in
-> > +	 * the lifetime of a task. The magic number 4 is based on waiting for
-> > +	 * two full passes of the "multi-stage node selection" test that is
-> > +	 * executed below.
-> > +	 */
-> > +	if ((p->numa_preferred_nid == -1 || p->numa_scan_seq <= 4) &&
-> > +	    (cpupid_pid_unset(last_cpupid) || cpupid_match_pid(p, last_cpupid)))
-> > +		return true;
-> >
+> > In general I do not like patches adding a new exports/functionality
+> > without any user added at the same time. I am not going to look at the
+> > implementation right now but the above opens more questions than it
+> > gives answers. Why do we have to distinguish #PF from other paths?
 > 
-> This does have issues when using with workloads that access more shared faults
-> than private faults.
+> Going forward, the plan is to restrict future drivers not to use vm_insert_page
+> ( *it will generate new errno to VM_FAULT_CODE mapping code for new drivers
+> which were already cleaned up for existing drivers*) in #PF context but to make
+> use of vmf_insert_page which returns VMF_FAULT_CODE and that is not possible
+> until both vm_insert_page and vmf_insert_page API exists.
 > 
+> But there are some consumers of vm_insert_page which use it outside #PF context.
+> straight forward conversion of vm_insert_page to vmf_insert_page won't
+> work there as
+> those function calls expects errno not vm_fault_t in return.
+> 
+> e.g - drivers/auxdisplay/cfag12864bfb.c, line 55
+>         drivers/auxdisplay/ht16k33.c, line 227
+>         drivers/firewire/core-iso.c, line 115
+>         drivers/gpu/drm/rockchip/rockchip_drm_gem.c, line 237
+>         drivers/gpu/drm/xen/xen_drm_front_gem.c, line 253
+>         drivers/iommu/dma-iommu.c, line 600
+>         drivers/media/common/videobuf2/videobuf2-dma-sg.c, line 343
+>         drivers/media/usb/usbvision/usbvision-video.c, line 1056
+>         drivers/xen/gntalloc.c, line 548
+>         drivers/xen/gntdev.c, line 1149
+>         drivers/xen/privcmd-buf.c, line 184
+>         mm/vmalloc.c, line 2254
+>         net/ipv4/tcp.c, line 1806
+>         net/packet/af_packet.c, line 4407
+> 
+> These are the approaches which could have been taken to handle this scenario -
+> 
+> 1. Replace vm_insert_page with vmf_insert_page and then write few
+>    extra lines of code to convert VM_FAULT_CODE to errno which
+>    makes driver users more complex ( also the reverse mapping errno to
+>    VM_FAULT_CODE have been cleaned up as part of vm_fault_t migration ,
+>    not preferred to introduce anything similar again)
+> 
+> 2. Maintain both vm_insert_page and vmf_insert_page and use it in
+>    respective places. But it won't gurantee that vm_insert_page will
+>    never be used in #PF context.
+> 
+> 3. Introduce a similar API like vm_insert_page, convert all non #PF
+>    consumer to use it and finally remove vm_insert_page by converting
+>    it to vmf_insert_page.
+> 
+> And the 3rd approach was taken by introducing vm_insert_kmem_page().
 
-Not as such. It can have issues on workloads where memory is initialised
-by one thread, then additional threads are created and access the same
-memory. They are not necessarily shared once buffers are handed over. In
-such a case, migrating quickly is the right thing to do. If it's truely
-shared pages then there may be some unnecessary migrations early in the
-lifetime of the task but it'll settle down quickly enough.
-
-> In such workloads, this change would spread the memory causing regression in
-> behaviour.
-> 
-> 5 runs of on 2 socket/ 4 node power 8 box
-> 
-> 
-> Without this patch
-> ./numa01.sh      Real:  382.82    454.29    422.31    29.72
-> ./numa01.sh      Sys:   40.12     74.53     58.50     13.37
-> ./numa01.sh      User:  34230.22  46398.84  40292.62  4915.93
-> 
-> With this patch
-> ./numa01.sh      Real:  415.56    555.04    473.45    51.17    -10.8016%
-> ./numa01.sh      Sys:   43.42     94.22     73.59     17.31    -20.5055%
-> ./numa01.sh      User:  35271.95  56644.19  45615.72  7165.01  -11.6694%
-> 
-> Since we are looking at time, smaller numbers are better.
-> 
-
-Is it just numa01 that was affected for you? I ask because that particular
-workload is an averse workload on any machine with more than sockets and
-your machine description says it has 4 nodes. What it is testing is quite
-specific to 2-node machines.
-
-> SPECJbb did show some small loss and gains.
-> 
-
-That almost always shows small gains and losses so that's not too
-surprising.
-
-> Our numa grouping is not fast enough. It can take sometimes several
-> iterations before all the tasks belonging to the same group end up being
-> part of the group. With the current check we end up spreading memory faster
-> than we should hence hurting the chance of early consolidation.
-> 
-> Can we restrict to something like this?
-> 
-> if (p->numa_scan_seq >=MIN && p->numa_scan_seq <= MIN+4 &&
->     (cpupid_match_pid(p, last_cpupid)))
-> 	return true;
-> 
-> meaning, we ran atleast MIN number of scans, and we find the task to be most likely
-> task using this page.
-> 
-
-What's MIN? Assuming it's any type of delay, note that this will regress
-STREAM again because it's very sensitive to the starting state.
+OK, the make sure to convert some of those users in the same patch. This
+will allow both to review the api and that it serves it purpose. Other
+users can also see how the initial conversion has been done and do it in
+a similar way.
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
