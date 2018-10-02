@@ -1,81 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 34A6E6B000C
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 07:54:24 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id v4-v6so1073058oix.2
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 04:54:24 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 92-v6si7753881otx.189.2018.10.02.04.54.22
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D0B8E6B0003
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 08:10:44 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id ce7-v6so1713115plb.22
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 05:10:44 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p8-v6si1120539pgn.554.2018.10.02.05.10.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Oct 2018 04:54:23 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w92Brwxa052477
-	for <linux-mm@kvack.org>; Tue, 2 Oct 2018 07:54:22 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mv6f9kyp6-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 02 Oct 2018 07:54:21 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Tue, 2 Oct 2018 12:54:19 +0100
-Date: Tue, 2 Oct 2018 17:24:12 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/2] mm, numa: Remove rate-limiting of automatic numa
- balancing migration
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20181001100525.29789-1-mgorman@techsingularity.net>
- <20181001100525.29789-2-mgorman@techsingularity.net>
+        Tue, 02 Oct 2018 05:10:43 -0700 (PDT)
+Date: Tue, 2 Oct 2018 14:10:39 +0200
+From: Johannes Thumshirn <jthumshirn@suse.de>
+Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
+Message-ID: <20181002121039.GA3274@linux-x5ow.site>
+References: <20181002100531.GC4135@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20181001100525.29789-2-mgorman@techsingularity.net>
-Message-Id: <20181002115412.GA4593@linux.vnet.ibm.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181002100531.GC4135@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Jirka Hladky <jhladky@redhat.com>, Rik van Riel <riel@surriel.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-* Mel Gorman <mgorman@techsingularity.net> [2018-10-01 11:05:24]:
+On Tue, Oct 02, 2018 at 12:05:31PM +0200, Jan Kara wrote:
+> Hello,
+> 
+> commit e1fb4a086495 "dax: remove VM_MIXEDMAP for fsdax and device dax" has
+> removed VM_MIXEDMAP flag from DAX VMAs. Now our testing shows that in the
+> mean time certain customer of ours started poking into /proc/<pid>/smaps
+> and looks at VMA flags there and if VM_MIXEDMAP is missing among the VMA
+> flags, the application just fails to start complaining that DAX support is
+> missing in the kernel. The question now is how do we go about this?
 
-> Rate limiting of page migrations due to automatic NUMA balancing was
-> introduced to mitigate the worst-case scenario of migrating at high
-> frequency due to false sharing or slowly ping-ponging between nodes.
-> Since then, a lot of effort was spent on correctly identifying these
-> pages and avoiding unnecessary migrations and the safety net may no longer
-> be required.
-> 
-> Jirka Hladky reported a regression in 4.17 due to a scheduler patch that
-> avoids spreading STREAM tasks wide prematurely. However, once the task
-> was properly placed, it delayed migrating the memory due to rate limiting.
-> Increasing the limit fixed the problem for him.
-> 
-> Currently, the limit is hard-coded and does not account for the real
-> capabilities of the hardware. Even if an estimate was attempted, it would
-> not properly account for the number of memory controllers and it could
-> not account for the amount of bandwidth used for normal accesses. Rather
-> than fudging, this patch simply eliminates the rate limiting.
-> 
-> However, Jirka reports that a STREAM configuration using multiple
-> processes achieved similar performance to 4.16. In local tests, this patch
-> improved performance of STREAM relative to the baseline but it is somewhat
-> machine-dependent. Most workloads show little or not performance difference
-> implying that there is not a heavily reliance on the throttling mechanism
-> and it is safe to remove.
-> 
-> STREAM on 2-socket machine
->                          4.19.0-rc5             4.19.0-rc5
->                          numab-v1r1       noratelimit-v1r1
-> MB/sec copy     43298.52 (   0.00%)    44673.38 (   3.18%)
-> MB/sec scale    30115.06 (   0.00%)    31293.06 (   3.91%)
-> MB/sec add      32825.12 (   0.00%)    34883.62 (   6.27%)
-> MB/sec triad    32549.52 (   0.00%)    34906.60 (   7.24%
-> 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> ---
-Reviewed-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+OK naive question from me, how do we want an application to be able to
+check if it is running on a DAX mapping?
 
+AFAIU DAX is always associated with a file descriptor of some kind (be
+it a real file with filesystem dax or the /dev/dax device file for
+device dax). So could a new fcntl() be of any help here? IS_DAX() only
+checks for the S_DAX flag in inode::i_flags, so this should be doable
+for both fsdax and devdax.
+
+I haven't tried it yet but it should be fairly easy to come up with
+something like this.
+
+Byte,
+	Johannes
 -- 
-Thanks and Regards
-Srikar Dronamraju
+Johannes Thumshirn                                          Storage
+jthumshirn@suse.de                                +49 911 74053 689
+SUSE LINUX GmbH, Maxfeldstr. 5, 90409 Nurnberg
+GF: Felix Imendorffer, Jane Smithard, Graham Norton
+HRB 21284 (AG Nurnberg)
+Key fingerprint = EC38 9CAB C2C4 F25D 8600 D0D0 0393 969D 2D76 0850
