@@ -1,73 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 613806B000C
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 09:51:49 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id n1-v6so1691560qtb.17
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 06:51:49 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v9-v6sor3246734qvc.110.2018.10.02.06.51.48
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DB866B0006
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 09:55:06 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id d8-v6so1301166edq.11
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 06:55:06 -0700 (PDT)
+Received: from outbound-smtp25.blacknight.com (outbound-smtp25.blacknight.com. [81.17.249.193])
+        by mx.google.com with ESMTPS id k8-v6si1845533edj.67.2018.10.02.06.55.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 02 Oct 2018 06:51:48 -0700 (PDT)
-Date: Tue, 2 Oct 2018 09:51:41 -0400
-From: Masayoshi Mizuma <msys.mizuma@gmail.com>
-Subject: Re: [PATCH v2 1/3] Revert "x86/e820: put !E820_TYPE_RAM regions into
- memblock.reserved"
-Message-ID: <20181002135141.3yqedau2nrvwpxmy@gabell>
-References: <20180925153532.6206-1-msys.mizuma@gmail.com>
- <20180925153532.6206-2-msys.mizuma@gmail.com>
- <20181002093940.GA98058@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 02 Oct 2018 06:55:04 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp25.blacknight.com (Postfix) with ESMTPS id 96B3DB886B
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 14:55:04 +0100 (IST)
+Date: Tue, 2 Oct 2018 14:54:59 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 2/2] mm, numa: Migrate pages to local nodes quicker early
+ in the lifetime of a task
+Message-ID: <20181002135459.GA7003@techsingularity.net>
+References: <20181001100525.29789-1-mgorman@techsingularity.net>
+ <20181001100525.29789-3-mgorman@techsingularity.net>
+ <20181002124149.GB4593@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20181002093940.GA98058@gmail.com>
+In-Reply-To: <20181002124149.GB4593@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Michal Hocko <mhocko@kernel.org>, Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>, linux-kernel@vger.kernel.org, x86@kernel.org
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Jirka Hladky <jhladky@redhat.com>, Rik van Riel <riel@surriel.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Tue, Oct 02, 2018 at 11:39:40AM +0200, Ingo Molnar wrote:
+On Tue, Oct 02, 2018 at 06:11:49PM +0530, Srikar Dronamraju wrote:
+> >
+> > diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+> > index 25c7c7e09cbd..7fc4a371bdd2 100644
+> > --- a/kernel/sched/fair.c
+> > +++ b/kernel/sched/fair.c
+> > @@ -1392,6 +1392,17 @@ bool should_numa_migrate_memory(struct task_struct *p, struct page * page,
+> >  	int last_cpupid, this_cpupid;
+> >
+> >  	this_cpupid = cpu_pid_to_cpupid(dst_cpu, current->pid);
+> > +	last_cpupid = page_cpupid_xchg_last(page, this_cpupid);
+> > +
+> > +	/*
+> > +	 * Allow first faults or private faults to migrate immediately early in
+> > +	 * the lifetime of a task. The magic number 4 is based on waiting for
+> > +	 * two full passes of the "multi-stage node selection" test that is
+> > +	 * executed below.
+> > +	 */
+> > +	if ((p->numa_preferred_nid == -1 || p->numa_scan_seq <= 4) &&
+> > +	    (cpupid_pid_unset(last_cpupid) || cpupid_match_pid(p, last_cpupid)))
+> > +		return true;
+> >
 > 
-> * Masayoshi Mizuma <msys.mizuma@gmail.com> wrote:
+> This does have issues when using with workloads that access more shared faults
+> than private faults.
 > 
-> > From: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
-> > 
-> > commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM regions into
-> > memblock.reserved") breaks movable_node kernel option because it
-> > changed the memory gap range to reserved memblock. So, the node
-> > is marked as Normal zone even if the SRAT has Hot plaggable affinity.
-> > 
-> >     =====================================================================
-> >     kernel: BIOS-e820: [mem 0x0000180000000000-0x0000180fffffffff] usable
-> >     kernel: BIOS-e820: [mem 0x00001c0000000000-0x00001c0fffffffff] usable
-> >     ...
-> >     kernel: reserved[0x12]#011[0x0000181000000000-0x00001bffffffffff], 0x000003f000000000 bytes flags: 0x0
-> >     ...
-> >     kernel: ACPI: SRAT: Node 2 PXM 6 [mem 0x180000000000-0x1bffffffffff] hotplug
-> >     kernel: ACPI: SRAT: Node 3 PXM 7 [mem 0x1c0000000000-0x1fffffffffff] hotplug
-> >     ...
-> >     kernel: Movable zone start for each node
-> >     kernel:  Node 3: 0x00001c0000000000
-> >     kernel: Early memory node ranges
-> >     ...
-> >     =====================================================================
-> > 
-> > Naoya's v1 patch [*] fixes the original issue and this movable_node
-> > issue doesn't occur.
-> > Let's revert commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM
-> > regions into memblock.reserved") and apply the v1 patch.
-> > 
-> > [*] https://lkml.org/lkml/2018/6/13/27
-> > 
-> > Signed-off-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
-> > Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
-> > ---
-> >  arch/x86/kernel/e820.c | 15 +++------------
-> >  1 file changed, 3 insertions(+), 12 deletions(-)
-> 
-> Bad ordering which introduces the bug and thus breaks bisection of related issues: the fixes 
-> should come first, then the revert of the unnecessary or bad fix.
 
-Thanks. I'll change the order, then resend them.
+Not as such. It can have issues on workloads where memory is initialised
+by one thread, then additional threads are created and access the same
+memory. They are not necessarily shared once buffers are handed over. In
+such a case, migrating quickly is the right thing to do. If it's truely
+shared pages then there may be some unnecessary migrations early in the
+lifetime of the task but it'll settle down quickly enough.
 
-- Masa
+> In such workloads, this change would spread the memory causing regression in
+> behaviour.
+> 
+> 5 runs of on 2 socket/ 4 node power 8 box
+> 
+> 
+> Without this patch
+> ./numa01.sh      Real:  382.82    454.29    422.31    29.72
+> ./numa01.sh      Sys:   40.12     74.53     58.50     13.37
+> ./numa01.sh      User:  34230.22  46398.84  40292.62  4915.93
+> 
+> With this patch
+> ./numa01.sh      Real:  415.56    555.04    473.45    51.17    -10.8016%
+> ./numa01.sh      Sys:   43.42     94.22     73.59     17.31    -20.5055%
+> ./numa01.sh      User:  35271.95  56644.19  45615.72  7165.01  -11.6694%
+> 
+> Since we are looking at time, smaller numbers are better.
+> 
+
+Is it just numa01 that was affected for you? I ask because that particular
+workload is an averse workload on any machine with more than sockets and
+your machine description says it has 4 nodes. What it is testing is quite
+specific to 2-node machines.
+
+> SPECJbb did show some small loss and gains.
+> 
+
+That almost always shows small gains and losses so that's not too
+surprising.
+
+> Our numa grouping is not fast enough. It can take sometimes several
+> iterations before all the tasks belonging to the same group end up being
+> part of the group. With the current check we end up spreading memory faster
+> than we should hence hurting the chance of early consolidation.
+> 
+> Can we restrict to something like this?
+> 
+> if (p->numa_scan_seq >=MIN && p->numa_scan_seq <= MIN+4 &&
+>     (cpupid_match_pid(p, last_cpupid)))
+> 	return true;
+> 
+> meaning, we ran atleast MIN number of scans, and we find the task to be most likely
+> task using this page.
+> 
+
+What's MIN? Assuming it's any type of delay, note that this will regress
+STREAM again because it's very sensitive to the starting state.
+
+-- 
+Mel Gorman
+SUSE Labs
