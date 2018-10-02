@@ -1,67 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CFE16B0266
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 07:05:31 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id w18-v6so1531485plp.3
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 04:05:31 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id t64-v6si14054913pgd.8.2018.10.02.04.05.30
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Oct 2018 04:05:30 -0700 (PDT)
-Date: Tue, 2 Oct 2018 14:05:24 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCHv3 5/6] tools/gup_benchmark: Add parameter for hugetlb
-Message-ID: <20181002110524.ckgrlmx5k54rvawt@black.fi.intel.com>
-References: <20180921223956.3485-1-keith.busch@intel.com>
- <20180921223956.3485-6-keith.busch@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180921223956.3485-6-keith.busch@intel.com>
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 179C26B026B
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 07:05:42 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id x194-v6so1002438oix.10
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 04:05:42 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id b67-v6si1992981oii.148.2018.10.02.04.05.40
+        for <linux-mm@kvack.org>;
+        Tue, 02 Oct 2018 04:05:40 -0700 (PDT)
+From: Will Deacon <will.deacon@arm.com>
+Subject: [PATCH v2 3/5] x86: pgtable: Drop pXd_none() checks from pXd_free_pYd_table()
+Date: Tue,  2 Oct 2018 12:06:01 +0100
+Message-Id: <1538478363-16255-4-git-send-email-will.deacon@arm.com>
+In-Reply-To: <1538478363-16255-1-git-send-email-will.deacon@arm.com>
+References: <1538478363-16255-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Keith Busch <keith.busch@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: cpandya@codeaurora.org, toshi.kani@hpe.com, tglx@linutronix.de, mhocko@suse.com, akpm@linux-foundation.org, sean.j.christopherson@intel.com, Will Deacon <will.deacon@arm.com>
 
-On Fri, Sep 21, 2018 at 10:39:55PM +0000, Keith Busch wrote:
+Now that the core code checks this for us, we don't need to do it in the
+backend.
 
--ENOMSG
+Cc: Chintan Pandya <cpandya@codeaurora.org>
+Cc: Toshi Kani <toshi.kani@hpe.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Reviewed-by: Toshi Kani <toshi.kani@hpe.com>
+Signed-off-by: Will Deacon <will.deacon@arm.com>
+---
+ arch/x86/mm/pgtable.c | 6 ------
+ 1 file changed, 6 deletions(-)
 
-> Cc: Kirill Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Signed-off-by: Keith Busch <keith.busch@intel.com>
-> ---
->  tools/testing/selftests/vm/gup_benchmark.c | 5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
-> 
-> diff --git a/tools/testing/selftests/vm/gup_benchmark.c b/tools/testing/selftests/vm/gup_benchmark.c
-> index f2c99e2436f8..5d96e2b3d2f1 100644
-> --- a/tools/testing/selftests/vm/gup_benchmark.c
-> +++ b/tools/testing/selftests/vm/gup_benchmark.c
-> @@ -38,7 +38,7 @@ int main(int argc, char **argv)
->  	char *file = NULL;
->  	char *p;
->  
-> -	while ((opt = getopt(argc, argv, "m:r:n:f:tTLU")) != -1) {
-> +	while ((opt = getopt(argc, argv, "m:r:n:f:tTLUH")) != -1) {
->  		switch (opt) {
->  		case 'm':
->  			size = atoi(optarg) * MB;
-> @@ -64,6 +64,9 @@ int main(int argc, char **argv)
->  		case 'w':
->  			write = 1;
->  			break;
-> +		case 'H':
-> +			flags |= MAP_HUGETLB;
-> +			break;
->  		case 'f':
->  			file = optarg;
->  			flags &= ~(MAP_PRIVATE | MAP_ANONYMOUS);
-> -- 
-> 2.14.4
-> 
-
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index ae394552fb94..b4919c44a194 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -796,9 +796,6 @@ int pud_free_pmd_page(pud_t *pud, unsigned long addr)
+ 	pte_t *pte;
+ 	int i;
+ 
+-	if (pud_none(*pud))
+-		return 1;
+-
+ 	pmd = (pmd_t *)pud_page_vaddr(*pud);
+ 	pmd_sv = (pmd_t *)__get_free_page(GFP_KERNEL);
+ 	if (!pmd_sv)
+@@ -840,9 +837,6 @@ int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
+ {
+ 	pte_t *pte;
+ 
+-	if (pmd_none(*pmd))
+-		return 1;
+-
+ 	pte = (pte_t *)pmd_page_vaddr(*pmd);
+ 	pmd_clear(pmd);
+ 
 -- 
- Kirill A. Shutemov
+2.1.4
