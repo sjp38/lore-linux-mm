@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 36AC86B000E
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 11:00:53 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id k44-v6so1771610wre.18
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 08:00:53 -0700 (PDT)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D00C56B000D
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 11:00:54 -0400 (EDT)
+Received: by mail-wm1-f71.google.com with SMTP id y203-v6so1825096wmg.9
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 08:00:54 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n198-v6sor8940953wmd.1.2018.10.02.08.00.49
+        by mx.google.com with SMTPS id 192-v6sor1464146wmw.0.2018.10.02.08.00.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 02 Oct 2018 08:00:49 -0700 (PDT)
+        Tue, 02 Oct 2018 08:00:51 -0700 (PDT)
 From: Oscar Salvador <osalvador@techadventures.net>
-Subject: [RFC PATCH v3 2/5] mm/memory_hotplug: Create add/del_device_memory functions
-Date: Tue,  2 Oct 2018 17:00:26 +0200
-Message-Id: <20181002150029.23461-3-osalvador@techadventures.net>
+Subject: [RFC PATCH v3 4/5] mm/memory_hotplug: Move zone/pages handling to offline stage
+Date: Tue,  2 Oct 2018 17:00:28 +0200
+Message-Id: <20181002150029.23461-5-osalvador@techadventures.net>
 In-Reply-To: <20181002150029.23461-1-osalvador@techadventures.net>
 References: <20181002150029.23461-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
@@ -22,267 +22,449 @@ Cc: mhocko@suse.com, dan.j.williams@intel.com, yasu.isimatu@gmail.com, rppt@linu
 
 From: Oscar Salvador <osalvador@suse.de>
 
-HMM/devm have a particular handling of memory-hotplug.
-They do not go through the common path, and so, they do not
-call either offline_pages() or online_pages().
+Currently, we decrement zone/node spanned_pages during the
+hot-remove path.
 
-The operations they perform are the following ones:
+The picture we have now is:
 
-1) Create the linear mapping in case the memory is not private
-2) Initialize the pages and add the sections
-3) Move the pages to ZONE_DEVICE in case the memory is not private.
+- hot-add memory:
+  a) Allocate a new resouce based on the hot-added memory
+  b) Add memory sections for the hot-added memory
 
-Due to this particular handling of hot-add/remove memory from HMM/devm,
-I think it would be nice to provide a helper function in order to
-make this cleaner, and not populate other regions with code
-that should belong to memory-hotplug.
+- online memory:
+  c) Re-adjust zone/pgdat nr of pages (managed, spanned, present)
+  d) Initialize the pages from the new memory-range
+  e) Online memory sections
 
-The helpers are named:
+- offline memory:
+  f) Offline memory sections
+  g) Re-adjust zone/pgdat nr of managed/present pages
 
-del_device_memory
-add_device_memory
+- hot-remove memory:
+  i) Re-adjust zone/pgdat nr of spanned pages
+  j) Remove memory sections
+  k) Release resource
 
-The idea is that add_device_memory will be in charge of:
+This, besides of not being consistent with the current code,
+implies that we can access steal pages if we never get to online
+that memory.
+So we should move i) to the offline stage.
 
-a) call either arch_add_memory() or add_pages(), depending on whether
-   we want a linear mapping
-b) online the memory sections that correspond to the pfn range
-c) call move_pfn_range_to_zone() being zone ZONE_DEVICE to
-   expand zone/pgdat spanned pages and initialize its pages
+Hot-remove path should only care about memory sections and memory
+blocks.
 
-del_device_memory, on the other hand, will be in charge of:
+There is a particularity and that is HMM/devm.
+When the memory is being handled by HMM/devm, this memory is moved to
+ZONE_DEVICE by means of move_pfn_range_to_zone, but since this memory
+does not get "online", the sections do not get online either.
+This is a problem because shrink_zone_pgdat_pages will now look for
+online sections, so we need to explicitly offline the sections
+before calling in.
+add_device_memory takes care of online them, and del_device_memory offlines
+them.
 
-a) offline the memory sections that correspond to the pfn range
-b) call shrink_zone_pgdat_pages(), which shrinks node/zone spanned pages.
-c) call either arch_remove_memory() or __remove_pages(), depending on
-   whether we need to tear down the linear mapping or not
+Finally, shrink_zone_pgdat_pages() is moved to offline_pages(), so now,
+all pages/zone handling is being taken care in online/offline_pages stage.
 
-In order to split up better the patches and ease the review,
-this patch will only make a) case work for add_device_memory(),
-and case c) for del_device_memory.
+So now we will have:
 
-The other cases will be added in the next patch.
+- hot-add memory:
+  a) Allocate a new resource based on the hot-added memory
+  b) Add memory sections for the hot-added memory
 
-Since [1], hmm is using devm_memremap_pages and devm_memremap_pages_release
-instead of its own functions, so these two functions have to only be called
-from devm code.
+- online memory:
+  c) Re-adjust zone/pgdat nr of pages (managed, spanned, present)
+  d) Initialize the pages from the new memory-range
+  e) Online memory sections
 
-add_device_memory:
-        - devm_memremap_pages()
+- offline memory:
+  f) Offline memory sections
+  g) Re-adjust zone/pgdat nr of managed/present/spanned pages
 
-del_device_memory:
-        - devm_memremap_pages_release()
-
-Another thing that this patch does is to move init_currently_empty_zone to be
-protected by the span_lock lock.
-
-Zone locking rules states the following:
-
- * Locking rules:
- *
- * zone_start_pfn and spanned_pages are protected by span_seqlock.
- * It is a seqlock because it has to be read outside of zone->lock,
- * and it is done in the main allocator path.  But, it is written
- * quite infrequently.
- *
-
-Since init_currently_empty_zone changes zone_start_pfn,
-it makes sense to have it envolved by its lock.
-
-[1] https://patchwork.kernel.org/patch/10598657/
+- hot-remove memory:
+  i) Remove memory sections
+  j) Release resource
 
 Signed-off-by: Oscar Salvador <osalvador@suse.de>
 ---
- include/linux/memory_hotplug.h |  7 ++++++
- kernel/memremap.c              | 48 ++++++++++++++------------------------
- mm/memory_hotplug.c            | 53 +++++++++++++++++++++++++++++++++++++++---
- 3 files changed, 74 insertions(+), 34 deletions(-)
+ arch/ia64/mm/init.c            |   4 +-
+ arch/powerpc/mm/mem.c          |  11 +----
+ arch/sh/mm/init.c              |   4 +-
+ arch/x86/mm/init_32.c          |   4 +-
+ arch/x86/mm/init_64.c          |   8 +---
+ include/linux/memory_hotplug.h |   8 ++--
+ mm/memory_hotplug.c            | 100 +++++++++++++++++++----------------------
+ mm/sparse.c                    |   4 +-
+ 8 files changed, 57 insertions(+), 86 deletions(-)
 
+diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+index 904fe55e10fc..a6b5f351620c 100644
+--- a/arch/ia64/mm/init.c
++++ b/arch/ia64/mm/init.c
+@@ -665,11 +665,9 @@ int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+-	struct zone *zone;
+ 	int ret;
+ 
+-	zone = page_zone(pfn_to_page(start_pfn));
+-	ret = __remove_pages(zone, start_pfn, nr_pages, altmap);
++	ret = __remove_pages(nid, start_pfn, nr_pages, altmap);
+ 	if (ret)
+ 		pr_warn("%s: Problem encountered in __remove_pages() as"
+ 			" ret=%d\n", __func__,  ret);
+diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+index 445fce705f91..6d02171b2d0f 100644
+--- a/arch/powerpc/mm/mem.c
++++ b/arch/powerpc/mm/mem.c
+@@ -142,18 +142,9 @@ int __meminit arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altma
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+-	struct page *page;
+ 	int ret;
+ 
+-	/*
+-	 * If we have an altmap then we need to skip over any reserved PFNs
+-	 * when querying the zone.
+-	 */
+-	page = pfn_to_page(start_pfn);
+-	if (altmap)
+-		page += vmem_altmap_offset(altmap);
+-
+-	ret = __remove_pages(page_zone(page), start_pfn, nr_pages, altmap);
++	ret = __remove_pages(nid, start_pfn, nr_pages, altmap);
+ 	if (ret)
+ 		return ret;
+ 
+diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+index a8e5c0e00fca..6e80a7a50f8b 100644
+--- a/arch/sh/mm/init.c
++++ b/arch/sh/mm/init.c
+@@ -447,11 +447,9 @@ int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
+ {
+ 	unsigned long start_pfn = PFN_DOWN(start);
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+-	struct zone *zone;
+ 	int ret;
+ 
+-	zone = page_zone(pfn_to_page(start_pfn));
+-	ret = __remove_pages(zone, start_pfn, nr_pages, altmap);
++	ret = __remove_pages(nid, start_pfn, nr_pages, altmap);
+ 	if (unlikely(ret))
+ 		pr_warn("%s: Failed, __remove_pages() == %d\n", __func__,
+ 			ret);
+diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+index b2a698d87a0e..72f403816053 100644
+--- a/arch/x86/mm/init_32.c
++++ b/arch/x86/mm/init_32.c
+@@ -864,10 +864,8 @@ int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+-	struct zone *zone;
+ 
+-	zone = page_zone(pfn_to_page(start_pfn));
+-	return __remove_pages(zone, start_pfn, nr_pages, altmap);
++	return __remove_pages(nid, start_pfn, nr_pages, altmap);
+ }
+ #endif
+ #endif
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index c754d9543ae1..9872307d9c88 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1151,15 +1151,9 @@ int __ref arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *a
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+-	struct page *page = pfn_to_page(start_pfn);
+-	struct zone *zone;
+ 	int ret;
+ 
+-	/* With altmap the first mapped page is offset from @start */
+-	if (altmap)
+-		page += vmem_altmap_offset(altmap);
+-	zone = page_zone(page);
+-	ret = __remove_pages(zone, start_pfn, nr_pages, altmap);
++	ret = __remove_pages(nid, start_pfn, nr_pages, altmap);
+ 	WARN_ON_ONCE(ret);
+ 	kernel_physical_mapping_remove(start, start + size);
+ 
 diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index f9fc35819e65..2f7b8eb4cddb 100644
+index 2f7b8eb4cddb..90c97a843094 100644
 --- a/include/linux/memory_hotplug.h
 +++ b/include/linux/memory_hotplug.h
-@@ -117,6 +117,13 @@ extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
- extern int __add_pages(int nid, unsigned long start_pfn, unsigned long nr_pages,
- 		struct vmem_altmap *altmap, bool want_memblock);
+@@ -109,8 +109,8 @@ static inline bool movable_node_is_enabled(void)
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+ extern int arch_remove_memory(int nid, u64 start, u64 size,
+ 		struct vmem_altmap *altmap);
+-extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
+-	unsigned long nr_pages, struct vmem_altmap *altmap);
++extern int __remove_pages(int nid, unsigned long start_pfn,
++			unsigned long nr_pages, struct vmem_altmap *altmap);
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
  
-+#ifdef CONFIG_ZONE_DEVICE
-+extern int del_device_memory(int nid, unsigned long start, unsigned long size,
-+				struct vmem_altmap *altmap, bool private_mem);
-+extern int add_device_memory(int nid, unsigned long start, unsigned long size,
-+				struct vmem_altmap *altmap, bool private_mem);
-+#endif
-+
- #ifndef CONFIG_ARCH_HAS_ADD_PAGES
- static inline int add_pages(int nid, unsigned long start_pfn,
- 		unsigned long nr_pages, struct vmem_altmap *altmap,
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index fe54bba2d7e2..0f168a75c5b0 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -120,8 +120,11 @@ static void devm_memremap_pages_release(void *data)
- 	struct device *dev = pgmap->dev;
- 	struct resource *res = &pgmap->res;
- 	resource_size_t align_start, align_size;
-+	struct vmem_altmap *altmap = pgmap->altmap_valid ?
-+					&pgmap->altmap : NULL;
- 	unsigned long pfn;
- 	int nid;
-+	bool private_mem;
- 
- 	pgmap->kill(pgmap->ref);
- 	for_each_device_pfn(pfn, pgmap)
-@@ -133,17 +136,14 @@ static void devm_memremap_pages_release(void *data)
- 		- align_start;
- 	nid = dev_to_node(dev);
- 
--	mem_hotplug_begin();
--	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
--		pfn = align_start >> PAGE_SHIFT;
--		__remove_pages(page_zone(pfn_to_page(pfn)), pfn,
--				align_size >> PAGE_SHIFT, NULL);
--	} else {
--		arch_remove_memory(nid, align_start, align_size,
--				pgmap->altmap_valid ? &pgmap->altmap : NULL);
-+	if (pgmap->type == MEMORY_DEVICE_PRIVATE)
-+		private_mem = true;
-+	else
-+		private_mem = false;
-+
-+	del_device_memory(nid, align_start, align_size, altmap, private_mem);
-+	if (!private_mem)
- 		kasan_remove_zero_shadow(__va(align_start), align_size);
--	}
--	mem_hotplug_done();
- 
- 	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
- 	pgmap_radix_release(res, -1);
-@@ -180,6 +180,7 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 	pgprot_t pgprot = PAGE_KERNEL;
- 	int error, nid, is_ram;
- 	struct dev_pagemap *conflict_pgmap;
-+	bool private_mem;
- 
- 	if (!pgmap->ref || !pgmap->kill)
- 		return ERR_PTR(-EINVAL);
-@@ -239,8 +240,6 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 	if (error)
- 		goto err_pfn_remap;
- 
--	mem_hotplug_begin();
--
- 	/*
- 	 * For device private memory we call add_pages() as we only need to
- 	 * allocate and initialize struct page for the device memory. More-
-@@ -252,29 +251,16 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 	 * the CPU, we do want the linear mapping and thus use
- 	 * arch_add_memory().
- 	 */
--	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
--		error = add_pages(nid, align_start >> PAGE_SHIFT,
--				align_size >> PAGE_SHIFT, NULL, false);
--	} else {
-+	if (pgmap->type == MEMORY_DEVICE_PRIVATE)
-+		private_mem = true;
-+	else {
- 		error = kasan_add_zero_shadow(__va(align_start), align_size);
--		if (error) {
--			mem_hotplug_done();
-+		if (error)
- 			goto err_kasan;
--		}
--
--		error = arch_add_memory(nid, align_start, align_size, altmap,
--				false);
--	}
--
--	if (!error) {
--		struct zone *zone;
--
--		zone = &NODE_DATA(nid)->node_zones[ZONE_DEVICE];
--		move_pfn_range_to_zone(zone, align_start >> PAGE_SHIFT,
--				align_size >> PAGE_SHIFT, altmap);
-+		private_mem = false;
- 	}
- 
--	mem_hotplug_done();
-+	error = add_device_memory(nid, align_start, align_size, altmap, private_mem);
- 	if (error)
- 		goto err_add_memory;
- 
+ /* reasonably generic interface to expand the physical pages */
+@@ -342,8 +342,8 @@ extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+ extern bool is_memblock_offlined(struct memory_block *mem);
+ extern int sparse_add_one_section(struct pglist_data *pgdat,
+ 		unsigned long start_pfn, struct vmem_altmap *altmap);
+-extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
+-		unsigned long map_offset, struct vmem_altmap *altmap);
++extern void sparse_remove_one_section(int nid, struct mem_section *ms,
++			unsigned long map_offset, struct vmem_altmap *altmap);
+ extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
+ 					  unsigned long pnum);
+ extern bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages,
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 11b7dcf83323..72928808c5e9 100644
+index 72928808c5e9..1f71aebd598b 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -764,14 +764,13 @@ void __ref move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
- 	int nid = pgdat->node_id;
- 	unsigned long flags;
- 
--	if (zone_is_empty(zone))
--		init_currently_empty_zone(zone, start_pfn, nr_pages);
+@@ -319,12 +319,10 @@ static unsigned long find_smallest_section_pfn(int nid, struct zone *zone,
+ 				     unsigned long start_pfn,
+ 				     unsigned long end_pfn)
+ {
+-	struct mem_section *ms;
 -
- 	clear_zone_contiguous(zone);
+ 	for (; start_pfn < end_pfn; start_pfn += PAGES_PER_SECTION) {
+-		ms = __pfn_to_section(start_pfn);
++		struct mem_section *ms = __pfn_to_section(start_pfn);
  
- 	/* TODO Huh pgdat is irqsave while zone is not. It used to be like that before */
- 	pgdat_resize_lock(pgdat, &flags);
- 	zone_span_writelock(zone);
-+	if (zone_is_empty(zone))
-+		init_currently_empty_zone(zone, start_pfn, nr_pages);
- 	resize_zone_range(zone, start_pfn, nr_pages);
- 	zone_span_writeunlock(zone);
- 	resize_pgdat_range(pgdat, start_pfn, nr_pages);
-@@ -1904,4 +1903,52 @@ void remove_memory(int nid, u64 start, u64 size)
- 	unlock_device_hotplug();
+-		if (unlikely(!valid_section(ms)))
++		if (unlikely(!online_section(ms)))
+ 			continue;
+ 
+ 		if (unlikely(pfn_to_nid(start_pfn) != nid))
+@@ -344,15 +342,14 @@ static unsigned long find_biggest_section_pfn(int nid, struct zone *zone,
+ 				    unsigned long start_pfn,
+ 				    unsigned long end_pfn)
+ {
+-	struct mem_section *ms;
+ 	unsigned long pfn;
+ 
+ 	/* pfn is the end pfn of a memory section. */
+ 	pfn = end_pfn - 1;
+ 	for (; pfn >= start_pfn; pfn -= PAGES_PER_SECTION) {
+-		ms = __pfn_to_section(pfn);
++		struct mem_section *ms = __pfn_to_section(pfn);
+ 
+-		if (unlikely(!valid_section(ms)))
++		if (unlikely(!online_section(ms)))
+ 			continue;
+ 
+ 		if (unlikely(pfn_to_nid(pfn) != nid))
+@@ -414,7 +411,7 @@ static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
+ 	for (; pfn < zone_end_pfn; pfn += PAGES_PER_SECTION) {
+ 		ms = __pfn_to_section(pfn);
+ 
+-		if (unlikely(!valid_section(ms)))
++		if (unlikely(!online_section(ms)))
+ 			continue;
+ 
+ 		if (page_zone(pfn_to_page(pfn)) != zone)
+@@ -482,7 +479,7 @@ static void shrink_pgdat_span(struct pglist_data *pgdat,
+ 	for (; pfn < pgdat_end_pfn; pfn += PAGES_PER_SECTION) {
+ 		ms = __pfn_to_section(pfn);
+ 
+-		if (unlikely(!valid_section(ms)))
++		if (unlikely(!online_section(ms)))
+ 			continue;
+ 
+ 		if (pfn_to_nid(pfn) != nid)
+@@ -501,23 +498,31 @@ static void shrink_pgdat_span(struct pglist_data *pgdat,
+ 	pgdat->node_spanned_pages = 0;
  }
- EXPORT_SYMBOL_GPL(remove_memory);
+ 
+-static void __remove_zone(struct zone *zone, unsigned long start_pfn)
++static void shrink_zone_pgdat_pages(struct zone *zone, unsigned long start_pfn,
++			unsigned long end_pfn, unsigned long offlined_pages)
+ {
+ 	struct pglist_data *pgdat = zone->zone_pgdat;
+ 	int nr_pages = PAGES_PER_SECTION;
+ 	unsigned long flags;
++	unsigned long pfn;
+ 
+-	pgdat_resize_lock(zone->zone_pgdat, &flags);
+-	shrink_zone_span(zone, start_pfn, start_pfn + nr_pages);
+-	shrink_pgdat_span(pgdat, start_pfn, start_pfn + nr_pages);
+-	pgdat_resize_unlock(zone->zone_pgdat, &flags);
++	zone->present_pages -= offlined_pages;
++	clear_zone_contiguous(zone);
 +
-+#ifdef CONFIG_ZONE_DEVICE
-+int del_device_memory(int nid, unsigned long start, unsigned long size,
-+				struct vmem_altmap *altmap, bool private_mem)
-+{
-+	int ret;
-+	unsigned long start_pfn = PHYS_PFN(start);
-+	unsigned long nr_pages = size >> PAGE_SHIFT;
-+	struct zone *zone = page_zone(pfn_to_page(pfn));
-+
-+	mem_hotplug_begin();
-+
-+	if (private_mem)
-+		ret = __remove_pages(zone, start_pfn, nr_pages, NULL);
-+	else
-+		ret = arch_remove_memory(nid, start, size, altmap);
-+
-+	mem_hotplug_done();
-+
-+	return ret;
-+}
-+#endif
- #endif /* CONFIG_MEMORY_HOTREMOVE */
-+
-+#ifdef CONFIG_ZONE_DEVICE
-+int add_device_memory(int nid, unsigned long start, unsigned long size,
-+				struct vmem_altmap *altmap, bool private_mem)
-+{
-+	int ret;
-+	unsigned long start_pfn = PHYS_PFN(start);
-+	unsigned long nr_pages = size >> PAGE_SHIFT;
-+
-+	mem_hotplug_begin();
-+
-+	if (private_mem)
-+		ret = add_pages(nid, start_pfn, nr_pages, NULL, false);
-+	else
-+		ret = arch_add_memory(nid, start, size, altmap, false);
-+
-+	mem_hotplug_done();
-+
-+	if (!ret) {
-+		struct zone *zone = &NODE_DATA(nid)->node_zones[ZONE_DEVICE];
-+		move_pfn_range_to_zone(zone, start_pfn, nr_pages, altmap);
++	pgdat_resize_lock(pgdat, &flags);
++	pgdat->node_present_pages -= offlined_pages;
++	for (pfn = start_pfn; pfn < end_pfn; pfn += nr_pages) {
++		shrink_zone_span(zone, pfn, pfn + nr_pages);
++		shrink_pgdat_span(pgdat, pfn, pfn + nr_pages);
 +	}
++	pgdat_resize_unlock(pgdat, &flags);
 +
-+	return ret;
-+}
-+#endif
++	set_zone_contiguous(zone);
+ }
+ 
+-static int __remove_section(struct zone *zone, struct mem_section *ms,
++static int __remove_section(int nid, struct mem_section *ms,
+ 		unsigned long map_offset, struct vmem_altmap *altmap)
+ {
+-	unsigned long start_pfn;
+-	int scn_nr;
+ 	int ret = -EINVAL;
+ 
+ 	if (!valid_section(ms))
+@@ -527,17 +532,13 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
+ 	if (ret)
+ 		return ret;
+ 
+-	scn_nr = __section_nr(ms);
+-	start_pfn = section_nr_to_pfn((unsigned long)scn_nr);
+-	__remove_zone(zone, start_pfn);
+-
+-	sparse_remove_one_section(zone, ms, map_offset, altmap);
++	sparse_remove_one_section(nid, ms, map_offset, altmap);
+ 	return 0;
+ }
+ 
+ /**
+  * __remove_pages() - remove sections of pages from a zone
+- * @zone: zone from which pages need to be removed
++ * @nid: nid from which pages belong to
+  * @phys_start_pfn: starting pageframe (must be aligned to start of a section)
+  * @nr_pages: number of pages to remove (must be multiple of section size)
+  * @altmap: alternative device page map or %NULL if default memmap is used
+@@ -547,35 +548,27 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
+  * sure that pages are marked reserved and zones are adjust properly by
+  * calling offline_pages().
+  */
+-int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+-		 unsigned long nr_pages, struct vmem_altmap *altmap)
++int __remove_pages(int nid, unsigned long phys_start_pfn,
++			 unsigned long nr_pages, struct vmem_altmap *altmap)
+ {
+ 	unsigned long i;
+ 	unsigned long map_offset = 0;
+ 	int sections_to_remove, ret = 0;
++	resource_size_t start, size;
+ 
+-	/* In the ZONE_DEVICE case device driver owns the memory region */
+-	if (is_dev_zone(zone)) {
+-		if (altmap)
+-			map_offset = vmem_altmap_offset(altmap);
+-	} else {
+-		resource_size_t start, size;
+-
+-		start = phys_start_pfn << PAGE_SHIFT;
+-		size = nr_pages * PAGE_SIZE;
++	start = phys_start_pfn << PAGE_SHIFT;
++	size = nr_pages * PAGE_SIZE;
+ 
+-		ret = release_mem_region_adjustable(&iomem_resource, start,
+-					size);
+-		if (ret) {
+-			resource_size_t endres = start + size - 1;
++	if (altmap)
++		map_offset = vmem_altmap_offset(altmap);
+ 
+-			pr_warn("Unable to release resource <%pa-%pa> (%d)\n",
+-					&start, &endres, ret);
+-		}
++	ret = release_mem_region_adjustable(&iomem_resource, start, size);
++	if (ret) {
++		resource_size_t endres = start + size - 1;
++		pr_warn("Unable to release resource <%pa-%pa> (%d)\n", &start,
++								&endres, ret);
+ 	}
+ 
+-	clear_zone_contiguous(zone);
+-
+ 	/*
+ 	 * We can only remove entire sections
+ 	 */
+@@ -586,15 +579,13 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+ 	for (i = 0; i < sections_to_remove; i++) {
+ 		unsigned long pfn = phys_start_pfn + i*PAGES_PER_SECTION;
+ 
+-		ret = __remove_section(zone, __pfn_to_section(pfn), map_offset,
+-				altmap);
++		ret = __remove_section(nid, __pfn_to_section(pfn), map_offset,
++									altmap);
+ 		map_offset = 0;
+ 		if (ret)
+ 			break;
+ 	}
+ 
+-	set_zone_contiguous(zone);
+-
+ 	return ret;
+ }
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+@@ -1580,7 +1571,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 	unsigned long pfn, nr_pages;
+ 	long offlined_pages;
+ 	int ret, node;
+-	unsigned long flags;
+ 	unsigned long valid_start, valid_end;
+ 	struct zone *zone;
+ 	struct memory_notify arg;
+@@ -1658,11 +1648,9 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
+ 	/* removal success */
+ 	adjust_managed_page_count(pfn_to_page(start_pfn), -offlined_pages);
+-	zone->present_pages -= offlined_pages;
+ 
+-	pgdat_resize_lock(zone->zone_pgdat, &flags);
+-	zone->zone_pgdat->node_present_pages -= offlined_pages;
+-	pgdat_resize_unlock(zone->zone_pgdat, &flags);
++	/* Here we will shrink zone/node's spanned/present_pages */
++	shrink_zone_pgdat_pages(zone, valid_start, valid_end, offlined_pages);
+ 
+ 	init_per_zone_wmark_min();
+ 
+@@ -1911,12 +1899,15 @@ int del_device_memory(int nid, unsigned long start, unsigned long size,
+ 	int ret;
+ 	unsigned long start_pfn = PHYS_PFN(start);
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+-	struct zone *zone = page_zone(pfn_to_page(pfn));
++	struct zone *zone = &NODE_DATA(nid)->node_zones[ZONE_DEVICE];
+ 
+ 	mem_hotplug_begin();
+ 
++	offline_mem_sections(start_pfn, start_pfn + nr_pages);
++	shrink_zone_pgdat_pages(zone, start_pfn, start_pfn + nr_pages, 0);
++
+ 	if (private_mem)
+-		ret = __remove_pages(zone, start_pfn, nr_pages, NULL);
++		ret = __remove_pages(nid, start_pfn, nr_pages, NULL);
+ 	else
+ 		ret = arch_remove_memory(nid, start, size, altmap);
+ 
+@@ -1946,6 +1937,7 @@ int add_device_memory(int nid, unsigned long start, unsigned long size,
+ 
+ 	if (!ret) {
+ 		struct zone *zone = &NODE_DATA(nid)->node_zones[ZONE_DEVICE];
++		online_mem_sections(start_pfn, start_pfn + nr_pages);
+ 		move_pfn_range_to_zone(zone, start_pfn, nr_pages, altmap);
+ 	}
+ 
+diff --git a/mm/sparse.c b/mm/sparse.c
+index c0788e3d8513..21d5f6ad0d14 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -766,12 +766,12 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap,
+ 		free_map_bootmem(memmap);
+ }
+ 
+-void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
++void sparse_remove_one_section(int nid, struct mem_section *ms,
+ 		unsigned long map_offset, struct vmem_altmap *altmap)
+ {
+ 	struct page *memmap = NULL;
+ 	unsigned long *usemap = NULL, flags;
+-	struct pglist_data *pgdat = zone->zone_pgdat;
++	struct pglist_data *pgdat = NODE_DATA(nid);
+ 
+ 	pgdat_resize_lock(pgdat, &flags);
+ 	if (ms->section_mem_map) {
 -- 
 2.13.6
