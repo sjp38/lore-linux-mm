@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B1D816B0008
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C70886B000A
 	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 11:00:52 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id v33-v6so1873700wrc.13
+Received: by mail-wm1-f69.google.com with SMTP id 189-v6so1992814wme.0
         for <linux-mm@kvack.org>; Tue, 02 Oct 2018 08:00:52 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a12-v6sor8251259wrc.42.2018.10.02.08.00.49
+        by mx.google.com with SMTPS id b15-v6sor11433017wrf.36.2018.10.02.08.00.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 02 Oct 2018 08:00:50 -0700 (PDT)
+        Tue, 02 Oct 2018 08:00:49 -0700 (PDT)
 From: Oscar Salvador <osalvador@techadventures.net>
-Subject: [RFC PATCH v3 3/5] mm/memory_hotplug: Check for IORESOURCE_SYSRAM in release_mem_region_adjustable
-Date: Tue,  2 Oct 2018 17:00:27 +0200
-Message-Id: <20181002150029.23461-4-osalvador@techadventures.net>
+Subject: [RFC PATCH v3 1/5] mm/memory_hotplug: Add nid parameter to arch_remove_memory
+Date: Tue,  2 Oct 2018 17:00:25 +0200
+Message-Id: <20181002150029.23461-2-osalvador@techadventures.net>
 In-Reply-To: <20181002150029.23461-1-osalvador@techadventures.net>
 References: <20181002150029.23461-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
@@ -22,59 +22,155 @@ Cc: mhocko@suse.com, dan.j.williams@intel.com, yasu.isimatu@gmail.com, rppt@linu
 
 From: Oscar Salvador <osalvador@suse.de>
 
-This is a preparation for the next patch.
-
-Currently, we only call release_mem_region_adjustable() in __remove_pages
-if the zone is not ZONE_DEVICE, because resources that belong to
-HMM/devm are being released by themselves with devm_release_mem_region.
-
-Since we do not want to touch any zone/page stuff during the removing
-of the memory (but during the offlining), we do not want to check for
-the zone here.
-So we need another way to tell release_mem_region_adjustable() to not realease
-the resource in case it belongs to HMM/devm.
-
-HMM/devm acquires/releases a resource through
-devm_request_mem_region/devm_release_mem_region.
-
-These resources have the flag IORESOURCE_MEM, while resources acquired by
-hot-add memory path (register_memory_resource()) contain
-IORESOURCE_SYSTEM_RAM.
-
-So, we can check for this flag in release_mem_region_adjustable, and if the
-resource does not contain such flag, we know that we are dealing with a HMM/devm
-resource, so we can back off.
+This patch is only a preparation for the following-up patches.
+The idea of passing the nid is that will allow us to get rid
+of the zone parameter in the patches that follow
 
 Signed-off-by: Oscar Salvador <osalvador@suse.de>
 ---
- kernel/resource.c | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ arch/ia64/mm/init.c            | 2 +-
+ arch/powerpc/mm/mem.c          | 2 +-
+ arch/s390/mm/init.c            | 2 +-
+ arch/sh/mm/init.c              | 2 +-
+ arch/x86/mm/init_32.c          | 2 +-
+ arch/x86/mm/init_64.c          | 2 +-
+ include/linux/memory_hotplug.h | 2 +-
+ kernel/memremap.c              | 4 +++-
+ mm/memory_hotplug.c            | 2 +-
+ 9 files changed, 11 insertions(+), 9 deletions(-)
 
-diff --git a/kernel/resource.c b/kernel/resource.c
-index 81937830a42f..6956ce3a4730 100644
---- a/kernel/resource.c
-+++ b/kernel/resource.c
-@@ -1272,6 +1272,21 @@ int release_mem_region_adjustable(struct resource *parent,
- 			continue;
- 		}
+diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+index d5e12ff1d73c..904fe55e10fc 100644
+--- a/arch/ia64/mm/init.c
++++ b/arch/ia64/mm/init.c
+@@ -661,7 +661,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
+ }
  
-+		/*
-+		 * All memory regions added from memory-hotplug path
-+		 * have the flag IORESOURCE_SYSTEM_RAM.
-+		 * If the resource does not have this flag, we know that
-+		 * we are dealing with a resource coming from HMM/devm.
-+		 * HMM/devm use another mechanism to add/release a resource.
-+		 * This goes via devm_request_mem_region/devm_release_mem_region.
-+		 * HMM/devm take care to release their resources when they want, so
-+		 * if we are dealing with them, let us just back off here.
-+		 */
-+		if (!(res->flags & IORESOURCE_SYSRAM)) {
-+			ret = 0;
-+			break;
-+		}
-+
- 		if (!(res->flags & IORESOURCE_MEM))
- 			break;
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
++int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+index 578cbb262c01..445fce705f91 100644
+--- a/arch/powerpc/mm/mem.c
++++ b/arch/powerpc/mm/mem.c
+@@ -138,7 +138,7 @@ int __meminit arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-int __meminit arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
++int __meminit arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+index e472cd763eb3..f705da1a085f 100644
+--- a/arch/s390/mm/init.c
++++ b/arch/s390/mm/init.c
+@@ -239,7 +239,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
++int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
+ {
+ 	/*
+ 	 * There is no hardware or firmware interface which could trigger a
+diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+index c8c13c777162..a8e5c0e00fca 100644
+--- a/arch/sh/mm/init.c
++++ b/arch/sh/mm/init.c
+@@ -443,7 +443,7 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+ #endif
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
++int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
+ {
+ 	unsigned long start_pfn = PFN_DOWN(start);
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+index f2837e4c40b3..b2a698d87a0e 100644
+--- a/arch/x86/mm/init_32.c
++++ b/arch/x86/mm/init_32.c
+@@ -860,7 +860,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
++int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 5fab264948c2..c754d9543ae1 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1147,7 +1147,7 @@ kernel_physical_mapping_remove(unsigned long start, unsigned long end)
+ 	remove_pagetable(start, end, true, NULL);
+ }
+ 
+-int __ref arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
++int __ref arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index ffd9cd10fcf3..f9fc35819e65 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -107,7 +107,7 @@ static inline bool movable_node_is_enabled(void)
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-extern int arch_remove_memory(u64 start, u64 size,
++extern int arch_remove_memory(int nid, u64 start, u64 size,
+ 		struct vmem_altmap *altmap);
+ extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
+ 	unsigned long nr_pages, struct vmem_altmap *altmap);
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index e3036433ce4e..fe54bba2d7e2 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -121,6 +121,7 @@ static void devm_memremap_pages_release(void *data)
+ 	struct resource *res = &pgmap->res;
+ 	resource_size_t align_start, align_size;
+ 	unsigned long pfn;
++	int nid;
+ 
+ 	pgmap->kill(pgmap->ref);
+ 	for_each_device_pfn(pfn, pgmap)
+@@ -130,6 +131,7 @@ static void devm_memremap_pages_release(void *data)
+ 	align_start = res->start & ~(SECTION_SIZE - 1);
+ 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
+ 		- align_start;
++	nid = dev_to_node(dev);
+ 
+ 	mem_hotplug_begin();
+ 	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
+@@ -137,7 +139,7 @@ static void devm_memremap_pages_release(void *data)
+ 		__remove_pages(page_zone(pfn_to_page(pfn)), pfn,
+ 				align_size >> PAGE_SHIFT, NULL);
+ 	} else {
+-		arch_remove_memory(align_start, align_size,
++		arch_remove_memory(nid, align_start, align_size,
+ 				pgmap->altmap_valid ? &pgmap->altmap : NULL);
+ 		kasan_remove_zero_shadow(__va(align_start), align_size);
+ 	}
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index d4c7e42e46f3..11b7dcf83323 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1890,7 +1890,7 @@ void __ref __remove_memory(int nid, u64 start, u64 size)
+ 	memblock_free(start, size);
+ 	memblock_remove(start, size);
+ 
+-	arch_remove_memory(start, size, NULL);
++	arch_remove_memory(nid, start, size, NULL);
+ 
+ 	try_offline_node(nid);
  
 -- 
 2.13.6
