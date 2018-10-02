@@ -1,35 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C6496B000A
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 10:37:19 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id d40-v6so2831981pla.14
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 07:37:19 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id y2-v6si16291993pli.330.2018.10.02.07.37.18
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D7FF6B000D
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 10:38:30 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id a130-v6so1857878qkb.7
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 07:38:30 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 145-v6sor2929623qkh.75.2018.10.02.07.38.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 02 Oct 2018 07:37:18 -0700 (PDT)
-Date: Tue, 2 Oct 2018 07:37:13 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
-Message-ID: <20181002143713.GA19845@infradead.org>
-References: <20181002100531.GC4135@quack2.suse.cz>
- <20181002121039.GA3274@linux-x5ow.site>
- <20181002142959.GD9127@quack2.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181002142959.GD9127@quack2.suse.cz>
+        (Google Transport Security);
+        Tue, 02 Oct 2018 07:38:29 -0700 (PDT)
+From: Masayoshi Mizuma <msys.mizuma@gmail.com>
+Subject: [PATCH v3 0/3] mm: Fix for movable_node boot option
+Date: Tue,  2 Oct 2018 10:38:18 -0400
+Message-Id: <20181002143821.5112-1-msys.mizuma@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Johannes Thumshirn <jthumshirn@suse.de>, Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-api@vger.kernel.org
+To: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Michal Hocko <mhocko@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
+Cc: Masayoshi Mizuma <msys.mizuma@gmail.com>, linux-kernel@vger.kernel.org, x86@kernel.org
 
-On Tue, Oct 02, 2018 at 04:29:59PM +0200, Jan Kara wrote:
-> > OK naive question from me, how do we want an application to be able to
-> > check if it is running on a DAX mapping?
-> 
-> The question from me is: Should application really care?
+This patch series are the fix for movable_node boot option
+issue which was introduced by commit 124049decbb1 ("x86/e820:
+put !E820_TYPE_RAM regions into memblock.reserved").
 
-No, it should not.  DAX is an implementation detail thay may change
-or go away at any time.
+The commit breaks the option because it changed the memory
+gap range to reserved memblock. So, the node is marked as
+Normal zone even if the SRAT has Hot pluggable affinity.
+
+First and second patch fix the original issue which the commit
+tried to fix, then revert the commit.
+
+Changelog from v2:
+ - Change the patch order. The revert patch is moved to the last.
+
+Masayoshi Mizuma (1):
+  Revert "x86/e820: put !E820_TYPE_RAM regions into memblock.reserved"
+
+Naoya Horiguchi (1):
+  mm: zero remaining unavailable struct pages
+
+Pavel Tatashin (1):
+  mm: return zero_resv_unavail optimization
+
+ arch/x86/kernel/e820.c   | 15 +++--------
+ include/linux/memblock.h | 15 -----------
+ mm/page_alloc.c          | 54 +++++++++++++++++++++++++++-------------
+ 3 files changed, 40 insertions(+), 44 deletions(-)
+
+-- 
+2.18.0
