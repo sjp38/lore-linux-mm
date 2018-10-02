@@ -1,57 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D0B8E6B0003
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 08:10:44 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id ce7-v6so1713115plb.22
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 05:10:44 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p8-v6si1120539pgn.554.2018.10.02.05.10.43
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Oct 2018 05:10:43 -0700 (PDT)
-Date: Tue, 2 Oct 2018 14:10:39 +0200
-From: Johannes Thumshirn <jthumshirn@suse.de>
-Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
-Message-ID: <20181002121039.GA3274@linux-x5ow.site>
-References: <20181002100531.GC4135@quack2.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20181002100531.GC4135@quack2.suse.cz>
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E86046B0006
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 08:15:43 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id 64-v6so1112714oii.1
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 05:15:43 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id p40-v6si9576304oth.44.2018.10.02.05.15.42
+        for <linux-mm@kvack.org>;
+        Tue, 02 Oct 2018 05:15:42 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: [PATCH 0/4] arm64/mm: Enable HugeTLB migration
+Date: Tue,  2 Oct 2018 17:45:27 +0530
+Message-Id: <1538482531-26883-1-git-send-email-anshuman.khandual@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
+Cc: suzuki.poulose@arm.com, punit.agrawal@arm.com, will.deacon@arm.com, Steven.Price@arm.com, catalin.marinas@arm.com, mhocko@kernel.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
 
-On Tue, Oct 02, 2018 at 12:05:31PM +0200, Jan Kara wrote:
-> Hello,
-> 
-> commit e1fb4a086495 "dax: remove VM_MIXEDMAP for fsdax and device dax" has
-> removed VM_MIXEDMAP flag from DAX VMAs. Now our testing shows that in the
-> mean time certain customer of ours started poking into /proc/<pid>/smaps
-> and looks at VMA flags there and if VM_MIXEDMAP is missing among the VMA
-> flags, the application just fails to start complaining that DAX support is
-> missing in the kernel. The question now is how do we go about this?
+This patch series enables HugeTLB migration support for all supported
+huge page sizes at all levels including contiguous bit implementation.
+Following HugeTLB migration support matrix has been enabled with this
+patch series. All permutations have been tested except for the 16GB.
 
-OK naive question from me, how do we want an application to be able to
-check if it is running on a DAX mapping?
+         CONT PTE    PMD    CONT PMD    PUD
+         --------    ---    --------    ---
+4K:         64K     2M         32M     1G
+16K:         2M    32M          1G
+64K:         2M   512M         16G
 
-AFAIU DAX is always associated with a file descriptor of some kind (be
-it a real file with filesystem dax or the /dev/dax device file for
-device dax). So could a new fcntl() be of any help here? IS_DAX() only
-checks for the S_DAX flag in inode::i_flags, so this should be doable
-for both fsdax and devdax.
+First the series adds migration support for PUD based huge pages. It
+then adds a platform specific hook to query an architecture if a
+given huge page size is supported for migration while also providing
+a default fallback option preserving the existing semantics which just
+checks for (PMD|PUD|PGDIR)_SHIFT macros. The last two patches enables
+HugeTLB migration on arm64 and subscribe to this new platform specific
+hook by defining an override.
 
-I haven't tried it yet but it should be fairly easy to come up with
-something like this.
+Anshuman Khandual (4):
+  mm/hugetlb: Enable PUD level huge page migration
+  mm/hugetlb: Enable arch specific huge page size support for migration
+  arm64/mm: Enable HugeTLB migration
+  arm64/mm: Enable HugeTLB migration for contiguous bit HugeTLB pages
 
-Byte,
-	Johannes
+ arch/arm64/Kconfig               |  4 ++++
+ arch/arm64/include/asm/hugetlb.h |  5 +++++
+ arch/arm64/mm/hugetlbpage.c      | 20 ++++++++++++++++++++
+ include/linux/hugetlb.h          | 18 +++++++++++++++---
+ 4 files changed, 44 insertions(+), 3 deletions(-)
+
 -- 
-Johannes Thumshirn                                          Storage
-jthumshirn@suse.de                                +49 911 74053 689
-SUSE LINUX GmbH, Maxfeldstr. 5, 90409 Nurnberg
-GF: Felix Imendorffer, Jane Smithard, Graham Norton
-HRB 21284 (AG Nurnberg)
-Key fingerprint = EC38 9CAB C2C4 F25D 8600 D0D0 0393 969D 2D76 0850
+2.7.4
