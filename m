@@ -1,63 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CA8D6B0003
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 04:42:30 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id t24-v6so839356eds.12
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 01:42:30 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c12-v6si5065446edt.291.2018.10.02.01.42.28
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C874E6B0003
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 05:39:45 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id u70-v6so1112452wrc.9
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 02:39:45 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l5-v6sor6626841wmb.17.2018.10.02.02.39.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Oct 2018 01:42:29 -0700 (PDT)
-Date: Tue, 2 Oct 2018 10:42:25 +0200
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: 4.14 backport request for dbdda842fe96f: "printk: Add console
- owner and waiter logic to load balance console writes"
-Message-ID: <20181002084225.6z2b74qem3mywukx@pathway.suse.cz>
-References: <20180927194601.207765-1-wonderfly@google.com>
- <20181001152324.72a20bea@gandalf.local.home>
- <CAJmjG29Jwn_1E5zexcm8eXTG=cTWyEr1gjSfSAS2fueB_V0tfg@mail.gmail.com>
+        (Google Transport Security);
+        Tue, 02 Oct 2018 02:39:44 -0700 (PDT)
+Date: Tue, 2 Oct 2018 11:39:40 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v2 1/3] Revert "x86/e820: put !E820_TYPE_RAM regions into
+ memblock.reserved"
+Message-ID: <20181002093940.GA98058@gmail.com>
+References: <20180925153532.6206-1-msys.mizuma@gmail.com>
+ <20180925153532.6206-2-msys.mizuma@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJmjG29Jwn_1E5zexcm8eXTG=cTWyEr1gjSfSAS2fueB_V0tfg@mail.gmail.com>
+In-Reply-To: <20180925153532.6206-2-msys.mizuma@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Wang <wonderfly@google.com>
-Cc: rostedt@goodmis.org, stable@vger.kernel.org, Alexander.Levin@microsoft.com, akpm@linux-foundation.org, byungchul.park@lge.com, dave.hansen@intel.com, hannes@cmpxchg.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mathieu.desnoyers@efficios.com, mgorman@suse.de, mhocko@kernel.org, pavel@ucw.cz, penguin-kernel@i-love.sakura.ne.jp, peterz@infradead.org, tj@kernel.org, torvalds@linux-foundation.org, vbabka@suse.cz, xiyou.wangcong@gmail.com, Peter Feiner <pfeiner@google.com>
+To: Masayoshi Mizuma <msys.mizuma@gmail.com>
+Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Michal Hocko <mhocko@kernel.org>, Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>, linux-kernel@vger.kernel.org, x86@kernel.org
 
-On Mon 2018-10-01 13:37:30, Daniel Wang wrote:
-> On Mon, Oct 1, 2018 at 12:23 PM Steven Rostedt <rostedt@goodmis.org> wrote:
-> >
-> > > Serial console logs leading up to the deadlock. As can be seen the stack trace
-> > > was incomplete because the printing path hit a timeout.
-> >
-> > I'm fine with having this backported.
+
+* Masayoshi Mizuma <msys.mizuma@gmail.com> wrote:
+
+> From: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
 > 
-> Thanks. I can send the cherrypicks your way. Do you recommend that I
-> include the three follow-up fixes though?
+> commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM regions into
+> memblock.reserved") breaks movable_node kernel option because it
+> changed the memory gap range to reserved memblock. So, the node
+> is marked as Normal zone even if the SRAT has Hot plaggable affinity.
 > 
-> c14376de3a1b printk: Wake klogd when passing console_lock owner
-> fd5f7cde1b85 printk: Never set console_may_schedule in console_trylock()
-> c162d5b4338d printk: Hide console waiter logic into helpers
-> dbdda842fe96 printk: Add console owner and waiter logic to load
-> balance console writes
+>     =====================================================================
+>     kernel: BIOS-e820: [mem 0x0000180000000000-0x0000180fffffffff] usable
+>     kernel: BIOS-e820: [mem 0x00001c0000000000-0x00001c0fffffffff] usable
+>     ...
+>     kernel: reserved[0x12]#011[0x0000181000000000-0x00001bffffffffff], 0x000003f000000000 bytes flags: 0x0
+>     ...
+>     kernel: ACPI: SRAT: Node 2 PXM 6 [mem 0x180000000000-0x1bffffffffff] hotplug
+>     kernel: ACPI: SRAT: Node 3 PXM 7 [mem 0x1c0000000000-0x1fffffffffff] hotplug
+>     ...
+>     kernel: Movable zone start for each node
+>     kernel:  Node 3: 0x00001c0000000000
+>     kernel: Early memory node ranges
+>     ...
+>     =====================================================================
+> 
+> Naoya's v1 patch [*] fixes the original issue and this movable_node
+> issue doesn't occur.
+> Let's revert commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM
+> regions into memblock.reserved") and apply the v1 patch.
+> 
+> [*] https://lkml.org/lkml/2018/6/13/27
+> 
+> Signed-off-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+> Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+> ---
+>  arch/x86/kernel/e820.c | 15 +++------------
+>  1 file changed, 3 insertions(+), 12 deletions(-)
 
-This list looks complete and I am fine with backporting it to 4.14.
+Bad ordering which introduces the bug and thus breaks bisection of related issues: the fixes 
+should come first, then the revert of the unnecessary or bad fix.
 
-Well, I still wonder why it helped and why you do not see it with 4.4.
-I have a feeling that the console owner switch helped only by chance.
-In fact, you might be affected by a race in
-printk_safe_flush_on_panic() that was fixed by the commit:
+Thanks,
 
-554755be08fba31c7 printk: drop in_nmi check from printk_safe_flush_on_panic()
-
-The above one commit might be enough. Well, there was one more
-NMI-related race that was fixed by:
-
-ba552399954dde1b printk: Split the code for storing a message into the log buffer
-a338f84dc196f44b printk: Create helper function to queue deferred console handling
-03fc7f9c99c1e7ae printk/nmi: Prevent deadlock when accessing the main log buffer in NMI
-
-Best Regards,
-Petr
+	Ingo
