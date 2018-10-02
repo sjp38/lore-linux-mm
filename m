@@ -1,109 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 70E856B026C
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 09:12:59 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id b17-v6so1679097wrq.0
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 06:12:59 -0700 (PDT)
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B53F6B0006
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 09:20:00 -0400 (EDT)
+Received: by mail-it1-f197.google.com with SMTP id d10so566651itk.3
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 06:20:00 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i8-v6sor8305879wmg.26.2018.10.02.06.12.58
+        by mx.google.com with SMTPS id c126-v6sor3078934ioe.106.2018.10.02.06.19.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 02 Oct 2018 06:12:58 -0700 (PDT)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v7 8/8] selftests, arm64: add a selftest for passing tagged pointers to kernel
-Date: Tue,  2 Oct 2018 15:12:43 +0200
-Message-Id: <3a2c0a6b2499a328cc9471d4095ae36f0f05252d.1538485901.git.andreyknvl@google.com>
-In-Reply-To: <cover.1538485901.git.andreyknvl@google.com>
-References: <cover.1538485901.git.andreyknvl@google.com>
+        Tue, 02 Oct 2018 06:19:58 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180928175013.GC193149@arrakis.emea.arm.com>
+References: <cover.1535629099.git.andreyknvl@google.com> <5d54526e5ff2e5ad63d0dfdd9ab17cf359afa4f2.1535629099.git.andreyknvl@google.com>
+ <CA+55aFyW9N2tSb2bQvkthbVVyY6nt5yFeWQRLHp1zruBmb5ocw@mail.gmail.com>
+ <CA+55aFy2t_MHgr_CgwbhtFkL+djaCq2qMM1G+f2DwJ0qEr1URQ@mail.gmail.com>
+ <20180907152600.myidisza5o4kdmvf@armageddon.cambridge.arm.com>
+ <CA+55aFzQ+ykLu10q3AdyaaKJx8SDWWL9Qiu6WH2jbN_ugRUTOg@mail.gmail.com>
+ <20180911164152.GA29166@arrakis.emea.arm.com> <CAAeHK+z4HOF_PobxSys8svftWt8dhbuUXEpq2sdXBTCXwTEH2g@mail.gmail.com>
+ <20180928175013.GC193149@arrakis.emea.arm.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Tue, 2 Oct 2018 15:19:57 +0200
+Message-ID: <CAAeHK+xK2Nb6J6YbvUJdXaZoecB0GS2UyY6pgGwrfCoOQJ34xg@mail.gmail.com>
+Subject: Re: [PATCH v6 11/11] arm64: annotate user pointers casts detected by sparse
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Will Deacon <will.deacon@arm.com>, Kostya Serebryany <kcc@google.com>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Jacob Bramley <Jacob.Bramley@arm.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Evgenii Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Dmitry Vyukov <dvyukov@google.com>, linux-mm <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-This patch adds a simple test, that calls the uname syscall with a
-tagged user pointer as an argument. Without the kernel accepting tagged
-user pointers the test fails with EFAULT.
+On Fri, Sep 28, 2018 at 7:50 PM, Catalin Marinas
+<catalin.marinas@arm.com> wrote:
+> On Mon, Sep 17, 2018 at 07:01:00PM +0200, Andrey Konovalov wrote:
 
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- tools/testing/selftests/arm64/.gitignore      |  1 +
- tools/testing/selftests/arm64/Makefile        | 11 +++++++++++
- .../testing/selftests/arm64/run_tags_test.sh  | 12 ++++++++++++
- tools/testing/selftests/arm64/tags_test.c     | 19 +++++++++++++++++++
- 4 files changed, 43 insertions(+)
- create mode 100644 tools/testing/selftests/arm64/.gitignore
- create mode 100644 tools/testing/selftests/arm64/Makefile
- create mode 100755 tools/testing/selftests/arm64/run_tags_test.sh
- create mode 100644 tools/testing/selftests/arm64/tags_test.c
+>> Looking at patch #8 ("usb, arm64: untag user addresses in devio") in
+>> this series, it seems that that devio ioctl actually accepts a pointer
+>> into a vma, so we shouldn't actually be untagging its argument and the
+>> patch needs to be dropped.
+>
+> You are right, the pointer seems to have originated from the kernel as
+> already untagged (mmap() on the driver), so we would expect the user to
+> pass it back an untagged pointer.
 
-diff --git a/tools/testing/selftests/arm64/.gitignore b/tools/testing/selftests/arm64/.gitignore
-new file mode 100644
-index 000000000000..e8fae8d61ed6
---- /dev/null
-+++ b/tools/testing/selftests/arm64/.gitignore
-@@ -0,0 +1 @@
-+tags_test
-diff --git a/tools/testing/selftests/arm64/Makefile b/tools/testing/selftests/arm64/Makefile
-new file mode 100644
-index 000000000000..a61b2e743e99
---- /dev/null
-+++ b/tools/testing/selftests/arm64/Makefile
-@@ -0,0 +1,11 @@
-+# SPDX-License-Identifier: GPL-2.0
-+
-+# ARCH can be overridden by the user for cross compiling
-+ARCH ?= $(shell uname -m 2>/dev/null || echo not)
-+
-+ifneq (,$(filter $(ARCH),aarch64 arm64))
-+TEST_GEN_PROGS := tags_test
-+TEST_PROGS := run_tags_test.sh
-+endif
-+
-+include ../lib.mk
-diff --git a/tools/testing/selftests/arm64/run_tags_test.sh b/tools/testing/selftests/arm64/run_tags_test.sh
-new file mode 100755
-index 000000000000..745f11379930
---- /dev/null
-+++ b/tools/testing/selftests/arm64/run_tags_test.sh
-@@ -0,0 +1,12 @@
-+#!/bin/sh
-+# SPDX-License-Identifier: GPL-2.0
-+
-+echo "--------------------"
-+echo "running tags test"
-+echo "--------------------"
-+./tags_test
-+if [ $? -ne 0 ]; then
-+	echo "[FAIL]"
-+else
-+	echo "[PASS]"
-+fi
-diff --git a/tools/testing/selftests/arm64/tags_test.c b/tools/testing/selftests/arm64/tags_test.c
-new file mode 100644
-index 000000000000..1452ed7d33f9
---- /dev/null
-+++ b/tools/testing/selftests/arm64/tags_test.c
-@@ -0,0 +1,19 @@
-+// SPDX-License-Identifier: GPL-2.0
-+
-+#include <stdio.h>
-+#include <unistd.h>
-+#include <stdint.h>
-+#include <sys/utsname.h>
-+
-+#define SHIFT_TAG(tag)		((uint64_t)(tag) << 56)
-+#define SET_TAG(ptr, tag)	(((uint64_t)(ptr) & ~SHIFT_TAG(0xff)) | \
-+					SHIFT_TAG(tag))
-+
-+int main(void)
-+{
-+	struct utsname utsname;
-+	void *ptr = &utsname;
-+	void *tagged_ptr = (void *)SET_TAG(ptr, 0x42);
-+	int err = uname(tagged_ptr);
-+	return err;
-+}
--- 
-2.19.0.605.g01d371f741-goog
+OK, dropped this patch in v7.
+
+>> As for case 1, the places where pointers are compared with TASK_SIZE
+>> and others can be found with grep. Maybe it makes sense to introduce
+>> some kind of routine like is_user_pointer() that handles tagged
+>> pointers and refactor the existing code to use it? And maybe add a
+>> rule to checkpatch.pl that forbids the direct usage of TASK_SIZE and
+>> others.
+>>
+>> So I think detecting direct comparisons with TASK_SIZE and others
+>> would more useful than finding __user pointer casts (it seems that the
+>> latter requires a lot of annotations to be fixed/added), and I should
+>> just drop this patch with annotations.
+>
+> I think point (1) is not too bad, usually found with grep.
+>
+> As I've said in my previous reply, I kind of came to the same conclusion
+> that searching __user pointer casts to long may not actually scale. If
+> we could add an __untagged annotation to ulong where it matters (e.g.
+> find_vma()), we could identify a ulong (default tagged) and annotate
+> some of those.
+>
+> However, this analysis on __user * casting was useful even if we don't
+> end up using it. If we come up with a clearer definition of the ABI
+> (which syscalls accept tagged pointers), we may conclude that the only
+> places where untagging matters are a few find_vma() calls in the arch
+> and mm code and can ignore the rest.
+
+So what exactly should I do now?
+
+For now I've posted v7 with the sparse annotation patch dropped (to
+have the most up-do-date version posted).
