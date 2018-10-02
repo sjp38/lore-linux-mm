@@ -1,118 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D180D6B0269
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 10:38:36 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id e88-v6so1926677qtb.1
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 07:38:36 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 820B26B026B
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 10:38:38 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id z17-v6so1892912qka.9
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 07:38:38 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 17-v6sor5872143qvi.45.2018.10.02.07.38.35
+        by mx.google.com with SMTPS id z63-v6sor9570481qkd.55.2018.10.02.07.38.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 02 Oct 2018 07:38:35 -0700 (PDT)
+        Tue, 02 Oct 2018 07:38:37 -0700 (PDT)
 From: Masayoshi Mizuma <msys.mizuma@gmail.com>
-Subject: [PATCH v3 2/3] mm: return zero_resv_unavail optimization
-Date: Tue,  2 Oct 2018 10:38:20 -0400
-Message-Id: <20181002143821.5112-3-msys.mizuma@gmail.com>
+Subject: [PATCH v3 3/3] Revert "x86/e820: put !E820_TYPE_RAM regions into memblock.reserved"
+Date: Tue,  2 Oct 2018 10:38:21 -0400
+Message-Id: <20181002143821.5112-4-msys.mizuma@gmail.com>
 In-Reply-To: <20181002143821.5112-1-msys.mizuma@gmail.com>
 References: <20181002143821.5112-1-msys.mizuma@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Michal Hocko <mhocko@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
-Cc: Masayoshi Mizuma <msys.mizuma@gmail.com>, linux-kernel@vger.kernel.org, x86@kernel.org
+Cc: Masayoshi Mizuma <msys.mizuma@gmail.com>, Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>, linux-kernel@vger.kernel.org, x86@kernel.org
 
-From: Pavel Tatashin <pavel.tatashin@microsoft.com>
+From: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
 
-When checking for valid pfns in zero_resv_unavail(), it is not necessary to
-verify that pfns within pageblock_nr_pages ranges are valid, only the first
-one needs to be checked. This is because memory for pages are allocated in
-contiguous chunks that contain pageblock_nr_pages struct pages.
+commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM regions into
+memblock.reserved") breaks movable_node kernel option because it
+changed the memory gap range to reserved memblock. So, the node
+is marked as Normal zone even if the SRAT has Hot pluggable affinity.
 
-Signed-off-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
-Reviewed-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+    =====================================================================
+    kernel: BIOS-e820: [mem 0x0000180000000000-0x0000180fffffffff] usable
+    kernel: BIOS-e820: [mem 0x00001c0000000000-0x00001c0fffffffff] usable
+    ...
+    kernel: reserved[0x12]#011[0x0000181000000000-0x00001bffffffffff], 0x000003f000000000 bytes flags: 0x0
+    ...
+    kernel: ACPI: SRAT: Node 2 PXM 6 [mem 0x180000000000-0x1bffffffffff] hotplug
+    kernel: ACPI: SRAT: Node 3 PXM 7 [mem 0x1c0000000000-0x1fffffffffff] hotplug
+    ...
+    kernel: Movable zone start for each node
+    kernel:  Node 3: 0x00001c0000000000
+    kernel: Early memory node ranges
+    ...
+    =====================================================================
+
+The original issue is fixed by the former patches, so let's revert
+commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM regions into memblock.reserved").
+
+Signed-off-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
 ---
- mm/page_alloc.c | 46 ++++++++++++++++++++++++++--------------------
- 1 file changed, 26 insertions(+), 20 deletions(-)
+ arch/x86/kernel/e820.c | 15 +++------------
+ 1 file changed, 3 insertions(+), 12 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3b9d89e..bd5b7e4 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6440,6 +6440,29 @@ void __init free_area_init_node(int nid, unsigned long *zones_size,
- }
- 
- #if defined(CONFIG_HAVE_MEMBLOCK) && !defined(CONFIG_FLAT_NODE_MEM_MAP)
-+
-+/*
-+ * Zero all valid struct pages in range [spfn, epfn), return number of struct
-+ * pages zeroed
-+ */
-+static u64 zero_pfn_range(unsigned long spfn, unsigned long epfn)
-+{
-+	unsigned long pfn;
-+	u64 pgcnt = 0;
-+
-+	for (pfn = spfn; pfn < epfn; pfn++) {
-+		if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages))) {
-+			pfn = ALIGN_DOWN(pfn, pageblock_nr_pages)
-+				+ pageblock_nr_pages - 1;
-+			continue;
-+		}
-+		mm_zero_struct_page(pfn_to_page(pfn));
-+		pgcnt++;
-+	}
-+
-+	return pgcnt;
-+}
-+
- /*
-  * Only struct pages that are backed by physical memory are zeroed and
-  * initialized by going through __init_single_page(). But, there are some
-@@ -6455,7 +6478,6 @@ void __init free_area_init_node(int nid, unsigned long *zones_size,
- void __init zero_resv_unavail(void)
+diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+index c88c23c..d1f25c8 100644
+--- a/arch/x86/kernel/e820.c
++++ b/arch/x86/kernel/e820.c
+@@ -1248,7 +1248,6 @@ void __init e820__memblock_setup(void)
  {
- 	phys_addr_t start, end;
--	unsigned long pfn;
- 	u64 i, pgcnt;
- 	phys_addr_t next = 0;
- 
-@@ -6465,34 +6487,18 @@ void __init zero_resv_unavail(void)
- 	pgcnt = 0;
- 	for_each_mem_range(i, &memblock.memory, NULL,
- 			NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end, NULL) {
--		if (next < start) {
--			for (pfn = PFN_DOWN(next); pfn < PFN_UP(start); pfn++) {
--				if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages)))
--					continue;
--				mm_zero_struct_page(pfn_to_page(pfn));
--				pgcnt++;
--			}
--		}
-+		if (next < start)
-+			pgcnt += zero_pfn_range(PFN_DOWN(next), PFN_UP(start));
- 		next = end;
- 	}
--	for (pfn = PFN_DOWN(next); pfn < max_pfn; pfn++) {
--		if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages)))
--			continue;
--		mm_zero_struct_page(pfn_to_page(pfn));
--		pgcnt++;
--	}
--
-+	pgcnt += zero_pfn_range(PFN_DOWN(next), max_pfn);
+ 	int i;
+ 	u64 end;
+-	u64 addr = 0;
  
  	/*
- 	 * Struct pages that do not have backing memory. This could be because
- 	 * firmware is using some of this memory, or for some other reasons.
--	 * Once memblock is changed so such behaviour is not allowed: i.e.
--	 * list of "reserved" memory must be a subset of list of "memory", then
--	 * this code can be removed.
- 	 */
- 	if (pgcnt)
- 		pr_info("Zeroed struct page in unavailable ranges: %lld pages", pgcnt);
--
- }
- #endif /* CONFIG_HAVE_MEMBLOCK && !CONFIG_FLAT_NODE_MEM_MAP */
+ 	 * The bootstrap memblock region count maximum is 128 entries
+@@ -1265,21 +1264,13 @@ void __init e820__memblock_setup(void)
+ 		struct e820_entry *entry = &e820_table->entries[i];
  
+ 		end = entry->addr + entry->size;
+-		if (addr < entry->addr)
+-			memblock_reserve(addr, entry->addr - addr);
+-		addr = end;
+ 		if (end != (resource_size_t)end)
+ 			continue;
+ 
+-		/*
+-		 * all !E820_TYPE_RAM ranges (including gap ranges) are put
+-		 * into memblock.reserved to make sure that struct pages in
+-		 * such regions are not left uninitialized after bootup.
+-		 */
+ 		if (entry->type != E820_TYPE_RAM && entry->type != E820_TYPE_RESERVED_KERN)
+-			memblock_reserve(entry->addr, entry->size);
+-		else
+-			memblock_add(entry->addr, entry->size);
++			continue;
++
++		memblock_add(entry->addr, entry->size);
+ 	}
+ 
+ 	/* Throw away partial pages: */
 -- 
 2.18.0
