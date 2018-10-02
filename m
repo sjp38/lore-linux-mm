@@ -1,71 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C874E6B0003
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 05:39:45 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id u70-v6so1112452wrc.9
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 02:39:45 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l5-v6sor6626841wmb.17.2018.10.02.02.39.44
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DBC3B6B0003
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2018 06:05:33 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id g36-v6so983824edb.3
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 03:05:33 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l12-v6si577192edj.314.2018.10.02.03.05.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 02 Oct 2018 02:39:44 -0700 (PDT)
-Date: Tue, 2 Oct 2018 11:39:40 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v2 1/3] Revert "x86/e820: put !E820_TYPE_RAM regions into
- memblock.reserved"
-Message-ID: <20181002093940.GA98058@gmail.com>
-References: <20180925153532.6206-1-msys.mizuma@gmail.com>
- <20180925153532.6206-2-msys.mizuma@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Oct 2018 03:05:32 -0700 (PDT)
+Date: Tue, 2 Oct 2018 12:05:31 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
+Message-ID: <20181002100531.GC4135@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="YZ5djTAD1cGYuMQK"
 Content-Disposition: inline
-In-Reply-To: <20180925153532.6206-2-msys.mizuma@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Masayoshi Mizuma <msys.mizuma@gmail.com>
-Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Michal Hocko <mhocko@kernel.org>, Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>, linux-kernel@vger.kernel.org, x86@kernel.org
+To: Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>
+Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, jthumshirn@suse.de
 
 
-* Masayoshi Mizuma <msys.mizuma@gmail.com> wrote:
+--YZ5djTAD1cGYuMQK
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-> From: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
-> 
-> commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM regions into
-> memblock.reserved") breaks movable_node kernel option because it
-> changed the memory gap range to reserved memblock. So, the node
-> is marked as Normal zone even if the SRAT has Hot plaggable affinity.
-> 
->     =====================================================================
->     kernel: BIOS-e820: [mem 0x0000180000000000-0x0000180fffffffff] usable
->     kernel: BIOS-e820: [mem 0x00001c0000000000-0x00001c0fffffffff] usable
->     ...
->     kernel: reserved[0x12]#011[0x0000181000000000-0x00001bffffffffff], 0x000003f000000000 bytes flags: 0x0
->     ...
->     kernel: ACPI: SRAT: Node 2 PXM 6 [mem 0x180000000000-0x1bffffffffff] hotplug
->     kernel: ACPI: SRAT: Node 3 PXM 7 [mem 0x1c0000000000-0x1fffffffffff] hotplug
->     ...
->     kernel: Movable zone start for each node
->     kernel:  Node 3: 0x00001c0000000000
->     kernel: Early memory node ranges
->     ...
->     =====================================================================
-> 
-> Naoya's v1 patch [*] fixes the original issue and this movable_node
-> issue doesn't occur.
-> Let's revert commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM
-> regions into memblock.reserved") and apply the v1 patch.
-> 
-> [*] https://lkml.org/lkml/2018/6/13/27
-> 
-> Signed-off-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
-> Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
-> ---
->  arch/x86/kernel/e820.c | 15 +++------------
->  1 file changed, 3 insertions(+), 12 deletions(-)
+Hello,
 
-Bad ordering which introduces the bug and thus breaks bisection of related issues: the fixes 
-should come first, then the revert of the unnecessary or bad fix.
+commit e1fb4a086495 "dax: remove VM_MIXEDMAP for fsdax and device dax" has
+removed VM_MIXEDMAP flag from DAX VMAs. Now our testing shows that in the
+mean time certain customer of ours started poking into /proc/<pid>/smaps
+and looks at VMA flags there and if VM_MIXEDMAP is missing among the VMA
+flags, the application just fails to start complaining that DAX support is
+missing in the kernel. The question now is how do we go about this?
 
-Thanks,
+Strictly speaking, this is a userspace visible regression (as much as I
+think that application poking into VMA flags at this level is just too
+bold). Is there any precedens in handling similar issues with smaps which
+really exposes a lot of information that is dependent on kernel
+implementation details?
 
-	Ingo
+I have attached a patch that is an obvious "fix" for the issue - just fake
+VM_MIXEDMAP flag in smaps. But I'm open to other suggestions...
+
+								Honza
+
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
+
+--YZ5djTAD1cGYuMQK
+Content-Type: text/x-patch; charset=us-ascii
+Content-Disposition: attachment; filename="0001-proc-Show-DAX-mappings-as-having-VM_MIXEDMAP-flag.patch"
+
+
+--YZ5djTAD1cGYuMQK--
