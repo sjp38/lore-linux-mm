@@ -1,64 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 06E2D6B000A
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 12:36:04 -0400 (EDT)
-Received: by mail-yb1-f197.google.com with SMTP id p18-v6so3202714ybe.0
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 09:36:04 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id g190-v6si397598ywb.196.2018.10.03.09.36.03
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EDA3A6B000D
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 12:44:12 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id b17-v6so3455671pfo.20
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 09:44:12 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b34-v6si1323274plc.428.2018.10.03.09.44.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 03 Oct 2018 09:36:03 -0700 (PDT)
-Date: Wed, 3 Oct 2018 12:35:58 -0400
-From: "Theodore Y. Ts'o" <tytso@mit.edu>
-Subject: Re: [PATCH] mm: Fix warning in insert_pfn()
-Message-ID: <20181003163557.GA18434@thunk.org>
-References: <20180824154542.26872-1-jack@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Oct 2018 09:44:10 -0700 (PDT)
+Date: Wed, 3 Oct 2018 18:44:07 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
+Message-ID: <20181003164407.GK24030@quack2.suse.cz>
+References: <20181002142959.GD9127@quack2.suse.cz>
+ <20181002143713.GA19845@infradead.org>
+ <20181002144412.GC4963@linux-x5ow.site>
+ <20181002145206.GA10903@infradead.org>
+ <20181002153100.GG9127@quack2.suse.cz>
+ <CAPcyv4j0tTD+rENqFExA68aw=-MmtCBaOe1qJovyrmJC=yBg-Q@mail.gmail.com>
+ <20181003125056.GA21043@quack2.suse.cz>
+ <CAPcyv4jfV10yuTiPg6ijsPRRL2-c_48ovfpU5TK1Zu7BWnfk3g@mail.gmail.com>
+ <20181003150658.GC24030@quack2.suse.cz>
+ <CAPcyv4iJvN6_Cf6tw=5a=Uh99LfMFKU7n8QkGcz1ZaxL0Oi-3w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180824154542.26872-1-jack@suse.cz>
+In-Reply-To: <CAPcyv4iJvN6_Cf6tw=5a=Uh99LfMFKU7n8QkGcz1ZaxL0Oi-3w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, Dave Jiang <dave.jiang@intel.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Johannes Thumshirn <jthumshirn@suse.de>, Dave Jiang <dave.jiang@intel.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Fri, Aug 24, 2018 at 05:45:42PM +0200, Jan Kara wrote:
-> In DAX mode a write pagefault can race with write(2) in the following
-> way:
+On Wed 03-10-18 08:13:37, Dan Williams wrote:
+> On Wed, Oct 3, 2018 at 8:07 AM Jan Kara <jack@suse.cz> wrote:
+> > WRT per-inode DAX property, AFAIU that inode flag is just going to be
+> > advisory thing - i.e., use DAX if possible. If you mount a filesystem with
+> > these inode flags set in a configuration which does not allow DAX to be
+> > used, you will still be able to access such inodes but the access will use
+> > page cache instead. And querying these flags should better show real
+> > on-disk status and not just whether DAX is used as that would result in an
+> > even bigger mess. So this feature seems to be somewhat orthogonal to the
+> > API I'm looking for.
 > 
-> CPU0                            CPU1
->                                 write fault for mapped zero page (hole)
-> dax_iomap_rw()
->   iomap_apply()
->     xfs_file_iomap_begin()
->       - allocates blocks
->     dax_iomap_actor()
->       invalidate_inode_pages2_range()
->         - invalidates radix tree entries in given range
->                                 dax_iomap_pte_fault()
->                                   grab_mapping_entry()
->                                     - no entry found, creates empty
->                                   ...
->                                   xfs_file_iomap_begin()
->                                     - finds already allocated block
->                                   ...
->                                   vmf_insert_mixed_mkwrite()
->                                     - WARNs and does nothing because there
->                                       is still zero page mapped in PTE
->         unmap_mapping_pages()
-> 
-> This race results in WARN_ON from insert_pfn() and is occasionally
-> triggered by fstest generic/344. Note that the race is otherwise
-> harmless as before write(2) on CPU0 is finished, we will invalidate page
-> tables properly and thus user of mmap will see modified data from
-> write(2) from that point on. So just restrict the warning only to the
-> case when the PFN in PTE is not zero page.
-> 
-> Signed-off-by: Jan Kara <jack@suse.cz>
+> True, I imagine once we have that flag we will be able to distinguish
+> the "saved" property and the "effective / live" property of DAX...
+> Also it's really not DAX that applications care about as much as "is
+> there page-cache indirection / overhead for this mapping?". That seems
+> to be a narrower guarantee that we can make than what "DAX" might
+> imply.
 
-I don't see this in linux-next.  What's the status of this patch?
+Right. So what do people think about my suggestion earlier in the thread to
+use madvise(MADV_DIRECT_ACCESS) for this? Currently it would return success
+when DAX is in use, failure otherwise. Later we could extend it to be also
+used as a hint for caching policy for the inode...
 
-Thanks,
-
-					- Ted
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
