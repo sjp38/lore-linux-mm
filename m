@@ -1,158 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CF536B026B
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 13:00:48 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id 17-v6so5647701qkj.19
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 10:00:48 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e35-v6si1342835qkh.112.2018.10.03.10.00.46
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BCBF16B026D
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 13:03:59 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id z8-v6so2591127pgp.20
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 10:03:59 -0700 (PDT)
+Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.47.9])
+        by mx.google.com with ESMTPS id bd1-v6si2253166plb.156.2018.10.03.10.03.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Oct 2018 10:00:47 -0700 (PDT)
-Subject: Re: [PATCH RFC] mm/memory_hotplug: Introduce memory block types
-References: <20180928150357.12942-1-david@redhat.com>
- <20181001084038.GD18290@dhcp22.suse.cz>
- <d54a8509-725f-f771-72f0-15a9d93e8a49@redhat.com>
- <20181002134734.GT18290@dhcp22.suse.cz>
- <98fb8d65-b641-2225-f842-8804c6f79a06@redhat.com>
- <20181003135407.GI4714@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <9fef1f7d-2d7c-03f1-00e3-5fa657eda019@redhat.com>
-Date: Wed, 3 Oct 2018 19:00:29 +0200
-MIME-Version: 1.0
-In-Reply-To: <20181003135407.GI4714@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
+        Wed, 03 Oct 2018 10:03:58 -0700 (PDT)
+From: Vineet Gupta <vineet.gupta1@synopsys.com>
+Subject: Re: [PATCH 12/18] arch/tlb: Clean up simple architectures
+Date: Wed, 3 Oct 2018 17:03:50 +0000
+Message-ID: <C2D7FE5348E1B147BCA15975FBA23075012B09A59E@us01wembx1.internal.synopsys.com>
+References: <20180926113623.863696043@infradead.org>
+ <20180926114801.146189550@infradead.org>
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, linux-acpi@vger.kernel.org, linux-sh@vger.kernel.org, linux-s390@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, Stephen Hemminger <sthemmin@microsoft.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nicholas Piggin <npiggin@gmail.com>, =?UTF-8?Q?Jonathan_Neusch=c3=a4fer?= <j.neuschaefer@gmx.net>, Joe Perches <joe@perches.com>, Michael Neuling <mikey@neuling.org>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Rashmica Gupta <rashmica.g@gmail.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Rob Herring <robh@kernel.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, "mike.travis@hpe.com" <mike.travis@hpe.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Oscar Salvador <osalvador@suse.de>, Mathieu Malaterre <malat@debian.org>
+To: Peter Zijlstra <peterz@infradead.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "aneesh.kumar@linux.vnet.ibm.com" <aneesh.kumar@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "npiggin@gmail.com" <npiggin@gmail.com>
+Cc: "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "heiko.carstens@de.ibm.com" <heiko.carstens@de.ibm.com>, "riel@surriel.com" <riel@surriel.com>, Richard  Henderson <rth@twiddle.net>, Vineet Gupta <vineet.gupta1@synopsys.com>, Mark Salter <msalter@redhat.com>, Richard Kuo <rkuo@codeaurora.org>, Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>, Greentime Hu <green.hu@gmail.com>, Ley Foon Tan <lftan@altera.com>, Jonas Bonn <jonas@southpole.se>, Helge Deller <deller@gmx.de>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Max Filippov <jcmvbkbc@gmail.com>
 
-On 03/10/2018 15:54, Michal Hocko wrote:
-> On Tue 02-10-18 17:25:19, David Hildenbrand wrote:
->> On 02/10/2018 15:47, Michal Hocko wrote:
-> [...]
->>> Zone imbalance is an inherent problem of the highmem zone. It is
->>> essentially the highmem zone we all loved so much back in 32b days.
->>> Yes the movable zone doesn't have any addressing limitations so it is a
->>> bit more relaxed but considering the hotplug scenarios I have seen so
->>> far people just want to have full NUMA nodes movable to allow replacing
->>> DIMMs. And then we are back to square one and the zone imbalance issue.
->>> You have those regardless where memmaps are allocated from.
->>
->> Unfortunately yes. And things get more complicated as you are adding a
->> whole DIMMs and get notifications in the granularity of memory blocks.
->> Usually you are not interested in onlining any memory block of that DIMM
->> as MOVABLE as soon as you would have to online one memory block of that
->> DIMM as NORMAL - because that can already block the whole DIMM.
-> 
-> For the purpose of the hotremove, yes. But as Dave has noted people are
-> (ab)using zone movable for other purposes - e.g. large pages.
-
-That might be right for some very special use cases. For most of users
-this is not the case (meaning it should be the default but if the user
-wants to change it, he should be allowed to change it).
-
->  
-> [...]
->>> Then the immediate question would be why to use memory hotplug for that
->>> at all? Why don't you simply start with a huge pre-allocated physical
->>> address space and balloon memory in an out per demand. Why do you want
->>> to inject new memory during the runtime?
->>
->> Let's assume you have a guest with 20GB size and eventually want to
->> allow to grow it to 4TB. You would have to allocate metadata for 4TB
->> right from the beginning. That's definitely now what we want. That is
->> why memory hotplug is used by e.g. XEN or Hyper-V. With Hyper-V, the
->> hypervisor even tells you at which places additional memory has been
->> made available.
-> 
-> Then you have to live with the fact that your hot added memory will be
-> self hosted and find a way for ballooning to work with that. The price
-> would be that some part of the memory is not really balloonable in the
-> end.
-> 
->>>> 1. is a reason why distributions usually don't configure
->>>> "MEMORY_HOTPLUG_DEFAULT_ONLINE", because you really want the option for
->>>> MOVABLE zone. That however implies, that e.g. for x86, you have to
->>>> handle all new memory in user space, especially also HyperV memory.
->>>> There, you then have to check for things like "isHyperV()" to decide
->>>> "oh, yes, this should definitely not go to the MOVABLE zone".
->>>
->>> Why do you need a generic hotplug rule in the first place? Why don't you
->>> simply provide different set of rules for different usecases? Let users
->>> decide which usecase they prefer rather than try to be clever which
->>> almost always hits weird corner cases.
->>>
->>
->> Memory hotplug has to work as reliable as we can out of the box. Letting
->> the user make simple decisions like "oh, I am on hyper-V, I want to
->> online memory to the normal zone" does not feel right.
-> 
-> Users usually know what is their usecase and then it is just a matter of
-> plumbing (e.g. distribution can provide proper tools to deploy those
-> usecases) to chose the right and for user obscure way to make it work.
-
-I disagree. If we can ship sane defaults, we should do that and allow to
-make changes later on. This is how distributions have been working for
-ever. But yes, allowing to make modifications is always a good idea to
-tailor it to some special case user scenarios. (tuned or whatever we
-have in place).
-
-> 
->> But yes, we
->> should definitely allow to make modifications. So some sane default rule
->> + possible modification is usually a good idea.
->>
->> I think Dave has a point with using MOVABLE for huge page use cases. And
->> there might be other corner cases as you correctly state.
->>
->> I wonder if this patch itself minus modifying online/offline might make
->> sense. We can then implement simple rules in user space
->>
->> if (normal) {
->> 	/* customers expect hotplugged DIMMs to be unpluggable */
->> 	online_movable();
->> } else if (paravirt) {
->> 	/* paravirt memory should as default always go to the NORMAL */
->> 	online();
->> } else {
->> 	/* standby memory will never get onlined automatically */
->> }
->>
->> Compared to having to guess what is to be done (isKVM(), isHyperV,
->> isS390 ...) and failing once this is no longer unique (e.g. virtio-mem
->> and ACPI support for x86 KVM).
-> 
-> I am worried that exporing a type will just push us even further to the
-> corner. The current design is really simple and 2 stage and that is good
-> because it allows for very different usecases. The more specific the API
-> be the more likely we are going to hit "I haven't even dreamed somebody
-> would be using hotplug for this thing". And I would bet this will happen
-> sooner or later.
-
-Exposing the type of memory is in my point of view just forwarding facts
-to user space. We should not export arbitrary information, that is true.
-
-> 
-> Just look at how the whole auto onlining screwed the API to workaround
-> an implementation detail. It has created a one purpose behavior that
-> doesn't suite many usecases. Yet we have to live with that because
-> somebody really relies on it. Let's not repeat same errors.
-> 
-
-Let me rephrase: You state that user space has to make the decision and
-that user should be able to set/reconfigure rules. That is perfectly fine.
-
-But then we should give user space access to sufficient information to
-make a decision. This might be the type of memory as we learned (what
-some part of this patch proposes), but maybe later more, e.g. to which
-physical device memory belongs (e.g. to hotplug it all movable or all
-normal) ...
-
--- 
-
-Thanks,
-
-David / dhildenb
+On 09/26/2018 04:56 AM, Peter Zijlstra wrote:=0A=
+> There are generally two cases:=0A=
+>=0A=
+>  1) either the platform has an efficient flush_tlb_range() and=0A=
+>     asm-generic/tlb.h doesn't need any overrides at all.=0A=
+>=0A=
+>  2) or an architecture lacks an efficient flush_tlb_range() and=0A=
+>     we override tlb_end_vma() and tlb_flush().=0A=
+>=0A=
+> Convert all 'simple' architectures to one of these two forms.=0A=
+>=0A=
+> alpha:	    has no range invalidate -> 2=0A=
+> arc:	    already used flush_tlb_range() -> 1=0A=
+> c6x:	    has no range invalidate -> 2=0A=
+> h8300:	    has no mmu=0A=
+> hexagon:    has an efficient flush_tlb_range() -> 1=0A=
+>             (flush_tlb_mm() is in fact a full range invalidate,=0A=
+> 	     so no need to shoot down everything)=0A=
+> m68k:	    has inefficient flush_tlb_range() -> 2=0A=
+> microblaze: has no flush_tlb_range() -> 2=0A=
+> mips:	    has efficient flush_tlb_range() -> 1=0A=
+> 	    (even though it currently seems to use flush_tlb_mm())=0A=
+> nds32:	    already uses flush_tlb_range() -> 1=0A=
+> nios2:	    has inefficient flush_tlb_range() -> 2=0A=
+> 	    (no limit on range iteration)=0A=
+> openrisc:   has inefficient flush_tlb_range() -> 2=0A=
+> 	    (no limit on range iteration)=0A=
+> parisc:	    already uses flush_tlb_range() -> 1=0A=
+> sparc32:    already uses flush_tlb_range() -> 1=0A=
+> unicore32:  has inefficient flush_tlb_range() -> 2=0A=
+> 	    (no limit on range iteration)=0A=
+> xtensa:	    has efficient flush_tlb_range() -> 1=0A=
+>=0A=
+> Cc: Richard Henderson <rth@twiddle.net>=0A=
+> Cc: Vineet Gupta <vgupta@synopsys.com>=0A=
+> Cc: Mark Salter <msalter@redhat.com>=0A=
+> Cc: Richard Kuo <rkuo@codeaurora.org>=0A=
+> Cc: Michal Simek <monstr@monstr.eu>=0A=
+> Cc: Paul Burton <paul.burton@mips.com>=0A=
+> Cc: Greentime Hu <green.hu@gmail.com>=0A=
+> Cc: Ley Foon Tan <lftan@altera.com>=0A=
+> Cc: Jonas Bonn <jonas@southpole.se>=0A=
+> Cc: Helge Deller <deller@gmx.de>=0A=
+> Cc: "David S. Miller" <davem@davemloft.net>=0A=
+> Cc: Guan Xuetao <gxt@pku.edu.cn>=0A=
+> Cc: Max Filippov <jcmvbkbc@gmail.com>=0A=
+> Cc: Will Deacon <will.deacon@arm.com>=0A=
+> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>=0A=
+> Cc: Andrew Morton <akpm@linux-foundation.org>=0A=
+> Cc: Nick Piggin <npiggin@gmail.com>=0A=
+> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>=0A=
+> ---=0A=
+>  arch/alpha/include/asm/tlb.h      |    2 --=0A=
+>  arch/arc/include/asm/tlb.h        |   23 -----------------------=0A=
+>  arch/c6x/include/asm/tlb.h        |    1 +=0A=
+>  arch/h8300/include/asm/tlb.h      |    2 --=0A=
+>  arch/hexagon/include/asm/tlb.h    |   12 ------------=0A=
+>  arch/m68k/include/asm/tlb.h       |    1 -=0A=
+>  arch/microblaze/include/asm/tlb.h |    4 +---=0A=
+>  arch/mips/include/asm/tlb.h       |    8 --------=0A=
+>  arch/nds32/include/asm/tlb.h      |   10 ----------=0A=
+>  arch/nios2/include/asm/tlb.h      |    8 +++++---=0A=
+>  arch/openrisc/include/asm/tlb.h   |    6 ++++--=0A=
+>  arch/parisc/include/asm/tlb.h     |   13 -------------=0A=
+>  arch/powerpc/include/asm/tlb.h    |    1 -=0A=
+>  arch/sparc/include/asm/tlb_32.h   |   13 -------------=0A=
+>  arch/unicore32/include/asm/tlb.h  |   10 ++++++----=0A=
+>  arch/xtensa/include/asm/tlb.h     |   17 -----------------=0A=
+>  16 files changed, 17 insertions(+), 114 deletions(-)=0A=
+>=0A=
+> --- a/arch/alpha/include/asm/tlb.h=0A=
+> +++ b/arch/alpha/include/asm/tlb.h=0A=
+> @@ -4,8 +4,6 @@=0A=
+>  =0A=
+>  #define tlb_start_vma(tlb, vma)			do { } while (0)=0A=
+>  #define tlb_end_vma(tlb, vma)			do { } while (0)=0A=
+> -#define __tlb_remove_tlb_entry(tlb, pte, addr)	do { } while (0)=0A=
+> -=0A=
+>  #define tlb_flush(tlb)				flush_tlb_mm((tlb)->mm)=0A=
+>  =0A=
+>  #include <asm-generic/tlb.h>=0A=
+> --- a/arch/arc/include/asm/tlb.h=0A=
+> +++ b/arch/arc/include/asm/tlb.h=0A=
+> @@ -9,29 +9,6 @@=0A=
+>  #ifndef _ASM_ARC_TLB_H=0A=
+>  #define _ASM_ARC_TLB_H=0A=
+>  =0A=
+> -#define tlb_flush(tlb)				\=0A=
+> -do {						\=0A=
+> -	if (tlb->fullmm)			\=0A=
+> -		flush_tlb_mm((tlb)->mm);	\=0A=
+> -} while (0)=0A=
+> -=0A=
+> -/*=0A=
+> - * This pair is called at time of munmap/exit to flush cache and TLB ent=
+ries=0A=
+> - * for mappings being torn down.=0A=
+> - * 1) cache-flush part -implemented via tlb_start_vma( ) for VIPT aliasi=
+ng D$=0A=
+> - * 2) tlb-flush part - implemted via tlb_end_vma( ) flushes the TLB rang=
+e=0A=
+> - *=0A=
+> - * Note, read https://urldefense.proofpoint.com/v2/url?u=3Dhttp-3A__lkml=
+.org_lkml_2004_1_15_6&d=3DDwIBaQ&c=3DDPL6_X_6JkXFx7AXWqB0tg&r=3Dc14YS-cH-kd=
+hTOW89KozFhBtBJgs1zXscZojEZQ0THs&m=3D5jiyvgRek4SKK5DUWDBGufVcuLez5G-jJCh3K-=
+ndHsg&s=3D7uAzzw_jdAXMfb07B-vGPh3V1vggbTAsB7xL6Kie47A&e=3D=0A=
+> - */=0A=
+> -=0A=
+> -#define tlb_end_vma(tlb, vma)						\=0A=
+> -do {									\=0A=
+> -	if (!tlb->fullmm)						\=0A=
+> -		flush_tlb_range(vma, vma->vm_start, vma->vm_end);	\=0A=
+> -} while (0)=0A=
+> -=0A=
+> -#define __tlb_remove_tlb_entry(tlb, ptep, address)=0A=
+> -=0A=
+>  #include <linux/pagemap.h>=0A=
+>  #include <asm-generic/tlb.h>=0A=
+=0A=
+LGTM per discussion in an earlier thread. However given that for "simpler" =
+arches=0A=
+the whole series doesn't apply can you please beef up the changelog so I do=
+n't go=0A=
+scratching my head 2 years down the line. It currently describes the hows o=
+f=0A=
+things but not exactly whys: shift_arg_pages missing tlb_start_vma,=0A=
+move_page_tables look dodgy, yady yadda ?=0A=
+=0A=
+Thx,=0A=
+-Vineet=0A=
+=0A=
