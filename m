@@ -1,108 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D1026B0007
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 02:58:38 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id m45-v6so2468424edc.2
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 23:58:38 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C58D6B000A
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 03:03:25 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id m45-v6so2475228edc.2
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 00:03:25 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e1-v6si428951ejf.266.2018.10.02.23.58.36
+        by mx.google.com with ESMTPS id z1-v6si575593edr.81.2018.10.03.00.03.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Oct 2018 23:58:36 -0700 (PDT)
-Date: Wed, 3 Oct 2018 08:58:33 +0200
+        Wed, 03 Oct 2018 00:03:23 -0700 (PDT)
+Date: Wed, 3 Oct 2018 09:03:20 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/4] mm/hugetlb: Enable PUD level huge page migration
-Message-ID: <20181003065833.GD18290@dhcp22.suse.cz>
-References: <1538482531-26883-1-git-send-email-anshuman.khandual@arm.com>
- <1538482531-26883-2-git-send-email-anshuman.khandual@arm.com>
- <20181002123909.GS18290@dhcp22.suse.cz>
- <fae68a4e-b14b-8342-940c-ea5ef3c978af@arm.com>
+Subject: Re: [PATCH] migration/mm: Add WARN_ON to try_offline_node
+Message-ID: <20181003070320.GE18290@dhcp22.suse.cz>
+References: <20181001185616.11427.35521.stgit@ltcalpine2-lp9.aus.stglabs.ibm.com>
+ <20181001202724.GL18290@dhcp22.suse.cz>
+ <bdbca329-7d35-0535-1737-94a06a19ae28@linux.vnet.ibm.com>
+ <df95f828-1963-d8b9-ab58-6d29d2d152d2@linux.vnet.ibm.com>
+ <20181002145922.GZ18290@dhcp22.suse.cz>
+ <d338b385-626b-0e79-9944-708178fe245d@linux.vnet.ibm.com>
+ <20181002160446.GA18290@dhcp22.suse.cz>
+ <e7dd66c1-d196-3a14-0115-acdaf538ebfd@linux.vnet.ibm.com>
+ <bbc5f219-614f-b024-0888-8ad216c5eaf8@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fae68a4e-b14b-8342-940c-ea5ef3c978af@arm.com>
+In-Reply-To: <bbc5f219-614f-b024-0888-8ad216c5eaf8@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, suzuki.poulose@arm.com, punit.agrawal@arm.com, will.deacon@arm.com, Steven.Price@arm.com, catalin.marinas@arm.com, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
+To: Tyrel Datwyler <tyreld@linux.vnet.ibm.com>
+Cc: Michael Bringmann <mwb@linux.vnet.ibm.com>, Thomas Falcon <tlfalcon@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Mathieu Malaterre <malat@debian.org>, linux-kernel@vger.kernel.org, Nicholas Piggin <npiggin@gmail.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm@kvack.org, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Juliet Kim <minkim@us.ibm.com>, Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, linuxppc-dev@lists.ozlabs.org, Dan Williams <dan.j.williams@intel.com>, Oscar Salvador <osalvador@suse.de>
 
-On Wed 03-10-18 07:46:27, Anshuman Khandual wrote:
-> 
-> 
-> On 10/02/2018 06:09 PM, Michal Hocko wrote:
-> > On Tue 02-10-18 17:45:28, Anshuman Khandual wrote:
-> >> Architectures like arm64 have PUD level HugeTLB pages for certain configs
-> >> (1GB huge page is PUD based on ARM64_4K_PAGES base page size) that can be
-> >> enabled for migration. It can be achieved through checking for PUD_SHIFT
-> >> order based HugeTLB pages during migration.
+On Tue 02-10-18 12:45:50, Tyrel Datwyler wrote:
+> On 10/02/2018 11:13 AM, Michael Bringmann wrote:
 > > 
-> > Well a long term problem with hugepage_migration_supported is that it is
-> > used in two different context 1) to bail out from the migration early
-> > because the arch doesn't support migration at all and 2) to use movable
-> > zone for hugetlb pages allocation. I am especially concerned about the
-> > later because the mere support for migration is not really good enough.
-> > Are you really able to find a different giga page during the runtime to
-> > move an existing giga page out of the movable zone?
-> 
-> I pre-allocate them before trying to initiate the migration (soft offline
-> in my experiments). Hence it should come from the pre-allocated HugeTLB
-> pool instead from the buddy. I might be missing something here but do we
-> ever allocate HugeTLB on the go when trying to migrate ? IIUC it always
-> came from the pool (unless its something related to ovecommit/surplus).
-> Could you please kindly explain regarding how migration target HugeTLB
-> pages are allocated on the fly from movable zone.
-
-Hotplug comes to mind. You usually do not pre-allocate to cover full
-node going offline. And people would like to do that. Another example is
-CMA. You would really like to move pages out of the way.
-
-> But even if there are some chances of run time allocation failure from
-> movable zone (as in point 2) that should not block the very initiation
-> of migration itself. IIUC thats not the semantics for either THP or
-> normal pages. Why should it be different here. If the allocation fails
-> we should report and abort as always. Its the caller of migration taking
-> the chances. why should we prevent that.
-
-Yes I agree, hence the distinction between the arch support for
-migrateability and the criterion on the movable zone placement.
- 
 > > 
-> > So I guess we want to split this into two functions
-> > arch_hugepage_migration_supported and hugepage_movable. The later would
+> > On 10/02/2018 11:04 AM, Michal Hocko wrote:
+> >> On Tue 02-10-18 10:14:49, Michael Bringmann wrote:
+> >>> On 10/02/2018 09:59 AM, Michal Hocko wrote:
+> >>>> On Tue 02-10-18 09:51:40, Michael Bringmann wrote:
+> >>>> [...]
+> >>>>> When the device-tree affinity attributes have changed for memory,
+> >>>>> the 'nid' affinity calculated points to a different node for the
+> >>>>> memory block than the one used to install it, previously on the
+> >>>>> source system.  The newly calculated 'nid' affinity may not yet
+> >>>>> be initialized on the target system.  The current memory tracking
+> >>>>> mechanisms do not record the node to which a memory block was
+> >>>>> associated when it was added.  Nathan is looking at adding this
+> >>>>> feature to the new implementation of LMBs, but it is not there
+> >>>>> yet, and won't be present in earlier kernels without backporting a
+> >>>>> significant number of changes.
+> >>>>
+> >>>> Then the patch you have proposed here just papers over a real issue, no?
+> >>>> IIUC then you simply do not remove the memory if you lose the race.
+> >>>
+> >>> The problem occurs when removing memory after an affinity change
+> >>> references a node that was previously unreferenced.  Other code
+> >>> in 'kernel/mm/memory_hotplug.c' deals with initializing an empty
+> >>> node when adding memory to a system.  The 'removing memory' case is
+> >>> specific to systems that perform LPM and allow device-tree changes.
+> >>> The powerpc kernel does not have the option of accepting some PRRN
+> >>> requests and accepting others.  It must perform them all.
+> >>
+> >> I am sorry, but you are still too cryptic for me. Either there is a
+> >> correctness issue and the the patch doesn't really fix anything or the
+> >> final race doesn't make any difference and then the ppc code should be
+> >> explicit about that. Checking the node inside the hotplug core code just
+> >> looks as a wrong layer to mitigate an arch specific problem. I am not
+> >> saying the patch is a no-go but if anything we want a big fat comment
+> >> explaining how this is possible because right now it just points to an
+> >> incorrect API usage.
+> >>
+> >> That being said, this sounds pretty much ppc specific problem and I
+> >> would _prefer_ it to be handled there (along with a big fat comment of
+> >> course).
+> > 
+> > Let me try again.  Regardless of the path to which we get to this condition,
+> > we currently crash the kernel.  This patch changes that to a WARN_ON notice
+> > and continues executing the kernel without shutting down the system.  I saw
+> > the problem during powerpc testing, because that is the focus of my work.
+> > There are other paths to this function besides powerpc.  I feel that the
+> > kernel should keep running instead of halting.
 > 
-> So the set difference between arch_hugepage_migration_supported and 
-> hugepage_movable still remains un-migratable ? Then what is the purpose
-> for arch_hugepage_migration_supported page size set in the first place.
-> Does it mean we allow the migration at the beginning and the abort later
-> when the page size does not fall within the subset for hugepage_movable.
-> Could you please kindly explain this in more detail.
+> This is still basically a hack to get around a known race. In itself
+> this patch is still worth while in that we shouldn't crash the kernel
+> on a null pointer dereference. However, I think the actual problem
+> still needs to be addressed. We shouldn't run any PRRN events for the
+> source system on the target after a migration. The device tree update
+> should have taken care of telling us about new affinities and what
+> not. Can we just throw out any queued PRRN events when we wake up on
+> the target?
 
-The purpose of arch_hugepage_migration_supported is to tell whether it
-makes any sense to even try to migration. The allocation placement is
-completely independent on this choice. The later just says whether it is
-feasible to place a hugepage to the zone movable. Sure regular 2MB pages
-do not guarantee movability as well because of the memory fragmentation.
-But allocating a 2MB is a completely different storage from 1G or even
-larger huge pages, isn't it?
-
-> > be a reasonably migrateable subset of the former. Without that this
-> > patch migth introduce subtle regressions when somebody relies on movable
-> > zone to be really movable.
-> PUD based HugeTLB pages were never migratable, then how can there be any
-> regression here ?
-
-That means that they haven't been allocated from the movable zone
-before. Which is going to change by this patch.
-
-> At present we even support PGD based HugeTLB pages for
-> migration.
-
-And that is already wrong but nobody probably cares because those are
-rarely used.
-
-> Wondering how PUD based ones are going to be any different.
-
-It is not different, PGD is dubious already.
+And until a proper fix is developed can we have NODE_DATA test in the
+affected code rather than pollute the generic code with something that
+is essentially a wrong usage of the API? With a big fat warning
+explaining what is going on here?
 -- 
 Michal Hocko
 SUSE Labs
