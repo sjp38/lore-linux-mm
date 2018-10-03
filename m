@@ -1,58 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EC486B0007
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 07:01:49 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id b13-v6so3033489edb.1
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 04:01:49 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t12-v6si1138929edi.268.2018.10.03.04.01.47
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Oct 2018 04:01:48 -0700 (PDT)
-Date: Wed, 3 Oct 2018 13:01:46 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Avoid swapping in interrupt context
-Message-ID: <20181003110146.GB4714@dhcp22.suse.cz>
-References: <1538387115-2363-1-git-send-email-amhetre@nvidia.com>
- <20181001122400.GF18290@dhcp22.suse.cz>
- <988dfe01-6553-1e0a-1d98-1b3d3aa67517@nvidia.com>
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A3216B0269
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 07:10:35 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id t3-v6so3316440oif.20
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 04:10:35 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id a11si488897otk.257.2018.10.03.04.10.34
+        for <linux-mm@kvack.org>;
+        Wed, 03 Oct 2018 04:10:34 -0700 (PDT)
+Subject: Re: [PATCH 1/4] mm/hugetlb: Enable PUD level huge page migration
+References: <1538482531-26883-1-git-send-email-anshuman.khandual@arm.com>
+ <1538482531-26883-2-git-send-email-anshuman.khandual@arm.com>
+ <835085a2-79c2-4eb5-2c10-13bb2893f611@arm.com>
+ <c0689b0c-4810-e0e8-354e-55c45d59b6d0@arm.com>
+ <a6b96126-5571-2aa2-6deb-09a457afd781@arm.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <bad51030-5f02-4fc9-741c-0fffbd690aca@arm.com>
+Date: Wed, 3 Oct 2018 16:40:27 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <988dfe01-6553-1e0a-1d98-1b3d3aa67517@nvidia.com>
+In-Reply-To: <a6b96126-5571-2aa2-6deb-09a457afd781@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ashish Mhetre <amhetre@nvidia.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, vdumpa@nvidia.com, Snikam@nvidia.com
+To: Suzuki K Poulose <suzuki.poulose@arm.com>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
+Cc: punit.agrawal@arm.com, will.deacon@arm.com, Steven.Price@arm.com, catalin.marinas@arm.com, mhocko@kernel.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
 
-On Wed 03-10-18 16:18:37, Ashish Mhetre wrote:
-> > How? No allocation request from the interrupt context can use a
-> > sleepable allocation context and that means that no reclaim is allowed
-> > from the IRQ context.
-> Kernel Oops happened when ZRAM was used as swap with zsmalloc as alloctor
-> under memory pressure condition.
-> This is probably because of kmalloc() from IRQ as pointed out by Sergey.
 
-Yes most likely and that should be fixed.
- 
-> > Could you provide the Oops message?
-> BUG_ON() got triggered at https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/tree/mm/zsmalloc.c?h=next-20181002#n1324 with Oops message:
-> [ 264.082531] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP ARM
-> [ 264.088350] Modules linked in:
-> [ 264.091406] CPU: 0 PID: 3805 Comm: kworker/0:4 Tainted: G W
-> 3.10.33-g990282b #1
-> [ 264.099572] Workqueue: events netstat_work_func
-> [ 264.104097] task: e7b12040 ti: dc7d4000 task.ti: dc7d4000
-> [ 264.109485] PC is at zs_map_object+0x180/0x18c
-> [ 264.113918] LR is at zram_bvec_rw.isra.15+0x304/0x88c
-> [ 264.118956] pc : [<c01581e8>] lr : [<c0456618>] psr: 200f0013
-> [ 264.118956] sp : dc7d5460 ip : fff00814 fp : 00000002
-> [ 264.130407] r10: ea8ec000 r9 : ebc93340 r8 : 00000000
-> [ 264.135618] r7 : c191502c r6 : dc7d4020 r5 : d25f5684 r4 : ec3158c0
-> [ 264.142128] r3 : 00000200 r2 : 00000002 r1 : c191502c r0 : ea8ec000
 
-This doesn't show the backtrace part which contains the allocation
-AFAICS.
--- 
-Michal Hocko
-SUSE Labs
+On 10/03/2018 03:52 PM, Suzuki K Poulose wrote:
+> 
+> 
+> On 02/10/18 13:56, Anshuman Khandual wrote:
+>>
+>>
+>> On 10/02/2018 06:08 PM, Suzuki K Poulose wrote:
+>>> Hi Anshuman
+>>>
+>>> On 02/10/18 13:15, Anshuman Khandual wrote:
+>>>> Architectures like arm64 have PUD level HugeTLB pages for certain configs
+>>>> (1GB huge page is PUD based on ARM64_4K_PAGES base page size) that can be
+>>>> enabled for migration. It can be achieved through checking for PUD_SHIFT
+>>>> order based HugeTLB pages during migration.
+>>>>
+>>>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+>>>> ---
+>>>> A A  include/linux/hugetlb.h | 3 ++-
+>>>> A A  1 file changed, 2 insertions(+), 1 deletion(-)
+>>>>
+>>>> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+>>>> index 6b68e34..9c1b77f 100644
+>>>> --- a/include/linux/hugetlb.h
+>>>> +++ b/include/linux/hugetlb.h
+>>>> @@ -483,7 +483,8 @@ static inline bool hugepage_migration_supported(struct hstate *h)
+>>>> A A  {
+>>>> A A  #ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
+>>>> A A A A A A  if ((huge_page_shift(h) == PMD_SHIFT) ||
+>>>> -A A A A A A A  (huge_page_shift(h) == PGDIR_SHIFT))
+>>>> +A A A A A A A  (huge_page_shift(h) == PUD_SHIFT) ||
+>>>
+>>>
+>>>> +A A A A A A A A A A A  (huge_page_shift(h) == PGDIR_SHIFT))
+>>>
+>>> nit: Extra Tab ^^.
+>>
+>> The tab is in there when you apply this patch and all three checks are tab separated
+>> in a newline.
+> 
+> Well, with the patch applied, at least I can see 2 tabs for the
+> PUD_SHIFT check and 3 tabs for PGDIR_SHIFT check. Which seems
+> inconsistent. Is it just me (my mail client) ?
+
+I am sorry, you are right. Did not understand your point earlier. Yeah there is
+increasing number of tabs for each new line with a conditional check. Is there
+a problem with this style of indentation ? Though I will be happy to change.
