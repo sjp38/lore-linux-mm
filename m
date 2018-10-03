@@ -1,469 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 55DD66B0269
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 19:27:20 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id d200-v6so6581673qkc.22
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 16:27:20 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v47-v6si1021273qtj.291.2018.10.03.16.27.18
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EFD3C6B000D
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 19:37:29 -0400 (EDT)
+Received: by mail-it1-f200.google.com with SMTP id m131-v6so8854347ita.4
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 16:37:29 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id u7-v6sor1917155itc.113.2018.10.03.16.37.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Oct 2018 16:27:19 -0700 (PDT)
-Date: Thu, 4 Oct 2018 01:27:36 +0200
-From: Eugene Syromiatnikov <esyr@redhat.com>
-Subject: Re: [RFC PATCH v4 21/27] x86/cet/shstk: ELF header parsing of Shadow
- Stack
-Message-ID: <20181003232736.GI32759@asgard.redhat.com>
-References: <20180921150351.20898-1-yu-cheng.yu@intel.com>
- <20180921150351.20898-22-yu-cheng.yu@intel.com>
+        (Google Transport Security);
+        Wed, 03 Oct 2018 16:37:28 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180921150351.20898-22-yu-cheng.yu@intel.com>
+References: <20180927194601.207765-1-wonderfly@google.com> <20181001152324.72a20bea@gandalf.local.home>
+ <CAJmjG29Jwn_1E5zexcm8eXTG=cTWyEr1gjSfSAS2fueB_V0tfg@mail.gmail.com>
+ <20181002084225.6z2b74qem3mywukx@pathway.suse.cz> <CAJmjG2-RrG5XKeW1-+rN3C=F6bZ-L3=YKhCiQ_muENDTzm_Ofg@mail.gmail.com>
+ <20181002212327.7aab0b79@vmware.local.home> <20181003091400.rgdjpjeaoinnrysx@pathway.suse.cz>
+ <CAJmjG2_4JFA=qL-d2Pb9umUEcPt9h13w-g40JQMbdKsZTRSZww@mail.gmail.com>
+ <20181003133704.43a58cf5@gandalf.local.home> <CAJmjG291w2ZPRiAevSzxGNcuR6vTuqyk6z4SG3xRsbaQh5U3zQ@mail.gmail.com>
+In-Reply-To: <CAJmjG291w2ZPRiAevSzxGNcuR6vTuqyk6z4SG3xRsbaQh5U3zQ@mail.gmail.com>
+From: Daniel Wang <wonderfly@google.com>
+Date: Wed, 3 Oct 2018 16:37:16 -0700
+Message-ID: <CAJmjG281d2Jdi7FQLfNWTwrAyGQdEtkzaO3ggZ39r=iV6DbuJA@mail.gmail.com>
+Subject: Re: 4.14 backport request for dbdda842fe96f: "printk: Add console
+ owner and waiter logic to load balance console writes"
+Content-Type: multipart/signed; protocol="application/pkcs7-signature"; micalg=sha-256;
+	boundary="0000000000007db80a05775b8518"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: rostedt@goodmis.org
+Cc: Petr Mladek <pmladek@suse.com>, stable@vger.kernel.org, Alexander.Levin@microsoft.com, akpm@linux-foundation.org, byungchul.park@lge.com, dave.hansen@intel.com, hannes@cmpxchg.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Mel Gorman <mgorman@suse.de>, mhocko@kernel.org, pavel@ucw.cz, penguin-kernel@i-love.sakura.ne.jp, peterz@infradead.org, tj@kernel.org, torvalds@linux-foundation.org, vbabka@suse.cz, Cong Wang <xiyou.wangcong@gmail.com>, Peter Feiner <pfeiner@google.com>
 
-On Fri, Sep 21, 2018 at 08:03:45AM -0700, Yu-cheng Yu wrote:
-> Look in .note.gnu.property of an ELF file and check if Shadow Stack needs
-> to be enabled for the task.
-> 
-> Signed-off-by: H.J. Lu <hjl.tools@gmail.com>
-> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> ---
->  arch/x86/Kconfig                         |   4 +
->  arch/x86/include/asm/elf.h               |   5 +
->  arch/x86/include/uapi/asm/elf_property.h |  15 +
->  arch/x86/kernel/Makefile                 |   2 +
->  arch/x86/kernel/elf.c                    | 340 +++++++++++++++++++++++
->  fs/binfmt_elf.c                          |  15 +
->  include/uapi/linux/elf.h                 |   1 +
->  7 files changed, 382 insertions(+)
->  create mode 100644 arch/x86/include/uapi/asm/elf_property.h
->  create mode 100644 arch/x86/kernel/elf.c
-> 
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index 808aa3aecf3c..6377125543cc 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -1919,12 +1919,16 @@ config X86_INTEL_CET
->  config ARCH_HAS_SHSTK
->  	def_bool n
->  
-> +config ARCH_HAS_PROGRAM_PROPERTIES
-> +	def_bool n
-> +
->  config X86_INTEL_SHADOW_STACK_USER
->  	prompt "Intel Shadow Stack for user-mode"
->  	def_bool n
->  	depends on CPU_SUP_INTEL && X86_64
->  	select X86_INTEL_CET
->  	select ARCH_HAS_SHSTK
-> +	select ARCH_HAS_PROGRAM_PROPERTIES
->  	---help---
->  	  Shadow stack provides hardware protection against program stack
->  	  corruption.  Only when all the following are true will an application
-> diff --git a/arch/x86/include/asm/elf.h b/arch/x86/include/asm/elf.h
-> index 0d157d2a1e2a..5b5f169c5c07 100644
-> --- a/arch/x86/include/asm/elf.h
-> +++ b/arch/x86/include/asm/elf.h
-> @@ -382,4 +382,9 @@ struct va_alignment {
->  
->  extern struct va_alignment va_align;
->  extern unsigned long align_vdso_addr(unsigned long);
-> +
-> +#ifdef CONFIG_ARCH_HAS_PROGRAM_PROPERTIES
-> +extern int arch_setup_features(void *ehdr, void *phdr, struct file *file,
-> +			       bool interp);
-> +#endif
->  #endif /* _ASM_X86_ELF_H */
-> diff --git a/arch/x86/include/uapi/asm/elf_property.h b/arch/x86/include/uapi/asm/elf_property.h
-> new file mode 100644
-> index 000000000000..af361207718c
-> --- /dev/null
-> +++ b/arch/x86/include/uapi/asm/elf_property.h
-> @@ -0,0 +1,15 @@
-> +/* SPDX-License-Identifier: GPL-2.0 */
-> +#ifndef _UAPI_ASM_X86_ELF_PROPERTY_H
-> +#define _UAPI_ASM_X86_ELF_PROPERTY_H
-> +
-> +/*
-> + * pr_type
-> + */
-> +#define GNU_PROPERTY_X86_FEATURE_1_AND (0xc0000002)
-> +
-> +/*
-> + * Bits for GNU_PROPERTY_X86_FEATURE_1_AND
-> + */
-> +#define GNU_PROPERTY_X86_FEATURE_1_SHSTK	(0x00000002)
+--0000000000007db80a05775b8518
+Content-Type: text/plain; charset="UTF-8"
 
-Hm, these defeinitions aren't much different comparing to NT_*
-definitions in include/uapi/linux/elf.h, is it expected that those
-properties have to be parsed individually for each architecture?
+I wanted to let you know that I am leaving for a two-week vacation. So
+if you don't hear from me during that period assume bad network
+connectivity and not lack of enthusiasm. :) Feel free to go with the
+backports if we reach an agreement here. Otherwise I'll do it when I get
+back. Thank you all!
 
-> +
-> +#endif /* _UAPI_ASM_X86_ELF_PROPERTY_H */
-> diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
-> index fbb2d91fb756..36b14ef410c8 100644
-> --- a/arch/x86/kernel/Makefile
-> +++ b/arch/x86/kernel/Makefile
-> @@ -141,6 +141,8 @@ obj-$(CONFIG_UNWINDER_GUESS)		+= unwind_guess.o
->  
->  obj-$(CONFIG_X86_INTEL_CET)		+= cet.o
->  
-> +obj-$(CONFIG_ARCH_HAS_PROGRAM_PROPERTIES) += elf.o
+--0000000000007db80a05775b8518
+Content-Type: application/pkcs7-signature; name="smime.p7s"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="smime.p7s"
+Content-Description: S/MIME Cryptographic Signature
 
-Same thing here, enablement of program properties per se seems rather generic.
-
-> diff --git a/arch/x86/kernel/elf.c b/arch/x86/kernel/elf.c
-> new file mode 100644
-> index 000000000000..2fddd0bc545b
-> --- /dev/null
-> +++ b/arch/x86/kernel/elf.c
-> @@ -0,0 +1,340 @@
-> +/* SPDX-License-Identifier: GPL-2.0 */
-> +/*
-> + * Look at an ELF file's .note.gnu.property and determine if the file
-> + * supports shadow stack and/or indirect branch tracking.
-> + * The path from the ELF header to the note section is the following:
-> + * elfhdr->elf_phdr->elf_note->property[].
-> + */
-> +
-> +#include <asm/cet.h>
-> +#include <asm/elf_property.h>
-> +#include <asm/prctl.h>
-> +#include <asm/processor.h>
-> +#include <uapi/linux/elf-em.h>
-> +#include <uapi/linux/prctl.h>
-> +#include <linux/binfmts.h>
-> +#include <linux/elf.h>
-> +#include <linux/slab.h>
-> +#include <linux/fs.h>
-> +#include <linux/uaccess.h>
-> +#include <linux/string.h>
-> +#include <linux/compat.h>
-> +
-> +/*
-> + * The .note.gnu.property layout:
-> + *
-> + *	struct elf_note {
-> + *		u32 n_namesz; --> sizeof(n_name[]); always (4)
-> + *		u32 n_ndescsz;--> sizeof(property[])
-> + *		u32 n_type;   --> always NT_GNU_PROPERTY_TYPE_0
-> + *	};
-> + *	char n_name[4]; --> always 'GNU\0'
-> + *
-> + *	struct {
-> + *		struct property_x86 {
-> + *			u32 pr_type;
-> + *			u32 pr_datasz;
-> + *		};
-> + *		u8 pr_data[pr_datasz];
-> + *	}[];
-> + */
-> +
-> +#define BUF_SIZE (PAGE_SIZE / 4)
-> +
-> +struct property_x86 {
-> +	u32 pr_type;
-> +	u32 pr_datasz;
-> +};
-> +
-> +typedef bool (test_fn)(void *buf, u32 *arg);
-> +typedef void *(next_fn)(void *buf, u32 *arg);
-> +
-> +static inline bool test_note_type_0(void *buf, u32 *arg)
-> +{
-> +	struct elf_note *n = buf;
-> +
-> +	return ((n->n_namesz == 4) && (memcmp(n + 1, "GNU", 4) == 0) &&
-> +		(n->n_type == NT_GNU_PROPERTY_TYPE_0));
-> +}
-> +
-> +static inline void *next_note(void *buf, u32 *arg)
-> +{
-> +	struct elf_note *n = buf;
-> +	u32 align = *arg;
-> +	int size;
-> +
-> +	size = round_up(sizeof(*n) + n->n_namesz, align);
-> +	size = round_up(size + n->n_descsz, align);
-> +
-> +	if (buf + size < buf)
-> +		return NULL;
-> +	else
-> +		return (buf + size);
-> +}
-> +
-> +static inline bool test_property_x86(void *buf, u32 *arg)
-> +{
-> +	struct property_x86 *pr = buf;
-> +	u32 max_type = *arg;
-> +
-> +	if (pr->pr_type > max_type)
-> +		*arg = pr->pr_type;
-> +
-> +	return (pr->pr_type == GNU_PROPERTY_X86_FEATURE_1_AND);
-> +}
-> +
-> +static inline void *next_property(void *buf, u32 *arg)
-> +{
-> +	struct property_x86 *pr = buf;
-> +	u32 max_type = *arg;
-> +
-> +	if ((buf + sizeof(*pr) +  pr->pr_datasz < buf) ||
-> +	    (pr->pr_type > GNU_PROPERTY_X86_FEATURE_1_AND) ||
-> +	    (pr->pr_type > max_type))
-> +		return NULL;
-> +	else
-> +		return (buf + sizeof(*pr) + pr->pr_datasz);
-> +}
-> +
-> +/*
-> + * Scan 'buf' for a pattern; return true if found.
-> + * *pos is the distance from the beginning of buf to where
-> + * the searched item or the next item is located.
-> + */
-> +static int scan(u8 *buf, u32 buf_size, int item_size,
-> +		 test_fn test, next_fn next, u32 *arg, u32 *pos)
-> +{
-> +	int found = 0;
-> +	u8 *p, *max;
-> +
-> +	max = buf + buf_size;
-> +	if (max < buf)
-> +		return 0;
-> +
-> +	p = buf;
-> +
-> +	while ((p + item_size < max) && (p + item_size > buf)) {
-> +		if (test(p, arg)) {
-> +			found = 1;
-> +			break;
-> +		}
-> +
-> +		p = next(p, arg);
-> +	}
-> +
-> +	*pos = (p + item_size <= buf) ? 0 : (u32)(p - buf);
-> +	return found;
-> +}
-> +
-> +/*
-> + * Search a NT_GNU_PROPERTY_TYPE_0 for GNU_PROPERTY_X86_FEATURE_1_AND.
-> + */
-> +static int find_feature_x86(struct file *file, unsigned long desc_size,
-> +			    loff_t file_offset, u8 *buf, u32 *feature)
-> +{
-> +	u32 buf_pos;
-> +	unsigned long read_size;
-> +	unsigned long done;
-> +	int found = 0;
-> +	int ret = 0;
-> +	u32 last_pr = 0;
-> +
-> +	*feature = 0;
-> +	buf_pos = 0;
-> +
-> +	for (done = 0; done < desc_size; done += buf_pos) {
-> +		read_size = desc_size - done;
-> +		if (read_size > BUF_SIZE)
-> +			read_size = BUF_SIZE;
-> +
-> +		ret = kernel_read(file, buf, read_size, &file_offset);
-> +
-> +		if (ret != read_size)
-> +			return (ret < 0) ? ret : -EIO;
-> +
-> +		ret = 0;
-> +		found = scan(buf, read_size, sizeof(struct property_x86),
-> +			     test_property_x86, next_property,
-> +			     &last_pr, &buf_pos);
-> +
-> +		if ((!buf_pos) || found)
-> +			break;
-> +
-> +		file_offset += buf_pos - read_size;
-> +	}
-> +
-> +	if (found) {
-> +		struct property_x86 *pr =
-> +			(struct property_x86 *)(buf + buf_pos);
-> +
-> +		if (pr->pr_datasz == 4) {
-> +			u32 *max =  (u32 *)(buf + read_size);
-> +			u32 *data = (u32 *)((u8 *)pr + sizeof(*pr));
-> +
-> +			if (data + 1 <= max) {
-> +				*feature = *data;
-> +			} else {
-> +				file_offset += buf_pos - read_size;
-> +				file_offset += sizeof(*pr);
-> +				ret = kernel_read(file, feature, 4,
-> +						  &file_offset);
-> +			}
-> +		}
-> +	}
-> +
-> +	return ret;
-> +}
-> +
-> +/*
-> + * Search a PT_NOTE segment for the first NT_GNU_PROPERTY_TYPE_0.
-> + */
-> +static int find_note_type_0(struct file *file, unsigned long note_size,
-> +			    loff_t file_offset, u32 align, u32 *feature)
-> +{
-> +	u8 *buf;
-> +	u32 buf_pos;
-> +	unsigned long read_size;
-> +	unsigned long done;
-> +	int found = 0;
-> +	int ret = 0;
-> +
-> +	buf = kmalloc(BUF_SIZE, GFP_KERNEL);
-> +	if (!buf)
-> +		return -ENOMEM;
-> +
-> +	*feature = 0;
-> +	buf_pos = 0;
-> +
-> +	for (done = 0; done < note_size; done += buf_pos) {
-> +		read_size = note_size - done;
-> +		if (read_size > BUF_SIZE)
-> +			read_size = BUF_SIZE;
-> +
-> +		ret = kernel_read(file, buf, read_size, &file_offset);
-> +
-> +		if (ret != read_size) {
-> +			ret = (ret < 0) ? ret : -EIO;
-> +			kfree(buf);
-> +			return ret;
-> +		}
-> +
-> +		/*
-> +		 * item_size = sizeof(struct elf_note) + elf_note.n_namesz.
-> +		 * n_namesz is 4 for the note type we look for.
-> +		 */
-> +		ret = 0;
-> +		found += scan(buf, read_size, sizeof(struct elf_note) + 4,
-> +			      test_note_type_0, next_note,
-> +			      &align, &buf_pos);
-> +
-> +		file_offset += buf_pos - read_size;
-> +
-> +		if (found == 1) {
-> +			struct elf_note *n =
-> +				(struct elf_note *)(buf + buf_pos);
-> +			u32 start = round_up(sizeof(*n) + n->n_namesz, align);
-> +			u32 total = round_up(start + n->n_descsz, align);
-> +
-> +			ret = find_feature_x86(file, n->n_descsz,
-> +					       file_offset + start,
-> +					       buf, feature);
-> +			file_offset += total;
-> +			buf_pos += total;
-> +		} else if (!buf_pos) {
-> +			*feature = 0;
-> +			break;
-> +		}
-> +	}
-> +
-> +	kfree(buf);
-> +	return ret;
-> +}
-> +
-> +#ifdef CONFIG_COMPAT
-> +static int check_notes_32(struct file *file, struct elf32_phdr *phdr,
-> +			  int phnum, u32 *feature)
-> +{
-> +	int i;
-> +	int err = 0;
-> +
-> +	for (i = 0; i < phnum; i++, phdr++) {
-> +		if ((phdr->p_type != PT_NOTE) || (phdr->p_align != 4))
-> +			continue;
-> +
-> +		err = find_note_type_0(file, phdr->p_filesz, phdr->p_offset,
-> +				       phdr->p_align, feature);
-> +		if (err)
-> +			return err;
-> +	}
-> +
-> +	return 0;
-> +}
-> +#endif
-> +
-> +#ifdef CONFIG_X86_64
-> +static int check_notes_64(struct file *file, struct elf64_phdr *phdr,
-> +			  int phnum, u32 *feature)
-> +{
-> +	int i;
-> +	int err = 0;
-> +
-> +	for (i = 0; i < phnum; i++, phdr++) {
-> +		if ((phdr->p_type != PT_NOTE) || (phdr->p_align != 8))
-> +			continue;
-> +
-> +		err = find_note_type_0(file, phdr->p_filesz, phdr->p_offset,
-> +				       phdr->p_align, feature);
-> +		if (err)
-> +			return err;
-> +	}
-> +
-> +	return 0;
-> +}
-> +#endif
-> +
-> +int arch_setup_features(void *ehdr_p, void *phdr_p,
-> +			struct file *file, bool interp)
-> +{
-> +	int err = 0;
-> +	u32 feature = 0;
-> +
-> +	struct elf64_hdr *ehdr64 = ehdr_p;
-> +
-> +	if (!cpu_feature_enabled(X86_FEATURE_SHSTK))
-> +		return 0;
-> +
-> +	if (ehdr64->e_ident[EI_CLASS] == ELFCLASS64) {
-> +		struct elf64_phdr *phdr64 = phdr_p;
-> +
-> +		err = check_notes_64(file, phdr64, ehdr64->e_phnum,
-> +				     &feature);
-> +		if (err < 0)
-> +			goto out;
-> +	} else {
-> +#ifdef CONFIG_COMPAT
-> +		struct elf32_hdr *ehdr32 = ehdr_p;
-> +
-> +		if (ehdr32->e_ident[EI_CLASS] == ELFCLASS32) {
-> +			struct elf32_phdr *phdr32 = phdr_p;
-> +
-> +			err = check_notes_32(file, phdr32, ehdr32->e_phnum,
-> +					     &feature);
-> +			if (err < 0)
-> +				goto out;
-> +		}
-> +#endif
-> +	}
-> +
-> +	memset(&current->thread.cet, 0, sizeof(struct cet_status));
-> +
-> +	if (cpu_feature_enabled(X86_FEATURE_SHSTK)) {
-> +		if (feature & GNU_PROPERTY_X86_FEATURE_1_SHSTK) {
-> +			err = cet_setup_shstk();
-> +			if (err < 0)
-> +				goto out;
-> +		}
-> +	}
-> +
-> +out:
-> +	return err;
-> +}
-
-There's a lot of similar code with bpf stackmap .build-id code (commit
-v4.17-rc1~148^2~156^2~3^2~1), it might be worthy generalising some ELF
-traversal routines, since there's general need of parsing ELF property
-segments.
+MIIS7QYJKoZIhvcNAQcCoIIS3jCCEtoCAQExDzANBglghkgBZQMEAgEFADALBgkqhkiG9w0BBwGg
+ghBTMIIEXDCCA0SgAwIBAgIOSBtqDm4P/739RPqw/wcwDQYJKoZIhvcNAQELBQAwZDELMAkGA1UE
+BhMCQkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYtc2ExOjA4BgNVBAMTMUdsb2JhbFNpZ24gUGVy
+c29uYWxTaWduIFBhcnRuZXJzIENBIC0gU0hBMjU2IC0gRzIwHhcNMTYwNjE1MDAwMDAwWhcNMjEw
+NjE1MDAwMDAwWjBMMQswCQYDVQQGEwJCRTEZMBcGA1UEChMQR2xvYmFsU2lnbiBudi1zYTEiMCAG
+A1UEAxMZR2xvYmFsU2lnbiBIViBTL01JTUUgQ0EgMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC
+AQoCggEBALR23lKtjlZW/17kthzYcMHHKFgywfc4vLIjfq42NmMWbXkNUabIgS8KX4PnIFsTlD6F
+GO2fqnsTygvYPFBSMX4OCFtJXoikP2CQlEvO7WooyE94tqmqD+w0YtyP2IB5j4KvOIeNv1Gbnnes
+BIUWLFxs1ERvYDhmk+OrvW7Vd8ZfpRJj71Rb+QQsUpkyTySaqALXnyztTDp1L5d1bABJN/bJbEU3
+Hf5FLrANmognIu+Npty6GrA6p3yKELzTsilOFmYNWg7L838NS2JbFOndl+ce89gM36CW7vyhszi6
+6LqqzJL8MsmkP53GGhf11YMP9EkmawYouMDP/PwQYhIiUO0CAwEAAaOCASIwggEeMA4GA1UdDwEB
+/wQEAwIBBjAdBgNVHSUEFjAUBggrBgEFBQcDAgYIKwYBBQUHAwQwEgYDVR0TAQH/BAgwBgEB/wIB
+ADAdBgNVHQ4EFgQUyzgSsMeZwHiSjLMhleb0JmLA4D8wHwYDVR0jBBgwFoAUJiSSix/TRK+xsBtt
+r+500ox4AAMwSwYDVR0fBEQwQjBAoD6gPIY6aHR0cDovL2NybC5nbG9iYWxzaWduLmNvbS9ncy9n
+c3BlcnNvbmFsc2lnbnB0bnJzc2hhMmcyLmNybDBMBgNVHSAERTBDMEEGCSsGAQQBoDIBKDA0MDIG
+CCsGAQUFBwIBFiZodHRwczovL3d3dy5nbG9iYWxzaWduLmNvbS9yZXBvc2l0b3J5LzANBgkqhkiG
+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
+QAYIKwYBBQUHMAKGNGh0dHA6Ly9zZWN1cmUuZ2xvYmFsc2lnbi5jb20vY2FjZXJ0L2dzaHZzbWlt
+ZWNhMS5jcnQwHQYDVR0OBBYEFHswV6b+EY77vBWQKD6Dmp9n2Jp7MB8GA1UdIwQYMBaAFMs4ErDH
+mcB4koyzIZXm9CZiwOA/MEwGA1UdIARFMEMwQQYJKwYBBAGgMgEoMDQwMgYIKwYBBQUHAgEWJmh0
+dHBzOi8vd3d3Lmdsb2JhbHNpZ24uY29tL3JlcG9zaXRvcnkvMDsGA1UdHwQ0MDIwMKAuoCyGKmh0
+dHA6Ly9jcmwuZ2xvYmFsc2lnbi5jb20vZ3NodnNtaW1lY2ExLmNybDAOBgNVHQ8BAf8EBAMCBaAw
+HQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMEMA0GCSqGSIb3DQEBCwUAA4IBAQCKdekZm8Fn
+LFr+VBrtMVdmg4uKT25UuNxBxtgYJNqP/hYvkbGxHZnbTeQs63W5u+DW++SIfXI0aP1Lp34TFidR
+bIL+4+xzfrlWGFcPb1IBl0fdNr5mnUdluXE78N0zwUiv3qa66dwP8oVooeDmRHOHO0A20C5/24q7
+GIWfW2K2CeBWRj0OI1P6XUm+unjVNzVz6fE9J91Xf13NxK9Pc647cBIP4eiHNVa7ErprHQoDevx+
+OHFHle2OOiJZoAqFNvKbQSuWBg+Obv3CjPLZ7lwdB9VBg3F5qEaD+BsyHwj+kMinP7wCI+mIc1nU
+PcdI0z7gBtGEit9qr9qcJrdKjDlTMYICXjCCAloCAQEwXDBMMQswCQYDVQQGEwJCRTEZMBcGA1UE
+ChMQR2xvYmFsU2lnbiBudi1zYTEiMCAGA1UEAxMZR2xvYmFsU2lnbiBIViBTL01JTUUgQ0EgMQIM
+TmnftMpllv264rvDMA0GCWCGSAFlAwQCAQUAoIHUMC8GCSqGSIb3DQEJBDEiBCAMdGAqqzKfHQ0T
+g0BKbP+lyZZr+EdnDmozi/Zhh05N1DAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3
+DQEJBTEPFw0xODEwMDMyMzM3MjhaMGkGCSqGSIb3DQEJDzFcMFowCwYJYIZIAWUDBAEqMAsGCWCG
+SAFlAwQBFjALBglghkgBZQMEAQIwCgYIKoZIhvcNAwcwCwYJKoZIhvcNAQEKMAsGCSqGSIb3DQEB
+BzALBglghkgBZQMEAgEwDQYJKoZIhvcNAQEBBQAEggEARBCjK3eEsBTeRR2q17Y37wUps1PZbkDa
+7U5UljjEFFFLqD6cA4bjeYW/R8LkqmtnMmnU+Xm82PSEETz6hbADejxzKSG0IosViOSwOMgx/Kob
+o6sWoP3IdQGT5n3HfrlXOianrPF4YqrConIvY7vBtSP0CRnY/o/KJcG4HoVr9n4Pgse2YxQOubP7
+rOyQNBceM1Tyngf8J1OVHgyIt96LhTCgeStVGM6LFhiG40PcOTnVoH3uMiWFbBLcfEYU+Rn/Fmk5
+yF8H6cENtNt7BtMT5IW5jDF65ngXqn+7CKBGMHE7xeY0YNryLT0/FvMyotdpQk3v7fhgGvGfjGQU
+KRf1/Q==
+--0000000000007db80a05775b8518--
