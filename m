@@ -1,157 +1,293 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AFC946B000A
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 14:38:11 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id w19-v6so6328036ioa.10
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 11:38:11 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 747226B000C
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 14:55:40 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id e15-v6so3958445pfi.5
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 11:55:40 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q135-v6sor813290iod.99.2018.10.03.11.38.10
+        by mx.google.com with SMTPS id i11-v6sor1769778plt.8.2018.10.03.11.55.38
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 03 Oct 2018 11:38:10 -0700 (PDT)
+        Wed, 03 Oct 2018 11:55:38 -0700 (PDT)
+Date: Thu, 4 Oct 2018 00:28:54 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH v2] mm: Introduce new function vm_insert_kmem_page
+Message-ID: <20181003185854.GA1174@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
-References: <20180927194601.207765-1-wonderfly@google.com> <20181001152324.72a20bea@gandalf.local.home>
- <CAJmjG29Jwn_1E5zexcm8eXTG=cTWyEr1gjSfSAS2fueB_V0tfg@mail.gmail.com>
- <20181002084225.6z2b74qem3mywukx@pathway.suse.cz> <CAJmjG2-RrG5XKeW1-+rN3C=F6bZ-L3=YKhCiQ_muENDTzm_Ofg@mail.gmail.com>
- <20181002212327.7aab0b79@vmware.local.home> <20181003091400.rgdjpjeaoinnrysx@pathway.suse.cz>
- <CAJmjG2_4JFA=qL-d2Pb9umUEcPt9h13w-g40JQMbdKsZTRSZww@mail.gmail.com> <20181003133704.43a58cf5@gandalf.local.home>
-In-Reply-To: <20181003133704.43a58cf5@gandalf.local.home>
-From: Daniel Wang <wonderfly@google.com>
-Date: Wed, 3 Oct 2018 11:37:56 -0700
-Message-ID: <CAJmjG291w2ZPRiAevSzxGNcuR6vTuqyk6z4SG3xRsbaQh5U3zQ@mail.gmail.com>
-Subject: Re: 4.14 backport request for dbdda842fe96f: "printk: Add console
- owner and waiter logic to load balance console writes"
-Content-Type: multipart/signed; protocol="application/pkcs7-signature"; micalg=sha-256;
-	boundary="00000000000010b589057757570a"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rostedt@goodmis.org
-Cc: Petr Mladek <pmladek@suse.com>, stable@vger.kernel.org, Alexander.Levin@microsoft.com, akpm@linux-foundation.org, byungchul.park@lge.com, dave.hansen@intel.com, hannes@cmpxchg.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Mel Gorman <mgorman@suse.de>, mhocko@kernel.org, pavel@ucw.cz, penguin-kernel@i-love.sakura.ne.jp, peterz@infradead.org, tj@kernel.org, torvalds@linux-foundation.org, vbabka@suse.cz, Cong Wang <xiyou.wangcong@gmail.com>, Peter Feiner <pfeiner@google.com>
+To: willy@infradead.org, linux@armlinux.org.uk, miguel.ojeda.sandonis@gmail.com, robin@protonic.nl, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, m.szyprowski@samsung.com, keescook@chromium.org, treding@nvidia.com, mhocko@suse.com, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, mark.rutland@arm.com, aryabinin@virtuozzo.com, dvyukov@google.com, kstewart@linuxfoundation.org, tchibo@google.com, riel@redhat.com, minchan@kernel.org, peterz@infradead.org, ying.huang@intel.com, ak@linux.intel.com, rppt@linux.vnet.ibm.com, linux@dominikbrodowski.net, arnd@arndb.de, cpandya@codeaurora.org, hannes@cmpxchg.org, joe@perches.com, mcgrof@kernel.org
+Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, linux-mm@kvack.org
 
---00000000000010b589057757570a
-Content-Type: text/plain; charset="UTF-8"
+vm_insert_kmem_page is similar to vm_insert_page and will
+be used by drivers to map kernel (kmalloc/vmalloc/pages)
+allocated memory to user vma.
 
-On Wed, Oct 3, 2018 at 10:37 AM Steven Rostedt <rostedt@goodmis.org> wrote:
-> Just so I understand correctly. Does the panic hit with and without the
-> suggested backport patch? The only difference is that you get the full
-> output with the patch and limited output without it?
+Going forward, the plan is to restrict future drivers not
+to use vm_insert_page ( *it will generate new errno to
+VM_FAULT_CODE mapping code for new drivers which were already
+cleaned up for existing drivers*) in #PF (page fault handler)
+context but to make use of vmf_insert_page which returns
+VMF_FAULT_CODE and that is not possible until both vm_insert_page
+and vmf_insert_page API exists.
 
-When `softlockup_panic` is set (which is what my original repro had and
-what we use in production), without the backport patch, the expected panic
-would hit a seemingly deadlock. So even when the machine is configured
-to reboot immediately after the panic (kernel.panic=-1), it just hangs there
-with an incomplete backtrace. With your patch, the deadlock doesn't happen
-and the machine reboots successfully.
+But there are some consumers of vm_insert_page which use it
+outside #PF context. straight forward conversion of vm_insert_page
+to vmf_insert_page won't work there as those function calls expects
+errno not vm_fault_t in return.
 
-This was and still is the issue this thread is trying to fix. The last
-log snippet
-was from an "experiment" that I did in order to understand what's really
-happening. So far the speculation has been that the panic path was trying
-to get a lock held by a backtrace dumping thread, but there is not enough
-evidence which thread is holding the lock and how it uses it. So I set
-`softlockup_panic` to 0, to get panic out of the equation. Then I saw that one
-CPU was indeed holding the console lock, trying to write something out. If
-the panic was to hit while it's doing that, we might get a deadlock.
+These are the approaches which could have been taken to handle
+this scenario -
 
->
-> -- Steve
->
+*  Replace vm_insert_page with vmf_insert_page and then write few
+   extra lines of code to convert VM_FAULT_CODE to errno which
+   makes driver users more complex ( also the reverse mapping errno to
+   VM_FAULT_CODE have been cleaned up as part of vm_fault_t migration ,
+   not preferred to introduce anything similar again)
 
+*  Maintain both vm_insert_page and vmf_insert_page and use it in
+   respective places. But it won't gurantee that vm_insert_page will
+   never be used in #PF context.
 
+*  Introduce a similar API like vm_insert_page, convert all non #PF
+   consumer to use it and finally remove vm_insert_page by converting
+   it to vmf_insert_page.
+
+And the 3rd approach was taken by introducing vm_insert_kmem_page().
+
+In short, vmf_insert_page will be used in page fault handlers
+context and vm_insert_kmem_page will be used to map kernel
+memory to user vma outside page fault handlers context.
+
+Few drivers are converted to use vm_insert_kmem_page(). This will
+allow both to review the api and that it serves it purpose. other
+consumers of vm_insert_page (*used in non #PF context*) will be
+replaced by vm_insert_kmem_page, but in separate patches.
+
+Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+---
+v2: Few non #PF consumers of vm_insert_page are converted
+    to use vm_insert_kmem_page in patch v2.
+
+    Updated the change log.
+    
+ arch/arm/mm/dma-mapping.c                   |  2 +-
+ drivers/auxdisplay/cfag12864bfb.c           |  2 +-
+ drivers/auxdisplay/ht16k33.c                |  2 +-
+ drivers/firewire/core-iso.c                 |  2 +-
+ drivers/gpu/drm/rockchip/rockchip_drm_gem.c |  2 +-
+ include/linux/mm.h                          |  2 +
+ kernel/kcov.c                               |  4 +-
+ mm/memory.c                                 | 69 +++++++++++++++++++++++++++++
+ mm/nommu.c                                  |  7 +++
+ mm/vmalloc.c                                |  2 +-
+ 10 files changed, 86 insertions(+), 8 deletions(-)
+
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index 6656647..58d7971 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -1598,7 +1598,7 @@ static int __arm_iommu_mmap_attrs(struct device *dev, struct vm_area_struct *vma
+ 	pages += off;
+ 
+ 	do {
+-		int ret = vm_insert_page(vma, uaddr, *pages++);
++		int ret = vm_insert_kmem_page(vma, uaddr, *pages++);
+ 		if (ret) {
+ 			pr_err("Remapping memory failed: %d\n", ret);
+ 			return ret;
+diff --git a/drivers/auxdisplay/cfag12864bfb.c b/drivers/auxdisplay/cfag12864bfb.c
+index 40c8a55..82fd627 100644
+--- a/drivers/auxdisplay/cfag12864bfb.c
++++ b/drivers/auxdisplay/cfag12864bfb.c
+@@ -52,7 +52,7 @@
+ 
+ static int cfag12864bfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
+ {
+-	return vm_insert_page(vma, vma->vm_start,
++	return vm_insert_kmem_page(vma, vma->vm_start,
+ 		virt_to_page(cfag12864b_buffer));
+ }
+ 
+diff --git a/drivers/auxdisplay/ht16k33.c b/drivers/auxdisplay/ht16k33.c
+index a43276c..64de30b 100644
+--- a/drivers/auxdisplay/ht16k33.c
++++ b/drivers/auxdisplay/ht16k33.c
+@@ -224,7 +224,7 @@ static int ht16k33_mmap(struct fb_info *info, struct vm_area_struct *vma)
+ {
+ 	struct ht16k33_priv *priv = info->par;
+ 
+-	return vm_insert_page(vma, vma->vm_start,
++	return vm_insert_kmem_page(vma, vma->vm_start,
+ 			      virt_to_page(priv->fbdev.buffer));
+ }
+ 
+diff --git a/drivers/firewire/core-iso.c b/drivers/firewire/core-iso.c
+index 051327a..5f1548d 100644
+--- a/drivers/firewire/core-iso.c
++++ b/drivers/firewire/core-iso.c
+@@ -112,7 +112,7 @@ int fw_iso_buffer_map_vma(struct fw_iso_buffer *buffer,
+ 
+ 	uaddr = vma->vm_start;
+ 	for (i = 0; i < buffer->page_count; i++) {
+-		err = vm_insert_page(vma, uaddr, buffer->pages[i]);
++		err = vm_insert_kmem_page(vma, uaddr, buffer->pages[i]);
+ 		if (err)
+ 			return err;
+ 
+diff --git a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
+index a8db758..57eb7af 100644
+--- a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
++++ b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
+@@ -234,7 +234,7 @@ static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
+ 		return -ENXIO;
+ 
+ 	for (i = offset; i < end; i++) {
+-		ret = vm_insert_page(vma, uaddr, rk_obj->pages[i]);
++		ret = vm_insert_kmem_page(vma, uaddr, rk_obj->pages[i]);
+ 		if (ret)
+ 			return ret;
+ 		uaddr += PAGE_SIZE;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a61ebe8..5f42d35 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2477,6 +2477,8 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
+ struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
+ int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
+ 			unsigned long pfn, unsigned long size, pgprot_t);
++int vm_insert_kmem_page(struct vm_area_struct *vma, unsigned long addr,
++				struct page *page);
+ int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
+ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+ 			unsigned long pfn);
+diff --git a/kernel/kcov.c b/kernel/kcov.c
+index 3ebd09e..2afaeb4 100644
+--- a/kernel/kcov.c
++++ b/kernel/kcov.c
+@@ -293,8 +293,8 @@ static int kcov_mmap(struct file *filep, struct vm_area_struct *vma)
+ 		spin_unlock(&kcov->lock);
+ 		for (off = 0; off < size; off += PAGE_SIZE) {
+ 			page = vmalloc_to_page(kcov->area + off);
+-			if (vm_insert_page(vma, vma->vm_start + off, page))
+-				WARN_ONCE(1, "vm_insert_page() failed");
++			if (vm_insert_kmem_page(vma, vma->vm_start + off, page))
++				WARN_ONCE(1, "vm_insert_kmem_page() failed");
+ 		}
+ 		return 0;
+ 	}
+diff --git a/mm/memory.c b/mm/memory.c
+index c467102..b800c10 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1682,6 +1682,75 @@ pte_t *__get_locked_pte(struct mm_struct *mm, unsigned long addr,
+ 	return pte_alloc_map_lock(mm, pmd, addr, ptl);
+ }
+ 
++static int insert_kmem_page(struct vm_area_struct *vma, unsigned long addr,
++		struct page *page, pgprot_t prot)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	int retval;
++	pte_t *pte;
++	spinlock_t *ptl;
++
++	retval = -EINVAL;
++	if (PageAnon(page))
++		goto out;
++	retval = -ENOMEM;
++	flush_dcache_page(page);
++	pte = get_locked_pte(mm, addr, &ptl);
++	if (!pte)
++		goto out;
++	retval = -EBUSY;
++	if (!pte_none(*pte))
++		goto out_unlock;
++
++	get_page(page);
++	inc_mm_counter_fast(mm, mm_counter_file(page));
++	page_add_file_rmap(page, false);
++	set_pte_at(mm, addr, pte, mk_pte(page, prot));
++
++	retval = 0;
++	pte_unmap_unlock(pte, ptl);
++	return retval;
++out_unlock:
++	pte_unmap_unlock(pte, ptl);
++out:
++	return retval;
++}
++
++/**
++ * vm_insert_kmem_page - insert single page into user vma
++ * @vma: user vma to map to
++ * @addr: target user address of this page
++ * @page: source kernel page
++ *
++ * This allows drivers to insert individual kernel memory into a user vma.
++ * This API should be used outside page fault handlers context.
++ *
++ * Previously the same has been done with vm_insert_page by drivers. But
++ * vm_insert_page will be converted to vmf_insert_page and will be used
++ * in fault handlers context and return type of vmf_insert_page will be
++ * vm_fault_t type.
++ *
++ * But there are places where drivers need to map kernel memory into user
++ * vma outside fault handlers context. As vmf_insert_page will be restricted
++ * to use within page fault handlers, vm_insert_kmem_page could be used
++ * to map kernel memory to user vma outside fault handlers context.
++ */
++int vm_insert_kmem_page(struct vm_area_struct *vma, unsigned long addr,
++			struct page *page)
++{
++	if (addr < vma->vm_start || addr >= vma->vm_end)
++		return -EFAULT;
++	if (!page_count(page))
++		return -EINVAL;
++	if (!(vma->vm_flags & VM_MIXEDMAP)) {
++		BUG_ON(down_read_trylock(&vma->vm_mm->mmap_sem));
++		BUG_ON(vma->vm_flags & VM_PFNMAP);
++		vma->vm_flags |= VM_MIXEDMAP;
++	}
++	return insert_kmem_page(vma, addr, page, vma->vm_page_prot);
++}
++EXPORT_SYMBOL(vm_insert_kmem_page);
++
+ /*
+  * This is the old fallback for page remapping.
+  *
+diff --git a/mm/nommu.c b/mm/nommu.c
+index e4aac33..153b8c8 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -473,6 +473,13 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
+ }
+ EXPORT_SYMBOL(vm_insert_page);
+ 
++int vm_insert_kmem_page(struct vm_area_struct *vma, unsigned long addr,
++				struct page *page)
++{
++	return -EINVAL;
++}
++EXPORT_SYMBOL(vm_insert_kmem_page);
++
+ /*
+  *  sys_brk() for the most part doesn't need the global kernel
+  *  lock, except when an application is doing something nasty
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index a728fc4..61d279f 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -2251,7 +2251,7 @@ int remap_vmalloc_range_partial(struct vm_area_struct *vma, unsigned long uaddr,
+ 		struct page *page = vmalloc_to_page(kaddr);
+ 		int ret;
+ 
+-		ret = vm_insert_page(vma, uaddr, page);
++		ret = vm_insert_kmem_page(vma, uaddr, page);
+ 		if (ret)
+ 			return ret;
+ 
 -- 
-Best,
-Daniel
-
---00000000000010b589057757570a
-Content-Type: application/pkcs7-signature; name="smime.p7s"
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment; filename="smime.p7s"
-Content-Description: S/MIME Cryptographic Signature
-
-MIIS7QYJKoZIhvcNAQcCoIIS3jCCEtoCAQExDzANBglghkgBZQMEAgEFADALBgkqhkiG9w0BBwGg
-ghBTMIIEXDCCA0SgAwIBAgIOSBtqDm4P/739RPqw/wcwDQYJKoZIhvcNAQELBQAwZDELMAkGA1UE
-BhMCQkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYtc2ExOjA4BgNVBAMTMUdsb2JhbFNpZ24gUGVy
-c29uYWxTaWduIFBhcnRuZXJzIENBIC0gU0hBMjU2IC0gRzIwHhcNMTYwNjE1MDAwMDAwWhcNMjEw
-NjE1MDAwMDAwWjBMMQswCQYDVQQGEwJCRTEZMBcGA1UEChMQR2xvYmFsU2lnbiBudi1zYTEiMCAG
-A1UEAxMZR2xvYmFsU2lnbiBIViBTL01JTUUgQ0EgMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC
-AQoCggEBALR23lKtjlZW/17kthzYcMHHKFgywfc4vLIjfq42NmMWbXkNUabIgS8KX4PnIFsTlD6F
-GO2fqnsTygvYPFBSMX4OCFtJXoikP2CQlEvO7WooyE94tqmqD+w0YtyP2IB5j4KvOIeNv1Gbnnes
-BIUWLFxs1ERvYDhmk+OrvW7Vd8ZfpRJj71Rb+QQsUpkyTySaqALXnyztTDp1L5d1bABJN/bJbEU3
-Hf5FLrANmognIu+Npty6GrA6p3yKELzTsilOFmYNWg7L838NS2JbFOndl+ce89gM36CW7vyhszi6
-6LqqzJL8MsmkP53GGhf11YMP9EkmawYouMDP/PwQYhIiUO0CAwEAAaOCASIwggEeMA4GA1UdDwEB
-/wQEAwIBBjAdBgNVHSUEFjAUBggrBgEFBQcDAgYIKwYBBQUHAwQwEgYDVR0TAQH/BAgwBgEB/wIB
-ADAdBgNVHQ4EFgQUyzgSsMeZwHiSjLMhleb0JmLA4D8wHwYDVR0jBBgwFoAUJiSSix/TRK+xsBtt
-r+500ox4AAMwSwYDVR0fBEQwQjBAoD6gPIY6aHR0cDovL2NybC5nbG9iYWxzaWduLmNvbS9ncy9n
-c3BlcnNvbmFsc2lnbnB0bnJzc2hhMmcyLmNybDBMBgNVHSAERTBDMEEGCSsGAQQBoDIBKDA0MDIG
-CCsGAQUFBwIBFiZodHRwczovL3d3dy5nbG9iYWxzaWduLmNvbS9yZXBvc2l0b3J5LzANBgkqhkiG
-9w0BAQsFAAOCAQEACskdySGYIOi63wgeTmljjA5BHHN9uLuAMHotXgbYeGVrz7+DkFNgWRQ/dNse
-Qa4e+FeHWq2fu73SamhAQyLigNKZF7ZzHPUkSpSTjQqVzbyDaFHtRBAwuACuymaOWOWPePZXOH9x
-t4HPwRQuur57RKiEm1F6/YJVQ5UTkzAyPoeND/y1GzXS4kjhVuoOQX3GfXDZdwoN8jMYBZTO0H5h
-isymlIl6aot0E5KIKqosW6mhupdkS1ZZPp4WXR4frybSkLejjmkTYCTUmh9DuvKEQ1Ge7siwsWgA
-NS1Ln+uvIuObpbNaeAyMZY0U5R/OyIDaq+m9KXPYvrCZ0TCLbcKuRzCCBB4wggMGoAMCAQICCwQA
-AAAAATGJxkCyMA0GCSqGSIb3DQEBCwUAMEwxIDAeBgNVBAsTF0dsb2JhbFNpZ24gUm9vdCBDQSAt
-IFIzMRMwEQYDVQQKEwpHbG9iYWxTaWduMRMwEQYDVQQDEwpHbG9iYWxTaWduMB4XDTExMDgwMjEw
-MDAwMFoXDTI5MDMyOTEwMDAwMFowZDELMAkGA1UEBhMCQkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24g
-bnYtc2ExOjA4BgNVBAMTMUdsb2JhbFNpZ24gUGVyc29uYWxTaWduIFBhcnRuZXJzIENBIC0gU0hB
-MjU2IC0gRzIwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCg/hRKosYAGP+P7mIdq5NB
-Kr3J0tg+8lPATlgp+F6W9CeIvnXRGUvdniO+BQnKxnX6RsC3AnE0hUUKRaM9/RDDWldYw35K+sge
-C8fWXvIbcYLXxWkXz+Hbxh0GXG61Evqux6i2sKeKvMr4s9BaN09cqJ/wF6KuP9jSyWcyY+IgL6u2
-52my5UzYhnbf7D7IcC372bfhwM92n6r5hJx3r++rQEMHXlp/G9J3fftgsD1bzS7J/uHMFpr4MXua
-eoiMLV5gdmo0sQg23j4pihyFlAkkHHn4usPJ3EePw7ewQT6BUTFyvmEB+KDoi7T4RCAZDstgfpzD
-rR/TNwrK8/FXoqnFAgMBAAGjgegwgeUwDgYDVR0PAQH/BAQDAgEGMBIGA1UdEwEB/wQIMAYBAf8C
-AQEwHQYDVR0OBBYEFCYkkosf00SvsbAbba/udNKMeAADMEcGA1UdIARAMD4wPAYEVR0gADA0MDIG
-CCsGAQUFBwIBFiZodHRwczovL3d3dy5nbG9iYWxzaWduLmNvbS9yZXBvc2l0b3J5LzA2BgNVHR8E
-LzAtMCugKaAnhiVodHRwOi8vY3JsLmdsb2JhbHNpZ24ubmV0L3Jvb3QtcjMuY3JsMB8GA1UdIwQY
-MBaAFI/wS3+oLkUkrk1Q+mOai97i3Ru8MA0GCSqGSIb3DQEBCwUAA4IBAQACAFVjHihZCV/IqJYt
-7Nig/xek+9g0dmv1oQNGYI1WWeqHcMAV1h7cheKNr4EOANNvJWtAkoQz+076Sqnq0Puxwymj0/+e
-oQJ8GRODG9pxlSn3kysh7f+kotX7pYX5moUa0xq3TCjjYsF3G17E27qvn8SJwDsgEImnhXVT5vb7
-qBYKadFizPzKPmwsJQDPKX58XmPxMcZ1tG77xCQEXrtABhYC3NBhu8+c5UoinLpBQC1iBnNpNwXT
-Lmd4nQdf9HCijG1e8myt78VP+QSwsaDT7LVcLT2oDPVggjhVcwljw3ePDwfGP9kNrR+lc8XrfClk
-WbrdhC2o4Ui28dtIVHd3MIIDXzCCAkegAwIBAgILBAAAAAABIVhTCKIwDQYJKoZIhvcNAQELBQAw
-TDEgMB4GA1UECxMXR2xvYmFsU2lnbiBSb290IENBIC0gUjMxEzARBgNVBAoTCkdsb2JhbFNpZ24x
-EzARBgNVBAMTCkdsb2JhbFNpZ24wHhcNMDkwMzE4MTAwMDAwWhcNMjkwMzE4MTAwMDAwWjBMMSAw
-HgYDVQQLExdHbG9iYWxTaWduIFJvb3QgQ0EgLSBSMzETMBEGA1UEChMKR2xvYmFsU2lnbjETMBEG
-A1UEAxMKR2xvYmFsU2lnbjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMwldpB5Bngi
-FvXAg7aEyiie/QV2EcWtiHL8RgJDx7KKnQRfJMsuS+FggkbhUqsMgUdwbN1k0ev1LKMPgj0MK66X
-17YUhhB5uzsTgHeMCOFJ0mpiLx9e+pZo34knlTifBtc+ycsmWQ1z3rDI6SYOgxXG71uL0gRgykmm
-KPZpO/bLyCiR5Z2KYVc3rHQU3HTgOu5yLy6c+9C7v/U9AOEGM+iCK65TpjoWc4zdQQ4gOsC0p6Hp
-sk+QLjJg6VfLuQSSaGjlOCZgdbKfd/+RFO+uIEn8rUAVSNECMWEZXriX7613t2Saer9fwRPvm2L7
-DWzgVGkWqQPabumDk3F2xmmFghcCAwEAAaNCMEAwDgYDVR0PAQH/BAQDAgEGMA8GA1UdEwEB/wQF
-MAMBAf8wHQYDVR0OBBYEFI/wS3+oLkUkrk1Q+mOai97i3Ru8MA0GCSqGSIb3DQEBCwUAA4IBAQBL
-QNvAUKr+yAzv95ZURUm7lgAJQayzE4aGKAczymvmdLm6AC2upArT9fHxD4q/c2dKg8dEe3jgr25s
-bwMpjjM5RcOO5LlXbKr8EpbsU8Yt5CRsuZRj+9xTaGdWPoO4zzUhw8lo/s7awlOqzJCK6fBdRoyV
-3XpYKBovHd7NADdBj+1EbddTKJd+82cEHhXXipa0095MJ6RMG3NzdvQXmcIfeg7jLQitChws/zyr
-VQ4PkX4268NXSb7hLi18YIvDQVETI53O9zJrlAGomecsMx86OyXShkDOOyyGeMlhLxS67ttVb9+E
-7gUJTb0o2HLO02JQZR7rkpeDMdmztcpHWD9fMIIEajCCA1KgAwIBAgIMTmnftMpllv264rvDMA0G
-CSqGSIb3DQEBCwUAMEwxCzAJBgNVBAYTAkJFMRkwFwYDVQQKExBHbG9iYWxTaWduIG52LXNhMSIw
-IAYDVQQDExlHbG9iYWxTaWduIEhWIFMvTUlNRSBDQSAxMB4XDTE4MDYyNzE2NTUyN1oXDTE4MTIy
-NDE2NTUyN1owJTEjMCEGCSqGSIb3DQEJAQwUd29uZGVyZmx5QGdvb2dsZS5jb20wggEiMA0GCSqG
-SIb3DQEBAQUAA4IBDwAwggEKAoIBAQCvqTn5fjMyxd2JmEjHMdHZc/D9hSkUVivZIYkBNkexkbC6
-v4DDP8HCdjKkGNNKLJWJQCHLyGTJv2uwnQHTThlEJYrvATCkg2y1SSapaXqMlgSYSskrQM/D2mfY
-TnDa0NzJ/Vy1jqzvmLBpacy3D/RqV2seky2k3x3nVC4bzGaJ+IPxKTRjIccixTxvWU+S64NK3jek
-VaUPAqG9D59xbHOEbEsu/F0rpqhvVfl733hzS37eBlUmTdDTpgDox/kApF1hI7WMyijIp77fuLbr
-Q9C6hetDKotdJX1jmZg9TifwJaDf1HFyrzHzl3jkxELVqvLS3n3nKvNf1PWlDVB5H9zrAgMBAAGj
-ggFxMIIBbTAfBgNVHREEGDAWgRR3b25kZXJmbHlAZ29vZ2xlLmNvbTBQBggrBgEFBQcBAQREMEIw
-QAYIKwYBBQUHMAKGNGh0dHA6Ly9zZWN1cmUuZ2xvYmFsc2lnbi5jb20vY2FjZXJ0L2dzaHZzbWlt
-ZWNhMS5jcnQwHQYDVR0OBBYEFHswV6b+EY77vBWQKD6Dmp9n2Jp7MB8GA1UdIwQYMBaAFMs4ErDH
-mcB4koyzIZXm9CZiwOA/MEwGA1UdIARFMEMwQQYJKwYBBAGgMgEoMDQwMgYIKwYBBQUHAgEWJmh0
-dHBzOi8vd3d3Lmdsb2JhbHNpZ24uY29tL3JlcG9zaXRvcnkvMDsGA1UdHwQ0MDIwMKAuoCyGKmh0
-dHA6Ly9jcmwuZ2xvYmFsc2lnbi5jb20vZ3NodnNtaW1lY2ExLmNybDAOBgNVHQ8BAf8EBAMCBaAw
-HQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMEMA0GCSqGSIb3DQEBCwUAA4IBAQCKdekZm8Fn
-LFr+VBrtMVdmg4uKT25UuNxBxtgYJNqP/hYvkbGxHZnbTeQs63W5u+DW++SIfXI0aP1Lp34TFidR
-bIL+4+xzfrlWGFcPb1IBl0fdNr5mnUdluXE78N0zwUiv3qa66dwP8oVooeDmRHOHO0A20C5/24q7
-GIWfW2K2CeBWRj0OI1P6XUm+unjVNzVz6fE9J91Xf13NxK9Pc647cBIP4eiHNVa7ErprHQoDevx+
-OHFHle2OOiJZoAqFNvKbQSuWBg+Obv3CjPLZ7lwdB9VBg3F5qEaD+BsyHwj+kMinP7wCI+mIc1nU
-PcdI0z7gBtGEit9qr9qcJrdKjDlTMYICXjCCAloCAQEwXDBMMQswCQYDVQQGEwJCRTEZMBcGA1UE
-ChMQR2xvYmFsU2lnbiBudi1zYTEiMCAGA1UEAxMZR2xvYmFsU2lnbiBIViBTL01JTUUgQ0EgMQIM
-TmnftMpllv264rvDMA0GCWCGSAFlAwQCAQUAoIHUMC8GCSqGSIb3DQEJBDEiBCC+VV0nCWNK7jcf
-R8vegnTXnm8xW7ahhaVL6cVOWe58HDAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3
-DQEJBTEPFw0xODEwMDMxODM4MTBaMGkGCSqGSIb3DQEJDzFcMFowCwYJYIZIAWUDBAEqMAsGCWCG
-SAFlAwQBFjALBglghkgBZQMEAQIwCgYIKoZIhvcNAwcwCwYJKoZIhvcNAQEKMAsGCSqGSIb3DQEB
-BzALBglghkgBZQMEAgEwDQYJKoZIhvcNAQEBBQAEggEAr6g+2ygm1pGc/s/4v7n4Nlw1fMVnoDwJ
-uGAQcS52x/hMl8E4Kfj5Qnq85ryHsdFt5dpwRqY0eL2v3hqsv2cmS7vCrBNX6rDgTxEoNi5LGx/B
-Z7GhGHh430YVnoSe6mTUdGmd9onrksnu0PUp03FWNTzHGVleCoSttaJhphWfapC/K+I0D8TKcaxT
-9gy93fwgldtOUcuMojEcmQN5ppbeDdoCJ+i3pyVID2MXLStCUkwTLjW6Dgc1Sge4XY97HCBLQuQL
-F+UfXDUimzakg49DuBVoNQy7yje53kL4p6ZItVqasmBIG1kV6DCjQU+2v1k1YJD34/gX9JX7s6Io
-COlqcg==
---00000000000010b589057757570a--
+1.9.1
