@@ -1,91 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EA986B0269
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 13:34:04 -0400 (EDT)
-Received: by mail-oi1-f198.google.com with SMTP id a206-v6so1818637oib.7
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 10:34:04 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id h1-v6si976900otb.275.2018.10.03.10.34.03
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 313146B026B
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 13:37:10 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id 17-v6so2473827pgs.18
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 10:37:10 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id v191-v6si1936414pgd.157.2018.10.03.10.37.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Oct 2018 10:34:03 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w93HPTeI093994
-	for <linux-mm@kvack.org>; Wed, 3 Oct 2018 13:34:03 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2mvy369crp-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 03 Oct 2018 13:34:02 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 3 Oct 2018 18:34:00 +0100
-Date: Wed, 3 Oct 2018 20:33:54 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH] mm, proc: report PR_SET_THP_DISABLE in proc
-References: <20180924195603.GJ18685@dhcp22.suse.cz>
- <20180924200258.GK18685@dhcp22.suse.cz>
- <0aa3eb55-82c0-eba3-b12c-2ba22e052a8e@suse.cz>
- <alpine.DEB.2.21.1809251248450.50347@chino.kir.corp.google.com>
- <20180925202959.GY18685@dhcp22.suse.cz>
- <alpine.DEB.2.21.1809251440001.94921@chino.kir.corp.google.com>
- <20180925150406.872aab9f4f945193e5915d69@linux-foundation.org>
- <20180926060624.GA18685@dhcp22.suse.cz>
- <20181002112851.GP18290@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810021329260.87409@chino.kir.corp.google.com>
+        Wed, 03 Oct 2018 10:37:08 -0700 (PDT)
+Date: Wed, 3 Oct 2018 13:37:04 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: 4.14 backport request for dbdda842fe96f: "printk: Add console
+ owner and waiter logic to load balance console writes"
+Message-ID: <20181003133704.43a58cf5@gandalf.local.home>
+In-Reply-To: <CAJmjG2_4JFA=qL-d2Pb9umUEcPt9h13w-g40JQMbdKsZTRSZww@mail.gmail.com>
+References: <20180927194601.207765-1-wonderfly@google.com>
+	<20181001152324.72a20bea@gandalf.local.home>
+	<CAJmjG29Jwn_1E5zexcm8eXTG=cTWyEr1gjSfSAS2fueB_V0tfg@mail.gmail.com>
+	<20181002084225.6z2b74qem3mywukx@pathway.suse.cz>
+	<CAJmjG2-RrG5XKeW1-+rN3C=F6bZ-L3=YKhCiQ_muENDTzm_Ofg@mail.gmail.com>
+	<20181002212327.7aab0b79@vmware.local.home>
+	<20181003091400.rgdjpjeaoinnrysx@pathway.suse.cz>
+	<CAJmjG2_4JFA=qL-d2Pb9umUEcPt9h13w-g40JQMbdKsZTRSZww@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1810021329260.87409@chino.kir.corp.google.com>
-Message-Id: <20181003173354.GA17328@rapoport-lnx>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Daniel Wang <wonderfly@google.com>
+Cc: Petr Mladek <pmladek@suse.com>, stable@vger.kernel.org, Alexander.Levin@microsoft.com, akpm@linux-foundation.org, byungchul.park@lge.com, dave.hansen@intel.com, hannes@cmpxchg.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Mel Gorman <mgorman@suse.de>, mhocko@kernel.org, pavel@ucw.cz, penguin-kernel@i-love.sakura.ne.jp, peterz@infradead.org, tj@kernel.org, torvalds@linux-foundation.org, vbabka@suse.cz, Cong Wang <xiyou.wangcong@gmail.com>, Peter Feiner <pfeiner@google.com>
 
-On Tue, Oct 02, 2018 at 01:29:42PM -0700, David Rientjes wrote:
-> On Tue, 2 Oct 2018, Michal Hocko wrote:
-> 
-> > On Wed 26-09-18 08:06:24, Michal Hocko wrote:
-> > > On Tue 25-09-18 15:04:06, Andrew Morton wrote:
-> > > > On Tue, 25 Sep 2018 14:45:19 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
-> > > > 
-> > > > > > > It is also used in 
-> > > > > > > automated testing to ensure that vmas get disabled for thp appropriately 
-> > > > > > > and we used "nh" since that is how PR_SET_THP_DISABLE previously enforced 
-> > > > > > > this, and those tests now break.
-> > > > > > 
-> > > > > > This sounds like a bit of an abuse to me. It shows how an internal
-> > > > > > implementation detail leaks out to the userspace which is something we
-> > > > > > should try to avoid.
-> > > > > > 
-> > > > > 
-> > > > > Well, it's already how this has worked for years before commit 
-> > > > > 1860033237d4 broke it.  Changing the implementation in the kernel is fine 
-> > > > > as long as you don't break userspace who relies on what is exported to it 
-> > > > > and is the only way to determine if MADV_NOHUGEPAGE is preventing it from 
-> > > > > being backed by hugepages.
-> > > > 
-> > > > 1860033237d4 was over a year ago so perhaps we don't need to be
-> > > > too worried about restoring the old interface.  In which case
-> > > > we have an opportunity to make improvements such as that suggested
-> > > > by Michal?
-> > > 
-> > > Yeah, can we add a way to export PR_SET_THP_DISABLE to userspace
-> > > somehow? E.g. /proc/<pid>/status. It is a process wide thing so
-> > > reporting it per VMA sounds strange at best.
-> > 
-> > So how about this? (not tested yet but it should be pretty
-> > straightforward)
-> 
-> Umm, prctl(PR_GET_THP_DISABLE)?
-> 
+On Wed, 3 Oct 2018 10:16:08 -0700
+Daniel Wang <wonderfly@google.com> wrote:
 
-~/git/linux$ git grep PR_GET_THP_DISABLE
-include/uapi/linux/prctl.h:#define PR_GET_THP_DISABLE   42
-kernel/sys.c:   case PR_GET_THP_DISABLE:
-tools/include/uapi/linux/prctl.h:#define PR_GET_THP_DISABLE     42
+> On Wed, Oct 3, 2018 at 2:14 AM Petr Mladek <pmladek@suse.com> wrote:
+> >
+> > On Tue 2018-10-02 21:23:27, Steven Rostedt wrote:  
+> > > I don't see the big deal of backporting this. The biggest complaints
+> > > about backports are from fixes that were added to late -rc releases
+> > > where the fixes didn't get much testing. This commit was added in 4.16,
+> > > and hasn't had any issues due to the design. Although a fix has been
+> > > added:
+> > >
+> > > c14376de3a1 ("printk: Wake klogd when passing console_lock owner")  
+> >
+> > As I said, I am fine with backporting the console_lock owner stuff
+> > into the stable release.
+> >
+> > I just wonder (like Sergey) what the real problem is. The console_lock
+> > owner handshake is not fully reliable. It is might be good enough
 
--- 
-Sincerely yours,
-Mike.
+I'm not sure what you mean by 'not fully reliable'
+
+> > to prevent softlockup. But we should not relay on it to prevent
+> > a deadlock.  
+> 
+> Yes. I myself was curious too. :)
+> 
+> >
+> > My new theory ;-)
+> >
+> > printk_safe_flush() is called in nmi_trigger_cpumask_backtrace().  
+> > => watchdog_timer_fn() is blocked until all backtraces are printed.  
+> >
+> > Now, the original report complained that the system rebooted before
+> > all backtraces were printed. It means that panic() was called
+> > on another CPU. My guess is that it is from the hardlockup detector.
+> > And the panic() was not able to flush the console because it was
+> > not able to take console_lock.
+> >
+> > IMHO, there was not a real deadlock. The console_lock owner
+> > handshake jsut helped to get console_lock in panic() and
+> > flush all messages before reboot => it is reasonable
+> > and acceptable fix.  
+
+Agreed.
+
+
+> 
+> I had the same speculation. Tried to capture a lockdep snippet with
+> CONFIG_PROVE_LOCKING turned on but didn't get anything. But
+> maybe I was doing it wrong.
+> 
+> >
+> > Just to be sure. Daniel, could you please send a log with
+> > the console_lock owner stuff backported? There we would see
+> > who called the panic() and why it rebooted early.  
+> 
+> Sure. Here is one. It's a bit long but complete. I attached another log
+> snippet below it which is what I got when `softlockup_panic` was turned
+> off. The log was from the IRQ task that was flushing the printk buffer. I
+> will be taking a closer look at it too but in case you'll find it helpful.
+
+Just so I understand correctly. Does the panic hit with and without the
+suggested backport patch? The only difference is that you get the full
+output with the patch and limited output without it?
+
+-- Steve
