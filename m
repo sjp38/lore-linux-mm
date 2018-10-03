@@ -1,48 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 791DB6B026D
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 09:31:18 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id f13-v6so4702460wrr.4
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 06:31:18 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 134-v6sor1223593wmb.12.2018.10.03.06.31.17
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A876C6B026F
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 09:36:12 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id w44-v6so3216316edb.16
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 06:36:12 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f19-v6si1532165edc.98.2018.10.03.06.36.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 03 Oct 2018 06:31:17 -0700 (PDT)
-Date: Wed, 3 Oct 2018 15:31:12 +0200
-From: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [PATCH v7 0/8] arm64: untag user pointers passed to the kernel
-Message-ID: <20181003133110.4y3xhexjrvffivff@ltop.local>
-References: <cover.1538485901.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Oct 2018 06:36:11 -0700 (PDT)
+Date: Wed, 3 Oct 2018 15:36:09 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/4] mm/hugetlb: Enable PUD level huge page migration
+Message-ID: <20181003133609.GG4714@dhcp22.suse.cz>
+References: <1538482531-26883-1-git-send-email-anshuman.khandual@arm.com>
+ <1538482531-26883-2-git-send-email-anshuman.khandual@arm.com>
+ <20181002123909.GS18290@dhcp22.suse.cz>
+ <fae68a4e-b14b-8342-940c-ea5ef3c978af@arm.com>
+ <20181003065833.GD18290@dhcp22.suse.cz>
+ <7f0488b5-053f-0954-9b95-8c0890ef5597@arm.com>
+ <20181003105926.GA4714@dhcp22.suse.cz>
+ <34b25855-fcef-61ed-312d-2011f80bdec4@arm.com>
+ <20181003114842.GD4714@dhcp22.suse.cz>
+ <d42cc88b-6bab-797c-f263-2dce650ea3ab@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <cover.1538485901.git.andreyknvl@google.com>
+In-Reply-To: <d42cc88b-6bab-797c-f263-2dce650ea3ab@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, suzuki.poulose@arm.com, punit.agrawal@arm.com, will.deacon@arm.com, Steven.Price@arm.com, catalin.marinas@arm.com, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
 
-On Tue, Oct 02, 2018 at 03:12:35PM +0200, Andrey Konovalov wrote:
-...
+On Wed 03-10-18 18:36:39, Anshuman Khandual wrote:
+[...]
+> So we have two checks here
+> 
+> 1) platform specific arch_hugetlb_migration -> In principle go ahead
+> 
+> 2) huge_movable() during allocation
+> 
+> 	- If huge page does not have to be placed on movable zone
+> 
+> 		- Allocate any where successfully and done !
+>  
+> 	- If huge page *should* be placed on a movable zone
+> 
+> 		- Try allocating on movable zone
+> 
+> 			- Successfull and done !
+> 
+> 		- If the new page could not be allocated on movable zone
+> 		
+> 			- Abort the migration completely
+> 
+> 					OR
+> 
+> 			- Warn and fall back to non-movable
 
-> Changes in v7:
-> - Rebased onto 17b57b18 (4.19-rc6).
-> - Dropped the "arm64: untag user address in __do_user_fault" patch, since
->   the existing patches already handle user faults properly.
-> - Dropped the "usb, arm64: untag user addresses in devio" patch, since the
->   passed pointer must come from a vma and therefore be untagged.
-> - Dropped the "arm64: annotate user pointers casts detected by sparse"
->   patch (see the discussion to the replies of the v6 of this patchset).
-> - Added more context to the cover letter.
-> - Updated Documentation/arm64/tagged-pointers.txt.
+I guess you are still making it more complicated than necessary. The
+later is really only about __GFP_MOVABLE at this stage. I would just
+make it simple for now. We do not have to implement any dynamic
+heuristic right now. All that I am asking for is to split the migrate
+possible part from movable part.
 
-Hi,
+I should have been more clear about that I guess from my very first
+reply. I do like how you moved the current coarse grained
+hugepage_migration_supported to be more arch specific but I merely
+wanted to point out that we need to do some other changes before we can
+go that route and that thing is to distinguish movable from migration
+supported.
 
-I'm quite hapy now with what concerns me (sparse).
-Please, feel free to add my:
-Reviewed-by: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-
-
-Cheers,
--- Luc Van Oostenryck
+See my point?
+-- 
+Michal Hocko
+SUSE Labs
