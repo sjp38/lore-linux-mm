@@ -1,76 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 414A46B0007
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 03:36:46 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id 8-v6so2330331pfr.0
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 00:36:46 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 793AA6B0006
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 03:40:10 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id e6-v6so1672706pge.5
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 00:40:10 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i5-v6si650154pgn.314.2018.10.03.00.36.44
+        by mx.google.com with ESMTPS id n32-v6si653110pgm.469.2018.10.03.00.40.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Oct 2018 00:36:45 -0700 (PDT)
-Date: Wed, 3 Oct 2018 09:36:40 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, proc: report PR_SET_THP_DISABLE in proc
-Message-ID: <20181003073640.GF18290@dhcp22.suse.cz>
-References: <20180924195603.GJ18685@dhcp22.suse.cz>
- <20180924200258.GK18685@dhcp22.suse.cz>
- <0aa3eb55-82c0-eba3-b12c-2ba22e052a8e@suse.cz>
- <alpine.DEB.2.21.1809251248450.50347@chino.kir.corp.google.com>
- <20180925202959.GY18685@dhcp22.suse.cz>
- <alpine.DEB.2.21.1809251440001.94921@chino.kir.corp.google.com>
- <20180925150406.872aab9f4f945193e5915d69@linux-foundation.org>
- <20180926060624.GA18685@dhcp22.suse.cz>
- <20181002112851.GP18290@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810021329260.87409@chino.kir.corp.google.com>
+        Wed, 03 Oct 2018 00:40:09 -0700 (PDT)
+Subject: Re: [PATCH 13/16] mm: Replace spin_is_locked() with lockdep
+References: <20181003053902.6910-1-ldr709@gmail.com>
+ <20181003053902.6910-14-ldr709@gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <efb9c50b-d420-18a0-2a90-9a01ef719a70@suse.cz>
+Date: Wed, 3 Oct 2018 09:37:26 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1810021329260.87409@chino.kir.corp.google.com>
+In-Reply-To: <20181003053902.6910-14-ldr709@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Lance Roy <ldr709@gmail.com>, linux-kernel@vger.kernel.org
+Cc: "Paul E. McKenney" <paulmck@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Yang Shi <yang.shi@linux.alibaba.com>, Matthew Wilcox <mawilcox@microsoft.com>, Mel Gorman <mgorman@techsingularity.net>, Jan Kara <jack@suse.cz>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org
 
-On Tue 02-10-18 13:29:42, David Rientjes wrote:
-> On Tue, 2 Oct 2018, Michal Hocko wrote:
-> 
-> > On Wed 26-09-18 08:06:24, Michal Hocko wrote:
-> > > On Tue 25-09-18 15:04:06, Andrew Morton wrote:
-> > > > On Tue, 25 Sep 2018 14:45:19 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
-> > > > 
-> > > > > > > It is also used in 
-> > > > > > > automated testing to ensure that vmas get disabled for thp appropriately 
-> > > > > > > and we used "nh" since that is how PR_SET_THP_DISABLE previously enforced 
-> > > > > > > this, and those tests now break.
-> > > > > > 
-> > > > > > This sounds like a bit of an abuse to me. It shows how an internal
-> > > > > > implementation detail leaks out to the userspace which is something we
-> > > > > > should try to avoid.
-> > > > > > 
-> > > > > 
-> > > > > Well, it's already how this has worked for years before commit 
-> > > > > 1860033237d4 broke it.  Changing the implementation in the kernel is fine 
-> > > > > as long as you don't break userspace who relies on what is exported to it 
-> > > > > and is the only way to determine if MADV_NOHUGEPAGE is preventing it from 
-> > > > > being backed by hugepages.
-> > > > 
-> > > > 1860033237d4 was over a year ago so perhaps we don't need to be
-> > > > too worried about restoring the old interface.  In which case
-> > > > we have an opportunity to make improvements such as that suggested
-> > > > by Michal?
-> > > 
-> > > Yeah, can we add a way to export PR_SET_THP_DISABLE to userspace
-> > > somehow? E.g. /proc/<pid>/status. It is a process wide thing so
-> > > reporting it per VMA sounds strange at best.
-> > 
-> > So how about this? (not tested yet but it should be pretty
-> > straightforward)
-> 
-> Umm, prctl(PR_GET_THP_DISABLE)?
+On 10/3/18 7:38 AM, Lance Roy wrote:
+> lockdep_assert_held() is better suited to checking locking requirements,
+> since it won't get confused when someone else holds the lock. This is
+> also a step towards possibly removing spin_is_locked().
 
-/me confused. I thought you want to query for the flag on a
-_different_ process. 
--- 
-Michal Hocko
-SUSE Labs
+Agreed
+> Signed-off-by: Lance Roy <ldr709@gmail.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Yang Shi <yang.shi@linux.alibaba.com>
+> Cc: Matthew Wilcox <mawilcox@microsoft.com>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Shakeel Butt <shakeelb@google.com>
+> Cc: <linux-mm@kvack.org>
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> ---
+>  mm/khugepaged.c | 4 ++--
+>  mm/swap.c       | 3 +--
+>  2 files changed, 3 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> index a31d740e6cd1..80f12467ccb3 100644
+> --- a/mm/khugepaged.c
+> +++ b/mm/khugepaged.c
+> @@ -1225,7 +1225,7 @@ static void collect_mm_slot(struct mm_slot *mm_slot)
+>  {
+>  	struct mm_struct *mm = mm_slot->mm;
+>  
+> -	VM_BUG_ON(NR_CPUS != 1 && !spin_is_locked(&khugepaged_mm_lock));
+> +	lockdep_assert_held(&khugepaged_mm_lock);
+>  
+>  	if (khugepaged_test_exit(mm)) {
+>  		/* free mm_slot */
+> @@ -1665,7 +1665,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
+>  	int progress = 0;
+>  
+>  	VM_BUG_ON(!pages);
+> -	VM_BUG_ON(NR_CPUS != 1 && !spin_is_locked(&khugepaged_mm_lock));
+> +	lockdep_assert_held(&khugepaged_mm_lock);
+>  
+>  	if (khugepaged_scan.mm_slot)
+>  		mm_slot = khugepaged_scan.mm_slot;
+> diff --git a/mm/swap.c b/mm/swap.c
+> index 26fc9b5f1b6c..c89eb442c0bf 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -824,8 +824,7 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
+>  	VM_BUG_ON_PAGE(!PageHead(page), page);
+>  	VM_BUG_ON_PAGE(PageCompound(page_tail), page);
+>  	VM_BUG_ON_PAGE(PageLRU(page_tail), page);
+> -	VM_BUG_ON(NR_CPUS != 1 &&
+> -		  !spin_is_locked(&lruvec_pgdat(lruvec)->lru_lock));
+> +	lockdep_assert_held(&lruvec_pgdat(lruvec)->lru_lock);
+>  
+>  	if (!list)
+>  		SetPageLRU(page_tail);
+> 
