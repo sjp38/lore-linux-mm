@@ -1,44 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EFB8B6B000A
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 11:07:45 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id d52-v6so5342266qta.9
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 08:07:45 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d188-v6si1125169qkc.57.2018.10.03.08.07.45
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 608D26B000D
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 11:13:50 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id 64-v6so3891064oii.1
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 08:13:50 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k130-v6sor897191oia.72.2018.10.03.08.13.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Oct 2018 08:07:45 -0700 (PDT)
-Date: Wed, 3 Oct 2018 17:08:03 +0200
-From: Eugene Syromiatnikov <esyr@redhat.com>
-Subject: Re: [RFC PATCH v4 18/27] x86/cet/shstk: User-mode shadow stack
- support
-Message-ID: <20181003150754.GC32759@asgard.redhat.com>
-References: <20180921150351.20898-1-yu-cheng.yu@intel.com>
- <20180921150351.20898-19-yu-cheng.yu@intel.com>
+        (Google Transport Security);
+        Wed, 03 Oct 2018 08:13:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180921150351.20898-19-yu-cheng.yu@intel.com>
+References: <20181002100531.GC4135@quack2.suse.cz> <20181002121039.GA3274@linux-x5ow.site>
+ <20181002142959.GD9127@quack2.suse.cz> <20181002143713.GA19845@infradead.org>
+ <20181002144412.GC4963@linux-x5ow.site> <20181002145206.GA10903@infradead.org>
+ <20181002153100.GG9127@quack2.suse.cz> <CAPcyv4j0tTD+rENqFExA68aw=-MmtCBaOe1qJovyrmJC=yBg-Q@mail.gmail.com>
+ <20181003125056.GA21043@quack2.suse.cz> <CAPcyv4jfV10yuTiPg6ijsPRRL2-c_48ovfpU5TK1Zu7BWnfk3g@mail.gmail.com>
+ <20181003150658.GC24030@quack2.suse.cz>
+In-Reply-To: <20181003150658.GC24030@quack2.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 3 Oct 2018 08:13:37 -0700
+Message-ID: <CAPcyv4iJvN6_Cf6tw=5a=Uh99LfMFKU7n8QkGcz1ZaxL0Oi-3w@mail.gmail.com>
+Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Christoph Hellwig <hch@infradead.org>, Johannes Thumshirn <jthumshirn@suse.de>, Dave Jiang <dave.jiang@intel.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Fri, Sep 21, 2018 at 08:03:42AM -0700, Yu-cheng Yu wrote:
+On Wed, Oct 3, 2018 at 8:07 AM Jan Kara <jack@suse.cz> wrote:
+>
+> On Wed 03-10-18 07:38:50, Dan Williams wrote:
+> > On Wed, Oct 3, 2018 at 5:51 AM Jan Kara <jack@suse.cz> wrote:
+> > >
+> > > On Tue 02-10-18 13:18:54, Dan Williams wrote:
+> > > > On Tue, Oct 2, 2018 at 8:32 AM Jan Kara <jack@suse.cz> wrote:
+> > > > >
+> > > > > On Tue 02-10-18 07:52:06, Christoph Hellwig wrote:
+> > > > > > On Tue, Oct 02, 2018 at 04:44:13PM +0200, Johannes Thumshirn wrote:
+> > > > > > > On Tue, Oct 02, 2018 at 07:37:13AM -0700, Christoph Hellwig wrote:
+> > > > > > > > No, it should not.  DAX is an implementation detail thay may change
+> > > > > > > > or go away at any time.
+> > > > > > >
+> > > > > > > Well we had an issue with an application checking for dax, this is how
+> > > > > > > we landed here in the first place.
+> > > > > >
+> > > > > > So what exacty is that "DAX" they are querying about (and no, I'm not
+> > > > > > joking, nor being philosophical).
+> > > > >
+> > > > > I believe the application we are speaking about is mostly concerned about
+> > > > > the memory overhead of the page cache. Think of a machine that has ~ 1TB of
+> > > > > DRAM, the database running on it is about that size as well and they want
+> > > > > database state stored somewhere persistently - which they may want to do by
+> > > > > modifying mmaped database files if they do small updates... So they really
+> > > > > want to be able to use close to all DRAM for the DB and not leave slack
+> > > > > space for the kernel page cache to cache 1TB of database files.
+> > > >
+> > > > VM_MIXEDMAP was never a reliable indication of DAX because it could be
+> > > > set for random other device-drivers that use vm_insert_mixed(). The
+> > > > MAP_SYNC flag positively indicates that page cache is disabled for a
+> > > > given mapping, although whether that property is due to "dax" or some
+> > > > other kernel mechanics is purely an internal detail.
+> > > >
+> > > > I'm not opposed to faking out VM_MIXEDMAP if this broken check has
+> > > > made it into production, but again, it's unreliable.
+> > >
+> > > So luckily this particular application wasn't widely deployed yet so we
+> > > will likely get away with the vendor asking customers to update to a
+> > > version not looking into smaps and parsing /proc/mounts instead.
+> > >
+> > > But I don't find parsing /proc/mounts that beautiful either and I'd prefer
+> > > if we had a better interface for applications to query whether they can
+> > > avoid page cache for mmaps or not.
+> >
+> > Yeah, the mount flag is not a good indicator either. I think we need
+> > to follow through on the per-inode property of DAX. Darrick and I
+> > discussed just allowing the property to be inherited from the parent
+> > directory at file creation time. That avoids the dynamic set-up /
+> > teardown races that seem intractable at this point.
+> >
+> > What's wrong with MAP_SYNC as a page-cache detector in the meantime?
+>
+> So IMHO checking for MAP_SYNC is about as reliable as checking for 'dax'
+> mount option. It works now but nobody promises it will reliably detect DAX in
+> future - e.g. there's nothing that prevents MAP_SYNC to work for mappings
+> using pagecache if we find a sensible usecase for that.
 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 5ea1d64cb0b4..b20450dde5b7 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -652,6 +652,9 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
->  		[ilog2(VM_PKEY_BIT4)]	= "",
->  #endif
->  #endif /* CONFIG_ARCH_HAS_PKEYS */
-> +#ifdef CONFIG_X86_INTEL_SHADOW_STACK_USER
-> +		[ilog2(VM_SHSTK)]	= "ss"
-> +#endif
+Fair enough.
 
-It's probably makes sense to have this hunk as a part of "x86/cet/shstk:
-Add Kconfig option for user-mode shadow stack", where VM_SHSTK was
-initially introduced.
+> WRT per-inode DAX property, AFAIU that inode flag is just going to be
+> advisory thing - i.e., use DAX if possible. If you mount a filesystem with
+> these inode flags set in a configuration which does not allow DAX to be
+> used, you will still be able to access such inodes but the access will use
+> page cache instead. And querying these flags should better show real
+> on-disk status and not just whether DAX is used as that would result in an
+> even bigger mess. So this feature seems to be somewhat orthogonal to the
+> API I'm looking for.
+
+True, I imagine once we have that flag we will be able to distinguish
+the "saved" property and the "effective / live" property of DAX...
+Also it's really not DAX that applications care about as much as "is
+there page-cache indirection / overhead for this mapping?". That seems
+to be a narrower guarantee that we can make than what "DAX" might
+imply.
