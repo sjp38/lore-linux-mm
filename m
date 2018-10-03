@@ -1,52 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DCEA96B000D
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 10:08:35 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id v7-v6so5474892plo.23
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 07:08:35 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id q1-v6si1770720pfb.258.2018.10.03.07.08.34
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 00C7E6B0010
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 10:08:54 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id p14-v6so3729839oip.0
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 07:08:53 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id v7-v6si698677oig.199.2018.10.03.07.08.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Oct 2018 07:08:34 -0700 (PDT)
-Subject: Re: [RFC PATCH v4 09/27] x86/mm: Change _PAGE_DIRTY to _PAGE_DIRTY_HW
-References: <20180921150351.20898-1-yu-cheng.yu@intel.com>
- <20180921150351.20898-10-yu-cheng.yu@intel.com>
- <20181003133856.GA24782@bombadil.infradead.org>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <688c3f90-f86e-32e8-ce1a-7a10facb08a8@linux.intel.com>
-Date: Wed, 3 Oct 2018 07:05:23 -0700
+        Wed, 03 Oct 2018 07:08:53 -0700 (PDT)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w93E6ERe079620
+	for <linux-mm@kvack.org>; Wed, 3 Oct 2018 10:08:52 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mvwmfcvu8-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 03 Oct 2018 10:08:51 -0400
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Wed, 3 Oct 2018 15:08:48 +0100
+Date: Wed, 3 Oct 2018 19:38:41 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/2] mm, numa: Migrate pages to local nodes quicker early
+ in the lifetime of a task
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20181001100525.29789-1-mgorman@techsingularity.net>
+ <20181001100525.29789-3-mgorman@techsingularity.net>
+ <20181002124149.GB4593@linux.vnet.ibm.com>
+ <20181002135459.GA7003@techsingularity.net>
+ <20181002173005.GD4593@linux.vnet.ibm.com>
+ <20181003130741.GA4488@linux.vnet.ibm.com>
+ <20181003132155.GD7003@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <20181003133856.GA24782@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20181003132155.GD7003@techsingularity.net>
+Message-Id: <20181003140841.GC4488@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Jirka Hladky <jhladky@redhat.com>, Rik van Riel <riel@surriel.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On 10/03/2018 06:38 AM, Matthew Wilcox wrote:
-> On Fri, Sep 21, 2018 at 08:03:33AM -0700, Yu-cheng Yu wrote:
->> We are going to create _PAGE_DIRTY_SW for non-hardware, memory
->> management purposes.  Rename _PAGE_DIRTY to _PAGE_DIRTY_HW and
->> _PAGE_BIT_DIRTY to _PAGE_BIT_DIRTY_HW to make these PTE dirty
->> bits more clear.  There are no functional changes in this
->> patch.
-> I would like there to be some documentation in this patchset which
-> explains the difference between PAGE_SOFT_DIRTY and PAGE_DIRTY_SW.
+* Mel Gorman <mgorman@techsingularity.net> [2018-10-03 14:21:55]:
+
+> On Wed, Oct 03, 2018 at 06:37:41PM +0530, Srikar Dronamraju wrote:
+> > * Srikar Dronamraju <srikar@linux.vnet.ibm.com> [2018-10-02 23:00:05]:
+> > 
 > 
-> Also, is it really necessary to rename PAGE_DIRTY?  It feels like a
-> lot of churn.
 
-This is a lot of churn?  Are we looking a the same patch? :)
+> That's unfortunate.
+> 
+> How much does this workload normally vary between runs? If you monitor
+> migrations over time, is there an increase spike in migration early in
+> the lifetime of the workload?
+> 
 
- arch/x86/include/asm/pgtable.h       |  6 +++---
- arch/x86/include/asm/pgtable_types.h | 17 +++++++++--------
- arch/x86/kernel/relocate_kernel_64.S |  2 +-
- arch/x86/kvm/vmx.c                   |  2 +-
- 4 files changed, 14 insertions(+), 13 deletions(-)
+The run to run variation has always been less than 1%.
+I haven't monitored migrations over time. Will try to include it my next
+run. Its a shared setup so I may not get the box immediately.
 
-But, yeah, I think we need to.  While it will take a little adjustment
-in the brains of us old-timers and a bit of pain when switching from old
-kernels to new, this makes it a lot more clear what is going on.
+
+-- 
+Thanks and Regards
+Srikar Dronamraju
