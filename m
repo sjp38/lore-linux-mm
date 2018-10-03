@@ -1,43 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A19D6B0010
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 12:18:27 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id o3-v6so5837406pll.7
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 09:18:27 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id d2-v6si1984254plh.206.2018.10.03.09.18.25
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 30D1A6B0269
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 12:19:13 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id 191-v6so2469808pgb.23
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 09:19:13 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id j134-v6si2015457pgc.134.2018.10.03.09.19.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Oct 2018 09:18:26 -0700 (PDT)
-Message-ID: <a278be878c9a1bdbe9adea515fcca5a691db17aa.camel@intel.com>
-Subject: Re: [RFC PATCH v4 09/27] x86/mm: Change _PAGE_DIRTY to
- _PAGE_DIRTY_HW
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Date: Wed, 03 Oct 2018 09:07:52 -0700
-In-Reply-To: <20181003133856.GA24782@bombadil.infradead.org>
-References: <20180921150351.20898-1-yu-cheng.yu@intel.com>
-	 <20180921150351.20898-10-yu-cheng.yu@intel.com>
-	 <20181003133856.GA24782@bombadil.infradead.org>
+        Wed, 03 Oct 2018 09:19:11 -0700 (PDT)
+Received: from mail-wm1-f42.google.com (mail-wm1-f42.google.com [209.85.128.42])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 47A18214AB
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 16:19:11 +0000 (UTC)
+Received: by mail-wm1-f42.google.com with SMTP id s12-v6so6318543wmc.0
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 09:19:11 -0700 (PDT)
+MIME-Version: 1.0
+References: <20180921150351.20898-1-yu-cheng.yu@intel.com> <20180921150351.20898-25-yu-cheng.yu@intel.com>
+ <20181003045611.GB22724@asgard.redhat.com> <CALCETrU-Ny-uC1NqRedQwNKe2MMhsFEqZ08TtHJwbLfCACMmLw@mail.gmail.com>
+ <5ddb0ad33298d1858e530fce9c9ea2788b2fac81.camel@intel.com>
+In-Reply-To: <5ddb0ad33298d1858e530fce9c9ea2788b2fac81.camel@intel.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Wed, 3 Oct 2018 09:18:57 -0700
+Message-ID: <CALCETrVNp4Emx6z-+boE6_rhxi75pyA7O0Ay9sDDikX-VUWa0Q@mail.gmail.com>
+Subject: Re: [RFC PATCH v4 24/27] mm/mmap: Create a guard area between VMAs
 Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: Eugene Syromiatnikov <esyr@redhat.com>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>
 
-On Wed, 2018-10-03 at 06:38 -0700, Matthew Wilcox wrote:
-> On Fri, Sep 21, 2018 at 08:03:33AM -0700, Yu-cheng Yu wrote:
-> > We are going to create _PAGE_DIRTY_SW for non-hardware, memory
-> > management purposes.  Rename _PAGE_DIRTY to _PAGE_DIRTY_HW and
-> > _PAGE_BIT_DIRTY to _PAGE_BIT_DIRTY_HW to make these PTE dirty
-> > bits more clear.  There are no functional changes in this
-> > patch.
-> 
-> I would like there to be some documentation in this patchset which
-> explains the difference between PAGE_SOFT_DIRTY and PAGE_DIRTY_SW.
+On Wed, Oct 3, 2018 at 9:06 AM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
+>
+> On Tue, 2018-10-02 at 22:36 -0700, Andy Lutomirski wrote:
+> > On Tue, Oct 2, 2018 at 9:55 PM Eugene Syromiatnikov <esyr@redhat.com> wrote:
+> > >
+> > > On Fri, Sep 21, 2018 at 08:03:48AM -0700, Yu-cheng Yu wrote:
+> > > > Create a guard area between VMAs, to detect memory corruption.
+> > >
+> > > Do I understand correctly that with this patch a user space program
+> > > no longer be able to place two mappings back to back? If it is so,
+> > > it will likely break a lot of things; for example, it's a common ring
+> > > buffer implementations technique, to map buffer memory twice back
+> > > to back in order to avoid special handling of items wrapping its end.
+> >
+> > I haven't checked what the patch actually does, but it shouldn't have
+> > any affect on MAP_FIXED or the new no-replace MAP_FIXED variant.
+> >
+> > --Andy
+>
+> I did some mmap tests with/without MAP_FIXED, and it works as intended.
+> In addition to the ring buffer, are there other test cases?
+>
 
-I will add some comments for the difference between PAGE_SOFT_DIRTY and
-PAGE_DIRTY_SW.
-
-Yu-cheng
+Various ELF loaders, perhaps?  Do they use MAP_FIXED or do they just
+use address hints?
