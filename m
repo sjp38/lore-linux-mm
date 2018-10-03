@@ -1,78 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E30F6B0010
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 13:33:06 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id n186-v6so4247980oig.13
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 10:33:06 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id d11-v6si895536oif.188.2018.10.03.10.33.04
-        for <linux-mm@kvack.org>;
-        Wed, 03 Oct 2018 10:33:05 -0700 (PDT)
-Date: Wed, 3 Oct 2018 18:32:57 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v7 7/8] arm64: update
- Documentation/arm64/tagged-pointers.txt
-Message-ID: <20181003173256.GG12998@arrakis.emea.arm.com>
-References: <cover.1538485901.git.andreyknvl@google.com>
- <47a464307d4df3c0cb65f88d1fe83f9a741dd74b.1538485901.git.andreyknvl@google.com>
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EA986B0269
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 13:34:04 -0400 (EDT)
+Received: by mail-oi1-f198.google.com with SMTP id a206-v6so1818637oib.7
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 10:34:04 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id h1-v6si976900otb.275.2018.10.03.10.34.03
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Oct 2018 10:34:03 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w93HPTeI093994
+	for <linux-mm@kvack.org>; Wed, 3 Oct 2018 13:34:03 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2mvy369crp-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 03 Oct 2018 13:34:02 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Wed, 3 Oct 2018 18:34:00 +0100
+Date: Wed, 3 Oct 2018 20:33:54 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH] mm, proc: report PR_SET_THP_DISABLE in proc
+References: <20180924195603.GJ18685@dhcp22.suse.cz>
+ <20180924200258.GK18685@dhcp22.suse.cz>
+ <0aa3eb55-82c0-eba3-b12c-2ba22e052a8e@suse.cz>
+ <alpine.DEB.2.21.1809251248450.50347@chino.kir.corp.google.com>
+ <20180925202959.GY18685@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1809251440001.94921@chino.kir.corp.google.com>
+ <20180925150406.872aab9f4f945193e5915d69@linux-foundation.org>
+ <20180926060624.GA18685@dhcp22.suse.cz>
+ <20181002112851.GP18290@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810021329260.87409@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <47a464307d4df3c0cb65f88d1fe83f9a741dd74b.1538485901.git.andreyknvl@google.com>
+In-Reply-To: <alpine.DEB.2.21.1810021329260.87409@chino.kir.corp.google.com>
+Message-Id: <20181003173354.GA17328@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Evgeniy Stepanov <eugenis@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-On Tue, Oct 02, 2018 at 03:12:42PM +0200, Andrey Konovalov wrote:
-> diff --git a/Documentation/arm64/tagged-pointers.txt b/Documentation/arm64/tagged-pointers.txt
-> index a25a99e82bb1..ae877d185fdb 100644
-> --- a/Documentation/arm64/tagged-pointers.txt
-> +++ b/Documentation/arm64/tagged-pointers.txt
-> @@ -17,13 +17,21 @@ this byte for application use.
->  Passing tagged addresses to the kernel
->  --------------------------------------
->  
-> -All interpretation of userspace memory addresses by the kernel assumes
-> -an address tag of 0x00.
-> +Some initial work for supporting non-zero address tags passed to the
-> +kernel has been done. As of now, the kernel supports tags in:
+On Tue, Oct 02, 2018 at 01:29:42PM -0700, David Rientjes wrote:
+> On Tue, 2 Oct 2018, Michal Hocko wrote:
+> 
+> > On Wed 26-09-18 08:06:24, Michal Hocko wrote:
+> > > On Tue 25-09-18 15:04:06, Andrew Morton wrote:
+> > > > On Tue, 25 Sep 2018 14:45:19 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+> > > > 
+> > > > > > > It is also used in 
+> > > > > > > automated testing to ensure that vmas get disabled for thp appropriately 
+> > > > > > > and we used "nh" since that is how PR_SET_THP_DISABLE previously enforced 
+> > > > > > > this, and those tests now break.
+> > > > > > 
+> > > > > > This sounds like a bit of an abuse to me. It shows how an internal
+> > > > > > implementation detail leaks out to the userspace which is something we
+> > > > > > should try to avoid.
+> > > > > > 
+> > > > > 
+> > > > > Well, it's already how this has worked for years before commit 
+> > > > > 1860033237d4 broke it.  Changing the implementation in the kernel is fine 
+> > > > > as long as you don't break userspace who relies on what is exported to it 
+> > > > > and is the only way to determine if MADV_NOHUGEPAGE is preventing it from 
+> > > > > being backed by hugepages.
+> > > > 
+> > > > 1860033237d4 was over a year ago so perhaps we don't need to be
+> > > > too worried about restoring the old interface.  In which case
+> > > > we have an opportunity to make improvements such as that suggested
+> > > > by Michal?
+> > > 
+> > > Yeah, can we add a way to export PR_SET_THP_DISABLE to userspace
+> > > somehow? E.g. /proc/<pid>/status. It is a process wide thing so
+> > > reporting it per VMA sounds strange at best.
+> > 
+> > So how about this? (not tested yet but it should be pretty
+> > straightforward)
+> 
+> Umm, prctl(PR_GET_THP_DISABLE)?
+> 
 
-With my maintainer hat on, the above statement leads me to think this
-new ABI is work in progress, so not yet suitable for upstream.
-
-Also, how is user space supposed to know that it can now pass tagged
-pointers into the kernel? An ABI change (or relaxation), needs to be
-advertised by the kernel, usually via a new HWCAP bit (e.g. HWCAP_TBI).
-Once we have a HWCAP bit in place, we need to be pretty clear about
-which syscalls can and cannot cope with tagged pointers. The "as of now"
-implies potential further relaxation which, again, would need to be
-advertised to user in some (additional) way.
-
-> -This includes, but is not limited to, addresses found in:
-> +  - user fault addresses
-
-While the kernel currently supports this in some way (by clearing the
-tag exception entry, el0_da), the above implies (at least to me) that
-sigcontext.fault_address would contain the tagged address. That's not
-the case (unless I missed it in your patches).
-
-> - - pointer arguments to system calls, including pointers in structures
-> -   passed to system calls,
-> +  - pointer arguments (including pointers in structures), which don't
-> +    describe virtual memory ranges, passed to system calls
-
-I think we need to be more precise here...
-
-> +All other interpretations of userspace memory addresses by the kernel
-> +assume an address tag of 0x00. This includes, but is not limited to,
-> +addresses found in:
-> +
-> + - pointer arguments (including pointers in structures), which describe
-> +   virtual memory ranges, passed to memory system calls (mmap, mprotect,
-> +   etc.)
-
-...and probably a full list here.
+~/git/linux$ git grep PR_GET_THP_DISABLE
+include/uapi/linux/prctl.h:#define PR_GET_THP_DISABLE   42
+kernel/sys.c:   case PR_GET_THP_DISABLE:
+tools/include/uapi/linux/prctl.h:#define PR_GET_THP_DISABLE     42
 
 -- 
-Catalin
+Sincerely yours,
+Mike.
