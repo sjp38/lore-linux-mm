@@ -1,77 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A876C6B026F
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 09:36:12 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id w44-v6so3216316edb.16
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 06:36:12 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f19-v6si1532165edc.98.2018.10.03.06.36.11
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B9456B0271
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 09:38:23 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id d18-v6so5049077qtj.20
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 06:38:23 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p9-v6si924977qvd.85.2018.10.03.06.38.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Oct 2018 06:36:11 -0700 (PDT)
-Date: Wed, 3 Oct 2018 15:36:09 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/4] mm/hugetlb: Enable PUD level huge page migration
-Message-ID: <20181003133609.GG4714@dhcp22.suse.cz>
-References: <1538482531-26883-1-git-send-email-anshuman.khandual@arm.com>
- <1538482531-26883-2-git-send-email-anshuman.khandual@arm.com>
- <20181002123909.GS18290@dhcp22.suse.cz>
- <fae68a4e-b14b-8342-940c-ea5ef3c978af@arm.com>
- <20181003065833.GD18290@dhcp22.suse.cz>
- <7f0488b5-053f-0954-9b95-8c0890ef5597@arm.com>
- <20181003105926.GA4714@dhcp22.suse.cz>
- <34b25855-fcef-61ed-312d-2011f80bdec4@arm.com>
- <20181003114842.GD4714@dhcp22.suse.cz>
- <d42cc88b-6bab-797c-f263-2dce650ea3ab@arm.com>
+        Wed, 03 Oct 2018 06:38:22 -0700 (PDT)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: Re: [PATCH RFC] mm/memory_hotplug: Introduce memory block types
+In-Reply-To: <98fb8d65-b641-2225-f842-8804c6f79a06@redhat.com>
+References: <20180928150357.12942-1-david@redhat.com> <20181001084038.GD18290@dhcp22.suse.cz> <d54a8509-725f-f771-72f0-15a9d93e8a49@redhat.com> <20181002134734.GT18290@dhcp22.suse.cz> <98fb8d65-b641-2225-f842-8804c6f79a06@redhat.com>
+Date: Wed, 03 Oct 2018 15:38:04 +0200
+Message-ID: <8736tndubn.fsf@vitty.brq.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <d42cc88b-6bab-797c-f263-2dce650ea3ab@arm.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, suzuki.poulose@arm.com, punit.agrawal@arm.com, will.deacon@arm.com, Steven.Price@arm.com, catalin.marinas@arm.com, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
+To: David Hildenbrand <david@redhat.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Kate Stewart <kstewart@linuxfoundation.org>, Rich Felker <dalias@libc.org>, linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Balbir Singh <bsingharora@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, Pavel Tatashin <pavel.tatashin@microsoft.com>, Paul Mackerras <paulus@samba.org>, "H.
+ Peter Anvin" <hpa@zytor.com>, Rashmica Gupta <rashmica.g@gmail.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-s390@vger.kernel.org, Michael Neuling <mikey@neuling.org>, Stephen Hemminger <sthemmin@microsoft.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Michael Ellerman <mpe@ellerman.id.au>, linux-acpi@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, xen-devel@lists.xenproject.org, Rob Herring <robh@kernel.org>, Len Brown <lenb@kernel.org>, Fenghua Yu <fenghua.yu@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, "mike.travis@hpe.com" <mike.travis@hpe.com>, Haiyang Zhang <haiyangz@microsoft.com>, Dan Williams <dan.j.williams@intel.com>, Jonathan =?utf-8?Q?Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>, Nicholas Piggin <npiggin@gmail.com>, Joe Perches <joe@perches.com>, =?utf-8?B?SsOpcsO0?= =?utf-8?B?bWU=?= Glisse <jglisse@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Oscar Salvador <osalvador@suse.de>, Juergen Gross <jgross@suse.com>, Tony Luck <tony.luck@intel.com>, Mathieu Malaterre <malat@debian.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, linux-kernel@vger.kernel.org, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Philippe Ombredanne <pombredanne@nexb.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, devel@linuxdriverproject.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed 03-10-18 18:36:39, Anshuman Khandual wrote:
-[...]
-> So we have two checks here
-> 
-> 1) platform specific arch_hugetlb_migration -> In principle go ahead
-> 
-> 2) huge_movable() during allocation
-> 
-> 	- If huge page does not have to be placed on movable zone
-> 
-> 		- Allocate any where successfully and done !
->  
-> 	- If huge page *should* be placed on a movable zone
-> 
-> 		- Try allocating on movable zone
-> 
-> 			- Successfull and done !
-> 
-> 		- If the new page could not be allocated on movable zone
-> 		
-> 			- Abort the migration completely
-> 
-> 					OR
-> 
-> 			- Warn and fall back to non-movable
+David Hildenbrand <david@redhat.com> writes:
 
-I guess you are still making it more complicated than necessary. The
-later is really only about __GFP_MOVABLE at this stage. I would just
-make it simple for now. We do not have to implement any dynamic
-heuristic right now. All that I am asking for is to split the migrate
-possible part from movable part.
+> On 02/10/2018 15:47, Michal Hocko wrote:
+...
+>> 
+>> Why do you need a generic hotplug rule in the first place? Why don't you
+>> simply provide different set of rules for different usecases? Let users
+>> decide which usecase they prefer rather than try to be clever which
+>> almost always hits weird corner cases.
+>> 
+>
+> Memory hotplug has to work as reliable as we can out of the box. Letting
+> the user make simple decisions like "oh, I am on hyper-V, I want to
+> online memory to the normal zone" does not feel right. But yes, we
+> should definitely allow to make modifications.
 
-I should have been more clear about that I guess from my very first
-reply. I do like how you moved the current coarse grained
-hugepage_migration_supported to be more arch specific but I merely
-wanted to point out that we need to do some other changes before we can
-go that route and that thing is to distinguish movable from migration
-supported.
+Last time I was thinking about the imperfectness of the auto-online
+solution we have and any other solution we're able to suggest an idea
+came to my mind - what if we add an eBPF attach point to the
+auto-onlining mechanism effecively offloading decision-making to
+userspace. We'll of couse need to provide all required data (e.g. how
+memory blocks are aligned with physical DIMMs as it makes no sense to
+online part of DIMM as normal and the rest as movable as it's going to
+be impossible to unplug such DIMM anyways).
 
-See my point?
 -- 
-Michal Hocko
-SUSE Labs
+Vitaly
