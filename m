@@ -1,63 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B20E6B000E
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 17:14:12 -0400 (EDT)
-Received: by mail-oi1-f200.google.com with SMTP id o6-v6so4785657oib.9
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 14:14:12 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m22-v6sor1278476oic.162.2018.10.03.14.14.10
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E0D116B000A
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 17:21:28 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id l6-v6so5321842qtc.12
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 14:21:28 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o7-v6si1033543qta.399.2018.10.03.14.21.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 03 Oct 2018 14:14:11 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Oct 2018 14:21:28 -0700 (PDT)
+Date: Wed, 3 Oct 2018 23:21:44 +0200
+From: Eugene Syromiatnikov <esyr@redhat.com>
+Subject: Re: [RFC PATCH v4 24/27] mm/mmap: Create a guard area between VMAs
+Message-ID: <20181003212029.GH32759@asgard.redhat.com>
+References: <20180921150351.20898-1-yu-cheng.yu@intel.com>
+ <20180921150351.20898-25-yu-cheng.yu@intel.com>
+ <20181003045611.GB22724@asgard.redhat.com>
+ <CALCETrU-Ny-uC1NqRedQwNKe2MMhsFEqZ08TtHJwbLfCACMmLw@mail.gmail.com>
+ <5ddb0ad33298d1858e530fce9c9ea2788b2fac81.camel@intel.com>
+ <20181003163226.GC9449@asgard.redhat.com>
+ <CAG48ez0KZYv9BECMm0-BNypJ232jrdkFp6_4VYTA=WoB-8w89w@mail.gmail.com>
 MIME-Version: 1.0
-References: <20181002142959.GD9127@quack2.suse.cz> <20181002143713.GA19845@infradead.org>
- <20181002144412.GC4963@linux-x5ow.site> <20181002145206.GA10903@infradead.org>
- <20181002153100.GG9127@quack2.suse.cz> <CAPcyv4j0tTD+rENqFExA68aw=-MmtCBaOe1qJovyrmJC=yBg-Q@mail.gmail.com>
- <20181003125056.GA21043@quack2.suse.cz> <CAPcyv4jfV10yuTiPg6ijsPRRL2-c_48ovfpU5TK1Zu7BWnfk3g@mail.gmail.com>
- <20181003150658.GC24030@quack2.suse.cz> <CAPcyv4iJvN6_Cf6tw=5a=Uh99LfMFKU7n8QkGcz1ZaxL0Oi-3w@mail.gmail.com>
- <20181003164407.GK24030@quack2.suse.cz>
-In-Reply-To: <20181003164407.GK24030@quack2.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 3 Oct 2018 14:13:59 -0700
-Message-ID: <CAPcyv4iCXNYTSzwU5OoZc_b+xxbqKwjyQV74CRxEfvDjaMPDfg@mail.gmail.com>
-Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAG48ez0KZYv9BECMm0-BNypJ232jrdkFp6_4VYTA=WoB-8w89w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Christoph Hellwig <hch@infradead.org>, Johannes Thumshirn <jthumshirn@suse.de>, Dave Jiang <dave.jiang@intel.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Jann Horn <jannh@google.com>
+Cc: yu-cheng.yu@intel.com, Andy Lutomirski <luto@amacapital.net>, the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, rdunlap@infradead.org, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com
 
-On Wed, Oct 3, 2018 at 9:46 AM Jan Kara <jack@suse.cz> wrote:
->
-> On Wed 03-10-18 08:13:37, Dan Williams wrote:
-> > On Wed, Oct 3, 2018 at 8:07 AM Jan Kara <jack@suse.cz> wrote:
-> > > WRT per-inode DAX property, AFAIU that inode flag is just going to be
-> > > advisory thing - i.e., use DAX if possible. If you mount a filesystem with
-> > > these inode flags set in a configuration which does not allow DAX to be
-> > > used, you will still be able to access such inodes but the access will use
-> > > page cache instead. And querying these flags should better show real
-> > > on-disk status and not just whether DAX is used as that would result in an
-> > > even bigger mess. So this feature seems to be somewhat orthogonal to the
-> > > API I'm looking for.
-> >
-> > True, I imagine once we have that flag we will be able to distinguish
-> > the "saved" property and the "effective / live" property of DAX...
-> > Also it's really not DAX that applications care about as much as "is
-> > there page-cache indirection / overhead for this mapping?". That seems
-> > to be a narrower guarantee that we can make than what "DAX" might
-> > imply.
->
-> Right. So what do people think about my suggestion earlier in the thread to
-> use madvise(MADV_DIRECT_ACCESS) for this? Currently it would return success
-> when DAX is in use, failure otherwise. Later we could extend it to be also
-> used as a hint for caching policy for the inode...
+On Wed, Oct 03, 2018 at 06:52:40PM +0200, Jann Horn wrote:
+> On Wed, Oct 3, 2018 at 6:32 PM Eugene Syromiatnikov <esyr@redhat.com> wrote:
+> > I'm not sure, however, whether such a change that provides no ability
+> > to configure or affect it will go well with all the supported
+> > architectures.
+> 
+> Is there a concrete reason why you think an architecture might not
+> like this? As far as I can tell, the virtual address space overhead
+> should be insignificant even for 32-bit systems.
 
-The only problem is that you can't use it purely as a query. If we
-ever did plumb it to be a hint you could not read the state without
-writing the state.
+Not really, and not architectures per se, but judging by some past
+experiences with enabling ASLR, I would expect that all kinds of weird
+applications may start to behave in all kinds of strange ways.
 
-mincore(2) seems to be close the intent of discovering whether RAM is
-being consumed for a given address range, but it currently is
-implemented to only indicate if *any* mapping is established, not
-whether RAM is consumed. I can see an argument that a dax mapped file
-should always report an empty mincore vector.
+Not that I have anything more than this doubt, however; but this sort of
+change without any ability to tune or revert it still looks unusual to me.
