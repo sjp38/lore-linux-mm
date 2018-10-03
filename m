@@ -1,52 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B9456B0271
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 09:38:23 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id d18-v6so5049077qtj.20
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 06:38:23 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p9-v6si924977qvd.85.2018.10.03.06.38.22
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B1EBB6B0273
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 09:39:09 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id 43-v6so5566070ple.19
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 06:39:09 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 3-v6si1681623pln.324.2018.10.03.06.39.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Oct 2018 06:38:22 -0700 (PDT)
-From: Vitaly Kuznetsov <vkuznets@redhat.com>
-Subject: Re: [PATCH RFC] mm/memory_hotplug: Introduce memory block types
-In-Reply-To: <98fb8d65-b641-2225-f842-8804c6f79a06@redhat.com>
-References: <20180928150357.12942-1-david@redhat.com> <20181001084038.GD18290@dhcp22.suse.cz> <d54a8509-725f-f771-72f0-15a9d93e8a49@redhat.com> <20181002134734.GT18290@dhcp22.suse.cz> <98fb8d65-b641-2225-f842-8804c6f79a06@redhat.com>
-Date: Wed, 03 Oct 2018 15:38:04 +0200
-Message-ID: <8736tndubn.fsf@vitty.brq.redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 03 Oct 2018 06:39:08 -0700 (PDT)
+Date: Wed, 3 Oct 2018 06:38:56 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC PATCH v4 09/27] x86/mm: Change _PAGE_DIRTY to _PAGE_DIRTY_HW
+Message-ID: <20181003133856.GA24782@bombadil.infradead.org>
+References: <20180921150351.20898-1-yu-cheng.yu@intel.com>
+ <20180921150351.20898-10-yu-cheng.yu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180921150351.20898-10-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Kate Stewart <kstewart@linuxfoundation.org>, Rich Felker <dalias@libc.org>, linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Balbir Singh <bsingharora@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, Pavel Tatashin <pavel.tatashin@microsoft.com>, Paul Mackerras <paulus@samba.org>, "H.
- Peter Anvin" <hpa@zytor.com>, Rashmica Gupta <rashmica.g@gmail.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-s390@vger.kernel.org, Michael Neuling <mikey@neuling.org>, Stephen Hemminger <sthemmin@microsoft.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Michael Ellerman <mpe@ellerman.id.au>, linux-acpi@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, xen-devel@lists.xenproject.org, Rob Herring <robh@kernel.org>, Len Brown <lenb@kernel.org>, Fenghua Yu <fenghua.yu@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, "mike.travis@hpe.com" <mike.travis@hpe.com>, Haiyang Zhang <haiyangz@microsoft.com>, Dan Williams <dan.j.williams@intel.com>, Jonathan =?utf-8?Q?Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>, Nicholas Piggin <npiggin@gmail.com>, Joe Perches <joe@perches.com>, =?utf-8?B?SsOpcsO0?= =?utf-8?B?bWU=?= Glisse <jglisse@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Oscar Salvador <osalvador@suse.de>, Juergen Gross <jgross@suse.com>, Tony Luck <tony.luck@intel.com>, Mathieu Malaterre <malat@debian.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, linux-kernel@vger.kernel.org, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Philippe Ombredanne <pombredanne@nexb.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, devel@linuxdriverproject.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-David Hildenbrand <david@redhat.com> writes:
+On Fri, Sep 21, 2018 at 08:03:33AM -0700, Yu-cheng Yu wrote:
+> We are going to create _PAGE_DIRTY_SW for non-hardware, memory
+> management purposes.  Rename _PAGE_DIRTY to _PAGE_DIRTY_HW and
+> _PAGE_BIT_DIRTY to _PAGE_BIT_DIRTY_HW to make these PTE dirty
+> bits more clear.  There are no functional changes in this
+> patch.
 
-> On 02/10/2018 15:47, Michal Hocko wrote:
-...
->> 
->> Why do you need a generic hotplug rule in the first place? Why don't you
->> simply provide different set of rules for different usecases? Let users
->> decide which usecase they prefer rather than try to be clever which
->> almost always hits weird corner cases.
->> 
->
-> Memory hotplug has to work as reliable as we can out of the box. Letting
-> the user make simple decisions like "oh, I am on hyper-V, I want to
-> online memory to the normal zone" does not feel right. But yes, we
-> should definitely allow to make modifications.
+I would like there to be some documentation in this patchset which
+explains the difference between PAGE_SOFT_DIRTY and PAGE_DIRTY_SW.
 
-Last time I was thinking about the imperfectness of the auto-online
-solution we have and any other solution we're able to suggest an idea
-came to my mind - what if we add an eBPF attach point to the
-auto-onlining mechanism effecively offloading decision-making to
-userspace. We'll of couse need to provide all required data (e.g. how
-memory blocks are aligned with physical DIMMs as it makes no sense to
-online part of DIMM as normal and the rest as movable as it's going to
-be impossible to unplug such DIMM anyways).
-
--- 
-Vitaly
+Also, is it really necessary to rename PAGE_DIRTY?  It feels like a
+lot of churn.
