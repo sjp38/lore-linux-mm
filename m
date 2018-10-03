@@ -1,61 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 176536B0266
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 09:21:59 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c26-v6so3183330eda.7
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 06:21:59 -0700 (PDT)
-Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
-        by mx.google.com with ESMTPS id t21-v6si1012882ejf.152.2018.10.03.06.21.57
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 54CD66B026B
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 09:27:16 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id v188-v6so3649959oie.3
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 06:27:16 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id o56-v6si753856otb.49.2018.10.03.06.27.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Oct 2018 06:21:57 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id 502EE1C1EFE
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 14:21:57 +0100 (IST)
-Date: Wed, 3 Oct 2018 14:21:55 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 2/2] mm, numa: Migrate pages to local nodes quicker early
- in the lifetime of a task
-Message-ID: <20181003132155.GD7003@techsingularity.net>
-References: <20181001100525.29789-1-mgorman@techsingularity.net>
- <20181001100525.29789-3-mgorman@techsingularity.net>
- <20181002124149.GB4593@linux.vnet.ibm.com>
- <20181002135459.GA7003@techsingularity.net>
- <20181002173005.GD4593@linux.vnet.ibm.com>
- <20181003130741.GA4488@linux.vnet.ibm.com>
+        Wed, 03 Oct 2018 06:27:14 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w93DOIDT084084
+	for <linux-mm@kvack.org>; Wed, 3 Oct 2018 09:27:13 -0400
+Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2mvwvm29mm-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 03 Oct 2018 09:27:13 -0400
+Received: from localhost
+	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <mwb@linux.vnet.ibm.com>;
+	Wed, 3 Oct 2018 07:27:12 -0600
+Subject: Re: [PATCH] migration/mm: Add WARN_ON to try_offline_node
+References: <20181001185616.11427.35521.stgit@ltcalpine2-lp9.aus.stglabs.ibm.com>
+ <20181001202724.GL18290@dhcp22.suse.cz>
+ <bdbca329-7d35-0535-1737-94a06a19ae28@linux.vnet.ibm.com>
+ <df95f828-1963-d8b9-ab58-6d29d2d152d2@linux.vnet.ibm.com>
+ <20181002145922.GZ18290@dhcp22.suse.cz>
+ <d338b385-626b-0e79-9944-708178fe245d@linux.vnet.ibm.com>
+ <20181002160446.GA18290@dhcp22.suse.cz>
+ <e7dd66c1-d196-3a14-0115-acdaf538ebfd@linux.vnet.ibm.com>
+ <bbc5f219-614f-b024-0888-8ad216c5eaf8@linux.vnet.ibm.com>
+From: Michael Bringmann <mwb@linux.vnet.ibm.com>
+Date: Wed, 3 Oct 2018 08:27:03 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20181003130741.GA4488@linux.vnet.ibm.com>
+In-Reply-To: <bbc5f219-614f-b024-0888-8ad216c5eaf8@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <17781f9e-abfb-8c1e-eb18-39571d1b5cd6@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Jirka Hladky <jhladky@redhat.com>, Rik van Riel <riel@surriel.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Tyrel Datwyler <tyreld@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Thomas Falcon <tlfalcon@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Mathieu Malaterre <malat@debian.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Nicholas Piggin <npiggin@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Juliet Kim <minkim@us.ibm.com>, Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, linuxppc-dev@lists.ozlabs.org, Dan Williams <dan.j.williams@intel.com>, Oscar Salvador <osalvador@suse.de>
 
-On Wed, Oct 03, 2018 at 06:37:41PM +0530, Srikar Dronamraju wrote:
-> * Srikar Dronamraju <srikar@linux.vnet.ibm.com> [2018-10-02 23:00:05]:
+On 10/02/2018 02:45 PM, Tyrel Datwyler wrote:
+> On 10/02/2018 11:13 AM, Michael Bringmann wrote:
+>>
+>>
+>> On 10/02/2018 11:04 AM, Michal Hocko wrote:
+>>> On Tue 02-10-18 10:14:49, Michael Bringmann wrote:
+>>>> On 10/02/2018 09:59 AM, Michal Hocko wrote:
+>>>>> On Tue 02-10-18 09:51:40, Michael Bringmann wrote:
+>>>>> [...]
+>>>>>> When the device-tree affinity attributes have changed for memory,
+>>>>>> the 'nid' affinity calculated points to a different node for the
+>>>>>> memory block than the one used to install it, previously on the
+>>>>>> source system.  The newly calculated 'nid' affinity may not yet
+>>>>>> be initialized on the target system.  The current memory tracking
+>>>>>> mechanisms do not record the node to which a memory block was
+>>>>>> associated when it was added.  Nathan is looking at adding this
+>>>>>> feature to the new implementation of LMBs, but it is not there
+>>>>>> yet, and won't be present in earlier kernels without backporting a
+>>>>>> significant number of changes.
+>>>>>
+>>>>> Then the patch you have proposed here just papers over a real issue, no?
+>>>>> IIUC then you simply do not remove the memory if you lose the race.
+>>>>
+>>>> The problem occurs when removing memory after an affinity change
+>>>> references a node that was previously unreferenced.  Other code
+>>>> in 'kernel/mm/memory_hotplug.c' deals with initializing an empty
+>>>> node when adding memory to a system.  The 'removing memory' case is
+>>>> specific to systems that perform LPM and allow device-tree changes.
+>>>> The powerpc kernel does not have the option of accepting some PRRN
+>>>> requests and accepting others.  It must perform them all.
+>>>
+>>> I am sorry, but you are still too cryptic for me. Either there is a
+>>> correctness issue and the the patch doesn't really fix anything or the
+>>> final race doesn't make any difference and then the ppc code should be
+>>> explicit about that. Checking the node inside the hotplug core code just
+>>> looks as a wrong layer to mitigate an arch specific problem. I am not
+>>> saying the patch is a no-go but if anything we want a big fat comment
+>>> explaining how this is possible because right now it just points to an
+>>> incorrect API usage.
+>>>
+>>> That being said, this sounds pretty much ppc specific problem and I
+>>> would _prefer_ it to be handled there (along with a big fat comment of
+>>> course).
+>>
+>> Let me try again.  Regardless of the path to which we get to this condition,
+>> we currently crash the kernel.  This patch changes that to a WARN_ON notice
+>> and continues executing the kernel without shutting down the system.  I saw
+>> the problem during powerpc testing, because that is the focus of my work.
+>> There are other paths to this function besides powerpc.  I feel that the
+>> kernel should keep running instead of halting.
 > 
-> > I will try to get a DayTrader run in a day or two. There JVM and db threads
-> > act on the same memory, I presume it might show some insights.
-> 
-> I ran 2 runs of daytrader 7 with and without patch on a 2 node power9
-> PowerNv box.
-> https://github.com/WASdev/sample.daytrader7
-> In each run, has 8 JVMs.
-> 
-> Throughputs (Higher are better)
-> Without patch 19216.8 18900.7 Average: 19058.75
-> With patch    18644.5 18480.9 Average: 18562.70
-> 
-> Difference being -2.6% regression
-> 
+> This is still basically a hack to get around a known race. In itself this patch is still worth while in that we shouldn't crash the kernel on a null pointer dereference. However, I think the actual problem still needs to be addressed. We shouldn't run any PRRN events for the source system on the target after a migration. The device tree update should have taken care of telling us about new affinities and what not. Can we just throw out any queued PRRN events when we wake up on the target?
 
-That's unfortunate.
+We are not talking about queued events provided on the source system, but about
+new PRRN events sent by phyp to the kernel on the target system to update the
+kernel state after migration.  No way to predict the content.
 
-How much does this workload normally vary between runs? If you monitor
-migrations over time, is there an increase spike in migration early in
-the lifetime of the workload?
+> 
+> -Tyrel
+>>
+>> Regards,
+>>
+
+Michael
 
 -- 
-Mel Gorman
-SUSE Labs
+Michael W. Bringmann
+Linux Technology Center
+IBM Corporation
+Tie-Line  363-5196
+External: (512) 286-5196
+Cell:       (512) 466-0650
+mwb@linux.vnet.ibm.com
