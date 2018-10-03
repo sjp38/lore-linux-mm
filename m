@@ -1,40 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AB6C16B0007
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 01:36:29 -0400 (EDT)
-Received: by mail-wm1-f69.google.com with SMTP id y203-v6so3229560wmg.9
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 22:36:29 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F39A6B000A
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 01:40:16 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id e6-v6so1543373pge.5
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2018 22:40:16 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r9-v6sor173621wro.10.2018.10.02.22.36.27
+        by mx.google.com with SMTPS id u5-v6sor183634pgq.14.2018.10.02.22.40.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 02 Oct 2018 22:36:28 -0700 (PDT)
+        Tue, 02 Oct 2018 22:40:15 -0700 (PDT)
+From: Lance Roy <ldr709@gmail.com>
+Subject: [PATCH 13/16] mm: Replace spin_is_locked() with lockdep
+Date: Tue,  2 Oct 2018 22:38:59 -0700
+Message-Id: <20181003053902.6910-14-ldr709@gmail.com>
+In-Reply-To: <20181003053902.6910-1-ldr709@gmail.com>
+References: <20181003053902.6910-1-ldr709@gmail.com>
+Reply-To: Lance Roy <ldr709@gmail.com>
 MIME-Version: 1.0
-References: <20180921150351.20898-1-yu-cheng.yu@intel.com> <20180921150351.20898-25-yu-cheng.yu@intel.com>
- <20181003045611.GB22724@asgard.redhat.com>
-In-Reply-To: <20181003045611.GB22724@asgard.redhat.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 2 Oct 2018 22:36:15 -0700
-Message-ID: <CALCETrU-Ny-uC1NqRedQwNKe2MMhsFEqZ08TtHJwbLfCACMmLw@mail.gmail.com>
-Subject: Re: [RFC PATCH v4 24/27] mm/mmap: Create a guard area between VMAs
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eugene Syromiatnikov <esyr@redhat.com>
-Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>
+To: linux-kernel@vger.kernel.org
+Cc: "Paul E. McKenney" <paulmck@linux.ibm.com>, Lance Roy <ldr709@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Yang Shi <yang.shi@linux.alibaba.com>, Matthew Wilcox <mawilcox@microsoft.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org
 
-On Tue, Oct 2, 2018 at 9:55 PM Eugene Syromiatnikov <esyr@redhat.com> wrote:
->
-> On Fri, Sep 21, 2018 at 08:03:48AM -0700, Yu-cheng Yu wrote:
-> > Create a guard area between VMAs, to detect memory corruption.
->
-> Do I understand correctly that with this patch a user space program
-> no longer be able to place two mappings back to back? If it is so,
-> it will likely break a lot of things; for example, it's a common ring
-> buffer implementations technique, to map buffer memory twice back
-> to back in order to avoid special handling of items wrapping its end.
+lockdep_assert_held() is better suited to checking locking requirements,
+since it won't get confused when someone else holds the lock. This is
+also a step towards possibly removing spin_is_locked().
 
-I haven't checked what the patch actually does, but it shouldn't have
-any affect on MAP_FIXED or the new no-replace MAP_FIXED variant.
+Signed-off-by: Lance Roy <ldr709@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Shakeel Butt <shakeelb@google.com>
+Cc: <linux-mm@kvack.org>
+---
+ mm/khugepaged.c | 4 ++--
+ mm/swap.c       | 3 +--
+ 2 files changed, 3 insertions(+), 4 deletions(-)
 
---Andy
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index a31d740e6cd1..80f12467ccb3 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -1225,7 +1225,7 @@ static void collect_mm_slot(struct mm_slot *mm_slot)
+ {
+ 	struct mm_struct *mm = mm_slot->mm;
+ 
+-	VM_BUG_ON(NR_CPUS != 1 && !spin_is_locked(&khugepaged_mm_lock));
++	lockdep_assert_held(&khugepaged_mm_lock);
+ 
+ 	if (khugepaged_test_exit(mm)) {
+ 		/* free mm_slot */
+@@ -1665,7 +1665,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
+ 	int progress = 0;
+ 
+ 	VM_BUG_ON(!pages);
+-	VM_BUG_ON(NR_CPUS != 1 && !spin_is_locked(&khugepaged_mm_lock));
++	lockdep_assert_held(&khugepaged_mm_lock);
+ 
+ 	if (khugepaged_scan.mm_slot)
+ 		mm_slot = khugepaged_scan.mm_slot;
+diff --git a/mm/swap.c b/mm/swap.c
+index 26fc9b5f1b6c..c89eb442c0bf 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -824,8 +824,7 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
+ 	VM_BUG_ON_PAGE(!PageHead(page), page);
+ 	VM_BUG_ON_PAGE(PageCompound(page_tail), page);
+ 	VM_BUG_ON_PAGE(PageLRU(page_tail), page);
+-	VM_BUG_ON(NR_CPUS != 1 &&
+-		  !spin_is_locked(&lruvec_pgdat(lruvec)->lru_lock));
++	lockdep_assert_held(&lruvec_pgdat(lruvec)->lru_lock);
+ 
+ 	if (!list)
+ 		SetPageLRU(page_tail);
+-- 
+2.19.0
