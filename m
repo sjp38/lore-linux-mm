@@ -1,290 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DD1BE6B0275
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 09:39:53 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i76-v6so2962838pfk.14
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 06:39:53 -0700 (PDT)
-Received: from alexa-out-blr-01.qualcomm.com (alexa-out-blr-01.qualcomm.com. [103.229.18.197])
-        by mx.google.com with ESMTPS id a34-v6si1629055pld.149.2018.10.03.06.39.51
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BCAC6B0277
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 09:44:51 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id c13-v6so1066395ede.6
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 06:44:51 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z61-v6si1868579ede.349.2018.10.03.06.44.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Oct 2018 06:39:51 -0700 (PDT)
-From: Arun KS <arunks@codeaurora.org>
-Subject: [PATCH v4] memory_hotplug: Free pages as higher order
-Date: Wed,  3 Oct 2018 19:09:39 +0530
-Message-Id: <1538573979-28365-1-git-send-email-arunks@codeaurora.org>
+        Wed, 03 Oct 2018 06:44:50 -0700 (PDT)
+Date: Wed, 3 Oct 2018 15:44:44 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH RFC] mm/memory_hotplug: Introduce memory block types
+Message-ID: <20181003134444.GH4714@dhcp22.suse.cz>
+References: <20180928150357.12942-1-david@redhat.com>
+ <20181001084038.GD18290@dhcp22.suse.cz>
+ <d54a8509-725f-f771-72f0-15a9d93e8a49@redhat.com>
+ <20181002134734.GT18290@dhcp22.suse.cz>
+ <98fb8d65-b641-2225-f842-8804c6f79a06@redhat.com>
+ <8736tndubn.fsf@vitty.brq.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <8736tndubn.fsf@vitty.brq.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, gregkh@linuxfoundation.org, osalvador@suse.de, malat@debian.org, kirill.shutemov@linux.intel.com, jrdr.linux@gmail.com, yasu.isimatu@gmail.com, mgorman@techsingularity.net, aaron.lu@intel.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org
-Cc: vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com, Arun KS <arunks@codeaurora.org>
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: David Hildenbrand <david@redhat.com>, Kate Stewart <kstewart@linuxfoundation.org>, Rich Felker <dalias@libc.org>, linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Balbir Singh <bsingharora@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, Pavel Tatashin <pavel.tatashin@microsoft.com>, Paul Mackerras <paulus@samba.org>, "H. Peter Anvin" <hpa@zytor.com>, Rashmica Gupta <rashmica.g@gmail.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-s390@vger.kernel.org, Michael Neuling <mikey@neuling.org>, Stephen Hemminger <sthemmin@microsoft.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Michael Ellerman <mpe@ellerman.id.au>, linux-acpi@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, xen-devel@lists.xenproject.org, Rob Herring <robh@kernel.org>, Len Brown <lenb@kernel.org>, Fenghua Yu <fenghua.yu@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, "mike.travis@hpe.com" <mike.travis@hpe.com>, Haiyang Zhang <haiyangz@microsoft.com>, Dan Williams <dan.j.williams@intel.com>, Jonathan =?iso-8859-1?Q?Neusch=E4fer?= <j.neuschaefer@gmx.net>, Nicholas Piggin <npiggin@gmail.com>, Joe Perches <joe@perches.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Oscar Salvador <osalvador@suse.de>, Juergen Gross <jgross@suse.com>, Tony Luck <tony.luck@intel.com>, Mathieu Malaterre <malat@debian.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, linux-kernel@vger.kernel.org, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Philippe Ombredanne <pombredanne@nexb.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, devel@linuxdriverproject.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-When free pages are done with higher order, time spend on
-coalescing pages by buddy allocator can be reduced. With
-section size of 256MB, hot add latency of a single section
-shows improvement from 50-60 ms to less than 1 ms, hence
-improving the hot add latency by 60%. Modify external
-providers of online callback to align with the change.
-Also remove prefetch from __free_pages_core().
+On Wed 03-10-18 15:38:04, Vitaly Kuznetsov wrote:
+> David Hildenbrand <david@redhat.com> writes:
+> 
+> > On 02/10/2018 15:47, Michal Hocko wrote:
+> ...
+> >> 
+> >> Why do you need a generic hotplug rule in the first place? Why don't you
+> >> simply provide different set of rules for different usecases? Let users
+> >> decide which usecase they prefer rather than try to be clever which
+> >> almost always hits weird corner cases.
+> >> 
+> >
+> > Memory hotplug has to work as reliable as we can out of the box. Letting
+> > the user make simple decisions like "oh, I am on hyper-V, I want to
+> > online memory to the normal zone" does not feel right. But yes, we
+> > should definitely allow to make modifications.
+> 
+> Last time I was thinking about the imperfectness of the auto-online
+> solution we have and any other solution we're able to suggest an idea
+> came to my mind - what if we add an eBPF attach point to the
+> auto-onlining mechanism effecively offloading decision-making to
+> userspace. We'll of couse need to provide all required data (e.g. how
+> memory blocks are aligned with physical DIMMs as it makes no sense to
+> online part of DIMM as normal and the rest as movable as it's going to
+> be impossible to unplug such DIMM anyways).
 
-Signed-off-by: Arun KS <arunks@codeaurora.org>
----
-Changes since v3:
-- renamed _free_pages_boot_core -> __free_pages_core.
-- removed prefetch from __free_pages_core.
-- removed xen_online_page().
+And how does that differ from the notification mechanism we have? Just
+by not relying on the process scheduling? If yes then this revolves
+around the implementation detail that you care about time-to-hot-add
+vs. time-to-online. And that is a solveable problem - just allocate
+memmaps from the hot-added memory.
 
-Changes since v2:
-- reuse code from __free_pages_boot_core().
-
-Changes since v1:
-- Removed prefetch().
-
-Changes since RFC:
-- Rebase.
-- As suggested by Michal Hocko remove pages_per_block.
-- Modifed external providers of online_page_callback.
-
-v3: https://lore.kernel.org/patchwork/patch/992348/
-v2: https://lore.kernel.org/patchwork/patch/991363/
-v1: https://lore.kernel.org/patchwork/patch/989445/
-RFC: https://lore.kernel.org/patchwork/patch/984754/
-
----
- drivers/hv/hv_balloon.c        |  6 ++++--
- drivers/xen/balloon.c          | 23 ++++++++++++++--------
- include/linux/memory_hotplug.h |  2 +-
- mm/internal.h                  |  1 +
- mm/memory_hotplug.c            | 44 ++++++++++++++++++++++++++++++------------
- mm/page_alloc.c                | 14 +++++---------
- 6 files changed, 58 insertions(+), 32 deletions(-)
-
-diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
-index b1b7880..c5bc0b5 100644
---- a/drivers/hv/hv_balloon.c
-+++ b/drivers/hv/hv_balloon.c
-@@ -771,7 +771,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
- 	}
- }
- 
--static void hv_online_page(struct page *pg)
-+static int hv_online_page(struct page *pg, unsigned int order)
- {
- 	struct hv_hotadd_state *has;
- 	unsigned long flags;
-@@ -783,10 +783,12 @@ static void hv_online_page(struct page *pg)
- 		if ((pfn < has->start_pfn) || (pfn >= has->end_pfn))
- 			continue;
- 
--		hv_page_online_one(has, pg);
-+		hv_bring_pgs_online(has, pfn, (1UL << order));
- 		break;
- 	}
- 	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
-+
-+	return 0;
- }
- 
- static int pfn_covered(unsigned long start_pfn, unsigned long pfn_cnt)
-diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index e12bb25..58ddf48 100644
---- a/drivers/xen/balloon.c
-+++ b/drivers/xen/balloon.c
-@@ -390,8 +390,8 @@ static enum bp_state reserve_additional_memory(void)
- 
- 	/*
- 	 * add_memory_resource() will call online_pages() which in its turn
--	 * will call xen_online_page() callback causing deadlock if we don't
--	 * release balloon_mutex here. Unlocking here is safe because the
-+	 * will call xen_bring_pgs_online() callback causing deadlock if we
-+	 * don't release balloon_mutex here. Unlocking here is safe because the
- 	 * callers drop the mutex before trying again.
- 	 */
- 	mutex_unlock(&balloon_mutex);
-@@ -411,15 +411,22 @@ static enum bp_state reserve_additional_memory(void)
- 	return BP_ECANCELED;
- }
- 
--static void xen_online_page(struct page *page)
-+static int xen_bring_pgs_online(struct page *pg, unsigned int order)
- {
--	__online_page_set_limits(page);
-+	unsigned long i, size = (1 << order);
-+	unsigned long start_pfn = page_to_pfn(pg);
-+	struct page *p;
- 
-+	pr_debug("Online %lu pages starting at pfn 0x%lx\n", size, start_pfn);
- 	mutex_lock(&balloon_mutex);
--
--	__balloon_append(page);
--
-+	for (i = 0; i < size; i++) {
-+		p = pfn_to_page(start_pfn + i);
-+		__online_page_set_limits(p);
-+		__balloon_append(p);
-+	}
- 	mutex_unlock(&balloon_mutex);
-+
-+	return 0;
- }
- 
- static int xen_memory_notifier(struct notifier_block *nb, unsigned long val, void *v)
-@@ -744,7 +751,7 @@ static int __init balloon_init(void)
- 	balloon_stats.max_retry_count = RETRY_UNLIMITED;
- 
- #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
--	set_online_page_callback(&xen_online_page);
-+	set_online_page_callback(&xen_bring_pgs_online);
- 	register_memory_notifier(&xen_memory_nb);
- 	register_sysctl_table(xen_root);
- 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 34a2822..7b04c1d 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -87,7 +87,7 @@ extern int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
- 	unsigned long *valid_start, unsigned long *valid_end);
- extern void __offline_isolated_pages(unsigned long, unsigned long);
- 
--typedef void (*online_page_callback_t)(struct page *page);
-+typedef int (*online_page_callback_t)(struct page *page, unsigned int order);
- 
- extern int set_online_page_callback(online_page_callback_t callback);
- extern int restore_online_page_callback(online_page_callback_t callback);
-diff --git a/mm/internal.h b/mm/internal.h
-index 87256ae..636679c 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -163,6 +163,7 @@ static inline struct page *pageblock_pfn_to_page(unsigned long start_pfn,
- extern int __isolate_free_page(struct page *page, unsigned int order);
- extern void __free_pages_bootmem(struct page *page, unsigned long pfn,
- 					unsigned int order);
-+extern void __free_pages_core(struct page *page, unsigned int order);
- extern void prep_compound_page(struct page *page, unsigned int order);
- extern void post_alloc_hook(struct page *page, unsigned int order,
- 					gfp_t gfp_flags);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 38d94b7..6223021 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -47,7 +47,7 @@
-  * and restore_online_page_callback() for generic callback restore.
-  */
- 
--static void generic_online_page(struct page *page);
-+static int generic_online_page(struct page *page, unsigned int order);
- 
- static online_page_callback_t online_page_callback = generic_online_page;
- static DEFINE_MUTEX(online_page_callback_lock);
-@@ -655,26 +655,46 @@ void __online_page_free(struct page *page)
- }
- EXPORT_SYMBOL_GPL(__online_page_free);
- 
--static void generic_online_page(struct page *page)
-+static int generic_online_page(struct page *page, unsigned int order)
- {
--	__online_page_set_limits(page);
--	__online_page_increment_counters(page);
--	__online_page_free(page);
-+	__free_pages_core(page, order);
-+	totalram_pages += (1UL << order);
-+#ifdef CONFIG_HIGHMEM
-+	if (PageHighMem(page))
-+		totalhigh_pages += (1UL << order);
-+#endif
-+	return 0;
-+}
-+
-+static int online_pages_blocks(unsigned long start, unsigned long nr_pages)
-+{
-+	unsigned long end = start + nr_pages;
-+	int order, ret, onlined_pages = 0;
-+
-+	while (start < end) {
-+		order = min(MAX_ORDER - 1UL, __ffs(start));
-+
-+		while (start + (1UL << order) > end)
-+			order--;
-+
-+		ret = (*online_page_callback)(pfn_to_page(start), order);
-+		if (!ret)
-+			onlined_pages += (1UL << order);
-+		else if (ret > 0)
-+			onlined_pages += ret;
-+
-+		start += (1UL << order);
-+	}
-+	return onlined_pages;
- }
- 
- static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
- 			void *arg)
- {
--	unsigned long i;
- 	unsigned long onlined_pages = *(unsigned long *)arg;
--	struct page *page;
- 
- 	if (PageReserved(pfn_to_page(start_pfn)))
--		for (i = 0; i < nr_pages; i++) {
--			page = pfn_to_page(start_pfn + i);
--			(*online_page_callback)(page);
--			onlined_pages++;
--		}
-+		onlined_pages = online_pages_blocks(start_pfn, nr_pages);
- 
- 	online_mem_sections(start_pfn, start_pfn + nr_pages);
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 89d2a2a..fea0255 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1252,20 +1252,16 @@ static void __free_pages_ok(struct page *page, unsigned int order)
- 	local_irq_restore(flags);
- }
- 
--static void __init __free_pages_boot_core(struct page *page, unsigned int order)
-+void __free_pages_core(struct page *page, unsigned int order)
- {
- 	unsigned int nr_pages = 1 << order;
- 	struct page *p = page;
- 	unsigned int loop;
- 
--	prefetchw(p);
--	for (loop = 0; loop < (nr_pages - 1); loop++, p++) {
--		prefetchw(p + 1);
-+	for (loop = 0; loop < nr_pages; loop++, p++) {
- 		__ClearPageReserved(p);
- 		set_page_count(p, 0);
- 	}
--	__ClearPageReserved(p);
--	set_page_count(p, 0);
- 
- 	page_zone(page)->managed_pages += nr_pages;
- 	set_page_refcounted(page);
-@@ -1331,7 +1327,7 @@ void __init __free_pages_bootmem(struct page *page, unsigned long pfn,
- {
- 	if (early_page_uninitialised(pfn))
- 		return;
--	return __free_pages_boot_core(page, order);
-+	return __free_pages_core(page, order);
- }
- 
- /*
-@@ -1421,14 +1417,14 @@ static void __init deferred_free_range(unsigned long pfn,
- 	if (nr_pages == pageblock_nr_pages &&
- 	    (pfn & (pageblock_nr_pages - 1)) == 0) {
- 		set_pageblock_migratetype(page, MIGRATE_MOVABLE);
--		__free_pages_boot_core(page, pageblock_order);
-+		__free_pages_core(page, pageblock_order);
- 		return;
- 	}
- 
- 	for (i = 0; i < nr_pages; i++, page++, pfn++) {
- 		if ((pfn & (pageblock_nr_pages - 1)) == 0)
- 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
--		__free_pages_boot_core(page, 0);
-+		__free_pages_core(page, 0);
- 	}
- }
- 
+As David said some of the memory cannot be onlined without further steps
+(e.g. when it is standby as David called it) and then I fail to see how
+eBPF help in any way.
 -- 
-1.9.1
+Michal Hocko
+SUSE Labs
