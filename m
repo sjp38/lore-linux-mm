@@ -1,52 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0740B6B0276
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 12:32:19 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id h8so3277915otb.4
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 09:32:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j23sor1009822ote.97.2018.10.03.09.32.18
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 06E2D6B000A
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 12:36:04 -0400 (EDT)
+Received: by mail-yb1-f197.google.com with SMTP id p18-v6so3202714ybe.0
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 09:36:04 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id g190-v6si397598ywb.196.2018.10.03.09.36.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 03 Oct 2018 09:32:18 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 03 Oct 2018 09:36:03 -0700 (PDT)
+Date: Wed, 3 Oct 2018 12:35:58 -0400
+From: "Theodore Y. Ts'o" <tytso@mit.edu>
+Subject: Re: [PATCH] mm: Fix warning in insert_pfn()
+Message-ID: <20181003163557.GA18434@thunk.org>
+References: <20180824154542.26872-1-jack@suse.cz>
 MIME-Version: 1.0
-References: <20180929013611.163130-1-jannh@google.com> <20181003162905.GK4714@dhcp22.suse.cz>
-In-Reply-To: <20181003162905.GK4714@dhcp22.suse.cz>
-From: Jann Horn <jannh@google.com>
-Date: Wed, 3 Oct 2018 18:31:50 +0200
-Message-ID: <CAG48ez1f0pXx=ZJgjmwsxtF+v_w9eJYpJKtzP7MDK1eiUOyswA@mail.gmail.com>
-Subject: Re: [PATCH] mm/vmstat: fix outdated vmstat_text
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180824154542.26872-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, clameter@sgi.com, guro@fb.com, kemi.wang@intel.com, Kees Cook <keescook@chromium.org>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, Dave Jiang <dave.jiang@intel.com>
 
-On Wed, Oct 3, 2018 at 6:29 PM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Sat 29-09-18 03:36:11, Jann Horn wrote:
-> > commit 7a9cdebdcc17 ("mm: get rid of vmacache_flush_all() entirely")
-> > removed the VMACACHE_FULL_FLUSHES statistics, but didn't remove the
-> > corresponding entry in vmstat_text. This causes an out-of-bounds access in
-> > vmstat_show().
-> >
-> > Luckily this only affects kernels with CONFIG_DEBUG_VM_VMACACHE=y, which is
-> > probably very rare.
-> >
-> > Having two gigantic arrays that must be kept in sync isn't exactly robust.
-> > To make it easier to catch such issues in the future, add a BUILD_BUG_ON().
-> >
-> > Fixes: 7a9cdebdcc17 ("mm: get rid of vmacache_flush_all() entirely")
-> > Cc: stable@vger.kernel.org
-> > Signed-off-by: Jann Horn <jannh@google.com>
->
-> Those could be two separate patches but anyway
-> Acked-by: Michal Hocko <mhocko@suse.com>
->
-> to both changes. I have burned myself on this in the past as well. Build
-> bugon would save me a lot of debugging.
+On Fri, Aug 24, 2018 at 05:45:42PM +0200, Jan Kara wrote:
+> In DAX mode a write pagefault can race with write(2) in the following
+> way:
+> 
+> CPU0                            CPU1
+>                                 write fault for mapped zero page (hole)
+> dax_iomap_rw()
+>   iomap_apply()
+>     xfs_file_iomap_begin()
+>       - allocates blocks
+>     dax_iomap_actor()
+>       invalidate_inode_pages2_range()
+>         - invalidates radix tree entries in given range
+>                                 dax_iomap_pte_fault()
+>                                   grab_mapping_entry()
+>                                     - no entry found, creates empty
+>                                   ...
+>                                   xfs_file_iomap_begin()
+>                                     - finds already allocated block
+>                                   ...
+>                                   vmf_insert_mixed_mkwrite()
+>                                     - WARNs and does nothing because there
+>                                       is still zero page mapped in PTE
+>         unmap_mapping_pages()
+> 
+> This race results in WARN_ON from insert_pfn() and is occasionally
+> triggered by fstest generic/344. Note that the race is otherwise
+> harmless as before write(2) on CPU0 is finished, we will invalidate page
+> tables properly and thus user of mmap will see modified data from
+> write(2) from that point on. So just restrict the warning only to the
+> case when the PFN in PTE is not zero page.
+> 
+> Signed-off-by: Jan Kara <jack@suse.cz>
 
-I actually sent a v2 that splits this into two patches, and adds
-another fix for nr_tlb_remote_flush and nr_tlb_remote_flush_received
-for systems with CONFIG_VM_EVENT_COUNTERS=y && CONFIG_DEBUG_TLBFLUSH=y
-&& CONFIG_SMP=n. akpm has already added the v2 patches to the mm tree.
+I don't see this in linux-next.  What's the status of this patch?
+
+Thanks,
+
+					- Ted
