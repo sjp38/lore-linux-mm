@@ -1,88 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 793AA6B0006
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 03:40:10 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id e6-v6so1672706pge.5
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 00:40:10 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n32-v6si653110pgm.469.2018.10.03.00.40.09
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F0B8D6B0006
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 04:34:04 -0400 (EDT)
+Received: by mail-it1-f197.google.com with SMTP id b124-v6so6069878itb.9
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 01:34:04 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a14sor250663itl.98.2018.10.03.01.34.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Oct 2018 00:40:09 -0700 (PDT)
-Subject: Re: [PATCH 13/16] mm: Replace spin_is_locked() with lockdep
-References: <20181003053902.6910-1-ldr709@gmail.com>
- <20181003053902.6910-14-ldr709@gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <efb9c50b-d420-18a0-2a90-9a01ef719a70@suse.cz>
-Date: Wed, 3 Oct 2018 09:37:26 +0200
+        (Google Transport Security);
+        Wed, 03 Oct 2018 01:34:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20181003053902.6910-14-ldr709@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <20180930202615.12951-1-brgl@bgdev.pl> <20181001160901.GY15943@smile.fi.intel.com>
+In-Reply-To: <20181001160901.GY15943@smile.fi.intel.com>
+From: Bartosz Golaszewski <brgl@bgdev.pl>
+Date: Wed, 3 Oct 2018 10:33:52 +0200
+Message-ID: <CAMRc=MdMda1fhRZsB96MZd=XXd5otaik9zAnAE3qXWggqhweMA@mail.gmail.com>
+Subject: Re: [PATCH v6 0/4] devres: provide and use devm_kstrdup_const()
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lance Roy <ldr709@gmail.com>, linux-kernel@vger.kernel.org
-Cc: "Paul E. McKenney" <paulmck@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Yang Shi <yang.shi@linux.alibaba.com>, Matthew Wilcox <mawilcox@microsoft.com>, Mel Gorman <mgorman@techsingularity.net>, Jan Kara <jack@suse.cz>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: "Rafael J . Wysocki" <rafael@kernel.org>, Jassi Brar <jassisinghbrar@gmail.com>, Thierry Reding <thierry.reding@gmail.com>, Jonathan Hunter <jonathanh@nvidia.com>, Arnd Bergmann <arnd@arndb.de>, Geert Uytterhoeven <geert@linux-m68k.org>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-tegra@vger.kernel.org, "open list:GENERIC INCLUDE/ASM HEADER FILES" <linux-arch@vger.kernel.org>, linux-mm@kvack.org
 
-On 10/3/18 7:38 AM, Lance Roy wrote:
-> lockdep_assert_held() is better suited to checking locking requirements,
-> since it won't get confused when someone else holds the lock. This is
-> also a step towards possibly removing spin_is_locked().
+pon., 1 pa=C5=BA 2018 o 18:14 Andy Shevchenko
+<andriy.shevchenko@linux.intel.com> napisa=C5=82(a):
+>
+> On Sun, Sep 30, 2018 at 10:26:11PM +0200, Bartosz Golaszewski wrote:
+> > This series implements devm_kstrdup_const() together with some
+> > prerequisite changes and uses it in tegra-hsp driver.
+>
+> Thanks!
+> For the first three,
+> Reviewed-by: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+>
+> >
+> > v1 -> v2:
+> > - fixed the changelog in the patch implementing devm_kstrdup_const()
+> > - fixed the kernel doc
+> > - moved is_kernel_rodata() to asm-generic/sections.h
+> > - fixed constness
+> >
+> > v2 -> v3:
+> > - rebased on top of 4.19-rc5 as there were some conflicts in the
+> >   pmc-atom driver
+> > - collected Reviewed-by tags
+> >
+> > v3 -> v4:
+> > - Andy NAK'ed patch 4/4 so I added a different example
+> > - collected more tags
+> >
+> > v4 -> v5:
+> > - instead of providing devm_kfree_const(), make devm_kfree() check if
+> >   given pointer is not in .rodata and act accordingly
+> >
+> > v5 -> v6:
+> > - fixed the commit message in patch 2/4 (s/devm_kfree_const/devm_kfree/=
+)
+> > - collected even more tags
+> >
+> > Bartosz Golaszewski (4):
+> >   devres: constify p in devm_kfree()
+> >   mm: move is_kernel_rodata() to asm-generic/sections.h
+> >   devres: provide devm_kstrdup_const()
+> >   mailbox: tegra-hsp: use devm_kstrdup_const()
+> >
+> >  drivers/base/devres.c          | 36 +++++++++++++++++++++++++++--
+> >  drivers/mailbox/tegra-hsp.c    | 41 ++++++++--------------------------
+> >  include/asm-generic/sections.h | 14 ++++++++++++
+> >  include/linux/device.h         |  4 +++-
+> >  mm/util.c                      |  7 ------
+> >  5 files changed, 60 insertions(+), 42 deletions(-)
+> >
+> > --
+> > 2.18.0
+> >
+>
+> --
+> With Best Regards,
+> Andy Shevchenko
+>
+>
 
-Agreed
-> Signed-off-by: Lance Roy <ldr709@gmail.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Yang Shi <yang.shi@linux.alibaba.com>
-> Cc: Matthew Wilcox <mawilcox@microsoft.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Shakeel Butt <shakeelb@google.com>
-> Cc: <linux-mm@kvack.org>
+Greg,
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+I think that the three first patches of this series are ready to be
+picked up. The last one can wait until the next release cycle. Out of
+those three two are devres patches and one is mm. Do you think this
+should go through your tree?
 
-> ---
->  mm/khugepaged.c | 4 ++--
->  mm/swap.c       | 3 +--
->  2 files changed, 3 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-> index a31d740e6cd1..80f12467ccb3 100644
-> --- a/mm/khugepaged.c
-> +++ b/mm/khugepaged.c
-> @@ -1225,7 +1225,7 @@ static void collect_mm_slot(struct mm_slot *mm_slot)
->  {
->  	struct mm_struct *mm = mm_slot->mm;
->  
-> -	VM_BUG_ON(NR_CPUS != 1 && !spin_is_locked(&khugepaged_mm_lock));
-> +	lockdep_assert_held(&khugepaged_mm_lock);
->  
->  	if (khugepaged_test_exit(mm)) {
->  		/* free mm_slot */
-> @@ -1665,7 +1665,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
->  	int progress = 0;
->  
->  	VM_BUG_ON(!pages);
-> -	VM_BUG_ON(NR_CPUS != 1 && !spin_is_locked(&khugepaged_mm_lock));
-> +	lockdep_assert_held(&khugepaged_mm_lock);
->  
->  	if (khugepaged_scan.mm_slot)
->  		mm_slot = khugepaged_scan.mm_slot;
-> diff --git a/mm/swap.c b/mm/swap.c
-> index 26fc9b5f1b6c..c89eb442c0bf 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -824,8 +824,7 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
->  	VM_BUG_ON_PAGE(!PageHead(page), page);
->  	VM_BUG_ON_PAGE(PageCompound(page_tail), page);
->  	VM_BUG_ON_PAGE(PageLRU(page_tail), page);
-> -	VM_BUG_ON(NR_CPUS != 1 &&
-> -		  !spin_is_locked(&lruvec_pgdat(lruvec)->lru_lock));
-> +	lockdep_assert_held(&lruvec_pgdat(lruvec)->lru_lock);
->  
->  	if (!list)
->  		SetPageLRU(page_tail);
-> 
+Best regards,
+Bartosz Golaszewski
