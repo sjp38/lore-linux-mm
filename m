@@ -1,190 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B6D46B000D
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 05:52:16 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id g131-v6so7688405qke.17
-        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 02:52:16 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p15-v6si833670qkg.232.2018.10.04.02.52.15
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C8E16B0010
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 06:04:09 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id x10-v6so5229004edx.9
+        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 03:04:09 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g5-v6si2661430ejj.262.2018.10.04.03.04.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Oct 2018 02:52:15 -0700 (PDT)
-Subject: Re: [RFC PATCH v3 1/5] mm/memory_hotplug: Add nid parameter to
- arch_remove_memory
-References: <20181002150029.23461-1-osalvador@techadventures.net>
- <20181002150029.23461-2-osalvador@techadventures.net>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <df5ebe1d-2fd9-3015-321a-378bb160c4f0@redhat.com>
-Date: Thu, 4 Oct 2018 11:52:09 +0200
+        Thu, 04 Oct 2018 03:04:07 -0700 (PDT)
+Date: Thu, 4 Oct 2018 12:04:06 +0200
+From: Johannes Thumshirn <jthumshirn@suse.de>
+Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
+Message-ID: <20181004100406.GE6682@linux-x5ow.site>
+References: <20181002143713.GA19845@infradead.org>
+ <20181002144412.GC4963@linux-x5ow.site>
+ <20181002145206.GA10903@infradead.org>
+ <20181002153100.GG9127@quack2.suse.cz>
+ <CAPcyv4j0tTD+rENqFExA68aw=-MmtCBaOe1qJovyrmJC=yBg-Q@mail.gmail.com>
+ <20181003125056.GA21043@quack2.suse.cz>
+ <CAPcyv4jfV10yuTiPg6ijsPRRL2-c_48ovfpU5TK1Zu7BWnfk3g@mail.gmail.com>
+ <20181003150658.GC24030@quack2.suse.cz>
+ <CAPcyv4iJvN6_Cf6tw=5a=Uh99LfMFKU7n8QkGcz1ZaxL0Oi-3w@mail.gmail.com>
+ <20181003164407.GK24030@quack2.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20181002150029.23461-2-osalvador@techadventures.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181003164407.GK24030@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>, linux-mm@kvack.org
-Cc: mhocko@suse.com, dan.j.williams@intel.com, yasu.isimatu@gmail.com, rppt@linux.vnet.ibm.com, malat@debian.org, linux-kernel@vger.kernel.org, pavel.tatashin@microsoft.com, jglisse@redhat.com, Jonathan.Cameron@huawei.com, rafael@kernel.org, dave.jiang@intel.com, Oscar Salvador <osalvador@suse.de>
+To: Jan Kara <jack@suse.cz>
+Cc: Dan Williams <dan.j.williams@intel.com>, Christoph Hellwig <hch@infradead.org>, Dave Jiang <dave.jiang@intel.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On 02/10/2018 17:00, Oscar Salvador wrote:
-> From: Oscar Salvador <osalvador@suse.de>
+On Wed, Oct 03, 2018 at 06:44:07PM +0200, Jan Kara wrote:
+> On Wed 03-10-18 08:13:37, Dan Williams wrote:
+> > On Wed, Oct 3, 2018 at 8:07 AM Jan Kara <jack@suse.cz> wrote:
+> > > WRT per-inode DAX property, AFAIU that inode flag is just going to be
+> > > advisory thing - i.e., use DAX if possible. If you mount a filesystem with
+> > > these inode flags set in a configuration which does not allow DAX to be
+> > > used, you will still be able to access such inodes but the access will use
+> > > page cache instead. And querying these flags should better show real
+> > > on-disk status and not just whether DAX is used as that would result in an
+> > > even bigger mess. So this feature seems to be somewhat orthogonal to the
+> > > API I'm looking for.
+> > 
+> > True, I imagine once we have that flag we will be able to distinguish
+> > the "saved" property and the "effective / live" property of DAX...
+> > Also it's really not DAX that applications care about as much as "is
+> > there page-cache indirection / overhead for this mapping?". That seems
+> > to be a narrower guarantee that we can make than what "DAX" might
+> > imply.
 > 
-> This patch is only a preparation for the following-up patches.
-> The idea of passing the nid is that will allow us to get rid
-> of the zone parameter in the patches that follow
-> 
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> ---
->  arch/ia64/mm/init.c            | 2 +-
->  arch/powerpc/mm/mem.c          | 2 +-
->  arch/s390/mm/init.c            | 2 +-
->  arch/sh/mm/init.c              | 2 +-
->  arch/x86/mm/init_32.c          | 2 +-
->  arch/x86/mm/init_64.c          | 2 +-
->  include/linux/memory_hotplug.h | 2 +-
->  kernel/memremap.c              | 4 +++-
->  mm/memory_hotplug.c            | 2 +-
->  9 files changed, 11 insertions(+), 9 deletions(-)
-> 
-> diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
-> index d5e12ff1d73c..904fe55e10fc 100644
-> --- a/arch/ia64/mm/init.c
-> +++ b/arch/ia64/mm/init.c
-> @@ -661,7 +661,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
->  }
->  
->  #ifdef CONFIG_MEMORY_HOTREMOVE
-> -int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-> +int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
->  {
->  	unsigned long start_pfn = start >> PAGE_SHIFT;
->  	unsigned long nr_pages = size >> PAGE_SHIFT;
-> diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
-> index 578cbb262c01..445fce705f91 100644
-> --- a/arch/powerpc/mm/mem.c
-> +++ b/arch/powerpc/mm/mem.c
-> @@ -138,7 +138,7 @@ int __meminit arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *
->  }
->  
->  #ifdef CONFIG_MEMORY_HOTREMOVE
-> -int __meminit arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-> +int __meminit arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
->  {
->  	unsigned long start_pfn = start >> PAGE_SHIFT;
->  	unsigned long nr_pages = size >> PAGE_SHIFT;
-> diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
-> index e472cd763eb3..f705da1a085f 100644
-> --- a/arch/s390/mm/init.c
-> +++ b/arch/s390/mm/init.c
-> @@ -239,7 +239,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
->  }
->  
->  #ifdef CONFIG_MEMORY_HOTREMOVE
-> -int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-> +int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
->  {
->  	/*
->  	 * There is no hardware or firmware interface which could trigger a
-> diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
-> index c8c13c777162..a8e5c0e00fca 100644
-> --- a/arch/sh/mm/init.c
-> +++ b/arch/sh/mm/init.c
-> @@ -443,7 +443,7 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
->  #endif
->  
->  #ifdef CONFIG_MEMORY_HOTREMOVE
-> -int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-> +int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
->  {
->  	unsigned long start_pfn = PFN_DOWN(start);
->  	unsigned long nr_pages = size >> PAGE_SHIFT;
-> diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-> index f2837e4c40b3..b2a698d87a0e 100644
-> --- a/arch/x86/mm/init_32.c
-> +++ b/arch/x86/mm/init_32.c
-> @@ -860,7 +860,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
->  }
->  
->  #ifdef CONFIG_MEMORY_HOTREMOVE
-> -int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-> +int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
->  {
->  	unsigned long start_pfn = start >> PAGE_SHIFT;
->  	unsigned long nr_pages = size >> PAGE_SHIFT;
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index 5fab264948c2..c754d9543ae1 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -1147,7 +1147,7 @@ kernel_physical_mapping_remove(unsigned long start, unsigned long end)
->  	remove_pagetable(start, end, true, NULL);
->  }
->  
-> -int __ref arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-> +int __ref arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
->  {
->  	unsigned long start_pfn = start >> PAGE_SHIFT;
->  	unsigned long nr_pages = size >> PAGE_SHIFT;
-> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-> index ffd9cd10fcf3..f9fc35819e65 100644
-> --- a/include/linux/memory_hotplug.h
-> +++ b/include/linux/memory_hotplug.h
-> @@ -107,7 +107,7 @@ static inline bool movable_node_is_enabled(void)
->  }
->  
->  #ifdef CONFIG_MEMORY_HOTREMOVE
-> -extern int arch_remove_memory(u64 start, u64 size,
-> +extern int arch_remove_memory(int nid, u64 start, u64 size,
->  		struct vmem_altmap *altmap);
->  extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
->  	unsigned long nr_pages, struct vmem_altmap *altmap);
-> diff --git a/kernel/memremap.c b/kernel/memremap.c
-> index e3036433ce4e..fe54bba2d7e2 100644
-> --- a/kernel/memremap.c
-> +++ b/kernel/memremap.c
-> @@ -121,6 +121,7 @@ static void devm_memremap_pages_release(void *data)
->  	struct resource *res = &pgmap->res;
->  	resource_size_t align_start, align_size;
->  	unsigned long pfn;
-> +	int nid;
->  
->  	pgmap->kill(pgmap->ref);
->  	for_each_device_pfn(pfn, pgmap)
-> @@ -130,6 +131,7 @@ static void devm_memremap_pages_release(void *data)
->  	align_start = res->start & ~(SECTION_SIZE - 1);
->  	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
->  		- align_start;
-> +	nid = dev_to_node(dev);
->  
->  	mem_hotplug_begin();
->  	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
-> @@ -137,7 +139,7 @@ static void devm_memremap_pages_release(void *data)
->  		__remove_pages(page_zone(pfn_to_page(pfn)), pfn,
->  				align_size >> PAGE_SHIFT, NULL);
->  	} else {
-> -		arch_remove_memory(align_start, align_size,
-> +		arch_remove_memory(nid, align_start, align_size,
->  				pgmap->altmap_valid ? &pgmap->altmap : NULL);
->  		kasan_remove_zero_shadow(__va(align_start), align_size);
->  	}
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index d4c7e42e46f3..11b7dcf83323 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1890,7 +1890,7 @@ void __ref __remove_memory(int nid, u64 start, u64 size)
->  	memblock_free(start, size);
->  	memblock_remove(start, size);
->  
-> -	arch_remove_memory(start, size, NULL);
-> +	arch_remove_memory(nid, start, size, NULL);
->  
->  	try_offline_node(nid);
->  
-> 
+> Right. So what do people think about my suggestion earlier in the thread to
+> use madvise(MADV_DIRECT_ACCESS) for this? Currently it would return success
+> when DAX is in use, failure otherwise. Later we could extend it to be also
+> used as a hint for caching policy for the inode...
 
-Reviewed-by: David Hildenbrand <david@redhat.com>
+Hmm apart from Dan's objection that it can't really be used for a
+query, isn't madvise(2) for mmap(2)?
 
+But AFAIU (from looking at the xfs code, so please correct me if I',
+wrong), DAX can be used for the traditional read(2)/write(2) interface
+as well.
+
+There is at least:
+
+xfs_file_read_iter()
+`-> if (IS_DAX(inode))
+    `-> xfs_file_dax_read()
+        `->dax_iomap_rw()
+
+So IMHO something on an inode granularity would make more sens to me.
+
+Byte,
+	Johannes
 -- 
-
-Thanks,
-
-David / dhildenb
+Johannes Thumshirn                                          Storage
+jthumshirn@suse.de                                +49 911 74053 689
+SUSE LINUX GmbH, Maxfeldstr. 5, 90409 Nurnberg
+GF: Felix Imendorffer, Jane Smithard, Graham Norton
+HRB 21284 (AG Nurnberg)
+Key fingerprint = EC38 9CAB C2C4 F25D 8600 D0D0 0393 969D 2D76 0850
