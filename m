@@ -1,93 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AB38C6B0273
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 03:48:47 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id u28-v6so7608993qtu.3
-        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 00:48:47 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t68-v6si2271589qkc.395.2018.10.04.00.48.46
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1842C6B0275
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 03:49:38 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id m45-v6so4727098edc.2
+        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 00:49:38 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d33-v6si1394157edd.393.2018.10.04.00.49.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Oct 2018 00:48:46 -0700 (PDT)
-Subject: Re: [PATCH RFC] mm/memory_hotplug: Introduce memory block types
-References: <20180928150357.12942-1-david@redhat.com>
- <5dba97a5-5a18-5df1-5493-99987679cf3a@linux.intel.com>
- <147d20c7-2a07-2305-9b44-76fdb735173b@redhat.com>
- <05493150-5e4e-30bd-f772-0c6d88240030@linux.intel.com>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <746a61c2-ebc7-abff-3bcd-7e307ef449bd@redhat.com>
-Date: Thu, 4 Oct 2018 09:48:32 +0200
+        Thu, 04 Oct 2018 00:49:36 -0700 (PDT)
+Date: Thu, 4 Oct 2018 09:49:33 +0200
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: 4.14 backport request for dbdda842fe96f: "printk: Add console
+ owner and waiter logic to load balance console writes"
+Message-ID: <20181004074933.5pzqnjzl4pwuutoj@pathway.suse.cz>
+References: <20180927194601.207765-1-wonderfly@google.com>
+ <20181001152324.72a20bea@gandalf.local.home>
+ <CAJmjG29Jwn_1E5zexcm8eXTG=cTWyEr1gjSfSAS2fueB_V0tfg@mail.gmail.com>
+ <20181002084225.6z2b74qem3mywukx@pathway.suse.cz>
+ <CAJmjG2-RrG5XKeW1-+rN3C=F6bZ-L3=YKhCiQ_muENDTzm_Ofg@mail.gmail.com>
+ <20181002212327.7aab0b79@vmware.local.home>
+ <20181003091400.rgdjpjeaoinnrysx@pathway.suse.cz>
+ <CAJmjG2_4JFA=qL-d2Pb9umUEcPt9h13w-g40JQMbdKsZTRSZww@mail.gmail.com>
+ <20181003133704.43a58cf5@gandalf.local.home>
 MIME-Version: 1.0
-In-Reply-To: <05493150-5e4e-30bd-f772-0c6d88240030@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181003133704.43a58cf5@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, linux-mm@kvack.org
-Cc: xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, linux-acpi@vger.kernel.org, linux-sh@vger.kernel.org, linux-s390@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, Stephen Hemminger <sthemmin@microsoft.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nicholas Piggin <npiggin@gmail.com>, =?UTF-8?Q?Jonathan_Neusch=c3=a4fer?= <j.neuschaefer@gmx.net>, Joe Perches <joe@perches.com>, Michael Neuling <mikey@neuling.org>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Rashmica Gupta <rashmica.g@gmail.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Rob Herring <robh@kernel.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, "mike.travis@hpe.com" <mike.travis@hpe.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Oscar Salvador <osalvador@suse.de>, Mathieu Malaterre <malat@debian.org>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Daniel Wang <wonderfly@google.com>, stable@vger.kernel.org, Alexander.Levin@microsoft.com, akpm@linux-foundation.org, byungchul.park@lge.com, dave.hansen@intel.com, hannes@cmpxchg.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Mel Gorman <mgorman@suse.de>, mhocko@kernel.org, pavel@ucw.cz, penguin-kernel@i-love.sakura.ne.jp, peterz@infradead.org, tj@kernel.org, torvalds@linux-foundation.org, vbabka@suse.cz, Cong Wang <xiyou.wangcong@gmail.com>, Peter Feiner <pfeiner@google.com>
 
-On 01/10/2018 18:24, Dave Hansen wrote:
->> How should a policy in user space look like when new memory gets added
->> - on s390x? Not onlining paravirtualized memory is very wrong.
+On Wed 2018-10-03 13:37:04, Steven Rostedt wrote:
+> On Wed, 3 Oct 2018 10:16:08 -0700
+> Daniel Wang <wonderfly@google.com> wrote:
 > 
-> Because we're going to balloon it away in a moment anyway?
-
-No, rether somebody wanted this VM to have more memory, so it should use
-it - basically what HyperV or XEN also do. (in contrast to the concept
-of standby memory on s390).
-
-> > We have auto-onlining.  Why isn't that being used on s390?
-
-Do you mean the sys parameter? How would that help?
-
+> > On Wed, Oct 3, 2018 at 2:14 AM Petr Mladek <pmladek@suse.com> wrote:
+> > >
+> > > On Tue 2018-10-02 21:23:27, Steven Rostedt wrote:  
+> > > > I don't see the big deal of backporting this. The biggest complaints
+> > > > about backports are from fixes that were added to late -rc releases
+> > > > where the fixes didn't get much testing. This commit was added in 4.16,
+> > > > and hasn't had any issues due to the design. Although a fix has been
+> > > > added:
+> > > >
+> > > > c14376de3a1 ("printk: Wake klogd when passing console_lock owner")  
+> > >
+> > > As I said, I am fine with backporting the console_lock owner stuff
+> > > into the stable release.
+> > >
+> > > I just wonder (like Sergey) what the real problem is. The console_lock
+> > > owner handshake is not fully reliable. It is might be good enough
 > 
-> 
->> So the type of memory is very important here to have in user space.
->> Relying on checks like "isS390()", "isKVMGuest()" or "isHyperVGuest()"
->> to decide whether to online memory and how to online memory is wrong.
->> Only some specific memory types (which I call "normal") are to be
->> handled by user space.
->>
->> For the other ones, we exactly know what to do:
->> - standby? don't online
-> 
-> I think you're horribly conflating the software desire for what the stae
-> should be and the hardware itself.
+> I'm not sure what you mean by 'not fully reliable'
 
-Agreed, user space should be able to configure it.
+I mean that it is not guaranteed that the very first printk() takes over
+the console. It will happen only when the other printk() calls
+console_trylock_spinning() while the current console owner does
+the code between:
 
+   console_lock_spinning_enable();
+   console_lock_spinning_disable_and_check();
+
+
+> > > Just to be sure. Daniel, could you please send a log with
+> > > the console_lock owner stuff backported? There we would see
+> > > who called the panic() and why it rebooted early.  
+> > 
+> > Sure. Here is one. It's a bit long but complete. I attached another log
+> > snippet below it which is what I got when `softlockup_panic` was turned
+> > off. The log was from the IRQ task that was flushing the printk buffer. I
+> > will be taking a closer look at it too but in case you'll find it helpful.
 > 
->>> As for the OOM issues, that sounds like something we need to fix by
->>> refusing to do (or delaying) hot-add operations once we consume too much
->>> ZONE_NORMAL from memmap[]s rather than trying to indirectly tell
->>> userspace to hurry thing along.
->>
->> That is a moving target and doing that automatically is basically
->> impossible.
-> 
-> Nah.  We know how much metadata we've allocated.  We know how much
-> ZONE_NORMAL we are eating.  We can *easily* add something to
-> add_memory() that just sleeps until the ratio is not out-of-whack.
-> 
->> You can add a lot of memory to the movable zone and
->> everything is fine. Suddenly a lot of processes are started - boom.
->> MOVABLE should only every be used if you expect an unplug. And for
->> paravirtualized devices, a "typical" unplug does not exist.
-> 
-> No, it's more complicated than that.  People use MOVABLE, for instance,
-> to allow more consistent huge page allocations.  It's certainly not just
-> hot-remove.
-> 
+> Just so I understand correctly. Does the panic hit with and without the
+> suggested backport patch? The only difference is that you get the full
+> output with the patch and limited output without it?
 
-As noted in the other thread, that's a good point. We have to allow to
-make a decision in user space.
+Sigh, the other mail suggest that there was a real deadlock. It means
+that the console owner logic might help but it would not prevent
+the deadlock completely.
 
-I agree to your initial proposal to distinguish "standby" from
-"auto-online". It would allow to have sane defaults in user space.
-
--- 
-
-Thanks,
-
-David / dhildenb
+Best Regards,
+Petr
