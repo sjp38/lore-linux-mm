@@ -1,64 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 49E0B6B000D
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 04:05:12 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id t8-v6so7710980plo.4
-        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 01:05:12 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v21-v6sor3024251pgl.36.2018.10.04.01.05.11
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D2ED6B000E
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 04:12:37 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id x75-v6so7288002qka.18
+        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 01:12:37 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r2-v6si2696580qkd.14.2018.10.04.01.12.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 04 Oct 2018 01:05:11 -0700 (PDT)
-Date: Thu, 4 Oct 2018 17:05:06 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: 4.14 backport request for dbdda842fe96f: "printk: Add console
- owner and waiter logic to load balance console writes"
-Message-ID: <20181004080506.GB12879@jagdpanzerIV>
-References: <20181001152324.72a20bea@gandalf.local.home>
- <CAJmjG29Jwn_1E5zexcm8eXTG=cTWyEr1gjSfSAS2fueB_V0tfg@mail.gmail.com>
- <20181002084225.6z2b74qem3mywukx@pathway.suse.cz>
- <CAJmjG2-RrG5XKeW1-+rN3C=F6bZ-L3=YKhCiQ_muENDTzm_Ofg@mail.gmail.com>
- <20181002212327.7aab0b79@vmware.local.home>
- <20181003091400.rgdjpjeaoinnrysx@pathway.suse.cz>
- <CAJmjG2_4JFA=qL-d2Pb9umUEcPt9h13w-g40JQMbdKsZTRSZww@mail.gmail.com>
- <20181003133704.43a58cf5@gandalf.local.home>
- <CAJmjG291w2ZPRiAevSzxGNcuR6vTuqyk6z4SG3xRsbaQh5U3zQ@mail.gmail.com>
- <20181004074442.GA12879@jagdpanzerIV>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Oct 2018 01:12:36 -0700 (PDT)
+Subject: Re: [PATCH RFC] mm/memory_hotplug: Introduce memory block types
+References: <20180928150357.12942-1-david@redhat.com>
+ <20181001084038.GD18290@dhcp22.suse.cz>
+ <d54a8509-725f-f771-72f0-15a9d93e8a49@redhat.com>
+ <20181002134734.GT18290@dhcp22.suse.cz>
+ <98fb8d65-b641-2225-f842-8804c6f79a06@redhat.com>
+ <8736tndubn.fsf@vitty.brq.redhat.com> <20181003134444.GH4714@dhcp22.suse.cz>
+ <87zhvvcf3b.fsf@vitty.brq.redhat.com> <20181003142444.GJ4714@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <db839c89-0ce8-52f8-8199-4a28197a91e8@redhat.com>
+Date: Thu, 4 Oct 2018 10:12:22 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181004074442.GA12879@jagdpanzerIV>
+In-Reply-To: <20181003142444.GJ4714@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Wang <wonderfly@google.com>
-Cc: rostedt@goodmis.org, Petr Mladek <pmladek@suse.com>, stable@vger.kernel.org, Alexander.Levin@microsoft.com, akpm@linux-foundation.org, byungchul.park@lge.com, dave.hansen@intel.com, hannes@cmpxchg.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Mel Gorman <mgorman@suse.de>, mhocko@kernel.org, pavel@ucw.cz, penguin-kernel@i-love.sakura.ne.jp, peterz@infradead.org, tj@kernel.org, torvalds@linux-foundation.org, vbabka@suse.cz, Cong Wang <xiyou.wangcong@gmail.com>, Peter Feiner <pfeiner@google.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>, Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: Kate Stewart <kstewart@linuxfoundation.org>, Rich Felker <dalias@libc.org>, linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Balbir Singh <bsingharora@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, Pavel Tatashin <pavel.tatashin@microsoft.com>, Paul Mackerras <paulus@samba.org>, "H. Peter Anvin" <hpa@zytor.com>, Rashmica Gupta <rashmica.g@gmail.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-s390@vger.kernel.org, Michael Neuling <mikey@neuling.org>, Stephen Hemminger <sthemmin@microsoft.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Michael Ellerman <mpe@ellerman.id.au>, linux-acpi@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, xen-devel@lists.xenproject.org, Rob Herring <robh@kernel.org>, Len Brown <lenb@kernel.org>, Fenghua Yu <fenghua.yu@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, "mike.travis@hpe.com" <mike.travis@hpe.com>, Haiyang Zhang <haiyangz@microsoft.com>, Dan Williams <dan.j.williams@intel.com>, =?UTF-8?Q?Jonathan_Neusch=c3=a4fer?= <j.neuschaefer@gmx.net>, Nicholas Piggin <npiggin@gmail.com>, Joe Perches <joe@perches.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Oscar Salvador <osalvador@suse.de>, Juergen Gross <jgross@suse.com>, Tony Luck <tony.luck@intel.com>, Mathieu Malaterre <malat@debian.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, linux-kernel@vger.kernel.org, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Philippe Ombredanne <pombredanne@nexb.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, devel@linuxdriverproject.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On (10/04/18 16:44), Sergey Senozhatsky wrote:
-> So... Just an idea. Can you try a very dirty hack? Forcibly increase
-> oops_in_progress in panic() before console_flush_on_panic(), so 8250
-> serial8250_console_write() will use spin_trylock_irqsave() and maybe
-> avoid deadlock.
+On 03/10/2018 16:24, Michal Hocko wrote:
+> On Wed 03-10-18 15:52:24, Vitaly Kuznetsov wrote:
+> [...]
+>>> As David said some of the memory cannot be onlined without further steps
+>>> (e.g. when it is standby as David called it) and then I fail to see how
+>>> eBPF help in any way.
+>>
+>> and also, we can fight till the end of days here trying to come up with
+>> an onlining solution which would work for everyone and eBPF would move
+>> this decision to distro level.
+> 
+> The point is that there is _no_ general onlining solution. This is
+> basically policy which belongs to the userspace.
+> 
 
-E.g. something like below?
-[this is not a patch; just a theory]:
+Vitalys point was that this policy is to be formulated by user space via
+eBPF and handled by the kernel. So the work of formulating the policy
+would still have to be done by user space.
 
----
+I guess the only problem this would partially solve is onlining of
+memory failing as we can no longer fork in user space. Just as you said,
+I also think this is rather some serious misconfiguration. We will
+already most probably have other applications triggering OOM already.
 
-diff --git a/kernel/panic.c b/kernel/panic.c
-index 8b2e002d52eb..188338a55d1c 100644
---- a/kernel/panic.c
-+++ b/kernel/panic.c
-@@ -233,7 +233,13 @@ void panic(const char *fmt, ...)
- 	if (_crash_kexec_post_notifiers)
- 		__crash_kexec(NULL);
- 
-+	/*
-+	 * Decrement oops_in_progress and let bust_spinlocks() to
-+	 * unblank_screen(), console_unblank() and wake_up_klogd()
-+	 */
- 	bust_spinlocks(0);
-+	/* Set oops_in_progress, so we can reenter serial console driver*/
-+	bust_spinlocks(1);
- 
- 	/*
- 	 * We may have ended up stopping the CPU holding the lock (in
+-- 
+
+Thanks,
+
+David / dhildenb
