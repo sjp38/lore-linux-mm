@@ -1,65 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 564B86B000A
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 20:41:02 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id 17-v6so3292445pgs.18
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 17:41:02 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d186-v6si3305988pfg.23.2018.10.03.17.41.00
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 53CB06B000D
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 21:02:44 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id g8-v6so5214974otj.18
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 18:02:44 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id u189-v6si1477413oie.133.2018.10.03.18.02.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 03 Oct 2018 17:41:00 -0700 (PDT)
-Date: Wed, 3 Oct 2018 17:39:56 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2] mm: Introduce new function vm_insert_kmem_page
-Message-ID: <20181004003956.GA31522@bombadil.infradead.org>
-References: <20181003185854.GA1174@jordon-HP-15-Notebook-PC>
- <20181003200003.GA9965@bombadil.infradead.org>
- <20181003221444.GZ30658@n2100.armlinux.org.uk>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Oct 2018 18:02:43 -0700 (PDT)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w940sC5K035241
+	for <linux-mm@kvack.org>; Wed, 3 Oct 2018 21:02:42 -0400
+Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mw6sgbvs4-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 03 Oct 2018 21:02:42 -0400
+Received: from localhost
+	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <mwb@linux.vnet.ibm.com>;
+	Wed, 3 Oct 2018 19:02:41 -0600
+Subject: Re: [PATCH] migration/mm: Add WARN_ON to try_offline_node
+References: <20181001185616.11427.35521.stgit@ltcalpine2-lp9.aus.stglabs.ibm.com>
+ <20181001202724.GL18290@dhcp22.suse.cz>
+ <bdbca329-7d35-0535-1737-94a06a19ae28@linux.vnet.ibm.com>
+ <df95f828-1963-d8b9-ab58-6d29d2d152d2@linux.vnet.ibm.com>
+ <20181002145922.GZ18290@dhcp22.suse.cz>
+ <d338b385-626b-0e79-9944-708178fe245d@linux.vnet.ibm.com>
+ <20181002160446.GA18290@dhcp22.suse.cz>
+ <e7dd66c1-d196-3a14-0115-acdaf538ebfd@linux.vnet.ibm.com>
+ <bbc5f219-614f-b024-0888-8ad216c5eaf8@linux.vnet.ibm.com>
+ <17781f9e-abfb-8c1e-eb18-39571d1b5cd6@linux.vnet.ibm.com>
+ <e7c0f7cc-02a4-47ff-9d7c-0b63f106932e@gmail.com>
+From: Michael Bringmann <mwb@linux.vnet.ibm.com>
+Date: Wed, 3 Oct 2018 20:02:33 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181003221444.GZ30658@n2100.armlinux.org.uk>
+In-Reply-To: <e7c0f7cc-02a4-47ff-9d7c-0b63f106932e@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <571d56e7-bfa9-5da1-c321-15adfffaba69@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@armlinux.org.uk>
-Cc: Souptick Joarder <jrdr.linux@gmail.com>, miguel.ojeda.sandonis@gmail.com, robin@protonic.nl, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, m.szyprowski@samsung.com, keescook@chromium.org, treding@nvidia.com, mhocko@suse.com, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, mark.rutland@arm.com, aryabinin@virtuozzo.com, dvyukov@google.com, kstewart@linuxfoundation.org, tchibo@google.com, riel@redhat.com, minchan@kernel.org, peterz@infradead.org, ying.huang@intel.com, ak@linux.intel.com, rppt@linux.vnet.ibm.com, linux@dominikbrodowski.net, arnd@arndb.de, cpandya@codeaurora.org, hannes@cmpxchg.org, joe@perches.com, mcgrof@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, linux-mm@kvack.org
+To: Tyrel Datwyler <turtle.in.the.kernel@gmail.com>, Tyrel Datwyler <tyreld@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Thomas Falcon <tlfalcon@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Mathieu Malaterre <malat@debian.org>, linux-kernel@vger.kernel.org, Nicholas Piggin <npiggin@gmail.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm@kvack.org, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Juliet Kim <minkim@us.ibm.com>, Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, linuxppc-dev@lists.ozlabs.org, Dan Williams <dan.j.williams@intel.com>, Oscar Salvador <osalvador@suse.de>
 
-On Wed, Oct 03, 2018 at 11:14:45PM +0100, Russell King - ARM Linux wrote:
-> On Wed, Oct 03, 2018 at 01:00:03PM -0700, Matthew Wilcox wrote:
-> > On Thu, Oct 04, 2018 at 12:28:54AM +0530, Souptick Joarder wrote:
-> > > These are the approaches which could have been taken to handle
-> > > this scenario -
-> > > 
-> > > *  Replace vm_insert_page with vmf_insert_page and then write few
-> > >    extra lines of code to convert VM_FAULT_CODE to errno which
-> > >    makes driver users more complex ( also the reverse mapping errno to
-> > >    VM_FAULT_CODE have been cleaned up as part of vm_fault_t migration ,
-> > >    not preferred to introduce anything similar again)
-> > > 
-> > > *  Maintain both vm_insert_page and vmf_insert_page and use it in
-> > >    respective places. But it won't gurantee that vm_insert_page will
-> > >    never be used in #PF context.
-> > > 
-> > > *  Introduce a similar API like vm_insert_page, convert all non #PF
-> > >    consumer to use it and finally remove vm_insert_page by converting
-> > >    it to vmf_insert_page.
-> > > 
-> > > And the 3rd approach was taken by introducing vm_insert_kmem_page().
-> > > 
-> > > In short, vmf_insert_page will be used in page fault handlers
-> > > context and vm_insert_kmem_page will be used to map kernel
-> > > memory to user vma outside page fault handlers context.
-> > 
-> > As far as I can tell, vm_insert_kmem_page() is line-for-line identical
-> > with vm_insert_page().  Seriously, here's a diff I just did:
-[...]
-> > What on earth are you trying to do?
+On 10/03/2018 06:05 PM, Tyrel Datwyler wrote:
+> On 10/03/2018 06:27 AM, Michael Bringmann wrote:
+>> On 10/02/2018 02:45 PM, Tyrel Datwyler wrote:
+>>> On 10/02/2018 11:13 AM, Michael Bringmann wrote:
+>>>>
+>>>>
+>>>> On 10/02/2018 11:04 AM, Michal Hocko wrote:
+>>>>> On Tue 02-10-18 10:14:49, Michael Bringmann wrote:
+>>>>>> On 10/02/2018 09:59 AM, Michal Hocko wrote:
+>>>>>>> On Tue 02-10-18 09:51:40, Michael Bringmann wrote:
+>>>>>>> [...]
+>>>>>>>> When the device-tree affinity attributes have changed for memory,
+>>>>>>>> the 'nid' affinity calculated points to a different node for the
+>>>>>>>> memory block than the one used to install it, previously on the
+>>>>>>>> source system.  The newly calculated 'nid' affinity may not yet
+>>>>>>>> be initialized on the target system.  The current memory tracking
+>>>>>>>> mechanisms do not record the node to which a memory block was
+>>>>>>>> associated when it was added.  Nathan is looking at adding this
+>>>>>>>> feature to the new implementation of LMBs, but it is not there
+>>>>>>>> yet, and won't be present in earlier kernels without backporting a
+>>>>>>>> significant number of changes.
+>>>>>>>
+>>>>>>> Then the patch you have proposed here just papers over a real issue, no?
+>>>>>>> IIUC then you simply do not remove the memory if you lose the race.
+>>>>>>
+>>>>>> The problem occurs when removing memory after an affinity change
+>>>>>> references a node that was previously unreferenced.  Other code
+>>>>>> in 'kernel/mm/memory_hotplug.c' deals with initializing an empty
+>>>>>> node when adding memory to a system.  The 'removing memory' case is
+>>>>>> specific to systems that perform LPM and allow device-tree changes.
+>>>>>> The powerpc kernel does not have the option of accepting some PRRN
+>>>>>> requests and accepting others.  It must perform them all.
+>>>>>
+>>>>> I am sorry, but you are still too cryptic for me. Either there is a
+>>>>> correctness issue and the the patch doesn't really fix anything or the
+>>>>> final race doesn't make any difference and then the ppc code should be
+>>>>> explicit about that. Checking the node inside the hotplug core code just
+>>>>> looks as a wrong layer to mitigate an arch specific problem. I am not
+>>>>> saying the patch is a no-go but if anything we want a big fat comment
+>>>>> explaining how this is possible because right now it just points to an
+>>>>> incorrect API usage.
+>>>>>
+>>>>> That being said, this sounds pretty much ppc specific problem and I
+>>>>> would _prefer_ it to be handled there (along with a big fat comment of
+>>>>> course).
+>>>>
+>>>> Let me try again.  Regardless of the path to which we get to this condition,
+>>>> we currently crash the kernel.  This patch changes that to a WARN_ON notice
+>>>> and continues executing the kernel without shutting down the system.  I saw
+>>>> the problem during powerpc testing, because that is the focus of my work.
+>>>> There are other paths to this function besides powerpc.  I feel that the
+>>>> kernel should keep running instead of halting.
+>>>
+>>> This is still basically a hack to get around a known race. In itself this patch is still worth while in that we shouldn't crash the kernel on a null pointer dereference. However, I think the actual problem still needs to be addressed. We shouldn't run any PRRN events for the source system on the target after a migration. The device tree update should have taken care of telling us about new affinities and what not. Can we just throw out any queued PRRN events when we wake up on the target?
+>>
+>> We are not talking about queued events provided on the source system, but about
+>> new PRRN events sent by phyp to the kernel on the target system to update the
+>> kernel state after migration.  No way to predict the content.
 > 
-> Reading the commit log, it seems that the intention is to split out
-> vm_insert_page() used outside of page-fault handling with the use
-> within page-fault handling, so that different return codes can be
-> used.
+> Okay, but either way shouldn't your other proposed patches to update memory affinity by re-adding memory and changing the time topology updates are stopped to include the post-mobility updates put things in the right nodes? Or, am I missing something? I would assume a PRRN on the target would assume the target was up-to-date with respect to where things are supposed to be located.
 
-Right, but we already did that.  We now have vmf_insert_page() which
-returns a VM_FAULT_* code and vm_insert_page() which returns an errno.
+This bug only recently came to our attention in a defect on a SLES12 SP3 platform running PHYP Memory Mover concurrently with LPM.  Not a normal test case.
+
+> 
+> -Tyrel
+
+Michael
+
+-- 
+Michael W. Bringmann
+Linux Technology Center
+IBM Corporation
+Tie-Line  363-5196
+External: (512) 286-5196
+Cell:       (512) 466-0650
+mwb@linux.vnet.ibm.com
