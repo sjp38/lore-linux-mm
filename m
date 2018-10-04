@@ -1,79 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E33706B000A
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 10:51:12 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id g36-v6so5729387edb.3
-        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 07:51:12 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l3si4589259edv.432.2018.10.04.07.51.11
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2081F6B0003
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 11:15:59 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id n13-v6so8885567wrt.5
+        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 08:15:59 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTPS id p6-v6si4303072wrm.280.2018.10.04.08.15.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Oct 2018 07:51:11 -0700 (PDT)
-Date: Thu, 4 Oct 2018 16:51:08 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v4] memory_hotplug: Free pages as higher order
-Message-ID: <20181004145108.GH22173@dhcp22.suse.cz>
-References: <1538573979-28365-1-git-send-email-arunks@codeaurora.org>
+        Thu, 04 Oct 2018 08:15:57 -0700 (PDT)
+Date: Thu, 4 Oct 2018 17:15:55 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v6 00/18] APEI in_nmi() rework
+Message-ID: <20181004151555.GN1864@zn.tnic>
+References: <20180921221705.6478-1-james.morse@arm.com>
+ <20180925124526.GD23986@zn.tnic>
+ <c04d1b78-122b-d7f2-5a75-3d9c56386b11@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <1538573979-28365-1-git-send-email-arunks@codeaurora.org>
+In-Reply-To: <c04d1b78-122b-d7f2-5a75-3d9c56386b11@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arun KS <arunks@codeaurora.org>
-Cc: kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, akpm@linux-foundation.org, dan.j.williams@intel.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, gregkh@linuxfoundation.org, osalvador@suse.de, malat@debian.org, kirill.shutemov@linux.intel.com, jrdr.linux@gmail.com, yasu.isimatu@gmail.com, mgorman@techsingularity.net, aaron.lu@intel.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com
+To: James Morse <james.morse@arm.com>
+Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
 
-On Wed 03-10-18 19:09:39, Arun KS wrote:
-[...]
-> +static int online_pages_blocks(unsigned long start, unsigned long nr_pages)
-> +{
-> +	unsigned long end = start + nr_pages;
-> +	int order, ret, onlined_pages = 0;
-> +
-> +	while (start < end) {
-> +		order = min(MAX_ORDER - 1UL, __ffs(start));
-> +
-> +		while (start + (1UL << order) > end)
-> +			order--;
+On Wed, Oct 03, 2018 at 06:50:38PM +0100, James Morse wrote:
 
-this really made me scratch my head. Wouldn't it be much simpler to do
-the following?
-		order = min(MAX_ORDER - 1, get_order(end - start))?
+...
 
-> +
-> +		ret = (*online_page_callback)(pfn_to_page(start), order);
-> +		if (!ret)
-> +			onlined_pages += (1UL << order);
-> +		else if (ret > 0)
-> +			onlined_pages += ret;
-> +
-> +		start += (1UL << order);
-> +	}
-> +	return onlined_pages;
->  }
-[...]
-> -static void __init __free_pages_boot_core(struct page *page, unsigned int order)
-> +void __free_pages_core(struct page *page, unsigned int order)
->  {
->  	unsigned int nr_pages = 1 << order;
->  	struct page *p = page;
->  	unsigned int loop;
->  
-> -	prefetchw(p);
-> -	for (loop = 0; loop < (nr_pages - 1); loop++, p++) {
-> -		prefetchw(p + 1);
-> +	for (loop = 0; loop < nr_pages; loop++, p++) {
->  		__ClearPageReserved(p);
->  		set_page_count(p, 0);
->  	}
-> -	__ClearPageReserved(p);
-> -	set_page_count(p, 0);
->  
->  	page_zone(page)->managed_pages += nr_pages;
->  	set_page_refcounted(page);
+> The non-ghes HEST entries have a "number of records to pre-allocate" too, we
+> could make this memory pool something hest.c looks after, but I can't see if the
+> other error sources use those values.
 
-I think this is wort a separate patch as it is unrelated to the patch.
+Thanks for the detailed analysis!
+
+> Hmmm, The size is capped to 64K, we could ignore the firmware description of the
+> memory requirements, and allocate SZ_64K each time. Doing it per-GHES is still
+> the only way to avoid allocating nmi-safe memory for irqs.
+
+Right, so I'm thinking a lot simpler: allocate a pool which should
+be large enough to handle all situations and drop all that logic
+which recomputes and reallocates pool size. Just a static thing which
+JustWorks(tm).
+
+For a couple of reasons:
+
+ - you state it above: all those synchronization issues are gone with a
+ prellocated pool
+
+ - 64K per-GHES pool is nothing if you consider the machines this thing
+ runs on - fat servers with lotsa memory. And RAS there *is* important.
+ And TBH 64K is nothing even on a small client sporting gigabytes of
+ memory.
+
+ - code is a lot simpler and cleaner - you don't need all that pool
+ expanding and shrinking. I mean, I'm all for smarter solutions if they
+ have any clear advantages warranting the complication but this is a
+ lot of machinery just so that we can save a couple of KBs. Which, as a
+ whole, sounds just too much to me.
+
+But this is just me.
 
 -- 
-Michal Hocko
-SUSE Labs
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
