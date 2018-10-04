@@ -1,102 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EA636B0269
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 04:14:03 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id i64-v6so469423qtb.21
-        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 01:14:03 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a26-v6si2354117qva.162.2018.10.04.01.14.02
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9186A6B026B
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 04:14:46 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id v1-v6so6224008wmh.4
+        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 01:14:46 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTPS id l74-v6si3579167wmd.35.2018.10.04.01.14.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Oct 2018 01:14:02 -0700 (PDT)
-Subject: Re: [PATCH RFC] mm/memory_hotplug: Introduce memory block types
-References: <20181001084038.GD18290@dhcp22.suse.cz>
- <d54a8509-725f-f771-72f0-15a9d93e8a49@redhat.com>
- <20181002134734.GT18290@dhcp22.suse.cz>
- <98fb8d65-b641-2225-f842-8804c6f79a06@redhat.com>
- <8736tndubn.fsf@vitty.brq.redhat.com> <20181003134444.GH4714@dhcp22.suse.cz>
- <87zhvvcf3b.fsf@vitty.brq.redhat.com>
- <49456818-238e-2d95-9df6-d1934e9c8b53@linux.intel.com>
- <87tvm3cd5w.fsf@vitty.brq.redhat.com>
- <06a35970-e478-18f8-eae6-4022925a5192@redhat.com>
- <20181004061938.GB22173@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <efd50413-4be4-06c4-5ef0-711fdf05db71@redhat.com>
-Date: Thu, 4 Oct 2018 10:13:48 +0200
+        Thu, 04 Oct 2018 01:14:45 -0700 (PDT)
+Date: Thu, 4 Oct 2018 10:14:38 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: x86/mm: Found insecure W+X mapping at address (ptrval)/0xc00a0000
+Message-ID: <20181004081429.GB1864@zn.tnic>
+References: <e75fa739-4bcc-dc30-2606-25d2539d2653@molgen.mpg.de>
+ <alpine.DEB.2.21.1809191004580.1468@nanos.tec.linutronix.de>
+ <0922cc1b-ed51-06e9-df81-57fd5aa8e7de@molgen.mpg.de>
+ <alpine.DEB.2.21.1809210045220.1434@nanos.tec.linutronix.de>
+ <c8da5778-3957-2fab-69ea-42f872a5e396@molgen.mpg.de>
+ <alpine.DEB.2.21.1809281653270.2004@nanos.tec.linutronix.de>
+ <20181003212255.GB28361@zn.tnic>
+ <20181004080321.GA3630@8bytes.org>
 MIME-Version: 1.0
-In-Reply-To: <20181004061938.GB22173@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <20181004080321.GA3630@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vitaly Kuznetsov <vkuznets@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kate Stewart <kstewart@linuxfoundation.org>, Rich Felker <dalias@libc.org>, linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Balbir Singh <bsingharora@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, Pavel Tatashin <pavel.tatashin@microsoft.com>, Paul Mackerras <paulus@samba.org>, "H. Peter Anvin" <hpa@zytor.com>, Rashmica Gupta <rashmica.g@gmail.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-s390@vger.kernel.org, Michael Neuling <mikey@neuling.org>, Stephen Hemminger <sthemmin@microsoft.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Michael Ellerman <mpe@ellerman.id.au>, linux-acpi@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, xen-devel@lists.xenproject.org, Rob Herring <robh@kernel.org>, Len Brown <lenb@kernel.org>, Fenghua Yu <fenghua.yu@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, "mike.travis@hpe.com" <mike.travis@hpe.com>, Haiyang Zhang <haiyangz@microsoft.com>, Dan Williams <dan.j.williams@intel.com>, =?UTF-8?Q?Jonathan_Neusch=c3=a4fer?= <j.neuschaefer@gmx.net>, Nicholas Piggin <npiggin@gmail.com>, Joe Perches <joe@perches.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Oscar Salvador <osalvador@suse.de>, Juergen Gross <jgross@suse.com>, Tony Luck <tony.luck@intel.com>, Mathieu Malaterre <malat@debian.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, linux-kernel@vger.kernel.org, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Philippe Ombredanne <pombredanne@nexb.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, devel@linuxdriverproject.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Paul Menzel <pmenzel@molgen.mpg.de>, linux-mm@kvack.org, x86@kernel.org, lkml <linux-kernel@vger.kernel.org>
 
-On 04/10/2018 08:19, Michal Hocko wrote:
-> On Wed 03-10-18 19:14:05, David Hildenbrand wrote:
->> On 03/10/2018 16:34, Vitaly Kuznetsov wrote:
->>> Dave Hansen <dave.hansen@linux.intel.com> writes:
->>>
->>>> On 10/03/2018 06:52 AM, Vitaly Kuznetsov wrote:
->>>>> It is more than just memmaps (e.g. forking udev process doing memory
->>>>> onlining also needs memory) but yes, the main idea is to make the
->>>>> onlining synchronous with hotplug.
->>>>
->>>> That's a good theoretical concern.
->>>>
->>>> But, is it a problem we need to solve in practice?
->>>
->>> Yes, unfortunately. It was previously discovered that when we try to
->>> hotplug tons of memory to a low memory system (this is a common scenario
->>> with VMs) we end up with OOM because for all new memory blocks we need
->>> to allocate page tables, struct pages, ... and we need memory to do
->>> that. The userspace program doing memory onlining also needs memory to
->>> run and in case it prefers to fork to handle hundreds of notfifications
->>> ... well, it may get OOMkilled before it manages to online anything.
->>>
->>> Allocating all kernel objects from the newly hotplugged blocks would
->>> definitely help to manage the situation but as I said this won't solve
->>> the 'forking udev' problem completely (it will likely remain in
->>> 'extreme' cases only. We can probably work around it by onlining with a
->>> dedicated process which doesn't do memory allocation).
->>>
->>
->> I guess the problem is even worse. We always have two phases
->>
->> 1. add memory - requires memory allocation
->> 2. online memory - might require memory allocations e.g. for slab/slub
->>
->> So if we just added memory but don't have sufficient memory to start a
->> user space process to trigger onlining, then we most likely also don't
->> have sufficient memory to online the memory right away (in some scenarios).
->>
->> We would have to allocate all new memory for 1 and 2 from the memory to
->> be onlined. I guess the latter part is less trivial.
->>
->> So while onlining the memory from the kernel might make things a little
->> more robust, we would still have the chance for OOM / onlining failing.
+On Thu, Oct 04, 2018 at 10:03:21AM +0200, Joerg Roedel wrote:
+> I also triggered this when working in the PTI-x32 code. It always
+> happens on a 32-bit PAE kernel for me.
 > 
-> Yes, _theoretically_. Is this a practical problem for reasonable
-> configurations though? I mean, this will never be perfect and we simply
-> cannot support all possible configurations. We should focus on
-> reasonable subset of them. From my practical experience the vast
-> majority of memory is consumed by memmaps (roughly 1.5%). That is not a
-> lot but I agree that allocating that from the zone normal and off node
-> is not great. Especially the second part which is noticeable for whole
-> node hotplug.
+> Tracking it down I ended up in (iirc) arch/x86/mm/pageattr.c
+> 	function static_protections():
 > 
-> I have a feeling that arguing about fork not able to proceed or OOMing
-> for the memory hotplug is a bit of a stretch and a sign a of
-> misconfiguration.
+> 		/*
+> 		 * The BIOS area between 640k and 1Mb needs to be executable for
+> 		 * PCI BIOS based config access (CONFIG_PCI_GOBIOS) support.
+> 		 */
+> 	#ifdef CONFIG_PCI_BIOS
+> 		if (pcibios_enabled && within(pfn, BIOS_BEGIN >> PAGE_SHIFT, BIOS_END >> PAGE_SHIFT))
+> 			pgprot_val(forbidden) |= _PAGE_NX;
+> 	#endif
 > 
+> I think that is the reason we are seeing this in that configuration.
 
-Just to rephrase, I have the same opinion. Something is already messed
-up if we cannot even fork anymore. We will have OOM already all over the
-place before/during/after forking.
+So looking at this, BIOS_BEGIN and BIOS_END is the same range as the ISA
+range:
+
+#define ISA_START_ADDRESS       0x000a0000
+#define ISA_END_ADDRESS         0x00100000
+
+#define BIOS_BEGIN              0x000a0000
+#define BIOS_END                0x00100000
+
+
+and I did try marking the ISA range RO in mark_rodata_ro() but the
+machine wouldn't boot after. So I'm guessing BIOS needs to write there
+some crap.
 
 -- 
+Regards/Gruss,
+    Boris.
 
-Thanks,
-
-David / dhildenb
+Good mailing practices for 400: avoid top-posting and trim the reply.
