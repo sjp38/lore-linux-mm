@@ -1,93 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9912A6B000A
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 12:51:49 -0400 (EDT)
-Received: by mail-oi1-f198.google.com with SMTP id v188-v6so6666378oie.3
-        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 09:51:49 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u126-v6sor2141544oib.13.2018.10.04.09.51.48
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F1706B000A
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 13:34:24 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id f13-v6so9128006wrr.4
+        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 10:34:24 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTPS id z14-v6si4099095wrl.151.2018.10.04.10.34.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 04 Oct 2018 09:51:48 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Oct 2018 10:34:23 -0700 (PDT)
+Date: Thu, 4 Oct 2018 19:34:16 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v6 05/18] ACPI / APEI: Make estatus queue a Kconfig symbol
+Message-ID: <20181004173416.GC5149@zn.tnic>
+References: <20180921221705.6478-1-james.morse@arm.com>
+ <20180921221705.6478-6-james.morse@arm.com>
+ <20181001175956.GF7269@zn.tnic>
+ <a562d7c4-2e74-3a18-7fb0-ba8f40d2dce4@arm.com>
 MIME-Version: 1.0
-References: <153861931865.2863953.11185006931458762795.stgit@dwillia2-desk3.amr.corp.intel.com>
- <153861932401.2863953.11364943845583542894.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20181004074838.GE22173@dhcp22.suse.cz>
-In-Reply-To: <20181004074838.GE22173@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 4 Oct 2018 09:51:37 -0700
-Message-ID: <CAPcyv4jO_K8g3XRzuYOQPeGT--aPtucwZsqkywxOFO4Zny5Xrg@mail.gmail.com>
-Subject: Re: [PATCH v2 1/3] mm: Shuffle initial free memory
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <a562d7c4-2e74-3a18-7fb0-ba8f40d2dce4@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: James Morse <james.morse@arm.com>
+Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
 
-On Thu, Oct 4, 2018 at 12:48 AM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Wed 03-10-18 19:15:24, Dan Williams wrote:
-> > Some data exfiltration and return-oriented-programming attacks rely on
-> > the ability to infer the location of sensitive data objects. The kernel
-> > page allocator, especially early in system boot, has predictable
-> > first-in-first out behavior for physical pages. Pages are freed in
-> > physical address order when first onlined.
-> >
-> > Introduce shuffle_free_memory(), and its helper shuffle_zone(), to
-> > perform a Fisher-Yates shuffle of the page allocator 'free_area' lists
-> > when they are initially populated with free memory at boot and at
-> > hotplug time.
-> >
-> > Quoting Kees:
-> >     "While we already have a base-address randomization
-> >      (CONFIG_RANDOMIZE_MEMORY), attacks against the same hardware and
-> >      memory layouts would certainly be using the predictability of
-> >      allocation ordering (i.e. for attacks where the base address isn't
-> >      important: only the relative positions between allocated memory).
-> >      This is common in lots of heap-style attacks. They try to gain
-> >      control over ordering by spraying allocations, etc.
-> >
-> >      I'd really like to see this because it gives us something similar
-> >      to CONFIG_SLAB_FREELIST_RANDOM but for the page allocator."
-> >
-> > Another motivation for this change is performance in the presence of a
-> > memory-side cache. In the future, memory-side-cache technology will be
-> > available on generally available server platforms. The proposed
-> > randomization approach has been measured to improve the cache conflict
-> > rate by a factor of 2.5X on a well-known Java benchmark. It avoids
-> > performance peaks and valleys to provide more predictable performance.
-> >
-> > While SLAB_FREELIST_RANDOM reduces the predictability of some local slab
-> > caches it leaves vast bulk of memory to be predictably in order
-> > allocated. That ordering can be detected by a memory side-cache.
-> >
-> > The shuffling is done in terms of 'shuffle_page_order' sized free pages
-> > where the default shuffle_page_order is MAX_ORDER-1 i.e. 10, 4MB this
-> > trades off randomization granularity for time spent shuffling.
-> > MAX_ORDER-1 was chosen to be minimally invasive to the page allocator
-> > while still showing memory-side cache behavior improvements.
-> >
-> > The performance impact of the shuffling appears to be in the noise
-> > compared to other memory initialization work. Also the bulk of the work
-> > is done in the background as a part of deferred_init_memmap().
->
-> This is the biggest portion of the series and I am wondering why do we
-> need it at all. Why it isn't sufficient to rely on the patch 3 here?
+On Wed, Oct 03, 2018 at 06:50:36PM +0100, James Morse wrote:
+> I'm all in favour of letting the compiler work it out, but the existing ghes
+> code has #ifdef/#else all over the place. This is 'keeping the style'.
 
-In fact we started with only patch3 and it had no measurable impact on
-the cache conflict rate.
+Yeah, but this "style" is not the optimal one and we should
+simplify/clean up and fix this thing.
 
-> Pages freed from the bootmem allocator go via the same path so they
-> might be shuffled at that time. Or is there any problem with that?
-> Not enough entropy at the time when this is called or the final result
-> is not randomized enough (some numbers would be helpful).
+Swapping the order of your statements here:
 
-So the reason front-back randomization is not enough is due to the
-in-order initial freeing of pages. At the start of that process
-putting page1 in front or behind page0 still keeps them close
-together, page2 is still near page1 and has a high chance of being
-adjacent. As more pages are added ordering diversity improves, but
-there is still high page locality for the low address pages and this
-leads to no significant impact to the cache conflict rate. Patch3 is
-enough to keep the entropy sustained over time, but it's not enough
-initially.
+> The ACPI spec has four ~NMI notifications, so far the support for
+> these in Linux has been selectable separately.
+
+Yes, but: distro kernels end up enabling all those options anyway and
+distro kernels are 90-ish% of the setups. Which means, this will get
+enabled anyway and this additional Kconfig symbol is simply going to be
+one automatic reply "Yes".
+
+So let's build it in by default and if someone complains about it, we
+can always carve it out. But right now I don't see the need for the
+unnecessary separation...
+
+Thx.
+
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
