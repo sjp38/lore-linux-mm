@@ -1,123 +1,419 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 53CB06B000D
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 21:02:44 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id g8-v6so5214974otj.18
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 18:02:44 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id u189-v6si1477413oie.133.2018.10.03.18.02.42
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AD1AD6B000A
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 22:27:17 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id 43-v6so7332417ple.19
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 19:27:17 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id s17-v6si3373478plq.339.2018.10.03.19.27.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Oct 2018 18:02:43 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w940sC5K035241
-	for <linux-mm@kvack.org>; Wed, 3 Oct 2018 21:02:42 -0400
-Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mw6sgbvs4-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 03 Oct 2018 21:02:42 -0400
-Received: from localhost
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <mwb@linux.vnet.ibm.com>;
-	Wed, 3 Oct 2018 19:02:41 -0600
-Subject: Re: [PATCH] migration/mm: Add WARN_ON to try_offline_node
-References: <20181001185616.11427.35521.stgit@ltcalpine2-lp9.aus.stglabs.ibm.com>
- <20181001202724.GL18290@dhcp22.suse.cz>
- <bdbca329-7d35-0535-1737-94a06a19ae28@linux.vnet.ibm.com>
- <df95f828-1963-d8b9-ab58-6d29d2d152d2@linux.vnet.ibm.com>
- <20181002145922.GZ18290@dhcp22.suse.cz>
- <d338b385-626b-0e79-9944-708178fe245d@linux.vnet.ibm.com>
- <20181002160446.GA18290@dhcp22.suse.cz>
- <e7dd66c1-d196-3a14-0115-acdaf538ebfd@linux.vnet.ibm.com>
- <bbc5f219-614f-b024-0888-8ad216c5eaf8@linux.vnet.ibm.com>
- <17781f9e-abfb-8c1e-eb18-39571d1b5cd6@linux.vnet.ibm.com>
- <e7c0f7cc-02a4-47ff-9d7c-0b63f106932e@gmail.com>
-From: Michael Bringmann <mwb@linux.vnet.ibm.com>
-Date: Wed, 3 Oct 2018 20:02:33 -0500
+        Wed, 03 Oct 2018 19:27:15 -0700 (PDT)
+Subject: [PATCH v2 1/3] mm: Shuffle initial free memory
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 03 Oct 2018 19:15:24 -0700
+Message-ID: <153861932401.2863953.11364943845583542894.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <153861931865.2863953.11185006931458762795.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <153861931865.2863953.11185006931458762795.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <e7c0f7cc-02a4-47ff-9d7c-0b63f106932e@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Message-Id: <571d56e7-bfa9-5da1-c321-15adfffaba69@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tyrel Datwyler <turtle.in.the.kernel@gmail.com>, Tyrel Datwyler <tyreld@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Thomas Falcon <tlfalcon@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Mathieu Malaterre <malat@debian.org>, linux-kernel@vger.kernel.org, Nicholas Piggin <npiggin@gmail.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm@kvack.org, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Juliet Kim <minkim@us.ibm.com>, Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, linuxppc-dev@lists.ozlabs.org, Dan Williams <dan.j.williams@intel.com>, Oscar Salvador <osalvador@suse.de>
+To: akpm@linux-foundation.org
+Cc: Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.orgkeescook@chromium.org
 
-On 10/03/2018 06:05 PM, Tyrel Datwyler wrote:
-> On 10/03/2018 06:27 AM, Michael Bringmann wrote:
->> On 10/02/2018 02:45 PM, Tyrel Datwyler wrote:
->>> On 10/02/2018 11:13 AM, Michael Bringmann wrote:
->>>>
->>>>
->>>> On 10/02/2018 11:04 AM, Michal Hocko wrote:
->>>>> On Tue 02-10-18 10:14:49, Michael Bringmann wrote:
->>>>>> On 10/02/2018 09:59 AM, Michal Hocko wrote:
->>>>>>> On Tue 02-10-18 09:51:40, Michael Bringmann wrote:
->>>>>>> [...]
->>>>>>>> When the device-tree affinity attributes have changed for memory,
->>>>>>>> the 'nid' affinity calculated points to a different node for the
->>>>>>>> memory block than the one used to install it, previously on the
->>>>>>>> source system.  The newly calculated 'nid' affinity may not yet
->>>>>>>> be initialized on the target system.  The current memory tracking
->>>>>>>> mechanisms do not record the node to which a memory block was
->>>>>>>> associated when it was added.  Nathan is looking at adding this
->>>>>>>> feature to the new implementation of LMBs, but it is not there
->>>>>>>> yet, and won't be present in earlier kernels without backporting a
->>>>>>>> significant number of changes.
->>>>>>>
->>>>>>> Then the patch you have proposed here just papers over a real issue, no?
->>>>>>> IIUC then you simply do not remove the memory if you lose the race.
->>>>>>
->>>>>> The problem occurs when removing memory after an affinity change
->>>>>> references a node that was previously unreferenced.  Other code
->>>>>> in 'kernel/mm/memory_hotplug.c' deals with initializing an empty
->>>>>> node when adding memory to a system.  The 'removing memory' case is
->>>>>> specific to systems that perform LPM and allow device-tree changes.
->>>>>> The powerpc kernel does not have the option of accepting some PRRN
->>>>>> requests and accepting others.  It must perform them all.
->>>>>
->>>>> I am sorry, but you are still too cryptic for me. Either there is a
->>>>> correctness issue and the the patch doesn't really fix anything or the
->>>>> final race doesn't make any difference and then the ppc code should be
->>>>> explicit about that. Checking the node inside the hotplug core code just
->>>>> looks as a wrong layer to mitigate an arch specific problem. I am not
->>>>> saying the patch is a no-go but if anything we want a big fat comment
->>>>> explaining how this is possible because right now it just points to an
->>>>> incorrect API usage.
->>>>>
->>>>> That being said, this sounds pretty much ppc specific problem and I
->>>>> would _prefer_ it to be handled there (along with a big fat comment of
->>>>> course).
->>>>
->>>> Let me try again.  Regardless of the path to which we get to this condition,
->>>> we currently crash the kernel.  This patch changes that to a WARN_ON notice
->>>> and continues executing the kernel without shutting down the system.  I saw
->>>> the problem during powerpc testing, because that is the focus of my work.
->>>> There are other paths to this function besides powerpc.  I feel that the
->>>> kernel should keep running instead of halting.
->>>
->>> This is still basically a hack to get around a known race. In itself this patch is still worth while in that we shouldn't crash the kernel on a null pointer dereference. However, I think the actual problem still needs to be addressed. We shouldn't run any PRRN events for the source system on the target after a migration. The device tree update should have taken care of telling us about new affinities and what not. Can we just throw out any queued PRRN events when we wake up on the target?
->>
->> We are not talking about queued events provided on the source system, but about
->> new PRRN events sent by phyp to the kernel on the target system to update the
->> kernel state after migration.  No way to predict the content.
-> 
-> Okay, but either way shouldn't your other proposed patches to update memory affinity by re-adding memory and changing the time topology updates are stopped to include the post-mobility updates put things in the right nodes? Or, am I missing something? I would assume a PRRN on the target would assume the target was up-to-date with respect to where things are supposed to be located.
+Some data exfiltration and return-oriented-programming attacks rely on
+the ability to infer the location of sensitive data objects. The kernel
+page allocator, especially early in system boot, has predictable
+first-in-first out behavior for physical pages. Pages are freed in
+physical address order when first onlined.
 
-This bug only recently came to our attention in a defect on a SLES12 SP3 platform running PHYP Memory Mover concurrently with LPM.  Not a normal test case.
+Introduce shuffle_free_memory(), and its helper shuffle_zone(), to
+perform a Fisher-Yates shuffle of the page allocator 'free_area' lists
+when they are initially populated with free memory at boot and at
+hotplug time.
 
-> 
-> -Tyrel
+Quoting Kees:
+    "While we already have a base-address randomization
+     (CONFIG_RANDOMIZE_MEMORY), attacks against the same hardware and
+     memory layouts would certainly be using the predictability of
+     allocation ordering (i.e. for attacks where the base address isn't
+     important: only the relative positions between allocated memory).
+     This is common in lots of heap-style attacks. They try to gain
+     control over ordering by spraying allocations, etc.
 
-Michael
+     I'd really like to see this because it gives us something similar
+     to CONFIG_SLAB_FREELIST_RANDOM but for the page allocator."
 
--- 
-Michael W. Bringmann
-Linux Technology Center
-IBM Corporation
-Tie-Line  363-5196
-External: (512) 286-5196
-Cell:       (512) 466-0650
-mwb@linux.vnet.ibm.com
+Another motivation for this change is performance in the presence of a
+memory-side cache. In the future, memory-side-cache technology will be
+available on generally available server platforms. The proposed
+randomization approach has been measured to improve the cache conflict
+rate by a factor of 2.5X on a well-known Java benchmark. It avoids
+performance peaks and valleys to provide more predictable performance.
+
+While SLAB_FREELIST_RANDOM reduces the predictability of some local slab
+caches it leaves vast bulk of memory to be predictably in order
+allocated. That ordering can be detected by a memory side-cache.
+
+The shuffling is done in terms of 'shuffle_page_order' sized free pages
+where the default shuffle_page_order is MAX_ORDER-1 i.e. 10, 4MB this
+trades off randomization granularity for time spent shuffling.
+MAX_ORDER-1 was chosen to be minimally invasive to the page allocator
+while still showing memory-side cache behavior improvements.
+
+The performance impact of the shuffling appears to be in the noise
+compared to other memory initialization work. Also the bulk of the work
+is done in the background as a part of deferred_init_memmap().
+
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+---
+ include/linux/list.h   |   17 +++++
+ include/linux/mm.h     |    5 +
+ include/linux/mmzone.h |    4 +
+ mm/bootmem.c           |    9 ++-
+ mm/memory_hotplug.c    |    2 +
+ mm/nobootmem.c         |    7 ++
+ mm/page_alloc.c        |  172 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 211 insertions(+), 5 deletions(-)
+
+diff --git a/include/linux/list.h b/include/linux/list.h
+index de04cc5ed536..43f963328d7c 100644
+--- a/include/linux/list.h
++++ b/include/linux/list.h
+@@ -150,6 +150,23 @@ static inline void list_replace_init(struct list_head *old,
+ 	INIT_LIST_HEAD(old);
+ }
+ 
++/**
++ * list_swap - replace entry1 with entry2 and re-add entry1 at entry2's position
++ * @entry1: the location to place entry2
++ * @entry2: the location to place entry1
++ */
++static inline void list_swap(struct list_head *entry1,
++			     struct list_head *entry2)
++{
++	struct list_head *pos = entry2->prev;
++
++	list_del(entry2);
++	list_replace(entry1, entry2);
++	if (pos == entry1)
++		pos = entry2;
++	list_add(entry1, pos);
++}
++
+ /**
+  * list_del_init - deletes entry from list and reinitialize it.
+  * @entry: the element to delete from the list.
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a61ebe8ad4ca..ca1581814fe2 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2040,7 +2040,10 @@ extern void adjust_managed_page_count(struct page *page, long count);
+ extern void mem_init_print_info(const char *str);
+ 
+ extern void reserve_bootmem_region(phys_addr_t start, phys_addr_t end);
+-
++extern void shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
++		unsigned long end_pfn);
++extern void shuffle_zone(struct zone *z, unsigned long start_pfn,
++		unsigned long end_pfn);
+ /* Free the reserved page into the buddy system, so it gets managed. */
+ static inline void __free_reserved_page(struct page *page)
+ {
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 1e22d96734e0..8f8fc7dab5cb 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -1277,6 +1277,10 @@ void sparse_init(void);
+ #else
+ #define sparse_init()	do {} while (0)
+ #define sparse_index_init(_sec, _nid)  do {} while (0)
++static inline int pfn_present(unsigned long pfn)
++{
++	return 1;
++}
+ #endif /* CONFIG_SPARSEMEM */
+ 
+ /*
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index 97db0e8e362b..7f5ff899c622 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -210,6 +210,7 @@ void __init free_bootmem_late(unsigned long physaddr, unsigned long size)
+ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+ {
+ 	struct page *page;
++	int nid = bdata - bootmem_node_data;
+ 	unsigned long *map, start, end, pages, cur, count = 0;
+ 
+ 	if (!bdata->node_bootmem_map)
+@@ -219,8 +220,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+ 	start = bdata->node_min_pfn;
+ 	end = bdata->node_low_pfn;
+ 
+-	bdebug("nid=%td start=%lx end=%lx\n",
+-		bdata - bootmem_node_data, start, end);
++	bdebug("nid=%d start=%lx end=%lx\n", nid, start, end);
+ 
+ 	while (start < end) {
+ 		unsigned long idx, vec;
+@@ -276,7 +276,10 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+ 		__free_pages_bootmem(page++, cur++, 0);
+ 	bdata->node_bootmem_map = NULL;
+ 
+-	bdebug("nid=%td released=%lx\n", bdata - bootmem_node_data, count);
++	shuffle_free_memory(NODE_DATA(nid), bdata->node_min_pfn,
++			bdata->node_low_pfn);
++
++	bdebug("nid=%d released=%lx\n", nid, count);
+ 
+ 	return count;
+ }
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 38d94b703e9d..c75e597eecd2 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -936,6 +936,8 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 	zone->zone_pgdat->node_present_pages += onlined_pages;
+ 	pgdat_resize_unlock(zone->zone_pgdat, &flags);
+ 
++	shuffle_zone(zone, pfn, zone_end_pfn(zone));
++
+ 	if (onlined_pages) {
+ 		node_states_set_node(nid, &arg);
+ 		if (need_zonelists_rebuild)
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index 439af3b765a7..40b42434e805 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -131,6 +131,7 @@ static unsigned long __init free_low_memory_core_early(void)
+ {
+ 	unsigned long count = 0;
+ 	phys_addr_t start, end;
++	pg_data_t *pgdat;
+ 	u64 i;
+ 
+ 	memblock_clear_hotplug(0, -1);
+@@ -144,8 +145,12 @@ static unsigned long __init free_low_memory_core_early(void)
+ 	 *  low ram will be on Node1
+ 	 */
+ 	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end,
+-				NULL)
++				NULL) {
+ 		count += __free_memory_core(start, end);
++		for_each_online_pgdat(pgdat)
++			shuffle_free_memory(pgdat, PHYS_PFN(start),
++					PHYS_PFN(end));
++	}
+ 
+ 	return count;
+ }
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 89d2a2ab3fe6..9a1d97655c19 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -55,6 +55,7 @@
+ #include <trace/events/kmem.h>
+ #include <trace/events/oom.h>
+ #include <linux/prefetch.h>
++#include <linux/random.h>
+ #include <linux/mm_inline.h>
+ #include <linux/migrate.h>
+ #include <linux/hugetlb.h>
+@@ -72,6 +73,13 @@
+ #include <asm/div64.h>
+ #include "internal.h"
+ 
++/*
++ * page_alloc.shuffle_page_order gates which page orders are shuffled by
++ * shuffle_zone() during memory initialization.
++ */
++static int __read_mostly shuffle_page_order = MAX_ORDER-1;
++module_param(shuffle_page_order, int, 0444);
++
+ /* prevent >1 _updater_ of zone percpu pageset ->high and ->batch fields */
+ static DEFINE_MUTEX(pcp_batch_high_lock);
+ #define MIN_PERCPU_PAGELIST_FRACTION	(8)
+@@ -1035,6 +1043,168 @@ static __always_inline bool free_pages_prepare(struct page *page,
+ 	return true;
+ }
+ 
++/*
++ * For two pages to be swapped in the shuffle, they must be free (on a
++ * 'free_area' lru), have the same order, and have the same migratetype.
++ */
++static struct page * __meminit shuffle_valid_page(unsigned long pfn, int order)
++{
++	struct page *page;
++
++	/*
++	 * Given we're dealing with randomly selected pfns in a zone we
++	 * need to ask questions like...
++	 */
++
++	/* ...is the pfn even in the memmap? */
++	if (!pfn_valid_within(pfn))
++		return NULL;
++
++	/* ...is the pfn in a present section or a hole? */
++	if (!pfn_present(pfn))
++		return NULL;
++
++	/* ...is the page free and currently on a free_area list? */
++	page = pfn_to_page(pfn);
++	if (!PageBuddy(page))
++		return NULL;
++
++	/*
++	 * ...is the page on the same list as the page we will
++	 * shuffle it with?
++	 */
++	if (page_order(page) != order)
++		return NULL;
++
++	return page;
++}
++
++/*
++ * Fisher-Yates shuffle the freelist which prescribes iterating through
++ * an array, pfns in this case, and randomly swapping each entry with
++ * another in the span, end_pfn - start_pfn.
++ *
++ * To keep the implementation simple it does not attempt to correct for
++ * sources of bias in the distribution, like modulo bias or
++ * pseudo-random number generator bias. I.e. the expectation is that
++ * this shuffling raises the bar for attacks that exploit the
++ * predictability of page allocations, but need not be a perfect
++ * shuffle.
++ *
++ * Note that we don't use @z->zone_start_pfn and zone_end_pfn(@z)
++ * directly since the caller may be aware of holes in the zone and can
++ * improve the accuracy of the random pfn selection.
++ */
++#define SHUFFLE_RETRY 10
++static void __meminit shuffle_zone_order(struct zone *z, unsigned long start_pfn,
++		unsigned long end_pfn, const int order)
++{
++	unsigned long i, flags;
++	const int order_pages = 1 << order;
++
++	if (start_pfn < z->zone_start_pfn)
++		start_pfn = z->zone_start_pfn;
++	if (end_pfn > zone_end_pfn(z))
++		end_pfn = zone_end_pfn(z);
++
++	/* probably means that start/end were outside the zone */
++	if (end_pfn <= start_pfn)
++		return;
++	spin_lock_irqsave(&z->lock, flags);
++	start_pfn = ALIGN(start_pfn, order_pages);
++	for (i = start_pfn; i < end_pfn; i += order_pages) {
++		unsigned long j;
++		int migratetype, retry;
++		struct page *page_i, *page_j;
++
++		/*
++		 * We expect page_i, in the sub-range of a zone being
++		 * added (@start_pfn to @end_pfn), to more likely be
++		 * valid compared to page_j randomly selected in the
++		 * span @zone_start_pfn to @spanned_pages.
++		 */
++		page_i = shuffle_valid_page(i, order);
++		if (!page_i)
++			continue;
++
++		for (retry = 0; retry < SHUFFLE_RETRY; retry++) {
++			/*
++			 * Pick a random order aligned page from the
++			 * start of the zone. Use the *whole* zone here
++			 * so that if it is freed in tiny pieces that we
++			 * randomize in the whole zone, not just within
++			 * those fragments.
++			 *
++			 * Since page_j comes from a potentially sparse
++			 * address range we want to try a bit harder to
++			 * find a shuffle point for page_i.
++			 */
++			j = z->zone_start_pfn +
++				ALIGN_DOWN(get_random_long() % z->spanned_pages,
++						order_pages);
++			page_j = shuffle_valid_page(j, order);
++			if (page_j && page_j != page_i)
++				break;
++		}
++		if (retry >= SHUFFLE_RETRY) {
++			pr_debug("%s: failed to swap %#lx\n", __func__, i);
++			continue;
++		}
++
++		/*
++		 * Each migratetype corresponds to its own list, make
++		 * sure the types match otherwise we're moving pages to
++		 * lists where they do not belong.
++		 */
++		migratetype = get_pageblock_migratetype(page_i);
++		if (get_pageblock_migratetype(page_j) != migratetype) {
++			pr_debug("%s: migratetype mismatch %#lx\n", __func__, i);
++			continue;
++		}
++
++		list_swap(&page_i->lru, &page_j->lru);
++
++		pr_debug("%s: swap: %#lx -> %#lx\n", __func__, i, j);
++
++		/* take it easy on the zone lock */
++		if ((i % (100 * order_pages)) == 0) {
++			spin_unlock_irqrestore(&z->lock, flags);
++			cond_resched();
++			spin_lock_irqsave(&z->lock, flags);
++		}
++	}
++	spin_unlock_irqrestore(&z->lock, flags);
++}
++
++void __meminit shuffle_zone(struct zone *z, unsigned long start_pfn,
++               unsigned long end_pfn)
++{
++       int i;
++
++       /* shuffle all the orders at the specified order and higher */
++       for (i = shuffle_page_order; i < MAX_ORDER; i++)
++               shuffle_zone_order(z, start_pfn, end_pfn, i);
++}
++
++/**
++ * shuffle_free_memory - reduce the predictability of the page allocator
++ * @pgdat: node page data
++ * @start_pfn: Limit the shuffle to the greater of this value or zone start
++ * @end_pfn: Limit the shuffle to the less of this value or zone end
++ *
++ * While shuffle_zone() attempts to avoid holes with pfn_valid() and
++ * pfn_present() they can not report sub-section sized holes. @start_pfn
++ * and @end_pfn limit the shuffle to the exact memory pages being freed.
++ */
++void __meminit shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
++		unsigned long end_pfn)
++{
++	struct zone *z;
++
++	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
++		shuffle_zone(z, start_pfn, end_pfn);
++}
++
+ #ifdef CONFIG_DEBUG_VM
+ static inline bool free_pcp_prepare(struct page *page)
+ {
+@@ -1583,6 +1753,8 @@ static int __init deferred_init_memmap(void *data)
+ 	}
+ 	pgdat_resize_unlock(pgdat, &flags);
+ 
++	shuffle_zone(zone, first_init_pfn, zone_end_pfn(zone));
++
+ 	/* Sanity check that the next zone really is unpopulated */
+ 	WARN_ON(++zid < MAX_NR_ZONES && populated_zone(++zone));
+ 
