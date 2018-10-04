@@ -1,69 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2081F6B0003
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 11:15:59 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id n13-v6so8885567wrt.5
-        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 08:15:59 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTPS id p6-v6si4303072wrm.280.2018.10.04.08.15.57
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 611986B000A
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 11:28:15 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id g36-v6so5798122edb.3
+        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 08:28:15 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 23-v6si475892ejr.103.2018.10.04.08.28.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Oct 2018 08:15:57 -0700 (PDT)
-Date: Thu, 4 Oct 2018 17:15:55 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v6 00/18] APEI in_nmi() rework
-Message-ID: <20181004151555.GN1864@zn.tnic>
-References: <20180921221705.6478-1-james.morse@arm.com>
- <20180925124526.GD23986@zn.tnic>
- <c04d1b78-122b-d7f2-5a75-3d9c56386b11@arm.com>
+        Thu, 04 Oct 2018 08:28:13 -0700 (PDT)
+Date: Thu, 4 Oct 2018 17:28:07 +0200
+From: Michal =?UTF-8?B?U3VjaMOhbmVr?= <msuchanek@suse.de>
+Subject: Re: [PATCH RFC] mm/memory_hotplug: Introduce memory block types
+Message-ID: <20181004172807.1eef3a6b@kitsune.suse.cz>
+In-Reply-To: <efd50413-4be4-06c4-5ef0-711fdf05db71@redhat.com>
+References: <20181001084038.GD18290@dhcp22.suse.cz>
+	<d54a8509-725f-f771-72f0-15a9d93e8a49@redhat.com>
+	<20181002134734.GT18290@dhcp22.suse.cz>
+	<98fb8d65-b641-2225-f842-8804c6f79a06@redhat.com>
+	<8736tndubn.fsf@vitty.brq.redhat.com>
+	<20181003134444.GH4714@dhcp22.suse.cz>
+	<87zhvvcf3b.fsf@vitty.brq.redhat.com>
+	<49456818-238e-2d95-9df6-d1934e9c8b53@linux.intel.com>
+	<87tvm3cd5w.fsf@vitty.brq.redhat.com>
+	<06a35970-e478-18f8-eae6-4022925a5192@redhat.com>
+	<20181004061938.GB22173@dhcp22.suse.cz>
+	<efd50413-4be4-06c4-5ef0-711fdf05db71@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <c04d1b78-122b-d7f2-5a75-3d9c56386b11@arm.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
+To: David Hildenbrand <david@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Kate Stewart <kstewart@linuxfoundation.org>, Rich Felker <dalias@libc.org>, linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, Paul Mackerras <paulus@samba.org>, "H. Peter Anvin" <hpa@zytor.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Rashmica Gupta <rashmica.g@gmail.com>, Dan Williams <dan.j.williams@intel.com>, linux-s390@vger.kernel.org, Michael Neuling <mikey@neuling.org>, Stephen Hemminger <sthemmin@microsoft.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-acpi@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, xen-devel@lists.xenproject.org, Len Brown <lenb@kernel.org>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Rob Herring <robh@kernel.org>, "mike.travis@hpe.com" <mike.travis@hpe.com>, Haiyang Zhang <haiyangz@microsoft.com>, Jonathan =?UTF-8?B?TmV1c2Now6Rm?= =?UTF-8?B?ZXI=?= <j.neuschaefer@gmx.net>, Nicholas Piggin <npiggin@gmail.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, =?UTF-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Oscar Salvador <osalvador@suse.de>, Juergen Gross <jgross@suse.com>, Tony Luck <tony.luck@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mathieu Malaterre <malat@debian.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, linux-kernel@vger.kernel.org, Fenghua Yu <fenghua.yu@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, Joe Perches <joe@perches.com>, devel@linuxdriverproject.org, Vitaly Kuznetsov <vkuznets@redhat.com>, linuxppc-dev@lists.ozlabs.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Oct 03, 2018 at 06:50:38PM +0100, James Morse wrote:
+On Thu, 4 Oct 2018 10:13:48 +0200
+David Hildenbrand <david@redhat.com> wrote:
 
-...
+ok, so what is the problem here?
 
-> The non-ghes HEST entries have a "number of records to pre-allocate" too, we
-> could make this memory pool something hest.c looks after, but I can't see if the
-> other error sources use those values.
+Handling the hotplug in userspace through udev may be suboptimal and
+kernel handling might be faster but that's orthogonal to the problem at
+hand.
 
-Thanks for the detailed analysis!
+The state of the art is to determine what to do with hotplugged memory
+in userspace based on platform and virtualization type.
 
-> Hmmm, The size is capped to 64K, we could ignore the firmware description of the
-> memory requirements, and allocate SZ_64K each time. Doing it per-GHES is still
-> the only way to avoid allocating nmi-safe memory for irqs.
+Changing the default to depend on the driver that added the memory
+rather than platform type should solve the issue of VMs growing
+different types of memory device emulation.
 
-Right, so I'm thinking a lot simpler: allocate a pool which should
-be large enough to handle all situations and drop all that logic
-which recomputes and reallocates pool size. Just a static thing which
-JustWorks(tm).
+Am I missing something?
 
-For a couple of reasons:
+Thanks
 
- - you state it above: all those synchronization issues are gone with a
- prellocated pool
-
- - 64K per-GHES pool is nothing if you consider the machines this thing
- runs on - fat servers with lotsa memory. And RAS there *is* important.
- And TBH 64K is nothing even on a small client sporting gigabytes of
- memory.
-
- - code is a lot simpler and cleaner - you don't need all that pool
- expanding and shrinking. I mean, I'm all for smarter solutions if they
- have any clear advantages warranting the complication but this is a
- lot of machinery just so that we can save a couple of KBs. Which, as a
- whole, sounds just too much to me.
-
-But this is just me.
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Michal
