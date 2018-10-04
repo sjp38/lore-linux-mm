@@ -1,117 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 848D46B0269
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 22:29:16 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id 3-v6so7158943plq.6
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 19:29:16 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id 3-v6si3424926plo.318.2018.10.03.19.29.15
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AA61C6B000A
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2018 23:11:19 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id q29-v6so4616344edd.0
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2018 20:11:19 -0700 (PDT)
+Received: from mx1.molgen.mpg.de (mx3.molgen.mpg.de. [141.14.17.11])
+        by mx.google.com with ESMTPS id l9-v6si1192297edi.372.2018.10.03.20.11.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Oct 2018 19:29:15 -0700 (PDT)
-Subject: [PATCH v2 3/3] mm: Maintain randomization of page free lists
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 03 Oct 2018 19:15:34 -0700
-Message-ID: <153861933441.2863953.2686611248399177664.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <153861931865.2863953.11185006931458762795.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <153861931865.2863953.11185006931458762795.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Wed, 03 Oct 2018 20:11:18 -0700 (PDT)
+Subject: Re: x86/mm: Found insecure W+X mapping at address (ptrval)/0xc00a0000
+References: <e75fa739-4bcc-dc30-2606-25d2539d2653@molgen.mpg.de>
+ <alpine.DEB.2.21.1809191004580.1468@nanos.tec.linutronix.de>
+ <0922cc1b-ed51-06e9-df81-57fd5aa8e7de@molgen.mpg.de>
+ <alpine.DEB.2.21.1809210045220.1434@nanos.tec.linutronix.de>
+ <c8da5778-3957-2fab-69ea-42f872a5e396@molgen.mpg.de>
+ <alpine.DEB.2.21.1809281653270.2004@nanos.tec.linutronix.de>
+ <20181003212255.GB28361@zn.tnic>
+From: Paul Menzel <pmenzel@molgen.mpg.de>
+Message-ID: <18bf13a4-2853-358e-594f-27533193757c@molgen.mpg.de>
+Date: Thu, 4 Oct 2018 05:11:17 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <20181003212255.GB28361@zn.tnic>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.orgkeescook@chromium.org
+To: Borislav Petkov <bp@alien8.de>, Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org, x86@kernel.org, lkml <linux-kernel@vger.kernel.org>
 
-When freeing a page with an order >= shuffle_page_order randomly select
-the front or back of the list for insertion.
+Dear Borislav,
 
-While the mm tries to defragment physical pages into huge pages this can
-tend to make the page allocator more predictable over time. Inject the
-front-back randomness to preserve the initial randomness established by
-shuffle_free_memory() when the kernel was booted.
+Am 03.10.2018 um 23:22 schrieb Borislav Petkov:
+> On Fri, Sep 28, 2018 at 04:55:19PM +0200, Thomas Gleixner wrote:
+>> Sorry for the delay and thanks for the data. A quick diff did not reveal
+>> anything obvious. I'll have a closer look and we probably need more (other)
+>> information to nail that down.
+> 
+> Just a brain dump of what I've found out so far.
 
-The overhead of this manipulation is constrained by only being applied
-for MAX_ORDER sized pages by default.
+Thank you for looking into this. On what board are you able to reproduce 
+this? Do you build for 32-bit or 64-bit?
 
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- include/linux/mmzone.h |    2 ++
- mm/page_alloc.c        |   27 +++++++++++++++++++++++++--
- 2 files changed, 27 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index adf9b3a7440d..4a095432843d 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -98,6 +98,8 @@ extern int page_group_by_mobility_disabled;
- struct free_area {
- 	struct list_head	free_list[MIGRATE_TYPES];
- 	unsigned long		nr_free;
-+	u64			rand;
-+	u8			rand_bits;
- };
- 
- /* Used for pages not on another list */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b4a1598fcab5..e659119351ad 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -43,6 +43,7 @@
- #include <linux/mempolicy.h>
- #include <linux/memremap.h>
- #include <linux/stop_machine.h>
-+#include <linux/random.h>
- #include <linux/sort.h>
- #include <linux/pfn.h>
- #include <linux/backing-dev.h>
-@@ -746,6 +747,22 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
- 	return 0;
- }
- 
-+static void add_to_free_area_random(struct page *page, struct free_area *area,
-+		int migratetype)
-+{
-+	if (area->rand_bits == 0) {
-+		area->rand_bits = 64;
-+		area->rand = get_random_u64();
-+	}
-+
-+	if (area->rand & 1)
-+		add_to_free_area(page, area, migratetype);
-+	else
-+		add_to_free_area_tail(page, area, migratetype);
-+	area->rand_bits--;
-+	area->rand >>= 1;
-+}
-+
- /*
-  * Freeing function for a buddy system allocator.
-  *
-@@ -851,7 +868,8 @@ static inline void __free_one_page(struct page *page,
- 	 * so it's less likely to be used soon and more likely to be merged
- 	 * as a higher order page
- 	 */
--	if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)) {
-+	if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)
-+			&& order < shuffle_page_order) {
- 		struct page *higher_page, *higher_buddy;
- 		combined_pfn = buddy_pfn & pfn;
- 		higher_page = page + (combined_pfn - pfn);
-@@ -865,7 +883,12 @@ static inline void __free_one_page(struct page *page,
- 		}
- 	}
- 
--	add_to_free_area(page, &zone->free_area[order], migratetype);
-+	if (order < shuffle_page_order)
-+		add_to_free_area(page, &zone->free_area[order], migratetype);
-+	else
-+		add_to_free_area_random(page, &zone->free_area[order],
-+				migratetype);
-+
- }
- 
- /*
+Kind regards,
+
+Paul
