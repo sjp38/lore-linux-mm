@@ -1,58 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 07AC86B000A
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 04:03:24 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c13-v6so2800492ede.6
-        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 01:03:23 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id e1-v6si2658435eji.64.2018.10.04.01.03.22
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 49E0B6B000D
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 04:05:12 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id t8-v6so7710980plo.4
+        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 01:05:12 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v21-v6sor3024251pgl.36.2018.10.04.01.05.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Oct 2018 01:03:22 -0700 (PDT)
-Date: Thu, 4 Oct 2018 10:03:21 +0200
-From: Joerg Roedel <joro@8bytes.org>
-Subject: Re: x86/mm: Found insecure W+X mapping at address (ptrval)/0xc00a0000
-Message-ID: <20181004080321.GA3630@8bytes.org>
-References: <e75fa739-4bcc-dc30-2606-25d2539d2653@molgen.mpg.de>
- <alpine.DEB.2.21.1809191004580.1468@nanos.tec.linutronix.de>
- <0922cc1b-ed51-06e9-df81-57fd5aa8e7de@molgen.mpg.de>
- <alpine.DEB.2.21.1809210045220.1434@nanos.tec.linutronix.de>
- <c8da5778-3957-2fab-69ea-42f872a5e396@molgen.mpg.de>
- <alpine.DEB.2.21.1809281653270.2004@nanos.tec.linutronix.de>
- <20181003212255.GB28361@zn.tnic>
+        (Google Transport Security);
+        Thu, 04 Oct 2018 01:05:11 -0700 (PDT)
+Date: Thu, 4 Oct 2018 17:05:06 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: 4.14 backport request for dbdda842fe96f: "printk: Add console
+ owner and waiter logic to load balance console writes"
+Message-ID: <20181004080506.GB12879@jagdpanzerIV>
+References: <20181001152324.72a20bea@gandalf.local.home>
+ <CAJmjG29Jwn_1E5zexcm8eXTG=cTWyEr1gjSfSAS2fueB_V0tfg@mail.gmail.com>
+ <20181002084225.6z2b74qem3mywukx@pathway.suse.cz>
+ <CAJmjG2-RrG5XKeW1-+rN3C=F6bZ-L3=YKhCiQ_muENDTzm_Ofg@mail.gmail.com>
+ <20181002212327.7aab0b79@vmware.local.home>
+ <20181003091400.rgdjpjeaoinnrysx@pathway.suse.cz>
+ <CAJmjG2_4JFA=qL-d2Pb9umUEcPt9h13w-g40JQMbdKsZTRSZww@mail.gmail.com>
+ <20181003133704.43a58cf5@gandalf.local.home>
+ <CAJmjG291w2ZPRiAevSzxGNcuR6vTuqyk6z4SG3xRsbaQh5U3zQ@mail.gmail.com>
+ <20181004074442.GA12879@jagdpanzerIV>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181003212255.GB28361@zn.tnic>
+In-Reply-To: <20181004074442.GA12879@jagdpanzerIV>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Paul Menzel <pmenzel@molgen.mpg.de>, linux-mm@kvack.org, x86@kernel.org, lkml <linux-kernel@vger.kernel.org>
+To: Daniel Wang <wonderfly@google.com>
+Cc: rostedt@goodmis.org, Petr Mladek <pmladek@suse.com>, stable@vger.kernel.org, Alexander.Levin@microsoft.com, akpm@linux-foundation.org, byungchul.park@lge.com, dave.hansen@intel.com, hannes@cmpxchg.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Mel Gorman <mgorman@suse.de>, mhocko@kernel.org, pavel@ucw.cz, penguin-kernel@i-love.sakura.ne.jp, peterz@infradead.org, tj@kernel.org, torvalds@linux-foundation.org, vbabka@suse.cz, Cong Wang <xiyou.wangcong@gmail.com>, Peter Feiner <pfeiner@google.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Wed, Oct 03, 2018 at 11:22:55PM +0200, Borislav Petkov wrote:
-> On Fri, Sep 28, 2018 at 04:55:19PM +0200, Thomas Gleixner wrote:
-> > Sorry for the delay and thanks for the data. A quick diff did not reveal
-> > anything obvious. I'll have a closer look and we probably need more (other)
-> > information to nail that down.
+On (10/04/18 16:44), Sergey Senozhatsky wrote:
+> So... Just an idea. Can you try a very dirty hack? Forcibly increase
+> oops_in_progress in panic() before console_flush_on_panic(), so 8250
+> serial8250_console_write() will use spin_trylock_irqsave() and maybe
+> avoid deadlock.
 
-I also triggered this when working in the PTI-x32 code. It always
-happens on a 32-bit PAE kernel for me.
+E.g. something like below?
+[this is not a patch; just a theory]:
 
-Tracking it down I ended up in (iirc) arch/x86/mm/pageattr.c
-	function static_protections():
+---
 
-		/*
-		 * The BIOS area between 640k and 1Mb needs to be executable for
-		 * PCI BIOS based config access (CONFIG_PCI_GOBIOS) support.
-		 */
-	#ifdef CONFIG_PCI_BIOS
-		if (pcibios_enabled && within(pfn, BIOS_BEGIN >> PAGE_SHIFT, BIOS_END >> PAGE_SHIFT))
-			pgprot_val(forbidden) |= _PAGE_NX;
-	#endif
-
-I think that is the reason we are seeing this in that configuration.
-
-
-Regards,
-
-	Joerg
+diff --git a/kernel/panic.c b/kernel/panic.c
+index 8b2e002d52eb..188338a55d1c 100644
+--- a/kernel/panic.c
++++ b/kernel/panic.c
+@@ -233,7 +233,13 @@ void panic(const char *fmt, ...)
+ 	if (_crash_kexec_post_notifiers)
+ 		__crash_kexec(NULL);
+ 
++	/*
++	 * Decrement oops_in_progress and let bust_spinlocks() to
++	 * unblank_screen(), console_unblank() and wake_up_klogd()
++	 */
+ 	bust_spinlocks(0);
++	/* Set oops_in_progress, so we can reenter serial console driver*/
++	bust_spinlocks(1);
+ 
+ 	/*
+ 	 * We may have ended up stopping the CPU holding the lock (in
