@@ -1,61 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D2166B0269
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 16:56:42 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id c8-v6so10646325pfn.2
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 13:56:42 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id s17-v6sor4321913pfi.2.2018.10.05.13.56.41
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DE4D86B000C
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 17:11:01 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id v4-v6so12291700plz.21
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 14:11:01 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l15-v6sor8645970pfb.67.2018.10.05.14.11.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 05 Oct 2018 13:56:41 -0700 (PDT)
-Date: Fri, 5 Oct 2018 13:56:39 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, page_alloc: set num_movable in move_freepages()
-Message-ID: <alpine.DEB.2.21.1810051355490.212229@chino.kir.corp.google.com>
+        Fri, 05 Oct 2018 14:11:00 -0700 (PDT)
+Date: Fri, 5 Oct 2018 14:10:58 -0700
+From: Joel Fernandes <joel@joelfernandes.org>
+Subject: Re: [PATCH RFC] mm: Add an fs-write seal to memfd
+Message-ID: <20181005211058.GA193964@joelaf.mtv.corp.google.com>
+References: <20181005192727.167933-1-joel@joelfernandes.org>
+ <20181005125339.f6febfd3fcfdc69c6f408c50@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181005125339.f6febfd3fcfdc69c6f408c50@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, kernel-team@android.com, jreck@google.com, john.stultz@linaro.org, tkjos@google.com, gregkh@linuxfoundation.org, Al Viro <viro@zeniv.linux.org.uk>, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>
 
-If move_freepages() returns 0 because zone_spans_pfn(), *num_movable can
-hold the value from the stack because it does not get initialized in
-move_freepages().
+On Fri, Oct 05, 2018 at 12:53:39PM -0700, Andrew Morton wrote:
+> On Fri,  5 Oct 2018 12:27:27 -0700 "Joel Fernandes (Google)" <joel@joelfernandes.org> wrote:
+> 
+> > To support the usecase, this patch adds a new F_SEAL_FS_WRITE seal which
+> > prevents any future mmap and write syscalls from succeeding while
+> > keeping the existing mmap active. The following program shows the seal
+> > working in action:
+> 
+> Please be prepared to create a manpage patch for this one.
 
-Move the initialization to move_freepages_block() to guarantee the value
-actually makes sense.
+Sure, I will do that. thanks,
 
-This currently doesn't affect its only caller where num_movable != NULL,
-so no bug fix, but just more robust.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/page_alloc.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2015,10 +2015,6 @@ static int move_freepages(struct zone *zone,
- 	          pfn_valid(page_to_pfn(end_page)) &&
- 	          page_zone(start_page) != page_zone(end_page));
- #endif
--
--	if (num_movable)
--		*num_movable = 0;
--
- 	for (page = start_page; page <= end_page;) {
- 		if (!pfn_valid_within(page_to_pfn(page))) {
- 			page++;
-@@ -2058,6 +2054,9 @@ int move_freepages_block(struct zone *zone, struct page *page,
- 	unsigned long start_pfn, end_pfn;
- 	struct page *start_page, *end_page;
- 
-+	if (num_movable)
-+		*num_movable = 0;
-+
- 	start_pfn = page_to_pfn(page);
- 	start_pfn = start_pfn & ~(pageblock_nr_pages-1);
- 	start_page = pfn_to_page(start_pfn);
+ - Joel
