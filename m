@@ -1,43 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 202FD6B000A
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 23:26:19 -0400 (EDT)
-Received: by mail-it1-f199.google.com with SMTP id w132-v6so774260ita.6
-        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 20:26:19 -0700 (PDT)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id j207-v6si550506ita.80.2018.10.04.20.26.17
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 80DD36B000A
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 00:02:30 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id y86-v6so8020879pff.6
+        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 21:02:30 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u5-v6sor5563718pgq.14.2018.10.04.21.02.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 04 Oct 2018 20:26:18 -0700 (PDT)
-Message-ID: <8891277c7de92e93d3bfc409df95810ee6f103cd.camel@kernel.crashing.org>
-Subject: Re: [PATCH] memblock: stop using implicit alignement to
- SMP_CACHE_BYTES
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Fri, 05 Oct 2018 13:25:38 +1000
-In-Reply-To: <1538687224-17535-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1538687224-17535-1-git-send-email-rppt@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Thu, 04 Oct 2018 21:02:29 -0700 (PDT)
+From: john.hubbard@gmail.com
+Subject: [PATCH v2 0/3] get_user_pages*() and RDMA: first steps
+Date: Thu,  4 Oct 2018 21:02:22 -0700
+Message-Id: <20181005040225.14292-1-jhubbard@nvidia.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-mm@kvack.org
-Cc: linux-mips@linux-mips.org, Michal Hocko <mhocko@suse.com>, linux-ia64@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Richard Weinberger <richard@nod.at>, Russell King <linux@armlinux.org.uk>, Ingo Molnar <mingo@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Matt Turner <mattst88@gmail.com>, linux-um@lists.infradead.org, linux-m68k@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Guan Xuetao <gxt@pku.edu.cn>, linux-arm-kernel@lists.infradead.org, Chris Zankel <chris@zankel.net>, Michal Simek <monstr@monstr.eu>, Tony Luck <tony.luck@intel.com>, linux-kernel@vger.kernel.org, Paul Burton <paul.burton@mips.com>, linux-alpha@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org
+To: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>
 
-On Fri, 2018-10-05 at 00:07 +0300, Mike Rapoport wrote:
-> When a memblock allocation APIs are called with align = 0, the alignment is
-> implicitly set to SMP_CACHE_BYTES.
-> 
-> Replace all such uses of memblock APIs with the 'align' parameter explicitly
-> set to SMP_CACHE_BYTES and stop implicit alignment assignment in the
-> memblock internal allocation functions.
-> 
-> For the case when memblock APIs are used via helper functions, e.g. like
-> iommu_arena_new_node() in Alpha, the helper functions were detected with
-> Coccinelle's help and then manually examined and updated where appropriate.
-> 
-> The direct memblock APIs users were updated using the semantic patch below:
+From: John Hubbard <jhubbard@nvidia.com>
 
-What is the purpose of this ? It sounds rather counter-intuitive...
+Changes since v1:
 
-Ben.
+-- Renamed release_user_pages*() to put_user_pages*(), from Jan's feedback.
+
+-- Removed the goldfish.c changes, and instead, only included a single
+   user (infiniband) of the new functions. That is because goldfish.c no
+   longer has a name collision (it has a release_user_pages() routine), and
+   also because infiniband exercises both the put_user_page() and
+   put_user_pages*() paths.
+
+-- Updated links to discussions and plans, so as to be sure to include
+   bounce buffers, thanks to Jerome's feedback.
+
+Also:
+
+-- Dennis, thanks for your earlier review, and I have not yet added your
+   Reviewed-by tag, because this revision changes the things that you had
+   previously reviewed, thus potentially requiring another look.
+
+This short series prepares for eventually fixing the problem described
+in [1], and is following a plan listed in [2], [3], [4].
+
+I'd like to get the first two patches into the -mm tree.
+
+Patch 1, although not technically critical to do now, is still nice to
+have, because it's already been reviewed by Jan, and it's just one more
+thing on the long TODO list here, that is ready to be checked off.
+
+Patch 2 is required in order to allow me (and others, if I'm lucky) to
+start submitting changes to convert all of the callsites of
+get_user_pages*() and put_page().  I think this will work a lot better
+than trying to maintain a massive patchset and submitting all at once.
+
+Patch 3 converts infiniband drivers: put_page() --> put_user_page(), and
+also exercises put_user_pages_dirty_locked().
+
+Once these are all in, then the floodgates can open up to convert the large
+number of get_user_pages*() callsites.
+
+[1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
+
+[2] https://lkml.kernel.org/r/20180709080554.21931-1-jhubbard@nvidia.com
+    Proposed steps for fixing get_user_pages() + DMA problems.
+
+[3]https://lkml.kernel.org/r/20180710082100.mkdwngdv5kkrcz6n@quack2.suse.cz
+    Bounce buffers (otherwise [2] is not really viable).
+
+[4] https://lkml.kernel.org/r/20181003162115.GG24030@quack2.suse.cz
+    Follow-up discussions.
+
+CC: Matthew Wilcox <willy@infradead.org>
+CC: Michal Hocko <mhocko@kernel.org>
+CC: Christopher Lameter <cl@linux.com>
+CC: Jason Gunthorpe <jgg@ziepe.ca>
+CC: Dan Williams <dan.j.williams@intel.com>
+CC: Jan Kara <jack@suse.cz>
+CC: Al Viro <viro@zeniv.linux.org.uk>
+CC: Jerome Glisse <jglisse@redhat.com>
+CC: Christoph Hellwig <hch@infradead.org>
+
+John Hubbard (3):
+  mm: get_user_pages: consolidate error handling
+  mm: introduce put_user_page[s](), placeholder versions
+  infiniband/mm: convert to the new put_user_page[s]() calls
+
+ drivers/infiniband/core/umem.c              |  2 +-
+ drivers/infiniband/core/umem_odp.c          |  2 +-
+ drivers/infiniband/hw/hfi1/user_pages.c     | 11 ++----
+ drivers/infiniband/hw/mthca/mthca_memfree.c |  6 +--
+ drivers/infiniband/hw/qib/qib_user_pages.c  | 11 ++----
+ drivers/infiniband/hw/qib/qib_user_sdma.c   |  8 ++--
+ drivers/infiniband/hw/usnic/usnic_uiom.c    |  2 +-
+ include/linux/mm.h                          | 42 ++++++++++++++++++++-
+ mm/gup.c                                    | 37 ++++++++++--------
+ 9 files changed, 80 insertions(+), 41 deletions(-)
+
+-- 
+2.19.0
