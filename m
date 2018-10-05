@@ -1,59 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B1E56B000A
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 04:52:21 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id 17-v6so11469788qkj.19
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 01:52:21 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g36-v6sor4143106qte.83.2018.10.05.01.52.20
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C456E6B000A
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 05:27:32 -0400 (EDT)
+Received: by mail-wm1-f69.google.com with SMTP id 189-v6so745672wme.0
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 02:27:32 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id s10-v6si5886483wrr.177.2018.10.05.02.27.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 05 Oct 2018 01:52:20 -0700 (PDT)
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 05 Oct 2018 02:27:31 -0700 (PDT)
+Date: Fri, 5 Oct 2018 11:27:21 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: x86/mm: Found insecure W+X mapping at address
+ (ptrval)/0xc00a0000
+In-Reply-To: <20181004080321.GA3630@8bytes.org>
+Message-ID: <alpine.DEB.2.21.1810051124320.3960@nanos.tec.linutronix.de>
+References: <e75fa739-4bcc-dc30-2606-25d2539d2653@molgen.mpg.de> <alpine.DEB.2.21.1809191004580.1468@nanos.tec.linutronix.de> <0922cc1b-ed51-06e9-df81-57fd5aa8e7de@molgen.mpg.de> <alpine.DEB.2.21.1809210045220.1434@nanos.tec.linutronix.de>
+ <c8da5778-3957-2fab-69ea-42f872a5e396@molgen.mpg.de> <alpine.DEB.2.21.1809281653270.2004@nanos.tec.linutronix.de> <20181003212255.GB28361@zn.tnic> <20181004080321.GA3630@8bytes.org>
 MIME-Version: 1.0
-References: <20181003185854.GA1174@jordon-HP-15-Notebook-PC>
- <20181003200003.GA9965@bombadil.infradead.org> <20181003221444.GZ30658@n2100.armlinux.org.uk>
- <CAFqt6zYHhmPwUdaCZX-BuAvaVwA-x1W39tz+Q50-nbEaW2cYVg@mail.gmail.com>
- <20181004123400.GC30658@n2100.armlinux.org.uk> <CAFqt6zZPOM17QwmcWKF3F1gqkJm=2PxvuJ3naWuRXZGHc2HrEQ@mail.gmail.com>
- <20181004181736.GB20842@bombadil.infradead.org> <CAFqt6zaN0PQHkjuwFf8VriROLy7qrPDu-iNE=VPiXJw8C7GpQg@mail.gmail.com>
- <CANiq72mkTP_m20vqei-cpN+ypQ_gU472qn5m68vb_4Nqj5afMQ@mail.gmail.com> <CAFqt6zaFc_GenhfvsD0VPfepR-jjXypj+4CgNEuHMVq1WXV+8w@mail.gmail.com>
-In-Reply-To: <CAFqt6zaFc_GenhfvsD0VPfepR-jjXypj+4CgNEuHMVq1WXV+8w@mail.gmail.com>
-From: Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
-Date: Fri, 5 Oct 2018 10:52:09 +0200
-Message-ID: <CANiq72kVJn7985EET067Dgj+z0dwb0x2MTUnREMWKCVU6=WnJA@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: Introduce new function vm_insert_kmem_page
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, linux@armlinux.org.uk, Robin van der Gracht <robin@protonic.nl>, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, =?UTF-8?Q?Heiko_St=C3=BCbner?= <heiko@sntech.de>, Dave Airlie <airlied@linux.ie>, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Kees Cook <keescook@chromium.org>, treding@nvidia.com, mhocko@suse.com, Dan Williams <dan.j.williams@intel.com>, kirill.shutemov@linux.intel.com, Mark Rutland <mark.rutland@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov <dvyukov@google.com>, Kate Stewart <kstewart@linuxfoundation.org>, tchibo@google.com, riel@redhat.com, minchan@kernel.org, Peter Zijlstra <peterz@infradead.org>, ying.huang@intel.com, Andi Kleen <ak@linux.intel.com>, rppt@linux.vnet.ibm.com, Dominik Brodowski <linux@dominikbrodowski.net>, Arnd Bergmann <arnd@arndb.de>, cpandya@codeaurora.org, hannes@cmpxchg.org, Joe Perches <joe@perches.com>, mcgrof@kernel.org, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, Linux-MM <linux-mm@kvack.org>
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Borislav Petkov <bp@alien8.de>, Paul Menzel <pmenzel@molgen.mpg.de>, linux-mm@kvack.org, x86@kernel.org, lkml <linux-kernel@vger.kernel.org>
 
-Hi Souptick,
+On Thu, 4 Oct 2018, Joerg Roedel wrote:
 
-On Fri, Oct 5, 2018 at 7:51 AM Souptick Joarder <jrdr.linux@gmail.com> wrote:
->
-> On Fri, Oct 5, 2018 at 1:16 AM Miguel Ojeda
-> <miguel.ojeda.sandonis@gmail.com> wrote:
-> >
-> >
-> > Also, not sure if you saw my comments/review: if the interface is not
-> > going to change, why the name change? Why can't we simply keep using
-> > vm_insert_page?
->
-> yes, changing the name without changing the interface is a
-> bad approach and this can't be taken. As Matthew mentioned,
-> "vm_insert_range() which takes an array of struct page pointers.
-> That fits the majority of remaining users" would be a better approach
-> to fit this use case.
->
-> But yes, we can't keep vm_insert_page and vmf_insert_page together
-> as it doesn't guarantee  that future drivers will not use vm_insert_page
-> in #PF context ( which will generate new errno to VM_FAULT_CODE).
->
+> On Wed, Oct 03, 2018 at 11:22:55PM +0200, Borislav Petkov wrote:
+> > On Fri, Sep 28, 2018 at 04:55:19PM +0200, Thomas Gleixner wrote:
+> > > Sorry for the delay and thanks for the data. A quick diff did not reveal
+> > > anything obvious. I'll have a closer look and we probably need more (other)
+> > > information to nail that down.
+> 
+> I also triggered this when working in the PTI-x32 code. It always
+> happens on a 32-bit PAE kernel for me.
+> 
+> Tracking it down I ended up in (iirc) arch/x86/mm/pageattr.c
+> 	function static_protections():
+> 
+> 		/*
+> 		 * The BIOS area between 640k and 1Mb needs to be executable for
+> 		 * PCI BIOS based config access (CONFIG_PCI_GOBIOS) support.
+> 		 */
+> 	#ifdef CONFIG_PCI_BIOS
+> 		if (pcibios_enabled && within(pfn, BIOS_BEGIN >> PAGE_SHIFT, BIOS_END >> PAGE_SHIFT))
+> 			pgprot_val(forbidden) |= _PAGE_NX;
+> 	#endif
+> 
+> I think that is the reason we are seeing this in that configuration.
 
-Maybe I am hard of thinking, but aren't you planning to remove
-vm_insert_page with these changes? If yes, why you can't use the keep
-vm_insert_page name? In other words, keep returning what the drivers
-expect?
+Uurgh. Yes.
 
-Cheers,
-Miguel
+If pcibios is enabled and used, need to look at the gory details of that
+first, then the W+X check has to exclude that region. We can't do much
+about that.
+
+Thanks,
+
+	tglx
