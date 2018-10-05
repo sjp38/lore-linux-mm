@@ -1,226 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 170986B0271
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 11:12:34 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id e6-v6so6830647pge.5
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 08:12:34 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id d35-v6si9294185pla.116.2018.10.05.08.12.32
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AB066B0273
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 11:17:31 -0400 (EDT)
+Received: by mail-it1-f199.google.com with SMTP id m123-v6so2533746ith.5
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 08:17:31 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q9-v6sor3364311iob.53.2018.10.05.08.17.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Oct 2018 08:12:32 -0700 (PDT)
-Subject: [mm PATCH 5/5] mm: Use common iterator for deferred_init_pages and
- deferred_free_pages
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Date: Fri, 05 Oct 2018 08:12:30 -0700
-Message-ID: <20181005151230.17473.88155.stgit@localhost.localdomain>
-In-Reply-To: <20181005151006.17473.83040.stgit@localhost.localdomain>
-References: <20181005151006.17473.83040.stgit@localhost.localdomain>
+        (Google Transport Security);
+        Fri, 05 Oct 2018 08:17:30 -0700 (PDT)
+Date: Fri, 5 Oct 2018 09:17:26 -0600
+From: Jason Gunthorpe <jgg@ziepe.ca>
+Subject: Re: [PATCH v2 2/3] mm: introduce put_user_page[s](), placeholder
+ versions
+Message-ID: <20181005151726.GA20776@ziepe.ca>
+References: <20181005040225.14292-1-jhubbard@nvidia.com>
+ <20181005040225.14292-3-jhubbard@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181005040225.14292-3-jhubbard@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com, alexander.h.duyck@linux.intel.com, linux-kernel@vger.kernel.org, willy@infradead.org, davem@davemloft.net, khalid.aziz@oracle.com, rppt@linux.vnet.ibm.com, vbabka@suse.cz, sparclinux@vger.kernel.org, dan.j.williams@intel.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mingo@kernel.org, kirill.shutemov@linux.intel.com
+To: john.hubbard@gmail.com
+Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>
 
-This patch creates a common iterator to be used by both deferred_init_pages
-and deferred_free_pages. By doing this we can cut down a bit on code
-overhead as they will likely both be inlined into the same function anyway.
+On Thu, Oct 04, 2018 at 09:02:24PM -0700, john.hubbard@gmail.com wrote:
+> From: John Hubbard <jhubbard@nvidia.com>
+> 
+> Introduces put_user_page(), which simply calls put_page().
+> This provides a way to update all get_user_pages*() callers,
+> so that they call put_user_page(), instead of put_page().
+> 
+> Also introduces put_user_pages(), and a few dirty/locked variations,
+> as a replacement for release_pages(), for the same reasons.
+> These may be used for subsequent performance improvements,
+> via batching of pages to be released.
+> 
+> This prepares for eventually fixing the problem described
+> in [1], and is following a plan listed in [2], [3], [4].
+> 
+> [1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
+> 
+> [2] https://lkml.kernel.org/r/20180709080554.21931-1-jhubbard@nvidia.com
+>     Proposed steps for fixing get_user_pages() + DMA problems.
+> 
+> [3]https://lkml.kernel.org/r/20180710082100.mkdwngdv5kkrcz6n@quack2.suse.cz
+>     Bounce buffers (otherwise [2] is not really viable).
+> 
+> [4] https://lkml.kernel.org/r/20181003162115.GG24030@quack2.suse.cz
+>     Follow-up discussions.
+> 
+> CC: Matthew Wilcox <willy@infradead.org>
+> CC: Michal Hocko <mhocko@kernel.org>
+> CC: Christopher Lameter <cl@linux.com>
+> CC: Jason Gunthorpe <jgg@ziepe.ca>
+> CC: Dan Williams <dan.j.williams@intel.com>
+> CC: Jan Kara <jack@suse.cz>
+> CC: Al Viro <viro@zeniv.linux.org.uk>
+> CC: Jerome Glisse <jglisse@redhat.com>
+> CC: Christoph Hellwig <hch@infradead.org>
+> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+>  include/linux/mm.h | 42 ++++++++++++++++++++++++++++++++++++++++--
+>  1 file changed, 40 insertions(+), 2 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index a61ebe8ad4ca..1a9aae7c659f 100644
+> +++ b/include/linux/mm.h
+> @@ -137,6 +137,8 @@ extern int overcommit_ratio_handler(struct ctl_table *, int, void __user *,
+>  				    size_t *, loff_t *);
+>  extern int overcommit_kbytes_handler(struct ctl_table *, int, void __user *,
+>  				    size_t *, loff_t *);
+> +int set_page_dirty(struct page *page);
+> +int set_page_dirty_lock(struct page *page);
+>  
+>  #define nth_page(page,n) pfn_to_page(page_to_pfn((page)) + (n))
+>  
+> @@ -943,6 +945,44 @@ static inline void put_page(struct page *page)
+>  		__put_page(page);
+>  }
+>  
+> +/* Placeholder version, until all get_user_pages*() callers are updated. */
+> +static inline void put_user_page(struct page *page)
+> +{
+> +	put_page(page);
+> +}
+> +
+> +/* For get_user_pages*()-pinned pages, use these variants instead of
+> + * release_pages():
+> + */
+> +static inline void put_user_pages_dirty(struct page **pages,
+> +					unsigned long npages)
+> +{
+> +	while (npages) {
+> +		set_page_dirty(pages[npages]);
+> +		put_user_page(pages[npages]);
+> +		--npages;
+> +	}
+> +}
 
-This new approach allows deferred_init_pages to make use of
-__init_pageblock. By doing this we can cut down on the code size by sharing
-code between both the hotplug and deferred memory init code paths.
+Shouldn't these do the !PageDirty(page) thing?
 
-An additional benefit to this approach is that we improve in cache locality
-of the memory init as we can focus on the memory areas related to
-identifying if a given PFN is valid and keep that warm in the cache until
-we transition to a region of a different type. So we will stream through a
-chunk of valid blocks before we turn to initializing page structs.
-
-Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
----
- mm/page_alloc.c |  134 +++++++++++++++++++++++++++----------------------------
- 1 file changed, 65 insertions(+), 69 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1baea475f296..815ce793c73d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1480,32 +1480,6 @@ void clear_zone_contiguous(struct zone *zone)
- }
- 
- #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
--static void __init deferred_free_range(unsigned long pfn,
--				       unsigned long nr_pages)
--{
--	struct page *page;
--	unsigned long i;
--
--	if (!nr_pages)
--		return;
--
--	page = pfn_to_page(pfn);
--
--	/* Free a large naturally-aligned chunk if possible */
--	if (nr_pages == pageblock_nr_pages &&
--	    (pfn & (pageblock_nr_pages - 1)) == 0) {
--		set_pageblock_migratetype(page, MIGRATE_MOVABLE);
--		__free_pages_boot_core(page, pageblock_order);
--		return;
--	}
--
--	for (i = 0; i < nr_pages; i++, page++, pfn++) {
--		if ((pfn & (pageblock_nr_pages - 1)) == 0)
--			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
--		__free_pages_boot_core(page, 0);
--	}
--}
--
- /* Completion tracking for deferred_init_memmap() threads */
- static atomic_t pgdat_init_n_undone __initdata;
- static __initdata DECLARE_COMPLETION(pgdat_init_all_done_comp);
-@@ -1517,48 +1491,77 @@ static inline void __init pgdat_init_report_one_done(void)
- }
- 
- /*
-- * Returns true if page needs to be initialized or freed to buddy allocator.
-+ * Returns count if page range needs to be initialized or freed
-  *
-- * First we check if pfn is valid on architectures where it is possible to have
-- * holes within pageblock_nr_pages. On systems where it is not possible, this
-- * function is optimized out.
-+ * First, we check if a current large page is valid by only checking the
-+ * validity of the head pfn.
-  *
-- * Then, we check if a current large page is valid by only checking the validity
-- * of the head pfn.
-+ * Then we check if the contiguous pfns are valid on architectures where it
-+ * is possible to have holes within pageblock_nr_pages. On systems where it
-+ * is not possible, this function is optimized out.
-  */
--static inline bool __init deferred_pfn_valid(unsigned long pfn)
-+static unsigned long __next_pfn_valid_range(unsigned long *i,
-+					    unsigned long end_pfn)
- {
--	if (!pfn_valid_within(pfn))
--		return false;
--	if (!(pfn & (pageblock_nr_pages - 1)) && !pfn_valid(pfn))
--		return false;
--	return true;
-+	unsigned long pfn = *i;
-+	unsigned long count;
-+
-+	while (pfn < end_pfn) {
-+		unsigned long t = ALIGN(pfn + 1, pageblock_nr_pages);
-+		unsigned long pageblock_pfn = min(t, end_pfn);
-+
-+#ifndef CONFIG_HOLES_IN_ZONE
-+		count = pageblock_pfn - pfn;
-+		pfn = pageblock_pfn;
-+		if (!pfn_valid(pfn))
-+			continue;
-+#else
-+		for (count = 0; pfn < pageblock_pfn; pfn++) {
-+			if (pfn_valid_within(pfn)) {
-+				count++;
-+				continue;
-+			}
-+
-+			if (count)
-+				break;
-+		}
-+
-+		if (!count)
-+			continue;
-+#endif
-+		*i = pfn;
-+		return count;
-+	}
-+
-+	return 0;
- }
- 
-+#define for_each_deferred_pfn_valid_range(i, start_pfn, end_pfn, pfn, count) \
-+	for (i = (start_pfn),						     \
-+	     count = __next_pfn_valid_range(&i, (end_pfn));		     \
-+	     count && ({ pfn = i - count; 1; });			     \
-+	     count = __next_pfn_valid_range(&i, (end_pfn)))
- /*
-  * Free pages to buddy allocator. Try to free aligned pages in
-  * pageblock_nr_pages sizes.
-  */
--static void __init deferred_free_pages(unsigned long pfn,
-+static void __init deferred_free_pages(unsigned long start_pfn,
- 				       unsigned long end_pfn)
- {
--	unsigned long nr_pgmask = pageblock_nr_pages - 1;
--	unsigned long nr_free = 0;
--
--	for (; pfn < end_pfn; pfn++) {
--		if (!deferred_pfn_valid(pfn)) {
--			deferred_free_range(pfn - nr_free, nr_free);
--			nr_free = 0;
--		} else if (!(pfn & nr_pgmask)) {
--			deferred_free_range(pfn - nr_free, nr_free);
--			nr_free = 1;
--			touch_nmi_watchdog();
-+	unsigned long i, pfn, count;
-+
-+	for_each_deferred_pfn_valid_range(i, start_pfn, end_pfn, pfn, count) {
-+		struct page *page = pfn_to_page(pfn);
-+
-+		if (count == pageblock_nr_pages) {
-+			__free_pages_boot_core(page, pageblock_order);
- 		} else {
--			nr_free++;
-+			while (count--)
-+				__free_pages_boot_core(page++, 0);
- 		}
-+
-+		touch_nmi_watchdog();
- 	}
--	/* Free the last block of pages to allocator */
--	deferred_free_range(pfn - nr_free, nr_free);
- }
- 
- /*
-@@ -1567,29 +1570,22 @@ static void __init deferred_free_pages(unsigned long pfn,
-  * Return number of pages initialized.
-  */
- static unsigned long  __init deferred_init_pages(struct zone *zone,
--						 unsigned long pfn,
-+						 unsigned long start_pfn,
- 						 unsigned long end_pfn)
- {
--	unsigned long nr_pgmask = pageblock_nr_pages - 1;
-+	unsigned long i, pfn, count;
- 	int nid = zone_to_nid(zone);
- 	unsigned long nr_pages = 0;
- 	int zid = zone_idx(zone);
--	struct page *page = NULL;
- 
--	for (; pfn < end_pfn; pfn++) {
--		if (!deferred_pfn_valid(pfn)) {
--			page = NULL;
--			continue;
--		} else if (!page || !(pfn & nr_pgmask)) {
--			page = pfn_to_page(pfn);
--			touch_nmi_watchdog();
--		} else {
--			page++;
--		}
--		__init_single_page(page, pfn, zid, nid);
--		nr_pages++;
-+	for_each_deferred_pfn_valid_range(i, start_pfn, end_pfn, pfn, count) {
-+		nr_pages += count;
-+		__init_pageblock(pfn, count, zid, nid, NULL, false);
-+
-+		touch_nmi_watchdog();
- 	}
--	return (nr_pages);
-+
-+	return nr_pages;
- }
- 
- /*
+Jason
