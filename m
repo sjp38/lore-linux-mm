@@ -1,41 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AB066B0273
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 11:17:31 -0400 (EDT)
-Received: by mail-it1-f199.google.com with SMTP id m123-v6so2533746ith.5
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 08:17:31 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 9C43D6B0275
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 11:20:58 -0400 (EDT)
+Received: by mail-it1-f199.google.com with SMTP id e197-v6so2510264ita.9
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 08:20:58 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q9-v6sor3364311iob.53.2018.10.05.08.17.30
+        by mx.google.com with SMTPS id h145-v6sor3332077iof.46.2018.10.05.08.20.57
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 05 Oct 2018 08:17:30 -0700 (PDT)
-Date: Fri, 5 Oct 2018 09:17:26 -0600
+        Fri, 05 Oct 2018 08:20:57 -0700 (PDT)
+Date: Fri, 5 Oct 2018 09:20:55 -0600
 From: Jason Gunthorpe <jgg@ziepe.ca>
-Subject: Re: [PATCH v2 2/3] mm: introduce put_user_page[s](), placeholder
- versions
-Message-ID: <20181005151726.GA20776@ziepe.ca>
+Subject: Re: [PATCH v2 3/3] infiniband/mm: convert to the new
+ put_user_page[s]() calls
+Message-ID: <20181005152055.GB20776@ziepe.ca>
 References: <20181005040225.14292-1-jhubbard@nvidia.com>
- <20181005040225.14292-3-jhubbard@nvidia.com>
+ <20181005040225.14292-4-jhubbard@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181005040225.14292-3-jhubbard@nvidia.com>
+In-Reply-To: <20181005040225.14292-4-jhubbard@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: john.hubbard@gmail.com
-Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>
+Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Doug Ledford <dledford@redhat.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Christian Benvenuti <benve@cisco.com>
 
-On Thu, Oct 04, 2018 at 09:02:24PM -0700, john.hubbard@gmail.com wrote:
+On Thu, Oct 04, 2018 at 09:02:25PM -0700, john.hubbard@gmail.com wrote:
 > From: John Hubbard <jhubbard@nvidia.com>
 > 
-> Introduces put_user_page(), which simply calls put_page().
-> This provides a way to update all get_user_pages*() callers,
-> so that they call put_user_page(), instead of put_page().
-> 
-> Also introduces put_user_pages(), and a few dirty/locked variations,
-> as a replacement for release_pages(), for the same reasons.
-> These may be used for subsequent performance improvements,
-> via batching of pages to be released.
+> For code that retains pages via get_user_pages*(),
+> release those pages via the new put_user_page(),
+> instead of put_page().
 > 
 > This prepares for eventually fixing the problem described
 > in [1], and is following a plan listed in [2], [3], [4].
@@ -51,54 +46,66 @@ On Thu, Oct 04, 2018 at 09:02:24PM -0700, john.hubbard@gmail.com wrote:
 > [4] https://lkml.kernel.org/r/20181003162115.GG24030@quack2.suse.cz
 >     Follow-up discussions.
 > 
-> CC: Matthew Wilcox <willy@infradead.org>
-> CC: Michal Hocko <mhocko@kernel.org>
-> CC: Christopher Lameter <cl@linux.com>
+> CC: Doug Ledford <dledford@redhat.com>
 > CC: Jason Gunthorpe <jgg@ziepe.ca>
-> CC: Dan Williams <dan.j.williams@intel.com>
-> CC: Jan Kara <jack@suse.cz>
-> CC: Al Viro <viro@zeniv.linux.org.uk>
-> CC: Jerome Glisse <jglisse@redhat.com>
-> CC: Christoph Hellwig <hch@infradead.org>
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
->  include/linux/mm.h | 42 ++++++++++++++++++++++++++++++++++++++++--
->  1 file changed, 40 insertions(+), 2 deletions(-)
+> CC: Mike Marciniszyn <mike.marciniszyn@intel.com>
+> CC: Dennis Dalessandro <dennis.dalessandro@intel.com>
+> CC: Christian Benvenuti <benve@cisco.com>
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index a61ebe8ad4ca..1a9aae7c659f 100644
-> +++ b/include/linux/mm.h
-> @@ -137,6 +137,8 @@ extern int overcommit_ratio_handler(struct ctl_table *, int, void __user *,
->  				    size_t *, loff_t *);
->  extern int overcommit_kbytes_handler(struct ctl_table *, int, void __user *,
->  				    size_t *, loff_t *);
-> +int set_page_dirty(struct page *page);
-> +int set_page_dirty_lock(struct page *page);
->  
->  #define nth_page(page,n) pfn_to_page(page_to_pfn((page)) + (n))
->  
-> @@ -943,6 +945,44 @@ static inline void put_page(struct page *page)
->  		__put_page(page);
->  }
->  
-> +/* Placeholder version, until all get_user_pages*() callers are updated. */
-> +static inline void put_user_page(struct page *page)
-> +{
-> +	put_page(page);
-> +}
-> +
-> +/* For get_user_pages*()-pinned pages, use these variants instead of
-> + * release_pages():
-> + */
-> +static inline void put_user_pages_dirty(struct page **pages,
-> +					unsigned long npages)
-> +{
-> +	while (npages) {
-> +		set_page_dirty(pages[npages]);
-> +		put_user_page(pages[npages]);
-> +		--npages;
-> +	}
-> +}
+> CC: linux-rdma@vger.kernel.org
+> CC: linux-kernel@vger.kernel.org
+> CC: linux-mm@kvack.org
+> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+>  drivers/infiniband/core/umem.c              |  2 +-
+>  drivers/infiniband/core/umem_odp.c          |  2 +-
+>  drivers/infiniband/hw/hfi1/user_pages.c     | 11 ++++-------
+>  drivers/infiniband/hw/mthca/mthca_memfree.c |  6 +++---
+>  drivers/infiniband/hw/qib/qib_user_pages.c  | 11 ++++-------
+>  drivers/infiniband/hw/qib/qib_user_sdma.c   |  8 ++++----
+>  drivers/infiniband/hw/usnic/usnic_uiom.c    |  2 +-
+>  7 files changed, 18 insertions(+), 24 deletions(-)
+> 
+> diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
+> index a41792dbae1f..9430d697cb9f 100644
+> +++ b/drivers/infiniband/core/umem.c
+> @@ -60,7 +60,7 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
+>  		page = sg_page(sg);
+>  		if (!PageDirty(page) && umem->writable && dirty)
+>  			set_page_dirty_lock(page);
+> -		put_page(page);
+> +		put_user_page(page);
+>  	}
 
-Shouldn't these do the !PageDirty(page) thing?
+How about ?
+
+if (umem->writable && dirty)
+     put_user_pages_dirty_lock(&page, 1);
+else
+     put_user_page(page);
+
+?
+
+> diff --git a/drivers/infiniband/hw/hfi1/user_pages.c b/drivers/infiniband/hw/hfi1/user_pages.c
+> index e341e6dcc388..99ccc0483711 100644
+> +++ b/drivers/infiniband/hw/hfi1/user_pages.c
+> @@ -121,13 +121,10 @@ int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr, size_t np
+>  void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
+>  			     size_t npages, bool dirty)
+>  {
+> -	size_t i;
+> -
+> -	for (i = 0; i < npages; i++) {
+> -		if (dirty)
+> -			set_page_dirty_lock(p[i]);
+> -		put_page(p[i]);
+> -	}
+> +	if (dirty)
+> +		put_user_pages_dirty_lock(p, npages);
+> +	else
+> +		put_user_pages(p, npages);
+
+And I know Jan gave the feedback to remove the bool argument, but just
+pointing out that quite possibly evey caller will wrapper it in an if
+like this..
 
 Jason
