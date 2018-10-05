@@ -1,46 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C74096B0269
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 02:35:23 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id f17-v6so10118922plr.1
-        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 23:35:23 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r9-v6si8457870pli.248.2018.10.04.23.35.22
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 772626B000A
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 03:08:00 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id 203-v6so446080wmv.1
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 00:08:00 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id f8-v6sor4964101wrj.7.2018.10.05.00.07.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Oct 2018 23:35:22 -0700 (PDT)
-Date: Fri, 5 Oct 2018 08:35:19 +0200
-From: Johannes Thumshirn <jthumshirn@suse.de>
-Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
-Message-ID: <20181005063519.GA5491@linux-x5ow.site>
-References: <20181002100531.GC4135@quack2.suse.cz>
- <20181002121039.GA3274@linux-x5ow.site>
- <20181002142010.GB4963@linux-x5ow.site>
- <20181002144547.GA26735@infradead.org>
- <20181002150123.GD4963@linux-x5ow.site>
- <20181002150634.GA22209@infradead.org>
- <20181004100949.GF6682@linux-x5ow.site>
- <20181005062524.GA30582@infradead.org>
+        (Google Transport Security);
+        Fri, 05 Oct 2018 00:07:59 -0700 (PDT)
+Date: Fri, 5 Oct 2018 09:07:56 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH v3 3/6] mm/memory_hotplug: fix online/offline_pages
+ called w.o. mem_hotplug_lock
+Message-ID: <20181005070756.GA27754@techadventures.net>
+References: <20180927092554.13567-1-david@redhat.com>
+ <20180927092554.13567-4-david@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20181005062524.GA30582@infradead.org>
+In-Reply-To: <20180927092554.13567-4-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, mhocko@suse.cz, Dan Williams <dan.j.williams@intel.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, Stephen Hemminger <sthemmin@microsoft.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Rashmica Gupta <rashmica.g@gmail.com>, Michael Neuling <mikey@neuling.org>, Balbir Singh <bsingharora@gmail.com>, Kate Stewart <kstewart@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Vlastimil Babka <vbabka@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Oscar Salvador <osalvador@suse.de>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Mathieu Malaterre <malat@debian.org>
 
-On Thu, Oct 04, 2018 at 11:25:24PM -0700, Christoph Hellwig wrote:
-> Since when is an article on some website a promise (of what exactly)
-> by linux kernel developers?
+On Thu, Sep 27, 2018 at 11:25:51AM +0200, David Hildenbrand wrote:
+> Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+> Reviewed-by: Rashmica Gupta <rashmica.g@gmail.com>
+> Signed-off-by: David Hildenbrand <david@redhat.com>
 
-Let's stop it here, this doesn't make any sort of forward progress.
-
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
 -- 
-Johannes Thumshirn                                          Storage
-jthumshirn@suse.de                                +49 911 74053 689
-SUSE LINUX GmbH, Maxfeldstr. 5, 90409 Nurnberg
-GF: Felix Imendorffer, Jane Smithard, Graham Norton
-HRB 21284 (AG Nurnberg)
-Key fingerprint = EC38 9CAB C2C4 F25D 8600 D0D0 0393 969D 2D76 0850
+Oscar Salvador
+SUSE L3
