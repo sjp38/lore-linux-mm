@@ -1,79 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C49886B0269
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 12:16:51 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id m7-v6so12616391iop.9
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 09:16:51 -0700 (PDT)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id c42-v6si5712919jaa.60.2018.10.05.09.16.50
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C2E006B026F
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 12:18:47 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id i81-v6so9094945pfj.1
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 09:18:47 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id z29-v6si8205276pfl.209.2018.10.05.09.18.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 05 Oct 2018 09:16:50 -0700 (PDT)
-From: Logan Gunthorpe <logang@deltatee.com>
-Date: Fri,  5 Oct 2018 10:16:39 -0600
-Message-Id: <20181005161642.2462-3-logang@deltatee.com>
-In-Reply-To: <20181005161642.2462-1-logang@deltatee.com>
-References: <20181005161642.2462-1-logang@deltatee.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Subject: [PATCH 2/5] ARM: mm: make use of new memblocks_present() helper
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Oct 2018 09:18:46 -0700 (PDT)
+Message-ID: <fc2f98ab46240c0498bdf4d7458b4373c1f02bf8.camel@intel.com>
+Subject: Re: [RFC PATCH v4 3/9] x86/cet/ibt: Add IBT legacy code bitmap
+ allocation function
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Date: Fri, 05 Oct 2018 09:13:40 -0700
+In-Reply-To: <20181003195702.GF32759@asgard.redhat.com>
+References: <20180921150553.21016-1-yu-cheng.yu@intel.com>
+	 <20180921150553.21016-4-yu-cheng.yu@intel.com>
+	 <20181003195702.GF32759@asgard.redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-riscv@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org
-Cc: Stephen Bates <sbates@raithlin.com>, Palmer Dabbelt <palmer@sifive.com>, Albert Ou <aou@eecs.berkeley.edu>, Christoph Hellwig <hch@lst.de>, Logan Gunthorpe <logang@deltatee.com>, Russell King <linux@armlinux.org.uk>, Kees Cook <keescook@chromium.org>, Philip Derrin <philip@cog.systems>, "Steven Rostedt (VMware)" <rostedt@goodmis.org>, Nicolas Pitre <nicolas.pitre@linaro.org>
+To: Eugene Syromiatnikov <esyr@redhat.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-Cleanup the arm_memory_present() function seeing it's very
-similar to other arches.
+On Wed, 2018-10-03 at 21:57 +0200, Eugene Syromiatnikov wrote:
+> On Fri, Sep 21, 2018 at 08:05:47AM -0700, Yu-cheng Yu wrote:
+> > Indirect branch tracking provides an optional legacy code bitmap
+> > that indicates locations of non-IBT compatible code.  When set,
+> > each bit in the bitmap represents a page in the linear address is
+> > legacy code.
+> > 
+> > We allocate the bitmap only when the application requests it.
+> > Most applications do not need the bitmap.
+> > 
+> > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+> > ---
+> >  arch/x86/kernel/cet.c | 45 +++++++++++++++++++++++++++++++++++++++++++
+> >  1 file changed, 45 insertions(+)
+> > 
+> > diff --git a/arch/x86/kernel/cet.c b/arch/x86/kernel/cet.c
+> > index 6adfe795d692..a65d9745af08 100644
+> > --- a/arch/x86/kernel/cet.c
+> > +++ b/arch/x86/kernel/cet.c
+> > @@ -314,3 +314,48 @@ void cet_disable_ibt(void)
+> >  	wrmsrl(MSR_IA32_U_CET, r);
+> >  	current->thread.cet.ibt_enabled = 0;
+> >  }
+> > +
+> > +int cet_setup_ibt_bitmap(void)
+> > +{
+> > +	u64 r;
+> > +	unsigned long bitmap;
+> > +	unsigned long size;
+> > +
+> > +	if (!cpu_feature_enabled(X86_FEATURE_IBT))
+> > +		return -EOPNOTSUPP;
+> > +
+> > +	if (!current->thread.cet.ibt_bitmap_addr) {
+> > +		/*
+> > +		 * Calculate size and put in thread header.
+> > +		 * may_expand_vm() needs this information.
+> > +		 */
+> > +		size = TASK_SIZE / PAGE_SIZE / BITS_PER_BYTE;
+> 
+> TASK_SIZE_MAX is likely needed here, as an application can easily switch
+> between long an 32-bit protected mode.  And then the case of a CPU that
+> doesn't support 5LPT.
 
-The new memblocks_present() helper checks for node ids which the
-arm version did not. However, this is equivalent seeing
-HAVE_MEMBLOCK_NODE_MAP should be false in this arch and therefore
-memblock_get_region_node() should return 0.
+If we had calculated bitmap size from TASK_SIZE_MAX, all 32-bit apps would have
+failed the allocation for bitmap size > TASK_SIZE.  Please see values below,
+which is printed from the current code.
 
-Signed-off-by: Logan Gunthorpe <logang@deltatee.com>
-Cc: Russell King <linux@armlinux.org.uk>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Philip Derrin <philip@cog.systems>
-Cc: "Steven Rostedt (VMware)" <rostedt@goodmis.org>
-Cc: Nicolas Pitre <nicolas.pitre@linaro.org>
----
- arch/arm/mm/init.c | 17 +----------------
- 1 file changed, 1 insertion(+), 16 deletions(-)
+Yu-cheng
 
-diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-index 0cc8e04295a4..e2710dd7446f 100644
---- a/arch/arm/mm/init.c
-+++ b/arch/arm/mm/init.c
-@@ -201,21 +201,6 @@ int pfn_valid(unsigned long pfn)
- EXPORT_SYMBOL(pfn_valid);
- #endif
- 
--#ifndef CONFIG_SPARSEMEM
--static void __init arm_memory_present(void)
--{
--}
--#else
--static void __init arm_memory_present(void)
--{
--	struct memblock_region *reg;
--
--	for_each_memblock(memory, reg)
--		memory_present(0, memblock_region_memory_base_pfn(reg),
--			       memblock_region_memory_end_pfn(reg));
--}
--#endif
--
- static bool arm_memblock_steal_permitted = true;
- 
- phys_addr_t __init arm_memblock_steal(phys_addr_t size, phys_addr_t align)
-@@ -317,7 +302,7 @@ void __init bootmem_init(void)
- 	 * Sparsemem tries to allocate bootmem in memory_present(),
- 	 * so must be done after the fixed reservations
- 	 */
--	arm_memory_present();
-+	memblocks_present();
- 
- 	/*
- 	 * sparse_init() needs the bootmem allocator up and running.
--- 
-2.19.0
+
+x64:
+TASK_SIZE_MAX	= 0000 7fff ffff f000
+TASK_SIZE	= 0000 7fff ffff f000
+bitmap size	= 0000 0000 ffff ffff
+
+x32:
+TASK_SIZE_MAX	= 0000 7fff ffff f000
+TASK_SIZE	= 0000 0000 ffff e000
+bitmap size	= 0000 0000 0001 ffff
