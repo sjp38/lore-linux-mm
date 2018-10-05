@@ -1,38 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4898C6B0269
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 03:16:25 -0400 (EDT)
-Received: by mail-wm1-f71.google.com with SMTP id y199-v6so420665wmc.6
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 00:16:25 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h130-v6sor655308wmf.28.2018.10.05.00.16.23
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 581486B026B
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 03:24:48 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id f59-v6so7231630plb.5
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 00:24:48 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id s13-v6si7267664pgo.505.2018.10.05.00.24.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 05 Oct 2018 00:16:23 -0700 (PDT)
-Date: Fri, 5 Oct 2018 09:16:22 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v3 2/6] mm/memory_hotplug: make add_memory() take the
- device_hotplug_lock
-Message-ID: <20181005071622.GD27754@techadventures.net>
-References: <20180927092554.13567-1-david@redhat.com>
- <20180927092554.13567-3-david@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Oct 2018 00:24:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180927092554.13567-3-david@redhat.com>
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Fri, 05 Oct 2018 12:54:45 +0530
+From: Arun KS <arunks@codeaurora.org>
+Subject: Re: [PATCH v4] memory_hotplug: Free pages as higher order
+In-Reply-To: <20181004145108.GH22173@dhcp22.suse.cz>
+References: <1538573979-28365-1-git-send-email-arunks@codeaurora.org>
+ <20181004145108.GH22173@dhcp22.suse.cz>
+Message-ID: <9ed0de45f2d7257c56e39efe43606d27@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, John Allen <jallen@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Oscar Salvador <osalvador@suse.de>, Mathieu Malaterre <malat@debian.org>, Pavel Tatashin <pavel.tatashin@microsoft.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, akpm@linux-foundation.org, dan.j.williams@intel.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, gregkh@linuxfoundation.org, osalvador@suse.de, malat@debian.org, kirill.shutemov@linux.intel.com, jrdr.linux@gmail.com, yasu.isimatu@gmail.com, mgorman@techsingularity.net, aaron.lu@intel.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com
 
-On Thu, Sep 27, 2018 at 11:25:50AM +0200, David Hildenbrand wrote:
-> Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
-> Reviewed-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-> Reviewed-by: Rashmica Gupta <rashmica.g@gmail.com>
-> Signed-off-by: David Hildenbrand <david@redhat.com>
+On 2018-10-04 20:21, Michal Hocko wrote:
+> On Wed 03-10-18 19:09:39, Arun KS wrote:
+> [...]
+>> +static int online_pages_blocks(unsigned long start, unsigned long 
+>> nr_pages)
+>> +{
+>> +	unsigned long end = start + nr_pages;
+>> +	int order, ret, onlined_pages = 0;
+>> +
+>> +	while (start < end) {
+>> +		order = min(MAX_ORDER - 1UL, __ffs(start));
+>> +
+>> +		while (start + (1UL << order) > end)
+>> +			order--;
+> 
+> this really made me scratch my head. Wouldn't it be much simpler to do
+> the following?
+> 		order = min(MAX_ORDER - 1, get_order(end - start))?
 
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
+Yes. Much better. Will change to,
 
--- 
-Oscar Salvador
-SUSE L3
+                 order = min(MAX_ORDER - 1,
+                         get_order(PFN_PHYS(end) - PFN_PHYS(start)));
+
+> 
+>> +
+>> +		ret = (*online_page_callback)(pfn_to_page(start), order);
+>> +		if (!ret)
+>> +			onlined_pages += (1UL << order);
+>> +		else if (ret > 0)
+>> +			onlined_pages += ret;
+>> +
+>> +		start += (1UL << order);
+>> +	}
+>> +	return onlined_pages;
+>>  }
+> [...]
+>> -static void __init __free_pages_boot_core(struct page *page, unsigned 
+>> int order)
+>> +void __free_pages_core(struct page *page, unsigned int order)
+>>  {
+>>  	unsigned int nr_pages = 1 << order;
+>>  	struct page *p = page;
+>>  	unsigned int loop;
+>> 
+>> -	prefetchw(p);
+>> -	for (loop = 0; loop < (nr_pages - 1); loop++, p++) {
+>> -		prefetchw(p + 1);
+>> +	for (loop = 0; loop < nr_pages; loop++, p++) {
+>>  		__ClearPageReserved(p);
+>>  		set_page_count(p, 0);
+>>  	}
+>> -	__ClearPageReserved(p);
+>> -	set_page_count(p, 0);
+>> 
+>>  	page_zone(page)->managed_pages += nr_pages;
+>>  	set_page_refcounted(page);
+> 
+> I think this is wort a separate patch as it is unrelated to the patch.
+Sure. Will split the patch.
+
+Regards,
+Arun
