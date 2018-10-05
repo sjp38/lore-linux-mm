@@ -1,121 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CE776B0010
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 02:32:14 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id s24-v6so10127057plp.12
-        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 23:32:14 -0700 (PDT)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id v191-v6si6832443pgd.157.2018.10.04.23.32.12
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C74096B0269
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 02:35:23 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id f17-v6so10118922plr.1
+        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 23:35:23 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r9-v6si8457870pli.248.2018.10.04.23.35.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Oct 2018 23:32:12 -0700 (PDT)
-Received: from epcas1p4.samsung.com (unknown [182.195.41.48])
-	by mailout4.samsung.com (KnoxPortal) with ESMTP id 20181005063210epoutp04e59790ce6cd4b5e0a2b784babeeadb47~aorciiD092424924249epoutp04S
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 06:32:10 +0000 (GMT)
-Mime-Version: 1.0
-Subject: [PATCH] mm, oom_adj: avoid meaningless loop to find processes
- sharing mm
-Reply-To: ytk.lee@samsung.com
-From: Yong-Taek Lee <ytk.lee@samsung.com>
-Message-ID: <20181005063208epcms1p22959cd2f771ad017996e2b18266791ea@epcms1p2>
-Date: Fri, 05 Oct 2018 15:32:08 +0900
-Content-Transfer-Encoding: base64
-Content-Type: text/html; charset="utf-8"
-References: <CGME20181005063208epcms1p22959cd2f771ad017996e2b18266791ea@epcms1p2>
+        Thu, 04 Oct 2018 23:35:22 -0700 (PDT)
+Date: Fri, 5 Oct 2018 08:35:19 +0200
+From: Johannes Thumshirn <jthumshirn@suse.de>
+Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
+Message-ID: <20181005063519.GA5491@linux-x5ow.site>
+References: <20181002100531.GC4135@quack2.suse.cz>
+ <20181002121039.GA3274@linux-x5ow.site>
+ <20181002142010.GB4963@linux-x5ow.site>
+ <20181002144547.GA26735@infradead.org>
+ <20181002150123.GD4963@linux-x5ow.site>
+ <20181002150634.GA22209@infradead.org>
+ <20181004100949.GF6682@linux-x5ow.site>
+ <20181005062524.GA30582@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181005062524.GA30582@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "mhocko@kernel.org" <mhocko@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: Yong-Taek Lee <ytk.lee@samsung.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, mhocko@suse.cz, Dan Williams <dan.j.williams@intel.com>
 
-PEhUTUw+PEhFQUQ+DQo8TUVUQSBjb250ZW50PUlFPTUgaHR0cC1lcXVpdj1YLVVBLUNvbXBhdGli
-bGU+DQo8TUVUQSBjb250ZW50PSJ0ZXh0L2h0bWw7IGNoYXJzZXQ9dXRmLTgiIGh0dHAtZXF1aXY9
-Q29udGVudC1UeXBlPg0KPFNUWUxFIGlkPW15c2luZ2xlX3N0eWxlIHR5cGU9dGV4dC9jc3M+LnNl
-YXJjaC13b3JkIHsNCglCQUNLR1JPVU5ELUNPTE9SOiAjZmZlZTk0DQp9DQpQIHsNCglNQVJHSU4t
-Qk9UVE9NOiA1cHg7IEZPTlQtU0laRTogMTBwdDsgRk9OVC1GQU1JTFk6IOunkeydgCDqs6DrlJUs
-IGFyaWFsOyBNQVJHSU4tVE9QOiA1cHgNCn0NClREIHsNCglNQVJHSU4tQk9UVE9NOiA1cHg7IEZP
-TlQtU0laRTogMTBwdDsgRk9OVC1GQU1JTFk6IOunkeydgCDqs6DrlJUsIGFyaWFsOyBNQVJHSU4t
-VE9QOiA1cHgNCn0NCkxJIHsNCglNQVJHSU4tQk9UVE9NOiA1cHg7IEZPTlQtU0laRTogMTBwdDsg
-Rk9OVC1GQU1JTFk6IOunkeydgCDqs6DrlJUsIGFyaWFsOyBNQVJHSU4tVE9QOiA1cHgNCn0NCkJP
-RFkgew0KCUZPTlQtU0laRTogMTBwdDsgRk9OVC1GQU1JTFk6IOunkeydgCDqs6DrlJUsIGFyaWFs
-OyBNQVJHSU46IDEwcHg7IExJTkUtSEVJR0hUOiAxLjQNCn0NCjwvU1RZTEU+DQoNCjxTVFlMRSBp
-ZD1rbm94X3N0eWxlIHR5cGU9dGV4dC9jc3M+UCB7DQoJTUFSR0lOLUJPVFRPTTogNXB4OyBGT05U
-LVNJWkU6IDEwcHQ7IEZPTlQtRkFNSUxZOiDrp5HsnYAg6rOg65SVLCBhcmlhbDsgTUFSR0lOLVRP
-UDogNXB4DQp9DQo8L1NUWUxFPg0KDQo8TUVUQSBuYW1lPUdFTkVSQVRPUiBjb250ZW50PUFjdGl2
-ZVNxdWFyZT48L0hFQUQ+DQo8Qk9EWSBzdHlsZT0iT1ZFUkZMT1c6IGF1dG8iPg0KPFA+SXQgaXMg
-aW50cm9kdWNlZCBieSBjb21taXQgNDRhNzBhZGVjOTEwICgibW0sIG9vbV9hZGo6IG1ha2Ugc3Vy
-ZTxCUj5wcm9jZXNzZXMgc2hhcmluZyBtbSBoYXZlIHNhbWUgdmlldyBvZiBvb21fc2NvcmVfYWRq
-IikuIE1vc3Qgb2Y8QlI+dXNlciBwcm9jZXNzJ3MgbW1fdXNlcnMgaXMgYmlnZ2VyIHRoYW4gMSBi
-dXQgb25seSBvbmUgdGhyZWFkIGdyb3VwLjxCUj5JbiB0aGlzIGNhc2UsIGZvcl9lYWNoX3Byb2Nl
-c3MgbG9vcCBtZWFuaW5nbGVzc2x5IHRyeSB0byBmaW5kIHByb2Nlc3NlczxCUj53aGljaCBzaGFy
-aW5nIHNhbWUgbW0gZXZlbiB0aG91Z2ggdGhlcmUgaXMgb25seSBvbmUgdGhyZWFkIGdyb3VwLjwv
-UD4NCjxQPk15IGlkZWEgaXMgdGhhdCB0YXJnZXQgdGFzaydzIG5yIHRocmVhZCBpcyBzbWFsbGVy
-IHRoYW4gbW1fdXNlcnMgaWYgdGhlcmU8QlI+YXJlIG1vcmUgdGhyZWFkIGdyb3VwcyBzaGFyaW5n
-IHRoZSBzYW1lIG1tLiBTbyZuYnNwO3dlIGNhbiBza2lwIGxvb3A8L1A+DQo8UD5pZiBtbV91c2Vy
-IGFuZCBucl90aHJlYWQgYXJlIHNhbWUuIDwvUD4NCjxQPnRlc3QgcmVzdWx0PEJSPndoaWxlIHRy
-dWU7IGRvIGNvdW50PTA7IHRpbWUgd2hpbGUgWyAkY291bnQgLWx0IDEwMDAwIF07IGRvIGVjaG8g
-LTEwMDAgJmd0OyAvcHJvYy8xNDU3L29vbV9zY29yZV9hZGo7IGNvdW50PSQoKGNvdW50KzEpKTsg
-ZG9uZTsgZG9uZTs8L1A+DQo8UD5iZWZvcmUgcGF0Y2g8QlI+MG0wMC41OXMgcmVhbCZuYnNwOyZu
-YnNwOyZuYnNwOyZuYnNwOyAwbTAwLjA5cyB1c2VyJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDBt
-MDAuNTFzIHN5c3RlbTxCUj4wbTAwLjU5cyByZWFsJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDBt
-MDAuMTRzIHVzZXImbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgMG0wMC40NXMgc3lzdGVtPEJSPjBt
-MDAuNThzIHJlYWwmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgMG0wMC4xMXMgdXNlciZuYnNwOyZu
-YnNwOyZuYnNwOyZuYnNwOyAwbTAwLjQ3cyBzeXN0ZW08QlI+MG0wMC41OHMgcmVhbCZuYnNwOyZu
-YnNwOyZuYnNwOyZuYnNwOyAwbTAwLjEwcyB1c2VyJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDBt
-MDAuNDhzIHN5c3RlbTxCUj4wbTAwLjU5cyByZWFsJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDBt
-MDAuMTFzIHVzZXImbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgMG0wMC40OHMgc3lzdGVtPC9QPg0K
-PFA+YWZ0ZXIgcGF0Y2g8QlI+MG0wMC4xNXMgcmVhbCZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyAw
-bTAwLjA3cyB1c2VyJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDBtMDAuMDhzIHN5c3RlbTxCUj4w
-bTAwLjE0cyByZWFsJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDBtMDAuMTBzIHVzZXImbmJzcDsm
-bmJzcDsmbmJzcDsmbmJzcDsgMG0wMC4wNHMgc3lzdGVtPEJSPjBtMDAuMTRzIHJlYWwmbmJzcDsm
-bmJzcDsmbmJzcDsmbmJzcDsgMG0wMC4xMHMgdXNlciZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyAw
-bTAwLjA1cyBzeXN0ZW08QlI+MG0wMC4xNHMgcmVhbCZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyAw
-bTAwLjA4cyB1c2VyJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDBtMDAuMDdzIHN5c3RlbTxCUj4w
-bTAwLjE0cyByZWFsJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDBtMDAuMDhzIHVzZXImbmJzcDsm
-bmJzcDsmbmJzcDsmbmJzcDsgMG0wMC4wN3Mgc3lzdGVtPC9QPg0KPFA+U2lnbmVkLW9mZi1ieTog
-TGVlIFlvbmdUYWVrICZsdDs8QSBocmVmPSJtYWlsdG86eXRrLmxlZUBzYW1zdW5nLmNvbSI+eXRr
-LmxlZUBzYW1zdW5nLmNvbTwvQT4mZ3Q7PEJSPi0tLTxCUj4mbmJzcDtmcy9wcm9jL2Jhc2UuYyB8
-IDQgKysrLTxCUj4mbmJzcDsxIGZpbGUgY2hhbmdlZCwgMyBpbnNlcnRpb25zKCspLCAxIGRlbGV0
-aW9uKC0pPC9QPg0KPFA+ZGlmZiAtLWdpdCBhL2ZzL3Byb2MvYmFzZS5jIGIvZnMvcHJvYy9iYXNl
-LmM8QlI+aW5kZXggZjlmNzJhZWU2ZDQ1Li41NGIyZmI1ZTljNTEgMTAwNjQ0PEJSPi0tLSBhL2Zz
-L3Byb2MvYmFzZS5jPEJSPisrKyBiL2ZzL3Byb2MvYmFzZS5jPEJSPkBAIC0xMDU2LDYgKzEwNTYs
-NyBAQCBzdGF0aWMgaW50IF9fc2V0X29vbV9hZGooc3RydWN0IGZpbGUgKmZpbGUsIGludCBvb21f
-YWRqLCBib29sIGxlZ2FjeSk8QlI+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
-Jm5ic3A7IHN0cnVjdCBtbV9zdHJ1Y3QgKm1tID0gTlVMTDs8QlI+Jm5ic3A7Jm5ic3A7Jm5ic3A7
-Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IHN0cnVjdCB0YXNrX3N0cnVjdCAqdGFzazs8QlI+Jm5i
-c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IGludCBlcnIgPSAwOzxCUj4r
-Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IGludCBtbV91c2VycyA9IDA7PC9Q
-Pg0KPFA+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IHRhc2sgPSBn
-ZXRfcHJvY190YXNrKGZpbGVfaW5vZGUoZmlsZSkpOzxCUj4mbmJzcDsmbmJzcDsmbmJzcDsmbmJz
-cDsmbmJzcDsmbmJzcDsmbmJzcDsgaWYgKCF0YXNrKTxCUj5AQCAtMTA5Miw3ICsxMDkzLDggQEAg
-c3RhdGljIGludCBfX3NldF9vb21fYWRqKHN0cnVjdCBmaWxlICpmaWxlLCBpbnQgb29tX2Fkaiwg
-Ym9vbCBsZWdhY3kpPEJSPiZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
-OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyBzdHJ1Y3Qg
-dGFza19zdHJ1Y3QgKnAgPSBmaW5kX2xvY2tfdGFza19tbSh0YXNrKTs8L1A+DQo8UD4mbmJzcDsm
-bmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
-cDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgaWYgKHApIHs8QlI+LSZuYnNwOyZuYnNwOyZuYnNw
-OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZu
-YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
-OyBpZiAoYXRvbWljX3JlYWQoJmFtcDtwLSZndDttbS0mZ3Q7bW1fdXNlcnMpICZndDsgMSkgezxC
-Uj4rJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
-Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5i
-c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IG1tX3VzZXJzID0gYXRvbWljX3JlYWQoJmFtcDtwLSZndDtt
-bS0mZ3Q7bW1fdXNlcnMpOzxCUj4rJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
-Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5i
-c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IGlmICgobW1fdXNlcnMgJmd0
-OyAxKSAmYW1wOyZhbXA7IChtbV91c2VycyAhPSBnZXRfbnJfdGhyZWFkcyhwKSkpIHs8QlI+Jm5i
-c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
-Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5i
-c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
-Jm5ic3A7Jm5ic3A7IG1tID0gcC0mZ3Q7bW07PEJSPiZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZu
-YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
-OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZu
-YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyBhdG9taWNfaW5j
-KCZhbXA7bW0tJmd0O21tX2NvdW50KTs8QlI+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
-Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5i
-c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IH08QlI+
-LS08QlI+PC9QPjwvQk9EWT48L0hUTUw+PGltZyBzcmM9J2h0dHA6Ly9leHQuc2Ftc3VuZy5uZXQv
-bWFpbC9leHQvdjEvZXh0ZXJuYWwvc3RhdHVzL3VwZGF0ZT91c2VyaWQ9eXRrLmxlZSZkbz1iV0Zw
-YkVsRVBUSXdNVGd4TURBMU1EWXpNakE0WlhCamJYTXhjREl5T1RVNVkyUXlaamMzTVdGa01ERTNP
-VGsyWlRKaU1UZ3lOalkzT1RGbFlTWnlaV05wY0dsbGJuUkJaR1J5WlhOelBXeHBiblY0TFcxdFFH
-dDJZV05yTG05eVp3X18nIGJvcmRlcj0wIHdpZHRoPTAgaGVpZ2h0PTAgc3R5bGU9J2Rpc3BsYXk6
-bm9uZSc+
+On Thu, Oct 04, 2018 at 11:25:24PM -0700, Christoph Hellwig wrote:
+> Since when is an article on some website a promise (of what exactly)
+> by linux kernel developers?
+
+Let's stop it here, this doesn't make any sort of forward progress.
+
+-- 
+Johannes Thumshirn                                          Storage
+jthumshirn@suse.de                                +49 911 74053 689
+SUSE LINUX GmbH, Maxfeldstr. 5, 90409 Nurnberg
+GF: Felix Imendorffer, Jane Smithard, Graham Norton
+HRB 21284 (AG Nurnberg)
+Key fingerprint = EC38 9CAB C2C4 F25D 8600 D0D0 0393 969D 2D76 0850
