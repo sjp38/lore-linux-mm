@@ -1,73 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E8256B000D
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 11:05:56 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id h21-v6so7656471oib.16
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 08:05:56 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id c7-v6si3908161otb.312.2018.10.05.08.05.55
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 006426B0010
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 11:12:01 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id r81-v6so9122907pfk.11
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 08:12:00 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id c17-v6si7855581pgp.299.2018.10.05.08.11.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Oct 2018 08:05:55 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w95F4sRc076677
-	for <linux-mm@kvack.org>; Fri, 5 Oct 2018 11:05:54 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mx8da6pcj-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 05 Oct 2018 11:05:54 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Fri, 5 Oct 2018 16:05:51 +0100
-Date: Fri, 05 Oct 2018 18:05:01 +0300
-In-Reply-To: <8891277c7de92e93d3bfc409df95810ee6f103cd.camel@kernel.crashing.org>
-References: <1538687224-17535-1-git-send-email-rppt@linux.vnet.ibm.com> <8891277c7de92e93d3bfc409df95810ee6f103cd.camel@kernel.crashing.org>
+        Fri, 05 Oct 2018 08:11:59 -0700 (PDT)
+Subject: [mm PATCH 0/5] Deferred page init improvements
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Date: Fri, 05 Oct 2018 08:11:57 -0700
+Message-ID: <20181005151006.17473.83040.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain;
- charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Subject: Re: [PATCH] memblock: stop using implicit alignement to SMP_CACHE_BYTES
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Message-Id: <59C9470E-F718-4A11-BC65-FD68901723AC@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org
-Cc: linux-mips@linux-mips.org, Michal Hocko <mhocko@suse.com>, linux-ia64@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Richard Weinberger <richard@nod.at>, Russell King <linux@armlinux.org.uk>, Ingo Molnar <mingo@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Matt Turner <mattst88@gmail.com>, linux-um@lists.infradead.org, linux-m68k@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Guan Xuetao <gxt@pku.edu.cn>, linux-arm-kernel@lists.infradead.org, Chris Zankel <chris@zankel.net>, Michal Simek <monstr@monstr.eu>, Tony Luck <tony.luck@intel.com>, linux-kernel@vger.kernel.org, Paul Burton <paul.burton@mips.com>, linux-alpha@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org
+To: linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com, alexander.h.duyck@linux.intel.com, linux-kernel@vger.kernel.org, willy@infradead.org, davem@davemloft.net, khalid.aziz@oracle.com, rppt@linux.vnet.ibm.com, vbabka@suse.cz, sparclinux@vger.kernel.org, dan.j.williams@intel.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mingo@kernel.org, kirill.shutemov@linux.intel.com
+
+This patchset is essentially a refactor of the page initialization logic
+that is meant to provide for better code reuse while providing a
+significant improvement in deferred page initialization performance.
+
+In my testing I have seen a 60% reduction in the time needed for deferred
+memory initialization on two different x86_64 based test systems I have. In
+addition this provides a very slight improvement for the hotplug memory 
+initialization, although the improvement doesn't exceed 5% from what I can
+tell and that is to be expected since most of the changes related to
+hotplug init are mostly just code clean-up to allow for reuse.
+
+The biggest gains of this patchset come from not having to test each pfn
+multiple times to see if it is valid and if it is actually a part of the
+node being initialized.
+
+---
+
+Alexander Duyck (5):
+      mm: Use mm_zero_struct_page from SPARC on all 64b architectures
+      mm: Drop meminit_pfn_in_nid as it is redundant
+      mm: Use memblock/zone specific iterator for handling deferred page init
+      mm: Move hot-plug specific memory init into separate functions and optimize
+      mm: Use common iterator for deferred_init_pages and deferred_free_pages
 
 
+ arch/sparc/include/asm/pgtable_64.h |   30 --
+ include/linux/memblock.h            |   58 ++++
+ include/linux/mm.h                  |   33 ++
+ mm/memblock.c                       |   63 ++++
+ mm/page_alloc.c                     |  555 +++++++++++++++++++++--------------
+ 5 files changed, 485 insertions(+), 254 deletions(-)
 
-On October 5, 2018 6:25:38 AM GMT+03:00, Benjamin Herrenschmidt <benh@kern=
-el=2Ecrashing=2Eorg> wrote:
->On Fri, 2018-10-05 at 00:07 +0300, Mike Rapoport wrote:
->> When a memblock allocation APIs are called with align =3D 0, the
->alignment is
->> implicitly set to SMP_CACHE_BYTES=2E
->>=20
->> Replace all such uses of memblock APIs with the 'align' parameter
->explicitly
->> set to SMP_CACHE_BYTES and stop implicit alignment assignment in the
->> memblock internal allocation functions=2E
->>=20
->> For the case when memblock APIs are used via helper functions, e=2Eg=2E
->like
->> iommu_arena_new_node() in Alpha, the helper functions were detected
->with
->> Coccinelle's help and then manually examined and updated where
->appropriate=2E
->>=20
->> The direct memblock APIs users were updated using the semantic patch
->below:
->
->What is the purpose of this ? It sounds rather counter-intuitive=2E=2E=2E
-
-Why?
-I think it actually more intuitive to explicitly set alignment to SMP_CACH=
-E_BYTES rather than use align =3D 0 because deeply inside allocator it will=
- be implicitly reset to SMP_CACHE_BYTES=2E=2E=2E
-
->Ben=2E
-
---=20
-Sincerely yours,
-Mike=2E
+--
