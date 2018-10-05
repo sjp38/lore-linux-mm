@@ -1,95 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E0DF6B000A
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 10:07:05 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id u86-v6so12331730qku.5
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 07:07:05 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q16-v6sor1313721qtf.29.2018.10.05.07.07.04
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 751EC6B000A
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 10:55:52 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id s1-v6so12533947qte.19
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 07:55:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c24-v6si5746501qtc.275.2018.10.05.07.55.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 05 Oct 2018 07:07:04 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Oct 2018 07:55:51 -0700 (PDT)
+Subject: Re: [PATCH v4 0/3] fs/dcache: Track # of negative dentries
+References: <1536773742-32687-1-git-send-email-longman@redhat.com>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <7054d7fe-5385-c743-b2ea-595e5988799f@redhat.com>
+Date: Fri, 5 Oct 2018 10:55:47 -0400
 MIME-Version: 1.0
-References: <1531906876-13451-1-git-send-email-joro@8bytes.org> <1531906876-13451-33-git-send-email-joro@8bytes.org>
-In-Reply-To: <1531906876-13451-33-git-send-email-joro@8bytes.org>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Fri, 5 Oct 2018 16:06:47 +0200
-Message-ID: <CAK8P3a13D6v=R7GKMxf7tZo6MjaMqoRudcW=u_AGQZOTbrocWA@mail.gmail.com>
-Subject: Re: [PATCH 32/39] x86/pgtable/pae: Use separate kernel PMDs for user page-table
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <1536773742-32687-1-git-send-email-longman@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, gregkh <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, dhgutteridge@sympatico.ca, Joerg Roedel <jroedel@suse.de>
+To: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>
 
-On Wed, Jul 18, 2018 at 11:43 AM Joerg Roedel <joro@8bytes.org> wrote:
->  arch/x86/mm/pgtable.c | 100 ++++++++++++++++++++++++++++++++++++++++----------
->  1 file changed, 81 insertions(+), 19 deletions(-)
+On 09/12/2018 01:35 PM, Waiman Long wrote:
+>  v3->v4:
+>   - Drop patch 4 as it is just a minor optimization.
+>   - Add a cc:stable tag to patch 1.
+>   - Clean up some comments in patch 3.
 >
-> diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-> index db6fb77..8e4e63d 100644
-> --- a/arch/x86/mm/pgtable.c
-> +++ b/arch/x86/mm/pgtable.c
-> @@ -182,6 +182,14 @@ static void pgd_dtor(pgd_t *pgd)
->   */
->  #define PREALLOCATED_PMDS      UNSHARED_PTRS_PER_PGD
+>  v2->v3:
+>   - With confirmation that the dummy array in dentry_stat structure
+>     was never a replacement of a previously used field, patch 3 is now
+>     reverted back to use one of dummy field as the negative dentry count
+>     instead of adding a new field.
 >
-> +/*
-> + * We allocate separate PMDs for the kernel part of the user page-table
-> + * when PTI is enabled. We need them to map the per-process LDT into the
-> + * user-space page-table.
-> + */
-> +#define PREALLOCATED_USER_PMDS  (static_cpu_has(X86_FEATURE_PTI) ? \
-> +                                       KERNEL_PGD_PTRS : 0)
-
->   * Xen paravirt assumes pgd table should be in one page. 64 bit kernel also
->   * assumes that pgd should be in one page.
-> @@ -376,6 +431,7 @@ static inline void _pgd_free(pgd_t *pgd)
->  pgd_t *pgd_alloc(struct mm_struct *mm)
->  {
->         pgd_t *pgd;
-> +       pmd_t *u_pmds[PREALLOCATED_USER_PMDS];
->         pmd_t *pmds[PREALLOCATED_PMDS];
+>  v1->v2:
+>   - Clarify what the new nr_dentry_negative per-cpu counter is tracking
+>     and open-code the increment and decrement as suggested by Dave Chinner.
+>   - Append the new nr_dentry_negative count as the 7th element of dentry-state
+>     instead of replacing one of the dummy entries.
+>   - Remove patch "fs/dcache: Make negative dentries easier to be
+>     reclaimed" for now as I need more time to think about what
+>     to do with it.
+>   - Add 2 more patches to address issues found while reviewing the
+>     dentry code.
+>   - Add another patch to change the conditional branch of
+>     nr_dentry_negative accounting to conditional move so as to reduce
+>     the performance impact of the accounting code.
 >
+> This patchset addresses 2 issues found in the dentry code and adds a
+> new nr_dentry_negative per-cpu counter to track the total number of
+> negative dentries in all the LRU lists.
+>
+> Patch 1 fixes a bug in the accounting of nr_dentry_unused in
+> shrink_dcache_sb().
+>
+> Patch 2 removes the ____cacheline_aligned_in_smp tag from super_block
+> LRU lists.
+>
+> Patch 3 adds the new nr_dentry_negative per-cpu counter.
+>
+> Various filesystem related tests were run and no statistically
+> significant changes in performance outside of the possible noise range
+> was observed.
+>
+> Waiman Long (3):
+>   fs/dcache: Fix incorrect nr_dentry_unused accounting in
+>     shrink_dcache_sb()
+>   fs: Don't need to put list_lru into its own cacheline
+>   fs/dcache: Track & report number of negative dentries
+>
+>  Documentation/sysctl/fs.txt | 26 ++++++++++++++++----------
+>  fs/dcache.c                 | 38 +++++++++++++++++++++++++++++++++-----
+>  include/linux/dcache.h      |  7 ++++---
+>  include/linux/fs.h          |  9 +++++----
+>  4 files changed, 58 insertions(+), 22 deletions(-)
+>
+Any comments on these patches. The first one actually is a bug fix.
 
-This commit from back in July now causes a build warning after the patch
-from Kees that enables -Wvla:
-
-In file included from /git/arm-soc/include/linux/kernel.h:15,
-                 from /git/arm-soc/include/asm-generic/bug.h:18,
-                 from /git/arm-soc/arch/x86/include/asm/bug.h:83,
-                 from /git/arm-soc/include/linux/bug.h:5,
-                 from /git/arm-soc/include/linux/mmdebug.h:5,
-                 from /git/arm-soc/include/linux/mm.h:9,
-                 from /git/arm-soc/arch/x86/mm/pgtable.c:2:
-/git/arm-soc/arch/x86/mm/pgtable.c: In function 'pgd_alloc':
-/git/arm-soc/include/linux/build_bug.h:29:45: error: ISO C90 forbids
-variable length array 'u_pmds' [-Werror=vla]
- #define BUILD_BUG_ON_ZERO(e) (sizeof(struct { int:(-!!(e)); }))
-                                             ^
-/git/arm-soc/arch/x86/include/asm/cpufeature.h:85:5: note: in
-expansion of macro 'BUILD_BUG_ON_ZERO'
-     BUILD_BUG_ON_ZERO(NCAPINTS != 19))
-     ^~~~~~~~~~~~~~~~~
-/git/arm-soc/arch/x86/include/asm/cpufeature.h:111:32: note: in
-expansion of macro 'REQUIRED_MASK_BIT_SET'
-  (__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 : \
-                                ^~~~~~~~~~~~~~~~~~~~~
-/git/arm-soc/arch/x86/include/asm/cpufeature.h:129:27: note: in
-expansion of macro 'cpu_has'
- #define boot_cpu_has(bit) cpu_has(&boot_cpu_data, bit)
-                           ^~~~~~~
-/git/arm-soc/arch/x86/include/asm/cpufeature.h:209:3: note: in
-expansion of macro 'boot_cpu_has'
-   boot_cpu_has(bit) :    \
-   ^~~~~~~~~~~~
-/git/arm-soc/arch/x86/mm/pgtable.c:190:34: note: in expansion of macro
-'static_cpu_has'
- #define PREALLOCATED_USER_PMDS  (static_cpu_has(X86_FEATURE_PTI) ? \
-                                  ^~~~~~~~~~~~~~
-/git/arm-soc/arch/x86/mm/pgtable.c:431:16: note: in expansion of macro
-'PREALLOCATED_USER_PMDS'
-  pmd_t *u_pmds[PREALLOCATED_USER_PMDS];
-                ^~~~~~~~~~~~~~~~~~~~~~
-
-       Arnd
+Cheers,
+Longman
