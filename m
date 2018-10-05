@@ -1,90 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 581486B026B
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 03:24:48 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id f59-v6so7231630plb.5
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 00:24:48 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id s13-v6si7267664pgo.505.2018.10.05.00.24.47
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Oct 2018 00:24:47 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 570A36B000A
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 03:34:53 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id b5-v6so8489446otk.21
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 00:34:53 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id k70-v6si3615318oih.150.2018.10.05.00.34.51
+        for <linux-mm@kvack.org>;
+        Fri, 05 Oct 2018 00:34:52 -0700 (PDT)
+Subject: Re: [PATCH 1/4] mm/hugetlb: Enable PUD level huge page migration
+References: <1538482531-26883-1-git-send-email-anshuman.khandual@arm.com>
+ <1538482531-26883-2-git-send-email-anshuman.khandual@arm.com>
+ <20181002123909.GS18290@dhcp22.suse.cz>
+ <fae68a4e-b14b-8342-940c-ea5ef3c978af@arm.com>
+ <20181003065833.GD18290@dhcp22.suse.cz>
+ <7f0488b5-053f-0954-9b95-8c0890ef5597@arm.com>
+ <20181003105926.GA4714@dhcp22.suse.cz>
+ <34b25855-fcef-61ed-312d-2011f80bdec4@arm.com>
+ <20181003114842.GD4714@dhcp22.suse.cz>
+ <d42cc88b-6bab-797c-f263-2dce650ea3ab@arm.com>
+ <20181003133609.GG4714@dhcp22.suse.cz>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <5dc1dc4d-de60-43b9-aab6-3b3bb6a22a4b@arm.com>
+Date: Fri, 5 Oct 2018 13:04:43 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII;
- format=flowed
+In-Reply-To: <20181003133609.GG4714@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Date: Fri, 05 Oct 2018 12:54:45 +0530
-From: Arun KS <arunks@codeaurora.org>
-Subject: Re: [PATCH v4] memory_hotplug: Free pages as higher order
-In-Reply-To: <20181004145108.GH22173@dhcp22.suse.cz>
-References: <1538573979-28365-1-git-send-email-arunks@codeaurora.org>
- <20181004145108.GH22173@dhcp22.suse.cz>
-Message-ID: <9ed0de45f2d7257c56e39efe43606d27@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, akpm@linux-foundation.org, dan.j.williams@intel.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, gregkh@linuxfoundation.org, osalvador@suse.de, malat@debian.org, kirill.shutemov@linux.intel.com, jrdr.linux@gmail.com, yasu.isimatu@gmail.com, mgorman@techsingularity.net, aaron.lu@intel.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, suzuki.poulose@arm.com, punit.agrawal@arm.com, will.deacon@arm.com, Steven.Price@arm.com, catalin.marinas@arm.com, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
 
-On 2018-10-04 20:21, Michal Hocko wrote:
-> On Wed 03-10-18 19:09:39, Arun KS wrote:
+
+
+On 10/03/2018 07:06 PM, Michal Hocko wrote:
+> On Wed 03-10-18 18:36:39, Anshuman Khandual wrote:
 > [...]
->> +static int online_pages_blocks(unsigned long start, unsigned long 
->> nr_pages)
->> +{
->> +	unsigned long end = start + nr_pages;
->> +	int order, ret, onlined_pages = 0;
->> +
->> +	while (start < end) {
->> +		order = min(MAX_ORDER - 1UL, __ffs(start));
->> +
->> +		while (start + (1UL << order) > end)
->> +			order--;
+>> So we have two checks here
+>>
+>> 1) platform specific arch_hugetlb_migration -> In principle go ahead
+>>
+>> 2) huge_movable() during allocation
+>>
+>> 	- If huge page does not have to be placed on movable zone
+>>
+>> 		- Allocate any where successfully and done !
+>>  
+>> 	- If huge page *should* be placed on a movable zone
+>>
+>> 		- Try allocating on movable zone
+>>
+>> 			- Successfull and done !
+>>
+>> 		- If the new page could not be allocated on movable zone
+>> 		
+>> 			- Abort the migration completely
+>>
+>> 					OR
+>>
+>> 			- Warn and fall back to non-movable
 > 
-> this really made me scratch my head. Wouldn't it be much simpler to do
-> the following?
-> 		order = min(MAX_ORDER - 1, get_order(end - start))?
-
-Yes. Much better. Will change to,
-
-                 order = min(MAX_ORDER - 1,
-                         get_order(PFN_PHYS(end) - PFN_PHYS(start)));
-
+> I guess you are still making it more complicated than necessary. The
+> later is really only about __GFP_MOVABLE at this stage. I would just
+> make it simple for now. We do not have to implement any dynamic
+> heuristic right now. All that I am asking for is to split the migrate
+> possible part from movable part.
 > 
->> +
->> +		ret = (*online_page_callback)(pfn_to_page(start), order);
->> +		if (!ret)
->> +			onlined_pages += (1UL << order);
->> +		else if (ret > 0)
->> +			onlined_pages += ret;
->> +
->> +		start += (1UL << order);
->> +	}
->> +	return onlined_pages;
->>  }
-> [...]
->> -static void __init __free_pages_boot_core(struct page *page, unsigned 
->> int order)
->> +void __free_pages_core(struct page *page, unsigned int order)
->>  {
->>  	unsigned int nr_pages = 1 << order;
->>  	struct page *p = page;
->>  	unsigned int loop;
->> 
->> -	prefetchw(p);
->> -	for (loop = 0; loop < (nr_pages - 1); loop++, p++) {
->> -		prefetchw(p + 1);
->> +	for (loop = 0; loop < nr_pages; loop++, p++) {
->>  		__ClearPageReserved(p);
->>  		set_page_count(p, 0);
->>  	}
->> -	__ClearPageReserved(p);
->> -	set_page_count(p, 0);
->> 
->>  	page_zone(page)->managed_pages += nr_pages;
->>  	set_page_refcounted(page);
+> I should have been more clear about that I guess from my very first
+> reply. I do like how you moved the current coarse grained
+> hugepage_migration_supported to be more arch specific but I merely
+> wanted to point out that we need to do some other changes before we can
+> go that route and that thing is to distinguish movable from migration
+> supported.
 > 
-> I think this is wort a separate patch as it is unrelated to the patch.
-Sure. Will split the patch.
+> See my point?
 
-Regards,
-Arun
+Does the following sound close enough to what you are looking for ?
+
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 9df1d59..070c419 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -504,6 +504,13 @@ static inline bool hugepage_migration_supported(struct hstate *h)
+        return arch_hugetlb_migration_supported(h);
+ }
+ 
++static inline bool hugepage_movable_required(struct hstate *h)
++{
++       if (hstate_is_gigantic(h))
++               return true;
++       return false;
++}
++
+ static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
+                                           struct mm_struct *mm, pte_t *pte)
+ {
+@@ -600,6 +607,11 @@ static inline bool hugepage_migration_supported(struct hstate *h)
+        return false;
+ }
+ 
++static inline bool hugepage_movable_required(struct hstate *h)
++{
++       return false;
++}
++
+ static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
+                                           struct mm_struct *mm, pte_t *pte)
+ {
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 3c21775..8b0afdc 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1635,6 +1635,9 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)
+        if (nid != NUMA_NO_NODE)
+                gfp_mask |= __GFP_THISNODE;
+ 
++       if (hugepage_movable_required(h))
++               gfp_mask |= __GFP_MOVABLE;
++
+        spin_lock(&hugetlb_lock);
+        if (h->free_huge_pages - h->resv_huge_pages > 0)
+                page = dequeue_huge_page_nodemask(h, gfp_mask, nid, NULL);
+@@ -1652,6 +1655,9 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
+ {
+        gfp_t gfp_mask = htlb_alloc_mask(h);
+ 
++       if (hugepage_movable_required(h))
++               gfp_mask |= __GFP_MOVABLE;
++
+        spin_lock(&hugetlb_lock);
+        if (h->free_huge_pages - h->resv_huge_pages > 0) {
+                struct page *page;
