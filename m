@@ -1,94 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C5ED6B000D
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 02:26:06 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id v4-v6so10132020plz.21
-        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 23:26:06 -0700 (PDT)
-Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
-        by mx.google.com with ESMTPS id p20-v6si7224081pgm.192.2018.10.04.23.26.04
+	by kanga.kvack.org (Postfix) with ESMTP id 0CE776B0010
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 02:32:14 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id s24-v6so10127057plp.12
+        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 23:32:14 -0700 (PDT)
+Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
+        by mx.google.com with ESMTPS id v191-v6si6832443pgd.157.2018.10.04.23.32.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Oct 2018 23:26:05 -0700 (PDT)
-Subject: Re: Question about a pte with PTE_PROT_NONE and !PTE_VALID on
- !PROT_NONE vma
-From: Chulmin Kim <cmlaika.kim@samsung.com>
-Message-id: <b9a4d6a8-1487-d75b-63a2-479f323933e1@samsung.com>
-Date: Fri, 05 Oct 2018 15:26:05 +0900
-MIME-version: 1.0
-In-reply-to: <20180924210850.GV28957@redhat.com>
-Content-type: text/plain; charset="utf-8"; format="flowed"
-Content-transfer-encoding: 7bit
-Content-language: en-US
-References: <CGME20180921150147epcas5p33964436b2e609016311e4f12b715779d@epcas5p3.samsung.com>
-	<CANYKp7ufttxsNkewBqgYDexMAoyVnMxgoy-EydCqmHadxyn+QQ@mail.gmail.com>
-	<10146a73-4788-ba89-001f-f928bbb314f5@samsung.com>
-	<20180924210850.GV28957@redhat.com>
+        Thu, 04 Oct 2018 23:32:12 -0700 (PDT)
+Received: from epcas1p4.samsung.com (unknown [182.195.41.48])
+	by mailout4.samsung.com (KnoxPortal) with ESMTP id 20181005063210epoutp04e59790ce6cd4b5e0a2b784babeeadb47~aorciiD092424924249epoutp04S
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 06:32:10 +0000 (GMT)
+Mime-Version: 1.0
+Subject: [PATCH] mm, oom_adj: avoid meaningless loop to find processes
+ sharing mm
+Reply-To: ytk.lee@samsung.com
+From: Yong-Taek Lee <ytk.lee@samsung.com>
+Message-ID: <20181005063208epcms1p22959cd2f771ad017996e2b18266791ea@epcms1p2>
+Date: Fri, 05 Oct 2018 15:32:08 +0900
+Content-Transfer-Encoding: base64
+Content-Type: text/html; charset="utf-8"
+References: <CGME20181005063208epcms1p22959cd2f771ad017996e2b18266791ea@epcms1p2>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Chulmin Kim <cmkim.laika@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "mhocko@kernel.org" <mhocko@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: Yong-Taek Lee <ytk.lee@samsung.com>
 
-Dear all,
-
-
-We have verified using the problem scenario (repeat execution fo android 
-apps for 2~3 days) that
-
-the problem is gone after applying the commit.
-
-- e86f15ee64d8, mm: vma_merge: fix vm_page_prot SMP race condition
-against rmap_walk
-
-
-Thanks!
-Chulmin Kim
-
-
-On 09/25/2018 06:08 AM, Andrea Arcangeli wrote:
-> Hello,
->
-> On Sat, Sep 22, 2018 at 01:38:07PM +0900, Chulmin Kim wrote:
->> Dear Arcangeli,
->>
->>
->> I think this problem is very much related with
->>
->> the race condition shown in the below commit.
->>
->> (e86f15ee64d8, mm: vma_merge: fix vm_page_prot SMP race condition
->> against rmap_walk)
->>
->>
->> I checked that
->>
->> the the thread and its child threads are doing mprotect(PROT_{NONE or
->> R|W}) things repeatedly
->>
->> while I didn't reproduce the problem yet.
->>
->>
->> Do you think this is one of the phenomenon you expected
->>
->> from the race condition shown in the above commit?
-> Yes that commit will fix your problem in a v4.4 based tree that misses
-> that fix. You just need to cherry-pick that commit to fix the problem.
->
-> Page migrate sets the pte to PROT_NONE by mistake because it runs
-> concurrently with the mprotect that transitions an adjacent vma from
-> PROT_NONE to PROT_READ|WRITE. vma_merge (before the fix) temporarily
-> shown an erratic PROT_NONE vma prot for the virtual range under page
-> migration.
->
-> With NUMA disabled, it's likely compaction that triggered page migrate
-> for you. Disabling compaction at build time would have likely hidden
-> the problem. Compaction uses migration and you most certainly have
-> CONFIG_COMPACTION=y (rightfully so).
->
-> On a side note, I suggest to cherry pick the last upstream commit of
-> mm/vmacache.c too.
->
-> Hope this helps,
-> Andrea
->
->
->
+PEhUTUw+PEhFQUQ+DQo8TUVUQSBjb250ZW50PUlFPTUgaHR0cC1lcXVpdj1YLVVBLUNvbXBhdGli
+bGU+DQo8TUVUQSBjb250ZW50PSJ0ZXh0L2h0bWw7IGNoYXJzZXQ9dXRmLTgiIGh0dHAtZXF1aXY9
+Q29udGVudC1UeXBlPg0KPFNUWUxFIGlkPW15c2luZ2xlX3N0eWxlIHR5cGU9dGV4dC9jc3M+LnNl
+YXJjaC13b3JkIHsNCglCQUNLR1JPVU5ELUNPTE9SOiAjZmZlZTk0DQp9DQpQIHsNCglNQVJHSU4t
+Qk9UVE9NOiA1cHg7IEZPTlQtU0laRTogMTBwdDsgRk9OVC1GQU1JTFk6IOunkeydgCDqs6DrlJUs
+IGFyaWFsOyBNQVJHSU4tVE9QOiA1cHgNCn0NClREIHsNCglNQVJHSU4tQk9UVE9NOiA1cHg7IEZP
+TlQtU0laRTogMTBwdDsgRk9OVC1GQU1JTFk6IOunkeydgCDqs6DrlJUsIGFyaWFsOyBNQVJHSU4t
+VE9QOiA1cHgNCn0NCkxJIHsNCglNQVJHSU4tQk9UVE9NOiA1cHg7IEZPTlQtU0laRTogMTBwdDsg
+Rk9OVC1GQU1JTFk6IOunkeydgCDqs6DrlJUsIGFyaWFsOyBNQVJHSU4tVE9QOiA1cHgNCn0NCkJP
+RFkgew0KCUZPTlQtU0laRTogMTBwdDsgRk9OVC1GQU1JTFk6IOunkeydgCDqs6DrlJUsIGFyaWFs
+OyBNQVJHSU46IDEwcHg7IExJTkUtSEVJR0hUOiAxLjQNCn0NCjwvU1RZTEU+DQoNCjxTVFlMRSBp
+ZD1rbm94X3N0eWxlIHR5cGU9dGV4dC9jc3M+UCB7DQoJTUFSR0lOLUJPVFRPTTogNXB4OyBGT05U
+LVNJWkU6IDEwcHQ7IEZPTlQtRkFNSUxZOiDrp5HsnYAg6rOg65SVLCBhcmlhbDsgTUFSR0lOLVRP
+UDogNXB4DQp9DQo8L1NUWUxFPg0KDQo8TUVUQSBuYW1lPUdFTkVSQVRPUiBjb250ZW50PUFjdGl2
+ZVNxdWFyZT48L0hFQUQ+DQo8Qk9EWSBzdHlsZT0iT1ZFUkZMT1c6IGF1dG8iPg0KPFA+SXQgaXMg
+aW50cm9kdWNlZCBieSBjb21taXQgNDRhNzBhZGVjOTEwICgibW0sIG9vbV9hZGo6IG1ha2Ugc3Vy
+ZTxCUj5wcm9jZXNzZXMgc2hhcmluZyBtbSBoYXZlIHNhbWUgdmlldyBvZiBvb21fc2NvcmVfYWRq
+IikuIE1vc3Qgb2Y8QlI+dXNlciBwcm9jZXNzJ3MgbW1fdXNlcnMgaXMgYmlnZ2VyIHRoYW4gMSBi
+dXQgb25seSBvbmUgdGhyZWFkIGdyb3VwLjxCUj5JbiB0aGlzIGNhc2UsIGZvcl9lYWNoX3Byb2Nl
+c3MgbG9vcCBtZWFuaW5nbGVzc2x5IHRyeSB0byBmaW5kIHByb2Nlc3NlczxCUj53aGljaCBzaGFy
+aW5nIHNhbWUgbW0gZXZlbiB0aG91Z2ggdGhlcmUgaXMgb25seSBvbmUgdGhyZWFkIGdyb3VwLjwv
+UD4NCjxQPk15IGlkZWEgaXMgdGhhdCB0YXJnZXQgdGFzaydzIG5yIHRocmVhZCBpcyBzbWFsbGVy
+IHRoYW4gbW1fdXNlcnMgaWYgdGhlcmU8QlI+YXJlIG1vcmUgdGhyZWFkIGdyb3VwcyBzaGFyaW5n
+IHRoZSBzYW1lIG1tLiBTbyZuYnNwO3dlIGNhbiBza2lwIGxvb3A8L1A+DQo8UD5pZiBtbV91c2Vy
+IGFuZCBucl90aHJlYWQgYXJlIHNhbWUuIDwvUD4NCjxQPnRlc3QgcmVzdWx0PEJSPndoaWxlIHRy
+dWU7IGRvIGNvdW50PTA7IHRpbWUgd2hpbGUgWyAkY291bnQgLWx0IDEwMDAwIF07IGRvIGVjaG8g
+LTEwMDAgJmd0OyAvcHJvYy8xNDU3L29vbV9zY29yZV9hZGo7IGNvdW50PSQoKGNvdW50KzEpKTsg
+ZG9uZTsgZG9uZTs8L1A+DQo8UD5iZWZvcmUgcGF0Y2g8QlI+MG0wMC41OXMgcmVhbCZuYnNwOyZu
+YnNwOyZuYnNwOyZuYnNwOyAwbTAwLjA5cyB1c2VyJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDBt
+MDAuNTFzIHN5c3RlbTxCUj4wbTAwLjU5cyByZWFsJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDBt
+MDAuMTRzIHVzZXImbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgMG0wMC40NXMgc3lzdGVtPEJSPjBt
+MDAuNThzIHJlYWwmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgMG0wMC4xMXMgdXNlciZuYnNwOyZu
+YnNwOyZuYnNwOyZuYnNwOyAwbTAwLjQ3cyBzeXN0ZW08QlI+MG0wMC41OHMgcmVhbCZuYnNwOyZu
+YnNwOyZuYnNwOyZuYnNwOyAwbTAwLjEwcyB1c2VyJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDBt
+MDAuNDhzIHN5c3RlbTxCUj4wbTAwLjU5cyByZWFsJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDBt
+MDAuMTFzIHVzZXImbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgMG0wMC40OHMgc3lzdGVtPC9QPg0K
+PFA+YWZ0ZXIgcGF0Y2g8QlI+MG0wMC4xNXMgcmVhbCZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyAw
+bTAwLjA3cyB1c2VyJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDBtMDAuMDhzIHN5c3RlbTxCUj4w
+bTAwLjE0cyByZWFsJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDBtMDAuMTBzIHVzZXImbmJzcDsm
+bmJzcDsmbmJzcDsmbmJzcDsgMG0wMC4wNHMgc3lzdGVtPEJSPjBtMDAuMTRzIHJlYWwmbmJzcDsm
+bmJzcDsmbmJzcDsmbmJzcDsgMG0wMC4xMHMgdXNlciZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyAw
+bTAwLjA1cyBzeXN0ZW08QlI+MG0wMC4xNHMgcmVhbCZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyAw
+bTAwLjA4cyB1c2VyJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDBtMDAuMDdzIHN5c3RlbTxCUj4w
+bTAwLjE0cyByZWFsJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDBtMDAuMDhzIHVzZXImbmJzcDsm
+bmJzcDsmbmJzcDsmbmJzcDsgMG0wMC4wN3Mgc3lzdGVtPC9QPg0KPFA+U2lnbmVkLW9mZi1ieTog
+TGVlIFlvbmdUYWVrICZsdDs8QSBocmVmPSJtYWlsdG86eXRrLmxlZUBzYW1zdW5nLmNvbSI+eXRr
+LmxlZUBzYW1zdW5nLmNvbTwvQT4mZ3Q7PEJSPi0tLTxCUj4mbmJzcDtmcy9wcm9jL2Jhc2UuYyB8
+IDQgKysrLTxCUj4mbmJzcDsxIGZpbGUgY2hhbmdlZCwgMyBpbnNlcnRpb25zKCspLCAxIGRlbGV0
+aW9uKC0pPC9QPg0KPFA+ZGlmZiAtLWdpdCBhL2ZzL3Byb2MvYmFzZS5jIGIvZnMvcHJvYy9iYXNl
+LmM8QlI+aW5kZXggZjlmNzJhZWU2ZDQ1Li41NGIyZmI1ZTljNTEgMTAwNjQ0PEJSPi0tLSBhL2Zz
+L3Byb2MvYmFzZS5jPEJSPisrKyBiL2ZzL3Byb2MvYmFzZS5jPEJSPkBAIC0xMDU2LDYgKzEwNTYs
+NyBAQCBzdGF0aWMgaW50IF9fc2V0X29vbV9hZGooc3RydWN0IGZpbGUgKmZpbGUsIGludCBvb21f
+YWRqLCBib29sIGxlZ2FjeSk8QlI+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7IHN0cnVjdCBtbV9zdHJ1Y3QgKm1tID0gTlVMTDs8QlI+Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IHN0cnVjdCB0YXNrX3N0cnVjdCAqdGFzazs8QlI+Jm5i
+c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IGludCBlcnIgPSAwOzxCUj4r
+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IGludCBtbV91c2VycyA9IDA7PC9Q
+Pg0KPFA+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IHRhc2sgPSBn
+ZXRfcHJvY190YXNrKGZpbGVfaW5vZGUoZmlsZSkpOzxCUj4mbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDsmbmJzcDsmbmJzcDsmbmJzcDsgaWYgKCF0YXNrKTxCUj5AQCAtMTA5Miw3ICsxMDkzLDggQEAg
+c3RhdGljIGludCBfX3NldF9vb21fYWRqKHN0cnVjdCBmaWxlICpmaWxlLCBpbnQgb29tX2Fkaiwg
+Ym9vbCBsZWdhY3kpPEJSPiZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
+OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyBzdHJ1Y3Qg
+dGFza19zdHJ1Y3QgKnAgPSBmaW5kX2xvY2tfdGFza19tbSh0YXNrKTs8L1A+DQo8UD4mbmJzcDsm
+bmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgaWYgKHApIHs8QlI+LSZuYnNwOyZuYnNwOyZuYnNw
+OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZu
+YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
+OyBpZiAoYXRvbWljX3JlYWQoJmFtcDtwLSZndDttbS0mZ3Q7bW1fdXNlcnMpICZndDsgMSkgezxC
+Uj4rJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5i
+c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IG1tX3VzZXJzID0gYXRvbWljX3JlYWQoJmFtcDtwLSZndDtt
+bS0mZ3Q7bW1fdXNlcnMpOzxCUj4rJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5i
+c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IGlmICgobW1fdXNlcnMgJmd0
+OyAxKSAmYW1wOyZhbXA7IChtbV91c2VycyAhPSBnZXRfbnJfdGhyZWFkcyhwKSkpIHs8QlI+Jm5i
+c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5i
+c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7IG1tID0gcC0mZ3Q7bW07PEJSPiZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZu
+YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
+OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZu
+YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyBhdG9taWNfaW5j
+KCZhbXA7bW0tJmd0O21tX2NvdW50KTs8QlI+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5i
+c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IH08QlI+
+LS08QlI+PC9QPjwvQk9EWT48L0hUTUw+PGltZyBzcmM9J2h0dHA6Ly9leHQuc2Ftc3VuZy5uZXQv
+bWFpbC9leHQvdjEvZXh0ZXJuYWwvc3RhdHVzL3VwZGF0ZT91c2VyaWQ9eXRrLmxlZSZkbz1iV0Zw
+YkVsRVBUSXdNVGd4TURBMU1EWXpNakE0WlhCamJYTXhjREl5T1RVNVkyUXlaamMzTVdGa01ERTNP
+VGsyWlRKaU1UZ3lOalkzT1RGbFlTWnlaV05wY0dsbGJuUkJaR1J5WlhOelBXeHBiblY0TFcxdFFH
+dDJZV05yTG05eVp3X18nIGJvcmRlcj0wIHdpZHRoPTAgaGVpZ2h0PTAgc3R5bGU9J2Rpc3BsYXk6
+bm9uZSc+
