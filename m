@@ -1,39 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DE4D86B000C
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 17:11:01 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id v4-v6so12291700plz.21
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 14:11:01 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l15-v6sor8645970pfb.67.2018.10.05.14.11.00
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BD16B6B000D
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 17:21:45 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id bh1-v6so12422238plb.15
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 14:21:45 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id x27-v6si9883648pff.196.2018.10.05.14.21.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 05 Oct 2018 14:11:00 -0700 (PDT)
-Date: Fri, 5 Oct 2018 14:10:58 -0700
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [PATCH RFC] mm: Add an fs-write seal to memfd
-Message-ID: <20181005211058.GA193964@joelaf.mtv.corp.google.com>
-References: <20181005192727.167933-1-joel@joelfernandes.org>
- <20181005125339.f6febfd3fcfdc69c6f408c50@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181005125339.f6febfd3fcfdc69c6f408c50@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Oct 2018 14:21:44 -0700 (PDT)
+Date: Fri, 5 Oct 2018 14:21:43 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm, page_alloc: set num_movable in move_freepages()
+Message-Id: <20181005142143.30032b7a4fb9dc2b587a8c21@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.21.1810051355490.212229@chino.kir.corp.google.com>
+References: <alpine.DEB.2.21.1810051355490.212229@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, kernel-team@android.com, jreck@google.com, john.stultz@linaro.org, tkjos@google.com, gregkh@linuxfoundation.org, Al Viro <viro@zeniv.linux.org.uk>, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Oct 05, 2018 at 12:53:39PM -0700, Andrew Morton wrote:
-> On Fri,  5 Oct 2018 12:27:27 -0700 "Joel Fernandes (Google)" <joel@joelfernandes.org> wrote:
+On Fri, 5 Oct 2018 13:56:39 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+
+> If move_freepages() returns 0 because zone_spans_pfn(), *num_movable can
+
+     move_free_pages_block()?           !zone_spans_pfn()?
+
+> hold the value from the stack because it does not get initialized in
+> move_freepages().
 > 
-> > To support the usecase, this patch adds a new F_SEAL_FS_WRITE seal which
-> > prevents any future mmap and write syscalls from succeeding while
-> > keeping the existing mmap active. The following program shows the seal
-> > working in action:
+> Move the initialization to move_freepages_block() to guarantee the value
+> actually makes sense.
 > 
-> Please be prepared to create a manpage patch for this one.
-
-Sure, I will do that. thanks,
-
- - Joel
+> This currently doesn't affect its only caller where num_movable != NULL,
+> so no bug fix, but just more robust.
+> 
+> ...
