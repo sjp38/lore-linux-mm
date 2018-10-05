@@ -1,139 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CE98C6B000D
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 13:08:00 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id y27-v6so11367182wrd.10
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 10:08:00 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g4-v6sor6114608wru.17.2018.10.05.10.07.59
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 202976B000E
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 13:18:45 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id i81-v6so9370013pfj.1
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 10:18:45 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id 1-v6si9434124plx.140.2018.10.05.10.18.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 05 Oct 2018 10:07:59 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Oct 2018 10:18:43 -0700 (PDT)
+From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
+Subject: Re: [PATCH v7 1/4] vmalloc: Add __vmalloc_node_try_addr function
+Date: Fri, 5 Oct 2018 17:18:09 +0000
+Message-ID: <1538760003.3560.136.camel@intel.com>
+References: <1538429927-17834-1-git-send-email-rick.p.edgecombe@intel.com>
+	 <1538429927-17834-2-git-send-email-rick.p.edgecombe@intel.com>
+In-Reply-To: <1538429927-17834-2-git-send-email-rick.p.edgecombe@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <72D7E421AA1A7643B5BDCFCE6515CFB9@intel.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-References: <20180921150553.21016-1-yu-cheng.yu@intel.com> <20180921150553.21016-4-yu-cheng.yu@intel.com>
- <20181003195702.GF32759@asgard.redhat.com> <fc2f98ab46240c0498bdf4d7458b4373c1f02bf8.camel@intel.com>
- <5BF3AE8F-CC2A-4160-9FF6-FEA171A76371@amacapital.net> <aa5a061c159471f410d677af6a609793906cece1.camel@intel.com>
-In-Reply-To: <aa5a061c159471f410d677af6a609793906cece1.camel@intel.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 5 Oct 2018 10:07:46 -0700
-Message-ID: <CALCETrXVdYsJsVy=QWruDYdRc6wb44b=0J3OK3zjR_fT1fQH7w@mail.gmail.com>
-Subject: Re: [RFC PATCH v4 3/9] x86/cet/ibt: Add IBT legacy code bitmap
- allocation function
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: Eugene Syromiatnikov <esyr@redhat.com>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "jannh@google.com" <jannh@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "willy@infradead.org" <willy@infradead.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+Cc: "kristen@linux.intel.com" <kristen@linux.intel.com>, "arjan@linux.intel.com" <arjan@linux.intel.com>, "Hansen, Dave" <dave.hansen@intel.com>
 
-On Fri, Oct 5, 2018 at 10:03 AM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
->
-> On Fri, 2018-10-05 at 09:28 -0700, Andy Lutomirski wrote:
-> > > On Oct 5, 2018, at 9:13 AM, Yu-cheng Yu <yu-cheng.yu@intel.com> wrote=
-:
-> > >
-> > > > On Wed, 2018-10-03 at 21:57 +0200, Eugene Syromiatnikov wrote:
-> > > > > On Fri, Sep 21, 2018 at 08:05:47AM -0700, Yu-cheng Yu wrote:
-> > > > > Indirect branch tracking provides an optional legacy code bitmap
-> > > > > that indicates locations of non-IBT compatible code.  When set,
-> > > > > each bit in the bitmap represents a page in the linear address is
-> > > > > legacy code.
-> > > > >
-> > > > > We allocate the bitmap only when the application requests it.
-> > > > > Most applications do not need the bitmap.
-> > > > >
-> > > > > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> > > > > ---
-> > > > > arch/x86/kernel/cet.c | 45 ++++++++++++++++++++++++++++++++++++++=
-+++++
-> > > > > 1 file changed, 45 insertions(+)
-> > > > >
-> > > > > diff --git a/arch/x86/kernel/cet.c b/arch/x86/kernel/cet.c
-> > > > > index 6adfe795d692..a65d9745af08 100644
-> > > > > --- a/arch/x86/kernel/cet.c
-> > > > > +++ b/arch/x86/kernel/cet.c
-> > > > > @@ -314,3 +314,48 @@ void cet_disable_ibt(void)
-> > > > >    wrmsrl(MSR_IA32_U_CET, r);
-> > > > >    current->thread.cet.ibt_enabled =3D 0;
-> > > > > }
-> > > > > +
-> > > > > +int cet_setup_ibt_bitmap(void)
-> > > > > +{
-> > > > > +    u64 r;
-> > > > > +    unsigned long bitmap;
-> > > > > +    unsigned long size;
-> > > > > +
-> > > > > +    if (!cpu_feature_enabled(X86_FEATURE_IBT))
-> > > > > +        return -EOPNOTSUPP;
-> > > > > +
-> > > > > +    if (!current->thread.cet.ibt_bitmap_addr) {
-> > > > > +        /*
-> > > > > +         * Calculate size and put in thread header.
-> > > > > +         * may_expand_vm() needs this information.
-> > > > > +         */
-> > > > > +        size =3D TASK_SIZE / PAGE_SIZE / BITS_PER_BYTE;
-> > > >
-> > > > TASK_SIZE_MAX is likely needed here, as an application can easily s=
-witch
-> > > > between long an 32-bit protected mode.  And then the case of a CPU =
-that
-> > > > doesn't support 5LPT.
-> > >
-> > > If we had calculated bitmap size from TASK_SIZE_MAX, all 32-bit apps =
-would
-> > > have
-> > > failed the allocation for bitmap size > TASK_SIZE.  Please see values=
- below,
-> > > which is printed from the current code.
-> > >
-> > > Yu-cheng
-> > >
-> > >
-> > > x64:
-> > > TASK_SIZE_MAX    =3D 0000 7fff ffff f000
-> > > TASK_SIZE    =3D 0000 7fff ffff f000
-> > > bitmap size    =3D 0000 0000 ffff ffff
-> > >
-> > > x32:
-> > > TASK_SIZE_MAX    =3D 0000 7fff ffff f000
-> > > TASK_SIZE    =3D 0000 0000 ffff e000
-> > > bitmap size    =3D 0000 0000 0001 ffff
-> > >
-> >
-> > I haven=E2=80=99t followed all the details here, but I have a general p=
-olicy of
-> > objecting to any new use of TASK_SIZE. If you really really need to dep=
-end on
-> > 32-bitness in new code, please figure out what exactly you mean by =E2=
-=80=9C32-bit=E2=80=9D
-> > and use an explicit check.
->
-> The explicit check would be:
->
-> test_thread_flag(TIF_ADDR32) ? IA32_PAGE_OFFSET : TASK_SIZE_MAX
->
-> which is the same as TASK_SIZE.
-
-But this is only ever done in response to a syscall, right?  So
-wouldn't in_compat_syscall() be the right check?
-
-Also, this whole thing makes me extremely nervous.  The MSR only
-contains the start address, not the size, right?  So what prevents
-some goof from causing the CPU to read way past the end of the bitmap
-if the bitmap is short because the kernel thought it was supposed to
-be 32-bit?
-
-I'm inclined to suggest something awful-ish: always allocate the
-bitmap as though it's for a 64-bit process, and just let it be at a
-high address.  And add a syscall or arch_prctl() to manipulate it for
-the benefit of 32-bit programs that can't address it directly.
-
->
-> Or, do we want a new macro?
->
-> #define IBT_BITMAP_SIZE (test_thread_flag(TIF_ADDR32) ? \
->         (IA32_PAGE_OFFSET / PAGE_SIZE / BITS_PER_BYTE) : \
->         (TASK_SIZE_MAX / PAGE_SIZE / BITS_PER_BYTE))
-
-No.  I don't like hiding magic like this in a macro that looks like a const=
-ant.
+Rm9yZ290IHRvIGluY2x1ZGUgdGhpczoNCg0KUmV2aWV3ZWQtYnk6IEtlZXMgQ29vayA8a2Vlc2Nv
+b2tAY2hyb21pdW0ub3JnPg0KDQpPbiBNb24sIDIwMTgtMTAtMDEgYXQgMTQ6MzggLTA3MDAsIFJp
+Y2sgRWRnZWNvbWJlIHdyb3RlOg0KPiBDcmVhdGUgX192bWFsbG9jX25vZGVfdHJ5X2FkZHIgZnVu
+Y3Rpb24gdGhhdCB0cmllcyB0byBhbGxvY2F0ZSBhdCBhIHNwZWNpZmljDQo+IGFkZHJlc3MgYW5k
+IHN1cHBvcnRzIGNhbGxlciBzcGVjaWZpZWQgYmVoYXZpb3IgZm9yIHdoZXRoZXIgYW55IGxhenkg
+cHVyZ2luZw0KPiBoYXBwZW5zIGlmIHRoZXJlIGlzIGEgY29sbGlzaW9uLg0KPiANCj4gVGhpcyBu
+ZXcgZnVuY3Rpb24gZHJhd3MgZnJvbSB0aGUgX192bWFsbG9jX25vZGVfcmFuZ2UgaW1wbGVtZW50
+YXRpb24uIEF0dGVtcHRzDQo+IHRvIG1lcmdlIHRoZSB0d28gaW50byBhIHNpbmdsZSBhbGxvY2F0
+b3IgcmVzdWx0ZWQgaW4gbG9naWMgdGhhdCB3YXMgZGlmZmljdWx0DQo+IHRvIGZvbGxvdywgc28g
+dGhleSBhcmUgbGVmdCBzZXBhcmF0ZS4NCj4gDQo+IFNpZ25lZC1vZmYtYnk6IFJpY2sgRWRnZWNv
+bWJlIDxyaWNrLnAuZWRnZWNvbWJlQGludGVsLmNvbT4NCj4gLS0tDQo+IMKgaW5jbHVkZS9saW51
+eC92bWFsbG9jLmggfMKgwqDCoDMgKw0KPiDCoG1tL3ZtYWxsb2MuY8KgwqDCoMKgwqDCoMKgwqDC
+oMKgwqDCoHwgMTc3DQo+ICsrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysr
+KysrKysrLQ0KPiDCoDIgZmlsZXMgY2hhbmdlZCwgMTc5IGluc2VydGlvbnMoKyksIDEgZGVsZXRp
+b24oLSkNCj4gDQo+IGRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L3ZtYWxsb2MuaCBiL2luY2x1
+ZGUvbGludXgvdm1hbGxvYy5oDQo+IGluZGV4IDM5OGU5YzkuLmM3NzEyYzggMTAwNjQ0DQo+IC0t
+LSBhL2luY2x1ZGUvbGludXgvdm1hbGxvYy5oDQo+ICsrKyBiL2luY2x1ZGUvbGludXgvdm1hbGxv
+Yy5oDQo+IEBAIC04Miw2ICs4Miw5IEBAIGV4dGVybiB2b2lkICpfX3ZtYWxsb2Nfbm9kZV9yYW5n
+ZSh1bnNpZ25lZCBsb25nIHNpemUsDQo+IHVuc2lnbmVkIGxvbmcgYWxpZ24sDQo+IMKgCQkJdW5z
+aWduZWQgbG9uZyBzdGFydCwgdW5zaWduZWQgbG9uZyBlbmQsIGdmcF90DQo+IGdmcF9tYXNrLA0K
+PiDCoAkJCXBncHJvdF90IHByb3QsIHVuc2lnbmVkIGxvbmcgdm1fZmxhZ3MsIGludCBub2RlLA0K
+PiDCoAkJCWNvbnN0IHZvaWQgKmNhbGxlcik7DQo+ICtleHRlcm4gdm9pZCAqX192bWFsbG9jX25v
+ZGVfdHJ5X2FkZHIodW5zaWduZWQgbG9uZyBhZGRyLCB1bnNpZ25lZCBsb25nIHNpemUsDQo+ICsJ
+CQlnZnBfdCBnZnBfbWFzaywJcGdwcm90X3QgcHJvdCwgdW5zaWduZWQgbG9uZw0KPiB2bV9mbGFn
+cywNCj4gKwkJCWludCBub2RlLCBpbnQgdHJ5X3B1cmdlLCBjb25zdCB2b2lkICpjYWxsZXIpOw0K
+PiDCoCNpZm5kZWYgQ09ORklHX01NVQ0KPiDCoGV4dGVybiB2b2lkICpfX3ZtYWxsb2Nfbm9kZV9m
+bGFncyh1bnNpZ25lZCBsb25nIHNpemUsIGludCBub2RlLCBnZnBfdCBmbGFncyk7DQo+IMKgc3Rh
+dGljIGlubGluZSB2b2lkICpfX3ZtYWxsb2Nfbm9kZV9mbGFnc19jYWxsZXIodW5zaWduZWQgbG9u
+ZyBzaXplLCBpbnQgbm9kZSwNCj4gZGlmZiAtLWdpdCBhL21tL3ZtYWxsb2MuYyBiL21tL3ZtYWxs
+b2MuYw0KPiBpbmRleCBhNzI4ZmM0Li4xOTU0NDU4IDEwMDY0NA0KPiAtLS0gYS9tbS92bWFsbG9j
+LmMNCj4gKysrIGIvbW0vdm1hbGxvYy5jDQo+IEBAIC0xNzA5LDYgKzE3MDksMTgxIEBAIHN0YXRp
+YyB2b2lkICpfX3ZtYWxsb2NfYXJlYV9ub2RlKHN0cnVjdCB2bV9zdHJ1Y3QNCj4gKmFyZWEsIGdm
+cF90IGdmcF9tYXNrLA0KPiDCoAlyZXR1cm4gTlVMTDsNCj4gwqB9DQo+IMKgDQo+ICtzdGF0aWMg
+Ym9vbCBwdm1fZmluZF9uZXh0X3ByZXYodW5zaWduZWQgbG9uZyBlbmQsDQo+ICsJCQnCoMKgwqDC
+oMKgwqDCoHN0cnVjdCB2bWFwX2FyZWEgKipwbmV4dCwNCj4gKwkJCcKgwqDCoMKgwqDCoMKgc3Ry
+dWN0IHZtYXBfYXJlYSAqKnBwcmV2KTsNCj4gKw0KPiArLyogVHJ5IHRvIGFsbG9jYXRlIGEgcmVn
+aW9uIG9mIEtWQSBvZiB0aGUgc3BlY2lmaWVkIGFkZHJlc3MgYW5kIHNpemUuICovDQo+ICtzdGF0
+aWMgc3RydWN0IHZtYXBfYXJlYSAqdHJ5X2FsbG9jX3ZtYXBfYXJlYSh1bnNpZ25lZCBsb25nIGFk
+ZHIsDQo+ICsJCQkJdW5zaWduZWQgbG9uZyBzaXplLCBpbnQgbm9kZSwgZ2ZwX3QgZ2ZwX21hc2ss
+DQo+ICsJCQkJaW50IHRyeV9wdXJnZSkNCj4gK3sNCj4gKwlzdHJ1Y3Qgdm1hcF9hcmVhICp2YTsN
+Cj4gKwlzdHJ1Y3Qgdm1hcF9hcmVhICpjdXJfdmEgPSBOVUxMOw0KPiArCXN0cnVjdCB2bWFwX2Fy
+ZWEgKmZpcnN0X2JlZm9yZSA9IE5VTEw7DQo+ICsJaW50IG5lZWRfcHVyZ2UgPSAwOw0KPiArCWlu
+dCBibG9ja2VkID0gMDsNCj4gKwlpbnQgcHVyZ2VkID0gMDsNCj4gKwl1bnNpZ25lZCBsb25nIGFk
+ZHJfZW5kOw0KPiArDQo+ICsJV0FSTl9PTighc2l6ZSk7DQo+ICsJV0FSTl9PTihvZmZzZXRfaW5f
+cGFnZShzaXplKSk7DQo+ICsNCj4gKwlhZGRyX2VuZCA9IGFkZHIgKyBzaXplOw0KPiArCWlmIChh
+ZGRyID4gYWRkcl9lbmQpDQo+ICsJCXJldHVybiBFUlJfUFRSKC1FT1ZFUkZMT1cpOw0KPiArDQo+
+ICsJbWlnaHRfc2xlZXAoKTsNCj4gKw0KPiArCXZhID0ga21hbGxvY19ub2RlKHNpemVvZihzdHJ1
+Y3Qgdm1hcF9hcmVhKSwNCj4gKwkJCWdmcF9tYXNrICYgR0ZQX1JFQ0xBSU1fTUFTSywgbm9kZSk7
+DQo+ICsJaWYgKHVubGlrZWx5KCF2YSkpDQo+ICsJCXJldHVybiBFUlJfUFRSKC1FTk9NRU0pOw0K
+PiArDQo+ICsJLyoNCj4gKwnCoCogT25seSBzY2FuIHRoZSByZWxldmFudCBwYXJ0cyBjb250YWlu
+aW5nIHBvaW50ZXJzIHRvIG90aGVyIG9iamVjdHMNCj4gKwnCoCogdG8gYXZvaWQgZmFsc2UgbmVn
+YXRpdmVzLg0KPiArCcKgKi8NCj4gKwlrbWVtbGVha19zY2FuX2FyZWEoJnZhLT5yYl9ub2RlLCBT
+SVpFX01BWCwgZ2ZwX21hc2sgJg0KPiBHRlBfUkVDTEFJTV9NQVNLKTsNCj4gKw0KPiArcmV0cnk6
+DQo+ICsJc3Bpbl9sb2NrKCZ2bWFwX2FyZWFfbG9jayk7DQo+ICsNCj4gKwlwdm1fZmluZF9uZXh0
+X3ByZXYoYWRkciwgJmN1cl92YSwgJmZpcnN0X2JlZm9yZSk7DQo+ICsNCj4gKwlpZiAoIWN1cl92
+YSkNCj4gKwkJZ290byBmb3VuZDsNCj4gKw0KPiArCS8qDQo+ICsJwqAqIElmIHRoZXJlIGlzIG5v
+IFZBIHRoYXQgc3RhcnRzIGJlZm9yZSB0aGUgdGFyZ2V0IGFkZHJlc3MsIHN0YXJ0IHRoZQ0KPiAr
+CcKgKiBjaGVjayBmcm9tIHRoZSBjbG9zZXN0IFZBIGluIG9yZGVyIHRvIGNvdmVyIHRoZSBjYXNl
+IHdoZXJlIHRoZQ0KPiArCcKgKiBhbGxvY2F0aW9uIG92ZXJsYXBzIGF0IHRoZSBlbmQuDQo+ICsJ
+wqAqLw0KPiArCWlmIChmaXJzdF9iZWZvcmUgJiYgYWRkciA8IGZpcnN0X2JlZm9yZS0+dmFfZW5k
+KQ0KPiArCQljdXJfdmEgPSBmaXJzdF9iZWZvcmU7DQo+ICsNCj4gKwkvKiBMaW5lYXJseSBzZWFy
+Y2ggdGhyb3VnaCB0byBtYWtlIHN1cmUgdGhlcmUgaXMgYSBob2xlICovDQo+ICsJd2hpbGUgKGN1
+cl92YS0+dmFfc3RhcnQgPCBhZGRyX2VuZCkgew0KPiArCQlpZiAoY3VyX3ZhLT52YV9lbmQgPiBh
+ZGRyKSB7DQo+ICsJCQlpZiAoY3VyX3ZhLT5mbGFncyAmIFZNX0xBWllfRlJFRSkgew0KPiArCQkJ
+CW5lZWRfcHVyZ2UgPSAxOw0KPiArCQkJfSBlbHNlIHsNCj4gKwkJCQlibG9ja2VkID0gMTsNCj4g
+KwkJCQlicmVhazsNCj4gKwkJCX0NCj4gKwkJfQ0KPiArDQo+ICsJCWlmIChsaXN0X2lzX2xhc3Qo
+JmN1cl92YS0+bGlzdCwgJnZtYXBfYXJlYV9saXN0KSkNCj4gKwkJCWJyZWFrOw0KPiArDQo+ICsJ
+CWN1cl92YSA9IGxpc3RfbmV4dF9lbnRyeShjdXJfdmEsIGxpc3QpOw0KPiArCX0NCj4gKw0KPiAr
+CS8qDQo+ICsJwqAqIElmIGEgbm9uLWxhenkgZnJlZSB2YSBibG9ja3MgdGhlIGFsbG9jYXRpb24s
+IG9yDQo+ICsJwqAqIHdlIGFyZSBub3Qgc3VwcG9zZWQgdG8gcHVyZ2UsIGJ1dCB3ZSBuZWVkIHRv
+LCB0aGUNCj4gKwnCoCogYWxsb2NhdGlvbiBmYWlscy4NCj4gKwnCoCovDQo+ICsJaWYgKGJsb2Nr
+ZWQgfHwgKG5lZWRfcHVyZ2UgJiYgIXRyeV9wdXJnZSkpDQo+ICsJCWdvdG8gZmFpbDsNCj4gKw0K
+PiArCWlmICh0cnlfcHVyZ2UgJiYgbmVlZF9wdXJnZSkgew0KPiArCQkvKiBpZiBwdXJnZWQgb25j
+ZSBiZWZvcmUsIGdpdmUgdXAgKi8NCj4gKwkJaWYgKHB1cmdlZCkNCj4gKwkJCWdvdG8gZmFpbDsN
+Cj4gKw0KPiArCQkvKg0KPiArCQnCoCogSWYgdGhlIHZhIGJsb2NraW5nIHRoZSBhbGxvY2F0aW9u
+IGlzIHNldCB0bw0KPiArCQnCoCogYmUgcHVyZ2VkIHRoZW4gcHVyZ2UgYWxsIHZtYXBfYXJlYXMg
+dGhhdCBhcmUNCj4gKwkJwqAqIHNldCB0byBwdXJnZWQgc2luY2UgdGhpcyB3aWxsIGZsdXNoIHRo
+ZSBUTEJzDQo+ICsJCcKgKiBhbnl3YXkuDQo+ICsJCcKgKi8NCj4gKwkJc3Bpbl91bmxvY2soJnZt
+YXBfYXJlYV9sb2NrKTsNCj4gKwkJcHVyZ2Vfdm1hcF9hcmVhX2xhenkoKTsNCj4gKwkJbmVlZF9w
+dXJnZSA9IDA7DQo+ICsJCXB1cmdlZCA9IDE7DQo+ICsJCWdvdG8gcmV0cnk7DQo+ICsJfQ0KPiAr
+DQo+ICtmb3VuZDoNCj4gKwl2YS0+dmFfc3RhcnQgPSBhZGRyOw0KPiArCXZhLT52YV9lbmQgPSBh
+ZGRyX2VuZDsNCj4gKwl2YS0+ZmxhZ3MgPSAwOw0KPiArCV9faW5zZXJ0X3ZtYXBfYXJlYSh2YSk7
+DQo+ICsJc3Bpbl91bmxvY2soJnZtYXBfYXJlYV9sb2NrKTsNCj4gKw0KPiArCXJldHVybiB2YTsN
+Cj4gK2ZhaWw6DQo+ICsJc3Bpbl91bmxvY2soJnZtYXBfYXJlYV9sb2NrKTsNCj4gKwlrZnJlZSh2
+YSk7DQo+ICsJaWYgKG5lZWRfcHVyZ2UgJiYgIWJsb2NrZWQpDQo+ICsJCXJldHVybiBFUlJfUFRS
+KC1FVUNMRUFOKTsNCj4gKwlyZXR1cm4gRVJSX1BUUigtRUJVU1kpOw0KPiArfQ0KPiArDQo+ICsv
+KioNCj4gKyAqCV9fdm1hbGxvY190cnlfYWRkcsKgwqAtwqDCoHRyeSB0byBhbGxvYyBhdCBhIHNw
+ZWNpZmljIGFkZHJlc3MNCj4gKyAqCUBhZGRyOgkJYWRkcmVzcyB0byB0cnkNCj4gKyAqCUBzaXpl
+OgkJc2l6ZSB0byB0cnkNCj4gKyAqCUBnZnBfbWFzazoJZmxhZ3MgZm9yIHRoZSBwYWdlIGxldmVs
+IGFsbG9jYXRvcg0KPiArICoJQHByb3Q6CQlwcm90ZWN0aW9uIG1hc2sgZm9yIHRoZSBhbGxvY2F0
+ZWQgcGFnZXMNCj4gKyAqCUB2bV9mbGFnczoJYWRkaXRpb25hbCB2bSBhcmVhIGZsYWdzIChlLmcu
+ICVWTV9OT19HVUFSRCkNCj4gKyAqCUBub2RlOgkJbm9kZSB0byB1c2UgZm9yIGFsbG9jYXRpb24g
+b3IgTlVNQV9OT19OT0RFDQo+ICsgKglAdHJ5X3B1cmdlOgl0cnkgdG8gcHVyZ2UgaWYgbmVlZGVk
+IHRvIGZ1bGZpbGwgYW5kIGFsbG9jYXRpb24NCj4gKyAqCUBjYWxsZXI6CWNhbGxlcidzIHJldHVy
+biBhZGRyZXNzDQo+ICsgKg0KPiArICoJVHJ5IHRvIGFsbG9jYXRlIGF0IHRoZSBzcGVjaWZpYyBh
+ZGRyZXNzLiBJZiBpdCBzdWNjZWVkcyB0aGUgYWRkcmVzcw0KPiBpcw0KPiArICoJcmV0dXJuZWQu
+IElmIGl0IGZhaWxzIGFuIEVCVVNZIEVSUl9QVFIgaXMgcmV0dXJuZWQuIElmIHRyeV9wdXJnZSBp
+cw0KPiArICoJemVybywgaXQgd2lsbCByZXR1cm4gYW4gRVVDTEVBTiBFUlJfUFRSIGlmIGl0IGNv
+dWxkIGhhdmUgYWxsb2NhdGVkDQo+IGlmIGl0DQo+ICsgKgl3YXMgYWxsb3dlZCB0byBwdXJnZS4g
+SXQgbWF5IHRyaWdnZXIgVExCIGZsdXNoZXMgaWYgYSBwdXJnZSBpcw0KPiBuZWVkZWQsDQo+ICsg
+KglhbmQgdHJ5X3B1cmdlIGlzIHNldC4NCj4gKyAqLw0KPiArdm9pZCAqX192bWFsbG9jX25vZGVf
+dHJ5X2FkZHIodW5zaWduZWQgbG9uZyBhZGRyLCB1bnNpZ25lZCBsb25nIHNpemUsDQo+ICsJCQln
+ZnBfdCBnZnBfbWFzaywJcGdwcm90X3QgcHJvdCwgdW5zaWduZWQgbG9uZw0KPiB2bV9mbGFncywN
+Cj4gKwkJCWludCBub2RlLCBpbnQgdHJ5X3B1cmdlLCBjb25zdCB2b2lkICpjYWxsZXIpDQo+ICt7
+DQo+ICsJc3RydWN0IHZtYXBfYXJlYSAqdmE7DQo+ICsJc3RydWN0IHZtX3N0cnVjdCAqYXJlYTsN
+Cj4gKwl2b2lkICphbGxvY19hZGRyOw0KPiArCXVuc2lnbmVkIGxvbmcgcmVhbF9zaXplID0gc2l6
+ZTsNCj4gKw0KPiArCXNpemUgPSBQQUdFX0FMSUdOKHNpemUpOw0KPiArCWlmICghc2l6ZSB8fCAo
+c2l6ZSA+PiBQQUdFX1NISUZUKSA+IHRvdGFscmFtX3BhZ2VzKQ0KPiArCQlyZXR1cm4gTlVMTDsN
+Cj4gKw0KPiArCVdBUk5fT04oaW5faW50ZXJydXB0KCkpOw0KPiArDQo+ICsJaWYgKCEodm1fZmxh
+Z3MgJiBWTV9OT19HVUFSRCkpDQo+ICsJCXNpemUgKz0gUEFHRV9TSVpFOw0KPiArDQo+ICsJdmEg
+PSB0cnlfYWxsb2Nfdm1hcF9hcmVhKGFkZHIsIHNpemUsIG5vZGUsIGdmcF9tYXNrLCB0cnlfcHVy
+Z2UpOw0KPiArCWlmIChJU19FUlIodmEpKQ0KPiArCQlnb3RvIGZhaWw7DQo+ICsNCj4gKwlhcmVh
+ID0ga3phbGxvY19ub2RlKHNpemVvZigqYXJlYSksIGdmcF9tYXNrICYgR0ZQX1JFQ0xBSU1fTUFT
+SywNCj4gbm9kZSk7DQo+ICsJaWYgKHVubGlrZWx5KCFhcmVhKSkgew0KPiArCQl3YXJuX2FsbG9j
+KGdmcF9tYXNrLCBOVUxMLCAia21hbGxvYzogYWxsb2NhdGlvbiBmYWlsdXJlIik7DQo+ICsJCXJl
+dHVybiBFUlJfUFRSKC1FTk9NRU0pOw0KPiArCX0NCj4gKw0KPiArCXNldHVwX3ZtYWxsb2Nfdm0o
+YXJlYSwgdmEsIHZtX2ZsYWdzLCBjYWxsZXIpOw0KPiArDQo+ICsJYWxsb2NfYWRkciA9IF9fdm1h
+bGxvY19hcmVhX25vZGUoYXJlYSwgZ2ZwX21hc2ssIHByb3QsIG5vZGUpOw0KPiArCWlmICghYWxs
+b2NfYWRkcikgew0KPiArCQl3YXJuX2FsbG9jKGdmcF9tYXNrLCBOVUxMLA0KPiArCQkJInZtYWxs
+b2M6IGFsbG9jYXRpb24gZmFpbHVyZTogJWx1IGJ5dGVzIiwgcmVhbF9zaXplKTsNCj4gKwkJcmV0
+dXJuIEVSUl9QVFIoLUVOT01FTSk7DQo+ICsJfQ0KPiArDQo+ICsJY2xlYXJfdm1fdW5pbml0aWFs
+aXplZF9mbGFnKGFyZWEpOw0KPiArDQo+ICsJa21lbWxlYWtfdm1hbGxvYyhhcmVhLCByZWFsX3Np
+emUsIGdmcF9tYXNrKTsNCj4gKw0KPiArCXJldHVybiBhbGxvY19hZGRyOw0KPiArZmFpbDoNCj4g
+KwlyZXR1cm4gdmE7DQo+ICt9DQo+ICsNCj4gwqAvKioNCj4gwqAgKglfX3ZtYWxsb2Nfbm9kZV9y
+YW5nZcKgwqAtwqDCoGFsbG9jYXRlIHZpcnR1YWxseSBjb250aWd1b3VzIG1lbW9yeQ0KPiDCoCAq
+CUBzaXplOgkJYWxsb2NhdGlvbiBzaXplDQo+IEBAIC0yMzU1LDcgKzI1MzAsNiBAQCB2b2lkIGZy
+ZWVfdm1fYXJlYShzdHJ1Y3Qgdm1fc3RydWN0ICphcmVhKQ0KPiDCoH0NCj4gwqBFWFBPUlRfU1lN
+Qk9MX0dQTChmcmVlX3ZtX2FyZWEpOw0KPiDCoA0KPiAtI2lmZGVmIENPTkZJR19TTVANCj4gwqBz
+dGF0aWMgc3RydWN0IHZtYXBfYXJlYSAqbm9kZV90b192YShzdHJ1Y3QgcmJfbm9kZSAqbikNCj4g
+wqB7DQo+IMKgCXJldHVybiByYl9lbnRyeV9zYWZlKG4sIHN0cnVjdCB2bWFwX2FyZWEsIHJiX25v
+ZGUpOw0KPiBAQCAtMjQwMyw2ICsyNTc3LDcgQEAgc3RhdGljIGJvb2wgcHZtX2ZpbmRfbmV4dF9w
+cmV2KHVuc2lnbmVkIGxvbmcgZW5kLA0KPiDCoAlyZXR1cm4gdHJ1ZTsNCj4gwqB9DQo+IMKgDQo+
+ICsjaWZkZWYgQ09ORklHX1NNUA0KPiDCoC8qKg0KPiDCoCAqIHB2bV9kZXRlcm1pbmVfZW5kIC0g
+ZmluZCB0aGUgaGlnaGVzdCBhbGlnbmVkIGFkZHJlc3MgYmV0d2VlbiB0d28NCj4gdm1hcF9hcmVh
+cw0KPiDCoCAqIEBwbmV4dDogaW4vb3V0IGFyZyBmb3IgdGhlIG5leHQgdm1hcF9hcmVh
