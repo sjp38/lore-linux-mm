@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A5936B0269
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 11:12:07 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id f17-v6so11046621plr.1
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 08:12:07 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id h90-v6si8389154plb.64.2018.10.05.08.12.05
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B24276B026C
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 11:12:14 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id 43-v6so11199667ple.19
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 08:12:14 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id o14-v6si8909611pgc.238.2018.10.05.08.12.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Oct 2018 08:12:06 -0700 (PDT)
-Subject: [mm PATCH 1/5] mm: Use mm_zero_struct_page from SPARC on all 64b
- architectures
+        Fri, 05 Oct 2018 08:12:12 -0700 (PDT)
+Subject: [mm PATCH 2/5] mm: Drop meminit_pfn_in_nid as it is redundant
 From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Date: Fri, 05 Oct 2018 08:12:03 -0700
-Message-ID: <20181005151203.17473.25723.stgit@localhost.localdomain>
+Date: Fri, 05 Oct 2018 08:12:10 -0700
+Message-ID: <20181005151210.17473.76791.stgit@localhost.localdomain>
 In-Reply-To: <20181005151006.17473.83040.stgit@localhost.localdomain>
 References: <20181005151006.17473.83040.stgit@localhost.localdomain>
 MIME-Version: 1.0
@@ -24,110 +23,164 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, akpm@linux-foundation.org
 Cc: pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com, alexander.h.duyck@linux.intel.com, linux-kernel@vger.kernel.org, willy@infradead.org, davem@davemloft.net, khalid.aziz@oracle.com, rppt@linux.vnet.ibm.com, vbabka@suse.cz, sparclinux@vger.kernel.org, dan.j.williams@intel.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mingo@kernel.org, kirill.shutemov@linux.intel.com
 
-This change makes it so that we use the same approach that was already in
-use on Sparc on all the archtectures that support a 64b long.
+As best as I can tell the meminit_pfn_in_nid call is completely redundant.
+The deferred memory initialization is already making use of
+for_each_free_mem_range which in turn will call into __next_mem_range which
+will only return a memory range if it matches the node ID provided assuming
+it is not NUMA_NO_NODE.
 
-This is mostly motivated by the fact that 8 to 10 store/move instructions
-are likely always going to be faster than having to call into a function
-that is not specialized for handling page init.
+I am operating on the assumption that there are no zones or pgdata_t
+structures that have a NUMA node of NUMA_NO_NODE associated with them. If
+that is the case then __next_mem_range will never return a memory range
+that doesn't match the zone's node ID and as such the check is redundant.
 
-An added advantage to doing it this way is that the compiler can get away
-with combining writes in the __init_single_page call. As a result the
-memset call will be reduced to only about 4 write operations, or at least
-that is what I am seeing with GCC 6.2 as the flags, LRU poitners, and
-count/mapcount seem to be cancelling out at least 4 of the 8 assignments on
-my system.
+So one piece I would like to verfy on this is if this works for ia64.
+Technically it was using a different approach to get the node ID, but it
+seems to have the node ID also encoded into the memblock. So I am
+assuming this is okay, but would like to get confirmation on that.
 
 Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 ---
- arch/sparc/include/asm/pgtable_64.h |   30 ------------------------------
- include/linux/mm.h                  |   33 +++++++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 30 deletions(-)
+ mm/page_alloc.c |   50 ++++++++++++++------------------------------------
+ 1 file changed, 14 insertions(+), 36 deletions(-)
 
-diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-index 1393a8ac596b..22500c3be7a9 100644
---- a/arch/sparc/include/asm/pgtable_64.h
-+++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -231,36 +231,6 @@
- extern struct page *mem_map_zero;
- #define ZERO_PAGE(vaddr)	(mem_map_zero)
- 
--/* This macro must be updated when the size of struct page grows above 80
-- * or reduces below 64.
-- * The idea that compiler optimizes out switch() statement, and only
-- * leaves clrx instructions
-- */
--#define	mm_zero_struct_page(pp) do {					\
--	unsigned long *_pp = (void *)(pp);				\
--									\
--	 /* Check that struct page is either 64, 72, or 80 bytes */	\
--	BUILD_BUG_ON(sizeof(struct page) & 7);				\
--	BUILD_BUG_ON(sizeof(struct page) < 64);				\
--	BUILD_BUG_ON(sizeof(struct page) > 80);				\
--									\
--	switch (sizeof(struct page)) {					\
--	case 80:							\
--		_pp[9] = 0;	/* fallthrough */			\
--	case 72:							\
--		_pp[8] = 0;	/* fallthrough */			\
--	default:							\
--		_pp[7] = 0;						\
--		_pp[6] = 0;						\
--		_pp[5] = 0;						\
--		_pp[4] = 0;						\
--		_pp[3] = 0;						\
--		_pp[2] = 0;						\
--		_pp[1] = 0;						\
--		_pp[0] = 0;						\
--	}								\
--} while (0)
--
- /* PFNs are real physical page numbers.  However, mem_map only begins to record
-  * per-page information starting at pfn_base.  This is to handle systems where
-  * the first physical page in the machine is at some huge physical address,
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 273d4dbd3883..a0440a6ef5cf 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -102,8 +102,41 @@ static inline void set_max_mapnr(unsigned long limit) { }
-  * zeroing by defining this macro in <asm/pgtable.h>.
-  */
- #ifndef mm_zero_struct_page
-+#if BITS_PER_LONG == 64
-+/* This function must be updated when the size of struct page grows above 80
-+ * or reduces below 64. The idea that compiler optimizes out switch()
-+ * statement, and only leaves move/store instructions
-+ */
-+#define	mm_zero_struct_page(pp) __mm_zero_struct_page(pp)
-+static inline void __mm_zero_struct_page(struct page *page)
-+{
-+	unsigned long *_pp = (void *)page;
-+
-+	 /* Check that struct page is either 64, 72, or 80 bytes */
-+	BUILD_BUG_ON(sizeof(struct page) & 7);
-+	BUILD_BUG_ON(sizeof(struct page) < 64);
-+	BUILD_BUG_ON(sizeof(struct page) > 80);
-+
-+	switch (sizeof(struct page)) {
-+	case 80:
-+		_pp[9] = 0;	/* fallthrough */
-+	case 72:
-+		_pp[8] = 0;	/* fallthrough */
-+	default:
-+		_pp[7] = 0;
-+		_pp[6] = 0;
-+		_pp[5] = 0;
-+		_pp[4] = 0;
-+		_pp[3] = 0;
-+		_pp[2] = 0;
-+		_pp[1] = 0;
-+		_pp[0] = 0;
-+	}
-+}
-+#else
- #define mm_zero_struct_page(pp)  ((void)memset((pp), 0, sizeof(struct page)))
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 7ec0997ded39..1d6e95df3412 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1305,36 +1305,22 @@ int __meminit early_pfn_to_nid(unsigned long pfn)
  #endif
-+#endif
  
- /*
-  * Default maximum number of active map areas, this limits the number of vmas
+ #ifdef CONFIG_NODES_SPAN_OTHER_NODES
+-static inline bool __meminit __maybe_unused
+-meminit_pfn_in_nid(unsigned long pfn, int node,
+-		   struct mminit_pfnnid_cache *state)
++/* Only safe to use early in boot when initialisation is single-threaded */
++static inline bool __meminit early_pfn_in_nid(unsigned long pfn, int node)
+ {
+ 	int nid;
+ 
+-	nid = __early_pfn_to_nid(pfn, state);
++	nid = __early_pfn_to_nid(pfn, &early_pfnnid_cache);
+ 	if (nid >= 0 && nid != node)
+ 		return false;
+ 	return true;
+ }
+ 
+-/* Only safe to use early in boot when initialisation is single-threaded */
+-static inline bool __meminit early_pfn_in_nid(unsigned long pfn, int node)
+-{
+-	return meminit_pfn_in_nid(pfn, node, &early_pfnnid_cache);
+-}
+-
+ #else
+-
+ static inline bool __meminit early_pfn_in_nid(unsigned long pfn, int node)
+ {
+ 	return true;
+ }
+-static inline bool __meminit  __maybe_unused
+-meminit_pfn_in_nid(unsigned long pfn, int node,
+-		   struct mminit_pfnnid_cache *state)
+-{
+-	return true;
+-}
+ #endif
+ 
+ 
+@@ -1463,21 +1449,13 @@ static inline void __init pgdat_init_report_one_done(void)
+  *
+  * Then, we check if a current large page is valid by only checking the validity
+  * of the head pfn.
+- *
+- * Finally, meminit_pfn_in_nid is checked on systems where pfns can interleave
+- * within a node: a pfn is between start and end of a node, but does not belong
+- * to this memory node.
+  */
+-static inline bool __init
+-deferred_pfn_valid(int nid, unsigned long pfn,
+-		   struct mminit_pfnnid_cache *nid_init_state)
++static inline bool __init deferred_pfn_valid(unsigned long pfn)
+ {
+ 	if (!pfn_valid_within(pfn))
+ 		return false;
+ 	if (!(pfn & (pageblock_nr_pages - 1)) && !pfn_valid(pfn))
+ 		return false;
+-	if (!meminit_pfn_in_nid(pfn, nid, nid_init_state))
+-		return false;
+ 	return true;
+ }
+ 
+@@ -1485,15 +1463,14 @@ static inline void __init pgdat_init_report_one_done(void)
+  * Free pages to buddy allocator. Try to free aligned pages in
+  * pageblock_nr_pages sizes.
+  */
+-static void __init deferred_free_pages(int nid, int zid, unsigned long pfn,
++static void __init deferred_free_pages(unsigned long pfn,
+ 				       unsigned long end_pfn)
+ {
+-	struct mminit_pfnnid_cache nid_init_state = { };
+ 	unsigned long nr_pgmask = pageblock_nr_pages - 1;
+ 	unsigned long nr_free = 0;
+ 
+ 	for (; pfn < end_pfn; pfn++) {
+-		if (!deferred_pfn_valid(nid, pfn, &nid_init_state)) {
++		if (!deferred_pfn_valid(pfn)) {
+ 			deferred_free_range(pfn - nr_free, nr_free);
+ 			nr_free = 0;
+ 		} else if (!(pfn & nr_pgmask)) {
+@@ -1513,17 +1490,18 @@ static void __init deferred_free_pages(int nid, int zid, unsigned long pfn,
+  * by performing it only once every pageblock_nr_pages.
+  * Return number of pages initialized.
+  */
+-static unsigned long  __init deferred_init_pages(int nid, int zid,
++static unsigned long  __init deferred_init_pages(struct zone *zone,
+ 						 unsigned long pfn,
+ 						 unsigned long end_pfn)
+ {
+-	struct mminit_pfnnid_cache nid_init_state = { };
+ 	unsigned long nr_pgmask = pageblock_nr_pages - 1;
++	int nid = zone_to_nid(zone);
+ 	unsigned long nr_pages = 0;
++	int zid = zone_idx(zone);
+ 	struct page *page = NULL;
+ 
+ 	for (; pfn < end_pfn; pfn++) {
+-		if (!deferred_pfn_valid(nid, pfn, &nid_init_state)) {
++		if (!deferred_pfn_valid(pfn)) {
+ 			page = NULL;
+ 			continue;
+ 		} else if (!page || !(pfn & nr_pgmask)) {
+@@ -1586,12 +1564,12 @@ static int __init deferred_init_memmap(void *data)
+ 	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
+ 		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+ 		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
+-		nr_pages += deferred_init_pages(nid, zid, spfn, epfn);
++		nr_pages += deferred_init_pages(zone, spfn, epfn);
+ 	}
+ 	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
+ 		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+ 		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
+-		deferred_free_pages(nid, zid, spfn, epfn);
++		deferred_free_pages(spfn, epfn);
+ 	}
+ 	pgdat_resize_unlock(pgdat, &flags);
+ 
+@@ -1680,7 +1658,7 @@ static int __init deferred_init_memmap(void *data)
+ 		while (spfn < epfn && nr_pages < nr_pages_needed) {
+ 			t = ALIGN(spfn + PAGES_PER_SECTION, PAGES_PER_SECTION);
+ 			first_deferred_pfn = min(t, epfn);
+-			nr_pages += deferred_init_pages(nid, zid, spfn,
++			nr_pages += deferred_init_pages(zone, spfn,
+ 							first_deferred_pfn);
+ 			spfn = first_deferred_pfn;
+ 		}
+@@ -1692,7 +1670,7 @@ static int __init deferred_init_memmap(void *data)
+ 	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
+ 		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+ 		epfn = min_t(unsigned long, first_deferred_pfn, PFN_DOWN(epa));
+-		deferred_free_pages(nid, zid, spfn, epfn);
++		deferred_free_pages(spfn, epfn);
+ 
+ 		if (first_deferred_pfn == epfn)
+ 			break;
