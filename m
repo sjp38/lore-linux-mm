@@ -1,63 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 13D5B6B000A
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 22:00:09 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id v7-v6so9682168plo.23
-        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 19:00:09 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id r2-v6si6634489pgk.452.2018.10.04.19.00.07
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 202FD6B000A
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2018 23:26:19 -0400 (EDT)
+Received: by mail-it1-f199.google.com with SMTP id w132-v6so774260ita.6
+        for <linux-mm@kvack.org>; Thu, 04 Oct 2018 20:26:19 -0700 (PDT)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id j207-v6si550506ita.80.2018.10.04.20.26.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Oct 2018 19:00:07 -0700 (PDT)
-Message-ID: <1538704376.21766.1.camel@intel.com>
-Subject: Re: [RFC PATCH 01/11] nios2: update_mmu_cache clear the old entry
- from the TLB
-From: Ley Foon Tan <ley.foon.tan@intel.com>
-Date: Fri, 05 Oct 2018 09:52:56 +0800
-In-Reply-To: <20181003135257.0b631c30@roar.ozlabs.ibm.com>
-References: <20180923150830.6096-1-npiggin@gmail.com>
-	 <20180923150830.6096-2-npiggin@gmail.com>
-	 <20180929113712.6dcfeeb3@roar.ozlabs.ibm.com>
-	 <1538407463.3190.1.camel@intel.com>
-	 <20181003135257.0b631c30@roar.ozlabs.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 04 Oct 2018 20:26:18 -0700 (PDT)
+Message-ID: <8891277c7de92e93d3bfc409df95810ee6f103cd.camel@kernel.crashing.org>
+Subject: Re: [PATCH] memblock: stop using implicit alignement to
+ SMP_CACHE_BYTES
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Fri, 05 Oct 2018 13:25:38 +1000
+In-Reply-To: <1538687224-17535-1-git-send-email-rppt@linux.vnet.ibm.com>
+References: <1538687224-17535-1-git-send-email-rppt@linux.vnet.ibm.com>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: Guenter Roeck <linux@roeck-us.net>, nios2-dev@lists.rocketboards.org, linux-mm@kvack.org
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-mm@kvack.org
+Cc: linux-mips@linux-mips.org, Michal Hocko <mhocko@suse.com>, linux-ia64@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Richard Weinberger <richard@nod.at>, Russell King <linux@armlinux.org.uk>, Ingo Molnar <mingo@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Matt Turner <mattst88@gmail.com>, linux-um@lists.infradead.org, linux-m68k@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Guan Xuetao <gxt@pku.edu.cn>, linux-arm-kernel@lists.infradead.org, Chris Zankel <chris@zankel.net>, Michal Simek <monstr@monstr.eu>, Tony Luck <tony.luck@intel.com>, linux-kernel@vger.kernel.org, Paul Burton <paul.burton@mips.com>, linux-alpha@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org
 
-On Wed, 2018-10-03 at 13:52 +1000, Nicholas Piggin wrote:
-> On Mon, 01 Oct 2018 23:24:23 +0800
-> Ley Foon Tan <ley.foon.tan@intel.com> wrote:
->=20
-> >=20
-> > On Sat, 2018-09-29 at 11:37 +1000, Nicholas Piggin wrote:
-> > >=20
-> > > Hi,
-> > >=20
-> > > Did you get a chance to look at these?
-> > >=20
-> > > This first patch 1/11 solves the lockup problem that Guenter
-> > > reported
-> > > with my changes to core mm code. So I plan to resubmit my patches
-> > > to Andrew's -mm tree with this patch to avoid nios2 breakage.
-> > >=20
-> > > Thanks,
-> > > Nick=C2=A0=C2=A0
-> > Do you have git repo that contains these patches? If not, can you
-> > send
-> > them as attachment to my email?
-> Here's a tree with these patches plus 3 of the core mm code changes
-> which caused nios2 to hang
->=20
-> https://github.com/npiggin/linux/commits/nios2
->=20
-Hi Nick
+On Fri, 2018-10-05 at 00:07 +0300, Mike Rapoport wrote:
+> When a memblock allocation APIs are called with align = 0, the alignment is
+> implicitly set to SMP_CACHE_BYTES.
+> 
+> Replace all such uses of memblock APIs with the 'align' parameter explicitly
+> set to SMP_CACHE_BYTES and stop implicit alignment assignment in the
+> memblock internal allocation functions.
+> 
+> For the case when memblock APIs are used via helper functions, e.g. like
+> iommu_arena_new_node() in Alpha, the helper functions were detected with
+> Coccinelle's help and then manually examined and updated where appropriate.
+> 
+> The direct memblock APIs users were updated using the semantic patch below:
 
-Tested your patches on the github branch. Kernel bootup and ethernet
-ping are working.
+What is the purpose of this ? It sounds rather counter-intuitive...
 
-Regards
-Ley Foon
+Ben.
