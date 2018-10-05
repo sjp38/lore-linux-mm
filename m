@@ -1,108 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B11C6B0269
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 13:19:44 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id i81-v6so9375723pfj.1
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 10:19:44 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id 142-v6si8791946pga.540.2018.10.05.10.19.43
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AAD16B026B
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 13:26:06 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id i35-v6so6521157qkh.4
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 10:26:06 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p11-v6si415908qtj.126.2018.10.05.10.26.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Oct 2018 10:19:43 -0700 (PDT)
-From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
-Subject: Re: [PATCH v7 3/4] vmalloc: Add debugfs modfraginfo
-Date: Fri, 5 Oct 2018 17:19:38 +0000
-Message-ID: <1538760091.3560.137.camel@intel.com>
-References: <1538429927-17834-1-git-send-email-rick.p.edgecombe@intel.com>
-	 <1538429927-17834-4-git-send-email-rick.p.edgecombe@intel.com>
-In-Reply-To: <1538429927-17834-4-git-send-email-rick.p.edgecombe@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <2276DF74EE4D434A8529207459C400CB@intel.com>
-Content-Transfer-Encoding: base64
+        Fri, 05 Oct 2018 10:26:05 -0700 (PDT)
+Date: Fri, 5 Oct 2018 19:26:22 +0200
+From: Eugene Syromiatnikov <esyr@redhat.com>
+Subject: Re: [RFC PATCH v4 3/9] x86/cet/ibt: Add IBT legacy code bitmap
+ allocation function
+Message-ID: <20181005172622.GD19360@asgard.redhat.com>
+References: <20180921150553.21016-1-yu-cheng.yu@intel.com>
+ <20180921150553.21016-4-yu-cheng.yu@intel.com>
+ <20181003195702.GF32759@asgard.redhat.com>
+ <fc2f98ab46240c0498bdf4d7458b4373c1f02bf8.camel@intel.com>
+ <5BF3AE8F-CC2A-4160-9FF6-FEA171A76371@amacapital.net>
+ <aa5a061c159471f410d677af6a609793906cece1.camel@intel.com>
+ <CALCETrXVdYsJsVy=QWruDYdRc6wb44b=0J3OK3zjR_fT1fQH7w@mail.gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CALCETrXVdYsJsVy=QWruDYdRc6wb44b=0J3OK3zjR_fT1fQH7w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "jannh@google.com" <jannh@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "willy@infradead.org" <willy@infradead.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
-Cc: "kristen@linux.intel.com" <kristen@linux.intel.com>, "arjan@linux.intel.com" <arjan@linux.intel.com>, "Hansen, Dave" <dave.hansen@intel.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>
 
-Rm9yIGEgcHJldmlvdXMgdmVyc2lvbiBiZWZvcmUgbWFraW5nIGFza2VkIGZvciBjb3JyZWN0aW9u
-cywgdGhpcyB3YXM6DQoNClJldmlld2VkLWJ5OiBLZWVzIENvb2sgPGtlZXNjb29rQGNocm9taXVt
-Lm9yZz4NCg0KT24gTW9uLCAyMDE4LTEwLTAxIGF0IDE0OjM4IC0wNzAwLCBSaWNrIEVkZ2Vjb21i
-ZSB3cm90ZToNCj4gQWRkIGRlYnVnZnMgZmlsZSAibW9kZnJhZ2luZm8iIGZvciBwcm92aWRpbmcg
-aW5mbyBvbiBtb2R1bGUgc3BhY2UNCj4gZnJhZ21lbnRhdGlvbi4NCj4gVGhpcyBjYW4gYmUgdXNl
-ZCBmb3IgZGV0ZXJtaW5pbmcgaWYgbG9hZGFibGUgbW9kdWxlIHJhbmRvbWl6YXRpb24gaXMgY2F1
-c2luZw0KPiBhbnkNCj4gcHJvYmxlbXMgZm9yIGV4dHJlbWUgbW9kdWxlIGxvYWRpbmcgc2l0dWF0
-aW9ucywgbGlrZSBodWdlIG51bWJlcnMgb2YgbW9kdWxlcw0KPiBvcg0KPiBleHRyZW1lbHkgbGFy
-Z2UgbW9kdWxlcy4NCj4gDQo+IFNhbXBsZSBvdXRwdXQgd2hlbiBLQVNMUiBpcyBlbmFibGVkIGFu
-ZCBYODZfNjQgaXMgY29uZmlndXJlZDoNCj4gCUxhcmdlc3QgZnJlZSBzcGFjZToJODk3OTEyIGtC
-DQo+IAnCoMKgVG90YWwgZnJlZSBzcGFjZToJMTAyNTQyNCBrQg0KPiBBbGxvY2F0aW9ucyBpbiBi
-YWNrdXAgYXJlYToJMA0KPiANCj4gU2FtcGxlIG91dHB1dCB3aGVuIGp1c3QgWDg2XzY0Og0KPiAJ
-TGFyZ2VzdCBmcmVlIHNwYWNlOgk4OTc5MTIga0INCj4gCcKgwqBUb3RhbCBmcmVlIHNwYWNlOgkx
-MDI1NDI0IGtCDQo+IA0KPiBTaWduZWQtb2ZmLWJ5OiBSaWNrIEVkZ2Vjb21iZSA8cmljay5wLmVk
-Z2Vjb21iZUBpbnRlbC5jb20+DQo+IC0tLQ0KPiDCoG1tL3ZtYWxsb2MuYyB8IDk4DQo+ICsrKysr
-KysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrLQ0K
-PiDCoDEgZmlsZSBjaGFuZ2VkLCA5NyBpbnNlcnRpb25zKCspLCAxIGRlbGV0aW9uKC0pDQo+IA0K
-PiBkaWZmIC0tZ2l0IGEvbW0vdm1hbGxvYy5jIGIvbW0vdm1hbGxvYy5jDQo+IGluZGV4IDE5NTQ0
-NTguLjFiM2MzZGEgMTAwNjQ0DQo+IC0tLSBhL21tL3ZtYWxsb2MuYw0KPiArKysgYi9tbS92bWFs
-bG9jLmMNCj4gQEAgLTE4LDYgKzE4LDcgQEANCj4gwqAjaW5jbHVkZSA8bGludXgvaW50ZXJydXB0
-Lmg+DQo+IMKgI2luY2x1ZGUgPGxpbnV4L3Byb2NfZnMuaD4NCj4gwqAjaW5jbHVkZSA8bGludXgv
-c2VxX2ZpbGUuaD4NCj4gKyNpbmNsdWRlIDxsaW51eC9kZWJ1Z2ZzLmg+DQo+IMKgI2luY2x1ZGUg
-PGxpbnV4L2RlYnVnb2JqZWN0cy5oPg0KPiDCoCNpbmNsdWRlIDxsaW51eC9rYWxsc3ltcy5oPg0K
-PiDCoCNpbmNsdWRlIDxsaW51eC9saXN0Lmg+DQo+IEBAIC0zNiw2ICszNywxMiBAQA0KPiDCoCNp
-bmNsdWRlIDxhc20vdGxiZmx1c2guaD4NCj4gwqAjaW5jbHVkZSA8YXNtL3NobXBhcmFtLmg+DQo+
-IMKgDQo+ICsjaWZkZWYgQ09ORklHX1g4Ng0KPiArI2luY2x1ZGUgPGFzbS9wYWdlX3R5cGVzLmg+
-DQo+ICsjaW5jbHVkZSA8YXNtL3NldHVwLmg+DQo+ICsjaW5jbHVkZSA8YXNtL2thc2xyX21vZHVs
-ZXMuaD4NCj4gKyNlbmRpZg0KPiArDQo+IMKgI2luY2x1ZGUgImludGVybmFsLmgiDQo+IMKgDQo+
-IMKgc3RydWN0IHZmcmVlX2RlZmVycmVkIHsNCj4gQEAgLTI5MTksNyArMjkyNiw5NiBAQCBzdGF0
-aWMgaW50IF9faW5pdCBwcm9jX3ZtYWxsb2NfaW5pdCh2b2lkKQ0KPiDCoAkJcHJvY19jcmVhdGVf
-c2VxKCJ2bWFsbG9jaW5mbyIsIDA0MDAsIE5VTEwsICZ2bWFsbG9jX29wKTsNCj4gwqAJcmV0dXJu
-IDA7DQo+IMKgfQ0KPiAtbW9kdWxlX2luaXQocHJvY192bWFsbG9jX2luaXQpOw0KPiArI2VsaWYg
-ZGVmaW5lZChDT05GSUdfREVCVUdfRlMpDQo+ICtzdGF0aWMgaW50IF9faW5pdCBwcm9jX3ZtYWxs
-b2NfaW5pdCh2b2lkKQ0KPiArew0KPiArCXJldHVybiAwOw0KPiArfQ0KPiArI2VuZGlmDQo+IMKg
-DQo+ICsjaWYgZGVmaW5lZChDT05GSUdfREVCVUdfRlMpICYmIGRlZmluZWQoQ09ORklHX1JBTkRP
-TUlaRV9GSU5FX01PRFVMRSkNCj4gK3N0YXRpYyBpbmxpbmUgdW5zaWduZWQgbG9uZyBpc19pbl9i
-YWNrdXAodW5zaWduZWQgbG9uZyBhZGRyKQ0KPiArew0KPiArCXJldHVybiBhZGRyID49IE1PRFVM
-RVNfVkFERFIgKyBnZXRfbW9kdWxlc19yYW5kX2xlbigpOw0KPiArfQ0KPiArDQo+ICtzdGF0aWMg
-aW50IG1vZHVsZWZyYWdpbmZvX2RlYnVnX3Nob3coc3RydWN0IHNlcV9maWxlICptLCB2b2lkICp2
-KQ0KPiArew0KPiArCXVuc2lnbmVkIGxvbmcgbGFzdF9lbmQgPSBNT0RVTEVTX1ZBRERSOw0KPiAr
-CXVuc2lnbmVkIGxvbmcgdG90YWxfZnJlZSA9IDA7DQo+ICsJdW5zaWduZWQgbG9uZyBsYXJnZXN0
-X2ZyZWUgPSAwOw0KPiArCXVuc2lnbmVkIGxvbmcgYmFja3VwX2NudCA9IDA7DQo+ICsJdW5zaWdu
-ZWQgbG9uZyBnYXA7DQo+ICsJc3RydWN0IHZtYXBfYXJlYSAqcHJldiwgKmN1ciA9IE5VTEw7DQo+
-ICsNCj4gKwlzcGluX2xvY2soJnZtYXBfYXJlYV9sb2NrKTsNCj4gKw0KPiArCWlmICghcHZtX2Zp
-bmRfbmV4dF9wcmV2KE1PRFVMRVNfVkFERFIsICZjdXIsICZwcmV2KSB8fCAhY3VyKQ0KPiArCQln
-b3RvIGRvbmU7DQo+ICsNCj4gKwlmb3IgKDsgY3VyLT52YV9lbmQgPD0gTU9EVUxFU19FTkQ7IGN1
-ciA9IGxpc3RfbmV4dF9lbnRyeShjdXIsIGxpc3QpKQ0KPiB7DQo+ICsJCS8qIERvbid0IGNvdW50
-IGFyZWFzIHRoYXQgYXJlIG1hcmtlZCB0byBiZSBsYXppbHkgZnJlZWQgKi8NCj4gKwkJaWYgKCEo
-Y3VyLT5mbGFncyAmIFZNX0xBWllfRlJFRSkpIHsNCj4gKwkJCWlmIChrYXNscl9tb2RfcmFuZG9t
-aXplX2VhY2hfbW9kdWxlKCkpDQo+ICsJCQkJYmFja3VwX2NudCArPSBpc19pbl9iYWNrdXAoY3Vy
-LT52YV9zdGFydCk7DQo+ICsJCQlnYXAgPSBjdXItPnZhX3N0YXJ0IC0gbGFzdF9lbmQ7DQo+ICsJ
-CQlpZiAoZ2FwID4gbGFyZ2VzdF9mcmVlKQ0KPiArCQkJCWxhcmdlc3RfZnJlZSA9IGdhcDsNCj4g
-KwkJCXRvdGFsX2ZyZWUgKz0gZ2FwOw0KPiArCQkJbGFzdF9lbmQgPSBjdXItPnZhX2VuZDsNCj4g
-KwkJfQ0KPiArDQo+ICsJCWlmIChsaXN0X2lzX2xhc3QoJmN1ci0+bGlzdCwgJnZtYXBfYXJlYV9s
-aXN0KSkNCj4gKwkJCWJyZWFrOw0KPiArCX0NCj4gKw0KPiArZG9uZToNCj4gKwlnYXAgPSAoTU9E
-VUxFU19FTkQgLSBsYXN0X2VuZCk7DQo+ICsJaWYgKGdhcCA+IGxhcmdlc3RfZnJlZSkNCj4gKwkJ
-bGFyZ2VzdF9mcmVlID0gZ2FwOw0KPiArCXRvdGFsX2ZyZWUgKz0gZ2FwOw0KPiArDQo+ICsJc3Bp
-bl91bmxvY2soJnZtYXBfYXJlYV9sb2NrKTsNCj4gKw0KPiArCXNlcV9wcmludGYobSwgIlx0TGFy
-Z2VzdCBmcmVlIHNwYWNlOlx0JWx1IGtCXG4iLCBsYXJnZXN0X2ZyZWUgLw0KPiAxMDI0KTsNCj4g
-KwlzZXFfcHJpbnRmKG0sICJcdMKgwqBUb3RhbCBmcmVlIHNwYWNlOlx0JWx1IGtCXG4iLCB0b3Rh
-bF9mcmVlIC8gMTAyNCk7DQo+ICsNCj4gKwlpZiAoa2FzbHJfbW9kX3JhbmRvbWl6ZV9lYWNoX21v
-ZHVsZSgpKQ0KPiArCQlzZXFfcHJpbnRmKG0sICJBbGxvY2F0aW9ucyBpbiBiYWNrdXAgYXJlYTpc
-dCVsdVxuIiwNCj4gYmFja3VwX2NudCk7DQo+ICsNCj4gKwlyZXR1cm4gMDsNCj4gK30NCj4gKw0K
-PiArc3RhdGljIGludCBwcm9jX21vZHVsZV9mcmFnX2RlYnVnX29wZW4oc3RydWN0IGlub2RlICpp
-bm9kZSwgc3RydWN0IGZpbGUNCj4gKmZpbGUpDQo+ICt7DQo+ICsJcmV0dXJuIHNpbmdsZV9vcGVu
-KGZpbGUsIG1vZHVsZWZyYWdpbmZvX2RlYnVnX3Nob3csIE5VTEwpOw0KPiArfQ0KPiArDQo+ICtz
-dGF0aWMgY29uc3Qgc3RydWN0IGZpbGVfb3BlcmF0aW9ucyBkZWJ1Z19tb2R1bGVfZnJhZ19vcGVy
-YXRpb25zID0gew0KPiArCS5vcGVuwqDCoMKgwqDCoMKgwqA9IHByb2NfbW9kdWxlX2ZyYWdfZGVi
-dWdfb3BlbiwNCj4gKwkucmVhZMKgwqDCoMKgwqDCoMKgPSBzZXFfcmVhZCwNCj4gKwkubGxzZWVr
-wqDCoMKgwqDCoD0gc2VxX2xzZWVrLA0KPiArCS5yZWxlYXNlwqDCoMKgwqA9IHNpbmdsZV9yZWxl
-YXNlLA0KPiArfTsNCj4gKw0KPiArc3RhdGljIHZvaWQgX19pbml0IGRlYnVnX21vZGZyYWdfaW5p
-dCh2b2lkKQ0KPiArew0KPiArCWRlYnVnZnNfY3JlYXRlX2ZpbGUoIm1vZGZyYWdpbmZvIiwgMDQw
-MCwgTlVMTCwgTlVMTCwNCj4gKwkJCSZkZWJ1Z19tb2R1bGVfZnJhZ19vcGVyYXRpb25zKTsNCj4g
-K30NCj4gKyNlbGlmIGRlZmluZWQoQ09ORklHX0RFQlVHX0ZTKSB8fCBkZWZpbmVkKENPTkZJR19Q
-Uk9DX0ZTKQ0KPiArc3RhdGljIHZvaWQgX19pbml0IGRlYnVnX21vZGZyYWdfaW5pdCh2b2lkKQ0K
-PiArew0KPiArfQ0KPiDCoCNlbmRpZg0KPiDCoA0KPiArI2lmIGRlZmluZWQoQ09ORklHX0RFQlVH
-X0ZTKSB8fCBkZWZpbmVkKENPTkZJR19QUk9DX0ZTKQ0KPiArc3RhdGljIGludCBfX2luaXQgaW5m
-b192bWFsbG9jX2luaXQodm9pZCkNCj4gK3sNCj4gKwlwcm9jX3ZtYWxsb2NfaW5pdCgpOw0KPiAr
-CWRlYnVnX21vZGZyYWdfaW5pdCgpOw0KPiArCXJldHVybiAwOw0KPiArfQ0KPiArDQo+ICttb2R1
-bGVfaW5pdChpbmZvX3ZtYWxsb2NfaW5pdCk7DQo+ICsjZW5kaWY=
+On Fri, Oct 05, 2018 at 10:07:46AM -0700, Andy Lutomirski wrote:
+> On Fri, Oct 5, 2018 at 10:03 AM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
+> >
+> > On Fri, 2018-10-05 at 09:28 -0700, Andy Lutomirski wrote:
+> > > > On Oct 5, 2018, at 9:13 AM, Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
+> > > >
+> > > > > On Wed, 2018-10-03 at 21:57 +0200, Eugene Syromiatnikov wrote:
+> > > > > > On Fri, Sep 21, 2018 at 08:05:47AM -0700, Yu-cheng Yu wrote:
+> > > > > > Indirect branch tracking provides an optional legacy code bitmap
+> > > > > > that indicates locations of non-IBT compatible code.  When set,
+> > > > > > each bit in the bitmap represents a page in the linear address is
+> > > > > > legacy code.
+> > > > > >
+> > > > > > We allocate the bitmap only when the application requests it.
+> > > > > > Most applications do not need the bitmap.
+> > > > > >
+> > > > > > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+> > > > > > ---
+> > > > > > arch/x86/kernel/cet.c | 45 +++++++++++++++++++++++++++++++++++++++++++
+> > > > > > 1 file changed, 45 insertions(+)
+> > > > > >
+> > > > > > diff --git a/arch/x86/kernel/cet.c b/arch/x86/kernel/cet.c
+> > > > > > index 6adfe795d692..a65d9745af08 100644
+> > > > > > --- a/arch/x86/kernel/cet.c
+> > > > > > +++ b/arch/x86/kernel/cet.c
+> > > > > > @@ -314,3 +314,48 @@ void cet_disable_ibt(void)
+> > > > > >    wrmsrl(MSR_IA32_U_CET, r);
+> > > > > >    current->thread.cet.ibt_enabled = 0;
+> > > > > > }
+> > > > > > +
+> > > > > > +int cet_setup_ibt_bitmap(void)
+> > > > > > +{
+> > > > > > +    u64 r;
+> > > > > > +    unsigned long bitmap;
+> > > > > > +    unsigned long size;
+> > > > > > +
+> > > > > > +    if (!cpu_feature_enabled(X86_FEATURE_IBT))
+> > > > > > +        return -EOPNOTSUPP;
+> > > > > > +
+> > > > > > +    if (!current->thread.cet.ibt_bitmap_addr) {
+> > > > > > +        /*
+> > > > > > +         * Calculate size and put in thread header.
+> > > > > > +         * may_expand_vm() needs this information.
+> > > > > > +         */
+> > > > > > +        size = TASK_SIZE / PAGE_SIZE / BITS_PER_BYTE;
+> > > > >
+> > > > > TASK_SIZE_MAX is likely needed here, as an application can easily switch
+> > > > > between long an 32-bit protected mode.  And then the case of a CPU that
+> > > > > doesn't support 5LPT.
+> > > >
+> > > > If we had calculated bitmap size from TASK_SIZE_MAX, all 32-bit apps would
+> > > > have
+> > > > failed the allocation for bitmap size > TASK_SIZE.  Please see values below,
+> > > > which is printed from the current code.
+> > > >
+> > > > Yu-cheng
+> > > >
+> > > >
+> > > > x64:
+> > > > TASK_SIZE_MAX    = 0000 7fff ffff f000
+> > > > TASK_SIZE    = 0000 7fff ffff f000
+> > > > bitmap size    = 0000 0000 ffff ffff
+> > > >
+> > > > x32:
+> > > > TASK_SIZE_MAX    = 0000 7fff ffff f000
+> > > > TASK_SIZE    = 0000 0000 ffff e000
+> > > > bitmap size    = 0000 0000 0001 ffff
+> > > >
+> > >
+> > > I havena??t followed all the details here, but I have a general policy of
+> > > objecting to any new use of TASK_SIZE. If you really really need to depend on
+> > > 32-bitness in new code, please figure out what exactly you mean by a??32-bita??
+> > > and use an explicit check.
+> >
+> > The explicit check would be:
+> >
+> > test_thread_flag(TIF_ADDR32) ? IA32_PAGE_OFFSET : TASK_SIZE_MAX
+> >
+> > which is the same as TASK_SIZE.
+> 
+> But this is only ever done in response to a syscall, right?  So
+> wouldn't in_compat_syscall() be the right check?
+> 
+> Also, this whole thing makes me extremely nervous.  The MSR only
+> contains the start address, not the size, right?  So what prevents
+> some goof from causing the CPU to read way past the end of the bitmap
+> if the bitmap is short because the kernel thought it was supposed to
+> be 32-bit?
+
+That's what I've mentioned initially: every syscall made with int 0x80
+is interpreted as compat, even if it was made from long mode.
+
+> I'm inclined to suggest something awful-ish: always allocate the
+> bitmap as though it's for a 64-bit process, and just let it be at a
+> high address.  And add a syscall or arch_prctl() to manipulate it for
+> the benefit of 32-bit programs that can't address it directly.
+
+That's likely the only way to go.
