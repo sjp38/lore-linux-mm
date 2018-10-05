@@ -1,118 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 159866B000A
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 16:35:19 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id s7-v6so8018583pgp.3
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 13:35:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d2-v6sor7709776plr.1.2018.10.05.13.35.17
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E9DFF6B000D
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 16:48:33 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id m16-v6so7754532ybp.13
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 13:48:33 -0700 (PDT)
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id k11-v6si2533199ybj.292.2018.10.05.13.48.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 05 Oct 2018 13:35:17 -0700 (PDT)
-Date: Fri, 5 Oct 2018 13:35:15 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
- mappings
-In-Reply-To: <20181005073854.GB6931@suse.de>
-Message-ID: <alpine.DEB.2.21.1810051320270.202739@chino.kir.corp.google.com>
-References: <20180925120326.24392-1-mhocko@kernel.org> <20180925120326.24392-2-mhocko@kernel.org> <alpine.DEB.2.21.1810041302330.16935@chino.kir.corp.google.com> <20181005073854.GB6931@suse.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Oct 2018 13:48:32 -0700 (PDT)
+Subject: Re: [PATCH v2 3/3] infiniband/mm: convert to the new
+ put_user_page[s]() calls
+References: <20181005040225.14292-1-jhubbard@nvidia.com>
+ <20181005040225.14292-4-jhubbard@nvidia.com>
+ <20181005152055.GB20776@ziepe.ca>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <a4402c75-8b6d-a09e-07be-864c678ccc4f@nvidia.com>
+Date: Fri, 5 Oct 2018 13:48:28 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20181005152055.GB20776@ziepe.ca>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Stable tree <stable@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>, john.hubbard@gmail.com
+Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Doug Ledford <dledford@redhat.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Christian Benvenuti <benve@cisco.com>
 
-On Fri, 5 Oct 2018, Mel Gorman wrote:
-
-> > This causes, on average, a 13.9% access latency regression on Haswell, and 
-> > the regression would likely be more severe on Naples and Rome.
-> > 
+On 10/5/18 8:20 AM, Jason Gunthorpe wrote:
+> On Thu, Oct 04, 2018 at 09:02:25PM -0700, john.hubbard@gmail.com wrote:
+>> From: John Hubbard <jhubbard@nvidia.com>
+>>
+>> For code that retains pages via get_user_pages*(),
+>> release those pages via the new put_user_page(),
+>> instead of put_page().
+>>
+>> This prepares for eventually fixing the problem described
+>> in [1], and is following a plan listed in [2], [3], [4].
+>>
+>> [1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
+>>
+>> [2] https://lkml.kernel.org/r/20180709080554.21931-1-jhubbard@nvidia.com
+>>     Proposed steps for fixing get_user_pages() + DMA problems.
+>>
+>> [3]https://lkml.kernel.org/r/20180710082100.mkdwngdv5kkrcz6n@quack2.suse.cz
+>>     Bounce buffers (otherwise [2] is not really viable).
+>>
+>> [4] https://lkml.kernel.org/r/20181003162115.GG24030@quack2.suse.cz
+>>     Follow-up discussions.
+>>
+>> CC: Doug Ledford <dledford@redhat.com>
+>> CC: Jason Gunthorpe <jgg@ziepe.ca>
+>> CC: Mike Marciniszyn <mike.marciniszyn@intel.com>
+>> CC: Dennis Dalessandro <dennis.dalessandro@intel.com>
+>> CC: Christian Benvenuti <benve@cisco.com>
+>>
+>> CC: linux-rdma@vger.kernel.org
+>> CC: linux-kernel@vger.kernel.org
+>> CC: linux-mm@kvack.org
+>> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+>>  drivers/infiniband/core/umem.c              |  2 +-
+>>  drivers/infiniband/core/umem_odp.c          |  2 +-
+>>  drivers/infiniband/hw/hfi1/user_pages.c     | 11 ++++-------
+>>  drivers/infiniband/hw/mthca/mthca_memfree.c |  6 +++---
+>>  drivers/infiniband/hw/qib/qib_user_pages.c  | 11 ++++-------
+>>  drivers/infiniband/hw/qib/qib_user_sdma.c   |  8 ++++----
+>>  drivers/infiniband/hw/usnic/usnic_uiom.c    |  2 +-
+>>  7 files changed, 18 insertions(+), 24 deletions(-)
+>>
+>> diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
+>> index a41792dbae1f..9430d697cb9f 100644
+>> +++ b/drivers/infiniband/core/umem.c
+>> @@ -60,7 +60,7 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
+>>  		page = sg_page(sg);
+>>  		if (!PageDirty(page) && umem->writable && dirty)
+>>  			set_page_dirty_lock(page);
+>> -		put_page(page);
+>> +		put_user_page(page);
+>>  	}
 > 
-> That assumes that fragmentation prevents easy allocation which may very
-> well be the case. While it would be great that compaction or the page
-> allocator could be further improved to deal with fragmentation, it's
-> outside the scope of this patch.
+> How about ?
+> 
+> if (umem->writable && dirty)
+>      put_user_pages_dirty_lock(&page, 1);
+> else
+>      put_user_page(page);
+> 
+> ?
+
+OK, I'll make that change.
+
+> 
+>> diff --git a/drivers/infiniband/hw/hfi1/user_pages.c b/drivers/infiniband/hw/hfi1/user_pages.c
+>> index e341e6dcc388..99ccc0483711 100644
+>> +++ b/drivers/infiniband/hw/hfi1/user_pages.c
+>> @@ -121,13 +121,10 @@ int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr, size_t np
+>>  void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
+>>  			     size_t npages, bool dirty)
+>>  {
+>> -	size_t i;
+>> -
+>> -	for (i = 0; i < npages; i++) {
+>> -		if (dirty)
+>> -			set_page_dirty_lock(p[i]);
+>> -		put_page(p[i]);
+>> -	}
+>> +	if (dirty)
+>> +		put_user_pages_dirty_lock(p, npages);
+>> +	else
+>> +		put_user_pages(p, npages);
+> 
+> And I know Jan gave the feedback to remove the bool argument, but just
+> pointing out that quite possibly evey caller will wrapper it in an if
+> like this..
 > 
 
-Hi Mel,
+Yes, that attracted me, too. It's nice to write the "if" code once, instead of 
+many times. But doing it efficiently requires using a bool argument (otherwise,
+you end up with another "if" branch, to convert from bool to an enum or flag arg),
+and that's generally avoided because no one wants to see code of the form:
 
-The regression that Andrea is working on, correct me if I'm wrong, is 
-heavy reclaim and swapping activity that is trying to desperately allocate 
-local hugepages when the local node is fragmented based on advice provided 
-by MADV_HUGEPAGE.
+   do_this(0, 1, 0, 1);
+   do_this(1, 0, 0, 1);
 
-Why is it ever appropriate to do heavy reclaim and swap activity to 
-allocate a transparent hugepage?  This is exactly what the __GFP_NORETRY 
-check for high-order allocations is attempting to avoid, and it explicitly 
-states that it is for thp faults.  The fact that we lost __GFP_NORERY for 
-thp allocations for all settings, including the default setting, other 
-than yours (setting of "always") is what I'm focusing on.  There is no 
-guarantee that this activity will free an entire pageblock or that it is 
-even worthwhile.
+, which, although hilarious, is still evil. haha. Anyway, maybe I'll leave it as-is
+for now, to inject some hysteresis into this aspect of the review?
 
-Why is thp memory ever being allocated without __GFP_NORETRY as the page 
-allocator expects?
 
-That aside, removing __GFP_THISNODE can make the fault latency much worse 
-if remote notes are fragmented and/or reclaim has the inability to free 
-contiguous memory, which it likely cannot.  This is where I measured over 
-40% fault latency regression from Linus's tree with this patch on a 
-fragmnented system where order-9 memory is neither available from node 0 
-or node 1 on Haswell.
-
-> > There exist libraries that allow the .text segment of processes to be 
-> > remapped to memory backed by transparent hugepages and use MADV_HUGEPAGE 
-> > to stress local compaction to defragment node local memory for hugepages 
-> > at startup. 
-> 
-> That is taking advantage of a co-incidence of the implementation.
-> MADV_HUGEPAGE is *advice* that huge pages be used, not what the locality
-> is. A hint for strong locality preferences should be separate advice
-> (madvise) or a separate memory policy. Doing that is outside the context
-> of this patch but nothing stops you introducing such a policy or madvise,
-> whichever you think would be best for the libraries to consume (I'm only
-> aware of libhugetlbfs but there might be others).
-> 
-
-The behavior that MADV_HUGEPAGE specifies is certainly not clearly 
-defined, unfortunately.  The way that an application writer may read it, 
-as we have, is that it will make a stronger attempt at allocating a 
-hugepage at fault.  This actually works quite well when the allocation 
-correctly has __GFP_NORETRY, as it's supposed to, and compaction is 
-MIGRATE_ASYNC.
-
-So rather than focusing on what MADV_HUGEPAGE has meant over the past 2+ 
-years of kernels that we have implemented based on, or what it meant prior 
-to that, is a fundamental question of the purpose of direct reclaim and 
-swap activity that had always been precluded before __GFP_NORETRY was 
-removed in a thp allocation.  I don't think anybody in this thread wants 
-14% remote access latency regression if we allocate remotely or 40% fault 
-latency regression when remote nodes are fragmented as well.
-
-Removing __GFP_THISNODE only helps when remote memory is not fragmented, 
-otherwise it multiplies the problem as I've shown.
-
-The numbers that you provide while using the non-default option to mimick 
-MADV_HUGEPAGE mappings but also use __GFP_NORETRY makes the actual source 
-of the problem quite easy to identify: there is an inconsistency in the 
-thp gfp mask and the page allocator implementation.
-
-> > The cost, including the statistics Mel gathered, is 
-> > acceptable for these processes: they are not concerned with startup cost, 
-> > they are concerned only with optimal access latency while they are 
-> > running.
-> > 
-> 
-> Then such applications at startup have the option of setting
-> zone_reclaim_mode during initialisation assuming a privileged helper
-> can be created. That would be somewhat heavy handed and a longer-term
-> solution would still be to create a proper memory policy of madvise flag
-> for those libraries.
-> 
-
-We *never* want to use zone_reclaim_mode for these allocations, that would 
-be even worse, we do not want to reclaim because we have a very unlikely 
-chance of making pageblocks free without the involvement of compaction.  
-We want to trigger memory compaction with a well-bounded cost that 
-MIGRATE_ASYNC provides and then fail.
+thanks,
+-- 
+John Hubbard
+NVIDIA
