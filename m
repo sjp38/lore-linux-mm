@@ -1,109 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F1B836B000A
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 08:11:54 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id z9-v6so4614231ljz.4
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 05:11:54 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E0DF6B000A
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 10:07:05 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id u86-v6so12331730qku.5
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 07:07:05 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m78-v6sor2744112lfi.8.2018.10.05.05.11.52
+        by mx.google.com with SMTPS id q16-v6sor1313721qtf.29.2018.10.05.07.07.04
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 05 Oct 2018 05:11:52 -0700 (PDT)
+        Fri, 05 Oct 2018 07:07:04 -0700 (PDT)
 MIME-Version: 1.0
-References: <20181003185854.GA1174@jordon-HP-15-Notebook-PC>
- <20181003200003.GA9965@bombadil.infradead.org> <20181003221444.GZ30658@n2100.armlinux.org.uk>
- <CAFqt6zYHhmPwUdaCZX-BuAvaVwA-x1W39tz+Q50-nbEaW2cYVg@mail.gmail.com>
- <20181004123400.GC30658@n2100.armlinux.org.uk> <CAFqt6zZPOM17QwmcWKF3F1gqkJm=2PxvuJ3naWuRXZGHc2HrEQ@mail.gmail.com>
- <20181004181736.GB20842@bombadil.infradead.org> <CAFqt6zaN0PQHkjuwFf8VriROLy7qrPDu-iNE=VPiXJw8C7GpQg@mail.gmail.com>
- <CANiq72mkTP_m20vqei-cpN+ypQ_gU472qn5m68vb_4Nqj5afMQ@mail.gmail.com>
- <CAFqt6zaFc_GenhfvsD0VPfepR-jjXypj+4CgNEuHMVq1WXV+8w@mail.gmail.com>
- <CANiq72kVJn7985EET067Dgj+z0dwb0x2MTUnREMWKCVU6=WnJA@mail.gmail.com>
- <CAFqt6zZ4sPjtb5BaDfwc5tZv+vMj6ao3NJZ_3quX9AH5pCMwJg@mail.gmail.com> <CANiq72m9u1PL9X+dPNLxgkhvttj=4ijLyM2sFex=Kws7wswKzw@mail.gmail.com>
-In-Reply-To: <CANiq72m9u1PL9X+dPNLxgkhvttj=4ijLyM2sFex=Kws7wswKzw@mail.gmail.com>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Fri, 5 Oct 2018 17:41:39 +0530
-Message-ID: <CAFqt6zYH4Aczu8AYke8AfGuMS70SJXCMn-n8X8C_Tz03gTjn8g@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: Introduce new function vm_insert_kmem_page
+References: <1531906876-13451-1-git-send-email-joro@8bytes.org> <1531906876-13451-33-git-send-email-joro@8bytes.org>
+In-Reply-To: <1531906876-13451-33-git-send-email-joro@8bytes.org>
+From: Arnd Bergmann <arnd@arndb.de>
+Date: Fri, 5 Oct 2018 16:06:47 +0200
+Message-ID: <CAK8P3a13D6v=R7GKMxf7tZo6MjaMqoRudcW=u_AGQZOTbrocWA@mail.gmail.com>
+Subject: Re: [PATCH 32/39] x86/pgtable/pae: Use separate kernel PMDs for user page-table
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin@protonic.nl, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Kees Cook <keescook@chromium.org>, treding@nvidia.com, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mark Rutland <mark.rutland@arm.com>, aryabinin@virtuozzo.com, Dmitry Vyukov <dvyukov@google.com>, Kate Stewart <kstewart@linuxfoundation.org>, tchibo@google.com, riel@redhat.com, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Huang, Ying" <ying.huang@intel.com>, ak@linux.intel.com, rppt@linux.vnet.ibm.com, linux@dominikbrodowski.net, Arnd Bergmann <arnd@arndb.de>, cpandya@codeaurora.org, hannes@cmpxchg.org, Joe Perches <joe@perches.com>, mcgrof@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, Linux-MM <linux-mm@kvack.org>
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, gregkh <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, dhgutteridge@sympatico.ca, Joerg Roedel <jroedel@suse.de>
 
-On Fri, Oct 5, 2018 at 4:19 PM Miguel Ojeda
-<miguel.ojeda.sandonis@gmail.com> wrote:
+On Wed, Jul 18, 2018 at 11:43 AM Joerg Roedel <joro@8bytes.org> wrote:
+>  arch/x86/mm/pgtable.c | 100 ++++++++++++++++++++++++++++++++++++++++----------
+>  1 file changed, 81 insertions(+), 19 deletions(-)
 >
-> Hi Souptick,
+> diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+> index db6fb77..8e4e63d 100644
+> --- a/arch/x86/mm/pgtable.c
+> +++ b/arch/x86/mm/pgtable.c
+> @@ -182,6 +182,14 @@ static void pgd_dtor(pgd_t *pgd)
+>   */
+>  #define PREALLOCATED_PMDS      UNSHARED_PTRS_PER_PGD
 >
-> On Fri, Oct 5, 2018 at 12:01 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
-> >
-> > The final goal is to remove vm_insert_page by converting it to
-> > vmf_insert_page. But to do that we have to first introduce the
-> > new API which is similar to vm_insert_page  (for non #PF). I tried this by
-> > introducing vm_insert_kmem_page ( * identical as vm_insert_page
-> > except API name *) in this patch. But this looks like a bad approach.
->
-> We are going in circles here. That you want to convert vm_insert_page
-> to vmf_insert_page for the PF case is fine and understood. However,
-> you don't *need* to introduce a new name for the remaining non-PF
-> cases if the function is going to be the exact same thing as before.
-> You say "The final goal is to remove vm_insert_page", but you haven't
-> justified *why* you need to remove that name.
->
-> Now, if we want to rename the function for some reason (e.g. avoid
-> confusion with vmf_insert_page), that is fine but is another topic. It
-> may be or not a good idea, but it is orthogonal to the vmf_ work.
-> Matthew, on this regard, told you that you shouldn't duplicate
-> functions. If you want a rename, do so; but don't copy the code. In
-> other words: nobody said introducing the vm_insert_kmem_page name is a
-> bad idea -- what Matthew told you is that *duplicating* vm_insert_page
-> just for that is bad.
->
-> Further, you are copying the code (if I understand your thought
-> process) because you want to change the callers of non-PF first, and
-> then do the "full conversion from vm_* to vmf_*". However, that is
-> confusing, because there is no need to change non-PF callers of
-> vm_insert_page since they don't care about the new vmf_* functions.
->
-> Instead, the proper way of doing this is:
->
->   1. Introduce the vmf_* API
->   2. Change all PF-users users to that (leaving all non-PF ones
-> untouched!) -- if this is too big, you can split this patch into
-> several patches, one per subsystem, etc.
+> +/*
+> + * We allocate separate PMDs for the kernel part of the user page-table
+> + * when PTI is enabled. We need them to map the per-process LDT into the
+> + * user-space page-table.
+> + */
+> +#define PREALLOCATED_USER_PMDS  (static_cpu_has(X86_FEATURE_PTI) ? \
+> +                                       KERNEL_PGD_PTRS : 0)
 
-We are done with step 2. All the PF-users are converted to use
-vmf_insert_page. ( Ref - linux-next-20181005)
+>   * Xen paravirt assumes pgd table should be in one page. 64 bit kernel also
+>   * assumes that pgd should be in one page.
+> @@ -376,6 +431,7 @@ static inline void _pgd_free(pgd_t *pgd)
+>  pgd_t *pgd_alloc(struct mm_struct *mm)
+>  {
+>         pgd_t *pgd;
+> +       pmd_t *u_pmds[PREALLOCATED_USER_PMDS];
+>         pmd_t *pmds[PREALLOCATED_PMDS];
+>
 
->   3. Remove the vm_* functions (except the ones that are still used in
-> non-PF contexts, e.g. vm_insert_page)
+This commit from back in July now causes a build warning after the patch
+from Kees that enables -Wvla:
 
-Step 3 is part of step 2. Already done.
+In file included from /git/arm-soc/include/linux/kernel.h:15,
+                 from /git/arm-soc/include/asm-generic/bug.h:18,
+                 from /git/arm-soc/arch/x86/include/asm/bug.h:83,
+                 from /git/arm-soc/include/linux/bug.h:5,
+                 from /git/arm-soc/include/linux/mmdebug.h:5,
+                 from /git/arm-soc/include/linux/mm.h:9,
+                 from /git/arm-soc/arch/x86/mm/pgtable.c:2:
+/git/arm-soc/arch/x86/mm/pgtable.c: In function 'pgd_alloc':
+/git/arm-soc/include/linux/build_bug.h:29:45: error: ISO C90 forbids
+variable length array 'u_pmds' [-Werror=vla]
+ #define BUILD_BUG_ON_ZERO(e) (sizeof(struct { int:(-!!(e)); }))
+                                             ^
+/git/arm-soc/arch/x86/include/asm/cpufeature.h:85:5: note: in
+expansion of macro 'BUILD_BUG_ON_ZERO'
+     BUILD_BUG_ON_ZERO(NCAPINTS != 19))
+     ^~~~~~~~~~~~~~~~~
+/git/arm-soc/arch/x86/include/asm/cpufeature.h:111:32: note: in
+expansion of macro 'REQUIRED_MASK_BIT_SET'
+  (__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 : \
+                                ^~~~~~~~~~~~~~~~~~~~~
+/git/arm-soc/arch/x86/include/asm/cpufeature.h:129:27: note: in
+expansion of macro 'cpu_has'
+ #define boot_cpu_has(bit) cpu_has(&boot_cpu_data, bit)
+                           ^~~~~~~
+/git/arm-soc/arch/x86/include/asm/cpufeature.h:209:3: note: in
+expansion of macro 'boot_cpu_has'
+   boot_cpu_has(bit) :    \
+   ^~~~~~~~~~~~
+/git/arm-soc/arch/x86/mm/pgtable.c:190:34: note: in expansion of macro
+'static_cpu_has'
+ #define PREALLOCATED_USER_PMDS  (static_cpu_has(X86_FEATURE_PTI) ? \
+                                  ^~~~~~~~~~~~~~
+/git/arm-soc/arch/x86/mm/pgtable.c:431:16: note: in expansion of macro
+'PREALLOCATED_USER_PMDS'
+  pmd_t *u_pmds[PREALLOCATED_USER_PMDS];
+                ^~~~~~~~~~~~~~~~~~~~~~
 
->
-> Then, optionally, if you want to rename the function for the remaining
-> non-PF users:
->
->   4. Rename vm_insert_page (justifying why the current name is
-> confusing *on its own merits*).
->
-> Otherwise, if you want to pursue Matthew's idea:
->
->   4. Introduce the vm_insert_range (possibly leveraging
-> vm_insert_page, or not; you have to see what is best).
->   5. Replace those callers that can take advantage of vm_insert_range
->   6. Remove vm_insert_page and replace callers with vm_insert_range
-> (only if it is not worth to keep vm_insert_range, again justifying it
-> *on its own merits*)
-
-Step 4 to 6, going to do it.  It is part of plan now :-)
-
->
-> As you see, these are all logical step-by-step improvements, without
-> duplicating functions temporarily, leaving temporary changes or
-> changing current callers to new APIs for unrelated reasons (i.e. no
-> need to introduce vm_insert_kmem_page simply to do a "conversion" to
-> vmf_).
->
-> Cheers,
-> Miguel
+       Arnd
