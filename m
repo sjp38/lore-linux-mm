@@ -1,230 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 91DA56B0010
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 22:49:58 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id k66-v6so8259721pga.21
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 19:49:58 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x2-v6sor8287323plv.13.2018.10.05.19.49.57
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D7F186B000A
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 23:19:30 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id y201-v6so9995263qka.1
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 20:19:30 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o30-v6si1817449qve.201.2018.10.05.20.19.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 05 Oct 2018 19:49:57 -0700 (PDT)
-From: john.hubbard@gmail.com
-Subject: [PATCH v3 3/3] infiniband/mm: convert put_page() to put_user_page*()
-Date: Fri,  5 Oct 2018 19:49:49 -0700
-Message-Id: <20181006024949.20691-4-jhubbard@nvidia.com>
-In-Reply-To: <20181006024949.20691-1-jhubbard@nvidia.com>
-References: <20181006024949.20691-1-jhubbard@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Oct 2018 20:19:29 -0700 (PDT)
+Date: Fri, 5 Oct 2018 23:19:26 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
+ mappings
+Message-ID: <20181006031926.GB2298@redhat.com>
+References: <20180925120326.24392-1-mhocko@kernel.org>
+ <20180925120326.24392-2-mhocko@kernel.org>
+ <alpine.DEB.2.21.1810041302330.16935@chino.kir.corp.google.com>
+ <20181004211029.GE7344@redhat.com>
+ <alpine.DEB.2.21.1810041541350.81111@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.21.1810041541350.81111@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Doug Ledford <dledford@redhat.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Christian Benvenuti <benve@cisco.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-From: John Hubbard <jhubbard@nvidia.com>
+Hello,
 
-For code that retains pages via get_user_pages*(),
-release those pages via the new put_user_page(), or
-put_user_pages*(), instead of put_page()
+On Thu, Oct 04, 2018 at 04:05:26PM -0700, David Rientjes wrote:
+> The source of the problem needs to be addressed: memory compaction.  We 
+> regress because we lose __GFP_NORETRY and pointlessly try reclaim, but 
 
-This prepares for eventually fixing the problem described
-in [1], and is following a plan listed in [2], [3], [4].
+I commented in detail about the __GFP_NORETRY topic in the other email
+so I will skip the discussion about __GFP_NORETRY in the context of
+this answer except for the comment at the end of the email to the
+actual code that implements __GFP_NORETRY.
 
-[1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
+> But that's a memory compaction issue, not a thp gfp mask issue; the 
+> reclaim issue is responded to below.
 
-[2] https://lkml.kernel.org/r/20180709080554.21931-1-jhubbard@nvidia.com
-    Proposed steps for fixing get_user_pages() + DMA problems.
+Actually memory compaction has no issues whatsoever with
+__GFP_THISNODE regardless of __GFP_NORETRY.
 
-[3]https://lkml.kernel.org/r/20180710082100.mkdwngdv5kkrcz6n@quack2.suse.cz
-    Bounce buffers (otherwise [2] is not really viable).
+> This patch causes an even worse regression if all system memory is 
+> fragmented such that thp cannot be allocated because it tries to stress 
+> compaction on remote nodes, which ends up unsuccessfully, not just the 
+> local node.
+> 
+> On Haswell, when all memory is fragmented (not just the local node as I 
+> obtained by 13.9% regression result), the patch results in a fault latency 
+> regression of 40.9% for MADV_HUGEPAGE region of 8GB.  This is because it 
+> is thrashing both nodes pointlessly instead of just failing for 
+> __GFP_THISNODE.
 
-[4] https://lkml.kernel.org/r/20181003162115.GG24030@quack2.suse.cz
-    Follow-up discussions.
+There's no I/O involved at the very least on compaction, nor we drop
+any cache or shrink any slab by mistake by just invoking compaction.
+Even when you hit the worst case "all nodes are 100% fragmented"
+scenario that generates the 40% increased allocation latency, all
+other tasks running in the local node will keep running fine, and they
+won't be pushed away forcefully into swap with all their kernel cache
+depleted, which is a mlock/mbind privileged behavior that the app
+using the MADV_HUGEPAGE lib should not ever been able to inflict on
+other processes running in the node from different users (users as in
+uid).
 
-CC: Doug Ledford <dledford@redhat.com>
-CC: Jason Gunthorpe <jgg@ziepe.ca>
-CC: Mike Marciniszyn <mike.marciniszyn@intel.com>
-CC: Dennis Dalessandro <dennis.dalessandro@intel.com>
-CC: Christian Benvenuti <benve@cisco.com>
+Furthermore when you incur the worst case latency after that there's
+compact deferred logic skipping compaction next time around if all
+nodes were so fragmented to the point of guaranteed failure. While
+there's nothing stopping reclaim to run every time COMPACT_SKIPPED is
+returned just because compaction keeps succeeding as reclaim keeps
+pushing more 2M amounts into swap from the local nodes.
 
-CC: linux-rdma@vger.kernel.org
-CC: linux-kernel@vger.kernel.org
-CC: linux-mm@kvack.org
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
----
- drivers/infiniband/core/umem.c              |  7 ++++---
- drivers/infiniband/core/umem_odp.c          |  2 +-
- drivers/infiniband/hw/hfi1/user_pages.c     | 11 ++++-------
- drivers/infiniband/hw/mthca/mthca_memfree.c |  6 +++---
- drivers/infiniband/hw/qib/qib_user_pages.c  | 11 ++++-------
- drivers/infiniband/hw/qib/qib_user_sdma.c   |  8 ++++----
- drivers/infiniband/hw/usnic/usnic_uiom.c    |  7 ++++---
- 7 files changed, 24 insertions(+), 28 deletions(-)
+I don't doubt with 1024 nodes things can get pretty bad when they're
+all 100% fragmented, __GFP_THISNODE would win in such case, but then
+what you're asking then is the __GFP_COMPACT_ONLY behavior. That will
+solve it.
 
-diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
-index a41792dbae1f..7ab7a3a35eb4 100644
---- a/drivers/infiniband/core/umem.c
-+++ b/drivers/infiniband/core/umem.c
-@@ -58,9 +58,10 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
- 	for_each_sg(umem->sg_head.sgl, sg, umem->npages, i) {
- 
- 		page = sg_page(sg);
--		if (!PageDirty(page) && umem->writable && dirty)
--			set_page_dirty_lock(page);
--		put_page(page);
-+		if (umem->writable && dirty)
-+			put_user_pages_dirty_lock(&page, 1);
-+		else
-+			put_user_page(page);
- 	}
- 
- 	sg_free_table(&umem->sg_head);
-diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c
-index 6ec748eccff7..6227b89cf05c 100644
---- a/drivers/infiniband/core/umem_odp.c
-+++ b/drivers/infiniband/core/umem_odp.c
-@@ -717,7 +717,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem *umem, u64 user_virt, u64 bcnt,
- 					ret = -EFAULT;
- 					break;
- 				}
--				put_page(local_page_list[j]);
-+				put_user_page(local_page_list[j]);
- 				continue;
- 			}
- 
-diff --git a/drivers/infiniband/hw/hfi1/user_pages.c b/drivers/infiniband/hw/hfi1/user_pages.c
-index e341e6dcc388..99ccc0483711 100644
---- a/drivers/infiniband/hw/hfi1/user_pages.c
-+++ b/drivers/infiniband/hw/hfi1/user_pages.c
-@@ -121,13 +121,10 @@ int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr, size_t np
- void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
- 			     size_t npages, bool dirty)
- {
--	size_t i;
--
--	for (i = 0; i < npages; i++) {
--		if (dirty)
--			set_page_dirty_lock(p[i]);
--		put_page(p[i]);
--	}
-+	if (dirty)
-+		put_user_pages_dirty_lock(p, npages);
-+	else
-+		put_user_pages(p, npages);
- 
- 	if (mm) { /* during close after signal, mm can be NULL */
- 		down_write(&mm->mmap_sem);
-diff --git a/drivers/infiniband/hw/mthca/mthca_memfree.c b/drivers/infiniband/hw/mthca/mthca_memfree.c
-index cc9c0c8ccba3..b8b12effd009 100644
---- a/drivers/infiniband/hw/mthca/mthca_memfree.c
-+++ b/drivers/infiniband/hw/mthca/mthca_memfree.c
-@@ -481,7 +481,7 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
- 
- 	ret = pci_map_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
- 	if (ret < 0) {
--		put_page(pages[0]);
-+		put_user_page(pages[0]);
- 		goto out;
- 	}
- 
-@@ -489,7 +489,7 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
- 				 mthca_uarc_virt(dev, uar, i));
- 	if (ret) {
- 		pci_unmap_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
--		put_page(sg_page(&db_tab->page[i].mem));
-+		put_user_page(sg_page(&db_tab->page[i].mem));
- 		goto out;
- 	}
- 
-@@ -555,7 +555,7 @@ void mthca_cleanup_user_db_tab(struct mthca_dev *dev, struct mthca_uar *uar,
- 		if (db_tab->page[i].uvirt) {
- 			mthca_UNMAP_ICM(dev, mthca_uarc_virt(dev, uar, i), 1);
- 			pci_unmap_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
--			put_page(sg_page(&db_tab->page[i].mem));
-+			put_user_page(sg_page(&db_tab->page[i].mem));
- 		}
- 	}
- 
-diff --git a/drivers/infiniband/hw/qib/qib_user_pages.c b/drivers/infiniband/hw/qib/qib_user_pages.c
-index 16543d5e80c3..1a5c64c8695f 100644
---- a/drivers/infiniband/hw/qib/qib_user_pages.c
-+++ b/drivers/infiniband/hw/qib/qib_user_pages.c
-@@ -40,13 +40,10 @@
- static void __qib_release_user_pages(struct page **p, size_t num_pages,
- 				     int dirty)
- {
--	size_t i;
--
--	for (i = 0; i < num_pages; i++) {
--		if (dirty)
--			set_page_dirty_lock(p[i]);
--		put_page(p[i]);
--	}
-+	if (dirty)
-+		put_user_pages_dirty_lock(p, num_pages);
-+	else
-+		put_user_pages(p, num_pages);
- }
- 
- /*
-diff --git a/drivers/infiniband/hw/qib/qib_user_sdma.c b/drivers/infiniband/hw/qib/qib_user_sdma.c
-index 926f3c8eba69..14f94d823907 100644
---- a/drivers/infiniband/hw/qib/qib_user_sdma.c
-+++ b/drivers/infiniband/hw/qib/qib_user_sdma.c
-@@ -266,7 +266,7 @@ static void qib_user_sdma_init_frag(struct qib_user_sdma_pkt *pkt,
- 	pkt->addr[i].length = len;
- 	pkt->addr[i].first_desc = first_desc;
- 	pkt->addr[i].last_desc = last_desc;
--	pkt->addr[i].put_page = put_page;
-+	pkt->addr[i].put_page = put_user_page;
- 	pkt->addr[i].dma_mapped = dma_mapped;
- 	pkt->addr[i].page = page;
- 	pkt->addr[i].kvaddr = kvaddr;
-@@ -321,7 +321,7 @@ static int qib_user_sdma_page_to_frags(const struct qib_devdata *dd,
- 		 * the caller can ignore this page.
- 		 */
- 		if (put) {
--			put_page(page);
-+			put_user_page(page);
- 		} else {
- 			/* coalesce case */
- 			kunmap(page);
-@@ -635,7 +635,7 @@ static void qib_user_sdma_free_pkt_frag(struct device *dev,
- 			kunmap(pkt->addr[i].page);
- 
- 		if (pkt->addr[i].put_page)
--			put_page(pkt->addr[i].page);
-+			put_user_page(pkt->addr[i].page);
- 		else
- 			__free_page(pkt->addr[i].page);
- 	} else if (pkt->addr[i].kvaddr) {
-@@ -710,7 +710,7 @@ static int qib_user_sdma_pin_pages(const struct qib_devdata *dd,
- 	/* if error, return all pages not managed by pkt */
- free_pages:
- 	while (i < j)
--		put_page(pages[i++]);
-+		put_user_page(pages[i++]);
- 
- done:
- 	return ret;
-diff --git a/drivers/infiniband/hw/usnic/usnic_uiom.c b/drivers/infiniband/hw/usnic/usnic_uiom.c
-index 9dd39daa602b..9e3615fd05f7 100644
---- a/drivers/infiniband/hw/usnic/usnic_uiom.c
-+++ b/drivers/infiniband/hw/usnic/usnic_uiom.c
-@@ -89,9 +89,10 @@ static void usnic_uiom_put_pages(struct list_head *chunk_list, int dirty)
- 		for_each_sg(chunk->page_list, sg, chunk->nents, i) {
- 			page = sg_page(sg);
- 			pa = sg_phys(sg);
--			if (!PageDirty(page) && dirty)
--				set_page_dirty_lock(page);
--			put_page(page);
-+			if (dirty)
-+				put_user_pages_dirty_lock(&page, 1);
-+			else
-+				put_user_page(page);
- 			usnic_dbg("pa: %pa\n", &pa);
- 		}
- 		kfree(chunk);
--- 
-2.19.0
+What we'd need probably regardless of how we solve this bug (because
+not all compaction invocations are THP invocations... and we can't
+keep making special cases and optimizations tailored for THP or we end
+up in that same 40% higher latency for large skbs and other stuff) is
+a more sophisticated COMPACT_DEFERRED logic where you can track when
+remote compaction failed. Then you wait many more times before trying
+a global compaction. It could be achieved with just a compact_deferred
+counter in the zone/pgdat (wherever it fits best).
+
+Overall I don't think the bug we're dealing with and the slowdown of
+compaction on the remote nodes are comparable, also considering the
+latter will still happen regardless if you've large skbs or other
+drivers allocating large amounts of memory as an optimization.
+
+> So the end result is that the patch regresses access latency forever by 
+> 13.9% when the local node is fragmented because it is accessing remote thp 
+> vs local pages of the native page size, and regresses fault latency of 
+> 40.9% when the system is fully fragmented.  The only time that fault 
+> latency is improved is when remote memory is not fully fragmented, but 
+> then you must incur the remote access latency.
+
+You get THP however which will reduce the TLB miss cost and maximize
+TLB usage, so it depends on the app if that 13.9% cost is actually
+offseted by the THP benefit or not.
+
+It entirely depends if large part of the workload mostly fits in
+in-socket CPU cache. The more the in-socket/node CPU cache pays off,
+the more remote-THP also pays off. There would be definitely workloads
+that would run faster, not slower, with the remote THP instead of
+local PAGE_SIZEd memory. The benefit of THP is also larger for the
+guest loads than for host loads, so it depends on that too.
+
+We agree about the latency issue with a ton of RAM and thousands of
+nodes, but again that can be mitigated with a NUMA friendly
+COMPACT_DEFERRED logic NUMA aware. Even without such
+NUMA-aware-compact_deferred logic improvement, the worst case of the
+remote compaction behavior still doesn't look nearly as bad as this
+bug by thinking about it. And it only is a concern for extremely large
+NUMA systems (which may run the risk of running in other solubility
+issues in other places if random workloads are applied to it and all
+nodes are low on memory and fully fragmented which is far from common
+scenario on those large systems), while the bug we fixed was hurting
+badly all very common 2 nodes installs with workloads that are common
+and should run fine.
+
+> Direct reclaim doesn't make much sense for thp allocations if compaction 
+> has failed, even for MADV_HUGEPAGE.  I've discounted Mel's results because 
+> he is using thp defrag set to "always", which includes __GFP_NORETRY but 
+> the default option and anything else other than "always" does not use 
+> __GFP_NORETRY like the page allocator believes it does:
+> 
+>                 /*
+>                  * Checks for costly allocations with __GFP_NORETRY, which
+>                  * includes THP page fault allocations
+>                  */
+>                 if (costly_order && (gfp_mask & __GFP_NORETRY)) {
+>                         /*
+>                          * If compaction is deferred for high-order allocations,
+>                          * it is because sync compaction recently failed. If
+>                          * this is the case and the caller requested a THP
+>                          * allocation, we do not want to heavily disrupt the
+>                          * system, so we fail the allocation instead of entering
+>                          * direct reclaim.
+>                          */
+>                         if (compact_result == COMPACT_DEFERRED)
+>                                 goto nopage;
+> 
+> So he is avoiding the cost of reclaim, which you are not, specifically 
+> because he is using defrag == "always".  __GFP_NORETRY should be included 
+> for any thp allocation and it's a regression that it doesn't.
+
+Compaction doesn't fail, it returns COMPACT_SKIPPED and it asks to do
+a run of reclam to generate those 2M of PAGE_SIZEd memory required to
+move a 2M piece into the newly freely PAGE_SIZEd fragments. So
+__GFP_NORETRY never jumps to "nopage" and it never gets deferred either.
+
+For the record, I didn't trace it literally with gdb to validate my
+theory of why forcefully adding __GFP_NORETRY didn't move the needle,
+so feel free to do more investigations in that area if you see any
+pitfall in the theory.
+
+Thanks,
+Andrea
