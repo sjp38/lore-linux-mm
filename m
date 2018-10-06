@@ -1,164 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D7F186B000A
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 23:19:30 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id y201-v6so9995263qka.1
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 20:19:30 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o30-v6si1817449qve.201.2018.10.05.20.19.29
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 870DA6B000A
+	for <linux-mm@kvack.org>; Sat,  6 Oct 2018 01:11:20 -0400 (EDT)
+Received: by mail-lj1-f197.google.com with SMTP id r20-v6so3396873ljj.1
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 22:11:20 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d132-v6sor3489734lfd.50.2018.10.05.22.11.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Oct 2018 20:19:29 -0700 (PDT)
-Date: Fri, 5 Oct 2018 23:19:26 -0400
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
- mappings
-Message-ID: <20181006031926.GB2298@redhat.com>
-References: <20180925120326.24392-1-mhocko@kernel.org>
- <20180925120326.24392-2-mhocko@kernel.org>
- <alpine.DEB.2.21.1810041302330.16935@chino.kir.corp.google.com>
- <20181004211029.GE7344@redhat.com>
- <alpine.DEB.2.21.1810041541350.81111@chino.kir.corp.google.com>
+        (Google Transport Security);
+        Fri, 05 Oct 2018 22:11:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1810041541350.81111@chino.kir.corp.google.com>
+References: <20181003185854.GA1174@jordon-HP-15-Notebook-PC>
+ <20181003200003.GA9965@bombadil.infradead.org> <20181003221444.GZ30658@n2100.armlinux.org.uk>
+ <CAFqt6zYHhmPwUdaCZX-BuAvaVwA-x1W39tz+Q50-nbEaW2cYVg@mail.gmail.com>
+ <20181004123400.GC30658@n2100.armlinux.org.uk> <CAFqt6zZPOM17QwmcWKF3F1gqkJm=2PxvuJ3naWuRXZGHc2HrEQ@mail.gmail.com>
+ <20181004181736.GB20842@bombadil.infradead.org> <CAFqt6zaN0PQHkjuwFf8VriROLy7qrPDu-iNE=VPiXJw8C7GpQg@mail.gmail.com>
+ <CANiq72mkTP_m20vqei-cpN+ypQ_gU472qn5m68vb_4Nqj5afMQ@mail.gmail.com>
+ <CAFqt6zaFc_GenhfvsD0VPfepR-jjXypj+4CgNEuHMVq1WXV+8w@mail.gmail.com>
+ <CANiq72kVJn7985EET067Dgj+z0dwb0x2MTUnREMWKCVU6=WnJA@mail.gmail.com>
+ <CAFqt6zZ4sPjtb5BaDfwc5tZv+vMj6ao3NJZ_3quX9AH5pCMwJg@mail.gmail.com>
+ <CANiq72m9u1PL9X+dPNLxgkhvttj=4ijLyM2sFex=Kws7wswKzw@mail.gmail.com>
+ <CAFqt6zYH4Aczu8AYke8AfGuMS70SJXCMn-n8X8C_Tz03gTjn8g@mail.gmail.com> <CANiq72kRAZE9SyM4EkpaBZH03Ex0Z=4Pk2iOuc2jBDKTfKjHQg@mail.gmail.com>
+In-Reply-To: <CANiq72kRAZE9SyM4EkpaBZH03Ex0Z=4Pk2iOuc2jBDKTfKjHQg@mail.gmail.com>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Sat, 6 Oct 2018 10:44:26 +0530
+Message-ID: <CAFqt6zZCCPFE3sQ3u_gjiN8wwd99nwWatk9JRsiGxbCwhi91mg@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: Introduce new function vm_insert_kmem_page
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin@protonic.nl, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Kees Cook <keescook@chromium.org>, treding@nvidia.com, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mark Rutland <mark.rutland@arm.com>, aryabinin@virtuozzo.com, Dmitry Vyukov <dvyukov@google.com>, Kate Stewart <kstewart@linuxfoundation.org>, tchibo@google.com, riel@redhat.com, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Huang, Ying" <ying.huang@intel.com>, ak@linux.intel.com, rppt@linux.vnet.ibm.com, linux@dominikbrodowski.net, Arnd Bergmann <arnd@arndb.de>, cpandya@codeaurora.org, hannes@cmpxchg.org, Joe Perches <joe@perches.com>, mcgrof@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, Linux-MM <linux-mm@kvack.org>
 
-Hello,
+On Fri, Oct 5, 2018 at 11:39 PM Miguel Ojeda
+<miguel.ojeda.sandonis@gmail.com> wrote:
+>
+> On Fri, Oct 5, 2018 at 2:11 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
+> >
+> > On Fri, Oct 5, 2018 at 4:19 PM Miguel Ojeda
+> > <miguel.ojeda.sandonis@gmail.com> wrote:
+> > >
+> > >   1. Introduce the vmf_* API
+> > >   2. Change all PF-users users to that (leaving all non-PF ones
+> > > untouched!) -- if this is too big, you can split this patch into
+> > > several patches, one per subsystem, etc.
+> >
+> > We are done with step 2. All the PF-users are converted to use
+> > vmf_insert_page. ( Ref - linux-next-20181005)
+>
+> They are not supposed to be "steps". You did it with 70+ commits (!!)
+> over the course of several months. Why a tree wasn't created, stuff
+> developed there, and when done, submitted it for review?
 
-On Thu, Oct 04, 2018 at 04:05:26PM -0700, David Rientjes wrote:
-> The source of the problem needs to be addressed: memory compaction.  We 
-> regress because we lose __GFP_NORETRY and pointlessly try reclaim, but 
+Because we already have a plan for entire vm_fault_t migration and
+the * instruction * was to send one patch per driver.
+>
+> > >
+> > > Otherwise, if you want to pursue Matthew's idea:
+> > >
+> > >   4. Introduce the vm_insert_range (possibly leveraging
+> > > vm_insert_page, or not; you have to see what is best).
+> > >   5. Replace those callers that can take advantage of vm_insert_range
+> > >   6. Remove vm_insert_page and replace callers with vm_insert_range
+> > > (only if it is not worth to keep vm_insert_range, again justifying it
+> > > *on its own merits*)
+> >
+> > Step 4 to 6, going to do it.  It is part of plan now :-)
+> >
+>
+> Fine, but you haven't answered to the other parts of my email: you
+> don't explain why you choose one alternative over the others, you
+> simply keep changing the approach.
 
-I commented in detail about the __GFP_NORETRY topic in the other email
-so I will skip the discussion about __GFP_NORETRY in the context of
-this answer except for the comment at the end of the email to the
-actual code that implements __GFP_NORETRY.
+We are going in circles here. That you want to convert vm_insert_page
+to vmf_insert_page for the PF case is fine and understood. However,
+you don't *need* to introduce a new name for the remaining non-PF
+cases if the function is going to be the exact same thing as before.
+You say "The final goal is to remove vm_insert_page", but you haven't
+justified *why* you need to remove that name.
 
-> But that's a memory compaction issue, not a thp gfp mask issue; the 
-> reclaim issue is responded to below.
-
-Actually memory compaction has no issues whatsoever with
-__GFP_THISNODE regardless of __GFP_NORETRY.
-
-> This patch causes an even worse regression if all system memory is 
-> fragmented such that thp cannot be allocated because it tries to stress 
-> compaction on remote nodes, which ends up unsuccessfully, not just the 
-> local node.
-> 
-> On Haswell, when all memory is fragmented (not just the local node as I 
-> obtained by 13.9% regression result), the patch results in a fault latency 
-> regression of 40.9% for MADV_HUGEPAGE region of 8GB.  This is because it 
-> is thrashing both nodes pointlessly instead of just failing for 
-> __GFP_THISNODE.
-
-There's no I/O involved at the very least on compaction, nor we drop
-any cache or shrink any slab by mistake by just invoking compaction.
-Even when you hit the worst case "all nodes are 100% fragmented"
-scenario that generates the 40% increased allocation latency, all
-other tasks running in the local node will keep running fine, and they
-won't be pushed away forcefully into swap with all their kernel cache
-depleted, which is a mlock/mbind privileged behavior that the app
-using the MADV_HUGEPAGE lib should not ever been able to inflict on
-other processes running in the node from different users (users as in
-uid).
-
-Furthermore when you incur the worst case latency after that there's
-compact deferred logic skipping compaction next time around if all
-nodes were so fragmented to the point of guaranteed failure. While
-there's nothing stopping reclaim to run every time COMPACT_SKIPPED is
-returned just because compaction keeps succeeding as reclaim keeps
-pushing more 2M amounts into swap from the local nodes.
-
-I don't doubt with 1024 nodes things can get pretty bad when they're
-all 100% fragmented, __GFP_THISNODE would win in such case, but then
-what you're asking then is the __GFP_COMPACT_ONLY behavior. That will
-solve it.
-
-What we'd need probably regardless of how we solve this bug (because
-not all compaction invocations are THP invocations... and we can't
-keep making special cases and optimizations tailored for THP or we end
-up in that same 40% higher latency for large skbs and other stuff) is
-a more sophisticated COMPACT_DEFERRED logic where you can track when
-remote compaction failed. Then you wait many more times before trying
-a global compaction. It could be achieved with just a compact_deferred
-counter in the zone/pgdat (wherever it fits best).
-
-Overall I don't think the bug we're dealing with and the slowdown of
-compaction on the remote nodes are comparable, also considering the
-latter will still happen regardless if you've large skbs or other
-drivers allocating large amounts of memory as an optimization.
-
-> So the end result is that the patch regresses access latency forever by 
-> 13.9% when the local node is fragmented because it is accessing remote thp 
-> vs local pages of the native page size, and regresses fault latency of 
-> 40.9% when the system is fully fragmented.  The only time that fault 
-> latency is improved is when remote memory is not fully fragmented, but 
-> then you must incur the remote access latency.
-
-You get THP however which will reduce the TLB miss cost and maximize
-TLB usage, so it depends on the app if that 13.9% cost is actually
-offseted by the THP benefit or not.
-
-It entirely depends if large part of the workload mostly fits in
-in-socket CPU cache. The more the in-socket/node CPU cache pays off,
-the more remote-THP also pays off. There would be definitely workloads
-that would run faster, not slower, with the remote THP instead of
-local PAGE_SIZEd memory. The benefit of THP is also larger for the
-guest loads than for host loads, so it depends on that too.
-
-We agree about the latency issue with a ton of RAM and thousands of
-nodes, but again that can be mitigated with a NUMA friendly
-COMPACT_DEFERRED logic NUMA aware. Even without such
-NUMA-aware-compact_deferred logic improvement, the worst case of the
-remote compaction behavior still doesn't look nearly as bad as this
-bug by thinking about it. And it only is a concern for extremely large
-NUMA systems (which may run the risk of running in other solubility
-issues in other places if random workloads are applied to it and all
-nodes are low on memory and fully fragmented which is far from common
-scenario on those large systems), while the bug we fixed was hurting
-badly all very common 2 nodes installs with workloads that are common
-and should run fine.
-
-> Direct reclaim doesn't make much sense for thp allocations if compaction 
-> has failed, even for MADV_HUGEPAGE.  I've discounted Mel's results because 
-> he is using thp defrag set to "always", which includes __GFP_NORETRY but 
-> the default option and anything else other than "always" does not use 
-> __GFP_NORETRY like the page allocator believes it does:
-> 
->                 /*
->                  * Checks for costly allocations with __GFP_NORETRY, which
->                  * includes THP page fault allocations
->                  */
->                 if (costly_order && (gfp_mask & __GFP_NORETRY)) {
->                         /*
->                          * If compaction is deferred for high-order allocations,
->                          * it is because sync compaction recently failed. If
->                          * this is the case and the caller requested a THP
->                          * allocation, we do not want to heavily disrupt the
->                          * system, so we fail the allocation instead of entering
->                          * direct reclaim.
->                          */
->                         if (compact_result == COMPACT_DEFERRED)
->                                 goto nopage;
-> 
-> So he is avoiding the cost of reclaim, which you are not, specifically 
-> because he is using defrag == "always".  __GFP_NORETRY should be included 
-> for any thp allocation and it's a regression that it doesn't.
-
-Compaction doesn't fail, it returns COMPACT_SKIPPED and it asks to do
-a run of reclam to generate those 2M of PAGE_SIZEd memory required to
-move a 2M piece into the newly freely PAGE_SIZEd fragments. So
-__GFP_NORETRY never jumps to "nopage" and it never gets deferred either.
-
-For the record, I didn't trace it literally with gdb to validate my
-theory of why forcefully adding __GFP_NORETRY didn't move the needle,
-so feel free to do more investigations in that area if you see any
-pitfall in the theory.
-
-Thanks,
-Andrea
+I think I have given that answer. If we don't remove vm_insert_page,
+future #PF caller will have option to use it. But those should be
+restricted. How are we going to restrict vm_insert_page in one half
+of kernel when other half is still using it  ?? Is there any way ? ( I don't
+know)
