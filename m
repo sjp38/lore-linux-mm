@@ -1,51 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 432B36B000A
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 21:17:42 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id a206-v6so7818629oib.7
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 18:17:42 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 697A56B000A
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 22:49:54 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id c8-v6so11262154pfn.2
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 19:49:54 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t66-v6sor5092919oib.142.2018.10.05.18.17.40
+        by mx.google.com with SMTPS id l6-v6sor8191046pgk.49.2018.10.05.19.49.52
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 05 Oct 2018 18:17:40 -0700 (PDT)
+        Fri, 05 Oct 2018 19:49:52 -0700 (PDT)
+From: john.hubbard@gmail.com
+Subject: [PATCH v3 0/3] get_user_pages*() and RDMA: first steps
+Date: Fri,  5 Oct 2018 19:49:46 -0700
+Message-Id: <20181006024949.20691-1-jhubbard@nvidia.com>
 MIME-Version: 1.0
-References: <20181002100531.GC4135@quack2.suse.cz> <20181002121039.GA3274@linux-x5ow.site>
- <20181002142010.GB4963@linux-x5ow.site> <20181002144547.GA26735@infradead.org>
- <20181002150123.GD4963@linux-x5ow.site> <20181002150634.GA22209@infradead.org>
- <20181004100949.GF6682@linux-x5ow.site> <20181005062524.GA30582@infradead.org>
- <20181005063519.GA5491@linux-x5ow.site>
-In-Reply-To: <20181005063519.GA5491@linux-x5ow.site>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 5 Oct 2018 18:17:29 -0700
-Message-ID: <CAPcyv4jD4VgRaKDQF9eMmjhMEHjUJqRU8i6OC+-=0domCc9u3A@mail.gmail.com>
-Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Thumshirn <jthumshirn@suse.de>
-Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Michal Hocko <mhocko@suse.cz>
+To: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Ralph Campbell <rcampbell@nvidia.com>
 
-On Thu, Oct 4, 2018 at 11:35 PM Johannes Thumshirn <jthumshirn@suse.de> wrote:
->
-> On Thu, Oct 04, 2018 at 11:25:24PM -0700, Christoph Hellwig wrote:
-> > Since when is an article on some website a promise (of what exactly)
-> > by linux kernel developers?
->
-> Let's stop it here, this doesn't make any sort of forward progress.
->
+From: John Hubbard <jhubbard@nvidia.com>
 
-I do think there is some progress we can make if we separate DAX as an
-access mechanism vs DAX as a resource utilization contract. My attempt
-at representing Christoph's position is that the kernel should not be
-advertising / making access mechanism guarantees. That makes sense.
-Even with MAP_SYNC+DAX the kernel reserves the right to write-protect
-mappings at will and trap access into a kernel handler. Additionally,
-whether read(2) / write(2) does anything different behind the scenes
-in DAX mode, or not should be irrelevant to the application.
+Changes since v2:
 
-That said what is certainly not irrelevant is a kernel giving
-userspace visibility and control into resource utilization. Jan's
-MADV_DIRECT_ACCESS let's the application make assumptions about page
-cache utilization, we just need to another mechanism to read if a
-mapping is effectively already in that state.
+-- Absorbed more dirty page handling logic into the put_user_page*(), and
+   handled some page releasing loops in infiniband more thoroughly, as per
+   Jason Gunthorpe's feedback.
+
+-- Fixed a bug in the put_user_pages*() routines' loops (thanks to
+   Ralph Campbell for spotting it).
+
+Changes since v1:
+
+-- Renamed release_user_pages*() to put_user_pages*(), from Jan's feedback.
+
+-- Removed the goldfish.c changes, and instead, only included a single
+   user (infiniband) of the new functions. That is because goldfish.c no
+   longer has a name collision (it has a release_user_pages() routine), and
+   also because infiniband exercises both the put_user_page() and
+   put_user_pages*() paths.
+
+-- Updated links to discussions and plans, so as to be sure to include
+   bounce buffers, thanks to Jerome's feedback.
+
+Also:
+
+-- Dennis, thanks for your earlier review, and I have not yet added your
+   Reviewed-by tag, because this revision changes the things that you had
+   previously reviewed, thus potentially requiring another look.
+
+This short series prepares for eventually fixing the problem described
+in [1], and is following a plan listed in [2], [3], [4].
+
+Patch 1, although not technically critical to do now, is still nice to
+have, because it's already been reviewed by Jan, and it's just one more
+thing on the long TODO list here, that is ready to be checked off.
+
+Patch 2 is required in order to allow me (and others, if I'm lucky) to
+start submitting changes to convert all of the callsites of
+get_user_pages*() and put_page().  I think this will work a lot better
+than trying to maintain a massive patchset and submitting all at once.
+
+Patch 3 converts infiniband drivers: put_page() --> put_user_page(), and
+also exercises put_user_pages_dirty_locked().
+
+Once these are all in, then the floodgates can open up to convert the large
+number of get_user_pages*() callsites.
+
+[1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
+
+[2] https://lkml.kernel.org/r/20180709080554.21931-1-jhubbard@nvidia.com
+    Proposed steps for fixing get_user_pages() + DMA problems.
+
+[3]https://lkml.kernel.org/r/20180710082100.mkdwngdv5kkrcz6n@quack2.suse.cz
+    Bounce buffers (otherwise [2] is not really viable).
+
+[4] https://lkml.kernel.org/r/20181003162115.GG24030@quack2.suse.cz
+    Follow-up discussions.
+
+CC: Matthew Wilcox <willy@infradead.org>
+CC: Michal Hocko <mhocko@kernel.org>
+CC: Christopher Lameter <cl@linux.com>
+CC: Jason Gunthorpe <jgg@ziepe.ca>
+CC: Dan Williams <dan.j.williams@intel.com>
+CC: Jan Kara <jack@suse.cz>
+CC: Al Viro <viro@zeniv.linux.org.uk>
+CC: Jerome Glisse <jglisse@redhat.com>
+CC: Christoph Hellwig <hch@infradead.org>
+CC: Ralph Campbell <rcampbell@nvidia.com>
+
+John Hubbard (3):
+  mm: get_user_pages: consolidate error handling
+  mm: introduce put_user_page*(), placeholder versions
+  infiniband/mm: convert put_page() to put_user_page*()
+
+ drivers/infiniband/core/umem.c              |  7 +--
+ drivers/infiniband/core/umem_odp.c          |  2 +-
+ drivers/infiniband/hw/hfi1/user_pages.c     | 11 ++---
+ drivers/infiniband/hw/mthca/mthca_memfree.c |  6 +--
+ drivers/infiniband/hw/qib/qib_user_pages.c  | 11 ++---
+ drivers/infiniband/hw/qib/qib_user_sdma.c   |  8 ++--
+ drivers/infiniband/hw/usnic/usnic_uiom.c    |  7 +--
+ include/linux/mm.h                          | 48 ++++++++++++++++++++-
+ mm/gup.c                                    | 37 +++++++++-------
+ 9 files changed, 92 insertions(+), 45 deletions(-)
+
+-- 
+2.19.0
