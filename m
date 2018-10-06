@@ -1,110 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 697A56B000A
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 22:49:54 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id c8-v6so11262154pfn.2
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 19:49:54 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 74EE36B000C
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2018 22:49:55 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id r67-v6so11240886pfd.21
+        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 19:49:55 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l6-v6sor8191046pgk.49.2018.10.05.19.49.52
+        by mx.google.com with SMTPS id x6-v6sor8277410plr.44.2018.10.05.19.49.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 05 Oct 2018 19:49:52 -0700 (PDT)
+        Fri, 05 Oct 2018 19:49:54 -0700 (PDT)
 From: john.hubbard@gmail.com
-Subject: [PATCH v3 0/3] get_user_pages*() and RDMA: first steps
-Date: Fri,  5 Oct 2018 19:49:46 -0700
-Message-Id: <20181006024949.20691-1-jhubbard@nvidia.com>
+Subject: [PATCH v3 1/3] mm: get_user_pages: consolidate error handling
+Date: Fri,  5 Oct 2018 19:49:47 -0700
+Message-Id: <20181006024949.20691-2-jhubbard@nvidia.com>
+In-Reply-To: <20181006024949.20691-1-jhubbard@nvidia.com>
+References: <20181006024949.20691-1-jhubbard@nvidia.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Ralph Campbell <rcampbell@nvidia.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>
 
 From: John Hubbard <jhubbard@nvidia.com>
 
-Changes since v2:
+An upcoming patch requires a way to operate on each page that
+any of the get_user_pages_*() variants returns.
 
--- Absorbed more dirty page handling logic into the put_user_page*(), and
-   handled some page releasing loops in infiniband more thoroughly, as per
-   Jason Gunthorpe's feedback.
+In preparation for that, consolidate the error handling for
+__get_user_pages(). This provides a single location (the "out:" label)
+for operating on the collected set of pages that are about to be returned.
 
--- Fixed a bug in the put_user_pages*() routines' loops (thanks to
-   Ralph Campbell for spotting it).
+As long every use of the "ret" variable is being edited, rename
+"ret" --> "err", so that its name matches its true role.
+This also gets rid of two shadowed variable declarations, as a
+tiny beneficial a side effect.
 
-Changes since v1:
+Reviewed-by: Jan Kara <jack@suse.cz>
+Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+---
+ mm/gup.c | 37 ++++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)
 
--- Renamed release_user_pages*() to put_user_pages*(), from Jan's feedback.
-
--- Removed the goldfish.c changes, and instead, only included a single
-   user (infiniband) of the new functions. That is because goldfish.c no
-   longer has a name collision (it has a release_user_pages() routine), and
-   also because infiniband exercises both the put_user_page() and
-   put_user_pages*() paths.
-
--- Updated links to discussions and plans, so as to be sure to include
-   bounce buffers, thanks to Jerome's feedback.
-
-Also:
-
--- Dennis, thanks for your earlier review, and I have not yet added your
-   Reviewed-by tag, because this revision changes the things that you had
-   previously reviewed, thus potentially requiring another look.
-
-This short series prepares for eventually fixing the problem described
-in [1], and is following a plan listed in [2], [3], [4].
-
-Patch 1, although not technically critical to do now, is still nice to
-have, because it's already been reviewed by Jan, and it's just one more
-thing on the long TODO list here, that is ready to be checked off.
-
-Patch 2 is required in order to allow me (and others, if I'm lucky) to
-start submitting changes to convert all of the callsites of
-get_user_pages*() and put_page().  I think this will work a lot better
-than trying to maintain a massive patchset and submitting all at once.
-
-Patch 3 converts infiniband drivers: put_page() --> put_user_page(), and
-also exercises put_user_pages_dirty_locked().
-
-Once these are all in, then the floodgates can open up to convert the large
-number of get_user_pages*() callsites.
-
-[1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
-
-[2] https://lkml.kernel.org/r/20180709080554.21931-1-jhubbard@nvidia.com
-    Proposed steps for fixing get_user_pages() + DMA problems.
-
-[3]https://lkml.kernel.org/r/20180710082100.mkdwngdv5kkrcz6n@quack2.suse.cz
-    Bounce buffers (otherwise [2] is not really viable).
-
-[4] https://lkml.kernel.org/r/20181003162115.GG24030@quack2.suse.cz
-    Follow-up discussions.
-
-CC: Matthew Wilcox <willy@infradead.org>
-CC: Michal Hocko <mhocko@kernel.org>
-CC: Christopher Lameter <cl@linux.com>
-CC: Jason Gunthorpe <jgg@ziepe.ca>
-CC: Dan Williams <dan.j.williams@intel.com>
-CC: Jan Kara <jack@suse.cz>
-CC: Al Viro <viro@zeniv.linux.org.uk>
-CC: Jerome Glisse <jglisse@redhat.com>
-CC: Christoph Hellwig <hch@infradead.org>
-CC: Ralph Campbell <rcampbell@nvidia.com>
-
-John Hubbard (3):
-  mm: get_user_pages: consolidate error handling
-  mm: introduce put_user_page*(), placeholder versions
-  infiniband/mm: convert put_page() to put_user_page*()
-
- drivers/infiniband/core/umem.c              |  7 +--
- drivers/infiniband/core/umem_odp.c          |  2 +-
- drivers/infiniband/hw/hfi1/user_pages.c     | 11 ++---
- drivers/infiniband/hw/mthca/mthca_memfree.c |  6 +--
- drivers/infiniband/hw/qib/qib_user_pages.c  | 11 ++---
- drivers/infiniband/hw/qib/qib_user_sdma.c   |  8 ++--
- drivers/infiniband/hw/usnic/usnic_uiom.c    |  7 +--
- include/linux/mm.h                          | 48 ++++++++++++++++++++-
- mm/gup.c                                    | 37 +++++++++-------
- 9 files changed, 92 insertions(+), 45 deletions(-)
-
+diff --git a/mm/gup.c b/mm/gup.c
+index 1abc8b4afff6..05ee7c18e59a 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -660,6 +660,7 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		struct vm_area_struct **vmas, int *nonblocking)
+ {
+ 	long i = 0;
++	int err = 0;
+ 	unsigned int page_mask;
+ 	struct vm_area_struct *vma = NULL;
+ 
+@@ -685,18 +686,19 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		if (!vma || start >= vma->vm_end) {
+ 			vma = find_extend_vma(mm, start);
+ 			if (!vma && in_gate_area(mm, start)) {
+-				int ret;
+-				ret = get_gate_page(mm, start & PAGE_MASK,
++				err = get_gate_page(mm, start & PAGE_MASK,
+ 						gup_flags, &vma,
+ 						pages ? &pages[i] : NULL);
+-				if (ret)
+-					return i ? : ret;
++				if (err)
++					goto out;
+ 				page_mask = 0;
+ 				goto next_page;
+ 			}
+ 
+-			if (!vma || check_vma_flags(vma, gup_flags))
+-				return i ? : -EFAULT;
++			if (!vma || check_vma_flags(vma, gup_flags)) {
++				err = -EFAULT;
++				goto out;
++			}
+ 			if (is_vm_hugetlb_page(vma)) {
+ 				i = follow_hugetlb_page(mm, vma, pages, vmas,
+ 						&start, &nr_pages, i,
+@@ -709,23 +711,25 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		 * If we have a pending SIGKILL, don't keep faulting pages and
+ 		 * potentially allocating memory.
+ 		 */
+-		if (unlikely(fatal_signal_pending(current)))
+-			return i ? i : -ERESTARTSYS;
++		if (unlikely(fatal_signal_pending(current))) {
++			err = -ERESTARTSYS;
++			goto out;
++		}
+ 		cond_resched();
+ 		page = follow_page_mask(vma, start, foll_flags, &page_mask);
+ 		if (!page) {
+-			int ret;
+-			ret = faultin_page(tsk, vma, start, &foll_flags,
++			err = faultin_page(tsk, vma, start, &foll_flags,
+ 					nonblocking);
+-			switch (ret) {
++			switch (err) {
+ 			case 0:
+ 				goto retry;
+ 			case -EFAULT:
+ 			case -ENOMEM:
+ 			case -EHWPOISON:
+-				return i ? i : ret;
++				goto out;
+ 			case -EBUSY:
+-				return i;
++				err = 0;
++				goto out;
+ 			case -ENOENT:
+ 				goto next_page;
+ 			}
+@@ -737,7 +741,8 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			 */
+ 			goto next_page;
+ 		} else if (IS_ERR(page)) {
+-			return i ? i : PTR_ERR(page);
++			err = PTR_ERR(page);
++			goto out;
+ 		}
+ 		if (pages) {
+ 			pages[i] = page;
+@@ -757,7 +762,9 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		start += page_increm * PAGE_SIZE;
+ 		nr_pages -= page_increm;
+ 	} while (nr_pages);
+-	return i;
++
++out:
++	return i ? i : err;
+ }
+ 
+ static bool vma_permits_fault(struct vm_area_struct *vma,
 -- 
 2.19.0
