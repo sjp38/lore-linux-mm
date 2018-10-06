@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 870DA6B000A
-	for <linux-mm@kvack.org>; Sat,  6 Oct 2018 01:11:20 -0400 (EDT)
-Received: by mail-lj1-f197.google.com with SMTP id r20-v6so3396873ljj.1
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2018 22:11:20 -0700 (PDT)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E12A96B000A
+	for <linux-mm@kvack.org>; Sat,  6 Oct 2018 06:49:56 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id h82-v6so5442512ljh.16
+        for <linux-mm@kvack.org>; Sat, 06 Oct 2018 03:49:56 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d132-v6sor3489734lfd.50.2018.10.05.22.11.18
+        by mx.google.com with SMTPS id m67-v6sor5943782lje.13.2018.10.06.03.49.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 05 Oct 2018 22:11:18 -0700 (PDT)
+        Sat, 06 Oct 2018 03:49:54 -0700 (PDT)
 MIME-Version: 1.0
 References: <20181003185854.GA1174@jordon-HP-15-Notebook-PC>
  <20181003200003.GA9965@bombadil.infradead.org> <20181003221444.GZ30658@n2100.armlinux.org.uk>
@@ -20,67 +20,64 @@ References: <20181003185854.GA1174@jordon-HP-15-Notebook-PC>
  <CANiq72kVJn7985EET067Dgj+z0dwb0x2MTUnREMWKCVU6=WnJA@mail.gmail.com>
  <CAFqt6zZ4sPjtb5BaDfwc5tZv+vMj6ao3NJZ_3quX9AH5pCMwJg@mail.gmail.com>
  <CANiq72m9u1PL9X+dPNLxgkhvttj=4ijLyM2sFex=Kws7wswKzw@mail.gmail.com>
- <CAFqt6zYH4Aczu8AYke8AfGuMS70SJXCMn-n8X8C_Tz03gTjn8g@mail.gmail.com> <CANiq72kRAZE9SyM4EkpaBZH03Ex0Z=4Pk2iOuc2jBDKTfKjHQg@mail.gmail.com>
-In-Reply-To: <CANiq72kRAZE9SyM4EkpaBZH03Ex0Z=4Pk2iOuc2jBDKTfKjHQg@mail.gmail.com>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Sat, 6 Oct 2018 10:44:26 +0530
-Message-ID: <CAFqt6zZCCPFE3sQ3u_gjiN8wwd99nwWatk9JRsiGxbCwhi91mg@mail.gmail.com>
+ <CAFqt6zYH4Aczu8AYke8AfGuMS70SJXCMn-n8X8C_Tz03gTjn8g@mail.gmail.com>
+ <CANiq72kRAZE9SyM4EkpaBZH03Ex0Z=4Pk2iOuc2jBDKTfKjHQg@mail.gmail.com> <CAFqt6zZCCPFE3sQ3u_gjiN8wwd99nwWatk9JRsiGxbCwhi91mg@mail.gmail.com>
+In-Reply-To: <CAFqt6zZCCPFE3sQ3u_gjiN8wwd99nwWatk9JRsiGxbCwhi91mg@mail.gmail.com>
+From: Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
+Date: Sat, 6 Oct 2018 12:49:42 +0200
+Message-ID: <CANiq72k-e_j67==VdrayqggjAd7MAfpaJS-_0=jkmh4OWynukQ@mail.gmail.com>
 Subject: Re: [PATCH v2] mm: Introduce new function vm_insert_kmem_page
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin@protonic.nl, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Kees Cook <keescook@chromium.org>, treding@nvidia.com, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mark Rutland <mark.rutland@arm.com>, aryabinin@virtuozzo.com, Dmitry Vyukov <dvyukov@google.com>, Kate Stewart <kstewart@linuxfoundation.org>, tchibo@google.com, riel@redhat.com, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Huang, Ying" <ying.huang@intel.com>, ak@linux.intel.com, rppt@linux.vnet.ibm.com, linux@dominikbrodowski.net, Arnd Bergmann <arnd@arndb.de>, cpandya@codeaurora.org, hannes@cmpxchg.org, Joe Perches <joe@perches.com>, mcgrof@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, Linux-MM <linux-mm@kvack.org>
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Matthew Wilcox <willy@infradead.org>, linux@armlinux.org.uk, Robin van der Gracht <robin@protonic.nl>, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, =?UTF-8?Q?Heiko_St=C3=BCbner?= <heiko@sntech.de>, Dave Airlie <airlied@linux.ie>, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Kees Cook <keescook@chromium.org>, treding@nvidia.com, mhocko@suse.com, Dan Williams <dan.j.williams@intel.com>, kirill.shutemov@linux.intel.com, Mark Rutland <mark.rutland@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov <dvyukov@google.com>, Kate Stewart <kstewart@linuxfoundation.org>, tchibo@google.com, riel@redhat.com, minchan@kernel.org, Peter Zijlstra <peterz@infradead.org>, ying.huang@intel.com, Andi Kleen <ak@linux.intel.com>, rppt@linux.vnet.ibm.com, Dominik Brodowski <linux@dominikbrodowski.net>, Arnd Bergmann <arnd@arndb.de>, cpandya@codeaurora.org, hannes@cmpxchg.org, Joe Perches <joe@perches.com>, mcgrof@kernel.org, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, Linux-MM <linux-mm@kvack.org>
 
-On Fri, Oct 5, 2018 at 11:39 PM Miguel Ojeda
-<miguel.ojeda.sandonis@gmail.com> wrote:
+On Sat, Oct 6, 2018 at 7:11 AM Souptick Joarder <jrdr.linux@gmail.com> wrote:
 >
-> On Fri, Oct 5, 2018 at 2:11 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
-> >
-> > On Fri, Oct 5, 2018 at 4:19 PM Miguel Ojeda
-> > <miguel.ojeda.sandonis@gmail.com> wrote:
-> > >
-> > >   1. Introduce the vmf_* API
-> > >   2. Change all PF-users users to that (leaving all non-PF ones
-> > > untouched!) -- if this is too big, you can split this patch into
-> > > several patches, one per subsystem, etc.
-> >
-> > We are done with step 2. All the PF-users are converted to use
-> > vmf_insert_page. ( Ref - linux-next-20181005)
+> On Fri, Oct 5, 2018 at 11:39 PM Miguel Ojeda
+> <miguel.ojeda.sandonis@gmail.com> wrote:
+> > They are not supposed to be "steps". You did it with 70+ commits (!!)
+> > over the course of several months. Why a tree wasn't created, stuff
+> > developed there, and when done, submitted it for review?
 >
-> They are not supposed to be "steps". You did it with 70+ commits (!!)
-> over the course of several months. Why a tree wasn't created, stuff
-> developed there, and when done, submitted it for review?
+> Because we already have a plan for entire vm_fault_t migration and
+> the * instruction * was to send one patch per driver.
 
-Because we already have a plan for entire vm_fault_t migration and
-the * instruction * was to send one patch per driver.
->
-> > >
-> > > Otherwise, if you want to pursue Matthew's idea:
-> > >
-> > >   4. Introduce the vm_insert_range (possibly leveraging
-> > > vm_insert_page, or not; you have to see what is best).
-> > >   5. Replace those callers that can take advantage of vm_insert_range
-> > >   6. Remove vm_insert_page and replace callers with vm_insert_range
-> > > (only if it is not worth to keep vm_insert_range, again justifying it
-> > > *on its own merits*)
-> >
-> > Step 4 to 6, going to do it.  It is part of plan now :-)
-> >
->
-> Fine, but you haven't answered to the other parts of my email: you
-> don't explain why you choose one alternative over the others, you
-> simply keep changing the approach.
+The instruction?
 
-We are going in circles here. That you want to convert vm_insert_page
-to vmf_insert_page for the PF case is fine and understood. However,
-you don't *need* to introduce a new name for the remaining non-PF
-cases if the function is going to be the exact same thing as before.
-You say "The final goal is to remove vm_insert_page", but you haven't
-justified *why* you need to remove that name.
+> >
+> > Fine, but you haven't answered to the other parts of my email: you
+> > don't explain why you choose one alternative over the others, you
+> > simply keep changing the approach.
+>
+> We are going in circles here. That you want to convert vm_insert_page
+> to vmf_insert_page for the PF case is fine and understood. However,
+> you don't *need* to introduce a new name for the remaining non-PF
+> cases if the function is going to be the exact same thing as before.
+> You say "The final goal is to remove vm_insert_page", but you haven't
+> justified *why* you need to remove that name.
+>
+> I think I have given that answer. If we don't remove vm_insert_page,
+> future #PF caller will have option to use it. But those should be
+> restricted. How are we going to restrict vm_insert_page in one half
+> of kernel when other half is still using it  ?? Is there any way ? ( I don't
+> know)
 
-I think I have given that answer. If we don't remove vm_insert_page,
-future #PF caller will have option to use it. But those should be
-restricted. How are we going to restrict vm_insert_page in one half
-of kernel when other half is still using it  ?? Is there any way ? ( I don't
-know)
+Ah, so that is what you are concerned about: future misuses. Well, I
+don't really see the problem. There are only ~18 calls to
+vm_insert_page() in the entire kernel: checking if people is using it
+properly for a while should be easy. As long as the new behavior is
+documented properly, it should be fine. If you are really concerned
+about mistakes being made, then fine, we can rename it as I suggested.
+
+Now, the new vm_insert_range() is another topic. It simplifies a few
+of the callers and buys us the rename at the same time, so I am also
+OK with it.
+
+As you see, I am not against the changes -- it is just that they
+should clearly justified. :-) It wasn't clear what your problem with
+the current vm_insert_page() is.
+
+Cheers,
+Miguel
