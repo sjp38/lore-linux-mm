@@ -1,72 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 57AA06B000A
-	for <linux-mm@kvack.org>; Sat,  6 Oct 2018 13:01:34 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id n23-v6so11750349otl.2
-        for <linux-mm@kvack.org>; Sat, 06 Oct 2018 10:01:34 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g20-v6sor4630518oic.57.2018.10.06.10.01.30
+	by kanga.kvack.org (Postfix) with ESMTP id E0DAB6B000A
+	for <linux-mm@kvack.org>; Sun,  7 Oct 2018 04:32:07 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id c21-v6so13076989otf.9
+        for <linux-mm@kvack.org>; Sun, 07 Oct 2018 01:32:07 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id o8-v6si6369027oia.264.2018.10.07.01.32.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 06 Oct 2018 10:01:30 -0700 (PDT)
-MIME-Version: 1.0
-References: <153861931865.2863953.11185006931458762795.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20181004074457.GD22173@dhcp22.suse.cz> <CAPcyv4ht=ueiZwPTWuY5Y4y1BUOi_z+pHMjfoiXG+Bjd-h55jA@mail.gmail.com>
-In-Reply-To: <CAPcyv4ht=ueiZwPTWuY5Y4y1BUOi_z+pHMjfoiXG+Bjd-h55jA@mail.gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Sat, 6 Oct 2018 10:01:17 -0700
-Message-ID: <CAPcyv4jKGJLGqTHbxPvSD0X=kNGce-iJCYvTHJA8x2JSST5ETQ@mail.gmail.com>
-Subject: Re: [PATCH v2 0/3] Randomize free memory
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 07 Oct 2018 01:32:06 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w978Uvjb139537
+	for <linux-mm@kvack.org>; Sun, 7 Oct 2018 04:32:06 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2myepvg0xf-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 07 Oct 2018 04:32:05 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Sun, 7 Oct 2018 09:32:03 +0100
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH] percpu: stop leaking bitmap metadata blocks
+Date: Sun,  7 Oct 2018 11:31:51 +0300
+Message-Id: <1538901111-22823-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Kees Cook <keescook@chromium.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Dennis Zhou <dennis@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>, stable@vger.kernel.org
 
-On Thu, Oct 4, 2018 at 9:44 AM Dan Williams <dan.j.williams@intel.com> wrote:
->
-> Hi Michal,
->
-> On Thu, Oct 4, 2018 at 12:53 AM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Wed 03-10-18 19:15:18, Dan Williams wrote:
-> > > Changes since v1:
-> > > * Add support for shuffling hot-added memory (Andrew)
-> > > * Update cover letter and commit message to clarify the performance impact
-> > >   and relevance to future platforms
-> >
-> > I believe this hasn't addressed my questions in
-> > http://lkml.kernel.org/r/20181002143015.GX18290@dhcp22.suse.cz. Namely
-> > "
-> > It is the more general idea that I am not really sure about. First of
-> > all. Does it make _any_ sense to randomize 4MB blocks by default? Why
-> > cannot we simply have it disabled?
->
-> I'm not aware of any CVE that this would directly preclude, but that
-> said the entropy injected at 4MB boundaries raises the bar on heap
-> attacks. Environments that want more can adjust that with the boot
-> parameter. Given the potential benefits I think it would only make
-> sense to default disable it if there was a significant runtime impact,
-> from what I have seen there isn't.
->
-> > Then and more concerning question is,
-> > does it even make sense to have this randomization applied to higher
-> > orders than 0? Attacker might fragment the memory and keep recycling the
-> > lowest order and get the predictable behavior that we have right now.
->
-> Certainly I expect there are attacks that can operate within a 4MB
-> window, as I expect there are attacks that could operate within a 4K
-> window that would need sub-page randomization to deter. In fact I
-> believe that is the motivation for CONFIG_SLAB_FREELIST_RANDOM.
-> Combining that with page allocator randomization makes the kernel less
-> predictable.
->
-> Is that enough justification for this patch on its own? It's
-> debatable. Combine that though with the wider availability of
-> platforms with memory-side-cache and I think it's a reasonable default
-> behavior for the kernel to deploy.
+The commit ca460b3c9627 ("percpu: introduce bitmap metadata blocks")
+introduced bitmap metadata blocks. These metadata blocks are allocated
+whenever a new chunk is created, but they are never freed. Fix it.
 
-Hi Michal,
+Fixes: ca460b3c9627 ("percpu: introduce bitmap metadata blocks")
 
-Does the above address your concerns? v4.20 is perhaps the last
-upstream kernel release in advance of wider hardware availability.
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: stable@vger.kernel.org
+---
+ mm/percpu.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mm/percpu.c b/mm/percpu.c
+index d21cb13..25104cd 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -1212,6 +1212,7 @@ static void pcpu_free_chunk(struct pcpu_chunk *chunk)
+ {
+ 	if (!chunk)
+ 		return;
++	pcpu_mem_free(chunk->md_blocks);
+ 	pcpu_mem_free(chunk->bound_map);
+ 	pcpu_mem_free(chunk->alloc_map);
+ 	pcpu_mem_free(chunk);
+-- 
+2.7.4
