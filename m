@@ -1,67 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 246816B0005
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 09:56:33 -0400 (EDT)
-Received: by mail-wm1-f69.google.com with SMTP id z11-v6so5941301wma.4
-        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 06:56:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l4-v6sor5527133wru.48.2018.10.08.06.56.31
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 51F9B6B0003
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 11:53:26 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id t8-v6so17570411plo.4
+        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 08:53:26 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id i10-v6si18059593pgc.420.2018.10.08.08.53.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 08 Oct 2018 06:56:31 -0700 (PDT)
-Date: Mon, 8 Oct 2018 15:56:29 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [RFC PATCH v3 0/5] Do not touch pages/zones during hot-remove
- path
-Message-ID: <20181008135629.GA10959@techadventures.net>
-References: <20181002150029.23461-1-osalvador@techadventures.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Oct 2018 08:53:25 -0700 (PDT)
+Subject: Re: [PATCH v3 0/3] get_user_pages*() and RDMA: first steps
+References: <20181006024949.20691-1-jhubbard@nvidia.com>
+From: Dennis Dalessandro <dennis.dalessandro@intel.com>
+Message-ID: <8973680e-4391-48cf-e979-1e9a10be0968@intel.com>
+Date: Mon, 8 Oct 2018 11:50:50 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181002150029.23461-1-osalvador@techadventures.net>
+In-Reply-To: <20181006024949.20691-1-jhubbard@nvidia.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: mhocko@suse.com, dan.j.williams@intel.com, yasu.isimatu@gmail.com, rppt@linux.vnet.ibm.com, malat@debian.org, linux-kernel@vger.kernel.org, pavel.tatashin@microsoft.com, jglisse@redhat.com, Jonathan.Cameron@huawei.com, rafael@kernel.org, david@redhat.com, dave.jiang@intel.com
+To: john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Ralph Campbell <rcampbell@nvidia.com>
 
-On Tue, Oct 02, 2018 at 05:00:24PM +0200, Oscar Salvador wrote:
-> Oscar Salvador (5):
->   mm/memory_hotplug: Add nid parameter to arch_remove_memory
->   mm/memory_hotplug: Create add/del_device_memory functions
->   mm/memory_hotplug: Check for IORESOURCE_SYSRAM in
->     release_mem_region_adjustable
->   mm/memory_hotplug: Move zone/pages handling to offline stage
->   mm/memory-hotplug: Rework unregister_mem_sect_under_nodes
+On 10/5/2018 10:49 PM, john.hubbard@gmail.com wrote:
+> From: John Hubbard <jhubbard@nvidia.com>
 > 
->  arch/ia64/mm/init.c            |   6 +-
->  arch/powerpc/mm/mem.c          |  13 +---
->  arch/s390/mm/init.c            |   2 +-
->  arch/sh/mm/init.c              |   6 +-
->  arch/x86/mm/init_32.c          |   6 +-
->  arch/x86/mm/init_64.c          |  10 +--
->  drivers/base/memory.c          |   9 ++-
->  drivers/base/node.c            |  38 ++--------
->  include/linux/memory.h         |   2 +-
->  include/linux/memory_hotplug.h |  17 +++--
->  include/linux/node.h           |   7 +-
->  kernel/memremap.c              |  50 +++++---------
->  kernel/resource.c              |  15 ++++
->  mm/memory_hotplug.c            | 153 ++++++++++++++++++++++++++---------------
->  mm/sparse.c                    |   4 +-
->  15 files changed, 169 insertions(+), 169 deletions(-)
+> Changes since v2:
 > 
-> -- 
-> 2.13.6
+> -- Absorbed more dirty page handling logic into the put_user_page*(), and
+>     handled some page releasing loops in infiniband more thoroughly, as per
+>     Jason Gunthorpe's feedback.
+> 
+> -- Fixed a bug in the put_user_pages*() routines' loops (thanks to
+>     Ralph Campbell for spotting it).
+> 
+> Changes since v1:
+> 
+> -- Renamed release_user_pages*() to put_user_pages*(), from Jan's feedback.
+> 
+> -- Removed the goldfish.c changes, and instead, only included a single
+>     user (infiniband) of the new functions. That is because goldfish.c no
+>     longer has a name collision (it has a release_user_pages() routine), and
+>     also because infiniband exercises both the put_user_page() and
+>     put_user_pages*() paths.
+> 
+> -- Updated links to discussions and plans, so as to be sure to include
+>     bounce buffers, thanks to Jerome's feedback.
+> 
+> Also:
+> 
+> -- Dennis, thanks for your earlier review, and I have not yet added your
+>     Reviewed-by tag, because this revision changes the things that you had
+>     previously reviewed, thus potentially requiring another look.
 
-If there are no further comments, I will send this as a patchset without RFC
-later this week.
-Since [1] already landed in mmotm, I will pull out the dependency for [2], and
-change both devm/HMM code.
+This spin looks fine to me.
 
-[1] https://patchwork.kernel.org/cover/10617699/
-[2] https://patchwork.kernel.org/cover/10613425/
-
-Thanks
--- 
-Oscar Salvador
-SUSE L3
+Reviewed-by: Dennis Dalessandro <dennis.dalessandro@intel.com>
