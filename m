@@ -1,77 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B19C6B0005
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 04:03:31 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id e3-v6so16756192pld.13
-        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 01:03:31 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y26-v6sor4569787pfa.69.2018.10.08.01.03.30
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0829A6B0005
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 04:39:01 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id a64-v6so10632558pfg.16
+        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 01:39:01 -0700 (PDT)
+Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
+        by mx.google.com with ESMTPS id s17-v6si16960132plq.339.2018.10.08.01.38.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 08 Oct 2018 01:03:30 -0700 (PDT)
-Date: Mon, 8 Oct 2018 11:03:23 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH RFC 1/1] hugetlbfs: introduce truncation/fault mutex to
- avoid races
-Message-ID: <20181008080323.xg3v35uxgmakf6wy@kshutemo-mobl1>
-References: <20181007233848.13397-1-mike.kravetz@oracle.com>
- <20181007233848.13397-2-mike.kravetz@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181007233848.13397-2-mike.kravetz@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Oct 2018 01:38:59 -0700 (PDT)
+Received: from epcas1p3.samsung.com (unknown [182.195.41.47])
+	by mailout1.samsung.com (KnoxPortal) with ESMTP id 20181008083857epoutp01e96b582c5a220fb560ff3acbeb9616b7~blWAI5pQw1021510215epoutp01U
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 08:38:57 +0000 (GMT)
+Mime-Version: 1.0
+Subject: RE: Re: [PATCH] mm, oom_adj: avoid meaningless loop to find
+ processes sharing mm
+Reply-To: ytk.lee@samsung.com
+From: Yong-Taek Lee <ytk.lee@samsung.com>
+In-Reply-To: <67eedc4c-7afa-e845-6c88-9716fd820de6@i-love.sakura.ne.jp>
+Message-ID: <20181008083855epcms1p20e691e5a001f3b94b267997c24e91128@epcms1p2>
+Date: Mon, 08 Oct 2018 17:38:55 +0900
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+References: <67eedc4c-7afa-e845-6c88-9716fd820de6@i-love.sakura.ne.jp>
+	<af7ae9c4-d7f1-69af-58fa-ec6949161f5b@I-love.SAKURA.ne.jp>
+	<20181008011931epcms1p82dd01b7e5c067ea99946418bc97de46a@epcms1p8>
+	<20181008061407epcms1p519703ae6373a770160c8f912c7aa9521@epcms1p5>
+	<CGME20181008011931epcms1p82dd01b7e5c067ea99946418bc97de46a@epcms1p2>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Yong-Taek Lee <ytk.lee@samsung.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "mhocko@suse.com" <mhocko@suse.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Sun, Oct 07, 2018 at 04:38:48PM -0700, Mike Kravetz wrote:
-> The following hugetlbfs truncate/page fault race can be recreated
-> with programs doing something like the following.
-> 
-> A huegtlbfs file is mmap(MAP_SHARED) with a size of 4 pages.  At
-> mmap time, 4 huge pages are reserved for the file/mapping.  So,
-> the global reserve count is 4.  In addition, since this is a shared
-> mapping an entry for 4 pages is added to the file's reserve map.
-> The first 3 of the 4 pages are faulted into the file.  As a result,
-> the global reserve count is now 1.
-> 
-> Task A starts to fault in the last page (routines hugetlb_fault,
-> hugetlb_no_page).  It allocates a huge page (alloc_huge_page).
-> The reserve map indicates there is a reserved page, so this is
-> used and the global reserve count goes to 0.
-> 
-> Now, task B truncates the file to size 0.  It starts by setting
-> inode size to 0(hugetlb_vmtruncate).  It then unmaps all mapping
-> of the file (hugetlb_vmdelete_list).  Since task A's page table
-> lock is not held at the time, truncation is not blocked.  Truncation
-> removes the 3 pages from the file (remove_inode_hugepages).  When
-> cleaning up the reserved pages (hugetlb_unreserve_pages), it notices
-> the reserve map was for 4 pages.  However, it has only freed 3 pages.
-> So it assumes there is still (4 - 3) 1 reserved pages.  It then
-> decrements the global reserve count by 1 and it goes negative.
-> 
-> Task A then continues the page fault process and adds it's newly
-> acquired page to the page cache.  Note that the index of this page
-> is beyond the size of the truncated file (0).  The page fault process
-> then notices the file has been truncated and exits.  However, the
-> page is left in the cache associated with the file.
-> 
-> Now, if the file is immediately deleted the truncate code runs again.
-> It will find and free the one page associated with the file.  When
-> cleaning up reserves, it notices the reserve map is empty.  Yet, one
-> page freed.  So, the global reserve count is decremented by (0 - 1) -1.
-> This returns the global count to 0 as it should be.  But, it is
-> possible for someone else to mmap this file/range before it is deleted.
-> If this happens, a reserve map entry for the allocated page is created
-> and the reserved page is forever leaked.
-> 
-> To avoid all these conditions, let's simply prevent faults to a file
-> while it is being truncated.  Add a new truncation specific rw mutex
-> to hugetlbfs inode extensions.  faults take the mutex in read mode,
-> truncation takes in write mode.
+>
+>On 2018/10/08 15:14, Yong-Taek Lee wrote:
+>>> On 2018/10/08 10:19, Yong-Taek Lee wrote:
+>>>> @@ -1056,6 +1056,7 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
+>>>>         struct mm_struct *mm = NULL;
+>>>>         struct task_struct *task;
+>>>>         int err = 0;
+>>>> +       int mm_users = 0;
+>>>>
+>>>>         task = get_proc_task(file_inode(file));
+>>>>         if (!task)
+>>>> @@ -1092,7 +1093,8 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
+>>>>                 struct task_struct *p = find_lock_task_mm(task);
+>>>>
+>>>>                 if (p) {
+>>>> -                       if (atomic_read(&p->mm->mm_users) > 1) {
+>>>> +                       mm_users = atomic_read(&p->mm->mm_users);
+>>>> +                       if ((mm_users > 1) && (mm_users != get_nr_threads(p))) {
+>>>
+>>> How can this work (even before this patch)? When clone(CLONE_VM without CLONE_THREAD/CLONE_SIGHAND)
+>>> is requested, copy_process() calls copy_signal() in order to copy sig->oom_score_adj and
+>>> sig->oom_score_adj_min before calling copy_mm() in order to increment mm->mm_users, doesn't it?
+>>> Then, we will get two different "struct signal_struct" with different oom_score_adj/oom_score_adj_min
+>>> but one "struct mm_struct" shared by two thread groups.
+>>>
+>>
+>> Are you talking about race between __set_oom_adj and copy_process?
+>> If so, i agree with your opinion. It can not set oom_score_adj properly for copied process if __set_oom_adj
+>> check mm_users before copy_process calls copy_mm after copy_signal. Please correct me if i misunderstood anything.
+>
+> You understand it correctly.
+>
+> Reversing copy_signal() and copy_mm() is not sufficient either. We need to use a read/write lock
+> (read lock for copy_process() and write lock for __set_oom_adj()) in order to make sure that
+> the thread created by clone() becomes reachable from for_each_process() path in __set_oom_adj().
+>
 
-Hm. Don't we have already a lock for this? I mean i_mmap_lock.
+Thank you for your suggestion. But i think it would be better to seperate to 2 issues. How about think these
+issues separately because there are no dependency between race issue and my patch. As i already explained,
+for_each_process path is meaningless if there is only one thread group with many threads(mm_users > 1 but 
+no other thread group sharing same mm). Do you have any other idea to avoid meaningless loop ? 
 
--- 
- Kirill A. Shutemov
+>>
+>>>>                                 mm = p->mm;
+>>>>                                 atomic_inc(&mm->mm_count);
+>>>>                         }
+>>
+>
