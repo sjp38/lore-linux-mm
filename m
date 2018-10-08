@@ -1,60 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 51F9B6B0003
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 11:53:26 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id t8-v6so17570411plo.4
-        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 08:53:26 -0700 (PDT)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id i10-v6si18059593pgc.420.2018.10.08.08.53.24
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C183D6B0003
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 12:49:14 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id w15-v6so10950371pge.2
+        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 09:49:14 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f76-v6si21324917pfa.73.2018.10.08.09.49.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Oct 2018 08:53:25 -0700 (PDT)
-Subject: Re: [PATCH v3 0/3] get_user_pages*() and RDMA: first steps
+        Mon, 08 Oct 2018 09:49:12 -0700 (PDT)
+Date: Mon, 8 Oct 2018 18:49:07 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v3 2/3] mm: introduce put_user_page*(), placeholder
+ versions
+Message-ID: <20181008164907.GA11150@quack2.suse.cz>
 References: <20181006024949.20691-1-jhubbard@nvidia.com>
-From: Dennis Dalessandro <dennis.dalessandro@intel.com>
-Message-ID: <8973680e-4391-48cf-e979-1e9a10be0968@intel.com>
-Date: Mon, 8 Oct 2018 11:50:50 -0400
+ <20181006024949.20691-3-jhubbard@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <20181006024949.20691-1-jhubbard@nvidia.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181006024949.20691-3-jhubbard@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Ralph Campbell <rcampbell@nvidia.com>
+To: john.hubbard@gmail.com
+Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Ralph Campbell <rcampbell@nvidia.com>
 
-On 10/5/2018 10:49 PM, john.hubbard@gmail.com wrote:
+On Fri 05-10-18 19:49:48, john.hubbard@gmail.com wrote:
 > From: John Hubbard <jhubbard@nvidia.com>
 > 
-> Changes since v2:
+> Introduces put_user_page(), which simply calls put_page().
+> This provides a way to update all get_user_pages*() callers,
+> so that they call put_user_page(), instead of put_page().
 > 
-> -- Absorbed more dirty page handling logic into the put_user_page*(), and
->     handled some page releasing loops in infiniband more thoroughly, as per
->     Jason Gunthorpe's feedback.
+> Also introduces put_user_pages(), and a few dirty/locked variations,
+> as a replacement for release_pages(), and also as a replacement
+> for open-coded loops that release multiple pages.
+> These may be used for subsequent performance improvements,
+> via batching of pages to be released.
 > 
-> -- Fixed a bug in the put_user_pages*() routines' loops (thanks to
->     Ralph Campbell for spotting it).
+> This prepares for eventually fixing the problem described
+> in [1], and is following a plan listed in [2], [3], [4].
 > 
-> Changes since v1:
+> [1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
 > 
-> -- Renamed release_user_pages*() to put_user_pages*(), from Jan's feedback.
+> [2] https://lkml.kernel.org/r/20180709080554.21931-1-jhubbard@nvidia.com
+>     Proposed steps for fixing get_user_pages() + DMA problems.
 > 
-> -- Removed the goldfish.c changes, and instead, only included a single
->     user (infiniband) of the new functions. That is because goldfish.c no
->     longer has a name collision (it has a release_user_pages() routine), and
->     also because infiniband exercises both the put_user_page() and
->     put_user_pages*() paths.
+> [3]https://lkml.kernel.org/r/20180710082100.mkdwngdv5kkrcz6n@quack2.suse.cz
+>     Bounce buffers (otherwise [2] is not really viable).
 > 
-> -- Updated links to discussions and plans, so as to be sure to include
->     bounce buffers, thanks to Jerome's feedback.
+> [4] https://lkml.kernel.org/r/20181003162115.GG24030@quack2.suse.cz
+>     Follow-up discussions.
 > 
-> Also:
-> 
-> -- Dennis, thanks for your earlier review, and I have not yet added your
->     Reviewed-by tag, because this revision changes the things that you had
->     previously reviewed, thus potentially requiring another look.
+> CC: Matthew Wilcox <willy@infradead.org>
+> CC: Michal Hocko <mhocko@kernel.org>
+> CC: Christopher Lameter <cl@linux.com>
+> CC: Jason Gunthorpe <jgg@ziepe.ca>
+> CC: Dan Williams <dan.j.williams@intel.com>
+> CC: Jan Kara <jack@suse.cz>
+> CC: Al Viro <viro@zeniv.linux.org.uk>
+> CC: Jerome Glisse <jglisse@redhat.com>
+> CC: Christoph Hellwig <hch@infradead.org>
+> CC: Ralph Campbell <rcampbell@nvidia.com>
+> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> ---
+>  include/linux/mm.h | 48 ++++++++++++++++++++++++++++++++++++++++++++--
+>  1 file changed, 46 insertions(+), 2 deletions(-)
 
-This spin looks fine to me.
+Looks good to me. You can add:
 
-Reviewed-by: Dennis Dalessandro <dennis.dalessandro@intel.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+Just one nit below:
+
+> +/* Pages that were pinned via get_user_pages*() should be released via
+> + * either put_user_page(), or one of the put_user_pages*() routines
+> + * below.
+> + */
+
+Multi-line comments usually follow formatting:
+
+/*
+ * Some text here
+ * and more text here...
+ */
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
