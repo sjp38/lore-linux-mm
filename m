@@ -1,234 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 088266B0007
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 17:16:37 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id a64-v6so12661220pfg.16
-        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 14:16:37 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c14-v6sor13641745pls.60.2018.10.08.14.16.35
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 420116B026D
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 17:38:08 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id s7-v6so11965093pgp.3
+        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 14:38:08 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id d28-v6si19944555pgn.203.2018.10.08.14.38.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 08 Oct 2018 14:16:35 -0700 (PDT)
-From: john.hubbard@gmail.com
-Subject: [PATCH v4 3/3] infiniband/mm: convert put_page() to put_user_page*()
-Date: Mon,  8 Oct 2018 14:16:23 -0700
-Message-Id: <20181008211623.30796-4-jhubbard@nvidia.com>
-In-Reply-To: <20181008211623.30796-1-jhubbard@nvidia.com>
-References: <20181008211623.30796-1-jhubbard@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Oct 2018 14:38:06 -0700 (PDT)
+Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
+References: <20180925200551.3576.18755.stgit@localhost.localdomain>
+ <20180925202053.3576.66039.stgit@localhost.localdomain>
+ <CAPcyv4jX5WYmMYzGCBrnaqT7tqHGSVPwm7Dpi-XpuM9ns84+0w@mail.gmail.com>
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Message-ID: <379e1d22-4194-6744-9e80-897b6ba126e9@linux.intel.com>
+Date: Mon, 8 Oct 2018 14:38:05 -0700
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAPcyv4jX5WYmMYzGCBrnaqT7tqHGSVPwm7Dpi-XpuM9ns84+0w@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Doug Ledford <dledford@redhat.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Christian Benvenuti <benve@cisco.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, rppt@linux.vnet.ibm.com, Logan Gunthorpe <logang@deltatee.com>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: John Hubbard <jhubbard@nvidia.com>
+On 10/8/2018 2:01 PM, Dan Williams wrote:
+> On Tue, Sep 25, 2018 at 1:29 PM Alexander Duyck
+> <alexander.h.duyck@linux.intel.com> wrote:
+>>
+>> The ZONE_DEVICE pages were being initialized in two locations. One was with
+>> the memory_hotplug lock held and another was outside of that lock. The
+>> problem with this is that it was nearly doubling the memory initialization
+>> time. Instead of doing this twice, once while holding a global lock and
+>> once without, I am opting to defer the initialization to the one outside of
+>> the lock. This allows us to avoid serializing the overhead for memory init
+>> and we can instead focus on per-node init times.
+>>
+>> One issue I encountered is that devm_memremap_pages and
+>> hmm_devmmem_pages_create were initializing only the pgmap field the same
+>> way. One wasn't initializing hmm_data, and the other was initializing it to
+>> a poison value. Since this is something that is exposed to the driver in
+>> the case of hmm I am opting for a third option and just initializing
+>> hmm_data to 0 since this is going to be exposed to unknown third party
+>> drivers.
+>>
+>> Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+>> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+>> ---
+>>
+>> v4: Moved moved memmap_init_zone_device to below memmmap_init_zone to avoid
+>>      merge conflicts with other changes in the kernel.
+>> v5: No change
+> 
+> This patch appears to cause a regression in the "create.sh" unit test
+> in the ndctl test suite.
 
-For code that retains pages via get_user_pages*(),
-release those pages via the new put_user_page(), or
-put_user_pages*(), instead of put_page()
+So all you had to do is run the create.sh script to see the issue? I 
+just want to confirm there isn't any additional information needed 
+before I try chasing this down.
 
-This prepares for eventually fixing the problem described
-in [1], and is following a plan listed in [2], [3], [4].
+> I tried to reproduce on -next with:
+> 
+> 2302f5ee215e mm: defer ZONE_DEVICE page initialization to the point
+> where we init pgmap
+> 
+> ...but -next does not even boot for me at that commit.
 
-[1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
+What version of -next? There are a couple of patches probably needed 
+depending on which version you are trying to boot.
 
-[2] https://lkml.kernel.org/r/20180709080554.21931-1-jhubbard@nvidia.com
-    Proposed steps for fixing get_user_pages() + DMA problems.
+> Here is a warning signature that proceeds a hang with this patch
+> applied against v4.19-rc6:
+> 
+> percpu ref (blk_queue_usage_counter_release) <= 0 (-1530626) after
+> switching to atomic
+> WARNING: CPU: 24 PID: 7346 at lib/percpu-refcount.c:155
+> percpu_ref_switch_to_atomic_rcu+0x1f7/0x200
+> CPU: 24 PID: 7346 Comm: modprobe Tainted: G           OE     4.19.0-rc6+ #2458
+> [..]
+> RIP: 0010:percpu_ref_switch_to_atomic_rcu+0x1f7/0x200
+> [..]
+> Call Trace:
+>   <IRQ>
+>   ? percpu_ref_reinit+0x140/0x140
+>   rcu_process_callbacks+0x273/0x880
+>   __do_softirq+0xd2/0x428
+>   irq_exit+0xf6/0x100
+>   smp_apic_timer_interrupt+0xa2/0x220
+>   apic_timer_interrupt+0xf/0x20
+>   </IRQ>
+> RIP: 0010:lock_acquire+0xb8/0x1a0
+> [..]
+>   ? __put_page+0x55/0x150
+>   ? __put_page+0x55/0x150
+>   __put_page+0x83/0x150
+>   ? __put_page+0x55/0x150
+>   devm_memremap_pages_release+0x194/0x250
+>   release_nodes+0x17c/0x2c0
+>   device_release_driver_internal+0x1a2/0x250
+>   driver_detach+0x3a/0x70
+>   bus_remove_driver+0x58/0xd0
+>   __x64_sys_delete_module+0x13f/0x200
+>   ? trace_hardirqs_off_thunk+0x1a/0x1c
+>   do_syscall_64+0x60/0x210
+>   entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> 
 
-[3]https://lkml.kernel.org/r/20180710082100.mkdwngdv5kkrcz6n@quack2.suse.cz
-    Bounce buffers (otherwise [2] is not really viable).
-
-[4] https://lkml.kernel.org/r/20181003162115.GG24030@quack2.suse.cz
-    Follow-up discussions.
-
-CC: Doug Ledford <dledford@redhat.com>
-CC: Jason Gunthorpe <jgg@ziepe.ca>
-CC: Mike Marciniszyn <mike.marciniszyn@intel.com>
-CC: Dennis Dalessandro <dennis.dalessandro@intel.com>
-CC: Christian Benvenuti <benve@cisco.com>
-
-CC: linux-rdma@vger.kernel.org
-CC: linux-kernel@vger.kernel.org
-CC: linux-mm@kvack.org
-
-Reviewed-by: Jan Kara <jack@suse.cz>
-Reviewed-by: Dennis Dalessandro <dennis.dalessandro@intel.com>
-Acked-by: Jason Gunthorpe <jgg@mellanox.com>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
----
- drivers/infiniband/core/umem.c              |  7 ++++---
- drivers/infiniband/core/umem_odp.c          |  2 +-
- drivers/infiniband/hw/hfi1/user_pages.c     | 11 ++++-------
- drivers/infiniband/hw/mthca/mthca_memfree.c |  6 +++---
- drivers/infiniband/hw/qib/qib_user_pages.c  | 11 ++++-------
- drivers/infiniband/hw/qib/qib_user_sdma.c   |  8 ++++----
- drivers/infiniband/hw/usnic/usnic_uiom.c    |  7 ++++---
- 7 files changed, 24 insertions(+), 28 deletions(-)
-
-diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
-index a41792dbae1f..7ab7a3a35eb4 100644
---- a/drivers/infiniband/core/umem.c
-+++ b/drivers/infiniband/core/umem.c
-@@ -58,9 +58,10 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
- 	for_each_sg(umem->sg_head.sgl, sg, umem->npages, i) {
- 
- 		page = sg_page(sg);
--		if (!PageDirty(page) && umem->writable && dirty)
--			set_page_dirty_lock(page);
--		put_page(page);
-+		if (umem->writable && dirty)
-+			put_user_pages_dirty_lock(&page, 1);
-+		else
-+			put_user_page(page);
- 	}
- 
- 	sg_free_table(&umem->sg_head);
-diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c
-index 6ec748eccff7..6227b89cf05c 100644
---- a/drivers/infiniband/core/umem_odp.c
-+++ b/drivers/infiniband/core/umem_odp.c
-@@ -717,7 +717,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem *umem, u64 user_virt, u64 bcnt,
- 					ret = -EFAULT;
- 					break;
- 				}
--				put_page(local_page_list[j]);
-+				put_user_page(local_page_list[j]);
- 				continue;
- 			}
- 
-diff --git a/drivers/infiniband/hw/hfi1/user_pages.c b/drivers/infiniband/hw/hfi1/user_pages.c
-index e341e6dcc388..99ccc0483711 100644
---- a/drivers/infiniband/hw/hfi1/user_pages.c
-+++ b/drivers/infiniband/hw/hfi1/user_pages.c
-@@ -121,13 +121,10 @@ int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr, size_t np
- void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
- 			     size_t npages, bool dirty)
- {
--	size_t i;
--
--	for (i = 0; i < npages; i++) {
--		if (dirty)
--			set_page_dirty_lock(p[i]);
--		put_page(p[i]);
--	}
-+	if (dirty)
-+		put_user_pages_dirty_lock(p, npages);
-+	else
-+		put_user_pages(p, npages);
- 
- 	if (mm) { /* during close after signal, mm can be NULL */
- 		down_write(&mm->mmap_sem);
-diff --git a/drivers/infiniband/hw/mthca/mthca_memfree.c b/drivers/infiniband/hw/mthca/mthca_memfree.c
-index cc9c0c8ccba3..b8b12effd009 100644
---- a/drivers/infiniband/hw/mthca/mthca_memfree.c
-+++ b/drivers/infiniband/hw/mthca/mthca_memfree.c
-@@ -481,7 +481,7 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
- 
- 	ret = pci_map_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
- 	if (ret < 0) {
--		put_page(pages[0]);
-+		put_user_page(pages[0]);
- 		goto out;
- 	}
- 
-@@ -489,7 +489,7 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
- 				 mthca_uarc_virt(dev, uar, i));
- 	if (ret) {
- 		pci_unmap_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
--		put_page(sg_page(&db_tab->page[i].mem));
-+		put_user_page(sg_page(&db_tab->page[i].mem));
- 		goto out;
- 	}
- 
-@@ -555,7 +555,7 @@ void mthca_cleanup_user_db_tab(struct mthca_dev *dev, struct mthca_uar *uar,
- 		if (db_tab->page[i].uvirt) {
- 			mthca_UNMAP_ICM(dev, mthca_uarc_virt(dev, uar, i), 1);
- 			pci_unmap_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
--			put_page(sg_page(&db_tab->page[i].mem));
-+			put_user_page(sg_page(&db_tab->page[i].mem));
- 		}
- 	}
- 
-diff --git a/drivers/infiniband/hw/qib/qib_user_pages.c b/drivers/infiniband/hw/qib/qib_user_pages.c
-index 16543d5e80c3..1a5c64c8695f 100644
---- a/drivers/infiniband/hw/qib/qib_user_pages.c
-+++ b/drivers/infiniband/hw/qib/qib_user_pages.c
-@@ -40,13 +40,10 @@
- static void __qib_release_user_pages(struct page **p, size_t num_pages,
- 				     int dirty)
- {
--	size_t i;
--
--	for (i = 0; i < num_pages; i++) {
--		if (dirty)
--			set_page_dirty_lock(p[i]);
--		put_page(p[i]);
--	}
-+	if (dirty)
-+		put_user_pages_dirty_lock(p, num_pages);
-+	else
-+		put_user_pages(p, num_pages);
- }
- 
- /*
-diff --git a/drivers/infiniband/hw/qib/qib_user_sdma.c b/drivers/infiniband/hw/qib/qib_user_sdma.c
-index 926f3c8eba69..14f94d823907 100644
---- a/drivers/infiniband/hw/qib/qib_user_sdma.c
-+++ b/drivers/infiniband/hw/qib/qib_user_sdma.c
-@@ -266,7 +266,7 @@ static void qib_user_sdma_init_frag(struct qib_user_sdma_pkt *pkt,
- 	pkt->addr[i].length = len;
- 	pkt->addr[i].first_desc = first_desc;
- 	pkt->addr[i].last_desc = last_desc;
--	pkt->addr[i].put_page = put_page;
-+	pkt->addr[i].put_page = put_user_page;
- 	pkt->addr[i].dma_mapped = dma_mapped;
- 	pkt->addr[i].page = page;
- 	pkt->addr[i].kvaddr = kvaddr;
-@@ -321,7 +321,7 @@ static int qib_user_sdma_page_to_frags(const struct qib_devdata *dd,
- 		 * the caller can ignore this page.
- 		 */
- 		if (put) {
--			put_page(page);
-+			put_user_page(page);
- 		} else {
- 			/* coalesce case */
- 			kunmap(page);
-@@ -635,7 +635,7 @@ static void qib_user_sdma_free_pkt_frag(struct device *dev,
- 			kunmap(pkt->addr[i].page);
- 
- 		if (pkt->addr[i].put_page)
--			put_page(pkt->addr[i].page);
-+			put_user_page(pkt->addr[i].page);
- 		else
- 			__free_page(pkt->addr[i].page);
- 	} else if (pkt->addr[i].kvaddr) {
-@@ -710,7 +710,7 @@ static int qib_user_sdma_pin_pages(const struct qib_devdata *dd,
- 	/* if error, return all pages not managed by pkt */
- free_pages:
- 	while (i < j)
--		put_page(pages[i++]);
-+		put_user_page(pages[i++]);
- 
- done:
- 	return ret;
-diff --git a/drivers/infiniband/hw/usnic/usnic_uiom.c b/drivers/infiniband/hw/usnic/usnic_uiom.c
-index 9dd39daa602b..9e3615fd05f7 100644
---- a/drivers/infiniband/hw/usnic/usnic_uiom.c
-+++ b/drivers/infiniband/hw/usnic/usnic_uiom.c
-@@ -89,9 +89,10 @@ static void usnic_uiom_put_pages(struct list_head *chunk_list, int dirty)
- 		for_each_sg(chunk->page_list, sg, chunk->nents, i) {
- 			page = sg_page(sg);
- 			pa = sg_phys(sg);
--			if (!PageDirty(page) && dirty)
--				set_page_dirty_lock(page);
--			put_page(page);
-+			if (dirty)
-+				put_user_pages_dirty_lock(&page, 1);
-+			else
-+				put_user_page(page);
- 			usnic_dbg("pa: %pa\n", &pa);
- 		}
- 		kfree(chunk);
--- 
-2.19.0
+So it looks like we are tearing down memory when this is triggered. Do 
+we know if this is at the end of the test or if this is running in 
+parallel with anything?
