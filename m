@@ -1,47 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 350EF6B000A
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 13:01:53 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id m25-v6so4982587edp.12
-        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 10:01:53 -0700 (PDT)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id y16si2390450edw.172.2018.10.08.10.01.51
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 06F5C6B0003
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 14:33:27 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id s24-v6so17944174plp.12
+        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 11:33:26 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id g187-v6si17015877pgc.151.2018.10.08.11.33.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 08 Oct 2018 10:01:51 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 2E31B98AC0
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 17:01:51 +0000 (UTC)
-Date: Mon, 8 Oct 2018 18:01:49 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm,numa: Remove remaining traces of rate-limiting.
-Message-ID: <20181008170149.GB5819@techsingularity.net>
-References: <1538824999-31230-1-git-send-email-srikar@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Oct 2018 11:33:25 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.4 004/113] x86/numa_emulation: Fix emulated-to-physical node mapping
+Date: Mon,  8 Oct 2018 20:30:05 +0200
+Message-Id: <20181008175531.076044994@linuxfoundation.org>
+In-Reply-To: <20181008175530.864641368@linuxfoundation.org>
+References: <20181008175530.864641368@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1538824999-31230-1-git-send-email-srikar@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@surriel.com>, Thomas Gleixner <tglx@linutronix.de>, Linux-MM <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Sasha Levin <alexander.levin@microsoft.com>
 
-On Sat, Oct 06, 2018 at 04:53:19PM +0530, Srikar Dronamraju wrote:
-> With Commit efaffc5e40ae ("mm, sched/numa: Remove rate-limiting of automatic
-> NUMA balancing migration"), we no more require migrate lock and its
-> initialization. Its redundant. Hence remove it.
-> 
-> Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+4.4-stable review patch.  If anyone has any objections, please let me know.
 
-Hi Ingo, 
+------------------
 
-Can this be sent with the rest of the patches that got merged for 4.19-rc7
-so they are more or less together? It's functionally harmless to delay
-until the 4.20 merge window but it's a bit untidy. The mistake was mine
-switching between a backport and mainline versions of the original patch.
+From: Dan Williams <dan.j.williams@intel.com>
 
-Thanks
+[ Upstream commit 3b6c62f363a19ce82bf378187ab97c9dc01e3927 ]
 
--- 
-Mel Gorman
-SUSE Labs
+Without this change the distance table calculation for emulated nodes
+may use the wrong numa node and report an incorrect distance.
+
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Wei Yang <richard.weiyang@gmail.com>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/153089328103.27680.14778434392225818887.stgit@dwillia2-desk3.amr.corp.intel.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+---
+ arch/x86/mm/numa_emulation.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/arch/x86/mm/numa_emulation.c
++++ b/arch/x86/mm/numa_emulation.c
+@@ -60,7 +60,7 @@ static int __init emu_setup_memblk(struc
+ 	eb->nid = nid;
+ 
+ 	if (emu_nid_to_phys[nid] == NUMA_NO_NODE)
+-		emu_nid_to_phys[nid] = nid;
++		emu_nid_to_phys[nid] = pb->nid;
+ 
+ 	pb->start += size;
+ 	if (pb->start >= pb->end) {
