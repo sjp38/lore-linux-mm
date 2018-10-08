@@ -1,67 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9ED576B0007
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 12:49:37 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id 84-v6so11231514pgc.13
-        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 09:49:37 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f23-v6si3903151pfn.85.2018.10.08.09.49.36
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 350EF6B000A
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 13:01:53 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id m25-v6so4982587edp.12
+        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 10:01:53 -0700 (PDT)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id y16si2390450edw.172.2018.10.08.10.01.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Oct 2018 09:49:36 -0700 (PDT)
-Date: Mon, 8 Oct 2018 18:49:34 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v3 3/3] infiniband/mm: convert put_page() to
- put_user_page*()
-Message-ID: <20181008164934.GB11150@quack2.suse.cz>
-References: <20181006024949.20691-1-jhubbard@nvidia.com>
- <20181006024949.20691-4-jhubbard@nvidia.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 08 Oct 2018 10:01:51 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 2E31B98AC0
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 17:01:51 +0000 (UTC)
+Date: Mon, 8 Oct 2018 18:01:49 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm,numa: Remove remaining traces of rate-limiting.
+Message-ID: <20181008170149.GB5819@techsingularity.net>
+References: <1538824999-31230-1-git-send-email-srikar@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20181006024949.20691-4-jhubbard@nvidia.com>
+In-Reply-To: <1538824999-31230-1-git-send-email-srikar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john.hubbard@gmail.com
-Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Doug Ledford <dledford@redhat.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Christian Benvenuti <benve@cisco.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@surriel.com>, Thomas Gleixner <tglx@linutronix.de>, Linux-MM <linux-mm@kvack.org>
 
-On Fri 05-10-18 19:49:49, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
+On Sat, Oct 06, 2018 at 04:53:19PM +0530, Srikar Dronamraju wrote:
+> With Commit efaffc5e40ae ("mm, sched/numa: Remove rate-limiting of automatic
+> NUMA balancing migration"), we no more require migrate lock and its
+> initialization. Its redundant. Hence remove it.
 > 
-> For code that retains pages via get_user_pages*(),
-> release those pages via the new put_user_page(), or
-> put_user_pages*(), instead of put_page()
-> 
-> This prepares for eventually fixing the problem described
-> in [1], and is following a plan listed in [2], [3], [4].
-> 
-> [1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
-> 
-> [2] https://lkml.kernel.org/r/20180709080554.21931-1-jhubbard@nvidia.com
->     Proposed steps for fixing get_user_pages() + DMA problems.
-> 
-> [3]https://lkml.kernel.org/r/20180710082100.mkdwngdv5kkrcz6n@quack2.suse.cz
->     Bounce buffers (otherwise [2] is not really viable).
-> 
-> [4] https://lkml.kernel.org/r/20181003162115.GG24030@quack2.suse.cz
->     Follow-up discussions.
-> 
-> CC: Doug Ledford <dledford@redhat.com>
-> CC: Jason Gunthorpe <jgg@ziepe.ca>
-> CC: Mike Marciniszyn <mike.marciniszyn@intel.com>
-> CC: Dennis Dalessandro <dennis.dalessandro@intel.com>
-> CC: Christian Benvenuti <benve@cisco.com>
-> 
-> CC: linux-rdma@vger.kernel.org
-> CC: linux-kernel@vger.kernel.org
-> CC: linux-mm@kvack.org
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 
-Looks good to me. You can add:
+Hi Ingo, 
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+Can this be sent with the rest of the patches that got merged for 4.19-rc7
+so they are more or less together? It's functionally harmless to delay
+until the 4.20 merge window but it's a bit untidy. The mistake was mine
+switching between a backport and mainline versions of the original patch.
 
-								Honza
+Thanks
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Mel Gorman
+SUSE Labs
