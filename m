@@ -1,67 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C6B96B000D
-	for <linux-mm@kvack.org>; Sun,  7 Oct 2018 19:39:17 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id x5-v6so5288279ywd.19
-        for <linux-mm@kvack.org>; Sun, 07 Oct 2018 16:39:17 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id p67-v6si3733213ybp.473.2018.10.07.16.39.15
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DA5796B0007
+	for <linux-mm@kvack.org>; Sun,  7 Oct 2018 20:47:31 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id d1-v6so8994950qkb.11
+        for <linux-mm@kvack.org>; Sun, 07 Oct 2018 17:47:31 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c14-v6si1855819qkc.297.2018.10.07.17.47.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 07 Oct 2018 16:39:16 -0700 (PDT)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH RFC 0/1] hugetlbfs: fix truncate/fault races
-Date: Sun,  7 Oct 2018 16:38:47 -0700
-Message-Id: <20181007233848.13397-1-mike.kravetz@oracle.com>
+        Sun, 07 Oct 2018 17:47:30 -0700 (PDT)
+Date: Sun, 7 Oct 2018 19:47:26 -0500
+From: Clark Williams <williams@redhat.com>
+Subject: Re: [PATCH] kasan: convert kasan/quarantine_lock to raw_spinlock
+Message-ID: <20181007194726.78d8464f@tagon>
+In-Reply-To: <20181005163320.zkacovxvlih6blpp@linutronix.de>
+References: <20180918152931.17322-1-williams@redhat.com>
+	<20181005163018.icbknlzymwjhdehi@linutronix.de>
+	<20181005163320.zkacovxvlih6blpp@linutronix.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-rt-users@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
 
-Our DB team noticed negative hugetlb reserved page counts during development
-testing.  Related meminfo fields were as follows on one system:
+I applied this patch to a fairly stock 4.18-rt5 kernel and booted with no c=
+omplaints, then
+ran rteval for 12h with no stack splats reported. I'll keep banging on it b=
+ut preliminary
+reports look good.=20
 
-HugePages_Total:   47143
-HugePages_Free:    45610
-HugePages_Rsvd:    18446744073709551613
-HugePages_Surp:        0
-Hugepagesize:       2048 kB 
+Clark
 
-Code inspection revealed that the most likely cause were races with truncate
-and page faults.  In fact, I could write a not too complicated program to
-cause the races and recreate the issue.
+On Fri, 5 Oct 2018 18:33:20 +0200
+Sebastian Andrzej Siewior <bigeasy@linutronix.de> wrote:
 
-Way back in 2006, Hugh Dickins created a patch (ebed4bfc8da8) with this
-message:
+> On 2018-10-05 18:30:18 [+0200], To Clark Williams wrote:
+> > This is the minimum to get this working on RT splat free. There is one
+> > memory deallocation with irqs off which should work on RT in its current
+> > way.
+> > Once this and the on_each_cpu() invocation, I was wondering if=E2=80=A6=
+ =20
+>=20
+> the patch at the bottom wouldn't work just fine for everyone.
+> It would have the beaty of annotating the locking scope a little and
+> avoiding the on_each_cpu() invocation. No local_irq_save() but actually
+> the proper locking primitives.
+> I haven't fully decoded the srcu part in the code.
+>=20
+> Wouldn't that work for you?
+>=20
+> Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+> ---
+>  mm/kasan/quarantine.c | 45 +++++++++++++++++++++++++------------------
+>  1 file changed, 26 insertions(+), 19 deletions(-)
+>=20
+> diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
+> index 3a8ddf8baf7dc..8ed595960e3c1 100644
+> --- a/mm/kasan/quarantine.c
+> +++ b/mm/kasan/quarantine.c
+> @@ -39,12 +39,13 @@
+>   * objects inside of it.
+>   */
+>  struct qlist_head {
+> +	spinlock_t	lock;
+>  	struct qlist_node *head;
+>  	struct qlist_node *tail;
+>  	size_t bytes;
+>  };
+> =20
+> -#define QLIST_INIT { NULL, NULL, 0 }
+> +#define QLIST_INIT {.head =3D NULL, .tail =3D NULL, .bytes =3D 0 }
+> =20
+>  static bool qlist_empty(struct qlist_head *q)
+>  {
+> @@ -95,7 +96,9 @@ static void qlist_move_all(struct qlist_head *from, str=
+uct qlist_head *to)
+>   * The object quarantine consists of per-cpu queues and a global queue,
+>   * guarded by quarantine_lock.
+>   */
+> -static DEFINE_PER_CPU(struct qlist_head, cpu_quarantine);
+> +static DEFINE_PER_CPU(struct qlist_head, cpu_quarantine) =3D {
+> +	.lock =3D __SPIN_LOCK_UNLOCKED(cpu_quarantine.lock),
+> +};
+> =20
+>  /* Round-robin FIFO array of batches. */
+>  static struct qlist_head global_quarantine[QUARANTINE_BATCHES];
+> @@ -183,12 +186,13 @@ void quarantine_put(struct kasan_free_meta *info, s=
+truct kmem_cache *cache)
+>  	 * beginning which ensures that it either sees the objects in per-cpu
+>  	 * lists or in the global quarantine.
+>  	 */
+> -	local_irq_save(flags);
+> +	q =3D raw_cpu_ptr(&cpu_quarantine);
+> +	spin_lock_irqsave(&q->lock, flags);
+> =20
+> -	q =3D this_cpu_ptr(&cpu_quarantine);
+>  	qlist_put(q, &info->quarantine_link, cache->size);
+>  	if (unlikely(q->bytes > QUARANTINE_PERCPU_SIZE)) {
+>  		qlist_move_all(q, &temp);
+> +		spin_unlock(&q->lock);
+> =20
+>  		spin_lock(&quarantine_lock);
+>  		WRITE_ONCE(quarantine_size, quarantine_size + temp.bytes);
+> @@ -203,10 +207,10 @@ void quarantine_put(struct kasan_free_meta *info, s=
+truct kmem_cache *cache)
+>  			if (new_tail !=3D quarantine_head)
+>  				quarantine_tail =3D new_tail;
+>  		}
+> -		spin_unlock(&quarantine_lock);
+> +		spin_unlock_irqrestore(&quarantine_lock, flags);
+> +	} else {
+> +		spin_unlock_irqrestore(&q->lock, flags);
+>  	}
+> -
+> -	local_irq_restore(flags);
+>  }
+> =20
+>  void quarantine_reduce(void)
+> @@ -284,21 +288,11 @@ static void qlist_move_cache(struct qlist_head *fro=
+m,
+>  	}
+>  }
+> =20
+> -static void per_cpu_remove_cache(void *arg)
+> -{
+> -	struct kmem_cache *cache =3D arg;
+> -	struct qlist_head to_free =3D QLIST_INIT;
+> -	struct qlist_head *q;
+> -
+> -	q =3D this_cpu_ptr(&cpu_quarantine);
+> -	qlist_move_cache(q, &to_free, cache);
+> -	qlist_free_all(&to_free, cache);
+> -}
+> -
+>  /* Free all quarantined objects belonging to cache. */
+>  void quarantine_remove_cache(struct kmem_cache *cache)
+>  {
+>  	unsigned long flags, i;
+> +	unsigned int cpu;
+>  	struct qlist_head to_free =3D QLIST_INIT;
+> =20
+>  	/*
+> @@ -308,7 +302,20 @@ void quarantine_remove_cache(struct kmem_cache *cach=
+e)
+>  	 * achieves the first goal, while synchronize_srcu() achieves the
+>  	 * second.
+>  	 */
+> -	on_each_cpu(per_cpu_remove_cache, cache, 1);
+> +	/* get_online_cpus() invoked by caller */
+> +	for_each_online_cpu(cpu) {
+> +		struct qlist_head *q;
+> +		unsigned long flags;
+> +		struct qlist_head to_free =3D QLIST_INIT;
+> +
+> +		q =3D per_cpu_ptr(&cpu_quarantine, cpu);
+> +		spin_lock_irqsave(&q->lock, flags);
+> +		qlist_move_cache(q, &to_free, cache);
+> +		spin_unlock_irqrestore(&q->lock, flags);
+> +
+> +		qlist_free_all(&to_free, cache);
+> +
+> +	}
+> =20
+>  	spin_lock_irqsave(&quarantine_lock, flags);
+>  	for (i =3D 0; i < QUARANTINE_BATCHES; i++) {
+> --=20
+> 2.19.0
+>=20
 
-"[PATCH] hugetlb: fix absurd HugePages_Rsvd
-    
- If you truncated an mmap'ed hugetlbfs file, then faulted on the truncated
- area, /proc/meminfo's HugePages_Rsvd wrapped hugely "negative".  Reinstate my
- preliminary i_size check before attempting to allocate the page (though this
- only fixes the most obvious case: more work will be needed here)."
 
-Looks like we need to do more work.
-
-While looking at the code, there were many issues to correctly handle racing
-and back out changes partially made.  Instead, why not just introduce a
-rw mutex to prevent the races.  Page faults would take the mutex in read mode
-to allow multiple faults in parallel as it works today.  Truncate code would
-take the mutex in write mode and prevent faults for the duration of truncate
-processing.  This seems almost too obvious.  Something must be wrong with this
-approach, or others would have employed it earlier.
-
-The following patch describes the current race in detail and adds the mutex
-to prevent truncate/fault races.
-
-Mike Kravetz (1):
-  hugetlbfs: introduce truncation/fault mutex to avoid races
-
- fs/hugetlbfs/inode.c    | 24 ++++++++++++++++++++----
- include/linux/hugetlb.h |  1 +
- mm/hugetlb.c            | 25 +++++++++++++++++++------
- mm/userfaultfd.c        |  8 +++++++-
- 4 files changed, 47 insertions(+), 11 deletions(-)
-
--- 
-2.17.1
+--=20
+The United States Coast Guard
+Ruining Natural Selection since 1790
