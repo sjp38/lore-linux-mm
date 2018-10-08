@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B81026B0005
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 18:07:44 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id b7-v6so11939689pgt.10
-        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 15:07:44 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id y34-v6si18803638pgk.479.2018.10.08.15.07.43
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 199D76B0006
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 18:37:07 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id c4-v6so18538830plz.20
+        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 15:37:07 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id m66-v6si13120274pfm.191.2018.10.08.15.37.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Oct 2018 15:07:43 -0700 (PDT)
+        Mon, 08 Oct 2018 15:37:05 -0700 (PDT)
 Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
  point where we init pgmap
 References: <20180925200551.3576.18755.stgit@localhost.localdomain>
@@ -17,8 +17,8 @@ References: <20180925200551.3576.18755.stgit@localhost.localdomain>
  <379e1d22-4194-6744-9e80-897b6ba126e9@linux.intel.com>
  <CAPcyv4i_x4NO2_qsfgwsgii9zmjZ43gJW6OCLpf=CweztRtZZw@mail.gmail.com>
 From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Message-ID: <cdb5524c-371f-17b0-4804-52f237074f58@linux.intel.com>
-Date: Mon, 8 Oct 2018 15:07:42 -0700
+Message-ID: <95de811f-ad44-c96d-3914-5625933d5e88@linux.intel.com>
+Date: Mon, 8 Oct 2018 15:36:58 -0700
 MIME-Version: 1.0
 In-Reply-To: <CAPcyv4i_x4NO2_qsfgwsgii9zmjZ43gJW6OCLpf=CweztRtZZw@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
@@ -139,10 +139,11 @@ On 10/8/2018 3:00 PM, Dan Williams wrote:
 > performing a series of namespace setup and teardown events.
 > 
 > Wait, where did the call to "percpu_ref_get()" go? I think that's the bug.
+> 
 
-Actually I think you are probably right. Do you want to get that or 
-should I. Should be a quick patch since you could probably just add a 
-call to percpu_ref_get_many to hold a reference for each page in the 
-range of device pages before calling memmap_init_zone_device.
+I have a reproduction on my system now as well. I should have a patch 
+ready to go for it in the next hour or so.
+
+Thanks.
 
 - Alex
