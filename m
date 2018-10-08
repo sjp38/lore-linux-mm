@@ -1,62 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 06F5C6B0003
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 14:33:27 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id s24-v6so17944174plp.12
-        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 11:33:26 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id g187-v6si17015877pgc.151.2018.10.08.11.33.25
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 360416B0003
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 15:37:26 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id y131-v6so6770445wmd.5
+        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 12:37:26 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id b11-v6si8595951wmf.161.2018.10.08.12.37.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Oct 2018 11:33:25 -0700 (PDT)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.4 004/113] x86/numa_emulation: Fix emulated-to-physical node mapping
-Date: Mon,  8 Oct 2018 20:30:05 +0200
-Message-Id: <20181008175531.076044994@linuxfoundation.org>
-In-Reply-To: <20181008175530.864641368@linuxfoundation.org>
-References: <20181008175530.864641368@linuxfoundation.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 08 Oct 2018 12:37:24 -0700 (PDT)
+Date: Mon, 8 Oct 2018 21:37:13 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: x86/mm: Found insecure W+X mapping at address
+ (ptrval)/0xc00a0000
+In-Reply-To: <74dededa-3754-058b-2291-a349b9f3673e@molgen.mpg.de>
+Message-ID: <alpine.DEB.2.21.1810082108570.2455@nanos.tec.linutronix.de>
+References: <e75fa739-4bcc-dc30-2606-25d2539d2653@molgen.mpg.de> <alpine.DEB.2.21.1809191004580.1468@nanos.tec.linutronix.de> <0922cc1b-ed51-06e9-df81-57fd5aa8e7de@molgen.mpg.de> <alpine.DEB.2.21.1809210045220.1434@nanos.tec.linutronix.de>
+ <c8da5778-3957-2fab-69ea-42f872a5e396@molgen.mpg.de> <alpine.DEB.2.21.1809281653270.2004@nanos.tec.linutronix.de> <20181003212255.GB28361@zn.tnic> <20181004080321.GA3630@8bytes.org> <alpine.DEB.2.21.1810051124320.3960@nanos.tec.linutronix.de>
+ <74dededa-3754-058b-2291-a349b9f3673e@molgen.mpg.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Sasha Levin <alexander.levin@microsoft.com>
+To: Paul Menzel <pmenzel@molgen.mpg.de>
+Cc: =?ISO-8859-15?Q?J=F6rg_R=F6del?= <joro@8bytes.org>, Borislav Petkov <bp@alien8.de>, linux-mm@kvack.org, x86@kernel.org, lkml <linux-kernel@vger.kernel.org>, Bjorn Helgaas <bhelgaas@google.com>
 
-4.4-stable review patch.  If anyone has any objections, please let me know.
+Paul,
 
-------------------
+On Fri, 5 Oct 2018, Paul Menzel wrote:
+> On 10/05/18 11:27, Thomas Gleixner wrote:
+> > If pcibios is enabled and used, need to look at the gory details of that
+> > first, then the W+X check has to exclude that region. We can't do much
+> > about that.
+> 
+> That would also explain, why it only happens with the SeaBIOS payload,
+> which sets up legacy BIOS calls. Using GRUB directly as payload, no BIOS
+> calls are set up.
+> 
+> Reading the Kconfig description of the PCI access mode, the BIOS should
+> only be used last.
 
-From: Dan Williams <dan.j.williams@intel.com>
+Correct. And looking at the dmesg you provided it is initialized:
 
-[ Upstream commit 3b6c62f363a19ce82bf378187ab97c9dc01e3927 ]
+[    0.441062] PCI: PCI BIOS area is rw and x. Use pci=nobios if you want it NX.
+[    0.441062] PCI: PCI BIOS revision 2.10 entry at 0xffa40, last bus=3
 
-Without this change the distance table calculation for emulated nodes
-may use the wrong numa node and report an incorrect distance.
+Though I assume it's not really required, but this PCI BIOS thing is not
+really well documented and there are some obsure usage sites involved.
 
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Wei Yang <richard.weiyang@gmail.com>
-Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/153089328103.27680.14778434392225818887.stgit@dwillia2-desk3.amr.corp.intel.com
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
----
- arch/x86/mm/numa_emulation.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Bjorn, do you have any insight or did you flush those memories long ago?
 
---- a/arch/x86/mm/numa_emulation.c
-+++ b/arch/x86/mm/numa_emulation.c
-@@ -60,7 +60,7 @@ static int __init emu_setup_memblk(struc
- 	eb->nid = nid;
- 
- 	if (emu_nid_to_phys[nid] == NUMA_NO_NODE)
--		emu_nid_to_phys[nid] = nid;
-+		emu_nid_to_phys[nid] = pb->nid;
- 
- 	pb->start += size;
- 	if (pb->start >= pb->end) {
+Anyway we need to exclude the BIOS area when the kernel sets the W+X on
+purpose. Warning about that is bogus. I'll send out a patch soon.
+
+Thanks,
+
+	tglx
