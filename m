@@ -1,83 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D6F586B0006
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 04:33:28 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id x44-v6so795633edd.17
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 01:33:28 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 11EE06B0003
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 05:29:44 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id h24-v6so888476eda.10
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 02:29:44 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ci1-v6si41646ejb.48.2018.10.09.01.33.27
+        by mx.google.com with ESMTPS id t19-v6si3306847edq.195.2018.10.09.02.29.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 01:33:27 -0700 (PDT)
-Date: Tue, 9 Oct 2018 10:33:26 +0200
+        Tue, 09 Oct 2018 02:29:42 -0700 (PDT)
+Date: Tue, 9 Oct 2018 11:29:38 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, proc: report PR_SET_THP_DISABLE in proc
-Message-ID: <20181009083326.GG8528@dhcp22.suse.cz>
-References: <20180925150406.872aab9f4f945193e5915d69@linux-foundation.org>
- <20180926060624.GA18685@dhcp22.suse.cz>
- <20181002112851.GP18290@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810021329260.87409@chino.kir.corp.google.com>
- <20181003073640.GF18290@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810031547150.202532@chino.kir.corp.google.com>
- <20181004055842.GA22173@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810040209130.113459@chino.kir.corp.google.com>
- <20181004094637.GG22173@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810041130380.12951@chino.kir.corp.google.com>
+Subject: Re: [PATCH v5 1/2] memory_hotplug: Free pages as higher order
+Message-ID: <20181009092938.GH8528@dhcp22.suse.cz>
+References: <1538727006-5727-1-git-send-email-arunks@codeaurora.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1810041130380.12951@chino.kir.corp.google.com>
+In-Reply-To: <1538727006-5727-1-git-send-email-arunks@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Arun KS <arunks@codeaurora.org>
+Cc: kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, akpm@linux-foundation.org, dan.j.williams@intel.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, gregkh@linuxfoundation.org, osalvador@suse.de, malat@debian.org, kirill.shutemov@linux.intel.com, jrdr.linux@gmail.com, yasu.isimatu@gmail.com, mgorman@techsingularity.net, aaron.lu@intel.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com
 
-On Thu 04-10-18 11:34:11, David Rientjes wrote:
-> On Thu, 4 Oct 2018, Michal Hocko wrote:
-> 
-> > > And prior to the offending commit, there were three ways to control thp 
-> > > but two ways to determine if a mapping was eligible for thp based on the 
-> > > implementation detail of one of those ways.
-> > 
-> > Yes, it is really unfortunate that we have ever allowed to leak such an
-> > internal stuff like VMA flags to userspace.
-> > 
-> 
-> Right, I don't like userspace dependencies on VmFlags in smaps myself, but 
-> it's the only way we have available that shows whether a single mapping is 
-> eligible to be backed by thp :/
+On Fri 05-10-18 13:40:05, Arun KS wrote:
+> When free pages are done with higher order, time spend on
+> coalescing pages by buddy allocator can be reduced. With
+> section size of 256MB, hot add latency of a single section
+> shows improvement from 50-60 ms to less than 1 ms, hence
+> improving the hot add latency by 60%. Modify external
+> providers of online callback to align with the change.
 
-Which is not the case due to reasons mentioned earlier. It only speaks
-about madvise status on the VMA.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-> > > If there are three ways to 
-> > > control thp, userspace is still in the dark wrt which takes precedence 
-> > > over the other: we have PR_SET_THP_DISABLE but globally sysfs has it set 
-> > > to "always", or we have MADV_HUGEPAGE set per smaps but PR_SET_THP_DISABLE 
-> > > shown in /proc/pid/status, etc.
-> > > 
-> > > Which one is the ultimate authority?
-> > 
-> > Isn't our documentation good enough? If not then we should document it
-> > properly.
-> > 
-> 
-> No, because the offending commit actually changed the precedence itself: 
-> PR_SET_THP_DISABLE used to be honored for future mappings and the commit 
-> changed that for all current mappings.
-
-Which is the actual and the full point of the fix as described in the
-changelog. The original implementation was poor and inconsistent.
-
-> So as a result of the commit 
-> itself we would have had to change the documentation and userspace can't 
-> be expected to keep up with yet a fourth variable: kernel version.  It 
-> really needs to be simpler, just a per-mapping specifier.
-
-As I've said, if you really need a per-vma granularity then make it a
-dedicated line in the output with a clear semantic. Do not make VMA
-flags even more confusing.
-
+Thanks for your patience with all the resubmission.
 -- 
 Michal Hocko
 SUSE Labs
