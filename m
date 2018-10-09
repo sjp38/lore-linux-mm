@@ -1,83 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A8B16B000A
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 19:03:55 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id p73-v6so3164329qkp.2
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 16:03:55 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g4-v6si543014qvk.217.2018.10.09.16.03.54
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 40E8C6B000D
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 19:04:52 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id y7-v6so2565403plp.16
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 16:04:52 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m6-v6sor16633045pgp.6.2018.10.09.16.04.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 16:03:54 -0700 (PDT)
-Date: Tue, 9 Oct 2018 19:03:52 -0400
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
- mappings
-Message-ID: <20181009230352.GE9307@redhat.com>
-References: <20180925120326.24392-2-mhocko@kernel.org>
- <alpine.DEB.2.21.1810041302330.16935@chino.kir.corp.google.com>
- <20181005073854.GB6931@suse.de>
- <alpine.DEB.2.21.1810051320270.202739@chino.kir.corp.google.com>
- <20181005232155.GA2298@redhat.com>
- <alpine.DEB.2.21.1810081303060.221006@chino.kir.corp.google.com>
- <20181009094825.GC6931@suse.de>
- <20181009122745.GN8528@dhcp22.suse.cz>
- <20181009130034.GD6931@suse.de>
- <20181009142510.GU8528@dhcp22.suse.cz>
+        (Google Transport Security);
+        Tue, 09 Oct 2018 16:04:50 -0700 (PDT)
+Date: Tue, 9 Oct 2018 16:04:47 -0700
+From: Joel Fernandes <joel@joelfernandes.org>
+Subject: Re: [PATCH] mm: Speed up mremap on large regions
+Message-ID: <20181009230447.GA17911@joelaf.mtv.corp.google.com>
+References: <20181009201400.168705-1-joel@joelfernandes.org>
+ <20181009220222.26nzajhpsbt7syvv@kshutemo-mobl1>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181009142510.GU8528@dhcp22.suse.cz>
+In-Reply-To: <20181009220222.26nzajhpsbt7syvv@kshutemo-mobl1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@android.com, minchan@google.com, hughd@google.com, lokeshgidra@google.com, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue, Oct 09, 2018 at 04:25:10PM +0200, Michal Hocko wrote:
-> On Tue 09-10-18 14:00:34, Mel Gorman wrote:
-> > On Tue, Oct 09, 2018 at 02:27:45PM +0200, Michal Hocko wrote:
-> > > [Sorry for being slow in responding but I was mostly offline last few
-> > >  days]
-> > > 
-> > > On Tue 09-10-18 10:48:25, Mel Gorman wrote:
-> > > [...]
-> > > > This goes back to my point that the MADV_HUGEPAGE hint should not make
-> > > > promises about locality and that introducing MADV_LOCAL for specialised
-> > > > libraries may be more appropriate with the initial semantic being how it
-> > > > treats MADV_HUGEPAGE regions.
-> > > 
-> > > I agree with your other points and not going to repeat them. I am not
-> > > sure madvise s the best API for the purpose though. We are talking about
-> > > memory policy here and there is an existing api for that so I would
-> > > _prefer_ to reuse it for this purpose.
-> > > 
+On Wed, Oct 10, 2018 at 01:02:22AM +0300, Kirill A. Shutemov wrote:
+> On Tue, Oct 09, 2018 at 01:14:00PM -0700, Joel Fernandes (Google) wrote:
+> > Android needs to mremap large regions of memory during memory management
+> > related operations. The mremap system call can be really slow if THP is
+> > not enabled. The bottleneck is move_page_tables, which is copying each
+> > pte at a time, and can be really slow across a large map. Turning on THP
+> > may not be a viable option, and is not for us. This patch speeds up the
+> > performance for non-THP system by copying at the PMD level when possible.
 > > 
-> > I flip-flopped on that one in my head multiple times on the basis of
-> > how strict it should be. Memory policies tend to be black or white --
-> > bind here, interleave there, etc. It wasn't clear to me what the best
-> > policy would be to describe "allocate local as best as you can but allow
-> > fallbacks if necessary".
+> > The speed up is three orders of magnitude. On a 1GB mremap, the mremap
+> > completion times drops from 160-250 millesconds to 380-400 microseconds.
+> > 
+> > Before:
+> > Total mremap time for 1GB data: 242321014 nanoseconds.
+> > Total mremap time for 1GB data: 196842467 nanoseconds.
+> > Total mremap time for 1GB data: 167051162 nanoseconds.
+> > 
+> > After:
+> > Total mremap time for 1GB data: 385781 nanoseconds.
+> > Total mremap time for 1GB data: 388959 nanoseconds.
+> > Total mremap time for 1GB data: 402813 nanoseconds.
+> > 
+> > Incase THP is enabled, the optimization is skipped. I also flush the
+> > tlb every time we do this optimization since I couldn't find a way to
+> > determine if the low-level PTEs are dirty. It is seen that the cost of
+> > doing so is not much compared the improvement, on both x86-64 and arm64.
+> 
+> Okay. That's interesting.
+> 
+> It makes me wounder why do we pass virtual address to pte_alloc() (and
+> pte_alloc_one() inside).
+> 
+> If an arch has real requirement to tight a page table to a virtual address
+> than the optimization cannot be used as it is. Per-arch should be fine
+> for this case, I guess.
+> 
+> If nobody uses the address we should just drop the argument as a
+> preparation to the patch.
 
-MPOL_PREFERRED is not black and white. In fact I asked David earlier
-if MPOL_PREFERRED could check if it would already be a good fit for
-this. Still the point is it requires privilege (and for a good
-reason).
+I couldn't find any use of the address. But I am wondering why you feel
+passing the address is something that can't be done with the optimization.
+The pte_alloc only happens if the optimization is not triggered.
 
-> I was thinking about MPOL_NODE_PROXIMITY with the following semantic:
-> - try hard to allocate from a local or very close numa node(s) even when
-> that requires expensive operations like the memory reclaim/compaction
-> before falling back to other more distant numa nodes.
+Also the clean up of the argument that you're proposing is a bit out of scope
+of this patch but yeah we could clean it up in a separate patch if needed. I
+don't feel too strongly about that. It seems cosmetic and in the future if
+the address that's passed in is needed, then the architecture can use it.
 
-If MPOL_PREFERRED can't work something like this could be added.
+> Anyway, I think the optimization requires some groundwork before it can be
+> accepted. At least some explanation why it is safe to move page table from
+> one spot in virtual address space to another.
 
-I think "madvise vs mbind" is more an issue of "no-permission vs
-permission" required. And if the processes ends up swapping out all
-other process with their memory already allocated in the node, I think
-some permission is correct to be required, in which case an mbind
-looks a better fit. MPOL_PREFERRED also looks a first candidate for
-investigation as it's already not black and white and allows spillover
-and may already do the right thing in fact if set on top of
-MADV_HUGEPAGE.
+So I did go through several scenarios and its fine to my eyes. I tested
+it too and couldn't find any issue. Could you describe your concern a bit
+more? The mm->mmap_sem lock is held through out the mremap. Further we are
+acquiring needed rmap locks if needed and the ptl locks of the old new
+page-table pages. And this same path is already copying pmds for hugepages.
 
-Thanks,
-Andrea
+thanks,
+
+ - Joel
