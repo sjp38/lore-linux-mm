@@ -1,135 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AE7D76B0006
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 20:14:45 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id z12-v6so7614857pfl.17
-        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 17:14:45 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i189-v6si20685722pfg.281.2018.10.08.17.14.44
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D65286B0008
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2018 20:20:31 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id s15-v6so20820937iob.11
+        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 17:20:31 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id w5-v6si8096672ite.58.2018.10.08.17.20.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Oct 2018 17:14:44 -0700 (PDT)
-Date: Mon, 8 Oct 2018 17:14:42 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 2/3] mm: introduce put_user_page*(), placeholder
- versions
-Message-Id: <20181008171442.d3b3a1ea07d56c26d813a11e@linux-foundation.org>
-In-Reply-To: <20181008211623.30796-3-jhubbard@nvidia.com>
-References: <20181008211623.30796-1-jhubbard@nvidia.com>
-	<20181008211623.30796-3-jhubbard@nvidia.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Mon, 08 Oct 2018 17:20:30 -0700 (PDT)
+Subject: Re: [PATCH RFC 1/1] hugetlbfs: introduce truncation/fault mutex to
+ avoid races
+References: <20181007233848.13397-1-mike.kravetz@oracle.com>
+ <20181007233848.13397-2-mike.kravetz@oracle.com>
+ <20181008080323.xg3v35uxgmakf6wy@kshutemo-mobl1>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <7b35a36e-62a0-ca84-00cf-a12a3233cb07@oracle.com>
+Date: Mon, 8 Oct 2018 17:20:15 -0700
+MIME-Version: 1.0
+In-Reply-To: <20181008080323.xg3v35uxgmakf6wy@kshutemo-mobl1>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john.hubbard@gmail.com
-Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Ralph Campbell <rcampbell@nvidia.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>
 
-On Mon,  8 Oct 2018 14:16:22 -0700 john.hubbard@gmail.com wrote:
+On 10/8/18 1:03 AM, Kirill A. Shutemov wrote:
+> On Sun, Oct 07, 2018 at 04:38:48PM -0700, Mike Kravetz wrote:
+>> The following hugetlbfs truncate/page fault race can be recreated
+>> with programs doing something like the following.
+>>
+>> A huegtlbfs file is mmap(MAP_SHARED) with a size of 4 pages.  At
+>> mmap time, 4 huge pages are reserved for the file/mapping.  So,
+>> the global reserve count is 4.  In addition, since this is a shared
+>> mapping an entry for 4 pages is added to the file's reserve map.
+>> The first 3 of the 4 pages are faulted into the file.  As a result,
+>> the global reserve count is now 1.
+>>
+>> Task A starts to fault in the last page (routines hugetlb_fault,
+>> hugetlb_no_page).  It allocates a huge page (alloc_huge_page).
+>> The reserve map indicates there is a reserved page, so this is
+>> used and the global reserve count goes to 0.
+>>
+>> Now, task B truncates the file to size 0.  It starts by setting
+>> inode size to 0(hugetlb_vmtruncate).  It then unmaps all mapping
+>> of the file (hugetlb_vmdelete_list).  Since task A's page table
+>> lock is not held at the time, truncation is not blocked.  Truncation
+>> removes the 3 pages from the file (remove_inode_hugepages).  When
+>> cleaning up the reserved pages (hugetlb_unreserve_pages), it notices
+>> the reserve map was for 4 pages.  However, it has only freed 3 pages.
+>> So it assumes there is still (4 - 3) 1 reserved pages.  It then
+>> decrements the global reserve count by 1 and it goes negative.
+>>
+>> Task A then continues the page fault process and adds it's newly
+>> acquired page to the page cache.  Note that the index of this page
+>> is beyond the size of the truncated file (0).  The page fault process
+>> then notices the file has been truncated and exits.  However, the
+>> page is left in the cache associated with the file.
+>>
+>> Now, if the file is immediately deleted the truncate code runs again.
+>> It will find and free the one page associated with the file.  When
+>> cleaning up reserves, it notices the reserve map is empty.  Yet, one
+>> page freed.  So, the global reserve count is decremented by (0 - 1) -1.
+>> This returns the global count to 0 as it should be.  But, it is
+>> possible for someone else to mmap this file/range before it is deleted.
+>> If this happens, a reserve map entry for the allocated page is created
+>> and the reserved page is forever leaked.
+>>
+>> To avoid all these conditions, let's simply prevent faults to a file
+>> while it is being truncated.  Add a new truncation specific rw mutex
+>> to hugetlbfs inode extensions.  faults take the mutex in read mode,
+>> truncation takes in write mode.
+> 
+> Hm. Don't we have already a lock for this? I mean i_mmap_lock.
+> 
 
-> From: John Hubbard <jhubbard@nvidia.com>
-> 
-> Introduces put_user_page(), which simply calls put_page().
-> This provides a way to update all get_user_pages*() callers,
-> so that they call put_user_page(), instead of put_page().
-> 
-> Also introduces put_user_pages(), and a few dirty/locked variations,
-> as a replacement for release_pages(), and also as a replacement
-> for open-coded loops that release multiple pages.
-> These may be used for subsequent performance improvements,
-> via batching of pages to be released.
-> 
-> This prepares for eventually fixing the problem described
-> in [1], and is following a plan listed in [2], [3], [4].
-> 
-> [1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
-> 
-> [2] https://lkml.kernel.org/r/20180709080554.21931-1-jhubbard@nvidia.com
->     Proposed steps for fixing get_user_pages() + DMA problems.
-> 
-> [3]https://lkml.kernel.org/r/20180710082100.mkdwngdv5kkrcz6n@quack2.suse.cz
->     Bounce buffers (otherwise [2] is not really viable).
-> 
-> [4] https://lkml.kernel.org/r/20181003162115.GG24030@quack2.suse.cz
->     Follow-up discussions.
-> 
-> ...
->
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -137,6 +137,8 @@ extern int overcommit_ratio_handler(struct ctl_table *, int, void __user *,
->  				    size_t *, loff_t *);
->  extern int overcommit_kbytes_handler(struct ctl_table *, int, void __user *,
->  				    size_t *, loff_t *);
-> +int set_page_dirty(struct page *page);
-> +int set_page_dirty_lock(struct page *page);
->  
->  #define nth_page(page,n) pfn_to_page(page_to_pfn((page)) + (n))
->  
-> @@ -943,6 +945,51 @@ static inline void put_page(struct page *page)
->  		__put_page(page);
->  }
->  
-> +/*
-> + * Pages that were pinned via get_user_pages*() should be released via
-> + * either put_user_page(), or one of the put_user_pages*() routines
-> + * below.
-> + */
-> +static inline void put_user_page(struct page *page)
-> +{
-> +	put_page(page);
-> +}
-> +
-> +static inline void put_user_pages_dirty(struct page **pages,
-> +					unsigned long npages)
-> +{
-> +	unsigned long index;
-> +
-> +	for (index = 0; index < npages; index++) {
-> +		if (!PageDirty(pages[index]))
+Thanks Kirill,
 
-Both put_page() and set_page_dirty() handle compound pages.  But
-because of the above statement, put_user_pages_dirty() might misbehave? 
-Or maybe it won't - perhaps the intent here is to skip dirtying the
-head page if the sub page is clean?  Please clarify, explain and add
-comment if so.
+Yes, we could use use i_mmap_rwsem for this synchronization.  I don't
+see anyone else using the mutex in this manner.  hugetlb code only
+explicitly takes this mutex in write mode today.  I suspect that is not
+optimal and could be improved.  Certainly, the use within
+hugetlb_fault->huge_pte_alloc->huge_pmd_share would need to be changed
+if we always wanted to take the mutex in read mode during faults.
 
-> +			set_page_dirty(pages[index]);
-> +
-> +		put_user_page(pages[index]);
-> +	}
-> +}
-> +
-> +static inline void put_user_pages_dirty_lock(struct page **pages,
-> +					     unsigned long npages)
-> +{
-> +	unsigned long index;
-> +
-> +	for (index = 0; index < npages; index++) {
-> +		if (!PageDirty(pages[index]))
-> +			set_page_dirty_lock(pages[index]);
+I'll work on the changes to use i_mmap_rwsem.
 
-Ditto.
-
-> +		put_user_page(pages[index]);
-> +	}
-> +}
-> +
-> +static inline void put_user_pages(struct page **pages,
-> +				  unsigned long npages)
-> +{
-> +	unsigned long index;
-> +
-> +	for (index = 0; index < npages; index++)
-> +		put_user_page(pages[index]);
-> +}
-> +
-
-Otherwise looks OK.  Ish.  But it would be nice if that comment were to
-explain *why* get_user_pages() pages must be released with
-put_user_page().
-
-Also, maintainability.  What happens if someone now uses put_page() by
-mistake?  Kernel fails in some mysterious fashion?  How can we prevent
-this from occurring as code evolves?  Is there a cheap way of detecting
-this bug at runtime?
+However, right now our DB team informs me that the truncate/fault race
+is not the cause of their huge page reserve count going negative issue.
+So, I am searching for more bugs in this area.  Found another where an
+allocation for migration could race with a fault in a VM_NORESERVE vma.
+But, there were no migrations noted on the system, so there must be another
+bug.  Sigh!
+-- 
+Mike Kravetz
