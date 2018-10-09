@@ -1,59 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D675E6B0005
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 07:10:08 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c26-v6so1030620eda.7
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 04:10:08 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 64A116B000A
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 07:12:12 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id m45-v6so1055213edc.2
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 04:12:12 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i31-v6si1667013edc.211.2018.10.09.04.10.07
+        by mx.google.com with ESMTPS id d26-v6si513457ejc.189.2018.10.09.04.12.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 04:10:07 -0700 (PDT)
-Date: Tue, 9 Oct 2018 13:10:05 +0200
+        Tue, 09 Oct 2018 04:12:11 -0700 (PDT)
+Date: Tue, 9 Oct 2018 13:12:09 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom_adj: avoid meaningless loop to find processes
- sharing mm
-Message-ID: <20181009111005.GK8528@dhcp22.suse.cz>
-References: <67eedc4c-7afa-e845-6c88-9716fd820de6@i-love.sakura.ne.jp>
- <af7ae9c4-d7f1-69af-58fa-ec6949161f5b@I-love.SAKURA.ne.jp>
- <20181008011931epcms1p82dd01b7e5c067ea99946418bc97de46a@epcms1p8>
- <20181008061407epcms1p519703ae6373a770160c8f912c7aa9521@epcms1p5>
- <CGME20181008011931epcms1p82dd01b7e5c067ea99946418bc97de46a@epcms1p2>
- <20181008083855epcms1p20e691e5a001f3b94b267997c24e91128@epcms1p2>
- <f5bdf4a7-e491-1cda-590c-792526f49050@i-love.sakura.ne.jp>
- <20181009063541.GB8528@dhcp22.suse.cz>
- <20181009075015.GC8528@dhcp22.suse.cz>
- <df4b029c-16b4-755f-2672-d7ec116f78ba@i-love.sakura.ne.jp>
+Subject: Re: [PATCH v2 1/3] mm: Shuffle initial free memory
+Message-ID: <20181009111209.GL8528@dhcp22.suse.cz>
+References: <153861931865.2863953.11185006931458762795.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <153861932401.2863953.11364943845583542894.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20181004074838.GE22173@dhcp22.suse.cz>
+ <CAPcyv4jO_K8g3XRzuYOQPeGT--aPtucwZsqkywxOFO4Zny5Xrg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <df4b029c-16b4-755f-2672-d7ec116f78ba@i-love.sakura.ne.jp>
+In-Reply-To: <CAPcyv4jO_K8g3XRzuYOQPeGT--aPtucwZsqkywxOFO4Zny5Xrg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: ytk.lee@samsung.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Tue 09-10-18 19:00:44, Tetsuo Handa wrote:
-> On 2018/10/09 16:50, Michal Hocko wrote:
-[...]
-> >                               Well, that is unfortunate indeed and it
-> > breaks the OOM_SCORE_ADJ_MIN contract. There are basically two ways here
-> > 1) do not care and encourage users to use a saner way to set
-> > OOM_SCORE_ADJ_MIN because doing that externally is racy anyway e.g.
-> > setting it before [v]fork & exec. Btw. do we know about an actual user
-> > who would care?
+On Thu 04-10-18 09:51:37, Dan Williams wrote:
+> On Thu, Oct 4, 2018 at 12:48 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Wed 03-10-18 19:15:24, Dan Williams wrote:
+> > > Some data exfiltration and return-oriented-programming attacks rely on
+> > > the ability to infer the location of sensitive data objects. The kernel
+> > > page allocator, especially early in system boot, has predictable
+> > > first-in-first out behavior for physical pages. Pages are freed in
+> > > physical address order when first onlined.
+> > >
+> > > Introduce shuffle_free_memory(), and its helper shuffle_zone(), to
+> > > perform a Fisher-Yates shuffle of the page allocator 'free_area' lists
+> > > when they are initially populated with free memory at boot and at
+> > > hotplug time.
+> > >
+> > > Quoting Kees:
+> > >     "While we already have a base-address randomization
+> > >      (CONFIG_RANDOMIZE_MEMORY), attacks against the same hardware and
+> > >      memory layouts would certainly be using the predictability of
+> > >      allocation ordering (i.e. for attacks where the base address isn't
+> > >      important: only the relative positions between allocated memory).
+> > >      This is common in lots of heap-style attacks. They try to gain
+> > >      control over ordering by spraying allocations, etc.
+> > >
+> > >      I'd really like to see this because it gives us something similar
+> > >      to CONFIG_SLAB_FREELIST_RANDOM but for the page allocator."
+> > >
+> > > Another motivation for this change is performance in the presence of a
+> > > memory-side cache. In the future, memory-side-cache technology will be
+> > > available on generally available server platforms. The proposed
+> > > randomization approach has been measured to improve the cache conflict
+> > > rate by a factor of 2.5X on a well-known Java benchmark. It avoids
+> > > performance peaks and valleys to provide more predictable performance.
+> > >
+> > > While SLAB_FREELIST_RANDOM reduces the predictability of some local slab
+> > > caches it leaves vast bulk of memory to be predictably in order
+> > > allocated. That ordering can be detected by a memory side-cache.
+> > >
+> > > The shuffling is done in terms of 'shuffle_page_order' sized free pages
+> > > where the default shuffle_page_order is MAX_ORDER-1 i.e. 10, 4MB this
+> > > trades off randomization granularity for time spent shuffling.
+> > > MAX_ORDER-1 was chosen to be minimally invasive to the page allocator
+> > > while still showing memory-side cache behavior improvements.
+> > >
+> > > The performance impact of the shuffling appears to be in the noise
+> > > compared to other memory initialization work. Also the bulk of the work
+> > > is done in the background as a part of deferred_init_memmap().
+> >
+> > This is the biggest portion of the series and I am wondering why do we
+> > need it at all. Why it isn't sufficient to rely on the patch 3 here?
 > 
-> I'm not talking about [v]fork & exec. Why are you talking about [v]fork & exec ?
-
-Because that is the only raceless way to set your oom_score_adj.
-
-> > 2) add OOM_SCORE_ADJ_MIN and do not kill tasks sharing mm and do not
-> > reap the mm in the rare case of the race.
+> In fact we started with only patch3 and it had no measurable impact on
+> the cache conflict rate.
 > 
-> That is no problem. The mistake we made in 4.6 was that we updated oom_score_adj
-> to -1000 (and allowed unprivileged users to OOM-lockup the system).
+> > Pages freed from the bootmem allocator go via the same path so they
+> > might be shuffled at that time. Or is there any problem with that?
+> > Not enough entropy at the time when this is called or the final result
+> > is not randomized enough (some numbers would be helpful).
+> 
+> So the reason front-back randomization is not enough is due to the
+> in-order initial freeing of pages. At the start of that process
+> putting page1 in front or behind page0 still keeps them close
+> together, page2 is still near page1 and has a high chance of being
+> adjacent. As more pages are added ordering diversity improves, but
+> there is still high page locality for the low address pages and this
+> leads to no significant impact to the cache conflict rate. Patch3 is
+> enough to keep the entropy sustained over time, but it's not enough
+> initially.
 
-I do not follow.
+That should be in the changelog IMHO.
 
 -- 
 Michal Hocko
