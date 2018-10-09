@@ -1,95 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EB5D6B0003
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 00:32:58 -0400 (EDT)
-Received: by mail-yb1-f199.google.com with SMTP id z14-v6so101758ybp.6
-        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 21:32:58 -0700 (PDT)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id q188-v6si4785364ywc.354.2018.10.08.21.32.56
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E7ED6B0003
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 02:23:34 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id h48-v6so605571edh.22
+        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 23:23:34 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g7-v6si2830919edl.445.2018.10.08.23.23.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Oct 2018 21:32:57 -0700 (PDT)
-From: Ashish Mhetre <amhetre@nvidia.com>
-Subject: [PATCH] x86/mm: In the PTE swapout page reclaim case clear the accessed bit instead of flushing the TLB
-Date: Tue, 9 Oct 2018 10:02:50 +0530
-Message-ID: <1539059570-9043-1-git-send-email-amhetre@nvidia.com>
+        Mon, 08 Oct 2018 23:23:32 -0700 (PDT)
+Date: Tue, 9 Oct 2018 08:23:30 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, oom_adj: avoid meaningless loop to find processes
+ sharing mm
+Message-ID: <20181009062330.GA8528@dhcp22.suse.cz>
+References: <CGME20181005063208epcms1p22959cd2f771ad017996e2b18266791ea@epcms1p2>
+ <20181005063208epcms1p22959cd2f771ad017996e2b18266791ea@epcms1p2>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181005063208epcms1p22959cd2f771ad017996e2b18266791ea@epcms1p2>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vdumpa@nvidia.com, avanbrunt@nvidia.com
-Cc: Snikam@nvidia.com, praithatha@nvidia.com, Shaohua Li <shli@kernel.org>, Shaohua Li <shli@fusionio.com>, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>
+To: Yong-Taek Lee <ytk.lee@samsung.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>
 
-From: Shaohua Li <shli@kernel.org>
+[Cc Oleg]
 
-We use the accessed bit to age a page at page reclaim time,
-and currently we also flush the TLB when doing so.
+On Fri 05-10-18 15:32:08, Yong-Taek Lee wrote:
+> It is introduced by commit 44a70adec910 ("mm, oom_adj: make sure
+> processes sharing mm have same view of oom_score_adj"). Most of
+> user process's mm_users is bigger than 1 but only one thread group.
+> In this case, for_each_process loop meaninglessly try to find processes
+> which sharing same mm even though there is only one thread group.
+> 
+> My idea is that target task's nr thread is smaller than mm_users if there
+> are more thread groups sharing the same mm. So we can skip loop
 
-But in some workloads TLB flush overhead is very heavy. In my
-simple multithreaded app with a lot of swap to several pcie
-SSDs, removing the tlb flush gives about 20% ~ 30% swapout
-speedup.
+I remember trying to optimize this but ended up with nothing that would
+work reliable. E.g. what prevents a thread terminating right after we
+read mm reference count and result in early break and other process
+not being updated properly?
 
-Fortunately just removing the TLB flush is a valid optimization:
-on x86 CPUs, clearing the accessed bit without a TLB flush
-doesn't cause data corruption.
+> if mm_user and nr_thread are same.
+> 
+> test result
+> while true; do count=0; time while [ $count -lt 10000 ]; do echo -1000 > /proc/
+> 1457/oom_score_adj; count=$((count+1)); done; done;
 
-It could cause incorrect page aging and the (mistaken) reclaim of
-hot pages, but the chance of that should be relatively low.
+Is this overhead noticeable in a real work usecases though? Or are you
+updating oom_score_adj that often really?
 
-So as a performance optimization don't flush the TLB when
-clearing the accessed bit, it will eventually be flushed by
-a context switch or a VM operation anyway. [ In the rare
-event of it not getting flushed for a long time the delay
-shouldn't really matter because there's no real memory
-pressure for swapout to react to. ]
+> before patch
+> 0m00.59s real     0m00.09s user     0m00.51s system
+> 0m00.59s real     0m00.14s user     0m00.45s system
+> 0m00.58s real     0m00.11s user     0m00.47s system
+> 0m00.58s real     0m00.10s user     0m00.48s system
+> 0m00.59s real     0m00.11s user     0m00.48s system
+> 
+> after patch
+> 0m00.15s real     0m00.07s user     0m00.08s system
+> 0m00.14s real     0m00.10s user     0m00.04s system
+> 0m00.14s real     0m00.10s user     0m00.05s system
+> 0m00.14s real     0m00.08s user     0m00.07s system
+> 0m00.14s real     0m00.08s user     0m00.07s system
+> 
+> Signed-off-by: Lee YongTaek <ytk.lee@samsung.com>
+> ---
+>  fs/proc/base.c | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/fs/proc/base.c b/fs/proc/base.c
+> index f9f72aee6d45..54b2fb5e9c51 100644
+> --- a/fs/proc/base.c
+> +++ b/fs/proc/base.c
+> @@ -1056,6 +1056,7 @@ static int __set_oom_adj(struct file *file, int oom_adj,
+> bool legacy)
+>         struct mm_struct *mm = NULL;
+>         struct task_struct *task;
+>         int err = 0;
+> +       int mm_users = 0;
+> 
+>         task = get_proc_task(file_inode(file));
+>         if (!task)
+> @@ -1092,7 +1093,8 @@ static int __set_oom_adj(struct file *file, int oom_adj,
+> bool legacy)
+>                 struct task_struct *p = find_lock_task_mm(task);
+> 
+>                 if (p) {
+> -                       if (atomic_read(&p->mm->mm_users) > 1) {
+> +                       mm_users = atomic_read(&p->mm->mm_users);
+> +                       if ((mm_users > 1) && (mm_users != get_nr_threads(p)))
+> {
+>                                 mm = p->mm;
+>                                 atomic_inc(&mm->mm_count);
+>                         }
+> --
+> 
+> *
 
-Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Shaohua Li <shli@fusionio.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Hugh Dickins <hughd@google.com>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Link: http://lkml.kernel.org/r/20140408075809.GA1764@kernel.org
-[ Rewrote the changelog and the code comments. ]
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
----
- arch/x86/mm/pgtable.c | 21 ++++++++++++++-------
- 1 file changed, 14 insertions(+), 7 deletions(-)
-
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index c96314a..0004ac7 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -399,13 +399,20 @@ int pmdp_test_and_clear_young(struct vm_area_struct *vma,
- int ptep_clear_flush_young(struct vm_area_struct *vma,
- 			   unsigned long address, pte_t *ptep)
- {
--	int young;
--
--	young = ptep_test_and_clear_young(vma, address, ptep);
--	if (young)
--		flush_tlb_page(vma, address);
--
--	return young;
-+	/*
-+	 * On x86 CPUs, clearing the accessed bit without a TLB flush
-+	 * doesn't cause data corruption. [ It could cause incorrect
-+	 * page aging and the (mistaken) reclaim of hot pages, but the
-+	 * chance of that should be relatively low. ]
-+	 *
-+	 * So as a performance optimization don't flush the TLB when
-+	 * clearing the accessed bit, it will eventually be flushed by
-+	 * a context switch or a VM operation anyway. [ In the rare
-+	 * event of it not getting flushed for a long time the delay
-+	 * shouldn't really matter because there's no real memory
-+	 * pressure for swapout to react to. ]
-+	 */
-+	return ptep_test_and_clear_young(vma, address, ptep);
- }
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 -- 
-2.1.4
+Michal Hocko
+SUSE Labs
