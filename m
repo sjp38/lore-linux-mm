@@ -1,111 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AA8D6B0007
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:07:57 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id r68-v6so942617oie.12
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:07:57 -0700 (PDT)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A69FC6B0269
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:08:08 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id e69-v6so976406ote.17
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:08:08 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 65si875335otr.304.2018.10.09.06.07.55
+        by mx.google.com with ESMTPS id g202-v6si9336474oib.234.2018.10.09.06.08.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 06:07:56 -0700 (PDT)
-Date: Tue, 9 Oct 2018 15:07:54 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Preserve _PAGE_DEVMAP across mprotect() calls
-Message-ID: <20181009130754.GQ8528@dhcp22.suse.cz>
-References: <20181009101917.32497-1-jack@suse.cz>
+        Tue, 09 Oct 2018 06:08:07 -0700 (PDT)
+Subject: Re: [PATCH 1/2] mm: thp: relax __GFP_THISNODE for MADV_HUGEPAGE
+ mappings
+References: <20180925120326.24392-1-mhocko@kernel.org>
+ <20180925120326.24392-2-mhocko@kernel.org>
+ <alpine.DEB.2.21.1810041302330.16935@chino.kir.corp.google.com>
+ <20181005073854.GB6931@suse.de>
+ <alpine.DEB.2.21.1810051320270.202739@chino.kir.corp.google.com>
+ <20181005232155.GA2298@redhat.com>
+ <alpine.DEB.2.21.1810081303060.221006@chino.kir.corp.google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <19684def-0ab4-6ca6-767d-2364cc459740@suse.cz>
+Date: Tue, 9 Oct 2018 15:08:03 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181009101917.32497-1-jack@suse.cz>
+In-Reply-To: <alpine.DEB.2.21.1810081303060.221006@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, stable@vger.kernel.org
+To: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Tue 09-10-18 12:19:17, Jan Kara wrote:
-> Currently _PAGE_DEVMAP bit is not preserved in mprotect(2) calls. As a
-> result we will see warnings such as:
-> 
-> BUG: Bad page map in process JobWrk0013  pte:800001803875ea25 pmd:7624381067
-> addr:00007f0930720000 vm_flags:280000f9 anon_vma:          (null) mapping:ffff97f2384056f0 index:0
-> file:457-000000fe00000030-00000009-000000ca-00000001_2001.fileblock fault:xfs_filemap_fault [xfs] mmap:xfs_file_mmap [xfs] readpage:          (null)
-> CPU: 3 PID: 15848 Comm: JobWrk0013 Tainted: G        W          4.12.14-2.g7573215-default #1 SLE12-SP4 (unreleased)
-> Hardware name: Intel Corporation S2600WFD/S2600WFD, BIOS SE5C620.86B.01.00.0833.051120182255 05/11/2018
-> Call Trace:
->  dump_stack+0x5a/0x75
->  print_bad_pte+0x217/0x2c0
->  ? enqueue_task_fair+0x76/0x9f0
->  _vm_normal_page+0xe5/0x100
->  zap_pte_range+0x148/0x740
->  unmap_page_range+0x39a/0x4b0
->  unmap_vmas+0x42/0x90
->  unmap_region+0x99/0xf0
->  ? vma_gap_callbacks_rotate+0x1a/0x20
->  do_munmap+0x255/0x3a0
->  vm_munmap+0x54/0x80
->  SyS_munmap+0x1d/0x30
->  do_syscall_64+0x74/0x150
->  entry_SYSCALL_64_after_hwframe+0x3d/0xa2
-> ...
-> 
-> when mprotect(2) gets used on DAX mappings. Also there is a wide variety
-> of other failures that can result from the missing _PAGE_DEVMAP flag
-> when the area gets used by get_user_pages() later.
-> 
-> Fix the problem by including _PAGE_DEVMAP in a set of flags that get
-> preserved by mprotect(2).
-> 
-> Fixes: 69660fd797c3 ("x86, mm: introduce _PAGE_DEVMAP")
-> Fixes: ebd31197931d ("powerpc/mm: Add devmap support for ppc64")
-> CC: stable@vger.kernel.org
-> Signed-off-by: Jan Kara <jack@suse.cz>
+On 10/8/18 10:41 PM, David Rientjes wrote:
+> +			/*
+> +			 * If faulting a hugepage, it is very unlikely that
+> +			 * thrashing the zonelist is going to assist compaction
+> +			 * in freeing an entire pageblock.  There are no
+> +			 * guarantees memory compaction can free an entire
+> +			 * pageblock under such memory pressure that it is
+> +			 * better to simply fail and fallback to native pages.
+> +			 */
+> +			if (order == pageblock_order &&
+> +					!(current->flags & PF_KTHREAD))
+> +				goto nopage;
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+After we got rid of similar hardcoded heuristics, I would be very
+unhappy to start adding them back. A new gfp flag is also unfortunate,
+but more acceptable to me.
 
-> ---
->  arch/powerpc/include/asm/book3s/64/pgtable.h | 4 ++--
->  arch/x86/include/asm/pgtable_types.h         | 2 +-
->  2 files changed, 3 insertions(+), 3 deletions(-)
+> +
+>  			/*
+>  			 * Looks like reclaim/compaction is worth trying, but
+>  			 * sync compaction could be very expensive, so keep
 > 
-> diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> index 2fdc865ca374..2a2486526d1f 100644
-> --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-> +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> @@ -114,7 +114,7 @@
->   */
->  #define _HPAGE_CHG_MASK (PTE_RPN_MASK | _PAGE_HPTEFLAGS | _PAGE_DIRTY | \
->  			 _PAGE_ACCESSED | H_PAGE_THP_HUGE | _PAGE_PTE | \
-> -			 _PAGE_SOFT_DIRTY)
-> +			 _PAGE_SOFT_DIRTY | _PAGE_DEVMAP)
->  /*
->   * user access blocked by key
->   */
-> @@ -132,7 +132,7 @@
->   */
->  #define _PAGE_CHG_MASK	(PTE_RPN_MASK | _PAGE_HPTEFLAGS | _PAGE_DIRTY | \
->  			 _PAGE_ACCESSED | _PAGE_SPECIAL | _PAGE_PTE |	\
-> -			 _PAGE_SOFT_DIRTY)
-> +			 _PAGE_SOFT_DIRTY | _PAGE_DEVMAP)
->  
->  #define H_PTE_PKEY  (H_PTE_PKEY_BIT0 | H_PTE_PKEY_BIT1 | H_PTE_PKEY_BIT2 | \
->  		     H_PTE_PKEY_BIT3 | H_PTE_PKEY_BIT4)
-> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-> index b64acb08a62b..106b7d0e2dae 100644
-> --- a/arch/x86/include/asm/pgtable_types.h
-> +++ b/arch/x86/include/asm/pgtable_types.h
-> @@ -124,7 +124,7 @@
->   */
->  #define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
->  			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY |	\
-> -			 _PAGE_SOFT_DIRTY)
-> +			 _PAGE_SOFT_DIRTY | _PAGE_DEVMAP)
->  #define _HPAGE_CHG_MASK (_PAGE_CHG_MASK | _PAGE_PSE)
->  
->  /*
-> -- 
-> 2.16.4
-
--- 
-Michal Hocko
-SUSE Labs
