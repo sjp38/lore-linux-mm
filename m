@@ -1,64 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C7E226B000D
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:00:40 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id l51-v6so1207960edc.14
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:00:40 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e8-v6si15123518edl.176.2018.10.09.06.00.39
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 11A4F6B0010
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:04:29 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id s15-v6so812813pgv.9
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:04:29 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 14-v6sor16435785pfs.60.2018.10.09.06.04.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 06:00:39 -0700 (PDT)
-Date: Tue, 9 Oct 2018 14:00:34 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
- mappings
-Message-ID: <20181009130034.GD6931@suse.de>
-References: <20180925120326.24392-1-mhocko@kernel.org>
- <20180925120326.24392-2-mhocko@kernel.org>
- <alpine.DEB.2.21.1810041302330.16935@chino.kir.corp.google.com>
- <20181005073854.GB6931@suse.de>
- <alpine.DEB.2.21.1810051320270.202739@chino.kir.corp.google.com>
- <20181005232155.GA2298@redhat.com>
- <alpine.DEB.2.21.1810081303060.221006@chino.kir.corp.google.com>
- <20181009094825.GC6931@suse.de>
- <20181009122745.GN8528@dhcp22.suse.cz>
+        (Google Transport Security);
+        Tue, 09 Oct 2018 06:04:27 -0700 (PDT)
+Date: Tue, 9 Oct 2018 16:04:21 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm/thp: Correctly differentiate between mapped THP and
+ PMD migration entry
+Message-ID: <20181009130421.bmus632ocurn275u@kshutemo-mobl1>
+References: <1539057538-27446-1-git-send-email-anshuman.khandual@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181009122745.GN8528@dhcp22.suse.cz>
+In-Reply-To: <1539057538-27446-1-git-send-email-anshuman.khandual@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, zi.yan@cs.rutgers.edu, will.deacon@arm.com
 
-On Tue, Oct 09, 2018 at 02:27:45PM +0200, Michal Hocko wrote:
-> [Sorry for being slow in responding but I was mostly offline last few
->  days]
+On Tue, Oct 09, 2018 at 09:28:58AM +0530, Anshuman Khandual wrote:
+> A normal mapped THP page at PMD level should be correctly differentiated
+> from a PMD migration entry while walking the page table. A mapped THP would
+> additionally check positive for pmd_present() along with pmd_trans_huge()
+> as compared to a PMD migration entry. This just adds a new conditional test
+> differentiating the two while walking the page table.
 > 
-> On Tue 09-10-18 10:48:25, Mel Gorman wrote:
-> [...]
-> > This goes back to my point that the MADV_HUGEPAGE hint should not make
-> > promises about locality and that introducing MADV_LOCAL for specialised
-> > libraries may be more appropriate with the initial semantic being how it
-> > treats MADV_HUGEPAGE regions.
-> 
-> I agree with your other points and not going to repeat them. I am not
-> sure madvise s the best API for the purpose though. We are talking about
-> memory policy here and there is an existing api for that so I would
-> _prefer_ to reuse it for this purpose.
-> 
+> Fixes: 616b8371539a6 ("mm: thp: enable thp migration in generic path")
+> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+> ---
+> On X86, pmd_trans_huge() and is_pmd_migration_entry() are always mutually
+> exclusive which makes the current conditional block work for both mapped
+> and migration entries. This is not same with arm64 where pmd_trans_huge()
+> returns positive for both mapped and migration entries. Could some one
+> please explain why pmd_trans_huge() has to return false for migration
+> entries which just install swap bits and its still a PMD ?
 
-I flip-flopped on that one in my head multiple times on the basis of
-how strict it should be. Memory policies tend to be black or white --
-bind here, interleave there, etc. It wasn't clear to me what the best
-policy would be to describe "allocate local as best as you can but allow
-fallbacks if necessary". Hence, I started leaning towards advise as it is
-really about advice that the kernel can ignore if necessary. That said,
-I don't feel as strongly about the "how" as I do about the fact that
-applications and libraries should not depend on side-effects of the
-MADV_HUGEPAGE implementation that relate to locality.
+I guess it's just a design choice. Any reason why arm64 cannot do the
+same?
+
+> Nonetheless pmd_present() seems to be a better check to distinguish
+> between mapped and (non-mapped non-present) migration entries without
+> any ambiguity.
+
+Can we instead reverse order of check:
+
+if (pmd_trans_huge(pmde) || is_pmd_migration_entry(pmde)) {
+	pvmw->ptl = pmd_lock(mm, pvmw->pmd);
+	if (!pmd_present(*pvmw->pmd)) {
+		...
+	} else if (likely(pmd_trans_huge(*pvmw->pmd))) {
+		...
+	} else {
+		...
+	}
+...
+
+This should cover both imeplementations of pmd_trans_huge().
 
 -- 
-Mel Gorman
-SUSE Labs
+ Kirill A. Shutemov
