@@ -1,93 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E1D266B000D
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 07:22:18 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id x44-v6so1043579edd.17
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 04:22:18 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 688AE6B0005
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 08:27:48 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id h24-v6so1156485eda.10
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 05:27:48 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m35-v6si1163823ede.157.2018.10.09.04.22.17
+        by mx.google.com with ESMTPS id m18-v6si7523798edf.133.2018.10.09.05.27.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 04:22:17 -0700 (PDT)
-Date: Tue, 9 Oct 2018 13:22:16 +0200
+        Tue, 09 Oct 2018 05:27:46 -0700 (PDT)
+Date: Tue, 9 Oct 2018 14:27:45 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 0/3] Randomize free memory
-Message-ID: <20181009112216.GM8528@dhcp22.suse.cz>
-References: <153861931865.2863953.11185006931458762795.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20181004074457.GD22173@dhcp22.suse.cz>
- <CAPcyv4ht=ueiZwPTWuY5Y4y1BUOi_z+pHMjfoiXG+Bjd-h55jA@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
+ mappings
+Message-ID: <20181009122745.GN8528@dhcp22.suse.cz>
+References: <20180925120326.24392-1-mhocko@kernel.org>
+ <20180925120326.24392-2-mhocko@kernel.org>
+ <alpine.DEB.2.21.1810041302330.16935@chino.kir.corp.google.com>
+ <20181005073854.GB6931@suse.de>
+ <alpine.DEB.2.21.1810051320270.202739@chino.kir.corp.google.com>
+ <20181005232155.GA2298@redhat.com>
+ <alpine.DEB.2.21.1810081303060.221006@chino.kir.corp.google.com>
+ <20181009094825.GC6931@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4ht=ueiZwPTWuY5Y4y1BUOi_z+pHMjfoiXG+Bjd-h55jA@mail.gmail.com>
+In-Reply-To: <20181009094825.GC6931@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Kees Cook <keescook@chromium.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
 
-On Thu 04-10-18 09:44:35, Dan Williams wrote:
-> Hi Michal,
-> 
-> On Thu, Oct 4, 2018 at 12:53 AM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Wed 03-10-18 19:15:18, Dan Williams wrote:
-> > > Changes since v1:
-> > > * Add support for shuffling hot-added memory (Andrew)
-> > > * Update cover letter and commit message to clarify the performance impact
-> > >   and relevance to future platforms
-> >
-> > I believe this hasn't addressed my questions in
-> > http://lkml.kernel.org/r/20181002143015.GX18290@dhcp22.suse.cz. Namely
-> > "
-> > It is the more general idea that I am not really sure about. First of
-> > all. Does it make _any_ sense to randomize 4MB blocks by default? Why
-> > cannot we simply have it disabled?
-> 
-> I'm not aware of any CVE that this would directly preclude, but that
-> said the entropy injected at 4MB boundaries raises the bar on heap
-> attacks. Environments that want more can adjust that with the boot
-> parameter. Given the potential benefits I think it would only make
-> sense to default disable it if there was a significant runtime impact,
-> from what I have seen there isn't.
-> 
-> > Then and more concerning question is,
-> > does it even make sense to have this randomization applied to higher
-> > orders than 0? Attacker might fragment the memory and keep recycling the
-> > lowest order and get the predictable behavior that we have right now.
-> 
-> Certainly I expect there are attacks that can operate within a 4MB
-> window, as I expect there are attacks that could operate within a 4K
-> window that would need sub-page randomization to deter. In fact I
-> believe that is the motivation for CONFIG_SLAB_FREELIST_RANDOM.
-> Combining that with page allocator randomization makes the kernel less
-> predictable.
+[Sorry for being slow in responding but I was mostly offline last few
+ days]
 
-I am sorry but this hasn't explained anything (at least to me). I can
-still see a way to bypass this randomization by fragmenting the memory.
-With that possibility in place this doesn't really provide the promissed
-additional security. So either I am missing something or the per-order
-threshold is simply a wrong interface to a broken security misfeature.
+On Tue 09-10-18 10:48:25, Mel Gorman wrote:
+[...]
+> This goes back to my point that the MADV_HUGEPAGE hint should not make
+> promises about locality and that introducing MADV_LOCAL for specialised
+> libraries may be more appropriate with the initial semantic being how it
+> treats MADV_HUGEPAGE regions.
 
-> Is that enough justification for this patch on its own?
+I agree with your other points and not going to repeat them. I am not
+sure madvise s the best API for the purpose though. We are talking about
+memory policy here and there is an existing api for that so I would
+_prefer_ to reuse it for this purpose.
 
-I do not think so from what I have heard so far.
-
-> It's
-> debatable. Combine that though with the wider availability of
-> platforms with memory-side-cache and I think it's a reasonable default
-> behavior for the kernel to deploy.
-
-OK, this sounds a bit more interesting. I am going to speculate because
-memory-side-cache is way too generic of a term for me to imagine
-anything specific. Many years back while at a university I was playing
-with page coloring as a method to reach a more stable performance
-results due to reduced cache conflicts. It was not always a performance
-gain but it definitely allowed for more stable run-to-run comparable
-results. I can imagine that a randomization might lead to a similar effect
-although I am not sure how much and it would be more interesting to hear
-about that effect. If this is really the case then I would assume on/off
-knob to control the randomization without something as specific as
-order.
+Sure we will likely need somethin in the compaction as well but we
+should start simple and go forward in smaller steps.
 -- 
 Michal Hocko
 SUSE Labs
