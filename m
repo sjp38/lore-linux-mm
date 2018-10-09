@@ -1,45 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D68076B0007
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 13:36:26 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id p23-v6so1571383otl.23
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 10:36:26 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q24sor8986842otc.98.2018.10.09.10.36.25
+Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BF3AA6B0007
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 13:47:03 -0400 (EDT)
+Received: by mail-lf1-f72.google.com with SMTP id m79-v6so322954lfi.11
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 10:47:03 -0700 (PDT)
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id 7-v6si16451016lfq.145.2018.10.09.10.47.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 09 Oct 2018 10:36:25 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Oct 2018 10:47:01 -0700 (PDT)
+Subject: [PATCH] mm: Convert mem_cgroup_id::ref to refcount_t type
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Tue, 09 Oct 2018 20:46:56 +0300
+Message-ID: <153910718919.7006.13400779039257185427.stgit@localhost.localdomain>
 MIME-Version: 1.0
-References: <153861931865.2863953.11185006931458762795.stgit@dwillia2-desk3.amr.corp.intel.com>
- <153861932401.2863953.11364943845583542894.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20181004074838.GE22173@dhcp22.suse.cz> <CAPcyv4jO_K8g3XRzuYOQPeGT--aPtucwZsqkywxOFO4Zny5Xrg@mail.gmail.com>
- <20181009111209.GL8528@dhcp22.suse.cz>
-In-Reply-To: <20181009111209.GL8528@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 9 Oct 2018 10:36:14 -0700
-Message-ID: <CAPcyv4hcVG7V07d0gT4mQjOLrZnesWvVg7cOuUhxCg=+F5qYMA@mail.gmail.com>
-Subject: Re: [PATCH v2 1/3] mm: Shuffle initial free memory
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.comakpm@linux-foundation.org, ktkhai@virtuozzo.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Oct 9, 2018 at 4:16 AM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Thu 04-10-18 09:51:37, Dan Williams wrote:
-> > On Thu, Oct 4, 2018 at 12:48 AM Michal Hocko <mhocko@kernel.org> wrote:
-[..]
-> > So the reason front-back randomization is not enough is due to the
-> > in-order initial freeing of pages. At the start of that process
-> > putting page1 in front or behind page0 still keeps them close
-> > together, page2 is still near page1 and has a high chance of being
-> > adjacent. As more pages are added ordering diversity improves, but
-> > there is still high page locality for the low address pages and this
-> > leads to no significant impact to the cache conflict rate. Patch3 is
-> > enough to keep the entropy sustained over time, but it's not enough
-> > initially.
->
-> That should be in the changelog IMHO.
+This will allow to use generic refcount_t interfaces
+to check counters overflow instead of currently existing
+VM_BUG_ON(). The only difference after the patch is
+VM_BUG_ON() may cause BUG(), while refcount_t fires
+with WARN(). But this seems not to be significant here,
+since such the problems are usually caught by syzbot
+with panic-on-warn enabled.
 
-Fair enough, I'll fold that in when I rebase on top of -next.
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+---
+ include/linux/memcontrol.h |    2 +-
+ mm/memcontrol.c            |   10 ++++------
+ 2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 4399cc3f00e4..7ab2120155a4 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -78,7 +78,7 @@ struct mem_cgroup_reclaim_cookie {
+ 
+ struct mem_cgroup_id {
+ 	int id;
+-	atomic_t ref;
++	refcount_t ref;
+ };
+ 
+ /*
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 7bebe2ddec05..aa728d5b3d72 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4299,14 +4299,12 @@ static void mem_cgroup_id_remove(struct mem_cgroup *memcg)
+ 
+ static void mem_cgroup_id_get_many(struct mem_cgroup *memcg, unsigned int n)
+ {
+-	VM_BUG_ON(atomic_read(&memcg->id.ref) <= 0);
+-	atomic_add(n, &memcg->id.ref);
++	refcount_add(n, &memcg->id.ref);
+ }
+ 
+ static void mem_cgroup_id_put_many(struct mem_cgroup *memcg, unsigned int n)
+ {
+-	VM_BUG_ON(atomic_read(&memcg->id.ref) < n);
+-	if (atomic_sub_and_test(n, &memcg->id.ref)) {
++	if (refcount_sub_and_test(n, &memcg->id.ref)) {
+ 		mem_cgroup_id_remove(memcg);
+ 
+ 		/* Memcg ID pins CSS */
+@@ -4523,7 +4521,7 @@ static int mem_cgroup_css_online(struct cgroup_subsys_state *css)
+ 	}
+ 
+ 	/* Online state pins memcg ID, memcg ID pins CSS */
+-	atomic_set(&memcg->id.ref, 1);
++	refcount_set(&memcg->id.ref, 1);
+ 	css_get(css);
+ 	return 0;
+ }
+@@ -6357,7 +6355,7 @@ subsys_initcall(mem_cgroup_init);
+ #ifdef CONFIG_MEMCG_SWAP
+ static struct mem_cgroup *mem_cgroup_id_get_online(struct mem_cgroup *memcg)
+ {
+-	while (!atomic_inc_not_zero(&memcg->id.ref)) {
++	while (!refcount_inc_not_zero(&memcg->id.ref)) {
+ 		/*
+ 		 * The root cgroup cannot be destroyed, so it's refcount must
+ 		 * always be >= 1.
