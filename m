@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F04816B027F
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:26:11 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id q143-v6so831438pgq.12
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:26:11 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 607776B027F
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:26:12 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id y86-v6so1096738pff.6
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:26:12 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 64-v6si20358169plk.257.2018.10.09.06.26.10
+        by mx.google.com with ESMTPS id g4-v6si20769714plo.254.2018.10.09.06.26.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 09 Oct 2018 06:26:10 -0700 (PDT)
+        Tue, 09 Oct 2018 06:26:11 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 17/33] powerpc/powernv: use the generic iommu bypass code
-Date: Tue,  9 Oct 2018 15:24:44 +0200
-Message-Id: <20181009132500.17643-18-hch@lst.de>
+Subject: [PATCH 14/33] powerpc/dart: use the generic iommu bypass code
+Date: Tue,  9 Oct 2018 15:24:41 +0200
+Message-Id: <20181009132500.17643-15-hch@lst.de>
 In-Reply-To: <20181009132500.17643-1-hch@lst.de>
 References: <20181009132500.17643-1-hch@lst.de>
 MIME-Version: 1.0
@@ -26,140 +26,82 @@ Use the generic iommu bypass code instead of overriding set_dma_mask.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/powerpc/platforms/powernv/pci-ioda.c | 92 ++++++-----------------
- 1 file changed, 25 insertions(+), 67 deletions(-)
+ arch/powerpc/sysdev/dart_iommu.c | 45 +++++++++++---------------------
+ 1 file changed, 15 insertions(+), 30 deletions(-)
 
-diff --git a/arch/powerpc/platforms/powernv/pci-ioda.c b/arch/powerpc/platforms/powernv/pci-ioda.c
-index b6db65917bb4..5748b62e2e86 100644
---- a/arch/powerpc/platforms/powernv/pci-ioda.c
-+++ b/arch/powerpc/platforms/powernv/pci-ioda.c
-@@ -1739,86 +1739,45 @@ static int pnv_pci_ioda_dma_64bit_bypass(struct pnv_ioda_pe *pe)
- 	return -EIO;
+diff --git a/arch/powerpc/sysdev/dart_iommu.c b/arch/powerpc/sysdev/dart_iommu.c
+index ce5dd2048f57..e7d1645a2d2e 100644
+--- a/arch/powerpc/sysdev/dart_iommu.c
++++ b/arch/powerpc/sysdev/dart_iommu.c
+@@ -360,13 +360,6 @@ static void iommu_table_dart_setup(void)
+ 	set_bit(iommu_table_dart.it_size - 1, iommu_table_dart.it_map);
  }
  
--static int pnv_pci_ioda_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
-+static bool pnv_pci_ioda_iommu_bypass_supported(struct pci_dev *pdev,
-+		u64 dma_mask)
- {
- 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
- 	struct pnv_phb *phb = hose->private_data;
- 	struct pci_dn *pdn = pci_get_pdn(pdev);
- 	struct pnv_ioda_pe *pe;
--	uint64_t top;
--	bool bypass = false;
--	s64 rc;
- 
- 	if (WARN_ON(!pdn || pdn->pe_number == IODA_INVALID_PE))
- 		return -ENODEV;
- 
- 	pe = &phb->ioda.pe_array[pdn->pe_number];
- 	if (pe->tce_bypass_enabled) {
--		top = pe->tce_bypass_base + memblock_end_of_DRAM() - 1;
--		bypass = (dma_mask >= top);
-+		u64 top = pe->tce_bypass_base + memblock_end_of_DRAM() - 1;
-+		if (dma_mask >= top)
-+			return true;
- 	}
- 
--	if (bypass) {
--		dev_info(&pdev->dev, "Using 64-bit DMA iommu bypass\n");
--		set_dma_ops(&pdev->dev, &dma_nommu_ops);
--	} else {
--		/*
--		 * If the device can't set the TCE bypass bit but still wants
--		 * to access 4GB or more, on PHB3 we can reconfigure TVE#0 to
--		 * bypass the 32-bit region and be usable for 64-bit DMAs.
--		 * The device needs to be able to address all of this space.
--		 */
--		if (dma_mask >> 32 &&
--		    dma_mask > (memory_hotplug_max() + (1ULL << 32)) &&
--		    /* pe->pdev should be set if it's a single device, pe->pbus if not */
--		    (pe->device_count == 1 || !pe->pbus) &&
--		    phb->model == PNV_PHB_MODEL_PHB3) {
--			/* Configure the bypass mode */
--			rc = pnv_pci_ioda_dma_64bit_bypass(pe);
--			if (rc)
--				return rc;
--			/* 4GB offset bypasses 32-bit space */
--			set_dma_offset(&pdev->dev, (1ULL << 32));
--			set_dma_ops(&pdev->dev, &dma_nommu_ops);
--		} else if (dma_mask >> 32 && dma_mask != DMA_BIT_MASK(64)) {
--			/*
--			 * Fail the request if a DMA mask between 32 and 64 bits
--			 * was requested but couldn't be fulfilled. Ideally we
--			 * would do this for 64-bits but historically we have
--			 * always fallen back to 32-bits.
--			 */
--			return -ENOMEM;
--		} else {
--			dev_info(&pdev->dev, "Using 32-bit DMA via iommu\n");
--			set_dma_ops(&pdev->dev, &dma_iommu_ops);
--		}
-+	/*
-+	 * If the device can't set the TCE bypass bit but still wants
-+	 * to access 4GB or more, on PHB3 we can reconfigure TVE#0 to
-+	 * bypass the 32-bit region and be usable for 64-bit DMAs.
-+	 * The device needs to be able to address all of this space.
-+	 */
-+	if (dma_mask >> 32 &&
-+	    dma_mask > (memory_hotplug_max() + (1ULL << 32)) &&
-+	    /* pe->pdev should be set if it's a single device, pe->pbus if not */
-+	    (pe->device_count == 1 || !pe->pbus) &&
-+	    phb->model == PNV_PHB_MODEL_PHB3) {
-+		/* Configure the bypass mode */
-+		s64 rc = pnv_pci_ioda_dma_64bit_bypass(pe);
-+		if (rc)
-+			return rc;
-+		/* 4GB offset bypasses 32-bit space */
-+		set_dma_offset(&pdev->dev, (1ULL << 32));
-+		return true;
- 	}
--	*pdev->dev.dma_mask = dma_mask;
- 
--	return 0;
+-static void pci_dma_dev_setup_dart(struct pci_dev *dev)
+-{
+-	if (dart_is_u4)
+-		set_dma_offset(&dev->dev, DART_U4_BYPASS_BASE);
+-	set_iommu_table_base(&dev->dev, &iommu_table_dart);
 -}
 -
--static u64 pnv_pci_ioda_dma_get_required_mask(struct pci_dev *pdev)
--{
--	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
--	struct pnv_phb *phb = hose->private_data;
--	struct pci_dn *pdn = pci_get_pdn(pdev);
--	struct pnv_ioda_pe *pe;
--	u64 end, mask;
--
--	if (WARN_ON(!pdn || pdn->pe_number == IODA_INVALID_PE))
--		return 0;
--
--	pe = &phb->ioda.pe_array[pdn->pe_number];
--	if (!pe->tce_bypass_enabled)
--		return __dma_get_required_mask(&pdev->dev);
--
--
--	end = pe->tce_bypass_base + memblock_end_of_DRAM();
--	mask = 1ULL << (fls64(end) - 1);
--	mask += mask - 1;
--
--	return mask;
-+	return false;
+ static void pci_dma_bus_setup_dart(struct pci_bus *bus)
+ {
+ 	if (!iommu_table_dart_inited) {
+@@ -390,27 +383,16 @@ static bool dart_device_on_pcie(struct device *dev)
+ 	return false;
  }
  
- static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe,
-@@ -3456,6 +3415,7 @@ static void pnv_pci_ioda_shutdown(struct pci_controller *hose)
- static const struct pci_controller_ops pnv_pci_ioda_controller_ops = {
- 	.dma_dev_setup		= pnv_pci_dma_dev_setup,
- 	.dma_bus_setup		= pnv_pci_dma_bus_setup,
-+	.iommu_bypass_supported	= pnv_pci_ioda_iommu_bypass_supported,
- #ifdef CONFIG_PCI_MSI
- 	.setup_msi_irqs		= pnv_setup_msi_irqs,
- 	.teardown_msi_irqs	= pnv_teardown_msi_irqs,
-@@ -3465,8 +3425,6 @@ static const struct pci_controller_ops pnv_pci_ioda_controller_ops = {
- 	.window_alignment	= pnv_pci_window_alignment,
- 	.setup_bridge		= pnv_pci_setup_bridge,
- 	.reset_secondary_bus	= pnv_pci_reset_secondary_bus,
--	.dma_set_mask		= pnv_pci_ioda_dma_set_mask,
--	.dma_get_required_mask	= pnv_pci_ioda_dma_get_required_mask,
- 	.shutdown		= pnv_pci_ioda_shutdown,
- };
+-static int dart_dma_set_mask(struct device *dev, u64 dma_mask)
++static void pci_dma_dev_setup_dart(struct pci_dev *dev)
+ {
+-	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
+-		return -EIO;
+-
+-	/* U4 supports a DART bypass, we use it for 64-bit capable
+-	 * devices to improve performances. However, that only works
+-	 * for devices connected to U4 own PCIe interface, not bridged
+-	 * through hypertransport. We need the device to support at
+-	 * least 40 bits of addresses.
+-	 */
+-	if (dart_device_on_pcie(dev) && dma_mask >= DMA_BIT_MASK(40)) {
+-		dev_info(dev, "Using 64-bit DMA iommu bypass\n");
+-		set_dma_ops(dev, &dma_nommu_ops);
+-	} else {
+-		dev_info(dev, "Using 32-bit DMA via iommu\n");
+-		set_dma_ops(dev, &dma_iommu_ops);
+-	}
++	if (dart_is_u4 && dart_device_on_pcie(&dev->dev))
++		set_dma_offset(&dev->dev, DART_U4_BYPASS_BASE);
++	set_iommu_table_base(&dev->dev, &iommu_table_dart);
++}
  
+-	*dev->dma_mask = dma_mask;
+-	return 0;
++static bool iommu_bypass_supported_dart(struct pci_dev *dev, u64 mask)
++{
++	return dart_is_u4 && dart_device_on_pcie(&dev->dev);
+ }
+ 
+ void __init iommu_init_early_dart(struct pci_controller_ops *controller_ops)
+@@ -430,12 +412,15 @@ void __init iommu_init_early_dart(struct pci_controller_ops *controller_ops)
+ 	if (dart_init(dn) != 0)
+ 		return;
+ 
+-	/* Setup bypass if supported */
+-	if (dart_is_u4)
+-		ppc_md.dma_set_mask = dart_dma_set_mask;
+-
++	/*
++	 * U4 supports a DART bypass, we use it for 64-bit capable devices to
++	 * improve performance.  However, that only works for devices connected
++	 * to the U4 own PCIe interface, not bridged through hypertransport.
++	 * We need the device to support at least 40 bits of addresses.
++	 */
+ 	controller_ops->dma_dev_setup = pci_dma_dev_setup_dart;
+ 	controller_ops->dma_bus_setup = pci_dma_bus_setup_dart;
++	controller_ops->iommu_bypass_supported = iommu_bypass_supported_dart;
+ 
+ 	/* Setup pci_dma ops */
+ 	set_pci_dma_ops(&dma_iommu_ops);
 -- 
 2.19.0
