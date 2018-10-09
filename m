@@ -1,59 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D04096B0007
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 11:14:46 -0400 (EDT)
-Received: by mail-yb1-f198.google.com with SMTP id c6-v6so708473ybm.10
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 08:14:46 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j18-v6sor2880363ywm.179.2018.10.09.08.14.45
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 89B636B0269
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 11:16:43 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id h48-v6so1416378edh.22
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 08:16:43 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h11-v6si8466427edv.107.2018.10.09.08.16.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 09 Oct 2018 08:14:45 -0700 (PDT)
-Date: Tue, 9 Oct 2018 11:14:35 -0400
-From: Masayoshi Mizuma <msys.mizuma@gmail.com>
-Subject: Re: [PATCH v3 0/3] mm: Fix for movable_node boot option
-Message-ID: <20181009151433.p5aqcyrzrv7gfpyh@gabell>
-References: <20181002143821.5112-1-msys.mizuma@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Oct 2018 08:16:42 -0700 (PDT)
+Date: Tue, 9 Oct 2018 16:16:38 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
+ mappings
+Message-ID: <20181009151638.GE6931@suse.de>
+References: <20180925120326.24392-2-mhocko@kernel.org>
+ <alpine.DEB.2.21.1810041302330.16935@chino.kir.corp.google.com>
+ <20181005073854.GB6931@suse.de>
+ <alpine.DEB.2.21.1810051320270.202739@chino.kir.corp.google.com>
+ <20181005232155.GA2298@redhat.com>
+ <alpine.DEB.2.21.1810081303060.221006@chino.kir.corp.google.com>
+ <20181009094825.GC6931@suse.de>
+ <20181009122745.GN8528@dhcp22.suse.cz>
+ <20181009130034.GD6931@suse.de>
+ <20181009142510.GU8528@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20181002143821.5112-1-msys.mizuma@gmail.com>
+In-Reply-To: <20181009142510.GU8528@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Michal Hocko <mhocko@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
 
-Ping...
+On Tue, Oct 09, 2018 at 04:25:10PM +0200, Michal Hocko wrote:
+> On Tue 09-10-18 14:00:34, Mel Gorman wrote:
+> > On Tue, Oct 09, 2018 at 02:27:45PM +0200, Michal Hocko wrote:
+> > > [Sorry for being slow in responding but I was mostly offline last few
+> > >  days]
+> > > 
+> > > On Tue 09-10-18 10:48:25, Mel Gorman wrote:
+> > > [...]
+> > > > This goes back to my point that the MADV_HUGEPAGE hint should not make
+> > > > promises about locality and that introducing MADV_LOCAL for specialised
+> > > > libraries may be more appropriate with the initial semantic being how it
+> > > > treats MADV_HUGEPAGE regions.
+> > > 
+> > > I agree with your other points and not going to repeat them. I am not
+> > > sure madvise s the best API for the purpose though. We are talking about
+> > > memory policy here and there is an existing api for that so I would
+> > > _prefer_ to reuse it for this purpose.
+> > > 
+> > 
+> > I flip-flopped on that one in my head multiple times on the basis of
+> > how strict it should be. Memory policies tend to be black or white --
+> > bind here, interleave there, etc. It wasn't clear to me what the best
+> > policy would be to describe "allocate local as best as you can but allow
+> > fallbacks if necessary".
+> 
+> I was thinking about MPOL_NODE_PROXIMITY with the following semantic:
+> - try hard to allocate from a local or very close numa node(s) even when
+> that requires expensive operations like the memory reclaim/compaction
+> before falling back to other more distant numa nodes.
+> 
 
-On Tue, Oct 02, 2018 at 10:38:18AM -0400, Masayoshi Mizuma wrote:
-> This patch series are the fix for movable_node boot option
-> issue which was introduced by commit 124049decbb1 ("x86/e820:
-> put !E820_TYPE_RAM regions into memblock.reserved").
-> 
-> The commit breaks the option because it changed the memory
-> gap range to reserved memblock. So, the node is marked as
-> Normal zone even if the SRAT has Hot pluggable affinity.
-> 
-> First and second patch fix the original issue which the commit
-> tried to fix, then revert the commit.
-> 
-> Changelog from v2:
->  - Change the patch order. The revert patch is moved to the last.
-> 
-> Masayoshi Mizuma (1):
->   Revert "x86/e820: put !E820_TYPE_RAM regions into memblock.reserved"
-> 
-> Naoya Horiguchi (1):
->   mm: zero remaining unavailable struct pages
-> 
-> Pavel Tatashin (1):
->   mm: return zero_resv_unavail optimization
-> 
->  arch/x86/kernel/e820.c   | 15 +++--------
->  include/linux/memblock.h | 15 -----------
->  mm/page_alloc.c          | 54 +++++++++++++++++++++++++++-------------
->  3 files changed, 40 insertions(+), 44 deletions(-)
-> 
-> -- 
-> 2.18.0
-> 
+Seems reasonable. It's not far from the general semantics I thought
+MADV_LOCAL would have.
+
+-- 
+Mel Gorman
+SUSE Labs
