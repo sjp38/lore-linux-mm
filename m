@@ -1,102 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 64A116B000A
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 07:12:12 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id m45-v6so1055213edc.2
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 04:12:12 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E1D266B000D
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 07:22:18 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id x44-v6so1043579edd.17
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 04:22:18 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d26-v6si513457ejc.189.2018.10.09.04.12.10
+        by mx.google.com with ESMTPS id m35-v6si1163823ede.157.2018.10.09.04.22.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 04:12:11 -0700 (PDT)
-Date: Tue, 9 Oct 2018 13:12:09 +0200
+        Tue, 09 Oct 2018 04:22:17 -0700 (PDT)
+Date: Tue, 9 Oct 2018 13:22:16 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 1/3] mm: Shuffle initial free memory
-Message-ID: <20181009111209.GL8528@dhcp22.suse.cz>
+Subject: Re: [PATCH v2 0/3] Randomize free memory
+Message-ID: <20181009112216.GM8528@dhcp22.suse.cz>
 References: <153861931865.2863953.11185006931458762795.stgit@dwillia2-desk3.amr.corp.intel.com>
- <153861932401.2863953.11364943845583542894.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20181004074838.GE22173@dhcp22.suse.cz>
- <CAPcyv4jO_K8g3XRzuYOQPeGT--aPtucwZsqkywxOFO4Zny5Xrg@mail.gmail.com>
+ <20181004074457.GD22173@dhcp22.suse.cz>
+ <CAPcyv4ht=ueiZwPTWuY5Y4y1BUOi_z+pHMjfoiXG+Bjd-h55jA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4jO_K8g3XRzuYOQPeGT--aPtucwZsqkywxOFO4Zny5Xrg@mail.gmail.com>
+In-Reply-To: <CAPcyv4ht=ueiZwPTWuY5Y4y1BUOi_z+pHMjfoiXG+Bjd-h55jA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Kees Cook <keescook@chromium.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu 04-10-18 09:51:37, Dan Williams wrote:
-> On Thu, Oct 4, 2018 at 12:48 AM Michal Hocko <mhocko@kernel.org> wrote:
+On Thu 04-10-18 09:44:35, Dan Williams wrote:
+> Hi Michal,
+> 
+> On Thu, Oct 4, 2018 at 12:53 AM Michal Hocko <mhocko@kernel.org> wrote:
 > >
-> > On Wed 03-10-18 19:15:24, Dan Williams wrote:
-> > > Some data exfiltration and return-oriented-programming attacks rely on
-> > > the ability to infer the location of sensitive data objects. The kernel
-> > > page allocator, especially early in system boot, has predictable
-> > > first-in-first out behavior for physical pages. Pages are freed in
-> > > physical address order when first onlined.
-> > >
-> > > Introduce shuffle_free_memory(), and its helper shuffle_zone(), to
-> > > perform a Fisher-Yates shuffle of the page allocator 'free_area' lists
-> > > when they are initially populated with free memory at boot and at
-> > > hotplug time.
-> > >
-> > > Quoting Kees:
-> > >     "While we already have a base-address randomization
-> > >      (CONFIG_RANDOMIZE_MEMORY), attacks against the same hardware and
-> > >      memory layouts would certainly be using the predictability of
-> > >      allocation ordering (i.e. for attacks where the base address isn't
-> > >      important: only the relative positions between allocated memory).
-> > >      This is common in lots of heap-style attacks. They try to gain
-> > >      control over ordering by spraying allocations, etc.
-> > >
-> > >      I'd really like to see this because it gives us something similar
-> > >      to CONFIG_SLAB_FREELIST_RANDOM but for the page allocator."
-> > >
-> > > Another motivation for this change is performance in the presence of a
-> > > memory-side cache. In the future, memory-side-cache technology will be
-> > > available on generally available server platforms. The proposed
-> > > randomization approach has been measured to improve the cache conflict
-> > > rate by a factor of 2.5X on a well-known Java benchmark. It avoids
-> > > performance peaks and valleys to provide more predictable performance.
-> > >
-> > > While SLAB_FREELIST_RANDOM reduces the predictability of some local slab
-> > > caches it leaves vast bulk of memory to be predictably in order
-> > > allocated. That ordering can be detected by a memory side-cache.
-> > >
-> > > The shuffling is done in terms of 'shuffle_page_order' sized free pages
-> > > where the default shuffle_page_order is MAX_ORDER-1 i.e. 10, 4MB this
-> > > trades off randomization granularity for time spent shuffling.
-> > > MAX_ORDER-1 was chosen to be minimally invasive to the page allocator
-> > > while still showing memory-side cache behavior improvements.
-> > >
-> > > The performance impact of the shuffling appears to be in the noise
-> > > compared to other memory initialization work. Also the bulk of the work
-> > > is done in the background as a part of deferred_init_memmap().
+> > On Wed 03-10-18 19:15:18, Dan Williams wrote:
+> > > Changes since v1:
+> > > * Add support for shuffling hot-added memory (Andrew)
+> > > * Update cover letter and commit message to clarify the performance impact
+> > >   and relevance to future platforms
 > >
-> > This is the biggest portion of the series and I am wondering why do we
-> > need it at all. Why it isn't sufficient to rely on the patch 3 here?
+> > I believe this hasn't addressed my questions in
+> > http://lkml.kernel.org/r/20181002143015.GX18290@dhcp22.suse.cz. Namely
+> > "
+> > It is the more general idea that I am not really sure about. First of
+> > all. Does it make _any_ sense to randomize 4MB blocks by default? Why
+> > cannot we simply have it disabled?
 > 
-> In fact we started with only patch3 and it had no measurable impact on
-> the cache conflict rate.
+> I'm not aware of any CVE that this would directly preclude, but that
+> said the entropy injected at 4MB boundaries raises the bar on heap
+> attacks. Environments that want more can adjust that with the boot
+> parameter. Given the potential benefits I think it would only make
+> sense to default disable it if there was a significant runtime impact,
+> from what I have seen there isn't.
 > 
-> > Pages freed from the bootmem allocator go via the same path so they
-> > might be shuffled at that time. Or is there any problem with that?
-> > Not enough entropy at the time when this is called or the final result
-> > is not randomized enough (some numbers would be helpful).
+> > Then and more concerning question is,
+> > does it even make sense to have this randomization applied to higher
+> > orders than 0? Attacker might fragment the memory and keep recycling the
+> > lowest order and get the predictable behavior that we have right now.
 > 
-> So the reason front-back randomization is not enough is due to the
-> in-order initial freeing of pages. At the start of that process
-> putting page1 in front or behind page0 still keeps them close
-> together, page2 is still near page1 and has a high chance of being
-> adjacent. As more pages are added ordering diversity improves, but
-> there is still high page locality for the low address pages and this
-> leads to no significant impact to the cache conflict rate. Patch3 is
-> enough to keep the entropy sustained over time, but it's not enough
-> initially.
+> Certainly I expect there are attacks that can operate within a 4MB
+> window, as I expect there are attacks that could operate within a 4K
+> window that would need sub-page randomization to deter. In fact I
+> believe that is the motivation for CONFIG_SLAB_FREELIST_RANDOM.
+> Combining that with page allocator randomization makes the kernel less
+> predictable.
 
-That should be in the changelog IMHO.
+I am sorry but this hasn't explained anything (at least to me). I can
+still see a way to bypass this randomization by fragmenting the memory.
+With that possibility in place this doesn't really provide the promissed
+additional security. So either I am missing something or the per-order
+threshold is simply a wrong interface to a broken security misfeature.
 
+> Is that enough justification for this patch on its own?
+
+I do not think so from what I have heard so far.
+
+> It's
+> debatable. Combine that though with the wider availability of
+> platforms with memory-side-cache and I think it's a reasonable default
+> behavior for the kernel to deploy.
+
+OK, this sounds a bit more interesting. I am going to speculate because
+memory-side-cache is way too generic of a term for me to imagine
+anything specific. Many years back while at a university I was playing
+with page coloring as a method to reach a more stable performance
+results due to reduced cache conflicts. It was not always a performance
+gain but it definitely allowed for more stable run-to-run comparable
+results. I can imagine that a randomization might lead to a similar effect
+although I am not sure how much and it would be more interesting to hear
+about that effect. If this is really the case then I would assume on/off
+knob to control the randomization without something as specific as
+order.
 -- 
 Michal Hocko
 SUSE Labs
