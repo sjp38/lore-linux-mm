@@ -1,70 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 95B246B0003
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 04:30:28 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id x20-v6so788178eda.21
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 01:30:28 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D6F586B0006
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 04:33:28 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id x44-v6so795633edd.17
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 01:33:28 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p6-v6si6076770edd.134.2018.10.09.01.30.26
+        by mx.google.com with ESMTPS id ci1-v6si41646ejb.48.2018.10.09.01.33.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 01:30:27 -0700 (PDT)
-Date: Tue, 9 Oct 2018 10:30:25 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v4 2/3] mm: introduce put_user_page*(), placeholder
- versions
-Message-ID: <20181009083025.GE11150@quack2.suse.cz>
-References: <20181008211623.30796-1-jhubbard@nvidia.com>
- <20181008211623.30796-3-jhubbard@nvidia.com>
- <20181008171442.d3b3a1ea07d56c26d813a11e@linux-foundation.org>
+        Tue, 09 Oct 2018 01:33:27 -0700 (PDT)
+Date: Tue, 9 Oct 2018 10:33:26 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm, proc: report PR_SET_THP_DISABLE in proc
+Message-ID: <20181009083326.GG8528@dhcp22.suse.cz>
+References: <20180925150406.872aab9f4f945193e5915d69@linux-foundation.org>
+ <20180926060624.GA18685@dhcp22.suse.cz>
+ <20181002112851.GP18290@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810021329260.87409@chino.kir.corp.google.com>
+ <20181003073640.GF18290@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810031547150.202532@chino.kir.corp.google.com>
+ <20181004055842.GA22173@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810040209130.113459@chino.kir.corp.google.com>
+ <20181004094637.GG22173@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810041130380.12951@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181008171442.d3b3a1ea07d56c26d813a11e@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.21.1810041130380.12951@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Ralph Campbell <rcampbell@nvidia.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-On Mon 08-10-18 17:14:42, Andrew Morton wrote:
-> On Mon,  8 Oct 2018 14:16:22 -0700 john.hubbard@gmail.com wrote:
-> > +		put_user_page(pages[index]);
-> > +	}
-> > +}
-> > +
-> > +static inline void put_user_pages(struct page **pages,
-> > +				  unsigned long npages)
-> > +{
-> > +	unsigned long index;
-> > +
-> > +	for (index = 0; index < npages; index++)
-> > +		put_user_page(pages[index]);
-> > +}
-> > +
+On Thu 04-10-18 11:34:11, David Rientjes wrote:
+> On Thu, 4 Oct 2018, Michal Hocko wrote:
 > 
-> Otherwise looks OK.  Ish.  But it would be nice if that comment were to
-> explain *why* get_user_pages() pages must be released with
-> put_user_page().
+> > > And prior to the offending commit, there were three ways to control thp 
+> > > but two ways to determine if a mapping was eligible for thp based on the 
+> > > implementation detail of one of those ways.
+> > 
+> > Yes, it is really unfortunate that we have ever allowed to leak such an
+> > internal stuff like VMA flags to userspace.
+> > 
+> 
+> Right, I don't like userspace dependencies on VmFlags in smaps myself, but 
+> it's the only way we have available that shows whether a single mapping is 
+> eligible to be backed by thp :/
 
-The reason is that eventually we want to track reference from GUP
-separately but you're right that it would be good to have a comment about
-that somewhere.
+Which is not the case due to reasons mentioned earlier. It only speaks
+about madvise status on the VMA.
 
-> Also, maintainability.  What happens if someone now uses put_page() by
-> mistake?  Kernel fails in some mysterious fashion?  How can we prevent
-> this from occurring as code evolves?  Is there a cheap way of detecting
-> this bug at runtime?
+> > > If there are three ways to 
+> > > control thp, userspace is still in the dark wrt which takes precedence 
+> > > over the other: we have PR_SET_THP_DISABLE but globally sysfs has it set 
+> > > to "always", or we have MADV_HUGEPAGE set per smaps but PR_SET_THP_DISABLE 
+> > > shown in /proc/pid/status, etc.
+> > > 
+> > > Which one is the ultimate authority?
+> > 
+> > Isn't our documentation good enough? If not then we should document it
+> > properly.
+> > 
+> 
+> No, because the offending commit actually changed the precedence itself: 
+> PR_SET_THP_DISABLE used to be honored for future mappings and the commit 
+> changed that for all current mappings.
 
-The same will happen as with any other reference counting bug - the special
-user reference will leak. It will be pretty hard to debug I agree. I was
-thinking about whether we could provide some type safety against such bugs
-such as get_user_pages() not returning struct page pointers but rather some
-other special type but it would result in a big amount of additional churn
-as we'd have to propagate this different type e.g. through the IO path so
-that IO completion routines could properly call put_user_pages(). So I'm
-not sure it's really worth it.
+Which is the actual and the full point of the fix as described in the
+changelog. The original implementation was poor and inconsistent.
 
-								Honza
+> So as a result of the commit 
+> itself we would have had to change the documentation and userspace can't 
+> be expected to keep up with yet a fourth variable: kernel version.  It 
+> really needs to be simpler, just a per-mapping specifier.
+
+As I've said, if you really need a per-vma granularity then make it a
+dedicated line in the output with a clear semantic. Do not make VMA
+flags even more confusing.
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
