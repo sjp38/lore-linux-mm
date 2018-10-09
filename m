@@ -1,77 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 47BAE6B026D
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:18:07 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id 36so982807ott.22
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:18:07 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id u107si592747otb.295.2018.10.09.06.18.05
-        for <linux-mm@kvack.org>;
-        Tue, 09 Oct 2018 06:18:05 -0700 (PDT)
-Date: Tue, 9 Oct 2018 14:18:04 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH] mm/thp: Correctly differentiate between mapped THP and
- PMD migration entry
-Message-ID: <20181009131803.GH6248@arm.com>
-References: <1539057538-27446-1-git-send-email-anshuman.khandual@arm.com>
- <20181009130421.bmus632ocurn275u@kshutemo-mobl1>
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FCC96B0005
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:25:28 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id 87-v6so1083499pfq.8
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:25:28 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id i5-v6si15477402pgc.289.2018.10.09.06.25.26
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 09 Oct 2018 06:25:27 -0700 (PDT)
+From: Christoph Hellwig <hch@lst.de>
+Subject: [PATCH 02/33] powerpc/dma: remove the unused ARCH_HAS_DMA_MMAP_COHERENT define
+Date: Tue,  9 Oct 2018 15:24:29 +0200
+Message-Id: <20181009132500.17643-3-hch@lst.de>
+In-Reply-To: <20181009132500.17643-1-hch@lst.de>
+References: <20181009132500.17643-1-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181009130421.bmus632ocurn275u@kshutemo-mobl1>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, zi.yan@cs.rutgers.edu
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
+Cc: linuxppc-dev@lists.ozlabs.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Oct 09, 2018 at 04:04:21PM +0300, Kirill A. Shutemov wrote:
-> On Tue, Oct 09, 2018 at 09:28:58AM +0530, Anshuman Khandual wrote:
-> > A normal mapped THP page at PMD level should be correctly differentiated
-> > from a PMD migration entry while walking the page table. A mapped THP would
-> > additionally check positive for pmd_present() along with pmd_trans_huge()
-> > as compared to a PMD migration entry. This just adds a new conditional test
-> > differentiating the two while walking the page table.
-> > 
-> > Fixes: 616b8371539a6 ("mm: thp: enable thp migration in generic path")
-> > Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
-> > ---
-> > On X86, pmd_trans_huge() and is_pmd_migration_entry() are always mutually
-> > exclusive which makes the current conditional block work for both mapped
-> > and migration entries. This is not same with arm64 where pmd_trans_huge()
-> > returns positive for both mapped and migration entries. Could some one
-> > please explain why pmd_trans_huge() has to return false for migration
-> > entries which just install swap bits and its still a PMD ?
-> 
-> I guess it's just a design choice. Any reason why arm64 cannot do the
-> same?
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+Acked-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+---
+ arch/powerpc/include/asm/dma-mapping.h | 2 --
+ 1 file changed, 2 deletions(-)
 
-Anshuman, would it work to:
-
-#define pmd_trans_huge(pmd)     (pmd_present(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
-
-?
-
-> > Nonetheless pmd_present() seems to be a better check to distinguish
-> > between mapped and (non-mapped non-present) migration entries without
-> > any ambiguity.
-> 
-> Can we instead reverse order of check:
-> 
-> if (pmd_trans_huge(pmde) || is_pmd_migration_entry(pmde)) {
-> 	pvmw->ptl = pmd_lock(mm, pvmw->pmd);
-> 	if (!pmd_present(*pvmw->pmd)) {
-> 		...
-> 	} else if (likely(pmd_trans_huge(*pvmw->pmd))) {
-> 		...
-> 	} else {
-> 		...
-> 	}
-> ...
-> 
-> This should cover both imeplementations of pmd_trans_huge().
-
-I'd much rather have portable semantics for pmd_trans_huge(), if we can
-achieve that efficiently. But that would be fast /and/ correct, so perhaps
-I'm being too hopeful :)
-
-Will
+diff --git a/arch/powerpc/include/asm/dma-mapping.h b/arch/powerpc/include/asm/dma-mapping.h
+index 8fa394520af6..f2a4a7142b1e 100644
+--- a/arch/powerpc/include/asm/dma-mapping.h
++++ b/arch/powerpc/include/asm/dma-mapping.h
+@@ -112,7 +112,5 @@ extern int dma_set_mask(struct device *dev, u64 dma_mask);
+ 
+ extern u64 __dma_get_required_mask(struct device *dev);
+ 
+-#define ARCH_HAS_DMA_MMAP_COHERENT
+-
+ #endif /* __KERNEL__ */
+ #endif	/* _ASM_DMA_MAPPING_H */
+-- 
+2.19.0
