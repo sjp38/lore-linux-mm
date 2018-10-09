@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AE5636B027E
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F04816B027F
 	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:26:11 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id f17-v6so993483plr.1
+Received: by mail-pg1-f197.google.com with SMTP id q143-v6so831438pgq.12
         for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:26:11 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 12-v6si17418829pgd.191.2018.10.09.06.26.10
+        by mx.google.com with ESMTPS id 64-v6si20358169plk.257.2018.10.09.06.26.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Tue, 09 Oct 2018 06:26:10 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 13/33] powerpc/dart: remove dead cleanup code in iommu_init_early_dart
-Date: Tue,  9 Oct 2018 15:24:40 +0200
-Message-Id: <20181009132500.17643-14-hch@lst.de>
+Subject: [PATCH 17/33] powerpc/powernv: use the generic iommu bypass code
+Date: Tue,  9 Oct 2018 15:24:44 +0200
+Message-Id: <20181009132500.17643-18-hch@lst.de>
 In-Reply-To: <20181009132500.17643-1-hch@lst.de>
 References: <20181009132500.17643-1-hch@lst.de>
 MIME-Version: 1.0
@@ -22,42 +22,144 @@ List-ID: <linux-mm.kvack.org>
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
 Cc: linuxppc-dev@lists.ozlabs.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-If dart_init failed we didn't have a chance to setup dma or controller
-ops yet, so there is no point in resetting them.
+Use the generic iommu bypass code instead of overriding set_dma_mask.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/powerpc/sysdev/dart_iommu.c | 11 +----------
- 1 file changed, 1 insertion(+), 10 deletions(-)
+ arch/powerpc/platforms/powernv/pci-ioda.c | 92 ++++++-----------------
+ 1 file changed, 25 insertions(+), 67 deletions(-)
 
-diff --git a/arch/powerpc/sysdev/dart_iommu.c b/arch/powerpc/sysdev/dart_iommu.c
-index 5ca3e22d0512..ce5dd2048f57 100644
---- a/arch/powerpc/sysdev/dart_iommu.c
-+++ b/arch/powerpc/sysdev/dart_iommu.c
-@@ -428,7 +428,7 @@ void __init iommu_init_early_dart(struct pci_controller_ops *controller_ops)
- 
- 	/* Initialize the DART HW */
- 	if (dart_init(dn) != 0)
--		goto bail;
-+		return;
- 
- 	/* Setup bypass if supported */
- 	if (dart_is_u4)
-@@ -439,15 +439,6 @@ void __init iommu_init_early_dart(struct pci_controller_ops *controller_ops)
- 
- 	/* Setup pci_dma ops */
- 	set_pci_dma_ops(&dma_iommu_ops);
--	return;
--
-- bail:
--	/* If init failed, use direct iommu and null setup functions */
--	controller_ops->dma_dev_setup = NULL;
--	controller_ops->dma_bus_setup = NULL;
--
--	/* Setup pci_dma ops */
--	set_pci_dma_ops(&dma_nommu_ops);
+diff --git a/arch/powerpc/platforms/powernv/pci-ioda.c b/arch/powerpc/platforms/powernv/pci-ioda.c
+index b6db65917bb4..5748b62e2e86 100644
+--- a/arch/powerpc/platforms/powernv/pci-ioda.c
++++ b/arch/powerpc/platforms/powernv/pci-ioda.c
+@@ -1739,86 +1739,45 @@ static int pnv_pci_ioda_dma_64bit_bypass(struct pnv_ioda_pe *pe)
+ 	return -EIO;
  }
  
- #ifdef CONFIG_PM
+-static int pnv_pci_ioda_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
++static bool pnv_pci_ioda_iommu_bypass_supported(struct pci_dev *pdev,
++		u64 dma_mask)
+ {
+ 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+ 	struct pnv_phb *phb = hose->private_data;
+ 	struct pci_dn *pdn = pci_get_pdn(pdev);
+ 	struct pnv_ioda_pe *pe;
+-	uint64_t top;
+-	bool bypass = false;
+-	s64 rc;
+ 
+ 	if (WARN_ON(!pdn || pdn->pe_number == IODA_INVALID_PE))
+ 		return -ENODEV;
+ 
+ 	pe = &phb->ioda.pe_array[pdn->pe_number];
+ 	if (pe->tce_bypass_enabled) {
+-		top = pe->tce_bypass_base + memblock_end_of_DRAM() - 1;
+-		bypass = (dma_mask >= top);
++		u64 top = pe->tce_bypass_base + memblock_end_of_DRAM() - 1;
++		if (dma_mask >= top)
++			return true;
+ 	}
+ 
+-	if (bypass) {
+-		dev_info(&pdev->dev, "Using 64-bit DMA iommu bypass\n");
+-		set_dma_ops(&pdev->dev, &dma_nommu_ops);
+-	} else {
+-		/*
+-		 * If the device can't set the TCE bypass bit but still wants
+-		 * to access 4GB or more, on PHB3 we can reconfigure TVE#0 to
+-		 * bypass the 32-bit region and be usable for 64-bit DMAs.
+-		 * The device needs to be able to address all of this space.
+-		 */
+-		if (dma_mask >> 32 &&
+-		    dma_mask > (memory_hotplug_max() + (1ULL << 32)) &&
+-		    /* pe->pdev should be set if it's a single device, pe->pbus if not */
+-		    (pe->device_count == 1 || !pe->pbus) &&
+-		    phb->model == PNV_PHB_MODEL_PHB3) {
+-			/* Configure the bypass mode */
+-			rc = pnv_pci_ioda_dma_64bit_bypass(pe);
+-			if (rc)
+-				return rc;
+-			/* 4GB offset bypasses 32-bit space */
+-			set_dma_offset(&pdev->dev, (1ULL << 32));
+-			set_dma_ops(&pdev->dev, &dma_nommu_ops);
+-		} else if (dma_mask >> 32 && dma_mask != DMA_BIT_MASK(64)) {
+-			/*
+-			 * Fail the request if a DMA mask between 32 and 64 bits
+-			 * was requested but couldn't be fulfilled. Ideally we
+-			 * would do this for 64-bits but historically we have
+-			 * always fallen back to 32-bits.
+-			 */
+-			return -ENOMEM;
+-		} else {
+-			dev_info(&pdev->dev, "Using 32-bit DMA via iommu\n");
+-			set_dma_ops(&pdev->dev, &dma_iommu_ops);
+-		}
++	/*
++	 * If the device can't set the TCE bypass bit but still wants
++	 * to access 4GB or more, on PHB3 we can reconfigure TVE#0 to
++	 * bypass the 32-bit region and be usable for 64-bit DMAs.
++	 * The device needs to be able to address all of this space.
++	 */
++	if (dma_mask >> 32 &&
++	    dma_mask > (memory_hotplug_max() + (1ULL << 32)) &&
++	    /* pe->pdev should be set if it's a single device, pe->pbus if not */
++	    (pe->device_count == 1 || !pe->pbus) &&
++	    phb->model == PNV_PHB_MODEL_PHB3) {
++		/* Configure the bypass mode */
++		s64 rc = pnv_pci_ioda_dma_64bit_bypass(pe);
++		if (rc)
++			return rc;
++		/* 4GB offset bypasses 32-bit space */
++		set_dma_offset(&pdev->dev, (1ULL << 32));
++		return true;
+ 	}
+-	*pdev->dev.dma_mask = dma_mask;
+ 
+-	return 0;
+-}
+-
+-static u64 pnv_pci_ioda_dma_get_required_mask(struct pci_dev *pdev)
+-{
+-	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+-	struct pnv_phb *phb = hose->private_data;
+-	struct pci_dn *pdn = pci_get_pdn(pdev);
+-	struct pnv_ioda_pe *pe;
+-	u64 end, mask;
+-
+-	if (WARN_ON(!pdn || pdn->pe_number == IODA_INVALID_PE))
+-		return 0;
+-
+-	pe = &phb->ioda.pe_array[pdn->pe_number];
+-	if (!pe->tce_bypass_enabled)
+-		return __dma_get_required_mask(&pdev->dev);
+-
+-
+-	end = pe->tce_bypass_base + memblock_end_of_DRAM();
+-	mask = 1ULL << (fls64(end) - 1);
+-	mask += mask - 1;
+-
+-	return mask;
++	return false;
+ }
+ 
+ static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe,
+@@ -3456,6 +3415,7 @@ static void pnv_pci_ioda_shutdown(struct pci_controller *hose)
+ static const struct pci_controller_ops pnv_pci_ioda_controller_ops = {
+ 	.dma_dev_setup		= pnv_pci_dma_dev_setup,
+ 	.dma_bus_setup		= pnv_pci_dma_bus_setup,
++	.iommu_bypass_supported	= pnv_pci_ioda_iommu_bypass_supported,
+ #ifdef CONFIG_PCI_MSI
+ 	.setup_msi_irqs		= pnv_setup_msi_irqs,
+ 	.teardown_msi_irqs	= pnv_teardown_msi_irqs,
+@@ -3465,8 +3425,6 @@ static const struct pci_controller_ops pnv_pci_ioda_controller_ops = {
+ 	.window_alignment	= pnv_pci_window_alignment,
+ 	.setup_bridge		= pnv_pci_setup_bridge,
+ 	.reset_secondary_bus	= pnv_pci_reset_secondary_bus,
+-	.dma_set_mask		= pnv_pci_ioda_dma_set_mask,
+-	.dma_get_required_mask	= pnv_pci_ioda_dma_get_required_mask,
+ 	.shutdown		= pnv_pci_ioda_shutdown,
+ };
+ 
 -- 
 2.19.0
