@@ -1,88 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BF3AA6B0007
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 13:47:03 -0400 (EDT)
-Received: by mail-lf1-f72.google.com with SMTP id m79-v6so322954lfi.11
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 10:47:03 -0700 (PDT)
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id 7-v6si16451016lfq.145.2018.10.09.10.47.01
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CD0386B000A
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 13:55:26 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id t68-v6so1642847oih.4
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 10:55:26 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n97sor1150645ota.162.2018.10.09.10.55.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 10:47:01 -0700 (PDT)
-Subject: [PATCH] mm: Convert mem_cgroup_id::ref to refcount_t type
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Tue, 09 Oct 2018 20:46:56 +0300
-Message-ID: <153910718919.7006.13400779039257185427.stgit@localhost.localdomain>
+        (Google Transport Security);
+        Tue, 09 Oct 2018 10:55:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+References: <20181009101917.32497-1-jack@suse.cz>
+In-Reply-To: <20181009101917.32497-1-jack@suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 9 Oct 2018 10:55:14 -0700
+Message-ID: <CAPcyv4jExSvW8xSe_LYAYvjgBd=gfKdvrqtojybK0wfu9GFNLA@mail.gmail.com>
+Subject: Re: [PATCH] mm: Preserve _PAGE_DEVMAP across mprotect() calls
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.comakpm@linux-foundation.org, ktkhai@virtuozzo.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, stable <stable@vger.kernel.org>
 
-This will allow to use generic refcount_t interfaces
-to check counters overflow instead of currently existing
-VM_BUG_ON(). The only difference after the patch is
-VM_BUG_ON() may cause BUG(), while refcount_t fires
-with WARN(). But this seems not to be significant here,
-since such the problems are usually caught by syzbot
-with panic-on-warn enabled.
+On Tue, Oct 9, 2018 at 3:19 AM Jan Kara <jack@suse.cz> wrote:
+>
+> Currently _PAGE_DEVMAP bit is not preserved in mprotect(2) calls. As a
+> result we will see warnings such as:
+>
+> BUG: Bad page map in process JobWrk0013  pte:800001803875ea25 pmd:7624381067
+> addr:00007f0930720000 vm_flags:280000f9 anon_vma:          (null) mapping:ffff97f2384056f0 index:0
+> file:457-000000fe00000030-00000009-000000ca-00000001_2001.fileblock fault:xfs_filemap_fault [xfs] mmap:xfs_file_mmap [xfs] readpage:          (null)
+> CPU: 3 PID: 15848 Comm: JobWrk0013 Tainted: G        W          4.12.14-2.g7573215-default #1 SLE12-SP4 (unreleased)
+> Hardware name: Intel Corporation S2600WFD/S2600WFD, BIOS SE5C620.86B.01.00.0833.051120182255 05/11/2018
+> Call Trace:
+>  dump_stack+0x5a/0x75
+>  print_bad_pte+0x217/0x2c0
+>  ? enqueue_task_fair+0x76/0x9f0
+>  _vm_normal_page+0xe5/0x100
+>  zap_pte_range+0x148/0x740
+>  unmap_page_range+0x39a/0x4b0
+>  unmap_vmas+0x42/0x90
+>  unmap_region+0x99/0xf0
+>  ? vma_gap_callbacks_rotate+0x1a/0x20
+>  do_munmap+0x255/0x3a0
+>  vm_munmap+0x54/0x80
+>  SyS_munmap+0x1d/0x30
+>  do_syscall_64+0x74/0x150
+>  entry_SYSCALL_64_after_hwframe+0x3d/0xa2
+> ...
+>
+> when mprotect(2) gets used on DAX mappings. Also there is a wide variety
+> of other failures that can result from the missing _PAGE_DEVMAP flag
+> when the area gets used by get_user_pages() later.
+>
+> Fix the problem by including _PAGE_DEVMAP in a set of flags that get
+> preserved by mprotect(2).
+>
+> Fixes: 69660fd797c3 ("x86, mm: introduce _PAGE_DEVMAP")
+> Fixes: ebd31197931d ("powerpc/mm: Add devmap support for ppc64")
+> CC: stable@vger.kernel.org
+> Signed-off-by: Jan Kara <jack@suse.cz>
 
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
----
- include/linux/memcontrol.h |    2 +-
- mm/memcontrol.c            |   10 ++++------
- 2 files changed, 5 insertions(+), 7 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 4399cc3f00e4..7ab2120155a4 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -78,7 +78,7 @@ struct mem_cgroup_reclaim_cookie {
- 
- struct mem_cgroup_id {
- 	int id;
--	atomic_t ref;
-+	refcount_t ref;
- };
- 
- /*
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7bebe2ddec05..aa728d5b3d72 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4299,14 +4299,12 @@ static void mem_cgroup_id_remove(struct mem_cgroup *memcg)
- 
- static void mem_cgroup_id_get_many(struct mem_cgroup *memcg, unsigned int n)
- {
--	VM_BUG_ON(atomic_read(&memcg->id.ref) <= 0);
--	atomic_add(n, &memcg->id.ref);
-+	refcount_add(n, &memcg->id.ref);
- }
- 
- static void mem_cgroup_id_put_many(struct mem_cgroup *memcg, unsigned int n)
- {
--	VM_BUG_ON(atomic_read(&memcg->id.ref) < n);
--	if (atomic_sub_and_test(n, &memcg->id.ref)) {
-+	if (refcount_sub_and_test(n, &memcg->id.ref)) {
- 		mem_cgroup_id_remove(memcg);
- 
- 		/* Memcg ID pins CSS */
-@@ -4523,7 +4521,7 @@ static int mem_cgroup_css_online(struct cgroup_subsys_state *css)
- 	}
- 
- 	/* Online state pins memcg ID, memcg ID pins CSS */
--	atomic_set(&memcg->id.ref, 1);
-+	refcount_set(&memcg->id.ref, 1);
- 	css_get(css);
- 	return 0;
- }
-@@ -6357,7 +6355,7 @@ subsys_initcall(mem_cgroup_init);
- #ifdef CONFIG_MEMCG_SWAP
- static struct mem_cgroup *mem_cgroup_id_get_online(struct mem_cgroup *memcg)
- {
--	while (!atomic_inc_not_zero(&memcg->id.ref)) {
-+	while (!refcount_inc_not_zero(&memcg->id.ref)) {
- 		/*
- 		 * The root cgroup cannot be destroyed, so it's refcount must
- 		 * always be >= 1.
+Looks good, do you want me to take this upstream along with the livelock fix?
