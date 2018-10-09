@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 354806B028E
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:26:31 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id z12-v6so1074356pfl.17
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:26:31 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 43A196B0290
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:26:36 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id e15-v6so1097491pfi.5
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:26:36 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d9-v6si10273790pgc.299.2018.10.09.06.26.29
+        by mx.google.com with ESMTPS id e73-v6si21587933pfb.98.2018.10.09.06.26.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 09 Oct 2018 06:26:29 -0700 (PDT)
+        Tue, 09 Oct 2018 06:26:35 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 21/33] powerpc/dma: remove get_pci_dma_ops
-Date: Tue,  9 Oct 2018 15:24:48 +0200
-Message-Id: <20181009132500.17643-22-hch@lst.de>
+Subject: [PATCH 28/33] powerpc/dma: use phys_to_dma instead of get_dma_offset
+Date: Tue,  9 Oct 2018 15:24:55 +0200
+Message-Id: <20181009132500.17643-29-hch@lst.de>
 In-Reply-To: <20181009132500.17643-1-hch@lst.de>
 References: <20181009132500.17643-1-hch@lst.de>
 MIME-Version: 1.0
@@ -22,103 +22,77 @@ List-ID: <linux-mm.kvack.org>
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
 Cc: linuxppc-dev@lists.ozlabs.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-This function is only used by the Cell iommu code, which can keep track
-if it is using the iommu internally just as good.
+Use the standard portable helper instead of the powerpc specific one,
+which is about to go away.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
+Acked-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 ---
- arch/powerpc/include/asm/pci.h      |  2 --
- arch/powerpc/kernel/pci-common.c    |  6 ------
- arch/powerpc/platforms/cell/iommu.c | 17 ++++++++---------
- 3 files changed, 8 insertions(+), 17 deletions(-)
+ arch/powerpc/kernel/dma-swiotlb.c |  2 +-
+ arch/powerpc/kernel/dma.c         | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/pci.h b/arch/powerpc/include/asm/pci.h
-index a01d2e3d6ff9..4f7cf0a7f89d 100644
---- a/arch/powerpc/include/asm/pci.h
-+++ b/arch/powerpc/include/asm/pci.h
-@@ -52,10 +52,8 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
+diff --git a/arch/powerpc/kernel/dma-swiotlb.c b/arch/powerpc/kernel/dma-swiotlb.c
+index dba216dd70fd..d33caff8c684 100644
+--- a/arch/powerpc/kernel/dma-swiotlb.c
++++ b/arch/powerpc/kernel/dma-swiotlb.c
+@@ -11,7 +11,7 @@
+  *
+  */
  
- #ifdef CONFIG_PCI
- extern void set_pci_dma_ops(const struct dma_map_ops *dma_ops);
--extern const struct dma_map_ops *get_pci_dma_ops(void);
- #else	/* CONFIG_PCI */
- #define set_pci_dma_ops(d)
--#define get_pci_dma_ops()	NULL
- #endif
+-#include <linux/dma-mapping.h>
++#include <linux/dma-direct.h>
+ #include <linux/memblock.h>
+ #include <linux/pfn.h>
+ #include <linux/of_platform.h>
+diff --git a/arch/powerpc/kernel/dma.c b/arch/powerpc/kernel/dma.c
+index 795afe387c91..7f7f3a069b63 100644
+--- a/arch/powerpc/kernel/dma.c
++++ b/arch/powerpc/kernel/dma.c
+@@ -6,7 +6,7 @@
+  */
  
- #ifdef CONFIG_PPC64
-diff --git a/arch/powerpc/kernel/pci-common.c b/arch/powerpc/kernel/pci-common.c
-index 88e4f69a09e5..a84707680525 100644
---- a/arch/powerpc/kernel/pci-common.c
-+++ b/arch/powerpc/kernel/pci-common.c
-@@ -69,12 +69,6 @@ void set_pci_dma_ops(const struct dma_map_ops *dma_ops)
- 	pci_dma_ops = dma_ops;
- }
- 
--const struct dma_map_ops *get_pci_dma_ops(void)
--{
--	return pci_dma_ops;
--}
--EXPORT_SYMBOL(get_pci_dma_ops);
--
- /*
-  * This function should run under locking protection, specifically
-  * hose_spinlock.
-diff --git a/arch/powerpc/platforms/cell/iommu.c b/arch/powerpc/platforms/cell/iommu.c
-index fb51f78035ce..93c7e4aef571 100644
---- a/arch/powerpc/platforms/cell/iommu.c
-+++ b/arch/powerpc/platforms/cell/iommu.c
-@@ -544,6 +544,7 @@ static struct cbe_iommu *cell_iommu_for_node(int nid)
- static unsigned long cell_dma_nommu_offset;
- 
- static unsigned long dma_iommu_fixed_base;
-+static bool cell_iommu_enabled;
- 
- /* iommu_fixed_is_weak is set if booted with iommu_fixed=weak */
- bool iommu_fixed_is_weak;
-@@ -572,16 +573,14 @@ static u64 cell_iommu_get_fixed_address(struct device *dev);
- 
- static void cell_dma_dev_setup(struct device *dev)
+ #include <linux/device.h>
+-#include <linux/dma-mapping.h>
++#include <linux/dma-direct.h>
+ #include <linux/dma-debug.h>
+ #include <linux/gfp.h>
+ #include <linux/memblock.h>
+@@ -42,7 +42,7 @@ static u64 __maybe_unused get_pfn_limit(struct device *dev)
+ int dma_nommu_dma_supported(struct device *dev, u64 mask)
  {
--	if (get_pci_dma_ops() == &dma_iommu_ops) {
-+	if (cell_iommu_enabled) {
- 		u64 addr = cell_iommu_get_fixed_address(dev);
+ #ifdef CONFIG_PPC64
+-	u64 limit = get_dma_offset(dev) + (memblock_end_of_DRAM() - 1);
++	u64 limit = phys_to_dma(dev, (memblock_end_of_DRAM() - 1));
  
- 		if (addr != OF_BAD_ADDR)
- 			set_dma_offset(dev, addr + dma_iommu_fixed_base);
- 		set_iommu_table_base(dev, cell_get_iommu_table(dev));
--	} else if (get_pci_dma_ops() == &dma_nommu_ops) {
--		set_dma_offset(dev, cell_dma_nommu_offset);
- 	} else {
--		BUG();
-+		set_dma_offset(dev, cell_dma_nommu_offset);
- 	}
+ 	/* Limit fits in the mask, we are good */
+ 	if (mask >= limit)
+@@ -100,7 +100,7 @@ void *__dma_nommu_alloc_coherent(struct device *dev, size_t size,
+ 		return NULL;
+ 	ret = page_address(page);
+ 	memset(ret, 0, size);
+-	*dma_handle = __pa(ret) + get_dma_offset(dev);
++	*dma_handle = phys_to_dma(dev,__pa(ret));
+ 
+ 	return ret;
+ }
+@@ -139,7 +139,7 @@ int dma_nommu_map_sg(struct device *dev, struct scatterlist *sgl,
+ 	int i;
+ 
+ 	for_each_sg(sgl, sg, nents, i) {
+-		sg->dma_address = sg_phys(sg) + get_dma_offset(dev);
++		sg->dma_address = phys_to_dma(dev, sg_phys(sg));
+ 		sg->dma_length = sg->length;
+ 
+ 		if (attrs & DMA_ATTR_SKIP_CPU_SYNC)
+@@ -158,7 +158,7 @@ dma_addr_t dma_nommu_map_page(struct device *dev, struct page *page,
+ 	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+ 		__dma_sync_page(page, offset, size, dir);
+ 
+-	return page_to_phys(page) + offset + get_dma_offset(dev);
++	return phys_to_dma(dev, page_to_phys(page)) + offset;
  }
  
-@@ -599,11 +598,11 @@ static int cell_of_bus_notify(struct notifier_block *nb, unsigned long action,
- 	if (action != BUS_NOTIFY_ADD_DEVICE)
- 		return 0;
- 
--	/* We use the PCI DMA ops */
--	dev->dma_ops = get_pci_dma_ops();
--
-+	if (cell_iommu_enabled)
-+		dev->dma_ops = &dma_iommu_ops;
-+	else
-+		dev->dma_ops = &dma_nommu_ops;
- 	cell_dma_dev_setup(dev);
--
- 	return 0;
- }
- 
-@@ -1091,7 +1090,7 @@ static int __init cell_iommu_init(void)
- 				cell_pci_iommu_bypass_supported;
- 	}
- 	set_pci_dma_ops(&dma_iommu_ops);
--
-+	cell_iommu_enabled = true;
-  bail:
- 	/* Register callbacks on OF platform device addition/removal
- 	 * to handle linking them to the right DMA operations
+ #ifdef CONFIG_NOT_COHERENT_CACHE
 -- 
 2.19.0
