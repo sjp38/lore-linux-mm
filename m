@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 10C8A6B026F
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:25:40 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id d22-v6so1105565pfn.3
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:25:40 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 341776B0273
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:25:48 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id c4-v6so965956plz.20
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:25:48 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d130-v6si19657838pgc.189.2018.10.09.06.25.38
+        by mx.google.com with ESMTPS id a16-v6si20159006pfi.34.2018.10.09.06.25.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 09 Oct 2018 06:25:38 -0700 (PDT)
+        Tue, 09 Oct 2018 06:25:46 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 07/33] powerpc/dma: untangle vio_dma_mapping_ops from dma_iommu_ops
-Date: Tue,  9 Oct 2018 15:24:34 +0200
-Message-Id: <20181009132500.17643-8-hch@lst.de>
+Subject: [PATCH 10/33] powerpc/pseries: use the generic iommu bypass code
+Date: Tue,  9 Oct 2018 15:24:37 +0200
+Message-Id: <20181009132500.17643-11-hch@lst.de>
 In-Reply-To: <20181009132500.17643-1-hch@lst.de>
 References: <20181009132500.17643-1-hch@lst.de>
 MIME-Version: 1.0
@@ -22,210 +22,148 @@ List-ID: <linux-mm.kvack.org>
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
 Cc: linuxppc-dev@lists.ozlabs.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-vio_dma_mapping_ops currently does a lot of indirect calls through
-dma_iommu_ops, which not only make the code harder to follow but are
-also expensive in the post-spectre world.  Unwind the indirect calls
-by calling the ppc_iommu_* or iommu_* APIs directly applicable, or
-just use the dma_iommu_* methods directly where we can.
+Use the generic iommu bypass code instead of overriding set_dma_mask.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/powerpc/include/asm/iommu.h     |  1 +
- arch/powerpc/kernel/dma-iommu.c      |  2 +-
- arch/powerpc/platforms/pseries/vio.c | 87 ++++++++++++----------------
- 3 files changed, 38 insertions(+), 52 deletions(-)
+ arch/powerpc/platforms/pseries/iommu.c | 100 +++++++------------------
+ 1 file changed, 27 insertions(+), 73 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/iommu.h b/arch/powerpc/include/asm/iommu.h
-index ab3a4fba38e3..26b7cc176a99 100644
---- a/arch/powerpc/include/asm/iommu.h
-+++ b/arch/powerpc/include/asm/iommu.h
-@@ -244,6 +244,7 @@ static inline int __init tce_iommu_bus_notifier_init(void)
- }
- #endif /* !CONFIG_IOMMU_API */
- 
-+u64 dma_iommu_get_required_mask(struct device *dev);
- int dma_iommu_mapping_error(struct device *dev, dma_addr_t dma_addr);
- 
- #else
-diff --git a/arch/powerpc/kernel/dma-iommu.c b/arch/powerpc/kernel/dma-iommu.c
-index 2ca6cfaebf65..0613278abf9f 100644
---- a/arch/powerpc/kernel/dma-iommu.c
-+++ b/arch/powerpc/kernel/dma-iommu.c
-@@ -92,7 +92,7 @@ int dma_iommu_dma_supported(struct device *dev, u64 mask)
- 		return 1;
- }
- 
--static u64 dma_iommu_get_required_mask(struct device *dev)
-+u64 dma_iommu_get_required_mask(struct device *dev)
+diff --git a/arch/powerpc/platforms/pseries/iommu.c b/arch/powerpc/platforms/pseries/iommu.c
+index da5716de7f4c..8965d174c53b 100644
+--- a/arch/powerpc/platforms/pseries/iommu.c
++++ b/arch/powerpc/platforms/pseries/iommu.c
+@@ -973,7 +973,7 @@ static LIST_HEAD(failed_ddw_pdn_list);
+  * pdn: the parent pe node with the ibm,dma_window property
+  * Future: also check if we can remap the base window for our base page size
+  *
+- * returns the dma offset for use by dma_set_mask
++ * returns the dma offset for use by the direct mapped DMA code.
+  */
+ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
  {
- 	struct iommu_table *tbl = get_iommu_table_base(dev);
- 	u64 mask;
-diff --git a/arch/powerpc/platforms/pseries/vio.c b/arch/powerpc/platforms/pseries/vio.c
-index 49e04ec19238..1dfff53ebd7f 100644
---- a/arch/powerpc/platforms/pseries/vio.c
-+++ b/arch/powerpc/platforms/pseries/vio.c
-@@ -492,7 +492,9 @@ static void *vio_dma_iommu_alloc_coherent(struct device *dev, size_t size,
- 		return NULL;
+@@ -1193,87 +1193,40 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
+ 	iommu_add_device(&dev->dev);
+ }
+ 
+-static int dma_set_mask_pSeriesLP(struct device *dev, u64 dma_mask)
++static bool iommu_bypass_supported_pSeriesLP(struct pci_dev *pdev, u64 dma_mask)
+ {
+-	bool ddw_enabled = false;
+-	struct device_node *pdn, *dn;
+-	struct pci_dev *pdev;
++	struct device_node *dn = pci_device_to_OF_node(pdev), *pdn;
+ 	const __be32 *dma_window = NULL;
+ 	u64 dma_offset;
+ 
+-	if (!dev->dma_mask)
+-		return -EIO;
+-
+-	if (!dev_is_pci(dev))
+-		goto check_mask;
+-
+-	pdev = to_pci_dev(dev);
+-
+ 	/* only attempt to use a new window if 64-bit DMA is requested */
+-	if (!disable_ddw && dma_mask == DMA_BIT_MASK(64)) {
+-		dn = pci_device_to_OF_node(pdev);
+-		dev_dbg(dev, "node is %pOF\n", dn);
++	if (dma_mask < DMA_BIT_MASK(64))
++		return false;
+ 
+-		/*
+-		 * the device tree might contain the dma-window properties
+-		 * per-device and not necessarily for the bus. So we need to
+-		 * search upwards in the tree until we either hit a dma-window
+-		 * property, OR find a parent with a table already allocated.
+-		 */
+-		for (pdn = dn; pdn && PCI_DN(pdn) && !PCI_DN(pdn)->table_group;
+-				pdn = pdn->parent) {
+-			dma_window = of_get_property(pdn, "ibm,dma-window", NULL);
+-			if (dma_window)
+-				break;
+-		}
+-		if (pdn && PCI_DN(pdn)) {
+-			dma_offset = enable_ddw(pdev, pdn);
+-			if (dma_offset != 0) {
+-				dev_info(dev, "Using 64-bit direct DMA at offset %llx\n", dma_offset);
+-				set_dma_offset(dev, dma_offset);
+-				set_dma_ops(dev, &dma_nommu_ops);
+-				ddw_enabled = true;
+-			}
+-		}
+-	}
++	dev_dbg(&pdev->dev, "node is %pOF\n", dn);
+ 
+-	/* fall back on iommu ops */
+-	if (!ddw_enabled && get_dma_ops(dev) != &dma_iommu_ops) {
+-		dev_info(dev, "Restoring 32-bit DMA via iommu\n");
+-		set_dma_ops(dev, &dma_iommu_ops);
++	/*
++	 * the device tree might contain the dma-window properties
++	 * per-device and not necessarily for the bus. So we need to
++	 * search upwards in the tree until we either hit a dma-window
++	 * property, OR find a parent with a table already allocated.
++	 */
++	for (pdn = dn; pdn && PCI_DN(pdn) && !PCI_DN(pdn)->table_group;
++			pdn = pdn->parent) {
++		dma_window = of_get_property(pdn, "ibm,dma-window", NULL);
++		if (dma_window)
++			break;
  	}
  
--	ret = dma_iommu_ops.alloc(dev, size, dma_handle, flag, attrs);
-+	ret = iommu_alloc_coherent(dev, get_iommu_table_base(dev), size,
-+				    dma_handle, dev->coherent_dma_mask, flag,
-+				    dev_to_node(dev));
- 	if (unlikely(ret == NULL)) {
- 		vio_cmo_dealloc(viodev, roundup(size, PAGE_SIZE));
- 		atomic_inc(&viodev->cmo.allocs_failed);
-@@ -507,8 +509,7 @@ static void vio_dma_iommu_free_coherent(struct device *dev, size_t size,
- {
- 	struct vio_dev *viodev = to_vio_dev(dev);
- 
--	dma_iommu_ops.free(dev, size, vaddr, dma_handle, attrs);
+-check_mask:
+-	if (!dma_supported(dev, dma_mask))
+-		return -EIO;
 -
-+	iommu_free_coherent(get_iommu_table_base(dev), size, vaddr, dma_handle);
- 	vio_cmo_dealloc(viodev, roundup(size, PAGE_SIZE));
- }
- 
-@@ -518,22 +519,22 @@ static dma_addr_t vio_dma_iommu_map_page(struct device *dev, struct page *page,
-                                          unsigned long attrs)
- {
- 	struct vio_dev *viodev = to_vio_dev(dev);
--	struct iommu_table *tbl;
-+	struct iommu_table *tbl = get_iommu_table_base(dev);
- 	dma_addr_t ret = IOMMU_MAPPING_ERROR;
- 
--	tbl = get_iommu_table_base(dev);
--	if (vio_cmo_alloc(viodev, roundup(size, IOMMU_PAGE_SIZE(tbl)))) {
--		atomic_inc(&viodev->cmo.allocs_failed);
--		return ret;
--	}
+-	*dev->dma_mask = dma_mask;
+-	return 0;
+-}
 -
--	ret = dma_iommu_ops.map_page(dev, page, offset, size, direction, attrs);
--	if (unlikely(dma_mapping_error(dev, ret))) {
--		vio_cmo_dealloc(viodev, roundup(size, IOMMU_PAGE_SIZE(tbl)));
--		atomic_inc(&viodev->cmo.allocs_failed);
--	}
--
-+	if (vio_cmo_alloc(viodev, roundup(size, IOMMU_PAGE_SIZE(tbl))))
-+		goto out_fail;
-+	ret = iommu_map_page(dev, tbl, page, offset, size, device_to_mask(dev),
-+			direction, attrs);
-+	if (unlikely(ret == IOMMU_MAPPING_ERROR))
-+		goto out_deallocate;
- 	return ret;
-+
-+out_deallocate:
-+	vio_cmo_dealloc(viodev, roundup(size, IOMMU_PAGE_SIZE(tbl)));
-+out_fail:
-+	atomic_inc(&viodev->cmo.allocs_failed);
-+	return IOMMU_MAPPING_ERROR;
- }
- 
- static void vio_dma_iommu_unmap_page(struct device *dev, dma_addr_t dma_handle,
-@@ -542,11 +543,9 @@ static void vio_dma_iommu_unmap_page(struct device *dev, dma_addr_t dma_handle,
- 				     unsigned long attrs)
- {
- 	struct vio_dev *viodev = to_vio_dev(dev);
--	struct iommu_table *tbl;
--
--	tbl = get_iommu_table_base(dev);
--	dma_iommu_ops.unmap_page(dev, dma_handle, size, direction, attrs);
-+	struct iommu_table *tbl = get_iommu_table_base(dev);
- 
-+	iommu_unmap_page(tbl, dma_handle, size, direction, attrs);
- 	vio_cmo_dealloc(viodev, roundup(size, IOMMU_PAGE_SIZE(tbl)));
- }
- 
-@@ -555,34 +554,32 @@ static int vio_dma_iommu_map_sg(struct device *dev, struct scatterlist *sglist,
-                                 unsigned long attrs)
- {
- 	struct vio_dev *viodev = to_vio_dev(dev);
--	struct iommu_table *tbl;
-+	struct iommu_table *tbl = get_iommu_table_base(dev);
- 	struct scatterlist *sgl;
- 	int ret, count;
- 	size_t alloc_size = 0;
- 
--	tbl = get_iommu_table_base(dev);
- 	for_each_sg(sglist, sgl, nelems, count)
- 		alloc_size += roundup(sgl->length, IOMMU_PAGE_SIZE(tbl));
- 
--	if (vio_cmo_alloc(viodev, alloc_size)) {
--		atomic_inc(&viodev->cmo.allocs_failed);
+-static u64 dma_get_required_mask_pSeriesLP(struct device *dev)
+-{
+-	if (!dev->dma_mask)
 -		return 0;
--	}
 -
--	ret = dma_iommu_ops.map_sg(dev, sglist, nelems, direction, attrs);
+-	if (!disable_ddw && dev_is_pci(dev)) {
+-		struct pci_dev *pdev = to_pci_dev(dev);
+-		struct device_node *dn;
 -
--	if (unlikely(!ret)) {
--		vio_cmo_dealloc(viodev, alloc_size);
--		atomic_inc(&viodev->cmo.allocs_failed);
--		return ret;
--	}
-+	if (vio_cmo_alloc(viodev, alloc_size))
-+		goto out_fail;
-+	ret = ppc_iommu_map_sg(dev, tbl, sglist, nelems, device_to_mask(dev),
-+			direction, attrs);
-+	if (unlikely(!ret))
-+		goto out_deallocate;
+-		dn = pci_device_to_OF_node(pdev);
+-
+-		/* search upwards for ibm,dma-window */
+-		for (; dn && PCI_DN(dn) && !PCI_DN(dn)->table_group;
+-				dn = dn->parent)
+-			if (of_get_property(dn, "ibm,dma-window", NULL))
+-				break;
+-		/* if there is a ibm,ddw-applicable property require 64 bits */
+-		if (dn && PCI_DN(dn) &&
+-				of_get_property(dn, "ibm,ddw-applicable", NULL))
+-			return DMA_BIT_MASK(64);
++	if (pdn && PCI_DN(pdn)) {
++		dma_offset = enable_ddw(pdev, pdn);
++		if (dma_offset != 0) {
++			set_dma_offset(&pdev->dev, dma_offset);
++			return true;
++		}
+ 	}
  
- 	for_each_sg(sglist, sgl, ret, count)
- 		alloc_size -= roundup(sgl->dma_length, IOMMU_PAGE_SIZE(tbl));
- 	if (alloc_size)
- 		vio_cmo_dealloc(viodev, alloc_size);
--
- 	return ret;
-+
-+out_deallocate:
-+	vio_cmo_dealloc(viodev, alloc_size);
-+out_fail:
-+	atomic_inc(&viodev->cmo.allocs_failed);
-+	return 0;
+-	return dma_iommu_get_required_mask(dev);
++	return false;
  }
  
- static void vio_dma_iommu_unmap_sg(struct device *dev,
-@@ -591,30 +588,18 @@ static void vio_dma_iommu_unmap_sg(struct device *dev,
- 		unsigned long attrs)
- {
- 	struct vio_dev *viodev = to_vio_dev(dev);
--	struct iommu_table *tbl;
-+	struct iommu_table *tbl = get_iommu_table_base(dev);
- 	struct scatterlist *sgl;
- 	size_t alloc_size = 0;
- 	int count;
- 
--	tbl = get_iommu_table_base(dev);
- 	for_each_sg(sglist, sgl, nelems, count)
- 		alloc_size += roundup(sgl->dma_length, IOMMU_PAGE_SIZE(tbl));
- 
--	dma_iommu_ops.unmap_sg(dev, sglist, nelems, direction, attrs);
--
-+	ppc_iommu_unmap_sg(tbl, sglist, nelems, direction, attrs);
- 	vio_cmo_dealloc(viodev, alloc_size);
- }
- 
--static int vio_dma_iommu_dma_supported(struct device *dev, u64 mask)
--{
--        return dma_iommu_ops.dma_supported(dev, mask);
--}
--
--static u64 vio_dma_get_required_mask(struct device *dev)
--{
--        return dma_iommu_ops.get_required_mask(dev);
--}
--
- static const struct dma_map_ops vio_dma_mapping_ops = {
- 	.alloc             = vio_dma_iommu_alloc_coherent,
- 	.free              = vio_dma_iommu_free_coherent,
-@@ -623,8 +608,8 @@ static const struct dma_map_ops vio_dma_mapping_ops = {
- 	.unmap_sg          = vio_dma_iommu_unmap_sg,
- 	.map_page          = vio_dma_iommu_map_page,
- 	.unmap_page        = vio_dma_iommu_unmap_page,
--	.dma_supported     = vio_dma_iommu_dma_supported,
--	.get_required_mask = vio_dma_get_required_mask,
-+	.dma_supported     = dma_iommu_mapping_error,
-+	.get_required_mask = dma_iommu_get_required_mask,
- 	.mapping_error	   = dma_iommu_mapping_error,
- };
- 
+ static int iommu_mem_notifier(struct notifier_block *nb, unsigned long action,
+@@ -1368,8 +1321,9 @@ void iommu_init_early_pSeries(void)
+ 	if (firmware_has_feature(FW_FEATURE_LPAR)) {
+ 		pseries_pci_controller_ops.dma_bus_setup = pci_dma_bus_setup_pSeriesLP;
+ 		pseries_pci_controller_ops.dma_dev_setup = pci_dma_dev_setup_pSeriesLP;
+-		ppc_md.dma_set_mask = dma_set_mask_pSeriesLP;
+-		ppc_md.dma_get_required_mask = dma_get_required_mask_pSeriesLP;
++		if (!disable_ddw)
++			pseries_pci_controller_ops.iommu_bypass_supported =
++				iommu_bypass_supported_pSeriesLP;
+ 	} else {
+ 		pseries_pci_controller_ops.dma_bus_setup = pci_dma_bus_setup_pSeries;
+ 		pseries_pci_controller_ops.dma_dev_setup = pci_dma_dev_setup_pSeries;
 -- 
 2.19.0
