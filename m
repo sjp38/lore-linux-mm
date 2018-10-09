@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AD2F66B029A
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:26:50 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id t8-v6so990968plo.4
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:26:50 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EEBAB6B029B
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:26:57 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id b27-v6so1083480pfm.15
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:26:57 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id m4-v6si20743445plt.432.2018.10.09.06.26.49
+        by mx.google.com with ESMTPS id f19-v6si20717220pgb.465.2018.10.09.06.26.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 09 Oct 2018 06:26:49 -0700 (PDT)
+        Tue, 09 Oct 2018 06:26:55 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 30/33] powerpc/dma: remove set_dma_offset
-Date: Tue,  9 Oct 2018 15:24:57 +0200
-Message-Id: <20181009132500.17643-31-hch@lst.de>
+Subject: [PATCH 32/33] powerpc/dma: use generic direct and swiotlb ops
+Date: Tue,  9 Oct 2018 15:24:59 +0200
+Message-Id: <20181009132500.17643-33-hch@lst.de>
 In-Reply-To: <20181009132500.17643-1-hch@lst.de>
 References: <20181009132500.17643-1-hch@lst.de>
 MIME-Version: 1.0
@@ -22,161 +22,692 @@ List-ID: <linux-mm.kvack.org>
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
 Cc: linuxppc-dev@lists.ozlabs.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-There is no good reason for this helper, just opencode it.
+ - The ppc32 case of dma_nommu_dma_supported already was a no-op, and the
+   64-bit case came to the same conclusion as dma_direct_supported, so
+   replace it with the generic version.
+
+ - supports CMA
+
+ - Note that the cache maintainance in the existing code is a bit odd
+   as it implements both the sync_to_device and sync_to_cpu callouts,
+   but never flushes caches when unmapping.  This patch keeps both
+   directions arounds, which will lead to more flushing than the previous
+   implementation.  Someone more familar with the required CPUs should
+   eventually take a look and optimize the cache flush handling if needed.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/powerpc/include/asm/dma-mapping.h    | 6 ------
- arch/powerpc/kernel/pci-common.c          | 2 +-
- arch/powerpc/platforms/cell/iommu.c       | 4 ++--
- arch/powerpc/platforms/powernv/pci-ioda.c | 6 +++---
- arch/powerpc/platforms/pseries/iommu.c    | 7 ++-----
- arch/powerpc/sysdev/dart_iommu.c          | 2 +-
- arch/powerpc/sysdev/fsl_pci.c             | 2 +-
- drivers/misc/cxl/vphb.c                   | 2 +-
- 8 files changed, 11 insertions(+), 20 deletions(-)
+ arch/powerpc/Kconfig                   |   1 +
+ arch/powerpc/include/asm/dma-mapping.h |  40 ------
+ arch/powerpc/include/asm/pgtable.h     |   1 -
+ arch/powerpc/include/asm/swiotlb.h     |   2 -
+ arch/powerpc/kernel/Makefile           |   2 +-
+ arch/powerpc/kernel/dma-iommu.c        |  11 +-
+ arch/powerpc/kernel/dma-swiotlb.c      |  24 +---
+ arch/powerpc/kernel/dma.c              | 190 -------------------------
+ arch/powerpc/kernel/pci-common.c       |   2 +-
+ arch/powerpc/kernel/setup-common.c     |   2 +-
+ arch/powerpc/mm/dma-noncoherent.c      |  35 +++--
+ arch/powerpc/mm/mem.c                  |  19 ---
+ arch/powerpc/platforms/44x/warp.c      |   2 +-
+ arch/powerpc/platforms/Kconfig.cputype |   2 +
+ arch/powerpc/platforms/cell/iommu.c    |   4 +-
+ arch/powerpc/platforms/pasemi/iommu.c  |   2 +-
+ arch/powerpc/platforms/pasemi/setup.c  |   2 +-
+ arch/powerpc/platforms/pseries/vio.c   |   7 +
+ arch/powerpc/sysdev/fsl_pci.c          |   2 +-
+ drivers/misc/cxl/vphb.c                |   2 +-
+ 20 files changed, 49 insertions(+), 303 deletions(-)
+ delete mode 100644 arch/powerpc/kernel/dma.c
 
+diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+index 7ea01687995d..7d29524533b4 100644
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -155,6 +155,7 @@ config PPC
+ 	select CLONE_BACKWARDS
+ 	select DCACHE_WORD_ACCESS		if PPC64 && CPU_LITTLE_ENDIAN
+ 	select DYNAMIC_FTRACE			if FUNCTION_TRACER
++	select DMA_DIRECT_OPS
+ 	select EDAC_ATOMIC_SCRUB
+ 	select EDAC_SUPPORT
+ 	select GENERIC_ATOMIC64			if PPC32
 diff --git a/arch/powerpc/include/asm/dma-mapping.h b/arch/powerpc/include/asm/dma-mapping.h
-index 2d0879b0acf3..e12439ae8211 100644
+index ababad4b07a7..a59c42879194 100644
 --- a/arch/powerpc/include/asm/dma-mapping.h
 +++ b/arch/powerpc/include/asm/dma-mapping.h
-@@ -87,11 +87,5 @@ static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
- 	return NULL;
+@@ -18,45 +18,6 @@
+ #include <asm/io.h>
+ #include <asm/swiotlb.h>
+ 
+-/* Some dma direct funcs must be visible for use in other dma_ops */
+-extern void *__dma_nommu_alloc_coherent(struct device *dev, size_t size,
+-					 dma_addr_t *dma_handle, gfp_t flag,
+-					 unsigned long attrs);
+-extern void __dma_nommu_free_coherent(struct device *dev, size_t size,
+-				       void *vaddr, dma_addr_t dma_handle,
+-				       unsigned long attrs);
+-int dma_nommu_map_sg(struct device *dev, struct scatterlist *sgl,
+-		int nents, enum dma_data_direction direction,
+-		unsigned long attrs);
+-dma_addr_t dma_nommu_map_page(struct device *dev, struct page *page,
+-		unsigned long offset, size_t size,
+-		enum dma_data_direction dir, unsigned long attrs);
+-int dma_nommu_dma_supported(struct device *dev, u64 mask);
+-
+-#ifdef CONFIG_NOT_COHERENT_CACHE
+-/*
+- * DMA-consistent mapping functions for PowerPCs that don't support
+- * cache snooping.  These allocate/free a region of uncached mapped
+- * memory space for use with DMA devices.  Alternatively, you could
+- * allocate the space "normally" and use the cache management functions
+- * to ensure it is consistent.
+- */
+-struct device;
+-extern void __dma_sync(void *vaddr, size_t size, int direction);
+-extern void __dma_sync_page(struct page *page, unsigned long offset,
+-				 size_t size, int direction);
+-extern unsigned long __dma_get_coherent_pfn(unsigned long cpu_addr);
+-
+-#else /* ! CONFIG_NOT_COHERENT_CACHE */
+-/*
+- * Cache coherent cores.
+- */
+-
+-#define __dma_sync(addr, size, rw)		((void)0)
+-#define __dma_sync_page(pg, off, sz, rw)	((void)0)
+-
+-#endif /* ! CONFIG_NOT_COHERENT_CACHE */
+-
+ static inline unsigned long device_to_mask(struct device *dev)
+ {
+ 	if (dev->dma_mask && *dev->dma_mask)
+@@ -71,7 +32,6 @@ static inline unsigned long device_to_mask(struct device *dev)
+ #ifdef CONFIG_PPC64
+ extern const struct dma_map_ops dma_iommu_ops;
+ #endif
+-extern const struct dma_map_ops dma_nommu_ops;
+ 
+ static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
+ {
+diff --git a/arch/powerpc/include/asm/pgtable.h b/arch/powerpc/include/asm/pgtable.h
+index 9bafb38e959e..853372fe1001 100644
+--- a/arch/powerpc/include/asm/pgtable.h
++++ b/arch/powerpc/include/asm/pgtable.h
+@@ -37,7 +37,6 @@ extern unsigned long empty_zero_page[];
+ 
+ extern pgd_t swapper_pg_dir[];
+ 
+-int dma_pfn_limit_to_zone(u64 pfn_limit);
+ extern void paging_init(void);
+ 
+ /*
+diff --git a/arch/powerpc/include/asm/swiotlb.h b/arch/powerpc/include/asm/swiotlb.h
+index 26a0f12b835b..b7ff218109b3 100644
+--- a/arch/powerpc/include/asm/swiotlb.h
++++ b/arch/powerpc/include/asm/swiotlb.h
+@@ -13,8 +13,6 @@
+ 
+ #include <linux/swiotlb.h>
+ 
+-extern const struct dma_map_ops powerpc_swiotlb_dma_ops;
+-
+ extern unsigned int ppc_swiotlb_enable;
+ int __init swiotlb_setup_bus_notifier(void);
+ 
+diff --git a/arch/powerpc/kernel/Makefile b/arch/powerpc/kernel/Makefile
+index 3b66f2c19c84..4e9ff65b4eff 100644
+--- a/arch/powerpc/kernel/Makefile
++++ b/arch/powerpc/kernel/Makefile
+@@ -33,7 +33,7 @@ obj-y				:= cputable.o ptrace.o syscalls.o \
+ 				   process.o systbl.o idle.o \
+ 				   signal.o sysfs.o cacheinfo.o time.o \
+ 				   prom.o traps.o setup-common.o \
+-				   udbg.o misc.o io.o dma.o misc_$(BITS).o \
++				   udbg.o misc.o io.o misc_$(BITS).o \
+ 				   of_platform.o prom_parse.o
+ obj-$(CONFIG_PPC64)		+= setup_64.o sys_ppc32.o \
+ 				   signal_64.o ptrace32.o \
+diff --git a/arch/powerpc/kernel/dma-iommu.c b/arch/powerpc/kernel/dma-iommu.c
+index 2e682004959f..0224925c5628 100644
+--- a/arch/powerpc/kernel/dma-iommu.c
++++ b/arch/powerpc/kernel/dma-iommu.c
+@@ -21,7 +21,7 @@
+ static inline bool dma_iommu_alloc_bypass(struct device *dev)
+ {
+ 	return dev->archdata.iommu_bypass && !iommu_fixed_is_weak &&
+-		dma_nommu_dma_supported(dev, dev->coherent_dma_mask);
++		dma_direct_supported(dev, dev->coherent_dma_mask);
  }
  
--static inline void set_dma_offset(struct device *dev, dma_addr_t off)
+ static inline bool dma_iommu_map_bypass(struct device *dev,
+@@ -40,8 +40,7 @@ static void *dma_iommu_alloc_coherent(struct device *dev, size_t size,
+ 				      unsigned long attrs)
+ {
+ 	if (dma_iommu_alloc_bypass(dev))
+-		return __dma_nommu_alloc_coherent(dev, size, dma_handle, flag,
+-				attrs);
++		return dma_direct_alloc(dev, size, dma_handle, flag, attrs);
+ 	return iommu_alloc_coherent(dev, get_iommu_table_base(dev), size,
+ 				    dma_handle, dev->coherent_dma_mask, flag,
+ 				    dev_to_node(dev));
+@@ -52,7 +51,7 @@ static void dma_iommu_free_coherent(struct device *dev, size_t size,
+ 				    unsigned long attrs)
+ {
+ 	if (dma_iommu_alloc_bypass(dev))
+-		__dma_nommu_free_coherent(dev, size, vaddr, dma_handle, attrs);
++		dma_direct_free(dev, size, vaddr, dma_handle, attrs);
+ 	else
+ 		iommu_free_coherent(get_iommu_table_base(dev), size, vaddr,
+ 				dma_handle);
+@@ -69,7 +68,7 @@ static dma_addr_t dma_iommu_map_page(struct device *dev, struct page *page,
+ 				     unsigned long attrs)
+ {
+ 	if (dma_iommu_map_bypass(dev, attrs))
+-		return dma_nommu_map_page(dev, page, offset, size, direction,
++		return dma_direct_map_page(dev, page, offset, size, direction,
+ 				attrs);
+ 	return iommu_map_page(dev, get_iommu_table_base(dev), page, offset,
+ 			      size, device_to_mask(dev), direction, attrs);
+@@ -91,7 +90,7 @@ static int dma_iommu_map_sg(struct device *dev, struct scatterlist *sglist,
+ 			    unsigned long attrs)
+ {
+ 	if (dma_iommu_map_bypass(dev, attrs))
+-		return dma_nommu_map_sg(dev, sglist, nelems, direction, attrs);
++		return dma_direct_map_sg(dev, sglist, nelems, direction, attrs);
+ 	return ppc_iommu_map_sg(dev, get_iommu_table_base(dev), sglist, nelems,
+ 				device_to_mask(dev), direction, attrs);
+ }
+diff --git a/arch/powerpc/kernel/dma-swiotlb.c b/arch/powerpc/kernel/dma-swiotlb.c
+index c6f8519f8d4e..bded4127791a 100644
+--- a/arch/powerpc/kernel/dma-swiotlb.c
++++ b/arch/powerpc/kernel/dma-swiotlb.c
+@@ -32,28 +32,6 @@ EXPORT_SYMBOL(arch_dma_set_mask);
+ 
+ unsigned int ppc_swiotlb_enable;
+ 
+-/*
+- * At the moment, all platforms that use this code only require
+- * swiotlb to be used if we're operating on HIGHMEM.  Since
+- * we don't ever call anything other than map_sg, unmap_sg,
+- * map_page, and unmap_page on highmem, use normal dma_ops
+- * for everything else.
+- */
+-const struct dma_map_ops powerpc_swiotlb_dma_ops = {
+-	.alloc = __dma_nommu_alloc_coherent,
+-	.free = __dma_nommu_free_coherent,
+-	.map_sg = swiotlb_map_sg_attrs,
+-	.unmap_sg = swiotlb_unmap_sg_attrs,
+-	.dma_supported = swiotlb_dma_supported,
+-	.map_page = swiotlb_map_page,
+-	.unmap_page = swiotlb_unmap_page,
+-	.sync_single_for_cpu = swiotlb_sync_single_for_cpu,
+-	.sync_single_for_device = swiotlb_sync_single_for_device,
+-	.sync_sg_for_cpu = swiotlb_sync_sg_for_cpu,
+-	.sync_sg_for_device = swiotlb_sync_sg_for_device,
+-	.mapping_error = swiotlb_dma_mapping_error,
+-};
+-
+ static int ppc_swiotlb_bus_notify(struct notifier_block *nb,
+ 				  unsigned long action, void *data)
+ {
+@@ -65,7 +43,7 @@ static int ppc_swiotlb_bus_notify(struct notifier_block *nb,
+ 
+ 	/* May need to bounce if the device can't address all of DRAM */
+ 	if ((dma_get_mask(dev) + 1) < memblock_end_of_DRAM())
+-		set_dma_ops(dev, &powerpc_swiotlb_dma_ops);
++		set_dma_ops(dev, &swiotlb_dma_ops);
+ 
+ 	return NOTIFY_DONE;
+ }
+diff --git a/arch/powerpc/kernel/dma.c b/arch/powerpc/kernel/dma.c
+deleted file mode 100644
+index 92cc402d249f..000000000000
+--- a/arch/powerpc/kernel/dma.c
++++ /dev/null
+@@ -1,190 +0,0 @@
+-/*
+- * Copyright (C) 2006 Benjamin Herrenschmidt, IBM Corporation
+- *
+- * Provide default implementations of the DMA mapping callbacks for
+- * directly mapped busses.
+- */
+-
+-#include <linux/device.h>
+-#include <linux/dma-direct.h>
+-#include <linux/dma-debug.h>
+-#include <linux/gfp.h>
+-#include <linux/memblock.h>
+-#include <linux/export.h>
+-#include <linux/pci.h>
+-#include <asm/vio.h>
+-#include <asm/bug.h>
+-#include <asm/machdep.h>
+-#include <asm/swiotlb.h>
+-#include <asm/iommu.h>
+-
+-/*
+- * Generic direct DMA implementation
+- *
+- * This implementation supports a per-device offset that can be applied if
+- * the address at which memory is visible to devices is not 0. Platform code
+- * can set archdata.dma_data to an unsigned long holding the offset. By
+- * default the offset is PCI_DRAM_OFFSET.
+- */
+-
+-static u64 __maybe_unused get_pfn_limit(struct device *dev)
 -{
--	if (dev)
--		dev->archdata.dma_offset = off;
+-	u64 pfn = (dev->coherent_dma_mask >> PAGE_SHIFT) + 1;
+-
+-#ifdef CONFIG_SWIOTLB
+-	if (dev->bus_dma_mask && dev->dma_ops == &powerpc_swiotlb_dma_ops)
+-		pfn = min_t(u64, pfn, dev->bus_dma_mask >> PAGE_SHIFT);
+-#endif
+-
+-	return pfn;
 -}
 -
- #endif /* __KERNEL__ */
- #endif	/* _ASM_DMA_MAPPING_H */
+-int dma_nommu_dma_supported(struct device *dev, u64 mask)
+-{
+-#ifdef CONFIG_PPC64
+-	u64 limit = phys_to_dma(dev, (memblock_end_of_DRAM() - 1));
+-
+-	/* Limit fits in the mask, we are good */
+-	if (mask >= limit)
+-		return 1;
+-
+-#ifdef CONFIG_FSL_SOC
+-	/* Freescale gets another chance via ZONE_DMA, however
+-	 * that will have to be refined if/when they support iommus
+-	 */
+-	return 1;
+-#endif
+-	/* Sorry ... */
+-	return 0;
+-#else
+-	return 1;
+-#endif
+-}
+-
+-#ifndef CONFIG_NOT_COHERENT_CACHE
+-void *__dma_nommu_alloc_coherent(struct device *dev, size_t size,
+-				  dma_addr_t *dma_handle, gfp_t flag,
+-				  unsigned long attrs)
+-{
+-	void *ret;
+-	struct page *page;
+-	int node = dev_to_node(dev);
+-#ifdef CONFIG_FSL_SOC
+-	u64 pfn = get_pfn_limit(dev);
+-	int zone;
+-
+-	/*
+-	 * This code should be OK on other platforms, but we have drivers that
+-	 * don't set coherent_dma_mask. As a workaround we just ifdef it. This
+-	 * whole routine needs some serious cleanup.
+-	 */
+-
+-	zone = dma_pfn_limit_to_zone(pfn);
+-	if (zone < 0) {
+-		dev_err(dev, "%s: No suitable zone for pfn %#llx\n",
+-			__func__, pfn);
+-		return NULL;
+-	}
+-
+-	switch (zone) {
+-#ifdef CONFIG_ZONE_DMA
+-	case ZONE_DMA:
+-		flag |= GFP_DMA;
+-		break;
+-#endif
+-	};
+-#endif /* CONFIG_FSL_SOC */
+-
+-	page = alloc_pages_node(node, flag, get_order(size));
+-	if (page == NULL)
+-		return NULL;
+-	ret = page_address(page);
+-	memset(ret, 0, size);
+-	*dma_handle = phys_to_dma(dev,__pa(ret));
+-
+-	return ret;
+-}
+-
+-void __dma_nommu_free_coherent(struct device *dev, size_t size,
+-				void *vaddr, dma_addr_t dma_handle,
+-				unsigned long attrs)
+-{
+-	free_pages((unsigned long)vaddr, get_order(size));
+-}
+-#endif /* !CONFIG_NOT_COHERENT_CACHE */
+-
+-int dma_nommu_map_sg(struct device *dev, struct scatterlist *sgl,
+-		int nents, enum dma_data_direction direction,
+-		unsigned long attrs)
+-{
+-	struct scatterlist *sg;
+-	int i;
+-
+-	for_each_sg(sgl, sg, nents, i) {
+-		sg->dma_address = phys_to_dma(dev, sg_phys(sg));
+-		sg->dma_length = sg->length;
+-
+-		if (attrs & DMA_ATTR_SKIP_CPU_SYNC)
+-			continue;
+-
+-		__dma_sync_page(sg_page(sg), sg->offset, sg->length, direction);
+-	}
+-
+-	return nents;
+-}
+-
+-dma_addr_t dma_nommu_map_page(struct device *dev, struct page *page,
+-		unsigned long offset, size_t size,
+-		enum dma_data_direction dir, unsigned long attrs)
+-{
+-	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+-		__dma_sync_page(page, offset, size, dir);
+-
+-	return phys_to_dma(dev, page_to_phys(page)) + offset;
+-}
+-
+-#ifdef CONFIG_NOT_COHERENT_CACHE
+-static inline void dma_nommu_sync_sg(struct device *dev,
+-		struct scatterlist *sgl, int nents,
+-		enum dma_data_direction direction)
+-{
+-	struct scatterlist *sg;
+-	int i;
+-
+-	for_each_sg(sgl, sg, nents, i)
+-		__dma_sync_page(sg_page(sg), sg->offset, sg->length, direction);
+-}
+-
+-static inline void dma_nommu_sync_single(struct device *dev,
+-					  dma_addr_t dma_handle, size_t size,
+-					  enum dma_data_direction direction)
+-{
+-	__dma_sync(bus_to_virt(dma_handle), size, direction);
+-}
+-#endif
+-
+-const struct dma_map_ops dma_nommu_ops = {
+-	.alloc				= __dma_nommu_alloc_coherent,
+-	.free				= __dma_nommu_free_coherent,
+-	.map_sg				= dma_nommu_map_sg,
+-	.dma_supported			= dma_nommu_dma_supported,
+-	.map_page			= dma_nommu_map_page,
+-#ifdef CONFIG_NOT_COHERENT_CACHE
+-	.sync_single_for_cpu 		= dma_nommu_sync_single,
+-	.sync_single_for_device 	= dma_nommu_sync_single,
+-	.sync_sg_for_cpu 		= dma_nommu_sync_sg,
+-	.sync_sg_for_device 		= dma_nommu_sync_sg,
+-#endif
+-};
+-EXPORT_SYMBOL(dma_nommu_ops);
+-
+-static int __init dma_init(void)
+-{
+-#ifdef CONFIG_IBMVIO
+-	dma_debug_add_bus(&vio_bus_type);
+-#endif
+-
+-       return 0;
+-}
+-fs_initcall(dma_init);
+-
 diff --git a/arch/powerpc/kernel/pci-common.c b/arch/powerpc/kernel/pci-common.c
-index a84707680525..fca2b0bafd82 100644
+index fca2b0bafd82..b645b3882815 100644
 --- a/arch/powerpc/kernel/pci-common.c
 +++ b/arch/powerpc/kernel/pci-common.c
-@@ -966,7 +966,7 @@ static void pcibios_setup_device(struct pci_dev *dev)
+@@ -62,7 +62,7 @@ resource_size_t isa_mem_base;
+ EXPORT_SYMBOL(isa_mem_base);
  
- 	/* Hook up default DMA ops */
- 	set_dma_ops(&dev->dev, pci_dma_ops);
--	set_dma_offset(&dev->dev, PCI_DRAM_OFFSET);
-+	dev->dev.archdata.dma_offset = PCI_DRAM_OFFSET;
  
- 	/* Additional platform DMA/iommu setup */
- 	phb = pci_bus_to_host(dev->bus);
+-static const struct dma_map_ops *pci_dma_ops = &dma_nommu_ops;
++static const struct dma_map_ops *pci_dma_ops = &dma_direct_ops;
+ 
+ void set_pci_dma_ops(const struct dma_map_ops *dma_ops)
+ {
+diff --git a/arch/powerpc/kernel/setup-common.c b/arch/powerpc/kernel/setup-common.c
+index 93fa0c99681e..a012e2060f02 100644
+--- a/arch/powerpc/kernel/setup-common.c
++++ b/arch/powerpc/kernel/setup-common.c
+@@ -792,7 +792,7 @@ void arch_setup_pdev_archdata(struct platform_device *pdev)
+ {
+ 	pdev->archdata.dma_mask = DMA_BIT_MASK(32);
+ 	pdev->dev.dma_mask = &pdev->archdata.dma_mask;
+- 	set_dma_ops(&pdev->dev, &dma_nommu_ops);
++	set_dma_ops(&pdev->dev, &dma_direct_ops);
+ }
+ 
+ static __init void print_system_info(void)
+diff --git a/arch/powerpc/mm/dma-noncoherent.c b/arch/powerpc/mm/dma-noncoherent.c
+index a016c9c356d5..75971a0619a6 100644
+--- a/arch/powerpc/mm/dma-noncoherent.c
++++ b/arch/powerpc/mm/dma-noncoherent.c
+@@ -152,8 +152,8 @@ static struct ppc_vm_region *ppc_vm_region_find(struct ppc_vm_region *head, unsi
+  * Allocate DMA-coherent memory space and return both the kernel remapped
+  * virtual and bus address for that space.
+  */
+-void *__dma_nommu_alloc_coherent(struct device *dev, size_t size,
+-		dma_addr_t *dma_handle, gfp_t gfp, unsigned long attrs)
++void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
++		gfp_t gfp, unsigned long attrs)
+ {
+ 	struct page *page;
+ 	struct ppc_vm_region *c;
+@@ -254,7 +254,7 @@ void *__dma_nommu_alloc_coherent(struct device *dev, size_t size,
+ /*
+  * free a page as defined by the above mapping.
+  */
+-void __dma_nommu_free_coherent(struct device *dev, size_t size, void *vaddr,
++void arch_dma_free(struct device *dev, size_t size, void *vaddr,
+ 		dma_addr_t dma_handle, unsigned long attrs)
+ {
+ 	struct ppc_vm_region *c;
+@@ -314,7 +314,7 @@ void __dma_nommu_free_coherent(struct device *dev, size_t size, void *vaddr,
+ /*
+  * make an area consistent.
+  */
+-void __dma_sync(void *vaddr, size_t size, int direction)
++static void __dma_sync(void *vaddr, size_t size, int direction)
+ {
+ 	unsigned long start = (unsigned long)vaddr;
+ 	unsigned long end   = start + size;
+@@ -340,7 +340,6 @@ void __dma_sync(void *vaddr, size_t size, int direction)
+ 		break;
+ 	}
+ }
+-EXPORT_SYMBOL(__dma_sync);
+ 
+ #ifdef CONFIG_HIGHMEM
+ /*
+@@ -387,21 +386,33 @@ static inline void __dma_sync_page_highmem(struct page *page,
+  * __dma_sync_page makes memory consistent. identical to __dma_sync, but
+  * takes a struct page instead of a virtual address
+  */
+-void __dma_sync_page(struct page *page, unsigned long offset,
+-	size_t size, int direction)
++static void __dma_sync_page(phys_addr_t paddr, size_t size, int dir)
+ {
++	struct page *page = pfn_to_page(paddr >> PAGE_SHIFT);
++	unsigned offset = paddr & ~PAGE_MASK;
++
+ #ifdef CONFIG_HIGHMEM
+-	__dma_sync_page_highmem(page, offset, size, direction);
++	__dma_sync_page_highmem(page, offset, size, dir);
+ #else
+ 	unsigned long start = (unsigned long)page_address(page) + offset;
+-	__dma_sync((void *)start, size, direction);
++	__dma_sync((void *)start, size, dir);
+ #endif
+ }
+-EXPORT_SYMBOL(__dma_sync_page);
++
++void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
++		size_t size, enum dma_data_direction dir)
++{
++	__dma_sync_page(paddr, size, dir);
++}
++
++void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
++		size_t size, enum dma_data_direction dir)
++{
++	__dma_sync_page(paddr, size, dir);
++}
+ 
+ /*
+- * Return the PFN for a given cpu virtual address returned by
+- * __dma_nommu_alloc_coherent.
++ * Return the PFN for a given cpu virtual address returned by arch_dma_alloc.
+  */
+ long arch_dma_coherent_to_pfn(struct device *dev, void *vaddr,
+ 		dma_addr_t dma_addr)
+diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+index 8bff7e893bde..b76ff59ee94c 100644
+--- a/arch/powerpc/mm/mem.c
++++ b/arch/powerpc/mm/mem.c
+@@ -257,25 +257,6 @@ static int __init mark_nonram_nosave(void)
+  */
+ static unsigned long max_zone_pfns[MAX_NR_ZONES];
+ 
+-/*
+- * Find the least restrictive zone that is entirely below the
+- * specified pfn limit.  Returns < 0 if no suitable zone is found.
+- *
+- * pfn_limit must be u64 because it can exceed 32 bits even on 32-bit
+- * systems -- the DMA limit can be higher than any possible real pfn.
+- */
+-int dma_pfn_limit_to_zone(u64 pfn_limit)
+-{
+-	int i;
+-
+-	for (i = TOP_ZONE; i >= 0; i--) {
+-		if (max_zone_pfns[i] <= pfn_limit)
+-			return i;
+-	}
+-
+-	return -EPERM;
+-}
+-
+ /*
+  * paging_init() sets up the page tables - in fact we've already done this.
+  */
+diff --git a/arch/powerpc/platforms/44x/warp.c b/arch/powerpc/platforms/44x/warp.c
+index 7e4f8ca19ce8..c0e6fb270d59 100644
+--- a/arch/powerpc/platforms/44x/warp.c
++++ b/arch/powerpc/platforms/44x/warp.c
+@@ -47,7 +47,7 @@ static int __init warp_probe(void)
+ 	if (!of_machine_is_compatible("pika,warp"))
+ 		return 0;
+ 
+-	/* For __dma_nommu_alloc_coherent */
++	/* For arch_dma_alloc */
+ 	ISA_DMA_THRESHOLD = ~0L;
+ 
+ 	return 1;
+diff --git a/arch/powerpc/platforms/Kconfig.cputype b/arch/powerpc/platforms/Kconfig.cputype
+index 0c4fc631cb33..b1bc3b92f54a 100644
+--- a/arch/powerpc/platforms/Kconfig.cputype
++++ b/arch/powerpc/platforms/Kconfig.cputype
+@@ -416,6 +416,8 @@ config NOT_COHERENT_CACHE
+ 	bool
+ 	depends on 4xx || PPC_8xx || E200 || PPC_MPC512x || GAMECUBE_COMMON
+ 	select ARCH_HAS_DMA_COHERENT_TO_PFN
++	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
++	select ARCH_HAS_SYNC_DMA_FOR_CPU
+ 	default n if PPC_47x
+ 	default y
+ 
 diff --git a/arch/powerpc/platforms/cell/iommu.c b/arch/powerpc/platforms/cell/iommu.c
-index 93c7e4aef571..997ee0f5fc2f 100644
+index 997ee0f5fc2f..348a815779c1 100644
 --- a/arch/powerpc/platforms/cell/iommu.c
 +++ b/arch/powerpc/platforms/cell/iommu.c
-@@ -577,10 +577,10 @@ static void cell_dma_dev_setup(struct device *dev)
- 		u64 addr = cell_iommu_get_fixed_address(dev);
- 
- 		if (addr != OF_BAD_ADDR)
--			set_dma_offset(dev, addr + dma_iommu_fixed_base);
-+			dev->archdata.dma_offset = addr + dma_iommu_fixed_base;
- 		set_iommu_table_base(dev, cell_get_iommu_table(dev));
- 	} else {
--		set_dma_offset(dev, cell_dma_nommu_offset);
-+		dev->archdata.dma_offset = cell_dma_nommu_offset;
- 	}
+@@ -601,7 +601,7 @@ static int cell_of_bus_notify(struct notifier_block *nb, unsigned long action,
+ 	if (cell_iommu_enabled)
+ 		dev->dma_ops = &dma_iommu_ops;
+ 	else
+-		dev->dma_ops = &dma_nommu_ops;
++		dev->dma_ops = &dma_direct_ops;
+ 	cell_dma_dev_setup(dev);
+ 	return 0;
  }
+@@ -727,7 +727,7 @@ static int __init cell_iommu_init_disabled(void)
+ 	unsigned long base = 0, size;
  
-diff --git a/arch/powerpc/platforms/powernv/pci-ioda.c b/arch/powerpc/platforms/powernv/pci-ioda.c
-index 5748b62e2e86..e2333e10598d 100644
---- a/arch/powerpc/platforms/powernv/pci-ioda.c
-+++ b/arch/powerpc/platforms/powernv/pci-ioda.c
-@@ -1660,7 +1660,7 @@ static void pnv_pci_ioda_dma_dev_setup(struct pnv_phb *phb, struct pci_dev *pdev
+ 	/* When no iommu is present, we use direct DMA ops */
+-	set_pci_dma_ops(&dma_nommu_ops);
++	set_pci_dma_ops(&dma_direct_ops);
  
- 	pe = &phb->ioda.pe_array[pdn->pe_number];
- 	WARN_ON(get_dma_ops(&pdev->dev) != &dma_iommu_ops);
--	set_dma_offset(&pdev->dev, pe->tce_bypass_base);
-+	pdev->dev.archdata.dma_offset = pe->tce_bypass_base;
- 	set_iommu_table_base(&pdev->dev, pe->table_group.tables[0]);
- 	/*
- 	 * Note: iommu_add_device() will fail here as
-@@ -1773,7 +1773,7 @@ static bool pnv_pci_ioda_iommu_bypass_supported(struct pci_dev *pdev,
- 		if (rc)
- 			return rc;
- 		/* 4GB offset bypasses 32-bit space */
--		set_dma_offset(&pdev->dev, (1ULL << 32));
-+		pdev->dev.archdata.dma_offset = (1ULL << 32);
- 		return true;
- 	}
- 
-@@ -1788,7 +1788,7 @@ static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe,
- 
- 	list_for_each_entry(dev, &bus->devices, bus_list) {
- 		set_iommu_table_base(&dev->dev, pe->table_group.tables[0]);
--		set_dma_offset(&dev->dev, pe->tce_bypass_base);
-+		dev->dev.archdata.dma_offset = pe->tce_bypass_base;
- 		if (add_to_group)
- 			iommu_add_device(&dev->dev);
- 
-diff --git a/arch/powerpc/platforms/pseries/iommu.c b/arch/powerpc/platforms/pseries/iommu.c
-index 8965d174c53b..a2ff20d154fe 100644
---- a/arch/powerpc/platforms/pseries/iommu.c
-+++ b/arch/powerpc/platforms/pseries/iommu.c
-@@ -1197,7 +1197,6 @@ static bool iommu_bypass_supported_pSeriesLP(struct pci_dev *pdev, u64 dma_mask)
- {
- 	struct device_node *dn = pci_device_to_OF_node(pdev), *pdn;
- 	const __be32 *dma_window = NULL;
--	u64 dma_offset;
- 
- 	/* only attempt to use a new window if 64-bit DMA is requested */
- 	if (dma_mask < DMA_BIT_MASK(64))
-@@ -1219,11 +1218,9 @@ static bool iommu_bypass_supported_pSeriesLP(struct pci_dev *pdev, u64 dma_mask)
- 	}
- 
- 	if (pdn && PCI_DN(pdn)) {
--		dma_offset = enable_ddw(pdev, pdn);
--		if (dma_offset != 0) {
--			set_dma_offset(&pdev->dev, dma_offset);
-+		pdev->dev.archdata.dma_offset = enable_ddw(pdev, pdn);
-+		if (pdev->dev.archdata.dma_offset)
- 			return true;
--		}
- 	}
- 
- 	return false;
-diff --git a/arch/powerpc/sysdev/dart_iommu.c b/arch/powerpc/sysdev/dart_iommu.c
-index e7d1645a2d2e..21d7e8a30aea 100644
---- a/arch/powerpc/sysdev/dart_iommu.c
-+++ b/arch/powerpc/sysdev/dart_iommu.c
-@@ -386,7 +386,7 @@ static bool dart_device_on_pcie(struct device *dev)
- static void pci_dma_dev_setup_dart(struct pci_dev *dev)
- {
- 	if (dart_is_u4 && dart_device_on_pcie(&dev->dev))
--		set_dma_offset(&dev->dev, DART_U4_BYPASS_BASE);
-+		dev->dev.archdata.dma_offset = DART_U4_BYPASS_BASE;
- 	set_iommu_table_base(&dev->dev, &iommu_table_dart);
- }
- 
-diff --git a/arch/powerpc/sysdev/fsl_pci.c b/arch/powerpc/sysdev/fsl_pci.c
-index cb91a3d113d1..d6b7c91a9ce2 100644
---- a/arch/powerpc/sysdev/fsl_pci.c
-+++ b/arch/powerpc/sysdev/fsl_pci.c
-@@ -141,7 +141,7 @@ static int fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
+ 	/* First make sure all IOC translation is turned off */
+ 	cell_disable_iommus();
+diff --git a/arch/powerpc/platforms/pasemi/iommu.c b/arch/powerpc/platforms/pasemi/iommu.c
+index f06c83f321e6..47bda2b7cbd7 100644
+--- a/arch/powerpc/platforms/pasemi/iommu.c
++++ b/arch/powerpc/platforms/pasemi/iommu.c
+@@ -186,7 +186,7 @@ static void pci_dma_dev_setup_pasemi(struct pci_dev *dev)
  	 */
- 	if (dev_is_pci(dev) && dma_mask >= pci64_dma_offset * 2 - 1) {
- 		dev->bus_dma_mask = 0;
--		set_dma_offset(dev, pci64_dma_offset);
-+		dev->archdata.dma_offset = pci64_dma_offset;
- 	}
+ 	if (dev->vendor == 0x1959 && dev->device == 0xa007 &&
+ 	    !firmware_has_feature(FW_FEATURE_LPAR)) {
+-		dev->dev.dma_ops = &dma_nommu_ops;
++		dev->dev.dma_ops = &dma_direct_ops;
+ 		/*
+ 		 * Set the coherent DMA mask to prevent the iommu
+ 		 * being used unnecessarily
+diff --git a/arch/powerpc/platforms/pasemi/setup.c b/arch/powerpc/platforms/pasemi/setup.c
+index 9a6eb04cca83..afb44e3dd8d2 100644
+--- a/arch/powerpc/platforms/pasemi/setup.c
++++ b/arch/powerpc/platforms/pasemi/setup.c
+@@ -362,7 +362,7 @@ static int pcmcia_notify(struct notifier_block *nb, unsigned long action,
+ 		return 0;
+ 
+ 	/* We use the direct ops for localbus */
+-	dev->dma_ops = &dma_nommu_ops;
++	dev->dma_ops = &dma_direct_ops;
  
  	return 0;
+ }
+diff --git a/arch/powerpc/platforms/pseries/vio.c b/arch/powerpc/platforms/pseries/vio.c
+index 3ad74efc83bf..54ad2ae81bc8 100644
+--- a/arch/powerpc/platforms/pseries/vio.c
++++ b/arch/powerpc/platforms/pseries/vio.c
+@@ -1704,3 +1704,10 @@ int vio_disable_interrupts(struct vio_dev *dev)
+ }
+ EXPORT_SYMBOL(vio_disable_interrupts);
+ #endif /* CONFIG_PPC_PSERIES */
++
++static int __init vio_init(void)
++{
++	dma_debug_add_bus(&vio_bus_type);
++	return 0;
++}
++fs_initcall(vio_init);
+diff --git a/arch/powerpc/sysdev/fsl_pci.c b/arch/powerpc/sysdev/fsl_pci.c
+index d6b7c91a9ce2..964a4aede6b1 100644
+--- a/arch/powerpc/sysdev/fsl_pci.c
++++ b/arch/powerpc/sysdev/fsl_pci.c
+@@ -126,7 +126,7 @@ static void setup_swiotlb_ops(struct pci_controller *hose)
+ {
+ 	if (ppc_swiotlb_enable) {
+ 		hose->controller_ops.dma_dev_setup = pci_dma_dev_setup_swiotlb;
+-		set_pci_dma_ops(&powerpc_swiotlb_dma_ops);
++		set_pci_dma_ops(&swiotlb_dma_ops);
+ 	}
+ }
+ #else
 diff --git a/drivers/misc/cxl/vphb.c b/drivers/misc/cxl/vphb.c
-index 49da2f744bbf..f0645ba1d728 100644
+index f0645ba1d728..f4ca1a4ada66 100644
 --- a/drivers/misc/cxl/vphb.c
 +++ b/drivers/misc/cxl/vphb.c
-@@ -44,7 +44,7 @@ static bool cxl_pci_enable_device_hook(struct pci_dev *dev)
+@@ -43,7 +43,7 @@ static bool cxl_pci_enable_device_hook(struct pci_dev *dev)
+ 		return false;
  	}
  
- 	set_dma_ops(&dev->dev, &dma_nommu_ops);
--	set_dma_offset(&dev->dev, PAGE_OFFSET);
-+	dev->dev.archdata.dma_offset = PAGE_OFFSET;
+-	set_dma_ops(&dev->dev, &dma_nommu_ops);
++	set_dma_ops(&dev->dev, &dma_direct_ops);
+ 	dev->dev.archdata.dma_offset = PAGE_OFFSET;
  
  	/*
- 	 * Allocate a context to do cxl things too.  If we eventually do real
 -- 
 2.19.0
