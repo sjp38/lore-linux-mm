@@ -1,104 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F16106B0008
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 03:01:45 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id h76-v6so445052pfd.10
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 00:01:45 -0700 (PDT)
-Received: from terminus.zytor.com (terminus.zytor.com. [198.137.202.136])
-        by mx.google.com with ESMTPS id z7-v6si17186280pgi.178.2018.10.09.00.01.44
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4571F6B000C
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 03:16:54 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id w193-v6so401614wmf.8
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 00:16:54 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id g69-v6si7357102wmd.156.2018.10.09.00.16.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 09 Oct 2018 00:01:44 -0700 (PDT)
-Date: Tue, 9 Oct 2018 00:01:25 -0700
-From: tip-bot for Srikar Dronamraju <tipbot@zytor.com>
-Message-ID: <tip-e054637597ba36d3729ba6a3a3dd7aad8e2a3003@git.kernel.org>
-Reply-To: peterz@infradead.org, mingo@kernel.org, linux-kernel@vger.kernel.org,
-        mgorman@techsingularity.net, riel@surriel.com, linux-mm@kvack.org,
-        torvalds@linux-foundation.org, tglx@linutronix.de,
-        srikar@linux.vnet.ibm.com, hpa@zytor.com
-In-Reply-To: <1538824999-31230-1-git-send-email-srikar@linux.vnet.ibm.com>
-References: <1538824999-31230-1-git-send-email-srikar@linux.vnet.ibm.com>
-Subject: [tip:sched/urgent] mm, sched/numa: Remove remaining traces of NUMA
- rate-limiting
+        Tue, 09 Oct 2018 00:16:52 -0700 (PDT)
+Date: Tue, 9 Oct 2018 09:16:37 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] x86/mm: In the PTE swapout page reclaim case clear the
+ accessed bit instead of flushing the TLB
+Message-ID: <20181009071637.GF5663@hirez.programming.kicks-ass.net>
+References: <1539059570-9043-1-git-send-email-amhetre@nvidia.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1539059570-9043-1-git-send-email-amhetre@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-tip-commits@vger.kernel.org
-Cc: mgorman@techsingularity.net, linux-kernel@vger.kernel.org, mingo@kernel.org, peterz@infradead.org, linux-mm@kvack.org, riel@surriel.com, tglx@linutronix.de, torvalds@linux-foundation.org, hpa@zytor.com, srikar@linux.vnet.ibm.com
+To: Ashish Mhetre <amhetre@nvidia.com>
+Cc: vdumpa@nvidia.com, avanbrunt@nvidia.com, Snikam@nvidia.com, praithatha@nvidia.com, Shaohua Li <shli@kernel.org>, Shaohua Li <shli@fusionio.com>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-Commit-ID:  e054637597ba36d3729ba6a3a3dd7aad8e2a3003
-Gitweb:     https://git.kernel.org/tip/e054637597ba36d3729ba6a3a3dd7aad8e2a3003
-Author:     Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-AuthorDate: Sat, 6 Oct 2018 16:53:19 +0530
-Committer:  Ingo Molnar <mingo@kernel.org>
-CommitDate: Tue, 9 Oct 2018 08:30:51 +0200
+On Tue, Oct 09, 2018 at 10:02:50AM +0530, Ashish Mhetre wrote:
+> From: Shaohua Li <shli@kernel.org>
+> 
+> We use the accessed bit to age a page at page reclaim time,
+> and currently we also flush the TLB when doing so.
+> 
+> But in some workloads TLB flush overhead is very heavy. In my
+> simple multithreaded app with a lot of swap to several pcie
+> SSDs, removing the tlb flush gives about 20% ~ 30% swapout
+> speedup.
+> 
+> Fortunately just removing the TLB flush is a valid optimization:
+> on x86 CPUs, clearing the accessed bit without a TLB flush
+> doesn't cause data corruption.
+> 
+> It could cause incorrect page aging and the (mistaken) reclaim of
+> hot pages, but the chance of that should be relatively low.
+> 
+> So as a performance optimization don't flush the TLB when
+> clearing the accessed bit, it will eventually be flushed by
+> a context switch or a VM operation anyway. [ In the rare
+> event of it not getting flushed for a long time the delay
+> shouldn't really matter because there's no real memory
+> pressure for swapout to react to. ]
 
-mm, sched/numa: Remove remaining traces of NUMA rate-limiting
+Note that context switches (and here I'm talking about switch_mm(), not
+the cheaper switch_to()) do not unconditionally imply a TLB invalidation
+these days (on PCID enabled hardware).
 
-Remove the leftover pglist_data::numabalancing_migrate_lock and its
-initialization, we stopped using this lock with:
+So in that regards, the Changelog (and the comment) is a little
+misleading.
 
-  efaffc5e40ae ("mm, sched/numa: Remove rate-limiting of automatic NUMA balancing migration")
-
-[ mingo: Rewrote the changelog. ]
-
-Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@surriel.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Link: http://lkml.kernel.org/r/1538824999-31230-1-git-send-email-srikar@linux.vnet.ibm.com
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
----
- include/linux/mmzone.h |  4 ----
- mm/page_alloc.c        | 10 ----------
- 2 files changed, 14 deletions(-)
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 3f4c0b167333..d4b0c79d2924 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -667,10 +667,6 @@ typedef struct pglist_data {
- 	enum zone_type kcompactd_classzone_idx;
- 	wait_queue_head_t kcompactd_wait;
- 	struct task_struct *kcompactd;
--#endif
--#ifdef CONFIG_NUMA_BALANCING
--	/* Lock serializing the migrate rate limiting window */
--	spinlock_t numabalancing_migrate_lock;
- #endif
- 	/*
- 	 * This is a per-node reserve of pages that are not available
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 706a738c0aee..e2ef1c17942f 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6193,15 +6193,6 @@ static unsigned long __init calc_memmap_size(unsigned long spanned_pages,
- 	return PAGE_ALIGN(pages * sizeof(struct page)) >> PAGE_SHIFT;
- }
- 
--#ifdef CONFIG_NUMA_BALANCING
--static void pgdat_init_numabalancing(struct pglist_data *pgdat)
--{
--	spin_lock_init(&pgdat->numabalancing_migrate_lock);
--}
--#else
--static void pgdat_init_numabalancing(struct pglist_data *pgdat) {}
--#endif
--
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- static void pgdat_init_split_queue(struct pglist_data *pgdat)
- {
-@@ -6226,7 +6217,6 @@ static void __meminit pgdat_init_internals(struct pglist_data *pgdat)
- {
- 	pgdat_resize_init(pgdat);
- 
--	pgdat_init_numabalancing(pgdat);
- 	pgdat_init_split_queue(pgdat);
- 	pgdat_init_kcompactd(pgdat);
- 
+I don't see anything fundamentally wrong with the patch though; just the
+wording.
