@@ -1,107 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 604FA6B000A
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 02:35:11 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id h8so388708otb.4
-        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 23:35:11 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id d17-v6si9195473oic.50.2018.10.08.23.35.09
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DF2A6B000D
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 02:35:46 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id x44-v6so633157edd.17
+        for <linux-mm@kvack.org>; Mon, 08 Oct 2018 23:35:46 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e2-v6si648310ejo.298.2018.10.08.23.35.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Oct 2018 23:35:10 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w996Y5w8082358
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2018 02:35:09 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2n0jbjs883-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 09 Oct 2018 02:35:09 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
-	Tue, 9 Oct 2018 07:35:06 +0100
-Date: Tue, 9 Oct 2018 08:35:00 +0200
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: [BUG -next 20181008] list corruption with "mm/slub: remove useless
- condition in deactivate_slab"
-Message-Id: <20181009063500.GB3555@osiris>
+        Mon, 08 Oct 2018 23:35:45 -0700 (PDT)
+Date: Tue, 9 Oct 2018 08:35:41 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, oom_adj: avoid meaningless loop to find processes
+ sharing mm
+Message-ID: <20181009063541.GB8528@dhcp22.suse.cz>
+References: <67eedc4c-7afa-e845-6c88-9716fd820de6@i-love.sakura.ne.jp>
+ <af7ae9c4-d7f1-69af-58fa-ec6949161f5b@I-love.SAKURA.ne.jp>
+ <20181008011931epcms1p82dd01b7e5c067ea99946418bc97de46a@epcms1p8>
+ <20181008061407epcms1p519703ae6373a770160c8f912c7aa9521@epcms1p5>
+ <CGME20181008011931epcms1p82dd01b7e5c067ea99946418bc97de46a@epcms1p2>
+ <20181008083855epcms1p20e691e5a001f3b94b267997c24e91128@epcms1p2>
+ <f5bdf4a7-e491-1cda-590c-792526f49050@i-love.sakura.ne.jp>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: Quoted-printable
-MIME-Version: 1.0
+In-Reply-To: <f5bdf4a7-e491-1cda-590c-792526f49050@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pingfan Liu <kernelfans@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-next@vger.kernel.org, linux-mm@kvack.org, linux-s390@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: ytk.lee@samsung.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-Hello,
+[I have only now noticed that the patch has been reposted]
 
-with linux-next for 20181008 I can reliably crash my system with lot's of
-debugging options enabled on s390. List debugging triggers the list
-corruption below, which I could bisect down to this commit:
+On Mon 08-10-18 18:27:39, Tetsuo Handa wrote:
+> On 2018/10/08 17:38, Yong-Taek Lee wrote:
+> >>
+> >> On 2018/10/08 15:14, Yong-Taek Lee wrote:
+> >>>> On 2018/10/08 10:19, Yong-Taek Lee wrote:
+> >>>>> @@ -1056,6 +1056,7 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
+> >>>>>         struct mm_struct *mm = NULL;
+> >>>>>         struct task_struct *task;
+> >>>>>         int err = 0;
+> >>>>> +       int mm_users = 0;
+> >>>>>
+> >>>>>         task = get_proc_task(file_inode(file));
+> >>>>>         if (!task)
+> >>>>> @@ -1092,7 +1093,8 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
+> >>>>>                 struct task_struct *p = find_lock_task_mm(task);
+> >>>>>
+> >>>>>                 if (p) {
+> >>>>> -                       if (atomic_read(&p->mm->mm_users) > 1) {
+> >>>>> +                       mm_users = atomic_read(&p->mm->mm_users);
+> >>>>> +                       if ((mm_users > 1) && (mm_users != get_nr_threads(p))) {
+> >>>>
+> >>>> How can this work (even before this patch)? When clone(CLONE_VM without CLONE_THREAD/CLONE_SIGHAND)
+> >>>> is requested, copy_process() calls copy_signal() in order to copy sig->oom_score_adj and
+> >>>> sig->oom_score_adj_min before calling copy_mm() in order to increment mm->mm_users, doesn't it?
+> >>>> Then, we will get two different "struct signal_struct" with different oom_score_adj/oom_score_adj_min
+> >>>> but one "struct mm_struct" shared by two thread groups.
+> >>>>
+> >>>
+> >>> Are you talking about race between __set_oom_adj and copy_process?
+> >>> If so, i agree with your opinion. It can not set oom_score_adj properly for copied process if __set_oom_adj
+> >>> check mm_users before copy_process calls copy_mm after copy_signal. Please correct me if i misunderstood anything.
+> >>
+> >> You understand it correctly.
+> >>
+> >> Reversing copy_signal() and copy_mm() is not sufficient either. We need to use a read/write lock
+> >> (read lock for copy_process() and write lock for __set_oom_adj()) in order to make sure that
+> >> the thread created by clone() becomes reachable from for_each_process() path in __set_oom_adj().
+> >>
+> > 
+> > Thank you for your suggestion. But i think it would be better to seperate to 2 issues. How about think these
+> > issues separately because there are no dependency between race issue and my patch. As i already explained,
+> > for_each_process path is meaningless if there is only one thread group with many threads(mm_users > 1 but 
+> > no other thread group sharing same mm). Do you have any other idea to avoid meaningless loop ? 
+> 
+> Yes. I suggest reverting commit 44a70adec910d692 ("mm, oom_adj: make sure processes
+> sharing mm have same view of oom_score_adj") and commit 97fd49c2355ffded ("mm, oom:
+> kill all tasks sharing the mm").
 
-fde06e07750477f049f12d7d471ffa505338a3e7 is the first bad commit
-commit fde06e07750477f049f12d7d471ffa505338a3e7
-Author: Pingfan Liu <kernelfans@gmail.com>
-Date:   Thu Oct 4 07:43:01 2018 +1000
+This would require a lot of other work for something as border line as
+weird threading model like this. I will think about something more
+appropriate - e.g. we can take mmap_sem for read while doing this check
+and that should prevent from races with [v]fork.
 
-    mm/slub: remove useless condition in deactivate_slab
-
-    The var l should be used to reflect the original list, on which the page
-    should be.  But c->page is not on any list.  Furthermore, the current c=
-ode
-    does not update the value of l.  Hence remove the related logic
-
-    Link: http://lkml.kernel.org/r/1537941430-16217-1-git-send-email-kernel=
-fans@gmail.com
-    Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-    Acked-by: Christoph Lameter <cl@linux.com>
-    Cc: Pekka Enberg <penberg@kernel.org>
-    Cc: David Rientjes <rientjes@google.com>
-    Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-    Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
-
-list_add double add: new=3D000003d1029ecc08, prev=3D000000008ff846d0,next=
-=3D000003d1029ecc08.
-------------[ cut here ]------------
-kernel BUG at lib/list_debug.c:31!
-illegal operation: 0001 ilc:1 [#1] PREEMPT SMP
-Modules linked in:
-CPU: 3 PID: 106 Comm: (sd-executor) Not tainted 4.19.0-rc6-00291-gfde06e077=
-504 #21
-Hardware name: IBM 2964 NC9 702 (z/VM 6.4.0)
-Krnl PSW : (____ptrval____) (____ptrval____) (__list_add_valid+0x98/0xa8)
-           R:0 T:1 IO:0 EX:0 Key:0 M:1 W:0 P:0 AS:3 CC:1 PM:0 RI:0 EA:3
-Krnl GPRS: 0000000074311fdf 0000000080000001 0000000000000058 0000000000e7b=
-8b2
-           0000000000000000 0000000075438c64 00000000a7b31928 001c007b00000=
-000
-           000000008fe99d00 00000000a7b31b40 000003d1029ecc08 00000000a7c03=
-a80
-           000003d1029ecc08 000000008ff84680 00000000007b5674 00000000a7c03=
-960
-Krnl Code: 00000000007b5668: c0200034734a        larl    %r2,e43cfc
-           00000000007b566e: c0e5ffd0cf51        brasl   %r14,1cf510
-          #00000000007b5674: a7f40001            brc     15,7b5676
-          >00000000007b5678: a7290001            lghi    %r2,1
-           00000000007b567c: ebcff0a00004        lmg     %r12,%r15,160(%r15)
-           00000000007b5682: 07fe                bcr     15,%r14
-           00000000007b5684: 0707                bcr     0,%r7
-           00000000007b5686: 0707                bcr     0,%r7
-Call Trace:
-([<00000000007b5674>] __list_add_valid+0x94/0xa8)
- [<000000000037d30e>] deactivate_slab.isra.15+0x45e/0x810
- [<000000000037ede4>] ___slab_alloc+0x76c/0x7c0
- [<000000000037eeb0>] __slab_alloc.isra.16+0x78/0xa8
- [<00000000003808c8>] kmem_cache_alloc+0x160/0x458
- [<0000000000141a3a>] vm_area_dup+0x3a/0x60
- [<0000000000142f0a>] copy_process+0xd72/0x2100
- [<000000000014449a>] _do_fork+0xba/0x688
- [<0000000000144bb0>] sys_clone+0x48/0x50
- [<0000000000b8faf0>] system_call+0xd8/0x2d0
-INFO: lockdep is turned off.
-Last Breaking-Event-Address:
- [<00000000007b5674>] __list_add_valid+0x94/0xa8
-
-Kernel panic - not syncing: Fatal exception: panic_on_oops
+-- 
+Michal Hocko
+SUSE Labs
