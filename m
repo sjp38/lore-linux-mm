@@ -1,59 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EC2396B026B
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:14:37 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id 91so985273otr.18
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:14:37 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id l8si8263903oth.273.2018.10.09.06.14.36
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 06:14:36 -0700 (PDT)
-Subject: Re: [PATCH] mm, oom_adj: avoid meaningless loop to find processes
- sharing mm
-References: <20181008011931epcms1p82dd01b7e5c067ea99946418bc97de46a@epcms1p8>
- <20181008061407epcms1p519703ae6373a770160c8f912c7aa9521@epcms1p5>
- <CGME20181008011931epcms1p82dd01b7e5c067ea99946418bc97de46a@epcms1p2>
- <20181008083855epcms1p20e691e5a001f3b94b267997c24e91128@epcms1p2>
- <f5bdf4a7-e491-1cda-590c-792526f49050@i-love.sakura.ne.jp>
- <20181009063541.GB8528@dhcp22.suse.cz> <20181009075015.GC8528@dhcp22.suse.cz>
- <df4b029c-16b4-755f-2672-d7ec116f78ba@i-love.sakura.ne.jp>
- <20181009111005.GK8528@dhcp22.suse.cz>
- <99008444-b6b1-efc9-8670-f3eac4d2305f@i-love.sakura.ne.jp>
- <20181009125841.GP8528@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <41754dfe-3be7-f64e-45c9-2525d3b20d62@i-love.sakura.ne.jp>
-Date: Tue, 9 Oct 2018 22:14:24 +0900
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 47BAE6B026D
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:18:07 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id 36so982807ott.22
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:18:07 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id u107si592747otb.295.2018.10.09.06.18.05
+        for <linux-mm@kvack.org>;
+        Tue, 09 Oct 2018 06:18:05 -0700 (PDT)
+Date: Tue, 9 Oct 2018 14:18:04 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH] mm/thp: Correctly differentiate between mapped THP and
+ PMD migration entry
+Message-ID: <20181009131803.GH6248@arm.com>
+References: <1539057538-27446-1-git-send-email-anshuman.khandual@arm.com>
+ <20181009130421.bmus632ocurn275u@kshutemo-mobl1>
 MIME-Version: 1.0
-In-Reply-To: <20181009125841.GP8528@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181009130421.bmus632ocurn275u@kshutemo-mobl1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: ytk.lee@samsung.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, zi.yan@cs.rutgers.edu
 
-On 2018/10/09 21:58, Michal Hocko wrote:
-> On Tue 09-10-18 21:52:12, Tetsuo Handa wrote:
->> On 2018/10/09 20:10, Michal Hocko wrote:
->>> On Tue 09-10-18 19:00:44, Tetsuo Handa wrote:
->>>>> 2) add OOM_SCORE_ADJ_MIN and do not kill tasks sharing mm and do not
->>>>> reap the mm in the rare case of the race.
->>>>
->>>> That is no problem. The mistake we made in 4.6 was that we updated oom_score_adj
->>>> to -1000 (and allowed unprivileged users to OOM-lockup the system).
->>>
->>> I do not follow.
->>>
->>
->> http://tomoyo.osdn.jp/cgi-bin/lxr/source/mm/oom_kill.c?v=linux-4.6.7#L493
+On Tue, Oct 09, 2018 at 04:04:21PM +0300, Kirill A. Shutemov wrote:
+> On Tue, Oct 09, 2018 at 09:28:58AM +0530, Anshuman Khandual wrote:
+> > A normal mapped THP page at PMD level should be correctly differentiated
+> > from a PMD migration entry while walking the page table. A mapped THP would
+> > additionally check positive for pmd_present() along with pmd_trans_huge()
+> > as compared to a PMD migration entry. This just adds a new conditional test
+> > differentiating the two while walking the page table.
+> > 
+> > Fixes: 616b8371539a6 ("mm: thp: enable thp migration in generic path")
+> > Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+> > ---
+> > On X86, pmd_trans_huge() and is_pmd_migration_entry() are always mutually
+> > exclusive which makes the current conditional block work for both mapped
+> > and migration entries. This is not same with arm64 where pmd_trans_huge()
+> > returns positive for both mapped and migration entries. Could some one
+> > please explain why pmd_trans_huge() has to return false for migration
+> > entries which just install swap bits and its still a PMD ?
 > 
-> Ahh, so you are not referring to the current upstream code. Do you see
-> any specific problem with the current one (well, except for the possible
-> race which I have tried to evaluate).
-> 
+> I guess it's just a design choice. Any reason why arm64 cannot do the
+> same?
 
-Yes. "task_will_free_mem(current) in out_of_memory() returns false due to MMF_OOM_SKIP
-being already set" is a problem for clone(CLONE_VM without CLONE_THREAD/CLONE_SIGHAND)
-with the current code.
+Anshuman, would it work to:
+
+#define pmd_trans_huge(pmd)     (pmd_present(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
+
+?
+
+> > Nonetheless pmd_present() seems to be a better check to distinguish
+> > between mapped and (non-mapped non-present) migration entries without
+> > any ambiguity.
+> 
+> Can we instead reverse order of check:
+> 
+> if (pmd_trans_huge(pmde) || is_pmd_migration_entry(pmde)) {
+> 	pvmw->ptl = pmd_lock(mm, pvmw->pmd);
+> 	if (!pmd_present(*pvmw->pmd)) {
+> 		...
+> 	} else if (likely(pmd_trans_huge(*pvmw->pmd))) {
+> 		...
+> 	} else {
+> 		...
+> 	}
+> ...
+> 
+> This should cover both imeplementations of pmd_trans_huge().
+
+I'd much rather have portable semantics for pmd_trans_huge(), if we can
+achieve that efficiently. But that would be fast /and/ correct, so perhaps
+I'm being too hopeful :)
+
+Will
