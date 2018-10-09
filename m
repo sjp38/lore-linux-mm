@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 341776B0273
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:25:48 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id c4-v6so965956plz.20
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:25:48 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 203006B0275
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:25:50 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id b27-v6so1081804pfm.15
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:25:50 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a16-v6si20159006pfi.34.2018.10.09.06.25.46
+        by mx.google.com with ESMTPS id o32-v6si7655942pld.284.2018.10.09.06.25.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 09 Oct 2018 06:25:46 -0700 (PDT)
+        Tue, 09 Oct 2018 06:25:49 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 10/33] powerpc/pseries: use the generic iommu bypass code
-Date: Tue,  9 Oct 2018 15:24:37 +0200
-Message-Id: <20181009132500.17643-11-hch@lst.de>
+Subject: [PATCH 11/33] powerpc/cell: move dma direct window setup out of dma_configure
+Date: Tue,  9 Oct 2018 15:24:38 +0200
+Message-Id: <20181009132500.17643-12-hch@lst.de>
 In-Reply-To: <20181009132500.17643-1-hch@lst.de>
 References: <20181009132500.17643-1-hch@lst.de>
 MIME-Version: 1.0
@@ -22,148 +22,64 @@ List-ID: <linux-mm.kvack.org>
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
 Cc: linuxppc-dev@lists.ozlabs.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Use the generic iommu bypass code instead of overriding set_dma_mask.
+Configure the dma settings at device setup time, and stop playing games
+with get_pci_dma_ops.  This prepares for using the common dma_configure
+code later on.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/powerpc/platforms/pseries/iommu.c | 100 +++++++------------------
- 1 file changed, 27 insertions(+), 73 deletions(-)
+ arch/powerpc/platforms/cell/iommu.c | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
 
-diff --git a/arch/powerpc/platforms/pseries/iommu.c b/arch/powerpc/platforms/pseries/iommu.c
-index da5716de7f4c..8965d174c53b 100644
---- a/arch/powerpc/platforms/pseries/iommu.c
-+++ b/arch/powerpc/platforms/pseries/iommu.c
-@@ -973,7 +973,7 @@ static LIST_HEAD(failed_ddw_pdn_list);
-  * pdn: the parent pe node with the ibm,dma_window property
-  * Future: also check if we can remap the base window for our base page size
-  *
-- * returns the dma offset for use by dma_set_mask
-+ * returns the dma offset for use by the direct mapped DMA code.
-  */
- static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
+diff --git a/arch/powerpc/platforms/cell/iommu.c b/arch/powerpc/platforms/cell/iommu.c
+index 12352a58072a..cce5bf9515e5 100644
+--- a/arch/powerpc/platforms/cell/iommu.c
++++ b/arch/powerpc/platforms/cell/iommu.c
+@@ -657,14 +657,21 @@ static const struct dma_map_ops dma_iommu_fixed_ops = {
+ 	.mapping_error	= dma_iommu_mapping_error,
+ };
+ 
++static u64 cell_iommu_get_fixed_address(struct device *dev);
++
+ static void cell_dma_dev_setup(struct device *dev)
  {
-@@ -1193,87 +1193,40 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
- 	iommu_add_device(&dev->dev);
+-	if (get_pci_dma_ops() == &dma_iommu_ops)
++	if (get_pci_dma_ops() == &dma_iommu_ops) {
++		u64 addr = cell_iommu_get_fixed_address(dev);
++
++		if (addr != OF_BAD_ADDR)
++			set_dma_offset(dev, addr + dma_iommu_fixed_base);
+ 		set_iommu_table_base(dev, cell_get_iommu_table(dev));
+-	else if (get_pci_dma_ops() == &dma_nommu_ops)
++	} else if (get_pci_dma_ops() == &dma_nommu_ops) {
+ 		set_dma_offset(dev, cell_dma_nommu_offset);
+-	else
++	} else {
+ 		BUG();
++	}
  }
  
--static int dma_set_mask_pSeriesLP(struct device *dev, u64 dma_mask)
-+static bool iommu_bypass_supported_pSeriesLP(struct pci_dev *pdev, u64 dma_mask)
+ static void cell_pci_dma_dev_setup(struct pci_dev *dev)
+@@ -950,19 +957,14 @@ static int dma_suported_and_switch(struct device *dev, u64 dma_mask)
  {
--	bool ddw_enabled = false;
--	struct device_node *pdn, *dn;
--	struct pci_dev *pdev;
-+	struct device_node *dn = pci_device_to_OF_node(pdev), *pdn;
- 	const __be32 *dma_window = NULL;
- 	u64 dma_offset;
- 
--	if (!dev->dma_mask)
--		return -EIO;
--
--	if (!dev_is_pci(dev))
--		goto check_mask;
--
--	pdev = to_pci_dev(dev);
--
- 	/* only attempt to use a new window if 64-bit DMA is requested */
--	if (!disable_ddw && dma_mask == DMA_BIT_MASK(64)) {
--		dn = pci_device_to_OF_node(pdev);
--		dev_dbg(dev, "node is %pOF\n", dn);
-+	if (dma_mask < DMA_BIT_MASK(64))
-+		return false;
- 
--		/*
--		 * the device tree might contain the dma-window properties
--		 * per-device and not necessarily for the bus. So we need to
--		 * search upwards in the tree until we either hit a dma-window
--		 * property, OR find a parent with a table already allocated.
--		 */
--		for (pdn = dn; pdn && PCI_DN(pdn) && !PCI_DN(pdn)->table_group;
--				pdn = pdn->parent) {
--			dma_window = of_get_property(pdn, "ibm,dma-window", NULL);
--			if (dma_window)
--				break;
--		}
--		if (pdn && PCI_DN(pdn)) {
--			dma_offset = enable_ddw(pdev, pdn);
--			if (dma_offset != 0) {
--				dev_info(dev, "Using 64-bit direct DMA at offset %llx\n", dma_offset);
--				set_dma_offset(dev, dma_offset);
--				set_dma_ops(dev, &dma_nommu_ops);
--				ddw_enabled = true;
--			}
--		}
--	}
-+	dev_dbg(&pdev->dev, "node is %pOF\n", dn);
- 
--	/* fall back on iommu ops */
--	if (!ddw_enabled && get_dma_ops(dev) != &dma_iommu_ops) {
--		dev_info(dev, "Restoring 32-bit DMA via iommu\n");
--		set_dma_ops(dev, &dma_iommu_ops);
-+	/*
-+	 * the device tree might contain the dma-window properties
-+	 * per-device and not necessarily for the bus. So we need to
-+	 * search upwards in the tree until we either hit a dma-window
-+	 * property, OR find a parent with a table already allocated.
-+	 */
-+	for (pdn = dn; pdn && PCI_DN(pdn) && !PCI_DN(pdn)->table_group;
-+			pdn = pdn->parent) {
-+		dma_window = of_get_property(pdn, "ibm,dma-window", NULL);
-+		if (dma_window)
-+			break;
+ 	if (dma_mask == DMA_BIT_MASK(64) &&
+ 	    cell_iommu_get_fixed_address(dev) != OF_BAD_ADDR) {
+-		u64 addr = cell_iommu_get_fixed_address(dev) +
+-			dma_iommu_fixed_base;
+ 		dev_dbg(dev, "iommu: 64-bit OK, using fixed ops\n");
+-		dev_dbg(dev, "iommu: fixed addr = %llx\n", addr);
+ 		set_dma_ops(dev, &dma_iommu_fixed_ops);
+-		set_dma_offset(dev, addr);
+ 		return 1;
  	}
  
--check_mask:
--	if (!dma_supported(dev, dma_mask))
--		return -EIO;
--
--	*dev->dma_mask = dma_mask;
--	return 0;
--}
--
--static u64 dma_get_required_mask_pSeriesLP(struct device *dev)
--{
--	if (!dev->dma_mask)
--		return 0;
--
--	if (!disable_ddw && dev_is_pci(dev)) {
--		struct pci_dev *pdev = to_pci_dev(dev);
--		struct device_node *dn;
--
--		dn = pci_device_to_OF_node(pdev);
--
--		/* search upwards for ibm,dma-window */
--		for (; dn && PCI_DN(dn) && !PCI_DN(dn)->table_group;
--				dn = dn->parent)
--			if (of_get_property(dn, "ibm,dma-window", NULL))
--				break;
--		/* if there is a ibm,ddw-applicable property require 64 bits */
--		if (dn && PCI_DN(dn) &&
--				of_get_property(dn, "ibm,ddw-applicable", NULL))
--			return DMA_BIT_MASK(64);
-+	if (pdn && PCI_DN(pdn)) {
-+		dma_offset = enable_ddw(pdev, pdn);
-+		if (dma_offset != 0) {
-+			set_dma_offset(&pdev->dev, dma_offset);
-+			return true;
-+		}
+ 	if (dma_iommu_dma_supported(dev, dma_mask)) {
+ 		dev_dbg(dev, "iommu: not 64-bit, using default ops\n");
+-		set_dma_ops(dev, get_pci_dma_ops());
+-		cell_dma_dev_setup(dev);
++		set_dma_ops(dev, &dma_iommu_ops);
+ 		return 1;
  	}
  
--	return dma_iommu_get_required_mask(dev);
-+	return false;
- }
- 
- static int iommu_mem_notifier(struct notifier_block *nb, unsigned long action,
-@@ -1368,8 +1321,9 @@ void iommu_init_early_pSeries(void)
- 	if (firmware_has_feature(FW_FEATURE_LPAR)) {
- 		pseries_pci_controller_ops.dma_bus_setup = pci_dma_bus_setup_pSeriesLP;
- 		pseries_pci_controller_ops.dma_dev_setup = pci_dma_dev_setup_pSeriesLP;
--		ppc_md.dma_set_mask = dma_set_mask_pSeriesLP;
--		ppc_md.dma_get_required_mask = dma_get_required_mask_pSeriesLP;
-+		if (!disable_ddw)
-+			pseries_pci_controller_ops.iommu_bypass_supported =
-+				iommu_bypass_supported_pSeriesLP;
- 	} else {
- 		pseries_pci_controller_ops.dma_bus_setup = pci_dma_bus_setup_pSeries;
- 		pseries_pci_controller_ops.dma_dev_setup = pci_dma_dev_setup_pSeries;
 -- 
 2.19.0
