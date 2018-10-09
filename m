@@ -1,55 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A69FC6B0269
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:08:08 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id e69-v6so976406ote.17
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:08:08 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g202-v6si9336474oib.234.2018.10.09.06.08.07
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EC2396B026B
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 09:14:37 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id 91so985273otr.18
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 06:14:37 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id l8si8263903oth.273.2018.10.09.06.14.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 06:08:07 -0700 (PDT)
-Subject: Re: [PATCH 1/2] mm: thp: relax __GFP_THISNODE for MADV_HUGEPAGE
- mappings
-References: <20180925120326.24392-1-mhocko@kernel.org>
- <20180925120326.24392-2-mhocko@kernel.org>
- <alpine.DEB.2.21.1810041302330.16935@chino.kir.corp.google.com>
- <20181005073854.GB6931@suse.de>
- <alpine.DEB.2.21.1810051320270.202739@chino.kir.corp.google.com>
- <20181005232155.GA2298@redhat.com>
- <alpine.DEB.2.21.1810081303060.221006@chino.kir.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <19684def-0ab4-6ca6-767d-2364cc459740@suse.cz>
-Date: Tue, 9 Oct 2018 15:08:03 +0200
+        Tue, 09 Oct 2018 06:14:36 -0700 (PDT)
+Subject: Re: [PATCH] mm, oom_adj: avoid meaningless loop to find processes
+ sharing mm
+References: <20181008011931epcms1p82dd01b7e5c067ea99946418bc97de46a@epcms1p8>
+ <20181008061407epcms1p519703ae6373a770160c8f912c7aa9521@epcms1p5>
+ <CGME20181008011931epcms1p82dd01b7e5c067ea99946418bc97de46a@epcms1p2>
+ <20181008083855epcms1p20e691e5a001f3b94b267997c24e91128@epcms1p2>
+ <f5bdf4a7-e491-1cda-590c-792526f49050@i-love.sakura.ne.jp>
+ <20181009063541.GB8528@dhcp22.suse.cz> <20181009075015.GC8528@dhcp22.suse.cz>
+ <df4b029c-16b4-755f-2672-d7ec116f78ba@i-love.sakura.ne.jp>
+ <20181009111005.GK8528@dhcp22.suse.cz>
+ <99008444-b6b1-efc9-8670-f3eac4d2305f@i-love.sakura.ne.jp>
+ <20181009125841.GP8528@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <41754dfe-3be7-f64e-45c9-2525d3b20d62@i-love.sakura.ne.jp>
+Date: Tue, 9 Oct 2018 22:14:24 +0900
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.21.1810081303060.221006@chino.kir.corp.google.com>
+In-Reply-To: <20181009125841.GP8528@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: ytk.lee@samsung.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On 10/8/18 10:41 PM, David Rientjes wrote:
-> +			/*
-> +			 * If faulting a hugepage, it is very unlikely that
-> +			 * thrashing the zonelist is going to assist compaction
-> +			 * in freeing an entire pageblock.  There are no
-> +			 * guarantees memory compaction can free an entire
-> +			 * pageblock under such memory pressure that it is
-> +			 * better to simply fail and fallback to native pages.
-> +			 */
-> +			if (order == pageblock_order &&
-> +					!(current->flags & PF_KTHREAD))
-> +				goto nopage;
-
-After we got rid of similar hardcoded heuristics, I would be very
-unhappy to start adding them back. A new gfp flag is also unfortunate,
-but more acceptable to me.
-
-> +
->  			/*
->  			 * Looks like reclaim/compaction is worth trying, but
->  			 * sync compaction could be very expensive, so keep
+On 2018/10/09 21:58, Michal Hocko wrote:
+> On Tue 09-10-18 21:52:12, Tetsuo Handa wrote:
+>> On 2018/10/09 20:10, Michal Hocko wrote:
+>>> On Tue 09-10-18 19:00:44, Tetsuo Handa wrote:
+>>>>> 2) add OOM_SCORE_ADJ_MIN and do not kill tasks sharing mm and do not
+>>>>> reap the mm in the rare case of the race.
+>>>>
+>>>> That is no problem. The mistake we made in 4.6 was that we updated oom_score_adj
+>>>> to -1000 (and allowed unprivileged users to OOM-lockup the system).
+>>>
+>>> I do not follow.
+>>>
+>>
+>> http://tomoyo.osdn.jp/cgi-bin/lxr/source/mm/oom_kill.c?v=linux-4.6.7#L493
 > 
+> Ahh, so you are not referring to the current upstream code. Do you see
+> any specific problem with the current one (well, except for the possible
+> race which I have tried to evaluate).
+> 
+
+Yes. "task_will_free_mem(current) in out_of_memory() returns false due to MMF_OOM_SKIP
+being already set" is a problem for clone(CLONE_VM without CLONE_THREAD/CLONE_SIGHAND)
+with the current code.
