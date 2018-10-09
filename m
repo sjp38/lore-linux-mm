@@ -1,49 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 47F0A6B0006
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 19:01:47 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id j60-v6so3262761qtb.8
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 16:01:47 -0700 (PDT)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0113.outbound.protection.outlook.com. [104.47.36.113])
-        by mx.google.com with ESMTPS id f34-v6si2991660qtb.125.2018.10.09.16.01.46
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A8B16B000A
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 19:03:55 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id p73-v6so3164329qkp.2
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 16:03:55 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g4-v6si543014qvk.217.2018.10.09.16.03.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 09 Oct 2018 16:01:46 -0700 (PDT)
-From: Paul Burton <paul.burton@mips.com>
-Subject: Re: [PATCH] memblock: stop using implicit alignement to
- SMP_CACHE_BYTES
-Date: Tue, 9 Oct 2018 23:01:40 +0000
-Message-ID: <20181009230137.rju3lm2saou5xsa4@pburton-laptop>
-References: <1538687224-17535-1-git-send-email-rppt@linux.vnet.ibm.com>
-In-Reply-To: <1538687224-17535-1-git-send-email-rppt@linux.vnet.ibm.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <E3554E11A6C0914FA9C02D46ED897C1C@namprd22.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Oct 2018 16:03:54 -0700 (PDT)
+Date: Tue, 9 Oct 2018 19:03:52 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
+ mappings
+Message-ID: <20181009230352.GE9307@redhat.com>
+References: <20180925120326.24392-2-mhocko@kernel.org>
+ <alpine.DEB.2.21.1810041302330.16935@chino.kir.corp.google.com>
+ <20181005073854.GB6931@suse.de>
+ <alpine.DEB.2.21.1810051320270.202739@chino.kir.corp.google.com>
+ <20181005232155.GA2298@redhat.com>
+ <alpine.DEB.2.21.1810081303060.221006@chino.kir.corp.google.com>
+ <20181009094825.GC6931@suse.de>
+ <20181009122745.GN8528@dhcp22.suse.cz>
+ <20181009130034.GD6931@suse.de>
+ <20181009142510.GU8528@dhcp22.suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181009142510.GU8528@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Ingo Molnar <mingo@redhat.com>, Matt Turner <mattst88@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Richard Weinberger <richard@nod.at>, Russell King <linux@armlinux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, "linux-alpha@vger.kernel.org" <linux-alpha@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-m68k@lists.linux-m68k.org" <linux-m68k@lists.linux-m68k.org>, "linux-mips@linux-mips.org" <linux-mips@linux-mips.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "linux-um@lists.infradead.org" <linux-um@lists.infradead.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
 
-Hi Mike,
+On Tue, Oct 09, 2018 at 04:25:10PM +0200, Michal Hocko wrote:
+> On Tue 09-10-18 14:00:34, Mel Gorman wrote:
+> > On Tue, Oct 09, 2018 at 02:27:45PM +0200, Michal Hocko wrote:
+> > > [Sorry for being slow in responding but I was mostly offline last few
+> > >  days]
+> > > 
+> > > On Tue 09-10-18 10:48:25, Mel Gorman wrote:
+> > > [...]
+> > > > This goes back to my point that the MADV_HUGEPAGE hint should not make
+> > > > promises about locality and that introducing MADV_LOCAL for specialised
+> > > > libraries may be more appropriate with the initial semantic being how it
+> > > > treats MADV_HUGEPAGE regions.
+> > > 
+> > > I agree with your other points and not going to repeat them. I am not
+> > > sure madvise s the best API for the purpose though. We are talking about
+> > > memory policy here and there is an existing api for that so I would
+> > > _prefer_ to reuse it for this purpose.
+> > > 
+> > 
+> > I flip-flopped on that one in my head multiple times on the basis of
+> > how strict it should be. Memory policies tend to be black or white --
+> > bind here, interleave there, etc. It wasn't clear to me what the best
+> > policy would be to describe "allocate local as best as you can but allow
+> > fallbacks if necessary".
 
-On Fri, Oct 05, 2018 at 12:07:04AM +0300, Mike Rapoport wrote:
-> When a memblock allocation APIs are called with align =3D 0, the alignmen=
-t is
-> implicitly set to SMP_CACHE_BYTES.
->=20
-> Replace all such uses of memblock APIs with the 'align' parameter explici=
-tly
-> set to SMP_CACHE_BYTES and stop implicit alignment assignment in the
-> memblock internal allocation functions.
->=20
->%
->=20
-> Suggested-by: Michal Hocko <mhocko@suse.com>
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+MPOL_PREFERRED is not black and white. In fact I asked David earlier
+if MPOL_PREFERRED could check if it would already be a good fit for
+this. Still the point is it requires privilege (and for a good
+reason).
 
-  Acked-by: Paul Burton <paul.burton@mips.com> # MIPS part
+> I was thinking about MPOL_NODE_PROXIMITY with the following semantic:
+> - try hard to allocate from a local or very close numa node(s) even when
+> that requires expensive operations like the memory reclaim/compaction
+> before falling back to other more distant numa nodes.
+
+If MPOL_PREFERRED can't work something like this could be added.
+
+I think "madvise vs mbind" is more an issue of "no-permission vs
+permission" required. And if the processes ends up swapping out all
+other process with their memory already allocated in the node, I think
+some permission is correct to be required, in which case an mbind
+looks a better fit. MPOL_PREFERRED also looks a first candidate for
+investigation as it's already not black and white and allows spillover
+and may already do the right thing in fact if set on top of
+MADV_HUGEPAGE.
 
 Thanks,
-    Paul
+Andrea
