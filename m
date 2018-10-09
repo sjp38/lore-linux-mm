@@ -1,30 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 26C606B000D
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 17:39:02 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id w15-v6so2356537pge.2
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 14:39:02 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b15-v6si25312187plk.356.2018.10.09.14.39.00
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C3826B0005
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 18:02:31 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id z12-v6so2997608pfl.17
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 15:02:31 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b3-v6sor11964671pgw.3.2018.10.09.15.02.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 14:39:00 -0700 (PDT)
-Date: Tue, 9 Oct 2018 14:38:59 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+        (Google Transport Security);
+        Tue, 09 Oct 2018 15:02:29 -0700 (PDT)
+Date: Wed, 10 Oct 2018 01:02:22 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: [PATCH] mm: Speed up mremap on large regions
-Message-Id: <20181009143859.8b9a700b1caf4e8d1e33a723@linux-foundation.org>
-In-Reply-To: <20181009201400.168705-1-joel@joelfernandes.org>
+Message-ID: <20181009220222.26nzajhpsbt7syvv@kshutemo-mobl1>
 References: <20181009201400.168705-1-joel@joelfernandes.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181009201400.168705-1-joel@joelfernandes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@android.com, minchan@google.com, hughd@google.com, lokeshgidra@google.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@android.com, minchan@google.com, hughd@google.com, lokeshgidra@google.com, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue,  9 Oct 2018 13:14:00 -0700 "Joel Fernandes (Google)" <joel@joelfernandes.org> wrote:
-
+On Tue, Oct 09, 2018 at 01:14:00PM -0700, Joel Fernandes (Google) wrote:
 > Android needs to mremap large regions of memory during memory management
 > related operations. The mremap system call can be really slow if THP is
 > not enabled. The bottleneck is move_page_tables, which is copying each
@@ -50,15 +49,21 @@ On Tue,  9 Oct 2018 13:14:00 -0700 "Joel Fernandes (Google)" <joel@joelfernandes
 > determine if the low-level PTEs are dirty. It is seen that the cost of
 > doing so is not much compared the improvement, on both x86-64 and arm64.
 
-Looks tasty.
+Okay. That's interesting.
 
-> --- a/mm/mremap.c
-> +++ b/mm/mremap.c
-> @@ -191,6 +191,54 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
->  		drop_rmap_locks(vma);
->  }
->  
-> +bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
+It makes me wounder why do we pass virtual address to pte_alloc() (and
+pte_alloc_one() inside).
 
-I'll park this for now, shall plan to add a `static' in there then
-merge it up after 4.20-rc1.
+If an arch has real requirement to tight a page table to a virtual address
+than the optimization cannot be used as it is. Per-arch should be fine
+for this case, I guess.
+
+If nobody uses the address we should just drop the argument as a
+preparation to the patch.
+
+Anyway, I think the optimization requires some groundwork before it can be
+accepted. At least some explanation why it is safe to move page table from
+one spot in virtual address space to another.
+
+-- 
+ Kirill A. Shutemov
