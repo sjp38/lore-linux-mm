@@ -1,86 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D73326B027B
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 10:09:30 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id s15-v6so973307pgv.9
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 07:09:30 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CBE4D6B0007
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 10:14:45 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id x20-v6so1317108eda.21
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 07:14:45 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n20-v6si7400848pgf.210.2018.10.09.07.09.29
+        by mx.google.com with ESMTPS id k25-v6si8222956edd.362.2018.10.09.07.14.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 07:09:29 -0700 (PDT)
-Date: Tue, 9 Oct 2018 16:09:25 +0200
+        Tue, 09 Oct 2018 07:14:44 -0700 (PDT)
+Date: Tue, 9 Oct 2018 16:14:42 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom_adj: avoid meaningless loop to find processes
- sharing mm
-Message-ID: <20181009140925.GS8528@dhcp22.suse.cz>
-References: <f5bdf4a7-e491-1cda-590c-792526f49050@i-love.sakura.ne.jp>
- <20181009063541.GB8528@dhcp22.suse.cz>
- <20181009075015.GC8528@dhcp22.suse.cz>
- <df4b029c-16b4-755f-2672-d7ec116f78ba@i-love.sakura.ne.jp>
- <20181009111005.GK8528@dhcp22.suse.cz>
- <99008444-b6b1-efc9-8670-f3eac4d2305f@i-love.sakura.ne.jp>
- <20181009125841.GP8528@dhcp22.suse.cz>
- <41754dfe-3be7-f64e-45c9-2525d3b20d62@i-love.sakura.ne.jp>
- <20181009132622.GR8528@dhcp22.suse.cz>
- <0ab96b81-042e-b9d9-8d63-b423941d8072@i-love.sakura.ne.jp>
+Subject: Re: [PATCH 1/4] mm/hugetlb: Enable PUD level huge page migration
+Message-ID: <20181009141442.GT8528@dhcp22.suse.cz>
+References: <20181002123909.GS18290@dhcp22.suse.cz>
+ <fae68a4e-b14b-8342-940c-ea5ef3c978af@arm.com>
+ <20181003065833.GD18290@dhcp22.suse.cz>
+ <7f0488b5-053f-0954-9b95-8c0890ef5597@arm.com>
+ <20181003105926.GA4714@dhcp22.suse.cz>
+ <34b25855-fcef-61ed-312d-2011f80bdec4@arm.com>
+ <20181003114842.GD4714@dhcp22.suse.cz>
+ <d42cc88b-6bab-797c-f263-2dce650ea3ab@arm.com>
+ <20181003133609.GG4714@dhcp22.suse.cz>
+ <5dc1dc4d-de60-43b9-aab6-3b3bb6a22a4b@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <0ab96b81-042e-b9d9-8d63-b423941d8072@i-love.sakura.ne.jp>
+In-Reply-To: <5dc1dc4d-de60-43b9-aab6-3b3bb6a22a4b@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: ytk.lee@samsung.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, suzuki.poulose@arm.com, punit.agrawal@arm.com, will.deacon@arm.com, Steven.Price@arm.com, catalin.marinas@arm.com, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
 
-On Tue 09-10-18 22:51:00, Tetsuo Handa wrote:
-> On 2018/10/09 22:26, Michal Hocko wrote:
-> > On Tue 09-10-18 22:14:24, Tetsuo Handa wrote:
-> >> On 2018/10/09 21:58, Michal Hocko wrote:
-> >>> On Tue 09-10-18 21:52:12, Tetsuo Handa wrote:
-> >>>> On 2018/10/09 20:10, Michal Hocko wrote:
-> >>>>> On Tue 09-10-18 19:00:44, Tetsuo Handa wrote:
-> >>>>>>> 2) add OOM_SCORE_ADJ_MIN and do not kill tasks sharing mm and do not
-> >>>>>>> reap the mm in the rare case of the race.
-> >>>>>>
-> >>>>>> That is no problem. The mistake we made in 4.6 was that we updated oom_score_adj
-> >>>>>> to -1000 (and allowed unprivileged users to OOM-lockup the system).
-> >>>>>
-> >>>>> I do not follow.
-> >>>>>
-> >>>>
-> >>>> http://tomoyo.osdn.jp/cgi-bin/lxr/source/mm/oom_kill.c?v=linux-4.6.7#L493
-> >>>
-> >>> Ahh, so you are not referring to the current upstream code. Do you see
-> >>> any specific problem with the current one (well, except for the possible
-> >>> race which I have tried to evaluate).
-> >>>
-> >>
-> >> Yes. "task_will_free_mem(current) in out_of_memory() returns false due to MMF_OOM_SKIP
-> >> being already set" is a problem for clone(CLONE_VM without CLONE_THREAD/CLONE_SIGHAND)
-> >> with the current code.
-> > 
-> > a) I fail to see how that is related to your previous post and b) could
-> > you be more specific. Is there any other scenario from the two described
-> > in my earlier email?
-> > 
-> 
-> I do not follow. Just reverting commit 44a70adec910d692 and commit 97fd49c2355ffded
-> is sufficient for closing the copy_process() versus __set_oom_adj() race.
+On Fri 05-10-18 13:04:43, Anshuman Khandual wrote:
+> Does the following sound close enough to what you are looking for ?
 
-Please go back and see why this has been done in the first place.
+I do not think so
 
-> We went too far towards complete "struct mm_struct" based OOM handling. But stepping
-> back to "struct signal_struct" based OOM handling solves Yong-Taek's for_each_process()
-> latency problem and your copy_process() versus __set_oom_adj() race problem and my
-> task_will_free_mem(current) race problem.
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 9df1d59..070c419 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -504,6 +504,13 @@ static inline bool hugepage_migration_supported(struct hstate *h)
+>         return arch_hugetlb_migration_supported(h);
+>  }
+>  
+> +static inline bool hugepage_movable_required(struct hstate *h)
+> +{
+> +       if (hstate_is_gigantic(h))
+> +               return true;
+> +       return false;
+> +}
+> +
 
-And again, I have put an evaluation of the race and try to see what is
-the effect. Then you have started to fire hard to follow notes and it is
-not clear whether the analysis/conclusions is wrong/incomplete.
+Apart from naming (hugepage_movable_supported?) the above doesn't do the
+most essential thing to query whether the hugepage migration is
+supported at all. Apart from that i would expect the logic to be revers.
+We do not really support giga pages migration enough to support them in
+movable zone.
+> @@ -1652,6 +1655,9 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
+>  {
+>         gfp_t gfp_mask = htlb_alloc_mask(h);
+>  
+> +       if (hugepage_movable_required(h))
+> +               gfp_mask |= __GFP_MOVABLE;
+> +
 
-So an we get back to that analysis and stick to the topic please?
+And besides that this really want to live in htlb_alloc_mask because
+this is really an allocation policy. It would be unmap_and_move_huge_page
+to call hugepage_migration_supported. The later is the one to allow for
+an arch specific override.
 
+Makes sense?
 -- 
 Michal Hocko
 SUSE Labs
