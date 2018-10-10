@@ -1,75 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E49A6B000D
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 11:16:00 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id b192-v6so3054466ywe.9
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 08:16:00 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D67F6B0010
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 11:17:43 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id o18-v6so3713292pgv.14
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 08:17:43 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j8-v6sor2698096ywi.132.2018.10.10.08.15.52
+        by mx.google.com with SMTPS id h21-v6sor19297728pgb.10.2018.10.10.08.17.42
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Oct 2018 08:15:52 -0700 (PDT)
-Date: Wed, 10 Oct 2018 11:15:49 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 4/4] mm: zero-seek shrinkers
-Message-ID: <20181010151549.GC2527@cmpxchg.org>
-References: <20181009184732.762-1-hannes@cmpxchg.org>
- <20181009184732.762-5-hannes@cmpxchg.org>
- <e01c4f441e24bb31816a3080389dcae7b49cc1ff.camel@fb.com>
+        Wed, 10 Oct 2018 08:17:42 -0700 (PDT)
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Date: Thu, 11 Oct 2018 00:17:29 +0900
+Subject: Re: INFO: rcu detected stall in shmem_fault
+Message-ID: <20181010151729.GC3949@tigerII.localdomain>
+References: <000000000000dc48d40577d4a587@google.com>
+ <201810100012.w9A0Cjtn047782@www262.sakura.ne.jp>
+ <20181010085945.GC5873@dhcp22.suse.cz>
+ <e72f799e-0634-f958-1af0-291f8577f4e8@i-love.sakura.ne.jp>
+ <20181010113500.GH5873@dhcp22.suse.cz>
+ <20181010114833.GB3949@tigerII.localdomain>
+ <20181010122539.GI5873@dhcp22.suse.cz>
+ <CACT4Y+ZfVdeB-WNeLCWJvTHNeCUtR3r1R+3Qjv9XjZXPxaV2WA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <e01c4f441e24bb31816a3080389dcae7b49cc1ff.camel@fb.com>
+In-Reply-To: <CACT4Y+ZfVdeB-WNeLCWJvTHNeCUtR3r1R+3Qjv9XjZXPxaV2WA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>
+To: Dmitry Vyukov <dvyukov@google.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, guro@fb.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Yang Shi <yang.s@alibaba-inc.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>
 
-On Wed, Oct 10, 2018 at 01:03:50AM +0000, Rik van Riel wrote:
-> On Tue, 2018-10-09 at 14:47 -0400, Johannes Weiner wrote:
+On (10/10/18 14:29), Dmitry Vyukov wrote:
+> >> A bit unrelated, but while we are at it:
+> >>
+> >>   I like it when we rate-limit printk-s that lookup the system.
+> >> But it seems that default rate-limit values are not always good enough,
+> >> DEFAULT_RATELIMIT_INTERVAL / DEFAULT_RATELIMIT_BURST can still be too
+> >> verbose. For instance, when we have a very slow IPMI emulated serial
+> >> console -- e.g. baud rate at 57600. DEFAULT_RATELIMIT_INTERVAL and
+> >> DEFAULT_RATELIMIT_BURST can add new OOM headers and backtraces faster
+> >> than we evict them.
+> >>
+> >> Does it sound reasonable enough to use larger than default rate-limits
+> >> for printk-s in OOM print-outs? OOM reports tend to be somewhat large
+> >> and the reported numbers are not always *very* unique.
+> >>
+> >> What do you think?
+> >
+> > I do not really care about the current inerval/burst values. This change
+> > should be done seprately and ideally with some numbers.
 > 
-> > These workloads also deal with tens of thousands of open files and
-> > use
-> > /proc for introspection, which ends up growing the proc_inode_cache
-> > to
-> > absurdly large sizes - again at the cost of valuable cache space,
-> > which isn't a reasonable trade-off, given that proc inodes can be
-> > re-created without involving the disk.
-> > 
-> > This patch implements a "zero-seek" setting for shrinkers that
-> > results
-> > in a target ratio of 0:1 between their objects and IO-backed
-> > caches. This allows such virtual caches to grow when memory is
-> > available (they do cache/avoid CPU work after all), but effectively
-> > disables them as soon as IO-backed objects are under pressure.
-> > 
-> > It then switches the shrinkers for procfs and sysfs metadata, as well
-> > as excess page cache shadow nodes, to the new zero-seek setting.
+> I think Sergey meant that this place may need to use
+> larger-than-default values because it prints lots of output per
+> instance (whereas the default limit is more tuned for cases that print
+> just 1 line).
 > 
-> This patch looks like a great step in the right
-> direction, though I do not know whether it is
-> aggressive enough.
-> 
-> Given that internal slab fragmentation will
-> prevent the slab cache from returning a slab to
-> the VM if just one object in that slab is still
-> in use, there may well be workloads where we
-> should just put a hard cap on the number of
-> freeable items these slabs, and reclaim them
-> preemptively.
-> 
-> However, I do not know for sure, and this patch
-> seems like a big improvement over what we had
-> before, so ...
+> I've found at least 1 place that uses DEFAULT_RATELIMIT_INTERVAL*10:
+> https://elixir.bootlin.com/linux/latest/source/fs/btrfs/extent-tree.c#L8365
+> Probably we need something similar here.
 
-Fully agreed, fragmentation is still a concern. I'm still working on
-that part, but artificial caps and pro-active reclaim are trickier to
-get right than prioritization, and since these patches here are useful
-on their own I didn't want to hold them back.
+Yes, Dmitry, that's what I meant - to use something like
+DEFAULT_RATELIMIT_INTERVAL * 10 in OOM. I didn't mean to change
+the default values system wide.
 
-> > Reported-by: Domas Mituzas <dmituzas@fb.com>
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> Reviewed-by: Rik van Riel <riel@surriel.com>
+---
 
-Thanks!
+We are not rate-limiting a single annoying printk() in OOM, but
+functions that do a whole bunch of printks - OOM header, backtraces, etc.
+Thus OOM report can be, I don't know, 50 or 70 or 100 lines (who knows).
+So that's why rate-limit in OOM is more permissive in terms of number of
+printed lines. When we rate-limit a single printk() we let 10 prinks()
+/*10 lines*/ max every 5 seconds. While in OOM this transforms into
+10 dump_header() + 10 oom_kill_process() every 5 seconds. Still can be
+too many printk()-s, enough to lockup the system.
+
+	-ss
