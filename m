@@ -1,67 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D5D46B000D
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 20:36:56 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id f5-v6so2662820plf.11
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 17:36:56 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id 29-v6si24280054pgl.104.2018.10.09.17.36.54
-        for <linux-mm@kvack.org>;
-        Tue, 09 Oct 2018 17:36:55 -0700 (PDT)
-Date: Wed, 10 Oct 2018 11:36:51 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 01/25] xfs: add a per-xfs trace_printk macro
-Message-ID: <20181010003651.GH6311@dastard>
-References: <153913023835.32295.13962696655740190941.stgit@magnolia>
- <153913024554.32295.8692450593333636905.stgit@magnolia>
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BA716B0266
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 20:42:12 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id g194-v6so1747650ybf.5
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 17:42:12 -0700 (PDT)
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id n17-v6si5646874ybg.216.2018.10.09.17.42.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Oct 2018 17:42:11 -0700 (PDT)
+Subject: Re: [PATCH v4 2/3] mm: introduce put_user_page*(), placeholder
+ versions
+References: <20181008211623.30796-1-jhubbard@nvidia.com>
+ <20181008211623.30796-3-jhubbard@nvidia.com>
+ <20181008171442.d3b3a1ea07d56c26d813a11e@linux-foundation.org>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <5198a797-fa34-c859-ff9d-568834a85a83@nvidia.com>
+Date: Tue, 9 Oct 2018 17:42:09 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <153913024554.32295.8692450593333636905.stgit@magnolia>
+In-Reply-To: <20181008171442.d3b3a1ea07d56c26d813a11e@linux-foundation.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, ocfs2-devel@oss.oracle.com
+To: Andrew Morton <akpm@linux-foundation.org>, john.hubbard@gmail.com
+Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Ralph Campbell <rcampbell@nvidia.com>
 
-On Tue, Oct 09, 2018 at 05:10:45PM -0700, Darrick J. Wong wrote:
-> From: Darrick J. Wong <darrick.wong@oracle.com>
+On 10/8/18 5:14 PM, Andrew Morton wrote:
+> On Mon,  8 Oct 2018 14:16:22 -0700 john.hubbard@gmail.com wrote:
 > 
-> Add a "xfs_tprintk" macro so that developers can use trace_printk to
-> print out arbitrary debugging information with the XFS device name
-> attached to the trace output.
+>> From: John Hubbard <jhubbard@nvidia.com>
+[...]
+>> +/*
+>> + * Pages that were pinned via get_user_pages*() should be released via
+>> + * either put_user_page(), or one of the put_user_pages*() routines
+>> + * below.
+>> + */
+>> +static inline void put_user_page(struct page *page)
+>> +{
+>> +	put_page(page);
+>> +}
+>> +
+>> +static inline void put_user_pages_dirty(struct page **pages,
+>> +					unsigned long npages)
+>> +{
+>> +	unsigned long index;
+>> +
+>> +	for (index = 0; index < npages; index++) {
+>> +		if (!PageDirty(pages[index]))
 > 
-> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-> ---
->  fs/xfs/xfs_error.h |    5 +++++
->  1 file changed, 5 insertions(+)
+> Both put_page() and set_page_dirty() handle compound pages.  But
+> because of the above statement, put_user_pages_dirty() might misbehave? 
+> Or maybe it won't - perhaps the intent here is to skip dirtying the
+> head page if the sub page is clean?  Please clarify, explain and add
+> comment if so.
 > 
+
+Yes, technically, the accounting is wrong: we normally use the head page to 
+track dirtiness, and here, that is not done. (Nor was it done before this
+patch). However, it's not causing problems in code today because sub pages
+are released at about the same time as head pages, so the head page does get 
+properly checked at some point. And that means that set_page_dirty*() gets
+called if it needs to be called. 
+
+Obviously this is a little fragile, in that it depends on the caller behaving 
+a certain way. And in any case, the long-term fix (coming later) *also* only
+operates on the head page. So actually, instead of a comment, I think it's good 
+to just insert
+
+	page = compound_head(page);
+
+...into these new routines, right now. I'll do that.
+
+[...]
 > 
-> diff --git a/fs/xfs/xfs_error.h b/fs/xfs/xfs_error.h
-> index 246d3e989c6c..c3d9546b138c 100644
-> --- a/fs/xfs/xfs_error.h
-> +++ b/fs/xfs/xfs_error.h
-> @@ -99,4 +99,9 @@ extern int xfs_errortag_clearall(struct xfs_mount *mp);
->  #define		XFS_PTAG_SHUTDOWN_LOGERROR	0x00000040
->  #define		XFS_PTAG_FSBLOCK_ZERO		0x00000080
->  
-> +/* trace printk version of xfs_err and friends */
-> +#define xfs_tprintk(mp, fmt, args...) \
-> +	trace_printk("dev %d:%d " fmt, MAJOR((mp)->m_super->s_dev), \
-> +			MINOR((mp)->m_super->s_dev), ##args)
-> +
->  #endif	/* __XFS_ERROR_H__ */
+> Otherwise looks OK.  Ish.  But it would be nice if that comment were to
+> explain *why* get_user_pages() pages must be released with
+> put_user_page().
+> 
 
-Not convinced this is a good idea.  How are you going to ensure code
-calling this trace point is not committed?
+Yes, will do.
 
-If we decide to add this, it needs to be a CONFIG_XFS_DEBUG=y only
-definition because trace_printk() is only for temporary debugging
-code and has substantial performance overheads even when these trace
-points are not being traced.
+> Also, maintainability.  What happens if someone now uses put_page() by
+> mistake?  Kernel fails in some mysterious fashion?  How can we prevent
+> this from occurring as code evolves?  Is there a cheap way of detecting
+> this bug at runtime?
+> 
 
-Cheers,
+It might be possible to do a few run-time checks, such as "does page that came 
+back to put_user_page() have the correct flags?", but it's harder (without 
+having a dedicated page flag) to detect the other direction: "did someone page 
+in a get_user_pages page, to put_page?"
 
-Dave.
+As Jan said in his reply, converting get_user_pages (and put_user_page) to 
+work with a new data type that wraps struct pages, would solve it, but that's
+an awfully large change. Still...given how much of a mess this can turn into 
+if it's wrong, I wonder if it's worth it--maybe? 
+
+thanks,
 -- 
-Dave Chinner
-david@fromorbit.com
+John Hubbard
+NVIDIA
+ 
