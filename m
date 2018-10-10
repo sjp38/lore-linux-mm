@@ -1,151 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F21896B0294
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 20:14:56 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id z12-v6so3208311pfl.17
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 17:14:56 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id k2-v6si20251131pgo.32.2018.10.09.17.14.55
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 096B06B0005
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 20:32:21 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id i201-v6so1916454ywg.12
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 17:32:21 -0700 (PDT)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id o62-v6si5932546yba.405.2018.10.09.17.32.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 17:14:55 -0700 (PDT)
-Subject: [PATCH 25/25] xfs: support returning partial reflink results
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Tue, 09 Oct 2018 17:14:52 -0700
-Message-ID: <153913049195.32295.13614911442275409372.stgit@magnolia>
-In-Reply-To: <153913023835.32295.13962696655740190941.stgit@magnolia>
-References: <153913023835.32295.13962696655740190941.stgit@magnolia>
+        Tue, 09 Oct 2018 17:32:19 -0700 (PDT)
+Subject: Re: [PATCH v4 2/3] mm: introduce put_user_page*(), placeholder
+ versions
+References: <20181008211623.30796-1-jhubbard@nvidia.com>
+ <20181008211623.30796-3-jhubbard@nvidia.com>
+ <20181008171442.d3b3a1ea07d56c26d813a11e@linux-foundation.org>
+ <20181009083025.GE11150@quack2.suse.cz>
+ <20181009162012.c662ef0b041993557e150035@linux-foundation.org>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <62492f47-d51f-5c41-628c-ff17de21829e@nvidia.com>
+Date: Tue, 9 Oct 2018 17:32:16 -0700
 MIME-Version: 1.0
+In-Reply-To: <20181009162012.c662ef0b041993557e150035@linux-foundation.org>
 Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david@fromorbit.com, darrick.wong@oracle.com
-Cc: sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, ocfs2-devel@oss.oracle.com
+To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
+Cc: john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Ralph Campbell <rcampbell@nvidia.com>
 
-From: Darrick J. Wong <darrick.wong@oracle.com>
+On 10/9/18 4:20 PM, Andrew Morton wrote:
+> On Tue, 9 Oct 2018 10:30:25 +0200 Jan Kara <jack@suse.cz> wrote:
+> 
+>>> Also, maintainability.  What happens if someone now uses put_page() by
+>>> mistake?  Kernel fails in some mysterious fashion?  How can we prevent
+>>> this from occurring as code evolves?  Is there a cheap way of detecting
+>>> this bug at runtime?
+>>
+>> The same will happen as with any other reference counting bug - the special
+>> user reference will leak. It will be pretty hard to debug I agree. I was
+>> thinking about whether we could provide some type safety against such bugs
+>> such as get_user_pages() not returning struct page pointers but rather some
+>> other special type but it would result in a big amount of additional churn
+>> as we'd have to propagate this different type e.g. through the IO path so
+>> that IO completion routines could properly call put_user_pages(). So I'm
+>> not sure it's really worth it.
+> 
+> I'm not really understanding.  Patch 3/3 changes just one infiniband
+> driver to use put_user_page().  But the changelogs here imply (to me)
+> that every user of get_user_pages() needs to be converted to
+> s/put_page/put_user_page/.
+> 
+> Methinks a bit more explanation is needed in these changelogs?
+> 
 
-Back when the XFS reflink code only supported clone_file_range, we were
-only able to return zero or negative error codes to userspace.  However,
-now that copy_file_range (which returns bytes copied) can use XFS'
-clone_file_range, we have the opportunity to return partial results.
-For example, if userspace sends a 1GB clone request and we run out of
-space halfway through, we at least can tell userspace that we completed
-512M of that request like a regular write.
+OK, yes, it does sound like the explanation is falling short. I'll work on something 
+clearer. Did the proposed steps in the changelogs, such as:
+  
+[2] https://lkml.kernel.org/r/20180709080554.21931-1-jhubbard@nvidia.com
+    Proposed steps for fixing get_user_pages() + DMA problems.
 
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
----
- fs/xfs/xfs_file.c    |    7 ++-----
- fs/xfs/xfs_reflink.c |   19 ++++++++++++++-----
- fs/xfs/xfs_reflink.h |    2 +-
- 3 files changed, 17 insertions(+), 11 deletions(-)
+help at all, or is it just too many references, and I should write the words
+directly in the changelog?
 
+Anyway, patch 3/3 is a just a working example (which we do want to submit, though), and
+many more conversions will follow. But they don't have to be done all upfront--they
+can be done in follow up patchsets. 
 
-diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-index 6f4205846451..a15057be1994 100644
---- a/fs/xfs/xfs_file.c
-+++ b/fs/xfs/xfs_file.c
-@@ -928,11 +928,8 @@ xfs_file_remap_range(
- 	loff_t		len,
- 	unsigned int	flags)
- {
--	int		ret;
--
--	ret = xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
--			len, false);
--	return ret < 0 ? ret : len;
-+	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
-+			len, flags);
- }
- 
- STATIC int
-diff --git a/fs/xfs/xfs_reflink.c b/fs/xfs/xfs_reflink.c
-index 0f4678920240..b33107a35330 100644
---- a/fs/xfs/xfs_reflink.c
-+++ b/fs/xfs/xfs_reflink.c
-@@ -1123,6 +1123,7 @@ xfs_reflink_remap_blocks(
- 	struct xfs_inode	*dest,
- 	xfs_fileoff_t		destoff,
- 	xfs_filblks_t		len,
-+	xfs_filblks_t		*remapped,
- 	xfs_off_t		new_isize)
- {
- 	struct xfs_bmbt_irec	imap;
-@@ -1130,6 +1131,7 @@ xfs_reflink_remap_blocks(
- 	int			error = 0;
- 	xfs_filblks_t		range_len;
- 
-+	*remapped = 0;
- 	/* drange = (destoff, destoff + len); srange = (srcoff, srcoff + len) */
- 	while (len) {
- 		uint		lock_mode;
-@@ -1168,6 +1170,7 @@ xfs_reflink_remap_blocks(
- 		srcoff += range_len;
- 		destoff += range_len;
- 		len -= range_len;
-+		*remapped += range_len;
- 	}
- 
- 	return 0;
-@@ -1349,7 +1352,7 @@ xfs_reflink_remap_prep(
- /*
-  * Link a range of blocks from one file to another.
-  */
--int
-+loff_t
- xfs_reflink_remap_range(
- 	struct file		*file_in,
- 	loff_t			pos_in,
-@@ -1364,9 +1367,9 @@ xfs_reflink_remap_range(
- 	struct xfs_inode	*dest = XFS_I(inode_out);
- 	struct xfs_mount	*mp = src->i_mount;
- 	xfs_fileoff_t		sfsbno, dfsbno;
--	xfs_filblks_t		fsblen;
-+	xfs_filblks_t		fsblen, remapped = 0;
- 	xfs_extlen_t		cowextsize;
--	ssize_t			ret;
-+	int			ret;
- 
- 	if (!xfs_sb_version_hasreflink(&mp->m_sb))
- 		return -EOPNOTSUPP;
-@@ -1382,11 +1385,17 @@ xfs_reflink_remap_range(
- 
- 	trace_xfs_reflink_remap_range(src, pos_in, len, dest, pos_out);
- 
-+	if (len == 0) {
-+		ret = 0;
-+		goto out_unlock;
-+	}
-+
- 	dfsbno = XFS_B_TO_FSBT(mp, pos_out);
- 	sfsbno = XFS_B_TO_FSBT(mp, pos_in);
- 	fsblen = XFS_B_TO_FSB(mp, len);
- 	ret = xfs_reflink_remap_blocks(src, sfsbno, dest, dfsbno, fsblen,
--			pos_out + len);
-+			&remapped, pos_out + len);
-+	remapped = min_t(int64_t, len, XFS_FSB_TO_B(mp, remapped));
- 	if (ret)
- 		goto out_unlock;
- 
-@@ -1409,7 +1418,7 @@ xfs_reflink_remap_range(
- 	xfs_reflink_remap_unlock(file_in, file_out);
- 	if (ret)
- 		trace_xfs_reflink_remap_range_error(dest, ret, _RET_IP_);
--	return ret;
-+	return remapped > 0 ? remapped : ret;
- }
- 
- /*
-diff --git a/fs/xfs/xfs_reflink.h b/fs/xfs/xfs_reflink.h
-index c3c46c276fe1..cbc26ff79a8f 100644
---- a/fs/xfs/xfs_reflink.h
-+++ b/fs/xfs/xfs_reflink.h
-@@ -27,7 +27,7 @@ extern int xfs_reflink_cancel_cow_range(struct xfs_inode *ip, xfs_off_t offset,
- extern int xfs_reflink_end_cow(struct xfs_inode *ip, xfs_off_t offset,
- 		xfs_off_t count);
- extern int xfs_reflink_recover_cow(struct xfs_mount *mp);
--extern int xfs_reflink_remap_range(struct file *file_in, loff_t pos_in,
-+extern loff_t xfs_reflink_remap_range(struct file *file_in, loff_t pos_in,
- 		struct file *file_out, loff_t pos_out, loff_t len,
- 		unsigned int remap_flags);
- extern int xfs_reflink_inode_has_shared_extents(struct xfs_trans *tp,
+The put_user_page*() routines are, at this point, not going to significantly change
+behavior. 
+
+I'm working on an RFC that will show what the long-term fix to get_user_pages and
+put_user_pages will look like. But meanwhile it's good to get started on converting
+all of the call sites.
+
+thanks,
+-- 
+John Hubbard
+NVIDIA
