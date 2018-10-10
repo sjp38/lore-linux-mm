@@ -1,79 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 97A806B000D
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 06:44:35 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id h37-v6so3264162pgh.4
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 03:44:35 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id u8-v6si15739692plh.376.2018.10.10.03.44.34
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C15D36B0010
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 06:51:18 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id d69-v6so3223617pgc.22
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 03:51:18 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id l36-v6si25409695plg.289.2018.10.10.03.51.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Oct 2018 03:44:34 -0700 (PDT)
-Date: Wed, 10 Oct 2018 13:44:21 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-Subject: [bug report] mm: brk: downgrade mmap_sem to read when shrinking
-Message-ID: <20181010104420.GA15538@mwanda>
+        Wed, 10 Oct 2018 03:51:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Wed, 10 Oct 2018 16:21:16 +0530
+From: Arun KS <arunks@codeaurora.org>
+Subject: Re: [PATCH v5 1/2] memory_hotplug: Free pages as higher order
+In-Reply-To: <20181010080724.GA20338@techadventures.net>
+References: <1538727006-5727-1-git-send-email-arunks@codeaurora.org>
+ <20181010080724.GA20338@techadventures.net>
+Message-ID: <f18b87a0762c4379b78e9b5e09ff4840@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yang.shi@linux.alibaba.com
-Cc: linux-mm@kvack.org
+To: Oscar Salvador <osalvador@techadventures.net>
+Cc: kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, gregkh@linuxfoundation.org, osalvador@suse.de, malat@debian.org, kirill.shutemov@linux.intel.com, jrdr.linux@gmail.com, yasu.isimatu@gmail.com, mgorman@techsingularity.net, aaron.lu@intel.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com
 
-Hello Yang Shi,
+On 2018-10-10 13:37, Oscar Salvador wrote:
+> On Fri, Oct 05, 2018 at 01:40:05PM +0530, Arun KS wrote:
+>> When free pages are done with higher order, time spend on
+>> coalescing pages by buddy allocator can be reduced. With
+>> section size of 256MB, hot add latency of a single section
+>> shows improvement from 50-60 ms to less than 1 ms, hence
+>> improving the hot add latency by 60%. Modify external
+>> providers of online callback to align with the change.
+> 
+> Hi Arun, out of curiosity:
+> 
+> could you please explain how exactly did you mesure the speed
+> improvement?
 
-The patch ca761a3ea456: "mm: brk: downgrade mmap_sem to read when
-shrinking" from Oct 4, 2018, leads to the following static checker
-warning:
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index e379e85..2416136 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -690,9 +690,13 @@ static int online_pages_range(unsigned long 
+start_pfn, unsigned long nr_pages,
+                         void *arg)
+  {
+         unsigned long onlined_pages = *(unsigned long *)arg;
++       u64 t1, t2;
 
-	mm/mmap.c:252 __do_sys_brk()
-	warn: unsigned 'retval' is never less than zero.
++       t1 = local_clock();
+         if (PageReserved(pfn_to_page(start_pfn)))
+                 onlined_pages = online_pages_blocks(start_pfn, 
+nr_pages);
++       t2 = local_clock();
++       trace_printk("time spend = %llu us\n", (t2-t1)/(1000));
 
-mm/mmap.c
-   223          /*
-   224           * Check against rlimit here. If this check is done later after the test
-   225           * of oldbrk with newbrk then it can escape the test and let the data
-   226           * segment grow beyond its set limit the in case where the limit is
-   227           * not page aligned -Ram Gupta
-   228           */
-   229          if (check_data_rlimit(rlimit(RLIMIT_DATA), brk, mm->start_brk,
-   230                                mm->end_data, mm->start_data))
-   231                  goto out;
-   232  
-   233          newbrk = PAGE_ALIGN(brk);
-   234          oldbrk = PAGE_ALIGN(mm->brk);
-   235          if (oldbrk == newbrk) {
-   236                  mm->brk = brk;
-   237                  goto success;
-   238          }
-   239  
-   240          /*
-   241           * Always allow shrinking brk.
-   242           * __do_munmap() may downgrade mmap_sem to read.
-   243           */
-   244          if (brk <= mm->brk) {
-   245                  /*
-   246                   * mm->brk must to be protected by write mmap_sem so update it
-   247                   * before downgrading mmap_sem. When __do_munmap() fails,
-   248                   * mm->brk will be restored from origbrk.
-   249                   */
-   250                  mm->brk = brk;
-   251                  retval = __do_munmap(mm, newbrk, oldbrk-newbrk, &uf, true);
-   252                  if (retval < 0) {
-                            ^^^^^^^^^^
-Impossible.
+         online_mem_sections(start_pfn, start_pfn + nr_pages);
 
-   253                          mm->brk = origbrk;
-   254                          goto out;
-   255                  } else if (retval == 1)
-   256                          downgraded = true;
-   257                  goto success;
-   258          }
-   259  
 
-See also:
-mm/mremap.c:571 __do_sys_mremap() warn: unsigned 'ret' is never less than zero.
+Regards,
+Arun
 
-regards,
-dan carpenter
+> 
+> Thanks
