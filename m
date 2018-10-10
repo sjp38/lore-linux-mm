@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DD5B56B0271
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 20:11:44 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id e3-v6so2661622pld.13
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 17:11:44 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id p126-v6si23925518pfb.77.2018.10.09.17.11.42
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E0976B0273
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 20:11:51 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id f59-v6so2658828plb.5
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 17:11:51 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id x1-v6si19082805plb.132.2018.10.09.17.11.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 17:11:43 -0700 (PDT)
-Subject: [PATCH 08/25] vfs: combine the clone and dedupe into a single
- remap_file_range
+        Tue, 09 Oct 2018 17:11:50 -0700 (PDT)
+Subject: [PATCH 09/25] vfs: rename vfs_clone_file_prep to be more descriptive
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Tue, 09 Oct 2018 17:11:38 -0700
-Message-ID: <153913029885.32295.7399525233513945673.stgit@magnolia>
+Date: Tue, 09 Oct 2018 17:11:45 -0700
+Message-ID: <153913030578.32295.3542082209724064016.stgit@magnolia>
 In-Reply-To: <153913023835.32295.13962696655740190941.stgit@magnolia>
 References: <153913023835.32295.13962696655740190941.stgit@magnolia>
 MIME-Version: 1.0
@@ -26,518 +25,85 @@ Cc: sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, l
 
 From: Darrick J. Wong <darrick.wong@oracle.com>
 
-Combine the clone_file_range and dedupe_file_range operations into a
-single remap_file_range file operation dispatch since they're
-fundamentally the same operation.  The differences between the two can
-be made in the prep functions.
+The vfs_clone_file_prep is a generic function to be called by filesystem
+implementations only.  Rename the prefix to generic_ and make it more
+clear that it applies to remap operations, not just clones.
 
 Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 ---
- Documentation/filesystems/vfs.txt |   12 ++++-------
- fs/btrfs/ctree.h                  |    8 +++----
- fs/btrfs/file.c                   |    3 +--
- fs/btrfs/ioctl.c                  |   42 ++++++++++++++++++-------------------
- fs/cifs/cifsfs.c                  |   22 +++++++++++--------
- fs/nfs/nfs4file.c                 |   10 ++++++---
- fs/ocfs2/file.c                   |   23 +++++---------------
- fs/overlayfs/file.c               |   27 ++++++++++++------------
- fs/read_write.c                   |   18 ++++++++--------
- fs/xfs/xfs_file.c                 |   22 ++++---------------
- include/linux/fs.h                |   13 ++++++++---
- 11 files changed, 92 insertions(+), 108 deletions(-)
+ fs/ocfs2/refcounttree.c |    2 +-
+ fs/read_write.c         |    8 ++++----
+ fs/xfs/xfs_reflink.c    |    2 +-
+ include/linux/fs.h      |    6 +++---
+ 4 files changed, 9 insertions(+), 9 deletions(-)
 
 
-diff --git a/Documentation/filesystems/vfs.txt b/Documentation/filesystems/vfs.txt
-index a6c6a8af48a2..120fd72c87be 100644
---- a/Documentation/filesystems/vfs.txt
-+++ b/Documentation/filesystems/vfs.txt
-@@ -883,8 +883,9 @@ struct file_operations {
- 	unsigned (*mmap_capabilities)(struct file *);
- #endif
- 	ssize_t (*copy_file_range)(struct file *, loff_t, struct file *, loff_t, size_t, unsigned int);
--	int (*clone_file_range)(struct file *, loff_t, struct file *, loff_t, u64);
--	int (*dedupe_file_range)(struct file *, loff_t, struct file *, loff_t, u64);
-+	int (*remap_file_range)(struct file *file_in, loff_t pos_in,
-+				struct file *file_out, loff_t pos_out,
-+				u64 len, unsigned int flags);
- 	int (*fadvise)(struct file *, loff_t, loff_t, int);
- };
+diff --git a/fs/ocfs2/refcounttree.c b/fs/ocfs2/refcounttree.c
+index 19e03936c5e1..36c56dfbe485 100644
+--- a/fs/ocfs2/refcounttree.c
++++ b/fs/ocfs2/refcounttree.c
+@@ -4850,7 +4850,7 @@ int ocfs2_reflink_remap_range(struct file *file_in,
+ 	    (OCFS2_I(inode_out)->ip_flags & OCFS2_INODE_SYSTEM_FILE))
+ 		goto out_unlock;
  
-@@ -960,11 +961,8 @@ otherwise noted.
- 
-   copy_file_range: called by the copy_file_range(2) system call.
- 
--  clone_file_range: called by the ioctl(2) system call for FICLONERANGE and
--	FICLONE commands.
--
--  dedupe_file_range: called by the ioctl(2) system call for FIDEDUPERANGE
--	command.
-+  remap_file_range: called by the ioctl(2) system call for FICLONERANGE and
-+	FICLONE and FIDEDUPERANGE commands to remap file ranges.
- 
-   fadvise: possibly called by the fadvise64() system call.
- 
-diff --git a/fs/btrfs/ctree.h b/fs/btrfs/ctree.h
-index 2cddfe7806a4..a79783a713f0 100644
---- a/fs/btrfs/ctree.h
-+++ b/fs/btrfs/ctree.h
-@@ -3218,9 +3218,6 @@ void btrfs_get_block_group_info(struct list_head *groups_list,
- 				struct btrfs_ioctl_space_info *space);
- void btrfs_update_ioctl_balance_args(struct btrfs_fs_info *fs_info,
- 			       struct btrfs_ioctl_balance_args *bargs);
--int btrfs_dedupe_file_range(struct file *src_file, loff_t src_loff,
--			    struct file *dst_file, loff_t dst_loff,
--			    u64 olen);
- 
- /* file.c */
- int __init btrfs_auto_defrag_init(void);
-@@ -3250,8 +3247,9 @@ int btrfs_dirty_pages(struct inode *inode, struct page **pages,
- 		      size_t num_pages, loff_t pos, size_t write_bytes,
- 		      struct extent_state **cached);
- int btrfs_fdatawrite_range(struct inode *inode, loff_t start, loff_t end);
--int btrfs_clone_file_range(struct file *file_in, loff_t pos_in,
--			   struct file *file_out, loff_t pos_out, u64 len);
-+int btrfs_remap_file_range(struct file *file_in, loff_t pos_in,
-+			   struct file *file_out, loff_t pos_out, u64 len,
-+			   unsigned int flags);
- 
- /* tree-defrag.c */
- int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
-diff --git a/fs/btrfs/file.c b/fs/btrfs/file.c
-index 2be00e873e92..9a963f061393 100644
---- a/fs/btrfs/file.c
-+++ b/fs/btrfs/file.c
-@@ -3269,8 +3269,7 @@ const struct file_operations btrfs_file_operations = {
- #ifdef CONFIG_COMPAT
- 	.compat_ioctl	= btrfs_compat_ioctl,
- #endif
--	.clone_file_range = btrfs_clone_file_range,
--	.dedupe_file_range = btrfs_dedupe_file_range,
-+	.remap_file_range = btrfs_remap_file_range,
- };
- 
- void __cold btrfs_auto_defrag_exit(void)
-diff --git a/fs/btrfs/ioctl.c b/fs/btrfs/ioctl.c
-index d60b6caf09e8..e22b294fa25b 100644
---- a/fs/btrfs/ioctl.c
-+++ b/fs/btrfs/ioctl.c
-@@ -3627,26 +3627,6 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
- 	return ret;
- }
- 
--int btrfs_dedupe_file_range(struct file *src_file, loff_t src_loff,
--			    struct file *dst_file, loff_t dst_loff,
--			    u64 olen)
--{
--	struct inode *src = file_inode(src_file);
--	struct inode *dst = file_inode(dst_file);
--	u64 bs = BTRFS_I(src)->root->fs_info->sb->s_blocksize;
--
--	if (WARN_ON_ONCE(bs < PAGE_SIZE)) {
--		/*
--		 * Btrfs does not support blocksize < page_size. As a
--		 * result, btrfs_cmp_data() won't correctly handle
--		 * this situation without an update.
--		 */
--		return -EINVAL;
--	}
--
--	return btrfs_extent_same(src, src_loff, olen, dst, dst_loff);
--}
--
- static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
- 				     struct inode *inode,
- 				     u64 endoff,
-@@ -4348,9 +4328,27 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
- 	return ret;
- }
- 
--int btrfs_clone_file_range(struct file *src_file, loff_t off,
--		struct file *dst_file, loff_t destoff, u64 len)
-+int btrfs_remap_file_range(struct file *src_file, loff_t off,
-+		struct file *dst_file, loff_t destoff, u64 len,
-+		unsigned int flags)
- {
-+	if (flags & RFR_IDENTICAL_DATA) {
-+		struct inode *src = file_inode(src_file);
-+		struct inode *dst = file_inode(dst_file);
-+		u64 bs = BTRFS_I(src)->root->fs_info->sb->s_blocksize;
-+
-+		if (WARN_ON_ONCE(bs < PAGE_SIZE)) {
-+			/*
-+			 * Btrfs does not support blocksize < page_size. As a
-+			 * result, btrfs_cmp_data() won't correctly handle
-+			 * this situation without an update.
-+			 */
-+			return -EINVAL;
-+		}
-+
-+		return btrfs_extent_same(src, off, len, dst, destoff);
-+	}
-+
- 	return btrfs_clone_files(dst_file, src_file, off, len, destoff);
- }
- 
-diff --git a/fs/cifs/cifsfs.c b/fs/cifs/cifsfs.c
-index 7065426b3280..bf971fd7cab2 100644
---- a/fs/cifs/cifsfs.c
-+++ b/fs/cifs/cifsfs.c
-@@ -975,8 +975,9 @@ const struct inode_operations cifs_symlink_inode_ops = {
- 	.listxattr = cifs_listxattr,
- };
- 
--static int cifs_clone_file_range(struct file *src_file, loff_t off,
--		struct file *dst_file, loff_t destoff, u64 len)
-+static int cifs_remap_file_range(struct file *src_file, loff_t off,
-+		struct file *dst_file, loff_t destoff, u64 len,
-+		unsigned int flags)
- {
- 	struct inode *src_inode = file_inode(src_file);
- 	struct inode *target_inode = file_inode(dst_file);
-@@ -986,6 +987,9 @@ static int cifs_clone_file_range(struct file *src_file, loff_t off,
- 	unsigned int xid;
- 	int rc;
- 
-+	if (flags & RFR_IDENTICAL_DATA)
-+		return -EOPNOTSUPP;
-+
- 	cifs_dbg(FYI, "clone range\n");
- 
- 	xid = get_xid();
-@@ -1134,7 +1138,7 @@ const struct file_operations cifs_file_ops = {
- 	.llseek = cifs_llseek,
- 	.unlocked_ioctl	= cifs_ioctl,
- 	.copy_file_range = cifs_copy_file_range,
--	.clone_file_range = cifs_clone_file_range,
-+	.remap_file_range = cifs_remap_file_range,
- 	.setlease = cifs_setlease,
- 	.fallocate = cifs_fallocate,
- };
-@@ -1153,7 +1157,7 @@ const struct file_operations cifs_file_strict_ops = {
- 	.llseek = cifs_llseek,
- 	.unlocked_ioctl	= cifs_ioctl,
- 	.copy_file_range = cifs_copy_file_range,
--	.clone_file_range = cifs_clone_file_range,
-+	.remap_file_range = cifs_remap_file_range,
- 	.setlease = cifs_setlease,
- 	.fallocate = cifs_fallocate,
- };
-@@ -1172,7 +1176,7 @@ const struct file_operations cifs_file_direct_ops = {
- 	.splice_write = iter_file_splice_write,
- 	.unlocked_ioctl  = cifs_ioctl,
- 	.copy_file_range = cifs_copy_file_range,
--	.clone_file_range = cifs_clone_file_range,
-+	.remap_file_range = cifs_remap_file_range,
- 	.llseek = cifs_llseek,
- 	.setlease = cifs_setlease,
- 	.fallocate = cifs_fallocate,
-@@ -1191,7 +1195,7 @@ const struct file_operations cifs_file_nobrl_ops = {
- 	.llseek = cifs_llseek,
- 	.unlocked_ioctl	= cifs_ioctl,
- 	.copy_file_range = cifs_copy_file_range,
--	.clone_file_range = cifs_clone_file_range,
-+	.remap_file_range = cifs_remap_file_range,
- 	.setlease = cifs_setlease,
- 	.fallocate = cifs_fallocate,
- };
-@@ -1209,7 +1213,7 @@ const struct file_operations cifs_file_strict_nobrl_ops = {
- 	.llseek = cifs_llseek,
- 	.unlocked_ioctl	= cifs_ioctl,
- 	.copy_file_range = cifs_copy_file_range,
--	.clone_file_range = cifs_clone_file_range,
-+	.remap_file_range = cifs_remap_file_range,
- 	.setlease = cifs_setlease,
- 	.fallocate = cifs_fallocate,
- };
-@@ -1227,7 +1231,7 @@ const struct file_operations cifs_file_direct_nobrl_ops = {
- 	.splice_write = iter_file_splice_write,
- 	.unlocked_ioctl  = cifs_ioctl,
- 	.copy_file_range = cifs_copy_file_range,
--	.clone_file_range = cifs_clone_file_range,
-+	.remap_file_range = cifs_remap_file_range,
- 	.llseek = cifs_llseek,
- 	.setlease = cifs_setlease,
- 	.fallocate = cifs_fallocate,
-@@ -1239,7 +1243,7 @@ const struct file_operations cifs_dir_ops = {
- 	.read    = generic_read_dir,
- 	.unlocked_ioctl  = cifs_ioctl,
- 	.copy_file_range = cifs_copy_file_range,
--	.clone_file_range = cifs_clone_file_range,
-+	.remap_file_range = cifs_remap_file_range,
- 	.llseek = generic_file_llseek,
- 	.fsync = cifs_dir_fsync,
- };
-diff --git a/fs/nfs/nfs4file.c b/fs/nfs/nfs4file.c
-index 4288a6ecaf75..a93aa225c454 100644
---- a/fs/nfs/nfs4file.c
-+++ b/fs/nfs/nfs4file.c
-@@ -180,8 +180,9 @@ static long nfs42_fallocate(struct file *filep, int mode, loff_t offset, loff_t
- 	return nfs42_proc_allocate(filep, offset, len);
- }
- 
--static int nfs42_clone_file_range(struct file *src_file, loff_t src_off,
--		struct file *dst_file, loff_t dst_off, u64 count)
-+static int nfs42_remap_file_range(struct file *src_file, loff_t src_off,
-+		struct file *dst_file, loff_t dst_off, u64 count,
-+		unsigned int flags)
- {
- 	struct inode *dst_inode = file_inode(dst_file);
- 	struct nfs_server *server = NFS_SERVER(dst_inode);
-@@ -190,6 +191,9 @@ static int nfs42_clone_file_range(struct file *src_file, loff_t src_off,
- 	bool same_inode = false;
- 	int ret;
- 
-+	if (flags & RFR_IDENTICAL_DATA)
-+		return -EOPNOTSUPP;
-+
- 	/* check alignment w.r.t. clone_blksize */
- 	ret = -EINVAL;
- 	if (bs) {
-@@ -262,7 +266,7 @@ const struct file_operations nfs4_file_operations = {
- 	.copy_file_range = nfs4_copy_file_range,
- 	.llseek		= nfs4_file_llseek,
- 	.fallocate	= nfs42_fallocate,
--	.clone_file_range = nfs42_clone_file_range,
-+	.remap_file_range = nfs42_remap_file_range,
- #else
- 	.llseek		= nfs_file_llseek,
- #endif
-diff --git a/fs/ocfs2/file.c b/fs/ocfs2/file.c
-index 9fa35cb6f6e0..5da278edf189 100644
---- a/fs/ocfs2/file.c
-+++ b/fs/ocfs2/file.c
-@@ -2527,24 +2527,15 @@ static loff_t ocfs2_file_llseek(struct file *file, loff_t offset, int whence)
- 	return offset;
- }
- 
--static int ocfs2_file_clone_range(struct file *file_in,
-+static int ocfs2_remap_file_range(struct file *file_in,
- 				  loff_t pos_in,
- 				  struct file *file_out,
- 				  loff_t pos_out,
--				  u64 len)
-+				  u64 len,
-+				  unsigned int flags)
- {
- 	return ocfs2_reflink_remap_range(file_in, pos_in, file_out, pos_out,
--					 len, false);
--}
--
--static int ocfs2_file_dedupe_range(struct file *file_in,
--				   loff_t pos_in,
--				   struct file *file_out,
--				   loff_t pos_out,
--				   u64 len)
--{
--	return ocfs2_reflink_remap_range(file_in, pos_in, file_out, pos_out,
--					  len, true);
-+					 len, flags & RFR_IDENTICAL_DATA);
- }
- 
- const struct inode_operations ocfs2_file_iops = {
-@@ -2586,8 +2577,7 @@ const struct file_operations ocfs2_fops = {
- 	.splice_read	= generic_file_splice_read,
- 	.splice_write	= iter_file_splice_write,
- 	.fallocate	= ocfs2_fallocate,
--	.clone_file_range = ocfs2_file_clone_range,
--	.dedupe_file_range = ocfs2_file_dedupe_range,
-+	.remap_file_range = ocfs2_remap_file_range,
- };
- 
- const struct file_operations ocfs2_dops = {
-@@ -2633,8 +2623,7 @@ const struct file_operations ocfs2_fops_no_plocks = {
- 	.splice_read	= generic_file_splice_read,
- 	.splice_write	= iter_file_splice_write,
- 	.fallocate	= ocfs2_fallocate,
--	.clone_file_range = ocfs2_file_clone_range,
--	.dedupe_file_range = ocfs2_file_dedupe_range,
-+	.remap_file_range = ocfs2_remap_file_range,
- };
- 
- const struct file_operations ocfs2_dops_no_plocks = {
-diff --git a/fs/overlayfs/file.c b/fs/overlayfs/file.c
-index 986313da0c88..693bd0620a81 100644
---- a/fs/overlayfs/file.c
-+++ b/fs/overlayfs/file.c
-@@ -489,26 +489,28 @@ static ssize_t ovl_copy_file_range(struct file *file_in, loff_t pos_in,
- 			    OVL_COPY);
- }
- 
--static int ovl_clone_file_range(struct file *file_in, loff_t pos_in,
--				struct file *file_out, loff_t pos_out, u64 len)
-+static int ovl_remap_file_range(struct file *file_in, loff_t pos_in,
-+				struct file *file_out, loff_t pos_out,
-+				u64 len, unsigned int flags)
- {
--	return ovl_copyfile(file_in, pos_in, file_out, pos_out, len, 0,
--			    OVL_CLONE);
--}
-+	enum ovl_copyop op;
-+
-+	if (flags & RFR_IDENTICAL_DATA)
-+		op = OVL_DEDUPE;
-+	else
-+		op = OVL_CLONE;
- 
--static int ovl_dedupe_file_range(struct file *file_in, loff_t pos_in,
--				 struct file *file_out, loff_t pos_out, u64 len)
--{
- 	/*
- 	 * Don't copy up because of a dedupe request, this wouldn't make sense
- 	 * most of the time (data would be duplicated instead of deduplicated).
- 	 */
--	if (!ovl_inode_upper(file_inode(file_in)) ||
--	    !ovl_inode_upper(file_inode(file_out)))
-+	if (op == OVL_DEDUPE &&
-+	    (!ovl_inode_upper(file_inode(file_in)) ||
-+	     !ovl_inode_upper(file_inode(file_out))))
- 		return -EPERM;
- 
- 	return ovl_copyfile(file_in, pos_in, file_out, pos_out, len, 0,
--			    OVL_DEDUPE);
-+			    op);
- }
- 
- const struct file_operations ovl_file_operations = {
-@@ -525,6 +527,5 @@ const struct file_operations ovl_file_operations = {
- 	.compat_ioctl	= ovl_compat_ioctl,
- 
- 	.copy_file_range	= ovl_copy_file_range,
--	.clone_file_range	= ovl_clone_file_range,
--	.dedupe_file_range	= ovl_dedupe_file_range,
-+	.remap_file_range	= ovl_remap_file_range,
- };
+-	ret = vfs_clone_file_prep(file_in, pos_in, file_out, pos_out,
++	ret = generic_remap_file_range_prep(file_in, pos_in, file_out, pos_out,
+ 			&len, is_dedupe);
+ 	if (ret <= 0)
+ 		goto out_unlock;
 diff --git a/fs/read_write.c b/fs/read_write.c
-index 3ff90b3315fb..a33c8503f12e 100644
+index a33c8503f12e..4ea81ea7d78d 100644
 --- a/fs/read_write.c
 +++ b/fs/read_write.c
-@@ -1588,9 +1588,9 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
- 	 * Try cloning first, this is supported by more file systems, and
- 	 * more efficient if both clone and copy are supported (e.g. NFS).
- 	 */
--	if (file_in->f_op->clone_file_range) {
--		ret = file_in->f_op->clone_file_range(file_in, pos_in,
--				file_out, pos_out, len);
-+	if (file_in->f_op->remap_file_range) {
-+		ret = file_in->f_op->remap_file_range(file_in, pos_in,
-+				file_out, pos_out, len, 0);
- 		if (ret == 0) {
- 			ret = len;
- 			goto done;
-@@ -1815,7 +1815,7 @@ int do_clone_file_range(struct file *file_in, loff_t pos_in,
- 	    (file_out->f_flags & O_APPEND))
- 		return -EBADF;
- 
--	if (!file_in->f_op->clone_file_range)
-+	if (!file_in->f_op->remap_file_range)
- 		return -EOPNOTSUPP;
- 
- 	ret = clone_verify_area(file_in, pos_in, len, false);
-@@ -1826,8 +1826,8 @@ int do_clone_file_range(struct file *file_in, loff_t pos_in,
- 	if (ret)
- 		return ret;
- 
--	ret = file_in->f_op->clone_file_range(file_in, pos_in,
--			file_out, pos_out, len);
-+	ret = file_in->f_op->remap_file_range(file_in, pos_in,
-+			file_out, pos_out, len, 0);
- 	if (!ret) {
- 		fsnotify_access(file_in);
- 		fsnotify_modify(file_out);
-@@ -1972,7 +1972,7 @@ int vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
- 		goto out_drop_write;
- 
- 	ret = -EINVAL;
--	if (!dst_file->f_op->dedupe_file_range)
-+	if (!dst_file->f_op->remap_file_range)
- 		goto out_drop_write;
- 
- 	if (len == 0) {
-@@ -1980,8 +1980,8 @@ int vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
- 		goto out_drop_write;
- 	}
- 
--	ret = dst_file->f_op->dedupe_file_range(src_file, src_pos,
--						dst_file, dst_pos, len);
-+	ret = dst_file->f_op->remap_file_range(src_file, src_pos, dst_file,
-+			dst_pos, len, RFR_IDENTICAL_DATA);
- out_drop_write:
- 	mnt_drop_write_file(dst_file);
- 
-diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-index 61a5ad2600e8..74ad73231ea4 100644
---- a/fs/xfs/xfs_file.c
-+++ b/fs/xfs/xfs_file.c
-@@ -920,27 +920,16 @@ xfs_file_fallocate(
- }
- 
- STATIC int
--xfs_file_clone_range(
-+xfs_file_remap_range(
- 	struct file	*file_in,
- 	loff_t		pos_in,
- 	struct file	*file_out,
- 	loff_t		pos_out,
--	u64		len)
-+	u64		len,
-+	unsigned int	flags)
+@@ -1717,9 +1717,9 @@ static int clone_verify_area(struct file *file, loff_t pos, u64 len, bool write)
+  * Returns: 0 for "nothing to clone", 1 for "something to clone", or
+  * the usual negative error code.
+  */
+-int vfs_clone_file_prep(struct file *file_in, loff_t pos_in,
+-			struct file *file_out, loff_t pos_out,
+-			u64 *len, bool is_dedupe)
++int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
++				  struct file *file_out, loff_t pos_out,
++				  u64 *len, bool is_dedupe)
  {
- 	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
--				     len, false);
--}
--
--STATIC int
--xfs_file_dedupe_range(
--	struct file	*file_in,
--	loff_t		pos_in,
--	struct file	*file_out,
--	loff_t		pos_out,
--	u64		len)
--{
--	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
--				     len, true);
-+			len, flags & RFR_IDENTICAL_DATA);
+ 	struct inode *inode_in = file_inode(file_in);
+ 	struct inode *inode_out = file_inode(file_out);
+@@ -1788,7 +1788,7 @@ int vfs_clone_file_prep(struct file *file_in, loff_t pos_in,
+ 
+ 	return 1;
  }
+-EXPORT_SYMBOL(vfs_clone_file_prep);
++EXPORT_SYMBOL(generic_remap_file_range_prep);
  
- STATIC int
-@@ -1175,8 +1164,7 @@ const struct file_operations xfs_file_operations = {
- 	.fsync		= xfs_file_fsync,
- 	.get_unmapped_area = thp_get_unmapped_area,
- 	.fallocate	= xfs_file_fallocate,
--	.clone_file_range = xfs_file_clone_range,
--	.dedupe_file_range = xfs_file_dedupe_range,
-+	.remap_file_range = xfs_file_remap_range,
- };
+ int do_clone_file_range(struct file *file_in, loff_t pos_in,
+ 			struct file *file_out, loff_t pos_out, u64 len)
+diff --git a/fs/xfs/xfs_reflink.c b/fs/xfs/xfs_reflink.c
+index a4a7b2d9c8a1..4cf1e52efbff 100644
+--- a/fs/xfs/xfs_reflink.c
++++ b/fs/xfs/xfs_reflink.c
+@@ -1303,7 +1303,7 @@ xfs_reflink_remap_prep(
+ 	if (IS_DAX(inode_in) || IS_DAX(inode_out))
+ 		goto out_unlock;
  
- const struct file_operations xfs_dir_file_operations = {
+-	ret = vfs_clone_file_prep(file_in, pos_in, file_out, pos_out,
++	ret = generic_remap_file_range_prep(file_in, pos_in, file_out, pos_out,
+ 			len, is_dedupe);
+ 	if (ret <= 0)
+ 		goto out_unlock;
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index ba93a6e7dac4..6fedfe4fb5ef 100644
+index 6fedfe4fb5ef..d8f90bdd34e2 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -1721,6 +1721,12 @@ struct block_device_operations;
- #define NOMMU_VMFLAGS \
- 	(NOMMU_MAP_READ | NOMMU_MAP_WRITE | NOMMU_MAP_EXEC)
- 
-+/*
-+ * These flags control the behavior of the remap_file_range function pointer.
-+ *
-+ * RFR_IDENTICAL_DATA: only remap if contents identical (i.e. deduplicate)
-+ */
-+#define RFR_IDENTICAL_DATA	(1 << 0)
- 
- struct iov_iter;
- 
-@@ -1759,10 +1765,9 @@ struct file_operations {
- #endif
- 	ssize_t (*copy_file_range)(struct file *, loff_t, struct file *,
- 			loff_t, size_t, unsigned int);
--	int (*clone_file_range)(struct file *, loff_t, struct file *, loff_t,
--			u64);
--	int (*dedupe_file_range)(struct file *, loff_t, struct file *, loff_t,
--			u64);
-+	int (*remap_file_range)(struct file *file_in, loff_t pos_in,
-+				struct file *file_out, loff_t pos_out,
-+				u64 len, unsigned int flags);
- 	int (*fadvise)(struct file *, loff_t, loff_t, int);
- } __randomize_layout;
- 
+@@ -1830,9 +1830,9 @@ extern ssize_t vfs_readv(struct file *, const struct iovec __user *,
+ 		unsigned long, loff_t *, rwf_t);
+ extern ssize_t vfs_copy_file_range(struct file *, loff_t , struct file *,
+ 				   loff_t, size_t, unsigned int);
+-extern int vfs_clone_file_prep(struct file *file_in, loff_t pos_in,
+-			       struct file *file_out, loff_t pos_out,
+-			       u64 *count, bool is_dedupe);
++extern int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
++					 struct file *file_out, loff_t pos_out,
++					 u64 *count, bool is_dedupe);
+ extern int do_clone_file_range(struct file *file_in, loff_t pos_in,
+ 			       struct file *file_out, loff_t pos_out, u64 len);
+ extern int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
