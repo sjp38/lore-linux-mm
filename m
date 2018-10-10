@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D48DE6B0006
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 12:23:15 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id l89-v6so4042288otc.6
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 09:23:15 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 061C46B000A
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 12:23:18 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id b5-v6so4026527otk.21
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 09:23:18 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id u23si5859244otf.19.2018.10.10.09.23.13
+        by mx.google.com with ESMTP id p7-v6si11388617oib.38.2018.10.10.09.23.14
         for <linux-mm@kvack.org>;
         Wed, 10 Oct 2018 09:23:14 -0700 (PDT)
 From: Will Deacon <will.deacon@arm.com>
-Subject: [PATCH v3 4/5] lib/ioremap: Ensure phys_addr actually corresponds to a physical address
-Date: Wed, 10 Oct 2018 17:23:03 +0100
-Message-Id: <1539188584-15819-5-git-send-email-will.deacon@arm.com>
+Subject: [PATCH v3 5/5] lib/ioremap: Ensure break-before-make is used for huge p4d mappings
+Date: Wed, 10 Oct 2018 17:23:04 +0100
+Message-Id: <1539188584-15819-6-git-send-email-will.deacon@arm.com>
 In-Reply-To: <1539188584-15819-1-git-send-email-will.deacon@arm.com>
 References: <1539188584-15819-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,121 +19,123 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: cpandya@codeaurora.org, toshi.kani@hpe.com, tglx@linutronix.de, mhocko@suse.com, akpm@linux-foundation.org, sean.j.christopherson@intel.com, Will Deacon <will.deacon@arm.com>
 
-The current ioremap() code uses a phys_addr variable at each level of
-page table, which is confusingly offset by subtracting the base virtual
-address being mapped so that adding the current virtual address back on
-when iterating through the page table entries gives back the corresponding
-physical address.
-
-This is fairly confusing and results in all users of phys_addr having to
-add the current virtual address back on. Instead, this patch just updates
-phys_addr when iterating over the page table entries, ensuring that it's
-always up-to-date and doesn't require explicit offsetting.
+Whilst no architectures actually enable support for huge p4d mappings
+in the vmap area, the code that is implemented should be using
+break-before-make, as we do for pud and pmd huge entries.
 
 Cc: Chintan Pandya <cpandya@codeaurora.org>
 Cc: Toshi Kani <toshi.kani@hpe.com>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: Michal Hocko <mhocko@suse.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sean Christopherson <sean.j.christopherson@intel.com>
+Reviewed-by: Toshi Kani <toshi.kani@hpe.com>
 Signed-off-by: Will Deacon <will.deacon@arm.com>
 ---
- lib/ioremap.c | 28 ++++++++++++----------------
- 1 file changed, 12 insertions(+), 16 deletions(-)
+ arch/arm64/mm/mmu.c           |  5 +++++
+ arch/x86/mm/pgtable.c         |  8 ++++++++
+ include/asm-generic/pgtable.h |  5 +++++
+ lib/ioremap.c                 | 27 +++++++++++++++++++++------
+ 4 files changed, 39 insertions(+), 6 deletions(-)
 
+diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+index 0dcb3354d6dd..58776b90dd2a 100644
+--- a/arch/arm64/mm/mmu.c
++++ b/arch/arm64/mm/mmu.c
+@@ -1024,3 +1024,8 @@ int pud_free_pmd_page(pud_t *pudp, unsigned long addr)
+ 	pmd_free(NULL, table);
+ 	return 1;
+ }
++
++int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
++{
++	return 0;	/* Don't attempt a block mapping */
++}
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index b4919c44a194..c6094997d060 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -779,6 +779,14 @@ int pmd_clear_huge(pmd_t *pmd)
+ 	return 0;
+ }
+ 
++/*
++ * Until we support 512GB pages, skip them in the vmap area.
++ */
++int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
++{
++	return 0;
++}
++
+ #ifdef CONFIG_X86_64
+ /**
+  * pud_free_pmd_page - Clear pud entry and free pmd page.
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 88ebc6102c7c..4297a2519ebf 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -1019,6 +1019,7 @@ int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot);
+ int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot);
+ int pud_clear_huge(pud_t *pud);
+ int pmd_clear_huge(pmd_t *pmd);
++int p4d_free_pud_page(p4d_t *p4d, unsigned long addr);
+ int pud_free_pmd_page(pud_t *pud, unsigned long addr);
+ int pmd_free_pte_page(pmd_t *pmd, unsigned long addr);
+ #else	/* !CONFIG_HAVE_ARCH_HUGE_VMAP */
+@@ -1046,6 +1047,10 @@ static inline int pmd_clear_huge(pmd_t *pmd)
+ {
+ 	return 0;
+ }
++static inline int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
++{
++	return 0;
++}
+ static inline int pud_free_pmd_page(pud_t *pud, unsigned long addr)
+ {
+ 	return 0;
 diff --git a/lib/ioremap.c b/lib/ioremap.c
-index 6c72764af19c..10d7c5485c39 100644
+index 10d7c5485c39..063213685563 100644
 --- a/lib/ioremap.c
 +++ b/lib/ioremap.c
-@@ -101,19 +101,18 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
- 	pmd_t *pmd;
- 	unsigned long next;
- 
--	phys_addr -= addr;
- 	pmd = pmd_alloc(&init_mm, pud, addr);
- 	if (!pmd)
- 		return -ENOMEM;
- 	do {
- 		next = pmd_addr_end(addr, end);
- 
--		if (ioremap_try_huge_pmd(pmd, addr, next, phys_addr + addr, prot))
-+		if (ioremap_try_huge_pmd(pmd, addr, next, phys_addr, prot))
- 			continue;
- 
--		if (ioremap_pte_range(pmd, addr, next, phys_addr + addr, prot))
-+		if (ioremap_pte_range(pmd, addr, next, phys_addr, prot))
- 			return -ENOMEM;
--	} while (pmd++, addr = next, addr != end);
-+	} while (pmd++, phys_addr += (next - addr), addr = next, addr != end);
+@@ -156,6 +156,25 @@ static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
  	return 0;
  }
  
-@@ -142,19 +141,18 @@ static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
- 	pud_t *pud;
- 	unsigned long next;
- 
--	phys_addr -= addr;
- 	pud = pud_alloc(&init_mm, p4d, addr);
- 	if (!pud)
- 		return -ENOMEM;
++static int ioremap_try_huge_p4d(p4d_t *p4d, unsigned long addr,
++				unsigned long end, phys_addr_t phys_addr,
++				pgprot_t prot)
++{
++	if (!ioremap_p4d_enabled())
++		return 0;
++
++	if ((end - addr) != P4D_SIZE)
++		return 0;
++
++	if (!IS_ALIGNED(phys_addr, P4D_SIZE))
++		return 0;
++
++	if (p4d_present(*p4d) && !p4d_free_pud_page(p4d, addr))
++		return 0;
++
++	return p4d_set_huge(p4d, phys_addr, prot);
++}
++
+ static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
+ 		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
+ {
+@@ -168,12 +187,8 @@ static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
  	do {
- 		next = pud_addr_end(addr, end);
+ 		next = p4d_addr_end(addr, end);
  
--		if (ioremap_try_huge_pud(pud, addr, next, phys_addr + addr, prot))
-+		if (ioremap_try_huge_pud(pud, addr, next, phys_addr, prot))
- 			continue;
+-		if (ioremap_p4d_enabled() &&
+-		    ((next - addr) == P4D_SIZE) &&
+-		    IS_ALIGNED(phys_addr, P4D_SIZE)) {
+-			if (p4d_set_huge(p4d, phys_addr, prot))
+-				continue;
+-		}
++		if (ioremap_try_huge_p4d(p4d, addr, next, phys_addr, prot))
++			continue;
  
--		if (ioremap_pmd_range(pud, addr, next, phys_addr + addr, prot))
-+		if (ioremap_pmd_range(pud, addr, next, phys_addr, prot))
+ 		if (ioremap_pud_range(p4d, addr, next, phys_addr, prot))
  			return -ENOMEM;
--	} while (pud++, addr = next, addr != end);
-+	} while (pud++, phys_addr += (next - addr), addr = next, addr != end);
- 	return 0;
- }
- 
-@@ -164,7 +162,6 @@ static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
- 	p4d_t *p4d;
- 	unsigned long next;
- 
--	phys_addr -= addr;
- 	p4d = p4d_alloc(&init_mm, pgd, addr);
- 	if (!p4d)
- 		return -ENOMEM;
-@@ -173,14 +170,14 @@ static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
- 
- 		if (ioremap_p4d_enabled() &&
- 		    ((next - addr) == P4D_SIZE) &&
--		    IS_ALIGNED(phys_addr + addr, P4D_SIZE)) {
--			if (p4d_set_huge(p4d, phys_addr + addr, prot))
-+		    IS_ALIGNED(phys_addr, P4D_SIZE)) {
-+			if (p4d_set_huge(p4d, phys_addr, prot))
- 				continue;
- 		}
- 
--		if (ioremap_pud_range(p4d, addr, next, phys_addr + addr, prot))
-+		if (ioremap_pud_range(p4d, addr, next, phys_addr, prot))
- 			return -ENOMEM;
--	} while (p4d++, addr = next, addr != end);
-+	} while (p4d++, phys_addr += (next - addr), addr = next, addr != end);
- 	return 0;
- }
- 
-@@ -196,14 +193,13 @@ int ioremap_page_range(unsigned long addr,
- 	BUG_ON(addr >= end);
- 
- 	start = addr;
--	phys_addr -= addr;
- 	pgd = pgd_offset_k(addr);
- 	do {
- 		next = pgd_addr_end(addr, end);
--		err = ioremap_p4d_range(pgd, addr, next, phys_addr+addr, prot);
-+		err = ioremap_p4d_range(pgd, addr, next, phys_addr, prot);
- 		if (err)
- 			break;
--	} while (pgd++, addr = next, addr != end);
-+	} while (pgd++, phys_addr += (next - addr), addr = next, addr != end);
- 
- 	flush_cache_vmap(start, end);
- 
 -- 
 2.1.4
