@@ -1,125 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 287206B000D
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 02:47:12 -0400 (EDT)
-Received: by mail-yb1-f197.google.com with SMTP id s17-v6so2013129ybg.21
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 23:47:12 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t62-v6sor10810891ybf.158.2018.10.09.23.47.11
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 899256B0003
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 03:27:14 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id i189-v6so3041376pge.6
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 00:27:14 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id e2-v6si30331496pfh.64.2018.10.10.00.27.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 09 Oct 2018 23:47:11 -0700 (PDT)
-MIME-Version: 1.0
-References: <153913023835.32295.13962696655740190941.stgit@magnolia> <153913040858.32295.9474188640729118153.stgit@magnolia>
-In-Reply-To: <153913040858.32295.9474188640729118153.stgit@magnolia>
-From: Amir Goldstein <amir73il@gmail.com>
-Date: Wed, 10 Oct 2018 09:47:00 +0300
-Message-ID: <CAOQ4uxg0=EJp1WJXmUeHT05yF1txRKKhPHVTWeG+rdtRD5FfHA@mail.gmail.com>
-Subject: Re: [PATCH 14/25] vfs: make remap_file_range functions take and
- return bytes completed
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Oct 2018 00:27:13 -0700 (PDT)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V6 01/21] swap: Enable PMD swap operations for CONFIG_THP_SWAP
+Date: Wed, 10 Oct 2018 15:19:04 +0800
+Message-Id: <20181010071924.18767-2-ying.huang@intel.com>
+In-Reply-To: <20181010071924.18767-1-ying.huang@intel.com>
+References: <20181010071924.18767-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Dave Chinner <david@fromorbit.com>, Eric Sandeen <sandeen@redhat.com>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, linux-cifs@vger.kernel.org, overlayfs <linux-unionfs@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Btrfs <linux-btrfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, ocfs2-devel@oss.oracle.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-On Wed, Oct 10, 2018 at 3:14 AM Darrick J. Wong <darrick.wong@oracle.com> wrote:
->
-> From: Darrick J. Wong <darrick.wong@oracle.com>
->
-> Change the remap_file_range functions to take a number of bytes to
-> operate upon and return the number of bytes they operated on.  This is a
-> requirement for allowing fs implementations to return short clone/dedupe
-> results to the user, which will enable us to obey resource limits in a
-> graceful manner.
->
-> A subsequent patch will enable copy_file_range to signal to the
-> ->clone_file_range implementation that it can handle a short length,
-> which will be returned in the function's return value.  Neither clone
-> ioctl can take advantage of this, alas.
->
-> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-> ---
-[...]
-> @@ -141,8 +142,8 @@ static int ovl_copy_up_data(struct path *old, struct path *new, loff_t len)
->         }
->
->         /* Try to use clone_file_range to clone up within the same fs */
-> -       error = do_clone_file_range(old_file, 0, new_file, 0, len);
-> -       if (!error)
-> +       cloned = do_clone_file_range(old_file, 0, new_file, 0, len);
-> +       if (cloned == len)
->                 goto out;
->         /* Couldn't clone, so now we try to copy the data */
->         error = 0;
+Currently, "the swap entry" in the page tables is used for a number of
+things outside of actual swap, like page migration, etc.  We support
+the THP/PMD "swap entry" for page migration currently and the
+functions behind this are tied to page migration's config
+option (CONFIG_ARCH_ENABLE_THP_MIGRATION).
 
-This error = 0 not needed anymore, but not a big deal...
+But, we also need them for THP swap optimization.  So a new config
+option (CONFIG_HAVE_PMD_SWAP_ENTRY) is added.  It is enabled when
+either CONFIG_ARCH_ENABLE_THP_MIGRATION or CONFIG_THP_SWAP is enabled.
+And PMD swap entry functions are tied to this new config option
+instead.  Some functions enabled by CONFIG_ARCH_ENABLE_THP_MIGRATION
+are for page migration only, they are still enabled only for that.
 
-> diff --git a/fs/overlayfs/file.c b/fs/overlayfs/file.c
-> index 693bd0620a81..c8c890c22898 100644
-> --- a/fs/overlayfs/file.c
-> +++ b/fs/overlayfs/file.c
-> @@ -434,14 +434,14 @@ enum ovl_copyop {
->         OVL_DEDUPE,
->  };
->
-> -static ssize_t ovl_copyfile(struct file *file_in, loff_t pos_in,
-> +static loff_t ovl_copyfile(struct file *file_in, loff_t pos_in,
->                             struct file *file_out, loff_t pos_out,
-> -                           u64 len, unsigned int flags, enum ovl_copyop op)
-> +                           loff_t len, unsigned int flags, enum ovl_copyop op)
->  {
->         struct inode *inode_out = file_inode(file_out);
->         struct fd real_in, real_out;
->         const struct cred *old_cred;
-> -       ssize_t ret;
-> +       loff_t ret;
->
->         ret = ovl_real_fdget(file_out, &real_out);
->         if (ret)
-> @@ -489,9 +489,9 @@ static ssize_t ovl_copy_file_range(struct file *file_in, loff_t pos_in,
->                             OVL_COPY);
->  }
->
-> -static int ovl_remap_file_range(struct file *file_in, loff_t pos_in,
-> -                               struct file *file_out, loff_t pos_out,
-> -                               u64 len, unsigned int flags)
-> +static loff_t ovl_remap_file_range(struct file *file_in, loff_t pos_in,
-> +                                  struct file *file_out, loff_t pos_out,
-> +                                  loff_t len, unsigned int flags)
->  {
->         enum ovl_copyop op;
->
-> diff --git a/fs/read_write.c b/fs/read_write.c
-> index 917934770b08..f43b0620afd4 100644
-> --- a/fs/read_write.c
-> +++ b/fs/read_write.c
-> @@ -1589,10 +1589,13 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
->          * more efficient if both clone and copy are supported (e.g. NFS).
->          */
->         if (file_in->f_op->remap_file_range) {
-> -               ret = file_in->f_op->remap_file_range(file_in, pos_in,
-> -                               file_out, pos_out, len, 0);
-> -               if (ret == 0) {
-> -                       ret = len;
-> +               s64 cloned;
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
+---
+ arch/x86/include/asm/pgtable.h |  2 +-
+ include/asm-generic/pgtable.h  |  2 +-
+ include/linux/swapops.h        | 44 ++++++++++++++++++++++--------------------
+ mm/Kconfig                     |  8 ++++++++
+ 4 files changed, 33 insertions(+), 23 deletions(-)
 
-loff_t?
-
-> +
-> +               cloned = file_in->f_op->remap_file_range(file_in, pos_in,
-> +                               file_out, pos_out,
-> +                               min_t(loff_t, MAX_RW_COUNT, len), 0);
-> +               if (cloned >= 0) {
-> +                       ret = cloned;
->                         goto done;
->                 }
->         }
-
-Commit message wasn't clear enough on the behavior of copy_file_range()
-before and after the patch IMO. Maybe it would be better to pospone this
-semantic change to the RFR_SHORTEN patch and keep if (cloned == len)
-in this patch?
-
-Thanks,
-Amir.
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 40616e805292..e830ab345551 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -1333,7 +1333,7 @@ static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
+ 	return pte_clear_flags(pte, _PAGE_SWP_SOFT_DIRTY);
+ }
+ 
+-#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++#ifdef CONFIG_HAVE_PMD_SWAP_ENTRY
+ static inline pmd_t pmd_swp_mksoft_dirty(pmd_t pmd)
+ {
+ 	return pmd_set_flags(pmd, _PAGE_SWP_SOFT_DIRTY);
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 5657a20e0c59..eb1e9d17371b 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -675,7 +675,7 @@ static inline void ptep_modify_prot_commit(struct mm_struct *mm,
+ #endif
+ 
+ #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
+-#ifndef CONFIG_ARCH_ENABLE_THP_MIGRATION
++#ifndef CONFIG_HAVE_PMD_SWAP_ENTRY
+ static inline pmd_t pmd_swp_mksoft_dirty(pmd_t pmd)
+ {
+ 	return pmd;
+diff --git a/include/linux/swapops.h b/include/linux/swapops.h
+index 4d961668e5fc..905ddc65caa3 100644
+--- a/include/linux/swapops.h
++++ b/include/linux/swapops.h
+@@ -254,17 +254,7 @@ static inline int is_write_migration_entry(swp_entry_t entry)
+ 
+ #endif
+ 
+-struct page_vma_mapped_walk;
+-
+-#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+-extern void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
+-		struct page *page);
+-
+-extern void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
+-		struct page *new);
+-
+-extern void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd);
+-
++#ifdef CONFIG_HAVE_PMD_SWAP_ENTRY
+ static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
+ {
+ 	swp_entry_t arch_entry;
+@@ -282,6 +272,28 @@ static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+ 	arch_entry = __swp_entry(swp_type(entry), swp_offset(entry));
+ 	return __swp_entry_to_pmd(arch_entry);
+ }
++#else
++static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
++{
++	return swp_entry(0, 0);
++}
++
++static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
++{
++	return __pmd(0);
++}
++#endif
++
++struct page_vma_mapped_walk;
++
++#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++extern void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
++		struct page *page);
++
++extern void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
++		struct page *new);
++
++extern void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd);
+ 
+ static inline int is_pmd_migration_entry(pmd_t pmd)
+ {
+@@ -302,16 +314,6 @@ static inline void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
+ 
+ static inline void pmd_migration_entry_wait(struct mm_struct *m, pmd_t *p) { }
+ 
+-static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
+-{
+-	return swp_entry(0, 0);
+-}
+-
+-static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+-{
+-	return __pmd(0);
+-}
+-
+ static inline int is_pmd_migration_entry(pmd_t pmd)
+ {
+ 	return 0;
+diff --git a/mm/Kconfig b/mm/Kconfig
+index b1006cdf3aff..44f7d72010fd 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -424,6 +424,14 @@ config THP_SWAP
+ 
+ 	  For selection by architectures with reasonable THP sizes.
+ 
++#
++# "PMD swap entry" in the page table is used both for migration and
++# actual swap.
++#
++config HAVE_PMD_SWAP_ENTRY
++	def_bool y
++	depends on THP_SWAP || ARCH_ENABLE_THP_MIGRATION
++
+ config	TRANSPARENT_HUGE_PAGECACHE
+ 	def_bool y
+ 	depends on TRANSPARENT_HUGEPAGE
+-- 
+2.16.4
