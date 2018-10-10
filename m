@@ -1,8 +1,8 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D032E6B0274
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D8DEF6B0276
 	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 03:27:42 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id b22-v6so3844135pfc.18
+Received: by mail-pf1-f198.google.com with SMTP id n81-v6so3865039pfi.20
         for <linux-mm@kvack.org>; Wed, 10 Oct 2018 00:27:42 -0700 (PDT)
 Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
         by mx.google.com with ESMTPS id n84-v6si21364295pfg.127.2018.10.10.00.27.41
@@ -10,9 +10,9 @@ Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 10 Oct 2018 00:27:41 -0700 (PDT)
 From: Huang Ying <ying.huang@intel.com>
-Subject: [PATCH -V6 11/21] swap: Add sysfs interface to configure THP swapin
-Date: Wed, 10 Oct 2018 15:19:14 +0800
-Message-Id: <20181010071924.18767-12-ying.huang@intel.com>
+Subject: [PATCH -V6 13/21] swap: Support PMD swap mapping in madvise_free()
+Date: Wed, 10 Oct 2018 15:19:16 +0800
+Message-Id: <20181010071924.18767-14-ying.huang@intel.com>
 In-Reply-To: <20181010071924.18767-1-ying.huang@intel.com>
 References: <20181010071924.18767-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,24 +20,12 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-Swapin a THP as a whole isn't desirable in some situations.  For
-example, for completely random access pattern, swapin a THP in one
-piece will inflate the reading greatly.  So a sysfs interface:
-/sys/kernel/mm/transparent_hugepage/swapin_enabled is added to
-configure it.  Three options as follow are provided,
-
-- always: THP swapin will be enabled always
-
-- madvise: THP swapin will be enabled only for VMA with VM_HUGEPAGE
-  flag set.
-
-- never: THP swapin will be disabled always
-
-The default configuration is: madvise.
-
-During page fault, if a PMD swap mapping is found and THP swapin is
-disabled, the huge swap cluster and the PMD swap mapping will be split
-and fallback to normal page swapin.
+When madvise_free() found a PMD swap mapping, if only part of the huge
+swap cluster is operated on, the PMD swap mapping will be split and
+fallback to PTE swap mapping processing.  Otherwise, if all huge swap
+cluster is operated on, free_swap_and_cache() will be called to
+decrease the PMD swap mapping count and probably free the swap space
+and the THP in swap cache too.
 
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
@@ -53,236 +41,104 @@ Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Zi Yan <zi.yan@cs.rutgers.edu>
 Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- Documentation/admin-guide/mm/transhuge.rst | 21 +++++++
- include/linux/huge_mm.h                    | 31 ++++++++++
- mm/huge_memory.c                           | 94 ++++++++++++++++++++++++------
- 3 files changed, 127 insertions(+), 19 deletions(-)
+ mm/huge_memory.c | 54 +++++++++++++++++++++++++++++++++++++++---------------
+ mm/madvise.c     |  2 +-
+ 2 files changed, 40 insertions(+), 16 deletions(-)
 
-diff --git a/Documentation/admin-guide/mm/transhuge.rst b/Documentation/admin-guide/mm/transhuge.rst
-index 85e33f785fd7..23aefb17101c 100644
---- a/Documentation/admin-guide/mm/transhuge.rst
-+++ b/Documentation/admin-guide/mm/transhuge.rst
-@@ -160,6 +160,27 @@ Some userspace (such as a test program, or an optimized memory allocation
- 
- 	cat /sys/kernel/mm/transparent_hugepage/hpage_pmd_size
- 
-+Transparent hugepage may be swapout and swapin in one piece without
-+splitting.  This will improve the utility of transparent hugepage but
-+may inflate the read/write too.  So whether to enable swapin
-+transparent hugepage in one piece can be configured as follow.
-+
-+	echo always >/sys/kernel/mm/transparent_hugepage/swapin_enabled
-+	echo madvise >/sys/kernel/mm/transparent_hugepage/swapin_enabled
-+	echo never >/sys/kernel/mm/transparent_hugepage/swapin_enabled
-+
-+always
-+	Attempt to allocate a transparent huge page and read it from
-+	swap space in one piece every time.
-+
-+never
-+	Always split the swap space and PMD swap mapping and swapin
-+	the fault normal page during swapin.
-+
-+madvise
-+	Only swapin the transparent huge page in one piece for
-+	MADV_HUGEPAGE madvise regions.
-+
- khugepaged will be automatically started when
- transparent_hugepage/enabled is set to "always" or "madvise, and it'll
- be automatically shutdown if it's set to "never".
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index d88579cb059a..a13cd19b6047 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -63,6 +63,8 @@ enum transparent_hugepage_flag {
- #ifdef CONFIG_DEBUG_VM
- 	TRANSPARENT_HUGEPAGE_DEBUG_COW_FLAG,
- #endif
-+	TRANSPARENT_HUGEPAGE_SWAPIN_FLAG,
-+	TRANSPARENT_HUGEPAGE_SWAPIN_REQ_MADV_FLAG,
- };
- 
- struct kobject;
-@@ -375,11 +377,40 @@ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma,
- 
- #ifdef CONFIG_THP_SWAP
- extern int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd);
-+
-+static inline bool transparent_hugepage_swapin_enabled(
-+	struct vm_area_struct *vma)
-+{
-+	if (vma->vm_flags & VM_NOHUGEPAGE)
-+		return false;
-+
-+	if (is_vma_temporary_stack(vma))
-+		return false;
-+
-+	if (test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
-+		return false;
-+
-+	if (transparent_hugepage_flags &
-+			(1 << TRANSPARENT_HUGEPAGE_SWAPIN_FLAG))
-+		return true;
-+
-+	if (transparent_hugepage_flags &
-+			(1 << TRANSPARENT_HUGEPAGE_SWAPIN_REQ_MADV_FLAG))
-+		return !!(vma->vm_flags & VM_HUGEPAGE);
-+
-+	return false;
-+}
- #else /* CONFIG_THP_SWAP */
- static inline int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd)
- {
- 	return 0;
- }
-+
-+static inline bool transparent_hugepage_swapin_enabled(
-+	struct vm_area_struct *vma)
-+{
-+	return false;
-+}
- #endif /* CONFIG_THP_SWAP */
- 
- #endif /* _LINUX_HUGE_MM_H */
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 8efcc84fb4b0..0ccb1b78d661 100644
+index 0ec71f907fa5..60b4105734b1 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -57,7 +57,8 @@ unsigned long transparent_hugepage_flags __read_mostly =
- #endif
- 	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG)|
- 	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG)|
--	(1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
-+	(1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG)|
-+	(1<<TRANSPARENT_HUGEPAGE_SWAPIN_REQ_MADV_FLAG);
- 
- static struct shrinker deferred_split_shrinker;
- 
-@@ -316,6 +317,53 @@ static struct kobj_attribute debug_cow_attr =
- 	__ATTR(debug_cow, 0644, debug_cow_show, debug_cow_store);
- #endif /* CONFIG_DEBUG_VM */
- 
-+#ifdef CONFIG_THP_SWAP
-+static ssize_t swapin_enabled_show(struct kobject *kobj,
-+				   struct kobj_attribute *attr, char *buf)
-+{
-+	if (test_bit(TRANSPARENT_HUGEPAGE_SWAPIN_FLAG,
-+		     &transparent_hugepage_flags))
-+		return sprintf(buf, "[always] madvise never\n");
-+	else if (test_bit(TRANSPARENT_HUGEPAGE_SWAPIN_REQ_MADV_FLAG,
-+			  &transparent_hugepage_flags))
-+		return sprintf(buf, "always [madvise] never\n");
-+	else
-+		return sprintf(buf, "always madvise [never]\n");
-+}
-+
-+static ssize_t swapin_enabled_store(struct kobject *kobj,
-+				    struct kobj_attribute *attr,
-+				    const char *buf, size_t count)
-+{
-+	ssize_t ret = count;
-+
-+	if (!memcmp("always", buf,
-+		    min(sizeof("always")-1, count))) {
-+		clear_bit(TRANSPARENT_HUGEPAGE_SWAPIN_REQ_MADV_FLAG,
-+			  &transparent_hugepage_flags);
-+		set_bit(TRANSPARENT_HUGEPAGE_SWAPIN_FLAG,
-+			&transparent_hugepage_flags);
-+	} else if (!memcmp("madvise", buf,
-+			   min(sizeof("madvise")-1, count))) {
-+		clear_bit(TRANSPARENT_HUGEPAGE_SWAPIN_FLAG,
-+			  &transparent_hugepage_flags);
-+		set_bit(TRANSPARENT_HUGEPAGE_SWAPIN_REQ_MADV_FLAG,
-+			&transparent_hugepage_flags);
-+	} else if (!memcmp("never", buf,
-+			   min(sizeof("never")-1, count))) {
-+		clear_bit(TRANSPARENT_HUGEPAGE_SWAPIN_FLAG,
-+			  &transparent_hugepage_flags);
-+		clear_bit(TRANSPARENT_HUGEPAGE_SWAPIN_REQ_MADV_FLAG,
-+			  &transparent_hugepage_flags);
-+	} else
-+		ret = -EINVAL;
-+
-+	return ret;
-+}
-+static struct kobj_attribute swapin_enabled_attr =
-+	__ATTR(swapin_enabled, 0644, swapin_enabled_show, swapin_enabled_store);
-+#endif /* CONFIG_THP_SWAP */
-+
- static struct attribute *hugepage_attr[] = {
- 	&enabled_attr.attr,
- 	&defrag_attr.attr,
-@@ -326,6 +374,9 @@ static struct attribute *hugepage_attr[] = {
- #endif
- #ifdef CONFIG_DEBUG_VM
- 	&debug_cow_attr.attr,
-+#endif
-+#ifdef CONFIG_THP_SWAP
-+	&swapin_enabled_attr.attr,
- #endif
- 	NULL,
- };
-@@ -1695,6 +1746,9 @@ int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd)
- retry:
- 	page = lookup_swap_cache(entry, NULL, vmf->address);
- 	if (!page) {
-+		if (!transparent_hugepage_swapin_enabled(vma))
-+			goto split;
-+
- 		page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE, vma,
- 					     haddr, false);
- 		if (!page) {
-@@ -1702,24 +1756,8 @@ int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd)
- 			 * Back out if somebody else faulted in this pmd
- 			 * while we released the pmd lock.
- 			 */
--			if (likely(pmd_same(*vmf->pmd, orig_pmd))) {
--				/*
--				 * Failed to allocate huge page, split huge swap
--				 * cluster, and fallback to swapin normal page
--				 */
--				ret = split_swap_cluster(entry, 0);
--				/* Somebody else swapin the swap entry, retry */
--				if (ret == -EEXIST) {
--					ret = 0;
--					goto retry;
--				/* swapoff occurs under us */
--				} else if (ret == -EINVAL)
--					ret = 0;
--				else {
--					count_vm_event(THP_SWPIN_FALLBACK);
--					goto fallback;
--				}
--			}
-+			if (likely(pmd_same(*vmf->pmd, orig_pmd)))
-+				goto split;
- 			delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
- 			goto out;
- 		}
-@@ -1832,6 +1870,24 @@ int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd)
- 	if (page)
- 		put_page(page);
- 	return ret;
-+split:
-+	/*
-+	 * Failed to allocate huge page, split huge swap cluster, and
-+	 * fallback to swapin normal page
-+	 */
-+	ret = split_swap_cluster(entry, 0);
-+	/* Somebody else swapin the swap entry, retry */
-+	if (ret == -EEXIST) {
-+		ret = 0;
-+		goto retry;
-+	}
-+	/* swapoff occurs under us */
-+	if (ret == -EINVAL) {
-+		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-+		return 0;
-+	}
-+	count_vm_event(THP_SWPIN_FALLBACK);
-+	goto fallback;
+@@ -1891,6 +1891,15 @@ int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd)
  }
  #endif
+ 
++static inline void zap_deposited_table(struct mm_struct *mm, pmd_t *pmd)
++{
++	pgtable_t pgtable;
++
++	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
++	pte_free(mm, pgtable);
++	mm_dec_nr_ptes(mm);
++}
++
+ /*
+  * Return true if we do MADV_FREE successfully on entire pmd page.
+  * Otherwise, return false.
+@@ -1911,15 +1920,39 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		goto out_unlocked;
+ 
+ 	orig_pmd = *pmd;
+-	if (is_huge_zero_pmd(orig_pmd))
+-		goto out;
+-
+ 	if (unlikely(!pmd_present(orig_pmd))) {
+-		VM_BUG_ON(thp_migration_supported() &&
+-				  !is_pmd_migration_entry(orig_pmd));
+-		goto out;
++		swp_entry_t entry = pmd_to_swp_entry(orig_pmd);
++
++		if (is_migration_entry(entry)) {
++			VM_BUG_ON(!thp_migration_supported());
++			goto out;
++		} else if (IS_ENABLED(CONFIG_THP_SWAP) &&
++			   !non_swap_entry(entry)) {
++			/*
++			 * If part of THP is discarded, split the PMD
++			 * swap mapping and operate on the PTEs
++			 */
++			if (next - addr != HPAGE_PMD_SIZE) {
++				unsigned long haddr = addr & HPAGE_PMD_MASK;
++
++				__split_huge_swap_pmd(vma, haddr, pmd);
++				goto out;
++			}
++			free_swap_and_cache(entry, HPAGE_PMD_NR);
++			pmd_clear(pmd);
++			zap_deposited_table(mm, pmd);
++			if (current->mm == mm)
++				sync_mm_rss(mm);
++			add_mm_counter(mm, MM_SWAPENTS, -HPAGE_PMD_NR);
++			ret = true;
++			goto out;
++		} else
++			VM_BUG_ON(1);
+ 	}
+ 
++	if (is_huge_zero_pmd(orig_pmd))
++		goto out;
++
+ 	page = pmd_page(orig_pmd);
+ 	/*
+ 	 * If other processes are mapping this page, we couldn't discard
+@@ -1965,15 +1998,6 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 	return ret;
+ }
+ 
+-static inline void zap_deposited_table(struct mm_struct *mm, pmd_t *pmd)
+-{
+-	pgtable_t pgtable;
+-
+-	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
+-	pte_free(mm, pgtable);
+-	mm_dec_nr_ptes(mm);
+-}
+-
+ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		 pmd_t *pmd, unsigned long addr)
+ {
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 50282ba862e2..20101ff125d0 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -321,7 +321,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 	unsigned long next;
+ 
+ 	next = pmd_addr_end(addr, end);
+-	if (pmd_trans_huge(*pmd))
++	if (pmd_trans_huge(*pmd) || is_swap_pmd(*pmd))
+ 		if (madvise_free_huge_pmd(tlb, vma, pmd, addr, next))
+ 			goto next;
  
 -- 
 2.16.4
