@@ -1,179 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 294536B0003
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 08:43:24 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id j60-v6so4926719qtb.8
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 05:43:24 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 717A16B000D
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 08:53:41 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id 87-v6so4344716pfq.8
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 05:53:41 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b54-v6sor15468083qtk.58.2018.10.10.05.43.23
+        by mx.google.com with SMTPS id w11-v6sor20337116pfk.56.2018.10.10.05.53.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Oct 2018 05:43:23 -0700 (PDT)
-From: "Zi Yan" <zi.yan@cs.rutgers.edu>
-Subject: Re: [PATCH] mm/thp: Correctly differentiate between mapped THP and
- PMD migration entry
-Date: Wed, 10 Oct 2018 08:43:19 -0400
-Message-ID: <1968F276-5D96-426B-823F-38F6A51FB465@cs.rutgers.edu>
-In-Reply-To: <84509db4-13ce-fd53-e924-cc4288d493f7@arm.com>
-References: <1539057538-27446-1-git-send-email-anshuman.khandual@arm.com>
- <7E8E6B14-D5C4-4A30-840D-A7AB046517FB@cs.rutgers.edu>
- <84509db4-13ce-fd53-e924-cc4288d493f7@arm.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed;
- boundary="=_MailMate_4BF4EE0F-22CE-41BB-A287-C2806B1CA675_=";
- micalg=pgp-sha512; protocol="application/pgp-signature"
+        Wed, 10 Oct 2018 05:53:40 -0700 (PDT)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH] mm: remove a redundant check in do_munmap()
+Date: Wed, 10 Oct 2018 20:53:27 +0800
+Message-Id: <20181010125327.68803-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, will.deacon@arm.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: akpm@linux-foundation.org, mhocko@suse.com
+Cc: linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
+A non-NULL vma returned from find_vma() implies:
 
---=_MailMate_4BF4EE0F-22CE-41BB-A287-C2806B1CA675_=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+   vma->vm_start <= start
 
-On 10 Oct 2018, at 0:05, Anshuman Khandual wrote:
+Since len != 0, the following condition always hods:
 
-> On 10/09/2018 07:28 PM, Zi Yan wrote:
->> cc: Naoya Horiguchi (who proposed to use !_PAGE_PRESENT && !_PAGE_PSE =
-for x86
->> PMD migration entry check)
->>
->> On 8 Oct 2018, at 23:58, Anshuman Khandual wrote:
->>
->>> A normal mapped THP page at PMD level should be correctly differentia=
-ted
->>> from a PMD migration entry while walking the page table. A mapped THP=
- would
->>> additionally check positive for pmd_present() along with pmd_trans_hu=
-ge()
->>> as compared to a PMD migration entry. This just adds a new conditiona=
-l test
->>> differentiating the two while walking the page table.
->>>
->>> Fixes: 616b8371539a6 ("mm: thp: enable thp migration in generic path"=
-)
->>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
->>> ---
->>> On X86, pmd_trans_huge() and is_pmd_migration_entry() are always mutu=
-ally
->>> exclusive which makes the current conditional block work for both map=
-ped
->>> and migration entries. This is not same with arm64 where pmd_trans_hu=
-ge()
->>
->> !pmd_present() && pmd_trans_huge() is used to represent THPs under spl=
-itting,
->
-> Not really if we just look at code in the conditional blocks.
+   vma->vm_start < start + len = end
 
-Yeah, I explained it wrong above. Sorry about that.
+This means the if check would never be true.
 
-In x86, pmd_present() checks (_PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_PSE)=
-,
-thus, it returns true even if the present bit is cleared but PSE bit is s=
-et.
-This is done so, because THPs under splitting are regarded as present in =
-the kernel
-but not present when a hardware page table walker checks it.
+This patch removes this redundant check and fix two typo in comment.
 
-For PMD migration entry, which should be regarded as not present, if PSE =
-bit
-is set, which makes pmd_trans_huge() returns true, like ARM64 does, all
-PMD migration entries will be regarded as present.
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+---
+ mm/mmap.c | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)
 
-My concern is that if ARM64=E2=80=99s pmd_trans_huge() returns true for m=
-igration
-entries, unlike x86, there might be bugs triggered in the kernel when
-THP migration is enabled in ARM64.
-
-Let me know if I explain this clear to you.
-
->
->> since _PAGE_PRESENT is cleared during THP splitting but _PAGE_PSE is n=
-ot.
->> See the comment in pmd_present() for x86, in arch/x86/include/asm/pgta=
-ble.h
->
->
->         if (pmd_trans_huge(pmde) || is_pmd_migration_entry(pmde)) {
->                 pvmw->ptl =3D pmd_lock(mm, pvmw->pmd);
->                 if (likely(pmd_trans_huge(*pvmw->pmd))) {
->                         if (pvmw->flags & PVMW_MIGRATION)
->                                 return not_found(pvmw);
->                         if (pmd_page(*pvmw->pmd) !=3D page)
->                                 return not_found(pvmw);
->                         return true;
->                 } else if (!pmd_present(*pvmw->pmd)) {
->                         if (thp_migration_supported()) {
->                                 if (!(pvmw->flags & PVMW_MIGRATION))
->                                         return not_found(pvmw);
->                                 if (is_migration_entry(pmd_to_swp_entry=
-(*pvmw->pmd))) {
->                                         swp_entry_t entry =3D pmd_to_sw=
-p_entry(*pvmw->pmd);
->
->                                         if (migration_entry_to_page(ent=
-ry) !=3D page)
->                                                 return not_found(pvmw);=
-
->                                         return true;
->                                 }
->                         }
->                         return not_found(pvmw);
->                 } else {
->                         /* THP pmd was split under us: handle on pte le=
-vel */
->                         spin_unlock(pvmw->ptl);
->                         pvmw->ptl =3D NULL;
->                 }
->         } else if (!pmd_present(pmde)) { ---> Outer 'else if'
->                 return false;
->         }
->
-> Looking at the above code, it seems the conditional check for a THP
-> splitting case would be (!pmd_trans_huge && pmd_present) instead as
-> it has skipped the first two conditions. But THP splitting must have
-> been initiated once it has cleared the outer check (else it would not
-> have cleared otherwise)
->
-> if (pmd_trans_huge(pmde) || is_pmd_migration_entry(pmde)).
-
-If a THP is under splitting, both pmd_present() and pmd_trans_huge() retu=
-rn
-true in x86. The else part (/* THP pmd was split under us =E2=80=A6 */) h=
-appens
-after splitting is done.
-
-> BTW what PMD state does the outer 'else if' block identify which must
-> have cleared the following condition to get there.
->
-> (!pmd_present && !pmd_trans_huge && !is_pmd_migration_entry)
-
-I think it is the case that the PMD is gone or equivalently pmd_none().
-This PMD entry is not in use.
-
-
-=E2=80=94
-Best Regards,
-Yan Zi
-
---=_MailMate_4BF4EE0F-22CE-41BB-A287-C2806B1CA675_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename=signature.asc
-Content-Type: application/pgp-signature; name=signature.asc
-
------BEGIN PGP SIGNATURE-----
-
-iQFKBAEBCgA0FiEEOXBxLIohamfZUwd5QYsvEZxOpswFAlu98+cWHHppLnlhbkBj
-cy5ydXRnZXJzLmVkdQAKCRBBiy8RnE6mzHf4B/9Zq3cNxo/Ps/MeVzdtQUraPazX
-PQWV701fhnHQdTrn8pQptfJRCpc+OrZABmE3Z+pnp6WUySeZpFgelYTJZvEQ6hBC
-bUwG81h0sINfFvVWTEZVPYkafXaO2LeFaX2jN/9pYIqImmW3itof9IXe+o4ui03H
-PNBuIYl4I8JJEicSgHCSRu4cZkoP1z1iq4UGr0ylolfTbYa7mrGK9bnhVyqQq1Sc
-wngicjTtfzPMROeGbiauivOxPEW56niO3fZo34DEpxF+KQ1AcX6XhMRcTnLiOmIN
-r65PQVdYeYjm40q7MxCh224swyrYU55MW3L8r51Xed0kCdU3wxKeM4pZ35gA
-=jN1N
------END PGP SIGNATURE-----
-
---=_MailMate_4BF4EE0F-22CE-41BB-A287-C2806B1CA675_=--
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 8d6449e74431..94660ddfa2c1 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -414,7 +414,7 @@ static void vma_gap_update(struct vm_area_struct *vma)
+ {
+ 	/*
+ 	 * As it turns out, RB_DECLARE_CALLBACKS() already created a callback
+-	 * function that does exacltly what we want.
++	 * function that does exactly what we want.
+ 	 */
+ 	vma_gap_callbacks_propagate(&vma->vm_rb, NULL);
+ }
+@@ -1621,7 +1621,7 @@ SYSCALL_DEFINE1(old_mmap, struct mmap_arg_struct __user *, arg)
+ #endif /* __ARCH_WANT_SYS_OLD_MMAP */
+ 
+ /*
+- * Some shared mappigns will want the pages marked read-only
++ * Some shared mappings will want the pages marked read-only
+  * to track write events. If so, we'll downgrade vm_page_prot
+  * to the private version (using protection_map[] without the
+  * VM_SHARED bit).
+@@ -2705,12 +2705,8 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 	if (!vma)
+ 		return 0;
+ 	prev = vma->vm_prev;
+-	/* we have  start < vma->vm_end  */
+-
+-	/* if it doesn't overlap, we have nothing.. */
++	/* we have vma->vm_start <= start < vma->vm_end */
+ 	end = start + len;
+-	if (vma->vm_start >= end)
+-		return 0;
+ 
+ 	/*
+ 	 * If we need to split any vma, do it now to save pain later.
+-- 
+2.15.1
