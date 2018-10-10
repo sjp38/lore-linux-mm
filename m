@@ -1,112 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CCFAA6B0003
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 14:13:16 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id 87-v6so5474937pfq.8
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 11:13:16 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id p3-v6si25236722pld.329.2018.10.10.11.13.15
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DD2676B0003
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 14:17:23 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id f123-v6so2914746yba.12
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 11:17:23 -0700 (PDT)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id g4-v6si4056637ybb.472.2018.10.10.11.17.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Oct 2018 11:13:15 -0700 (PDT)
-Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
- point where we init pgmap
-References: <20180925200551.3576.18755.stgit@localhost.localdomain>
- <20180925202053.3576.66039.stgit@localhost.localdomain>
- <20181009170051.GA40606@tiger-server>
- <CAPcyv4g99_rJJSn0kWv5YO0Mzj90q1LH1wC3XrjCh1=x6mo7BQ@mail.gmail.com>
- <25092df0-b7b4-d456-8409-9c004cb6e422@linux.intel.com>
- <20181010095838.GG5873@dhcp22.suse.cz>
- <f97de51c-67dd-99b2-754e-0685cac06699@linux.intel.com>
- <20181010172451.GK5873@dhcp22.suse.cz>
- <98c35e19-13b9-0913-87d9-b3f1ab738b61@linux.intel.com>
- <20181010175354.GO5873@dhcp22.suse.cz>
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Message-ID: <086eb8d2-70a4-ead5-2ed2-260e98a0376f@linux.intel.com>
-Date: Wed, 10 Oct 2018 11:13:12 -0700
+        Wed, 10 Oct 2018 11:17:22 -0700 (PDT)
+Subject: Re: [PATCH] mm: don't clobber partially overlapping VMA with
+ MAP_FIXED_NOREPLACE
+References: <20181010152736.99475-1-jannh@google.com>
+ <20181010171944.GJ5873@dhcp22.suse.cz>
+ <CAG48ez04KK62doMwsTVN4nN8y_wmv7hn+4my2jk5VXKL0wP7Lg@mail.gmail.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <419ee581-ad6b-9a1d-ccea-ae63163926d1@nvidia.com>
+Date: Wed, 10 Oct 2018 11:17:18 -0700
 MIME-Version: 1.0
-In-Reply-To: <20181010175354.GO5873@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
+In-Reply-To: <CAG48ez04KK62doMwsTVN4nN8y_wmv7hn+4my2jk5VXKL0wP7Lg@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, rppt@linux.vnet.ibm.com, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, yi.z.zhang@linux.intel.com
+To: Jann Horn <jannh@google.com>, Michal Hocko <mhocko@suse.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Florian Weimer <fweimer@redhat.com>, Matthew Wilcox <willy@infradead.org>, abdhalee@linux.vnet.ibm.com, joel@jms.id.au, Kees Cook <keescook@chromium.org>, jasone@google.com, davidtgoldblatt@gmail.com, trasz@freebsd.org, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Daniel Micay <danielmicay@gmail.com>, kernel list <linux-kernel@vger.kernel.org>
 
-On 10/10/2018 10:53 AM, Michal Hocko wrote:
-> On Wed 10-10-18 10:39:01, Alexander Duyck wrote:
+On 10/10/18 10:26 AM, Jann Horn wrote:
+> On Wed, Oct 10, 2018 at 7:19 PM Michal Hocko <mhocko@suse.com> wrote:
+>> On Wed 10-10-18 17:27:36, Jann Horn wrote:
+>>> Daniel Micay reports that attempting to use MAP_FIXED_NOREPLACE in an
+>>> application causes that application to randomly crash. The existing check
+>>> for handling MAP_FIXED_NOREPLACE looks up the first VMA that either
+>>> overlaps or follows the requested region, and then bails out if that VMA
+>>> overlaps *the start* of the requested region. It does not bail out if the
+>>> VMA only overlaps another part of the requested region.
 >>
->>
->> On 10/10/2018 10:24 AM, Michal Hocko wrote:
->>> On Wed 10-10-18 09:39:08, Alexander Duyck wrote:
->>>> On 10/10/2018 2:58 AM, Michal Hocko wrote:
->>>>> On Tue 09-10-18 13:26:41, Alexander Duyck wrote:
->>>>> [...]
->>>>>> I would think with that being the case we still probably need the call to
->>>>>> __SetPageReserved to set the bit with the expectation that it will not be
->>>>>> cleared for device-pages since the pages are not onlined. Removing the call
->>>>>> to __SetPageReserved would probably introduce a number of regressions as
->>>>>> there are multiple spots that use the reserved bit to determine if a page
->>>>>> can be swapped out to disk, mapped as system memory, or migrated.
->>>>>
->>>>> PageReserved is meant to tell any potential pfn walkers that might get
->>>>> to this struct page to back off and not touch it. Even though
->>>>> ZONE_DEVICE doesn't online pages in traditional sense it makes those
->>>>> pages available for further use so the page reserved bit should be
->>>>> cleared.
->>>>
->>>> So from what I can tell that isn't necessarily the case. Specifically if the
->>>> pagemap type is MEMORY_DEVICE_PRIVATE or MEMORY_DEVICE_PUBLIC both are
->>>> special cases where the memory may not be accessible to the CPU or cannot be
->>>> pinned in order to allow for eviction.
->>>
->>> Could you give me an example please?
->>
->> Honestly I am getting a bit beyond my depth here so maybe Dan could explain
->> better. I am basing the above comment on Dan's earlier comment in this
->> thread combined with the comment that explains the "memory_type" field for
->> the pgmap:
->> https://elixir.bootlin.com/linux/v4.19-rc7/source/include/linux/memremap.h#L28
->>
->>>> The specific case that Dan and Yi are referring to is for the type
->>>> MEMORY_DEVICE_FS_DAX. For that type I could probably look at not setting the
->>>> reserved bit. Part of me wants to say that we should wait and clear the bit
->>>> later, but that would end up just adding time back to initialization. At
->>>> this point I would consider the change more of a follow-up optimization
->>>> rather than a fix though since this is tailoring things specifically for DAX
->>>> versus the other ZONE_DEVICE types.
->>>
->>> I thought I have already made it clear that these zone device hacks are
->>> not acceptable to the generic hotplug code. If the current reserve bit
->>> handling is not correct then give us a specific reason for that and we
->>> can start thinking about the proper fix.
->>
->> I might have misunderstood your earlier comment then. I thought you were
->> saying that we shouldn't bother with setting the reserved bit. Now it sounds
->> like you were thinking more along the lines of what I was here in my comment
->> where I thought the bit should be cleared later in some code specifically
->> related to DAX when it is exposing it for use to userspace or KVM.
+>> I do not understand. Could you give me an example?
 > 
-> I was referring to my earlier comment that if you need to do something
-> about struct page initialization (move_pfn_range_to_zone) outside of the
-> lock (with the appropriate ground work that is needed) rather than
-> pulling more zone device hacks into the generic hotplug code [1]
+> Sure.
 > 
-> [1] http://lkml.kernel.org/r/20180926075540.GD6278@dhcp22.suse.cz
+> =======
+> user@debian:~$ cat mmap_fixed_simple.c
+> #include <sys/mman.h>
+> #include <errno.h>
+> #include <stdio.h>
+> #include <stdlib.h>
+> #include <unistd.h>
+> 
+> #ifndef MAP_FIXED_NOREPLACE
+> #define MAP_FIXED_NOREPLACE 0x100000
+> #endif
+> 
+> int main(void) {
+>   char *p;
+> 
+>   errno = 0;
+>   p = mmap((void*)0x10001000, 0x4000, PROT_NONE,
+> MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE, -1, 0);
+>   printf("p1=%p err=%m\n", p);
+> 
+>   errno = 0;
+>   p = mmap((void*)0x10000000, 0x2000, PROT_READ,
+> MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE, -1, 0);
+>   printf("p2=%p err=%m\n", p);
+> 
+>   char cmd[100];
+>   sprintf(cmd, "cat /proc/%d/maps", getpid());
+>   system(cmd);
+> 
+>   return 0;
+> }
+> user@debian:~$ gcc -o mmap_fixed_simple mmap_fixed_simple.c
+> user@debian:~$ ./mmap_fixed_simple
+> p1=0x10001000 err=Success
+> p2=0x10000000 err=Success
+> 10000000-10002000 r--p 00000000 00:00 0
+> 10002000-10005000 ---p 00000000 00:00 0
+> 564a9a06f000-564a9a070000 r-xp 00000000 fe:01 264004
+>   /home/user/mmap_fixed_simple
+> 564a9a26f000-564a9a270000 r--p 00000000 fe:01 264004
+>   /home/user/mmap_fixed_simple
+> 564a9a270000-564a9a271000 rw-p 00001000 fe:01 264004
+>   /home/user/mmap_fixed_simple
+> 564a9a54a000-564a9a56b000 rw-p 00000000 00:00 0                          [heap]
+> 7f8eba447000-7f8eba5dc000 r-xp 00000000 fe:01 405885
+>   /lib/x86_64-linux-gnu/libc-2.24.so
+> 7f8eba5dc000-7f8eba7dc000 ---p 00195000 fe:01 405885
+>   /lib/x86_64-linux-gnu/libc-2.24.so
+> 7f8eba7dc000-7f8eba7e0000 r--p 00195000 fe:01 405885
+>   /lib/x86_64-linux-gnu/libc-2.24.so
+> 7f8eba7e0000-7f8eba7e2000 rw-p 00199000 fe:01 405885
+>   /lib/x86_64-linux-gnu/libc-2.24.so
+> 7f8eba7e2000-7f8eba7e6000 rw-p 00000000 00:00 0
+> 7f8eba7e6000-7f8eba809000 r-xp 00000000 fe:01 405876
+>   /lib/x86_64-linux-gnu/ld-2.24.so
+> 7f8eba9e9000-7f8eba9eb000 rw-p 00000000 00:00 0
+> 7f8ebaa06000-7f8ebaa09000 rw-p 00000000 00:00 0
+> 7f8ebaa09000-7f8ebaa0a000 r--p 00023000 fe:01 405876
+>   /lib/x86_64-linux-gnu/ld-2.24.so
+> 7f8ebaa0a000-7f8ebaa0b000 rw-p 00024000 fe:01 405876
+>   /lib/x86_64-linux-gnu/ld-2.24.so
+> 7f8ebaa0b000-7f8ebaa0c000 rw-p 00000000 00:00 0
+> 7ffcc99fa000-7ffcc9a1b000 rw-p 00000000 00:00 0                          [stack]
+> 7ffcc9b44000-7ffcc9b47000 r--p 00000000 00:00 0                          [vvar]
+> 7ffcc9b47000-7ffcc9b49000 r-xp 00000000 00:00 0                          [vdso]
+> ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0
+>   [vsyscall]
+> user@debian:~$ uname -a
+> Linux debian 4.19.0-rc6+ #181 SMP Wed Oct 3 23:43:42 CEST 2018 x86_64 GNU/Linux
+> user@debian:~$
+> =======
+> 
+> As you can see, the first page of the mapping at 0x10001000 was clobbered.
 
-The only issue is if we don't pull the code together we are looking at a 
-massive increase in initialization times. So for example just the loop 
-that was originally there that was setting the pgmap and resetting the 
-LRU prev pointer was adding an additional 20+ seconds per node with 3TB 
-allocated per node. That essentially doubles the initialization time.
+This looks good to me. The short example really helped, thanks for that.
 
-How would you recommend I address that? Currently it is a few extra 
-lines in the memmap_init_zone_device function. Eventually I was planning 
-to combine the memmap_init_zone hoplug functionality and 
-memmap_init_zone_device core functionality into a single function called 
-__init_pageblock[1] and then reuse that functionality for deferred page 
-init as well.
+(I think my first reply got bounced, sorry if this ends up as a duplicate email
+for anyone.)
 
-[1] 
-http://lkml.kernel.org/r/20181005151224.17473.53398.stgit@localhost.localdomain
+thanks,
+-- 
+John Hubbard
+NVIDIA
