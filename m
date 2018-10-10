@@ -1,82 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C21F76B0010
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 14:36:33 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id b70-v6so3428368ywh.3
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 11:36:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u128-v6sor2775961ywf.2.2018.10.10.11.36.32
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 10 Oct 2018 11:36:32 -0700 (PDT)
-Received: from mail-yb1-f171.google.com (mail-yb1-f171.google.com. [209.85.219.171])
-        by smtp.gmail.com with ESMTPSA id x133-v6sm17518867ywg.66.2018.10.10.11.36.30
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DBA836B0003
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 14:52:46 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id e7-v6so3641899edb.23
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 11:52:46 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z2-v6si1783703ejg.230.2018.10.10.11.52.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Oct 2018 11:36:30 -0700 (PDT)
-Received: by mail-yb1-f171.google.com with SMTP id 5-v6so2619495ybf.3
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 11:36:30 -0700 (PDT)
+        Wed, 10 Oct 2018 11:52:45 -0700 (PDT)
+Date: Wed, 10 Oct 2018 20:52:42 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
+Message-ID: <20181010185242.GP5873@dhcp22.suse.cz>
+References: <20180925200551.3576.18755.stgit@localhost.localdomain>
+ <20180925202053.3576.66039.stgit@localhost.localdomain>
+ <20181009170051.GA40606@tiger-server>
+ <CAPcyv4g99_rJJSn0kWv5YO0Mzj90q1LH1wC3XrjCh1=x6mo7BQ@mail.gmail.com>
+ <25092df0-b7b4-d456-8409-9c004cb6e422@linux.intel.com>
+ <20181010095838.GG5873@dhcp22.suse.cz>
+ <f97de51c-67dd-99b2-754e-0685cac06699@linux.intel.com>
+ <20181010172451.GK5873@dhcp22.suse.cz>
+ <98c35e19-13b9-0913-87d9-b3f1ab738b61@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20181010152736.99475-1-jannh@google.com>
-References: <20181010152736.99475-1-jannh@google.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Wed, 10 Oct 2018 11:36:29 -0700
-Message-ID: <CAGXu5j+h-ExvLS4dqDir8--eM8Zz7JDbVvg-U0wS1PrTyse3Og@mail.gmail.com>
-Subject: Re: [PATCH] mm: don't clobber partially overlapping VMA with MAP_FIXED_NOREPLACE
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <98c35e19-13b9-0913-87d9-b3f1ab738b61@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jannh@google.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Khalid Aziz <khalid.aziz@oracle.com>, Michal Hocko <mhocko@suse.com>, Michael Ellerman <mpe@ellerman.id.au>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Jason Evans <jasone@google.com>, David Goldblatt <davidtgoldblatt@gmail.com>, =?UTF-8?Q?Edward_Tomasz_Napiera=C5=82a?= <trasz@freebsd.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Daniel Micay <danielmicay@gmail.com>
+To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Dave Hansen <dave.hansen@intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, rppt@linux.vnet.ibm.com, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, yi.z.zhang@linux.intel.com
 
-On Wed, Oct 10, 2018 at 8:27 AM, Jann Horn <jannh@google.com> wrote:
-> Daniel Micay reports that attempting to use MAP_FIXED_NOREPLACE in an
-> application causes that application to randomly crash. The existing check
-> for handling MAP_FIXED_NOREPLACE looks up the first VMA that either
-> overlaps or follows the requested region, and then bails out if that VMA
-> overlaps *the start* of the requested region. It does not bail out if the
-> VMA only overlaps another part of the requested region.
->
-> Fix it by checking that the found VMA only starts at or after the end of
-> the requested region, in which case there is no overlap.
->
-> Reported-by: Daniel Micay <danielmicay@gmail.com>
-> Fixes: a4ff8e8620d3 ("mm: introduce MAP_FIXED_NOREPLACE")
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Jann Horn <jannh@google.com>
+On Wed 10-10-18 10:39:01, Alexander Duyck wrote:
+> On 10/10/2018 10:24 AM, Michal Hocko wrote:
+[...]
+> > I thought I have already made it clear that these zone device hacks are
+> > not acceptable to the generic hotplug code. If the current reserve bit
+> > handling is not correct then give us a specific reason for that and we
+> > can start thinking about the proper fix.
+> 
+> I might have misunderstood your earlier comment then. I thought you were
+> saying that we shouldn't bother with setting the reserved bit. Now it sounds
+> like you were thinking more along the lines of what I was here in my comment
+> where I thought the bit should be cleared later in some code specifically
+> related to DAX when it is exposing it for use to userspace or KVM.
 
-Acked-by: Kees Cook <keescook@chromium.org>
+It seems I managed to confuse myself completely. Sorry, it's been a long
+day and I am sick so the brain doesn't work all that well. I will get
+back to this tomorrow or on Friday with a fresh brain.
 
-Thanks for forwarding this!
-
-Andrew, any chance we can get this into 4.19? (It'll end up in -stable
-anyway, but it'd be nice to get it fixed now too.)
-
--Kees
-
-> ---
->  mm/mmap.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 5f2b2b184c60..f7cd9cb966c0 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -1410,7 +1410,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
->         if (flags & MAP_FIXED_NOREPLACE) {
->                 struct vm_area_struct *vma = find_vma(mm, addr);
->
-> -               if (vma && vma->vm_start <= addr)
-> +               if (vma && vma->vm_start < addr + len)
->                         return -EEXIST;
->         }
->
-> --
-> 2.19.0.605.g01d371f741-goog
->
-
-
+My recollection was that we do clear the reserved bit in
+move_pfn_range_to_zone and we indeed do in __init_single_page. But then
+we set the bit back right afterwards. This seems to be the case since
+d0dc12e86b319 which reorganized the code. I have to study this some more
+obviously.
 
 -- 
-Kees Cook
-Pixel Security
+Michal Hocko
+SUSE Labs
