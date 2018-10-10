@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3533A6B0279
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 20:13:20 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id f4-v6so3240763pff.2
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 17:13:20 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id w18-v6si5814963pfg.70.2018.10.09.17.13.18
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D5186B027B
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 20:13:31 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id f5-v6so2633668plf.11
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 17:13:31 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id u3-v6si22169284plz.353.2018.10.09.17.13.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 17:13:18 -0700 (PDT)
-Subject: [PATCH 12/25] vfs: pass remap flags to generic_remap_file_range_prep
+        Tue, 09 Oct 2018 17:13:29 -0700 (PDT)
+Subject: [PATCH 13/25] vfs: pass remap flags to generic_remap_checks
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Tue, 09 Oct 2018 17:13:15 -0700
-Message-ID: <153913039499.32295.9599862851836900251.stgit@magnolia>
+Date: Tue, 09 Oct 2018 17:13:21 -0700
+Message-ID: <153913040183.32295.16281682485157170773.stgit@magnolia>
 In-Reply-To: <153913023835.32295.13962696655740190941.stgit@magnolia>
 References: <153913023835.32295.13962696655740190941.stgit@magnolia>
 MIME-Version: 1.0
@@ -25,232 +25,61 @@ Cc: sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, l
 
 From: Darrick J. Wong <darrick.wong@oracle.com>
 
-Plumb the remap flags through the filesystem from the vfs function
-dispatcher all the way to the prep function to prepare for behavior
-changes in subsequent patches.
+Pass the same remap flags to generic_remap_checks for consistency.
 
 Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 ---
- fs/ocfs2/file.c         |    2 +-
- fs/ocfs2/refcounttree.c |    6 +++---
- fs/ocfs2/refcounttree.h |    2 +-
- fs/read_write.c         |   10 ++++++----
- fs/xfs/xfs_file.c       |    2 +-
- fs/xfs/xfs_reflink.c    |   15 ++++++++-------
- fs/xfs/xfs_reflink.h    |    3 ++-
- include/linux/fs.h      |    5 +++--
- 8 files changed, 25 insertions(+), 20 deletions(-)
+ fs/read_write.c    |    2 +-
+ include/linux/fs.h |    2 +-
+ mm/filemap.c       |    4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
 
 
-diff --git a/fs/ocfs2/file.c b/fs/ocfs2/file.c
-index 5da278edf189..ca41e69c8e68 100644
---- a/fs/ocfs2/file.c
-+++ b/fs/ocfs2/file.c
-@@ -2535,7 +2535,7 @@ static int ocfs2_remap_file_range(struct file *file_in,
- 				  unsigned int flags)
- {
- 	return ocfs2_reflink_remap_range(file_in, pos_in, file_out, pos_out,
--					 len, flags & RFR_IDENTICAL_DATA);
-+					 len, flags);
- }
- 
- const struct inode_operations ocfs2_file_iops = {
-diff --git a/fs/ocfs2/refcounttree.c b/fs/ocfs2/refcounttree.c
-index ee1ed11379b3..270a5b1919f6 100644
---- a/fs/ocfs2/refcounttree.c
-+++ b/fs/ocfs2/refcounttree.c
-@@ -4825,7 +4825,7 @@ int ocfs2_reflink_remap_range(struct file *file_in,
- 			      struct file *file_out,
- 			      loff_t pos_out,
- 			      u64 len,
--			      bool is_dedupe)
-+			      unsigned int remap_flags)
- {
- 	struct inode *inode_in = file_inode(file_in);
- 	struct inode *inode_out = file_inode(file_out);
-@@ -4851,7 +4851,7 @@ int ocfs2_reflink_remap_range(struct file *file_in,
- 		goto out_unlock;
- 
- 	ret = generic_remap_file_range_prep(file_in, pos_in, file_out, pos_out,
--			&len, is_dedupe);
-+			&len, remap_flags);
- 	if (ret <= 0)
- 		goto out_unlock;
- 
-@@ -4859,7 +4859,7 @@ int ocfs2_reflink_remap_range(struct file *file_in,
- 	 * Update inode timestamps and remove security privileges before we
- 	 * take the ilock.
- 	 */
--	ret = generic_remap_file_range_touch(file_out, is_dedupe);
-+	ret = generic_remap_file_range_touch(file_out, remap_flags);
- 	if (ret)
- 		goto out_unlock;
- 
-diff --git a/fs/ocfs2/refcounttree.h b/fs/ocfs2/refcounttree.h
-index 4af55bf4b35b..d2c5f526edff 100644
---- a/fs/ocfs2/refcounttree.h
-+++ b/fs/ocfs2/refcounttree.h
-@@ -120,6 +120,6 @@ int ocfs2_reflink_remap_range(struct file *file_in,
- 			      struct file *file_out,
- 			      loff_t pos_out,
- 			      u64 len,
--			      bool is_dedupe);
-+			      unsigned int remap_flags);
- 
- #endif /* OCFS2_REFCOUNTTREE_H */
 diff --git a/fs/read_write.c b/fs/read_write.c
-index 020bb7fdf431..47174785a94f 100644
+index 47174785a94f..917934770b08 100644
 --- a/fs/read_write.c
 +++ b/fs/read_write.c
-@@ -1712,18 +1712,20 @@ static int remap_verify_area(struct file *file, loff_t pos, u64 len, bool write)
- /*
-  * Check that the two inodes are eligible for cloning, the ranges make
-  * sense, and then flush all dirty data.  Caller must ensure that the
-- * inodes have been locked against any other modifications.
-+ * inodes have been locked against any other modifications.  This function
-+ * takes RFR_* flags in remap_flags.
-  *
-  * Returns: 0 for "nothing to clone", 1 for "something to clone", or
-  * the usual negative error code.
-  */
- int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
- 				  struct file *file_out, loff_t pos_out,
--				  u64 *len, bool is_dedupe)
-+				  u64 *len, unsigned int remap_flags)
- {
- 	struct inode *inode_in = file_inode(file_in);
- 	struct inode *inode_out = file_inode(file_out);
- 	loff_t isize;
-+	bool is_dedupe = (remap_flags & RFR_IDENTICAL_DATA);
- 	bool same_inode = (inode_in == inode_out);
- 	int ret;
+@@ -1755,7 +1755,7 @@ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
  
-@@ -1791,12 +1793,12 @@ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
- EXPORT_SYMBOL(generic_remap_file_range_prep);
- 
- /* Update inode timestamps and remove security privileges when remapping. */
--int generic_remap_file_range_touch(struct file *file, bool is_dedupe)
-+int generic_remap_file_range_touch(struct file *file, unsigned int remap_flags)
- {
- 	int ret;
- 
- 	/* If can't alter the file contents, we're done. */
--	if (is_dedupe)
-+	if (remap_flags & RFR_IDENTICAL_DATA)
- 		return 0;
- 
- 	/* Update the timestamps, since we can alter file contents. */
-diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-index 74ad73231ea4..4c0ae1efb63f 100644
---- a/fs/xfs/xfs_file.c
-+++ b/fs/xfs/xfs_file.c
-@@ -929,7 +929,7 @@ xfs_file_remap_range(
- 	unsigned int	flags)
- {
- 	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
--			len, flags & RFR_IDENTICAL_DATA);
-+			len, flags);
- }
- 
- STATIC int
-diff --git a/fs/xfs/xfs_reflink.c b/fs/xfs/xfs_reflink.c
-index 0d67b2d0b3d4..4f5e3923d9c2 100644
---- a/fs/xfs/xfs_reflink.c
-+++ b/fs/xfs/xfs_reflink.c
-@@ -921,10 +921,11 @@ xfs_reflink_update_dest(
- 	struct xfs_inode	*dest,
- 	xfs_off_t		newlen,
- 	xfs_extlen_t		cowextsize,
--	bool			is_dedupe)
-+	unsigned int		remap_flags)
- {
- 	struct xfs_mount	*mp = dest->i_mount;
- 	struct xfs_trans	*tp;
-+	bool			is_dedupe = (remap_flags & RFR_IDENTICAL_DATA);
- 	int			error;
- 
- 	if (is_dedupe && newlen <= i_size_read(VFS_I(dest)) && cowextsize == 0)
-@@ -1274,7 +1275,7 @@ xfs_reflink_remap_prep(
- 	struct file		*file_out,
- 	loff_t			pos_out,
- 	u64			*len,
--	bool			is_dedupe)
-+	unsigned int		remap_flags)
- {
- 	struct inode		*inode_in = file_inode(file_in);
- 	struct xfs_inode	*src = XFS_I(inode_in);
-@@ -1304,7 +1305,7 @@ xfs_reflink_remap_prep(
- 		goto out_unlock;
- 
- 	ret = generic_remap_file_range_prep(file_in, pos_in, file_out, pos_out,
--			len, is_dedupe);
-+			len, remap_flags);
- 	if (ret <= 0)
- 		goto out_unlock;
- 
-@@ -1334,7 +1335,7 @@ xfs_reflink_remap_prep(
- 	 * Update inode timestamps and remove security privileges before we
- 	 * take the ilock.
- 	 */
--	ret = generic_remap_file_range_touch(file_out, is_dedupe);
-+	ret = generic_remap_file_range_touch(file_out, remap_flags);
- 	if (ret)
- 		goto out_unlock;
- 
-@@ -1354,7 +1355,7 @@ xfs_reflink_remap_range(
- 	struct file		*file_out,
- 	loff_t			pos_out,
- 	u64			len,
--	bool			is_dedupe)
-+	unsigned int		remap_flags)
- {
- 	struct inode		*inode_in = file_inode(file_in);
- 	struct xfs_inode	*src = XFS_I(inode_in);
-@@ -1374,7 +1375,7 @@ xfs_reflink_remap_range(
- 
- 	/* Prepare and then clone file data. */
- 	ret = xfs_reflink_remap_prep(file_in, pos_in, file_out, pos_out,
--			&len, is_dedupe);
-+			&len, remap_flags);
- 	if (ret <= 0)
- 		return ret;
- 
-@@ -1401,7 +1402,7 @@ xfs_reflink_remap_range(
- 		cowextsize = src->i_d.di_cowextsize;
- 
- 	ret = xfs_reflink_update_dest(dest, pos_out + len, cowextsize,
+ 	/* Check that we don't violate system file offset limits. */
+ 	ret = generic_remap_checks(file_in, pos_in, file_out, pos_out, len,
 -			is_dedupe);
 +			remap_flags);
+ 	if (ret)
+ 		return ret;
  
- out_unlock:
- 	xfs_reflink_remap_unlock(file_in, file_out);
-diff --git a/fs/xfs/xfs_reflink.h b/fs/xfs/xfs_reflink.h
-index c585ad9552b2..6f82d628bf17 100644
---- a/fs/xfs/xfs_reflink.h
-+++ b/fs/xfs/xfs_reflink.h
-@@ -28,7 +28,8 @@ extern int xfs_reflink_end_cow(struct xfs_inode *ip, xfs_off_t offset,
- 		xfs_off_t count);
- extern int xfs_reflink_recover_cow(struct xfs_mount *mp);
- extern int xfs_reflink_remap_range(struct file *file_in, loff_t pos_in,
--		struct file *file_out, loff_t pos_out, u64 len, bool is_dedupe);
-+		struct file *file_out, loff_t pos_out, u64 len,
-+		unsigned int remap_flags);
- extern int xfs_reflink_inode_has_shared_extents(struct xfs_trans *tp,
- 		struct xfs_inode *ip, bool *has_shared);
- extern int xfs_reflink_clear_inode_flag(struct xfs_inode *ip,
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 661b9ef32d2b..0d9bdef0b4ea 100644
+index 0d9bdef0b4ea..56167b10cbad 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -1832,8 +1832,9 @@ extern ssize_t vfs_copy_file_range(struct file *, loff_t , struct file *,
- 				   loff_t, size_t, unsigned int);
- extern int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
- 					 struct file *file_out, loff_t pos_out,
--					 u64 *count, bool is_dedupe);
--extern int generic_remap_file_range_touch(struct file *file, bool is_dedupe);
-+					 u64 *count, unsigned int remap_flags);
-+extern int generic_remap_file_range_touch(struct file *file,
-+					  unsigned int remap_flags);
- extern int do_clone_file_range(struct file *file_in, loff_t pos_in,
- 			       struct file *file_out, loff_t pos_out, u64 len);
- extern int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
+@@ -2976,7 +2976,7 @@ extern int generic_file_readonly_mmap(struct file *, struct vm_area_struct *);
+ extern ssize_t generic_write_checks(struct kiocb *, struct iov_iter *);
+ extern int generic_remap_checks(struct file *file_in, loff_t pos_in,
+ 				struct file *file_out, loff_t pos_out,
+-				uint64_t *count, bool is_dedupe);
++				uint64_t *count, unsigned int remap_flags);
+ extern ssize_t generic_file_read_iter(struct kiocb *, struct iov_iter *);
+ extern ssize_t __generic_file_write_iter(struct kiocb *, struct iov_iter *);
+ extern ssize_t generic_file_write_iter(struct kiocb *, struct iov_iter *);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 59056bd9c58a..e099c8880863 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -3004,7 +3004,7 @@ generic_remap_check_limits(struct file *file, loff_t pos, uint64_t *count)
+  */
+ int generic_remap_checks(struct file *file_in, loff_t pos_in,
+ 			 struct file *file_out, loff_t pos_out,
+-			 uint64_t *req_count, bool is_dedupe)
++			 uint64_t *req_count, unsigned int remap_flags)
+ {
+ 	struct inode *inode_in = file_in->f_mapping->host;
+ 	struct inode *inode_out = file_out->f_mapping->host;
+@@ -3027,7 +3027,7 @@ int generic_remap_checks(struct file *file_in, loff_t pos_in,
+ 	size_out = i_size_read(inode_out);
+ 
+ 	/* Dedupe requires both ranges to be within EOF. */
+-	if (is_dedupe &&
++	if ((remap_flags & RFR_IDENTICAL_DATA) &&
+ 	    (pos_in >= size_in || pos_in + count > size_in ||
+ 	     pos_out >= size_out || pos_out + count > size_out))
+ 		return -EINVAL;
