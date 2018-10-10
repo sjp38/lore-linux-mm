@@ -1,75 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 717A16B000D
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 08:53:41 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 87-v6so4344716pfq.8
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 05:53:41 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w11-v6sor20337116pfk.56.2018.10.10.05.53.40
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 69E556B0007
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 09:11:05 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id l24-v6so4539524iok.21
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 06:11:05 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id y1si7918385itk.43.2018.10.10.06.11.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 10 Oct 2018 05:53:40 -0700 (PDT)
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH] mm: remove a redundant check in do_munmap()
-Date: Wed, 10 Oct 2018 20:53:27 +0800
-Message-Id: <20181010125327.68803-1-richard.weiyang@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Oct 2018 06:11:03 -0700 (PDT)
+Subject: Re: INFO: rcu detected stall in shmem_fault
+References: <000000000000dc48d40577d4a587@google.com>
+ <201810100012.w9A0Cjtn047782@www262.sakura.ne.jp>
+ <20181010085945.GC5873@dhcp22.suse.cz>
+ <e72f799e-0634-f958-1af0-291f8577f4e8@i-love.sakura.ne.jp>
+ <20181010113500.GH5873@dhcp22.suse.cz>
+ <20181010114833.GB3949@tigerII.localdomain>
+ <20181010122539.GI5873@dhcp22.suse.cz>
+ <CACT4Y+ZfVdeB-WNeLCWJvTHNeCUtR3r1R+3Qjv9XjZXPxaV2WA@mail.gmail.com>
+ <CACT4Y+bqJeKum7jessccWQF+4BmabnVy48aqHEOypioKwQAMTQ@mail.gmail.com>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <b7727ff0-b34f-25a2-b9e7-56e70d9349c4@i-love.sakura.ne.jp>
+Date: Wed, 10 Oct 2018 22:10:31 +0900
+MIME-Version: 1.0
+In-Reply-To: <CACT4Y+bqJeKum7jessccWQF+4BmabnVy48aqHEOypioKwQAMTQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com
-Cc: linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
+To: Dmitry Vyukov <dvyukov@google.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, guro@fb.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Yang Shi <yang.s@alibaba-inc.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>
 
-A non-NULL vma returned from find_vma() implies:
+On 2018/10/10 21:36, Dmitry Vyukov wrote:
+> On Wed, Oct 10, 2018 at 2:29 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+>> On Wed, Oct 10, 2018 at 2:25 PM, Michal Hocko <mhocko@kernel.org> wrote:
+>>> On Wed 10-10-18 20:48:33, Sergey Senozhatsky wrote:
+>>>> On (10/10/18 13:35), Michal Hocko wrote:
+>>>>>> Just flooding out of memory messages can trigger RCU stall problems.
+>>>>>> For example, a severe skbuff_head_cache or kmalloc-512 leak bug is causing
+>>>>>
+>>>>> [...]
+>>>>>
+>>>>> Quite some of them, indeed! I guess we want to rate limit the output.
+>>>>> What about the following?
+>>>>
+>>>> A bit unrelated, but while we are at it:
+>>>>
+>>>>   I like it when we rate-limit printk-s that lookup the system.
+>>>> But it seems that default rate-limit values are not always good enough,
+>>>> DEFAULT_RATELIMIT_INTERVAL / DEFAULT_RATELIMIT_BURST can still be too
+>>>> verbose. For instance, when we have a very slow IPMI emulated serial
+>>>> console -- e.g. baud rate at 57600. DEFAULT_RATELIMIT_INTERVAL and
+>>>> DEFAULT_RATELIMIT_BURST can add new OOM headers and backtraces faster
+>>>> than we evict them.
+>>>>
+>>>> Does it sound reasonable enough to use larger than default rate-limits
+>>>> for printk-s in OOM print-outs? OOM reports tend to be somewhat large
+>>>> and the reported numbers are not always *very* unique.
+>>>>
+>>>> What do you think?
+>>>
+>>> I do not really care about the current inerval/burst values. This change
+>>> should be done seprately and ideally with some numbers.
+>>
+>> I think Sergey meant that this place may need to use
+>> larger-than-default values because it prints lots of output per
+>> instance (whereas the default limit is more tuned for cases that print
+>> just 1 line).
 
-   vma->vm_start <= start
+Yes. The OOM killer tends to print a lot of messages (and I estimate that
+mutex_trylock(&oom_lock) accelerates wasting more CPU consumption by
+preemption).
 
-Since len != 0, the following condition always hods:
+>>
+>> I've found at least 1 place that uses DEFAULT_RATELIMIT_INTERVAL*10:
+>> https://elixir.bootlin.com/linux/latest/source/fs/btrfs/extent-tree.c#L8365
+>> Probably we need something similar here.
 
-   vma->vm_start < start + len = end
+Since printk() is a significantly CPU consuming operation, I think that what
+we need to guarantee is interval between the end of an OOM killer messages
+and the beginning of next OOM killer messages is large enough. For example,
+setup a timer with 5 seconds timeout upon the end of an OOM killer messages
+and check whether the timer already fired upon the beginning of next OOM killer
+messages.
 
-This means the if check would never be true.
+> 
+> 
+> In parallel with the kernel changes I've also made a change to
+> syzkaller that (1) makes it not use oom_score_adj=-1000, this hard
+> killing limit looks like quite risky thing, (2) increase memcg size
+> beyond expected KASAN quarantine size:
+> https://github.com/google/syzkaller/commit/adedaf77a18f3d03d695723c86fc083c3551ff5b
+> If this will stop the flow of hang/stall reports, then we can just
+> close all old reports as invalid.
 
-This patch removes this redundant check and fix two typo in comment.
-
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
----
- mm/mmap.c | 10 +++-------
- 1 file changed, 3 insertions(+), 7 deletions(-)
-
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 8d6449e74431..94660ddfa2c1 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -414,7 +414,7 @@ static void vma_gap_update(struct vm_area_struct *vma)
- {
- 	/*
- 	 * As it turns out, RB_DECLARE_CALLBACKS() already created a callback
--	 * function that does exacltly what we want.
-+	 * function that does exactly what we want.
- 	 */
- 	vma_gap_callbacks_propagate(&vma->vm_rb, NULL);
- }
-@@ -1621,7 +1621,7 @@ SYSCALL_DEFINE1(old_mmap, struct mmap_arg_struct __user *, arg)
- #endif /* __ARCH_WANT_SYS_OLD_MMAP */
- 
- /*
-- * Some shared mappigns will want the pages marked read-only
-+ * Some shared mappings will want the pages marked read-only
-  * to track write events. If so, we'll downgrade vm_page_prot
-  * to the private version (using protection_map[] without the
-  * VM_SHARED bit).
-@@ -2705,12 +2705,8 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
- 	if (!vma)
- 		return 0;
- 	prev = vma->vm_prev;
--	/* we have  start < vma->vm_end  */
--
--	/* if it doesn't overlap, we have nothing.. */
-+	/* we have vma->vm_start <= start < vma->vm_end */
- 	end = start + len;
--	if (vma->vm_start >= end)
--		return 0;
- 
- 	/*
- 	 * If we need to split any vma, do it now to save pain later.
--- 
-2.15.1
+I don't think so. Only this report was different from others because printk()
+in this report was from memcg OOM events without eligible tasks whereas printk()
+in others are from global OOM events triggered by severe slab memory leak.
