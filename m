@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4325C6B0281
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 20:13:55 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id r67-v6so3210187pfd.21
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 17:13:55 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id r68-v6si24609917pfk.151.2018.10.09.17.13.53
+	by kanga.kvack.org (Postfix) with ESMTP id ABDBD6B0283
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 20:14:07 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id z28-v6so3093609pff.4
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 17:14:07 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id d31-v6si24205256pla.256.2018.10.09.17.14.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 17:13:54 -0700 (PDT)
-Subject: [PATCH 16/25] vfs: plumb RFR_* remap flags through the vfs dedupe
- functions
+        Tue, 09 Oct 2018 17:14:06 -0700 (PDT)
+Subject: [PATCH 17/25] vfs: make remapping to source file eof more explicit
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Tue, 09 Oct 2018 17:13:50 -0700
-Message-ID: <153913043056.32295.889586450104360207.stgit@magnolia>
+Date: Tue, 09 Oct 2018 17:13:57 -0700
+Message-ID: <153913043746.32295.17463515265798256890.stgit@magnolia>
 In-Reply-To: <153913023835.32295.13962696655740190941.stgit@magnolia>
 References: <153913023835.32295.13962696655740190941.stgit@magnolia>
 MIME-Version: 1.0
@@ -26,78 +25,98 @@ Cc: sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, l
 
 From: Darrick J. Wong <darrick.wong@oracle.com>
 
-Plumb a remap_flags argument through the vfs_dedupe_file_range_one
-functions so that dedupe can take advantage of it.
+Create a RFR_TO_SRC_EOF flag to explicitly declare that the caller wants
+the remap implementation to remap to the end of the source file, once
+the files are locked.
 
 Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 ---
- fs/overlayfs/file.c |    3 ++-
- fs/read_write.c     |    9 ++++++---
- include/linux/fs.h  |    2 +-
- 3 files changed, 9 insertions(+), 5 deletions(-)
+ fs/ioctl.c         |    3 ++-
+ fs/nfsd/vfs.c      |    3 ++-
+ fs/read_write.c    |   13 +++++++------
+ include/linux/fs.h |    2 ++
+ 4 files changed, 13 insertions(+), 8 deletions(-)
 
 
-diff --git a/fs/overlayfs/file.c b/fs/overlayfs/file.c
-index 8b22035af4d7..8b804e86ed4d 100644
---- a/fs/overlayfs/file.c
-+++ b/fs/overlayfs/file.c
-@@ -467,7 +467,8 @@ static loff_t ovl_copyfile(struct file *file_in, loff_t pos_in,
+diff --git a/fs/ioctl.c b/fs/ioctl.c
+index 505275ec5596..7fec997abd2f 100644
+--- a/fs/ioctl.c
++++ b/fs/ioctl.c
+@@ -224,6 +224,7 @@ static long ioctl_file_clone(struct file *dst_file, unsigned long srcfd,
+ {
+ 	struct fd src_file = fdget(srcfd);
+ 	loff_t cloned;
++	unsigned int flags = olen == 0 ? RFR_TO_SRC_EOF : 0;
+ 	int ret;
  
- 	case OVL_DEDUPE:
- 		ret = vfs_dedupe_file_range_one(real_in.file, pos_in,
--						real_out.file, pos_out, len);
-+						real_out.file, pos_out, len,
-+						flags);
- 		break;
- 	}
- 	revert_creds(old_cred);
+ 	if (!src_file.file)
+@@ -232,7 +233,7 @@ static long ioctl_file_clone(struct file *dst_file, unsigned long srcfd,
+ 	if (src_file.file->f_path.mnt != dst_file->f_path.mnt)
+ 		goto fdput;
+ 	cloned = vfs_clone_file_range(src_file.file, off, dst_file, destoff,
+-				      olen, 0);
++				      olen, flags);
+ 	if (cloned < 0)
+ 		ret = cloned;
+ 	else if (olen && cloned != olen)
+diff --git a/fs/nfsd/vfs.c b/fs/nfsd/vfs.c
+index 726fc5b2b27a..d1f2ae08adf6 100644
+--- a/fs/nfsd/vfs.c
++++ b/fs/nfsd/vfs.c
+@@ -542,8 +542,9 @@ __be32 nfsd4_clone_file_range(struct file *src, u64 src_pos, struct file *dst,
+ 		u64 dst_pos, u64 count)
+ {
+ 	loff_t cloned;
++	unsigned int flags = count == 0 ? RFR_TO_SRC_EOF : 0;
+ 
+-	cloned = vfs_clone_file_range(src, src_pos, dst, dst_pos, count, 0);
++	cloned = vfs_clone_file_range(src, src_pos, dst, dst_pos, count, flags);
+ 	if (count && cloned != count)
+ 		cloned = -EINVAL;
+ 	return nfserrno(cloned < 0 ? cloned : 0);
 diff --git a/fs/read_write.c b/fs/read_write.c
-index cf81d1f68b69..479eb810c8e6 100644
+index 479eb810c8e6..a628fd9a47cf 100644
 --- a/fs/read_write.c
 +++ b/fs/read_write.c
-@@ -1983,10 +1983,12 @@ EXPORT_SYMBOL(vfs_dedupe_file_range_compare);
+@@ -1748,11 +1748,12 @@ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
  
- loff_t vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
- 				 struct file *dst_file, loff_t dst_pos,
--				 loff_t len)
-+				 loff_t len, unsigned int remap_flags)
- {
+ 	isize = i_size_read(inode_in);
+ 
+-	/* Zero length dedupe exits immediately; reflink goes to EOF. */
+-	if (*len == 0) {
+-		if (is_dedupe || pos_in == isize)
+-			return 0;
+-		if (pos_in > isize)
++	/*
++	 * If the caller asked to go all the way to the end of the source file,
++	 * set *len now that we have the file locked.
++	 */
++	if (remap_flags & RFR_TO_SRC_EOF) {
++		if (pos_in >= isize)
+ 			return -EINVAL;
+ 		*len = isize - pos_in;
+ 	}
+@@ -1828,7 +1829,7 @@ loff_t do_clone_file_range(struct file *file_in, loff_t pos_in,
+ 	struct inode *inode_out = file_inode(file_out);
  	loff_t ret;
  
-+	WARN_ON_ONCE(remap_flags & ~(RFR_IDENTICAL_DATA));
-+
- 	ret = mnt_want_write_file(dst_file);
- 	if (ret)
- 		return ret;
-@@ -2017,7 +2019,7 @@ loff_t vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
- 	}
+-	WARN_ON_ONCE(remap_flags);
++	WARN_ON_ONCE(remap_flags & ~(RFR_TO_SRC_EOF));
  
- 	ret = dst_file->f_op->remap_file_range(src_file, src_pos, dst_file,
--			dst_pos, len, RFR_IDENTICAL_DATA);
-+			dst_pos, len, remap_flags | RFR_IDENTICAL_DATA);
- out_drop_write:
- 	mnt_drop_write_file(dst_file);
- 
-@@ -2085,7 +2087,8 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
- 		}
- 
- 		deduped = vfs_dedupe_file_range_one(file, off, dst_file,
--						    info->dest_offset, len);
-+						    info->dest_offset, len,
-+						    0);
- 		if (deduped == -EBADE)
- 			info->status = FILE_DEDUPE_RANGE_DIFFERS;
- 		else if (deduped < 0)
+ 	if (S_ISDIR(inode_in->i_mode) || S_ISDIR(inode_out->i_mode))
+ 		return -EISDIR;
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 21f947b20f37..5c1bf1c35bc6 100644
+index 5c1bf1c35bc6..9f90dcd4df3b 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -1849,7 +1849,7 @@ extern int vfs_dedupe_file_range(struct file *file,
- 				 struct file_dedupe_range *same);
- extern loff_t vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
- 					struct file *dst_file, loff_t dst_pos,
--					loff_t len);
-+					loff_t len, unsigned int remap_flags);
+@@ -1725,8 +1725,10 @@ struct block_device_operations;
+  * These flags control the behavior of the remap_file_range function pointer.
+  *
+  * RFR_IDENTICAL_DATA: only remap if contents identical (i.e. deduplicate)
++ * RFR_TO_SRC_EOF: remap to the end of the source file
+  */
+ #define RFR_IDENTICAL_DATA	(1 << 0)
++#define RFR_TO_SRC_EOF		(1 << 1)
  
+ struct iov_iter;
  
- struct super_operations {
