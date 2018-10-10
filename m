@@ -1,129 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FA3F6B000D
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 13:27:18 -0400 (EDT)
-Received: by mail-oi1-f198.google.com with SMTP id a206-v6so4003211oib.7
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 10:27:18 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CDA776B0010
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 13:27:32 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id d23-v6so3231640ywd.8
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 10:27:32 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c72-v6sor11355418oig.141.2018.10.10.10.27.17
+        by mx.google.com with SMTPS id c1-v6sor9718896ybr.149.2018.10.10.10.27.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Oct 2018 10:27:17 -0700 (PDT)
+        Wed, 10 Oct 2018 10:27:31 -0700 (PDT)
+Subject: Re: [PATCH v3 1/3] mm: zero remaining unavailable struct pages
+References: <20181002143821.5112-1-msys.mizuma@gmail.com>
+ <20181002143821.5112-2-msys.mizuma@gmail.com>
+From: Pavel Tatashin <pasha.tatashin@gmail.com>
+Message-ID: <7a03eb03-89c4-8f78-b169-b6ce18e0d5a7@gmail.com>
+Date: Wed, 10 Oct 2018 13:27:20 -0400
 MIME-Version: 1.0
-References: <20181010152736.99475-1-jannh@google.com> <20181010171944.GJ5873@dhcp22.suse.cz>
-In-Reply-To: <20181010171944.GJ5873@dhcp22.suse.cz>
-From: Jann Horn <jannh@google.com>
-Date: Wed, 10 Oct 2018 19:26:50 +0200
-Message-ID: <CAG48ez04KK62doMwsTVN4nN8y_wmv7hn+4my2jk5VXKL0wP7Lg@mail.gmail.com>
-Subject: Re: [PATCH] mm: don't clobber partially overlapping VMA with MAP_FIXED_NOREPLACE
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20181002143821.5112-2-msys.mizuma@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, abdhalee@linux.vnet.ibm.com, joel@jms.id.au, Kees Cook <keescook@chromium.org>, jasone@google.com, davidtgoldblatt@gmail.com, trasz@freebsd.org, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Daniel Micay <danielmicay@gmail.com>, kernel list <linux-kernel@vger.kernel.org>
+To: Masayoshi Mizuma <msys.mizuma@gmail.com>, linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Michal Hocko <mhocko@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org
 
-On Wed, Oct 10, 2018 at 7:19 PM Michal Hocko <mhocko@suse.com> wrote:
-> On Wed 10-10-18 17:27:36, Jann Horn wrote:
-> > Daniel Micay reports that attempting to use MAP_FIXED_NOREPLACE in an
-> > application causes that application to randomly crash. The existing check
-> > for handling MAP_FIXED_NOREPLACE looks up the first VMA that either
-> > overlaps or follows the requested region, and then bails out if that VMA
-> > overlaps *the start* of the requested region. It does not bail out if the
-> > VMA only overlaps another part of the requested region.
->
-> I do not understand. Could you give me an example?
+Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
 
-Sure.
-
-=======
-user@debian:~$ cat mmap_fixed_simple.c
-#include <sys/mman.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-#ifndef MAP_FIXED_NOREPLACE
-#define MAP_FIXED_NOREPLACE 0x100000
-#endif
-
-int main(void) {
-  char *p;
-
-  errno = 0;
-  p = mmap((void*)0x10001000, 0x4000, PROT_NONE,
-MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE, -1, 0);
-  printf("p1=%p err=%m\n", p);
-
-  errno = 0;
-  p = mmap((void*)0x10000000, 0x2000, PROT_READ,
-MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE, -1, 0);
-  printf("p2=%p err=%m\n", p);
-
-  char cmd[100];
-  sprintf(cmd, "cat /proc/%d/maps", getpid());
-  system(cmd);
-
-  return 0;
-}
-user@debian:~$ gcc -o mmap_fixed_simple mmap_fixed_simple.c
-user@debian:~$ ./mmap_fixed_simple
-p1=0x10001000 err=Success
-p2=0x10000000 err=Success
-10000000-10002000 r--p 00000000 00:00 0
-10002000-10005000 ---p 00000000 00:00 0
-564a9a06f000-564a9a070000 r-xp 00000000 fe:01 264004
-  /home/user/mmap_fixed_simple
-564a9a26f000-564a9a270000 r--p 00000000 fe:01 264004
-  /home/user/mmap_fixed_simple
-564a9a270000-564a9a271000 rw-p 00001000 fe:01 264004
-  /home/user/mmap_fixed_simple
-564a9a54a000-564a9a56b000 rw-p 00000000 00:00 0                          [heap]
-7f8eba447000-7f8eba5dc000 r-xp 00000000 fe:01 405885
-  /lib/x86_64-linux-gnu/libc-2.24.so
-7f8eba5dc000-7f8eba7dc000 ---p 00195000 fe:01 405885
-  /lib/x86_64-linux-gnu/libc-2.24.so
-7f8eba7dc000-7f8eba7e0000 r--p 00195000 fe:01 405885
-  /lib/x86_64-linux-gnu/libc-2.24.so
-7f8eba7e0000-7f8eba7e2000 rw-p 00199000 fe:01 405885
-  /lib/x86_64-linux-gnu/libc-2.24.so
-7f8eba7e2000-7f8eba7e6000 rw-p 00000000 00:00 0
-7f8eba7e6000-7f8eba809000 r-xp 00000000 fe:01 405876
-  /lib/x86_64-linux-gnu/ld-2.24.so
-7f8eba9e9000-7f8eba9eb000 rw-p 00000000 00:00 0
-7f8ebaa06000-7f8ebaa09000 rw-p 00000000 00:00 0
-7f8ebaa09000-7f8ebaa0a000 r--p 00023000 fe:01 405876
-  /lib/x86_64-linux-gnu/ld-2.24.so
-7f8ebaa0a000-7f8ebaa0b000 rw-p 00024000 fe:01 405876
-  /lib/x86_64-linux-gnu/ld-2.24.so
-7f8ebaa0b000-7f8ebaa0c000 rw-p 00000000 00:00 0
-7ffcc99fa000-7ffcc9a1b000 rw-p 00000000 00:00 0                          [stack]
-7ffcc9b44000-7ffcc9b47000 r--p 00000000 00:00 0                          [vvar]
-7ffcc9b47000-7ffcc9b49000 r-xp 00000000 00:00 0                          [vdso]
-ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0
-  [vsyscall]
-user@debian:~$ uname -a
-Linux debian 4.19.0-rc6+ #181 SMP Wed Oct 3 23:43:42 CEST 2018 x86_64 GNU/Linux
-user@debian:~$
-=======
-
-As you can see, the first page of the mapping at 0x10001000 was clobbered.
-
-> > diff --git a/mm/mmap.c b/mm/mmap.c
-> > index 5f2b2b184c60..f7cd9cb966c0 100644
-> > --- a/mm/mmap.c
-> > +++ b/mm/mmap.c
-> > @@ -1410,7 +1410,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
-> >       if (flags & MAP_FIXED_NOREPLACE) {
-> >               struct vm_area_struct *vma = find_vma(mm, addr);
-> >
-> > -             if (vma && vma->vm_start <= addr)
-> > +             if (vma && vma->vm_start < addr + len)
->
-> find_vma is documented to - Look up the first VMA which satisfies addr <
-> vm_end, NULL if none.
-> This means that the above check guanratees that
->         vm_start <= addr < vm_end
-> so an overlap is guanrateed. Why should we care how much we overlap?
-
-"an overlap is guaranteed"? I have no idea what you're trying to say.
+On 10/2/18 10:38 AM, Masayoshi Mizuma wrote:
+> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> 
+> There is a kernel panic that is triggered when reading /proc/kpageflags
+> on the kernel booted with kernel parameter 'memmap=nn[KMG]!ss[KMG]':
+> 
+>   BUG: unable to handle kernel paging request at fffffffffffffffe
+>   PGD 9b20e067 P4D 9b20e067 PUD 9b210067 PMD 0
+>   Oops: 0000 [#1] SMP PTI
+>   CPU: 2 PID: 1728 Comm: page-types Not tainted 4.17.0-rc6-mm1-v4.17-rc6-180605-0816-00236-g2dfb086ef02c+ #160
+>   Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.11.0-2.fc28 04/01/2014
+>   RIP: 0010:stable_page_flags+0x27/0x3c0
+>   Code: 00 00 00 0f 1f 44 00 00 48 85 ff 0f 84 a0 03 00 00 41 54 55 49 89 fc 53 48 8b 57 08 48 8b 2f 48 8d 42 ff 83 e2 01 48 0f 44 c7 <48> 8b 00 f6 c4 01 0f 84 10 03 00 00 31 db 49 8b 54 24 08 4c 89 e7
+>   RSP: 0018:ffffbbd44111fde0 EFLAGS: 00010202
+>   RAX: fffffffffffffffe RBX: 00007fffffffeff9 RCX: 0000000000000000
+>   RDX: 0000000000000001 RSI: 0000000000000202 RDI: ffffed1182fff5c0
+>   RBP: ffffffffffffffff R08: 0000000000000001 R09: 0000000000000001
+>   R10: ffffbbd44111fed8 R11: 0000000000000000 R12: ffffed1182fff5c0
+>   R13: 00000000000bffd7 R14: 0000000002fff5c0 R15: ffffbbd44111ff10
+>   FS:  00007efc4335a500(0000) GS:ffff93a5bfc00000(0000) knlGS:0000000000000000
+>   CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>   CR2: fffffffffffffffe CR3: 00000000b2a58000 CR4: 00000000001406e0
+>   Call Trace:
+>    kpageflags_read+0xc7/0x120
+>    proc_reg_read+0x3c/0x60
+>    __vfs_read+0x36/0x170
+>    vfs_read+0x89/0x130
+>    ksys_pread64+0x71/0x90
+>    do_syscall_64+0x5b/0x160
+>    entry_SYSCALL_64_after_hwframe+0x44/0xa9
+>   RIP: 0033:0x7efc42e75e23
+>   Code: 09 00 ba 9f 01 00 00 e8 ab 81 f4 ff 66 2e 0f 1f 84 00 00 00 00 00 90 83 3d 29 0a 2d 00 00 75 13 49 89 ca b8 11 00 00 00 0f 05 <48> 3d 01 f0 ff ff 73 34 c3 48 83 ec 08 e8 db d3 01 00 48 89 04 24
+> 
+> According to kernel bisection, this problem became visible due to commit
+> f7f99100d8d9 which changes how struct pages are initialized.
+> 
+> Memblock layout affects the pfn ranges covered by node/zone. Consider
+> that we have a VM with 2 NUMA nodes and each node has 4GB memory, and
+> the default (no memmap= given) memblock layout is like below:
+> 
+>   MEMBLOCK configuration:
+>    memory size = 0x00000001fff75c00 reserved size = 0x000000000300c000
+>    memory.cnt  = 0x4
+>    memory[0x0]     [0x0000000000001000-0x000000000009efff], 0x000000000009e000 bytes on node 0 flags: 0x0
+>    memory[0x1]     [0x0000000000100000-0x00000000bffd6fff], 0x00000000bfed7000 bytes on node 0 flags: 0x0
+>    memory[0x2]     [0x0000000100000000-0x000000013fffffff], 0x0000000040000000 bytes on node 0 flags: 0x0
+>    memory[0x3]     [0x0000000140000000-0x000000023fffffff], 0x0000000100000000 bytes on node 1 flags: 0x0
+>    ...
+> 
+> If you give memmap=1G!4G (so it just covers memory[0x2]),
+> the range [0x100000000-0x13fffffff] is gone:
+> 
+>   MEMBLOCK configuration:
+>    memory size = 0x00000001bff75c00 reserved size = 0x000000000300c000
+>    memory.cnt  = 0x3
+>    memory[0x0]     [0x0000000000001000-0x000000000009efff], 0x000000000009e000 bytes on node 0 flags: 0x0
+>    memory[0x1]     [0x0000000000100000-0x00000000bffd6fff], 0x00000000bfed7000 bytes on node 0 flags: 0x0
+>    memory[0x2]     [0x0000000140000000-0x000000023fffffff], 0x0000000100000000 bytes on node 1 flags: 0x0
+>    ...
+> 
+> This causes shrinking node 0's pfn range because it is calculated by
+> the address range of memblock.memory. So some of struct pages in the
+> gap range are left uninitialized.
+> 
+> We have a function zero_resv_unavail() which does zeroing the struct
+> pages outside memblock.memory, but currently it covers only the reserved
+> unavailable range (i.e. memblock.memory && !memblock.reserved).
+> This patch extends it to cover all unavailable range, which fixes
+> the reported issue.
+> 
+> Fixes: f7f99100d8d9 ("mm: stop zeroing memory during allocation in vmemmap")
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Tested-by: Oscar Salvador <osalvador@suse.de>
+> Tested-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+> ---
+>  include/linux/memblock.h | 15 ---------------
+>  mm/page_alloc.c          | 36 +++++++++++++++++++++++++-----------
+>  2 files changed, 25 insertions(+), 26 deletions(-)
+> 
+> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> index 5169205..2acdd04 100644
+> --- a/include/linux/memblock.h
+> +++ b/include/linux/memblock.h
+> @@ -265,21 +265,6 @@ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
+>  	for_each_mem_range_rev(i, &memblock.memory, &memblock.reserved,	\
+>  			       nid, flags, p_start, p_end, p_nid)
+>  
+> -/**
+> - * for_each_resv_unavail_range - iterate through reserved and unavailable memory
+> - * @i: u64 used as loop variable
+> - * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
+> - * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
+> - *
+> - * Walks over unavailable but reserved (reserved && !memory) areas of memblock.
+> - * Available as soon as memblock is initialized.
+> - * Note: because this memory does not belong to any physical node, flags and
+> - * nid arguments do not make sense and thus not exported as arguments.
+> - */
+> -#define for_each_resv_unavail_range(i, p_start, p_end)			\
+> -	for_each_mem_range(i, &memblock.reserved, &memblock.memory,	\
+> -			   NUMA_NO_NODE, MEMBLOCK_NONE, p_start, p_end, NULL)
+> -
+>  static inline void memblock_set_region_flags(struct memblock_region *r,
+>  					     enum memblock_flags flags)
+>  {
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 89d2a2a..3b9d89e 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6446,29 +6446,42 @@ void __init free_area_init_node(int nid, unsigned long *zones_size,
+>   * struct pages which are reserved in memblock allocator and their fields
+>   * may be accessed (for example page_to_pfn() on some configuration accesses
+>   * flags). We must explicitly zero those struct pages.
+> + *
+> + * This function also addresses a similar issue where struct pages are left
+> + * uninitialized because the physical address range is not covered by
+> + * memblock.memory or memblock.reserved. That could happen when memblock
+> + * layout is manually configured via memmap=.
+>   */
+>  void __init zero_resv_unavail(void)
+>  {
+>  	phys_addr_t start, end;
+>  	unsigned long pfn;
+>  	u64 i, pgcnt;
+> +	phys_addr_t next = 0;
+>  
+>  	/*
+> -	 * Loop through ranges that are reserved, but do not have reported
+> -	 * physical memory backing.
+> +	 * Loop through unavailable ranges not covered by memblock.memory.
+>  	 */
+>  	pgcnt = 0;
+> -	for_each_resv_unavail_range(i, &start, &end) {
+> -		for (pfn = PFN_DOWN(start); pfn < PFN_UP(end); pfn++) {
+> -			if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages))) {
+> -				pfn = ALIGN_DOWN(pfn, pageblock_nr_pages)
+> -					+ pageblock_nr_pages - 1;
+> -				continue;
+> +	for_each_mem_range(i, &memblock.memory, NULL,
+> +			NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end, NULL) {
+> +		if (next < start) {
+> +			for (pfn = PFN_DOWN(next); pfn < PFN_UP(start); pfn++) {
+> +				if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages)))
+> +					continue;
+> +				mm_zero_struct_page(pfn_to_page(pfn));
+> +				pgcnt++;
+>  			}
+> -			mm_zero_struct_page(pfn_to_page(pfn));
+> -			pgcnt++;
+>  		}
+> +		next = end;
+>  	}
+> +	for (pfn = PFN_DOWN(next); pfn < max_pfn; pfn++) {
+> +		if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages)))
+> +			continue;
+> +		mm_zero_struct_page(pfn_to_page(pfn));
+> +		pgcnt++;
+> +	}
+> +
+>  
+>  	/*
+>  	 * Struct pages that do not have backing memory. This could be because
+> @@ -6478,7 +6491,8 @@ void __init zero_resv_unavail(void)
+>  	 * this code can be removed.
+>  	 */
+>  	if (pgcnt)
+> -		pr_info("Reserved but unavailable: %lld pages", pgcnt);
+> +		pr_info("Zeroed struct page in unavailable ranges: %lld pages", pgcnt);
+> +
+>  }
+>  #endif /* CONFIG_HAVE_MEMBLOCK && !CONFIG_FLAT_NODE_MEM_MAP */
+>  
+> 
