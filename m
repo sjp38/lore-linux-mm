@@ -1,93 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C7C486B0007
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 10:09:27 -0400 (EDT)
-Received: by mail-it1-f198.google.com with SMTP id n132-v6so5627558itn.2
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 07:09:27 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B0D136B000A
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 10:13:28 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id 43-v6so3800214ple.19
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 07:13:28 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n11-v6sor8515138iop.37.2018.10.10.07.09.26
+        by mx.google.com with SMTPS id b3-v6sor13819054pgw.3.2018.10.10.07.13.27
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Oct 2018 07:09:26 -0700 (PDT)
+        Wed, 10 Oct 2018 07:13:27 -0700 (PDT)
+Date: Wed, 10 Oct 2018 17:13:20 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: remove a redundant check in do_munmap()
+Message-ID: <20181010141320.zxic4ryuzo63utom@kshutemo-mobl1>
+References: <20181010125327.68803-1-richard.weiyang@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20181003173256.GG12998@arrakis.emea.arm.com>
-References: <cover.1538485901.git.andreyknvl@google.com> <47a464307d4df3c0cb65f88d1fe83f9a741dd74b.1538485901.git.andreyknvl@google.com>
- <20181003173256.GG12998@arrakis.emea.arm.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Wed, 10 Oct 2018 16:09:25 +0200
-Message-ID: <CAAeHK+yPCRNAOSi6OpYC_Tdbo9SoXRVRbx8pjXNq96v8csO-Wg@mail.gmail.com>
-Subject: Re: [PATCH v7 7/8] arm64: update Documentation/arm64/tagged-pointers.txt
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181010125327.68803-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Evgeniy Stepanov <eugenis@google.com>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, linux-mm@kvack.org
 
-On Wed, Oct 3, 2018 at 7:32 PM, Catalin Marinas <catalin.marinas@arm.com> wrote:
-> On Tue, Oct 02, 2018 at 03:12:42PM +0200, Andrey Konovalov wrote:
->> diff --git a/Documentation/arm64/tagged-pointers.txt b/Documentation/arm64/tagged-pointers.txt
->> index a25a99e82bb1..ae877d185fdb 100644
->> --- a/Documentation/arm64/tagged-pointers.txt
->> +++ b/Documentation/arm64/tagged-pointers.txt
->> @@ -17,13 +17,21 @@ this byte for application use.
->>  Passing tagged addresses to the kernel
->>  --------------------------------------
->>
->> -All interpretation of userspace memory addresses by the kernel assumes
->> -an address tag of 0x00.
->> +Some initial work for supporting non-zero address tags passed to the
->> +kernel has been done. As of now, the kernel supports tags in:
->
-> With my maintainer hat on, the above statement leads me to think this
-> new ABI is work in progress, so not yet suitable for upstream.
+On Wed, Oct 10, 2018 at 08:53:27PM +0800, Wei Yang wrote:
+> A non-NULL vma returned from find_vma() implies:
+> 
+>    vma->vm_start <= start
+> Since len != 0, the following condition always hods:
 
-OK, I think we can just say "The kernel supports tags in:" here. Will do in v8.
+s/hods/holds/
 
->
-> Also, how is user space supposed to know that it can now pass tagged
-> pointers into the kernel? An ABI change (or relaxation), needs to be
-> advertised by the kernel, usually via a new HWCAP bit (e.g. HWCAP_TBI).
-> Once we have a HWCAP bit in place, we need to be pretty clear about
-> which syscalls can and cannot cope with tagged pointers. The "as of now"
-> implies potential further relaxation which, again, would need to be
-> advertised to user in some (additional) way.
+>    vma->vm_start < start + len = end
+> 
+> This means the if check would never be true.
 
-How exactly should I do that? Something like this [1]? Or is it only
-for hardware specific things and for this patchset I need to do
-something else?
+Have you considered overflow?
 
-[1] https://github.com/torvalds/linux/commit/7206dc93a58fb76421c4411eefa3c003337bcb2d
+> This patch removes this redundant check and fix two typo in comment.
+> 
+> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+> ---
+>  mm/mmap.c | 10 +++-------
+>  1 file changed, 3 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 8d6449e74431..94660ddfa2c1 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -414,7 +414,7 @@ static void vma_gap_update(struct vm_area_struct *vma)
+>  {
+>  	/*
+>  	 * As it turns out, RB_DECLARE_CALLBACKS() already created a callback
+> -	 * function that does exacltly what we want.
+> +	 * function that does exactly what we want.
+>  	 */
+>  	vma_gap_callbacks_propagate(&vma->vm_rb, NULL);
+>  }
+> @@ -1621,7 +1621,7 @@ SYSCALL_DEFINE1(old_mmap, struct mmap_arg_struct __user *, arg)
+>  #endif /* __ARCH_WANT_SYS_OLD_MMAP */
+>  
+>  /*
+> - * Some shared mappigns will want the pages marked read-only
+> + * Some shared mappings will want the pages marked read-only
+>   * to track write events. If so, we'll downgrade vm_page_prot
+>   * to the private version (using protection_map[] without the
+>   * VM_SHARED bit).
+> @@ -2705,12 +2705,8 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+>  	if (!vma)
+>  		return 0;
+>  	prev = vma->vm_prev;
+> -	/* we have  start < vma->vm_end  */
+> -
+> -	/* if it doesn't overlap, we have nothing.. */
+> +	/* we have vma->vm_start <= start < vma->vm_end */
+>  	end = start + len;
+> -	if (vma->vm_start >= end)
+> -		return 0;
+>  
+>  	/*
+>  	 * If we need to split any vma, do it now to save pain later.
+> -- 
+> 2.15.1
+> 
 
->
->> -This includes, but is not limited to, addresses found in:
->> +  - user fault addresses
->
-> While the kernel currently supports this in some way (by clearing the
-> tag exception entry, el0_da), the above implies (at least to me) that
-> sigcontext.fault_address would contain the tagged address. That's not
-> the case (unless I missed it in your patches).
-
-I'll update the doc to reflect this in v8.
-
->
->> - - pointer arguments to system calls, including pointers in structures
->> -   passed to system calls,
->> +  - pointer arguments (including pointers in structures), which don't
->> +    describe virtual memory ranges, passed to system calls
->
-> I think we need to be more precise here...
-
-In what way?
-
->
->> +All other interpretations of userspace memory addresses by the kernel
->> +assume an address tag of 0x00. This includes, but is not limited to,
->> +addresses found in:
->> +
->> + - pointer arguments (including pointers in structures), which describe
->> +   virtual memory ranges, passed to memory system calls (mmap, mprotect,
->> +   etc.)
->
-> ...and probably a full list here.
-
-Will add a full list in v8.
+-- 
+ Kirill A. Shutemov
