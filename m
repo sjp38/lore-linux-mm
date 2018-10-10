@@ -1,88 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EB2B6B0007
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 15:20:12 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id n1-v6so6119430qtb.17
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 12:20:12 -0700 (PDT)
-Received: from mail.efficios.com (mail.efficios.com. [2607:5300:60:7898::beef])
-        by mx.google.com with ESMTPS id h23-v6si1144456qve.115.2018.10.10.12.20.10
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 93C2C6B0003
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 15:59:47 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id v7-v6so4735286plo.23
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 12:59:47 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id 144-v6si23190413pgh.282.2018.10.10.12.59.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Oct 2018 12:20:10 -0700 (PDT)
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: [RFC PATCH for 4.21 05/16] mm: Provide is_vma_noncached
-Date: Wed, 10 Oct 2018 15:19:25 -0400
-Message-Id: <20181010191936.7495-6-mathieu.desnoyers@efficios.com>
-In-Reply-To: <20181010191936.7495-1-mathieu.desnoyers@efficios.com>
-References: <20181010191936.7495-1-mathieu.desnoyers@efficios.com>
+        Wed, 10 Oct 2018 12:59:46 -0700 (PDT)
+From: Keith Busch <keith.busch@intel.com>
+Subject: [PATCH 2/6] mm/gup_benchmark: Add additional pinning methods
+Date: Wed, 10 Oct 2018 13:56:01 -0600
+Message-Id: <20181010195605.10689-2-keith.busch@intel.com>
+In-Reply-To: <20181010195605.10689-1-keith.busch@intel.com>
+References: <20181010195605.10689-1-keith.busch@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Boqun Feng <boqun.feng@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@amacapital.net>, Dave Watson <davejwatson@fb.com>, Paul Turner <pjt@google.com>, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Andi Kleen <andi@firstfloor.org>, Chris Lameter <cl@linux.com>, Ben Maurer <bmaurer@fb.com>, Steven Rostedt <rostedt@goodmis.org>, Josh Triplett <josh@joshtriplett.org>, Linus Torvalds <torvalds@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Joel Fernandes <joelaf@google.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Kirill Shutemov <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Keith Busch <keith.busch@intel.com>
 
-Provide is_vma_noncached() static inline to allow generic code to
-check whether the given vma consists of noncached memory.
+This patch provides new gup benchmark ioctl commands to run different
+user page pinning methods, get_user_pages_longterm and get_user_pages,
+in addition to the existing get_user_pages_fast.
 
-Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-CC: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Paul Turner <pjt@google.com>
-CC: Thomas Gleixner <tglx@linutronix.de>
-CC: Andy Lutomirski <luto@amacapital.net>
-CC: Andi Kleen <andi@firstfloor.org>
-CC: Dave Watson <davejwatson@fb.com>
-CC: Chris Lameter <cl@linux.com>
-CC: Ingo Molnar <mingo@redhat.com>
-CC: "H. Peter Anvin" <hpa@zytor.com>
-CC: Ben Maurer <bmaurer@fb.com>
-CC: Steven Rostedt <rostedt@goodmis.org>
-CC: Josh Triplett <josh@joshtriplett.org>
-CC: Linus Torvalds <torvalds@linux-foundation.org>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: Russell King <linux@arm.linux.org.uk>
-CC: Catalin Marinas <catalin.marinas@arm.com>
-CC: Will Deacon <will.deacon@arm.com>
-CC: Michael Kerrisk <mtk.manpages@gmail.com>
-CC: Boqun Feng <boqun.feng@gmail.com>
-CC: linux-mm@kvack.org
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Signed-off-by: Keith Busch <keith.busch@intel.com>
 ---
- include/linux/mm.h | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ mm/gup_benchmark.c                         | 28 ++++++++++++++++++++++++++--
+ tools/testing/selftests/vm/gup_benchmark.c | 13 +++++++++++--
+ 2 files changed, 37 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0416a7204be3..18acf4f339f8 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2551,6 +2551,30 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
- 	return follow_page_mask(vma, address, foll_flags, &unused_page_mask);
- }
+diff --git a/mm/gup_benchmark.c b/mm/gup_benchmark.c
+index b344abd6e8e4..ab103a018627 100644
+--- a/mm/gup_benchmark.c
++++ b/mm/gup_benchmark.c
+@@ -6,6 +6,8 @@
+ #include <linux/debugfs.h>
  
-+static inline bool pgprot_same(pgprot_t a, pgprot_t b)
-+{
-+	return pgprot_val(a) == pgprot_val(b);
-+}
+ #define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_benchmark)
++#define GUP_LONGTERM_BENCHMARK	_IOWR('g', 2, struct gup_benchmark)
++#define GUP_BENCHMARK		_IOWR('g', 3, struct gup_benchmark)
+ 
+ struct gup_benchmark {
+ 	__u64 get_delta_usec;
+@@ -42,7 +44,23 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
+ 			nr = (next - addr) / PAGE_SIZE;
+ 		}
+ 
+-		nr = get_user_pages_fast(addr, nr, gup->flags & 1, pages + i);
++		switch (cmd) {
++		case GUP_FAST_BENCHMARK:
++			nr = get_user_pages_fast(addr, nr, gup->flags & 1,
++						 pages + i);
++			break;
++		case GUP_LONGTERM_BENCHMARK:
++			nr = get_user_pages_longterm(addr, nr, gup->flags & 1,
++						     pages + i, NULL);
++			break;
++		case GUP_BENCHMARK:
++			nr = get_user_pages(addr, nr, gup->flags & 1, pages + i,
++					    NULL);
++			break;
++		default:
++			return -1;
++		}
 +
-+#ifdef pgprot_noncached
-+static inline bool is_vma_noncached(struct vm_area_struct *vma)
-+{
-+	pgprot_t pgprot = vma->vm_page_prot;
-+
-+	/* Check whether architecture implements noncached pages. */
-+	if (pgprot_same(pgprot_noncached(PAGE_KERNEL), PAGE_KERNEL))
-+		return false;
-+	if (!pgprot_same(pgprot, pgprot_noncached(pgprot)))
-+		return false;
-+	return true;
-+}
-+#else
-+static inline bool is_vma_noncached(struct vm_area_struct *vma)
-+{
-+	return false;
-+}
-+#endif
-+
- #define FOLL_WRITE	0x01	/* check pte is writable */
- #define FOLL_TOUCH	0x02	/* mark page accessed */
- #define FOLL_GET	0x04	/* do get_page on page */
+ 		if (nr <= 0)
+ 			break;
+ 		i += nr;
+@@ -71,8 +89,14 @@ static long gup_benchmark_ioctl(struct file *filep, unsigned int cmd,
+ 	struct gup_benchmark gup;
+ 	int ret;
+ 
+-	if (cmd != GUP_FAST_BENCHMARK)
++	switch (cmd) {
++	case GUP_FAST_BENCHMARK:
++	case GUP_LONGTERM_BENCHMARK:
++	case GUP_BENCHMARK:
++		break;
++	default:
+ 		return -EINVAL;
++	}
+ 
+ 	if (copy_from_user(&gup, (void __user *)arg, sizeof(gup)))
+ 		return -EFAULT;
+diff --git a/tools/testing/selftests/vm/gup_benchmark.c b/tools/testing/selftests/vm/gup_benchmark.c
+index bdcb97acd0ac..c2f785ded9b9 100644
+--- a/tools/testing/selftests/vm/gup_benchmark.c
++++ b/tools/testing/selftests/vm/gup_benchmark.c
+@@ -15,6 +15,8 @@
+ #define PAGE_SIZE sysconf(_SC_PAGESIZE)
+ 
+ #define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_benchmark)
++#define GUP_LONGTERM_BENCHMARK	_IOWR('g', 2, struct gup_benchmark)
++#define GUP_BENCHMARK		_IOWR('g', 3, struct gup_benchmark)
+ 
+ struct gup_benchmark {
+ 	__u64 get_delta_usec;
+@@ -30,9 +32,10 @@ int main(int argc, char **argv)
+ 	struct gup_benchmark gup;
+ 	unsigned long size = 128 * MB;
+ 	int i, fd, opt, nr_pages = 1, thp = -1, repeats = 1, write = 0;
++	int cmd = GUP_FAST_BENCHMARK;
+ 	char *p;
+ 
+-	while ((opt = getopt(argc, argv, "m:r:n:tT")) != -1) {
++	while ((opt = getopt(argc, argv, "m:r:n:tTLU")) != -1) {
+ 		switch (opt) {
+ 		case 'm':
+ 			size = atoi(optarg) * MB;
+@@ -49,6 +52,12 @@ int main(int argc, char **argv)
+ 		case 'T':
+ 			thp = 0;
+ 			break;
++		case 'L':
++			cmd = GUP_LONGTERM_BENCHMARK;
++			break;
++		case 'U':
++			cmd = GUP_BENCHMARK;
++			break;
+ 		case 'w':
+ 			write = 1;
+ 		default:
+@@ -79,7 +88,7 @@ int main(int argc, char **argv)
+ 
+ 	for (i = 0; i < repeats; i++) {
+ 		gup.size = size;
+-		if (ioctl(fd, GUP_FAST_BENCHMARK, &gup))
++		if (ioctl(fd, cmd, &gup))
+ 			perror("ioctl"), exit(1);
+ 
+ 		printf("Time: get:%lld put:%lld us", gup.get_delta_usec,
 -- 
-2.11.0
+2.14.4
