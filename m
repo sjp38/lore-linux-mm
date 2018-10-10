@@ -1,42 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CF3C6B026E
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 04:07:28 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id 203-v6so1982456wmv.1
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 01:07:28 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id d133-v6sor9540163wmf.19.2018.10.10.01.07.27
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BC3F26B0270
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 04:26:04 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id m7-v6so3968290iop.9
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 01:26:04 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s190-v6sor43757995jaa.13.2018.10.10.01.26.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Oct 2018 01:07:27 -0700 (PDT)
-Date: Wed, 10 Oct 2018 10:07:24 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v5 1/2] memory_hotplug: Free pages as higher order
-Message-ID: <20181010080724.GA20338@techadventures.net>
-References: <1538727006-5727-1-git-send-email-arunks@codeaurora.org>
+        Wed, 10 Oct 2018 01:26:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1538727006-5727-1-git-send-email-arunks@codeaurora.org>
+In-Reply-To: <20181009142742.ikh7xv2dn5skjjbe@linutronix.de>
+References: <20180918152931.17322-1-williams@redhat.com> <20181005163018.icbknlzymwjhdehi@linutronix.de>
+ <20181005163320.zkacovxvlih6blpp@linutronix.de> <CACT4Y+YoNCm=0C6PZtQR1V1j4QeQ0cFcJzpJF1hn34Oaht=jwg@mail.gmail.com>
+ <20181009142742.ikh7xv2dn5skjjbe@linutronix.de>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 10 Oct 2018 10:25:42 +0200
+Message-ID: <CACT4Y+ZB38pKvT8+BAjDZ1t4ZjXQQKoya+ytXT+ASQxHUkWwnA@mail.gmail.com>
+Subject: Re: [PATCH] kasan: convert kasan/quarantine_lock to raw_spinlock
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arun KS <arunks@codeaurora.org>
-Cc: kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, gregkh@linuxfoundation.org, osalvador@suse.de, malat@debian.org, kirill.shutemov@linux.intel.com, jrdr.linux@gmail.com, yasu.isimatu@gmail.com, mgorman@techsingularity.net, aaron.lu@intel.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com
+To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Cc: Clark Williams <williams@redhat.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rt-users@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
 
-On Fri, Oct 05, 2018 at 01:40:05PM +0530, Arun KS wrote:
-> When free pages are done with higher order, time spend on
-> coalescing pages by buddy allocator can be reduced. With
-> section size of 256MB, hot add latency of a single section
-> shows improvement from 50-60 ms to less than 1 ms, hence
-> improving the hot add latency by 60%. Modify external
-> providers of online callback to align with the change.
+On Tue, Oct 9, 2018 at 4:27 PM, Sebastian Andrzej Siewior
+<bigeasy@linutronix.de> wrote:
+> On 2018-10-08 11:15:57 [+0200], Dmitry Vyukov wrote:
+>> Hi Sebastian,
+> Hi Dmitry,
+>
+>> This seems to beak quarantine_remove_cache( ) in the sense that some
+>> object from the cache may still be in quarantine when
+>> quarantine_remove_cache() returns. When quarantine_remove_cache()
+>> returns all objects from the cache must be purged from quarantine.
+>> That srcu and irq trickery is there for a reason.
+>
+> That loop should behave like your on_each_cpu() except it does not
+> involve the remote CPU.
 
-Hi Arun, out of curiosity:
 
-could you please explain how exactly did you mesure the speed
-improvement?
+The problem is that it can squeeze in between:
 
-Thanks
--- 
-Oscar Salvador
-SUSE L3
++               spin_unlock(&q->lock);
+
+                spin_lock(&quarantine_lock);
+
+as far as I see. And then some objects can be left in the quarantine.
+
+
+>> This code is also on hot path of kmallock/kfree, an additional
+>> lock/unlock per operation is expensive. Adding 2 locked RMW per
+>> kmalloc is not something that should be done only out of refactoring
+>> reasons.
+> But this is debug code anyway, right? And it is highly complex imho.
+> Well, maybe only for me after I looked at it for the first time=E2=80=A6
+
+It is debug code - yes.
+Nothing about its performance matters - no.
+
+That's the way to produce unusable debug tools.
+With too much overhead timeouts start to fire and code behaves not the
+way it behaves in production.
+The tool is used in continuous integration and developers wait for
+test results before merging code.
+The tool is used on canary devices and directly contributes to usage experi=
+ence.
+
+We of course don't want to trade a page of assembly code for cutting
+few cycles here (something that could make sense for some networking
+code maybe). But otherwise let's not introduce spinlocks on fast paths
+just for refactoring reasons.
+
+
+>> The original message from Clark mentions that the problem can be fixed
+>> by just changing type of spinlock. This looks like a better and
+>> simpler way to resolve the problem to me.
+>
+> I usually prefer to avoid adding raw_locks everywhere if it can be
+> avoided. However given that this is debug code and a few additional us
+> shouldn't matter here, I have no problem with Clark's initial patch
+> (also the mem-free in irq-off region works in this scenario).
+> Can you take it as-is or should I repost it with an acked-by?
+
+Perhaps it's the problem with the way RT kernel changes things then?
+This is not specific to quarantine, right? Should that mutex detect
+that IRQs are disabled and not try to schedule? If this would happen
+in some networking code, what would we do?
