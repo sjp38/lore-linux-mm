@@ -1,117 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 712076B0003
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 10:02:48 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id 135-v6so2881184yww.14
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 07:02:48 -0700 (PDT)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C7C486B0007
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 10:09:27 -0400 (EDT)
+Received: by mail-it1-f198.google.com with SMTP id n132-v6so5627558itn.2
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 07:09:27 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x8-v6sor1364858ywb.156.2018.10.10.07.02.42
+        by mx.google.com with SMTPS id n11-v6sor8515138iop.37.2018.10.10.07.09.26
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Oct 2018 07:02:42 -0700 (PDT)
-Date: Wed, 10 Oct 2018 10:02:39 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 3/4] mm: workingset: add vmstat counter for shadow nodes
-Message-ID: <20181010140239.GA2527@cmpxchg.org>
-References: <20181009184732.762-1-hannes@cmpxchg.org>
- <20181009184732.762-4-hannes@cmpxchg.org>
- <20181009150401.c72cde05338c1ec80a4b8701@linux-foundation.org>
+        Wed, 10 Oct 2018 07:09:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181009150401.c72cde05338c1ec80a4b8701@linux-foundation.org>
+In-Reply-To: <20181003173256.GG12998@arrakis.emea.arm.com>
+References: <cover.1538485901.git.andreyknvl@google.com> <47a464307d4df3c0cb65f88d1fe83f9a741dd74b.1538485901.git.andreyknvl@google.com>
+ <20181003173256.GG12998@arrakis.emea.arm.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Wed, 10 Oct 2018 16:09:25 +0200
+Message-ID: <CAAeHK+yPCRNAOSi6OpYC_Tdbo9SoXRVRbx8pjXNq96v8csO-Wg@mail.gmail.com>
+Subject: Re: [PATCH v7 7/8] arm64: update Documentation/arm64/tagged-pointers.txt
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Evgeniy Stepanov <eugenis@google.com>
 
-On Tue, Oct 09, 2018 at 03:04:01PM -0700, Andrew Morton wrote:
-> On Tue,  9 Oct 2018 14:47:32 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> > Make it easier to catch bugs in the shadow node shrinker by adding a
-> > counter for the shadow nodes in circulation.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > ---
-> >  include/linux/mmzone.h |  1 +
-> >  mm/vmstat.c            |  1 +
-> >  mm/workingset.c        | 12 ++++++++++--
-> >  3 files changed, 12 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> > index 4179e67add3d..d82e80d82aa6 100644
-> > --- a/include/linux/mmzone.h
-> > +++ b/include/linux/mmzone.h
-> > @@ -161,6 +161,7 @@ enum node_stat_item {
-> >  	NR_SLAB_UNRECLAIMABLE,
-> >  	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
-> >  	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
-> > +	WORKINGSET_NODES,
-> 
-> Documentation/admin-guide/cgroup-v2.rst, please.  And please check for
-> any other missing items while in there?
+On Wed, Oct 3, 2018 at 7:32 PM, Catalin Marinas <catalin.marinas@arm.com> wrote:
+> On Tue, Oct 02, 2018 at 03:12:42PM +0200, Andrey Konovalov wrote:
+>> diff --git a/Documentation/arm64/tagged-pointers.txt b/Documentation/arm64/tagged-pointers.txt
+>> index a25a99e82bb1..ae877d185fdb 100644
+>> --- a/Documentation/arm64/tagged-pointers.txt
+>> +++ b/Documentation/arm64/tagged-pointers.txt
+>> @@ -17,13 +17,21 @@ this byte for application use.
+>>  Passing tagged addresses to the kernel
+>>  --------------------------------------
+>>
+>> -All interpretation of userspace memory addresses by the kernel assumes
+>> -an address tag of 0x00.
+>> +Some initial work for supporting non-zero address tags passed to the
+>> +kernel has been done. As of now, the kernel supports tags in:
+>
+> With my maintainer hat on, the above statement leads me to think this
+> new ABI is work in progress, so not yet suitable for upstream.
 
-The new counter isn't being added to the per-cgroup memory.stat,
-actually, it just shows in /proc/vmstat.
+OK, I think we can just say "The kernel supports tags in:" here. Will do in v8.
 
-It seemed a bit too low-level for the cgroup interface, and the other
-stats in there are in bytes, which isn't straight-forward to calculate
-with sl*b packing.
+>
+> Also, how is user space supposed to know that it can now pass tagged
+> pointers into the kernel? An ABI change (or relaxation), needs to be
+> advertised by the kernel, usually via a new HWCAP bit (e.g. HWCAP_TBI).
+> Once we have a HWCAP bit in place, we need to be pretty clear about
+> which syscalls can and cannot cope with tagged pointers. The "as of now"
+> implies potential further relaxation which, again, would need to be
+> advertised to user in some (additional) way.
 
-Not that I'm against adding a cgroup breakdown in general, but the
-global counter was enough to see if things were working right or not,
-so I'd cross that bridge when somebody needs it per cgroup.
+How exactly should I do that? Something like this [1]? Or is it only
+for hardware specific things and for this patchset I need to do
+something else?
 
-But I checked cgroup-v2.rst anyway: all the exported items are
-documented. Only the reclaim vs. refault stats were in different
-orders: the doc has the refault stats first, the interface leads with
-the reclaim stats. The refault stats go better with the page fault
-stats, and are probably of more interest (since they have higher
-impact on performance) than the LRU shuffling, so maybe this?
+[1] https://github.com/torvalds/linux/commit/7206dc93a58fb76421c4411eefa3c003337bcb2d
 
----
-Subject: [PATCH] mm: memcontrol: fix memory.stat item ordering
+>
+>> -This includes, but is not limited to, addresses found in:
+>> +  - user fault addresses
+>
+> While the kernel currently supports this in some way (by clearing the
+> tag exception entry, el0_da), the above implies (at least to me) that
+> sigcontext.fault_address would contain the tagged address. That's not
+> the case (unless I missed it in your patches).
 
-The refault stats go better with the page fault stats, and are of
-higher interest than the stats on LRU operations. In fact they used to
-be grouped together; when the LRU operation stats were added later on,
-they were wedged in between.
+I'll update the doc to reflect this in v8.
 
-Move them back together. Documentation/admin-guide/cgroup-v2.rst
-already lists them in the right order.
+>
+>> - - pointer arguments to system calls, including pointers in structures
+>> -   passed to system calls,
+>> +  - pointer arguments (including pointers in structures), which don't
+>> +    describe virtual memory ranges, passed to system calls
+>
+> I think we need to be more precise here...
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
+In what way?
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 81b47d0b14d7..ed15f233d31d 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5575,6 +5575,13 @@ static int memory_stat_show(struct seq_file *m, void *v)
- 	seq_printf(m, "pgfault %lu\n", acc.events[PGFAULT]);
- 	seq_printf(m, "pgmajfault %lu\n", acc.events[PGMAJFAULT]);
- 
-+	seq_printf(m, "workingset_refault %lu\n",
-+		   acc.stat[WORKINGSET_REFAULT]);
-+	seq_printf(m, "workingset_activate %lu\n",
-+		   acc.stat[WORKINGSET_ACTIVATE]);
-+	seq_printf(m, "workingset_nodereclaim %lu\n",
-+		   acc.stat[WORKINGSET_NODERECLAIM]);
-+
- 	seq_printf(m, "pgrefill %lu\n", acc.events[PGREFILL]);
- 	seq_printf(m, "pgscan %lu\n", acc.events[PGSCAN_KSWAPD] +
- 		   acc.events[PGSCAN_DIRECT]);
-@@ -5585,13 +5592,6 @@ static int memory_stat_show(struct seq_file *m, void *v)
- 	seq_printf(m, "pglazyfree %lu\n", acc.events[PGLAZYFREE]);
- 	seq_printf(m, "pglazyfreed %lu\n", acc.events[PGLAZYFREED]);
- 
--	seq_printf(m, "workingset_refault %lu\n",
--		   acc.stat[WORKINGSET_REFAULT]);
--	seq_printf(m, "workingset_activate %lu\n",
--		   acc.stat[WORKINGSET_ACTIVATE]);
--	seq_printf(m, "workingset_nodereclaim %lu\n",
--		   acc.stat[WORKINGSET_NODERECLAIM]);
--
- 	return 0;
- }
- 
+>
+>> +All other interpretations of userspace memory addresses by the kernel
+>> +assume an address tag of 0x00. This includes, but is not limited to,
+>> +addresses found in:
+>> +
+>> + - pointer arguments (including pointers in structures), which describe
+>> +   virtual memory ranges, passed to memory system calls (mmap, mprotect,
+>> +   etc.)
+>
+> ...and probably a full list here.
+
+Will add a full list in v8.
