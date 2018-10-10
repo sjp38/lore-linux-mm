@@ -1,219 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ED596B000A
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 11:13:29 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id b27-v6so4780808pfm.15
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 08:13:29 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id v124-v6si26383557pfv.1.2018.10.10.08.13.27
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E49A6B000D
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 11:16:00 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id b192-v6so3054466ywe.9
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 08:16:00 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j8-v6sor2698096ywi.132.2018.10.10.08.15.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Oct 2018 08:13:27 -0700 (PDT)
-Date: Wed, 10 Oct 2018 08:13:21 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH 08/25] vfs: combine the clone and dedupe into a single
- remap_file_range
-Message-ID: <20181010151321.GR28243@magnolia>
-References: <153913023835.32295.13962696655740190941.stgit@magnolia>
- <153913029885.32295.7399525233513945673.stgit@magnolia>
- <CAOQ4uxj_wftoGvub9n_6X3Qc64LKxs+8TB-opUiq59sGQ=YoKw@mail.gmail.com>
+        (Google Transport Security);
+        Wed, 10 Oct 2018 08:15:52 -0700 (PDT)
+Date: Wed, 10 Oct 2018 11:15:49 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 4/4] mm: zero-seek shrinkers
+Message-ID: <20181010151549.GC2527@cmpxchg.org>
+References: <20181009184732.762-1-hannes@cmpxchg.org>
+ <20181009184732.762-5-hannes@cmpxchg.org>
+ <e01c4f441e24bb31816a3080389dcae7b49cc1ff.camel@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAOQ4uxj_wftoGvub9n_6X3Qc64LKxs+8TB-opUiq59sGQ=YoKw@mail.gmail.com>
+In-Reply-To: <e01c4f441e24bb31816a3080389dcae7b49cc1ff.camel@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Amir Goldstein <amir73il@gmail.com>
-Cc: Dave Chinner <david@fromorbit.com>, Eric Sandeen <sandeen@redhat.com>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, linux-cifs@vger.kernel.org, overlayfs <linux-unionfs@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Btrfs <linux-btrfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, ocfs2-devel@oss.oracle.com
+To: Rik van Riel <riel@fb.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>
 
-On Wed, Oct 10, 2018 at 08:54:44AM +0300, Amir Goldstein wrote:
-> On Wed, Oct 10, 2018 at 3:12 AM Darrick J. Wong <darrick.wong@oracle.com> wrote:
-> >
-> > From: Darrick J. Wong <darrick.wong@oracle.com>
-> >
-> > Combine the clone_file_range and dedupe_file_range operations into a
-> > single remap_file_range file operation dispatch since they're
-> > fundamentally the same operation.  The differences between the two can
-> > be made in the prep functions.
-> >
-> > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-> > ---
+On Wed, Oct 10, 2018 at 01:03:50AM +0000, Rik van Riel wrote:
+> On Tue, 2018-10-09 at 14:47 -0400, Johannes Weiner wrote:
 > 
-> I like this. Nits below.
+> > These workloads also deal with tens of thousands of open files and
+> > use
+> > /proc for introspection, which ends up growing the proc_inode_cache
+> > to
+> > absurdly large sizes - again at the cost of valuable cache space,
+> > which isn't a reasonable trade-off, given that proc inodes can be
+> > re-created without involving the disk.
+> > 
+> > This patch implements a "zero-seek" setting for shrinkers that
+> > results
+> > in a target ratio of 0:1 between their objects and IO-backed
+> > caches. This allows such virtual caches to grow when memory is
+> > available (they do cache/avoid CPU work after all), but effectively
+> > disables them as soon as IO-backed objects are under pressure.
+> > 
+> > It then switches the shrinkers for procfs and sysfs metadata, as well
+> > as excess page cache shadow nodes, to the new zero-seek setting.
 > 
-> [...]
+> This patch looks like a great step in the right
+> direction, though I do not know whether it is
+> aggressive enough.
 > 
-> > diff --git a/fs/btrfs/ioctl.c b/fs/btrfs/ioctl.c
-> > index d60b6caf09e8..e22b294fa25b 100644
-> > --- a/fs/btrfs/ioctl.c
-> > +++ b/fs/btrfs/ioctl.c
-> > @@ -3627,26 +3627,6 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
-> >         return ret;
-> >  }
-> >
-> > -int btrfs_dedupe_file_range(struct file *src_file, loff_t src_loff,
-> > -                           struct file *dst_file, loff_t dst_loff,
-> > -                           u64 olen)
-> > -{
-> > -       struct inode *src = file_inode(src_file);
-> > -       struct inode *dst = file_inode(dst_file);
-> > -       u64 bs = BTRFS_I(src)->root->fs_info->sb->s_blocksize;
-> > -
-> > -       if (WARN_ON_ONCE(bs < PAGE_SIZE)) {
-> > -               /*
-> > -                * Btrfs does not support blocksize < page_size. As a
-> > -                * result, btrfs_cmp_data() won't correctly handle
-> > -                * this situation without an update.
-> > -                */
-> > -               return -EINVAL;
-> > -       }
-> > -
-> > -       return btrfs_extent_same(src, src_loff, olen, dst, dst_loff);
-> > -}
-> > -
-> >  static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
-> >                                      struct inode *inode,
-> >                                      u64 endoff,
-> > @@ -4348,9 +4328,27 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
-> >         return ret;
-> >  }
-> >
-> > -int btrfs_clone_file_range(struct file *src_file, loff_t off,
-> > -               struct file *dst_file, loff_t destoff, u64 len)
-> > +int btrfs_remap_file_range(struct file *src_file, loff_t off,
-> > +               struct file *dst_file, loff_t destoff, u64 len,
-> > +               unsigned int flags)
-> >  {
-> > +       if (flags & RFR_IDENTICAL_DATA) {
-> > +               struct inode *src = file_inode(src_file);
-> > +               struct inode *dst = file_inode(dst_file);
-> > +               u64 bs = BTRFS_I(src)->root->fs_info->sb->s_blocksize;
-> > +
-> > +               if (WARN_ON_ONCE(bs < PAGE_SIZE)) {
-> > +                       /*
-> > +                        * Btrfs does not support blocksize < page_size. As a
-> > +                        * result, btrfs_cmp_data() won't correctly handle
-> > +                        * this situation without an update.
-> > +                        */
-> > +                       return -EINVAL;
-> > +               }
-> > +
-> > +               return btrfs_extent_same(src, off, len, dst, destoff);
-> > +       }
-> > +
+> Given that internal slab fragmentation will
+> prevent the slab cache from returning a slab to
+> the VM if just one object in that slab is still
+> in use, there may well be workloads where we
+> should just put a hard cap on the number of
+> freeable items these slabs, and reclaim them
+> preemptively.
 > 
-> Seems weird that you would do that instead of:
+> However, I do not know for sure, and this patch
+> seems like a big improvement over what we had
+> before, so ...
+
+Fully agreed, fragmentation is still a concern. I'm still working on
+that part, but artificial caps and pro-active reclaim are trickier to
+get right than prioritization, and since these patches here are useful
+on their own I didn't want to hold them back.
+
+> > Reported-by: Domas Mituzas <dmituzas@fb.com>
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 > 
-> +    if (flags & ~RFR_IDENTICAL_DATA)
-> +        return -EINVAL;
-> +    if (flags & RFR_IDENTICAL_DATA)
-> +        return btrfs_dedupe_file_range(src, off, dst, destoff, len);
+> Reviewed-by: Rik van Riel <riel@surriel.com>
 
-Hmm.  The flags validation thing is kind of a mess here.  There should be a:
-
-#define RFR_VALID_FLAGS	(RFR_IDENTICAL_DATA | /* add other RFR flags */)
-
-And all these functions should also gate on:
-
-if (remap_flags & ~RFR_VALID_FLAGS) {
-	WARN_ON(...);
-	return -EINVAL;
-}
-
-Though FWIW the btrfs implementation actually will support all three
-flags, so the particular structure of these checks here are correct if
-you add in my self-criticism above.
-
-> 
-> >         return btrfs_clone_files(dst_file, src_file, off, len, destoff);
-> >  }
-> >
-> > diff --git a/fs/cifs/cifsfs.c b/fs/cifs/cifsfs.c
-> > index 7065426b3280..bf971fd7cab2 100644
-> > --- a/fs/cifs/cifsfs.c
-> > +++ b/fs/cifs/cifsfs.c
-> > @@ -975,8 +975,9 @@ const struct inode_operations cifs_symlink_inode_ops = {
-> >         .listxattr = cifs_listxattr,
-> >  };
-> >
-> > -static int cifs_clone_file_range(struct file *src_file, loff_t off,
-> > -               struct file *dst_file, loff_t destoff, u64 len)
-> > +static int cifs_remap_file_range(struct file *src_file, loff_t off,
-> > +               struct file *dst_file, loff_t destoff, u64 len,
-> > +               unsigned int flags)
-> >  {
-> >         struct inode *src_inode = file_inode(src_file);
-> >         struct inode *target_inode = file_inode(dst_file);
-> > @@ -986,6 +987,9 @@ static int cifs_clone_file_range(struct file *src_file, loff_t off,
-> >         unsigned int xid;
-> >         int rc;
-> >
-> > +       if (flags & RFR_IDENTICAL_DATA)
-> > +               return -EOPNOTSUPP;
-> > +
-> 
-> I think everyone would be better off with:
-> +       if (flags)
-> +               return -EINVAL;
-> 
-> This way you won't need to change all filesystem implementations
-> every time that you add a new RFR flag.
-> Lucky for us, dedup already return -EINVAL if (!f_op->dedupe_file_range)
-> (and not -EOPNOTSUPP).
-
-Ugh, right, I forgot about that, um, quirk of the interface. :(
-
-> [...]
-> > diff --git a/fs/overlayfs/file.c b/fs/overlayfs/file.c
-> > index 986313da0c88..693bd0620a81 100644
-> > --- a/fs/overlayfs/file.c
-> > +++ b/fs/overlayfs/file.c
-> > @@ -489,26 +489,28 @@ static ssize_t ovl_copy_file_range(struct file *file_in, loff_t pos_in,
-> >                             OVL_COPY);
-> >  }
-> >
-> > -static int ovl_clone_file_range(struct file *file_in, loff_t pos_in,
-> > -                               struct file *file_out, loff_t pos_out, u64 len)
-> > +static int ovl_remap_file_range(struct file *file_in, loff_t pos_in,
-> > +                               struct file *file_out, loff_t pos_out,
-> > +                               u64 len, unsigned int flags)
-> >  {
-> > -       return ovl_copyfile(file_in, pos_in, file_out, pos_out, len, 0,
-> > -                           OVL_CLONE);
-> > -}
-> > +       enum ovl_copyop op;
-> > +
-> > +       if (flags & RFR_IDENTICAL_DATA)
-> > +               op = OVL_DEDUPE;
-> > +       else
-> > +               op = OVL_CLONE;
-> >
-> > -static int ovl_dedupe_file_range(struct file *file_in, loff_t pos_in,
-> > -                                struct file *file_out, loff_t pos_out, u64 len)
-> > -{
-> >         /*
-> >          * Don't copy up because of a dedupe request, this wouldn't make sense
-> >          * most of the time (data would be duplicated instead of deduplicated).
-> >          */
-> > -       if (!ovl_inode_upper(file_inode(file_in)) ||
-> > -           !ovl_inode_upper(file_inode(file_out)))
-> > +       if (op == OVL_DEDUPE &&
-> > +           (!ovl_inode_upper(file_inode(file_in)) ||
-> > +            !ovl_inode_upper(file_inode(file_out))))
-> >                 return -EPERM;
-> >
-> >         return ovl_copyfile(file_in, pos_in, file_out, pos_out, len, 0,
-> > -                           OVL_DEDUPE);
-> > +                           op);
-> >  }
-> >
-> 
-> Apart from the generic check invalid flags comment - ACK on ovl part.
-
-Thanks for the review!  Is that an official Acked-by to add to the
-commit message, or an informal ACK?
-
---D
-
-> Thanks,
-> Amir.
+Thanks!
