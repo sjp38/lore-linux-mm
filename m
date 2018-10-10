@@ -1,110 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 311686B0003
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 13:01:44 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id c4-v6so4227716plz.20
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 10:01:44 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id o32-v6si11503300pld.284.2018.10.10.10.01.42
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CB48C6B0007
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 13:19:50 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id i189-v6so4112389pge.6
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 10:19:50 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i61-v6si25644867plb.193.2018.10.10.10.19.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Oct 2018 10:01:43 -0700 (PDT)
-Date: Wed, 10 Oct 2018 10:01:37 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH 06/25] vfs: strengthen checking of file range inputs to
- generic_remap_checks
-Message-ID: <20181010170137.GA24824@magnolia>
-References: <153913023835.32295.13962696655740190941.stgit@magnolia>
- <153913028015.32295.15993665528948323051.stgit@magnolia>
- <CAOQ4uxjZ1JuT3Ga1kTDF9boeYF5pafDmsnzWxVNPWcTpESchgw@mail.gmail.com>
+        Wed, 10 Oct 2018 10:19:48 -0700 (PDT)
+Date: Wed, 10 Oct 2018 19:19:44 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm: don't clobber partially overlapping VMA with
+ MAP_FIXED_NOREPLACE
+Message-ID: <20181010171944.GJ5873@dhcp22.suse.cz>
+References: <20181010152736.99475-1-jannh@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAOQ4uxjZ1JuT3Ga1kTDF9boeYF5pafDmsnzWxVNPWcTpESchgw@mail.gmail.com>
+In-Reply-To: <20181010152736.99475-1-jannh@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Amir Goldstein <amir73il@gmail.com>
-Cc: Dave Chinner <david@fromorbit.com>, Eric Sandeen <sandeen@redhat.com>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, linux-cifs@vger.kernel.org, overlayfs <linux-unionfs@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Btrfs <linux-btrfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, ocfs2-devel@oss.oracle.com
+To: Jann Horn <jannh@google.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>, Jason Evans <jasone@google.com>, David Goldblatt <davidtgoldblatt@gmail.com>, Edward Tomasz =?utf-8?Q?Napiera=C5=82a?= <trasz@FreeBSD.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Daniel Micay <danielmicay@gmail.com>
 
-On Wed, Oct 10, 2018 at 08:23:27AM +0300, Amir Goldstein wrote:
-> On Wed, Oct 10, 2018 at 3:11 AM Darrick J. Wong <darrick.wong@oracle.com> wrote:
-> >
-> > From: Darrick J. Wong <darrick.wong@oracle.com>
-> >
-> > File range remapping, if allowed to run past the destination file's EOF,
-> > is an optimization on a regular file write.  Regular file writes that
-> > extend the file length are subject to various constraints which are not
-> > checked by range cloning.
-> >
-> > This is a correctness problem because we're never allowed to touch
-> > ranges that the page cache can't support (s_maxbytes); we're not
-> > supposed to deal with large offsets (MAX_NON_LFS) if O_LARGEFILE isn't
-> > set; and we must obey resource limits (RLIMIT_FSIZE).
-> >
-> > Therefore, add these checks to the new generic_remap_checks function so
-> > that we curtail unexpected behavior.
-> >
-> > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-> > ---
-> >  mm/filemap.c |   39 +++++++++++++++++++++++++++++++++++++++
-> >  1 file changed, 39 insertions(+)
-> >
-> >
-> > diff --git a/mm/filemap.c b/mm/filemap.c
-> > index 14041a8468ba..59056bd9c58a 100644
-> > --- a/mm/filemap.c
-> > +++ b/mm/filemap.c
-> > @@ -2974,6 +2974,27 @@ inline ssize_t generic_write_checks(struct kiocb *iocb, struct iov_iter *from)
-> >  }
-> >  EXPORT_SYMBOL(generic_write_checks);
-> >
-> > +static int
-> > +generic_remap_check_limits(struct file *file, loff_t pos, uint64_t *count)
-> > +{
-> > +       struct inode *inode = file->f_mapping->host;
-> > +
-> > +       /* Don't exceed the LFS limits. */
-> > +       if (unlikely(pos + *count > MAX_NON_LFS &&
-> > +                               !(file->f_flags & O_LARGEFILE))) {
-> > +               if (pos >= MAX_NON_LFS)
-> > +                       return -EFBIG;
-> > +               *count = min(*count, MAX_NON_LFS - (uint64_t)pos);
-> > +       }
-> > +
-> > +       /* Don't operate on ranges the page cache doesn't support. */
-> > +       if (unlikely(pos >= inode->i_sb->s_maxbytes))
-> > +               return -EFBIG;
-> > +
-> > +       *count = min(*count, inode->i_sb->s_maxbytes - (uint64_t)pos);
-> > +       return 0;
-> > +}
-> > +
-> 
-> Sorry. I haven't explained myself properly last time.
-> What I meant is that it hurts my eyes to see generic_write_checks() and
-> generic_remap_check_limits() which from the line of (limit != RLIM_INFINITY)
-> are exactly the same thing. Yes, generic_remap_check_limits() uses
-> iov_iter_truncate(), but that's a minor semantic change - it can be easily
-> resolved by creating a dummy iter in generic_remap_checks() instead of
-> passing int *count.
+On Wed 10-10-18 17:27:36, Jann Horn wrote:
+> Daniel Micay reports that attempting to use MAP_FIXED_NOREPLACE in an
+> application causes that application to randomly crash. The existing check
+> for handling MAP_FIXED_NOREPLACE looks up the first VMA that either
+> overlaps or follows the requested region, and then bails out if that VMA
+> overlaps *the start* of the requested region. It does not bail out if the
+> VMA only overlaps another part of the requested region.
 
-Making a fake kiocb and iterator seem like a terribly fragile idea.
+I do not understand. Could you give me an example?
+[...]
 
-How about I make the common helper take a pos and *count, and
-generic_write_checks can translate that into iov_iter_truncate?
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 5f2b2b184c60..f7cd9cb966c0 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1410,7 +1410,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+>  	if (flags & MAP_FIXED_NOREPLACE) {
+>  		struct vm_area_struct *vma = find_vma(mm, addr);
+>  
+> -		if (vma && vma->vm_start <= addr)
+> +		if (vma && vma->vm_start < addr + len)
 
-> You could say that this is nit picking, but the very reason this patch
-> set exists
-> it because clone/dedup implementation did not use the same range checks
-> of write to begin with, so it just seems wrong to diverge them at this point.
-> 
-> So to be clear, I suggest that generic_write_checks() should use your
-> generic_remap_check_limits() helper.
-> If you disagree and others can live with this minor duplication, fine by me.
+find_vma is documented to - Look up the first VMA which satisfies addr <
+vm_end, NULL if none.
+This means that the above check guanratees that
+	vm_start <= addr < vm_end
+so an overlap is guanrateed. Why should we care how much we overlap?
 
-Nah, I think I misunderstood you the first time, sorry about that.
-
---D
-
-> Thanks,
-> Amir.
+-- 
+Michal Hocko
+SUSE Labs
