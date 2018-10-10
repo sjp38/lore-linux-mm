@@ -1,61 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DBA836B0003
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 14:52:46 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id e7-v6so3641899edb.23
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 11:52:46 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z2-v6si1783703ejg.230.2018.10.10.11.52.45
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EB2B6B0007
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 15:20:12 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id n1-v6so6119430qtb.17
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 12:20:12 -0700 (PDT)
+Received: from mail.efficios.com (mail.efficios.com. [2607:5300:60:7898::beef])
+        by mx.google.com with ESMTPS id h23-v6si1144456qve.115.2018.10.10.12.20.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Oct 2018 11:52:45 -0700 (PDT)
-Date: Wed, 10 Oct 2018 20:52:42 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
- point where we init pgmap
-Message-ID: <20181010185242.GP5873@dhcp22.suse.cz>
-References: <20180925200551.3576.18755.stgit@localhost.localdomain>
- <20180925202053.3576.66039.stgit@localhost.localdomain>
- <20181009170051.GA40606@tiger-server>
- <CAPcyv4g99_rJJSn0kWv5YO0Mzj90q1LH1wC3XrjCh1=x6mo7BQ@mail.gmail.com>
- <25092df0-b7b4-d456-8409-9c004cb6e422@linux.intel.com>
- <20181010095838.GG5873@dhcp22.suse.cz>
- <f97de51c-67dd-99b2-754e-0685cac06699@linux.intel.com>
- <20181010172451.GK5873@dhcp22.suse.cz>
- <98c35e19-13b9-0913-87d9-b3f1ab738b61@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <98c35e19-13b9-0913-87d9-b3f1ab738b61@linux.intel.com>
+        Wed, 10 Oct 2018 12:20:10 -0700 (PDT)
+From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Subject: [RFC PATCH for 4.21 05/16] mm: Provide is_vma_noncached
+Date: Wed, 10 Oct 2018 15:19:25 -0400
+Message-Id: <20181010191936.7495-6-mathieu.desnoyers@efficios.com>
+In-Reply-To: <20181010191936.7495-1-mathieu.desnoyers@efficios.com>
+References: <20181010191936.7495-1-mathieu.desnoyers@efficios.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Dave Hansen <dave.hansen@intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, rppt@linux.vnet.ibm.com, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, yi.z.zhang@linux.intel.com
+To: Peter Zijlstra <peterz@infradead.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Boqun Feng <boqun.feng@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@amacapital.net>, Dave Watson <davejwatson@fb.com>, Paul Turner <pjt@google.com>, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Andi Kleen <andi@firstfloor.org>, Chris Lameter <cl@linux.com>, Ben Maurer <bmaurer@fb.com>, Steven Rostedt <rostedt@goodmis.org>, Josh Triplett <josh@joshtriplett.org>, Linus Torvalds <torvalds@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Joel Fernandes <joelaf@google.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, linux-mm@kvack.org
 
-On Wed 10-10-18 10:39:01, Alexander Duyck wrote:
-> On 10/10/2018 10:24 AM, Michal Hocko wrote:
-[...]
-> > I thought I have already made it clear that these zone device hacks are
-> > not acceptable to the generic hotplug code. If the current reserve bit
-> > handling is not correct then give us a specific reason for that and we
-> > can start thinking about the proper fix.
-> 
-> I might have misunderstood your earlier comment then. I thought you were
-> saying that we shouldn't bother with setting the reserved bit. Now it sounds
-> like you were thinking more along the lines of what I was here in my comment
-> where I thought the bit should be cleared later in some code specifically
-> related to DAX when it is exposing it for use to userspace or KVM.
+Provide is_vma_noncached() static inline to allow generic code to
+check whether the given vma consists of noncached memory.
 
-It seems I managed to confuse myself completely. Sorry, it's been a long
-day and I am sick so the brain doesn't work all that well. I will get
-back to this tomorrow or on Friday with a fresh brain.
+Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+CC: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+CC: Peter Zijlstra <peterz@infradead.org>
+CC: Paul Turner <pjt@google.com>
+CC: Thomas Gleixner <tglx@linutronix.de>
+CC: Andy Lutomirski <luto@amacapital.net>
+CC: Andi Kleen <andi@firstfloor.org>
+CC: Dave Watson <davejwatson@fb.com>
+CC: Chris Lameter <cl@linux.com>
+CC: Ingo Molnar <mingo@redhat.com>
+CC: "H. Peter Anvin" <hpa@zytor.com>
+CC: Ben Maurer <bmaurer@fb.com>
+CC: Steven Rostedt <rostedt@goodmis.org>
+CC: Josh Triplett <josh@joshtriplett.org>
+CC: Linus Torvalds <torvalds@linux-foundation.org>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: Russell King <linux@arm.linux.org.uk>
+CC: Catalin Marinas <catalin.marinas@arm.com>
+CC: Will Deacon <will.deacon@arm.com>
+CC: Michael Kerrisk <mtk.manpages@gmail.com>
+CC: Boqun Feng <boqun.feng@gmail.com>
+CC: linux-mm@kvack.org
+---
+ include/linux/mm.h | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
 
-My recollection was that we do clear the reserved bit in
-move_pfn_range_to_zone and we indeed do in __init_single_page. But then
-we set the bit back right afterwards. This seems to be the case since
-d0dc12e86b319 which reorganized the code. I have to study this some more
-obviously.
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 0416a7204be3..18acf4f339f8 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2551,6 +2551,30 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
+ 	return follow_page_mask(vma, address, foll_flags, &unused_page_mask);
+ }
+ 
++static inline bool pgprot_same(pgprot_t a, pgprot_t b)
++{
++	return pgprot_val(a) == pgprot_val(b);
++}
++
++#ifdef pgprot_noncached
++static inline bool is_vma_noncached(struct vm_area_struct *vma)
++{
++	pgprot_t pgprot = vma->vm_page_prot;
++
++	/* Check whether architecture implements noncached pages. */
++	if (pgprot_same(pgprot_noncached(PAGE_KERNEL), PAGE_KERNEL))
++		return false;
++	if (!pgprot_same(pgprot, pgprot_noncached(pgprot)))
++		return false;
++	return true;
++}
++#else
++static inline bool is_vma_noncached(struct vm_area_struct *vma)
++{
++	return false;
++}
++#endif
++
+ #define FOLL_WRITE	0x01	/* check pte is writable */
+ #define FOLL_TOUCH	0x02	/* mark page accessed */
+ #define FOLL_GET	0x04	/* do get_page on page */
 -- 
-Michal Hocko
-SUSE Labs
+2.11.0
