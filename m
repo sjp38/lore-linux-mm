@@ -1,65 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C4C66B028B
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 03:56:19 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id f9-v6so3770796iok.23
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 00:56:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n2-v6sor9493696ith.7.2018.10.10.00.56.18
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D32006B028D
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 03:57:17 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id b13-v6so2703190edb.1
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 00:57:17 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t6-v6si12341356eds.246.2018.10.10.00.57.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 10 Oct 2018 00:56:18 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Oct 2018 00:57:16 -0700 (PDT)
+Subject: Re: [PATCH 1/2] mm: thp: relax __GFP_THISNODE for MADV_HUGEPAGE
+ mappings
+References: <20180925120326.24392-1-mhocko@kernel.org>
+ <20180925120326.24392-2-mhocko@kernel.org>
+ <alpine.DEB.2.21.1810041302330.16935@chino.kir.corp.google.com>
+ <20181005073854.GB6931@suse.de>
+ <alpine.DEB.2.21.1810051320270.202739@chino.kir.corp.google.com>
+ <20181005232155.GA2298@redhat.com>
+ <alpine.DEB.2.21.1810081303060.221006@chino.kir.corp.google.com>
+ <20181009094825.GC6931@suse.de>
+ <alpine.DEB.2.21.1810091424170.57306@chino.kir.corp.google.com>
+ <20181009225147.GD9307@redhat.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <53169158-09b1-e592-def0-de5e4c47ce16@suse.cz>
+Date: Wed, 10 Oct 2018 09:54:32 +0200
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.21.1810092106190.83503@chino.kir.corp.google.com>
-References: <000000000000dc48d40577d4a587@google.com> <201810100012.w9A0Cjtn047782@www262.sakura.ne.jp>
- <alpine.DEB.2.21.1810092106190.83503@chino.kir.corp.google.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 10 Oct 2018 09:55:57 +0200
-Message-ID: <CACT4Y+bmYbNpu3mQR+X52KX+yPD1N2dnZOtd=iu-oETkevQ9RA@mail.gmail.com>
-Subject: Re: INFO: rcu detected stall in shmem_fault
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20181009225147.GD9307@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, guro@fb.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Yang Shi <yang.s@alibaba-inc.com>
+To: Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed, Oct 10, 2018 at 6:11 AM, 'David Rientjes' via syzkaller-bugs
-<syzkaller-bugs@googlegroups.com> wrote:
-> On Wed, 10 Oct 2018, Tetsuo Handa wrote:
->
->> syzbot is hitting RCU stall due to memcg-OOM event.
->> https://syzkaller.appspot.com/bug?id=4ae3fff7fcf4c33a47c1192d2d62d2e03efffa64
->>
->> What should we do if memcg-OOM found no killable task because the allocating task
->> was oom_score_adj == -1000 ? Flooding printk() until RCU stall watchdog fires
->> (which seems to be caused by commit 3100dab2aa09dc6e ("mm: memcontrol: print proper
->> OOM header when no eligible victim left") because syzbot was terminating the test
->> upon WARN(1) removed by that commit) is not a good behavior.
+On 10/10/18 12:51 AM, Andrea Arcangeli wrote:
+> Yes there's one case where reclaim is "pointless", but it happens once
+> and then COMPACT_DEFERRED is returned and __GFP_NORETRY will skip
+> reclaim then.
+> 
+> So you're right when we hit fragmentation there's one and only one
+> "pointless" reclaim invocation. And immediately after we also
+> exponentially backoff on the compaction invocations with the
+> compaction deferred logic.
+> 
+> We could try optimize away such "pointless" reclaim event for sure,
+> but it's probably an optimization that may just get lost in the noise
+> and may not be measurable, because it only happens once when the first
+> full fragmentation is encountered.
 
+Note there's a small catch in the above. defer_compaction() has always
+only been called after a failure on higher priority than
+COMPACT_PRIO_ASYNC, where it's assumed that async compaction can
+terminate prematurely due to a number of reasons, so it doesn't mean
+that the zone itself cannot be compacted.
+And, for __GFP_NORETRY, if the initial compaction fails, we keep using
+async compaction also for the second, after-reclaim attempt (which would
+otherwise use SYNC_LIGHT):
 
-You want to say that most of the recent hangs and stalls are actually
-caused by our attempt to sandbox test processes with memory cgroup?
-The process with oom_score_adj == -1000 is not supposed to consume any
-significant memory; we have another (test) process with oom_score_adj
-== 0 that's actually consuming memory.
-But should we refrain from using -1000? Perhaps it would be better to
-use -500/500 for control/test process, or -999/1000?
+        /*
+         * Looks like reclaim/compaction is worth trying, but
+         * sync compaction could be very expensive, so keep
+         * using async compaction.
+         */
+        compact_priority = INIT_COMPACT_PRIORITY;
 
-
-> Not printing anything would be the obvious solution but the ideal solution
-> would probably involve
->
->  - adding feedback to the memcg oom killer that there are no killable
->    processes,
->
->  - adding complete coverage for memcg_oom_recover() in all uncharge paths
->    where the oom memcg's page_counter is decremented, and
->
->  - having all processes stall until memcg_oom_recover() is called so
->    looping back into try_charge() has a reasonable expectation to succeed.
->
-> --
-> You received this message because you are subscribed to the Google Groups "syzkaller-bugs" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller-bugs+unsubscribe@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgid/syzkaller-bugs/alpine.DEB.2.21.1810092106190.83503%40chino.kir.corp.google.com.
-> For more options, visit https://groups.google.com/d/optout.
+This doesn't affect current madvised THP allocation which doesn't use
+__GFP_NORETRY, but could explain why you saw no benefit from changing it
+to __GFP_NORETRY.
