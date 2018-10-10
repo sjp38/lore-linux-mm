@@ -1,72 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 289BA6B000A
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 13:24:55 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b13-v6so3605875edb.1
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 10:24:55 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l1-v6si16775878edr.310.2018.10.10.10.24.53
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BC926B0003
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 13:26:51 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id w18-v6so3221386ywd.18
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 10:26:51 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k6-v6sor10238950ybd.3.2018.10.10.10.26.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Oct 2018 10:24:53 -0700 (PDT)
-Date: Wed, 10 Oct 2018 19:24:51 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
- point where we init pgmap
-Message-ID: <20181010172451.GK5873@dhcp22.suse.cz>
-References: <20180925200551.3576.18755.stgit@localhost.localdomain>
- <20180925202053.3576.66039.stgit@localhost.localdomain>
- <20181009170051.GA40606@tiger-server>
- <CAPcyv4g99_rJJSn0kWv5YO0Mzj90q1LH1wC3XrjCh1=x6mo7BQ@mail.gmail.com>
- <25092df0-b7b4-d456-8409-9c004cb6e422@linux.intel.com>
- <20181010095838.GG5873@dhcp22.suse.cz>
- <f97de51c-67dd-99b2-754e-0685cac06699@linux.intel.com>
+        (Google Transport Security);
+        Wed, 10 Oct 2018 10:26:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f97de51c-67dd-99b2-754e-0685cac06699@linux.intel.com>
+References: <153913023835.32295.13962696655740190941.stgit@magnolia>
+ <153913028015.32295.15993665528948323051.stgit@magnolia> <CAOQ4uxjZ1JuT3Ga1kTDF9boeYF5pafDmsnzWxVNPWcTpESchgw@mail.gmail.com>
+ <20181010170137.GA24824@magnolia>
+In-Reply-To: <20181010170137.GA24824@magnolia>
+From: Amir Goldstein <amir73il@gmail.com>
+Date: Wed, 10 Oct 2018 20:26:38 +0300
+Message-ID: <CAOQ4uxi9ZU3La7RcaeVR_L7CXf2A-FeF1PnS_-PSO9idyf3BKg@mail.gmail.com>
+Subject: Re: [PATCH 06/25] vfs: strengthen checking of file range inputs to generic_remap_checks
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Dave Hansen <dave.hansen@intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, rppt@linux.vnet.ibm.com, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, yi.z.zhang@linux.intel.com
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Dave Chinner <david@fromorbit.com>, Eric Sandeen <sandeen@redhat.com>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, linux-cifs@vger.kernel.org, overlayfs <linux-unionfs@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Btrfs <linux-btrfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, ocfs2-devel@oss.oracle.com
 
-On Wed 10-10-18 09:39:08, Alexander Duyck wrote:
-> On 10/10/2018 2:58 AM, Michal Hocko wrote:
-> > On Tue 09-10-18 13:26:41, Alexander Duyck wrote:
-> > [...]
-> > > I would think with that being the case we still probably need the call to
-> > > __SetPageReserved to set the bit with the expectation that it will not be
-> > > cleared for device-pages since the pages are not onlined. Removing the call
-> > > to __SetPageReserved would probably introduce a number of regressions as
-> > > there are multiple spots that use the reserved bit to determine if a page
-> > > can be swapped out to disk, mapped as system memory, or migrated.
-> > 
-> > PageReserved is meant to tell any potential pfn walkers that might get
-> > to this struct page to back off and not touch it. Even though
-> > ZONE_DEVICE doesn't online pages in traditional sense it makes those
-> > pages available for further use so the page reserved bit should be
-> > cleared.
-> 
-> So from what I can tell that isn't necessarily the case. Specifically if the
-> pagemap type is MEMORY_DEVICE_PRIVATE or MEMORY_DEVICE_PUBLIC both are
-> special cases where the memory may not be accessible to the CPU or cannot be
-> pinned in order to allow for eviction.
+On Wed, Oct 10, 2018 at 8:01 PM Darrick J. Wong <darrick.wong@oracle.com> wrote:
+>
+> On Wed, Oct 10, 2018 at 08:23:27AM +0300, Amir Goldstein wrote:
+> > On Wed, Oct 10, 2018 at 3:11 AM Darrick J. Wong <darrick.wong@oracle.com> wrote:
+> > >
+> > > From: Darrick J. Wong <darrick.wong@oracle.com>
+> > >
+> > > File range remapping, if allowed to run past the destination file's EOF,
+> > > is an optimization on a regular file write.  Regular file writes that
+> > > extend the file length are subject to various constraints which are not
+> > > checked by range cloning.
+> > >
+> > > This is a correctness problem because we're never allowed to touch
+> > > ranges that the page cache can't support (s_maxbytes); we're not
+> > > supposed to deal with large offsets (MAX_NON_LFS) if O_LARGEFILE isn't
+> > > set; and we must obey resource limits (RLIMIT_FSIZE).
+> > >
+> > > Therefore, add these checks to the new generic_remap_checks function so
+> > > that we curtail unexpected behavior.
+> > >
+> > > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+> > > ---
+> > >  mm/filemap.c |   39 +++++++++++++++++++++++++++++++++++++++
+> > >  1 file changed, 39 insertions(+)
+> > >
+> > >
+> > > diff --git a/mm/filemap.c b/mm/filemap.c
+> > > index 14041a8468ba..59056bd9c58a 100644
+> > > --- a/mm/filemap.c
+> > > +++ b/mm/filemap.c
+> > > @@ -2974,6 +2974,27 @@ inline ssize_t generic_write_checks(struct kiocb *iocb, struct iov_iter *from)
+> > >  }
+> > >  EXPORT_SYMBOL(generic_write_checks);
+> > >
+> > > +static int
+> > > +generic_remap_check_limits(struct file *file, loff_t pos, uint64_t *count)
+> > > +{
+> > > +       struct inode *inode = file->f_mapping->host;
+> > > +
+> > > +       /* Don't exceed the LFS limits. */
+> > > +       if (unlikely(pos + *count > MAX_NON_LFS &&
+> > > +                               !(file->f_flags & O_LARGEFILE))) {
+> > > +               if (pos >= MAX_NON_LFS)
+> > > +                       return -EFBIG;
+> > > +               *count = min(*count, MAX_NON_LFS - (uint64_t)pos);
+> > > +       }
+> > > +
+> > > +       /* Don't operate on ranges the page cache doesn't support. */
+> > > +       if (unlikely(pos >= inode->i_sb->s_maxbytes))
+> > > +               return -EFBIG;
+> > > +
+> > > +       *count = min(*count, inode->i_sb->s_maxbytes - (uint64_t)pos);
+> > > +       return 0;
+> > > +}
+> > > +
+> >
+> > Sorry. I haven't explained myself properly last time.
+> > What I meant is that it hurts my eyes to see generic_write_checks() and
+> > generic_remap_check_limits() which from the line of (limit != RLIM_INFINITY)
+> > are exactly the same thing. Yes, generic_remap_check_limits() uses
+> > iov_iter_truncate(), but that's a minor semantic change - it can be easily
+> > resolved by creating a dummy iter in generic_remap_checks() instead of
+> > passing int *count.
+>
+> Making a fake kiocb and iterator seem like a terribly fragile idea.
+>
+> How about I make the common helper take a pos and *count, and
+> generic_write_checks can translate that into iov_iter_truncate?
+>
 
-Could you give me an example please?
+Seems good to me.
 
-> The specific case that Dan and Yi are referring to is for the type
-> MEMORY_DEVICE_FS_DAX. For that type I could probably look at not setting the
-> reserved bit. Part of me wants to say that we should wait and clear the bit
-> later, but that would end up just adding time back to initialization. At
-> this point I would consider the change more of a follow-up optimization
-> rather than a fix though since this is tailoring things specifically for DAX
-> versus the other ZONE_DEVICE types.
-
-I thought I have already made it clear that these zone device hacks are
-not acceptable to the generic hotplug code. If the current reserve bit
-handling is not correct then give us a specific reason for that and we
-can start thinking about the proper fix.
-
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Amir.
