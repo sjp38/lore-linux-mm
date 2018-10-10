@@ -1,74 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F2236B028B
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 03:45:27 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id l51-v6so2675119edc.14
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 00:45:27 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gq13-v6si1001794ejb.174.2018.10.10.00.45.25
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C4C66B028B
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 03:56:19 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id f9-v6so3770796iok.23
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 00:56:19 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n2-v6sor9493696ith.7.2018.10.10.00.56.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Oct 2018 00:45:25 -0700 (PDT)
-Date: Wed, 10 Oct 2018 09:45:23 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: Preserve _PAGE_DEVMAP across mprotect() calls
-Message-ID: <20181010074523.GA11507@quack2.suse.cz>
-References: <20181009101917.32497-1-jack@suse.cz>
- <CAPcyv4jExSvW8xSe_LYAYvjgBd=gfKdvrqtojybK0wfu9GFNLA@mail.gmail.com>
+        (Google Transport Security);
+        Wed, 10 Oct 2018 00:56:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4jExSvW8xSe_LYAYvjgBd=gfKdvrqtojybK0wfu9GFNLA@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.21.1810092106190.83503@chino.kir.corp.google.com>
+References: <000000000000dc48d40577d4a587@google.com> <201810100012.w9A0Cjtn047782@www262.sakura.ne.jp>
+ <alpine.DEB.2.21.1810092106190.83503@chino.kir.corp.google.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 10 Oct 2018 09:55:57 +0200
+Message-ID: <CACT4Y+bmYbNpu3mQR+X52KX+yPD1N2dnZOtd=iu-oETkevQ9RA@mail.gmail.com>
+Subject: Re: INFO: rcu detected stall in shmem_fault
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, stable <stable@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, guro@fb.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Yang Shi <yang.s@alibaba-inc.com>
 
-On Tue 09-10-18 10:55:14, Dan Williams wrote:
-> On Tue, Oct 9, 2018 at 3:19 AM Jan Kara <jack@suse.cz> wrote:
-> >
-> > Currently _PAGE_DEVMAP bit is not preserved in mprotect(2) calls. As a
-> > result we will see warnings such as:
-> >
-> > BUG: Bad page map in process JobWrk0013  pte:800001803875ea25 pmd:7624381067
-> > addr:00007f0930720000 vm_flags:280000f9 anon_vma:          (null) mapping:ffff97f2384056f0 index:0
-> > file:457-000000fe00000030-00000009-000000ca-00000001_2001.fileblock fault:xfs_filemap_fault [xfs] mmap:xfs_file_mmap [xfs] readpage:          (null)
-> > CPU: 3 PID: 15848 Comm: JobWrk0013 Tainted: G        W          4.12.14-2.g7573215-default #1 SLE12-SP4 (unreleased)
-> > Hardware name: Intel Corporation S2600WFD/S2600WFD, BIOS SE5C620.86B.01.00.0833.051120182255 05/11/2018
-> > Call Trace:
-> >  dump_stack+0x5a/0x75
-> >  print_bad_pte+0x217/0x2c0
-> >  ? enqueue_task_fair+0x76/0x9f0
-> >  _vm_normal_page+0xe5/0x100
-> >  zap_pte_range+0x148/0x740
-> >  unmap_page_range+0x39a/0x4b0
-> >  unmap_vmas+0x42/0x90
-> >  unmap_region+0x99/0xf0
-> >  ? vma_gap_callbacks_rotate+0x1a/0x20
-> >  do_munmap+0x255/0x3a0
-> >  vm_munmap+0x54/0x80
-> >  SyS_munmap+0x1d/0x30
-> >  do_syscall_64+0x74/0x150
-> >  entry_SYSCALL_64_after_hwframe+0x3d/0xa2
-> > ...
-> >
-> > when mprotect(2) gets used on DAX mappings. Also there is a wide variety
-> > of other failures that can result from the missing _PAGE_DEVMAP flag
-> > when the area gets used by get_user_pages() later.
-> >
-> > Fix the problem by including _PAGE_DEVMAP in a set of flags that get
-> > preserved by mprotect(2).
-> >
-> > Fixes: 69660fd797c3 ("x86, mm: introduce _PAGE_DEVMAP")
-> > Fixes: ebd31197931d ("powerpc/mm: Add devmap support for ppc64")
-> > CC: stable@vger.kernel.org
-> > Signed-off-by: Jan Kara <jack@suse.cz>
-> 
-> Looks good, do you want me to take this upstream along with the livelock fix?
+On Wed, Oct 10, 2018 at 6:11 AM, 'David Rientjes' via syzkaller-bugs
+<syzkaller-bugs@googlegroups.com> wrote:
+> On Wed, 10 Oct 2018, Tetsuo Handa wrote:
+>
+>> syzbot is hitting RCU stall due to memcg-OOM event.
+>> https://syzkaller.appspot.com/bug?id=4ae3fff7fcf4c33a47c1192d2d62d2e03efffa64
+>>
+>> What should we do if memcg-OOM found no killable task because the allocating task
+>> was oom_score_adj == -1000 ? Flooding printk() until RCU stall watchdog fires
+>> (which seems to be caused by commit 3100dab2aa09dc6e ("mm: memcontrol: print proper
+>> OOM header when no eligible victim left") because syzbot was terminating the test
+>> upon WARN(1) removed by that commit) is not a good behavior.
 
-Yes, I think that would be best. Thanks!
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+You want to say that most of the recent hangs and stalls are actually
+caused by our attempt to sandbox test processes with memory cgroup?
+The process with oom_score_adj == -1000 is not supposed to consume any
+significant memory; we have another (test) process with oom_score_adj
+== 0 that's actually consuming memory.
+But should we refrain from using -1000? Perhaps it would be better to
+use -500/500 for control/test process, or -999/1000?
+
+
+> Not printing anything would be the obvious solution but the ideal solution
+> would probably involve
+>
+>  - adding feedback to the memcg oom killer that there are no killable
+>    processes,
+>
+>  - adding complete coverage for memcg_oom_recover() in all uncharge paths
+>    where the oom memcg's page_counter is decremented, and
+>
+>  - having all processes stall until memcg_oom_recover() is called so
+>    looping back into try_charge() has a reasonable expectation to succeed.
+>
+> --
+> You received this message because you are subscribed to the Google Groups "syzkaller-bugs" group.
+> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller-bugs+unsubscribe@googlegroups.com.
+> To view this discussion on the web visit https://groups.google.com/d/msgid/syzkaller-bugs/alpine.DEB.2.21.1810092106190.83503%40chino.kir.corp.google.com.
+> For more options, visit https://groups.google.com/d/optout.
