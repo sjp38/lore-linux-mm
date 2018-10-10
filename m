@@ -1,53 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B81D6B0005
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 17:19:27 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id n23-v6so5995289pfk.23
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 14:19:27 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m8-v6sor18813965pfj.14.2018.10.10.14.19.26
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D054D6B0003
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 17:49:49 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id d29-v6so3996291wrc.3
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 14:49:49 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id d142-v6si15936936wme.102.2018.10.10.14.49.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 10 Oct 2018 14:19:26 -0700 (PDT)
-Date: Wed, 10 Oct 2018 14:19:24 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
- mappings
-In-Reply-To: <20181009230352.GE9307@redhat.com>
-Message-ID: <alpine.DEB.2.21.1810101410530.53455@chino.kir.corp.google.com>
-References: <20180925120326.24392-2-mhocko@kernel.org> <alpine.DEB.2.21.1810041302330.16935@chino.kir.corp.google.com> <20181005073854.GB6931@suse.de> <alpine.DEB.2.21.1810051320270.202739@chino.kir.corp.google.com> <20181005232155.GA2298@redhat.com>
- <alpine.DEB.2.21.1810081303060.221006@chino.kir.corp.google.com> <20181009094825.GC6931@suse.de> <20181009122745.GN8528@dhcp22.suse.cz> <20181009130034.GD6931@suse.de> <20181009142510.GU8528@dhcp22.suse.cz> <20181009230352.GE9307@redhat.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 10 Oct 2018 14:49:48 -0700 (PDT)
+Date: Wed, 10 Oct 2018 23:49:45 +0200
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Subject: [PATCH] mm/kasan: make quarantine_lock a raw_spinlock_t
+Message-ID: <20181010214945.5owshc3mlrh74z4b@linutronix.de>
+References: <20180918152931.17322-1-williams@redhat.com>
+ <20181005163018.icbknlzymwjhdehi@linutronix.de>
+ <20181005163320.zkacovxvlih6blpp@linutronix.de>
+ <CACT4Y+YoNCm=0C6PZtQR1V1j4QeQ0cFcJzpJF1hn34Oaht=jwg@mail.gmail.com>
+ <20181009142742.ikh7xv2dn5skjjbe@linutronix.de>
+ <CACT4Y+ZB38pKvT8+BAjDZ1t4ZjXQQKoya+ytXT+ASQxHUkWwnA@mail.gmail.com>
+ <20181010092929.a5gd3fkkw6swco4c@linutronix.de>
+ <CACT4Y+agGPSTZ-8A8r8haSeRM8UpRYMAF8BC4A87yeM9nvpP6w@mail.gmail.com>
+ <20181010095343.6qxved3owi6yokoa@linutronix.de>
+ <CACT4Y+ZpMjYBPS0GHP0AsEJZZmDjwV9DJBiVUzYKBnD+r9W4+A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CACT4Y+ZpMjYBPS0GHP0AsEJZZmDjwV9DJBiVUzYKBnD+r9W4+A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Clark Williams <williams@redhat.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rt-users@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue, 9 Oct 2018, Andrea Arcangeli wrote:
+From: Clark Williams <williams@redhat.com>
+Date: Tue, 18 Sep 2018 10:29:31 -0500
 
-> I think "madvise vs mbind" is more an issue of "no-permission vs
-> permission" required. And if the processes ends up swapping out all
-> other process with their memory already allocated in the node, I think
-> some permission is correct to be required, in which case an mbind
-> looks a better fit. MPOL_PREFERRED also looks a first candidate for
-> investigation as it's already not black and white and allows spillover
-> and may already do the right thing in fact if set on top of
-> MADV_HUGEPAGE.
-> 
+The static lock quarantine_lock is used in quarantine.c to protect the
+quarantine queue datastructures. It is taken inside quarantine queue
+manipulation routines (quarantine_put(), quarantine_reduce() and
+quarantine_remove_cache()), with IRQs disabled.
+This is not a problem on a stock kernel but is problematic on an RT
+kernel where spin locks are sleeping spinlocks, which can sleep and can
+not be acquired with disabled interrupts.
 
-We would never want to thrash the local node for hugepages because there 
-is no guarantee that any swapping is useful.  On COMPACT_SKIPPED due to 
-low memory, we have very clear evidence that pageblocks are already 
-sufficiently fragmented by unmovable pages such that compaction itself, 
-even with abundant free memory, fails to free an entire pageblock due to 
-the allocator's preference to fragment pageblocks of fallback migratetypes 
-over returning remote free memory.
+Convert the quarantine_lock to a raw spinlock_t. The usage of
+quarantine_lock is confined to quarantine.c and the work performed while
+the lock is held is used for debug purpose.
 
-As I've stated, we do not want to reclaim pointlessly when compaction is 
-unable to access the freed memory or there is no guarantee it can free an 
-entire pageblock.  Doing so allows thrashing of the local node, or remote 
-nodes if __GFP_THISNODE is removed, and the hugepage still cannot be 
-allocated.  If this proposed mbind() that requires permissions is geared 
-to me as the user, I'm afraid the details of what leads to the thrashing 
-are not well understood because I certainly would never use this.
+Signed-off-by: Clark Williams <williams@redhat.com>
+Acked-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+[bigeasy: slightly altered the commit message]
+Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+---
+On 2018-10-10 11:57:41 [+0200], Dmitry Vyukov wrote:
+> Yes. Clark's patch looks good to me. Probably would be useful to add a
+> comment as to why raw spinlock is used (otherwise somebody may
+> refactor it back later).
+
+If you really insist, I could add something but this didn't happen so
+far. git's changelog should provide enough information why to why it was
+changed.
+
+ mm/kasan/quarantine.c |   18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)
+
+--- a/mm/kasan/quarantine.c
++++ b/mm/kasan/quarantine.c
+@@ -103,7 +103,7 @@ static int quarantine_head;
+ static int quarantine_tail;
+ /* Total size of all objects in global_quarantine across all batches. */
+ static unsigned long quarantine_size;
+-static DEFINE_SPINLOCK(quarantine_lock);
++static DEFINE_RAW_SPINLOCK(quarantine_lock);
+ DEFINE_STATIC_SRCU(remove_cache_srcu);
+ 
+ /* Maximum size of the global queue. */
+@@ -190,7 +190,7 @@ void quarantine_put(struct kasan_free_me
+ 	if (unlikely(q->bytes > QUARANTINE_PERCPU_SIZE)) {
+ 		qlist_move_all(q, &temp);
+ 
+-		spin_lock(&quarantine_lock);
++		raw_spin_lock(&quarantine_lock);
+ 		WRITE_ONCE(quarantine_size, quarantine_size + temp.bytes);
+ 		qlist_move_all(&temp, &global_quarantine[quarantine_tail]);
+ 		if (global_quarantine[quarantine_tail].bytes >=
+@@ -203,7 +203,7 @@ void quarantine_put(struct kasan_free_me
+ 			if (new_tail != quarantine_head)
+ 				quarantine_tail = new_tail;
+ 		}
+-		spin_unlock(&quarantine_lock);
++		raw_spin_unlock(&quarantine_lock);
+ 	}
+ 
+ 	local_irq_restore(flags);
+@@ -230,7 +230,7 @@ void quarantine_reduce(void)
+ 	 * expected case).
+ 	 */
+ 	srcu_idx = srcu_read_lock(&remove_cache_srcu);
+-	spin_lock_irqsave(&quarantine_lock, flags);
++	raw_spin_lock_irqsave(&quarantine_lock, flags);
+ 
+ 	/*
+ 	 * Update quarantine size in case of hotplug. Allocate a fraction of
+@@ -254,7 +254,7 @@ void quarantine_reduce(void)
+ 			quarantine_head = 0;
+ 	}
+ 
+-	spin_unlock_irqrestore(&quarantine_lock, flags);
++	raw_spin_unlock_irqrestore(&quarantine_lock, flags);
+ 
+ 	qlist_free_all(&to_free, NULL);
+ 	srcu_read_unlock(&remove_cache_srcu, srcu_idx);
+@@ -310,17 +310,17 @@ void quarantine_remove_cache(struct kmem
+ 	 */
+ 	on_each_cpu(per_cpu_remove_cache, cache, 1);
+ 
+-	spin_lock_irqsave(&quarantine_lock, flags);
++	raw_spin_lock_irqsave(&quarantine_lock, flags);
+ 	for (i = 0; i < QUARANTINE_BATCHES; i++) {
+ 		if (qlist_empty(&global_quarantine[i]))
+ 			continue;
+ 		qlist_move_cache(&global_quarantine[i], &to_free, cache);
+ 		/* Scanning whole quarantine can take a while. */
+-		spin_unlock_irqrestore(&quarantine_lock, flags);
++		raw_spin_unlock_irqrestore(&quarantine_lock, flags);
+ 		cond_resched();
+-		spin_lock_irqsave(&quarantine_lock, flags);
++		raw_spin_lock_irqsave(&quarantine_lock, flags);
+ 	}
+-	spin_unlock_irqrestore(&quarantine_lock, flags);
++	raw_spin_unlock_irqrestore(&quarantine_lock, flags);
+ 
+ 	qlist_free_all(&to_free, cache);
+ 
