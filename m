@@ -1,34 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7898B6B027A
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 20:56:01 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id 135-v6so1974291yww.14
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 17:56:01 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id u83-v6si3444366ybb.167.2018.10.09.17.56.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Oct 2018 17:56:00 -0700 (PDT)
-From: Rik van Riel <riel@fb.com>
-Subject: Re: [PATCH 2/4] mm: workingset: use cheaper __inc_lruvec_state in
- irqsafe node reclaim
-Date: Wed, 10 Oct 2018 00:55:56 +0000
-Message-ID: <9b7bafe74ca551c19c5470294a33ab5f9e8905f4.camel@fb.com>
-References: <20181009184732.762-1-hannes@cmpxchg.org>
-	 <20181009184732.762-3-hannes@cmpxchg.org>
-In-Reply-To: <20181009184732.762-3-hannes@cmpxchg.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <C7B1BE1BA1550D419B44172FB5F43B17@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: base64
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AE056B027D
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2018 21:02:59 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id 43-v6so2730189ple.19
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 18:02:59 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id i64-v6si23475531pli.56.2018.10.09.18.02.57
+        for <linux-mm@kvack.org>;
+        Tue, 09 Oct 2018 18:02:58 -0700 (PDT)
+Date: Wed, 10 Oct 2018 12:02:08 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v2 00/25] fs: fixes for serious clone/dedupe problems
+Message-ID: <20181010010208.GI6311@dastard>
+References: <153913023835.32295.13962696655740190941.stgit@magnolia>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <153913023835.32295.13962696655740190941.stgit@magnolia>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, ocfs2-devel@oss.oracle.com
 
-T24gVHVlLCAyMDE4LTEwLTA5IGF0IDE0OjQ3IC0wNDAwLCBKb2hhbm5lcyBXZWluZXIgd3JvdGU6
-DQo+IE5vIG5lZWQgdG8gdXNlIHRoZSBwcmVlbXB0aW9uLXNhZmUgbHJ1dmVjIHN0YXRlIGZ1bmN0
-aW9uIGluc2lkZSB0aGUNCj4gcmVjbGFpbSByZWdpb24gdGhhdCBoYXMgaXJxcyBkaXNhYmxlZC4N
-Cj4gDQo+IFNpZ25lZC1vZmYtYnk6IEpvaGFubmVzIFdlaW5lciA8aGFubmVzQGNtcHhjaGcub3Jn
-Pg0KDQpSZXZpZXdlZC1ieTogUmlrIHZhbiBSaWVsIDxyaWVsQHN1cnJpZWwuY29tPg0KDQo=
+On Tue, Oct 09, 2018 at 05:10:38PM -0700, Darrick J. Wong wrote:
+> Hi all,
+> 
+> Dave, Eric, and I have been chasing a stale data exposure bug in the XFS
+> reflink implementation, and tracked it down to reflink forgetting to do
+> some of the file-extending activities that must happen for regular
+> writes.
+> 
+> We then started auditing the clone, dedupe, and copyfile code and
+> realized that from a file contents perspective, clonerange isn't any
+> different from a regular file write.  Unfortunately, we also noticed
+> that *unlike* a regular write, clonerange skips a ton of overflow
+> checks, such as validating the ranges against s_maxbytes, MAX_NON_LFS,
+> and RLIMIT_FSIZE.  We also observed that cloning into a file did not
+> strip security privileges (suid, capabilities) like a regular write
+> would.  I also noticed that xfs and ocfs2 need to dump the page cache
+> before remapping blocks, not after.
+> 
+> In fixing the range checking problems I also realized that both dedupe
+> and copyfile tell userspace how much of the requested operation was
+> acted upon.  Since the range validation can shorten a clone request (or
+> we can ENOSPC midway through), we might as well plumb the short
+> operation reporting back through the VFS indirection code to userspace.
+> 
+> So, here's the whole giant pile of patches[1] that fix all the problems.
+> The patch "generic: test reflink side effects" recently sent to fstests
+> exercises the fixes in this series.  Tests are in [2].
+
+Can you rebase this on the for-next branch on the xfs tree which
+already contains some of the initial fixes in the series and a
+couple of other reflink/dedupe data corruption fixes? I'm planning
+on pushing them to Greg tomorrow, so you'll have to do this soon
+anyway....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
