@@ -1,103 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EC9FB6B026D
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 08:04:27 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id n23-v6so4238697pfk.23
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 05:04:27 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
-        by mx.google.com with ESMTPS id f9-v6si23564285pgk.594.2018.10.10.05.04.26
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E08EB6B026E
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 08:25:43 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id h24-v6so3077625eda.10
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 05:25:43 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e44-v6si14794407edd.247.2018.10.10.05.25.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 10 Oct 2018 05:04:26 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH] memblock: stop using implicit alignement to SMP_CACHE_BYTES
-In-Reply-To: <1538687224-17535-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1538687224-17535-1-git-send-email-rppt@linux.vnet.ibm.com>
-Date: Wed, 10 Oct 2018 23:04:12 +1100
-Message-ID: <87o9c22ekj.fsf@concordia.ellerman.id.au>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Oct 2018 05:25:42 -0700 (PDT)
+Date: Wed, 10 Oct 2018 14:25:39 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: INFO: rcu detected stall in shmem_fault
+Message-ID: <20181010122539.GI5873@dhcp22.suse.cz>
+References: <000000000000dc48d40577d4a587@google.com>
+ <201810100012.w9A0Cjtn047782@www262.sakura.ne.jp>
+ <20181010085945.GC5873@dhcp22.suse.cz>
+ <e72f799e-0634-f958-1af0-291f8577f4e8@i-love.sakura.ne.jp>
+ <20181010113500.GH5873@dhcp22.suse.cz>
+ <20181010114833.GB3949@tigerII.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181010114833.GB3949@tigerII.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Ingo Molnar <mingo@redhat.com>, Matt Turner <mattst88@gmail.com>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>, Richard Weinberger <richard@nod.at>, Russell King <linux@armlinux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, linux-um@lists.infradead.org
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>, hannes@cmpxchg.org, akpm@linux-foundation.org, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, syzkaller-bugs@googlegroups.com, yang.s@alibaba-inc.com, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>
 
-Mike Rapoport <rppt@linux.vnet.ibm.com> writes:
+On Wed 10-10-18 20:48:33, Sergey Senozhatsky wrote:
+> On (10/10/18 13:35), Michal Hocko wrote:
+> > > Just flooding out of memory messages can trigger RCU stall problems.
+> > > For example, a severe skbuff_head_cache or kmalloc-512 leak bug is causing
+> > 
+> > [...]
+> > 
+> > Quite some of them, indeed! I guess we want to rate limit the output.
+> > What about the following?
+> 
+> A bit unrelated, but while we are at it:
+> 
+>   I like it when we rate-limit printk-s that lookup the system.
+> But it seems that default rate-limit values are not always good enough,
+> DEFAULT_RATELIMIT_INTERVAL / DEFAULT_RATELIMIT_BURST can still be too
+> verbose. For instance, when we have a very slow IPMI emulated serial
+> console -- e.g. baud rate at 57600. DEFAULT_RATELIMIT_INTERVAL and
+> DEFAULT_RATELIMIT_BURST can add new OOM headers and backtraces faster
+> than we evict them.
+> 
+> Does it sound reasonable enough to use larger than default rate-limits
+> for printk-s in OOM print-outs? OOM reports tend to be somewhat large
+> and the reported numbers are not always *very* unique.
+> 
+> What do you think?
 
-> When a memblock allocation APIs are called with align = 0, the alignment is
-> implicitly set to SMP_CACHE_BYTES.
->
-> Replace all such uses of memblock APIs with the 'align' parameter explicitly
-> set to SMP_CACHE_BYTES and stop implicit alignment assignment in the
-> memblock internal allocation functions.
->
-> For the case when memblock APIs are used via helper functions, e.g. like
-> iommu_arena_new_node() in Alpha, the helper functions were detected with
-> Coccinelle's help and then manually examined and updated where appropriate.
->
-> The direct memblock APIs users were updated using the semantic patch below:
->
-> @@
-> expression size, min_addr, max_addr, nid;
-> @@
-> (
-> |
-> - memblock_alloc_try_nid_raw(size, 0, min_addr, max_addr, nid)
-> + memblock_alloc_try_nid_raw(size, SMP_CACHE_BYTES, min_addr, max_addr,
-> nid)
-> |
-> - memblock_alloc_try_nid_nopanic(size, 0, min_addr, max_addr, nid)
-> + memblock_alloc_try_nid_nopanic(size, SMP_CACHE_BYTES, min_addr, max_addr,
-> nid)
-> |
-> - memblock_alloc_try_nid(size, 0, min_addr, max_addr, nid)
-> + memblock_alloc_try_nid(size, SMP_CACHE_BYTES, min_addr, max_addr, nid)
-> |
-> - memblock_alloc(size, 0)
-> + memblock_alloc(size, SMP_CACHE_BYTES)
-> |
-> - memblock_alloc_raw(size, 0)
-> + memblock_alloc_raw(size, SMP_CACHE_BYTES)
-> |
-> - memblock_alloc_from(size, 0, min_addr)
-> + memblock_alloc_from(size, SMP_CACHE_BYTES, min_addr)
-> |
-> - memblock_alloc_nopanic(size, 0)
-> + memblock_alloc_nopanic(size, SMP_CACHE_BYTES)
-> |
-> - memblock_alloc_low(size, 0)
-> + memblock_alloc_low(size, SMP_CACHE_BYTES)
-> |
-> - memblock_alloc_low_nopanic(size, 0)
-> + memblock_alloc_low_nopanic(size, SMP_CACHE_BYTES)
-> |
-> - memblock_alloc_from_nopanic(size, 0, min_addr)
-> + memblock_alloc_from_nopanic(size, SMP_CACHE_BYTES, min_addr)
-> |
-> - memblock_alloc_node(size, 0, nid)
-> + memblock_alloc_node(size, SMP_CACHE_BYTES, nid)
-> )
->
-> Suggested-by: Michal Hocko <mhocko@suse.com>
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> ---
-...
->  arch/powerpc/kernel/pci_32.c              |  3 ++-
->  arch/powerpc/lib/alloc.c                  |  2 +-
->  arch/powerpc/mm/mmu_context_nohash.c      |  7 +++---
->  arch/powerpc/platforms/powermac/nvram.c   |  2 +-
->  arch/powerpc/platforms/powernv/pci-ioda.c |  6 ++---
->  arch/powerpc/sysdev/msi_bitmap.c          |  2 +-
-
-The powerpc changes all look fine.
-
-I'm not quite clear on how SMP_CACHE_BYTES is getting included.
-
-I think it's: memblock.h -> mm.h -> mmzone.h -> cache.h
-
-So that's probably fine.
-
-Acked-by: Michael Ellerman <mpe@ellerman.id.au> (powerpc)
-
-
-cheers
+I do not really care about the current inerval/burst values. This change
+should be done seprately and ideally with some numbers.
+-- 
+Michal Hocko
+SUSE Labs
