@@ -1,191 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A79B6B0003
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 01:54:57 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id i79-v6so2235232ywc.23
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 22:54:57 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h12-v6sor9746170ybm.163.2018.10.09.22.54.56
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1837B6B0007
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 02:12:57 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id a64-v6so3782476pfg.16
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2018 23:12:57 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id z16-v6si23219548plo.5.2018.10.09.23.12.55
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 09 Oct 2018 22:54:56 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Oct 2018 23:12:55 -0700 (PDT)
+Date: Wed, 10 Oct 2018 20:52:12 +0800
+From: Yi Zhang <yi.z.zhang@linux.intel.com>
+Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
+Message-ID: <20181010125211.GA45572@tiger-server>
+References: <20180925200551.3576.18755.stgit@localhost.localdomain>
+ <20180925202053.3576.66039.stgit@localhost.localdomain>
+ <20181009170051.GA40606@tiger-server>
+ <CAPcyv4g99_rJJSn0kWv5YO0Mzj90q1LH1wC3XrjCh1=x6mo7BQ@mail.gmail.com>
+ <25092df0-b7b4-d456-8409-9c004cb6e422@linux.intel.com>
+ <CAPcyv4gZV_V=iY0mHiiAWwbynqtPxLTwdZ0j0vQ0F95ZZ4nTZg@mail.gmail.com>
 MIME-Version: 1.0
-References: <153913023835.32295.13962696655740190941.stgit@magnolia> <153913029885.32295.7399525233513945673.stgit@magnolia>
-In-Reply-To: <153913029885.32295.7399525233513945673.stgit@magnolia>
-From: Amir Goldstein <amir73il@gmail.com>
-Date: Wed, 10 Oct 2018 08:54:44 +0300
-Message-ID: <CAOQ4uxj_wftoGvub9n_6X3Qc64LKxs+8TB-opUiq59sGQ=YoKw@mail.gmail.com>
-Subject: Re: [PATCH 08/25] vfs: combine the clone and dedupe into a single remap_file_range
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4gZV_V=iY0mHiiAWwbynqtPxLTwdZ0j0vQ0F95ZZ4nTZg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Dave Chinner <david@fromorbit.com>, Eric Sandeen <sandeen@redhat.com>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, linux-cifs@vger.kernel.org, overlayfs <linux-unionfs@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Btrfs <linux-btrfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, ocfs2-devel@oss.oracle.com
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: alexander.h.duyck@linux.intel.com, Pasha Tatashin <pavel.tatashin@microsoft.com>, Michal Hocko <mhocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, rppt@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Oct 10, 2018 at 3:12 AM Darrick J. Wong <darrick.wong@oracle.com> wrote:
->
-> From: Darrick J. Wong <darrick.wong@oracle.com>
->
-> Combine the clone_file_range and dedupe_file_range operations into a
-> single remap_file_range file operation dispatch since they're
-> fundamentally the same operation.  The differences between the two can
-> be made in the prep functions.
->
-> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-> ---
+On 2018-10-09 at 14:19:32 -0700, Dan Williams wrote:
+> On Tue, Oct 9, 2018 at 1:34 PM Alexander Duyck
+> <alexander.h.duyck@linux.intel.com> wrote:
+> >
+> > On 10/9/2018 11:04 AM, Dan Williams wrote:
+> > > On Tue, Oct 9, 2018 at 3:21 AM Yi Zhang <yi.z.zhang@linux.intel.com> wrote:
+> [..]
+> > > That comment is incorrect, device-pages are never onlined. So I think
+> > > we can just skip that call to __SetPageReserved() unless the memory
+> > > range is MEMORY_DEVICE_{PRIVATE,PUBLIC}.
+> > >
+> >
+> > When pages are "onlined" via __free_pages_boot_core they clear the
+> > reserved bit, that is the reason for the comment. The reserved bit is
+> > meant to indicate that the page cannot be swapped out or moved based on
+> > the description of the bit.
+> 
+> ...but ZONE_DEVICE pages are never onlined so I would expect
+> memmap_init_zone_device() to know that detail.
+> 
+> > I would think with that being the case we still probably need the call
+> > to __SetPageReserved to set the bit with the expectation that it will
+> > not be cleared for device-pages since the pages are not onlined.
+> > Removing the call to __SetPageReserved would probably introduce a number
+> > of regressions as there are multiple spots that use the reserved bit to
+> > determine if a page can be swapped out to disk, mapped as system memory,
+> > or migrated.
 
-I like this. Nits below.
+Another things, it seems page_init/set_reserved already been done in the
+move_pfn_range_to_zone
+    |-->memmap_init_zone
+    	|-->for_each_page_in_pfn
+		|-->__init_single_page
+		|-->SetPageReserved
 
-[...]
+Why we haven't remove these redundant initial in memmap_init_zone?
 
-> diff --git a/fs/btrfs/ioctl.c b/fs/btrfs/ioctl.c
-> index d60b6caf09e8..e22b294fa25b 100644
-> --- a/fs/btrfs/ioctl.c
-> +++ b/fs/btrfs/ioctl.c
-> @@ -3627,26 +3627,6 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
->         return ret;
->  }
->
-> -int btrfs_dedupe_file_range(struct file *src_file, loff_t src_loff,
-> -                           struct file *dst_file, loff_t dst_loff,
-> -                           u64 olen)
-> -{
-> -       struct inode *src = file_inode(src_file);
-> -       struct inode *dst = file_inode(dst_file);
-> -       u64 bs = BTRFS_I(src)->root->fs_info->sb->s_blocksize;
-> -
-> -       if (WARN_ON_ONCE(bs < PAGE_SIZE)) {
-> -               /*
-> -                * Btrfs does not support blocksize < page_size. As a
-> -                * result, btrfs_cmp_data() won't correctly handle
-> -                * this situation without an update.
-> -                */
-> -               return -EINVAL;
-> -       }
-> -
-> -       return btrfs_extent_same(src, src_loff, olen, dst, dst_loff);
-> -}
-> -
->  static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
->                                      struct inode *inode,
->                                      u64 endoff,
-> @@ -4348,9 +4328,27 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
->         return ret;
->  }
->
-> -int btrfs_clone_file_range(struct file *src_file, loff_t off,
-> -               struct file *dst_file, loff_t destoff, u64 len)
-> +int btrfs_remap_file_range(struct file *src_file, loff_t off,
-> +               struct file *dst_file, loff_t destoff, u64 len,
-> +               unsigned int flags)
->  {
-> +       if (flags & RFR_IDENTICAL_DATA) {
-> +               struct inode *src = file_inode(src_file);
-> +               struct inode *dst = file_inode(dst_file);
-> +               u64 bs = BTRFS_I(src)->root->fs_info->sb->s_blocksize;
-> +
-> +               if (WARN_ON_ONCE(bs < PAGE_SIZE)) {
-> +                       /*
-> +                        * Btrfs does not support blocksize < page_size. As a
-> +                        * result, btrfs_cmp_data() won't correctly handle
-> +                        * this situation without an update.
-> +                        */
-> +                       return -EINVAL;
-> +               }
-> +
-> +               return btrfs_extent_same(src, off, len, dst, destoff);
-> +       }
-> +
+Correct me if I missed something.
 
-Seems weird that you would do that instead of:
+> 
+> Right, this is what Yi is working on... the PageReserved flag is
+> problematic for KVM. Auditing those locations it seems as long as we
+> teach hibernation to avoid ZONE_DEVICE ranges we can safely not set
+> the reserved flag for DAX pages. What I'm trying to avoid is a local
+> KVM hack to check for DAX pages when the Reserved flag is not
+> otherwise needed.
+Thanks Dan. Provide the patch link.
 
-+    if (flags & ~RFR_IDENTICAL_DATA)
-+        return -EINVAL;
-+    if (flags & RFR_IDENTICAL_DATA)
-+        return btrfs_dedupe_file_range(src, off, dst, destoff, len);
+https://lore.kernel.org/lkml/cover.1536342881.git.yi.z.zhang@linux.intel.com
 
->         return btrfs_clone_files(dst_file, src_file, off, len, destoff);
->  }
->
-> diff --git a/fs/cifs/cifsfs.c b/fs/cifs/cifsfs.c
-> index 7065426b3280..bf971fd7cab2 100644
-> --- a/fs/cifs/cifsfs.c
-> +++ b/fs/cifs/cifsfs.c
-> @@ -975,8 +975,9 @@ const struct inode_operations cifs_symlink_inode_ops = {
->         .listxattr = cifs_listxattr,
->  };
->
-> -static int cifs_clone_file_range(struct file *src_file, loff_t off,
-> -               struct file *dst_file, loff_t destoff, u64 len)
-> +static int cifs_remap_file_range(struct file *src_file, loff_t off,
-> +               struct file *dst_file, loff_t destoff, u64 len,
-> +               unsigned int flags)
->  {
->         struct inode *src_inode = file_inode(src_file);
->         struct inode *target_inode = file_inode(dst_file);
-> @@ -986,6 +987,9 @@ static int cifs_clone_file_range(struct file *src_file, loff_t off,
->         unsigned int xid;
->         int rc;
->
-> +       if (flags & RFR_IDENTICAL_DATA)
-> +               return -EOPNOTSUPP;
-> +
 
-I think everyone would be better off with:
-+       if (flags)
-+               return -EINVAL;
 
-This way you won't need to change all filesystem implementations
-every time that you add a new RFR flag.
-Lucky for us, dedup already return -EINVAL if (!f_op->dedupe_file_range)
-(and not -EOPNOTSUPP).
-
-[...]
-> diff --git a/fs/overlayfs/file.c b/fs/overlayfs/file.c
-> index 986313da0c88..693bd0620a81 100644
-> --- a/fs/overlayfs/file.c
-> +++ b/fs/overlayfs/file.c
-> @@ -489,26 +489,28 @@ static ssize_t ovl_copy_file_range(struct file *file_in, loff_t pos_in,
->                             OVL_COPY);
->  }
->
-> -static int ovl_clone_file_range(struct file *file_in, loff_t pos_in,
-> -                               struct file *file_out, loff_t pos_out, u64 len)
-> +static int ovl_remap_file_range(struct file *file_in, loff_t pos_in,
-> +                               struct file *file_out, loff_t pos_out,
-> +                               u64 len, unsigned int flags)
->  {
-> -       return ovl_copyfile(file_in, pos_in, file_out, pos_out, len, 0,
-> -                           OVL_CLONE);
-> -}
-> +       enum ovl_copyop op;
-> +
-> +       if (flags & RFR_IDENTICAL_DATA)
-> +               op = OVL_DEDUPE;
-> +       else
-> +               op = OVL_CLONE;
->
-> -static int ovl_dedupe_file_range(struct file *file_in, loff_t pos_in,
-> -                                struct file *file_out, loff_t pos_out, u64 len)
-> -{
->         /*
->          * Don't copy up because of a dedupe request, this wouldn't make sense
->          * most of the time (data would be duplicated instead of deduplicated).
->          */
-> -       if (!ovl_inode_upper(file_inode(file_in)) ||
-> -           !ovl_inode_upper(file_inode(file_out)))
-> +       if (op == OVL_DEDUPE &&
-> +           (!ovl_inode_upper(file_inode(file_in)) ||
-> +            !ovl_inode_upper(file_inode(file_out))))
->                 return -EPERM;
->
->         return ovl_copyfile(file_in, pos_in, file_out, pos_out, len, 0,
-> -                           OVL_DEDUPE);
-> +                           op);
->  }
->
-
-Apart from the generic check invalid flags comment - ACK on ovl part.
-
-Thanks,
-Amir.
+> _______________________________________________
+> Linux-nvdimm mailing list
+> Linux-nvdimm@lists.01.org
+> https://lists.01.org/mailman/listinfo/linux-nvdimm
