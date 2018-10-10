@@ -1,187 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 36BB56B0003
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 04:47:37 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id l7-v6so3297328plg.6
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 01:47:37 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 685546B0007
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 04:59:39 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id h48-v6so2740118edh.22
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 01:59:39 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j3-v6si24761943pld.380.2018.10.10.01.47.35
+        by mx.google.com with ESMTPS id d13-v6si6189232edl.365.2018.10.10.01.59.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Oct 2018 01:47:35 -0700 (PDT)
-Date: Wed, 10 Oct 2018 10:47:31 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 0/3] Randomize free memory
-Message-ID: <20181010084731.GB5873@dhcp22.suse.cz>
-References: <153861931865.2863953.11185006931458762795.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20181004074457.GD22173@dhcp22.suse.cz>
- <CAPcyv4ht=ueiZwPTWuY5Y4y1BUOi_z+pHMjfoiXG+Bjd-h55jA@mail.gmail.com>
- <20181009112216.GM8528@dhcp22.suse.cz>
- <CAPcyv4gAsyw7Tpp6QKQUA=P3k-Gw=KzutS-PzBiisnxQ1R24gw@mail.gmail.com>
+        Wed, 10 Oct 2018 01:59:37 -0700 (PDT)
+Date: Wed, 10 Oct 2018 10:59:36 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v4 2/3] mm: introduce put_user_page*(), placeholder
+ versions
+Message-ID: <20181010085936.GC11507@quack2.suse.cz>
+References: <20181008211623.30796-1-jhubbard@nvidia.com>
+ <20181008211623.30796-3-jhubbard@nvidia.com>
+ <20181008171442.d3b3a1ea07d56c26d813a11e@linux-foundation.org>
+ <5198a797-fa34-c859-ff9d-568834a85a83@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4gAsyw7Tpp6QKQUA=P3k-Gw=KzutS-PzBiisnxQ1R24gw@mail.gmail.com>
+In-Reply-To: <5198a797-fa34-c859-ff9d-568834a85a83@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Kees Cook <keescook@chromium.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Ralph Campbell <rcampbell@nvidia.com>
 
-On Tue 09-10-18 10:34:55, Dan Williams wrote:
-> On Tue, Oct 9, 2018 at 4:28 AM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Thu 04-10-18 09:44:35, Dan Williams wrote:
-> > > Hi Michal,
-> > >
-> > > On Thu, Oct 4, 2018 at 12:53 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > > >
-> > > > On Wed 03-10-18 19:15:18, Dan Williams wrote:
-> > > > > Changes since v1:
-> > > > > * Add support for shuffling hot-added memory (Andrew)
-> > > > > * Update cover letter and commit message to clarify the performance impact
-> > > > >   and relevance to future platforms
-> > > >
-> > > > I believe this hasn't addressed my questions in
-> > > > http://lkml.kernel.org/r/20181002143015.GX18290@dhcp22.suse.cz. Namely
-> > > > "
-> > > > It is the more general idea that I am not really sure about. First of
-> > > > all. Does it make _any_ sense to randomize 4MB blocks by default? Why
-> > > > cannot we simply have it disabled?
-> > >
-> > > I'm not aware of any CVE that this would directly preclude, but that
-> > > said the entropy injected at 4MB boundaries raises the bar on heap
-> > > attacks. Environments that want more can adjust that with the boot
-> > > parameter. Given the potential benefits I think it would only make
-> > > sense to default disable it if there was a significant runtime impact,
-> > > from what I have seen there isn't.
-> > >
-> > > > Then and more concerning question is,
-> > > > does it even make sense to have this randomization applied to higher
-> > > > orders than 0? Attacker might fragment the memory and keep recycling the
-> > > > lowest order and get the predictable behavior that we have right now.
-> > >
-> > > Certainly I expect there are attacks that can operate within a 4MB
-> > > window, as I expect there are attacks that could operate within a 4K
-> > > window that would need sub-page randomization to deter. In fact I
-> > > believe that is the motivation for CONFIG_SLAB_FREELIST_RANDOM.
-> > > Combining that with page allocator randomization makes the kernel less
-> > > predictable.
-> >
-> > I am sorry but this hasn't explained anything (at least to me). I can
-> > still see a way to bypass this randomization by fragmenting the memory.
-> > With that possibility in place this doesn't really provide the promissed
-> > additional security. So either I am missing something or the per-order
-> > threshold is simply a wrong interface to a broken security misfeature.
+On Tue 09-10-18 17:42:09, John Hubbard wrote:
+> On 10/8/18 5:14 PM, Andrew Morton wrote:
+> > Also, maintainability.  What happens if someone now uses put_page() by
+> > mistake?  Kernel fails in some mysterious fashion?  How can we prevent
+> > this from occurring as code evolves?  Is there a cheap way of detecting
+> > this bug at runtime?
+> > 
 > 
-> I think a similar argument can be made against
-> CONFIG_SLAB_FREELIST_RANDOM the randomization benefits can be defeated
-> with more effort, and more effort is the entire point.
-
-If there is relatively simple way to achieve that (which I dunno about
-the slab free list randomization because I am not familiar with the
-implementation) then the feature is indeed questionable. I would
-understand an argument about feasibility if bypassing was extremely hard
-but fragmenting the memory is relatively a simple task.
-
-> > > Is that enough justification for this patch on its own?
-> >
-> > I do not think so from what I have heard so far.
+> It might be possible to do a few run-time checks, such as "does page that came 
+> back to put_user_page() have the correct flags?", but it's harder (without 
+> having a dedicated page flag) to detect the other direction: "did someone page 
+> in a get_user_pages page, to put_page?"
 > 
-> I'm missing what bar you are judging the criteria for these patches,
-> my bar is increased protection against allocation ordering attacks as
-> seconded by Kees, and the memory side caching effects.
+> As Jan said in his reply, converting get_user_pages (and put_user_page) to 
+> work with a new data type that wraps struct pages, would solve it, but that's
+> an awfully large change. Still...given how much of a mess this can turn into 
+> if it's wrong, I wonder if it's worth it--maybe? 
 
-As said above, if it is quite easy to bypass the randomization then
-calling and advertizing this as a security feature is a dubious. Not
-enough to ouright nak it of course but also not something I would put my
-stamp on. And arguments would be much more solid if they were backed by
-some numbers (not only for the security aspect but also the side caching
-effects).
+I'm certainly not opposed to looking into it. But after looking into this
+for a while it is not clear to me how to convert e.g. fs/direct-io.c or
+fs/iomap.c. They pass the reference from gup() via
+bio->bi_io_vec[]->bv_page and then release it after IO completion.
+Propagating the new type to ->bv_page is not good as lower layer do not
+really care how the page is pinned in memory. But we do need to somehow
+pass the information to the IO completion functions in a robust manner.
 
-> That said I
-> don't have a known CVE in my mind that would be mitigated by 4MB page
-> shuffling.
-> 
-> > > It's
-> > > debatable. Combine that though with the wider availability of
-> > > platforms with memory-side-cache and I think it's a reasonable default
-> > > behavior for the kernel to deploy.
-> >
-> > OK, this sounds a bit more interesting. I am going to speculate because
-> > memory-side-cache is way too generic of a term for me to imagine
-> > anything specific.
-> 
-> No need to imagine, a memory side cache shipped on a previous product
-> as Robert linked in his comments.
+Hmm, what about the following:
 
-Could you make this a part of the changelog? I would really appreciate
-to see justification based on actual numbers rather than quite hand wavy
-"it helps".
+1) Make gup() return new type - struct user_page *? In practice that would
+be just a struct page pointer with 0 bit set so that people are forced to
+use proper helpers and not just force types (and the setting of bit 0 and
+masking back would be hidden behind CONFIG_DEBUG_USER_PAGE_REFERENCES for
+performance reasons). Also the transition would have to be gradual so we'd
+have to name the function differently and use it from converted code.
 
-> > Many years back while at a university I was playing
-> > with page coloring as a method to reach a more stable performance
-> > results due to reduced cache conflicts. It was not always a performance
-> > gain but it definitely allowed for more stable run-to-run comparable
-> > results. I can imagine that a randomization might lead to a similar effect
-> > although I am not sure how much and it would be more interesting to hear
-> > about that effect.
-> 
-> Cache coloring is effective up until your workload no longer fits in
-> that color.
+2) Provide helper bio_add_user_page() that will take user_page, convert it
+to struct page, add it to the bio, and flag the bio as having pages with
+user references. That code would also make sure the bio is consistent in
+having only user-referenced pages in that case. IO completion (like
+bio_check_pages_dirty(), bio_release_pages() etc.) will check the flag and
+use approprite release function.
 
-Yes, that was my observation back then more or less. But even when you
-do not fit into the cache a color aware strategy (I was playing with bin
-hoping as well) produced a more deterministic/stable results. But that
-is just a side note as it doesn't directly relate to your change.
+3) I have noticed fs/direct-io.c may submit zero page for IO when it needs
+to clear stuff so we'll probably need a helper function to acquire 'user pin'
+reference given a page pointer so that that code can be kept reasonably
+simple and pass user_page references all around.
 
-> Randomization helps to attenuate the cache conflict rate
-> when that happens.
+So this way we could maintain reasonable confidence that refcounts didn't
+get mixed up. Thoughts?
 
-I can imagine that. Do we have any numbers to actually back that claim
-though?
-
-> For workloads that may fit in the cache, and/or
-> environments that need more explicit cache control we have the recent
-> changes to numa_emulation [1] to arrange for cache sized numa nodes.
-
-Could you point me to some more documentation. My google-fu is failing
-me and "5.2.27.5 Memory Side Cache Information Structure" doesn't point
-to anything official (except for your patch referencing it).
-
-> > If this is really the case then I would assume on/off
-> > knob to control the randomization without something as specific as
-> > order.
-> 
-> Are we only debating the enabling knob at this point? I'm not opposed
-> to changing that, but I do think we want to keep the rest of the
-> infrastructure to allow for shuffling on a variable page size boundary
-> in case there is enhanced security benefits at smaller buddy-page
-> sizes.
-
-I am still trying to understand the benefit of this change. If the
-caching effects are actually the most important part and there is a
-reasonable cut in allocation order to keep the randomization effective
-during the runtime then I would like to understand the thinking behind
-that. In other words does the randomization at smaller orders than
-biggest order still visible in actual benchmarks? If not then on/off
-knob should be sufficient with potential auto tuning based on actual HW
-rather than to expect poor admin to google for $RANDOM_ORDER to use on a
-specific HW and all the potential cargo cult that will grow around it.
-
-As I've said before, I am not convinced about the security argument but
-even if I am wrong here then I am still quite sure that you do not want
-to expose the security aspect as "chose an order to randomize from"
-because admins will have no real way to know what is the $RANDOM_ORDER
-to set. So even then it should be on/off thing. You are going to pay
-some of the performance because you would lose some page allocator
-optimizations (e.g. pcp lists) but that is unavoidable AFAICS.
-
-With all that being said, I think the overal idea makes sense but you
-should try much harder to explain _why_ we need it and back your
-justification by actual _data_ before I would consider my ack.
-
-> [1]: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=cc9aec03e58f
-
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
