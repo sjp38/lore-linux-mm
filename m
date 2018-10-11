@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DE7266B0285
+	by kanga.kvack.org (Postfix) with ESMTP id E82936B0287
 	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 11:21:00 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id j9-v6so2615062plt.3
+Received: by mail-pl1-f199.google.com with SMTP id d63-v6so6451010pld.18
         for <linux-mm@kvack.org>; Thu, 11 Oct 2018 08:21:00 -0700 (PDT)
 Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id y62-v6si29748088pfy.139.2018.10.11.08.20.59
+        by mx.google.com with ESMTPS id g9-v6si6571810plo.328.2018.10.11.08.20.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 11 Oct 2018 08:20:59 -0700 (PDT)
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH v5 21/27] x86/cet/shstk: Introduce WRUSS instruction
-Date: Thu, 11 Oct 2018 08:15:17 -0700
-Message-Id: <20181011151523.27101-22-yu-cheng.yu@intel.com>
+Subject: [PATCH v5 16/27] mm: Handle shadow stack page fault
+Date: Thu, 11 Oct 2018 08:15:12 -0700
+Message-Id: <20181011151523.27101-17-yu-cheng.yu@intel.com>
 In-Reply-To: <20181011151523.27101-1-yu-cheng.yu@intel.com>
 References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,81 +20,111 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
 
-WRUSS is a new kernel-mode instruction but writes directly to user
-shadow stack memory.  This is used to construct a return address on
-the shadow stack for the signal handler.
+When a task does fork(), its shadow stack must be duplicated for
+the child.  However, the child may not actually use all pages of
+of the copied shadow stack.  This patch implements a flow that
+is similar to copy-on-write of an anonymous page, but for shadow
+stack memory.  A shadow stack PTE needs to be RO and dirty.  We
+use this dirty bit requirement to effect the copying of shadow
+stack pages.
 
-This instruction can fault if the user shadow stack is invalid shadow
-stack memory.  In that case, the kernel does a fixup.
+In copy_one_pte(), we clear the dirty bit from the shadow stack
+PTE.  On the next shadow stack access to the PTE, a page fault
+occurs.  At that time, we then copy/re-use the page and fix the
+PTE.
 
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/include/asm/special_insns.h | 32 ++++++++++++++++++++++++++++
- arch/x86/mm/fault.c                  |  9 ++++++++
- 2 files changed, 41 insertions(+)
+ arch/x86/mm/pgtable.c         | 15 +++++++++++++++
+ include/asm-generic/pgtable.h |  8 ++++++++
+ mm/memory.c                   |  7 ++++++-
+ 3 files changed, 29 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/include/asm/special_insns.h b/arch/x86/include/asm/special_insns.h
-index 317fc59b512c..37f16269747d 100644
---- a/arch/x86/include/asm/special_insns.h
-+++ b/arch/x86/include/asm/special_insns.h
-@@ -237,6 +237,38 @@ static inline void clwb(volatile void *__p)
- 		: [pax] "a" (p));
- }
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index 089e78c4effd..e9ee4c86a477 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -881,3 +881,18 @@ int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
  
-+#ifdef CONFIG_X86_INTEL_CET
-+#if defined(CONFIG_IA32_EMULATION) || defined(CONFIG_X86_X32)
-+static inline int write_user_shstk_32(unsigned long addr, unsigned int val)
+ #endif /* CONFIG_X86_64 */
+ #endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
++
++#ifdef CONFIG_X86_INTEL_SHADOW_STACK_USER
++inline pte_t pte_set_vma_features(pte_t pte, struct vm_area_struct *vma)
 +{
-+	asm_volatile_goto("1: wrussd %1, (%0)\n"
-+			  _ASM_EXTABLE(1b, %l[fail])
-+			  :: "r" (addr), "r" (val)
-+			  :: fail);
-+	return 0;
-+fail:
-+	return -EPERM;
++	if (vma->vm_flags & VM_SHSTK)
++		return pte_mkdirty_shstk(pte);
++	else
++		return pte;
 +}
++
++inline bool arch_copy_pte_mapping(vm_flags_t vm_flags)
++{
++	return (vm_flags & VM_SHSTK);
++}
++#endif /* CONFIG_X86_INTEL_SHADOW_STACK_USER */
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 88ebc6102c7c..015b769377a3 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -1127,4 +1127,12 @@ static inline bool arch_has_pfn_modify_check(void)
+ #endif
+ #endif
+ 
++#ifndef CONFIG_ARCH_HAS_SHSTK
++#define pte_set_vma_features(pte, vma) pte
++#define arch_copy_pte_mapping(vma_flags) false
 +#else
-+static inline int write_user_shstk_32(unsigned long addr, unsigned int val)
-+{
-+	WARN_ONCE(1, "%s used but not supported.\n", __func__);
-+	return -EFAULT;
-+}
++pte_t pte_set_vma_features(pte_t pte, struct vm_area_struct *vma);
++bool arch_copy_pte_mapping(vm_flags_t vm_flags);
 +#endif
 +
-+static inline int write_user_shstk_64(unsigned long addr, unsigned long val)
-+{
-+	asm_volatile_goto("1: wrussq %1, (%0)\n"
-+			  _ASM_EXTABLE(1b, %l[fail])
-+			  :: "r" (addr), "r" (val)
-+			  :: fail);
-+	return 0;
-+fail:
-+	return -EPERM;
-+}
-+#endif /* CONFIG_X86_INTEL_CET */
-+
- #define nop() asm volatile ("nop")
- 
- 
-diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index 7c3877a982f4..b91fc008f33a 100644
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -1305,6 +1305,15 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code,
- 		error_code |= X86_PF_USER;
- 		flags |= FAULT_FLAG_USER;
- 	} else {
-+		/*
-+		 * WRUSS is a kernel instruction and but writes
-+		 * to user shadow stack.  When a fault occurs,
-+		 * both X86_PF_USER and X86_PF_SHSTK are set.
-+		 * Clear X86_PF_USER here.
-+		 */
-+		if ((error_code & (X86_PF_USER | X86_PF_SHSTK)) ==
-+		    (X86_PF_USER | X86_PF_SHSTK))
-+			error_code &= ~X86_PF_USER;
- 		if (regs->flags & X86_EFLAGS_IF)
- 			local_irq_enable();
+ #endif /* _ASM_GENERIC_PGTABLE_H */
+diff --git a/mm/memory.c b/mm/memory.c
+index c467102a5cbc..1fb676ec7da2 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1022,7 +1022,8 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 	 * If it's a COW mapping, write protect it both
+ 	 * in the parent and the child
+ 	 */
+-	if (is_cow_mapping(vm_flags) && pte_write(pte)) {
++	if ((is_cow_mapping(vm_flags) && pte_write(pte)) ||
++	    arch_copy_pte_mapping(vm_flags)) {
+ 		ptep_set_wrprotect(src_mm, addr, src_pte);
+ 		pte = pte_wrprotect(pte);
  	}
+@@ -2462,6 +2463,7 @@ static inline void wp_page_reuse(struct vm_fault *vmf)
+ 	flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
+ 	entry = pte_mkyoung(vmf->orig_pte);
+ 	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
++	entry = pte_set_vma_features(entry, vma);
+ 	if (ptep_set_access_flags(vma, vmf->address, vmf->pte, entry, 1))
+ 		update_mmu_cache(vma, vmf->address, vmf->pte);
+ 	pte_unmap_unlock(vmf->pte, vmf->ptl);
+@@ -2535,6 +2537,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
+ 		flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
+ 		entry = mk_pte(new_page, vma->vm_page_prot);
+ 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
++		entry = pte_set_vma_features(entry, vma);
+ 		/*
+ 		 * Clear the pte entry and flush it first, before updating the
+ 		 * pte with the new entry. This will avoid a race condition
+@@ -3045,6 +3048,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
+ 	pte = mk_pte(page, vma->vm_page_prot);
+ 	if ((vmf->flags & FAULT_FLAG_WRITE) && reuse_swap_page(page, NULL)) {
+ 		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
++		pte = pte_set_vma_features(pte, vma);
+ 		vmf->flags &= ~FAULT_FLAG_WRITE;
+ 		ret |= VM_FAULT_WRITE;
+ 		exclusive = RMAP_EXCLUSIVE;
+@@ -3187,6 +3191,7 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
+ 	entry = mk_pte(page, vma->vm_page_prot);
+ 	if (vma->vm_flags & VM_WRITE)
+ 		entry = pte_mkwrite(pte_mkdirty(entry));
++	entry = pte_set_vma_features(entry, vma);
+ 
+ 	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, vmf->address,
+ 			&vmf->ptl);
 -- 
 2.17.1
