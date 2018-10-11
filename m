@@ -1,472 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D1E036B0003
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 13:58:45 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id o3-v6so7125092pll.7
-        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 10:58:45 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id r28-v6si27664433pgu.410.2018.10.11.10.58.43
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ECE266B026C
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 14:03:21 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id d23-v6so6568421oib.6
+        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 11:03:21 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u4-v6sor7923161oig.83.2018.10.11.11.03.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Oct 2018 10:58:44 -0700 (PDT)
-From: Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv2] mm/gup: Cache dev_pagemap while pinning pages
-Date: Thu, 11 Oct 2018 11:55:42 -0600
-Message-Id: <20181011175542.13045-1-keith.busch@intel.com>
+        (Google Transport Security);
+        Thu, 11 Oct 2018 11:03:20 -0700 (PDT)
+MIME-Version: 1.0
+References: <153861931865.2863953.11185006931458762795.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20181004074457.GD22173@dhcp22.suse.cz> <CAPcyv4ht=ueiZwPTWuY5Y4y1BUOi_z+pHMjfoiXG+Bjd-h55jA@mail.gmail.com>
+ <20181009112216.GM8528@dhcp22.suse.cz> <CAPcyv4gAsyw7Tpp6QKQUA=P3k-Gw=KzutS-PzBiisnxQ1R24gw@mail.gmail.com>
+ <20181010084731.GB5873@dhcp22.suse.cz> <CAPcyv4j1QZSk_soYY=xpMiv0exYzdGoa0uqWppSs_dJwF4TPnw@mail.gmail.com>
+ <20181011115238.GU5873@dhcp22.suse.cz>
+In-Reply-To: <20181011115238.GU5873@dhcp22.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 11 Oct 2018 11:03:07 -0700
+Message-ID: <CAPcyv4i38LAh1-bDE5cAAV=pAWMQeOYSmWF7ucM+Qt2O+GYMWw@mail.gmail.com>
+Subject: Re: [PATCH v2 0/3] Randomize free memory
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Kirill Shutemov <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Keith Busch <keith.busch@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Kees Cook <keescook@chromium.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Getting pages from ZONE_DEVICE memory needs to check the backing device's
-live-ness, which is tracked in the device's dev_pagemap metadata. This
-metadata is stored in a radix tree and looking it up adds measurable
-software overhead.
+On Thu, Oct 11, 2018 at 4:56 AM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Wed 10-10-18 17:13:14, Dan Williams wrote:
+> [...]
+> > On Wed, Oct 10, 2018 at 1:48 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > ...and now that I've made that argument I think I've come around to
+> > your point about the shuffle_page_order parameter. The only entity
+> > that might have a better clue about "safer" shuffle orders than
+> > MAX_ORDER is the distribution provider.
+>
+> And how is somebody providing a kernel for large variety of workloads
+> supposed to know?
 
-This patch avoids repeating this relatively costly operation when
-dev_pagemap is used by caching the last dev_pagemap while getting user
-pages. The gup_benchmark kernel self test reports this reduces time to
-get user pages to as low as 1/3 of the previous time.
+True, this would be a much easier discussion with a wider / deeper data set.
 
-Cc: Kirill Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Signed-off-by: Keith Busch <keith.busch@intel.com>
----
-Changes from previous version:
+>
+> [...]
+>
+> > Note, you can also think about this just on pure architecture terms.
+> > I.e. that for a direct mapped cache anywhere in a system you can have
+> > a near zero cache conflict rate on a first run of a workload and high
+> > conflict rate on a second run based on how lucky you are with memory
+> > allocation placement relative to the first run. Randomization keeps
+> > you out of such performance troughs and provides more reliable average
+> > performance.
+>
+> I am not disagreeing here. That reliable average might be worse than
+> what you get with the non-randomized case. And that might be a fair
+> deal for some workloads. You are, however, providing a functionality
+> which is enabled by default without any actual numbers (well except for
+> _a_java_ workload that seems to benefit) so you should really do your
+> homework stop handwaving and give us some numbers and/or convincing
+> arguments please.
 
-  Fixed CONFIG_NOMMU compile error from bad copy-paste
+The latest version of the patches no longer enable it by default. I'm
+giving you the data I can give with respect to pre-production
+hardware.
 
- include/linux/huge_mm.h |   8 ++--
- include/linux/mm.h      |  12 +----
- mm/gup.c                | 113 +++++++++++++++++++++++++++++-------------------
- mm/huge_memory.c        |  16 +++----
- mm/nommu.c              |   6 +--
- 5 files changed, 82 insertions(+), 73 deletions(-)
+> > With the numa emulation patch I referenced an
+> > administrator could constrain a workload to run in a cache-sized
+> > subset of the available memory if they really know what they are doing
+> > and need firmer guarantees.
+>
+> Then mention how and what you can achieve by that in the changelog.
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 99c19b06d9a4..5cbabdebe9af 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -213,9 +213,9 @@ static inline int hpage_nr_pages(struct page *page)
- }
- 
- struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
--		pmd_t *pmd, int flags);
-+		pmd_t *pmd, int flags, struct dev_pagemap **pgmap);
- struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
--		pud_t *pud, int flags);
-+		pud_t *pud, int flags, struct dev_pagemap **pgmap);
- 
- extern vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t orig_pmd);
- 
-@@ -344,13 +344,13 @@ static inline void mm_put_huge_zero_page(struct mm_struct *mm)
- }
- 
- static inline struct page *follow_devmap_pmd(struct vm_area_struct *vma,
--		unsigned long addr, pmd_t *pmd, int flags)
-+	unsigned long addr, pmd_t *pmd, int flags, struct dev_pagemap **pgmap)
- {
- 	return NULL;
- }
- 
- static inline struct page *follow_devmap_pud(struct vm_area_struct *vma,
--		unsigned long addr, pud_t *pud, int flags)
-+	unsigned long addr, pud_t *pud, int flags, struct dev_pagemap **pgmap)
- {
- 	return NULL;
- }
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a61ebe8ad4ca..d63ac2b7f853 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2534,16 +2534,8 @@ static inline vm_fault_t vmf_error(int err)
- 	return VM_FAULT_SIGBUS;
- }
- 
--struct page *follow_page_mask(struct vm_area_struct *vma,
--			      unsigned long address, unsigned int foll_flags,
--			      unsigned int *page_mask);
--
--static inline struct page *follow_page(struct vm_area_struct *vma,
--		unsigned long address, unsigned int foll_flags)
--{
--	unsigned int unused_page_mask;
--	return follow_page_mask(vma, address, foll_flags, &unused_page_mask);
--}
-+struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
-+			 unsigned int foll_flags);
- 
- #define FOLL_WRITE	0x01	/* check pte is writable */
- #define FOLL_TOUCH	0x02	/* mark page accessed */
-diff --git a/mm/gup.c b/mm/gup.c
-index 1abc8b4afff6..d2700dff6f66 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -20,6 +20,11 @@
- 
- #include "internal.h"
- 
-+struct follow_page_context {
-+	struct dev_pagemap *pgmap;
-+	unsigned int page_mask;
-+};
-+
- static struct page *no_page_table(struct vm_area_struct *vma,
- 		unsigned int flags)
- {
-@@ -71,10 +76,10 @@ static inline bool can_follow_write_pte(pte_t pte, unsigned int flags)
- }
- 
- static struct page *follow_page_pte(struct vm_area_struct *vma,
--		unsigned long address, pmd_t *pmd, unsigned int flags)
-+		unsigned long address, pmd_t *pmd, unsigned int flags,
-+		struct dev_pagemap **pgmap)
- {
- 	struct mm_struct *mm = vma->vm_mm;
--	struct dev_pagemap *pgmap = NULL;
- 	struct page *page;
- 	spinlock_t *ptl;
- 	pte_t *ptep, pte;
-@@ -116,8 +121,8 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
- 		 * Only return device mapping pages in the FOLL_GET case since
- 		 * they are only valid while holding the pgmap reference.
- 		 */
--		pgmap = get_dev_pagemap(pte_pfn(pte), NULL);
--		if (pgmap)
-+		*pgmap = get_dev_pagemap(pte_pfn(pte), *pgmap);
-+		if (*pgmap)
- 			page = pte_page(pte);
- 		else
- 			goto no_page;
-@@ -152,15 +157,8 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
- 		goto retry;
- 	}
- 
--	if (flags & FOLL_GET) {
-+	if (flags & FOLL_GET)
- 		get_page(page);
--
--		/* drop the pgmap reference now that we hold the page */
--		if (pgmap) {
--			put_dev_pagemap(pgmap);
--			pgmap = NULL;
--		}
--	}
- 	if (flags & FOLL_TOUCH) {
- 		if ((flags & FOLL_WRITE) &&
- 		    !pte_dirty(pte) && !PageDirty(page))
-@@ -210,7 +208,8 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
- 
- static struct page *follow_pmd_mask(struct vm_area_struct *vma,
- 				    unsigned long address, pud_t *pudp,
--				    unsigned int flags, unsigned int *page_mask)
-+				    unsigned int flags,
-+				    struct follow_page_context *ctx)
- {
- 	pmd_t *pmd, pmdval;
- 	spinlock_t *ptl;
-@@ -258,13 +257,13 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
- 	}
- 	if (pmd_devmap(pmdval)) {
- 		ptl = pmd_lock(mm, pmd);
--		page = follow_devmap_pmd(vma, address, pmd, flags);
-+		page = follow_devmap_pmd(vma, address, pmd, flags, &ctx->pgmap);
- 		spin_unlock(ptl);
- 		if (page)
- 			return page;
- 	}
- 	if (likely(!pmd_trans_huge(pmdval)))
--		return follow_page_pte(vma, address, pmd, flags);
-+		return follow_page_pte(vma, address, pmd, flags, &ctx->pgmap);
- 
- 	if ((flags & FOLL_NUMA) && pmd_protnone(pmdval))
- 		return no_page_table(vma, flags);
-@@ -284,7 +283,7 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
- 	}
- 	if (unlikely(!pmd_trans_huge(*pmd))) {
- 		spin_unlock(ptl);
--		return follow_page_pte(vma, address, pmd, flags);
-+		return follow_page_pte(vma, address, pmd, flags, &ctx->pgmap);
- 	}
- 	if (flags & FOLL_SPLIT) {
- 		int ret;
-@@ -307,18 +306,18 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
- 		}
- 
- 		return ret ? ERR_PTR(ret) :
--			follow_page_pte(vma, address, pmd, flags);
-+			follow_page_pte(vma, address, pmd, flags, &ctx->pgmap);
- 	}
- 	page = follow_trans_huge_pmd(vma, address, pmd, flags);
- 	spin_unlock(ptl);
--	*page_mask = HPAGE_PMD_NR - 1;
-+	ctx->page_mask = HPAGE_PMD_NR - 1;
- 	return page;
- }
- 
--
- static struct page *follow_pud_mask(struct vm_area_struct *vma,
- 				    unsigned long address, p4d_t *p4dp,
--				    unsigned int flags, unsigned int *page_mask)
-+				    unsigned int flags,
-+				    struct follow_page_context *ctx)
- {
- 	pud_t *pud;
- 	spinlock_t *ptl;
-@@ -344,7 +343,7 @@ static struct page *follow_pud_mask(struct vm_area_struct *vma,
- 	}
- 	if (pud_devmap(*pud)) {
- 		ptl = pud_lock(mm, pud);
--		page = follow_devmap_pud(vma, address, pud, flags);
-+		page = follow_devmap_pud(vma, address, pud, flags, &ctx->pgmap);
- 		spin_unlock(ptl);
- 		if (page)
- 			return page;
-@@ -352,13 +351,13 @@ static struct page *follow_pud_mask(struct vm_area_struct *vma,
- 	if (unlikely(pud_bad(*pud)))
- 		return no_page_table(vma, flags);
- 
--	return follow_pmd_mask(vma, address, pud, flags, page_mask);
-+	return follow_pmd_mask(vma, address, pud, flags, ctx);
- }
- 
--
- static struct page *follow_p4d_mask(struct vm_area_struct *vma,
- 				    unsigned long address, pgd_t *pgdp,
--				    unsigned int flags, unsigned int *page_mask)
-+				    unsigned int flags,
-+				    struct follow_page_context *ctx)
- {
- 	p4d_t *p4d;
- 	struct page *page;
-@@ -378,7 +377,7 @@ static struct page *follow_p4d_mask(struct vm_area_struct *vma,
- 			return page;
- 		return no_page_table(vma, flags);
- 	}
--	return follow_pud_mask(vma, address, p4d, flags, page_mask);
-+	return follow_pud_mask(vma, address, p4d, flags, ctx);
- }
- 
- /**
-@@ -396,13 +395,13 @@ static struct page *follow_p4d_mask(struct vm_area_struct *vma,
-  */
- struct page *follow_page_mask(struct vm_area_struct *vma,
- 			      unsigned long address, unsigned int flags,
--			      unsigned int *page_mask)
-+			      struct follow_page_context *ctx)
- {
- 	pgd_t *pgd;
- 	struct page *page;
- 	struct mm_struct *mm = vma->vm_mm;
- 
--	*page_mask = 0;
-+	ctx->page_mask = 0;
- 
- 	/* make this handle hugepd */
- 	page = follow_huge_addr(mm, address, flags & FOLL_WRITE);
-@@ -431,7 +430,22 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
- 		return no_page_table(vma, flags);
- 	}
- 
--	return follow_p4d_mask(vma, address, pgd, flags, page_mask);
-+	return follow_p4d_mask(vma, address, pgd, flags, ctx);
-+}
-+
-+struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
-+			 unsigned int foll_flags)
-+{
-+	struct page *page;
-+	struct follow_page_context ctx = {
-+		.pgmap = NULL,
-+		.page_mask = 0,
-+	};
-+
-+	page = follow_page_mask(vma, address, foll_flags, &ctx);
-+	if (ctx.pgmap)
-+		put_dev_pagemap(ctx.pgmap);
-+	return page;
- }
- 
- static int get_gate_page(struct mm_struct *mm, unsigned long address,
-@@ -659,9 +673,9 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 		unsigned int gup_flags, struct page **pages,
- 		struct vm_area_struct **vmas, int *nonblocking)
- {
--	long i = 0;
--	unsigned int page_mask;
-+	long ret = 0, i = 0;
- 	struct vm_area_struct *vma = NULL;
-+	struct follow_page_context ctx = {};
- 
- 	if (!nr_pages)
- 		return 0;
-@@ -691,12 +705,14 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 						pages ? &pages[i] : NULL);
- 				if (ret)
- 					return i ? : ret;
--				page_mask = 0;
-+				ctx.page_mask = 0;
- 				goto next_page;
- 			}
- 
--			if (!vma || check_vma_flags(vma, gup_flags))
--				return i ? : -EFAULT;
-+			if (!vma || check_vma_flags(vma, gup_flags)) {
-+				ret = -EFAULT;
-+				goto out;
-+			}
- 			if (is_vm_hugetlb_page(vma)) {
- 				i = follow_hugetlb_page(mm, vma, pages, vmas,
- 						&start, &nr_pages, i,
-@@ -709,23 +725,26 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 		 * If we have a pending SIGKILL, don't keep faulting pages and
- 		 * potentially allocating memory.
- 		 */
--		if (unlikely(fatal_signal_pending(current)))
--			return i ? i : -ERESTARTSYS;
-+		if (unlikely(fatal_signal_pending(current))) {
-+			ret = -ERESTARTSYS;
-+			goto out;
-+		}
- 		cond_resched();
--		page = follow_page_mask(vma, start, foll_flags, &page_mask);
-+
-+		page = follow_page_mask(vma, start, foll_flags, &ctx);
- 		if (!page) {
--			int ret;
- 			ret = faultin_page(tsk, vma, start, &foll_flags,
- 					nonblocking);
- 			switch (ret) {
- 			case 0:
- 				goto retry;
-+			case -EBUSY:
-+				ret = 0;
-+				/* FALLTHRU */
- 			case -EFAULT:
- 			case -ENOMEM:
- 			case -EHWPOISON:
--				return i ? i : ret;
--			case -EBUSY:
--				return i;
-+				goto out;
- 			case -ENOENT:
- 				goto next_page;
- 			}
-@@ -737,27 +756,31 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 			 */
- 			goto next_page;
- 		} else if (IS_ERR(page)) {
--			return i ? i : PTR_ERR(page);
-+			ret = PTR_ERR(page);
-+			goto out;
- 		}
- 		if (pages) {
- 			pages[i] = page;
- 			flush_anon_page(vma, page, start);
- 			flush_dcache_page(page);
--			page_mask = 0;
-+			ctx.page_mask = 0;
- 		}
- next_page:
- 		if (vmas) {
- 			vmas[i] = vma;
--			page_mask = 0;
-+			ctx.page_mask = 0;
- 		}
--		page_increm = 1 + (~(start >> PAGE_SHIFT) & page_mask);
-+		page_increm = 1 + (~(start >> PAGE_SHIFT) & ctx.page_mask);
- 		if (page_increm > nr_pages)
- 			page_increm = nr_pages;
- 		i += page_increm;
- 		start += page_increm * PAGE_SIZE;
- 		nr_pages -= page_increm;
- 	} while (nr_pages);
--	return i;
-+out:
-+	if (ctx.pgmap)
-+		put_dev_pagemap(ctx.pgmap);
-+	return i ? i : ret;
- }
- 
- static bool vma_permits_fault(struct vm_area_struct *vma,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 533f9b00147d..d2b510fe5156 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -852,11 +852,10 @@ static void touch_pmd(struct vm_area_struct *vma, unsigned long addr,
- }
- 
- struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
--		pmd_t *pmd, int flags)
-+		pmd_t *pmd, int flags, struct dev_pagemap **pgmap)
- {
- 	unsigned long pfn = pmd_pfn(*pmd);
- 	struct mm_struct *mm = vma->vm_mm;
--	struct dev_pagemap *pgmap;
- 	struct page *page;
- 
- 	assert_spin_locked(pmd_lockptr(mm, pmd));
-@@ -886,12 +885,11 @@ struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
- 		return ERR_PTR(-EEXIST);
- 
- 	pfn += (addr & ~PMD_MASK) >> PAGE_SHIFT;
--	pgmap = get_dev_pagemap(pfn, NULL);
--	if (!pgmap)
-+	*pgmap = get_dev_pagemap(pfn, *pgmap);
-+	if (!*pgmap)
- 		return ERR_PTR(-EFAULT);
- 	page = pfn_to_page(pfn);
- 	get_page(page);
--	put_dev_pagemap(pgmap);
- 
- 	return page;
- }
-@@ -1000,11 +998,10 @@ static void touch_pud(struct vm_area_struct *vma, unsigned long addr,
- }
- 
- struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
--		pud_t *pud, int flags)
-+		pud_t *pud, int flags, struct dev_pagemap **pgmap)
- {
- 	unsigned long pfn = pud_pfn(*pud);
- 	struct mm_struct *mm = vma->vm_mm;
--	struct dev_pagemap *pgmap;
- 	struct page *page;
- 
- 	assert_spin_locked(pud_lockptr(mm, pud));
-@@ -1028,12 +1025,11 @@ struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
- 		return ERR_PTR(-EEXIST);
- 
- 	pfn += (addr & ~PUD_MASK) >> PAGE_SHIFT;
--	pgmap = get_dev_pagemap(pfn, NULL);
--	if (!pgmap)
-+	*pgmap = get_dev_pagemap(pfn, *pgmap);
-+	if (!*pgmap)
- 		return ERR_PTR(-EFAULT);
- 	page = pfn_to_page(pfn);
- 	get_page(page);
--	put_dev_pagemap(pgmap);
- 
- 	return page;
- }
-diff --git a/mm/nommu.c b/mm/nommu.c
-index e4aac33216ae..749276beb109 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -1709,11 +1709,9 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
- 	return ret;
- }
- 
--struct page *follow_page_mask(struct vm_area_struct *vma,
--			      unsigned long address, unsigned int flags,
--			      unsigned int *page_mask)
-+struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
-+			 unsigned int foll_flags)
- {
--	*page_mask = 0;
- 	return NULL;
- }
- 
--- 
-2.14.4
+The numa_emulation aspect is orthogonal to the randomization
+implementation. It does not belong in the randomization changelog.
+
+> > The risk if Linux does not have this capability is unstable hacks like
+> > zonesort and rebooting, as referenced in that KNL article, which are
+> > not suitable for a general purpose kernel / platform.
+>
+> We could have lived without those for quite some time so this doesn't
+> seem to be anything super urgent to push through without a proper
+> justification.
+
+We lived without them previously because memory-side-caches were
+limited to niche hardware, now this is moving into general purpose
+server platforms and the urgency / impact goes up accordingly.
+
+> > > > > Many years back while at a university I was playing
+> > > > > with page coloring as a method to reach a more stable performance
+> > > > > results due to reduced cache conflicts. It was not always a performance
+> > > > > gain but it definitely allowed for more stable run-to-run comparable
+> > > > > results. I can imagine that a randomization might lead to a similar effect
+> > > > > although I am not sure how much and it would be more interesting to hear
+> > > > > about that effect.
+> > > >
+> > > > Cache coloring is effective up until your workload no longer fits in
+> > > > that color.
+> > >
+> > > Yes, that was my observation back then more or less. But even when you
+> > > do not fit into the cache a color aware strategy (I was playing with bin
+> > > hoping as well) produced a more deterministic/stable results. But that
+> > > is just a side note as it doesn't directly relate to your change.
+> > >
+> > > > Randomization helps to attenuate the cache conflict rate
+> > > > when that happens.
+> > >
+> > > I can imagine that. Do we have any numbers to actually back that claim
+> > > though?
+> > >
+> >
+> > Yes, 2.5X cache conflict rate reduction, in the change log.
+>
+> Which is a single benchmark result which is not even described in detail
+> to be able to reproduce that measurement. I am sorry for nagging
+> here but I would expect something less obscure.
+
+No need to apologize.
+
+> How does this behave for
+> usual workloads that we test cache sensitive workloads. I myself am not
+> a benchmark person but I am pretty sure there are people who can help
+> you to find proper ones to run and evaluate.
+
+I wouldn't pick benchmarks that are cpu-cache sensitive since those
+are small number of MBs in size, a memory-side cache is on the order
+of 10s of GBs.
+
+>
+> > > > For workloads that may fit in the cache, and/or
+> > > > environments that need more explicit cache control we have the recent
+> > > > changes to numa_emulation [1] to arrange for cache sized numa nodes.
+> > >
+> > > Could you point me to some more documentation. My google-fu is failing
+> > > me and "5.2.27.5 Memory Side Cache Information Structure" doesn't point
+> > > to anything official (except for your patch referencing it).
+> >
+> > http://www.uefi.org/sites/default/files/resources/ACPI%206_2_A_Sept29.pdf
+>
+> Thanks!
+>
+> [...]
+>
+> > > With all that being said, I think the overal idea makes sense but you
+> > > should try much harder to explain _why_ we need it and back your
+> > > justification by actual _data_ before I would consider my ack.
+> >
+> > I don't have a known CVE, I only have the ack of people more
+> > knowledgeable about security than myself like Kees to say in effect,
+> > "yes, this complicates attacks". If you won't take Kees' word for it,
+> > I'm not sure what other justification I can present on the security
+> > aspect.
+>
+> In general (nothing against Kees here of course), I prefer a stronger
+> justification than "somebody said it will make attacks harder". At least
+> my concern about fragmented memory which is not really hard to achieve
+> at all should be reasonably clarified. I am fully aware there is no
+> absolute measure here but making something harder under ideal conditions
+> doesn't really help for common attack strategies which can prepare the
+> system into an actual state to exploit allocation predictability. I am
+> no expert here but if an attacker can deduce the allocation pattern then
+> fragmenting the memory is one easy step to overcome what people would
+> consider a security measure.
+>
+> So color me unconvinced for now.
+
+Another way to attack heap randomization without fragmentation is to
+just perform heap spraying and hope that lands the data the attacker
+needs in the right place. I still think that allocation entropy > 0 is
+positive benefit, but I don't know how to determine the curve of
+security benefit relative to shuffle order.
+
+> > 2.5X cache conflict reduction on a Java benchmark workload that the
+> > exceeds the cache size by multiple factors is the data I can provide
+> > today. Post launch it becomes easier to share more precise data, but
+> > that's post 4.20. The hope of course is to have this capability
+> > available in an upstream released kernel in advance of wider hardware
+> > availability.
+>
+> I will not comment on timing but in general, any performance related
+> changes should come with numbers for a wider variety of workloads.
+
+That's fair.
+
+> In any case, I believe the change itself is not controversial as long it
+> is opt-in (potentially autotuned based on specific HW)
+
+Do you mean disable shuffling on systems that don't have a
+memory-side-cache unless / until we can devise a security benefit
+curve relative to shuffle-order? The former I can do, the latter, I'm
+at a loss.
+
+> with a reasonable
+> API. And no I do not consider $RANDOM_ORDER a good interface.
+
+I think the current v4 proposal of compile-time setting is reasonable
+once we have consensus / guidance on the default shuffle-order.
