@@ -1,135 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AC35D6B0006
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 04:03:28 -0400 (EDT)
-Received: by mail-it1-f199.google.com with SMTP id y73-v6so8919779ita.2
-        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 01:03:28 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r10-v6sor11126179iog.108.2018.10.11.01.03.27
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B3E846B000A
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 04:09:47 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id h48-v6so4619946edh.22
+        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 01:09:47 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w9-v6si284126edu.214.2018.10.11.01.09.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 11 Oct 2018 01:03:27 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Oct 2018 01:09:46 -0700 (PDT)
+Subject: Re: [PATCH v5 1/2] memory_hotplug: Free pages as higher order
+References: <1538727006-5727-1-git-send-email-arunks@codeaurora.org>
+ <72215e75-6c7e-0aef-c06e-e3aba47cf806@suse.cz>
+ <efb65160af41d0e18cb2dcb30c2fb86a@codeaurora.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <97d8db4c-f117-8216-5f48-d5991692c867@suse.cz>
+Date: Thu, 11 Oct 2018 10:07:02 +0200
 MIME-Version: 1.0
-In-Reply-To: <20181010214945.5owshc3mlrh74z4b@linutronix.de>
-References: <20180918152931.17322-1-williams@redhat.com> <20181005163018.icbknlzymwjhdehi@linutronix.de>
- <20181005163320.zkacovxvlih6blpp@linutronix.de> <CACT4Y+YoNCm=0C6PZtQR1V1j4QeQ0cFcJzpJF1hn34Oaht=jwg@mail.gmail.com>
- <20181009142742.ikh7xv2dn5skjjbe@linutronix.de> <CACT4Y+ZB38pKvT8+BAjDZ1t4ZjXQQKoya+ytXT+ASQxHUkWwnA@mail.gmail.com>
- <20181010092929.a5gd3fkkw6swco4c@linutronix.de> <CACT4Y+agGPSTZ-8A8r8haSeRM8UpRYMAF8BC4A87yeM9nvpP6w@mail.gmail.com>
- <20181010095343.6qxved3owi6yokoa@linutronix.de> <CACT4Y+ZpMjYBPS0GHP0AsEJZZmDjwV9DJBiVUzYKBnD+r9W4+A@mail.gmail.com>
- <20181010214945.5owshc3mlrh74z4b@linutronix.de>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Thu, 11 Oct 2018 10:03:06 +0200
-Message-ID: <CACT4Y+Zj0pBR_C-6fcMkFkrkKh-LwDupNHDz=ud7HJomtvFUVw@mail.gmail.com>
-Subject: Re: [PATCH] mm/kasan: make quarantine_lock a raw_spinlock_t
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <efb65160af41d0e18cb2dcb30c2fb86a@codeaurora.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: Clark Williams <williams@redhat.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rt-users@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Arun KS <arunks@codeaurora.org>
+Cc: kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com, iamjoonsoo.kim@lge.com, gregkh@linuxfoundation.org, osalvador@suse.de, malat@debian.org, kirill.shutemov@linux.intel.com, jrdr.linux@gmail.com, yasu.isimatu@gmail.com, mgorman@techsingularity.net, aaron.lu@intel.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com
 
-On Wed, Oct 10, 2018 at 11:49 PM, Sebastian Andrzej Siewior
-<bigeasy@linutronix.de> wrote:
-> From: Clark Williams <williams@redhat.com>
-> Date: Tue, 18 Sep 2018 10:29:31 -0500
->
-> The static lock quarantine_lock is used in quarantine.c to protect the
-> quarantine queue datastructures. It is taken inside quarantine queue
-> manipulation routines (quarantine_put(), quarantine_reduce() and
-> quarantine_remove_cache()), with IRQs disabled.
-> This is not a problem on a stock kernel but is problematic on an RT
-> kernel where spin locks are sleeping spinlocks, which can sleep and can
-> not be acquired with disabled interrupts.
->
-> Convert the quarantine_lock to a raw spinlock_t. The usage of
-> quarantine_lock is confined to quarantine.c and the work performed while
-> the lock is held is used for debug purpose.
->
-> Signed-off-by: Clark Williams <williams@redhat.com>
-> Acked-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-> [bigeasy: slightly altered the commit message]
-> Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+On 10/10/18 6:56 PM, Arun KS wrote:
+> On 2018-10-10 21:00, Vlastimil Babka wrote:
+>> On 10/5/18 10:10 AM, Arun KS wrote:
+>>> When free pages are done with higher order, time spend on
+>>> coalescing pages by buddy allocator can be reduced. With
+>>> section size of 256MB, hot add latency of a single section
+>>> shows improvement from 50-60 ms to less than 1 ms, hence
+>>> improving the hot add latency by 60%. Modify external
+>>> providers of online callback to align with the change.
+>>>
+>>> Signed-off-by: Arun KS <arunks@codeaurora.org>
+>>
+>> [...]
+>>
+>>> @@ -655,26 +655,44 @@ void __online_page_free(struct page *page)
+>>>  }
+>>>  EXPORT_SYMBOL_GPL(__online_page_free);
+>>>
+>>> -static void generic_online_page(struct page *page)
+>>> +static int generic_online_page(struct page *page, unsigned int order)
+>>>  {
+>>> -	__online_page_set_limits(page);
+>>
+>> This is now not called anymore, although the xen/hv variants still do
+>> it. The function seems empty these days, maybe remove it as a followup
+>> cleanup?
+>>
+>>> -	__online_page_increment_counters(page);
+>>> -	__online_page_free(page);
+>>> +	__free_pages_core(page, order);
+>>> +	totalram_pages += (1UL << order);
+>>> +#ifdef CONFIG_HIGHMEM
+>>> +	if (PageHighMem(page))
+>>> +		totalhigh_pages += (1UL << order);
+>>> +#endif
+>>
+>> __online_page_increment_counters() would have used
+>> adjust_managed_page_count() which would do the changes under
+>> managed_page_count_lock. Are we safe without the lock? If yes, there
+>> should perhaps be a comment explaining why.
+> 
+> Looks unsafe without managed_page_count_lock. I think better have a 
+> similar implementation of free_boot_core() in memory_hotplug.c like we 
+> had in version 1 of patch. And use adjust_managed_page_count() instead 
+> of page_zone(page)->managed_pages += nr_pages;
+> 
+> https://lore.kernel.org/patchwork/patch/989445/
 
-Acked-by: Dmitry Vyukov <dvyukov@google.com>
+Looks like deferred_free_range() has the same problem calling
+__free_pages_core() to adjust zone->managed_pages. I expect
+__free_pages_bootmem() is OK because at that point the system is still
+single-threaded?
+Could be solved by moving that out of __free_pages_core().
 
-> ---
-> On 2018-10-10 11:57:41 [+0200], Dmitry Vyukov wrote:
->> Yes. Clark's patch looks good to me. Probably would be useful to add a
->> comment as to why raw spinlock is used (otherwise somebody may
->> refactor it back later).
->
-> If you really insist, I could add something but this didn't happen so
-> far. git's changelog should provide enough information why to why it was
-> changed.
->
->  mm/kasan/quarantine.c |   18 +++++++++---------
->  1 file changed, 9 insertions(+), 9 deletions(-)
->
-> --- a/mm/kasan/quarantine.c
-> +++ b/mm/kasan/quarantine.c
-> @@ -103,7 +103,7 @@ static int quarantine_head;
->  static int quarantine_tail;
->  /* Total size of all objects in global_quarantine across all batches. */
->  static unsigned long quarantine_size;
-> -static DEFINE_SPINLOCK(quarantine_lock);
-> +static DEFINE_RAW_SPINLOCK(quarantine_lock);
->  DEFINE_STATIC_SRCU(remove_cache_srcu);
->
->  /* Maximum size of the global queue. */
-> @@ -190,7 +190,7 @@ void quarantine_put(struct kasan_free_me
->         if (unlikely(q->bytes > QUARANTINE_PERCPU_SIZE)) {
->                 qlist_move_all(q, &temp);
->
-> -               spin_lock(&quarantine_lock);
-> +               raw_spin_lock(&quarantine_lock);
->                 WRITE_ONCE(quarantine_size, quarantine_size + temp.bytes);
->                 qlist_move_all(&temp, &global_quarantine[quarantine_tail]);
->                 if (global_quarantine[quarantine_tail].bytes >=
-> @@ -203,7 +203,7 @@ void quarantine_put(struct kasan_free_me
->                         if (new_tail != quarantine_head)
->                                 quarantine_tail = new_tail;
->                 }
-> -               spin_unlock(&quarantine_lock);
-> +               raw_spin_unlock(&quarantine_lock);
->         }
->
->         local_irq_restore(flags);
-> @@ -230,7 +230,7 @@ void quarantine_reduce(void)
->          * expected case).
->          */
->         srcu_idx = srcu_read_lock(&remove_cache_srcu);
-> -       spin_lock_irqsave(&quarantine_lock, flags);
-> +       raw_spin_lock_irqsave(&quarantine_lock, flags);
->
->         /*
->          * Update quarantine size in case of hotplug. Allocate a fraction of
-> @@ -254,7 +254,7 @@ void quarantine_reduce(void)
->                         quarantine_head = 0;
->         }
->
-> -       spin_unlock_irqrestore(&quarantine_lock, flags);
-> +       raw_spin_unlock_irqrestore(&quarantine_lock, flags);
->
->         qlist_free_all(&to_free, NULL);
->         srcu_read_unlock(&remove_cache_srcu, srcu_idx);
-> @@ -310,17 +310,17 @@ void quarantine_remove_cache(struct kmem
->          */
->         on_each_cpu(per_cpu_remove_cache, cache, 1);
->
-> -       spin_lock_irqsave(&quarantine_lock, flags);
-> +       raw_spin_lock_irqsave(&quarantine_lock, flags);
->         for (i = 0; i < QUARANTINE_BATCHES; i++) {
->                 if (qlist_empty(&global_quarantine[i]))
->                         continue;
->                 qlist_move_cache(&global_quarantine[i], &to_free, cache);
->                 /* Scanning whole quarantine can take a while. */
-> -               spin_unlock_irqrestore(&quarantine_lock, flags);
-> +               raw_spin_unlock_irqrestore(&quarantine_lock, flags);
->                 cond_resched();
-> -               spin_lock_irqsave(&quarantine_lock, flags);
-> +               raw_spin_lock_irqsave(&quarantine_lock, flags);
->         }
-> -       spin_unlock_irqrestore(&quarantine_lock, flags);
-> +       raw_spin_unlock_irqrestore(&quarantine_lock, flags);
->
->         qlist_free_all(&to_free, cache);
->
+But do we care about readers potentially seeing a store tear? If yes
+then maybe these counters should be converted to atomics...
+
+> -static void generic_online_page(struct page *page)
+> +static int generic_online_page(struct page *page, unsigned int order)
+>   {
+> -	__online_page_set_limits(page);
+> -	__online_page_increment_counters(page);
+> -	__online_page_free(page);
+> +	unsigned long nr_pages = 1 << order;
+> +	struct page *p = page;
+> +
+> +	for (loop = 0 ; loop < nr_pages ; loop++, p++) {
+> +		__ClearPageReserved(p);
+> +		set_page_count(p, 0);
+> +	}
+> +
+> +	adjust_managed_page_count(page, nr_pages);
+> +	set_page_refcounted(page);
+> +	__free_pages(page, order);
+> +
+> +	return 0;
+> +}
+> 
+> 
+> Regards,
+> Arun
+> 
