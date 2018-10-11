@@ -1,59 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F2EB86B0010
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 20:50:41 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id r77-v6so6813889qke.3
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 17:50:41 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s35-v6sor17913176qtj.23.2018.10.10.17.50.41
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EFCB66B0003
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 21:17:36 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id k66-v6so4928810pga.21
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 18:17:36 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y7-v6sor15409068pfi.44.2018.10.10.18.17.35
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Oct 2018 17:50:41 -0700 (PDT)
+        Wed, 10 Oct 2018 18:17:35 -0700 (PDT)
+Date: Thu, 11 Oct 2018 10:17:30 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: INFO: rcu detected stall in shmem_fault
+Message-ID: <20181011011730.GA728@jagdpanzerIV>
+References: <000000000000dc48d40577d4a587@google.com>
+ <201810100012.w9A0Cjtn047782@www262.sakura.ne.jp>
+ <20181010085945.GC5873@dhcp22.suse.cz>
+ <e72f799e-0634-f958-1af0-291f8577f4e8@i-love.sakura.ne.jp>
+ <20181010113500.GH5873@dhcp22.suse.cz>
+ <20181010114833.GB3949@tigerII.localdomain>
+ <20181010122539.GI5873@dhcp22.suse.cz>
+ <CACT4Y+ZfVdeB-WNeLCWJvTHNeCUtR3r1R+3Qjv9XjZXPxaV2WA@mail.gmail.com>
+ <CACT4Y+bqJeKum7jessccWQF+4BmabnVy48aqHEOypioKwQAMTQ@mail.gmail.com>
+ <b7727ff0-b34f-25a2-b9e7-56e70d9349c4@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20181011004618.GA237677@joelaf.mtv.corp.google.com>
-References: <20181009201400.168705-1-joel@joelfernandes.org>
- <20181009220222.26nzajhpsbt7syvv@kshutemo-mobl1> <20181009230447.GA17911@joelaf.mtv.corp.google.com>
- <20181010100011.6jqjvgeslrvvyhr3@kshutemo-mobl1> <20181011004618.GA237677@joelaf.mtv.corp.google.com>
-From: Joel Fernandes <joelaf@google.com>
-Date: Wed, 10 Oct 2018 17:50:39 -0700
-Message-ID: <CAJWu+oqEmAQ0vWB7fKitQPQjdMX0uhQs_Vb1jH5MFfDO8xBnHQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: Speed up mremap on large regions
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b7727ff0-b34f-25a2-b9e7-56e70d9349c4@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joel Fernandes <joel@joelfernandes.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, LKML <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, "Cc: Android Kernel" <kernel-team@android.com>, Minchan Kim <minchan@google.com>, Hugh Dickins <hughd@google.com>, Lokesh Gidra <lokeshgidra@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, guro@fb.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Yang Shi <yang.s@alibaba-inc.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>
 
-On Wed, Oct 10, 2018 at 5:46 PM, Joel Fernandes <joel@joelfernandes.org> wrote:
-> On Wed, Oct 10, 2018 at 01:00:11PM +0300, Kirill A. Shutemov wrote:
-[...]
->>
->> My worry is that some architecture has to allocate page table differently
->> depending on virtual address (due to aliasing or something). Original page
->> table was allocated for one virtual address and moving the page table to
->> different spot in virtual address space may break the invariant.
->>
->> > Also the clean up of the argument that you're proposing is a bit out of scope
->> > of this patch but yeah we could clean it up in a separate patch if needed. I
->> > don't feel too strongly about that. It seems cosmetic and in the future if
->> > the address that's passed in is needed, then the architecture can use it.
->>
->> Please, do. This should be pretty mechanical change, but it will help to
->> make sure that none of obscure architecture will be broken by the change.
->>
->
-> The thing is its quite a lot of change, I wrote a coccinelle script to do it
-> tree wide, following is the diffstat:
->  48 files changed, 91 insertions(+), 124 deletions(-)
->
-> Imagine then having to add the address argument back in the future in case
-> its ever needed. Is it really worth doing it? Anyway I confirmed that the
-> address is NOT used for anything at the moment so your fears of the
-> optimization doing anything wonky really don't exist at the moment. I really
-> feel this is unnecessary but I am Ok with others agree the second arg to
-> pte_alloc should be removed in light of this change. Andrew, what do you
-> think?
+On (10/10/18 22:10), Tetsuo Handa wrote:
+> >> I've found at least 1 place that uses DEFAULT_RATELIMIT_INTERVAL*10:
+> >> https://elixir.bootlin.com/linux/latest/source/fs/btrfs/extent-tree.c#L8365
+> >> Probably we need something similar here.
+> 
+> Since printk() is a significantly CPU consuming operation, I think that what
+> we need to guarantee is interval between the end of an OOM killer messages
+> and the beginning of next OOM killer messages is large enough. For example,
+> setup a timer with 5 seconds timeout upon the end of an OOM killer messages
+> and check whether the timer already fired upon the beginning of next OOM killer
+> messages.
 
-I meant to say here, "I am Ok if others agree the second arg to
-pte_alloc should be removed", but I would really like some input from
-the others as well on what they think.
+Hmm, there is no way to make sure that previous OOM report made it to
+consoles. So maybe timer approach will be as good as rate-limiting.
+
+	-ss
