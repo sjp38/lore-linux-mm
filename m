@@ -1,108 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C31796B0003
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 22:29:35 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id d40-v6so5247272pla.14
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 19:29:35 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id l12-v6si25463057pgj.76.2018.10.10.19.29.33
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Oct 2018 19:29:34 -0700 (PDT)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D2A56B0003
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 23:17:03 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id j65-v6so5269960otc.5
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 20:17:03 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id d15si9688402oti.61.2018.10.10.20.17.01
+        for <linux-mm@kvack.org>;
+        Wed, 10 Oct 2018 20:17:01 -0700 (PDT)
+Subject: Re: [PATCH 1/4] mm/hugetlb: Enable PUD level huge page migration
+References: <20181003065833.GD18290@dhcp22.suse.cz>
+ <7f0488b5-053f-0954-9b95-8c0890ef5597@arm.com>
+ <20181003105926.GA4714@dhcp22.suse.cz>
+ <34b25855-fcef-61ed-312d-2011f80bdec4@arm.com>
+ <20181003114842.GD4714@dhcp22.suse.cz>
+ <d42cc88b-6bab-797c-f263-2dce650ea3ab@arm.com>
+ <20181003133609.GG4714@dhcp22.suse.cz>
+ <5dc1dc4d-de60-43b9-aab6-3b3bb6a22a4b@arm.com>
+ <20181009141442.GT8528@dhcp22.suse.cz>
+ <b722d14e-d14f-f45d-5722-685d4f21f6e4@arm.com>
+ <20181010093907.GF5873@dhcp22.suse.cz>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <4127aad2-e8f4-3fcf-ffe3-7a23147885ce@arm.com>
+Date: Thu, 11 Oct 2018 08:46:55 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII;
- format=flowed
+In-Reply-To: <20181010093907.GF5873@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Date: Thu, 11 Oct 2018 07:59:32 +0530
-From: Arun KS <arunks@codeaurora.org>
-Subject: Re: [PATCH v5 1/2] memory_hotplug: Free pages as higher order
-In-Reply-To: <20181010173334.GL5873@dhcp22.suse.cz>
-References: <1538727006-5727-1-git-send-email-arunks@codeaurora.org>
- <72215e75-6c7e-0aef-c06e-e3aba47cf806@suse.cz>
- <efb65160af41d0e18cb2dcb30c2fb86a@codeaurora.org>
- <20181010173334.GL5873@dhcp22.suse.cz>
-Message-ID: <a2d576a5fc82cdf54fc89409686e58f5@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, akpm@linux-foundation.org, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, gregkh@linuxfoundation.org, osalvador@suse.de, malat@debian.org, kirill.shutemov@linux.intel.com, jrdr.linux@gmail.com, yasu.isimatu@gmail.com, mgorman@techsingularity.net, aaron.lu@intel.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, suzuki.poulose@arm.com, punit.agrawal@arm.com, will.deacon@arm.com, Steven.Price@arm.com, catalin.marinas@arm.com, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
 
-On 2018-10-10 23:03, Michal Hocko wrote:
-> On Wed 10-10-18 22:26:41, Arun KS wrote:
->> On 2018-10-10 21:00, Vlastimil Babka wrote:
->> > On 10/5/18 10:10 AM, Arun KS wrote:
->> > > When free pages are done with higher order, time spend on
->> > > coalescing pages by buddy allocator can be reduced. With
->> > > section size of 256MB, hot add latency of a single section
->> > > shows improvement from 50-60 ms to less than 1 ms, hence
->> > > improving the hot add latency by 60%. Modify external
->> > > providers of online callback to align with the change.
->> > >
->> > > Signed-off-by: Arun KS <arunks@codeaurora.org>
->> >
->> > [...]
->> >
->> > > @@ -655,26 +655,44 @@ void __online_page_free(struct page *page)
->> > >  }
->> > >  EXPORT_SYMBOL_GPL(__online_page_free);
->> > >
->> > > -static void generic_online_page(struct page *page)
->> > > +static int generic_online_page(struct page *page, unsigned int order)
->> > >  {
->> > > -	__online_page_set_limits(page);
->> >
->> > This is now not called anymore, although the xen/hv variants still do
->> > it. The function seems empty these days, maybe remove it as a followup
->> > cleanup?
->> >
->> > > -	__online_page_increment_counters(page);
->> > > -	__online_page_free(page);
->> > > +	__free_pages_core(page, order);
->> > > +	totalram_pages += (1UL << order);
->> > > +#ifdef CONFIG_HIGHMEM
->> > > +	if (PageHighMem(page))
->> > > +		totalhigh_pages += (1UL << order);
->> > > +#endif
->> >
->> > __online_page_increment_counters() would have used
->> > adjust_managed_page_count() which would do the changes under
->> > managed_page_count_lock. Are we safe without the lock? If yes, there
->> > should perhaps be a comment explaining why.
->> 
->> Looks unsafe without managed_page_count_lock.
+
+
+On 10/10/2018 03:09 PM, Michal Hocko wrote:
+> On Wed 10-10-18 08:39:22, Anshuman Khandual wrote:
+> [...]
+>> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+>> index 9df1d59..4bcbf1e 100644
+>> --- a/include/linux/hugetlb.h
+>> +++ b/include/linux/hugetlb.h
+>> @@ -504,6 +504,16 @@ static inline bool hugepage_migration_supported(struct hstate *h)
+>>         return arch_hugetlb_migration_supported(h);
+>>  }
+>>  
+>> +static inline bool hugepage_movable_supported(struct hstate *h)
+>> +{
+>> +       if (!hugepage_migration_supported(h)) --> calls arch override restricting the set
+>> +               return false;
+>> +
+>> +       if (hstate_is_gigantic(h)	--------> restricts the set further
+>> +               return false;
+>> +       return true;
+>> +}
+>> +
+>>  static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
+>>                                            struct mm_struct *mm, pte_t *pte)
+>>  {
+>> @@ -600,6 +610,11 @@ static inline bool hugepage_migration_supported(struct hstate *h)
+>>         return false;
+>>  }
+>>  
+>> +static inline bool hugepage_movable_supported(struct hstate *h)
+>> +{
+>> +       return false;
+>> +}
+>> +
+>>  static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
+>>                                            struct mm_struct *mm, pte_t *pte)
+>>  {
+>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> index 3c21775..a5a111d 100644
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -919,7 +919,7 @@ static struct page *dequeue_huge_page_nodemask(struct hstate *h, gfp_t gfp_mask,
+>>  /* Movability of hugepages depends on migration support. */
+>>  static inline gfp_t htlb_alloc_mask(struct hstate *h)
+>>  {
+>> -       if (hugepage_migration_supported(h))
+>> +       if (hugepage_movable_supported(h))
+>>                 return GFP_HIGHUSER_MOVABLE;
+>>         else
+>>                 return GFP_HIGHUSER;
 > 
-> Why does it matter actually? We cannot online/offline memory in
-> parallel. This is not the case for the boot where we initialize memory
-> in parallel on multiple nodes. So this seems to be safe currently 
-> unless
-> I am missing something. A comment explaining that would be helpful
-> though.
+> Exactly what I've had in mind. It would be great to have a comment in
+> hugepage_movable_supported to explain why we are not supporting giga
+> pages even though they are migrateable and why we need that distinction.
+sure, will do.
 
-Other main callers of adjust_manage_page_count(),
-
-static inline void free_reserved_page(struct page *page)
-{
-         __free_reserved_page(page);
-         adjust_managed_page_count(page, 1);
-}
-
-static inline void mark_page_reserved(struct page *page)
-{
-         SetPageReserved(page);
-         adjust_managed_page_count(page, -1);
-}
-
-Won't they race with memory hotplug?
-
-Few more,
-./drivers/xen/balloon.c:519:            adjust_managed_page_count(page, 
--1);
-./drivers/virtio/virtio_balloon.c:175:  adjust_managed_page_count(page, 
--1);
-./drivers/virtio/virtio_balloon.c:196:  adjust_managed_page_count(page, 
-1);
-./mm/hugetlb.c:2158:                    adjust_managed_page_count(page, 
-1 << h->order);
-
-Regards,
-Arun
+> 
+>> The above patch is in addition to the following later patch in the series.
+> [...]
+>> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+>> index 9c1b77f..9df1d59 100644
+>> --- a/include/linux/hugetlb.h
+>> +++ b/include/linux/hugetlb.h
+>> @@ -479,18 +479,29 @@ static inline pgoff_t basepage_index(struct page *page)
+>>  extern int dissolve_free_huge_page(struct page *page);
+>>  extern int dissolve_free_huge_pages(unsigned long start_pfn,
+>>                                     unsigned long end_pfn);
+>> -static inline bool hugepage_migration_supported(struct hstate *h)
+>> -{
+>> +
+>>  #ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
+>> +#ifndef arch_hugetlb_migration_supported
+>> +static inline bool arch_hugetlb_migration_supported(struct hstate *h)
+>> +{
+>>         if ((huge_page_shift(h) == PMD_SHIFT) ||
+>>                 (huge_page_shift(h) == PUD_SHIFT) ||
+>>                         (huge_page_shift(h) == PGDIR_SHIFT))
+>>                 return true;
+>>         else
+>>                 return false;
+>> +}
+>> +#endif
+>>  #else
+>> +static inline bool arch_hugetlb_migration_supported(struct hstate *h)
+>> +{
+>>         return false;
+>> +}
+>>  #endif
+>> +
+>> +static inline bool hugepage_migration_supported(struct hstate *h)
+>> +{
+>> +       return arch_hugetlb_migration_supported(h);
+>>  }
+> 
+> Yes making hugepage_migration_supported to have an arch override is
+> definitely the right thing to do. Whether the above approach rather than
+> a weak symbol is better is a matter of taste and I do not feel strongly
+> about that.
+Okay then, will carry this forward and re-spin the patch series. Thank you
+for your detailed review till now.
