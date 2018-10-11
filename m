@@ -1,74 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AE346B029C
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 00:15:31 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id k21-v6so7361759qtj.23
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 21:15:31 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id t29-v6si2029355qvc.47.2018.10.10.21.15.30
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E71B16B0008
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 01:14:26 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id i189-v6so5236807pge.6
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 22:14:26 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i3-v6sor13359994pfj.39.2018.10.10.22.14.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Oct 2018 21:15:30 -0700 (PDT)
-Subject: [PATCH 25/25] xfs: remove redundant remap partial EOF block checks
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Wed, 10 Oct 2018 21:15:26 -0700
-Message-ID: <153923132645.5546.97372209609060021.stgit@magnolia>
-In-Reply-To: <153923113649.5546.9840926895953408273.stgit@magnolia>
-References: <153923113649.5546.9840926895953408273.stgit@magnolia>
+        (Google Transport Security);
+        Wed, 10 Oct 2018 22:14:25 -0700 (PDT)
+Date: Thu, 11 Oct 2018 08:14:19 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: Speed up mremap on large regions
+Message-ID: <20181011051419.2rkfbooqc3auk5ji@kshutemo-mobl1>
+References: <20181009201400.168705-1-joel@joelfernandes.org>
+ <20181009220222.26nzajhpsbt7syvv@kshutemo-mobl1>
+ <20181009230447.GA17911@joelaf.mtv.corp.google.com>
+ <20181010100011.6jqjvgeslrvvyhr3@kshutemo-mobl1>
+ <20181011004618.GA237677@joelaf.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181011004618.GA237677@joelaf.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david@fromorbit.com, darrick.wong@oracle.com
-Cc: sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, ocfs2-devel@oss.oracle.com
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@android.com, minchan@google.com, hughd@google.com, lokeshgidra@google.com, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Thomas Gleixner <tglx@linutronix.de>
 
-From: Darrick J. Wong <darrick.wong@oracle.com>
+On Wed, Oct 10, 2018 at 05:46:18PM -0700, Joel Fernandes wrote:
+> diff --git a/arch/powerpc/include/asm/book3s/64/pgalloc.h b/arch/powerpc/include/asm/book3s/64/pgalloc.h
+> index 391ed2c3b697..8a33f2044923 100644
+> --- a/arch/powerpc/include/asm/book3s/64/pgalloc.h
+> +++ b/arch/powerpc/include/asm/book3s/64/pgalloc.h
+> @@ -192,14 +192,12 @@ static inline pgtable_t pmd_pgtable(pmd_t pmd)
+>  	return (pgtable_t)pmd_page_vaddr(pmd);
+>  }
+>  
+> -static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+> -					  unsigned long address)
+> +static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
+>  {
+>  	return (pte_t *)pte_fragment_alloc(mm, address, 1);
+>  }
 
-Now that we've moved the partial EOF block checks to the VFS helpers, we
-can remove the redundantn functionality from XFS.
+This is obviously broken.
 
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
----
- fs/xfs/xfs_reflink.c |   20 --------------------
- 1 file changed, 20 deletions(-)
-
-
-diff --git a/fs/xfs/xfs_reflink.c b/fs/xfs/xfs_reflink.c
-index 12a1fe92454e..4450443f1148 100644
---- a/fs/xfs/xfs_reflink.c
-+++ b/fs/xfs/xfs_reflink.c
-@@ -1307,8 +1307,6 @@ xfs_reflink_remap_prep(
- 	struct inode		*inode_out = file_inode(file_out);
- 	struct xfs_inode	*dest = XFS_I(inode_out);
- 	bool			same_inode = (inode_in == inode_out);
--	bool			is_dedupe = (remap_flags & RFR_SAME_DATA);
--	u64			blkmask = i_blocksize(inode_in) - 1;
- 	ssize_t			ret;
- 
- 	/* Lock both files against IO */
-@@ -1336,24 +1334,6 @@ xfs_reflink_remap_prep(
- 	if (ret <= 0)
- 		goto out_unlock;
- 
--	/*
--	 * If the dedupe data matches, chop off the partial EOF block
--	 * from the source file so we don't try to dedupe the partial
--	 * EOF block.
--	 */
--	if (is_dedupe) {
--		*len &= ~blkmask;
--	} else if (*len & blkmask) {
--		/*
--		 * The user is attempting to share a partial EOF block,
--		 * if it's inside the destination EOF then reject it.
--		 */
--		if (pos_out + *len < i_size_read(inode_out)) {
--			ret = -EINVAL;
--			goto out_unlock;
--		}
--	}
--
- 	/* Attach dquots to dest inode before changing block map */
- 	ret = xfs_qm_dqattach(dest);
- 	if (ret)
+-- 
+ Kirill A. Shutemov
