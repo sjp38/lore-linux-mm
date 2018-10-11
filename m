@@ -1,101 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D20F6B0003
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 16:21:29 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id f9-v6so8877581iok.23
-        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 13:21:29 -0700 (PDT)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id w25-v6si20963131jaj.9.2018.10.11.13.21.27
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BD386B0006
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 16:39:52 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id b202-v6so6780208oii.23
+        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 13:39:52 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g144-v6sor14100808oib.48.2018.10.11.13.39.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 11 Oct 2018 13:21:28 -0700 (PDT)
-From: Logan Gunthorpe <logang@deltatee.com>
-References: <20181005161642.2462-1-logang@deltatee.com>
- <20181005161642.2462-6-logang@deltatee.com> <20181011133730.GB7276@lst.de>
- <8cea5ffa-5fbf-8ea2-b673-20e2d09a910d@deltatee.com>
- <83cfd2d7-b840-b0c6-594e-8b39be8177c1@deltatee.com>
-Message-ID: <cfb2af87-7e47-539c-d149-2599f23b663a@deltatee.com>
-Date: Thu, 11 Oct 2018 14:21:17 -0600
+        (Google Transport Security);
+        Thu, 11 Oct 2018 13:39:50 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <83cfd2d7-b840-b0c6-594e-8b39be8177c1@deltatee.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-CA
-Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH 5/5] RISC-V: Implement sparsemem
+References: <20181011151523.27101-1-yu-cheng.yu@intel.com> <20181011151523.27101-8-yu-cheng.yu@intel.com>
+In-Reply-To: <20181011151523.27101-8-yu-cheng.yu@intel.com>
+From: Jann Horn <jannh@google.com>
+Date: Thu, 11 Oct 2018 22:39:24 +0200
+Message-ID: <CAG48ez3R7XL8MX_sjff1FFYuARX_58wA_=ACbv2im-XJKR8tvA@mail.gmail.com>
+Subject: Re: [PATCH v5 07/27] mm/mmap: Create a guard area between VMAs
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Rob Herring <robh@kernel.org>, Albert Ou <aou@eecs.berkeley.edu>, Andrew Waterman <andrew@sifive.com>, linux-sh@vger.kernel.org, Palmer Dabbelt <palmer@sifive.com>, linux-kernel@vger.kernel.org, Stephen Bates <sbates@raithlin.com>, Zong Li <zong@andestech.com>, linux-mm@kvack.org, Olof Johansson <olof@lixom.net>, linux-riscv@lists.infradead.org, Michael Clark <michaeljclark@mac.com>, linux-arm-kernel@lists.infradead.org
+To: yu-cheng.yu@intel.com, Andy Lutomirski <luto@amacapital.net>
+Cc: the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, rdunlap@infradead.org, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com, Daniel Micay <danielmicay@gmail.com>
 
+On Thu, Oct 11, 2018 at 5:20 PM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
+> Create a guard area between VMAs to detect memory corruption.
+[...]
+> +config VM_AREA_GUARD
+> +       bool "VM area guard"
+> +       default n
+> +       help
+> +         Create a guard area between VM areas so that access beyond
+> +         limit can be detected.
+> +
+>  endmenu
 
+Sorry to bring this up so late, but Daniel Micay pointed out to me
+that, given that VMA guards will raise the number of VMAs by
+inhibiting vma_merge(), people are more likely to run into
+/proc/sys/vm/max_map_count (which limits the number of VMAs to ~65k by
+default, and can't easily be raised without risking an overflow of
+page->_mapcount on systems with over ~800GiB of RAM, see
+https://lore.kernel.org/lkml/20180208021112.GB14918@bombadil.infradead.org/
+and replies) with this change.
 
-On 2018-10-11 12:45 p.m., Logan Gunthorpe wrote:
-> Ok, I spoke too soon...
-> 
-> Having this define next to the struct page definition works great for
-> riscv. However, making that happen in arm64 seems to be a nightmare. The
-> include chain in arm64 is tangled up so much that including mm_types
-> where this is needed seems to be extremely difficult.
+Playing with glibc's memory allocator, it looks like glibc will use
+mmap() for 128KB allocations; so at 65530*128KB=8GB of memory usage in
+128KB chunks, an application could run out of VMAs.
 
-Sorry for all the unnecessary churn but I've figured it out. Just had to
-realize we only need mm_types.h to be included where
-STRUCT_PAGE_MAX_SHIFT is finally expanded. Thus we only need it in one
-more spot (fixmap.h). See below.
+People already run into that limit sometimes when mapping files, and
+recommend raising it:
 
-Thanks,
+https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html
+http://docs.actian.com/vector/4.2/User/Increase_max_map_count_Kernel_Parameter_(Linux).htm
+https://www.suse.com/de-de/support/kb/doc/?id=7000830 (they actually
+ran into ENOMEM on **munmap**, because you can't split VMAs once the
+limit is reached): "A custom application was failing on a SLES server
+with ENOMEM errors when attempting to release memory using an munmap
+call. This resulted in memory failing to be released, and the system
+load and swap use increasing until the SLES machine ultimately crashed
+or hung."
+https://access.redhat.com/solutions/99913
+https://forum.manjaro.org/t/resolved-how-to-set-vm-max-map-count-during-boot/43360
 
-Logan
-
---
-
-
-diff --git a/arch/arm64/include/asm/memory.h
-b/arch/arm64/include/asm/memory.h
-index b96442960aea..f0a5c9531e8b 100644
---- a/arch/arm64/include/asm/memory.h
-+++ b/arch/arm64/include/asm/memory.h
-@@ -34,15 +34,6 @@
-  */
- #define PCI_IO_SIZE            SZ_16M
-
--/*
-- * Log2 of the upper bound of the size of a struct page. Used for sizing
-- * the vmemmap region only, does not affect actual memory footprint.
-- * We don't use sizeof(struct page) directly since taking its size here
-- * requires its definition to be available at this point in the inclusion
-- * chain, and it may not be a power of 2 in the first place.
-- */
--#define STRUCT_PAGE_MAX_SHIFT  6
--
- /*
-  * VMEMMAP_SIZE - allows the whole linear region to be covered by
-  *                a struct page array
-diff --git a/include/asm-generic/fixmap.h b/include/asm-generic/fixmap.h
-index 827e4d3bbc7a..8cc7b09c1bc7 100644
---- a/include/asm-generic/fixmap.h
-+++ b/include/asm-generic/fixmap.h
-@@ -16,6 +16,7 @@
- #define __ASM_GENERIC_FIXMAP_H
-
- #include <linux/bug.h>
-+#include <linux/mm_types.h>
-
- #define __fix_to_virt(x)       (FIXADDR_TOP - ((x) << PAGE_SHIFT))
- #define __virt_to_fix(x)       ((FIXADDR_TOP - ((x)&PAGE_MASK)) >>
-PAGE_SHIFT)
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 5ed8f6292a53..d1c3cde8c201 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -206,6 +206,11 @@ struct page {
- #endif
- } _struct_page_alignment;
-
-+/*
-+ * Used for sizing the vmemmap region on some architectures.
-+ */
-+#define STRUCT_PAGE_MAX_SHIFT  ilog2(roundup_pow_of_two(sizeof(struct
-page)))
-+
- #define PAGE_FRAG_CACHE_MAX_SIZE       __ALIGN_MASK(32768, ~PAGE_MASK)
- #define PAGE_FRAG_CACHE_MAX_ORDER      get_order(PAGE_FRAG_CACHE_MAX_SIZE)
+Arguably the proper solution to this would be to raise the default
+max_map_count to be much higher; but then that requires fixing the
+mapcount overflow.
