@@ -1,63 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5452D6B0003
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 13:30:23 -0400 (EDT)
-Received: by mail-it1-f200.google.com with SMTP id z136-v6so10554342itc.5
-        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 10:30:23 -0700 (PDT)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id z196-v6si15515619itc.129.2018.10.11.10.30.22
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E8D786B0008
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 13:38:58 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id d40-v6so7096692pla.14
+        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 10:38:58 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id l14-v6si27706606pgi.34.2018.10.11.10.38.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 11 Oct 2018 10:30:22 -0700 (PDT)
-From: Logan Gunthorpe <logang@deltatee.com>
-References: <20181005161642.2462-1-logang@deltatee.com>
- <20181005161642.2462-6-logang@deltatee.com> <20181011133730.GB7276@lst.de>
- <8cea5ffa-5fbf-8ea2-b673-20e2d09a910d@deltatee.com>
-Message-ID: <8ebf1a13-ec4e-c546-641c-f8dcb1f6c44d@deltatee.com>
-Date: Thu, 11 Oct 2018 11:30:07 -0600
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Oct 2018 10:38:57 -0700 (PDT)
+Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
+References: <20180925200551.3576.18755.stgit@localhost.localdomain>
+ <20180925202053.3576.66039.stgit@localhost.localdomain>
+ <20181009170051.GA40606@tiger-server>
+ <CAPcyv4g99_rJJSn0kWv5YO0Mzj90q1LH1wC3XrjCh1=x6mo7BQ@mail.gmail.com>
+ <25092df0-b7b4-d456-8409-9c004cb6e422@linux.intel.com>
+ <20181010095838.GG5873@dhcp22.suse.cz>
+ <f97de51c-67dd-99b2-754e-0685cac06699@linux.intel.com>
+ <20181010172451.GK5873@dhcp22.suse.cz>
+ <98c35e19-13b9-0913-87d9-b3f1ab738b61@linux.intel.com>
+ <20181010185242.GP5873@dhcp22.suse.cz> <20181011085509.GS5873@dhcp22.suse.cz>
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Message-ID: <6f32f23c-c21c-9d42-7dda-a1d18613cd3c@linux.intel.com>
+Date: Thu, 11 Oct 2018 10:38:39 -0700
 MIME-Version: 1.0
-In-Reply-To: <8cea5ffa-5fbf-8ea2-b673-20e2d09a910d@deltatee.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-CA
+In-Reply-To: <20181011085509.GS5873@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH 5/5] RISC-V: Implement sparsemem
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Rob Herring <robh@kernel.org>, Albert Ou <aou@eecs.berkeley.edu>, Andrew Waterman <andrew@sifive.com>, linux-sh@vger.kernel.org, Palmer Dabbelt <palmer@sifive.com>, linux-kernel@vger.kernel.org, Stephen Bates <sbates@raithlin.com>, Zong Li <zong@andestech.com>, linux-mm@kvack.org, Olof Johansson <olof@lixom.net>, linux-riscv@lists.infradead.org, Michael Clark <michaeljclark@mac.com>, linux-arm-kernel@lists.infradead.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Dan Williams <dan.j.williams@intel.com>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Dave Hansen <dave.hansen@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, rppt@linux.vnet.ibm.com, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, yi.z.zhang@linux.intel.com
 
-
-
-On 2018-10-11 10:24 a.m., Logan Gunthorpe wrote:
-> On 2018-10-11 7:37 a.m., Christoph Hellwig wrote:
->>> +/*
->>> + * Log2 of the upper bound of the size of a struct page. Used for sizing
->>> + * the vmemmap region only, does not affect actual memory footprint.
->>> + * We don't use sizeof(struct page) directly since taking its size here
->>> + * requires its definition to be available at this point in the inclusion
->>> + * chain, and it may not be a power of 2 in the first place.
->>> + */
->>> +#define STRUCT_PAGE_MAX_SHIFT	6
->>
->> I know this is copied from arm64, but wouldn't this be a good time
->> to move this next to the struct page defintion?
->>
->> Also this:
->>
->> arch/arm64/mm/init.c:   BUILD_BUG_ON(sizeof(struct page) > (1 << STRUCT_PAGE_MAX_SHIFT));
->>
->> should move to comment code (or would have to be duplicated for riscv)
+On 10/11/2018 1:55 AM, Michal Hocko wrote:
+> On Wed 10-10-18 20:52:42, Michal Hocko wrote:
+> [...]
+>> My recollection was that we do clear the reserved bit in
+>> move_pfn_range_to_zone and we indeed do in __init_single_page. But then
+>> we set the bit back right afterwards. This seems to be the case since
+>> d0dc12e86b319 which reorganized the code. I have to study this some more
+>> obviously.
 > 
-> Makes sense. Where is a good place for the BUILD_BUG_ON in common code?
+> so my recollection was wrong and d0dc12e86b319 hasn't really changed
+> much because __init_single_page wouldn't zero out the struct page for
+> the hotplug contex. A comment in move_pfn_range_to_zone explains that we
+> want the reserved bit because pfn walkers already do see the pfn range
+> and the page is not fully associated with the zone until it is onlined.
+> 
+> I am thinking that we might be overzealous here. With the full state
+> initialized we shouldn't actually care. pfn_to_online_page should return
+> NULL regardless of the reserved bit and normal pfn walkers shouldn't
+> touch pages they do not recognize and a plain page with ref. count 1
+> doesn't tell much to anybody. So I _suspect_ that we can simply drop the
+> reserved bit setting here.
 
-Never mind. Seems like it's pretty trivial to do this:
+So this has me a bit hesitant to want to just drop the bit entirely. If 
+nothing else I think I may wan to make that a patch onto itself so that 
+if we aren't going to set it we just drop it there. That way if it does 
+cause issues we can bisect it to that patch and pinpoint the cause.
 
-#define STRUCT_PAGE_MAX_SHIFT \
-    ilog2(roundup_pow_of_two(sizeof(struct page)))
+> Regarding the post initialization required by devm_memremap_pages and
+> potentially others. Can we update the altmap which is already a way how
+> to get alternative struct pages by a constructor which we could call
+> from memmap_init_zone and do the post initialization? This would reduce
+> the additional loop in the caller while it would still fit the overall
+> design of the altmap and the core hotplug doesn't have to know anything
+> about DAX or whatever needs a special treatment.
+> 
+> Does that make any sense?
 
-So the BUILD_BUG_ON becomes unnecessary.
+I think the only thing that is currently using the altmap is the 
+ZONE_DEVICE memory init. Specifically I think it is only really used by 
+the devm_memremap_pages version of things, and then only under certain 
+circumstances. Also the HMM driver doesn't pass an altmap. What we would 
+really need is a non-ZONE_DEVICE users of the altmap to really justify 
+sticking with that as the preferred argument to pass.
 
-The comment saying it can't be done is really misleading as it wasn't
-actually difficult.
-
-Logan
+For those two functions it currently makes much more sense to pass the 
+dev_pagemap pointer and then reference the altmap from there. Otherwise 
+we are likely starting to look at something that would be more of a 
+dirty hack where we are passing a unused altmap in order to get to the 
+dev_pagemap so that we could populate the page.
