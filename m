@@ -1,94 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 663976B0003
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 21:48:35 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id q143-v6so4946511pgq.12
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 18:48:35 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id 69-v6si32149751pfw.261.2018.10.10.18.48.33
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 077BF6B000A
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 21:48:47 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id 11-v6so5000339pgd.1
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 18:48:47 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id e11-v6si353473plt.223.2018.10.10.18.48.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Oct 2018 18:48:34 -0700 (PDT)
-Subject: [PATCH v4 0/3] Randomize free memory
+        Wed, 10 Oct 2018 18:48:45 -0700 (PDT)
+Subject: [PATCH v4 3/3] mm: Maintain randomization of page free lists
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 10 Oct 2018 18:36:41 -0700
-Message-ID: <153922180166.838512.8260339805733812034.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Wed, 10 Oct 2018 18:36:57 -0700
+Message-ID: <153922181720.838512.12133416124816480558.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <153922180166.838512.8260339805733812034.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <153922180166.838512.8260339805733812034.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kees Cook <keescook@chromium.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.orgkeescook@chromium.org
+Cc: Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.orgkeescook@chromium.org
 
-Changes since v3 [1]:
-* Replace runtime 'shuffle_page_order' parameter with a compile-time
-  CONFIG_SHUFFLE_PAGE_ALLOCATOR on/off switch and a
-  CONFIG_SHUFFLE_PAGE_ORDER if a distro decides that the default 4MB
-  shuffling boundary is not sufficient. Administrators will not be
-  burdened with making this decision. (Michal)
+When freeing a page with an order >= shuffle_page_order randomly select
+the front or back of the list for insertion.
 
-* Move shuffle related code into a new mm/shuffle.c file.
+While the mm tries to defragment physical pages into huge pages this can
+tend to make the page allocator more predictable over time. Inject the
+front-back randomness to preserve the initial randomness established by
+shuffle_free_memory() when the kernel was booted.
 
-[1]: https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1783262.html
+The overhead of this manipulation is constrained by only being applied
+for MAX_ORDER sized pages by default.
 
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
+ include/linux/mm.h     |   10 ++++++++++
+ include/linux/mmzone.h |   10 ++++++++++
+ mm/page_alloc.c        |   11 +++++++++--
+ mm/shuffle.c           |   16 ++++++++++++++++
+ 4 files changed, 45 insertions(+), 2 deletions(-)
 
-Some data exfiltration and return-oriented-programming attacks rely on
-the ability to infer the location of sensitive data objects. The kernel
-page allocator, especially early in system boot, has predictable
-first-in-first out behavior for physical pages. Pages are freed in
-physical address order when first onlined.
-
-Quoting Kees:
-    "While we already have a base-address randomization
-     (CONFIG_RANDOMIZE_MEMORY), attacks against the same hardware and
-     memory layouts would certainly be using the predictability of
-     allocation ordering (i.e. for attacks where the base address isn't
-     important: only the relative positions between allocated memory).
-     This is common in lots of heap-style attacks. They try to gain
-     control over ordering by spraying allocations, etc.
-
-     I'd really like to see this because it gives us something similar
-     to CONFIG_SLAB_FREELIST_RANDOM but for the page allocator."
-
-Another motivation for this change is performance in the presence of a
-memory-side cache. In the future, memory-side-cache technology will be
-available on generally available server platforms. The proposed
-randomization approach has been measured to improve the cache conflict
-rate by a factor of 2.5X on a well-known Java benchmark. It avoids
-performance peaks and valleys to provide more predictable performance.
-
-The initial randomization in patch1 can be undone over time so patch3 is
-introduced to inject entropy on page free decisions. It is reasonable to
-ask if the page free entropy is sufficient, but it is not enough due to
-the in-order initial freeing of pages. At the start of that process
-putting page1 in front or behind page0 still keeps them close together,
-page2 is still near page1 and has a high chance of being adjacent. As
-more pages are added ordering diversity improves, but there is still
-high page locality for the low address pages and this leads to no
-significant impact to the cache conflict rate.
-
-More details in the patch1 commit message.
-
----
-
-Dan Williams (3):
-      mm: Shuffle initial free memory
-      mm: Move buddy list manipulations into helpers
-      mm: Maintain randomization of page free lists
-
-
- include/linux/list.h     |   17 ++++
- include/linux/mm.h       |   30 +++++++
- include/linux/mm_types.h |    3 +
- include/linux/mmzone.h   |   65 ++++++++++++++++
- init/Kconfig             |   32 ++++++++
- mm/Makefile              |    1 
- mm/compaction.c          |    4 -
- mm/memblock.c            |    9 ++
- mm/memory_hotplug.c      |    2 
- mm/page_alloc.c          |   81 +++++++++-----------
- mm/shuffle.c             |  186 ++++++++++++++++++++++++++++++++++++++++++++++
- 11 files changed, 381 insertions(+), 49 deletions(-)
- create mode 100644 mm/shuffle.c
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 856b0530c55d..91a1e7fb465a 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2045,6 +2045,11 @@ extern void shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
+ 		unsigned long end_pfn);
+ extern void shuffle_zone(struct zone *z, unsigned long start_pfn,
+ 		unsigned long end_pfn);
++
++static inline bool is_shuffle_order(int order)
++{
++	return order >= CONFIG_SHUFFLE_PAGE_ORDER;
++}
+ #else
+ static inline void shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
+ 		unsigned long end_pfn)
+@@ -2055,6 +2060,11 @@ static inline void shuffle_zone(struct zone *z, unsigned long start_pfn,
+ 		unsigned long end_pfn)
+ {
+ }
++
++static inline bool is_shuffle_order(int order)
++{
++	return false;
++}
+ #endif
+ 
+ /* Free the reserved page into the buddy system, so it gets managed. */
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 0b91ce871895..c7abf21ed9f4 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -98,6 +98,8 @@ extern int page_group_by_mobility_disabled;
+ struct free_area {
+ 	struct list_head	free_list[MIGRATE_TYPES];
+ 	unsigned long		nr_free;
++	u64			rand;
++	u8			rand_bits;
+ };
+ 
+ /* Used for pages not on another list */
+@@ -116,6 +118,14 @@ static inline void add_to_free_area_tail(struct page *page, struct free_area *ar
+ 	area->nr_free++;
+ }
+ 
++#ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
++/* Used to preserve page allocation order entropy */
++void add_to_free_area_random(struct page *page, struct free_area *area,
++		int migratetype);
++#else
++#define add_to_free_area_random add_to_free_area
++#endif
++
+ /* Used for pages which are on another list */
+ static inline void move_to_free_area(struct page *page, struct free_area *area,
+ 			     int migratetype)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index e1e0b54423f0..eef241ceb2c4 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -42,6 +42,7 @@
+ #include <linux/mempolicy.h>
+ #include <linux/memremap.h>
+ #include <linux/stop_machine.h>
++#include <linux/random.h>
+ #include <linux/sort.h>
+ #include <linux/pfn.h>
+ #include <linux/backing-dev.h>
+@@ -850,7 +851,8 @@ static inline void __free_one_page(struct page *page,
+ 	 * so it's less likely to be used soon and more likely to be merged
+ 	 * as a higher order page
+ 	 */
+-	if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)) {
++	if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)
++			&& !is_shuffle_order(order)) {
+ 		struct page *higher_page, *higher_buddy;
+ 		combined_pfn = buddy_pfn & pfn;
+ 		higher_page = page + (combined_pfn - pfn);
+@@ -864,7 +866,12 @@ static inline void __free_one_page(struct page *page,
+ 		}
+ 	}
+ 
+-	add_to_free_area(page, &zone->free_area[order], migratetype);
++	if (is_shuffle_order(order))
++		add_to_free_area_random(page, &zone->free_area[order],
++				migratetype);
++	else
++		add_to_free_area(page, &zone->free_area[order], migratetype);
++
+ }
+ 
+ /*
+diff --git a/mm/shuffle.c b/mm/shuffle.c
+index 5ed91b5b8441..3937d0bc3670 100644
+--- a/mm/shuffle.c
++++ b/mm/shuffle.c
+@@ -168,3 +168,19 @@ void __meminit shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
+ 	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+ 		shuffle_zone(z, start_pfn, end_pfn);
+ }
++
++void add_to_free_area_random(struct page *page, struct free_area *area,
++		int migratetype)
++{
++	if (area->rand_bits == 0) {
++		area->rand_bits = 64;
++		area->rand = get_random_u64();
++	}
++
++	if (area->rand & 1)
++		add_to_free_area(page, area, migratetype);
++	else
++		add_to_free_area_tail(page, area, migratetype);
++	area->rand_bits--;
++	area->rand >>= 1;
++}
