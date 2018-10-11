@@ -1,90 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D18BA6B000C
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 20:46:34 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id b202-v6so4839813oii.23
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 17:46:34 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F2EB86B0010
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 20:50:41 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id r77-v6so6813889qke.3
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 17:50:41 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t194-v6sor11533559oif.64.2018.10.10.17.46.33
+        by mx.google.com with SMTPS id s35-v6sor17913176qtj.23.2018.10.10.17.50.41
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Oct 2018 17:46:33 -0700 (PDT)
+        Wed, 10 Oct 2018 17:50:41 -0700 (PDT)
 MIME-Version: 1.0
-References: <20180824154542.26872-1-jack@suse.cz> <20181010173015.ecb7c7ed1b2df729f058e346@linux-foundation.org>
-In-Reply-To: <20181010173015.ecb7c7ed1b2df729f058e346@linux-foundation.org>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 10 Oct 2018 17:46:22 -0700
-Message-ID: <CAPcyv4hB+rhST7QgNcT0QyLnYY3jQagd_tw8Lz=x3eO+TBFZxg@mail.gmail.com>
-Subject: Re: [PATCH] mm: Fix warning in insert_pfn()
+In-Reply-To: <20181011004618.GA237677@joelaf.mtv.corp.google.com>
+References: <20181009201400.168705-1-joel@joelfernandes.org>
+ <20181009220222.26nzajhpsbt7syvv@kshutemo-mobl1> <20181009230447.GA17911@joelaf.mtv.corp.google.com>
+ <20181010100011.6jqjvgeslrvvyhr3@kshutemo-mobl1> <20181011004618.GA237677@joelaf.mtv.corp.google.com>
+From: Joel Fernandes <joelaf@google.com>
+Date: Wed, 10 Oct 2018 17:50:39 -0700
+Message-ID: <CAJWu+oqEmAQ0vWB7fKitQPQjdMX0uhQs_Vb1jH5MFfDO8xBnHQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: Speed up mremap on large regions
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, Dave Jiang <dave.jiang@intel.com>
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, LKML <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, "Cc: Android Kernel" <kernel-team@android.com>, Minchan Kim <minchan@google.com>, Hugh Dickins <hughd@google.com>, Lokesh Gidra <lokeshgidra@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Wed, Oct 10, 2018 at 5:37 PM Andrew Morton <akpm@linux-foundation.org> wrote:
+On Wed, Oct 10, 2018 at 5:46 PM, Joel Fernandes <joel@joelfernandes.org> wrote:
+> On Wed, Oct 10, 2018 at 01:00:11PM +0300, Kirill A. Shutemov wrote:
+[...]
+>>
+>> My worry is that some architecture has to allocate page table differently
+>> depending on virtual address (due to aliasing or something). Original page
+>> table was allocated for one virtual address and moving the page table to
+>> different spot in virtual address space may break the invariant.
+>>
+>> > Also the clean up of the argument that you're proposing is a bit out of scope
+>> > of this patch but yeah we could clean it up in a separate patch if needed. I
+>> > don't feel too strongly about that. It seems cosmetic and in the future if
+>> > the address that's passed in is needed, then the architecture can use it.
+>>
+>> Please, do. This should be pretty mechanical change, but it will help to
+>> make sure that none of obscure architecture will be broken by the change.
+>>
 >
-> On Fri, 24 Aug 2018 17:45:42 +0200 Jan Kara <jack@suse.cz> wrote:
+> The thing is its quite a lot of change, I wrote a coccinelle script to do it
+> tree wide, following is the diffstat:
+>  48 files changed, 91 insertions(+), 124 deletions(-)
 >
-> > In DAX mode a write pagefault can race with write(2) in the following
-> > way:
-> >
-> > CPU0                            CPU1
-> >                                 write fault for mapped zero page (hole)
-> > dax_iomap_rw()
-> >   iomap_apply()
-> >     xfs_file_iomap_begin()
-> >       - allocates blocks
-> >     dax_iomap_actor()
-> >       invalidate_inode_pages2_range()
-> >         - invalidates radix tree entries in given range
-> >                                 dax_iomap_pte_fault()
-> >                                   grab_mapping_entry()
-> >                                     - no entry found, creates empty
-> >                                   ...
-> >                                   xfs_file_iomap_begin()
-> >                                     - finds already allocated block
-> >                                   ...
-> >                                   vmf_insert_mixed_mkwrite()
-> >                                     - WARNs and does nothing because there
-> >                                       is still zero page mapped in PTE
-> >         unmap_mapping_pages()
-> >
-> > This race results in WARN_ON from insert_pfn() and is occasionally
-> > triggered by fstest generic/344. Note that the race is otherwise
-> > harmless as before write(2) on CPU0 is finished, we will invalidate page
-> > tables properly and thus user of mmap will see modified data from
-> > write(2) from that point on. So just restrict the warning only to the
-> > case when the PFN in PTE is not zero page.
-> >
-> > ...
-> >
-> > --- a/mm/memory.c
-> > +++ b/mm/memory.c
-> > @@ -1787,10 +1787,15 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
-> >                        * in may not match the PFN we have mapped if the
-> >                        * mapped PFN is a writeable COW page.  In the mkwrite
-> >                        * case we are creating a writable PTE for a shared
-> > -                      * mapping and we expect the PFNs to match.
-> > +                      * mapping and we expect the PFNs to match. If they
-> > +                      * don't match, we are likely racing with block
-> > +                      * allocation and mapping invalidation so just skip the
-> > +                      * update.
-> >                        */
-> > -                     if (WARN_ON_ONCE(pte_pfn(*pte) != pfn_t_to_pfn(pfn)))
-> > +                     if (pte_pfn(*pte) != pfn_t_to_pfn(pfn)) {
-> > +                             WARN_ON_ONCE(!is_zero_pfn(pte_pfn(*pte)));
-> >                               goto out_unlock;
-> > +                     }
-> >                       entry = *pte;
->
-> Shouldn't we just remove the warning?  We know it happens and we know
-> why it happens and we know it's harmless.  What's the point in scaring
-> people?
+> Imagine then having to add the address argument back in the future in case
+> its ever needed. Is it really worth doing it? Anyway I confirmed that the
+> address is NOT used for anything at the moment so your fears of the
+> optimization doing anything wonky really don't exist at the moment. I really
+> feel this is unnecessary but I am Ok with others agree the second arg to
+> pte_alloc should be removed in light of this change. Andrew, what do you
+> think?
 
-tl;dr let's keep it.
-
-I think this fix effectively pushes this into "can't happen"
-territory, but if it does our dax assumptions are off somewhere else.
-So, I think this is useful for developers hacking around in the dax
-code to make sure they aren't breaking some fundamental assumption.
+I meant to say here, "I am Ok if others agree the second arg to
+pte_alloc should be removed", but I would really like some input from
+the others as well on what they think.
