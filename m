@@ -1,96 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CB7666B0010
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 04:15:14 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id h24-v6so4676603eda.10
-        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 01:15:14 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w12-v6si7283923ede.46.2018.10.11.01.15.13
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 76BE66B0269
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 04:26:34 -0400 (EDT)
+Received: by mail-wm1-f71.google.com with SMTP id i8-v6so3813363wma.9
+        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 01:26:34 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j72-v6sor10295093wmj.2.2018.10.11.01.26.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Oct 2018 01:15:13 -0700 (PDT)
-Date: Thu, 11 Oct 2018 10:15:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v5 1/2] memory_hotplug: Free pages as higher order
-Message-ID: <20181011081510.GR5873@dhcp22.suse.cz>
-References: <1538727006-5727-1-git-send-email-arunks@codeaurora.org>
- <72215e75-6c7e-0aef-c06e-e3aba47cf806@suse.cz>
- <efb65160af41d0e18cb2dcb30c2fb86a@codeaurora.org>
- <97d8db4c-f117-8216-5f48-d5991692c867@suse.cz>
+        (Google Transport Security);
+        Thu, 11 Oct 2018 01:26:32 -0700 (PDT)
+Date: Thu, 11 Oct 2018 11:17:19 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: Speed up mremap on large regions
+Message-ID: <20181011081719.77f7ihcy6mu2vkkc@kshutemo-mobl1>
+References: <20181009201400.168705-1-joel@joelfernandes.org>
+ <20181009220222.26nzajhpsbt7syvv@kshutemo-mobl1>
+ <20181009230447.GA17911@joelaf.mtv.corp.google.com>
+ <20181010100011.6jqjvgeslrvvyhr3@kshutemo-mobl1>
+ <20181011004618.GA237677@joelaf.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <97d8db4c-f117-8216-5f48-d5991692c867@suse.cz>
+In-Reply-To: <20181011004618.GA237677@joelaf.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Arun KS <arunks@codeaurora.org>, kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, akpm@linux-foundation.org, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, gregkh@linuxfoundation.org, osalvador@suse.de, malat@debian.org, kirill.shutemov@linux.intel.com, jrdr.linux@gmail.com, yasu.isimatu@gmail.com, mgorman@techsingularity.net, aaron.lu@intel.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@android.com, minchan@google.com, hughd@google.com, lokeshgidra@google.com, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Thu 11-10-18 10:07:02, Vlastimil Babka wrote:
-> On 10/10/18 6:56 PM, Arun KS wrote:
-> > On 2018-10-10 21:00, Vlastimil Babka wrote:
-> >> On 10/5/18 10:10 AM, Arun KS wrote:
-> >>> When free pages are done with higher order, time spend on
-> >>> coalescing pages by buddy allocator can be reduced. With
-> >>> section size of 256MB, hot add latency of a single section
-> >>> shows improvement from 50-60 ms to less than 1 ms, hence
-> >>> improving the hot add latency by 60%. Modify external
-> >>> providers of online callback to align with the change.
-> >>>
-> >>> Signed-off-by: Arun KS <arunks@codeaurora.org>
-> >>
-> >> [...]
-> >>
-> >>> @@ -655,26 +655,44 @@ void __online_page_free(struct page *page)
-> >>>  }
-> >>>  EXPORT_SYMBOL_GPL(__online_page_free);
-> >>>
-> >>> -static void generic_online_page(struct page *page)
-> >>> +static int generic_online_page(struct page *page, unsigned int order)
-> >>>  {
-> >>> -	__online_page_set_limits(page);
-> >>
-> >> This is now not called anymore, although the xen/hv variants still do
-> >> it. The function seems empty these days, maybe remove it as a followup
-> >> cleanup?
-> >>
-> >>> -	__online_page_increment_counters(page);
-> >>> -	__online_page_free(page);
-> >>> +	__free_pages_core(page, order);
-> >>> +	totalram_pages += (1UL << order);
-> >>> +#ifdef CONFIG_HIGHMEM
-> >>> +	if (PageHighMem(page))
-> >>> +		totalhigh_pages += (1UL << order);
-> >>> +#endif
-> >>
-> >> __online_page_increment_counters() would have used
-> >> adjust_managed_page_count() which would do the changes under
-> >> managed_page_count_lock. Are we safe without the lock? If yes, there
-> >> should perhaps be a comment explaining why.
+On Wed, Oct 10, 2018 at 05:46:18PM -0700, Joel Fernandes wrote:
+> On Wed, Oct 10, 2018 at 01:00:11PM +0300, Kirill A. Shutemov wrote:
+> > On Tue, Oct 09, 2018 at 04:04:47PM -0700, Joel Fernandes wrote:
+> > > On Wed, Oct 10, 2018 at 01:02:22AM +0300, Kirill A. Shutemov wrote:
+> > > > On Tue, Oct 09, 2018 at 01:14:00PM -0700, Joel Fernandes (Google) wrote:
+> > > > > Android needs to mremap large regions of memory during memory management
+> > > > > related operations. The mremap system call can be really slow if THP is
+> > > > > not enabled. The bottleneck is move_page_tables, which is copying each
+> > > > > pte at a time, and can be really slow across a large map. Turning on THP
+> > > > > may not be a viable option, and is not for us. This patch speeds up the
+> > > > > performance for non-THP system by copying at the PMD level when possible.
+> > > > > 
+> > > > > The speed up is three orders of magnitude. On a 1GB mremap, the mremap
+> > > > > completion times drops from 160-250 millesconds to 380-400 microseconds.
+> > > > > 
+> > > > > Before:
+> > > > > Total mremap time for 1GB data: 242321014 nanoseconds.
+> > > > > Total mremap time for 1GB data: 196842467 nanoseconds.
+> > > > > Total mremap time for 1GB data: 167051162 nanoseconds.
+> > > > > 
+> > > > > After:
+> > > > > Total mremap time for 1GB data: 385781 nanoseconds.
+> > > > > Total mremap time for 1GB data: 388959 nanoseconds.
+> > > > > Total mremap time for 1GB data: 402813 nanoseconds.
+> > > > > 
+> > > > > Incase THP is enabled, the optimization is skipped. I also flush the
+> > > > > tlb every time we do this optimization since I couldn't find a way to
+> > > > > determine if the low-level PTEs are dirty. It is seen that the cost of
+> > > > > doing so is not much compared the improvement, on both x86-64 and arm64.
+> > > > 
+> > > > Okay. That's interesting.
+> > > > 
+> > > > It makes me wounder why do we pass virtual address to pte_alloc() (and
+> > > > pte_alloc_one() inside).
+> > > > 
+> > > > If an arch has real requirement to tight a page table to a virtual address
+> > > > than the optimization cannot be used as it is. Per-arch should be fine
+> > > > for this case, I guess.
+> > > > 
+> > > > If nobody uses the address we should just drop the argument as a
+> > > > preparation to the patch.
+> > > 
+> > > I couldn't find any use of the address. But I am wondering why you feel
+> > > passing the address is something that can't be done with the optimization.
+> > > The pte_alloc only happens if the optimization is not triggered.
 > > 
-> > Looks unsafe without managed_page_count_lock. I think better have a 
-> > similar implementation of free_boot_core() in memory_hotplug.c like we 
-> > had in version 1 of patch. And use adjust_managed_page_count() instead 
-> > of page_zone(page)->managed_pages += nr_pages;
+> > Yes, I now.
 > > 
-> > https://lore.kernel.org/patchwork/patch/989445/
+> > My worry is that some architecture has to allocate page table differently
+> > depending on virtual address (due to aliasing or something). Original page
+> > table was allocated for one virtual address and moving the page table to
+> > different spot in virtual address space may break the invariant.
+> > 
+> > > Also the clean up of the argument that you're proposing is a bit out of scope
+> > > of this patch but yeah we could clean it up in a separate patch if needed. I
+> > > don't feel too strongly about that. It seems cosmetic and in the future if
+> > > the address that's passed in is needed, then the architecture can use it.
+> > 
+> > Please, do. This should be pretty mechanical change, but it will help to
+> > make sure that none of obscure architecture will be broken by the change.
+> > 
 > 
-> Looks like deferred_free_range() has the same problem calling
-> __free_pages_core() to adjust zone->managed_pages.
-
-deferred initialization has one thread per node AFAIR so we cannot race
-on managed_pages updates. Well, unless some of the mentioned can run
-that early which I dunno.
-
-> __free_pages_bootmem() is OK because at that point the system is still
-> single-threaded?
-> Could be solved by moving that out of __free_pages_core().
+> The thing is its quite a lot of change, I wrote a coccinelle script to do it
+> tree wide, following is the diffstat:
+>  48 files changed, 91 insertions(+), 124 deletions(-)
 > 
-> But do we care about readers potentially seeing a store tear? If yes
-> then maybe these counters should be converted to atomics...
+> Imagine then having to add the address argument back in the future in case
+> its ever needed. Is it really worth doing it?
 
-I wanted to suggest that already but I have no idea whether the lock
-instructions would cause more overhead.
+This is the point. It will get us chance to consider if the optimization
+is still safe.
+
+And it shouldn't be hard: [partially] revert the commit and get the address
+back into the interface.
+
+> First script : Remove the address argument from pte_alloc and friends:
+
+...
+
+Please add __pte_alloc(), __pte_alloc_kernel() and pte_alloc() to the
+list for patching.
+
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
