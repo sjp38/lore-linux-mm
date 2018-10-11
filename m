@@ -1,448 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A3F166B0010
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 21:50:01 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id ce7-v6so5157089plb.22
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 18:50:01 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id l14-v6si25628752pgi.34.2018.10.10.18.49.59
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 85B356B0269
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2018 22:00:39 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id 11-v6so5013981pgd.1
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2018 19:00:39 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id b12-v6si25358861pls.367.2018.10.10.19.00.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Oct 2018 18:49:59 -0700 (PDT)
-Subject: [PATCH v4 1/3] mm: Shuffle initial free memory
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 10 Oct 2018 18:36:47 -0700
-Message-ID: <153922180696.838512.12621709717839260874.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <153922180166.838512.8260339805733812034.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <153922180166.838512.8260339805733812034.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Wed, 10 Oct 2018 19:00:38 -0700 (PDT)
+Date: Thu, 11 Oct 2018 16:39:54 +0800
+From: Yi Zhang <yi.z.zhang@linux.intel.com>
+Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
+Message-ID: <20181011083953.GB51021@tiger-server>
+References: <20180925200551.3576.18755.stgit@localhost.localdomain>
+ <20180925202053.3576.66039.stgit@localhost.localdomain>
+ <20181009170051.GA40606@tiger-server>
+ <CAPcyv4g99_rJJSn0kWv5YO0Mzj90q1LH1wC3XrjCh1=x6mo7BQ@mail.gmail.com>
+ <25092df0-b7b4-d456-8409-9c004cb6e422@linux.intel.com>
+ <20181010095838.GG5873@dhcp22.suse.cz>
+ <f97de51c-67dd-99b2-754e-0685cac06699@linux.intel.com>
+ <20181010172451.GK5873@dhcp22.suse.cz>
+ <CAPcyv4inUwyYEEQ_qh5GTRxUo+JLt+caz_3mtg79DpfQSUdG5Q@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4inUwyYEEQ_qh5GTRxUo+JLt+caz_3mtg79DpfQSUdG5Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.orgkeescook@chromium.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>, alexander.h.duyck@linux.intel.com, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Dave Hansen <dave.hansen@intel.com>, =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, rppt@linux.vnet.ibm.com, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Some data exfiltration and return-oriented-programming attacks rely on
-the ability to infer the location of sensitive data objects. The kernel
-page allocator, especially early in system boot, has predictable
-first-in-first out behavior for physical pages. Pages are freed in
-physical address order when first onlined.
+On 2018-10-10 at 11:18:49 -0700, Dan Williams wrote:
+> On Wed, Oct 10, 2018 at 10:30 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Wed 10-10-18 09:39:08, Alexander Duyck wrote:
+> > > On 10/10/2018 2:58 AM, Michal Hocko wrote:
+> > > > On Tue 09-10-18 13:26:41, Alexander Duyck wrote:
+> > > > [...]
+> > > > > I would think with that being the case we still probably need the call to
+> > > > > __SetPageReserved to set the bit with the expectation that it will not be
+> > > > > cleared for device-pages since the pages are not onlined. Removing the call
+> > > > > to __SetPageReserved would probably introduce a number of regressions as
+> > > > > there are multiple spots that use the reserved bit to determine if a page
+> > > > > can be swapped out to disk, mapped as system memory, or migrated.
+> > > >
+> > > > PageReserved is meant to tell any potential pfn walkers that might get
+> > > > to this struct page to back off and not touch it. Even though
+> > > > ZONE_DEVICE doesn't online pages in traditional sense it makes those
+> > > > pages available for further use so the page reserved bit should be
+> > > > cleared.
+> > >
+> > > So from what I can tell that isn't necessarily the case. Specifically if the
+> > > pagemap type is MEMORY_DEVICE_PRIVATE or MEMORY_DEVICE_PUBLIC both are
+> > > special cases where the memory may not be accessible to the CPU or cannot be
+> > > pinned in order to allow for eviction.
+> >
+> > Could you give me an example please?
+> >
+> > > The specific case that Dan and Yi are referring to is for the type
+> > > MEMORY_DEVICE_FS_DAX. For that type I could probably look at not setting the
+> > > reserved bit. Part of me wants to say that we should wait and clear the bit
+> > > later, but that would end up just adding time back to initialization. At
+> > > this point I would consider the change more of a follow-up optimization
+> > > rather than a fix though since this is tailoring things specifically for DAX
+> > > versus the other ZONE_DEVICE types.
+> >
+> > I thought I have already made it clear that these zone device hacks are
+> > not acceptable to the generic hotplug code. If the current reserve bit
+> > handling is not correct then give us a specific reason for that and we
+> > can start thinking about the proper fix.
+> >
+> 
+> Right, so we're in a situation where a hack is needed for KVM's
+> current interpretation of the Reserved flag relative to dax mapped
+> pages. I'm arguing to push that knowledge / handling as deep as
+> possible into the core rather than hack the leaf implementations like
+> KVM, i.e. disable the Reserved flag for all non-MEMORY_DEVICE_*
+> ZONE_DEVICE types.
+> 
+> Here is the KVM thread about why they need a change:
+> 
+>     https://lkml.org/lkml/2018/9/7/552
+> 
+> ...and where I pushed back on a KVM-local hack:
+> 
+>     https://lkml.org/lkml/2018/9/19/154
+Yeah, Thank Dan, I think I can going on with something like this:
 
-Introduce shuffle_free_memory(), and its helper shuffle_zone(), to
-perform a Fisher-Yates shuffle of the page allocator 'free_area' lists
-when they are initially populated with free memory at boot and at
-hotplug time.
-
-Quoting Kees:
-    "While we already have a base-address randomization
-     (CONFIG_RANDOMIZE_MEMORY), attacks against the same hardware and
-     memory layouts would certainly be using the predictability of
-     allocation ordering (i.e. for attacks where the base address isn't
-     important: only the relative positions between allocated memory).
-     This is common in lots of heap-style attacks. They try to gain
-     control over ordering by spraying allocations, etc.
-
-     I'd really like to see this because it gives us something similar
-     to CONFIG_SLAB_FREELIST_RANDOM but for the page allocator."
-
-Another motivation for this change is performance in the presence of a
-memory-side cache. In the future, memory-side-cache technology will be
-available on generally available server platforms. The proposed
-randomization approach has been measured to improve the cache conflict
-rate by a factor of 2.5X on a well-known Java benchmark. It avoids
-performance peaks and valleys to provide more predictable performance.
-
-While SLAB_FREELIST_RANDOM reduces the predictability of some local slab
-caches it leaves vast bulk of memory to be predictably in order
-allocated. That ordering can be detected by a memory side-cache.
-
-The shuffling is done in terms of CONFIG_SHUFFLE_PAGE_ORDER sized free
-pages where the default CONFIG_SHUFFLE_PAGE_ORDER is MAX_ORDER-1 i.e.
-10, 4MB this trades off randomization granularity for time spent
-shuffling.  MAX_ORDER-1 was chosen to be minimally invasive to the page
-allocator while still showing memory-side cache behavior improvements,
-and the expectation that the security implications of finer granularity
-randomization is mitigated by CONFIG_SLAB_FREELIST_RANDOM.
-
-The performance impact of the shuffling appears to be in the noise
-compared to other memory initialization work. Also the bulk of the work
-is done in the background as a part of deferred_init_memmap().
-
-This initial randomization can be undone over time so a follow-on patch
-is introduced to inject entropy on page free decisions. It is reasonable
-to ask if the page free entropy is sufficient, but it is not enough due
-to the in-order initial freeing of pages. At the start of that process
-putting page1 in front or behind page0 still keeps them close together,
-page2 is still near page1 and has a high chance of being adjacent. As
-more pages are added ordering diversity improves, but there is still
-high page locality for the low address pages and this leads to no
-significant impact to the cache conflict rate.
-
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- include/linux/list.h   |   17 +++++
- include/linux/mm.h     |   17 +++++
- include/linux/mmzone.h |    4 +
- init/Kconfig           |   32 +++++++++
- mm/Makefile            |    1 
- mm/memblock.c          |    9 ++-
- mm/memory_hotplug.c    |    2 +
- mm/page_alloc.c        |    2 +
- mm/shuffle.c           |  170 ++++++++++++++++++++++++++++++++++++++++++++++++
- 9 files changed, 253 insertions(+), 1 deletion(-)
- create mode 100644 mm/shuffle.c
-
-diff --git a/include/linux/list.h b/include/linux/list.h
-index de04cc5ed536..43f963328d7c 100644
---- a/include/linux/list.h
-+++ b/include/linux/list.h
-@@ -150,6 +150,23 @@ static inline void list_replace_init(struct list_head *old,
- 	INIT_LIST_HEAD(old);
- }
+@@ -5589,6 +5589,7 @@ void __ref memmap_init_zone_device(struct zone *zone,
+ 		struct page *page = pfn_to_page(pfn);
  
-+/**
-+ * list_swap - replace entry1 with entry2 and re-add entry1 at entry2's position
-+ * @entry1: the location to place entry2
-+ * @entry2: the location to place entry1
-+ */
-+static inline void list_swap(struct list_head *entry1,
-+			     struct list_head *entry2)
-+{
-+	struct list_head *pos = entry2->prev;
-+
-+	list_del(entry2);
-+	list_replace(entry1, entry2);
-+	if (pos == entry1)
-+		pos = entry2;
-+	list_add(entry1, pos);
-+}
-+
- /**
-  * list_del_init - deletes entry from list and reinitialize it.
-  * @entry: the element to delete from the list.
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 273d4dbd3883..5891bd4e5d29 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2043,6 +2043,23 @@ extern void mem_init_print_info(const char *str);
- 
- extern void reserve_bootmem_region(phys_addr_t start, phys_addr_t end);
- 
-+#ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
-+extern void shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
-+		unsigned long end_pfn);
-+extern void shuffle_zone(struct zone *z, unsigned long start_pfn,
-+		unsigned long end_pfn);
-+#else
-+static inline void shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
-+		unsigned long end_pfn)
-+{
-+}
-+
-+static inline void shuffle_zone(struct zone *z, unsigned long start_pfn,
-+		unsigned long end_pfn)
-+{
-+}
-+#endif
-+
- /* Free the reserved page into the buddy system, so it gets managed. */
- static inline void __free_reserved_page(struct page *page)
- {
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index ea29f7081f9d..15029fedbfe6 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1273,6 +1273,10 @@ void sparse_init(void);
- #else
- #define sparse_init()	do {} while (0)
- #define sparse_index_init(_sec, _nid)  do {} while (0)
-+static inline int pfn_present(unsigned long pfn)
-+{
-+	return 1;
-+}
- #endif /* CONFIG_SPARSEMEM */
- 
- /*
-diff --git a/init/Kconfig b/init/Kconfig
-index 1f1bbf7540f8..64123c28eeca 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -1701,6 +1701,38 @@ config SLAB_FREELIST_HARDENED
- 	  sacrifies to harden the kernel slab allocator against common
- 	  freelist exploit methods.
- 
-+config SHUFFLE_PAGE_ALLOCATOR
-+	bool "Page allocator randomization"
-+	default SLAB_FREELIST_RANDOM
-+	help
-+	  Randomization of the page allocator is both a security feature
-+	  and a performance feature on platforms that have a
-+	  direct-mapped memory side cache. See section 5.2.27
-+	  Heterogeneous Memory Attribute Table (HMAT) in the ACPI 6.2a
-+	  specification for an example of how a platform advertises the
-+	  presence of a memory side cache. For the security
-+	  benefits of this capability it is expected to be paired with
-+	  SLAB_FREELIST_RANDOM as that adds local randomization for
-+	  small objects while SHUFFLE_PAGE_ALLOCATOR adds randomization at
-+	  SHUFFLE_PAGE_ORDER granularities. The runtime impact of the
-+	  shuffling is negligible. The performance implications of not
-+	  shuffling are significant on platforms with a direct-mapped
-+	  memory-side cache.
-+
-+	  Say Y if unsure.
-+
-+config SHUFFLE_PAGE_ORDER
-+	depends on SHUFFLE_PAGE_ALLOCATOR
-+	int "Page allocator shuffle order"
-+	range 0 10
-+	default 10
-+	help
-+	  Specify the granularity at which shuffling (randomization) is
-+	  performed. By default this is set to MAX_ORDER-1 to minimize
-+	  runtime impact of randomization and with the expectation that
-+	  SLAB_FREELIST_RANDOM mitigates heap attacks on smaller
-+	  object granularities.
-+
- config SLUB_CPU_PARTIAL
- 	default y
- 	depends on SLUB && SMP
-diff --git a/mm/Makefile b/mm/Makefile
-index d210cc9d6f80..1ffbc67f7395 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -65,6 +65,7 @@ obj-$(CONFIG_SLUB) += slub.o
- obj-$(CONFIG_KASAN)	+= kasan/
- obj-$(CONFIG_FAILSLAB) += failslab.o
- obj-$(CONFIG_MEMORY_HOTPLUG) += memory_hotplug.o
-+obj-$(CONFIG_SHUFFLE_PAGE_ALLOCATOR) += shuffle.o
- obj-$(CONFIG_MEMTEST)		+= memtest.o
- obj-$(CONFIG_MIGRATION) += migrate.o
- obj-$(CONFIG_QUICKLIST) += quicklist.o
-diff --git a/mm/memblock.c b/mm/memblock.c
-index b0ebca546ba1..5b57964352a4 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1985,9 +1985,16 @@ static unsigned long __init free_low_memory_core_early(void)
- 	 *  low ram will be on Node1
- 	 */
- 	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end,
--				NULL)
-+				NULL) {
-+		pg_data_t *pgdat;
-+
- 		count += __free_memory_core(start, end);
- 
-+		for_each_online_pgdat(pgdat)
-+			shuffle_free_memory(pgdat, PHYS_PFN(start),
-+					PHYS_PFN(end));
-+	}
-+
- 	return count;
- }
- 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 61972da38d93..34c9b6eb3159 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -894,6 +894,8 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 	zone->zone_pgdat->node_present_pages += onlined_pages;
- 	pgdat_resize_unlock(zone->zone_pgdat, &flags);
- 
-+	shuffle_zone(zone, pfn, zone_end_pfn(zone));
-+
- 	if (onlined_pages) {
- 		node_states_set_node(nid, &arg);
- 		if (need_zonelists_rebuild)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a02ce11c49f2..9b295b2287da 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1595,6 +1595,8 @@ static int __init deferred_init_memmap(void *data)
- 	}
- 	pgdat_resize_unlock(pgdat, &flags);
- 
-+	shuffle_zone(zone, first_init_pfn, zone_end_pfn(zone));
-+
- 	/* Sanity check that the next zone really is unpopulated */
- 	WARN_ON(++zid < MAX_NR_ZONES && populated_zone(++zone));
- 
-diff --git a/mm/shuffle.c b/mm/shuffle.c
-new file mode 100644
-index 000000000000..5ed91b5b8441
---- /dev/null
-+++ b/mm/shuffle.c
-@@ -0,0 +1,170 @@
-+// SPDX-License-Identifier: GPL-2.0
-+// Copyright(c) 2018 Intel Corporation. All rights reserved.
-+
-+#include <linux/mm.h>
-+#include <linux/init.h>
-+#include <linux/mmzone.h>
-+#include <linux/random.h>
-+#include "internal.h"
-+
-+/*
-+ * For two pages to be swapped in the shuffle, they must be free (on a
-+ * 'free_area' lru), have the same order, and have the same migratetype.
-+ */
-+static struct page * __meminit shuffle_valid_page(unsigned long pfn, int order)
-+{
-+	struct page *page;
-+
-+	/*
-+	 * Given we're dealing with randomly selected pfns in a zone we
-+	 * need to ask questions like...
-+	 */
-+
-+	/* ...is the pfn even in the memmap? */
-+	if (!pfn_valid_within(pfn))
-+		return NULL;
-+
-+	/* ...is the pfn in a present section or a hole? */
-+	if (!pfn_present(pfn))
-+		return NULL;
-+
-+	/* ...is the page free and currently on a free_area list? */
-+	page = pfn_to_page(pfn);
-+	if (!PageBuddy(page))
-+		return NULL;
-+
-+	/*
-+	 * ...is the page on the same list as the page we will
-+	 * shuffle it with?
-+	 */
-+	if (page_order(page) != order)
-+		return NULL;
-+
-+	return page;
-+}
-+
-+/*
-+ * Fisher-Yates shuffle the freelist which prescribes iterating through
-+ * an array, pfns in this case, and randomly swapping each entry with
-+ * another in the span, end_pfn - start_pfn.
-+ *
-+ * To keep the implementation simple it does not attempt to correct for
-+ * sources of bias in the distribution, like modulo bias or
-+ * pseudo-random number generator bias. I.e. the expectation is that
-+ * this shuffling raises the bar for attacks that exploit the
-+ * predictability of page allocations, but need not be a perfect
-+ * shuffle.
-+ *
-+ * Note that we don't use @z->zone_start_pfn and zone_end_pfn(@z)
-+ * directly since the caller may be aware of holes in the zone and can
-+ * improve the accuracy of the random pfn selection.
-+ */
-+#define SHUFFLE_RETRY 10
-+static void __meminit shuffle_zone_order(struct zone *z, unsigned long start_pfn,
-+		unsigned long end_pfn, const int order)
-+{
-+	unsigned long i, flags;
-+	const int order_pages = 1 << order;
-+
-+	if (start_pfn < z->zone_start_pfn)
-+		start_pfn = z->zone_start_pfn;
-+	if (end_pfn > zone_end_pfn(z))
-+		end_pfn = zone_end_pfn(z);
-+
-+	/* probably means that start/end were outside the zone */
-+	if (end_pfn <= start_pfn)
-+		return;
-+	spin_lock_irqsave(&z->lock, flags);
-+	start_pfn = ALIGN(start_pfn, order_pages);
-+	for (i = start_pfn; i < end_pfn; i += order_pages) {
-+		unsigned long j;
-+		int migratetype, retry;
-+		struct page *page_i, *page_j;
-+
-+		/*
-+		 * We expect page_i, in the sub-range of a zone being
-+		 * added (@start_pfn to @end_pfn), to more likely be
-+		 * valid compared to page_j randomly selected in the
-+		 * span @zone_start_pfn to @spanned_pages.
+ 		__init_single_page(page, pfn, zone_idx, nid);
++		/* Could we move this a little bit earlier as I can
++		 * direct use is_dax_page(page), or something else?
 +		 */
-+		page_i = shuffle_valid_page(i, order);
-+		if (!page_i)
-+			continue;
-+
-+		for (retry = 0; retry < SHUFFLE_RETRY; retry++) {
-+			/*
-+			 * Pick a random order aligned page from the
-+			 * start of the zone. Use the *whole* zone here
-+			 * so that if it is freed in tiny pieces that we
-+			 * randomize in the whole zone, not just within
-+			 * those fragments.
-+			 *
-+			 * Since page_j comes from a potentially sparse
-+			 * address range we want to try a bit harder to
-+			 * find a shuffle point for page_i.
-+			 */
-+			j = z->zone_start_pfn +
-+				ALIGN_DOWN(get_random_long() % z->spanned_pages,
-+						order_pages);
-+			page_j = shuffle_valid_page(j, order);
-+			if (page_j && page_j != page_i)
-+				break;
-+		}
-+		if (retry >= SHUFFLE_RETRY) {
-+			pr_debug("%s: failed to swap %#lx\n", __func__, i);
-+			continue;
-+		}
-+
-+		/*
-+		 * Each migratetype corresponds to its own list, make
-+		 * sure the types match otherwise we're moving pages to
-+		 * lists where they do not belong.
-+		 */
-+		migratetype = get_pageblock_migratetype(page_i);
-+		if (get_pageblock_migratetype(page_j) != migratetype) {
-+			pr_debug("%s: migratetype mismatch %#lx\n", __func__, i);
-+			continue;
-+		}
-+
-+		list_swap(&page_i->lru, &page_j->lru);
-+
-+		pr_debug("%s: swap: %#lx -> %#lx\n", __func__, i, j);
-+
-+		/* take it easy on the zone lock */
-+		if ((i % (100 * order_pages)) == 0) {
-+			spin_unlock_irqrestore(&z->lock, flags);
-+			cond_resched();
-+			spin_lock_irqsave(&z->lock, flags);
-+		}
-+	}
-+	spin_unlock_irqrestore(&z->lock, flags);
-+}
-+
-+void __meminit shuffle_zone(struct zone *z, unsigned long start_pfn,
-+               unsigned long end_pfn)
-+{
-+       int i;
-+
-+       /* shuffle all the orders at the specified order and higher */
-+       for (i = CONFIG_SHUFFLE_PAGE_ORDER; i < MAX_ORDER; i++)
-+               shuffle_zone_order(z, start_pfn, end_pfn, i);
-+}
-+
-+/**
-+ * shuffle_free_memory - reduce the predictability of the page allocator
-+ * @pgdat: node page data
-+ * @start_pfn: Limit the shuffle to the greater of this value or zone start
-+ * @end_pfn: Limit the shuffle to the less of this value or zone end
-+ *
-+ * While shuffle_zone() attempts to avoid holes with pfn_valid() and
-+ * pfn_present() they can not report sub-section sized holes. @start_pfn
-+ * and @end_pfn limit the shuffle to the exact memory pages being freed.
-+ */
-+void __meminit shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
-+		unsigned long end_pfn)
-+{
-+	struct zone *z;
-+
-+	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
-+		shuffle_zone(z, start_pfn, end_pfn);
-+}
++		page->pgmap = pgmap;
+ 
+ 		/*
+ 		 * Mark page reserved as it will need to wait for onlining
+@@ -5597,14 +5598,14 @@ void __ref memmap_init_zone_device(struct zone *zone,
+ 		 * We can use the non-atomic __set_bit operation for setting
+ 		 * the flag as we are still initializing the pages.
+ 		 */
+-		__SetPageReserved(page);
++		 if(!is_dax_page(page))
++			__SetPageReserved(page);
+ 
+ 		/*
+ 		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
+ 		 * pointer and hmm_data.  It is a bug if a ZONE_DEVICE
+ 		 * page is ever freed or placed on a driver-private list.
+ 		 */
+-		page->pgmap = pgmap;
+ 		page->hmm_data = 0;
+
+
+After Alex's patch merged.
