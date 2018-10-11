@@ -1,67 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EABB6B0003
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 09:02:20 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id b76-v6so4901649ywb.11
-        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 06:02:20 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id v18-v6si7447474ybm.455.2018.10.11.06.02.18
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 664286B0006
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 09:20:18 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id p73-v6so8243280qkp.2
+        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 06:20:18 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 42sor2482175qvi.38.2018.10.11.06.20.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Oct 2018 06:02:19 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w9BCrq5F069395
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 09:02:18 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2n268a2q21-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 09:02:18 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Thu, 11 Oct 2018 14:02:16 +0100
-Date: Thu, 11 Oct 2018 15:02:11 +0200
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: s390: runtime warning about pgtables_bytes
-In-Reply-To: <CAEemH2eExK_jwOPZDFBZkwABucpZqh+=s+qpN-tFfMzxwo7cZA@mail.gmail.com>
-References: <CAEemH2eExK_jwOPZDFBZkwABucpZqh+=s+qpN-tFfMzxwo7cZA@mail.gmail.com>
-Message-Id: <20181011150211.7d8c07ac@mschwideX1>
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: Quoted-printable
+        (Google Transport Security);
+        Thu, 11 Oct 2018 06:20:17 -0700 (PDT)
+Date: Thu, 11 Oct 2018 07:20:13 -0600
+From: Jason Gunthorpe <jgg@ziepe.ca>
+Subject: Re: [PATCH v4 2/3] mm: introduce put_user_page*(), placeholder
+ versions
+Message-ID: <20181011132013.GA5968@ziepe.ca>
+References: <20181008211623.30796-1-jhubbard@nvidia.com>
+ <20181008211623.30796-3-jhubbard@nvidia.com>
+ <20181008171442.d3b3a1ea07d56c26d813a11e@linux-foundation.org>
+ <5198a797-fa34-c859-ff9d-568834a85a83@nvidia.com>
+ <20181010164541.ec4bf53f5a9e4ba6e5b52a21@linux-foundation.org>
+ <20181011084929.GB8418@quack2.suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181011084929.GB8418@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Wang <liwang@redhat.com>
-Cc: Guenter Roeck <linux@roeck-us.net>, Janosch Frank <frankja@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, John Hubbard <jhubbard@nvidia.com>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Ralph Campbell <rcampbell@nvidia.com>
 
-On Thu, 11 Oct 2018 18:04:12 +0800
-Li Wang <liwang@redhat.com> wrote:
+On Thu, Oct 11, 2018 at 10:49:29AM +0200, Jan Kara wrote:
 
-> When running s390 system with LTP/cve-2017-17052.c[1], the following BUG =
-is
-> came out repeatedly.
-> I remember this warning start from kernel-4.16.0 and now it still exist in
-> kernel-4.19-rc7.
-> Can anyone take a look?
->=20
-> [ 2678.991496] BUG: non-zero pgtables_bytes on freeing mm: 16384
-> [ 2679.001543] BUG: non-zero pgtables_bytes on freeing mm: 16384
-> [ 2679.002453] BUG: non-zero pgtables_bytes on freeing mm: 16384
-> [ 2679.003256] BUG: non-zero pgtables_bytes on freeing mm: 16384
-> [ 2679.013689] BUG: non-zero pgtables_bytes on freeing mm: 16384
-> [ 2679.024647] BUG: non-zero pgtables_bytes on freeing mm: 16384
-> [ 2679.064408] BUG: non-zero pgtables_bytes on freeing mm: 16384
-> [ 2679.133963] BUG: non-zero pgtables_bytes on freeing mm: 16384
->=20
-> [1]:
-> https://github.com/linux-test-project/ltp/blob/master/testcases/cve/cve-2=
-017-17052.c
-=20
-Confirmed, I see this bug with cvs-2017-17052 on my LPAR as well.
-I'll look into it.
+> > This is a real worry.  If someone uses a mistaken put_page() then how
+> > will that bug manifest at runtime?  Under what set of circumstances
+> > will the kernel trigger the bug?
+> 
+> At runtime such bug will manifest as a page that can never be evicted from
+> memory. We could warn in put_page() if page reference count drops below
+> bare minimum for given user pin count which would be able to catch some
+> issues but it won't be 100% reliable. So at this point I'm more leaning
+> towards making get_user_pages() return a different type than just
+> struct page * to make it much harder for refcount to go wrong...
 
---=20
-blue skies,
-   Martin.
+At least for the infiniband code being used as an example here we take
+the struct page from get_user_pages, then stick it in a sgl, and at
+put_page time we get the page back out of the sgl via sg_page()
 
-"Reality continues to ruin my life." - Calvin.
+So type safety will not help this case... I wonder how many other
+users are similar? I think this is a pretty reasonable flow for DMA
+with user pages.
+
+Jason
