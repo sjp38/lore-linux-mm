@@ -1,163 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E80D26B027B
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 12:05:39 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id r67-v6so8408376pfd.21
-        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 09:05:39 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id q1-v6si31427717pfb.258.2018.10.11.09.05.38
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 32E486B0006
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 12:24:45 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id z15-v6so8541185iob.3
+        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 09:24:45 -0700 (PDT)
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id f11-v6si18174255iob.49.2018.10.11.09.24.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Oct 2018 09:05:38 -0700 (PDT)
-Date: Thu, 11 Oct 2018 09:05:28 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: [PATCH v2 17/25] vfs: enable remap callers that can handle short
- operations
-Message-ID: <20181011160528.GB28243@magnolia>
-References: <153923113649.5546.9840926895953408273.stgit@magnolia>
- <153923126628.5546.3484461137192547927.stgit@magnolia>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 11 Oct 2018 09:24:43 -0700 (PDT)
+References: <20181005161642.2462-1-logang@deltatee.com>
+ <20181005161642.2462-6-logang@deltatee.com> <20181011133730.GB7276@lst.de>
+From: Logan Gunthorpe <logang@deltatee.com>
+Message-ID: <8cea5ffa-5fbf-8ea2-b673-20e2d09a910d@deltatee.com>
+Date: Thu, 11 Oct 2018 10:24:33 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <153923126628.5546.3484461137192547927.stgit@magnolia>
+In-Reply-To: <20181011133730.GB7276@lst.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-CA
+Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH 5/5] RISC-V: Implement sparsemem
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david@fromorbit.com
-Cc: sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, Amir Goldstein <amir73il@gmail.com>, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, ocfs2-devel@oss.oracle.com
+To: Christoph Hellwig <hch@lst.de>
+Cc: Rob Herring <robh@kernel.org>, Albert Ou <aou@eecs.berkeley.edu>, Andrew Waterman <andrew@sifive.com>, linux-sh@vger.kernel.org, Palmer Dabbelt <palmer@sifive.com>, linux-kernel@vger.kernel.org, Stephen Bates <sbates@raithlin.com>, Zong Li <zong@andestech.com>, linux-mm@kvack.org, Olof Johansson <olof@lixom.net>, linux-riscv@lists.infradead.org, Michael Clark <michaeljclark@mac.com>, linux-arm-kernel@lists.infradead.org
 
-From: Darrick J. Wong <darrick.wong@oracle.com>
 
-Plumb in a remap flag that enables the filesystem remap handler to
-shorten remapping requests for callers that can handle it.  Now
-copy_file_range can report partial success (in case we run up against
-alignment problems, resource limits, etc.).
 
-We also enable CAN_SHORTEN for fideduperange to maintain existing
-userspace-visible behavior where xfs/btrfs shorten the dedupe range to
-avoid stale post-eof data exposure.
+On 2018-10-11 7:37 a.m., Christoph Hellwig wrote:
+>> +/*
+>> + * Log2 of the upper bound of the size of a struct page. Used for sizing
+>> + * the vmemmap region only, does not affect actual memory footprint.
+>> + * We don't use sizeof(struct page) directly since taking its size here
+>> + * requires its definition to be available at this point in the inclusion
+>> + * chain, and it may not be a power of 2 in the first place.
+>> + */
+>> +#define STRUCT_PAGE_MAX_SHIFT	6
+> 
+> I know this is copied from arm64, but wouldn't this be a good time
+> to move this next to the struct page defintion?
+> 
+> Also this:
+> 
+> arch/arm64/mm/init.c:   BUILD_BUG_ON(sizeof(struct page) > (1 << STRUCT_PAGE_MAX_SHIFT));
+> 
+> should move to comment code (or would have to be duplicated for riscv)
 
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-Reviewed-by: Amir Goldstein <amir73il@gmail.com>
----
-v2: fix missing WARN_ON_ONCE and update changelog
----
- fs/read_write.c    |   17 ++++++++++-------
- include/linux/fs.h |    7 +++++--
- mm/filemap.c       |   16 ++++++++++++----
- 3 files changed, 27 insertions(+), 13 deletions(-)
+Makes sense. Where is a good place for the BUILD_BUG_ON in common code?
 
-diff --git a/fs/read_write.c b/fs/read_write.c
-index 6ec908f9a69b..9d33f0a14720 100644
---- a/fs/read_write.c
-+++ b/fs/read_write.c
-@@ -1593,7 +1593,8 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
- 
- 		cloned = file_in->f_op->remap_file_range(file_in, pos_in,
- 				file_out, pos_out,
--				min_t(loff_t, MAX_RW_COUNT, len), 0);
-+				min_t(loff_t, MAX_RW_COUNT, len),
-+				RFR_CAN_SHORTEN);
- 		if (cloned > 0) {
- 			ret = cloned;
- 			goto done;
-@@ -1804,16 +1805,18 @@ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
- 		 * If the user is attempting to remap a partial EOF block and
- 		 * it's inside the destination EOF then reject it.
- 		 *
--		 * We don't support shortening requests, so we can only reject
--		 * them.
-+		 * If possible, shorten the request instead of rejecting it.
- 		 */
- 		if (is_dedupe)
- 			ret = -EBADE;
- 		else if (pos_out + *len < i_size_read(inode_out))
- 			ret = -EINVAL;
- 
--		if (ret)
--			return ret;
-+		if (ret) {
-+			if (!(remap_flags & RFR_CAN_SHORTEN))
-+				return ret;
-+			*len &= ~blkmask;
-+		}
- 	}
- 
- 	return 1;
-@@ -2011,7 +2014,7 @@ loff_t vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
- {
- 	loff_t ret;
- 
--	WARN_ON_ONCE(remap_flags & ~(RFR_SAME_DATA));
-+	WARN_ON_ONCE(remap_flags & ~(RFR_SAME_DATA | RFR_CAN_SHORTEN));
- 
- 	ret = mnt_want_write_file(dst_file);
- 	if (ret)
-@@ -2112,7 +2115,7 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
- 
- 		deduped = vfs_dedupe_file_range_one(file, off, dst_file,
- 						    info->dest_offset, len,
--						    0);
-+						    RFR_CAN_SHORTEN);
- 		if (deduped == -EBADE)
- 			info->status = FILE_DEDUPE_RANGE_DIFFERS;
- 		else if (deduped < 0)
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index b9c314f9d5a4..57cb56bbc30a 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1726,14 +1726,17 @@ struct block_device_operations;
-  *
-  * RFR_SAME_DATA: only remap if contents identical (i.e. deduplicate)
-  * RFR_TO_SRC_EOF: remap to the end of the source file
-+ * RFR_CAN_SHORTEN: caller can handle a shortened request
-  */
- #define RFR_SAME_DATA		(1 << 0)
- #define RFR_TO_SRC_EOF		(1 << 1)
-+#define RFR_CAN_SHORTEN		(1 << 2)
- 
--#define RFR_VALID_FLAGS		(RFR_SAME_DATA | RFR_TO_SRC_EOF)
-+#define RFR_VALID_FLAGS		(RFR_SAME_DATA | RFR_TO_SRC_EOF | \
-+				 RFR_CAN_SHORTEN)
- 
- /* Implemented by the VFS, so these are advisory. */
--#define RFR_VFS_FLAGS		(RFR_TO_SRC_EOF)
-+#define RFR_VFS_FLAGS		(RFR_TO_SRC_EOF | RFR_CAN_SHORTEN)
- 
- /*
-  * Filesystem remapping implementations should call this helper on their
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 369cfd164e90..bccbd3621238 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -3051,8 +3051,12 @@ int generic_remap_checks(struct file *file_in, loff_t pos_in,
- 	if (pos_in + count == size_in) {
- 		bcount = ALIGN(size_in, bs) - pos_in;
- 	} else {
--		if (!IS_ALIGNED(count, bs))
--			return -EINVAL;
-+		if (!IS_ALIGNED(count, bs)) {
-+			if (remap_flags & RFR_CAN_SHORTEN)
-+				count = ALIGN_DOWN(count, bs);
-+			else
-+				return -EINVAL;
-+		}
- 
- 		bcount = count;
- 	}
-@@ -3063,10 +3067,14 @@ int generic_remap_checks(struct file *file_in, loff_t pos_in,
- 	    pos_out < pos_in + bcount)
- 		return -EINVAL;
- 
--	/* For now we don't support changing the length. */
--	if (*req_count != count)
-+	/*
-+	 * We shortened the request but the caller can't deal with that, so
-+	 * bounce the request back to userspace.
-+	 */
-+	if (*req_count != count && !(remap_flags & RFR_CAN_SHORTEN))
- 		return -EINVAL;
- 
-+	*req_count = count;
- 	return 0;
- }
- 
+I've queued up changes for your other feedback.
+
+Thanks,
+
+Logan
