@@ -1,89 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 221DF6B027E
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 14:01:58 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id h76-v6so12399084pfd.10
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 11:01:58 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id p17-v6si1877976pgj.416.2018.10.12.11.01.56
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E5826B027F
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 14:02:27 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id d29-v6so8435436wrc.3
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 11:02:27 -0700 (PDT)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2620:137:e000::1:9])
+        by mx.google.com with ESMTPS id 138-v6si1752466wmn.177.2018.10.12.11.02.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Oct 2018 11:01:56 -0700 (PDT)
-Subject: [PATCH v7 7/7] mm, hmm: Mark hmm_devmem_{add,
- add_resource} EXPORT_SYMBOL_GPL
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 12 Oct 2018 10:50:08 -0700
-Message-ID: <153936660850.1198040.13706829678231288085.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <153936657159.1198040.4489957977352276272.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <153936657159.1198040.4489957977352276272.stgit@dwillia2-desk3.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+        Fri, 12 Oct 2018 11:02:25 -0700 (PDT)
+Date: Fri, 12 Oct 2018 11:02:20 -0700 (PDT)
+Message-Id: <20181012.110220.321284613911888246.davem@davemloft.net>
+Subject: Re: [PATCH v2 2/2] mm: speed up mremap by 500x on large regions
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20181012113056.gxhcbrqyu7k7xnyv@kshutemo-mobl1>
+References: <20181012013756.11285-1-joel@joelfernandes.org>
+	<20181012013756.11285-2-joel@joelfernandes.org>
+	<20181012113056.gxhcbrqyu7k7xnyv@kshutemo-mobl1>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: kirill@shutemov.name
+Cc: joel@joelfernandes.org, linux-kernel@vger.kernel.org, kernel-team@android.com, minchan@kernel.org, pantin@google.com, hughd@google.com, lokeshgidra@google.com, dancol@google.com, mhocko@kernel.org, akpm@linux-foundation.org, aryabinin@virtuozzo.com, luto@kernel.org, bp@alien8.de, catalin.marinas@arm.com, chris@zankel.net, dave.hansen@linux.intel.com, elfring@users.sourceforge.net, fenghua.yu@intel.com, geert@linux-m68k.org, gxt@pku.edu.cn, deller@gmx.de, mingo@redhat.com, jejb@parisc-linux.org, jdike@addtoit.com, jonas@southpole.se, Julia.Lawall@lip6.fr, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, lftan@altera.com, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, jcmvbkbc@gmail.com, nios2-dev@lists.rocketboards.org, openrisc@lists.librecores.org, peterz@infradead.org, richard@nod.at
 
-The routines hmm_devmem_add(), and hmm_devmem_add_resource() duplicated
-devm_memremap_pages() and are now simple now wrappers around the core
-facility to inject a dev_pagemap instance into the global pgmap_radix
-and hook page-idle events. The devm_memremap_pages() interface is base
-infrastructure for HMM. HMM has more and deeper ties into the kernel
-memory management implementation than base ZONE_DEVICE which is itself a
-EXPORT_SYMBOL_GPL facility.
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Date: Fri, 12 Oct 2018 14:30:56 +0300
 
-Originally, the HMM page structure creation routines copied the
-devm_memremap_pages() code and reused ZONE_DEVICE. A cleanup to unify
-the implementations was discussed during the initial review:
-http://lkml.iu.edu/hypermail/linux/kernel/1701.2/00812.html
-Recent work to extend devm_memremap_pages() for the peer-to-peer-DMA
-facility enabled this cleanup to move forward.
+> I looked into the code more and noticed move_pte() helper called from
+> move_ptes(). It changes PTE entry to suite new address.
+> 
+> It is only defined in non-trivial way on Sparc. I don't know much about
+> Sparc and it's hard for me to say if the optimization will break anything
+> there.
+> 
+> I think it worth to disable the optimization if __HAVE_ARCH_MOVE_PTE is
+> defined. Or make architectures state explicitely that the optimization is
+> safe.
 
-In addition to the integration with devm_memremap_pages() HMM depends on
-other GPL-only symbols:
+What sparc is doing in move_pte() is flushing the data-cache
+(synchronously) if the virtual address color of the mapping changes.
 
-    mmu_notifier_unregister_no_release
-    percpu_ref
-    region_intersects
-    __class_create
-
-It goes further to consume / indirectly expose functionality that is not
-exported to any other driver:
-
-    alloc_pages_vma
-    walk_page_range
-
-HMM is derived from devm_memremap_pages(), and extends deep core-kernel
-fundamentals. Similar to devm_memremap_pages(), mark its entry points
-EXPORT_SYMBOL_GPL().
-
-Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
-Cc: Logan Gunthorpe <logang@deltatee.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- mm/hmm.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/hmm.c b/mm/hmm.c
-index 2e72cb4188ca..90d1383c7e24 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -1062,7 +1062,7 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
- 		return result;
- 	return devmem;
- }
--EXPORT_SYMBOL(hmm_devmem_add);
-+EXPORT_SYMBOL_GPL(hmm_devmem_add);
- 
- struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
- 					   struct device *device,
-@@ -1116,7 +1116,7 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
- 		return result;
- 	return devmem;
- }
--EXPORT_SYMBOL(hmm_devmem_add_resource);
-+EXPORT_SYMBOL_GPL(hmm_devmem_add_resource);
- 
- /*
-  * A device driver that wants to handle multiple devices memory through a
+Hope this helps.
