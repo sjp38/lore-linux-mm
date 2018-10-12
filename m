@@ -1,128 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 47AFC6B0005
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 16:22:31 -0400 (EDT)
-Received: by mail-vs1-f72.google.com with SMTP id w20so5402141vsc.5
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 13:22:31 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a94-v6sor1357594uaa.66.2018.10.12.13.22.29
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 80CE06B0003
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 16:59:37 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id v88-v6so13235955pfk.19
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 13:59:37 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 12-v6si2338072pgq.337.2018.10.12.13.59.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 12 Oct 2018 13:22:30 -0700 (PDT)
-MIME-Version: 1.0
-References: <153923113649.5546.9840926895953408273.stgit@magnolia> <153923117420.5546.13317703807467393934.stgit@magnolia>
-In-Reply-To: <153923117420.5546.13317703807467393934.stgit@magnolia>
-Reply-To: fdmanana@gmail.com
-From: Filipe Manana <fdmanana@gmail.com>
-Date: Fri, 12 Oct 2018 21:22:18 +0100
-Message-ID: <CAL3q7H7mLvCGpyitJhQ=To-aDvG9k9rxSVi2jSpcALQVj3myzg@mail.gmail.com>
-Subject: Re: [PATCH 05/25] vfs: avoid problematic remapping requests into
- partial EOF block
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 Oct 2018 13:59:36 -0700 (PDT)
+Date: Fri, 12 Oct 2018 13:59:34 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v7 1/6] mm: split SWP_FILE into SWP_ACTIVATED and SWP_FS
+Message-Id: <20181012135934.b8dbbaaf8a01011ec21b5aba@linux-foundation.org>
+In-Reply-To: <6d63d8668c4287a4f6d203d65696e96f80abdfc7.1536704650.git.osandov@fb.com>
+References: <cover.1536704650.git.osandov@fb.com>
+	<6d63d8668c4287a4f6d203d65696e96f80abdfc7.1536704650.git.osandov@fb.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Dave Chinner <david@fromorbit.com>, Eric Sandeen <sandeen@redhat.com>, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs <linux-btrfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, ocfs2-devel@oss.oracle.com
+To: Omar Sandoval <osandov@osandov.com>
+Cc: linux-btrfs@vger.kernel.org, kernel-team@fb.com, linux-mm@kvack.org
 
-On Thu, Oct 11, 2018 at 5:13 AM Darrick J. Wong <darrick.wong@oracle.com> w=
-rote:
->
-> From: Darrick J. Wong <darrick.wong@oracle.com>
->
-> A deduplication data corruption is exposed by fstests generic/505 on
-> XFS.
+On Tue, 11 Sep 2018 15:34:44 -0700 Omar Sandoval <osandov@osandov.com> wrote:
 
-(and btrfs)
+> From: Omar Sandoval <osandov@fb.com>
+> 
+> The SWP_FILE flag serves two purposes: to make swap_{read,write}page()
+> go through the filesystem, and to make swapoff() call
+> ->swap_deactivate(). For Btrfs, we want the latter but not the former,
+> so split this flag into two. This makes us always call
+> ->swap_deactivate() if ->swap_activate() succeeded, not just if it
+> didn't add any swap extents itself.
+> 
+> This also resolves the issue of the very misleading name of SWP_FILE,
+> which is only used for swap files over NFS.
+> 
 
-Btw, the generic test I wrote was indeed numbered 505, however it was
-never committed and there's now a generic/505 which has nothing to do
-with deduplication.
-So you should update the changelog to avoid confusion.
-
-thanks
-
-> It is caused by extending the block match range to include the
-> partial EOF block, but then allowing unknown data beyond EOF to be
-> considered a "match" to data in the destination file because the
-> comparison is only made to the end of the source file. This corrupts the
-> destination file when the source extent is shared with it.
->
-> The VFS remapping prep functions  only support whole block dedupe, but
-> we still need to appear to support whole file dedupe correctly.  Hence
-> if the dedupe request includes the last block of the souce file, don't
-> include it in the actual dedupe operation. If the rest of the range
-> dedupes successfully, then reject the entire request.  A subsequent
-> patch will enable us to shorten dedupe requests correctly.
->
-> When reflinking sub-file ranges, a data corruption can occur when the
-> source file range includes a partial EOF block. This shares the unknown
-> data beyond EOF into the second file at a position inside EOF, exposing
-> stale data in the second file.
->
-> If the reflink request includes the last block of the souce file, only
-> proceed with the reflink operation if it lands at or past the
-> destination file's current EOF. If it lands within the destination file
-> EOF, reject the entire request with -EINVAL and make the caller go the
-> hard way.  A subsequent patch will enable us to shorten reflink requests
-> correctly.
->
-> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-> ---
->  fs/read_write.c |   22 ++++++++++++++++++++++
->  1 file changed, 22 insertions(+)
->
->
-> diff --git a/fs/read_write.c b/fs/read_write.c
-> index d6e8e242a15f..8498991e2f33 100644
-> --- a/fs/read_write.c
-> +++ b/fs/read_write.c
-> @@ -1723,6 +1723,7 @@ int vfs_clone_file_prep(struct file *file_in, loff_=
-t pos_in,
->  {
->         struct inode *inode_in =3D file_inode(file_in);
->         struct inode *inode_out =3D file_inode(file_out);
-> +       u64 blkmask =3D i_blocksize(inode_in) - 1;
->         bool same_inode =3D (inode_in =3D=3D inode_out);
->         int ret;
->
-> @@ -1785,6 +1786,27 @@ int vfs_clone_file_prep(struct file *file_in, loff=
-_t pos_in,
->                         return -EBADE;
->         }
->
-> +       /* Are we doing a partial EOF block remapping of some kind? */
-> +       if (*len & blkmask) {
-> +               /*
-> +                * If the dedupe data matches, don't try to dedupe the pa=
-rtial
-> +                * EOF block.
-> +                *
-> +                * If the user is attempting to remap a partial EOF block=
- and
-> +                * it's inside the destination EOF then reject it.
-> +                *
-> +                * We don't support shortening requests, so we can only r=
-eject
-> +                * them.
-> +                */
-> +               if (is_dedupe)
-> +                       ret =3D -EBADE;
-> +               else if (pos_out + *len < i_size_read(inode_out))
-> +                       ret =3D -EINVAL;
-> +
-> +               if (ret)
-> +                       return ret;
-> +       }
-> +
->         return 1;
->  }
->  EXPORT_SYMBOL(vfs_clone_file_prep);
->
-
-
---=20
-Filipe David Manana,
-
-=E2=80=9CWhether you think you can, or you think you can't =E2=80=94 you're=
- right.=E2=80=9D
+Acked-by: Andrew Morton <akpm@linux-foundation.org>
