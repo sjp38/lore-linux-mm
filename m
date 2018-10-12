@@ -1,83 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D9CE6B0005
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 15:42:14 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id m3-v6so10269484plt.9
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 12:42:14 -0700 (PDT)
+Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 47AFC6B0005
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 16:22:31 -0400 (EDT)
+Received: by mail-vs1-f72.google.com with SMTP id w20so5402141vsc.5
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 13:22:31 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k24-v6sor2046427pgg.85.2018.10.12.12.42.12
+        by mx.google.com with SMTPS id a94-v6sor1357594uaa.66.2018.10.12.13.22.29
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 12 Oct 2018 12:42:13 -0700 (PDT)
-Date: Fri, 12 Oct 2018 12:42:10 -0700
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [PATCH v2 1/2] treewide: remove unused address argument from
- pte_alloc functions
-Message-ID: <20181012194210.GA27630@joelaf.mtv.corp.google.com>
-References: <20181012013756.11285-1-joel@joelfernandes.org>
- <03b524f3-5f3a-baa0-2254-9c588103d2d6@users.sourceforge.net>
+        Fri, 12 Oct 2018 13:22:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <03b524f3-5f3a-baa0-2254-9c588103d2d6@users.sourceforge.net>
+References: <153923113649.5546.9840926895953408273.stgit@magnolia> <153923117420.5546.13317703807467393934.stgit@magnolia>
+In-Reply-To: <153923117420.5546.13317703807467393934.stgit@magnolia>
+Reply-To: fdmanana@gmail.com
+From: Filipe Manana <fdmanana@gmail.com>
+Date: Fri, 12 Oct 2018 21:22:18 +0100
+Message-ID: <CAL3q7H7mLvCGpyitJhQ=To-aDvG9k9rxSVi2jSpcALQVj3myzg@mail.gmail.com>
+Subject: Re: [PATCH 05/25] vfs: avoid problematic remapping requests into
+ partial EOF block
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: SF Markus Elfring <elfring@users.sourceforge.net>
-Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@android.com, Michal Hocko <mhocko@kernel.org>, Julia Lawall <Julia.Lawall@lip6.fr>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, Daniel Colascione <dancol@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, "James E. J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, pantin@google.com, Lokesh Gidra <lokeshgidra@google.com>, Max Filippov <jcmvbkbc@gmail.com>, Minchan Kim <minchan@kernel.org>, nios2-dev@lists.rocketboards.org, openrisc@lists.librecores.org, Peter Zijlstra <peterz@infradead.org>, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Dave Chinner <david@fromorbit.com>, Eric Sandeen <sandeen@redhat.com>, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs <linux-btrfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, ocfs2-devel@oss.oracle.com
 
-On Fri, Oct 12, 2018 at 08:51:45PM +0200, SF Markus Elfring wrote:
-> > The changes were obtained by applying the following Coccinelle script.
-> 
-> A bit of clarification happened for its implementation details.
-> https://systeme.lip6.fr/pipermail/cocci/2018-October/005374.html
-> 
-> I have taken also another look at the following SmPL code.
-> 
-> 
-> > identifier fn =~
-> > "^(__pte_alloc|pte_alloc_one|pte_alloc|__pte_alloc_kernel|pte_alloc_one_kernel)$";
-> 
-> I suggest to adjust the regular expression for this constraint
-> and in subsequent SmPL rules.
-> "^(?:pte_alloc(?:_one(?:_kernel)?)?|__pte_alloc(?:_kernel)?)$";
+On Thu, Oct 11, 2018 at 5:13 AM Darrick J. Wong <darrick.wong@oracle.com> w=
+rote:
+>
+> From: Darrick J. Wong <darrick.wong@oracle.com>
+>
+> A deduplication data corruption is exposed by fstests generic/505 on
+> XFS.
 
-Sure it looks more clever, but why? Ugh that's harder to read and confusing.
+(and btrfs)
 
-> > (
-> > - T3 fn(T1 E1, T2 E2);
-> > + T3 fn(T1 E1);
-> > |
-> > - T3 fn(T1 E1, T2 E2, T4 E4);
-> > + T3 fn(T1 E1, T2 E2);
-> > )
-> 
-> I propose to take an other SmPL disjunction into account here.
-> 
->  T3 fn(T1 E1,
-> (
-> -      T2 E2
-> |      T2 E2,
-> -      T4 E4
-> )      );
+Btw, the generic test I wrote was indeed numbered 505, however it was
+never committed and there's now a generic/505 which has nothing to do
+with deduplication.
+So you should update the changelog to avoid confusion.
 
-Again this is confusing. It makes one think that maybe the second argument
-can also be removed and requires careful observation that the ");" follows.
+thanks
 
-> > (
-> > - #define fn(a, b, c)@p e
-> > + #define fn(a, b) e
-> > |
-> > - #define fn(a, b)@p e
-> > + #define fn(a) e
-> > )
-> 
-> How do you think about to omit the metavariable a??position pa?? here?
+> It is caused by extending the block match range to include the
+> partial EOF block, but then allowing unknown data beyond EOF to be
+> considered a "match" to data in the destination file because the
+> comparison is only made to the end of the source file. This corrupts the
+> destination file when the source extent is shared with it.
+>
+> The VFS remapping prep functions  only support whole block dedupe, but
+> we still need to appear to support whole file dedupe correctly.  Hence
+> if the dedupe request includes the last block of the souce file, don't
+> include it in the actual dedupe operation. If the rest of the range
+> dedupes successfully, then reject the entire request.  A subsequent
+> patch will enable us to shorten dedupe requests correctly.
+>
+> When reflinking sub-file ranges, a data corruption can occur when the
+> source file range includes a partial EOF block. This shares the unknown
+> data beyond EOF into the second file at a position inside EOF, exposing
+> stale data in the second file.
+>
+> If the reflink request includes the last block of the souce file, only
+> proceed with the reflink operation if it lands at or past the
+> destination file's current EOF. If it lands within the destination file
+> EOF, reject the entire request with -EINVAL and make the caller go the
+> hard way.  A subsequent patch will enable us to shorten reflink requests
+> correctly.
+>
+> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+> ---
+>  fs/read_write.c |   22 ++++++++++++++++++++++
+>  1 file changed, 22 insertions(+)
+>
+>
+> diff --git a/fs/read_write.c b/fs/read_write.c
+> index d6e8e242a15f..8498991e2f33 100644
+> --- a/fs/read_write.c
+> +++ b/fs/read_write.c
+> @@ -1723,6 +1723,7 @@ int vfs_clone_file_prep(struct file *file_in, loff_=
+t pos_in,
+>  {
+>         struct inode *inode_in =3D file_inode(file_in);
+>         struct inode *inode_out =3D file_inode(file_out);
+> +       u64 blkmask =3D i_blocksize(inode_in) - 1;
+>         bool same_inode =3D (inode_in =3D=3D inode_out);
+>         int ret;
+>
+> @@ -1785,6 +1786,27 @@ int vfs_clone_file_prep(struct file *file_in, loff=
+_t pos_in,
+>                         return -EBADE;
+>         }
+>
+> +       /* Are we doing a partial EOF block remapping of some kind? */
+> +       if (*len & blkmask) {
+> +               /*
+> +                * If the dedupe data matches, don't try to dedupe the pa=
+rtial
+> +                * EOF block.
+> +                *
+> +                * If the user is attempting to remap a partial EOF block=
+ and
+> +                * it's inside the destination EOF then reject it.
+> +                *
+> +                * We don't support shortening requests, so we can only r=
+eject
+> +                * them.
+> +                */
+> +               if (is_dedupe)
+> +                       ret =3D -EBADE;
+> +               else if (pos_out + *len < i_size_read(inode_out))
+> +                       ret =3D -EINVAL;
+> +
+> +               if (ret)
+> +                       return ret;
+> +       }
+> +
+>         return 1;
+>  }
+>  EXPORT_SYMBOL(vfs_clone_file_prep);
+>
 
-Right, I don't need it in this case. But the script works either way.
 
-I like to take more of a problem solving approach that makes sense, than
-aiming for perfection, after all this is a useful script that we do not
-need to check in once we finish with it.
+--=20
+Filipe David Manana,
 
- - Joel
+=E2=80=9CWhether you think you can, or you think you can't =E2=80=94 you're=
+ right.=E2=80=9D
