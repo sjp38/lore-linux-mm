@@ -1,164 +1,471 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 86F646B027C
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 13:25:42 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id c16-v6so8007413wrr.8
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 10:25:42 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTPS id 30-v6si1573536wrr.440.2018.10.12.10.25.41
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FB516B0010
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 13:33:42 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id p89-v6so12145305pfj.12
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 10:33:42 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id c1-v6si1674103pgp.376.2018.10.12.10.33.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Oct 2018 10:25:41 -0700 (PDT)
-Date: Fri, 12 Oct 2018 19:25:34 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v6 14/18] ACPI / APEI: Split ghes_read_estatus() to read
- CPER length
-Message-ID: <20181012172533.GG580@zn.tnic>
-References: <20180921221705.6478-1-james.morse@arm.com>
- <20180921221705.6478-15-james.morse@arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20180921221705.6478-15-james.morse@arm.com>
+        Fri, 12 Oct 2018 10:33:40 -0700 (PDT)
+From: Keith Busch <keith.busch@intel.com>
+Subject: [PATCHv3] mm/gup: Cache dev_pagemap while pinning pages
+Date: Fri, 12 Oct 2018 11:30:40 -0600
+Message-Id: <20181012173040.15669-1-keith.busch@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Kirill Shutemov <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Keith Busch <keith.busch@intel.com>
 
-On Fri, Sep 21, 2018 at 11:17:01PM +0100, James Morse wrote:
-> ghes_read_estatus() reads the record address, then the record's
-> header, then performs some sanity checks before reading the
-> records into the provided estatus buffer.
-> 
-> We either need to know the size of the records before we call
-> ghes_read_estatus(), or always provide a worst-case sized buffer,
-> as happens today.
-> 
-> Add a function to peek at the record's header to find the size. This
-> will let the NMI path allocate the right amount of memory before reading
-> the records, instead of using the worst-case size, and having to copy
-> the records.
-> 
-> Split ghes_read_estatus() to create ghes_peek_estatus() which
-> returns the address and size of the CPER records.
-> 
-> Signed-off-by: James Morse <james.morse@arm.com>
-> ---
->  drivers/acpi/apei/ghes.c | 55 ++++++++++++++++++++++++++++++----------
->  1 file changed, 41 insertions(+), 14 deletions(-)
-> 
-> diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
-> index 3028487d43a3..055176ed68ac 100644
-> --- a/drivers/acpi/apei/ghes.c
-> +++ b/drivers/acpi/apei/ghes.c
-> @@ -298,11 +298,12 @@ static void ghes_copy_tofrom_phys(void *buffer, u64 paddr, u32 len,
->  	}
->  }
->  
-> -static int ghes_read_estatus(struct ghes *ghes,
-> -			     struct acpi_hest_generic_status *estatus,
-> -			     u64 *buf_paddr, int fixmap_idx)
-> +/* read the CPER block returning its address and size */
+Getting pages from ZONE_DEVICE memory needs to check the backing device's
+live-ness, which is tracked in the device's dev_pagemap metadata. This
+metadata is stored in a radix tree and looking it up adds measurable
+software overhead.
 
-Make that comment a proper sentence:
+This patch avoids repeating this relatively costly operation when
+dev_pagemap is used by caching the last dev_pagemap while getting user
+pages. The gup_benchmark kernel self test reports this reduces time to
+get user pages to as low as 1/3 of the previous time.
 
-"./* ... Read the CPER ... and size. */
+Cc: Dave Hansen <dave.hansen@intel.com>
+Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Signed-off-by: Keith Busch <keith.busch@intel.com>
+---
+Changes from previous version:
 
-> +static int ghes_peek_estatus(struct ghes *ghes, int fixmap_idx,
-> +			     u64 *buf_paddr, u32 *buf_len)
->  {
+  Explicitly set struct members rather than rely on gnu behavior
 
-I find the functionality split a bit strange:
+  Added Reviews and Acks to change log
 
-ghes_peek_estatus() does peek *and* verify sizes. The latter belongs
-maybe better in ghes_read_estatus(). Together with the
-cper_estatus_check_header() call. Or maybe into a separate
+ include/linux/huge_mm.h |   8 ++--
+ include/linux/mm.h      |  12 +-----
+ mm/gup.c                | 110 ++++++++++++++++++++++++++++--------------------
+ mm/huge_memory.c        |  16 +++----
+ mm/nommu.c              |   6 +--
+ 5 files changed, 79 insertions(+), 73 deletions(-)
 
-	__ghes_check_estatus()
-
-to separate it all nicely.
-
->  	struct acpi_hest_generic *g = ghes->generic;
-> +	struct acpi_hest_generic_status estatus;
->  	u32 len;
->  	int rc;
->  
-> @@ -317,26 +318,23 @@ static int ghes_read_estatus(struct ghes *ghes,
->  	if (!*buf_paddr)
->  		return -ENOENT;
->  
-> -	ghes_copy_tofrom_phys(estatus, *buf_paddr,
-> -			      sizeof(*estatus), 1, fixmap_idx);
-> -	if (!estatus->block_status) {
-> +	ghes_copy_tofrom_phys(&estatus, *buf_paddr,
-> +			      sizeof(estatus), 1, fixmap_idx);
-> +	if (!estatus.block_status) {
->  		*buf_paddr = 0;
->  		return -ENOENT;
->  	}
->  
->  	rc = -EIO;
-> -	len = cper_estatus_len(estatus);
-> -	if (len < sizeof(*estatus))
-> +	len = cper_estatus_len(&estatus);
-> +	if (len < sizeof(estatus))
->  		goto err_read_block;
->  	if (len > ghes->generic->error_block_length)
->  		goto err_read_block;
-> -	if (cper_estatus_check_header(estatus))
-> -		goto err_read_block;
-> -	ghes_copy_tofrom_phys(estatus + 1,
-> -			      *buf_paddr + sizeof(*estatus),
-> -			      len - sizeof(*estatus), 1, fixmap_idx);
-> -	if (cper_estatus_check(estatus))
-> +	if (cper_estatus_check_header(&estatus))
->  		goto err_read_block;
-> +	*buf_len = len;
-> +
->  	rc = 0;
->  
->  err_read_block:
-> @@ -346,6 +344,35 @@ static int ghes_read_estatus(struct ghes *ghes,
->  	return rc;
->  }
->  
-> +static int __ghes_read_estatus(struct acpi_hest_generic_status *estatus,
-> +			       u64 buf_paddr, size_t buf_len,
-> +			       int fixmap_idx)
-> +{
-> +	ghes_copy_tofrom_phys(estatus, buf_paddr, buf_len, 1, fixmap_idx);
-> +	if (cper_estatus_check(estatus)) {
-> +		if (printk_ratelimit())
-> +			pr_warning(FW_WARN GHES_PFX
-> +				   "Failed to read error status block!\n");
-
-Then you won't have to have two identical messages:
-
-	"Failed to read error status block!\n"
-
-which, when one sees them, is hard to figure out where exactly in the
-code that happened.
-
-> +		return -EIO;
-> +	}
-> +
-> +	return 0;
-> +}
-> +
-> +static int ghes_read_estatus(struct ghes *ghes,
-> +			     struct acpi_hest_generic_status *estatus,
-> +			     u64 *buf_paddr, int fixmap_idx)
-> +{
-> +	int rc;
-> +	u32 buf_len;
-> +
-> +	rc = ghes_peek_estatus(ghes, fixmap_idx, buf_paddr, &buf_len);
-
-Also, if we have a __ghes_read_estatus() helper now, maybe prefixing
-ghes_peek_estatus() with "__" would make sense too...
-
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 99c19b06d9a4..5cbabdebe9af 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -213,9 +213,9 @@ static inline int hpage_nr_pages(struct page *page)
+ }
+ 
+ struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
+-		pmd_t *pmd, int flags);
++		pmd_t *pmd, int flags, struct dev_pagemap **pgmap);
+ struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
+-		pud_t *pud, int flags);
++		pud_t *pud, int flags, struct dev_pagemap **pgmap);
+ 
+ extern vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t orig_pmd);
+ 
+@@ -344,13 +344,13 @@ static inline void mm_put_huge_zero_page(struct mm_struct *mm)
+ }
+ 
+ static inline struct page *follow_devmap_pmd(struct vm_area_struct *vma,
+-		unsigned long addr, pmd_t *pmd, int flags)
++	unsigned long addr, pmd_t *pmd, int flags, struct dev_pagemap **pgmap)
+ {
+ 	return NULL;
+ }
+ 
+ static inline struct page *follow_devmap_pud(struct vm_area_struct *vma,
+-		unsigned long addr, pud_t *pud, int flags)
++	unsigned long addr, pud_t *pud, int flags, struct dev_pagemap **pgmap)
+ {
+ 	return NULL;
+ }
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 0416a7204be3..0ea2405240a6 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2540,16 +2540,8 @@ static inline vm_fault_t vmf_error(int err)
+ 	return VM_FAULT_SIGBUS;
+ }
+ 
+-struct page *follow_page_mask(struct vm_area_struct *vma,
+-			      unsigned long address, unsigned int foll_flags,
+-			      unsigned int *page_mask);
+-
+-static inline struct page *follow_page(struct vm_area_struct *vma,
+-		unsigned long address, unsigned int foll_flags)
+-{
+-	unsigned int unused_page_mask;
+-	return follow_page_mask(vma, address, foll_flags, &unused_page_mask);
+-}
++struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
++			 unsigned int foll_flags);
+ 
+ #define FOLL_WRITE	0x01	/* check pte is writable */
+ #define FOLL_TOUCH	0x02	/* mark page accessed */
+diff --git a/mm/gup.c b/mm/gup.c
+index 1abc8b4afff6..2d97f8188543 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -20,6 +20,11 @@
+ 
+ #include "internal.h"
+ 
++struct follow_page_context {
++	struct dev_pagemap *pgmap;
++	unsigned int page_mask;
++};
++
+ static struct page *no_page_table(struct vm_area_struct *vma,
+ 		unsigned int flags)
+ {
+@@ -71,10 +76,10 @@ static inline bool can_follow_write_pte(pte_t pte, unsigned int flags)
+ }
+ 
+ static struct page *follow_page_pte(struct vm_area_struct *vma,
+-		unsigned long address, pmd_t *pmd, unsigned int flags)
++		unsigned long address, pmd_t *pmd, unsigned int flags,
++		struct dev_pagemap **pgmap)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+-	struct dev_pagemap *pgmap = NULL;
+ 	struct page *page;
+ 	spinlock_t *ptl;
+ 	pte_t *ptep, pte;
+@@ -116,8 +121,8 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
+ 		 * Only return device mapping pages in the FOLL_GET case since
+ 		 * they are only valid while holding the pgmap reference.
+ 		 */
+-		pgmap = get_dev_pagemap(pte_pfn(pte), NULL);
+-		if (pgmap)
++		*pgmap = get_dev_pagemap(pte_pfn(pte), *pgmap);
++		if (*pgmap)
+ 			page = pte_page(pte);
+ 		else
+ 			goto no_page;
+@@ -152,15 +157,8 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
+ 		goto retry;
+ 	}
+ 
+-	if (flags & FOLL_GET) {
++	if (flags & FOLL_GET)
+ 		get_page(page);
+-
+-		/* drop the pgmap reference now that we hold the page */
+-		if (pgmap) {
+-			put_dev_pagemap(pgmap);
+-			pgmap = NULL;
+-		}
+-	}
+ 	if (flags & FOLL_TOUCH) {
+ 		if ((flags & FOLL_WRITE) &&
+ 		    !pte_dirty(pte) && !PageDirty(page))
+@@ -210,7 +208,8 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
+ 
+ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
+ 				    unsigned long address, pud_t *pudp,
+-				    unsigned int flags, unsigned int *page_mask)
++				    unsigned int flags,
++				    struct follow_page_context *ctx)
+ {
+ 	pmd_t *pmd, pmdval;
+ 	spinlock_t *ptl;
+@@ -258,13 +257,13 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
+ 	}
+ 	if (pmd_devmap(pmdval)) {
+ 		ptl = pmd_lock(mm, pmd);
+-		page = follow_devmap_pmd(vma, address, pmd, flags);
++		page = follow_devmap_pmd(vma, address, pmd, flags, &ctx->pgmap);
+ 		spin_unlock(ptl);
+ 		if (page)
+ 			return page;
+ 	}
+ 	if (likely(!pmd_trans_huge(pmdval)))
+-		return follow_page_pte(vma, address, pmd, flags);
++		return follow_page_pte(vma, address, pmd, flags, &ctx->pgmap);
+ 
+ 	if ((flags & FOLL_NUMA) && pmd_protnone(pmdval))
+ 		return no_page_table(vma, flags);
+@@ -284,7 +283,7 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
+ 	}
+ 	if (unlikely(!pmd_trans_huge(*pmd))) {
+ 		spin_unlock(ptl);
+-		return follow_page_pte(vma, address, pmd, flags);
++		return follow_page_pte(vma, address, pmd, flags, &ctx->pgmap);
+ 	}
+ 	if (flags & FOLL_SPLIT) {
+ 		int ret;
+@@ -307,18 +306,18 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
+ 		}
+ 
+ 		return ret ? ERR_PTR(ret) :
+-			follow_page_pte(vma, address, pmd, flags);
++			follow_page_pte(vma, address, pmd, flags, &ctx->pgmap);
+ 	}
+ 	page = follow_trans_huge_pmd(vma, address, pmd, flags);
+ 	spin_unlock(ptl);
+-	*page_mask = HPAGE_PMD_NR - 1;
++	ctx->page_mask = HPAGE_PMD_NR - 1;
+ 	return page;
+ }
+ 
+-
+ static struct page *follow_pud_mask(struct vm_area_struct *vma,
+ 				    unsigned long address, p4d_t *p4dp,
+-				    unsigned int flags, unsigned int *page_mask)
++				    unsigned int flags,
++				    struct follow_page_context *ctx)
+ {
+ 	pud_t *pud;
+ 	spinlock_t *ptl;
+@@ -344,7 +343,7 @@ static struct page *follow_pud_mask(struct vm_area_struct *vma,
+ 	}
+ 	if (pud_devmap(*pud)) {
+ 		ptl = pud_lock(mm, pud);
+-		page = follow_devmap_pud(vma, address, pud, flags);
++		page = follow_devmap_pud(vma, address, pud, flags, &ctx->pgmap);
+ 		spin_unlock(ptl);
+ 		if (page)
+ 			return page;
+@@ -352,13 +351,13 @@ static struct page *follow_pud_mask(struct vm_area_struct *vma,
+ 	if (unlikely(pud_bad(*pud)))
+ 		return no_page_table(vma, flags);
+ 
+-	return follow_pmd_mask(vma, address, pud, flags, page_mask);
++	return follow_pmd_mask(vma, address, pud, flags, ctx);
+ }
+ 
+-
+ static struct page *follow_p4d_mask(struct vm_area_struct *vma,
+ 				    unsigned long address, pgd_t *pgdp,
+-				    unsigned int flags, unsigned int *page_mask)
++				    unsigned int flags,
++				    struct follow_page_context *ctx)
+ {
+ 	p4d_t *p4d;
+ 	struct page *page;
+@@ -378,7 +377,7 @@ static struct page *follow_p4d_mask(struct vm_area_struct *vma,
+ 			return page;
+ 		return no_page_table(vma, flags);
+ 	}
+-	return follow_pud_mask(vma, address, p4d, flags, page_mask);
++	return follow_pud_mask(vma, address, p4d, flags, ctx);
+ }
+ 
+ /**
+@@ -396,13 +395,13 @@ static struct page *follow_p4d_mask(struct vm_area_struct *vma,
+  */
+ struct page *follow_page_mask(struct vm_area_struct *vma,
+ 			      unsigned long address, unsigned int flags,
+-			      unsigned int *page_mask)
++			      struct follow_page_context *ctx)
+ {
+ 	pgd_t *pgd;
+ 	struct page *page;
+ 	struct mm_struct *mm = vma->vm_mm;
+ 
+-	*page_mask = 0;
++	ctx->page_mask = 0;
+ 
+ 	/* make this handle hugepd */
+ 	page = follow_huge_addr(mm, address, flags & FOLL_WRITE);
+@@ -431,7 +430,19 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
+ 		return no_page_table(vma, flags);
+ 	}
+ 
+-	return follow_p4d_mask(vma, address, pgd, flags, page_mask);
++	return follow_p4d_mask(vma, address, pgd, flags, ctx);
++}
++
++struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
++			 unsigned int foll_flags)
++{
++	struct follow_page_context ctx = { NULL };
++	struct page *page;
++
++	page = follow_page_mask(vma, address, foll_flags, &ctx);
++	if (ctx.pgmap)
++		put_dev_pagemap(ctx.pgmap);
++	return page;
+ }
+ 
+ static int get_gate_page(struct mm_struct *mm, unsigned long address,
+@@ -659,9 +670,9 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		unsigned int gup_flags, struct page **pages,
+ 		struct vm_area_struct **vmas, int *nonblocking)
+ {
+-	long i = 0;
+-	unsigned int page_mask;
++	long ret = 0, i = 0;
+ 	struct vm_area_struct *vma = NULL;
++	struct follow_page_context ctx = { NULL };
+ 
+ 	if (!nr_pages)
+ 		return 0;
+@@ -691,12 +702,14 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 						pages ? &pages[i] : NULL);
+ 				if (ret)
+ 					return i ? : ret;
+-				page_mask = 0;
++				ctx.page_mask = 0;
+ 				goto next_page;
+ 			}
+ 
+-			if (!vma || check_vma_flags(vma, gup_flags))
+-				return i ? : -EFAULT;
++			if (!vma || check_vma_flags(vma, gup_flags)) {
++				ret = -EFAULT;
++				goto out;
++			}
+ 			if (is_vm_hugetlb_page(vma)) {
+ 				i = follow_hugetlb_page(mm, vma, pages, vmas,
+ 						&start, &nr_pages, i,
+@@ -709,23 +722,26 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		 * If we have a pending SIGKILL, don't keep faulting pages and
+ 		 * potentially allocating memory.
+ 		 */
+-		if (unlikely(fatal_signal_pending(current)))
+-			return i ? i : -ERESTARTSYS;
++		if (unlikely(fatal_signal_pending(current))) {
++			ret = -ERESTARTSYS;
++			goto out;
++		}
+ 		cond_resched();
+-		page = follow_page_mask(vma, start, foll_flags, &page_mask);
++
++		page = follow_page_mask(vma, start, foll_flags, &ctx);
+ 		if (!page) {
+-			int ret;
+ 			ret = faultin_page(tsk, vma, start, &foll_flags,
+ 					nonblocking);
+ 			switch (ret) {
+ 			case 0:
+ 				goto retry;
++			case -EBUSY:
++				ret = 0;
++				/* FALLTHRU */
+ 			case -EFAULT:
+ 			case -ENOMEM:
+ 			case -EHWPOISON:
+-				return i ? i : ret;
+-			case -EBUSY:
+-				return i;
++				goto out;
+ 			case -ENOENT:
+ 				goto next_page;
+ 			}
+@@ -737,27 +753,31 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			 */
+ 			goto next_page;
+ 		} else if (IS_ERR(page)) {
+-			return i ? i : PTR_ERR(page);
++			ret = PTR_ERR(page);
++			goto out;
+ 		}
+ 		if (pages) {
+ 			pages[i] = page;
+ 			flush_anon_page(vma, page, start);
+ 			flush_dcache_page(page);
+-			page_mask = 0;
++			ctx.page_mask = 0;
+ 		}
+ next_page:
+ 		if (vmas) {
+ 			vmas[i] = vma;
+-			page_mask = 0;
++			ctx.page_mask = 0;
+ 		}
+-		page_increm = 1 + (~(start >> PAGE_SHIFT) & page_mask);
++		page_increm = 1 + (~(start >> PAGE_SHIFT) & ctx.page_mask);
+ 		if (page_increm > nr_pages)
+ 			page_increm = nr_pages;
+ 		i += page_increm;
+ 		start += page_increm * PAGE_SIZE;
+ 		nr_pages -= page_increm;
+ 	} while (nr_pages);
+-	return i;
++out:
++	if (ctx.pgmap)
++		put_dev_pagemap(ctx.pgmap);
++	return i ? i : ret;
+ }
+ 
+ static bool vma_permits_fault(struct vm_area_struct *vma,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 00704060b7f7..b4a5191e1146 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -852,11 +852,10 @@ static void touch_pmd(struct vm_area_struct *vma, unsigned long addr,
+ }
+ 
+ struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
+-		pmd_t *pmd, int flags)
++		pmd_t *pmd, int flags, struct dev_pagemap **pgmap)
+ {
+ 	unsigned long pfn = pmd_pfn(*pmd);
+ 	struct mm_struct *mm = vma->vm_mm;
+-	struct dev_pagemap *pgmap;
+ 	struct page *page;
+ 
+ 	assert_spin_locked(pmd_lockptr(mm, pmd));
+@@ -886,12 +885,11 @@ struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
+ 		return ERR_PTR(-EEXIST);
+ 
+ 	pfn += (addr & ~PMD_MASK) >> PAGE_SHIFT;
+-	pgmap = get_dev_pagemap(pfn, NULL);
+-	if (!pgmap)
++	*pgmap = get_dev_pagemap(pfn, *pgmap);
++	if (!*pgmap)
+ 		return ERR_PTR(-EFAULT);
+ 	page = pfn_to_page(pfn);
+ 	get_page(page);
+-	put_dev_pagemap(pgmap);
+ 
+ 	return page;
+ }
+@@ -1000,11 +998,10 @@ static void touch_pud(struct vm_area_struct *vma, unsigned long addr,
+ }
+ 
+ struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
+-		pud_t *pud, int flags)
++		pud_t *pud, int flags, struct dev_pagemap **pgmap)
+ {
+ 	unsigned long pfn = pud_pfn(*pud);
+ 	struct mm_struct *mm = vma->vm_mm;
+-	struct dev_pagemap *pgmap;
+ 	struct page *page;
+ 
+ 	assert_spin_locked(pud_lockptr(mm, pud));
+@@ -1028,12 +1025,11 @@ struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
+ 		return ERR_PTR(-EEXIST);
+ 
+ 	pfn += (addr & ~PUD_MASK) >> PAGE_SHIFT;
+-	pgmap = get_dev_pagemap(pfn, NULL);
+-	if (!pgmap)
++	*pgmap = get_dev_pagemap(pfn, *pgmap);
++	if (!*pgmap)
+ 		return ERR_PTR(-EFAULT);
+ 	page = pfn_to_page(pfn);
+ 	get_page(page);
+-	put_dev_pagemap(pgmap);
+ 
+ 	return page;
+ }
+diff --git a/mm/nommu.c b/mm/nommu.c
+index e4aac33216ae..749276beb109 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -1709,11 +1709,9 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+ 	return ret;
+ }
+ 
+-struct page *follow_page_mask(struct vm_area_struct *vma,
+-			      unsigned long address, unsigned int flags,
+-			      unsigned int *page_mask)
++struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
++			 unsigned int foll_flags)
+ {
+-	*page_mask = 0;
+ 	return NULL;
+ }
+ 
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+2.14.4
