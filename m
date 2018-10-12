@@ -1,153 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B8C4E6B0003
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 06:56:42 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id i81-v6so11127641pfj.1
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 03:56:42 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 77ABA6B0003
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 07:00:27 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id e3-v6so8917437pld.13
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 04:00:27 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z20-v6sor649222pgh.72.2018.10.12.03.56.41
+        by mx.google.com with SMTPS id y26-v6sor719493pfa.69.2018.10.12.04.00.26
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 12 Oct 2018 03:56:41 -0700 (PDT)
-Date: Fri, 12 Oct 2018 21:56:12 +1100
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: Re: [PATCH 4/6] mm: introduce page->dma_pinned_flags, _count
-Message-ID: <20181012105612.GK8537@350D>
-References: <20181012060014.10242-1-jhubbard@nvidia.com>
- <20181012060014.10242-5-jhubbard@nvidia.com>
+        Fri, 12 Oct 2018 04:00:26 -0700 (PDT)
+Date: Fri, 12 Oct 2018 14:00:20 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2] mm/gup: Cache dev_pagemap while pinning pages
+Message-ID: <20181012110020.pu5oanl6tnz4mibr@kshutemo-mobl1>
+References: <20181011175542.13045-1-keith.busch@intel.com>
+ <CAPcyv4gGqhGpR8g-HmNzoEnMAysO5uAO+8njeAokHq2CT9x71A@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181012060014.10242-5-jhubbard@nvidia.com>
+In-Reply-To: <CAPcyv4gGqhGpR8g-HmNzoEnMAysO5uAO+8njeAokHq2CT9x71A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john.hubbard@gmail.com
-Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Keith Busch <keith.busch@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Oct 11, 2018 at 11:00:12PM -0700, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
+On Thu, Oct 11, 2018 at 04:24:02PM -0700, Dan Williams wrote:
+> On Thu, Oct 11, 2018 at 11:00 AM Keith Busch <keith.busch@intel.com> wrote:
+> >
+> > Getting pages from ZONE_DEVICE memory needs to check the backing device's
+> > live-ness, which is tracked in the device's dev_pagemap metadata. This
+> > metadata is stored in a radix tree and looking it up adds measurable
+> > software overhead.
+> >
+> > This patch avoids repeating this relatively costly operation when
+> > dev_pagemap is used by caching the last dev_pagemap while getting user
+> > pages. The gup_benchmark kernel self test reports this reduces time to
+> > get user pages to as low as 1/3 of the previous time.
+> >
+> > Cc: Kirill Shutemov <kirill.shutemov@linux.intel.com>
+> > Cc: Dave Hansen <dave.hansen@intel.com>
+> > Cc: Dan Williams <dan.j.williams@intel.com>
+> > Signed-off-by: Keith Busch <keith.busch@intel.com>
 > 
-> Add two struct page fields that, combined, are unioned with
-> struct page->lru. There is no change in the size of
-> struct page. These new fields are for type safety and clarity.
+> Other than the 2 comments below, this looks good to me:
 > 
-> Also add page flag accessors to test, set and clear the new
-> page->dma_pinned_flags field.
+> Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+
+Looks good to me too:
+
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
 > 
-> The page->dma_pinned_count field will be used in upcoming
-> patches
+> [..]
+> > diff --git a/mm/gup.c b/mm/gup.c
+> > index 1abc8b4afff6..d2700dff6f66 100644
+> > --- a/mm/gup.c
+> > +++ b/mm/gup.c
+> [..]
+> > @@ -431,7 +430,22 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
+> >                 return no_page_table(vma, flags);
+> >         }
+> >
+> > -       return follow_p4d_mask(vma, address, pgd, flags, page_mask);
+> > +       return follow_p4d_mask(vma, address, pgd, flags, ctx);
+> > +}
+> > +
+> > +struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+> > +                        unsigned int foll_flags)
+> > +{
+> > +       struct page *page;
+> > +       struct follow_page_context ctx = {
+> > +               .pgmap = NULL,
+> > +               .page_mask = 0,
+> > +       };
 > 
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-> ---
->  include/linux/mm_types.h   | 22 +++++++++++++-----
->  include/linux/page-flags.h | 47 ++++++++++++++++++++++++++++++++++++++
->  2 files changed, 63 insertions(+), 6 deletions(-)
+> You don't need to init all members. It is defined that if you init at
+> least one member then all non initialized members are set to zero, so
+> you should be able to do " = { 0 }".
 > 
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 5ed8f6292a53..017ab82e36ca 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -78,12 +78,22 @@ struct page {
->  	 */
->  	union {
->  		struct {	/* Page cache and anonymous pages */
-> -			/**
-> -			 * @lru: Pageout list, eg. active_list protected by
-> -			 * zone_lru_lock.  Sometimes used as a generic list
-> -			 * by the page owner.
-> -			 */
-> -			struct list_head lru;
-> +			union {
-> +				/**
-> +				 * @lru: Pageout list, eg. active_list protected
-> +				 * by zone_lru_lock.  Sometimes used as a
-> +				 * generic list by the page owner.
-> +				 */
-> +				struct list_head lru;
-> +				/* Used by get_user_pages*(). Pages may not be
-> +				 * on an LRU while these dma_pinned_* fields
-> +				 * are in use.
-> +				 */
-> +				struct {
-> +					unsigned long dma_pinned_flags;
-> +					atomic_t      dma_pinned_count;
-> +				};
-> +			};
->  			/* See page-flags.h for PAGE_MAPPING_FLAGS */
->  			struct address_space *mapping;
->  			pgoff_t index;		/* Our offset within mapping. */
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 74bee8cecf4c..81ed52c3caae 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -425,6 +425,53 @@ static __always_inline int __PageMovable(struct page *page)
->  				PAGE_MAPPING_MOVABLE;
->  }
->  
-> +/*
-> + * Because page->dma_pinned_flags is unioned with page->lru, any page that
-> + * uses these flags must NOT be on an LRU. That's partly enforced by
-> + * ClearPageDmaPinned, which gives the page back to LRU.
-> + *
-> + * PageDmaPinned also corresponds to PageTail (the 0th bit in the first union
-> + * of struct page), and this flag is checked without knowing whether it is a
-> + * tail page or a PageDmaPinned page. Therefore, start the flags at bit 1 (0x2),
-> + * rather than bit 0.
-> + */
-> +#define PAGE_DMA_PINNED		0x2
-> +#define PAGE_DMA_PINNED_FLAGS	(PAGE_DMA_PINNED)
-> +
-
-This is really subtle, additional changes to compound_head will need to coordinate
-with these flags? Also doesn't this bit need to be unique across all structs in
-the union? I guess that is guaranteed by the fact that page == compound_head(page)
-as per your assertion, but I've forgotten why that is true. Could you please
-add some commentary on that
-
-> +/*
-> + * Because these flags are read outside of a lock, ensure visibility between
-> + * different threads, by using READ|WRITE_ONCE.
-> + */
-> +static __always_inline int PageDmaPinnedFlags(struct page *page)
-> +{
-> +	VM_BUG_ON(page != compound_head(page));
-> +	return (READ_ONCE(page->dma_pinned_flags) & PAGE_DMA_PINNED_FLAGS) != 0;
-> +}
-> +
-> +static __always_inline int PageDmaPinned(struct page *page)
-> +{
-> +	VM_BUG_ON(page != compound_head(page));
-> +	return (READ_ONCE(page->dma_pinned_flags) & PAGE_DMA_PINNED) != 0;
-> +}
-> +
-> +static __always_inline void SetPageDmaPinned(struct page *page)
-> +{
-> +	VM_BUG_ON(page != compound_head(page));
-
-VM_BUG_ON(!list_empty(&page->lru))
-
-> +	WRITE_ONCE(page->dma_pinned_flags, PAGE_DMA_PINNED);
-> +}
-> +
-> +static __always_inline void ClearPageDmaPinned(struct page *page)
-> +{
-> +	VM_BUG_ON(page != compound_head(page));
-> +	VM_BUG_ON_PAGE(!PageDmaPinnedFlags(page), page);
-> +
-> +	/* This does a WRITE_ONCE to the lru.next, which is also the
-> +	 * page->dma_pinned_flags field. So in addition to restoring page->lru,
-> +	 * this provides visibility to other threads.
-> +	 */
-> +	INIT_LIST_HEAD(&page->lru);
-
-This assumes certain things about list_head, why not use the correct
-initialization bits.
-
-> +}
-> +
->  #ifdef CONFIG_KSM
->  /*
->   * A KSM page is one of those write-protected "shared pages" or "merged pages"
-> -- 
-> 2.19.1
+> > +
+> > +       page = follow_page_mask(vma, address, foll_flags, &ctx);
+> > +       if (ctx.pgmap)
+> > +               put_dev_pagemap(ctx.pgmap);
+> > +       return page;
+> >  }
+> >
+> >  static int get_gate_page(struct mm_struct *mm, unsigned long address,
+> > @@ -659,9 +673,9 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+> >                 unsigned int gup_flags, struct page **pages,
+> >                 struct vm_area_struct **vmas, int *nonblocking)
+> >  {
+> > -       long i = 0;
+> > -       unsigned int page_mask;
+> > +       long ret = 0, i = 0;
+> >         struct vm_area_struct *vma = NULL;
+> > +       struct follow_page_context ctx = {};
 > 
+> Does this have defined behavior? I would feel better with " = { 0 }"
+> to be explicit.
+
+Well, it's not allowed by the standart, but GCC allows this.
+You can see a warning with -pedantic.
+
+We use empty-list initializers a lot in the kernel:
+$ git grep 'struct .*= {};' | wc -l
+997
+
+It should be fine.
+
+-- 
+ Kirill A. Shutemov
