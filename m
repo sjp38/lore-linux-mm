@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 813DF6B0276
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 14:01:44 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id t18-v6so1544561plo.16
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 11:01:44 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id v12-v6si1911386pgn.547.2018.10.12.11.01.42
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 331416B0278
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 14:01:48 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id e3-v6so9882596pld.13
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 11:01:48 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id k33-v6si1926157pld.151.2018.10.12.11.01.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Oct 2018 11:01:43 -0700 (PDT)
-Subject: [PATCH v7 2/7] mm,
- devm_memremap_pages: Kill mapping "System RAM" support
+        Fri, 12 Oct 2018 11:01:46 -0700 (PDT)
+Subject: [PATCH v7 5/7] mm, hmm: Use devm semantics for hmm_devmem_{add,
+ remove}
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 12 Oct 2018 10:49:42 -0700
-Message-ID: <153936658214.1198040.2213860996894588505.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Fri, 12 Oct 2018 10:49:57 -0700
+Message-ID: <153936659786.1198040.630824016667907174.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <153936657159.1198040.4489957977352276272.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <153936657159.1198040.4489957977352276272.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -22,48 +22,278 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@lst.de>, Logan Gunthorpe <logang@deltatee.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Christoph Hellwig <hch@lst.de>, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>=?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Given the fact that devm_memremap_pages() requires a percpu_ref that is
-torn down by devm_memremap_pages_release() the current support for
-mapping RAM is broken.
+devm semantics arrange for resources to be torn down when
+device-driver-probe fails or when device-driver-release completes.
+Similar to devm_memremap_pages() there is no need to support an explicit
+remove operation when the users properly adhere to devm semantics.
 
-Support for remapping "System RAM" has been broken since the beginning
-and there is no existing user of this this code path, so just kill the
-support and make it an explicit error.
+Note that devm_kzalloc() automatically handles allocating node-local
+memory.
 
-This cleanup also simplifies a follow-on patch to fix the error path
-when setting a devm release action for devm_memremap_pages_release()
-fails.
-
-Reviewed-by: "JA(C)rA'me Glisse" <jglisse@redhat.com>
 Reviewed-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
+Reviewed-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
+Cc: Logan Gunthorpe <logang@deltatee.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- kernel/memremap.c |    9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ include/linux/hmm.h |    4 --
+ mm/hmm.c            |  127 ++++++++++-----------------------------------------
+ 2 files changed, 25 insertions(+), 106 deletions(-)
 
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 1bbb2e892941..871d81bf0c69 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -167,15 +167,12 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 	is_ram = region_intersects(align_start, align_size,
- 		IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index dde947083d4e..5888ae9f6abf 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -499,8 +499,7 @@ struct hmm_devmem {
+  * enough and allocate struct page for it.
+  *
+  * The device driver can wrap the hmm_devmem struct inside a private device
+- * driver struct. The device driver must call hmm_devmem_remove() before the
+- * device goes away and before freeing the hmm_devmem struct memory.
++ * driver struct.
+  */
+ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+ 				  struct device *device,
+@@ -508,7 +507,6 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
+ 					   struct device *device,
+ 					   struct resource *res);
+-void hmm_devmem_remove(struct hmm_devmem *devmem);
  
--	if (is_ram == REGION_MIXED) {
--		WARN_ONCE(1, "%s attempted on mixed region %pr\n",
--				__func__, res);
-+	if (is_ram != REGION_DISJOINT) {
-+		WARN_ONCE(1, "%s attempted on %s region %pr\n", __func__,
-+				is_ram == REGION_MIXED ? "mixed" : "ram", res);
- 		return ERR_PTR(-ENXIO);
- 	}
+ /*
+  * hmm_devmem_page_set_drvdata - set per-page driver data field
+diff --git a/mm/hmm.c b/mm/hmm.c
+index 774d684fa2b4..60e4b275ad78 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -939,7 +939,6 @@ static void hmm_devmem_ref_exit(void *data)
  
--	if (is_ram == REGION_INTERSECTS)
--		return __va(res->start);
+ 	devmem = container_of(ref, struct hmm_devmem, ref);
+ 	percpu_ref_exit(ref);
+-	devm_remove_action(devmem->device, &hmm_devmem_ref_exit, data);
+ }
+ 
+ static void hmm_devmem_ref_kill(void *data)
+@@ -950,7 +949,6 @@ static void hmm_devmem_ref_kill(void *data)
+ 	devmem = container_of(ref, struct hmm_devmem, ref);
+ 	percpu_ref_kill(ref);
+ 	wait_for_completion(&devmem->completion);
+-	devm_remove_action(devmem->device, &hmm_devmem_ref_kill, data);
+ }
+ 
+ static int hmm_devmem_fault(struct vm_area_struct *vma,
+@@ -988,7 +986,7 @@ static void hmm_devmem_radix_release(struct resource *resource)
+ 	mutex_unlock(&hmm_devmem_lock);
+ }
+ 
+-static void hmm_devmem_release(struct device *dev, void *data)
++static void hmm_devmem_release(void *data)
+ {
+ 	struct hmm_devmem *devmem = data;
+ 	struct resource *resource = devmem->resource;
+@@ -996,11 +994,6 @@ static void hmm_devmem_release(struct device *dev, void *data)
+ 	struct zone *zone;
+ 	struct page *page;
+ 
+-	if (percpu_ref_tryget_live(&devmem->ref)) {
+-		dev_WARN(dev, "%s: page mapping is still live!\n", __func__);
+-		percpu_ref_put(&devmem->ref);
+-	}
 -
- 	if (!pgmap->ref)
- 		return ERR_PTR(-EINVAL);
+ 	/* pages are dead and unused, undo the arch mapping */
+ 	start_pfn = (resource->start & ~(PA_SECTION_SIZE - 1)) >> PAGE_SHIFT;
+ 	npages = ALIGN(resource_size(resource), PA_SECTION_SIZE) >> PAGE_SHIFT;
+@@ -1126,19 +1119,6 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
+ 	return ret;
+ }
  
+-static int hmm_devmem_match(struct device *dev, void *data, void *match_data)
+-{
+-	struct hmm_devmem *devmem = data;
+-
+-	return devmem->resource == match_data;
+-}
+-
+-static void hmm_devmem_pages_remove(struct hmm_devmem *devmem)
+-{
+-	devres_release(devmem->device, &hmm_devmem_release,
+-		       &hmm_devmem_match, devmem->resource);
+-}
+-
+ /*
+  * hmm_devmem_add() - hotplug ZONE_DEVICE memory for device memory
+  *
+@@ -1166,8 +1146,7 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+ 
+ 	dev_pagemap_get_ops();
+ 
+-	devmem = devres_alloc_node(&hmm_devmem_release, sizeof(*devmem),
+-				   GFP_KERNEL, dev_to_node(device));
++	devmem = devm_kzalloc(device, sizeof(*devmem), GFP_KERNEL);
+ 	if (!devmem)
+ 		return ERR_PTR(-ENOMEM);
+ 
+@@ -1181,11 +1160,11 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+ 	ret = percpu_ref_init(&devmem->ref, &hmm_devmem_ref_release,
+ 			      0, GFP_KERNEL);
+ 	if (ret)
+-		goto error_percpu_ref;
++		return ERR_PTR(ret);
+ 
+-	ret = devm_add_action(device, hmm_devmem_ref_exit, &devmem->ref);
++	ret = devm_add_action_or_reset(device, hmm_devmem_ref_exit, &devmem->ref);
+ 	if (ret)
+-		goto error_devm_add_action;
++		return ERR_PTR(ret);
+ 
+ 	size = ALIGN(size, PA_SECTION_SIZE);
+ 	addr = min((unsigned long)iomem_resource.end,
+@@ -1205,16 +1184,12 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+ 
+ 		devmem->resource = devm_request_mem_region(device, addr, size,
+ 							   dev_name(device));
+-		if (!devmem->resource) {
+-			ret = -ENOMEM;
+-			goto error_no_resource;
+-		}
++		if (!devmem->resource)
++			return ERR_PTR(-ENOMEM);
+ 		break;
+ 	}
+-	if (!devmem->resource) {
+-		ret = -ERANGE;
+-		goto error_no_resource;
+-	}
++	if (!devmem->resource)
++		return ERR_PTR(-ERANGE);
+ 
+ 	devmem->resource->desc = IORES_DESC_DEVICE_PRIVATE_MEMORY;
+ 	devmem->pfn_first = devmem->resource->start >> PAGE_SHIFT;
+@@ -1223,28 +1198,13 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+ 
+ 	ret = hmm_devmem_pages_create(devmem);
+ 	if (ret)
+-		goto error_pages;
+-
+-	devres_add(device, devmem);
++		return ERR_PTR(ret);
+ 
+-	ret = devm_add_action(device, hmm_devmem_ref_kill, &devmem->ref);
+-	if (ret) {
+-		hmm_devmem_remove(devmem);
++	ret = devm_add_action_or_reset(device, hmm_devmem_release, devmem);
++	if (ret)
+ 		return ERR_PTR(ret);
+-	}
+ 
+ 	return devmem;
+-
+-error_pages:
+-	devm_release_mem_region(device, devmem->resource->start,
+-				resource_size(devmem->resource));
+-error_no_resource:
+-error_devm_add_action:
+-	hmm_devmem_ref_kill(&devmem->ref);
+-	hmm_devmem_ref_exit(&devmem->ref);
+-error_percpu_ref:
+-	devres_free(devmem);
+-	return ERR_PTR(ret);
+ }
+ EXPORT_SYMBOL(hmm_devmem_add);
+ 
+@@ -1260,8 +1220,7 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
+ 
+ 	dev_pagemap_get_ops();
+ 
+-	devmem = devres_alloc_node(&hmm_devmem_release, sizeof(*devmem),
+-				   GFP_KERNEL, dev_to_node(device));
++	devmem = devm_kzalloc(device, sizeof(*devmem), GFP_KERNEL);
+ 	if (!devmem)
+ 		return ERR_PTR(-ENOMEM);
+ 
+@@ -1275,12 +1234,12 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
+ 	ret = percpu_ref_init(&devmem->ref, &hmm_devmem_ref_release,
+ 			      0, GFP_KERNEL);
+ 	if (ret)
+-		goto error_percpu_ref;
++		return ERR_PTR(ret);
+ 
+-	ret = devm_add_action(device, hmm_devmem_ref_exit, &devmem->ref);
++	ret = devm_add_action_or_reset(device, hmm_devmem_ref_exit,
++			&devmem->ref);
+ 	if (ret)
+-		goto error_devm_add_action;
+-
++		return ERR_PTR(ret);
+ 
+ 	devmem->pfn_first = devmem->resource->start >> PAGE_SHIFT;
+ 	devmem->pfn_last = devmem->pfn_first +
+@@ -1288,59 +1247,21 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
+ 
+ 	ret = hmm_devmem_pages_create(devmem);
+ 	if (ret)
+-		goto error_devm_add_action;
++		return ERR_PTR(ret);
+ 
+-	devres_add(device, devmem);
++	ret = devm_add_action_or_reset(device, hmm_devmem_release, devmem);
++	if (ret)
++		return ERR_PTR(ret);
+ 
+-	ret = devm_add_action(device, hmm_devmem_ref_kill, &devmem->ref);
+-	if (ret) {
+-		hmm_devmem_remove(devmem);
++	ret = devm_add_action_or_reset(device, hmm_devmem_ref_kill,
++			&devmem->ref);
++	if (ret)
+ 		return ERR_PTR(ret);
+-	}
+ 
+ 	return devmem;
+-
+-error_devm_add_action:
+-	hmm_devmem_ref_kill(&devmem->ref);
+-	hmm_devmem_ref_exit(&devmem->ref);
+-error_percpu_ref:
+-	devres_free(devmem);
+-	return ERR_PTR(ret);
+ }
+ EXPORT_SYMBOL(hmm_devmem_add_resource);
+ 
+-/*
+- * hmm_devmem_remove() - remove device memory (kill and free ZONE_DEVICE)
+- *
+- * @devmem: hmm_devmem struct use to track and manage the ZONE_DEVICE memory
+- *
+- * This will hot-unplug memory that was hotplugged by hmm_devmem_add on behalf
+- * of the device driver. It will free struct page and remove the resource that
+- * reserved the physical address range for this device memory.
+- */
+-void hmm_devmem_remove(struct hmm_devmem *devmem)
+-{
+-	resource_size_t start, size;
+-	struct device *device;
+-	bool cdm = false;
+-
+-	if (!devmem)
+-		return;
+-
+-	device = devmem->device;
+-	start = devmem->resource->start;
+-	size = resource_size(devmem->resource);
+-
+-	cdm = devmem->resource->desc == IORES_DESC_DEVICE_PUBLIC_MEMORY;
+-	hmm_devmem_ref_kill(&devmem->ref);
+-	hmm_devmem_ref_exit(&devmem->ref);
+-	hmm_devmem_pages_remove(devmem);
+-
+-	if (!cdm)
+-		devm_release_mem_region(device, start, size);
+-}
+-EXPORT_SYMBOL(hmm_devmem_remove);
+-
+ /*
+  * A device driver that wants to handle multiple devices memory through a
+  * single fake device can use hmm_device to do so. This is purely a helper
