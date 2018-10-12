@@ -1,158 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C7F26B026A
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 12:38:03 -0400 (EDT)
-Received: by mail-wm1-f70.google.com with SMTP id g8-v6so6456849wmg.2
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 09:38:03 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTPS id z7-v6si1323176wrg.391.2018.10.12.09.38.01
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9816E6B0269
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 12:39:05 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id f13-v6so8204165wrr.4
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 09:39:05 -0700 (PDT)
+Received: from mail3-relais-sop.national.inria.fr (mail3-relais-sop.national.inria.fr. [192.134.164.104])
+        by mx.google.com with ESMTPS id l79-v6si1694247wma.102.2018.10.12.09.39.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Oct 2018 09:38:01 -0700 (PDT)
-Date: Fri, 12 Oct 2018 18:37:56 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v6 10/18] ACPI / APEI: preparatory split of ghes->estatus
-Message-ID: <20181012163756.GD580@zn.tnic>
-References: <20180921221705.6478-1-james.morse@arm.com>
- <20180921221705.6478-11-james.morse@arm.com>
+        Fri, 12 Oct 2018 09:39:04 -0700 (PDT)
+Date: Fri, 12 Oct 2018 18:38:57 +0200 (CEST)
+From: Julia Lawall <julia.lawall@lip6.fr>
+Subject: Re: [PATCH v2 1/2] treewide: remove unused address argument from
+ pte_alloc functions
+In-Reply-To: <20181012163433.GA223066@joelaf.mtv.corp.google.com>
+Message-ID: <alpine.DEB.2.20.1810121838180.4366@hadrien>
+References: <20181012013756.11285-1-joel@joelfernandes.org> <594fc952-5e87-3162-b2f9-963479d16eb3@kot-begemot.co.uk> <20181012163433.GA223066@joelaf.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20180921221705.6478-11-james.morse@arm.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: Anton Ivanov <anton.ivanov@kot-begemot.co.uk>, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, Rich Felker <dalias@libc.org>, linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon <will.deacon@arm.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, lokeshgidra@google.com, linux-riscv@lists.infradead.org, elfring@users.sourceforge.net, Jonas Bonn <jonas@southpole.se>, linux-s390@vger.kernel.org, dancol@google.com, Yoshinori Sato <ysato@users.sourceforge.jp>, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-hexagon@vger.kernel.org, Helge Deller <deller@gmx.de>, "maintainer:X86 ARCHITECTURE 32-BIT AND 64-BIT" <x86@kernel.org>, hughd@google.com, "James E.J. Bottomley" <jejb@parisc-linux.org>, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, Ingo Molnar <mingo@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-snps-arc@lists.infradead.org, kernel-team@android.com, Sam Creasey <sammy@sammy.net>, Fenghua Yu <fenghua.yu@intel.com>, Jeff Dike <jdike@addtoit.com>, linux-um@lists.infradead.org, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Julia Lawall <Julia.Lawall@lip6.fr>, linux-m68k@vger.kernel.org, openrisc@lists.librecores.org, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, nios2-dev@lists.rocketboards.org, kirill@shutemov.name, Stafford Horne <shorne@gmail.com>, Guan Xuetao <gxt@pku.edu.cn>, linux-arm-kernel@lists.infradead.org, Chris Zankel <chris@zankel.net>, Tony Luck <tony.luck@intel.com>, Richard Weinberger <richard@nod.at>, linux-parisc@vger.kernel.org, pantin@google.com, Max Filippov <jcmvbkbc@gmail.com>, minchan@kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-alpha@vger.kernel.org, Ley Foon Tan <lftan@altera.com>, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, "David S. Miller" <davem@davemloft.net>
 
-Nitpick:
+> I wrote something like this as below but it failed to compile, Julia any
+> suggestions on how to express this?
+>
+> @pte_alloc_func_proto depends on patch exists@
+> type T1, T2, T3, T4;
+> identifier fn =~
+> "^(__pte_alloc|pte_alloc_one|pte_alloc|__pte_alloc_kernel|pte_alloc_one_kernel)$";
+> @@
+>
+> (
+> - T3 fn(T1, T2);
+> + T3 fn(T1);
+> |
+> - T3 fn(T1, T2, T4);
+> + T3 fn(T1, T2);
+> )
 
-Subject: Re: [PATCH v6 10/18] ACPI / APEI: preparatory split of ghes->estatus
+What goes wrong?  It seems fine to me.
 
-Pls have an active formulation in your Subject and start it with a capital
-letter, i.e., something like:
-
-	"Split ghes->estatus in preparation for... "
-
-On Fri, Sep 21, 2018 at 11:16:57PM +0100, James Morse wrote:
-> The NMI-like notifications scribble over ghes->estatus, before
-> copying it somewhere else. If this interrupts the ghes_probe() code
-> calling ghes_proc() on each struct ghes, the data is corrupted.
-> 
-> We want the NMI-like notifications to use a queued estatus entry
-
-Pls formulate commit messages in passive voice.
-
-> from the beginning. To that end, break up any use of "ghes->estatus"
-> so that all functions take the estatus as an argument.
-> 
-> This patch is just moving code around, no change in behaviour.
-> 
-> Signed-off-by: James Morse <james.morse@arm.com>
-> ---
->  drivers/acpi/apei/ghes.c | 82 ++++++++++++++++++++++------------------
->  1 file changed, 45 insertions(+), 37 deletions(-)
-> 
-> diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
-> index adf7fd402813..586689cbc0fd 100644
-> --- a/drivers/acpi/apei/ghes.c
-> +++ b/drivers/acpi/apei/ghes.c
-> @@ -298,7 +298,9 @@ static void ghes_copy_tofrom_phys(void *buffer, u64 paddr, u32 len,
->  	}
->  }
->  
-> -static int ghes_read_estatus(struct ghes *ghes, int silent, int fixmap_idx)
-> +static int ghes_read_estatus(struct ghes *ghes,
-> +			     struct acpi_hest_generic_status *estatus,
-
-acpi_hest_generic_status - geez, could this name have been any longer ?!
-
-> +			     int silent, int fixmap_idx)
->  {
->  	struct acpi_hest_generic *g = ghes->generic;
->  	u64 buf_paddr;
-> @@ -316,26 +318,26 @@ static int ghes_read_estatus(struct ghes *ghes, int silent, int fixmap_idx)
->  	if (!buf_paddr)
->  		return -ENOENT;
->  
-> -	ghes_copy_tofrom_phys(ghes->estatus, buf_paddr,
-> -			      sizeof(*ghes->estatus), 1, fixmap_idx);
-> -	if (!ghes->estatus->block_status)
-> +	ghes_copy_tofrom_phys(estatus, buf_paddr,
-> +			      sizeof(*estatus), 1, fixmap_idx);
-
-Yeah, let that line stick out - it is easier to follow the code this
-way.
-
-> +	if (!estatus->block_status)
->  		return -ENOENT;
->  
->  	ghes->buffer_paddr = buf_paddr;
->  	ghes->flags |= GHES_TO_CLEAR;
->  
->  	rc = -EIO;
-> -	len = cper_estatus_len(ghes->estatus);
-> -	if (len < sizeof(*ghes->estatus))
-> +	len = cper_estatus_len(estatus);
-> +	if (len < sizeof(*estatus))
->  		goto err_read_block;
->  	if (len > ghes->generic->error_block_length)
->  		goto err_read_block;
-> -	if (cper_estatus_check_header(ghes->estatus))
-> +	if (cper_estatus_check_header(estatus))
->  		goto err_read_block;
-> -	ghes_copy_tofrom_phys(ghes->estatus + 1,
-> -			      buf_paddr + sizeof(*ghes->estatus),
-> -			      len - sizeof(*ghes->estatus), 1, fixmap_idx);
-> -	if (cper_estatus_check(ghes->estatus))
-> +	ghes_copy_tofrom_phys(estatus + 1,
-> +			      buf_paddr + sizeof(*estatus),
-> +			      len - sizeof(*estatus), 1, fixmap_idx);
-> +	if (cper_estatus_check(estatus))
->  		goto err_read_block;
->  	rc = 0;
->  
-> @@ -346,13 +348,15 @@ static int ghes_read_estatus(struct ghes *ghes, int silent, int fixmap_idx)
->  	return rc;
->  }
->  
-> -static void ghes_clear_estatus(struct ghes *ghes, int fixmap_idx)
-> +static void ghes_clear_estatus(struct ghes *ghes,
-> +			       struct acpi_hest_generic_status *estatus,
-> +			       int fixmap_idx)
->  {
-> -	ghes->estatus->block_status = 0;
-> +	estatus->block_status = 0;
->  	if (!(ghes->flags & GHES_TO_CLEAR))
->  		return;
-
-<---- newline here.
-
-> -	ghes_copy_tofrom_phys(ghes->estatus, ghes->buffer_paddr,
-> -			      sizeof(ghes->estatus->block_status), 0, fixmap_idx);
-> +	ghes_copy_tofrom_phys(estatus, ghes->buffer_paddr,
-> +			      sizeof(estatus->block_status), 0, fixmap_idx);
->  	ghes->flags &= ~GHES_TO_CLEAR;
->  }
->  
-> @@ -518,9 +522,10 @@ static int ghes_print_estatus(const char *pfx,
->  	return 0;
->  }
->  
-> -static void __ghes_panic(struct ghes *ghes)
-> +static void __ghes_panic(struct ghes *ghes,
-> +			 struct acpi_hest_generic_status *estatus)
-
-Yeah, let that one stick out too. That struct naming needs slimming.
-
->  {
-> -	__ghes_print_estatus(KERN_EMERG, ghes->generic, ghes->estatus);
-> +	__ghes_print_estatus(KERN_EMERG, ghes->generic, estatus);
->  
->  	/* reboot to log the error! */
->  	if (!panic_timeout)
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+julia
