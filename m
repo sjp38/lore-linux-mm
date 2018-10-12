@@ -1,77 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A87E6B0003
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 23:22:01 -0400 (EDT)
-Received: by mail-oi1-f198.google.com with SMTP id f77-v6so7503917oic.15
-        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 20:22:01 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g5-v6sor14537530oia.123.2018.10.11.20.21.59
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 747E66B0003
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2018 23:53:37 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id 203-v6so5591267ybf.19
+        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 20:53:37 -0700 (PDT)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id g2-v6si8340497ybk.37.2018.10.11.20.53.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 11 Oct 2018 20:21:59 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Oct 2018 20:53:36 -0700 (PDT)
+Subject: Re: [PATCH v4 2/3] mm: introduce put_user_page*(), placeholder
+ versions
+From: John Hubbard <jhubbard@nvidia.com>
+References: <20181008211623.30796-1-jhubbard@nvidia.com>
+ <20181008211623.30796-3-jhubbard@nvidia.com>
+ <20181008171442.d3b3a1ea07d56c26d813a11e@linux-foundation.org>
+ <5198a797-fa34-c859-ff9d-568834a85a83@nvidia.com>
+ <20181010164541.ec4bf53f5a9e4ba6e5b52a21@linux-foundation.org>
+ <20181011084929.GB8418@quack2.suse.cz> <20181011132013.GA5968@ziepe.ca>
+ <97e89e08-5b94-240a-56e9-ece2b91f6dbc@nvidia.com>
+Message-ID: <b9899626-9033-348b-6f07-dc90bcd8a468@nvidia.com>
+Date: Thu, 11 Oct 2018 20:53:34 -0700
 MIME-Version: 1.0
-References: <20181009201400.168705-1-joel@joelfernandes.org>
-In-Reply-To: <20181009201400.168705-1-joel@joelfernandes.org>
-From: Jann Horn <jannh@google.com>
-Date: Fri, 12 Oct 2018 05:21:32 +0200
-Message-ID: <CAG48ez3yLkMcyaTXFt_+w8_-HtmrjW=XB51DDQSGdjPj43XWmA@mail.gmail.com>
-Subject: Re: [PATCH] mm: Speed up mremap on large regions
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <97e89e08-5b94-240a-56e9-ece2b91f6dbc@nvidia.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: joel@joelfernandes.org
-Cc: kernel list <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel-team@android.com, Minchan Kim <minchan@google.com>, Hugh Dickins <hughd@google.com>, lokeshgidra@google.com, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, pombredanne@nexb.com, Thomas Gleixner <tglx@linutronix.de>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, kvm@vger.kernel.org
+To: Jason Gunthorpe <jgg@ziepe.ca>, Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph
+ Hellwig <hch@infradead.org>, Ralph Campbell <rcampbell@nvidia.com>
 
-+cc xen maintainers and kvm folks
+On 10/11/18 6:23 PM, John Hubbard wrote:
+> On 10/11/18 6:20 AM, Jason Gunthorpe wrote:
+>> On Thu, Oct 11, 2018 at 10:49:29AM +0200, Jan Kara wrote:
+>>
+>>>> This is a real worry.  If someone uses a mistaken put_page() then how
+>>>> will that bug manifest at runtime?  Under what set of circumstances
+>>>> will the kernel trigger the bug?
+>>>
+>>> At runtime such bug will manifest as a page that can never be evicted from
+>>> memory. We could warn in put_page() if page reference count drops below
+>>> bare minimum for given user pin count which would be able to catch some
+>>> issues but it won't be 100% reliable. So at this point I'm more leaning
+>>> towards making get_user_pages() return a different type than just
+>>> struct page * to make it much harder for refcount to go wrong...
+>>
+>> At least for the infiniband code being used as an example here we take
+>> the struct page from get_user_pages, then stick it in a sgl, and at
+>> put_page time we get the page back out of the sgl via sg_page()
+>>
+>> So type safety will not help this case... I wonder how many other
+>> users are similar? I think this is a pretty reasonable flow for DMA
+>> with user pages.
+>>
+> 
+> That is true. The infiniband code, fortunately, never mixes the two page
+> types into the same pool (or sg list), so it's actually an easier example
+> than some other subsystems. But, yes, type safety doesn't help there. I can 
+> take a moment to look around at the other areas, to quantify how much a type
+> safety change might help.
+> 
+> Back to page flags again, out of desperation:
+> 
+> How much do we know about the page types that all of these subsystems
+> use? In other words, can we, for example, use bit 1 of page->lru.next (see [1]
+> for context) as the "dma-pinned" page flag, while tracking pages within parts 
+> of the kernel that call a mix of alloc_pages, get_user_pages, and other allocators? 
+> In order for that to work, page->index, page->private, and bit 1 of page->mapping
+> must not be used. I doubt that this is always going to hold, but...does it?
+> 
 
-On Fri, Oct 12, 2018 at 4:40 AM Joel Fernandes (Google)
-<joel@joelfernandes.org> wrote:
-> Android needs to mremap large regions of memory during memory management
-> related operations. The mremap system call can be really slow if THP is
-> not enabled. The bottleneck is move_page_tables, which is copying each
-> pte at a time, and can be really slow across a large map. Turning on THP
-> may not be a viable option, and is not for us. This patch speeds up the
-> performance for non-THP system by copying at the PMD level when possible.
-[...]
-> +bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
-> +                 unsigned long new_addr, unsigned long old_end,
-> +                 pmd_t *old_pmd, pmd_t *new_pmd, bool *need_flush)
-> +{
-[...]
-> +       /*
-> +        * We don't have to worry about the ordering of src and dst
-> +        * ptlocks because exclusive mmap_sem prevents deadlock.
-> +        */
-> +       old_ptl = pmd_lock(vma->vm_mm, old_pmd);
-> +       if (old_ptl) {
-> +               pmd_t pmd;
-> +
-> +               new_ptl = pmd_lockptr(mm, new_pmd);
-> +               if (new_ptl != old_ptl)
-> +                       spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
-> +
-> +               /* Clear the pmd */
-> +               pmd = *old_pmd;
-> +               pmd_clear(old_pmd);
-> +
-> +               VM_BUG_ON(!pmd_none(*new_pmd));
-> +
-> +               /* Set the new pmd */
-> +               set_pmd_at(mm, new_addr, new_pmd, pmd);
-> +               if (new_ptl != old_ptl)
-> +                       spin_unlock(new_ptl);
-> +               spin_unlock(old_ptl);
+Oops, pardon me, please ignore that nonsense about page->index and page->private
+and page->mapping, that's actually fine (I was seeing "union", where "struct" was
+written--too much staring at this code). 
 
-How does this interact with Xen PV? From a quick look at the Xen PV
-integration code in xen_alloc_ptpage(), it looks to me as if, in a
-config that doesn't use split ptlocks, this is going to temporarily
-drop Xen's type count for the page to zero, causing Xen to de-validate
-and then re-validate the L1 pagetable; if you first set the new pmd
-before clearing the old one, that wouldn't happen. I don't know how
-this interacts with shadow paging implementations.
+So actually, I think maybe we can just use bit 1 in page->lru.next to sort out
+which pages are dma-pinned, in the calling code, just like we're going to do
+in writeback situations. This should also allow run-time checking that Andrew was 
+hoping for:
 
-> +               *need_flush = true;
-> +               return true;
-> +       }
-> +       return false;
-> +}
+    put_user_page(): assert that the page is dma-pinned
+    put_page(): assert that the page is *not* dma-pinned
+
+...both of which depend on that bit being, essentially, available as sort of a
+general page flag. And in fact, if it's not, then the whole approach is dead anyway.
+
+Am I missing anything? This avoids the need to change the get_user_pages interface.
+
+
+thanks,
+-- 
+John Hubbard
+NVIDIA
