@@ -1,231 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 081266B000C
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 03:35:29 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id 8-v6so10810373pfr.0
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 00:35:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v90-v6sor321535pfd.49.2018.10.12.00.35.27
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 12 Oct 2018 00:35:27 -0700 (PDT)
-Date: Fri, 12 Oct 2018 18:35:22 +1100
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: Re: [PATCH 2/6] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20181012073521.GJ8537@350D>
-References: <20181012060014.10242-1-jhubbard@nvidia.com>
- <20181012060014.10242-3-jhubbard@nvidia.com>
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 050E66B0003
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 04:00:20 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id s30-v6so104084otb.7
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 01:00:20 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id o206-v6si202501oia.215.2018.10.12.01.00.18
+        for <linux-mm@kvack.org>;
+        Fri, 12 Oct 2018 01:00:18 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: Re: [PATCH] mm/thp: Correctly differentiate between mapped THP and
+ PMD migration entry
+References: <1539057538-27446-1-git-send-email-anshuman.khandual@arm.com>
+ <7E8E6B14-D5C4-4A30-840D-A7AB046517FB@cs.rutgers.edu>
+ <84509db4-13ce-fd53-e924-cc4288d493f7@arm.com>
+ <1968F276-5D96-426B-823F-38F6A51FB465@cs.rutgers.edu>
+Message-ID: <5e0e772c-7eef-e75c-2921-e80d4fbe8324@arm.com>
+Date: Fri, 12 Oct 2018 13:30:12 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181012060014.10242-3-jhubbard@nvidia.com>
+In-Reply-To: <1968F276-5D96-426B-823F-38F6A51FB465@cs.rutgers.edu>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john.hubbard@gmail.com
-Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Ralph Campbell <rcampbell@nvidia.com>
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, will.deacon@arm.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Thu, Oct 11, 2018 at 11:00:10PM -0700, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
+
+
+On 10/10/2018 06:13 PM, Zi Yan wrote:
+> On 10 Oct 2018, at 0:05, Anshuman Khandual wrote:
 > 
-> Introduces put_user_page(), which simply calls put_page().
-> This provides a way to update all get_user_pages*() callers,
-> so that they call put_user_page(), instead of put_page().
+>> On 10/09/2018 07:28 PM, Zi Yan wrote:
+>>> cc: Naoya Horiguchi (who proposed to use !_PAGE_PRESENT && !_PAGE_PSE for x86
+>>> PMD migration entry check)
+>>>
+>>> On 8 Oct 2018, at 23:58, Anshuman Khandual wrote:
+>>>
+>>>> A normal mapped THP page at PMD level should be correctly differentiated
+>>>> from a PMD migration entry while walking the page table. A mapped THP would
+>>>> additionally check positive for pmd_present() along with pmd_trans_huge()
+>>>> as compared to a PMD migration entry. This just adds a new conditional test
+>>>> differentiating the two while walking the page table.
+>>>>
+>>>> Fixes: 616b8371539a6 ("mm: thp: enable thp migration in generic path")
+>>>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+>>>> ---
+>>>> On X86, pmd_trans_huge() and is_pmd_migration_entry() are always mutually
+>>>> exclusive which makes the current conditional block work for both mapped
+>>>> and migration entries. This is not same with arm64 where pmd_trans_huge()
+>>>
+>>> !pmd_present() && pmd_trans_huge() is used to represent THPs under splitting,
+>>
+>> Not really if we just look at code in the conditional blocks.
 > 
-> Also introduces put_user_pages(), and a few dirty/locked variations,
-> as a replacement for release_pages(), and also as a replacement
-> for open-coded loops that release multiple pages.
-> These may be used for subsequent performance improvements,
-> via batching of pages to be released.
+> Yeah, I explained it wrong above. Sorry about that.
 > 
-> This is the first step of fixing the problem described in [1]. The steps
-> are:
+> In x86, pmd_present() checks (_PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_PSE),
+> thus, it returns true even if the present bit is cleared but PSE bit is set.
+
+Okay.
+
+> This is done so, because THPs under splitting are regarded as present in the kernel
+> but not present when a hardware page table walker checks it.
+
+Okay.
+
 > 
-> 1) (This patch): provide put_user_page*() routines, intended to be used
->    for releasing pages that were pinned via get_user_pages*().
+> For PMD migration entry, which should be regarded as not present, if PSE bit
+> is set, which makes pmd_trans_huge() returns true, like ARM64 does, all
+> PMD migration entries will be regarded as present
+
+Okay to make pmd_present() return false pmd_trans_huge() has to return false
+as well. Is there anything which can be done to get around this problem on
+X86 ? pmd_trans_huge() returning true for a migration entry sounds logical.
+Otherwise we would revert the condition block order to accommodate both the
+implementation for pmd_trans_huge() as suggested by Kirill before or just
+consider this patch forward.
+
+Because I am not really sure yet about the idea of getting pmd_present()
+check into pmd_trans_huge() on arm64 just to make it fit into this semantics
+as suggested by Will. If a PMD is trans huge page or not should not depend on
+whether it is present or not.
+
 > 
-> 2) Convert all of the call sites for get_user_pages*(), to
->    invoke put_user_page*(), instead of put_page(). This involves dozens of
->    call sites, any will take some time.
+> My concern is that if ARM64a??s pmd_trans_huge() returns true for migration
+> entries, unlike x86, there might be bugs triggered in the kernel when
+> THP migration is enabled in ARM64.
+
+Right and that is exactly what we are trying to fix with this patch.
+
+>
+> Let me know if I explain this clear to you.
 > 
-> 3) After (2) is complete, use get_user_pages*() and put_user_page*() to
->    implement tracking of these pages. This tracking will be separate from
->    the existing struct page refcounting.
+>>
+>>> since _PAGE_PRESENT is cleared during THP splitting but _PAGE_PSE is not.
+>>> See the comment in pmd_present() for x86, in arch/x86/include/asm/pgtable.h
+>>
+>>
+>>         if (pmd_trans_huge(pmde) || is_pmd_migration_entry(pmde)) {
+>>                 pvmw->ptl = pmd_lock(mm, pvmw->pmd);
+>>                 if (likely(pmd_trans_huge(*pvmw->pmd))) {
+>>                         if (pvmw->flags & PVMW_MIGRATION)
+>>                                 return not_found(pvmw);
+>>                         if (pmd_page(*pvmw->pmd) != page)
+>>                                 return not_found(pvmw);
+>>                         return true;
+>>                 } else if (!pmd_present(*pvmw->pmd)) {
+>>                         if (thp_migration_supported()) {
+>>                                 if (!(pvmw->flags & PVMW_MIGRATION))
+>>                                         return not_found(pvmw);
+>>                                 if (is_migration_entry(pmd_to_swp_entry(*pvmw->pmd))) {
+>>                                         swp_entry_t entry = pmd_to_swp_entry(*pvmw->pmd);
+>>
+>>                                         if (migration_entry_to_page(entry) != page)
+>>                                                 return not_found(pvmw);
+>>                                         return true;
+>>                                 }
+>>                         }
+>>                         return not_found(pvmw);
+>>                 } else {
+>>                         /* THP pmd was split under us: handle on pte level */
+>>                         spin_unlock(pvmw->ptl);
+>>                         pvmw->ptl = NULL;
+>>                 }
+>>         } else if (!pmd_present(pmde)) { ---> Outer 'else if'
+>>                 return false;
+>>         }
+>>
+>> Looking at the above code, it seems the conditional check for a THP
+>> splitting case would be (!pmd_trans_huge && pmd_present) instead as
+>> it has skipped the first two conditions. But THP splitting must have
+>> been initiated once it has cleared the outer check (else it would not
+>> have cleared otherwise)
+>>
+>> if (pmd_trans_huge(pmde) || is_pmd_migration_entry(pmde)).
 > 
-> 4) Use the tracking and identification of these pages, to implement
->    special handling (especially in writeback paths) when the pages are
->    backed by a filesystem. Again, [1] provides details as to why that is
->    desirable.
+> If a THP is under splitting, both pmd_present() and pmd_trans_huge() return
+> true in x86. The else part (/* THP pmd was split under us a?| */) happens
+> after splitting is done.
+
+Okay, got it.
+
 > 
-> [1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
+>> BTW what PMD state does the outer 'else if' block identify which must
+>> have cleared the following condition to get there.
+>>
+>> (!pmd_present && !pmd_trans_huge && !is_pmd_migration_entry)
 > 
-> CC: Matthew Wilcox <willy@infradead.org>
-> CC: Michal Hocko <mhocko@kernel.org>
-> CC: Christopher Lameter <cl@linux.com>
-> CC: Jason Gunthorpe <jgg@ziepe.ca>
-> CC: Dan Williams <dan.j.williams@intel.com>
-> CC: Jan Kara <jack@suse.cz>
-> CC: Al Viro <viro@zeniv.linux.org.uk>
-> CC: Jerome Glisse <jglisse@redhat.com>
-> CC: Christoph Hellwig <hch@infradead.org>
-> CC: Ralph Campbell <rcampbell@nvidia.com>
-> 
-> Reviewed-by: Jan Kara <jack@suse.cz>
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-> ---
->  include/linux/mm.h | 20 +++++++++++
->  mm/swap.c          | 83 ++++++++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 103 insertions(+)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 0416a7204be3..76d18aada9f8 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -943,6 +943,26 @@ static inline void put_page(struct page *page)
->  		__put_page(page);
->  }
->  
-> +/*
-> + * put_user_page() - release a page that had previously been acquired via
-> + * a call to one of the get_user_pages*() functions.
-> + *
-> + * Pages that were pinned via get_user_pages*() must be released via
-> + * either put_user_page(), or one of the put_user_pages*() routines
-> + * below. This is so that eventually, pages that are pinned via
-> + * get_user_pages*() can be separately tracked and uniquely handled. In
-> + * particular, interactions with RDMA and filesystems need special
-> + * handling.
-> + */
-> +static inline void put_user_page(struct page *page)
-> +{
-> +	put_page(page);
-> +}
-> +
-> +void put_user_pages_dirty(struct page **pages, unsigned long npages);
-> +void put_user_pages_dirty_lock(struct page **pages, unsigned long npages);
-> +void put_user_pages(struct page **pages, unsigned long npages);
-> +
->  #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
->  #define SECTION_IN_PAGE_FLAGS
->  #endif
-> diff --git a/mm/swap.c b/mm/swap.c
-> index 26fc9b5f1b6c..efab3a6b6f91 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -134,6 +134,89 @@ void put_pages_list(struct list_head *pages)
->  }
->  EXPORT_SYMBOL(put_pages_list);
->  
-> +/*
-> + * put_user_pages_dirty() - for each page in the @pages array, make
-> + * that page (or its head page, if a compound page) dirty, if it was
-> + * previously listed as clean. Then, release the page using
-> + * put_user_page().
-> + *
-> + * Please see the put_user_page() documentation for details.
-> + *
-> + * set_page_dirty(), which does not lock the page, is used here.
-> + * Therefore, it is the caller's responsibility to ensure that this is
-> + * safe. If not, then put_user_pages_dirty_lock() should be called instead.
-> + *
-> + * @pages:  array of pages to be marked dirty and released.
-> + * @npages: number of pages in the @pages array.
-> + *
-> + */
-> +void put_user_pages_dirty(struct page **pages, unsigned long npages)
-> +{
-> +	unsigned long index;
-> +
-> +	for (index = 0; index < npages; index++) {
-Do we need any checks on npages, npages <= (PUD_SHIFT - PAGE_SHIFT)?
+> I think it is the case that the PMD is gone or equivalently pmd_none().
+> This PMD entry is not in use.
 
-> +		struct page *page = compound_head(pages[index]);
-> +
-> +		if (!PageDirty(page))
-> +			set_page_dirty(page);
-> +
-> +		put_user_page(page);
-> +	}
-> +}
-> +EXPORT_SYMBOL(put_user_pages_dirty);
-> +
-> +/*
-> + * put_user_pages_dirty_lock() - for each page in the @pages array, make
-> + * that page (or its head page, if a compound page) dirty, if it was
-> + * previously listed as clean. Then, release the page using
-> + * put_user_page().
-> + *
-> + * Please see the put_user_page() documentation for details.
-> + *
-> + * This is just like put_user_pages_dirty(), except that it invokes
-> + * set_page_dirty_lock(), instead of set_page_dirty().
-> + *
-> + * @pages:  array of pages to be marked dirty and released.
-> + * @npages: number of pages in the @pages array.
-> + *
-> + */
-> +void put_user_pages_dirty_lock(struct page **pages, unsigned long npages)
-> +{
-> +	unsigned long index;
-> +
-> +	for (index = 0; index < npages; index++) {
-> +		struct page *page = compound_head(pages[index]);
-> +
-> +		if (!PageDirty(page))
-> +			set_page_dirty_lock(page);
-> +
-> +		put_user_page(page);
-> +	}
-> +}
-> +EXPORT_SYMBOL(put_user_pages_dirty_lock);
-> +
-
-This can be collapsed w.r.t put_user_pages_dirty, a function pointer indirection
-for the locked vs unlocked case, not sure how that affects function optimization.
-
-
-> +/*
-> + * put_user_pages() - for each page in the @pages array, release the page
-> + * using put_user_page().
-> + *
-> + * Please see the put_user_page() documentation for details.
-> + *
-> + * This is just like put_user_pages_dirty(), except that it invokes
-> + * set_page_dirty_lock(), instead of set_page_dirty().
-
-The comment is incorrect.
-
-> + *
-> + * @pages:  array of pages to be marked dirty and released.
-> + * @npages: number of pages in the @pages array.
-> + *
-> + */
-> +void put_user_pages(struct page **pages, unsigned long npages)
-> +{
-> +	unsigned long index;
-> +
-> +	for (index = 0; index < npages; index++)
-> +		put_user_page(pages[index]);
-> +}
-
-Ditto in terms of code duplication
-
-How about
-
-for_each_page_index(index, npages) {
-	<do the dirty bits if needed>
-	put_user_pages(pages[index]
-}
-
-Then pass what you want the page iterator to do
-
-
-> +EXPORT_SYMBOL(put_user_pages);
-> +
->  /*
->   * get_kernel_pages() - pin kernel pages in memory
->   * @kiov:	An array of struct kvec structures
-> -- 
-> 2.19.1
-> 
-
-Balbir Singh.
+Okay, got it.
