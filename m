@@ -1,96 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 778216B0003
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 18:56:44 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id c4-v6so10544701plz.20
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 15:56:44 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id z29-v6si2529406pfl.209.2018.10.12.15.56.42
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 587C36B0006
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 19:09:58 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id q143-v6so10359960pgq.12
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 16:09:58 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t5-v6sor2660284pfk.58.2018.10.12.16.09.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Oct 2018 15:56:43 -0700 (PDT)
-Date: Fri, 12 Oct 2018 15:56:41 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 201377] New: Kernel BUG under memory pressure: unable to
- handle kernel NULL pointer dereference at 00000000000000f0
-Message-Id: <20181012155641.b3a1610b4ddcd37e374115d4@linux-foundation.org>
-In-Reply-To: <20181012155533.2f15a8bb35103aa1fa87962e@linux-foundation.org>
-References: <bug-201377-27@https.bugzilla.kernel.org/>
-	<20181012155533.2f15a8bb35103aa1fa87962e@linux-foundation.org>
-Mime-Version: 1.0
+        (Google Transport Security);
+        Fri, 12 Oct 2018 16:09:57 -0700 (PDT)
+Date: Fri, 12 Oct 2018 16:09:54 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, slab: avoid high-order slab pages when it does not
+ reduce waste
+In-Reply-To: <20181012151341.286cd91321cdda9b6bde4de9@linux-foundation.org>
+Message-ID: <alpine.DEB.2.21.1810121559460.133019@chino.kir.corp.google.com>
+References: <alpine.DEB.2.21.1810121424420.116562@chino.kir.corp.google.com> <20181012151341.286cd91321cdda9b6bde4de9@linux-foundation.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, bugzilla-daemon@bugzilla.kernel.org, leozinho29_eu@hotmail.com
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-(cc linux-mm, argh)
+On Fri, 12 Oct 2018, Andrew Morton wrote:
 
-On Fri, 12 Oct 2018 15:55:33 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+> > The slab allocator has a heuristic that checks whether the internal
+> > fragmentation is satisfactory and, if not, increases cachep->gfporder to
+> > try to improve this.
+> > 
+> > If the amount of waste is the same at higher cachep->gfporder values,
+> > there is no significant benefit to allocating higher order memory.  There
+> > will be fewer calls to the page allocator, but each call will require
+> > zone->lock and finding the page of best fit from the per-zone free areas.
+> > 
+> > Instead, it is better to allocate order-0 memory if possible so that pages
+> > can be returned from the per-cpu pagesets (pcp).
+> > 
+> > There are two reasons to prefer this over allocating high order memory:
+> > 
+> >  - allocating from the pcp lists does not require a per-zone lock, and
+> > 
+> >  - this reduces stranding of MIGRATE_UNMOVABLE pageblocks on pcp lists
+> >    that increases slab fragmentation across a zone.
+> 
+> Confused.  Higher-order slab pages never go through the pcp lists, do
+> they?
 
+Nope.
+
+> I'd have thought that by tending to increase the amount of
+> order-0 pages which are used by slab, such stranding would be
+> *increased*?
 > 
-> (switched to email.  Please respond via emailed reply-to-all, not via the
-> bugzilla web interface).
+
+These cpus have MIGRATE_UNMOVABLE pages on their pcp list.  But because 
+they are order-1 instead of order-0, we take zone->lock and find the 
+smallest possible page in the zone's free area that is of sufficient size.  
+On low on memory situations, there are no pages of MIGRATE_UNMOVABLE 
+migratetype at any order in the free area.  This calls 
+__rmqueue_fallback() that steals pageblocks, MIGRATE_RECLAIMABLE and then 
+MIGRATE_MOVABLE, and as MIGRATE_UNMOVABLE.
+
+We rely on the pcp batch count to backfill MIGRATE_UNMOVABLE pages onto 
+the pcp list so we don't need to take zone->lock, and as a result of these 
+allocations being order-0 rather than order-1 we can then allocate from 
+these pages when such slab caches are expanded rather than stranding them.
+
+We noticed this when the amount of memory wasted for TCPv6 was the same 
+for both order-0 and order-1 allocations (order-1 waste was two times the 
+order-0 waste).  We had hundreds of cpus with pages on their 
+MIGRATE_UNMOVABLE pcp list, but while allocating order-1 memory it would 
+prefer to happily steal other pageblocks before calling reclaim and 
+draining pcp lists.
+
+> > We are particularly interested in the second point to eliminate cases
+> > where all other pages on a pageblock are movable (or free) and fallback to
+> > pageblocks of other migratetypes from the per-zone free areas causes
+> > high-order slab memory to be allocated from them rather than from free
+> > MIGRATE_UNMOVABLE pages on the pcp.
+> > 
+> >  mm/slab.c | 15 +++++++++++++++
 > 
-> Vlastimil, it looks like your August 21 smaps changes are failing. 
-> This one is pretty urgent, please.
+> Do slub and slob also suffer from this effect?
 > 
-> Leonardo (yes?): thanks for reporting.  Very helpful.
-> 
-> On Thu, 11 Oct 2018 18:13:31 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
-> 
-> > https://bugzilla.kernel.org/show_bug.cgi?id=201377
-> > 
-> >             Bug ID: 201377
-> >            Summary: Kernel BUG under memory pressure: unable to handle
-> >                     kernel NULL pointer dereference at 00000000000000f0
-> >            Product: Memory Management
-> >            Version: 2.5
-> >     Kernel Version: 4.19-rc7
-> >           Hardware: All
-> >                 OS: Linux
-> >               Tree: Mainline
-> >             Status: NEW
-> >           Severity: normal
-> >           Priority: P1
-> >          Component: Other
-> >           Assignee: akpm@linux-foundation.org
-> >           Reporter: leozinho29_eu@hotmail.com
-> >         Regression: No
-> > 
-> > Created attachment 278997
-> >   --> https://bugzilla.kernel.org/attachment.cgi?id=278997&action=edit
-> > dmesg and kernel config
-> > 
-> > I'm using Xubuntu 18.04 and I noticed that under memory pressure the script
-> > from https://github.com/pixelb/ps_mem.git (HEAD
-> > 1ed0bc5519d889d58235f2c35db01e4ede0d8231is) causing a kernel BUG and locking a
-> > CPU. On dmesg the following appears:
-> > 
-> > BUG: unable to handle kernel NULL pointer dereference at 00000000000000f0
-> > 
-> > After this BUG the computer performance becomes greatly degraded, some software
-> > do not close, some fail to open, some fail to work properly. As an example,
-> > bash fails to autocomplete.
-> > 
-> > Steps to reproduce:
-> > 
-> > 1) Be under memory pressure. Using dd to write a large file at /dev/shm works
-> > for this;
-> > 2) Run the script from https://github.com/pixelb/ps_mem.git
-> > 
-> > Expected result: script will print information and system will keep working
-> > normally;
-> > 
-> > Observed result: script is killed, kernel BUG happens, CPU get stuck and
-> > computer presents problems.
-> > 
-> > I did not observe this with 4.17.19, I'll bisect and see if I can find which
-> > commit is causing this.
-> > 
-> > I'm sorry if I'm reporting to the wrong product and component.
-> > 
-> > -- 
-> > You are receiving this mail because:
-> > You are the assignee for the bug.
+
+SLOB should not, SLUB will typically increase the order to improve 
+performance of the cpu cache; there's a drawback to changing out the cpu 
+cache that SLAB does not have.  In the case that this patch is addressing, 
+there is no greater memory utilization from the allocted slab pages.
