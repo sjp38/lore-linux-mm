@@ -1,57 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 276106B0006
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 04:02:45 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id j65-v6so8062613otc.5
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 01:02:45 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id w50si211717oti.317.2018.10.12.01.02.44
-        for <linux-mm@kvack.org>;
-        Fri, 12 Oct 2018 01:02:44 -0700 (PDT)
-Subject: Re: [PATCH] mm/thp: Correctly differentiate between mapped THP and
- PMD migration entry
-References: <1539057538-27446-1-git-send-email-anshuman.khandual@arm.com>
- <20181009130421.bmus632ocurn275u@kshutemo-mobl1>
- <20181009131803.GH6248@arm.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <fb0ee5dd-5799-f5af-891a-992dd9a16a9f@arm.com>
-Date: Fri, 12 Oct 2018 13:32:39 +0530
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A6E86B000A
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 04:15:27 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id b76-v6so6685743ywb.11
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 01:15:27 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id p123-v6si159027ywe.365.2018.10.12.01.15.26
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 Oct 2018 01:15:26 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w9C8Elrc010746
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 04:15:25 -0400
+Received: from e15.ny.us.ibm.com (e15.ny.us.ibm.com [129.33.205.205])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2n2pugan13-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 04:15:25 -0400
+Received: from localhost
+	by e15.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <zaslonko@linux.ibm.com>;
+	Fri, 12 Oct 2018 04:15:25 -0400
+From: Zaslonko Mikhail <zaslonko@linux.ibm.com>
+Subject: Memory hotplug vmem pages
+Date: Fri, 12 Oct 2018 10:15:26 +0200
 MIME-Version: 1.0
-In-Reply-To: <20181009131803.GH6248@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+Message-Id: <17182cdc-cffe-ca39-f5c0-d1c5bd7ec4cb@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, zi.yan@cs.rutgers.edu
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
+Hello Michal,
 
+I've read a recent discussion about introducing the memory types for 
+memory hotplug:
+https://marc.info/?t=153814716600004&r=1&w=2
 
-On 10/09/2018 06:48 PM, Will Deacon wrote:
-> On Tue, Oct 09, 2018 at 04:04:21PM +0300, Kirill A. Shutemov wrote:
->> On Tue, Oct 09, 2018 at 09:28:58AM +0530, Anshuman Khandual wrote:
->>> A normal mapped THP page at PMD level should be correctly differentiated
->>> from a PMD migration entry while walking the page table. A mapped THP would
->>> additionally check positive for pmd_present() along with pmd_trans_huge()
->>> as compared to a PMD migration entry. This just adds a new conditional test
->>> differentiating the two while walking the page table.
->>>
->>> Fixes: 616b8371539a6 ("mm: thp: enable thp migration in generic path")
->>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
->>> ---
->>> On X86, pmd_trans_huge() and is_pmd_migration_entry() are always mutually
->>> exclusive which makes the current conditional block work for both mapped
->>> and migration entries. This is not same with arm64 where pmd_trans_huge()
->>> returns positive for both mapped and migration entries. Could some one
->>> please explain why pmd_trans_huge() has to return false for migration
->>> entries which just install swap bits and its still a PMD ?
->>
->> I guess it's just a design choice. Any reason why arm64 cannot do the
->> same?
-> 
-> Anshuman, would it work to:
-> 
-> #define pmd_trans_huge(pmd)     (pmd_present(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
-yeah this works but some how does not seem like the right thing to do
-but can be the very last option.
+In particular I was interested in the idea of moving vmem struct pages 
+to the hotplugable memory itself. I'm also looking into it for s390 
+right now. So, in one of your replies you mentioned that you "have 
+proposed (but haven't finished this due to other stuff) a solution for 
+this". Have you covered any part of that solution yet? Could you please 
+point me to any relevant discussions on this matter?
+
+Thanks,
+Mikhail Zaslonko
