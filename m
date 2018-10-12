@@ -1,62 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BD816B000A
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 17:12:07 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id 43-v6so10525961ple.19
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 14:12:07 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id q19-v6si2350843pll.286.2018.10.12.14.12.06
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 092EA6B0003
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 17:25:01 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id h76-v6so13263853pfd.10
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 14:25:01 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u6-v6sor1998756plz.53.2018.10.12.14.24.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Oct 2018 14:12:06 -0700 (PDT)
-Date: Fri, 12 Oct 2018 14:12:03 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/7] HMM updates, improvements and fixes
-Message-Id: <20181012141203.40a0c5272821e43e97382894@linux-foundation.org>
-In-Reply-To: <20181012181545.GG6593@redhat.com>
-References: <20180824192549.30844-1-jglisse@redhat.com>
-	<20181012181545.GG6593@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Fri, 12 Oct 2018 14:24:59 -0700 (PDT)
+Date: Fri, 12 Oct 2018 14:24:57 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, slab: avoid high-order slab pages when it does not reduce
+ waste
+Message-ID: <alpine.DEB.2.21.1810121424420.116562@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
+To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 12 Oct 2018 14:15:45 -0400 Jerome Glisse <jglisse@redhat.com> wrote:
+The slab allocator has a heuristic that checks whether the internal
+fragmentation is satisfactory and, if not, increases cachep->gfporder to
+try to improve this.
 
-> On Fri, Aug 24, 2018 at 03:25:42PM -0400, jglisse@redhat.com wrote:
-> > From: J=E9r=F4me Glisse <jglisse@redhat.com>
-> >=20
-> > Few fixes that only affect HMM users. Improve the synchronization call
-> > back so that we match was other mmu_notifier listener do and add proper
-> > support to the new blockable flags in the process.
-> >=20
-> > For curious folks here are branches to leverage HMM in various existing
-> > device drivers:
-> >=20
-> > https://cgit.freedesktop.org/~glisse/linux/log/?h=3Dhmm-nouveau-v01
-> > https://cgit.freedesktop.org/~glisse/linux/log/?h=3Dhmm-radeon-v00
-> > https://cgit.freedesktop.org/~glisse/linux/log/?h=3Dhmm-intel-v00
-> >=20
-> > More to come (amd gpu, Mellanox, ...)
-> >=20
-> > I expect more of the preparatory work for nouveau will be merge in 4.20
-> > (like we have been doing since 4.16) and i will wait until this patchset
-> > is upstream before pushing the patches that actualy make use of HMM (to
-> > avoid complex tree inter-dependency).
-> >=20
->=20
-> Andrew do you want me to repost this on top of lastest mmotm ?
-> All conflict should be pretty trivial to fix.
+If the amount of waste is the same at higher cachep->gfporder values,
+there is no significant benefit to allocating higher order memory.  There
+will be fewer calls to the page allocator, but each call will require
+zone->lock and finding the page of best fit from the per-zone free areas.
 
-Please.  I ducked v1 because a v2 was in the works.  It's very late in
-the cycle so you might want to prepare an urgent-for-4.19 series and a
-for-4.20 series.  Or, better, a single series with the appropriate
-Cc:stable tags.
+Instead, it is better to allocate order-0 memory if possible so that pages
+can be returned from the per-cpu pagesets (pcp).
 
-Please ensure that all review questions which have thus far been
-received are appropriately answered in code comments and in changelogs.
-Because if one reader was wondering about something, others will
-wonder the same thing in the future.
+There are two reasons to prefer this over allocating high order memory:
+
+ - allocating from the pcp lists does not require a per-zone lock, and
+
+ - this reduces stranding of MIGRATE_UNMOVABLE pageblocks on pcp lists
+   that increases slab fragmentation across a zone.
+
+We are particularly interested in the second point to eliminate cases
+where all other pages on a pageblock are movable (or free) and fallback to
+pageblocks of other migratetypes from the per-zone free areas causes
+high-order slab memory to be allocated from them rather than from free
+MIGRATE_UNMOVABLE pages on the pcp.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/slab.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/mm/slab.c b/mm/slab.c
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1748,6 +1748,7 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
+ 	for (gfporder = 0; gfporder <= KMALLOC_MAX_ORDER; gfporder++) {
+ 		unsigned int num;
+ 		size_t remainder;
++		int order;
+ 
+ 		num = cache_estimate(gfporder, size, flags, &remainder);
+ 		if (!num)
+@@ -1803,6 +1804,20 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
+ 		 */
+ 		if (left_over * 8 <= (PAGE_SIZE << gfporder))
+ 			break;
++
++		/*
++		 * If a higher gfporder would not reduce internal fragmentation,
++		 * no need to continue.  The preference is to keep gfporder as
++		 * small as possible so slab allocations can be served from
++		 * MIGRATE_UNMOVABLE pcp lists to avoid stranding.
++		 */
++		for (order = gfporder + 1; order <= slab_max_order; order++) {
++			cache_estimate(order, size, flags, &remainder);
++			if (remainder < left_over)
++				break;
++		}
++		if (order > slab_max_order)
++			break;
+ 	}
+ 	return left_over;
+ }
