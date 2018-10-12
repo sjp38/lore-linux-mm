@@ -1,146 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F2556B0003
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 10:49:17 -0400 (EDT)
-Received: by mail-wm1-f70.google.com with SMTP id y199-v6so7089389wmc.6
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 07:49:17 -0700 (PDT)
-Received: from www.kot-begemot.co.uk (ivanoab6.miniserver.com. [5.153.251.140])
-        by mx.google.com with ESMTPS id r3-v6si1278448wmh.39.2018.10.12.07.49.15
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A36146B0003
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 11:08:44 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id q23so8783546otg.9
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 08:08:44 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id y14si703191oti.25.2018.10.12.08.08.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 12 Oct 2018 07:49:15 -0700 (PDT)
-Subject: Re: [PATCH v2 2/2] mm: speed up mremap by 500x on large regions
-References: <20181012013756.11285-1-joel@joelfernandes.org>
- <20181012013756.11285-2-joel@joelfernandes.org>
- <9ed82f9e-88c4-8e4f-8c45-3ef153469603@kot-begemot.co.uk>
- <20181012143728.t42uvr6etg7gp7fh@kshutemo-mobl1>
-From: Anton Ivanov <anton.ivanov@kot-begemot.co.uk>
-Message-ID: <4dd52e22-5b51-9b30-7178-fde603a08f88@kot-begemot.co.uk>
-Date: Fri, 12 Oct 2018 15:48:15 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 Oct 2018 08:08:42 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w9CF7uI3140106
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 11:08:41 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2n2v5f518g-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 11:08:40 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Fri, 12 Oct 2018 16:08:38 +0100
+Date: Fri, 12 Oct 2018 17:08:33 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: s390: runtime warning about pgtables_bytes
+In-Reply-To: <20181011150211.7d8c07ac@mschwideX1>
+References: <CAEemH2eExK_jwOPZDFBZkwABucpZqh+=s+qpN-tFfMzxwo7cZA@mail.gmail.com>
+	<20181011150211.7d8c07ac@mschwideX1>
+Message-Id: <20181012170833.2a05f308@mschwideX1>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: Quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20181012143728.t42uvr6etg7gp7fh@kshutemo-mobl1>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Joel Fernandes (Google)" <joel@joelfernandes.org>, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, Rich Felker <dalias@libc.org>, linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon <will.deacon@arm.com>, mhocko@kernel.org, linux-mm@kvack.org, lokeshgidra@google.com, linux-riscv@lists.infradead.org, elfring@users.sourceforge.net, Jonas Bonn <jonas@southpole.se>, linux-s390@vger.kernel.org, dancol@google.com, Yoshinori Sato <ysato@users.sourceforge.jp>, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-hexagon@vger.kernel.org, Helge Deller <deller@gmx.de>, "maintainer:X86 ARCHITECTURE 32-BIT AND 64-BIT" <x86@kernel.org>, hughd@google.com, "James E.J. Bottomley" <jejb@parisc-linux.org>, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, Ingo Molnar <mingo@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-snps-arc@lists.infradead.org, kernel-team@android.com, Sam Creasey <sammy@sammy.net>, Fenghua Yu <fenghua.yu@intel.com>, Jeff Dike <jdike@addtoit.com>, linux-um@lists.infradead.org, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Julia Lawall <Julia.Lawall@lip6.fr>, linux-m68k@lists.linux-m68k.org, openrisc@lists.librecores.org, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, nios2-dev@lists.rocketboards.org, Stafford Horne <shorne@gmail.com>, Guan Xuetao <gxt@pku.edu.cn>, linux-arm-kernel@lists.infradead.org, Chris Zankel <chris@zankel.net>, Tony Luck <tony.luck@intel.com>, Richard Weinberger <richard@nod.at>, linux-parisc@vger.kernel.org, pantin@google.com, Max Filippov <jcmvbkbc@gmail.com>, minchan@kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-alpha@vger.kernel.org, Ley Foon Tan <lftan@altera.com>, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, "David S. Miller" <davem@davemloft.net>
+To: Li Wang <liwang@redhat.com>
+Cc: Guenter Roeck <linux@roeck-us.net>, Janosch Frank <frankja@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On 12/10/2018 15:37, Kirill A. Shutemov wrote:
-> On Fri, Oct 12, 2018 at 03:09:49PM +0100, Anton Ivanov wrote:
->> On 10/12/18 2:37 AM, Joel Fernandes (Google) wrote:
->>> Android needs to mremap large regions of memory during memory management
->>> related operations. The mremap system call can be really slow if THP is
->>> not enabled. The bottleneck is move_page_tables, which is copying each
->>> pte at a time, and can be really slow across a large map. Turning on THP
->>> may not be a viable option, and is not for us. This patch speeds up the
->>> performance for non-THP system by copying at the PMD level when possible.
->>>
->>> The speed up is three orders of magnitude. On a 1GB mremap, the mremap
->>> completion times drops from 160-250 millesconds to 380-400 microseconds.
->>>
->>> Before:
->>> Total mremap time for 1GB data: 242321014 nanoseconds.
->>> Total mremap time for 1GB data: 196842467 nanoseconds.
->>> Total mremap time for 1GB data: 167051162 nanoseconds.
->>>
->>> After:
->>> Total mremap time for 1GB data: 385781 nanoseconds.
->>> Total mremap time for 1GB data: 388959 nanoseconds.
->>> Total mremap time for 1GB data: 402813 nanoseconds.
->>>
->>> Incase THP is enabled, the optimization is skipped. I also flush the
->>> tlb every time we do this optimization since I couldn't find a way to
->>> determine if the low-level PTEs are dirty. It is seen that the cost of
->>> doing so is not much compared the improvement, on both x86-64 and arm64.
->>>
->>> Cc: minchan@kernel.org
->>> Cc: pantin@google.com
->>> Cc: hughd@google.com
->>> Cc: lokeshgidra@google.com
->>> Cc: dancol@google.com
->>> Cc: mhocko@kernel.org
->>> Cc: kirill@shutemov.name
->>> Cc: akpm@linux-foundation.org
->>> Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
->>> ---
->>>    mm/mremap.c | 62 +++++++++++++++++++++++++++++++++++++++++++++++++++++
->>>    1 file changed, 62 insertions(+)
->>>
->>> diff --git a/mm/mremap.c b/mm/mremap.c
->>> index 9e68a02a52b1..d82c485822ef 100644
->>> --- a/mm/mremap.c
->>> +++ b/mm/mremap.c
->>> @@ -191,6 +191,54 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
->>>    		drop_rmap_locks(vma);
->>>    }
->>> +static bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
->>> +		  unsigned long new_addr, unsigned long old_end,
->>> +		  pmd_t *old_pmd, pmd_t *new_pmd, bool *need_flush)
->>> +{
->>> +	spinlock_t *old_ptl, *new_ptl;
->>> +	struct mm_struct *mm = vma->vm_mm;
->>> +
->>> +	if ((old_addr & ~PMD_MASK) || (new_addr & ~PMD_MASK)
->>> +	    || old_end - old_addr < PMD_SIZE)
->>> +		return false;
->>> +
->>> +	/*
->>> +	 * The destination pmd shouldn't be established, free_pgtables()
->>> +	 * should have release it.
->>> +	 */
->>> +	if (WARN_ON(!pmd_none(*new_pmd)))
->>> +		return false;
->>> +
->>> +	/*
->>> +	 * We don't have to worry about the ordering of src and dst
->>> +	 * ptlocks because exclusive mmap_sem prevents deadlock.
->>> +	 */
->>> +	old_ptl = pmd_lock(vma->vm_mm, old_pmd);
->>> +	if (old_ptl) {
->>> +		pmd_t pmd;
->>> +
->>> +		new_ptl = pmd_lockptr(mm, new_pmd);
->>> +		if (new_ptl != old_ptl)
->>> +			spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
->>> +
->>> +		/* Clear the pmd */
->>> +		pmd = *old_pmd;
->>> +		pmd_clear(old_pmd);
->>> +
->>> +		VM_BUG_ON(!pmd_none(*new_pmd));
->>> +
->>> +		/* Set the new pmd */
->>> +		set_pmd_at(mm, new_addr, new_pmd, pmd);
->> UML does not have set_pmd_at at all
-> Every architecture does. :)
+On Thu, 11 Oct 2018 15:02:11 +0200
+Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
 
-I tried to build it patching vs 4.19-rc before I made this statement and 
-ran into that.
-
-Presently it does not.
-
-https://elixir.bootlin.com/linux/v4.19-rc7/ident/set_pmd_at - UML is not 
-on the list.
-
->
-> But it may come not from the arch code.
-
-There is no generic definition as far as I can see. All 12 defines in 
-4.19 are in arch specific code. Unless i am missing something...
-
->
->> If I read the code right, MIPS completely ignores the address argument so
->> set_pmd_at there may not have the effect which this patch is trying to
->> achieve.
-> Ignoring address is fine. Most architectures do that..
-> The ideas is to move page table to the new pmd slot. It's nothing to do
-> with the address passed to set_pmd_at().
-
-If that is it's only function, then I am going to appropriate the code 
-out of the MIPS tree for further uml testing. It does exactly that - 
-just move the pmd the new slot.
-
->
-A.
+> On Thu, 11 Oct 2018 18:04:12 +0800
+> Li Wang <liwang@redhat.com> wrote:
+>=20
+> > When running s390 system with LTP/cve-2017-17052.c[1], the following BU=
+G is
+> > came out repeatedly.
+> > I remember this warning start from kernel-4.16.0 and now it still exist=
+ in
+> > kernel-4.19-rc7.
+> > Can anyone take a look?
+> >=20
+> > [ 2678.991496] BUG: non-zero pgtables_bytes on freeing mm: 16384
+> > [ 2679.001543] BUG: non-zero pgtables_bytes on freeing mm: 16384
+> > [ 2679.002453] BUG: non-zero pgtables_bytes on freeing mm: 16384
+> > [ 2679.003256] BUG: non-zero pgtables_bytes on freeing mm: 16384
+> > [ 2679.013689] BUG: non-zero pgtables_bytes on freeing mm: 16384
+> > [ 2679.024647] BUG: non-zero pgtables_bytes on freeing mm: 16384
+> > [ 2679.064408] BUG: non-zero pgtables_bytes on freeing mm: 16384
+> > [ 2679.133963] BUG: non-zero pgtables_bytes on freeing mm: 16384
+> >=20
+> > [1]:
+> > https://github.com/linux-test-project/ltp/blob/master/testcases/cve/cve=
+-2017-17052.c=20=20
+>=20=20
+> Confirmed, I see this bug with cvs-2017-17052 on my LPAR as well.
+> I'll look into it.
+=20
+Ok, I think I understand the problem now. This is the patch I am testing
+right now. It seems to fix the issue, but I had to change common mm
+code for it.
+--
