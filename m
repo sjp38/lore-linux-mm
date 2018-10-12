@@ -1,42 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C6E196B0003
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 07:36:51 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id o3-v6so8855352pll.7
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 04:36:51 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y192-v6sor844071pgd.9.2018.10.12.04.36.50
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AD1C16B0003
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 08:03:26 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id w42-v6so7029815edd.0
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 05:03:26 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a9-v6si658496ejr.153.2018.10.12.05.03.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 12 Oct 2018 04:36:50 -0700 (PDT)
-Date: Fri, 12 Oct 2018 14:36:45 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v2 2/2] mm: speed up mremap by 500x on large regions
-Message-ID: <20181012113644.meqy5yb3xrxyh6lh@kshutemo-mobl1>
-References: <20181012013756.11285-1-joel@joelfernandes.org>
- <20181012013756.11285-2-joel@joelfernandes.org>
- <20181012113056.gxhcbrqyu7k7xnyv@kshutemo-mobl1>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 Oct 2018 05:03:25 -0700 (PDT)
+Subject: Re: [PATCH] mm: don't clobber partially overlapping VMA with
+ MAP_FIXED_NOREPLACE
+References: <20181010152736.99475-1-jannh@google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <bdb0b0ab-c639-e4ca-4c95-5924eb2be23f@suse.cz>
+Date: Fri, 12 Oct 2018 14:03:21 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181012113056.gxhcbrqyu7k7xnyv@kshutemo-mobl1>
+In-Reply-To: <20181010152736.99475-1-jannh@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-Cc: linux-kernel@vger.kernel.org, kernel-team@android.com, minchan@kernel.org, pantin@google.com, hughd@google.com, lokeshgidra@google.com, dancol@google.com, mhocko@kernel.org, akpm@linux-foundation.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, elfring@users.sourceforge.net, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, Julia Lawall <Julia.Lawall@lip6.fr>, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, Max Filippov <jcmvbkbc@gmail.com>, nios2-dev@lists.rocketboards.org, openrisc@lists.librecores.org, Peter Zijlstra <peterz@infradead.org>, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>
+To: Jann Horn <jannh@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, Michal Hocko <mhocko@suse.com>, Michael Ellerman <mpe@ellerman.id.au>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>, Jason Evans <jasone@google.com>, David Goldblatt <davidtgoldblatt@gmail.com>, =?UTF-8?Q?Edward_Tomasz_Napiera=c5=82a?= <trasz@FreeBSD.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Daniel Micay <danielmicay@gmail.com>
 
-On Fri, Oct 12, 2018 at 02:30:56PM +0300, Kirill A. Shutemov wrote:
-> On Thu, Oct 11, 2018 at 06:37:56PM -0700, Joel Fernandes (Google) wrote:
-> > @@ -239,7 +287,21 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
-> >  			split_huge_pmd(vma, old_pmd, old_addr);
-> >  			if (pmd_trans_unstable(old_pmd))
-> >  				continue;
-> > +		} else if (extent == PMD_SIZE) {
+On 10/10/18 5:27 PM, Jann Horn wrote:
+> Daniel Micay reports that attempting to use MAP_FIXED_NOREPLACE in an
+> application causes that application to randomly crash. The existing check
+> for handling MAP_FIXED_NOREPLACE looks up the first VMA that either
+> overlaps or follows the requested region, and then bails out if that VMA
+> overlaps *the start* of the requested region. It does not bail out if the
+> VMA only overlaps another part of the requested region.
 > 
-> Hm. What guarantees that new_addr is PMD_SIZE-aligned?
-> It's not obvious to me.
+> Fix it by checking that the found VMA only starts at or after the end of
+> the requested region, in which case there is no overlap.
+> 
+> Reported-by: Daniel Micay <danielmicay@gmail.com>
+> Fixes: a4ff8e8620d3 ("mm: introduce MAP_FIXED_NOREPLACE")
+> Cc: stable@vger.kernel.org
+> Signed-off-by: Jann Horn <jannh@google.com>
 
-Ignore this :)
+Good catch, thanks.
 
--- 
- Kirill A. Shutemov
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> ---
+>  mm/mmap.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 5f2b2b184c60..f7cd9cb966c0 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1410,7 +1410,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+>  	if (flags & MAP_FIXED_NOREPLACE) {
+>  		struct vm_area_struct *vma = find_vma(mm, addr);
+>  
+> -		if (vma && vma->vm_start <= addr)
+> +		if (vma && vma->vm_start < addr + len)
+>  			return -EEXIST;
+>  	}
+>  
+> 
