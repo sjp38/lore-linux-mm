@@ -1,112 +1,299 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 77ABA6B0003
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 07:00:27 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id e3-v6so8917437pld.13
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 04:00:27 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 427206B0006
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 07:07:36 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id q143-v6so8570039pgq.12
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 04:07:36 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y26-v6sor719493pfa.69.2018.10.12.04.00.26
+        by mx.google.com with SMTPS id i69-v6sor728815pge.17.2018.10.12.04.07.34
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 12 Oct 2018 04:00:26 -0700 (PDT)
-Date: Fri, 12 Oct 2018 14:00:20 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv2] mm/gup: Cache dev_pagemap while pinning pages
-Message-ID: <20181012110020.pu5oanl6tnz4mibr@kshutemo-mobl1>
-References: <20181011175542.13045-1-keith.busch@intel.com>
- <CAPcyv4gGqhGpR8g-HmNzoEnMAysO5uAO+8njeAokHq2CT9x71A@mail.gmail.com>
+        Fri, 12 Oct 2018 04:07:35 -0700 (PDT)
+Date: Fri, 12 Oct 2018 22:07:28 +1100
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [PATCH 6/6] mm: track gup pages with page->dma_pinned_* fields
+Message-ID: <20181012110728.GL8537@350D>
+References: <20181012060014.10242-1-jhubbard@nvidia.com>
+ <20181012060014.10242-7-jhubbard@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4gGqhGpR8g-HmNzoEnMAysO5uAO+8njeAokHq2CT9x71A@mail.gmail.com>
+In-Reply-To: <20181012060014.10242-7-jhubbard@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Keith Busch <keith.busch@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+To: john.hubbard@gmail.com
+Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>
 
-On Thu, Oct 11, 2018 at 04:24:02PM -0700, Dan Williams wrote:
-> On Thu, Oct 11, 2018 at 11:00 AM Keith Busch <keith.busch@intel.com> wrote:
-> >
-> > Getting pages from ZONE_DEVICE memory needs to check the backing device's
-> > live-ness, which is tracked in the device's dev_pagemap metadata. This
-> > metadata is stored in a radix tree and looking it up adds measurable
-> > software overhead.
-> >
-> > This patch avoids repeating this relatively costly operation when
-> > dev_pagemap is used by caching the last dev_pagemap while getting user
-> > pages. The gup_benchmark kernel self test reports this reduces time to
-> > get user pages to as low as 1/3 of the previous time.
-> >
-> > Cc: Kirill Shutemov <kirill.shutemov@linux.intel.com>
-> > Cc: Dave Hansen <dave.hansen@intel.com>
-> > Cc: Dan Williams <dan.j.williams@intel.com>
-> > Signed-off-by: Keith Busch <keith.busch@intel.com>
+On Thu, Oct 11, 2018 at 11:00:14PM -0700, john.hubbard@gmail.com wrote:
+> From: John Hubbard <jhubbard@nvidia.com>
 > 
-> Other than the 2 comments below, this looks good to me:
+> This patch sets and restores the new page->dma_pinned_flags and
+> page->dma_pinned_count fields, but does not actually use them for
+> anything yet.
 > 
-> Reviewed-by: Dan Williams <dan.j.williams@intel.com>
-
-Looks good to me too:
-
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-
+> In order to use these fields at all, the page must be removed from
+> any LRU list that it's on. The patch also adds some precautions that
+> prevent the page from getting moved back onto an LRU, once it is
+> in this state.
 > 
-> [..]
-> > diff --git a/mm/gup.c b/mm/gup.c
-> > index 1abc8b4afff6..d2700dff6f66 100644
-> > --- a/mm/gup.c
-> > +++ b/mm/gup.c
-> [..]
-> > @@ -431,7 +430,22 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
-> >                 return no_page_table(vma, flags);
-> >         }
-> >
-> > -       return follow_p4d_mask(vma, address, pgd, flags, page_mask);
-> > +       return follow_p4d_mask(vma, address, pgd, flags, ctx);
-> > +}
-> > +
-> > +struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
-> > +                        unsigned int foll_flags)
-> > +{
-> > +       struct page *page;
-> > +       struct follow_page_context ctx = {
-> > +               .pgmap = NULL,
-> > +               .page_mask = 0,
-> > +       };
+> This is in preparation to fix some problems that came up when using
+> devices (NICs, GPUs, for example) that set up direct access to a chunk
+> of system (CPU) memory, so that they can DMA to/from that memory.
 > 
-> You don't need to init all members. It is defined that if you init at
-> least one member then all non initialized members are set to zero, so
-> you should be able to do " = { 0 }".
+> CC: Matthew Wilcox <willy@infradead.org>
+> CC: Jan Kara <jack@suse.cz>
+> CC: Dan Williams <dan.j.williams@intel.com>
+> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> ---
+>  include/linux/mm.h | 15 ++-----------
+>  mm/gup.c           | 56 ++++++++++++++++++++++++++++++++++++++++++++--
+>  mm/memcontrol.c    |  7 ++++++
+>  mm/swap.c          | 51 +++++++++++++++++++++++++++++++++++++++++
+>  4 files changed, 114 insertions(+), 15 deletions(-)
 > 
-> > +
-> > +       page = follow_page_mask(vma, address, foll_flags, &ctx);
-> > +       if (ctx.pgmap)
-> > +               put_dev_pagemap(ctx.pgmap);
-> > +       return page;
-> >  }
-> >
-> >  static int get_gate_page(struct mm_struct *mm, unsigned long address,
-> > @@ -659,9 +673,9 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-> >                 unsigned int gup_flags, struct page **pages,
-> >                 struct vm_area_struct **vmas, int *nonblocking)
-> >  {
-> > -       long i = 0;
-> > -       unsigned int page_mask;
-> > +       long ret = 0, i = 0;
-> >         struct vm_area_struct *vma = NULL;
-> > +       struct follow_page_context ctx = {};
-> 
-> Does this have defined behavior? I would feel better with " = { 0 }"
-> to be explicit.
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 76d18aada9f8..44878d21e27b 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -944,21 +944,10 @@ static inline void put_page(struct page *page)
+>  }
+>  
+>  /*
+> - * put_user_page() - release a page that had previously been acquired via
+> - * a call to one of the get_user_pages*() functions.
+> - *
+>   * Pages that were pinned via get_user_pages*() must be released via
+> - * either put_user_page(), or one of the put_user_pages*() routines
+> - * below. This is so that eventually, pages that are pinned via
+> - * get_user_pages*() can be separately tracked and uniquely handled. In
+> - * particular, interactions with RDMA and filesystems need special
+> - * handling.
+> + * one of these put_user_pages*() routines:
+>   */
+> -static inline void put_user_page(struct page *page)
+> -{
+> -	put_page(page);
+> -}
+> -
+> +void put_user_page(struct page *page);
+>  void put_user_pages_dirty(struct page **pages, unsigned long npages);
+>  void put_user_pages_dirty_lock(struct page **pages, unsigned long npages);
+>  void put_user_pages(struct page **pages, unsigned long npages);
+> diff --git a/mm/gup.c b/mm/gup.c
+> index 05ee7c18e59a..fddbc30cde89 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -20,6 +20,51 @@
+>  
+>  #include "internal.h"
+>  
+> +static int pin_page_for_dma(struct page *page)
+> +{
+> +	int ret = 0;
+> +	struct zone *zone;
+> +
+> +	page = compound_head(page);
+> +	zone = page_zone(page);
+> +
+> +	spin_lock(zone_gup_lock(zone));
+> +
+> +	if (PageDmaPinned(page)) {
+> +		/* Page was not on an LRU list, because it was DMA-pinned. */
+> +		VM_BUG_ON_PAGE(PageLRU(page), page);
+> +
+> +		atomic_inc(&page->dma_pinned_count);
+> +		goto unlock_out;
+> +	}
+> +
+> +	/*
+> +	 * Note that page->dma_pinned_flags is unioned with page->lru.
+> +	 * Therefore, the rules are: checking if any of the
+> +	 * PAGE_DMA_PINNED_FLAGS bits are set may be done while page->lru
+> +	 * is in use. However, setting those flags requires that
+> +	 * the page is both locked, and also, removed from the LRU.
+> +	 */
+> +	ret = isolate_lru_page(page);
+> +
 
-Well, it's not allowed by the standart, but GCC allows this.
-You can see a warning with -pedantic.
+isolate_lru_page() can be expensive and in terms of the overall locking order
+sounds like zone_gup_lock is higher in the hierarchy than the locks taken
+inside isolate_lru_page()
 
-We use empty-list initializers a lot in the kernel:
-$ git grep 'struct .*= {};' | wc -l
-997
+> +	if (ret == 0) {
+> +		/* Avoid problems later, when freeing the page: */
+> +		ClearPageActive(page);
+> +		ClearPageUnevictable(page);
+> +
+> +		/* counteract isolate_lru_page's effects: */
+> +		put_page(page);
 
-It should be fine.
+Can the page get reaped here? What's the expected page count?
 
--- 
- Kirill A. Shutemov
+> +
+> +		atomic_set(&page->dma_pinned_count, 1);
+> +		SetPageDmaPinned(page);
+> +	}
+> +
+> +unlock_out:
+> +	spin_unlock(zone_gup_lock(zone));
+> +
+> +	return ret;
+> +}
+> +
+>  static struct page *no_page_table(struct vm_area_struct *vma,
+>  		unsigned int flags)
+>  {
+> @@ -659,7 +704,7 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  		unsigned int gup_flags, struct page **pages,
+>  		struct vm_area_struct **vmas, int *nonblocking)
+>  {
+> -	long i = 0;
+> +	long i = 0, j;
+>  	int err = 0;
+>  	unsigned int page_mask;
+>  	struct vm_area_struct *vma = NULL;
+> @@ -764,6 +809,10 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  	} while (nr_pages);
+>  
+>  out:
+> +	if (pages)
+> +		for (j = 0; j < i; j++)
+> +			pin_page_for_dma(pages[j]);
+> +
+
+Why does get_user_pages() unconditionally pin_page_for_dma?
+
+>  	return i ? i : err;
+>  }
+>  
+> @@ -1841,7 +1890,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+>  			struct page **pages)
+>  {
+>  	unsigned long addr, len, end;
+> -	int nr = 0, ret = 0;
+> +	int nr = 0, ret = 0, i;
+>  
+>  	start &= PAGE_MASK;
+>  	addr = start;
+> @@ -1862,6 +1911,9 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+>  		ret = nr;
+>  	}
+>  
+> +	for (i = 0; i < nr; i++)
+> +		pin_page_for_dma(pages[i]);
+
+Why does get_user_pages_fast() unconditionally pin_page_for_dma?
+
+> +
+>  	if (nr < nr_pages) {
+>  		/* Try to get the remaining pages with get_user_pages */
+>  		start += nr << PAGE_SHIFT;
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index e79cb59552d9..af9719756081 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2335,6 +2335,11 @@ static void lock_page_lru(struct page *page, int *isolated)
+>  	if (PageLRU(page)) {
+>  		struct lruvec *lruvec;
+>  
+> +		/* LRU and PageDmaPinned are mutually exclusive: they use the
+> +		 * same fields in struct page, but for different purposes.
+> +		 */
+
+Comment style needs fixing
+
+> +		VM_BUG_ON_PAGE(PageDmaPinned(page), page);
+> +
+>  		lruvec = mem_cgroup_page_lruvec(page, zone->zone_pgdat);
+>  		ClearPageLRU(page);
+>  		del_page_from_lru_list(page, lruvec, page_lru(page));
+> @@ -2352,6 +2357,8 @@ static void unlock_page_lru(struct page *page, int isolated)
+>  
+>  		lruvec = mem_cgroup_page_lruvec(page, zone->zone_pgdat);
+>  		VM_BUG_ON_PAGE(PageLRU(page), page);
+> +		VM_BUG_ON_PAGE(PageDmaPinned(page), page);
+> +
+>  		SetPageLRU(page);
+>  		add_page_to_lru_list(page, lruvec, page_lru(page));
+>  	}
+> diff --git a/mm/swap.c b/mm/swap.c
+> index efab3a6b6f91..6b2b1a958a67 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -134,6 +134,46 @@ void put_pages_list(struct list_head *pages)
+>  }
+>  EXPORT_SYMBOL(put_pages_list);
+>  
+> +/*
+> + * put_user_page() - release a page that had previously been acquired via
+> + * a call to one of the get_user_pages*() functions.
+> + *
+> + * Pages that were pinned via get_user_pages*() must be released via
+> + * either put_user_page(), or one of the put_user_pages*() routines
+> + * below. This is so that eventually, pages that are pinned via
+> + * get_user_pages*() can be separately tracked and uniquely handled. In
+> + * particular, interactions with RDMA and filesystems need special
+> + * handling.
+> + */
+> +void put_user_page(struct page *page)
+> +{
+> +	struct zone *zone = page_zone(page);
+> +
+> +	page = compound_head(page);
+> +
+> +	VM_BUG_ON_PAGE(PageLRU(page), page);
+> +	VM_BUG_ON_PAGE(!PageDmaPinned(page), page);
+> +
+> +	if (atomic_dec_and_test(&page->dma_pinned_count)) {
+> +		spin_lock(zone_gup_lock(zone));
+> +
+> +		/* Re-check while holding the lock, because
+> +		 * pin_page_for_dma() or get_page() may have snuck in right
+> +		 * after the atomic_dec_and_test, and raised the count
+> +		 * above zero again. If so, just leave the flag set. And
+> +		 * because the atomic_dec_and_test above already got the
+> +		 * accounting correct, no other action is required.
+> +		 */
+> +		if (atomic_read(&page->dma_pinned_count) == 0)
+> +			ClearPageDmaPinned(page);
+> +
+> +		spin_unlock(zone_gup_lock(zone));
+> +	}
+> +
+> +	put_page(page);
+> +}
+> +EXPORT_SYMBOL(put_user_page);
+> +
+>  /*
+>   * put_user_pages_dirty() - for each page in the @pages array, make
+>   * that page (or its head page, if a compound page) dirty, if it was
+> @@ -907,6 +947,11 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
+>  	VM_BUG_ON_PAGE(!PageHead(page), page);
+>  	VM_BUG_ON_PAGE(PageCompound(page_tail), page);
+>  	VM_BUG_ON_PAGE(PageLRU(page_tail), page);
+> +
+> +	/* LRU and PageDmaPinned are mutually exclusive: they use the
+> +	 * same fields in struct page, but for different purposes.
+> +	 */
+> +	VM_BUG_ON_PAGE(PageDmaPinned(page_tail), page);
+>  	VM_BUG_ON(NR_CPUS != 1 &&
+>  		  !spin_is_locked(&lruvec_pgdat(lruvec)->lru_lock));
+>  
+> @@ -946,6 +991,12 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
+>  
+>  	VM_BUG_ON_PAGE(PageLRU(page), page);
+>  
+> +	/* LRU and PageDmaPinned are mutually exclusive: they use the
+> +	 * same fields in struct page, but for different purposes.
+> +	 */
+> +	if (PageDmaPinned(page))
+> +		return;
+> +
+>  	SetPageLRU(page);
+>  	/*
+>  	 * Page becomes evictable in two ways:
+> -- 
+> 2.19.1
+
+
+Balbir
