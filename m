@@ -1,129 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B4AAB6B0008
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 03:29:15 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b13-v6so6639508edb.1
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 00:29:15 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e2-v6si451345ejo.298.2018.10.12.00.29.13
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 081266B000C
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 03:35:29 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 8-v6so10810373pfr.0
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 00:35:29 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v90-v6sor321535pfd.49.2018.10.12.00.35.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Oct 2018 00:29:14 -0700 (PDT)
-Subject: Re: [PATCH] mm: Speed up mremap on large regions
-References: <20181009201400.168705-1-joel@joelfernandes.org>
- <CAG48ez3yLkMcyaTXFt_+w8_-HtmrjW=XB51DDQSGdjPj43XWmA@mail.gmail.com>
- <42b81ac4-35de-754e-545b-d57b3bab3b7a@suse.com>
- <CAG48ez1=RAvrTyWyWcxANBM+Sf7qDoScaA_hvebxp1qh0WzcYg@mail.gmail.com>
-From: Juergen Gross <jgross@suse.com>
-Message-ID: <2c540b83-9125-8cae-9aab-3c8b37d7e914@suse.com>
-Date: Fri, 12 Oct 2018 09:29:10 +0200
+        (Google Transport Security);
+        Fri, 12 Oct 2018 00:35:27 -0700 (PDT)
+Date: Fri, 12 Oct 2018 18:35:22 +1100
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [PATCH 2/6] mm: introduce put_user_page*(), placeholder versions
+Message-ID: <20181012073521.GJ8537@350D>
+References: <20181012060014.10242-1-jhubbard@nvidia.com>
+ <20181012060014.10242-3-jhubbard@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <CAG48ez1=RAvrTyWyWcxANBM+Sf7qDoScaA_hvebxp1qh0WzcYg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: de-DE
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181012060014.10242-3-jhubbard@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jannh@google.com>
-Cc: joel@joelfernandes.org, kernel list <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel-team@android.com, Minchan Kim <minchan@google.com>, Hugh Dickins <hughd@google.com>, lokeshgidra@google.com, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, pombredanne@nexb.com, Thomas Gleixner <tglx@linutronix.de>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, kvm@vger.kernel.org
+To: john.hubbard@gmail.com
+Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Ralph Campbell <rcampbell@nvidia.com>
 
-On 12/10/2018 07:34, Jann Horn wrote:
-> On Fri, Oct 12, 2018 at 7:29 AM Juergen Gross <jgross@suse.com> wrote:
->> On 12/10/2018 05:21, Jann Horn wrote:
->>> +cc xen maintainers and kvm folks
->>>
->>> On Fri, Oct 12, 2018 at 4:40 AM Joel Fernandes (Google)
->>> <joel@joelfernandes.org> wrote:
->>>> Android needs to mremap large regions of memory during memory management
->>>> related operations. The mremap system call can be really slow if THP is
->>>> not enabled. The bottleneck is move_page_tables, which is copying each
->>>> pte at a time, and can be really slow across a large map. Turning on THP
->>>> may not be a viable option, and is not for us. This patch speeds up the
->>>> performance for non-THP system by copying at the PMD level when possible.
->>> [...]
->>>> +bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
->>>> +                 unsigned long new_addr, unsigned long old_end,
->>>> +                 pmd_t *old_pmd, pmd_t *new_pmd, bool *need_flush)
->>>> +{
->>> [...]
->>>> +       /*
->>>> +        * We don't have to worry about the ordering of src and dst
->>>> +        * ptlocks because exclusive mmap_sem prevents deadlock.
->>>> +        */
->>>> +       old_ptl = pmd_lock(vma->vm_mm, old_pmd);
->>>> +       if (old_ptl) {
->>>> +               pmd_t pmd;
->>>> +
->>>> +               new_ptl = pmd_lockptr(mm, new_pmd);
->>>> +               if (new_ptl != old_ptl)
->>>> +                       spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
->>>> +
->>>> +               /* Clear the pmd */
->>>> +               pmd = *old_pmd;
->>>> +               pmd_clear(old_pmd);
->>>> +
->>>> +               VM_BUG_ON(!pmd_none(*new_pmd));
->>>> +
->>>> +               /* Set the new pmd */
->>>> +               set_pmd_at(mm, new_addr, new_pmd, pmd);
->>>> +               if (new_ptl != old_ptl)
->>>> +                       spin_unlock(new_ptl);
->>>> +               spin_unlock(old_ptl);
->>>
->>> How does this interact with Xen PV? From a quick look at the Xen PV
->>> integration code in xen_alloc_ptpage(), it looks to me as if, in a
->>> config that doesn't use split ptlocks, this is going to temporarily
->>> drop Xen's type count for the page to zero, causing Xen to de-validate
->>> and then re-validate the L1 pagetable; if you first set the new pmd
->>> before clearing the old one, that wouldn't happen. I don't know how
->>> this interacts with shadow paging implementations.
->>
->> No, this isn't an issue. As the L1 pagetable isn't being released it
->> will stay pinned, so there will be no need to revalidate it.
+On Thu, Oct 11, 2018 at 11:00:10PM -0700, john.hubbard@gmail.com wrote:
+> From: John Hubbard <jhubbard@nvidia.com>
 > 
-> Where exactly is the L1 pagetable pinned? xen_alloc_ptpage() does:
+> Introduces put_user_page(), which simply calls put_page().
+> This provides a way to update all get_user_pages*() callers,
+> so that they call put_user_page(), instead of put_page().
 > 
->         if (static_branch_likely(&xen_struct_pages_ready))
->             SetPagePinned(page);
-
-This marking the pagetable as to be pinned, in order to pin it via
-
-xen_activate_mm()
-  xen_pgd_pin()
-    __xen_pgd_pin()
-      __xen_pgd_walk()
-        xen_pin_page()
-          xen_do_pin()
-
+> Also introduces put_user_pages(), and a few dirty/locked variations,
+> as a replacement for release_pages(), and also as a replacement
+> for open-coded loops that release multiple pages.
+> These may be used for subsequent performance improvements,
+> via batching of pages to be released.
 > 
->         if (!PageHighMem(page)) {
->             xen_mc_batch();
+> This is the first step of fixing the problem described in [1]. The steps
+> are:
 > 
->             __set_pfn_prot(pfn, PAGE_KERNEL_RO);
+> 1) (This patch): provide put_user_page*() routines, intended to be used
+>    for releasing pages that were pinned via get_user_pages*().
 > 
->             if (level == PT_PTE && USE_SPLIT_PTE_PTLOCKS)
->                 __pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
+> 2) Convert all of the call sites for get_user_pages*(), to
+>    invoke put_user_page*(), instead of put_page(). This involves dozens of
+>    call sites, any will take some time.
 > 
->             xen_mc_issue(PARAVIRT_LAZY_MMU);
->         } else {
->             /* make sure there are no stray mappings of
->                this page */
->             kmap_flush_unused();
->         }
+> 3) After (2) is complete, use get_user_pages*() and put_user_page*() to
+>    implement tracking of these pages. This tracking will be separate from
+>    the existing struct page refcounting.
 > 
-> which means that if USE_SPLIT_PTE_PTLOCKS is false, the table doesn't
-> get pinned and only stays typed as long as it is referenced by an L2
-> table, right?
+> 4) Use the tracking and identification of these pages, to implement
+>    special handling (especially in writeback paths) when the pages are
+>    backed by a filesystem. Again, [1] provides details as to why that is
+>    desirable.
+> 
+> [1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
+> 
+> CC: Matthew Wilcox <willy@infradead.org>
+> CC: Michal Hocko <mhocko@kernel.org>
+> CC: Christopher Lameter <cl@linux.com>
+> CC: Jason Gunthorpe <jgg@ziepe.ca>
+> CC: Dan Williams <dan.j.williams@intel.com>
+> CC: Jan Kara <jack@suse.cz>
+> CC: Al Viro <viro@zeniv.linux.org.uk>
+> CC: Jerome Glisse <jglisse@redhat.com>
+> CC: Christoph Hellwig <hch@infradead.org>
+> CC: Ralph Campbell <rcampbell@nvidia.com>
+> 
+> Reviewed-by: Jan Kara <jack@suse.cz>
+> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> ---
+>  include/linux/mm.h | 20 +++++++++++
+>  mm/swap.c          | 83 ++++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 103 insertions(+)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 0416a7204be3..76d18aada9f8 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -943,6 +943,26 @@ static inline void put_page(struct page *page)
+>  		__put_page(page);
+>  }
+>  
+> +/*
+> + * put_user_page() - release a page that had previously been acquired via
+> + * a call to one of the get_user_pages*() functions.
+> + *
+> + * Pages that were pinned via get_user_pages*() must be released via
+> + * either put_user_page(), or one of the put_user_pages*() routines
+> + * below. This is so that eventually, pages that are pinned via
+> + * get_user_pages*() can be separately tracked and uniquely handled. In
+> + * particular, interactions with RDMA and filesystems need special
+> + * handling.
+> + */
+> +static inline void put_user_page(struct page *page)
+> +{
+> +	put_page(page);
+> +}
+> +
+> +void put_user_pages_dirty(struct page **pages, unsigned long npages);
+> +void put_user_pages_dirty_lock(struct page **pages, unsigned long npages);
+> +void put_user_pages(struct page **pages, unsigned long npages);
+> +
+>  #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
+>  #define SECTION_IN_PAGE_FLAGS
+>  #endif
+> diff --git a/mm/swap.c b/mm/swap.c
+> index 26fc9b5f1b6c..efab3a6b6f91 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -134,6 +134,89 @@ void put_pages_list(struct list_head *pages)
+>  }
+>  EXPORT_SYMBOL(put_pages_list);
+>  
+> +/*
+> + * put_user_pages_dirty() - for each page in the @pages array, make
+> + * that page (or its head page, if a compound page) dirty, if it was
+> + * previously listed as clean. Then, release the page using
+> + * put_user_page().
+> + *
+> + * Please see the put_user_page() documentation for details.
+> + *
+> + * set_page_dirty(), which does not lock the page, is used here.
+> + * Therefore, it is the caller's responsibility to ensure that this is
+> + * safe. If not, then put_user_pages_dirty_lock() should be called instead.
+> + *
+> + * @pages:  array of pages to be marked dirty and released.
+> + * @npages: number of pages in the @pages array.
+> + *
+> + */
+> +void put_user_pages_dirty(struct page **pages, unsigned long npages)
+> +{
+> +	unsigned long index;
+> +
+> +	for (index = 0; index < npages; index++) {
+Do we need any checks on npages, npages <= (PUD_SHIFT - PAGE_SHIFT)?
 
-In case the pagetable has been allocated since activation of the
-address space it seems indeed not to be pinned yet. IMO this is not
-meant to be that way, but probably most kernel configs for 32-bit
-PV guests have NR_CPUS > 4, so they do use split ptlocks.
+> +		struct page *page = compound_head(pages[index]);
+> +
+> +		if (!PageDirty(page))
+> +			set_page_dirty(page);
+> +
+> +		put_user_page(page);
+> +	}
+> +}
+> +EXPORT_SYMBOL(put_user_pages_dirty);
+> +
+> +/*
+> + * put_user_pages_dirty_lock() - for each page in the @pages array, make
+> + * that page (or its head page, if a compound page) dirty, if it was
+> + * previously listed as clean. Then, release the page using
+> + * put_user_page().
+> + *
+> + * Please see the put_user_page() documentation for details.
+> + *
+> + * This is just like put_user_pages_dirty(), except that it invokes
+> + * set_page_dirty_lock(), instead of set_page_dirty().
+> + *
+> + * @pages:  array of pages to be marked dirty and released.
+> + * @npages: number of pages in the @pages array.
+> + *
+> + */
+> +void put_user_pages_dirty_lock(struct page **pages, unsigned long npages)
+> +{
+> +	unsigned long index;
+> +
+> +	for (index = 0; index < npages; index++) {
+> +		struct page *page = compound_head(pages[index]);
+> +
+> +		if (!PageDirty(page))
+> +			set_page_dirty_lock(page);
+> +
+> +		put_user_page(page);
+> +	}
+> +}
+> +EXPORT_SYMBOL(put_user_pages_dirty_lock);
+> +
 
-In fact this seems to be a bug as at deactivation of the address
-space the kernel will try to unpin the pagetable and the hypervisor
-would issue a warning if it has been built with debug messages
-enabled. Same applies to suspend()/resume() cycles.
+This can be collapsed w.r.t put_user_pages_dirty, a function pointer indirection
+for the locked vs unlocked case, not sure how that affects function optimization.
 
 
-Juergen
+> +/*
+> + * put_user_pages() - for each page in the @pages array, release the page
+> + * using put_user_page().
+> + *
+> + * Please see the put_user_page() documentation for details.
+> + *
+> + * This is just like put_user_pages_dirty(), except that it invokes
+> + * set_page_dirty_lock(), instead of set_page_dirty().
+
+The comment is incorrect.
+
+> + *
+> + * @pages:  array of pages to be marked dirty and released.
+> + * @npages: number of pages in the @pages array.
+> + *
+> + */
+> +void put_user_pages(struct page **pages, unsigned long npages)
+> +{
+> +	unsigned long index;
+> +
+> +	for (index = 0; index < npages; index++)
+> +		put_user_page(pages[index]);
+> +}
+
+Ditto in terms of code duplication
+
+How about
+
+for_each_page_index(index, npages) {
+	<do the dirty bits if needed>
+	put_user_pages(pages[index]
+}
+
+Then pass what you want the page iterator to do
+
+
+> +EXPORT_SYMBOL(put_user_pages);
+> +
+>  /*
+>   * get_kernel_pages() - pin kernel pages in memory
+>   * @kiov:	An array of struct kvec structures
+> -- 
+> 2.19.1
+> 
+
+Balbir Singh.
