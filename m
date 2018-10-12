@@ -1,91 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F1176B026D
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 13:18:34 -0400 (EDT)
-Received: by mail-oi1-f198.google.com with SMTP id 64-v6so8727532oii.1
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 10:18:34 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id q62-v6si830934oia.15.2018.10.12.10.18.33
-        for <linux-mm@kvack.org>;
-        Fri, 12 Oct 2018 10:18:33 -0700 (PDT)
-Subject: Re: [PATCH v6 07/18] arm64: KVM/mm: Move SEA handling behind a single
- 'claim' interface
-References: <20180921221705.6478-1-james.morse@arm.com>
- <20180921221705.6478-8-james.morse@arm.com> <20181012100212.GA580@zn.tnic>
-From: James Morse <james.morse@arm.com>
-Message-ID: <6cd00d26-df00-b5d9-5144-073672efe87a@arm.com>
-Date: Fri, 12 Oct 2018 18:18:28 +0100
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FF1F6B027B
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 13:24:25 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id p128-v6so12424016qke.13
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 10:24:25 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g30-v6si1405465qtd.208.2018.10.12.10.24.24
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 Oct 2018 10:24:24 -0700 (PDT)
+Date: Fri, 12 Oct 2018 13:24:22 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mm/thp: fix call to mmu_notifier in
+ set_pmd_migration_entry()
+Message-ID: <20181012172422.GA7395@redhat.com>
+References: <20181012160953.5841-1-jglisse@redhat.com>
+ <DB07F115-B404-4AB0-9D54-BC20C3A3F2B0@cs.rutgers.edu>
 MIME-Version: 1.0
-In-Reply-To: <20181012100212.GA580@zn.tnic>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <DB07F115-B404-4AB0-9D54-BC20C3A3F2B0@cs.rutgers.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: jglisse@redhat.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, David Nellans <dnellans@nvidia.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mgorman@techsingularity.net>, Minchan Kim <minchan@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
 
-Hi Boris,
+Hello,
 
-On 12/10/2018 11:02, Borislav Petkov wrote:
-> On Fri, Sep 21, 2018 at 11:16:54PM +0100, James Morse wrote:
->> To split up APEIs in_nmi() path, we need the nmi-like callers to always
->> be in_nmi(). Add a helper to do the work and claim the notification.
->>
->> When KVM or the arch code takes an exception that might be a RAS
->> notification, it asks the APEI firmware-first code whether it wants
->> to claim the exception. We can then go on to see if (a future)
->> kernel-first mechanism wants to claim the notification, before
->> falling through to the existing default behaviour.
->>
->> The NOTIFY_SEA code was merged before we had multiple, possibly
->> interacting, NMI-like notifications and the need to consider kernel
->> first in the future. Make the 'claiming' behaviour explicit.
->>
->> As we're restructuring the APEI code to allow multiple NMI-like
->> notifications, any notification that might interrupt interrupts-masked
->> code must always be wrapped in nmi_enter()/nmi_exit(). This allows APEI
->> to use in_nmi() to use the right fixmap entries.
->>
->> We mask SError over this window to prevent an asynchronous RAS error
->> arriving and tripping 'nmi_enter()'s BUG_ON(in_nmi()).
-
->> diff --git a/arch/arm64/kernel/acpi.c b/arch/arm64/kernel/acpi.c
->> index ed46dc188b22..a9b8bba014b5 100644
->> --- a/arch/arm64/kernel/acpi.c
->> +++ b/arch/arm64/kernel/acpi.c
->> @@ -257,3 +259,30 @@ pgprot_t __acpi_get_mem_attribute(phys_addr_t addr)
->>  		return __pgprot(PROT_NORMAL_NC);
->>  	return __pgprot(PROT_DEVICE_nGnRnE);
->>  }
->> +
->> +/*
->> + * Claim Synchronous External Aborts as a firmware first notification.
->> + *
->> + * Used by KVM and the arch do_sea handler.
->> + * @regs may be NULL when called from process context.
->> + */
->> +int apei_claim_sea(struct pt_regs *regs)
->> +{
->> +	int err = -ENOENT;
->> +	unsigned long current_flags = arch_local_save_flags();
->> +
->> +	if (!IS_ENABLED(CONFIG_ACPI_APEI_SEA))
->> +		return err;
+On Fri, Oct 12, 2018 at 12:20:54PM -0400, Zi Yan wrote:
+> On 12 Oct 2018, at 12:09, jglisse@redhat.com wrote:
 > 
-> I don't know what side effects arch_local_save_flags() has on ARM but if
+> > From: Jerome Glisse <jglisse@redhat.com>
+> >
+> > Inside set_pmd_migration_entry() we are holding page table locks and
+> > thus we can not sleep so we can not call invalidate_range_start/end()
+> >
+> > So remove call to mmu_notifier_invalidate_range_start/end() and add
+> > call to mmu_notifier_invalidate_range(). Note that we are already
 
-It reads the current 'masked' state for IRQs, debug exceptions and 'SError'.
+Why the call to mmu_notifier_invalidate_range if we're under
+range_start and followed by range_end? (it's not _range_only_end, if
+it was _range_only_end the above would be needed)
 
+> > calling mmu_notifier_invalidate_range_start/end() inside the function
+> > calling set_pmd_migration_entry() (see try_to_unmap_one()).
+> >
+> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> > Reported-by: Andrea Arcangeli <aarcange@redhat.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> > Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+> > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Cc: "H. Peter Anvin" <hpa@zytor.com>
+> > Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> > Cc: Dave Hansen <dave.hansen@intel.com>
+> > Cc: David Nellans <dnellans@nvidia.com>
+> > Cc: Ingo Molnar <mingo@elte.hu>
+> > Cc: Mel Gorman <mgorman@techsingularity.net>
+> > Cc: Minchan Kim <minchan@kernel.org>
+> > Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > Cc: Thomas Gleixner <tglx@linutronix.de>
+> > Cc: Vlastimil Babka <vbabka@suse.cz>
+> > Cc: Michal Hocko <mhocko@kernel.org>
+> > Cc: Andrea Arcangeli <aarcange@redhat.com>
+> > ---
+> >  mm/huge_memory.c | 7 +------
+> >  1 file changed, 1 insertion(+), 6 deletions(-)
+> >
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > index 533f9b00147d..93cb80fe12cb 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -2885,9 +2885,6 @@ void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
+> >  	if (!(pvmw->pmd && !pvmw->pte))
+> >  		return;
+> >
+> > -	mmu_notifier_invalidate_range_start(mm, address,
+> > -			address + HPAGE_PMD_SIZE);
+> > -
+> >  	flush_cache_range(vma, address, address + HPAGE_PMD_SIZE);
+> >  	pmdval = *pvmw->pmd;
+> >  	pmdp_invalidate(vma, address, pvmw->pmd);
+> > @@ -2898,11 +2895,9 @@ void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
+> >  	if (pmd_soft_dirty(pmdval))
+> >  		pmdswp = pmd_swp_mksoft_dirty(pmdswp);
+> >  	set_pmd_at(mm, address, pvmw->pmd, pmdswp);
+> > +	mmu_notifier_invalidate_range(mm, address, address + HPAGE_PMD_SIZE);
 
-> we return here, it looks to me like useless work.
+It's not obvious why it's needed, if it's needed maybe a comment can
+be added.
 
-Yes. I lazily assume the compiler will rip that out as the value is never used.
-But in this case it can't, because its wrapped in asm-volatile, so it doesn't
-know it has no side-effects.
+> >  	page_remove_rmap(page, true);
+> >  	put_page(page);
+> > -
+> > -	mmu_notifier_invalidate_range_end(mm, address,
+> > -			address + HPAGE_PMD_SIZE);
+> >  }
+> >
+> >  void remove_migration_pmd(struct page_vma_mapped_walk *pvmw, struct page *new)
+> > -- 
+> > 2.17.2
+> 
+> Yes, these are the redundant calls to mmu_notifier_invalidate_range_start/end()
+> in set_pmd_migration_entry(). Thanks for the patch.
 
-I'll move it further down.
+They're not just redundant, it's called in non blockable path with
+__mmu_notifier_invalidate_range_start(blockable=true).
 
-Thanks!
+Furthermore mmu notifier API doesn't support nesting.
 
-James
+KVM is actually robust against the nesting:
+
+	kvm->mmu_notifier_count++;
+
+	kvm->mmu_notifier_count--;
+
+and KVM is always fine with non blockable calls, but that's not
+universally true for all mmu notifier users.
+
+Thanks,
+Andrea
