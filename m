@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 385A86B0003
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 02:00:29 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id b22-v6so10554917pfc.18
-        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 23:00:29 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BBF966B0005
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 02:00:30 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id r134-v6so3145052pgr.19
+        for <linux-mm@kvack.org>; Thu, 11 Oct 2018 23:00:30 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k189-v6sor143935pgd.23.2018.10.11.23.00.27
+        by mx.google.com with SMTPS id y26-v6sor134907pfa.69.2018.10.11.23.00.29
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 11 Oct 2018 23:00:27 -0700 (PDT)
+        Thu, 11 Oct 2018 23:00:29 -0700 (PDT)
 From: john.hubbard@gmail.com
-Subject: [PATCH 0/6] RFC: gup+dma: tracking dma-pinned pages
-Date: Thu, 11 Oct 2018 23:00:08 -0700
-Message-Id: <20181012060014.10242-1-jhubbard@nvidia.com>
+Subject: [PATCH 1/6] mm: get_user_pages: consolidate error handling
+Date: Thu, 11 Oct 2018 23:00:09 -0700
+Message-Id: <20181012060014.10242-2-jhubbard@nvidia.com>
+In-Reply-To: <20181012060014.10242-1-jhubbard@nvidia.com>
+References: <20181012060014.10242-1-jhubbard@nvidia.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
@@ -22,74 +24,116 @@ Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-k
 
 From: John Hubbard <jhubbard@nvidia.com>
 
-Here is an updated proposal for tracking pages that have had
-get_user_pages*() called on them. This is in support of fixing the problem
-discussed in [1]. This RFC only shows how to set up a reliable
-PageDmaPinned flag. What to *do* with that flag is left for a later
-discussion.
+An upcoming patch requires a way to operate on each page that
+any of the get_user_pages_*() variants returns.
 
-I'm providing this in order to help the discussion about patches 1-3, which
-I'm hoping to check in first. The sequence would be:
+In preparation for that, consolidate the error handling for
+__get_user_pages(). This provides a single location (the "out:" label)
+for operating on the collected set of pages that are about to be returned.
 
-    -- apply patches 1-3, convert the rest of the subsystems to call
-       put_user_page*(), then
+As long every use of the "ret" variable is being edited, rename
+"ret" --> "err", so that its name matches its true role.
+This also gets rid of two shadowed variable declarations, as a
+tiny beneficial a side effect.
 
-    -- apply patches 4-6, then
+Reviewed-by: Jan Kara <jack@suse.cz>
+Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+---
+ mm/gup.c | 37 ++++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)
 
-    -- Apply more patches, to actually use the new PageDmaPinned flag.
-
-One question up front is, "how do we ensure that either put_user_page()
-or put_page() are called, depending on whether the page came from
-get_user_pages() or not?". From this series, you can see that:
-
-    -- It's possible to assert within put_user_page(), that we are in the
-       right place.
-
-    -- It's less clear that there is a way to assert within put_page(),
-       because put_page() is called from put_user_page(), and PageDmaPinned
-       may or may not be set--either case is valid.
-
-       Opinions and ideas are welcome there.
-
-This is a lightly tested example (it boots up on x86_64, and just lets the
-dma-pinned pages leak, in all non-infiniband cases...which is all cases, on
-my particular test computer). This series just does the following:
-
-a) Provides the put_user_page*() routines that have been discussed in
-   another thread (patch 2).
-
-b) Provides a single example of converting some code (infiniband) to use
-   those routines (patch 3).
-
-c) Connects up get_user_pages*() to use the new refcounting and flags
-   fieldsj (patches 4-6)
-
-[1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
-
-John Hubbard (6):
-  mm: get_user_pages: consolidate error handling
-  mm: introduce put_user_page*(), placeholder versions
-  infiniband/mm: convert put_page() to put_user_page*()
-  mm: introduce page->dma_pinned_flags, _count
-  mm: introduce zone_gup_lock, for dma-pinned pages
-  mm: track gup pages with page->dma_pinned_* fields
-
- drivers/infiniband/core/umem.c              |   7 +-
- drivers/infiniband/core/umem_odp.c          |   2 +-
- drivers/infiniband/hw/hfi1/user_pages.c     |  11 +-
- drivers/infiniband/hw/mthca/mthca_memfree.c |   6 +-
- drivers/infiniband/hw/qib/qib_user_pages.c  |  11 +-
- drivers/infiniband/hw/qib/qib_user_sdma.c   |   6 +-
- drivers/infiniband/hw/usnic/usnic_uiom.c    |   7 +-
- include/linux/mm.h                          |   9 ++
- include/linux/mm_types.h                    |  22 +++-
- include/linux/mmzone.h                      |   6 +
- include/linux/page-flags.h                  |  47 +++++++
- mm/gup.c                                    |  93 +++++++++++---
- mm/memcontrol.c                             |   7 +
- mm/page_alloc.c                             |   1 +
- mm/swap.c                                   | 134 ++++++++++++++++++++
- 15 files changed, 319 insertions(+), 50 deletions(-)
-
+diff --git a/mm/gup.c b/mm/gup.c
+index 1abc8b4afff6..05ee7c18e59a 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -660,6 +660,7 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		struct vm_area_struct **vmas, int *nonblocking)
+ {
+ 	long i = 0;
++	int err = 0;
+ 	unsigned int page_mask;
+ 	struct vm_area_struct *vma = NULL;
+ 
+@@ -685,18 +686,19 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		if (!vma || start >= vma->vm_end) {
+ 			vma = find_extend_vma(mm, start);
+ 			if (!vma && in_gate_area(mm, start)) {
+-				int ret;
+-				ret = get_gate_page(mm, start & PAGE_MASK,
++				err = get_gate_page(mm, start & PAGE_MASK,
+ 						gup_flags, &vma,
+ 						pages ? &pages[i] : NULL);
+-				if (ret)
+-					return i ? : ret;
++				if (err)
++					goto out;
+ 				page_mask = 0;
+ 				goto next_page;
+ 			}
+ 
+-			if (!vma || check_vma_flags(vma, gup_flags))
+-				return i ? : -EFAULT;
++			if (!vma || check_vma_flags(vma, gup_flags)) {
++				err = -EFAULT;
++				goto out;
++			}
+ 			if (is_vm_hugetlb_page(vma)) {
+ 				i = follow_hugetlb_page(mm, vma, pages, vmas,
+ 						&start, &nr_pages, i,
+@@ -709,23 +711,25 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		 * If we have a pending SIGKILL, don't keep faulting pages and
+ 		 * potentially allocating memory.
+ 		 */
+-		if (unlikely(fatal_signal_pending(current)))
+-			return i ? i : -ERESTARTSYS;
++		if (unlikely(fatal_signal_pending(current))) {
++			err = -ERESTARTSYS;
++			goto out;
++		}
+ 		cond_resched();
+ 		page = follow_page_mask(vma, start, foll_flags, &page_mask);
+ 		if (!page) {
+-			int ret;
+-			ret = faultin_page(tsk, vma, start, &foll_flags,
++			err = faultin_page(tsk, vma, start, &foll_flags,
+ 					nonblocking);
+-			switch (ret) {
++			switch (err) {
+ 			case 0:
+ 				goto retry;
+ 			case -EFAULT:
+ 			case -ENOMEM:
+ 			case -EHWPOISON:
+-				return i ? i : ret;
++				goto out;
+ 			case -EBUSY:
+-				return i;
++				err = 0;
++				goto out;
+ 			case -ENOENT:
+ 				goto next_page;
+ 			}
+@@ -737,7 +741,8 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			 */
+ 			goto next_page;
+ 		} else if (IS_ERR(page)) {
+-			return i ? i : PTR_ERR(page);
++			err = PTR_ERR(page);
++			goto out;
+ 		}
+ 		if (pages) {
+ 			pages[i] = page;
+@@ -757,7 +762,9 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		start += page_increm * PAGE_SIZE;
+ 		nr_pages -= page_increm;
+ 	} while (nr_pages);
+-	return i;
++
++out:
++	return i ? i : err;
+ }
+ 
+ static bool vma_permits_fault(struct vm_area_struct *vma,
 -- 
 2.19.1
