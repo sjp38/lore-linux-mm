@@ -1,59 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 100D96B0006
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 18:45:08 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id n8-v6so6248204yba.13
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 15:45:08 -0700 (PDT)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id m6-v6si915879ywd.259.2018.10.12.15.45.06
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 778216B0003
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 18:56:44 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id c4-v6so10544701plz.20
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 15:56:44 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id z29-v6si2529406pfl.209.2018.10.12.15.56.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Oct 2018 15:45:07 -0700 (PDT)
-Subject: Re: [PATCH 1/6] mm: get_user_pages: consolidate error handling
-References: <20181012060014.10242-1-jhubbard@nvidia.com>
- <20181012060014.10242-2-jhubbard@nvidia.com> <20181012063034.GI8537@350D>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <090e5019-b1b9-fdc5-73a1-902164400fe2@nvidia.com>
-Date: Fri, 12 Oct 2018 15:45:05 -0700
-MIME-Version: 1.0
-In-Reply-To: <20181012063034.GI8537@350D>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
+        Fri, 12 Oct 2018 15:56:43 -0700 (PDT)
+Date: Fri, 12 Oct 2018 15:56:41 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 201377] New: Kernel BUG under memory pressure: unable to
+ handle kernel NULL pointer dereference at 00000000000000f0
+Message-Id: <20181012155641.b3a1610b4ddcd37e374115d4@linux-foundation.org>
+In-Reply-To: <20181012155533.2f15a8bb35103aa1fa87962e@linux-foundation.org>
+References: <bug-201377-27@https.bugzilla.kernel.org/>
+	<20181012155533.2f15a8bb35103aa1fa87962e@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>, bugzilla-daemon@bugzilla.kernel.org, leozinho29_eu@hotmail.com
+Cc: linux-mm@kvack.org
 
-On 10/11/18 11:30 PM, Balbir Singh wrote:
-> On Thu, Oct 11, 2018 at 11:00:09PM -0700, john.hubbard@gmail.com wrote:
->> From: John Hubbard <jhubbard@nvidia.com>
->>
->> An upcoming patch requires a way to operate on each page that
->> any of the get_user_pages_*() variants returns.
->>
->> In preparation for that, consolidate the error handling for
->> __get_user_pages(). This provides a single location (the "out:" label)
->> for operating on the collected set of pages that are about to be returned.
->>
->> As long every use of the "ret" variable is being edited, rename
->> "ret" --> "err", so that its name matches its true role.
->> This also gets rid of two shadowed variable declarations, as a
->> tiny beneficial a side effect.
->>
->> Reviewed-by: Jan Kara <jack@suse.cz>
->> Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
->> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
->> ---
+(cc linux-mm, argh)
+
+On Fri, 12 Oct 2018 15:55:33 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+
 > 
-> Looks good, might not be needed but
-> Reviewed-by: Balbir Singh <bsingharora@gmail.com>
+> (switched to email.  Please respond via emailed reply-to-all, not via the
+> bugzilla web interface).
 > 
-
-Thanks for the review, very good to have another set of eyes on
-this one.
-
--- 
-thanks,
-John Hubbard
-NVIDIA
+> Vlastimil, it looks like your August 21 smaps changes are failing. 
+> This one is pretty urgent, please.
+> 
+> Leonardo (yes?): thanks for reporting.  Very helpful.
+> 
+> On Thu, 11 Oct 2018 18:13:31 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+> 
+> > https://bugzilla.kernel.org/show_bug.cgi?id=201377
+> > 
+> >             Bug ID: 201377
+> >            Summary: Kernel BUG under memory pressure: unable to handle
+> >                     kernel NULL pointer dereference at 00000000000000f0
+> >            Product: Memory Management
+> >            Version: 2.5
+> >     Kernel Version: 4.19-rc7
+> >           Hardware: All
+> >                 OS: Linux
+> >               Tree: Mainline
+> >             Status: NEW
+> >           Severity: normal
+> >           Priority: P1
+> >          Component: Other
+> >           Assignee: akpm@linux-foundation.org
+> >           Reporter: leozinho29_eu@hotmail.com
+> >         Regression: No
+> > 
+> > Created attachment 278997
+> >   --> https://bugzilla.kernel.org/attachment.cgi?id=278997&action=edit
+> > dmesg and kernel config
+> > 
+> > I'm using Xubuntu 18.04 and I noticed that under memory pressure the script
+> > from https://github.com/pixelb/ps_mem.git (HEAD
+> > 1ed0bc5519d889d58235f2c35db01e4ede0d8231is) causing a kernel BUG and locking a
+> > CPU. On dmesg the following appears:
+> > 
+> > BUG: unable to handle kernel NULL pointer dereference at 00000000000000f0
+> > 
+> > After this BUG the computer performance becomes greatly degraded, some software
+> > do not close, some fail to open, some fail to work properly. As an example,
+> > bash fails to autocomplete.
+> > 
+> > Steps to reproduce:
+> > 
+> > 1) Be under memory pressure. Using dd to write a large file at /dev/shm works
+> > for this;
+> > 2) Run the script from https://github.com/pixelb/ps_mem.git
+> > 
+> > Expected result: script will print information and system will keep working
+> > normally;
+> > 
+> > Observed result: script is killed, kernel BUG happens, CPU get stuck and
+> > computer presents problems.
+> > 
+> > I did not observe this with 4.17.19, I'll bisect and see if I can find which
+> > commit is causing this.
+> > 
+> > I'm sorry if I'm reporting to the wrong product and component.
+> > 
+> > -- 
+> > You are receiving this mail because:
+> > You are the assignee for the bug.
