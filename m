@@ -1,58 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E7A406B000E
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 07:14:10 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id j124-v6so6738113wmd.4
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 04:14:10 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTPS id p184-v6si944826wmp.160.2018.10.12.04.14.09
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DF82E6B0266
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 07:20:16 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id c33-v6so11789602qta.20
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 04:20:16 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d16sor980998qvd.28.2018.10.12.04.20.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Oct 2018 04:14:09 -0700 (PDT)
-Date: Fri, 12 Oct 2018 13:14:08 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v6 09/18] ACPI / APEI: Let the notification helper
- specify the fixmap slot
-Message-ID: <20181012111408.GC580@zn.tnic>
-References: <20180921221705.6478-1-james.morse@arm.com>
- <20180921221705.6478-10-james.morse@arm.com>
+        (Google Transport Security);
+        Fri, 12 Oct 2018 04:20:11 -0700 (PDT)
+Date: Fri, 12 Oct 2018 07:20:08 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC PATCH] memcg, oom: throttle dump_header for memcg ooms
+ without eligible tasks
+Message-ID: <20181012112008.GA27955@cmpxchg.org>
+References: <000000000000dc48d40577d4a587@google.com>
+ <20181010151135.25766-1-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180921221705.6478-10-james.morse@arm.com>
+In-Reply-To: <20181010151135.25766-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, Michal Hocko <mhocko@suse.com>, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, penguin-kernel@i-love.sakura.ne.jp, rientjes@google.com, yang.s@alibaba-inc.com
 
-On Fri, Sep 21, 2018 at 11:16:56PM +0100, James Morse wrote:
-> ghes_copy_tofrom_phys() uses a different fixmap slot depending on in_nmi().
-> This doesn't work when we have multiple NMI-like notifications, that
-> can interrupt each other.
+On Wed, Oct 10, 2018 at 05:11:35PM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> As with the locking, move the chosen fixmap_idx to the notification helper.
-> This only matters for NMI-like notifications, anything calling
-> ghes_proc() can use the IRQ fixmap slot as its already holding an irqsave
-> spinlock.
+> syzbot has noticed that it can trigger RCU stalls from the memcg oom
+> path:
+> RIP: 0010:dump_stack+0x358/0x3ab lib/dump_stack.c:118
+> Code: 74 0c 48 c7 c7 f0 f5 31 89 e8 9f 0e 0e fa 48 83 3d 07 15 7d 01 00 0f
+> 84 63 fe ff ff e8 1c 89 c9 f9 48 8b bd 70 ff ff ff 57 9d <0f> 1f 44 00 00
+> e8 09 89 c9 f9 48 8b 8d 68 ff ff ff b8 ff ff 37 00
+> RSP: 0018:ffff88017d3a5c70 EFLAGS: 00000246 ORIG_RAX: ffffffffffffff13
+> RAX: 0000000000040000 RBX: 1ffffffff1263ebe RCX: ffffc90001e5a000
+> RDX: 0000000000040000 RSI: ffffffff87b4e0f4 RDI: 0000000000000246
+> RBP: ffff88017d3a5d18 R08: ffff8801d7e02480 R09: fffffbfff13da030
+> R10: fffffbfff13da030 R11: 0000000000000003 R12: 1ffff1002fa74b96
+> R13: 00000000ffffffff R14: 0000000000000200 R15: 0000000000000000
+>   dump_header+0x27b/0xf72 mm/oom_kill.c:441
+>   out_of_memory.cold.30+0xf/0x184 mm/oom_kill.c:1109
+>   mem_cgroup_out_of_memory+0x15e/0x210 mm/memcontrol.c:1386
+>   mem_cgroup_oom mm/memcontrol.c:1701 [inline]
+>   try_charge+0xb7c/0x1710 mm/memcontrol.c:2260
+>   mem_cgroup_try_charge+0x627/0xe20 mm/memcontrol.c:5892
+>   mem_cgroup_try_charge_delay+0x1d/0xa0 mm/memcontrol.c:5907
+>   shmem_getpage_gfp+0x186b/0x4840 mm/shmem.c:1784
+>   shmem_fault+0x25f/0x960 mm/shmem.c:1982
+>   __do_fault+0x100/0x6b0 mm/memory.c:2996
+>   do_read_fault mm/memory.c:3408 [inline]
+>   do_fault mm/memory.c:3531 [inline]
 > 
-> This lets us collapse the ghes_ioremap_pfn_*() helpers.
+> The primary reason of the stall lies in an expensive printk handling
+> of oom report flood because a misconfiguration on the syzbot side
+> caused that there is simply no eligible task because they have
+> OOM_SCORE_ADJ_MIN set. This generates the oom report for each allocation
+> from the memcg context.
 > 
-> Signed-off-by: James Morse <james.morse@arm.com>
-> ---
+> While normal workloads should be much more careful about potential heavy
+> memory consumers that are OOM disabled it makes some sense to rate limit
+> a potentially expensive oom reports for cases when there is no eligible
+> victim found. Do that by moving the rate limit logic inside dump_header.
+> We no longer rely on the caller to do that. It was only oom_kill_process
+> which has been throttling. Other two call sites simply didn't have to
+> care because one just paniced on the OOM when configured that way and
+> no eligible task would panic for the global case as well. Memcg changed
+> the picture because we do not panic and we might have multiple sources
+> of the same event.
 > 
-> The fixmap-idx and vaddr are passed back to ghes_unmap()
-> to allow ioremap() to be used in process context in the
-> future.
-> ---
->  drivers/acpi/apei/ghes.c | 76 ++++++++++++++--------------------------
->  1 file changed, 27 insertions(+), 49 deletions(-)
+> Once we are here, make sure that the reason to trigger the OOM is
+> printed without ratelimiting because this is really valuable to
+> debug what happened.
+> 
+> Reported-by: syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com
+> Cc: guro@fb.com
+> Cc: hannes@cmpxchg.org
+> Cc: kirill.shutemov@linux.intel.com
+> Cc: linux-kernel@vger.kernel.org
+> Cc: penguin-kernel@i-love.sakura.ne.jp
+> Cc: rientjes@google.com
+> Cc: yang.s@alibaba-inc.com
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Nice.
+So not more than 10 dumps in each 5s interval. That looks reasonable
+to me. By the time it starts dropping data you have more than enough
+information to go on already.
 
-Reviewed-by: Borislav Petkov <bp@suse.de>
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
