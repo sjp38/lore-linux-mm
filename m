@@ -1,156 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 764E96B0007
-	for <linux-mm@kvack.org>; Sat, 13 Oct 2018 12:58:41 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id 2-v6so3448621oth.6
-        for <linux-mm@kvack.org>; Sat, 13 Oct 2018 09:58:41 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 390616B000A
+	for <linux-mm@kvack.org>; Sat, 13 Oct 2018 13:05:23 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id h21-v6so10476966oib.16
+        for <linux-mm@kvack.org>; Sat, 13 Oct 2018 10:05:23 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a11-v6sor2598162oia.15.2018.10.13.09.58.40
+        by mx.google.com with SMTPS id j187-v6sor2238437oif.166.2018.10.13.10.05.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 13 Oct 2018 09:58:40 -0700 (PDT)
+        Sat, 13 Oct 2018 10:05:22 -0700 (PDT)
 MIME-Version: 1.0
-References: <20181011221237.1925.85591.stgit@localhost.localdomain> <20181011221334.1925.31961.stgit@localhost.localdomain>
-In-Reply-To: <20181011221334.1925.31961.stgit@localhost.localdomain>
+References: <1539447319-5383-1-git-send-email-penghao122@sina.com.cn>
+In-Reply-To: <1539447319-5383-1-git-send-email-penghao122@sina.com.cn>
 From: Pavel Tatashin <pasha.tatashin@gmail.com>
-Date: Sat, 13 Oct 2018 12:58:03 -0400
-Message-ID: <CAGM2rebWT43mTrpsbiwqpioNa=K68OQp=fstBmgov3tdkXjPiQ@mail.gmail.com>
-Subject: Re: [mm PATCH v2 1/6] mm: Use mm_zero_struct_page from SPARC on all
- 64b architectures
+Date: Sat, 13 Oct 2018 13:04:45 -0400
+Message-ID: <CAGM2reYqEpY9KbMDU6uSaCuzsyN6qcXit930vbWk54PLhvZxZg@mail.gmail.com>
+Subject: Re: [PATCH] mm/sparse: remove a check that compare if unsigned
+ variable is negative
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: alexander.h.duyck@linux.intel.com
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Michal Hocko <mhocko@suse.com>, dave.jiang@intel.com, LKML <linux-kernel@vger.kernel.org>, willy@infradead.org, davem@davemloft.net, yi.z.zhang@linux.intel.com, khalid.aziz@oracle.com, rppt@linux.vnet.ibm.com, Vlastimil Babka <vbabka@suse.cz>, sparclinux@vger.kernel.org, dan.j.williams@intel.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mingo@kernel.org, kirill.shutemov@linux.intel.com
+To: penghao122@sina.com.cn
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, pasha.tatashin@oracle.com, osalvador@suse.de, LKML <linux-kernel@vger.kernel.org>, peng.hao2@zte.com.cn
 
-I am worried about this change. I added SPARC optimized
-mm_zero_struct_page() specifically to SPARC because it has a poor
-performance with small memset()s, since it uses STBI instructions.
-However, other architectures might not suffer with small memset()s,
-and have hardware optimized memset variants for small sizes. Don't
-forget, this is a leaf routine on most arches, so the function call
-should be cheap. Also, the macro itself is not very flexible: when
-size of struct page is changed, it also must be modified (we could add
-fall throughs though), I would add this macro only to those arches
-that benefit from this change, in other words, I would like to see
-performance data.
-
-I will review the rest of the patches in this series on Monday.
-
-Thank you,
-Pavel
-On Thu, Oct 11, 2018 at 6:17 PM Alexander Duyck
-<alexander.h.duyck@linux.intel.com> wrote:
+This is incorrect: next_present_section_nr() returns "int" and -1 no
+next section, this change would lead to infinite loop.
+On Sat, Oct 13, 2018 at 12:16 PM Peng Hao <penghao122@sina.com.cn> wrote:
 >
-> This change makes it so that we use the same approach that was already in
-> use on Sparc on all the archtectures that support a 64b long.
 >
-> This is mostly motivated by the fact that 8 to 10 store/move instructions
-> are likely always going to be faster than having to call into a function
-> that is not specialized for handling page init.
+> From: Peng Hao <peng.hao2@zte.com.cn>
 >
-> An added advantage to doing it this way is that the compiler can get away
-> with combining writes in the __init_single_page call. As a result the
-> memset call will be reduced to only about 4 write operations, or at least
-> that is what I am seeing with GCC 6.2 as the flags, LRU poitners, and
-> count/mapcount seem to be cancelling out at least 4 of the 8 assignments on
-> my system.
+> In all use locations for for_each_present_section_nr, variable
+> section_nr is unsigned. It is unnecessary to test if it is negative.
 >
-> One change I had to make to the function was to reduce the minimum page
-> size to 56 to support some powerpc64 configurations.
->
-> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> Signed-off-by: Peng Hao <peng.hao2@zte.com.cn>
 > ---
->  arch/sparc/include/asm/pgtable_64.h |   30 ------------------------------
->  include/linux/mm.h                  |   34 ++++++++++++++++++++++++++++++++++
->  2 files changed, 34 insertions(+), 30 deletions(-)
+>  mm/sparse.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
 >
-> diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-> index 1393a8ac596b..22500c3be7a9 100644
-> --- a/arch/sparc/include/asm/pgtable_64.h
-> +++ b/arch/sparc/include/asm/pgtable_64.h
-> @@ -231,36 +231,6 @@
->  extern struct page *mem_map_zero;
->  #define ZERO_PAGE(vaddr)       (mem_map_zero)
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 10b07ee..a6f9f22 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -196,8 +196,7 @@ static inline int next_present_section_nr(int section_nr)
+>  }
+>  #define for_each_present_section_nr(start, section_nr)         \
+>         for (section_nr = next_present_section_nr(start-1);     \
+> -            ((section_nr >= 0) &&                              \
+> -             (section_nr <= __highest_present_section_nr));    \
+> +            section_nr <= __highest_present_section_nr;        \
+>              section_nr = next_present_section_nr(section_nr))
 >
-> -/* This macro must be updated when the size of struct page grows above 80
-> - * or reduces below 64.
-> - * The idea that compiler optimizes out switch() statement, and only
-> - * leaves clrx instructions
-> - */
-> -#define        mm_zero_struct_page(pp) do {                                    \
-> -       unsigned long *_pp = (void *)(pp);                              \
-> -                                                                       \
-> -        /* Check that struct page is either 64, 72, or 80 bytes */     \
-> -       BUILD_BUG_ON(sizeof(struct page) & 7);                          \
-> -       BUILD_BUG_ON(sizeof(struct page) < 64);                         \
-> -       BUILD_BUG_ON(sizeof(struct page) > 80);                         \
-> -                                                                       \
-> -       switch (sizeof(struct page)) {                                  \
-> -       case 80:                                                        \
-> -               _pp[9] = 0;     /* fallthrough */                       \
-> -       case 72:                                                        \
-> -               _pp[8] = 0;     /* fallthrough */                       \
-> -       default:                                                        \
-> -               _pp[7] = 0;                                             \
-> -               _pp[6] = 0;                                             \
-> -               _pp[5] = 0;                                             \
-> -               _pp[4] = 0;                                             \
-> -               _pp[3] = 0;                                             \
-> -               _pp[2] = 0;                                             \
-> -               _pp[1] = 0;                                             \
-> -               _pp[0] = 0;                                             \
-> -       }                                                               \
-> -} while (0)
-> -
->  /* PFNs are real physical page numbers.  However, mem_map only begins to record
->   * per-page information starting at pfn_base.  This is to handle systems where
->   * the first physical page in the machine is at some huge physical address,
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 273d4dbd3883..dee407998366 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -102,8 +102,42 @@ static inline void set_max_mapnr(unsigned long limit) { }
->   * zeroing by defining this macro in <asm/pgtable.h>.
->   */
->  #ifndef mm_zero_struct_page
-> +#if BITS_PER_LONG == 64
-> +/* This function must be updated when the size of struct page grows above 80
-> + * or reduces below 64. The idea that compiler optimizes out switch()
-> + * statement, and only leaves move/store instructions
-> + */
-> +#define        mm_zero_struct_page(pp) __mm_zero_struct_page(pp)
-> +static inline void __mm_zero_struct_page(struct page *page)
-> +{
-> +       unsigned long *_pp = (void *)page;
-> +
-> +        /* Check that struct page is either 56, 64, 72, or 80 bytes */
-> +       BUILD_BUG_ON(sizeof(struct page) & 7);
-> +       BUILD_BUG_ON(sizeof(struct page) < 56);
-> +       BUILD_BUG_ON(sizeof(struct page) > 80);
-> +
-> +       switch (sizeof(struct page)) {
-> +       case 80:
-> +               _pp[9] = 0;     /* fallthrough */
-> +       case 72:
-> +               _pp[8] = 0;     /* fallthrough */
-> +       default:
-> +               _pp[7] = 0;     /* fallthrough */
-> +       case 56:
-> +               _pp[6] = 0;
-> +               _pp[5] = 0;
-> +               _pp[4] = 0;
-> +               _pp[3] = 0;
-> +               _pp[2] = 0;
-> +               _pp[1] = 0;
-> +               _pp[0] = 0;
-> +       }
-> +}
-> +#else
->  #define mm_zero_struct_page(pp)  ((void)memset((pp), 0, sizeof(struct page)))
->  #endif
-> +#endif
+>  static inline unsigned long first_present_section_nr(void)
+> --
+> 1.8.3.1
 >
->  /*
->   * Default maximum number of active map areas, this limits the number of vmas
 >
