@@ -1,46 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B15E6B0269
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 21:32:30 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id z12-v6so13590535pfl.17
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 18:32:30 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 64D746B0006
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 21:35:44 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id 87-v6so13558624pfq.8
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 18:35:44 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o12-v6sor2371368plg.19.2018.10.12.18.32.28
+        by mx.google.com with SMTPS id b32-v6sor2363052pla.12.2018.10.12.18.35.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 12 Oct 2018 18:32:29 -0700 (PDT)
-From: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-Subject: [PATCH 4/4] x86: select HAVE_MOVE_PMD for faster mremap (v1)
-Date: Fri, 12 Oct 2018 18:32:00 -0700
-Message-Id: <20181013013200.206928-5-joel@joelfernandes.org>
-In-Reply-To: <20181013013200.206928-1-joel@joelfernandes.org>
-References: <20181013013200.206928-1-joel@joelfernandes.org>
+        Fri, 12 Oct 2018 18:35:43 -0700 (PDT)
+Date: Fri, 12 Oct 2018 18:35:40 -0700
+From: Joel Fernandes <joel@joelfernandes.org>
+Subject: Re: [PATCH v2 2/2] mm: speed up mremap by 500x on large regions
+Message-ID: <20181013013540.GA207108@joelaf.mtv.corp.google.com>
+References: <20181012013756.11285-2-joel@joelfernandes.org>
+ <20181012113056.gxhcbrqyu7k7xnyv@kshutemo-mobl1>
+ <20181012125046.GA170912@joelaf.mtv.corp.google.com>
+ <20181012.111836.1569129998592378186.davem@davemloft.net>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181012.111836.1569129998592378186.davem@davemloft.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: kernel-team@android.com, "Joel Fernandes (Google)" <joel@joelfernandes.org>, akpm@linux-foundation.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, anton.ivanov@kot-begemot.co.uk, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, dancol@google.com, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, elfring@users.sourceforge.net, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, hughd@google.com, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, Julia Lawall <Julia.Lawall@lip6.fr>, kasan-dev@googlegroups.com, "Kirill A. Shutemov" <kirill@shutemov.name>, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, lokeshgidra@google.com, Max Filippov <jcmvbkbc@gmail.com>, mhocko@kernel.org, minchan@kernel.org, nios2-dev@lists.rocketboards.org, pantin@google.com, Peter Zijlstra <peterz@infradead.org>, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE 32-BIT AND 64-BIT" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>
+To: David Miller <davem@davemloft.net>
+Cc: kirill@shutemov.name, linux-kernel@vger.kernel.org, kernel-team@android.com, minchan@kernel.org, pantin@google.com, hughd@google.com, lokeshgidra@google.com, dancol@google.com, mhocko@kernel.org, akpm@linux-foundation.org, aryabinin@virtuozzo.com, luto@kernel.org, bp@alien8.de, catalin.marinas@arm.com, chris@zankel.net, dave.hansen@linux.intel.com, elfring@users.sourceforge.net, fenghua.yu@intel.com, geert@linux-m68k.org, gxt@pku.edu.cn, deller@gmx.de, mingo@redhat.com, jejb@parisc-linux.org, jdike@addtoit.com, jonas@southpole.se, Julia.Lawall@lip6.fr, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, lftan@altera.com, linux-alpha@vger.kernel.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, jcmvbkbc@gmail.com, nios2-dev@lists.rocketboards.org, peterz@infradead.org, richard@nod.at
 
-Moving page-tables at the PMD-level on x86 is known to be safe. Enable
-this option so that we can do fast mremap when possible.
+On Fri, Oct 12, 2018 at 11:18:36AM -0700, David Miller wrote:
+> From: Joel Fernandes <joel@joelfernandes.org>
+[...]
+> > Also, do we not flush the caches from any path when we munmap
+> > address space?  We do call do_munmap on the old mapping from mremap
+> > after moving to the new one.
+> 
+> Sparc makes sure that shared mapping have consistent colors.  Therefore
+> all that's left are private mappings and those will be initialized by
+> block stores to clear the page out or similar.
+> 
+> Also, when creating new mappings, we flush the D-cache when necessary
+> in update_mmu_cache().
+> 
+> We also maintain a bit in the page struct to track when a page which
+> was potentially written to on one cpu ends up mapped into another
+> address space and flush as necessary.
+> 
+> The cache is write-through, which simplifies the preconditions we have
+> to maintain.
 
-Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
----
- arch/x86/Kconfig | 1 +
- 1 file changed, 1 insertion(+)
+Makes sense, thanks. For the moment I sent patches to enable this on arm64
+and x86. We can enable it on sparc as well at a later time as it sounds it
+could be a safe optimization to apply to that architecture as well.
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 1a0be022f91d..01c02a9d7825 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -171,6 +171,7 @@ config X86
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_MIXED_BREAKPOINTS_REGS
- 	select HAVE_MOD_ARCH_SPECIFIC
-+	select HAVE_MOVE_PMD
- 	select HAVE_NMI
- 	select HAVE_OPROFILE
- 	select HAVE_OPTPROBES
--- 
-2.19.0.605.g01d371f741-goog
+thanks,
+
+ - Joel
