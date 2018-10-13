@@ -1,99 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BF026B0008
-	for <linux-mm@kvack.org>; Sat, 13 Oct 2018 07:29:08 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id f62-v6so10048894oia.2
-        for <linux-mm@kvack.org>; Sat, 13 Oct 2018 04:29:08 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id h67si1947959otb.45.2018.10.13.04.29.07
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 118836B0003
+	for <linux-mm@kvack.org>; Sat, 13 Oct 2018 09:00:37 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id e7-v6so8686638edb.23
+        for <linux-mm@kvack.org>; Sat, 13 Oct 2018 06:00:37 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x7-v6si3764341edx.76.2018.10.13.06.00.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 13 Oct 2018 04:29:07 -0700 (PDT)
-Subject: Re: [RFC PATCH] memcg, oom: throttle dump_header for memcg ooms
- without eligible tasks
-References: <000000000000dc48d40577d4a587@google.com>
- <20181010151135.25766-1-mhocko@kernel.org>
- <20181012112008.GA27955@cmpxchg.org> <20181012120858.GX5873@dhcp22.suse.cz>
- <9174f087-3f6f-f0ed-6009-509d4436a47a@i-love.sakura.ne.jp>
- <20181012124137.GA29330@cmpxchg.org>
- <0417c888-d74e-b6ae-a8f0-234cbde03d38@i-love.sakura.ne.jp>
- <bb2074c0-34fe-8c2c-1c7d-db71338f1e7f@i-love.sakura.ne.jp>
- <20181013112238.GA762@cmpxchg.org>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <b61b2e60-d899-90c6-579a-587815cebff6@i-love.sakura.ne.jp>
-Date: Sat, 13 Oct 2018 20:28:38 +0900
+        Sat, 13 Oct 2018 06:00:34 -0700 (PDT)
+Subject: Re: [Bug 201377] New: Kernel BUG under memory pressure: unable to
+ handle kernel NULL pointer dereference at 00000000000000f0
+References: <bug-201377-27@https.bugzilla.kernel.org/>
+ <20181012155533.2f15a8bb35103aa1fa87962e@linux-foundation.org>
+ <20181012155641.b3a1610b4ddcd37e374115d4@linux-foundation.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <9f77da23-2a46-29a5-6aa7-fe9e7cca1056@suse.cz>
+Date: Sat, 13 Oct 2018 14:57:50 +0200
 MIME-Version: 1.0
-In-Reply-To: <20181013112238.GA762@cmpxchg.org>
+In-Reply-To: <20181012155641.b3a1610b4ddcd37e374115d4@linux-foundation.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>
+To: Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, leozinho29_eu@hotmail.com
+Cc: linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On 2018/10/13 20:22, Johannes Weiner wrote:
-> On Sat, Oct 13, 2018 at 08:09:30PM +0900, Tetsuo Handa wrote:
->> ---------- Michal's patch ----------
->>
->> 73133 lines (5.79MB) of kernel messages per one run
->>
->> [root@ccsecurity ~]# time ./a.out
->>
->> real    3m44.389s
->> user    0m0.000s
->> sys     3m42.334s
->>
->> [root@ccsecurity ~]# time ./a.out
->>
->> real    3m41.767s
->> user    0m0.004s
->> sys     3m39.779s
->>
->> ---------- My v2 patch ----------
->>
->> 50 lines (3.40 KB) of kernel messages per one run
->>
->> [root@ccsecurity ~]# time ./a.out
->>
->> real    0m5.227s
->> user    0m0.000s
->> sys     0m4.950s
->>
->> [root@ccsecurity ~]# time ./a.out
->>
->> real    0m5.249s
->> user    0m0.000s
->> sys     0m4.956s
+On 10/13/18 12:56 AM, Andrew Morton wrote:
+> (cc linux-mm, argh)
 > 
-> Your patch is suppressing information that I want to have and my
-> console can handle, just because your console is slow, even though
-> there is no need to use that console at that log level.
-
-My patch is not suppressing information you want to have.
-My patch is mainly suppressing
-
-[   52.393146] Out of memory and no killable processes...
-[   52.395195] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
-[   52.398623] Out of memory and no killable processes...
-[   52.401195] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
-[   52.404356] Out of memory and no killable processes...
-[   52.406492] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
-[   52.409595] Out of memory and no killable processes...
-[   52.411745] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
-[   52.415588] Out of memory and no killable processes...
-[   52.418484] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
-[   52.421904] Out of memory and no killable processes...
-[   52.424273] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
-
-lines which Michal's patch cannot suppress.
-
-Also, my console is console=ttyS0,115200n8 . Not slow at all.
-
+> On Fri, 12 Oct 2018 15:55:33 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
 > 
-> NAK to your patch. I think you're looking at this from the wrong
-> angle. A console that takes almost 4 minutes to print 70k lines
-> shouldn't be the baseline for how verbose KERN_INFO is.
-> 
+>>
+>> (switched to email.  Please respond via emailed reply-to-all, not via the
+>> bugzilla web interface).
+>>
+>> Vlastimil, it looks like your August 21 smaps changes are failing. 
+>> This one is pretty urgent, please.
 
-Run the testcase in your environment.
+Thanks, will look in few hours. Glad that there will be rc8...
+
+>> Leonardo (yes?): thanks for reporting.  Very helpful.
+>>
+>> On Thu, 11 Oct 2018 18:13:31 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+>>
+>>> https://bugzilla.kernel.org/show_bug.cgi?id=201377
+>>>
+>>>             Bug ID: 201377
+>>>            Summary: Kernel BUG under memory pressure: unable to handle
+>>>                     kernel NULL pointer dereference at 00000000000000f0
+>>>            Product: Memory Management
+>>>            Version: 2.5
+>>>     Kernel Version: 4.19-rc7
+>>>           Hardware: All
+>>>                 OS: Linux
+>>>               Tree: Mainline
+>>>             Status: NEW
+>>>           Severity: normal
+>>>           Priority: P1
+>>>          Component: Other
+>>>           Assignee: akpm@linux-foundation.org
+>>>           Reporter: leozinho29_eu@hotmail.com
+>>>         Regression: No
+>>>
+>>> Created attachment 278997
+>>>   --> https://bugzilla.kernel.org/attachment.cgi?id=278997&action=edit
+>>> dmesg and kernel config
+>>>
+>>> I'm using Xubuntu 18.04 and I noticed that under memory pressure the script
+>>> from https://github.com/pixelb/ps_mem.git (HEAD
+>>> 1ed0bc5519d889d58235f2c35db01e4ede0d8231is) causing a kernel BUG and locking a
+>>> CPU. On dmesg the following appears:
+>>>
+>>> BUG: unable to handle kernel NULL pointer dereference at 00000000000000f0
+>>>
+>>> After this BUG the computer performance becomes greatly degraded, some software
+>>> do not close, some fail to open, some fail to work properly. As an example,
+>>> bash fails to autocomplete.
+>>>
+>>> Steps to reproduce:
+>>>
+>>> 1) Be under memory pressure. Using dd to write a large file at /dev/shm works
+>>> for this;
+>>> 2) Run the script from https://github.com/pixelb/ps_mem.git
+>>>
+>>> Expected result: script will print information and system will keep working
+>>> normally;
+>>>
+>>> Observed result: script is killed, kernel BUG happens, CPU get stuck and
+>>> computer presents problems.
+>>>
+>>> I did not observe this with 4.17.19, I'll bisect and see if I can find which
+>>> commit is causing this.
+>>>
+>>> I'm sorry if I'm reporting to the wrong product and component.
+>>>
+>>> -- 
+>>> You are receiving this mail because:
+>>> You are the assignee for the bug.
