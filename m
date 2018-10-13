@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C52746B0273
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 20:06:51 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id n188-v6so13344439qke.6
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 17:06:51 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id l15-v6si467239qkj.184.2018.10.12.17.06.50
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ED8616B0274
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 20:06:56 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id i64-v6so13794502qtb.21
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 17:06:56 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id n79-v6si2385303qkl.244.2018.10.12.17.06.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Oct 2018 17:06:51 -0700 (PDT)
-Subject: [PATCH 09/25] vfs: rename clone_verify_area to remap_verify_area
+        Fri, 12 Oct 2018 17:06:56 -0700 (PDT)
+Subject: [PATCH 10/25] vfs: create generic_remap_file_range_touch to update
+ inode metadata
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Fri, 12 Oct 2018 17:06:45 -0700
-Message-ID: <153938920501.8361.2713830760292171099.stgit@magnolia>
+Date: Fri, 12 Oct 2018 17:06:51 -0700
+Message-ID: <153938921180.8361.13556945128095535605.stgit@magnolia>
 In-Reply-To: <153938912912.8361.13446310416406388958.stgit@magnolia>
 References: <153938912912.8361.13446310416406388958.stgit@magnolia>
 MIME-Version: 1.0
@@ -25,58 +26,125 @@ Cc: sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, A
 
 From: Darrick J. Wong <darrick.wong@oracle.com>
 
-Since we use clone_verify_area for both clone and dedupe range checks,
-rename the function to make it clear that it's for both.
+Create a new VFS helper to handle inode metadata updates when remapping
+into a file.  If the operation can possibly alter the file contents, we
+must update the ctime and mtime and remove security privileges, just
+like we do for regular file writes.  Wire up ocfs2 to ensure consistent
+behavior.
 
 Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 Reviewed-by: Amir Goldstein <amir73il@gmail.com>
 ---
- fs/read_write.c |   10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ fs/ocfs2/refcounttree.c |    8 ++++++++
+ fs/read_write.c         |   24 ++++++++++++++++++++++++
+ fs/xfs/xfs_reflink.c    |   29 +++++++----------------------
+ include/linux/fs.h      |    1 +
+ 4 files changed, 40 insertions(+), 22 deletions(-)
 
 
+diff --git a/fs/ocfs2/refcounttree.c b/fs/ocfs2/refcounttree.c
+index 36c56dfbe485..ee1ed11379b3 100644
+--- a/fs/ocfs2/refcounttree.c
++++ b/fs/ocfs2/refcounttree.c
+@@ -4855,6 +4855,14 @@ int ocfs2_reflink_remap_range(struct file *file_in,
+ 	if (ret <= 0)
+ 		goto out_unlock;
+ 
++	/*
++	 * Update inode timestamps and remove security privileges before we
++	 * take the ilock.
++	 */
++	ret = generic_remap_file_range_touch(file_out, is_dedupe);
++	if (ret)
++		goto out_unlock;
++
+ 	/* Lock out changes to the allocation maps and remap. */
+ 	down_write(&OCFS2_I(inode_in)->ip_alloc_sem);
+ 	if (!same_inode)
 diff --git a/fs/read_write.c b/fs/read_write.c
-index 65285524e4c3..ff6fcb3b99dd 100644
+index ff6fcb3b99dd..7b837d12f75d 100644
 --- a/fs/read_write.c
 +++ b/fs/read_write.c
-@@ -1686,7 +1686,7 @@ SYSCALL_DEFINE6(copy_file_range, int, fd_in, loff_t __user *, off_in,
- 	return ret;
+@@ -1806,6 +1806,30 @@ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
  }
+ EXPORT_SYMBOL(generic_remap_file_range_prep);
  
--static int clone_verify_area(struct file *file, loff_t pos, u64 len, bool write)
-+static int remap_verify_area(struct file *file, loff_t pos, u64 len, bool write)
++/* Update inode timestamps and remove security privileges when remapping. */
++int generic_remap_file_range_touch(struct file *file, bool is_dedupe)
++{
++	int ret;
++
++	/* If can't alter the file contents, we're done. */
++	if (is_dedupe)
++		return 0;
++
++	/* Update the timestamps, since we can alter file contents. */
++	if (!(file->f_mode & FMODE_NOCMTIME)) {
++		ret = file_update_time(file);
++		if (ret)
++			return ret;
++	}
++
++	/*
++	 * Clear the security bits if the process is not being run by root.
++	 * This keeps people from modifying setuid and setgid binaries.
++	 */
++	return file_remove_privs(file);
++}
++EXPORT_SYMBOL(generic_remap_file_range_touch);
++
+ int do_clone_file_range(struct file *file_in, loff_t pos_in,
+ 			struct file *file_out, loff_t pos_out, u64 len)
  {
- 	struct inode *inode = file_inode(file);
+diff --git a/fs/xfs/xfs_reflink.c b/fs/xfs/xfs_reflink.c
+index a7757a128a78..99f2ea4fcaba 100644
+--- a/fs/xfs/xfs_reflink.c
++++ b/fs/xfs/xfs_reflink.c
+@@ -1371,28 +1371,13 @@ xfs_reflink_remap_prep(
+ 	truncate_inode_pages_range(&inode_out->i_data, pos_out,
+ 				   PAGE_ALIGN(pos_out + *len) - 1);
  
-@@ -1834,11 +1834,11 @@ int do_clone_file_range(struct file *file_in, loff_t pos_in,
- 	if (!file_in->f_op->remap_file_range)
- 		return -EOPNOTSUPP;
+-	/* If we're altering the file contents... */
+-	if (!is_dedupe) {
+-		/*
+-		 * ...update the timestamps (which will grab the ilock again
+-		 * from xfs_fs_dirty_inode, so we have to call it before we
+-		 * take the ilock).
+-		 */
+-		if (!(file_out->f_mode & FMODE_NOCMTIME)) {
+-			ret = file_update_time(file_out);
+-			if (ret)
+-				goto out_unlock;
+-		}
+-
+-		/*
+-		 * ...clear the security bits if the process is not being run
+-		 * by root.  This keeps people from modifying setuid and setgid
+-		 * binaries.
+-		 */
+-		ret = file_remove_privs(file_out);
+-		if (ret)
+-			goto out_unlock;
+-	}
++	/*
++	 * Update inode timestamps and remove security privileges before we
++	 * take the ilock.
++	 */
++	ret = generic_remap_file_range_touch(file_out, is_dedupe);
++	if (ret)
++		goto out_unlock;
  
--	ret = clone_verify_area(file_in, pos_in, len, false);
-+	ret = remap_verify_area(file_in, pos_in, len, false);
- 	if (ret)
- 		return ret;
- 
--	ret = clone_verify_area(file_out, pos_out, len, true);
-+	ret = remap_verify_area(file_out, pos_out, len, true);
- 	if (ret)
- 		return ret;
- 
-@@ -1971,7 +1971,7 @@ int vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
- 	if (ret)
- 		return ret;
- 
--	ret = clone_verify_area(dst_file, dst_pos, len, true);
-+	ret = remap_verify_area(dst_file, dst_pos, len, true);
- 	if (ret < 0)
- 		goto out_drop_write;
- 
-@@ -2033,7 +2033,7 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
- 	if (!S_ISREG(src->i_mode))
- 		goto out;
- 
--	ret = clone_verify_area(file, off, len, false);
-+	ret = remap_verify_area(file, off, len, false);
- 	if (ret < 0)
- 		goto out;
- 	ret = 0;
+ 	return 1;
+ out_unlock:
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 686905be04c0..91fd3c77763b 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1847,6 +1847,7 @@ extern ssize_t vfs_copy_file_range(struct file *, loff_t , struct file *,
+ extern int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
+ 					 struct file *file_out, loff_t pos_out,
+ 					 u64 *count, bool is_dedupe);
++extern int generic_remap_file_range_touch(struct file *file, bool is_dedupe);
+ extern int do_clone_file_range(struct file *file_in, loff_t pos_in,
+ 			       struct file *file_out, loff_t pos_out, u64 len);
+ extern int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
