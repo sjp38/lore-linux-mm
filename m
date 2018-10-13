@@ -1,62 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 712696B0006
-	for <linux-mm@kvack.org>; Sat, 13 Oct 2018 09:51:08 -0400 (EDT)
-Received: by mail-it1-f199.google.com with SMTP id v125-v6so16988853ita.7
-        for <linux-mm@kvack.org>; Sat, 13 Oct 2018 06:51:08 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id u67-v6si3537604ith.116.2018.10.13.06.51.07
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C9656B0005
+	for <linux-mm@kvack.org>; Sat, 13 Oct 2018 11:12:17 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id f4-v6so14873414pff.2
+        for <linux-mm@kvack.org>; Sat, 13 Oct 2018 08:12:17 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 19-v6si4672552pgh.6.2018.10.13.08.12.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 13 Oct 2018 06:51:07 -0700 (PDT)
-Date: Sat, 13 Oct 2018 15:50:58 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] mm/kasan: make quarantine_lock a raw_spinlock_t
-Message-ID: <20181013135058.GC4931@worktop.programming.kicks-ass.net>
-References: <20181005163320.zkacovxvlih6blpp@linutronix.de>
- <CACT4Y+YoNCm=0C6PZtQR1V1j4QeQ0cFcJzpJF1hn34Oaht=jwg@mail.gmail.com>
- <20181009142742.ikh7xv2dn5skjjbe@linutronix.de>
- <CACT4Y+ZB38pKvT8+BAjDZ1t4ZjXQQKoya+ytXT+ASQxHUkWwnA@mail.gmail.com>
- <20181010092929.a5gd3fkkw6swco4c@linutronix.de>
- <CACT4Y+agGPSTZ-8A8r8haSeRM8UpRYMAF8BC4A87yeM9nvpP6w@mail.gmail.com>
- <20181010095343.6qxved3owi6yokoa@linutronix.de>
- <CACT4Y+ZpMjYBPS0GHP0AsEJZZmDjwV9DJBiVUzYKBnD+r9W4+A@mail.gmail.com>
- <20181010214945.5owshc3mlrh74z4b@linutronix.de>
- <20181012165655.f067886428a394dc7fbae7af@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 13 Oct 2018 08:12:16 -0700 (PDT)
+Received: from mail-wm1-f53.google.com (mail-wm1-f53.google.com [209.85.128.53])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 2FD0321524
+	for <linux-mm@kvack.org>; Sat, 13 Oct 2018 15:12:15 +0000 (UTC)
+Received: by mail-wm1-f53.google.com with SMTP id y11-v6so14831756wma.3
+        for <linux-mm@kvack.org>; Sat, 13 Oct 2018 08:12:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181012165655.f067886428a394dc7fbae7af@linux-foundation.org>
+References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
+ <1531906876-13451-11-git-send-email-joro@8bytes.org> <97421241-2bc4-c3f1-4128-95b3e8a230d1@siemens.com>
+ <35a24feb-5970-aa03-acbf-53428a159ace@web.de>
+In-Reply-To: <35a24feb-5970-aa03-acbf-53428a159ace@web.de>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Sat, 13 Oct 2018 08:12:01 -0700
+Message-ID: <CALCETrWveao7jthnfKr5F=UyEpyowP0VA20eZi5OxizgT05EDA@mail.gmail.com>
+Subject: Re: [PATCH] x86/entry/32: Fix setup of CS high bits
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Clark Williams <williams@redhat.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rt-users@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>
+To: jan.kiszka@web.de
+Cc: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Fri, Oct 12, 2018 at 04:56:55PM -0700, Andrew Morton wrote:
-> There are several reasons for using raw_*, so an explanatory comment at
-> each site is called for.
-> 
-> However it would be smarter to stop "using raw_* for several reasons". 
-> Instead, create a differently named variant for each such reason.  ie, do
-> 
-> /*
->  * Nice comment goes here.  It explains all the possible reasons why -rt
->  * might use a raw_spin_lock when a spin_lock could otherwise be used.
->  */
-> #define raw_spin_lock_for_rt	raw_spinlock
-> 
-> Then use raw_spin_lock_for_rt() at all such sites.
+On Sat, Oct 13, 2018 at 3:02 AM Jan Kiszka <jan.kiszka@web.de> wrote:
+>
+> From: Jan Kiszka <jan.kiszka@siemens.com>
+>
+> Even if we are not on an entry stack, we have to initialize the CS high
+> bits because we are unconditionally evaluating them
+> PARANOID_EXIT_TO_KERNEL_MODE. Failing to do so broke the boot on Galileo
+> Gen2 and IOT2000 boards.
+>
+> Fixes: b92a165df17e ("x86/entry/32: Handle Entry from Kernel-Mode on Entry-Stack")
+> Signed-off-by: Jan Kiszka <jan.kiszka@siemens.com>
+> ---
+>  arch/x86/entry/entry_32.S | 12 ++++++------
+>  1 file changed, 6 insertions(+), 6 deletions(-)
+>
+> diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+> index 2767c625a52c..95c94d48ecd2 100644
+> --- a/arch/x86/entry/entry_32.S
+> +++ b/arch/x86/entry/entry_32.S
+> @@ -389,6 +389,12 @@
+>          * that register for the time this macro runs
+>          */
+>
+> +       /*
+> +        * Clear unused upper bits of the dword containing the word-sized CS
+> +        * slot in pt_regs in case hardware didn't clear it for us.
+> +        */
+> +       andl    $(0x0000ffff), PT_CS(%esp)
+> +
 
-The whole raw_spinlock_t is for RT, no other reason. It is the one true
-spinlock.
+Please improve the comment. Since commit:
 
->From this, it naturally follows that:
+commit 385eca8f277c4c34f361a4c3a088fd876d29ae21
+Author: Andy Lutomirski <luto@kernel.org>
+Date:   Fri Jul 28 06:00:30 2017 -0700
 
- - nesting order: raw_spinlock_t < spinlock_t < mutex_t
- - raw_spinlock_t sections must be bounded
+    x86/asm/32: Make pt_regs's segment registers be 16 bits
 
-The patch under discussion is the result of the nesting order rule; and
-is allowed to violate the second rule, by virtue of it being debug code.
+Those fields are genuinely 16 bit.  So the comment should say
+something like "Those high bits are used for CS_FROM_ENTRY_STACK and
+CS_FROM_USER_CR3".
 
-There are no other reasons; and I'm somewhat confused by what you
-propose.
+Also, can you fold something like this in:
+
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index 2767c625a52c..358eed8cf62a 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -171,7 +171,7 @@
+        ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
+        .if \no_user_check == 0
+        /* coming from usermode? */
+-       testl   $SEGMENT_RPL_MASK, PT_CS(%esp)
++       testb   $SEGMENT_RPL_MASK, PT_CS(%esp)
+        jz      .Lend_\@
+        .endif
+        /* On user-cr3? */
