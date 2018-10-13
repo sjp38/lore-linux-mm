@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id ED8616B0274
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 20:06:56 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id i64-v6so13794502qtb.21
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 17:06:56 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EEE116B0275
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2018 20:07:08 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id v198-v6so13352577qka.16
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2018 17:07:08 -0700 (PDT)
 Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id n79-v6si2385303qkl.244.2018.10.12.17.06.55
+        by mx.google.com with ESMTPS id u6-v6si1389909qvm.139.2018.10.12.17.07.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Oct 2018 17:06:56 -0700 (PDT)
-Subject: [PATCH 10/25] vfs: create generic_remap_file_range_touch to update
- inode metadata
+        Fri, 12 Oct 2018 17:07:07 -0700 (PDT)
+Subject: [PATCH 11/25] vfs: pass remap flags to generic_remap_file_range_prep
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Fri, 12 Oct 2018 17:06:51 -0700
-Message-ID: <153938921180.8361.13556945128095535605.stgit@magnolia>
+Date: Fri, 12 Oct 2018 17:06:58 -0700
+Message-ID: <153938921860.8361.1983470639945895613.stgit@magnolia>
 In-Reply-To: <153938912912.8361.13446310416406388958.stgit@magnolia>
 References: <153938912912.8361.13446310416406388958.stgit@magnolia>
 MIME-Version: 1.0
@@ -26,125 +25,240 @@ Cc: sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, A
 
 From: Darrick J. Wong <darrick.wong@oracle.com>
 
-Create a new VFS helper to handle inode metadata updates when remapping
-into a file.  If the operation can possibly alter the file contents, we
-must update the ctime and mtime and remove security privileges, just
-like we do for regular file writes.  Wire up ocfs2 to ensure consistent
-behavior.
+Plumb the remap flags through the filesystem from the vfs function
+dispatcher all the way to the prep function to prepare for behavior
+changes in subsequent patches.
 
 Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 Reviewed-by: Amir Goldstein <amir73il@gmail.com>
 ---
- fs/ocfs2/refcounttree.c |    8 ++++++++
- fs/read_write.c         |   24 ++++++++++++++++++++++++
- fs/xfs/xfs_reflink.c    |   29 +++++++----------------------
- include/linux/fs.h      |    1 +
- 4 files changed, 40 insertions(+), 22 deletions(-)
+ fs/ocfs2/file.c         |    2 +-
+ fs/ocfs2/refcounttree.c |    6 +++---
+ fs/ocfs2/refcounttree.h |    2 +-
+ fs/read_write.c         |   10 ++++++----
+ fs/xfs/xfs_file.c       |    2 +-
+ fs/xfs/xfs_reflink.c    |   16 +++++++++-------
+ fs/xfs/xfs_reflink.h    |    3 ++-
+ include/linux/fs.h      |    5 +++--
+ 8 files changed, 26 insertions(+), 20 deletions(-)
 
 
+diff --git a/fs/ocfs2/file.c b/fs/ocfs2/file.c
+index 852cdfaadd89..53c8676a0daf 100644
+--- a/fs/ocfs2/file.c
++++ b/fs/ocfs2/file.c
+@@ -2538,7 +2538,7 @@ static int ocfs2_remap_file_range(struct file *file_in,
+ 		return -EINVAL;
+ 
+ 	return ocfs2_reflink_remap_range(file_in, pos_in, file_out, pos_out,
+-					 len, remap_flags & RFR_SAME_DATA);
++					 len, remap_flags);
+ }
+ 
+ const struct inode_operations ocfs2_file_iops = {
 diff --git a/fs/ocfs2/refcounttree.c b/fs/ocfs2/refcounttree.c
-index 36c56dfbe485..ee1ed11379b3 100644
+index ee1ed11379b3..270a5b1919f6 100644
 --- a/fs/ocfs2/refcounttree.c
 +++ b/fs/ocfs2/refcounttree.c
-@@ -4855,6 +4855,14 @@ int ocfs2_reflink_remap_range(struct file *file_in,
+@@ -4825,7 +4825,7 @@ int ocfs2_reflink_remap_range(struct file *file_in,
+ 			      struct file *file_out,
+ 			      loff_t pos_out,
+ 			      u64 len,
+-			      bool is_dedupe)
++			      unsigned int remap_flags)
+ {
+ 	struct inode *inode_in = file_inode(file_in);
+ 	struct inode *inode_out = file_inode(file_out);
+@@ -4851,7 +4851,7 @@ int ocfs2_reflink_remap_range(struct file *file_in,
+ 		goto out_unlock;
+ 
+ 	ret = generic_remap_file_range_prep(file_in, pos_in, file_out, pos_out,
+-			&len, is_dedupe);
++			&len, remap_flags);
  	if (ret <= 0)
  		goto out_unlock;
  
-+	/*
-+	 * Update inode timestamps and remove security privileges before we
-+	 * take the ilock.
-+	 */
-+	ret = generic_remap_file_range_touch(file_out, is_dedupe);
-+	if (ret)
-+		goto out_unlock;
-+
- 	/* Lock out changes to the allocation maps and remap. */
- 	down_write(&OCFS2_I(inode_in)->ip_alloc_sem);
- 	if (!same_inode)
+@@ -4859,7 +4859,7 @@ int ocfs2_reflink_remap_range(struct file *file_in,
+ 	 * Update inode timestamps and remove security privileges before we
+ 	 * take the ilock.
+ 	 */
+-	ret = generic_remap_file_range_touch(file_out, is_dedupe);
++	ret = generic_remap_file_range_touch(file_out, remap_flags);
+ 	if (ret)
+ 		goto out_unlock;
+ 
+diff --git a/fs/ocfs2/refcounttree.h b/fs/ocfs2/refcounttree.h
+index 4af55bf4b35b..d2c5f526edff 100644
+--- a/fs/ocfs2/refcounttree.h
++++ b/fs/ocfs2/refcounttree.h
+@@ -120,6 +120,6 @@ int ocfs2_reflink_remap_range(struct file *file_in,
+ 			      struct file *file_out,
+ 			      loff_t pos_out,
+ 			      u64 len,
+-			      bool is_dedupe);
++			      unsigned int remap_flags);
+ 
+ #endif /* OCFS2_REFCOUNTTREE_H */
 diff --git a/fs/read_write.c b/fs/read_write.c
-index ff6fcb3b99dd..7b837d12f75d 100644
+index 7b837d12f75d..5d24e9854765 100644
 --- a/fs/read_write.c
 +++ b/fs/read_write.c
-@@ -1806,6 +1806,30 @@ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
- }
+@@ -1712,18 +1712,20 @@ static int remap_verify_area(struct file *file, loff_t pos, u64 len, bool write)
+ /*
+  * Check that the two inodes are eligible for cloning, the ranges make
+  * sense, and then flush all dirty data.  Caller must ensure that the
+- * inodes have been locked against any other modifications.
++ * inodes have been locked against any other modifications.  This function
++ * takes RFR_* flags in remap_flags.
+  *
+  * Returns: 0 for "nothing to clone", 1 for "something to clone", or
+  * the usual negative error code.
+  */
+ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
+ 				  struct file *file_out, loff_t pos_out,
+-				  u64 *len, bool is_dedupe)
++				  u64 *len, unsigned int remap_flags)
+ {
+ 	struct inode *inode_in = file_inode(file_in);
+ 	struct inode *inode_out = file_inode(file_out);
+ 	u64 blkmask = i_blocksize(inode_in) - 1;
++	bool is_dedupe = (remap_flags & RFR_SAME_DATA);
+ 	bool same_inode = (inode_in == inode_out);
+ 	int ret;
+ 
+@@ -1807,12 +1809,12 @@ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
  EXPORT_SYMBOL(generic_remap_file_range_prep);
  
-+/* Update inode timestamps and remove security privileges when remapping. */
-+int generic_remap_file_range_touch(struct file *file, bool is_dedupe)
-+{
-+	int ret;
-+
-+	/* If can't alter the file contents, we're done. */
-+	if (is_dedupe)
-+		return 0;
-+
-+	/* Update the timestamps, since we can alter file contents. */
-+	if (!(file->f_mode & FMODE_NOCMTIME)) {
-+		ret = file_update_time(file);
-+		if (ret)
-+			return ret;
-+	}
-+
-+	/*
-+	 * Clear the security bits if the process is not being run by root.
-+	 * This keeps people from modifying setuid and setgid binaries.
-+	 */
-+	return file_remove_privs(file);
-+}
-+EXPORT_SYMBOL(generic_remap_file_range_touch);
-+
- int do_clone_file_range(struct file *file_in, loff_t pos_in,
- 			struct file *file_out, loff_t pos_out, u64 len)
+ /* Update inode timestamps and remove security privileges when remapping. */
+-int generic_remap_file_range_touch(struct file *file, bool is_dedupe)
++int generic_remap_file_range_touch(struct file *file, unsigned int remap_flags)
  {
+ 	int ret;
+ 
+ 	/* If can't alter the file contents, we're done. */
+-	if (is_dedupe)
++	if (remap_flags & RFR_SAME_DATA)
+ 		return 0;
+ 
+ 	/* Update the timestamps, since we can alter file contents. */
+diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+index 7cce438f856a..dce01729e522 100644
+--- a/fs/xfs/xfs_file.c
++++ b/fs/xfs/xfs_file.c
+@@ -932,7 +932,7 @@ xfs_file_remap_range(
+ 		return -EINVAL;
+ 
+ 	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
+-			len, remap_flags & RFR_SAME_DATA);
++			len, remap_flags);
+ }
+ 
+ STATIC int
 diff --git a/fs/xfs/xfs_reflink.c b/fs/xfs/xfs_reflink.c
-index a7757a128a78..99f2ea4fcaba 100644
+index 99f2ea4fcaba..ada3b80267c6 100644
 --- a/fs/xfs/xfs_reflink.c
 +++ b/fs/xfs/xfs_reflink.c
-@@ -1371,28 +1371,13 @@ xfs_reflink_remap_prep(
- 	truncate_inode_pages_range(&inode_out->i_data, pos_out,
- 				   PAGE_ALIGN(pos_out + *len) - 1);
+@@ -921,10 +921,11 @@ xfs_reflink_update_dest(
+ 	struct xfs_inode	*dest,
+ 	xfs_off_t		newlen,
+ 	xfs_extlen_t		cowextsize,
+-	bool			is_dedupe)
++	unsigned int		remap_flags)
+ {
+ 	struct xfs_mount	*mp = dest->i_mount;
+ 	struct xfs_trans	*tp;
++	bool			is_dedupe = (remap_flags & RFR_SAME_DATA);
+ 	int			error;
  
--	/* If we're altering the file contents... */
--	if (!is_dedupe) {
--		/*
--		 * ...update the timestamps (which will grab the ilock again
--		 * from xfs_fs_dirty_inode, so we have to call it before we
--		 * take the ilock).
--		 */
--		if (!(file_out->f_mode & FMODE_NOCMTIME)) {
--			ret = file_update_time(file_out);
--			if (ret)
--				goto out_unlock;
--		}
--
--		/*
--		 * ...clear the security bits if the process is not being run
--		 * by root.  This keeps people from modifying setuid and setgid
--		 * binaries.
--		 */
--		ret = file_remove_privs(file_out);
--		if (ret)
--			goto out_unlock;
--	}
-+	/*
-+	 * Update inode timestamps and remove security privileges before we
-+	 * take the ilock.
-+	 */
-+	ret = generic_remap_file_range_touch(file_out, is_dedupe);
-+	if (ret)
-+		goto out_unlock;
+ 	if (is_dedupe && newlen <= i_size_read(VFS_I(dest)) && cowextsize == 0)
+@@ -1296,13 +1297,14 @@ xfs_reflink_remap_prep(
+ 	struct file		*file_out,
+ 	loff_t			pos_out,
+ 	u64			*len,
+-	bool			is_dedupe)
++	unsigned int		remap_flags)
+ {
+ 	struct inode		*inode_in = file_inode(file_in);
+ 	struct xfs_inode	*src = XFS_I(inode_in);
+ 	struct inode		*inode_out = file_inode(file_out);
+ 	struct xfs_inode	*dest = XFS_I(inode_out);
+ 	bool			same_inode = (inode_in == inode_out);
++	bool			is_dedupe = (remap_flags & RFR_SAME_DATA);
+ 	u64			blkmask = i_blocksize(inode_in) - 1;
+ 	ssize_t			ret;
  
- 	return 1;
+@@ -1327,7 +1329,7 @@ xfs_reflink_remap_prep(
+ 		goto out_unlock;
+ 
+ 	ret = generic_remap_file_range_prep(file_in, pos_in, file_out, pos_out,
+-			len, is_dedupe);
++			len, remap_flags);
+ 	if (ret <= 0)
+ 		goto out_unlock;
+ 
+@@ -1375,7 +1377,7 @@ xfs_reflink_remap_prep(
+ 	 * Update inode timestamps and remove security privileges before we
+ 	 * take the ilock.
+ 	 */
+-	ret = generic_remap_file_range_touch(file_out, is_dedupe);
++	ret = generic_remap_file_range_touch(file_out, remap_flags);
+ 	if (ret)
+ 		goto out_unlock;
+ 
+@@ -1395,7 +1397,7 @@ xfs_reflink_remap_range(
+ 	struct file		*file_out,
+ 	loff_t			pos_out,
+ 	u64			len,
+-	bool			is_dedupe)
++	unsigned int		remap_flags)
+ {
+ 	struct inode		*inode_in = file_inode(file_in);
+ 	struct xfs_inode	*src = XFS_I(inode_in);
+@@ -1415,7 +1417,7 @@ xfs_reflink_remap_range(
+ 
+ 	/* Prepare and then clone file data. */
+ 	ret = xfs_reflink_remap_prep(file_in, pos_in, file_out, pos_out,
+-			&len, is_dedupe);
++			&len, remap_flags);
+ 	if (ret <= 0)
+ 		return ret;
+ 
+@@ -1442,7 +1444,7 @@ xfs_reflink_remap_range(
+ 		cowextsize = src->i_d.di_cowextsize;
+ 
+ 	ret = xfs_reflink_update_dest(dest, pos_out + len, cowextsize,
+-			is_dedupe);
++			remap_flags);
+ 
  out_unlock:
+ 	xfs_reflink_remap_unlock(file_in, file_out);
+diff --git a/fs/xfs/xfs_reflink.h b/fs/xfs/xfs_reflink.h
+index c585ad9552b2..6f82d628bf17 100644
+--- a/fs/xfs/xfs_reflink.h
++++ b/fs/xfs/xfs_reflink.h
+@@ -28,7 +28,8 @@ extern int xfs_reflink_end_cow(struct xfs_inode *ip, xfs_off_t offset,
+ 		xfs_off_t count);
+ extern int xfs_reflink_recover_cow(struct xfs_mount *mp);
+ extern int xfs_reflink_remap_range(struct file *file_in, loff_t pos_in,
+-		struct file *file_out, loff_t pos_out, u64 len, bool is_dedupe);
++		struct file *file_out, loff_t pos_out, u64 len,
++		unsigned int remap_flags);
+ extern int xfs_reflink_inode_has_shared_extents(struct xfs_trans *tp,
+ 		struct xfs_inode *ip, bool *has_shared);
+ extern int xfs_reflink_clear_inode_flag(struct xfs_inode *ip,
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 686905be04c0..91fd3c77763b 100644
+index 91fd3c77763b..b67f108932a5 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -1847,6 +1847,7 @@ extern ssize_t vfs_copy_file_range(struct file *, loff_t , struct file *,
+@@ -1846,8 +1846,9 @@ extern ssize_t vfs_copy_file_range(struct file *, loff_t , struct file *,
+ 				   loff_t, size_t, unsigned int);
  extern int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
  					 struct file *file_out, loff_t pos_out,
- 					 u64 *count, bool is_dedupe);
-+extern int generic_remap_file_range_touch(struct file *file, bool is_dedupe);
+-					 u64 *count, bool is_dedupe);
+-extern int generic_remap_file_range_touch(struct file *file, bool is_dedupe);
++					 u64 *count, unsigned int remap_flags);
++extern int generic_remap_file_range_touch(struct file *file,
++					  unsigned int remap_flags);
  extern int do_clone_file_range(struct file *file_in, loff_t pos_in,
  			       struct file *file_out, loff_t pos_out, u64 len);
  extern int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
