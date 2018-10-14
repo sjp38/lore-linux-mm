@@ -1,57 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C3E8B6B026D
-	for <linux-mm@kvack.org>; Sun, 14 Oct 2018 13:43:27 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id c28-v6so4268660pfe.4
-        for <linux-mm@kvack.org>; Sun, 14 Oct 2018 10:43:27 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id w4-v6si7806327pll.214.2018.10.14.10.43.26
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 312866B0006
+	for <linux-mm@kvack.org>; Sun, 14 Oct 2018 14:07:42 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id s141-v6so12494431pgs.23
+        for <linux-mm@kvack.org>; Sun, 14 Oct 2018 11:07:42 -0700 (PDT)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-oln040092007019.outbound.protection.outlook.com. [40.92.7.19])
+        by mx.google.com with ESMTPS id g12-v6si8131496pfi.184.2018.10.14.11.07.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 14 Oct 2018 10:43:26 -0700 (PDT)
-Date: Sun, 14 Oct 2018 10:43:24 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 18/25] vfs: hide file range comparison function
-Message-ID: <20181014174324.GC6400@infradead.org>
-References: <153938912912.8361.13446310416406388958.stgit@magnolia>
- <153938927103.8361.6327676425188043040.stgit@magnolia>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 14 Oct 2018 11:07:40 -0700 (PDT)
+From: =?utf-8?B?TGVvbmFyZG8gU29hcmVzIE3DvGxsZXI=?= <leozinho29_eu@hotmail.com>
+Subject: Re: [Bug 201377] New: Kernel BUG under memory pressure: unable to
+ handle kernel NULL pointer dereference at 00000000000000f0
+Date: Sun, 14 Oct 2018 18:07:39 +0000
+Message-ID: <RO1P152MB14838EBA2F5ACD64A1CD3C3697FC0@RO1P152MB1483.LAMP152.PROD.OUTLOOK.COM>
+References: <bug-201377-27@https.bugzilla.kernel.org/>
+ <20181012155533.2f15a8bb35103aa1fa87962e@linux-foundation.org>
+ <20181012155641.b3a1610b4ddcd37e374115d4@linux-foundation.org>
+ <9f77da23-2a46-29a5-6aa7-fe9e7cca1056@suse.cz>
+ <555fbd1f-4ac9-0b58-dcd4-5dc4380ff7ca@suse.cz>
+In-Reply-To: <555fbd1f-4ac9-0b58-dcd4-5dc4380ff7ca@suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <8DD649842F65A44B93CC7C7CD2358CD9@LAMP152.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <153938927103.8361.6327676425188043040.stgit@magnolia>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: david@fromorbit.com, sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, Amir Goldstein <amir73il@gmail.com>, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, ocfs2-devel@oss.oracle.com
+To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "bugzilla-daemon@bugzilla.kernel.org" <bugzilla-daemon@bugzilla.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Colascione <dancol@google.com>, Alexey
+ Dobriyan <adobriyan@gmail.com>
 
-> +static struct page *vfs_dedupe_get_page(struct inode *inode, loff_t offset)
-> +{
-> +	struct address_space *mapping;
-> +	struct page *page;
-> +	pgoff_t n;
-> +
-> +	n = offset >> PAGE_SHIFT;
-> +	mapping = inode->i_mapping;
-> +	page = read_mapping_page(mapping, n, NULL);
-> +	if (IS_ERR(page))
-> +		return page;
-> +	if (!PageUptodate(page)) {
-> +		put_page(page);
-> +		return ERR_PTR(-EIO);
-> +	}
-> +	lock_page(page);
-> +	return page;
-> +}
-
-Might be worth to clean ths up a bit while you are at it:
-
-+static struct page *vfs_dedupe_get_page(struct inode *inode, loff_t offset)
-{
-	struct page *page;
-
-	page = read_mapping_page(inode->i_mapping, offset >> PAGE_SHIFT, NULL);
-	...
-
-Otherwise looks fine:
-
-Reviewed-by: Christoph Hellwig <hch@lst.de>
+VGhpcyBwYXRjaCBhcHBsaWVkIG9uIDQuMTktcmM3IGNvcnJlY3RlZCB0aGUgcHJvYmxlbSB0byBt
+ZSBhbmQgdGhlDQpzY3JpcHQgaXMgbm8gbG9uZ2VyIHRyaWdnZXJpbmcgdGhlIGtlcm5lbCBidWcu
+DQoNCkkgY29tcGxldGVseSBza2lwcGVkIDQuMTggYmVjYXVzZSB0aGVyZSB3ZXJlIG11bHRpcGxl
+IHJlZ3Jlc3Npb25zDQphZmZlY3RpbmcgbXkgY29tcHV0ZXIuIDQuMTktcmM2IGFuZCA0LjE5LXJj
+NyBoYXZlIG1vc3QgcmVncmVzc2lvbnMgZml4ZWQNCmJ1dCB0aGVuIHRoaXMgaXNzdWUgYXBwZWFy
+ZWQuDQoNClRoZSBmaXJzdCBrZXJuZWwgdmVyc2lvbiByZWxlYXNlZCBJIGZvdW5kIHdpdGggdGhp
+cyBwcm9ibGVtIGlzIDQuMTgtcmM0LA0KYnV0IGJpc2VjdGluZyBiZXR3ZWVuIDQuMTgtcmMzIGFu
+ZCA0LjE4LXJjNCBmYWlsZWQ6IG9uIGJvb3QgdGhlcmUgd2FzDQpvbmUgbWVzc2FnZSBzdGFydGlu
+ZyB3aXRoIFtVTlNVUFBdIGFuZCB3aXRoIHNvbWV0aGluZyBhYm91dCAiQXJiaXRyYXJ5DQpGaWxl
+IFN5c3RlbSIuDQoNCkVtIDE0LzEwLzIwMTggMDQ6MTcsIFZsYXN0aW1pbCBCYWJrYSBlc2NyZXZl
+dToNCj4gT24gMTAvMTMvMTggMjo1NyBQTSwgVmxhc3RpbWlsIEJhYmthIHdyb3RlOg0KPj4gT24g
+MTAvMTMvMTggMTI6NTYgQU0sIEFuZHJldyBNb3J0b24gd3JvdGU6DQo+Pj4gKGNjIGxpbnV4LW1t
+LCBhcmdoKQ0KPj4+DQo+Pj4gT24gRnJpLCAxMiBPY3QgMjAxOCAxNTo1NTozMyAtMDcwMCBBbmRy
+ZXcgTW9ydG9uIDxha3BtQGxpbnV4LWZvdW5kYXRpb24ub3JnPiB3cm90ZToNCj4+Pg0KPj4+Pg0K
+Pj4+PiAoc3dpdGNoZWQgdG8gZW1haWwuICBQbGVhc2UgcmVzcG9uZCB2aWEgZW1haWxlZCByZXBs
+eS10by1hbGwsIG5vdCB2aWEgdGhlDQo+Pj4+IGJ1Z3ppbGxhIHdlYiBpbnRlcmZhY2UpLg0KPj4+
+Pg0KPj4+PiBWbGFzdGltaWwsIGl0IGxvb2tzIGxpa2UgeW91ciBBdWd1c3QgMjEgc21hcHMgY2hh
+bmdlcyBhcmUgZmFpbGluZy4gDQo+Pj4+IFRoaXMgb25lIGlzIHByZXR0eSB1cmdlbnQsIHBsZWFz
+ZS4NCj4+DQo+PiBUaGFua3MsIHdpbGwgbG9vayBpbiBmZXcgaG91cnMuIEdsYWQgdGhhdCB0aGVy
+ZSB3aWxsIGJlIHJjOC4uLg0KPiANCj4gSSB0aGluayBJIGZvdW5kIGl0LCBhbmQgaXQgc2VlbXMg
+dGhlIGJ1ZyB3YXMgdGhlcmUgYWxsIHRoZSB0aW1lIGZvciBzbWFwc19yb2xsdXAuDQo+IER1bm5v
+IHdoeSBpdCB3YXMgaGl0IG9ubHkgbm93LiBQbGVhc2UgdGVzdD8NCj4gDQo+IC0tLS04PC0tLS0N
+Cj4gRnJvbSA5NDhiZTI1ZWUxYmRkZGNhODI0NGQxYTA1NWZiZjgxMjAyMjU3MWU3IE1vbiBTZXAg
+MTcgMDA6MDA6MDAgMjAwMQ0KPiBGcm9tOiBWbGFzdGltaWwgQmFia2EgPHZiYWJrYUBzdXNlLmN6
+Pg0KPiBEYXRlOiBTdW4sIDE0IE9jdCAyMDE4IDA4OjU5OjQ0ICswMjAwDQo+IFN1YmplY3Q6IFtQ
+QVRDSF0gbW06IC9wcm9jL3BpZC9zbWFwc19yb2xsdXA6IGZpeCBOVUxMIHBvaW50ZXIgZGVyZWYg
+aW4NCj4gIHNtYXBzX3B0ZV9yYW5nZQ0KPiANCj4gTGVvbmFyZG8gcmVwb3J0cyBhbiBhcHBhcmVu
+dCByZWdyZXNzaW9uIGluIDQuMTktcmM3Og0KPiANCj4gIEJVRzogdW5hYmxlIHRvIGhhbmRsZSBr
+ZXJuZWwgTlVMTCBwb2ludGVyIGRlcmVmZXJlbmNlIGF0IDAwMDAwMDAwMDAwMDAwZjANCj4gIFBH
+RCAwIFA0RCAwDQo+ICBPb3BzOiAwMDAwIFsjMV0gUFJFRU1QVCBTTVAgUFRJDQo+ICBDUFU6IDMg
+UElEOiA2MDMyIENvbW06IHB5dGhvbiBOb3QgdGFpbnRlZCA0LjE5LjAtMDQxOTAwcmM3LWxvd2xh
+dGVuY3kgIzIwMTgxMDA3MTYzMQ0KPiAgSGFyZHdhcmUgbmFtZTogTEVOT1ZPIDgwVUcvVG9yb250
+byA0QTIsIEJJT1MgMFhDTjQ1V1cgMDgvMDkvMjAxOA0KPiAgUklQOiAwMDEwOnNtYXBzX3B0ZV9y
+YW5nZSsweDMyZC8weDU0MA0KPiAgQ29kZTogODAgMDAgMDAgMDAgMDAgNzQgYTkgNDggODkgZGUg
+NDEgZjYgNDAgNTIgNDAgMGYgODUgMDQgMDIgMDAgMDAgNDkgMmIgMzAgNDggYzEgZWUgMGMgNDkg
+MDMgYjAgOTggMDAgMDAgMDAgNDkgOGIgODAgYTAgMDAgMDAgMDAgPDQ4PiA4YiBiOCBmMCAwMCAw
+MCAwMCBlOCBiNyBlZiBlYyBmZiA0OCA4NSBjMCAwZiA4NCA3MSBmZiBmZiBmZiBhOA0KPiAgUlNQ
+OiAwMDE4OmZmZmZiMGNiYzQ4NGZiODggRUZMQUdTOiAwMDAxMDIwMg0KPiAgUkFYOiAwMDAwMDAw
+MDAwMDAwMDAwIFJCWDogMDAwMDU2MGRkYjllOTAwMCBSQ1g6IDAwMDAwMDAwMDAwMDAwMDANCj4g
+IFJEWDogMDAwMDAwMDAwMDAwMDAwMCBSU0k6IDAwMDAwMDA1NjBkZGI5ZTkgUkRJOiAwMDAwMDAw
+MDAwMDAwMDAxDQo+ICBSQlA6IGZmZmZiMGNiYzQ4NGZiYzAgUjA4OiBmZmZmOTRhNWEyMjdhNTc4
+IFIwOTogZmZmZjk0YTVhMjI3YTU3OA0KPiAgUjEwOiAwMDAwMDAwMDAwMDAwMDAwIFIxMTogMDAw
+MDU2MGRkYmJlNzAwMCBSMTI6IGZmZmZlOTAzMDk4YmE3MjgNCj4gIFIxMzogZmZmZmIwY2JjNDg0
+ZmM3OCBSMTQ6IGZmZmZiMGNiYzQ4NGZjZjggUjE1OiBmZmZmOTRhNWEyZTljZjQ4DQo+ICBGUzog
+IDAwMDA3ZjZkZmI2ODM3NDAoMDAwMCkgR1M6ZmZmZjk0YTVhYWY4MDAwMCgwMDAwKSBrbmxHUzow
+MDAwMDAwMDAwMDAwMDAwDQo+ICBDUzogIDAwMTAgRFM6IDAwMDAgRVM6IDAwMDAgQ1IwOiAwMDAw
+MDAwMDgwMDUwMDMzDQo+ICBDUjI6IDAwMDAwMDAwMDAwMDAwZjAgQ1IzOiAwMDAwMDAwMTFjMTE4
+MDAxIENSNDogMDAwMDAwMDAwMDM2MDZlMA0KPiAgRFIwOiAwMDAwMDAwMDAwMDAwMDAwIERSMTog
+MDAwMDAwMDAwMDAwMDAwMCBEUjI6IDAwMDAwMDAwMDAwMDAwMDANCj4gIERSMzogMDAwMDAwMDAw
+MDAwMDAwMCBEUjY6IDAwMDAwMDAwZmZmZTBmZjAgRFI3OiAwMDAwMDAwMDAwMDAwNDAwDQo+ICBD
+YWxsIFRyYWNlOg0KPiAgIF9fd2Fsa19wYWdlX3JhbmdlKzB4M2MyLzB4NmYwDQo+ICAgd2Fsa19w
+YWdlX3ZtYSsweDQyLzB4NjANCj4gICBzbWFwX2dhdGhlcl9zdGF0cysweDc5LzB4ZTANCj4gICA/
+IGdhdGhlcl9wdGVfc3RhdHMrMHgzMjAvMHgzMjANCj4gICA/IGdhdGhlcl9odWdldGxiX3N0YXRz
+KzB4NzAvMHg3MA0KPiAgIHNob3dfc21hcHNfcm9sbHVwKzB4Y2QvMHgxYzANCj4gICBzZXFfcmVh
+ZCsweDE1Ny8weDQwMA0KPiAgIF9fdmZzX3JlYWQrMHgzYS8weDE4MA0KPiAgID8gc2VjdXJpdHlf
+ZmlsZV9wZXJtaXNzaW9uKzB4OTMvMHhjMA0KPiAgID8gc2VjdXJpdHlfZmlsZV9wZXJtaXNzaW9u
+KzB4OTMvMHhjMA0KPiAgIHZmc19yZWFkKzB4OGYvMHgxNDANCj4gICBrc3lzX3JlYWQrMHg1NS8w
+eGMwDQo+ICAgX194NjRfc3lzX3JlYWQrMHgxYS8weDIwDQo+ICAgZG9fc3lzY2FsbF82NCsweDVh
+LzB4MTEwDQo+ICAgZW50cnlfU1lTQ0FMTF82NF9hZnRlcl9od2ZyYW1lKzB4NDQvMHhhOQ0KPiAN
+Cj4gRGVjb2RlZCBjb2RlIG1hdGNoZWQgdG8gbG9jYWwgY29tcGlsYXRpb24rZGlzYXNzZW1ibHkg
+cG9pbnRzIHRvDQo+IHNtYXBzX3B0ZV9lbnRyeSgpOg0KPiANCj4gICAgICAgICB9IGVsc2UgaWYg
+KHVubGlrZWx5KElTX0VOQUJMRUQoQ09ORklHX1NITUVNKSAmJiBtc3MtPmNoZWNrX3NobWVtX3N3
+YXANCj4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAmJiBwdGVfbm9uZSgqcHRlKSkpIHsNCj4gICAgICAgICAgICAgICAgIHBhZ2UgPSBmaW5k
+X2dldF9lbnRyeSh2bWEtPnZtX2ZpbGUtPmZfbWFwcGluZywNCj4gICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbGluZWFyX3BhZ2VfaW5kZXgodm1hLCBhZGRy
+KSk7DQo+IA0KPiBIZXJlLCB2bWEtPnZtX2ZpbGUgaXMgTlVMTC4gbXNzLT5jaGVja19zaG1lbV9z
+d2FwIHNob3VsZCBiZSBmYWxzZSBpbiB0aGF0IGNhc2UsDQo+IGhvd2V2ZXIgZm9yIHNtYXBzX3Jv
+bGx1cCwgc21hcF9nYXRoZXJfc3RhdHMoKSBjYW4gc2V0IHRoZSBmbGFnIHRydWUgZm9yIG9uZSB2
+bWENCj4gYW5kIGxlYXZlIGl0IHRydWUgZm9yIHN1YnNlcXVlbnQgdm1hJ3Mgd2hlcmUgaXQgc2hv
+dWxkIGJlIGZhbHNlLg0KPiANCj4gVG8gZml4LCByZXNldCB0aGUgY2hlY2tfc2htZW1fc3dhcCBm
+bGFnIHRvIGZhbHNlLiBUaGVyZSdzIGFsc28gcmVsYXRlZCBidWcNCj4gd2hpY2ggc2V0cyBtc3Mt
+PnN3YXAgdG8gc2htZW1fc3dhcHBlZCwgd2hpY2ggaW4gdGhlIGNvbnRleHQgb2Ygc21hcHNfcm9s
+bHVwDQo+IG92ZXJ3cml0ZXMgYW55IHZhbHVlIGFjY3VtdWxhdGVkIGZyb20gcHJldmlvdXMgdm1h
+J3MuIEZpeCB0aGF0IGFzIHdlbGwuDQo+IA0KPiBOb3RlIHRoYXQgdGhlIHJlcG9ydCBzdWdnZXN0
+cyBhIHJlZ3Jlc3Npb24gYmV0d2VlbiA0LjE3LjE5IGFuZCA0LjE5LXJjNywNCj4gd2hpY2ggbWFr
+ZXMgdGhlIDQuMTkgc2VyaWVzIGVuZGluZyB3aXRoIGNvbW1pdCAyNThmNjY5ZTdlODggKCJtbToN
+Cj4gL3Byb2MvcGlkL3NtYXBzX3JvbGx1cDogY29udmVydCB0byBzaW5nbGUgdmFsdWUgc2VxX2Zp
+bGUiKSBzdXNwaWNpb3VzLiBCdXQgdGhlDQo+IG1zcyB3YXMgcmV1c2VkIGZvciByb2xsdXAgc2lu
+Y2UgNDkzYjBlOWQ5NDVmICgibW06IGFkZCAvcHJvYy9waWQvc21hcHNfcm9sbHVwIikNCj4gc28g
+bGV0J3MgcGxheSBpdCBzYWZlIHdpdGggdGhlIHN0YWJsZSBiYWNrcG9ydC4NCj4gDQo+IEZpeGVz
+OiA0OTNiMGU5ZDk0NWYgKCJtbTogYWRkIC9wcm9jL3BpZC9zbWFwc19yb2xsdXAiKQ0KPiBMaW5r
+OiBodHRwczovL2J1Z3ppbGxhLmtlcm5lbC5vcmcvc2hvd19idWcuY2dpP2lkPTIwMTM3Nw0KPiBS
+ZXBvcnRlZC1ieTogTGVvbmFyZG8gTXVlbGxlciA8bGVvemluaG8yOV9ldUBob3RtYWlsLmNvbT4N
+Cj4gU2lnbmVkLW9mZi1ieTogVmxhc3RpbWlsIEJhYmthIDx2YmFia2FAc3VzZS5jej4NCj4gQ2M6
+IDxzdGFibGVAdmdlci5rZXJuZWwub3JnPg0KPiAtLS0NCj4gIGZzL3Byb2MvdGFza19tbXUuYyB8
+IDQgKysrLQ0KPiAgMSBmaWxlIGNoYW5nZWQsIDMgaW5zZXJ0aW9ucygrKSwgMSBkZWxldGlvbigt
+KQ0KPiANCj4gZGlmZiAtLWdpdCBhL2ZzL3Byb2MvdGFza19tbXUuYyBiL2ZzL3Byb2MvdGFza19t
+bXUuYw0KPiBpbmRleCA1ZWExZDY0Y2IwYjQuLmEwMjc0NzM1NjFjNiAxMDA2NDQNCj4gLS0tIGEv
+ZnMvcHJvYy90YXNrX21tdS5jDQo+ICsrKyBiL2ZzL3Byb2MvdGFza19tbXUuYw0KPiBAQCAtNzEz
+LDYgKzcxMyw4IEBAIHN0YXRpYyB2b2lkIHNtYXBfZ2F0aGVyX3N0YXRzKHN0cnVjdCB2bV9hcmVh
+X3N0cnVjdCAqdm1hLA0KPiAgCXNtYXBzX3dhbGsucHJpdmF0ZSA9IG1zczsNCj4gIA0KPiAgI2lm
+ZGVmIENPTkZJR19TSE1FTQ0KPiArCS8qIEluIGNhc2Ugb2Ygc21hcHNfcm9sbHVwLCByZXNldCB0
+aGUgdmFsdWUgZnJvbSBwcmV2aW91cyB2bWEgKi8NCj4gKwltc3MtPmNoZWNrX3NobWVtX3N3YXAg
+PSBmYWxzZTsNCj4gIAlpZiAodm1hLT52bV9maWxlICYmIHNobWVtX21hcHBpbmcodm1hLT52bV9m
+aWxlLT5mX21hcHBpbmcpKSB7DQo+ICAJCS8qDQo+ICAJCSAqIEZvciBzaGFyZWQgb3IgcmVhZG9u
+bHkgc2htZW0gbWFwcGluZ3Mgd2Uga25vdyB0aGF0IGFsbA0KPiBAQCAtNzI4LDcgKzczMCw3IEBA
+IHN0YXRpYyB2b2lkIHNtYXBfZ2F0aGVyX3N0YXRzKHN0cnVjdCB2bV9hcmVhX3N0cnVjdCAqdm1h
+LA0KPiAgDQo+ICAJCWlmICghc2htZW1fc3dhcHBlZCB8fCAodm1hLT52bV9mbGFncyAmIFZNX1NI
+QVJFRCkgfHwNCj4gIAkJCQkJISh2bWEtPnZtX2ZsYWdzICYgVk1fV1JJVEUpKSB7DQo+IC0JCQlt
+c3MtPnN3YXAgPSBzaG1lbV9zd2FwcGVkOw0KPiArCQkJbXNzLT5zd2FwICs9IHNobWVtX3N3YXBw
+ZWQ7DQo+ICAJCX0gZWxzZSB7DQo+ICAJCQltc3MtPmNoZWNrX3NobWVtX3N3YXAgPSB0cnVlOw0K
+PiAgCQkJc21hcHNfd2Fsay5wdGVfaG9sZSA9IHNtYXBzX3B0ZV9ob2xlOw0KPiANCg==
