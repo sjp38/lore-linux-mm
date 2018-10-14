@@ -1,56 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 514046B0005
-	for <linux-mm@kvack.org>; Sun, 14 Oct 2018 18:07:30 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id y6-v6so16916741ioc.10
-        for <linux-mm@kvack.org>; Sun, 14 Oct 2018 15:07:30 -0700 (PDT)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-oln040092008075.outbound.protection.outlook.com. [40.92.8.75])
-        by mx.google.com with ESMTPS id i21-v6si6575682jam.118.2018.10.14.15.07.28
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 14 Oct 2018 15:07:29 -0700 (PDT)
-From: =?utf-8?B?TGVvbmFyZG8gU29hcmVzIE3DvGxsZXI=?= <leozinho29_eu@hotmail.com>
-Subject: Re: [Bug 201377] New: Kernel BUG under memory pressure: unable to
- handle kernel NULL pointer dereference at 00000000000000f0
-Date: Sun, 14 Oct 2018 22:07:27 +0000
-Message-ID: <RO1P152MB14831EA376200DF11577691D97FC0@RO1P152MB1483.LAMP152.PROD.OUTLOOK.COM>
-References: <bug-201377-27@https.bugzilla.kernel.org/>
- <20181012155533.2f15a8bb35103aa1fa87962e@linux-foundation.org>
- <20181012155641.b3a1610b4ddcd37e374115d4@linux-foundation.org>
- <9f77da23-2a46-29a5-6aa7-fe9e7cca1056@suse.cz>
- <555fbd1f-4ac9-0b58-dcd4-5dc4380ff7ca@suse.cz>
- <RO1P152MB14838EBA2F5ACD64A1CD3C3697FC0@RO1P152MB1483.LAMP152.PROD.OUTLOOK.COM>
- <863182da-4302-07a5-7280-0c017561b7eb@suse.cz>
-In-Reply-To: <863182da-4302-07a5-7280-0c017561b7eb@suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <7EB3526B32A0D947862AC5D5F08F0CA2@LAMP152.PROD.OUTLOOK.COM>
-Content-Transfer-Encoding: base64
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A7526B0005
+	for <linux-mm@kvack.org>; Sun, 14 Oct 2018 19:05:41 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id s24-v6so14117201plp.12
+        for <linux-mm@kvack.org>; Sun, 14 Oct 2018 16:05:41 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id 4-v6si9199195plh.99.2018.10.14.16.05.39
+        for <linux-mm@kvack.org>;
+        Sun, 14 Oct 2018 16:05:40 -0700 (PDT)
+Date: Mon, 15 Oct 2018 10:05:36 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 24/25] xfs: support returning partial reflink results
+Message-ID: <20181014230536.GY6311@dastard>
+References: <153938912912.8361.13446310416406388958.stgit@magnolia>
+ <153938931226.8361.7365948775364411156.stgit@magnolia>
+ <20181014173546.GI30673@infradead.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181014173546.GI30673@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "bugzilla-daemon@bugzilla.kernel.org" <bugzilla-daemon@bugzilla.kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Colascione <dancol@google.com>, Alexey
- Dobriyan <adobriyan@gmail.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, ocfs2-devel@oss.oracle.com
 
-SSBtZWFudCBlaWdodGVlbiwgdGhpcyBpcyByaWdodC4gV2hpbGUgSSBza2lwcGVkIDQuMTggZm9y
-IG5vcm1hbCB1c2UsIHRvDQpkbyB0ZXN0cyB3aGVuIHRoaXMgaXNzdWUgYXBwZWFyZWQgSSB0ZXN0
-ZWQgd2l0aCA0LjE4IHRvbyBhbmQgbm90aWNlZA0KdGhhdCBzaW5jZSA0LjE4LXJjNCB0aGUgaXNz
-dWUgZXhpc3QuDQoNClllcywgeW91IGNhbiBhZGQgbWUgdG8gVGVzdGVkLWJ5LCBhcyB0aGlzIHBh
-dGNoIHNvbHZlZCB0aGUgaXNzdWUgdG8gbWU6DQpubyBwcm9ibGVtcyB3aXRoIGtlcm5lbCBhbmQg
-dGhlIHNjcmlwdCBydW5zIG5vcm1hbGx5LiBUaGFuayB5b3UuDQoNCkVtIDE0LzEwLzIwMTggMTc6
-MTQsIFZsYXN0aW1pbCBCYWJrYSBlc2NyZXZldToNCj4gT24gMTAvMTQvMTggODowNyBQTSwgTGVv
-bmFyZG8gU29hcmVzIE3DvGxsZXIgd3JvdGU6DQo+PiBUaGlzIHBhdGNoIGFwcGxpZWQgb24gNC4x
-OS1yYzcgY29ycmVjdGVkIHRoZSBwcm9ibGVtIHRvIG1lIGFuZCB0aGUNCj4+IHNjcmlwdCBpcyBu
-byBsb25nZXIgdHJpZ2dlcmluZyB0aGUga2VybmVsIGJ1Zy4NCj4gDQo+IEdyZWF0ISBDYW4gd2Ug
-YWRkIHlvdXIgVGVzdGVkLWJ5OiB0aGVuPw0KPiANCj4+IEkgY29tcGxldGVseSBza2lwcGVkIDQu
-MTggYmVjYXVzZSB0aGVyZSB3ZXJlIG11bHRpcGxlIHJlZ3Jlc3Npb25zDQo+PiBhZmZlY3Rpbmcg
-bXkgY29tcHV0ZXIuIDQuMTktcmM2IGFuZCA0LjE5LXJjNyBoYXZlIG1vc3QgcmVncmVzc2lvbnMg
-Zml4ZWQNCj4+IGJ1dCB0aGVuIHRoaXMgaXNzdWUgYXBwZWFyZWQuDQo+Pg0KPj4gVGhlIGZpcnN0
-IGtlcm5lbCB2ZXJzaW9uIHJlbGVhc2VkIEkgZm91bmQgd2l0aCB0aGlzIHByb2JsZW0gaXMgNC4x
-OC1yYzQsDQo+IA0KPiBPSywgdGhhdCBjb25maXJtcyB0aGUgc21hcHNfcm9sbHVwIHByb2JsZW0g
-aXMgaW5kZWVkIG9sZGVyIHRoYW4gbXkNCj4gcmV3cml0ZS4gVW5sZXNzIGl0J3MgYSB0eXBvIGFu
-ZCB5b3UgbWVhbiA0LjE5LXJjNCBzaW5jZSB5b3UgInNraXBwZWQgNC4xOCIuDQo+IA0KPj4gYnV0
-IGJpc2VjdGluZyBiZXR3ZWVuIDQuMTgtcmMzIGFuZCA0LjE4LXJjNCBmYWlsZWQ6IG9uIGJvb3Qg
-dGhlcmUgd2FzDQo+PiBvbmUgbWVzc2FnZSBzdGFydGluZyB3aXRoIFtVTlNVUFBdIGFuZCB3aXRo
-IHNvbWV0aGluZyBhYm91dCAiQXJiaXRyYXJ5DQo+PiBGaWxlIFN5c3RlbSIuDQo+Pg0K
+On Sun, Oct 14, 2018 at 10:35:46AM -0700, Christoph Hellwig wrote:
+> On Fri, Oct 12, 2018 at 05:08:32PM -0700, Darrick J. Wong wrote:
+> > From: Darrick J. Wong <darrick.wong@oracle.com>
+> > 
+> > Back when the XFS reflink code only supported clone_file_range, we were
+> > only able to return zero or negative error codes to userspace.  However,
+> > now that copy_file_range (which returns bytes copied) can use XFS'
+> > clone_file_range, we have the opportunity to return partial results.
+> > For example, if userspace sends a 1GB clone request and we run out of
+> > space halfway through, we at least can tell userspace that we completed
+> > 512M of that request like a regular write.
+> > 
+> > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+> > ---
+> >  fs/xfs/xfs_file.c    |    5 +----
+> >  fs/xfs/xfs_reflink.c |   20 +++++++++++++++-----
+> >  fs/xfs/xfs_reflink.h |    2 +-
+> >  3 files changed, 17 insertions(+), 10 deletions(-)
+> > 
+> > 
+> > diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+> > index bc9e94bcb7a3..b2b15b8dc4a1 100644
+> > --- a/fs/xfs/xfs_file.c
+> > +++ b/fs/xfs/xfs_file.c
+> > @@ -928,14 +928,11 @@ xfs_file_remap_range(
+> >  	loff_t		len,
+> >  	unsigned int	remap_flags)
+> >  {
+> > -	int		ret;
+> > -
+> >  	if (!remap_check_flags(remap_flags, RFR_SAME_DATA))
+> >  		return -EINVAL;
+> >  
+> > -	ret = xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
+> > +	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
+> >  			len, remap_flags);
+> 
+> Is there any reason not to merge xfs_file_remap_range and
+> xfs_reflink_remap_range at this point?
+
+Yeah, that seems like a good idea to me - pulling all the
+vfs/generic code interactions back up into xfs_file.c would match
+how the rest of the file operations are layered w.r.t. external and
+internal XFS code...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
