@@ -1,44 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CFD76B0010
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 09:14:10 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id v4-v6so15532143plz.21
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 06:14:10 -0700 (PDT)
-Received: from eu-smtp-delivery-151.mimecast.com (eu-smtp-delivery-151.mimecast.com. [207.82.80.151])
-        by mx.google.com with ESMTPS id c191-v6si10599616pga.402.2018.10.15.06.14.08
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A24BD6B0005
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 09:18:07 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id g63-v6so4053604pfc.9
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 06:18:07 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id c19-v6si10587282plo.357.2018.10.15.06.18.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Oct 2018 06:14:09 -0700 (PDT)
-From: David Laight <David.Laight@ACULAB.COM>
-Subject: RE: [PATCH] x86/entry/32: Fix setup of CS high bits
-Date: Mon, 15 Oct 2018 13:14:06 +0000
-Message-ID: <a16919d7e6504ad59a0fad828690bcb9@AcuMS.aculab.com>
-References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
- <1531906876-13451-11-git-send-email-joro@8bytes.org>
- <97421241-2bc4-c3f1-4128-95b3e8a230d1@siemens.com>
- <35a24feb-5970-aa03-acbf-53428a159ace@web.de>
- <CALCETrWveao7jthnfKr5F=UyEpyowP0VA20eZi5OxizgT05EDA@mail.gmail.com>
- <406a08c7-6199-a32d-d385-c032fb4c34d6@siemens.com>
-In-Reply-To: <406a08c7-6199-a32d-d385-c032fb4c34d6@siemens.com>
-Content-Language: en-US
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 15 Oct 2018 06:18:06 -0700 (PDT)
+Date: Mon, 15 Oct 2018 06:18:03 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 07/25] vfs: combine the clone and dedupe into a single
+ remap_file_range
+Message-ID: <20181015131803.GA9845@bombadil.infradead.org>
+References: <153938912912.8361.13446310416406388958.stgit@magnolia>
+ <153938919123.8361.13059492965161549195.stgit@magnolia>
+ <20181014171927.GD30673@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181014171927.GD30673@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Jan Kiszka' <jan.kiszka@siemens.com>, Andy Lutomirski <luto@kernel.org>
-Cc: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave
- Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, david@fromorbit.com, sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, Amir Goldstein <amir73il@gmail.com>, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, ocfs2-devel@oss.oracle.com
 
-RnJvbTogSmFuIEtpc3prYQ0KPiBTZW50OiAxNSBPY3RvYmVyIDIwMTggMTQ6MDkNCi4uLg0KPiA+
-IFRob3NlIGZpZWxkcyBhcmUgZ2VudWluZWx5IDE2IGJpdC4gIFNvIHRoZSBjb21tZW50IHNob3Vs
-ZCBzYXkNCj4gPiBzb21ldGhpbmcgbGlrZSAiVGhvc2UgaGlnaCBiaXRzIGFyZSB1c2VkIGZvciBD
-U19GUk9NX0VOVFJZX1NUQUNLIGFuZA0KPiA+IENTX0ZST01fVVNFUl9DUjMiLg0KPiANCj4gLyoN
-Cj4gICAqIFRoZSBoaWdoIGJpdHMgb2YgdGhlIENTIGR3b3JkIChfX2NzaCkgYXJlIHVzZWQgZm9y
-DQo+ICAgKiBDU19GUk9NX0VOVFJZX1NUQUNLIGFuZCBDU19GUk9NX1VTRVJfQ1IzLiBDbGVhciB0
-aGVtIGluIGNhc2UNCj4gICAqIGhhcmR3YXJlIGRpZG4ndCBkbyB0aGlzIGZvciB1cy4NCj4gICAq
-Lw0KDQpXaGF0J3MgYSAnZHdvcmQnID8gOi0pDQoNCk9uIGEgMzJiaXQgcHJvY2Vzc29yIGEgJ3dv
-cmQnIHdpbGwgYmUgMzIgYml0cyB0byBhICdkb3VibGUtd29yZCcNCndvdWxkIGJlIDY0IGJpdHMu
-DQpPbmUgb2YgdGhlIHdvcnN0IG5hbWVzIHRvIHVzZS4NCg0KCURhdmlkDQoNCi0NClJlZ2lzdGVy
-ZWQgQWRkcmVzcyBMYWtlc2lkZSwgQnJhbWxleSBSb2FkLCBNb3VudCBGYXJtLCBNaWx0b24gS2V5
-bmVzLCBNSzEgMVBULCBVSw0KUmVnaXN0cmF0aW9uIE5vOiAxMzk3Mzg2IChXYWxlcykNCg==
+On Sun, Oct 14, 2018 at 10:19:27AM -0700, Christoph Hellwig wrote:
+> >  	unsigned (*mmap_capabilities)(struct file *);
+> >  #endif
+> >  	ssize_t (*copy_file_range)(struct file *, loff_t, struct file *, loff_t, size_t, unsigned int);
+> > -	int (*clone_file_range)(struct file *, loff_t, struct file *, loff_t, u64);
+> > -	int (*dedupe_file_range)(struct file *, loff_t, struct file *, loff_t, u64);
+> > +	int (*remap_file_range)(struct file *file_in, loff_t pos_in,
+> > +				struct file *file_out, loff_t pos_out,
+> > +				u64 len, unsigned int remap_flags);
+> 
+> None of the other methods in this file name their parameters.  While
+> I generally don't like people leaving them out, in the end consistency
+> is even more important.
+
+I would agree with you *except* that the parameters do not follow memcpy()
+traditional order (dst, src, len).  Instead they are (src, dst, len), so we
+should probably name them to advise the poor sod who has to implement this
+that we've chosen an inconsistent API.
+
+Or we could fix it.
