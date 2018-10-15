@@ -1,111 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FE9D6B0006
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 06:39:14 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id 91so13988026otr.18
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 03:39:14 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id o8si4956676otd.16.2018.10.15.03.39.12
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A1B8F6B0008
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 06:58:12 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id f5-v6so17858768ioq.17
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 03:58:12 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id f123-v6si8390047itd.9.2018.10.15.03.58.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Oct 2018 03:39:13 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w9FAdBCe001185
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 06:39:12 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2n4p85g2fa-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 06:39:11 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <imbrenda@linux.ibm.com>;
-	Mon, 15 Oct 2018 11:39:02 +0100
-Date: Mon, 15 Oct 2018 12:38:54 +0200
-From: Claudio Imbrenda <imbrenda@linux.ibm.com>
-Subject: Re: [PATCH RFC v2] ksm: Assist buddy allocator to assemble 1-order
- pages
-In-Reply-To: <153959597844.26723.5798112367236156151.stgit@localhost.localdomain>
-References: <153959597844.26723.5798112367236156151.stgit@localhost.localdomain>
+        Mon, 15 Oct 2018 03:58:11 -0700 (PDT)
+Subject: Re: [RFC PATCH] memcg, oom: throttle dump_header for memcg ooms
+ without eligible tasks
+References: <000000000000dc48d40577d4a587@google.com>
+ <20181010151135.25766-1-mhocko@kernel.org>
+ <20181012112008.GA27955@cmpxchg.org> <20181012120858.GX5873@dhcp22.suse.cz>
+ <9174f087-3f6f-f0ed-6009-509d4436a47a@i-love.sakura.ne.jp>
+ <20181012124137.GA29330@cmpxchg.org>
+ <0417c888-d74e-b6ae-a8f0-234cbde03d38@i-love.sakura.ne.jp>
+ <bb2074c0-34fe-8c2c-1c7d-db71338f1e7f@i-love.sakura.ne.jp>
+ <20181013112238.GA762@cmpxchg.org>
+ <b61b2e60-d899-90c6-579a-587815cebff6@i-love.sakura.ne.jp>
+ <20181015081934.GD18839@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <ea637f9a-5dd0-f927-d26d-d0b4fd8ccb6f@i-love.sakura.ne.jp>
+Date: Mon, 15 Oct 2018 19:57:35 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20181015081934.GD18839@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Message-Id: <20181015123854.5a22846d@p-imbrenda.boeblingen.de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: hughd@google.com, aarcange@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, andriy.shevchenko@linux.intel.com, mhocko@suse.com, rppt@linux.vnet.ibm.com, imbrenda@linux.vnet.ibm.com, corbet@lwn.net, ndesaulniers@google.com, dave.jiang@intel.com, jglisse@redhat.com, jia.he@hxt-semitech.com, paulmck@linux.vnet.ibm.com, colin.king@canonical.com, jiang.biao2@zte.com.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>
 
-I don't have objections to this patch, but I wonder how much impact it
-would have. Have you performed any tests? does it really have such a big
-impact on the availability of order-1 page blocks? 
+On 2018/10/15 17:19, Michal Hocko wrote:
+> As so many dozens of times before, I will point you to an incremental
+> nature of changes we really prefer in the mm land. We are also after a
+> simplicity which your proposal lacks in many aspects. You seem to ignore
+> that general approach and I have hard time to consider your NAK as a
+> relevant feedback. Going to an extreme and basing a complex solution on
+> it is not going to fly. No killable process should be a rare event which
+> requires a seriously misconfigured memcg to happen so wildly. If you can
+> trigger it with a normal user privileges then it would be a clear bug to
+> address rather than work around with printk throttling.
+> 
 
+I can trigger 200+ times / 900+ lines / 69KB+ of needless OOM messages
+with a normal user privileges. This is a lot of needless noise/delay.
+No killable process is not a rare event, even without root privileges.
 
-Claudio
+[root@ccsecurity kumaneko]# time ./a.out
+Killed
 
-On Mon, 15 Oct 2018 12:33:36 +0300
-Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+real    0m2.396s
+user    0m0.000s
+sys     0m2.970s
+[root@ccsecurity ~]# dmesg | grep 'no killable' | wc -l
+202
+[root@ccsecurity ~]# dmesg | wc
+    942    7335   70716
+[root@ccsecurity ~]#
 
-> v2: Style improvements
-> 
-> try_to_merge_two_pages() merges two pages, one of them
-> is a page of currently scanned mm, the second is a page
-> with identical hash from unstable tree. Currently, we
-> merge the page from unstable tree into the first one,
-> and then free it.
-> 
-> The idea of this patch is to prefer freeing that page
-> of them, which has a free neighbour (i.e., neighbour
-> with zero page_count()). This allows buddy allocator
-> to assemble at least 1-order set from the freed page
-> and its neighbour; this is a kind of cheep passive
-> compaction.
-> 
-> AFAIK, 1-order pages set consists of pages with PFNs
-> [2n, 2n+1] (odd, even), so the neighbour's pfn is
-> calculated via XOR with 1. We check the result pfn
-> is valid and its page_count(), and prefer merging
-> into @tree_page if neighbour's usage count is zero.
-> 
-> There a is small difference with current behavior
-> in case of error path. In case of the second
-> try_to_merge_with_ksm_page() is failed, we return
-> from try_to_merge_two_pages() with @tree_page
-> removed from unstable tree. It does not seem to matter,
-> but if we do not want a change at all, it's not
-> a problem to move remove_rmap_item_from_tree() from
-> try_to_merge_with_ksm_page() to its callers.
-> 
-> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-> ---
->  mm/ksm.c |   16 ++++++++++++++++
->  1 file changed, 16 insertions(+)
-> 
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> index 5b0894b45ee5..005508c86d0a 100644
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -1321,6 +1321,22 @@ static struct page
-> *try_to_merge_two_pages(struct rmap_item *rmap_item, {
->  	int err;
-> 
-> +	if (IS_ENABLED(CONFIG_COMPACTION)) {
-> +		unsigned long pfn;
-> +
-> +		/*
-> +		 * Find neighbour of @page containing 1-order pair
-> +		 * in buddy-allocator and check whether it is free.
-> +		 * If it is so, try to use @tree_page as ksm page
-> +		 * and to free @page.
-> +		 */
-> +		pfn = page_to_pfn(page) ^ 1;
-> +		if (pfn_valid(pfn) && page_count(pfn_to_page(pfn))
-> == 0) {
-> +			swap(rmap_item, tree_rmap_item);
-> +			swap(page, tree_page);
-> +		}
-> +	}
-> +
->  	err = try_to_merge_with_ksm_page(rmap_item, page, NULL);
->  	if (!err) {
->  		err = try_to_merge_with_ksm_page(tree_rmap_item,
-> 
+----------------------------------------
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sched.h>
+#include <sys/mman.h>
+
+#define NUMTHREADS 256
+#define MMAPSIZE 4 * 10485760
+#define STACKSIZE 4096
+static int pipe_fd[2] = { EOF, EOF };
+static int memory_eater(void *unused)
+{
+        int fd = open("/dev/zero", O_RDONLY);
+        char *buf = mmap(NULL, MMAPSIZE, PROT_WRITE | PROT_READ,
+                         MAP_ANONYMOUS | MAP_SHARED, EOF, 0);
+        read(pipe_fd[0], buf, 1);
+        read(fd, buf, MMAPSIZE);
+        pause();
+        return 0;
+}
+int main(int argc, char *argv[])
+{
+        int i;
+        char *stack;
+        FILE *fp;
+        const unsigned long size = 1048576 * 200;
+        mkdir("/sys/fs/cgroup/memory/test1", 0755);
+        fp = fopen("/sys/fs/cgroup/memory/test1/memory.limit_in_bytes", "w");
+        fprintf(fp, "%lu\n", size);
+        fclose(fp);
+        fp = fopen("/sys/fs/cgroup/memory/test1/tasks", "w");
+        fprintf(fp, "%u\n", getpid());
+        fclose(fp);
+        if (setgid(-2) || setuid(-2))
+                return 1;
+        stack = mmap(NULL, STACKSIZE * NUMTHREADS, PROT_WRITE | PROT_READ,
+                     MAP_ANONYMOUS | MAP_SHARED, EOF, 0);
+        for (i = 0; i < NUMTHREADS; i++)
+                if (clone(memory_eater, stack + (i + 1) * STACKSIZE,
+                          CLONE_SIGHAND | CLONE_THREAD | CLONE_VM | CLONE_FS | CLONE_FILES, NULL) == -1)
+                        break;
+        sleep(1);
+        close(pipe_fd[1]);
+        pause();
+        return 0;
+}
+----------------------------------------
