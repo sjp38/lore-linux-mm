@@ -1,70 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B6046B000A
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 18:30:20 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id g63-v6so5681460pfc.9
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 15:30:20 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D0DCB6B000D
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 18:31:58 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id t15-v6so11801690ybl.20
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 15:31:58 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c12-v6sor3090132pgn.27.2018.10.15.15.30.18
+        by mx.google.com with SMTPS id 140-v6sor1753848ywf.180.2018.10.15.15.31.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 15 Oct 2018 15:30:19 -0700 (PDT)
-Date: Mon, 15 Oct 2018 15:30:17 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
- mappings
-In-Reply-To: <alpine.DEB.2.21.1810101410530.53455@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.21.1810151525460.247641@chino.kir.corp.google.com>
-References: <20180925120326.24392-2-mhocko@kernel.org> <alpine.DEB.2.21.1810041302330.16935@chino.kir.corp.google.com> <20181005073854.GB6931@suse.de> <alpine.DEB.2.21.1810051320270.202739@chino.kir.corp.google.com> <20181005232155.GA2298@redhat.com>
- <alpine.DEB.2.21.1810081303060.221006@chino.kir.corp.google.com> <20181009094825.GC6931@suse.de> <20181009122745.GN8528@dhcp22.suse.cz> <20181009130034.GD6931@suse.de> <20181009142510.GU8528@dhcp22.suse.cz> <20181009230352.GE9307@redhat.com>
- <alpine.DEB.2.21.1810101410530.53455@chino.kir.corp.google.com>
+        Mon, 15 Oct 2018 15:31:58 -0700 (PDT)
+Received: from mail-yw1-f47.google.com (mail-yw1-f47.google.com. [209.85.161.47])
+        by smtp.gmail.com with ESMTPSA id r5-v6sm4918537ywr.80.2018.10.15.15.31.56
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 Oct 2018 15:31:57 -0700 (PDT)
+Received: by mail-yw1-f47.google.com with SMTP id 135-v6so8153544ywo.8
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 15:31:56 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <153922180696.838512.12621709717839260874.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <153922180166.838512.8260339805733812034.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <153922180696.838512.12621709717839260874.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Mon, 15 Oct 2018 15:25:47 -0700
+Message-ID: <CAGXu5j+PStxYhiJaWM-mt4+WWbS_WAfvyHoyZYD5ndDLN2SY6w@mail.gmail.com>
+Subject: Re: [PATCH v4 1/3] mm: Shuffle initial free memory
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 10 Oct 2018, David Rientjes wrote:
+On Wed, Oct 10, 2018 at 6:36 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+> While SLAB_FREELIST_RANDOM reduces the predictability of some local slab
+> caches it leaves vast bulk of memory to be predictably in order
+> allocated. That ordering can be detected by a memory side-cache.
+>
+> The shuffling is done in terms of CONFIG_SHUFFLE_PAGE_ORDER sized free
+> pages where the default CONFIG_SHUFFLE_PAGE_ORDER is MAX_ORDER-1 i.e.
+> 10, 4MB this trades off randomization granularity for time spent
+> shuffling.  MAX_ORDER-1 was chosen to be minimally invasive to the page
+> allocator while still showing memory-side cache behavior improvements,
+> and the expectation that the security implications of finer granularity
+> randomization is mitigated by CONFIG_SLAB_FREELIST_RANDOM.
 
-> > I think "madvise vs mbind" is more an issue of "no-permission vs
-> > permission" required. And if the processes ends up swapping out all
-> > other process with their memory already allocated in the node, I think
-> > some permission is correct to be required, in which case an mbind
-> > looks a better fit. MPOL_PREFERRED also looks a first candidate for
-> > investigation as it's already not black and white and allows spillover
-> > and may already do the right thing in fact if set on top of
-> > MADV_HUGEPAGE.
-> > 
-> 
-> We would never want to thrash the local node for hugepages because there 
-> is no guarantee that any swapping is useful.  On COMPACT_SKIPPED due to 
-> low memory, we have very clear evidence that pageblocks are already 
-> sufficiently fragmented by unmovable pages such that compaction itself, 
-> even with abundant free memory, fails to free an entire pageblock due to 
-> the allocator's preference to fragment pageblocks of fallback migratetypes 
-> over returning remote free memory.
-> 
-> As I've stated, we do not want to reclaim pointlessly when compaction is 
-> unable to access the freed memory or there is no guarantee it can free an 
-> entire pageblock.  Doing so allows thrashing of the local node, or remote 
-> nodes if __GFP_THISNODE is removed, and the hugepage still cannot be 
-> allocated.  If this proposed mbind() that requires permissions is geared 
-> to me as the user, I'm afraid the details of what leads to the thrashing 
-> are not well understood because I certainly would never use this.
-> 
+Perhaps it would help some of the detractors of this feature to make
+this a runtime choice? Some benchmarks show improvements, some show
+regressions. It could just be up to the admin to turn this on/off
+given their paranoia levels? (i.e. the shuffling could become a no-op
+with a given specific boot param?)
 
-At the risk of beating a dead horse that has already been beaten, what are 
-the plans for this patch when the merge window opens?  It would be rather 
-unfortunate for us to start incurring a 14% increase in access latency and 
-40% increase in fault latency.  Would it be possible to test with my 
-patch[*] that does not try reclaim to address the thrashing issue?  If 
-that is satisfactory, I don't have a strong preference if it is done with 
-a hardcoded pageblock_order and __GFP_NORETRY check or a new 
-__GFP_COMPACT_ONLY flag.
+-Kees
 
-I think the second issue of faulting remote thp by removing __GFP_THISNODE 
-needs supporting evidence that shows some platforms benefit from this (and 
-not with numa=fake on the command line :).
-
- [*] https://marc.info/?l=linux-kernel&m=153903127717471
+-- 
+Kees Cook
+Pixel Security
