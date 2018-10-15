@@ -1,18 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D3BF6B0006
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 16:26:53 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id h9-v6so15392858pgs.11
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 13:26:53 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id bb10-v6si11218652plb.359.2018.10.15.13.26.51
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DA2526B000A
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 16:26:59 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id s15-v6so15597800pgv.9
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 13:26:59 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id w9-v6si11424155pll.138.2018.10.15.13.26.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Oct 2018 13:26:51 -0700 (PDT)
-Subject: [mm PATCH v3 0/6] Deferred page init improvements
+        Mon, 15 Oct 2018 13:26:58 -0700 (PDT)
+Subject: [mm PATCH v3 1/6] mm: Use mm_zero_struct_page from SPARC on all 64b
+ architectures
 From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Date: Mon, 15 Oct 2018 13:26:49 -0700
-Message-ID: <20181015202456.2171.88406.stgit@localhost.localdomain>
+Date: Mon, 15 Oct 2018 13:26:56 -0700
+Message-ID: <20181015202656.2171.92963.stgit@localhost.localdomain>
+In-Reply-To: <20181015202456.2171.88406.stgit@localhost.localdomain>
+References: <20181015202456.2171.88406.stgit@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -21,47 +24,114 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, akpm@linux-foundation.org
 Cc: pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com, alexander.h.duyck@linux.intel.com, linux-kernel@vger.kernel.org, willy@infradead.org, davem@davemloft.net, yi.z.zhang@linux.intel.com, khalid.aziz@oracle.com, rppt@linux.vnet.ibm.com, vbabka@suse.cz, sparclinux@vger.kernel.org, dan.j.williams@intel.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mingo@kernel.org, kirill.shutemov@linux.intel.com
 
-This patchset is essentially a refactor of the page initialization logic
-that is meant to provide for better code reuse while providing a
-significant improvement in deferred page initialization performance.
+This change makes it so that we use the same approach that was already in
+use on Sparc on all the archtectures that support a 64b long.
 
-In my testing I have seen a 60% reduction in the time needed for deferred
-memory initialization on two different x86_64 based test systems I have. In
-addition this provides a slight improvement for the persistent memory 
-initialization, the improvement is about 15% from what I can
-tell and that is mostly due to combining the setting of the reserved flag
-into a number of other page->flags values that could be constructed outside
-of the main initialization loop itself.
+This is mostly motivated by the fact that 8 to 10 store/move instructions
+are likely always going to be faster than having to call into a function
+that is not specialized for handling page init.
 
-The biggest gains of this patchset come from not having to test each pfn
-multiple times to see if it is valid and if it is actually a part of the
-node being initialized.
+An added advantage to doing it this way is that the compiler can get away
+with combining writes in the __init_single_page call. As a result the
+memset call will be reduced to only about 4 write operations, or at least
+that is what I am seeing with GCC 6.2 as the flags, LRU poitners, and
+count/mapcount seem to be cancelling out at least 4 of the 8 assignments on
+my system.
 
-v1->v2:
-    Fixed build issue on PowerPC due to page struct size being 56
-    Added new patch that removed __SetPageReserved call for hotplug
-v2->v3:
-    Removed patch that had removed __SetPageReserved call from init
-    Tweaked __init_pageblock to use start_pfn to get section_nr instead of pfn
-    Added patch that folded __SetPageReserved into set_page_links
-    Rebased on latest linux-next
+One change I had to make to the function was to reduce the minimum page
+size to 56 to support some powerpc64 configurations.
 
+Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 ---
+ arch/sparc/include/asm/pgtable_64.h |   30 ------------------------------
+ include/linux/mm.h                  |   34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 30 deletions(-)
 
-Alexander Duyck (6):
-      mm: Use mm_zero_struct_page from SPARC on all 64b architectures
-      mm: Drop meminit_pfn_in_nid as it is redundant
-      mm: Use memblock/zone specific iterator for handling deferred page init
-      mm: Move hot-plug specific memory init into separate functions and optimize
-      mm: Use common iterator for deferred_init_pages and deferred_free_pages
-      mm: Add reserved flag setting to set_page_links
-
-
- arch/sparc/include/asm/pgtable_64.h |   30 --
- include/linux/memblock.h            |   58 ++++
- include/linux/mm.h                  |   43 +++
- mm/memblock.c                       |   63 ++++
- mm/page_alloc.c                     |  572 +++++++++++++++++++++--------------
- 5 files changed, 510 insertions(+), 256 deletions(-)
-
---
+diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
+index 1393a8ac596b..22500c3be7a9 100644
+--- a/arch/sparc/include/asm/pgtable_64.h
++++ b/arch/sparc/include/asm/pgtable_64.h
+@@ -231,36 +231,6 @@
+ extern struct page *mem_map_zero;
+ #define ZERO_PAGE(vaddr)	(mem_map_zero)
+ 
+-/* This macro must be updated when the size of struct page grows above 80
+- * or reduces below 64.
+- * The idea that compiler optimizes out switch() statement, and only
+- * leaves clrx instructions
+- */
+-#define	mm_zero_struct_page(pp) do {					\
+-	unsigned long *_pp = (void *)(pp);				\
+-									\
+-	 /* Check that struct page is either 64, 72, or 80 bytes */	\
+-	BUILD_BUG_ON(sizeof(struct page) & 7);				\
+-	BUILD_BUG_ON(sizeof(struct page) < 64);				\
+-	BUILD_BUG_ON(sizeof(struct page) > 80);				\
+-									\
+-	switch (sizeof(struct page)) {					\
+-	case 80:							\
+-		_pp[9] = 0;	/* fallthrough */			\
+-	case 72:							\
+-		_pp[8] = 0;	/* fallthrough */			\
+-	default:							\
+-		_pp[7] = 0;						\
+-		_pp[6] = 0;						\
+-		_pp[5] = 0;						\
+-		_pp[4] = 0;						\
+-		_pp[3] = 0;						\
+-		_pp[2] = 0;						\
+-		_pp[1] = 0;						\
+-		_pp[0] = 0;						\
+-	}								\
+-} while (0)
+-
+ /* PFNs are real physical page numbers.  However, mem_map only begins to record
+  * per-page information starting at pfn_base.  This is to handle systems where
+  * the first physical page in the machine is at some huge physical address,
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index bb0de406f8e7..ec6e57a0c14e 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -102,8 +102,42 @@ static inline void set_max_mapnr(unsigned long limit) { }
+  * zeroing by defining this macro in <asm/pgtable.h>.
+  */
+ #ifndef mm_zero_struct_page
++#if BITS_PER_LONG == 64
++/* This function must be updated when the size of struct page grows above 80
++ * or reduces below 64. The idea that compiler optimizes out switch()
++ * statement, and only leaves move/store instructions
++ */
++#define	mm_zero_struct_page(pp) __mm_zero_struct_page(pp)
++static inline void __mm_zero_struct_page(struct page *page)
++{
++	unsigned long *_pp = (void *)page;
++
++	 /* Check that struct page is either 56, 64, 72, or 80 bytes */
++	BUILD_BUG_ON(sizeof(struct page) & 7);
++	BUILD_BUG_ON(sizeof(struct page) < 56);
++	BUILD_BUG_ON(sizeof(struct page) > 80);
++
++	switch (sizeof(struct page)) {
++	case 80:
++		_pp[9] = 0;	/* fallthrough */
++	case 72:
++		_pp[8] = 0;	/* fallthrough */
++	default:
++		_pp[7] = 0;	/* fallthrough */
++	case 56:
++		_pp[6] = 0;
++		_pp[5] = 0;
++		_pp[4] = 0;
++		_pp[3] = 0;
++		_pp[2] = 0;
++		_pp[1] = 0;
++		_pp[0] = 0;
++	}
++}
++#else
+ #define mm_zero_struct_page(pp)  ((void)memset((pp), 0, sizeof(struct page)))
+ #endif
++#endif
+ 
+ /*
+  * Default maximum number of active map areas, this limits the number of vmas
