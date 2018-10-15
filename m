@@ -1,98 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 76DCC6B026B
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 12:49:30 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id v30-v6so16772644wra.19
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 09:49:30 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTPS id o10-v6si8800952wre.193.2018.10.15.09.49.29
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D32F6B0005
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 13:03:36 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id l10-v6so14250556wrw.12
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 10:03:36 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTPS id w9-v6si8555654wrt.38.2018.10.15.10.03.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Oct 2018 09:49:29 -0700 (PDT)
-Date: Mon, 15 Oct 2018 18:49:13 +0200
+        Mon, 15 Oct 2018 10:03:34 -0700 (PDT)
+Date: Mon, 15 Oct 2018 19:03:20 +0200
 From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v6 17/18] mm/memory-failure: increase queued recovery
- work's priority
-Message-ID: <20181015164913.GE11434@zn.tnic>
-References: <20180921221705.6478-1-james.morse@arm.com>
- <20180921221705.6478-18-james.morse@arm.com>
+Subject: Re: [PATCH v5 02/27] x86/fpu/xstate: Change names to separate XSAVES
+ system and user states
+Message-ID: <20181015170320.GF11434@zn.tnic>
+References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
+ <20181011151523.27101-3-yu-cheng.yu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20180921221705.6478-18-james.morse@arm.com>
+In-Reply-To: <20181011151523.27101-3-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-+ Peter.
-
-On Fri, Sep 21, 2018 at 11:17:04PM +0100, James Morse wrote:
-> arm64 can take an NMI-like error notification when user-space steps in
-> some corrupt memory. APEI's GHES code will call memory_failure_queue()
-> to schedule the recovery work. We then return to user-space, possibly
-> taking the fault again.
+On Thu, Oct 11, 2018 at 08:14:58AM -0700, Yu-cheng Yu wrote:
+> Control Flow Enforcement (CET) MSRs are XSAVES system/supervisor
+> states.  To support CET, we introduce XSAVES system states first.
 > 
-> Currently the arch code unconditionally signals user-space from this
-> path, so we don't get stuck in this loop, but the affected process
-> never benefits from memory_failure()s recovery work. To fix this we
-> need to know the recovery work will run before we get back to user-space.
+> XSAVES is a "supervisor" instruction and, comparing to XSAVE, saves
+> additional "supervisor" states that can be modified only from CPL 0.
+> However, these states are per-task and not kernel's own.  Rename
+> "supervisor" states to "system" states to clearly separate them from
+> "user" states.
 > 
-> Increase the priority of the recovery work by scheduling it on the
-> system_highpri_wq, then try to bump the current task off this CPU
-> so that the recovery work starts immediately.
-> 
-> Reported-by: Xie XiuQi <xiexiuqi@huawei.com>
-> Signed-off-by: James Morse <james.morse@arm.com>
-> Reviewed-by: Punit Agrawal <punit.agrawal@arm.com>
-> Tested-by: Tyler Baicar <tbaicar@codeaurora.org>
-> Tested-by: gengdongjiu <gengdongjiu@huawei.com>
-> CC: Xie XiuQi <xiexiuqi@huawei.com>
-> CC: gengdongjiu <gengdongjiu@huawei.com>
+> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 > ---
->  mm/memory-failure.c | 11 ++++++++---
->  1 file changed, 8 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 0cd3de3550f0..4e7b115cea5a 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -56,6 +56,7 @@
->  #include <linux/memory_hotplug.h>
->  #include <linux/mm_inline.h>
->  #include <linux/memremap.h>
-> +#include <linux/preempt.h>
->  #include <linux/kfifo.h>
->  #include <linux/ratelimit.h>
->  #include <linux/page-isolation.h>
-> @@ -1454,6 +1455,7 @@ static DEFINE_PER_CPU(struct memory_failure_cpu, memory_failure_cpu);
->   */
->  void memory_failure_queue(unsigned long pfn, int flags)
->  {
-> +	int cpu = smp_processor_id();
->  	struct memory_failure_cpu *mf_cpu;
->  	unsigned long proc_flags;
->  	struct memory_failure_entry entry = {
-> @@ -1463,11 +1465,14 @@ void memory_failure_queue(unsigned long pfn, int flags)
+>  arch/x86/include/asm/fpu/internal.h |  4 +-
+>  arch/x86/include/asm/fpu/xstate.h   | 20 +++----
+>  arch/x86/kernel/fpu/core.c          |  4 +-
+>  arch/x86/kernel/fpu/init.c          |  2 +-
+>  arch/x86/kernel/fpu/signal.c        |  6 +--
+>  arch/x86/kernel/fpu/xstate.c        | 82 ++++++++++++++---------------
+>  6 files changed, 57 insertions(+), 61 deletions(-)
+
+...
+
+> diff --git a/arch/x86/kernel/fpu/xstate.c b/arch/x86/kernel/fpu/xstate.c
+> index 87a57b7642d3..e7cbaed12ef1 100644
+> --- a/arch/x86/kernel/fpu/xstate.c
+> +++ b/arch/x86/kernel/fpu/xstate.c
+> @@ -51,13 +51,14 @@ static short xsave_cpuid_features[] __initdata = {
+>  };
 >  
->  	mf_cpu = &get_cpu_var(memory_failure_cpu);
->  	spin_lock_irqsave(&mf_cpu->lock, proc_flags);
-> -	if (kfifo_put(&mf_cpu->fifo, entry))
-> -		schedule_work_on(smp_processor_id(), &mf_cpu->work);
-> -	else
-> +	if (kfifo_put(&mf_cpu->fifo, entry)) {
-> +		queue_work_on(cpu, system_highpri_wq, &mf_cpu->work);
-> +		set_tsk_need_resched(current);
-> +		preempt_set_need_resched();
+>  /*
+> - * Mask of xstate features supported by the CPU and the kernel:
+> + * Mask of supported 'user' xstate features derived from boot_cpu_has() and
+> + * SUPPORTED_XFEATURES_MASK.
 
-What guarantees the workqueue would run before the process? I see this:
+<--- This comment here looks like a good place to put some blurb about
+user and system states, what they are, what the distinction is and so
+on.
 
-``WQ_HIGHPRI``
-  Work items of a highpri wq are queued to the highpri
-  worker-pool of the target cpu.  Highpri worker-pools are
-  served by worker threads with elevated nice level.
+>   */
+> -u64 xfeatures_mask __read_mostly;
+> +u64 xfeatures_mask_user __read_mostly;
+>  
+>  static unsigned int xstate_offsets[XFEATURE_MAX] = { [ 0 ... XFEATURE_MAX - 1] = -1};
+>  static unsigned int xstate_sizes[XFEATURE_MAX]   = { [ 0 ... XFEATURE_MAX - 1] = -1};
+> -static unsigned int xstate_comp_offsets[sizeof(xfeatures_mask)*8];
+> +static unsigned int xstate_comp_offsets[sizeof(xfeatures_mask_user)*8];
+>  
+>  /*
+>   * The XSAVE area of kernel can be in standard or compacted format;
+> @@ -82,7 +83,7 @@ void fpu__xstate_clear_all_cpu_caps(void)
+>   */
+>  int cpu_has_xfeatures(u64 xfeatures_needed, const char **feature_name)
+>  {
+> -	u64 xfeatures_missing = xfeatures_needed & ~xfeatures_mask;
+> +	u64 xfeatures_missing = xfeatures_needed & ~xfeatures_mask_user;
+>  
+>  	if (unlikely(feature_name)) {
+>  		long xfeature_idx, max_idx;
+> @@ -113,14 +114,11 @@ int cpu_has_xfeatures(u64 xfeatures_needed, const char **feature_name)
+>  }
+>  EXPORT_SYMBOL_GPL(cpu_has_xfeatures);
+>  
+> -static int xfeature_is_supervisor(int xfeature_nr)
+> +static int xfeature_is_system(int xfeature_nr)
+>  {
+>  	/*
+> -	 * We currently do not support supervisor states, but if
+> -	 * we did, we could find out like this.
+> -	 *
+>  	 * SDM says: If state component 'i' is a user state component,
+> -	 * ECX[0] return 0; if state component i is a supervisor
+> +	 * ECX[0] return 0; if state component i is a system
 
-but is that enough?
+		  is 0
+
+>  	 * state component, ECX[0] returns 1.
+
+				   is 1.
+
+>  	 */
+>  	u32 eax, ebx, ecx, edx;
+
+...
+
+> @@ -242,7 +238,7 @@ void fpu__init_cpu_xstate(void)
+>   */
+>  static int xfeature_enabled(enum xfeature xfeature)
+>  {
+> -	return !!(xfeatures_mask & (1UL << xfeature));
+> +	return !!(xfeatures_mask_user & BIT_ULL(xfeature));
+>  }
+>  
+>  /*
+> @@ -272,7 +268,7 @@ static void __init setup_xstate_features(void)
+>  		cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
+>  
+>  		/*
+> -		 * If an xfeature is supervisor state, the offset
+> +		 * If an xfeature is system state, the offset
+
+				is a system state, ...
+
+>  		 * in EBX is invalid. We leave it to -1.
+>  		 */
+>  		if (xfeature_is_user(i))
 
 -- 
 Regards/Gruss,
