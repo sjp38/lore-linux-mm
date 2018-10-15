@@ -1,48 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EB5B6B000C
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 10:15:33 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id l4-v6so18885958iog.13
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 07:15:33 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id e7-v6si6510618ioq.133.2018.10.15.07.15.32
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B29AB6B0005
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 11:03:28 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id k21-v6so3333154ede.12
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 08:03:28 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g3-v6si4654909edv.437.2018.10.15.08.03.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 15 Oct 2018 07:15:32 -0700 (PDT)
-Date: Mon, 15 Oct 2018 16:14:58 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 12/18] arch/tlb: Clean up simple architectures
-Message-ID: <20181015141458.GQ9867@hirez.programming.kicks-ass.net>
-References: <20180926113623.863696043@infradead.org>
- <20180926114801.146189550@infradead.org>
- <C2D7FE5348E1B147BCA15975FBA23075012B09A59E@us01wembx1.internal.synopsys.com>
- <20181011150406.GL9848@hirez.programming.kicks-ass.net>
- <C2D7FE5348E1B147BCA15975FBA23075012B0ADA16@US01WEMBX2.internal.synopsys.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 Oct 2018 08:03:27 -0700 (PDT)
+Date: Mon, 15 Oct 2018 17:03:25 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm, proc: report PR_SET_THP_DISABLE in proc
+Message-ID: <20181015150325.GN18839@dhcp22.suse.cz>
+References: <20180926060624.GA18685@dhcp22.suse.cz>
+ <20181002112851.GP18290@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810021329260.87409@chino.kir.corp.google.com>
+ <20181003073640.GF18290@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810031547150.202532@chino.kir.corp.google.com>
+ <20181004055842.GA22173@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810040209130.113459@chino.kir.corp.google.com>
+ <20181004094637.GG22173@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810041130380.12951@chino.kir.corp.google.com>
+ <20181009083326.GG8528@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <C2D7FE5348E1B147BCA15975FBA23075012B0ADA16@US01WEMBX2.internal.synopsys.com>
+In-Reply-To: <20181009083326.GG8528@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vineet Gupta <vineet.gupta1@synopsys.com>
-Cc: "will.deacon@arm.com" <will.deacon@arm.com>, "aneesh.kumar@linux.vnet.ibm.com" <aneesh.kumar@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "npiggin@gmail.com" <npiggin@gmail.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "heiko.carstens@de.ibm.com" <heiko.carstens@de.ibm.com>, "riel@surriel.com" <riel@surriel.com>, Richard Henderson <rth@twiddle.net>, Mark Salter <msalter@redhat.com>, Richard Kuo <rkuo@codeaurora.org>, Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>, Greentime Hu <green.hu@gmail.com>, Ley Foon Tan <lftan@altera.com>, Jonas Bonn <jonas@southpole.se>, Helge Deller <deller@gmx.de>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Max Filippov <jcmvbkbc@gmail.com>, arcml <linux-snps-arc@lists.infradead.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-On Fri, Oct 12, 2018 at 07:40:04PM +0000, Vineet Gupta wrote:
-> Very nice. Thx for doing this.
+On Tue 09-10-18 10:33:26, Michal Hocko wrote:
+> On Thu 04-10-18 11:34:11, David Rientjes wrote:
+> > On Thu, 4 Oct 2018, Michal Hocko wrote:
+> > 
+> > > > And prior to the offending commit, there were three ways to control thp 
+> > > > but two ways to determine if a mapping was eligible for thp based on the 
+> > > > implementation detail of one of those ways.
+> > > 
+> > > Yes, it is really unfortunate that we have ever allowed to leak such an
+> > > internal stuff like VMA flags to userspace.
+> > > 
+> > 
+> > Right, I don't like userspace dependencies on VmFlags in smaps myself, but 
+> > it's the only way we have available that shows whether a single mapping is 
+> > eligible to be backed by thp :/
 > 
-> Once you have redone this, please point me to a branch so I can give this a spin.
-> I've always been interested in tracking down / optimizing the full TLB flushes -
-> which ARC implements by simply moving the MMU/process to a new ASID (TLB entries
-> tagged with an 8 bit value - unique per process). When I started looking into this
-> , a simple ls (fork+execve) would increment the ASID by 13 which I'd optimized to
-> a reasonable 4. Haven't checked that in recent times though so would be fun to
-> revive that measurement.
+> Which is not the case due to reasons mentioned earlier. It only speaks
+> about madvise status on the VMA.
+> 
+> > > > If there are three ways to 
+> > > > control thp, userspace is still in the dark wrt which takes precedence 
+> > > > over the other: we have PR_SET_THP_DISABLE but globally sysfs has it set 
+> > > > to "always", or we have MADV_HUGEPAGE set per smaps but PR_SET_THP_DISABLE 
+> > > > shown in /proc/pid/status, etc.
+> > > > 
+> > > > Which one is the ultimate authority?
+> > > 
+> > > Isn't our documentation good enough? If not then we should document it
+> > > properly.
+> > > 
+> > 
+> > No, because the offending commit actually changed the precedence itself: 
+> > PR_SET_THP_DISABLE used to be honored for future mappings and the commit 
+> > changed that for all current mappings.
+> 
+> Which is the actual and the full point of the fix as described in the
+> changelog. The original implementation was poor and inconsistent.
+> 
+> > So as a result of the commit 
+> > itself we would have had to change the documentation and userspace can't 
+> > be expected to keep up with yet a fourth variable: kernel version.  It 
+> > really needs to be simpler, just a per-mapping specifier.
+> 
+> As I've said, if you really need a per-vma granularity then make it a
+> dedicated line in the output with a clear semantic. Do not make VMA
+> flags even more confusing.
 
-I just pushed out the latest version to:
-
-  git://git.kernel.org/pub/scm/linux/kernel/git/peterz/queue.git mm/tlb
-
-(mandatory caution: that tree is unstable / throw-away)
-
-I'll wait a few days to see what, if anything, comes back from 0day
-before posting again.
+Can we settle with something please?
+-- 
+Michal Hocko
+SUSE Labs
