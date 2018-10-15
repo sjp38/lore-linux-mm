@@ -1,44 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F08C56B0008
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 19:03:10 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id n81-v6so21775208pfi.20
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 16:03:10 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j185-v6si12473636pfc.186.2018.10.15.16.03.09
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 474036B0003
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 19:19:56 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id v198-v6so21738505qka.16
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 16:19:56 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r23-v6si3315155qte.383.2018.10.15.16.19.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Oct 2018 16:03:10 -0700 (PDT)
-Date: Mon, 15 Oct 2018 16:03:07 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/1] mm: thp: relocate flush_cache_range() in
- migrate_misplaced_transhuge_page()
-Message-Id: <20181015160307.7bd8e48c0eb31c39821a6b3f@linux-foundation.org>
-In-Reply-To: <20181015155249.9df91c1f4bd1d593c2879b07@linux-foundation.org>
-References: <20181013002430.698-4-aarcange@redhat.com>
-	<20181015202311.7209-1-aarcange@redhat.com>
-	<20181015155249.9df91c1f4bd1d593c2879b07@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 15 Oct 2018 16:19:55 -0700 (PDT)
+Date: Mon, 15 Oct 2018 19:19:53 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
+ mappings
+Message-ID: <20181015231953.GC30832@redhat.com>
+References: <20181005232155.GA2298@redhat.com>
+ <alpine.DEB.2.21.1810081303060.221006@chino.kir.corp.google.com>
+ <20181009094825.GC6931@suse.de>
+ <20181009122745.GN8528@dhcp22.suse.cz>
+ <20181009130034.GD6931@suse.de>
+ <20181009142510.GU8528@dhcp22.suse.cz>
+ <20181009230352.GE9307@redhat.com>
+ <alpine.DEB.2.21.1810101410530.53455@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1810151525460.247641@chino.kir.corp.google.com>
+ <20181015154459.e870c30df5c41966ffb4aed8@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181015154459.e870c30df5c41966ffb4aed8@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Aaron Tomlin <atomlin@redhat.com>, Mel Gorman <mgorman@suse.de>, Jerome Glisse <jglisse@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
 
-On Mon, 15 Oct 2018 15:52:49 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+Hello Andrew,
 
-> On Mon, 15 Oct 2018 16:23:11 -0400 Andrea Arcangeli <aarcange@redhat.com> wrote:
+On Mon, Oct 15, 2018 at 03:44:59PM -0700, Andrew Morton wrote:
+> On Mon, 15 Oct 2018 15:30:17 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+> >  Would it be possible to test with my 
+> > patch[*] that does not try reclaim to address the thrashing issue?
 > 
-> > There should be no cache left by the time we overwrite the old
-> > transhuge pmd with the new one. It's already too late to flush through
-> > the virtual address because we already copied the page data to the new
-> > physical address.
-> > 
-> > So flush the cache before the data copy.
-> > 
-> > Also delete the "end" variable to shutoff a "unused variable" warning
-> > on x86 where flush_cache_range() is a noop.
-> 
-> migrate_misplaced_transhuge_page() has changed a bit.
+> Yes please.
 
-Is OK, I figured it out :)
+It'd also be great if a testcase reproducing the 40% higher access
+latency (with the one liner original fix) was available.
+
+We don't have a testcase for David's 40% latency increase problem, but
+that's likely to only happen when the system is somewhat low on memory
+globally. So the measurement must be done when compaction starts
+failing globally on all zones, but before the system starts
+swapping. The more global fragmentation the larger will be the window
+between "compaction fails because all zones are too fragmented" and
+"there is still free PAGE_SIZEd memory available to reclaim without
+swapping it out". If I understood correctly, that is precisely the
+window where the 40% higher latency should materialize.
+
+The workload that shows the badness in the upstream code is fairly
+trivial. Mel and Zi reproduced it too and I have two testcases that
+can reproduce it, one with device assignment and the other is just
+memhog. That's a massively larger window than the one where the 40%
+higher latency materializes.
+
+When there's 75% or more of the RAM free (not even allocated as easily
+reclaimable pagecache) globally, you don't expect to hit heavy
+swapping.
+
+The 40% THP allocation latency increase if you use MADV_HUGEPAGE in
+such window where all remote zones are fully fragmented is somehow
+lesser of a concern in my view (plus there's the compact deferred
+logic that should mitigate that scenario). Furthermore it is only a
+concern for page faults in MADV_HUGEPAGE ranges. If MADV_HUGEPAGE is
+set the userland allocation is long lived, so such higher allocation
+latency won't risk to hit short lived allocations that don't set
+MADV_HUGEPAGE (unless madvise=always, but that's not the default
+precisely because not all allocations are long lived).
+
+If the MADV_HUGEPAGE using library was freely available it'd also be
+nice.
