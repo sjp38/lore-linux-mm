@@ -1,117 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 352426B0007
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 11:10:47 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id j9-v6so12030274plt.3
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 08:10:47 -0700 (PDT)
-Received: from terminus.zytor.com (terminus.zytor.com. [198.137.202.136])
-        by mx.google.com with ESMTPS id p13-v6si10862734pgj.399.2018.10.15.08.10.45
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2063E6B0005
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 11:30:55 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id y203-v6so14565651wmg.9
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 08:30:55 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id l23-v6sor5704589wmc.6.2018.10.15.08.30.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 15 Oct 2018 08:10:45 -0700 (PDT)
-Date: Mon, 15 Oct 2018 08:09:53 -0700
-From: tip-bot for Jan Kiszka <tipbot@zytor.com>
-Message-ID: <tip-8cad6c58c9effb59b830bcf0103d8267ad2e312d@git.kernel.org>
-Reply-To: aarcange@redhat.com, x86@kernel.org, jkosina@suse.cz,
-        boris.ostrovsky@oracle.com, mingo@kernel.org, peterz@infradead.org,
-        will.deacon@arm.com, gregkh@linuxfoundation.org, jroedel@suse.de,
-        tglx@linutronix.de, luto@kernel.org, jgross@suse.com,
-        brgerst@gmail.com, eduval@amazon.com, hpa@zytor.com,
-        linux-kernel@vger.kernel.org, dvlasenk@redhat.com, bp@suse.de,
-        jan.kiszka@siemens.com, David.Laight@aculab.com, linux-mm@kvack.org,
-        dave.hansen@intel.com, jpoimboe@redhat.com,
-        torvalds@linux-foundation.org
-In-Reply-To: <f271c747-1714-5a5b-a71f-ae189a093b8d@siemens.com>
-References: <f271c747-1714-5a5b-a71f-ae189a093b8d@siemens.com>
-Subject: [tip:x86/urgent] x86/entry/32: Clear the CS high bits
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline
+        (Google Transport Security);
+        Mon, 15 Oct 2018 08:30:53 -0700 (PDT)
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: [PATCH 0/5] Do not touch pages/zones during hot-remove path
+Date: Mon, 15 Oct 2018 17:30:29 +0200
+Message-Id: <20181015153034.32203-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-tip-commits@vger.kernel.org
-Cc: jpoimboe@redhat.com, dave.hansen@intel.com, torvalds@linux-foundation.org, jan.kiszka@siemens.com, dvlasenk@redhat.com, bp@suse.de, linux-mm@kvack.org, David.Laight@aculab.com, linux-kernel@vger.kernel.org, luto@kernel.org, jgross@suse.com, hpa@zytor.com, brgerst@gmail.com, eduval@amazon.com, gregkh@linuxfoundation.org, jroedel@suse.de, tglx@linutronix.de, peterz@infradead.org, mingo@kernel.org, will.deacon@arm.com, x86@kernel.org, jkosina@suse.cz, boris.ostrovsky@oracle.com, aarcange@redhat.com
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com, dan.j.williams@intel.com, yasu.isimatu@gmail.com, rppt@linux.vnet.ibm.com, malat@debian.org, linux-kernel@vger.kernel.org, pavel.tatashin@microsoft.com, jglisse@redhat.com, Jonathan.Cameron@huawei.com, rafael@kernel.org, david@redhat.com, dave.jiang@intel.com, linux-mm@kvack.org, alexander.h.duyck@linux.intel.com, Oscar Salvador <osalvador@suse.de>
 
-Commit-ID:  8cad6c58c9effb59b830bcf0103d8267ad2e312d
-Gitweb:     https://git.kernel.org/tip/8cad6c58c9effb59b830bcf0103d8267ad2e312d
-Author:     Jan Kiszka <jan.kiszka@siemens.com>
-AuthorDate: Mon, 15 Oct 2018 16:09:29 +0200
-Committer:  Borislav Petkov <bp@suse.de>
-CommitDate: Mon, 15 Oct 2018 16:54:28 +0200
+From: Oscar Salvador <osalvador@suse.de>
 
-x86/entry/32: Clear the CS high bits
+This patchset aims to solve [1] and [2] issues.
+Due to the lack of feedback of previous versions, I decided to go safe,
+so I reverted some of the changes I did in RFCv3:
 
-Even if not on an entry stack, the CS's high bits must be
-initialized because they are unconditionally evaluated in
-PARANOID_EXIT_TO_KERNEL_MODE.
+ 1) It is no longer based on [3], although the code would be easier and
+    the changes less.
 
-Failing to do so broke the boot on Galileo Gen2 and IOT2000 boards.
+ 2) hotplug lock stays in HMM/devm, mainly because I am not sure whether
+    it is ok to leave the kasan calls out of lock or not.
+    If we think that this can be done, the hotplug lock can be moved
+    within add/del_device_memory, which would be nicer IMHO.
 
- [ bp: Make the commit message tone passive and impartial. ]
+ 3) Although I think that init_currently_empty_zone should be protected
+    by the spanlock since it touches zone_start_pfn, I decided to leave
+    it as it is right now.
+    The main point of moving it within the lock was to be able to move
+    move_pfn_range_to_zone out of the hotplug lock for HMM/devm code.
+    
+The main point of this patchset is to move all the page/zone handling
+from the hot-remove path, back to the offlining stage.
+In this way, we can better split up what each part does:
 
-Fixes: b92a165df17e ("x86/entry/32: Handle Entry from Kernel-Mode on Entry-Stack")
-Signed-off-by: Jan Kiszka <jan.kiszka@siemens.com>
-Signed-off-by: Borislav Petkov <bp@suse.de>
-Reviewed-by: Joerg Roedel <jroedel@suse.de>
-Acked-by: Joerg Roedel <jroedel@suse.de>
-CC: "H. Peter Anvin" <hpa@zytor.com>
-CC: Andrea Arcangeli <aarcange@redhat.com>
-CC: Andy Lutomirski <luto@kernel.org>
-CC: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-CC: Brian Gerst <brgerst@gmail.com>
-CC: Dave Hansen <dave.hansen@intel.com>
-CC: David Laight <David.Laight@aculab.com>
-CC: Denys Vlasenko <dvlasenk@redhat.com>
-CC: Eduardo Valentin <eduval@amazon.com>
-CC: Greg KH <gregkh@linuxfoundation.org>
-CC: Ingo Molnar <mingo@kernel.org>
-CC: Jiri Kosina <jkosina@suse.cz>
-CC: Josh Poimboeuf <jpoimboe@redhat.com>
-CC: Juergen Gross <jgross@suse.com>
-CC: Linus Torvalds <torvalds@linux-foundation.org>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Thomas Gleixner <tglx@linutronix.de>
-CC: Will Deacon <will.deacon@arm.com>
-CC: aliguori@amazon.com
-CC: daniel.gruss@iaik.tugraz.at
-CC: hughd@google.com
-CC: keescook@google.com
-CC: linux-mm <linux-mm@kvack.org>
-CC: x86-ml <x86@kernel.org>
-Link: http://lkml.kernel.org/r/f271c747-1714-5a5b-a71f-ae189a093b8d@siemens.com
----
- arch/x86/entry/entry_32.S | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+  * hot-add path:
+    - Create a new resource for the hot-added memory
+    - Create memory sections for the hot-added memory
+    - Create the memblocks representing the hot-added memory
 
-diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 2767c625a52c..fbbf1ba57ec6 100644
---- a/arch/x86/entry/entry_32.S
-+++ b/arch/x86/entry/entry_32.S
-@@ -389,6 +389,13 @@
- 	 * that register for the time this macro runs
- 	 */
+  * online path:
+    - Re-adjust zone/pgdat nr of pages (managed, spanned, present)
+    - Initialize the pages from the new memory-range
+    - Online memory sections
+
+  * offline path:
+    - Offline memory sections
+    - Re-adjust zone/pgdat nr of pages (managed, spanned, present)
+
+  * hot-remove path:
+    - Remove memory sections
+    - Remove memblocks
+    - Remove resources
+
+So, hot-add/remove stages should only care about sections and memblocks.
+While all the zone/page handling should belong to the online/offline stage.
+
+Another thing is that for the sake of reviewability, I split the patchset
+in 5 parts, but pathc3 could be combined into patch4.
  
-+	/*
-+	 * The high bits of the CS dword (__csh) are used for
-+	 * CS_FROM_ENTRY_STACK and CS_FROM_USER_CR3. Clear them in case
-+	 * hardware didn't do this for us.
-+	 */
-+	andl	$(0x0000ffff), PT_CS(%esp)
-+
- 	/* Are we on the entry stack? Bail out if not! */
- 	movl	PER_CPU_VAR(cpu_entry_area), %ecx
- 	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
-@@ -407,12 +414,6 @@
- 	/* Load top of task-stack into %edi */
- 	movl	TSS_entry2task_stack(%edi), %edi
- 
--	/*
--	 * Clear unused upper bits of the dword containing the word-sized CS
--	 * slot in pt_regs in case hardware didn't clear it for us.
--	 */
--	andl	$(0x0000ffff), PT_CS(%esp)
--
- 	/* Special case - entry from kernel mode via entry stack */
- #ifdef CONFIG_VM86
- 	movl	PT_EFLAGS(%esp), %ecx		# mix EFLAGS and CS
+This patchset is based on top of mmotm.
+
+[1] https://patchwork.kernel.org/patch/10547445/
+[2] https://www.spinics.net/lists/linux-mm/msg161316.html
+[3] https://patchwork.kernel.org/cover/10613425/
+
+Oscar Salvador (5):
+  mm/memory_hotplug: Add nid parameter to arch_remove_memory
+  mm/memory_hotplug: Create add/del_device_memory functions
+  mm/memory_hotplug: Check for IORESOURCE_SYSRAM in
+    release_mem_region_adjustable
+  mm/memory_hotplug: Move zone/pages handling to offline stage
+  mm/memory-hotplug: Rework unregister_mem_sect_under_nodes
+
+ arch/ia64/mm/init.c            |   6 +-
+ arch/powerpc/mm/mem.c          |  14 +---
+ arch/s390/mm/init.c            |   2 +-
+ arch/sh/mm/init.c              |   6 +-
+ arch/x86/mm/init_32.c          |   6 +-
+ arch/x86/mm/init_64.c          |  11 +---
+ drivers/base/memory.c          |   9 ++-
+ drivers/base/node.c            |  38 ++---------
+ include/linux/memory.h         |   2 +-
+ include/linux/memory_hotplug.h |  21 ++++--
+ include/linux/node.h           |   9 ++-
+ kernel/memremap.c              |  13 ++--
+ kernel/resource.c              |  16 +++++
+ mm/hmm.c                       |  35 +++++-----
+ mm/memory_hotplug.c            | 142 +++++++++++++++++++++++++----------------
+ mm/sparse.c                    |   6 +-
+ 16 files changed, 177 insertions(+), 159 deletions(-)
+
+-- 
+2.13.6
