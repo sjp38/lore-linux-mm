@@ -1,71 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 053FB6B0005
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 08:47:24 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id t28-v6so6179546pfk.21
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 05:47:23 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id m29-v6si10577696pgd.361.2018.10.15.05.47.22
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D909C6B0007
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 08:47:42 -0400 (EDT)
+Received: by mail-it1-f197.google.com with SMTP id e197-v6so21492507ita.9
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 05:47:42 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id z21-v6si6400757ioh.128.2018.10.15.05.47.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 15 Oct 2018 05:47:22 -0700 (PDT)
-Date: Mon, 15 Oct 2018 05:47:19 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 07/25] vfs: combine the clone and dedupe into a single
- remap_file_range
-Message-ID: <20181015124719.GA15379@infradead.org>
-References: <153938912912.8361.13446310416406388958.stgit@magnolia>
- <153938919123.8361.13059492965161549195.stgit@magnolia>
- <20181014171927.GD30673@infradead.org>
- <CAOQ4uxiReFJRxKJbsoUgWWNP75_Qsoh1fWC_dLYV_zBU_jaGbA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 Oct 2018 05:47:41 -0700 (PDT)
+Subject: Re: [RFC PATCH] memcg, oom: throttle dump_header for memcg ooms
+ without eligible tasks
+References: <20181012112008.GA27955@cmpxchg.org>
+ <20181012120858.GX5873@dhcp22.suse.cz>
+ <9174f087-3f6f-f0ed-6009-509d4436a47a@i-love.sakura.ne.jp>
+ <20181012124137.GA29330@cmpxchg.org>
+ <0417c888-d74e-b6ae-a8f0-234cbde03d38@i-love.sakura.ne.jp>
+ <bb2074c0-34fe-8c2c-1c7d-db71338f1e7f@i-love.sakura.ne.jp>
+ <20181013112238.GA762@cmpxchg.org>
+ <b61b2e60-d899-90c6-579a-587815cebff6@i-love.sakura.ne.jp>
+ <20181015081934.GD18839@dhcp22.suse.cz>
+ <ea637f9a-5dd0-f927-d26d-d0b4fd8ccb6f@i-love.sakura.ne.jp>
+ <20181015112427.GI18839@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <6c0a57b3-bfd4-d832-b0bd-5dd3bcae460e@i-love.sakura.ne.jp>
+Date: Mon, 15 Oct 2018 21:47:08 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAOQ4uxiReFJRxKJbsoUgWWNP75_Qsoh1fWC_dLYV_zBU_jaGbA@mail.gmail.com>
+In-Reply-To: <20181015112427.GI18839@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Amir Goldstein <amir73il@gmail.com>
-Cc: Christoph Hellwig <hch@infradead.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, Eric Sandeen <sandeen@redhat.com>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, linux-cifs@vger.kernel.org, overlayfs <linux-unionfs@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Btrfs <linux-btrfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, ocfs2-devel@oss.oracle.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>
 
-On Mon, Oct 15, 2018 at 09:04:13AM +0300, Amir Goldstein wrote:
-> I supposed you figured out the reason already.
+On 2018/10/15 20:24, Michal Hocko wrote:
+> On Mon 15-10-18 19:57:35, Tetsuo Handa wrote:
+>> On 2018/10/15 17:19, Michal Hocko wrote:
+>>> As so many dozens of times before, I will point you to an incremental
+>>> nature of changes we really prefer in the mm land. We are also after a
+>>> simplicity which your proposal lacks in many aspects. You seem to ignore
+>>> that general approach and I have hard time to consider your NAK as a
+>>> relevant feedback. Going to an extreme and basing a complex solution on
+>>> it is not going to fly. No killable process should be a rare event which
+>>> requires a seriously misconfigured memcg to happen so wildly. If you can
+>>> trigger it with a normal user privileges then it would be a clear bug to
+>>> address rather than work around with printk throttling.
+>>>
+>>
+>> I can trigger 200+ times / 900+ lines / 69KB+ of needless OOM messages
+>> with a normal user privileges. This is a lot of needless noise/delay.
+> 
+> I am pretty sure you have understood the part of my message you have
+> chosen to not quote where I have said that the specific rate limitting
+> decisions can be changed based on reasonable configurations. There is
+> absolutely zero reason to NAK a natural decision to unify the throttling
+> and cook a per-memcg way for a very specific path instead.
+> 
+>> No killable process is not a rare event, even without root privileges.
+>>
+>> [root@ccsecurity kumaneko]# time ./a.out
+>> Killed
+>>
+>> real    0m2.396s
+>> user    0m0.000s
+>> sys     0m2.970s
+>> [root@ccsecurity ~]# dmesg | grep 'no killable' | wc -l
+>> 202
+>> [root@ccsecurity ~]# dmesg | wc
+>>     942    7335   70716
+> 
+> OK, so this is 70kB worth of data pushed throug the console. Is this
+> really killing any machine?
+> 
 
-No, I hadn't.
-
-> It makes it appearance in patch 16/25 as RFR_VFS_FLAGS.
-> All those "advisory" flags, we want to pass them in to filesystem as FYI,
-> but we don't want to explicitly add support for e.g. RFR_CAN_SHORTEN
-> to every filesystem, when vfs has already taken care of the advice.
-
-I don't think this model makes sense.  If they really are purely
-handled in the VFS we can mask them before passing them to the file
-system, if not we need to check them, or the they are avisory and
-we can have a simple #define instead of the helper.
-
-RFR_TO_SRC_EOF is checked in generic_remap_file_range_prep,
-so the file system should know about it  Also looking at it again now
-it seems entirely superflous - we can just pass down then len == we
-use in higher level code instead of having a flag and will side step
-the issue here.
-
-RFR_CAN_SHORTEN is advisory as no one has to shorten, but that can
-easily be solved by including it everywhere.
-
-RFR_SHORT_DEDUPE is as far as I can tell entirely superflous to
-start with, as RFR_CAN_SHORTEN can be used instead.
-
-So something like this in fs.h:
-
-#define REMAP_FILE_ADVISORY_FLAGS	REMAP_FILE_CAN_SHORTEN
-
-And then in the file system:
-
-	if (flags & ~REMAP_FILE_ADVISORY_FLAGS)
-		-EINVAL;
-
-or
-
-	if (flags & ~(REMAP_FILE_ADVISORY_FLAGS | REMAP_FILE_DEDUP))
-		-EINVAL;
-
-should be all that is needed.
+Nobody can prove that it never kills some machine. This is just one example result of
+one example stress tried in my environment. Since I am secure programming man from security
+subsystem, I really hate your "Can you trigger it?" resistance. Since this is OOM path
+where nobody tests, starting from being prepared for the worst case keeps things simple.
