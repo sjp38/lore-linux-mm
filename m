@@ -1,79 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BFC56B0269
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 13:57:20 -0400 (EDT)
-Received: by mail-it1-f200.google.com with SMTP id z136-v6so23112104itc.5
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 10:57:20 -0700 (PDT)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id t140-v6si8143869itf.139.2018.10.15.10.57.18
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A1DFB6B0003
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 14:19:18 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id s141-v6so15026035pgs.23
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 11:19:18 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id q1-v6si918249plb.292.2018.10.15.11.19.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 15 Oct 2018 10:57:19 -0700 (PDT)
-From: Logan Gunthorpe <logang@deltatee.com>
-Date: Mon, 15 Oct 2018 11:56:59 -0600
-Message-Id: <20181015175702.9036-4-logang@deltatee.com>
-In-Reply-To: <20181015175702.9036-1-logang@deltatee.com>
-References: <20181015175702.9036-1-logang@deltatee.com>
+        Mon, 15 Oct 2018 11:19:17 -0700 (PDT)
+Date: Mon, 15 Oct 2018 11:19:14 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 10/25] vfs: create generic_remap_file_range_touch to
+ update inode metadata
+Message-ID: <20181015181914.GA14558@infradead.org>
+References: <153938912912.8361.13446310416406388958.stgit@magnolia>
+ <153938921180.8361.13556945128095535605.stgit@magnolia>
+ <20181014172131.GE30673@infradead.org>
+ <20181015163001.GK28243@magnolia>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Subject: [PATCH v2 3/6] ARM: mm: make use of new memblocks_present() helper
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181015163001.GK28243@magnolia>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-riscv@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org
-Cc: Stephen Bates <sbates@raithlin.com>, Palmer Dabbelt <palmer@sifive.com>, Albert Ou <aou@eecs.berkeley.edu>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Logan Gunthorpe <logang@deltatee.com>, Russell King <linux@armlinux.org.uk>, Kees Cook <keescook@chromium.org>, Philip Derrin <philip@cog.systems>, "Steven Rostedt (VMware)" <rostedt@goodmis.org>, Nicolas Pitre <nicolas.pitre@linaro.org>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Christoph Hellwig <hch@infradead.org>, david@fromorbit.com, sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, Amir Goldstein <amir73il@gmail.com>, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, ocfs2-devel@oss.oracle.com
 
-Cleanup the arm_memory_present() function seeing it's very
-similar to other arches.
+On Mon, Oct 15, 2018 at 09:30:01AM -0700, Darrick J. Wong wrote:
+> I originally thought "touch" because it updates [cm]time. :)
+> 
+> Though looking at the final code, I think this can just be called from
+> the end of generic_remap_file_range_prep, so we can skip the export and
+> all that other stuff.
 
-The new memblocks_present() helper checks for node ids which the
-arm version did not. However, this is equivalent seeing
-HAVE_MEMBLOCK_NODE_MAP should be false in this arch and therefore
-memblock_get_region_node() should return 0.
+I though about that, but the locking didn't seem to quite work out
+between xfs and ocfs.
 
-Signed-off-by: Logan Gunthorpe <logang@deltatee.com>
-Cc: Russell King <linux@armlinux.org.uk>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Philip Derrin <philip@cog.systems>
-Cc: "Steven Rostedt (VMware)" <rostedt@goodmis.org>
-Cc: Nicolas Pitre <nicolas.pitre@linaro.org>
----
- arch/arm/mm/init.c | 17 +----------------
- 1 file changed, 1 insertion(+), 16 deletions(-)
-
-diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-index 0cc8e04295a4..e2710dd7446f 100644
---- a/arch/arm/mm/init.c
-+++ b/arch/arm/mm/init.c
-@@ -201,21 +201,6 @@ int pfn_valid(unsigned long pfn)
- EXPORT_SYMBOL(pfn_valid);
- #endif
- 
--#ifndef CONFIG_SPARSEMEM
--static void __init arm_memory_present(void)
--{
--}
--#else
--static void __init arm_memory_present(void)
--{
--	struct memblock_region *reg;
--
--	for_each_memblock(memory, reg)
--		memory_present(0, memblock_region_memory_base_pfn(reg),
--			       memblock_region_memory_end_pfn(reg));
--}
--#endif
--
- static bool arm_memblock_steal_permitted = true;
- 
- phys_addr_t __init arm_memblock_steal(phys_addr_t size, phys_addr_t align)
-@@ -317,7 +302,7 @@ void __init bootmem_init(void)
- 	 * Sparsemem tries to allocate bootmem in memory_present(),
- 	 * so must be done after the fixed reservations
- 	 */
--	arm_memory_present();
-+	memblocks_present();
- 
- 	/*
- 	 * sparse_init() needs the bootmem allocator up and running.
--- 
-2.19.0
+Nevermind the big elephant of actually converting btrfs to the "VFS"
+helper - I think if that doesn't work out it is rather questionable
+how generic they actually are.
