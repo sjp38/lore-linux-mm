@@ -1,107 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 227F06B0275
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 11:38:12 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id t9so13854933wrx.7
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 08:38:12 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D6346B0277
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 11:41:20 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id s7-v6so14850500pgp.3
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 08:41:20 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a14-v6sor6162810wrw.33.2018.10.15.08.38.10
+        by mx.google.com with SMTPS id t15-v6sor2055786pgl.20.2018.10.15.08.41.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 15 Oct 2018 08:38:10 -0700 (PDT)
-Date: Mon, 15 Oct 2018 16:38:08 +0100
-From: Aaron Tomlin <atomlin@redhat.com>
-Subject: Re: [PATCH 2/3] mm: thp: fix mmu_notifier in
- migrate_misplaced_transhuge_page()
-Message-ID: <20181015153808.zcpswxnchlp67sdh@atomlin.usersys.com>
-References: <20181013002430.698-1-aarcange@redhat.com>
- <20181013002430.698-3-aarcange@redhat.com>
+        Mon, 15 Oct 2018 08:41:18 -0700 (PDT)
+Date: Mon, 15 Oct 2018 18:41:12 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH RFC] ksm: Assist buddy allocator to assemble 1-order pages
+Message-ID: <20181015154112.6bj5p4zuxjtz43pd@kshutemo-mobl1>
+References: <153925511661.21256.9692370932417728663.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181013002430.698-3-aarcange@redhat.com>
+In-Reply-To: <153925511661.21256.9692370932417728663.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Jerome Glisse <jglisse@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, andriy.shevchenko@linux.intel.com, mhocko@suse.com, rppt@linux.vnet.ibm.com, imbrenda@linux.vnet.ibm.com, corbet@lwn.net, ndesaulniers@google.com, dave.jiang@intel.com, jglisse@redhat.com, jia.he@hxt-semitech.com, paulmck@linux.vnet.ibm.com, colin.king@canonical.com, jiang.biao2@zte.com.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 2018-10-12 20:24 -0400, Andrea Arcangeli wrote:
-> change_huge_pmd() after arming the numa/protnone pmd doesn't flush the
-> TLB right away. do_huge_pmd_numa_page() flushes the TLB before calling
-> migrate_misplaced_transhuge_page(). By the time
-> do_huge_pmd_numa_page() runs some CPU could still access the page
-> through the TLB.
+On Thu, Oct 11, 2018 at 01:52:22PM +0300, Kirill Tkhai wrote:
+> try_to_merge_two_pages() merges two pages, one of them
+> is a page of currently scanned mm, the second is a page
+> with identical hash from unstable tree. Currently, we
+> merge the page from unstable tree into the first one,
+> and then free it.
 > 
-> change_huge_pmd() before arming the numa/protnone transhuge pmd calls
-> mmu_notifier_invalidate_range_start(). So there's no need of
-> mmu_notifier_invalidate_range_start()/mmu_notifier_invalidate_range_only_end()
-> sequence in migrate_misplaced_transhuge_page() too, because by the
-> time migrate_misplaced_transhuge_page() runs, the pmd mapping has
-> already been invalidated in the secondary MMUs. It has to or if a
-> secondary MMU can still write to the page, the migrate_page_copy()
-> would lose data.
+> The idea of this patch is to prefer freeing that page
+> of them, which has a free neighbour (i.e., neighbour
+> with zero page_count()). This allows buddy allocator
+> to assemble at least 1-order set from the freed page
+> and its neighbour; this is a kind of cheep passive
+> compaction.
 > 
-> However an explicit mmu_notifier_invalidate_range() is needed before
-> migrate_misplaced_transhuge_page() starts copying the data of the
-> transhuge page or the below can happen for MMU notifier users sharing
-> the primary MMU pagetables and only implementing ->invalidate_range:
+> AFAIK, 1-order pages set consists of pages with PFNs
+> [2n, 2n+1] (odd, even), so the neighbour's pfn is
+> calculated via XOR with 1. We check the result pfn
+> is valid and its page_count(), and prefer merging
+> into @tree_page if neighbour's usage count is zero.
 > 
-> CPU0		CPU1		GPU sharing linux pagetables using
->                                 only ->invalidate_range
-> -----------	------------	---------
-> 				GPU secondary MMU writes to the page
-> 				mapped by the transhuge pmd
-> change_pmd_range()
-> mmu..._range_start()
-> ->invalidate_range_start() noop
-> change_huge_pmd()
-> set_pmd_at(numa/protnone)
-> pmd_unlock()
-> 		do_huge_pmd_numa_page()
-> 		CPU TLB flush globally (1)
-> 		CPU cannot write to page
-> 		migrate_misplaced_transhuge_page()
-> 				GPU writes to the page...
-> 		migrate_page_copy()
-> 				...GPU stops writing to the page
-> CPU TLB flush (2)
-> mmu..._range_end() (3)
-> ->invalidate_range_stop() noop
-> ->invalidate_range()
-> 				GPU secondary MMU is invalidated
-> 				and cannot write to the page anymore
-> 				(too late)
+> There a is small difference with current behavior
+> in case of error path. In case of the second
+> try_to_merge_with_ksm_page() is failed, we return
+> from try_to_merge_two_pages() with @tree_page
+> removed from unstable tree. It does not seem to matter,
+> but if we do not want a change at all, it's not
+> a problem to move remove_rmap_item_from_tree() from
+> try_to_merge_with_ksm_page() to its callers.
 > 
-> Just like we need a CPU TLB flush (1) because the TLB flush (2)
-> arrives too late, we also need a mmu_notifier_invalidate_range()
-> before calling migrate_misplaced_transhuge_page(), because the
-> ->invalidate_range() in (3) also arrives too late.
+> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+> ---
+>  mm/ksm.c |   15 +++++++++++++++
+>  1 file changed, 15 insertions(+)
 > 
-> This requirement is the result of the lazy optimization in
-> change_huge_pmd() that releases the pmd_lock without first flushing
-> the TLB and without first calling mmu_notifier_invalidate_range().
-> 
-> Even converting the removed mmu_notifier_invalidate_range_only_end()
-> into a mmu_notifier_invalidate_range_end() would not have been enough
-> to fix this, because it run after migrate_page_copy().
-> 
-> After the hugepage data copy is done
-> migrate_misplaced_transhuge_page() can proceed and call set_pmd_at
-> without having to flush the TLB nor any secondary MMUs because the
-> secondary MMU invalidate, just like the CPU TLB flush, has to happen
-> before the migrate_page_copy() is called or it would be a bug in the
-> first place (and it was for drivers using ->invalidate_range()).
-> 
-> KVM is unaffected because it doesn't implement ->invalidate_range().
-> 
-> The standard PAGE_SIZEd migrate_misplaced_page is less accelerated and
-> uses the generic migrate_pages which transitions the pte from
-> numa/protnone to a migration entry in try_to_unmap_one() and flushes
-> TLBs and all mmu notifiers there before copying the page.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> index 5b0894b45ee5..b83ca37e28f0 100644
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -1321,6 +1321,21 @@ static struct page *try_to_merge_two_pages(struct rmap_item *rmap_item,
+>  {
+>  	int err;
+>  
+> +	if (IS_ENABLED(CONFIG_COMPACTION)) {
+> +		unsigned long pfn;
+> +		/*
+> +		 * Find neighbour of @page containing 1-order pair
+> +		 * in buddy-allocator and check whether it is free.
 
-Reviewed-by: Aaron Tomlin <atomlin@redhat.com>
+You cannot really check if the page is free. There are some paths that
+makes the refcount zero temporarely, but doesn't free the page.
+See page_ref_freeze() for instance.
+
+It should be fine for the use case, but comment should state that we
+speculate about page usage, not having definetive answer.
+
+[ I don't know enough about KSM to ack the patch in general, but it looks
+fine to me at the first glance.]
+
+> +		 * If it is so, try to use @tree_page as ksm page
+> +		 * and to free @page.
+> +		 */
+> +		pfn = (page_to_pfn(page) ^ 1);
+> +		if (pfn_valid(pfn) && page_count(pfn_to_page(pfn)) == 0) {
+> +			swap(rmap_item, tree_rmap_item);
+> +			swap(page, tree_page);
+> +		}
+> +	}
+> +
+>  	err = try_to_merge_with_ksm_page(rmap_item, page, NULL);
+>  	if (!err) {
+>  		err = try_to_merge_with_ksm_page(tree_rmap_item,
+> 
 
 -- 
-Aaron Tomlin
+ Kirill A. Shutemov
