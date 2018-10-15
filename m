@@ -1,73 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A7526B0005
-	for <linux-mm@kvack.org>; Sun, 14 Oct 2018 19:05:41 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id s24-v6so14117201plp.12
-        for <linux-mm@kvack.org>; Sun, 14 Oct 2018 16:05:41 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id 4-v6si9199195plh.99.2018.10.14.16.05.39
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B0C76B0005
+	for <linux-mm@kvack.org>; Sun, 14 Oct 2018 20:31:44 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id c28-v6so5203519pfe.4
+        for <linux-mm@kvack.org>; Sun, 14 Oct 2018 17:31:44 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id q22-v6si8598274pgc.393.2018.10.14.17.31.42
         for <linux-mm@kvack.org>;
-        Sun, 14 Oct 2018 16:05:40 -0700 (PDT)
-Date: Mon, 15 Oct 2018 10:05:36 +1100
+        Sun, 14 Oct 2018 17:31:43 -0700 (PDT)
+Date: Mon, 15 Oct 2018 11:31:39 +1100
 From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 24/25] xfs: support returning partial reflink results
-Message-ID: <20181014230536.GY6311@dastard>
-References: <153938912912.8361.13446310416406388958.stgit@magnolia>
- <153938931226.8361.7365948775364411156.stgit@magnolia>
- <20181014173546.GI30673@infradead.org>
+Subject: Re: [PATCH 05/25] vfs: avoid problematic remapping requests into
+ partial EOF block
+Message-ID: <20181015003139.GZ6311@dastard>
+References: <153923113649.5546.9840926895953408273.stgit@magnolia>
+ <153923117420.5546.13317703807467393934.stgit@magnolia>
+ <CAL3q7H7mLvCGpyitJhQ=To-aDvG9k9rxSVi2jSpcALQVj3myzg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181014173546.GI30673@infradead.org>
+In-Reply-To: <CAL3q7H7mLvCGpyitJhQ=To-aDvG9k9rxSVi2jSpcALQVj3myzg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, ocfs2-devel@oss.oracle.com
+To: Filipe Manana <fdmanana@gmail.com>
+Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, Eric Sandeen <sandeen@redhat.com>, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs <linux-btrfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, ocfs2-devel@oss.oracle.com
 
-On Sun, Oct 14, 2018 at 10:35:46AM -0700, Christoph Hellwig wrote:
-> On Fri, Oct 12, 2018 at 05:08:32PM -0700, Darrick J. Wong wrote:
+On Fri, Oct 12, 2018 at 09:22:18PM +0100, Filipe Manana wrote:
+> On Thu, Oct 11, 2018 at 5:13 AM Darrick J. Wong <darrick.wong@oracle.com> wrote:
+> >
 > > From: Darrick J. Wong <darrick.wong@oracle.com>
-> > 
-> > Back when the XFS reflink code only supported clone_file_range, we were
-> > only able to return zero or negative error codes to userspace.  However,
-> > now that copy_file_range (which returns bytes copied) can use XFS'
-> > clone_file_range, we have the opportunity to return partial results.
-> > For example, if userspace sends a 1GB clone request and we run out of
-> > space halfway through, we at least can tell userspace that we completed
-> > 512M of that request like a regular write.
-> > 
-> > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-> > ---
-> >  fs/xfs/xfs_file.c    |    5 +----
-> >  fs/xfs/xfs_reflink.c |   20 +++++++++++++++-----
-> >  fs/xfs/xfs_reflink.h |    2 +-
-> >  3 files changed, 17 insertions(+), 10 deletions(-)
-> > 
-> > 
-> > diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-> > index bc9e94bcb7a3..b2b15b8dc4a1 100644
-> > --- a/fs/xfs/xfs_file.c
-> > +++ b/fs/xfs/xfs_file.c
-> > @@ -928,14 +928,11 @@ xfs_file_remap_range(
-> >  	loff_t		len,
-> >  	unsigned int	remap_flags)
-> >  {
-> > -	int		ret;
-> > -
-> >  	if (!remap_check_flags(remap_flags, RFR_SAME_DATA))
-> >  		return -EINVAL;
-> >  
-> > -	ret = xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
-> > +	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
-> >  			len, remap_flags);
+> >
+> > A deduplication data corruption is exposed by fstests generic/505 on
+> > XFS.
 > 
-> Is there any reason not to merge xfs_file_remap_range and
-> xfs_reflink_remap_range at this point?
+> (and btrfs)
+> 
+> Btw, the generic test I wrote was indeed numbered 505, however it was
+> never committed and there's now a generic/505 which has nothing to do
+> with deduplication.
+> So you should update the changelog to avoid confusion.
 
-Yeah, that seems like a good idea to me - pulling all the
-vfs/generic code interactions back up into xfs_file.c would match
-how the rest of the file operations are layered w.r.t. external and
-internal XFS code...
+What test is it now? And if it hasn't been committed, are you going
+to update it and repost as it clearly had value....
 
 Cheers,
 
