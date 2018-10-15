@@ -1,171 +1,282 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C88A46B0005
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 03:12:03 -0400 (EDT)
-Received: by mail-oi1-f198.google.com with SMTP id f62-v6so12757092oia.2
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 00:12:03 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id q76-v6si4199543oic.269.2018.10.15.00.12.02
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 34D2D6B0005
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 03:40:21 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id j63-v6so9341459qte.13
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 00:40:21 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id b15-v6si1254915qto.106.2018.10.15.00.40.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Oct 2018 00:12:02 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w9F79Afp012570
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 03:12:01 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2n4kntd65x-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 03:12:01 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Mon, 15 Oct 2018 08:11:57 +0100
-Subject: Re: [PATCH v2 2/2] mm: speed up mremap by 500x on large regions
-References: <20181012013756.11285-1-joel@joelfernandes.org>
- <20181012013756.11285-2-joel@joelfernandes.org>
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Mon, 15 Oct 2018 09:10:53 +0200
+        Mon, 15 Oct 2018 00:40:19 -0700 (PDT)
+Subject: Re: [PATCH] selftests/vm: Add a test for MAP_FIXED_NOREPLACE
+References: <20181013133929.28653-1-mpe@ellerman.id.au>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <eb618206-4343-6c95-4db4-91bee48dc4b2@oracle.com>
+Date: Mon, 15 Oct 2018 01:39:22 -0600
 MIME-Version: 1.0
-In-Reply-To: <20181012013756.11285-2-joel@joelfernandes.org>
+In-Reply-To: <20181013133929.28653-1-mpe@ellerman.id.au>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
-Message-Id: <6580a62b-69c6-f2e3-767c-bd36b977bea2@de.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Joel Fernandes (Google)" <joel@joelfernandes.org>, linux-kernel@vger.kernel.org
-Cc: kernel-team@android.com, minchan@kernel.org, pantin@google.com, hughd@google.com, lokeshgidra@google.com, dancol@google.com, mhocko@kernel.org, kirill@shutemov.name, akpm@linux-foundation.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, elfring@users.sourceforge.net, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, Julia Lawall <Julia.Lawall@lip6.fr>, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, Max Filippov <jcmvbkbc@gmail.com>, nios2-dev@lists.rocketboards.org, openrisc@lists.librecores.org, Peter Zijlstra <peterz@infradead.org>, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Michael Ellerman <mpe@ellerman.id.au>, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, jannh@google.com, mhocko@suse.com, linux-mm@kvack.org, aarcange@redhat.com, fweimer@redhat.com, jhubbard@nvidia.com, willy@infradead.org, abdhalee@linux.vnet.ibm.com, joel@jms.id.au, keescook@chromium.org, jasone@google.com, davidtgoldblatt@gmail.com, trasz@freebsd.org, danielmicay@gmail.com
 
-
-
-On 10/12/2018 03:37 AM, Joel Fernandes (Google) wrote:
-> Android needs to mremap large regions of memory during memory management
-> related operations. The mremap system call can be really slow if THP is
-> not enabled. The bottleneck is move_page_tables, which is copying each
-> pte at a time, and can be really slow across a large map. Turning on THP
-> may not be a viable option, and is not for us. This patch speeds up the
-> performance for non-THP system by copying at the PMD level when possible.
+On 10/13/2018 07:39 AM, Michael Ellerman wrote:
+> Add a test for MAP_FIXED_NOREPLACE, based on some code originally by
+> Jann Horn. This would have caught the overlap bug reported by Daniel Micay.
 > 
-> The speed up is three orders of magnitude. On a 1GB mremap, the mremap
-> completion times drops from 160-250 millesconds to 380-400 microseconds.
+> I originally suggested to Michal that we create MAP_FIXED_NOREPLACE, but
+> instead of writing a selftest I spent my time bike-shedding whether it
+> should be called MAP_FIXED_SAFE/NOCLOBBER/WEAK/NEW .. mea culpa.
 > 
-> Before:
-> Total mremap time for 1GB data: 242321014 nanoseconds.
-> Total mremap time for 1GB data: 196842467 nanoseconds.
-> Total mremap time for 1GB data: 167051162 nanoseconds.
-> 
-> After:
-> Total mremap time for 1GB data: 385781 nanoseconds.
-> Total mremap time for 1GB data: 388959 nanoseconds.
-> Total mremap time for 1GB data: 402813 nanoseconds.
-> 
-> Incase THP is enabled, the optimization is skipped. I also flush the
-> tlb every time we do this optimization since I couldn't find a way to
-> determine if the low-level PTEs are dirty. It is seen that the cost of
-> doing so is not much compared the improvement, on both x86-64 and arm64.
-> 
-> Cc: minchan@kernel.org
-> Cc: pantin@google.com
-> Cc: hughd@google.com
-> Cc: lokeshgidra@google.com
-> Cc: dancol@google.com
-> Cc: mhocko@kernel.org
-> Cc: kirill@shutemov.name
-> Cc: akpm@linux-foundation.org
-> Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
+> Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
 > ---
->  mm/mremap.c | 62 +++++++++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 62 insertions(+)
+
+Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
+
+--
+Khalid
+
+>   tools/testing/selftests/vm/.gitignore         |   1 +
+>   tools/testing/selftests/vm/Makefile           |   1 +
+>   .../selftests/vm/map_fixed_noreplace.c        | 206 ++++++++++++++++++
+>   3 files changed, 208 insertions(+)
+>   create mode 100644 tools/testing/selftests/vm/map_fixed_noreplace.c
 > 
-> diff --git a/mm/mremap.c b/mm/mremap.c
-> index 9e68a02a52b1..d82c485822ef 100644
-> --- a/mm/mremap.c
-> +++ b/mm/mremap.c
-> @@ -191,6 +191,54 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
->  		drop_rmap_locks(vma);
->  }
->  
-> +static bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
-> +		  unsigned long new_addr, unsigned long old_end,
-> +		  pmd_t *old_pmd, pmd_t *new_pmd, bool *need_flush)
+> diff --git a/tools/testing/selftests/vm/.gitignore b/tools/testing/selftests/vm/.gitignore
+> index af5ff83f6d7f..31b3c98b6d34 100644
+> --- a/tools/testing/selftests/vm/.gitignore
+> +++ b/tools/testing/selftests/vm/.gitignore
+> @@ -13,3 +13,4 @@ mlock-random-test
+>   virtual_address_range
+>   gup_benchmark
+>   va_128TBswitch
+> +map_fixed_noreplace
+> diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
+> index e94b7b14bcb2..6e67e726e5a5 100644
+> --- a/tools/testing/selftests/vm/Makefile
+> +++ b/tools/testing/selftests/vm/Makefile
+> @@ -12,6 +12,7 @@ TEST_GEN_FILES += gup_benchmark
+>   TEST_GEN_FILES += hugepage-mmap
+>   TEST_GEN_FILES += hugepage-shm
+>   TEST_GEN_FILES += map_hugetlb
+> +TEST_GEN_FILES += map_fixed_noreplace
+>   TEST_GEN_FILES += map_populate
+>   TEST_GEN_FILES += mlock-random-test
+>   TEST_GEN_FILES += mlock2-tests
+> diff --git a/tools/testing/selftests/vm/map_fixed_noreplace.c b/tools/testing/selftests/vm/map_fixed_noreplace.c
+> new file mode 100644
+> index 000000000000..d91bde511268
+> --- /dev/null
+> +++ b/tools/testing/selftests/vm/map_fixed_noreplace.c
+> @@ -0,0 +1,206 @@
+> +// SPDX-License-Identifier: GPL-2.0
+> +
+> +/*
+> + * Test that MAP_FIXED_NOREPLACE works.
+> + *
+> + * Copyright 2018, Jann Horn <jannh@google.com>
+> + * Copyright 2018, Michael Ellerman, IBM Corporation.
+> + */
+> +
+> +#include <sys/mman.h>
+> +#include <errno.h>
+> +#include <stdio.h>
+> +#include <stdlib.h>
+> +#include <unistd.h>
+> +
+> +#ifndef MAP_FIXED_NOREPLACE
+> +#define MAP_FIXED_NOREPLACE 0x100000
+> +#endif
+> +
+> +#define BASE_ADDRESS	(256ul * 1024 * 1024)
+> +
+> +
+> +static void dump_maps(void)
 > +{
-> +	spinlock_t *old_ptl, *new_ptl;
-> +	struct mm_struct *mm = vma->vm_mm;
+> +	char cmd[32];
 > +
-> +	if ((old_addr & ~PMD_MASK) || (new_addr & ~PMD_MASK)
-> +	    || old_end - old_addr < PMD_SIZE)
-> +		return false;
-> +
-> +	/*
-> +	 * The destination pmd shouldn't be established, free_pgtables()
-> +	 * should have release it.
-> +	 */
-> +	if (WARN_ON(!pmd_none(*new_pmd)))
-> +		return false;
-> +
-> +	/*
-> +	 * We don't have to worry about the ordering of src and dst
-> +	 * ptlocks because exclusive mmap_sem prevents deadlock.
-> +	 */
-> +	old_ptl = pmd_lock(vma->vm_mm, old_pmd);
-> +	if (old_ptl) {
-> +		pmd_t pmd;
-> +
-> +		new_ptl = pmd_lockptr(mm, new_pmd);
-> +		if (new_ptl != old_ptl)
-> +			spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
-> +
-> +		/* Clear the pmd */
-> +		pmd = *old_pmd;
-> +		pmd_clear(old_pmd);
-
-Adding Martin Schwidefsky.
-Is this mapping maybe still in use on other CPUs? If yes, I think for
-s390 we need to flush here as well (in other word we might need to introduce
-pmd_clear_flush). On s390 you have to use instructions like CRDTE,IPTE or IDTE
-to modify page table entries that are still in use. Otherwise you can get a 
-delayed access exception which is - in contrast to page faults - not recoverable.
-
-
-
-> +
-> +		VM_BUG_ON(!pmd_none(*new_pmd));
-> +
-> +		/* Set the new pmd */
-> +		set_pmd_at(mm, new_addr, new_pmd, pmd);
-> +		if (new_ptl != old_ptl)
-> +			spin_unlock(new_ptl);
-> +		spin_unlock(old_ptl);
-> +
-> +		*need_flush = true;
-> +		return true;
-> +	}
-> +	return false;
+> +	snprintf(cmd, sizeof(cmd), "cat /proc/%d/maps", getpid());
+> +	system(cmd);
 > +}
 > +
->  unsigned long move_page_tables(struct vm_area_struct *vma,
->  		unsigned long old_addr, struct vm_area_struct *new_vma,
->  		unsigned long new_addr, unsigned long len,
-> @@ -239,7 +287,21 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
->  			split_huge_pmd(vma, old_pmd, old_addr);
->  			if (pmd_trans_unstable(old_pmd))
->  				continue;
-> +		} else if (extent == PMD_SIZE) {
-> +			bool moved;
+> +int main(void)
+> +{
+> +	unsigned long flags, addr, size, page_size;
+> +	char *p;
 > +
-> +			/* See comment in move_ptes() */
-> +			if (need_rmap_locks)
-> +				take_rmap_locks(vma);
-> +			moved = move_normal_pmd(vma, old_addr, new_addr,
-> +					old_end, old_pmd, new_pmd,
-> +					&need_flush);
-> +			if (need_rmap_locks)
-> +				drop_rmap_locks(vma);
-> +			if (moved)
-> +				continue;
->  		}
+> +	page_size = sysconf(_SC_PAGE_SIZE);
 > +
->  		if (pte_alloc(new_vma->vm_mm, new_pmd))
->  			break;
->  		next = (new_addr + PMD_SIZE) & PMD_MASK;
+> +	flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE;
+> +
+> +	// Check we can map all the areas we need below
+> +	errno = 0;
+> +	addr = BASE_ADDRESS;
+> +	size = 5 * page_size;
+> +	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
+> +
+> +	printf("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
+> +
+> +	if (p == MAP_FAILED) {
+> +		dump_maps();
+> +		printf("Error: couldn't map the space we need for the test\n");
+> +		return 1;
+> +	}
+> +
+> +	errno = 0;
+> +	if (munmap((void *)addr, 5 * page_size) != 0) {
+> +		dump_maps();
+> +		printf("Error: munmap failed!?\n");
+> +		return 1;
+> +	}
+> +	printf("unmap() successful\n");
+> +
+> +	errno = 0;
+> +	addr = BASE_ADDRESS + page_size;
+> +	size = 3 * page_size;
+> +	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
+> +	printf("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
+> +
+> +	if (p == MAP_FAILED) {
+> +		dump_maps();
+> +		printf("Error: first mmap() failed unexpectedly\n");
+> +		return 1;
+> +	}
+> +
+> +	/*
+> +	 * Exact same mapping again:
+> +	 *   base |  free  | new
+> +	 *     +1 | mapped | new
+> +	 *     +2 | mapped | new
+> +	 *     +3 | mapped | new
+> +	 *     +4 |  free  | new
+> +	 */
+> +	errno = 0;
+> +	addr = BASE_ADDRESS;
+> +	size = 5 * page_size;
+> +	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
+> +	printf("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
+> +
+> +	if (p != MAP_FAILED) {
+> +		dump_maps();
+> +		printf("Error:1: mmap() succeeded when it shouldn't have\n");
+> +		return 1;
+> +	}
+> +
+> +	/*
+> +	 * Second mapping contained within first:
+> +	 *
+> +	 *   base |  free  |
+> +	 *     +1 | mapped |
+> +	 *     +2 | mapped | new
+> +	 *     +3 | mapped |
+> +	 *     +4 |  free  |
+> +	 */
+> +	errno = 0;
+> +	addr = BASE_ADDRESS + (2 * page_size);
+> +	size = page_size;
+> +	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
+> +	printf("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
+> +
+> +	if (p != MAP_FAILED) {
+> +		dump_maps();
+> +		printf("Error:2: mmap() succeeded when it shouldn't have\n");
+> +		return 1;
+> +	}
+> +
+> +	/*
+> +	 * Overlap end of existing mapping:
+> +	 *   base |  free  |
+> +	 *     +1 | mapped |
+> +	 *     +2 | mapped |
+> +	 *     +3 | mapped | new
+> +	 *     +4 |  free  | new
+> +	 */
+> +	errno = 0;
+> +	addr = BASE_ADDRESS + (3 * page_size);
+> +	size = 2 * page_size;
+> +	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
+> +	printf("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
+> +
+> +	if (p != MAP_FAILED) {
+> +		dump_maps();
+> +		printf("Error:3: mmap() succeeded when it shouldn't have\n");
+> +		return 1;
+> +	}
+> +
+> +	/*
+> +	 * Overlap start of existing mapping:
+> +	 *   base |  free  | new
+> +	 *     +1 | mapped | new
+> +	 *     +2 | mapped |
+> +	 *     +3 | mapped |
+> +	 *     +4 |  free  |
+> +	 */
+> +	errno = 0;
+> +	addr = BASE_ADDRESS;
+> +	size = 2 * page_size;
+> +	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
+> +	printf("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
+> +
+> +	if (p != MAP_FAILED) {
+> +		dump_maps();
+> +		printf("Error:4: mmap() succeeded when it shouldn't have\n");
+> +		return 1;
+> +	}
+> +
+> +	/*
+> +	 * Adjacent to start of existing mapping:
+> +	 *   base |  free  | new
+> +	 *     +1 | mapped |
+> +	 *     +2 | mapped |
+> +	 *     +3 | mapped |
+> +	 *     +4 |  free  |
+> +	 */
+> +	errno = 0;
+> +	addr = BASE_ADDRESS;
+> +	size = page_size;
+> +	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
+> +	printf("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
+> +
+> +	if (p == MAP_FAILED) {
+> +		dump_maps();
+> +		printf("Error:5: mmap() failed when it shouldn't have\n");
+> +		return 1;
+> +	}
+> +
+> +	/*
+> +	 * Adjacent to end of existing mapping:
+> +	 *   base |  free  |
+> +	 *     +1 | mapped |
+> +	 *     +2 | mapped |
+> +	 *     +3 | mapped |
+> +	 *     +4 |  free  |  new
+> +	 */
+> +	errno = 0;
+> +	addr = BASE_ADDRESS + (4 * page_size);
+> +	size = page_size;
+> +	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
+> +	printf("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
+> +
+> +	if (p == MAP_FAILED) {
+> +		dump_maps();
+> +		printf("Error:6: mmap() failed when it shouldn't have\n");
+> +		return 1;
+> +	}
+> +
+> +	addr = BASE_ADDRESS;
+> +	size = 5 * page_size;
+> +	if (munmap((void *)addr, size) != 0) {
+> +		dump_maps();
+> +		printf("Error: munmap failed!?\n");
+> +		return 1;
+> +	}
+> +	printf("unmap() successful\n");
+> +
+> +	printf("OK\n");
+> +	return 0;
+> +}
 > 
