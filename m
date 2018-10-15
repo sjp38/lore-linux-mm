@@ -1,60 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 597986B000C
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 14:32:08 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id a72-v6so5324721pfj.14
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 11:32:08 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a3-v6si10905491plp.199.2018.10.15.11.32.07
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 003F16B0266
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 14:38:47 -0400 (EDT)
+Received: by mail-it1-f200.google.com with SMTP id m67-v6so18173926ita.8
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 11:38:47 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k14-v6sor5177950iog.54.2018.10.15.11.38.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 15 Oct 2018 11:32:07 -0700 (PDT)
-Date: Mon, 15 Oct 2018 11:32:04 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 07/25] vfs: combine the clone and dedupe into a single
- remap_file_range
-Message-ID: <20181015183204.GB20655@infradead.org>
-References: <153938912912.8361.13446310416406388958.stgit@magnolia>
- <153938919123.8361.13059492965161549195.stgit@magnolia>
- <20181014171927.GD30673@infradead.org>
- <CAOQ4uxiReFJRxKJbsoUgWWNP75_Qsoh1fWC_dLYV_zBU_jaGbA@mail.gmail.com>
- <20181015124719.GA15379@infradead.org>
- <20181015171317.GM28243@magnolia>
+        (Google Transport Security);
+        Mon, 15 Oct 2018 11:38:47 -0700 (PDT)
+From: Yu Zhao <yuzhao@google.com>
+Subject: [PATCH] mm: detect numbers of vmstat keys/values mismatch
+Date: Mon, 15 Oct 2018 12:38:41 -0600
+Message-Id: <20181015183841.114341-1-yuzhao@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181015171317.GM28243@magnolia>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Amir Goldstein <amir73il@gmail.com>, Dave Chinner <david@fromorbit.com>, Eric Sandeen <sandeen@redhat.com>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, linux-cifs@vger.kernel.org, overlayfs <linux-unionfs@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Btrfs <linux-btrfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, ocfs2-devel@oss.oracle.com
+To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+Cc: Jan Kara <jack@suse.cz>, David Rientjes <rientjes@google.com>, Kemi Wang <kemi.wang@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Steven Rostedt <rostedt@goodmis.org>, Roman Gushchin <guro@fb.com>, Kees Cook <keescook@chromium.org>, Jann Horn <jannh@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Yu Zhao <yuzhao@google.com>
 
-On Mon, Oct 15, 2018 at 10:13:17AM -0700, Darrick J. Wong wrote:
-> > RFR_TO_SRC_EOF is checked in generic_remap_file_range_prep,
-> > so the file system should know about it  Also looking at it again now
-> > it seems entirely superflous - we can just pass down then len == we
-> > use in higher level code instead of having a flag and will side step
-> > the issue here.
-> 
-> I'm not a fan of hidden behaviors like that, particularly when we
-> already have a flags field where callers can explicitly ask for the
-> to-eof behavior.
+There were mismatches between number of vmstat keys and number of
+vmstat values. They were fixed recently by:
+  commit 58bc4c34d249 ("mm/vmstat.c: skip NR_TLB_REMOTE_FLUSH* properly")
+  commit 28e2c4bb99aa ("mm/vmstat.c: fix outdated vmstat_text")
 
-This just means we have a flag to mean ken is 0 and needs to be filled,
-rather than encoding that in the field itself.  If you fell better we
-can replace 0 with 0xffffffff and still encode it in the field.
+Add a BUILD_BUG_ON to detect such mismatch and hopefully prevent
+it from happening again.
 
-> > RFR_CAN_SHORTEN is advisory as no one has to shorten, but that can
-> > easily be solved by including it everywhere.
-> 
-> CAN_SHORTEN isn't included everywhere
+Signed-off-by: Yu Zhao <yuzhao@google.com>
+---
+ include/linux/vmstat.h |  4 ++++
+ mm/vmstat.c            | 18 ++++++++----------
+ 2 files changed, 12 insertions(+), 10 deletions(-)
 
-Include it everywhere as in allow it in ever ->remap_file instance.
-
-> I sort of thought about introducing a new copy_file_range flag that
-> would just do deduplication and allow for opportunistic "dedup as much
-> as you can" but ... meh.  Maybe I'll just drop the patch instead; we can
-> revisit that when anyone wants a better dedupe interface.
-
-Sounds fine to me.  The btrfs ioctl is really ugly, but then again
-there is no pressing need for something better.
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index f25cef84b41d..33fdd37124cb 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -78,6 +78,10 @@ extern void vm_events_fold_cpu(int cpu);
+ 
+ #else
+ 
++struct vm_event_state {
++	unsigned long event[0];
++};
++
+ /* Disable counters */
+ static inline void count_vm_event(enum vm_event_item item)
+ {
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 7878da76abf2..7ebf871b4cc9 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1647,23 +1647,21 @@ enum writeback_stat_item {
+ 	NR_VM_WRITEBACK_STAT_ITEMS,
+ };
+ 
++#define NR_VM_STAT_ITEMS (NR_VM_ZONE_STAT_ITEMS + NR_VM_NUMA_STAT_ITEMS + \
++			  NR_VM_NODE_STAT_ITEMS + NR_VM_WRITEBACK_STAT_ITEMS + \
++			  ARRAY_SIZE(((struct vm_event_state *)0)->event))
++
+ static void *vmstat_start(struct seq_file *m, loff_t *pos)
+ {
++	int i;
+ 	unsigned long *v;
+-	int i, stat_items_size;
++
++	BUILD_BUG_ON(ARRAY_SIZE(vmstat_text) != NR_VM_STAT_ITEMS);
+ 
+ 	if (*pos >= ARRAY_SIZE(vmstat_text))
+ 		return NULL;
+-	stat_items_size = NR_VM_ZONE_STAT_ITEMS * sizeof(unsigned long) +
+-			  NR_VM_NUMA_STAT_ITEMS * sizeof(unsigned long) +
+-			  NR_VM_NODE_STAT_ITEMS * sizeof(unsigned long) +
+-			  NR_VM_WRITEBACK_STAT_ITEMS * sizeof(unsigned long);
+-
+-#ifdef CONFIG_VM_EVENT_COUNTERS
+-	stat_items_size += sizeof(struct vm_event_state);
+-#endif
+ 
+-	v = kmalloc(stat_items_size, GFP_KERNEL);
++	v = kmalloc_array(NR_VM_STAT_ITEMS, sizeof(unsigned long), GFP_KERNEL);
+ 	m->private = v;
+ 	if (!v)
+ 		return ERR_PTR(-ENOMEM);
+-- 
+2.19.1.331.ge82ca0e54c-goog
