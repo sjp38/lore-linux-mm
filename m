@@ -1,75 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 476D86B000A
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 08:55:00 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id d76-v6so12213241ywb.7
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 05:55:00 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g9-v6sor3555443ybm.52.2018.10.15.05.54.59
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BBDEA6B000D
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 09:12:41 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id t9so13494205wrx.7
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 06:12:41 -0700 (PDT)
+Received: from thoth.sbs.de (thoth.sbs.de. [192.35.17.2])
+        by mx.google.com with ESMTPS id c8-v6si8510797wrb.289.2018.10.15.06.12.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 15 Oct 2018 05:54:59 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 Oct 2018 06:12:39 -0700 (PDT)
+Subject: Re: [PATCH] x86/entry/32: Fix setup of CS high bits
+References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
+ <1531906876-13451-11-git-send-email-joro@8bytes.org>
+ <97421241-2bc4-c3f1-4128-95b3e8a230d1@siemens.com>
+ <35a24feb-5970-aa03-acbf-53428a159ace@web.de>
+ <CALCETrWveao7jthnfKr5F=UyEpyowP0VA20eZi5OxizgT05EDA@mail.gmail.com>
+From: Jan Kiszka <jan.kiszka@siemens.com>
+Message-ID: <406a08c7-6199-a32d-d385-c032fb4c34d6@siemens.com>
+Date: Mon, 15 Oct 2018 15:08:54 +0200
 MIME-Version: 1.0
-References: <153938912912.8361.13446310416406388958.stgit@magnolia>
- <153938919123.8361.13059492965161549195.stgit@magnolia> <20181014171927.GD30673@infradead.org>
- <CAOQ4uxiReFJRxKJbsoUgWWNP75_Qsoh1fWC_dLYV_zBU_jaGbA@mail.gmail.com> <20181015124719.GA15379@infradead.org>
-In-Reply-To: <20181015124719.GA15379@infradead.org>
-From: Amir Goldstein <amir73il@gmail.com>
-Date: Mon, 15 Oct 2018 15:54:47 +0300
-Message-ID: <CAOQ4uxi7AuNHapyfkLYDSjkZAiDsZFUiPDDWTgGJJSEcOOtaPg@mail.gmail.com>
-Subject: Re: [PATCH 07/25] vfs: combine the clone and dedupe into a single remap_file_range
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CALCETrWveao7jthnfKr5F=UyEpyowP0VA20eZi5OxizgT05EDA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, Eric Sandeen <sandeen@redhat.com>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, linux-cifs@vger.kernel.org, overlayfs <linux-unionfs@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Btrfs <linux-btrfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, ocfs2-devel@oss.oracle.com
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Mon, Oct 15, 2018 at 3:47 PM Christoph Hellwig <hch@infradead.org> wrote:
->
-> On Mon, Oct 15, 2018 at 09:04:13AM +0300, Amir Goldstein wrote:
-> > I supposed you figured out the reason already.
->
-> No, I hadn't.
->
-> > It makes it appearance in patch 16/25 as RFR_VFS_FLAGS.
-> > All those "advisory" flags, we want to pass them in to filesystem as FYI,
-> > but we don't want to explicitly add support for e.g. RFR_CAN_SHORTEN
-> > to every filesystem, when vfs has already taken care of the advice.
->
-> I don't think this model makes sense.  If they really are purely
-> handled in the VFS we can mask them before passing them to the file
-> system, if not we need to check them, or the they are avisory and
-> we can have a simple #define instead of the helper.
->
-> RFR_TO_SRC_EOF is checked in generic_remap_file_range_prep,
-> so the file system should know about it  Also looking at it again now
-> it seems entirely superflous - we can just pass down then len == we
-> use in higher level code instead of having a flag and will side step
-> the issue here.
->
-> RFR_CAN_SHORTEN is advisory as no one has to shorten, but that can
-> easily be solved by including it everywhere.
->
-> RFR_SHORT_DEDUPE is as far as I can tell entirely superflous to
-> start with, as RFR_CAN_SHORTEN can be used instead.
->
-> So something like this in fs.h:
->
-> #define REMAP_FILE_ADVISORY_FLAGS       REMAP_FILE_CAN_SHORTEN
->
-> And then in the file system:
->
->         if (flags & ~REMAP_FILE_ADVISORY_FLAGS)
->                 -EINVAL;
->
-> or
->
->         if (flags & ~(REMAP_FILE_ADVISORY_FLAGS | REMAP_FILE_DEDUP))
->                 -EINVAL;
->
-> should be all that is needed.
+On 13.10.18 17:12, Andy Lutomirski wrote:
+> On Sat, Oct 13, 2018 at 3:02 AM Jan Kiszka <jan.kiszka@web.de> wrote:
+>>
+>> From: Jan Kiszka <jan.kiszka@siemens.com>
+>>
+>> Even if we are not on an entry stack, we have to initialize the CS high
+>> bits because we are unconditionally evaluating them
+>> PARANOID_EXIT_TO_KERNEL_MODE. Failing to do so broke the boot on Galileo
+>> Gen2 and IOT2000 boards.
+>>
+>> Fixes: b92a165df17e ("x86/entry/32: Handle Entry from Kernel-Mode on Entry-Stack")
+>> Signed-off-by: Jan Kiszka <jan.kiszka@siemens.com>
+>> ---
+>>   arch/x86/entry/entry_32.S | 12 ++++++------
+>>   1 file changed, 6 insertions(+), 6 deletions(-)
+>>
+>> diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+>> index 2767c625a52c..95c94d48ecd2 100644
+>> --- a/arch/x86/entry/entry_32.S
+>> +++ b/arch/x86/entry/entry_32.S
+>> @@ -389,6 +389,12 @@
+>>           * that register for the time this macro runs
+>>           */
+>>
+>> +       /*
+>> +        * Clear unused upper bits of the dword containing the word-sized CS
+>> +        * slot in pt_regs in case hardware didn't clear it for us.
+>> +        */
+>> +       andl    $(0x0000ffff), PT_CS(%esp)
+>> +
+> 
+> Please improve the comment. Since commit:
+> 
+> commit 385eca8f277c4c34f361a4c3a088fd876d29ae21
+> Author: Andy Lutomirski <luto@kernel.org>
+> Date:   Fri Jul 28 06:00:30 2017 -0700
+> 
+>      x86/asm/32: Make pt_regs's segment registers be 16 bits
+> 
+> Those fields are genuinely 16 bit.  So the comment should say
+> something like "Those high bits are used for CS_FROM_ENTRY_STACK and
+> CS_FROM_USER_CR3".
 
-Yeh, I suppose that makes sense.
+/*
+  * The high bits of the CS dword (__csh) are used for
+  * CS_FROM_ENTRY_STACK and CS_FROM_USER_CR3. Clear them in case
+  * hardware didn't do this for us.
+  */
 
-Thanks,
-Amir.
+OK? I will send out v2 with this wording soon.
+
+> 
+> Also, can you fold something like this in:
+> 
+> diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+> index 2767c625a52c..358eed8cf62a 100644
+> --- a/arch/x86/entry/entry_32.S
+> +++ b/arch/x86/entry/entry_32.S
+> @@ -171,7 +171,7 @@
+>          ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
+>          .if \no_user_check == 0
+>          /* coming from usermode? */
+> -       testl   $SEGMENT_RPL_MASK, PT_CS(%esp)
+> +       testb   $SEGMENT_RPL_MASK, PT_CS(%esp)
+>          jz      .Lend_\@
+>          .endif
+>          /* On user-cr3? */
+> 
+
+Makes sense, but this looks like a separate patch to me.
+
+Jan
+
+-- 
+Siemens AG, Corporate Technology, CT RDA IOT SES-DE
+Corporate Competence Center Embedded Linux
