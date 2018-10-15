@@ -1,174 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 951816B0266
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 12:43:04 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id 36so14675615ott.22
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 09:43:04 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id q14si4861349otn.214.2018.10.15.09.43.03
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 76DCC6B026B
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 12:49:30 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id v30-v6so16772644wra.19
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 09:49:30 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTPS id o10-v6si8800952wre.193.2018.10.15.09.49.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Oct 2018 09:43:03 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w9FGdl9A113439
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 12:43:02 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2n4vrwwsve-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 12:43:01 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Mon, 15 Oct 2018 17:42:59 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: [PATCH 3/3] s390/mm: fix mis-accounting of pgtable_bytes
-Date: Mon, 15 Oct 2018 18:42:39 +0200
-In-Reply-To: <1539621759-5967-1-git-send-email-schwidefsky@de.ibm.com>
-References: <1539621759-5967-1-git-send-email-schwidefsky@de.ibm.com>
-Message-Id: <1539621759-5967-4-git-send-email-schwidefsky@de.ibm.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 8bit
+        Mon, 15 Oct 2018 09:49:29 -0700 (PDT)
+Date: Mon, 15 Oct 2018 18:49:13 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v6 17/18] mm/memory-failure: increase queued recovery
+ work's priority
+Message-ID: <20181015164913.GE11434@zn.tnic>
+References: <20180921221705.6478-1-james.morse@arm.com>
+ <20180921221705.6478-18-james.morse@arm.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20180921221705.6478-18-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Wang <liwang@redhat.com>, Guenter Roeck <linux@roeck-us.net>, Janosch Frank <frankja@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: James Morse <james.morse@arm.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
 
-In case a fork or a clone system fails in copy_process and the error
-handling does the mmput() at the bad_fork_cleanup_mm label, the
-following warning messages will appear on the console:
++ Peter.
 
-  BUG: non-zero pgtables_bytes on freeing mm: 16384
+On Fri, Sep 21, 2018 at 11:17:04PM +0100, James Morse wrote:
+> arm64 can take an NMI-like error notification when user-space steps in
+> some corrupt memory. APEI's GHES code will call memory_failure_queue()
+> to schedule the recovery work. We then return to user-space, possibly
+> taking the fault again.
+> 
+> Currently the arch code unconditionally signals user-space from this
+> path, so we don't get stuck in this loop, but the affected process
+> never benefits from memory_failure()s recovery work. To fix this we
+> need to know the recovery work will run before we get back to user-space.
+> 
+> Increase the priority of the recovery work by scheduling it on the
+> system_highpri_wq, then try to bump the current task off this CPU
+> so that the recovery work starts immediately.
+> 
+> Reported-by: Xie XiuQi <xiexiuqi@huawei.com>
+> Signed-off-by: James Morse <james.morse@arm.com>
+> Reviewed-by: Punit Agrawal <punit.agrawal@arm.com>
+> Tested-by: Tyler Baicar <tbaicar@codeaurora.org>
+> Tested-by: gengdongjiu <gengdongjiu@huawei.com>
+> CC: Xie XiuQi <xiexiuqi@huawei.com>
+> CC: gengdongjiu <gengdongjiu@huawei.com>
+> ---
+>  mm/memory-failure.c | 11 ++++++++---
+>  1 file changed, 8 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index 0cd3de3550f0..4e7b115cea5a 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -56,6 +56,7 @@
+>  #include <linux/memory_hotplug.h>
+>  #include <linux/mm_inline.h>
+>  #include <linux/memremap.h>
+> +#include <linux/preempt.h>
+>  #include <linux/kfifo.h>
+>  #include <linux/ratelimit.h>
+>  #include <linux/page-isolation.h>
+> @@ -1454,6 +1455,7 @@ static DEFINE_PER_CPU(struct memory_failure_cpu, memory_failure_cpu);
+>   */
+>  void memory_failure_queue(unsigned long pfn, int flags)
+>  {
+> +	int cpu = smp_processor_id();
+>  	struct memory_failure_cpu *mf_cpu;
+>  	unsigned long proc_flags;
+>  	struct memory_failure_entry entry = {
+> @@ -1463,11 +1465,14 @@ void memory_failure_queue(unsigned long pfn, int flags)
+>  
+>  	mf_cpu = &get_cpu_var(memory_failure_cpu);
+>  	spin_lock_irqsave(&mf_cpu->lock, proc_flags);
+> -	if (kfifo_put(&mf_cpu->fifo, entry))
+> -		schedule_work_on(smp_processor_id(), &mf_cpu->work);
+> -	else
+> +	if (kfifo_put(&mf_cpu->fifo, entry)) {
+> +		queue_work_on(cpu, system_highpri_wq, &mf_cpu->work);
+> +		set_tsk_need_resched(current);
+> +		preempt_set_need_resched();
 
-The reason for that is the tricks we play with mm_inc_nr_puds() and
-mm_inc_nr_pmds() in init_new_context().
+What guarantees the workqueue would run before the process? I see this:
 
-A normal 64-bit process has 3 levels of page table, the p4d level and
-the pud level are folded. On process termination the free_pud_range()
-function in mm/memory.c will subtract 16KB from pgtable_bytes with a
-mm_dec_nr_puds() call, but there actually is not really a pud table.
+``WQ_HIGHPRI``
+  Work items of a highpri wq are queued to the highpri
+  worker-pool of the target cpu.  Highpri worker-pools are
+  served by worker threads with elevated nice level.
 
-One issue with this is the fact that pgtable_bytes is usually off
-by a few kilobytes, but the more severe problem is that for a failed
-fork or clone the free_pgtables() function is not called. In this case
-there is no mm_dec_nr_puds() or mm_dec_nr_pmds() that go together with
-the mm_inc_nr_puds() and mm_inc_nr_pmds in init_new_context().
-The pgtable_bytes will be off by 16384 or 32768 bytes and we get the
-BUG message. The message itself is purely cosmetic, but annoying.
+but is that enough?
 
-To fix this override the mm_pmd_folded, mm_pud_folded and mm_p4d_folded
-function to check for the true size of the address space.
-
-Reported-by: Li Wang <liwang@redhat.com>
-Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
----
- arch/s390/include/asm/mmu_context.h |  5 -----
- arch/s390/include/asm/pgalloc.h     |  6 +++---
- arch/s390/include/asm/pgtable.h     | 18 ++++++++++++++++++
- arch/s390/include/asm/tlb.h         |  6 +++---
- 4 files changed, 24 insertions(+), 11 deletions(-)
-
-diff --git a/arch/s390/include/asm/mmu_context.h b/arch/s390/include/asm/mmu_context.h
-index 0717ee76885d..f1ab9420ccfb 100644
---- a/arch/s390/include/asm/mmu_context.h
-+++ b/arch/s390/include/asm/mmu_context.h
-@@ -45,8 +45,6 @@ static inline int init_new_context(struct task_struct *tsk,
- 		mm->context.asce_limit = STACK_TOP_MAX;
- 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
- 				   _ASCE_USER_BITS | _ASCE_TYPE_REGION3;
--		/* pgd_alloc() did not account this pud */
--		mm_inc_nr_puds(mm);
- 		break;
- 	case -PAGE_SIZE:
- 		/* forked 5-level task, set new asce with new_mm->pgd */
-@@ -62,9 +60,6 @@ static inline int init_new_context(struct task_struct *tsk,
- 		/* forked 2-level compat task, set new asce with new mm->pgd */
- 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
- 				   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;
--		/* pgd_alloc() did not account this pmd */
--		mm_inc_nr_pmds(mm);
--		mm_inc_nr_puds(mm);
- 	}
- 	crst_table_init((unsigned long *) mm->pgd, pgd_entry_type(mm));
- 	return 0;
-diff --git a/arch/s390/include/asm/pgalloc.h b/arch/s390/include/asm/pgalloc.h
-index f0f9bcf94c03..5ee733720a57 100644
---- a/arch/s390/include/asm/pgalloc.h
-+++ b/arch/s390/include/asm/pgalloc.h
-@@ -36,11 +36,11 @@ static inline void crst_table_init(unsigned long *crst, unsigned long entry)
- 
- static inline unsigned long pgd_entry_type(struct mm_struct *mm)
- {
--	if (mm->context.asce_limit <= _REGION3_SIZE)
-+	if (mm_pmd_folded(mm))
- 		return _SEGMENT_ENTRY_EMPTY;
--	if (mm->context.asce_limit <= _REGION2_SIZE)
-+	if (mm_pud_folded(mm))
- 		return _REGION3_ENTRY_EMPTY;
--	if (mm->context.asce_limit <= _REGION1_SIZE)
-+	if (mm_p4d_folded(mm))
- 		return _REGION2_ENTRY_EMPTY;
- 	return _REGION1_ENTRY_EMPTY;
- }
-diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-index 0e7cb0dc9c33..de05466ce50c 100644
---- a/arch/s390/include/asm/pgtable.h
-+++ b/arch/s390/include/asm/pgtable.h
-@@ -485,6 +485,24 @@ static inline int is_module_addr(void *addr)
- 				   _REGION_ENTRY_PROTECT | \
- 				   _REGION_ENTRY_NOEXEC)
- 
-+static inline bool mm_p4d_folded(struct mm_struct *mm)
-+{
-+	return mm->context.asce_limit <= _REGION1_SIZE;
-+}
-+#define mm_p4d_folded(mm) mm_p4d_folded(mm)
-+
-+static inline bool mm_pud_folded(struct mm_struct *mm)
-+{
-+	return mm->context.asce_limit <= _REGION2_SIZE;
-+}
-+#define mm_pud_folded(mm) mm_pud_folded(mm)
-+
-+static inline bool mm_pmd_folded(struct mm_struct *mm)
-+{
-+	return mm->context.asce_limit <= _REGION3_SIZE;
-+}
-+#define mm_pmd_folded(mm) mm_pmd_folded(mm)
-+
- static inline int mm_has_pgste(struct mm_struct *mm)
- {
- #ifdef CONFIG_PGSTE
-diff --git a/arch/s390/include/asm/tlb.h b/arch/s390/include/asm/tlb.h
-index 457b7ba0fbb6..b31c779cf581 100644
---- a/arch/s390/include/asm/tlb.h
-+++ b/arch/s390/include/asm/tlb.h
-@@ -136,7 +136,7 @@ static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
- static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
- 				unsigned long address)
- {
--	if (tlb->mm->context.asce_limit <= _REGION3_SIZE)
-+	if (mm_pmd_folded(tlb->mm))
- 		return;
- 	pgtable_pmd_page_dtor(virt_to_page(pmd));
- 	tlb_remove_table(tlb, pmd);
-@@ -152,7 +152,7 @@ static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
- static inline void p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d,
- 				unsigned long address)
- {
--	if (tlb->mm->context.asce_limit <= _REGION1_SIZE)
-+	if (mm_p4d_folded(tlb->mm))
- 		return;
- 	tlb_remove_table(tlb, p4d);
- }
-@@ -167,7 +167,7 @@ static inline void p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d,
- static inline void pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
- 				unsigned long address)
- {
--	if (tlb->mm->context.asce_limit <= _REGION2_SIZE)
-+	if (mm_pud_folded(tlb->mm))
- 		return;
- 	tlb_remove_table(tlb, pud);
- }
 -- 
-2.16.4
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
