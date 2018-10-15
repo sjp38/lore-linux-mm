@@ -1,40 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5449D6B0006
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 05:42:29 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id w15-v6so13972859pge.2
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 02:42:29 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e9-v6si11006659pln.265.2018.10.15.02.42.28
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 21D346B000C
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 05:50:51 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id l51-v6so11762224edc.14
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 02:50:51 -0700 (PDT)
+Received: from outbound-smtp25.blacknight.com (outbound-smtp25.blacknight.com. [81.17.249.193])
+        by mx.google.com with ESMTPS id h1-v6si203250eds.194.2018.10.15.02.50.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 15 Oct 2018 02:42:28 -0700 (PDT)
-Date: Mon, 15 Oct 2018 02:42:09 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 2/4] mm: speed up mremap by 500x on large regions (v2)
-Message-ID: <20181015094209.GA31999@infradead.org>
-References: <20181013013200.206928-1-joel@joelfernandes.org>
- <20181013013200.206928-3-joel@joelfernandes.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 15 Oct 2018 02:50:49 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp25.blacknight.com (Postfix) with ESMTPS id 1545FB8BAB
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 10:50:48 +0100 (IST)
+Date: Mon, 15 Oct 2018 10:50:48 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 0/2] mm/swap: Add locking for pagevec
+Message-ID: <20181015095048.GG5819@techsingularity.net>
+References: <20180914145924.22055-1-bigeasy@linutronix.de>
+ <02dd6505-2ee5-c1c1-2603-b759bc90d479@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20181013013200.206928-3-joel@joelfernandes.org>
+In-Reply-To: <02dd6505-2ee5-c1c1-2603-b759bc90d479@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-Cc: linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, Rich Felker <dalias@libc.org>, linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon <will.deacon@arm.com>, mhocko@kernel.org, linux-mm@kvack.org, lokeshgidra@google.com, linux-riscv@lists.infradead.org, elfring@users.sourceforge.net, Jonas Bonn <jonas@southpole.se>, kvmarm@lists.cs.columbia.edu, dancol@google.com, Yoshinori Sato <ysato@users.sourceforge.jp>, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-hexagon@vger.kernel.org, Helge Deller <deller@gmx.de>, "maintainer:X86 ARCHITECTURE 32-BIT AND 64-BIT" <x86@kernel.org>, hughd@google.com, "James E.J. Bottomley" <jejb@parisc-linux.org>, kasan-dev@googlegroups.com, anton.ivanov@kot-begemot.co.uk, Ingo Molnar <mingo@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-snps-arc@lists.infradead.org, kernel-team@android.com, Sam Creasey <sammy@sammy.net>, Fenghua Yu <fenghua.yu@intel.com>, linux-s390@vger.kernel.org, Jeff Dike <jdike@addtoit.com>, linux-um@lists.infradead.org, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Julia Lawall <Julia.Lawall@lip6.fr>, linux-m68k@lists.linux-m68k.org, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, nios2-dev@lists.rocketboards.org, kirill@shutemov.name, Stafford Horne <shorne@gmail.com>, Guan Xuetao <gxt@pku.edu.cn>, Chris Zankel <chris@zankel.net>, Tony Luck <tony.luck@intel.com>, Richard Weinberger <richard@nod.at>, linux-parisc@vger.kernel.org, pantin@google.com, Max Filippov <jcmvbkbc@gmail.com>, minchan@kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-alpha@vger.kernel.org, Ley Foon Tan <lftan@altera.com>, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, "David S. Miller" <davem@davemloft.net>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-mm@kvack.org, tglx@linutronix.de, frederic@kernel.org
 
-On Fri, Oct 12, 2018 at 06:31:58PM -0700, Joel Fernandes (Google) wrote:
-> Android needs to mremap large regions of memory during memory management
-> related operations.
+On Fri, Oct 12, 2018 at 09:21:41AM +0200, Vlastimil Babka wrote:
+> On 9/14/18 4:59 PM, Sebastian Andrzej Siewior wrote:
+> I think this evaluation is missing the other side of the story, and
+> that's the cost of using a spinlock (even uncontended) instead of
+> disabling preemption. The expectation for LRU pagevec is that the local
+> operations will be much more common than draining of other CPU's, so
+> it's optimized for the former.
+> 
 
-Just curious: why?
+Agreed, the drain operation should be extremely rare except under heavy
+memory pressure, particularly if mixed with THP allocations. The overall
+intent seems to be improving lockdep coverage but I don't think we
+should take a hit in the common case just to get that coverage. Bear in
+mind that the main point of the pagevec (whether it's true or not) is to
+avoid the much heavier LRU lock.
 
-> +	if ((old_addr & ~PMD_MASK) || (new_addr & ~PMD_MASK)
-> +	    || old_end - old_addr < PMD_SIZE)
-
-The || goes on the first line.
-
-> +		} else if (extent == PMD_SIZE && IS_ENABLED(CONFIG_HAVE_MOVE_PMD)) {
-
-Overly long line.
+-- 
+Mel Gorman
+SUSE Labs
