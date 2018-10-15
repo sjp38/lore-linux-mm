@@ -1,111 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 720F76B0007
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 12:42:43 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id p89-v6so20653547pfj.12
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 09:42:43 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id n34-v6si9924919pld.187.2018.10.15.09.42.41
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9626D6B000A
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 12:42:59 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id t68-v6so13710635oih.4
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 09:42:59 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id m130-v6si5157827oif.194.2018.10.15.09.42.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Oct 2018 09:42:42 -0700 (PDT)
-Date: Mon, 15 Oct 2018 09:42:20 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH 07/25] vfs: combine the clone and dedupe into a single
- remap_file_range
-Message-ID: <20181015164220.GL28243@magnolia>
-References: <153938912912.8361.13446310416406388958.stgit@magnolia>
- <153938919123.8361.13059492965161549195.stgit@magnolia>
- <20181014171927.GD30673@infradead.org>
+        Mon, 15 Oct 2018 09:42:58 -0700 (PDT)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w9FGegwv014594
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 12:42:57 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2n4w9suyfu-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 12:42:57 -0400
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Mon, 15 Oct 2018 17:42:54 +0100
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: [RFC][PATCH 0/3] pgtable bytes mis-accounting v2
+Date: Mon, 15 Oct 2018 18:42:36 +0200
+Message-Id: <1539621759-5967-1-git-send-email-schwidefsky@de.ibm.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 8bit
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181014171927.GD30673@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: david@fromorbit.com, sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, Amir Goldstein <amir73il@gmail.com>, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, ocfs2-devel@oss.oracle.com
+To: Li Wang <liwang@redhat.com>, Guenter Roeck <linux@roeck-us.net>, Janosch Frank <frankja@linux.vnet.ibm.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On Sun, Oct 14, 2018 at 10:19:27AM -0700, Christoph Hellwig wrote:
-> >  	unsigned (*mmap_capabilities)(struct file *);
-> >  #endif
-> >  	ssize_t (*copy_file_range)(struct file *, loff_t, struct file *, loff_t, size_t, unsigned int);
-> > -	int (*clone_file_range)(struct file *, loff_t, struct file *, loff_t, u64);
-> > -	int (*dedupe_file_range)(struct file *, loff_t, struct file *, loff_t, u64);
-> > +	int (*remap_file_range)(struct file *file_in, loff_t pos_in,
-> > +				struct file *file_out, loff_t pos_out,
-> > +				u64 len, unsigned int remap_flags);
-> 
-> None of the other methods in this file name their parameters.  While
-> I generally don't like people leaving them out, in the end consistency
-> is even more important.
-> 
-> > +int btrfs_remap_file_range(struct file *src_file, loff_t off,
-> > +		struct file *dst_file, loff_t destoff, u64 len,
-> > +		unsigned int remap_flags)
-> >  {
-> > +	if (!remap_check_flags(remap_flags, RFR_SAME_DATA))
-> > +		return -EINVAL;
-> > +
-> > +	if (remap_flags & RFR_SAME_DATA) {
-> 
-> So at least for btrfs there seems to be no shared code at all below
-> the function calls.  This kinda speaks against the argument that
-> they fundamentally are the same..
+Greetings,
 
-They /do/ share/ code -- eventually both btrfs_extent_same and
-btrfs_clone_files call btrfs_clone.  xfs and ocfs2 call the same paths
-internally too; it's only the vfs helpers that have the extra page cache
-comparisons if it's a dedup operation.
+the first test patch to fix the pgtable_bytes mis-accounting on s390
+still had a few problems. For one it didn't work for x86 ..
 
-> > +/*
-> > + * These flags control the behavior of the remap_file_range function pointer.
-> > + *
-> > + * RFR_SAME_DATA: only remap if contents identical (i.e. deduplicate)
-> > + */
-> > +#define RFR_SAME_DATA		(1 << 0)
-> > +
-> > +#define RFR_VALID_FLAGS		(RFR_SAME_DATA)
-> 
-> RFR?  Why not REMAP_FILE_*  Also why not the well understood
-> REMAP_FILE_DEDUP instead of the odd SAME_DATA?
+Changes v1 -> v2:
 
-Sure.  I had begin to dislike typing RFR anyway.
+ - Split the patch into three parts, one patch to add the mm_pxd_folded
+   helpers, one patch to use to the helpers in mm_[dec|inc]_nr_[pmds|puds]
+   and finally the fix for s390.
 
-> > +
-> > +/*
-> > + * Filesystem remapping implementations should call this helper on their
-> > + * remap flags to filter out flags that the implementation doesn't support.
-> > + *
-> > + * Returns true if the flags are ok, false otherwise.
-> > + */
-> > +static inline bool remap_check_flags(unsigned int remap_flags,
-> > +				     unsigned int supported_flags)
-> > +{
-> > +	return (remap_flags & ~(supported_flags & RFR_VALID_FLAGS)) == 0;
-> > +}
-> 
-> Any reason to even bother with a helper for this?  ->fallocate
-> seems to be doing fine without the helper, and the resulting code
-> seems a lot easier to understand to me.
+ - Drop the use of __is_defined, it does not work with the
+   __PAGETABLE_PxD_FOLDED defines
 
-(Will respond to these at the current end of the flags thread.)
+ - Do not change the basic #ifdef'ery in mm.h, just add the calls
+   to mm_pxd_folded to the pgtable_bytes accounting functions. This
+   fixes the compile error on alpha (and potentially on other archs).
 
-> > @@ -1759,10 +1779,9 @@ struct file_operations {
-> >  #endif
-> >  	ssize_t (*copy_file_range)(struct file *, loff_t, struct file *,
-> >  			loff_t, size_t, unsigned int);
-> > -	int (*clone_file_range)(struct file *, loff_t, struct file *, loff_t,
-> > -			u64);
-> > -	int (*dedupe_file_range)(struct file *, loff_t, struct file *, loff_t,
-> > -			u64);
-> > +	int (*remap_file_range)(struct file *file_in, loff_t pos_in,
-> > +				struct file *file_out, loff_t pos_out,
-> > +				u64 len, unsigned int remap_flags);
-> 
-> Same comment here.  Didn't we have some nice doc tools to avoid this
-> duplication? :)
+Martin Schwidefsky (3):
+  mm: introduce mm_[p4d|pud|pmd]_folded
+  mm: add mm_pxd_folded checks to pgtable_bytes accounting functions
+  s390/mm: fix mis-accounting of pgtable_bytes
 
-We do, but vfs.txt hasn't been ported to any of that.
+ arch/s390/include/asm/mmu_context.h |  5 ----
+ arch/s390/include/asm/pgalloc.h     |  6 ++---
+ arch/s390/include/asm/pgtable.h     | 18 ++++++++++++++
+ arch/s390/include/asm/tlb.h         |  6 ++---
+ include/linux/mm.h                  | 48 +++++++++++++++++++++++++++++++++++++
+ 5 files changed, 72 insertions(+), 11 deletions(-)
 
---D
+-- 
+2.16.4
