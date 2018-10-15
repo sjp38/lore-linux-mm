@@ -1,101 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 832336B0006
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 13:13:38 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id f4-v6so20899041pff.2
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 10:13:38 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id o5-v6si11329557pgk.300.2018.10.15.10.13.36
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 930F46B0003
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 13:39:32 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id q143-v6so14915564pgq.12
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 10:39:32 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i8-v6sor2258815plt.62.2018.10.15.10.39.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Oct 2018 10:13:37 -0700 (PDT)
-Date: Mon, 15 Oct 2018 10:13:17 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH 07/25] vfs: combine the clone and dedupe into a single
- remap_file_range
-Message-ID: <20181015171317.GM28243@magnolia>
-References: <153938912912.8361.13446310416406388958.stgit@magnolia>
- <153938919123.8361.13059492965161549195.stgit@magnolia>
- <20181014171927.GD30673@infradead.org>
- <CAOQ4uxiReFJRxKJbsoUgWWNP75_Qsoh1fWC_dLYV_zBU_jaGbA@mail.gmail.com>
- <20181015124719.GA15379@infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181015124719.GA15379@infradead.org>
+        (Google Transport Security);
+        Mon, 15 Oct 2018 10:39:31 -0700 (PDT)
+Date: Mon, 15 Oct 2018 10:39:29 -0700 (PDT)
+Subject: Re: [PATCH 5/5] RISC-V: Implement sparsemem
+In-Reply-To: <15C8B877-4BBE-47E1-98D1-945E9355E757@raithlin.com>
+From: Palmer Dabbelt <palmer@sifive.com>
+Message-ID: <mhng-d8f1905a-8985-4797-b05b-b165b4ce91f1@palmer-si-x1c4>
+Mime-Version: 1.0 (MHng)
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Amir Goldstein <amir73il@gmail.com>, Dave Chinner <david@fromorbit.com>, Eric Sandeen <sandeen@redhat.com>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, linux-cifs@vger.kernel.org, overlayfs <linux-unionfs@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Btrfs <linux-btrfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, ocfs2-devel@oss.oracle.com
+To: sbates@raithlin.com
+Cc: logang@deltatee.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-riscv@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, aou@eecs.berkeley.edu, Christoph Hellwig <hch@lst.de>logang@deltatee.com, Andrew Waterman <andrew@sifive.com>, Olof Johansson <olof@lixom.net>, Michael Clark <michaeljclark@mac.com>, robh@kernel.org, zong@andestech.com
 
-On Mon, Oct 15, 2018 at 05:47:19AM -0700, Christoph Hellwig wrote:
-> On Mon, Oct 15, 2018 at 09:04:13AM +0300, Amir Goldstein wrote:
-> > I supposed you figured out the reason already.
+On Thu, 11 Oct 2018 05:18:20 PDT (-0700), sbates@raithlin.com wrote:
+> Palmer
 > 
-> No, I hadn't.
+>> I don't really know anything about this, but you're welcome to add a
+>>    
+>>    Reviewed-by: Palmer Dabbelt <palmer@sifive.com>
 > 
-> > It makes it appearance in patch 16/25 as RFR_VFS_FLAGS.
-> > All those "advisory" flags, we want to pass them in to filesystem as FYI,
-> > but we don't want to explicitly add support for e.g. RFR_CAN_SHORTEN
-> > to every filesystem, when vfs has already taken care of the advice.
+> Thanks. I think it would be good to get someone who's familiar with linux/mm to take a look.
+>     
+>> if you think it'll help.  I'm assuming you're targeting a different tree for 
+>> the patch set, in which case it's probably best to keep this together with the 
+>> rest of it.
 > 
-> I don't think this model makes sense.  If they really are purely
-> handled in the VFS we can mask them before passing them to the file
-> system, if not we need to check them, or the they are avisory and
-> we can have a simple #define instead of the helper.
+> No I think this series should be pulled by the RISC-V maintainer. The other patches in this series just refactor some code and need to be ACK'ed by their ARCH developers but I suspect the series should be pulled into RISC-V. That said since it does touch other arch should it be pulled by mm? 
 > 
-> RFR_TO_SRC_EOF is checked in generic_remap_file_range_prep,
-> so the file system should know about it  Also looking at it again now
-> it seems entirely superflous - we can just pass down then len == we
-> use in higher level code instead of having a flag and will side step
-> the issue here.
+> BTW note that RISC-V SPARSEMEM support is pretty useful for all manner of things and not just the p2pdma discussed in the cover.
 
-I'm not a fan of hidden behaviors like that, particularly when we
-already have a flags field where callers can explicitly ask for the
-to-eof behavior.
+Ah, OK -- I thought this was adding the support everywhere.  Do you mind 
+re-sending the patches with the various acks/reviews and I'll put in on 
+for-next?
 
-> RFR_CAN_SHORTEN is advisory as no one has to shorten, but that can
-> easily be solved by including it everywhere.
-
-CAN_SHORTEN isn't included everywhere -- FICLONE{,RANGE} don't enable it
-because they have no way to communicate the number of bytes cloned back
-to userspace.  Either we can clone every byte the user asked for, or we
-send back -EINVAL.  (Maybe I'm misinterpreting what you meant by 'solved
-by including it everywhere'?)
-
-> RFR_SHORT_DEDUPE is as far as I can tell entirely superflous to
-> start with, as RFR_CAN_SHORTEN can be used instead.
-
-For now it's superfluous.  At first I was thinking that we could return
-a short bytes_deduped if, say, the first part of the range actually did
-match, but it became pretty obvious via shared/010 that duperemove can't
-handle that, so we really must stick to the existing btrfs behavior.
-
-The existing btrfs behavior is that we can round the length down to
-avoid deduping partial EOF blocks, but we return the original length
-(i.e. lie) in bytes_deduped when we do that.
-
-I sort of thought about introducing a new copy_file_range flag that
-would just do deduplication and allow for opportunistic "dedup as much
-as you can" but ... meh.  Maybe I'll just drop the patch instead; we can
-revisit that when anyone wants a better dedupe interface.
-
-> So something like this in fs.h:
+>     
+>> Thanks for porting your stuff to RISC-V!
 > 
-> #define REMAP_FILE_ADVISORY_FLAGS	REMAP_FILE_CAN_SHORTEN
-> 
-> And then in the file system:
-> 
-> 	if (flags & ~REMAP_FILE_ADVISORY_FLAGS)
-> 		-EINVAL;
-> 
-> or
-> 
-> 	if (flags & ~(REMAP_FILE_ADVISORY_FLAGS | REMAP_FILE_DEDUP))
-> 		-EINVAL;
-> 
-> should be all that is needed.
-
-Sounds good to me.
-
---D
+> You bet ;-)
