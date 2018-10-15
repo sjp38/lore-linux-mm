@@ -1,138 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D32F6B0005
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 13:03:36 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id l10-v6so14250556wrw.12
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 10:03:36 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTPS id w9-v6si8555654wrt.38.2018.10.15.10.03.34
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 832336B0006
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 13:13:38 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id f4-v6so20899041pff.2
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 10:13:38 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id o5-v6si11329557pgk.300.2018.10.15.10.13.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Oct 2018 10:03:34 -0700 (PDT)
-Date: Mon, 15 Oct 2018 19:03:20 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v5 02/27] x86/fpu/xstate: Change names to separate XSAVES
- system and user states
-Message-ID: <20181015170320.GF11434@zn.tnic>
-References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
- <20181011151523.27101-3-yu-cheng.yu@intel.com>
+        Mon, 15 Oct 2018 10:13:37 -0700 (PDT)
+Date: Mon, 15 Oct 2018 10:13:17 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: [PATCH 07/25] vfs: combine the clone and dedupe into a single
+ remap_file_range
+Message-ID: <20181015171317.GM28243@magnolia>
+References: <153938912912.8361.13446310416406388958.stgit@magnolia>
+ <153938919123.8361.13059492965161549195.stgit@magnolia>
+ <20181014171927.GD30673@infradead.org>
+ <CAOQ4uxiReFJRxKJbsoUgWWNP75_Qsoh1fWC_dLYV_zBU_jaGbA@mail.gmail.com>
+ <20181015124719.GA15379@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181011151523.27101-3-yu-cheng.yu@intel.com>
+In-Reply-To: <20181015124719.GA15379@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Amir Goldstein <amir73il@gmail.com>, Dave Chinner <david@fromorbit.com>, Eric Sandeen <sandeen@redhat.com>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, linux-cifs@vger.kernel.org, overlayfs <linux-unionfs@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Btrfs <linux-btrfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, ocfs2-devel@oss.oracle.com
 
-On Thu, Oct 11, 2018 at 08:14:58AM -0700, Yu-cheng Yu wrote:
-> Control Flow Enforcement (CET) MSRs are XSAVES system/supervisor
-> states.  To support CET, we introduce XSAVES system states first.
+On Mon, Oct 15, 2018 at 05:47:19AM -0700, Christoph Hellwig wrote:
+> On Mon, Oct 15, 2018 at 09:04:13AM +0300, Amir Goldstein wrote:
+> > I supposed you figured out the reason already.
 > 
-> XSAVES is a "supervisor" instruction and, comparing to XSAVE, saves
-> additional "supervisor" states that can be modified only from CPL 0.
-> However, these states are per-task and not kernel's own.  Rename
-> "supervisor" states to "system" states to clearly separate them from
-> "user" states.
+> No, I hadn't.
 > 
-> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> ---
->  arch/x86/include/asm/fpu/internal.h |  4 +-
->  arch/x86/include/asm/fpu/xstate.h   | 20 +++----
->  arch/x86/kernel/fpu/core.c          |  4 +-
->  arch/x86/kernel/fpu/init.c          |  2 +-
->  arch/x86/kernel/fpu/signal.c        |  6 +--
->  arch/x86/kernel/fpu/xstate.c        | 82 ++++++++++++++---------------
->  6 files changed, 57 insertions(+), 61 deletions(-)
+> > It makes it appearance in patch 16/25 as RFR_VFS_FLAGS.
+> > All those "advisory" flags, we want to pass them in to filesystem as FYI,
+> > but we don't want to explicitly add support for e.g. RFR_CAN_SHORTEN
+> > to every filesystem, when vfs has already taken care of the advice.
+> 
+> I don't think this model makes sense.  If they really are purely
+> handled in the VFS we can mask them before passing them to the file
+> system, if not we need to check them, or the they are avisory and
+> we can have a simple #define instead of the helper.
+> 
+> RFR_TO_SRC_EOF is checked in generic_remap_file_range_prep,
+> so the file system should know about it  Also looking at it again now
+> it seems entirely superflous - we can just pass down then len == we
+> use in higher level code instead of having a flag and will side step
+> the issue here.
 
-...
+I'm not a fan of hidden behaviors like that, particularly when we
+already have a flags field where callers can explicitly ask for the
+to-eof behavior.
 
-> diff --git a/arch/x86/kernel/fpu/xstate.c b/arch/x86/kernel/fpu/xstate.c
-> index 87a57b7642d3..e7cbaed12ef1 100644
-> --- a/arch/x86/kernel/fpu/xstate.c
-> +++ b/arch/x86/kernel/fpu/xstate.c
-> @@ -51,13 +51,14 @@ static short xsave_cpuid_features[] __initdata = {
->  };
->  
->  /*
-> - * Mask of xstate features supported by the CPU and the kernel:
-> + * Mask of supported 'user' xstate features derived from boot_cpu_has() and
-> + * SUPPORTED_XFEATURES_MASK.
+> RFR_CAN_SHORTEN is advisory as no one has to shorten, but that can
+> easily be solved by including it everywhere.
 
-<--- This comment here looks like a good place to put some blurb about
-user and system states, what they are, what the distinction is and so
-on.
+CAN_SHORTEN isn't included everywhere -- FICLONE{,RANGE} don't enable it
+because they have no way to communicate the number of bytes cloned back
+to userspace.  Either we can clone every byte the user asked for, or we
+send back -EINVAL.  (Maybe I'm misinterpreting what you meant by 'solved
+by including it everywhere'?)
 
->   */
-> -u64 xfeatures_mask __read_mostly;
-> +u64 xfeatures_mask_user __read_mostly;
->  
->  static unsigned int xstate_offsets[XFEATURE_MAX] = { [ 0 ... XFEATURE_MAX - 1] = -1};
->  static unsigned int xstate_sizes[XFEATURE_MAX]   = { [ 0 ... XFEATURE_MAX - 1] = -1};
-> -static unsigned int xstate_comp_offsets[sizeof(xfeatures_mask)*8];
-> +static unsigned int xstate_comp_offsets[sizeof(xfeatures_mask_user)*8];
->  
->  /*
->   * The XSAVE area of kernel can be in standard or compacted format;
-> @@ -82,7 +83,7 @@ void fpu__xstate_clear_all_cpu_caps(void)
->   */
->  int cpu_has_xfeatures(u64 xfeatures_needed, const char **feature_name)
->  {
-> -	u64 xfeatures_missing = xfeatures_needed & ~xfeatures_mask;
-> +	u64 xfeatures_missing = xfeatures_needed & ~xfeatures_mask_user;
->  
->  	if (unlikely(feature_name)) {
->  		long xfeature_idx, max_idx;
-> @@ -113,14 +114,11 @@ int cpu_has_xfeatures(u64 xfeatures_needed, const char **feature_name)
->  }
->  EXPORT_SYMBOL_GPL(cpu_has_xfeatures);
->  
-> -static int xfeature_is_supervisor(int xfeature_nr)
-> +static int xfeature_is_system(int xfeature_nr)
->  {
->  	/*
-> -	 * We currently do not support supervisor states, but if
-> -	 * we did, we could find out like this.
-> -	 *
->  	 * SDM says: If state component 'i' is a user state component,
-> -	 * ECX[0] return 0; if state component i is a supervisor
-> +	 * ECX[0] return 0; if state component i is a system
+> RFR_SHORT_DEDUPE is as far as I can tell entirely superflous to
+> start with, as RFR_CAN_SHORTEN can be used instead.
 
-		  is 0
+For now it's superfluous.  At first I was thinking that we could return
+a short bytes_deduped if, say, the first part of the range actually did
+match, but it became pretty obvious via shared/010 that duperemove can't
+handle that, so we really must stick to the existing btrfs behavior.
 
->  	 * state component, ECX[0] returns 1.
+The existing btrfs behavior is that we can round the length down to
+avoid deduping partial EOF blocks, but we return the original length
+(i.e. lie) in bytes_deduped when we do that.
 
-				   is 1.
+I sort of thought about introducing a new copy_file_range flag that
+would just do deduplication and allow for opportunistic "dedup as much
+as you can" but ... meh.  Maybe I'll just drop the patch instead; we can
+revisit that when anyone wants a better dedupe interface.
 
->  	 */
->  	u32 eax, ebx, ecx, edx;
+> So something like this in fs.h:
+> 
+> #define REMAP_FILE_ADVISORY_FLAGS	REMAP_FILE_CAN_SHORTEN
+> 
+> And then in the file system:
+> 
+> 	if (flags & ~REMAP_FILE_ADVISORY_FLAGS)
+> 		-EINVAL;
+> 
+> or
+> 
+> 	if (flags & ~(REMAP_FILE_ADVISORY_FLAGS | REMAP_FILE_DEDUP))
+> 		-EINVAL;
+> 
+> should be all that is needed.
 
-...
+Sounds good to me.
 
-> @@ -242,7 +238,7 @@ void fpu__init_cpu_xstate(void)
->   */
->  static int xfeature_enabled(enum xfeature xfeature)
->  {
-> -	return !!(xfeatures_mask & (1UL << xfeature));
-> +	return !!(xfeatures_mask_user & BIT_ULL(xfeature));
->  }
->  
->  /*
-> @@ -272,7 +268,7 @@ static void __init setup_xstate_features(void)
->  		cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
->  
->  		/*
-> -		 * If an xfeature is supervisor state, the offset
-> +		 * If an xfeature is system state, the offset
-
-				is a system state, ...
-
->  		 * in EBX is invalid. We leave it to -1.
->  		 */
->  		if (xfeature_is_user(i))
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+--D
