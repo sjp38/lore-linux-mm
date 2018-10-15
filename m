@@ -1,80 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A75BA6B0005
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 10:10:15 -0400 (EDT)
-Received: by mail-wm1-f70.google.com with SMTP id 189-v6so12775957wme.0
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 07:10:15 -0700 (PDT)
-Received: from thoth.sbs.de (thoth.sbs.de. [192.35.17.2])
-        by mx.google.com with ESMTPS id i131-v6si7640324wma.86.2018.10.15.07.10.14
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EB5B6B000C
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 10:15:33 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id l4-v6so18885958iog.13
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 07:15:33 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id e7-v6si6510618ioq.133.2018.10.15.07.15.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Oct 2018 07:10:14 -0700 (PDT)
-Subject: [PATCH v2] x86/entry/32: Fix setup of CS high bits
-From: Jan Kiszka <jan.kiszka@siemens.com>
-References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
- <1531906876-13451-11-git-send-email-joro@8bytes.org>
- <97421241-2bc4-c3f1-4128-95b3e8a230d1@siemens.com>
- <35a24feb-5970-aa03-acbf-53428a159ace@web.de>
-Message-ID: <f271c747-1714-5a5b-a71f-ae189a093b8d@siemens.com>
-Date: Mon, 15 Oct 2018 16:09:29 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 15 Oct 2018 07:15:32 -0700 (PDT)
+Date: Mon, 15 Oct 2018 16:14:58 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 12/18] arch/tlb: Clean up simple architectures
+Message-ID: <20181015141458.GQ9867@hirez.programming.kicks-ass.net>
+References: <20180926113623.863696043@infradead.org>
+ <20180926114801.146189550@infradead.org>
+ <C2D7FE5348E1B147BCA15975FBA23075012B09A59E@us01wembx1.internal.synopsys.com>
+ <20181011150406.GL9848@hirez.programming.kicks-ass.net>
+ <C2D7FE5348E1B147BCA15975FBA23075012B0ADA16@US01WEMBX2.internal.synopsys.com>
 MIME-Version: 1.0
-In-Reply-To: <35a24feb-5970-aa03-acbf-53428a159ace@web.de>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <C2D7FE5348E1B147BCA15975FBA23075012B0ADA16@US01WEMBX2.internal.synopsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>
+To: Vineet Gupta <vineet.gupta1@synopsys.com>
+Cc: "will.deacon@arm.com" <will.deacon@arm.com>, "aneesh.kumar@linux.vnet.ibm.com" <aneesh.kumar@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "npiggin@gmail.com" <npiggin@gmail.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "heiko.carstens@de.ibm.com" <heiko.carstens@de.ibm.com>, "riel@surriel.com" <riel@surriel.com>, Richard Henderson <rth@twiddle.net>, Mark Salter <msalter@redhat.com>, Richard Kuo <rkuo@codeaurora.org>, Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>, Greentime Hu <green.hu@gmail.com>, Ley Foon Tan <lftan@altera.com>, Jonas Bonn <jonas@southpole.se>, Helge Deller <deller@gmx.de>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Max Filippov <jcmvbkbc@gmail.com>, arcml <linux-snps-arc@lists.infradead.org>
 
-Even if we are not on an entry stack, we have to initialize the CS high
-bits because we are unconditionally evaluating them
-PARANOID_EXIT_TO_KERNEL_MODE. Failing to do so broke the boot on Galileo
-Gen2 and IOT2000 boards.
+On Fri, Oct 12, 2018 at 07:40:04PM +0000, Vineet Gupta wrote:
+> Very nice. Thx for doing this.
+> 
+> Once you have redone this, please point me to a branch so I can give this a spin.
+> I've always been interested in tracking down / optimizing the full TLB flushes -
+> which ARC implements by simply moving the MMU/process to a new ASID (TLB entries
+> tagged with an 8 bit value - unique per process). When I started looking into this
+> , a simple ls (fork+execve) would increment the ASID by 13 which I'd optimized to
+> a reasonable 4. Haven't checked that in recent times though so would be fun to
+> revive that measurement.
 
-Fixes: b92a165df17e ("x86/entry/32: Handle Entry from Kernel-Mode on Entry-Stack")
-Signed-off-by: Jan Kiszka <jan.kiszka@siemens.com>
-Acked-by: Joerg Roedel <jroedel@suse.de>
-Reviewed-by: Joerg Roedel <jroedel@suse.de>
----
+I just pushed out the latest version to:
 
-Changes in v2:
- - adjust comment according to Andy's feedback
- - added JA?rg's ack/review (assuming the comment change does not affect it)
+  git://git.kernel.org/pub/scm/linux/kernel/git/peterz/queue.git mm/tlb
 
- arch/x86/entry/entry_32.S | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+(mandatory caution: that tree is unstable / throw-away)
 
-diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 2767c625a52c..fbbf1ba57ec6 100644
---- a/arch/x86/entry/entry_32.S
-+++ b/arch/x86/entry/entry_32.S
-@@ -389,6 +389,13 @@
- 	 * that register for the time this macro runs
- 	 */
- 
-+	/*
-+	 * The high bits of the CS dword (__csh) are used for
-+	 * CS_FROM_ENTRY_STACK and CS_FROM_USER_CR3. Clear them in case
-+	 * hardware didn't do this for us.
-+	 */
-+	andl	$(0x0000ffff), PT_CS(%esp)
-+
- 	/* Are we on the entry stack? Bail out if not! */
- 	movl	PER_CPU_VAR(cpu_entry_area), %ecx
- 	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
-@@ -407,12 +414,6 @@
- 	/* Load top of task-stack into %edi */
- 	movl	TSS_entry2task_stack(%edi), %edi
- 
--	/*
--	 * Clear unused upper bits of the dword containing the word-sized CS
--	 * slot in pt_regs in case hardware didn't clear it for us.
--	 */
--	andl	$(0x0000ffff), PT_CS(%esp)
--
- 	/* Special case - entry from kernel mode via entry stack */
- #ifdef CONFIG_VM86
- 	movl	PT_EFLAGS(%esp), %ecx		# mix EFLAGS and CS
--- 
-2.16.4
+I'll wait a few days to see what, if anything, comes back from 0day
+before posting again.
