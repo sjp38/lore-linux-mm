@@ -1,95 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C827D6B0010
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 09:35:29 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id a12-v6so11847525eda.8
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 06:35:29 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s15-v6si4615579ejr.69.2018.10.15.06.35.28
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A75BA6B0005
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 10:10:15 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id 189-v6so12775957wme.0
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 07:10:15 -0700 (PDT)
+Received: from thoth.sbs.de (thoth.sbs.de. [192.35.17.2])
+        by mx.google.com with ESMTPS id i131-v6si7640324wma.86.2018.10.15.07.10.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Oct 2018 06:35:28 -0700 (PDT)
-Date: Mon, 15 Oct 2018 15:35:24 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] memcg, oom: throttle dump_header for memcg ooms
- without eligible tasks
-Message-ID: <20181015133524.GM18839@dhcp22.suse.cz>
-References: <9174f087-3f6f-f0ed-6009-509d4436a47a@i-love.sakura.ne.jp>
- <20181012124137.GA29330@cmpxchg.org>
- <0417c888-d74e-b6ae-a8f0-234cbde03d38@i-love.sakura.ne.jp>
- <bb2074c0-34fe-8c2c-1c7d-db71338f1e7f@i-love.sakura.ne.jp>
- <20181013112238.GA762@cmpxchg.org>
- <b61b2e60-d899-90c6-579a-587815cebff6@i-love.sakura.ne.jp>
- <20181015081934.GD18839@dhcp22.suse.cz>
- <ea637f9a-5dd0-f927-d26d-d0b4fd8ccb6f@i-love.sakura.ne.jp>
- <20181015112427.GI18839@dhcp22.suse.cz>
- <6c0a57b3-bfd4-d832-b0bd-5dd3bcae460e@i-love.sakura.ne.jp>
+        Mon, 15 Oct 2018 07:10:14 -0700 (PDT)
+Subject: [PATCH v2] x86/entry/32: Fix setup of CS high bits
+From: Jan Kiszka <jan.kiszka@siemens.com>
+References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
+ <1531906876-13451-11-git-send-email-joro@8bytes.org>
+ <97421241-2bc4-c3f1-4128-95b3e8a230d1@siemens.com>
+ <35a24feb-5970-aa03-acbf-53428a159ace@web.de>
+Message-ID: <f271c747-1714-5a5b-a71f-ae189a093b8d@siemens.com>
+Date: Mon, 15 Oct 2018 16:09:29 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <6c0a57b3-bfd4-d832-b0bd-5dd3bcae460e@i-love.sakura.ne.jp>
+In-Reply-To: <35a24feb-5970-aa03-acbf-53428a159ace@web.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>
+To: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>
 
-On Mon 15-10-18 21:47:08, Tetsuo Handa wrote:
-> On 2018/10/15 20:24, Michal Hocko wrote:
-> > On Mon 15-10-18 19:57:35, Tetsuo Handa wrote:
-> >> On 2018/10/15 17:19, Michal Hocko wrote:
-> >>> As so many dozens of times before, I will point you to an incremental
-> >>> nature of changes we really prefer in the mm land. We are also after a
-> >>> simplicity which your proposal lacks in many aspects. You seem to ignore
-> >>> that general approach and I have hard time to consider your NAK as a
-> >>> relevant feedback. Going to an extreme and basing a complex solution on
-> >>> it is not going to fly. No killable process should be a rare event which
-> >>> requires a seriously misconfigured memcg to happen so wildly. If you can
-> >>> trigger it with a normal user privileges then it would be a clear bug to
-> >>> address rather than work around with printk throttling.
-> >>>
-> >>
-> >> I can trigger 200+ times / 900+ lines / 69KB+ of needless OOM messages
-> >> with a normal user privileges. This is a lot of needless noise/delay.
-> > 
-> > I am pretty sure you have understood the part of my message you have
-> > chosen to not quote where I have said that the specific rate limitting
-> > decisions can be changed based on reasonable configurations. There is
-> > absolutely zero reason to NAK a natural decision to unify the throttling
-> > and cook a per-memcg way for a very specific path instead.
-> > 
-> >> No killable process is not a rare event, even without root privileges.
-> >>
-> >> [root@ccsecurity kumaneko]# time ./a.out
-> >> Killed
-> >>
-> >> real    0m2.396s
-> >> user    0m0.000s
-> >> sys     0m2.970s
-> >> [root@ccsecurity ~]# dmesg | grep 'no killable' | wc -l
-> >> 202
-> >> [root@ccsecurity ~]# dmesg | wc
-> >>     942    7335   70716
-> > 
-> > OK, so this is 70kB worth of data pushed throug the console. Is this
-> > really killing any machine?
-> > 
-> 
-> Nobody can prove that it never kills some machine. This is just one example result of
-> one example stress tried in my environment. Since I am secure programming man from security
-> subsystem, I really hate your "Can you trigger it?" resistance. Since this is OOM path
-> where nobody tests, starting from being prepared for the worst case keeps things simple.
+Even if we are not on an entry stack, we have to initialize the CS high
+bits because we are unconditionally evaluating them
+PARANOID_EXIT_TO_KERNEL_MODE. Failing to do so broke the boot on Galileo
+Gen2 and IOT2000 boards.
 
-There is simply no way to be generally safe this kind of situation. As
-soon as your console is so slow that you cannot push the oom report
-through there is only one single option left and that is to disable the
-oom report altogether. And that might be a viable option. But fiddling
-with per memcg limit is not going to fly. Just realize what will happen
-if you have hundreds of different memcgs triggering this path around the
-same time.
+Fixes: b92a165df17e ("x86/entry/32: Handle Entry from Kernel-Mode on Entry-Stack")
+Signed-off-by: Jan Kiszka <jan.kiszka@siemens.com>
+Acked-by: Joerg Roedel <jroedel@suse.de>
+Reviewed-by: Joerg Roedel <jroedel@suse.de>
+---
 
-So can you start being reasonable and try to look at a wider picture
-finally please?
+Changes in v2:
+ - adjust comment according to Andy's feedback
+ - added JA?rg's ack/review (assuming the comment change does not affect it)
 
+ arch/x86/entry/entry_32.S | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index 2767c625a52c..fbbf1ba57ec6 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -389,6 +389,13 @@
+ 	 * that register for the time this macro runs
+ 	 */
+ 
++	/*
++	 * The high bits of the CS dword (__csh) are used for
++	 * CS_FROM_ENTRY_STACK and CS_FROM_USER_CR3. Clear them in case
++	 * hardware didn't do this for us.
++	 */
++	andl	$(0x0000ffff), PT_CS(%esp)
++
+ 	/* Are we on the entry stack? Bail out if not! */
+ 	movl	PER_CPU_VAR(cpu_entry_area), %ecx
+ 	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
+@@ -407,12 +414,6 @@
+ 	/* Load top of task-stack into %edi */
+ 	movl	TSS_entry2task_stack(%edi), %edi
+ 
+-	/*
+-	 * Clear unused upper bits of the dword containing the word-sized CS
+-	 * slot in pt_regs in case hardware didn't clear it for us.
+-	 */
+-	andl	$(0x0000ffff), PT_CS(%esp)
+-
+ 	/* Special case - entry from kernel mode via entry stack */
+ #ifdef CONFIG_VM86
+ 	movl	PT_EFLAGS(%esp), %ecx		# mix EFLAGS and CS
 -- 
-Michal Hocko
-SUSE Labs
+2.16.4
