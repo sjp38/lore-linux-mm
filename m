@@ -1,88 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 16FFF6B0269
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 04:32:55 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id u43-v6so6097054pgn.4
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 01:32:55 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p72-v6sor440200pfk.73.2018.10.15.01.32.53
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E37C6B0006
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 05:10:03 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id c1-v6so11701976eds.15
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 02:10:03 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id u30-v6si6660031edi.142.2018.10.15.02.10.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 15 Oct 2018 01:32:54 -0700 (PDT)
-From: "Aneesh Kumar K.V" <aneeshkumar.opensource@gmail.com>
-Subject: Re: [PATCH] mm/thp: Correctly differentiate between mapped THP and
- PMD migration entry
-References: <1539057538-27446-1-git-send-email-anshuman.khandual@arm.com>
- <20181009130421.bmus632ocurn275u@kshutemo-mobl1>
- <20181009131803.GH6248@arm.com>
- <fb0ee5dd-5799-f5af-891a-992dd9a16a9f@arm.com>
-Message-ID: <4bf3951d-410f-fac4-dfb2-7dee5568e6ff@linux.ibm.com>
-Date: Mon, 15 Oct 2018 14:02:48 +0530
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 Oct 2018 02:10:01 -0700 (PDT)
+Date: Mon, 15 Oct 2018 11:10:00 +0200
+From: Joerg Roedel <joro@8bytes.org>
+Subject: Re: [PATCH] x86/entry/32: Fix setup of CS high bits
+Message-ID: <20181015091000.GE3630@8bytes.org>
+References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
+ <1531906876-13451-11-git-send-email-joro@8bytes.org>
+ <97421241-2bc4-c3f1-4128-95b3e8a230d1@siemens.com>
+ <35a24feb-5970-aa03-acbf-53428a159ace@web.de>
 MIME-Version: 1.0
-In-Reply-To: <fb0ee5dd-5799-f5af-891a-992dd9a16a9f@arm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <35a24feb-5970-aa03-acbf-53428a159ace@web.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>, Will Deacon <will.deacon@arm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, zi.yan@cs.rutgers.edu
+To: Jan Kiszka <jan.kiszka@web.de>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>
 
-On 10/12/18 1:32 PM, Anshuman Khandual wrote:
-> 
-> 
-> On 10/09/2018 06:48 PM, Will Deacon wrote:
->> On Tue, Oct 09, 2018 at 04:04:21PM +0300, Kirill A. Shutemov wrote:
->>> On Tue, Oct 09, 2018 at 09:28:58AM +0530, Anshuman Khandual wrote:
->>>> A normal mapped THP page at PMD level should be correctly differentiated
->>>> from a PMD migration entry while walking the page table. A mapped THP would
->>>> additionally check positive for pmd_present() along with pmd_trans_huge()
->>>> as compared to a PMD migration entry. This just adds a new conditional test
->>>> differentiating the two while walking the page table.
->>>>
->>>> Fixes: 616b8371539a6 ("mm: thp: enable thp migration in generic path")
->>>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
->>>> ---
->>>> On X86, pmd_trans_huge() and is_pmd_migration_entry() are always mutually
->>>> exclusive which makes the current conditional block work for both mapped
->>>> and migration entries. This is not same with arm64 where pmd_trans_huge()
->>>> returns positive for both mapped and migration entries. Could some one
->>>> please explain why pmd_trans_huge() has to return false for migration
->>>> entries which just install swap bits and its still a PMD ?
->>>
->>> I guess it's just a design choice. Any reason why arm64 cannot do the
->>> same?
->>
->> Anshuman, would it work to:
->>
->> #define pmd_trans_huge(pmd)     (pmd_present(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
-> yeah this works but some how does not seem like the right thing to do
-> but can be the very last option.
-> 
+Hey Jan,
 
+thanks for tracking this down and sending the fix! So your hardware
+probably doesn't zero out the CS high bits, so that the code wrongly
+detects that it came from the entry stack on return. Clearing the bits
+earlier before the entry-stack check makes sense.
 
-There can be other code paths that makes that assumption. I ended up 
-doing the below for pmd_trans_huge on ppc64.
+Acked-by: Joerg Roedel <jroedel@suse.de>
+Reviewed-by: Joerg Roedel <jroedel@suse.de>
 
-/*
-  * Only returns true for a THP. False for pmd migration entry.
-  * We also need to return true when we come across a pte that
-  * in between a thp split. While splitting THP, we mark the pmd
-  * invalid (pmdp_invalidate()) before we set it with pte page
-  * address. A pmd_trans_huge() check against a pmd entry during that time
-  * should return true.
-  * We should not call this on a hugetlb entry. We should check for HugeTLB
-  * entry using vma->vm_flags
-  * The page table walk rule is explained in Documentation/vm/transhuge.rst
-  */
-static inline int pmd_trans_huge(pmd_t pmd)
-{
-	if (!pmd_present(pmd))
-		return false;
-
-	if (radix_enabled())
-		return radix__pmd_trans_huge(pmd);
-	return hash__pmd_trans_huge(pmd);
-}
-
--aneesh
+On Sat, Oct 13, 2018 at 11:54:54AM +0200, Jan Kiszka wrote:
+> diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+> index 2767c625a52c..95c94d48ecd2 100644
+> --- a/arch/x86/entry/entry_32.S
+> +++ b/arch/x86/entry/entry_32.S
+> @@ -389,6 +389,12 @@
+>  	 * that register for the time this macro runs
+>  	 */
+>  
+> +	/*
+> +	 * Clear unused upper bits of the dword containing the word-sized CS
+> +	 * slot in pt_regs in case hardware didn't clear it for us.
+> +	 */
+> +	andl	$(0x0000ffff), PT_CS(%esp)
+> +
+>  	/* Are we on the entry stack? Bail out if not! */
+>  	movl	PER_CPU_VAR(cpu_entry_area), %ecx
+>  	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
+> @@ -407,12 +413,6 @@
+>  	/* Load top of task-stack into %edi */
+>  	movl	TSS_entry2task_stack(%edi), %edi
+>  
+> -	/*
+> -	 * Clear unused upper bits of the dword containing the word-sized CS
+> -	 * slot in pt_regs in case hardware didn't clear it for us.
+> -	 */
+> -	andl	$(0x0000ffff), PT_CS(%esp)
+> -
+>  	/* Special case - entry from kernel mode via entry stack */
+>  #ifdef CONFIG_VM86
+>  	movl	PT_EFLAGS(%esp), %ecx		# mix EFLAGS and CS
+> -- 
+> 2.16.4
