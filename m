@@ -1,107 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C05326B0008
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 05:35:02 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id n8-v6so12543544ybo.9
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 02:35:02 -0700 (PDT)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id e133-v6si4028712ywb.57.2018.10.16.02.35.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Oct 2018 02:35:01 -0700 (PDT)
-Subject: Re: [PATCH] mm: Avoid swapping in interrupt context
-References: <1538387115-2363-1-git-send-email-amhetre@nvidia.com>
- <20181001122400.GF18290@dhcp22.suse.cz>
- <988dfe01-6553-1e0a-1d98-1b3d3aa67517@nvidia.com>
- <20181003110146.GB4714@dhcp22.suse.cz>
- <f54a61b2-b398-19e3-2b9b-1711ba3c75b7@nvidia.com>
- <20181003115314.GE4714@dhcp22.suse.cz>
-From: Ashish Mhetre <amhetre@nvidia.com>
-Message-ID: <bea75af0-aa5b-0811-d746-35b2c1ed3d16@nvidia.com>
-Date: Tue, 16 Oct 2018 15:05:00 +0530
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 074DB6B000C
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 05:48:40 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id 34so16683317otj.2
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 02:48:40 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f1-v6si6374161otc.128.2018.10.16.02.48.38
+        for <linux-mm@kvack.org>;
+        Tue, 16 Oct 2018 02:48:38 -0700 (PDT)
+Subject: Re: [PATCH] mm/thp: Correctly differentiate between mapped THP and
+ PMD migration entry
+References: <1539057538-27446-1-git-send-email-anshuman.khandual@arm.com>
+ <7E8E6B14-D5C4-4A30-840D-A7AB046517FB@cs.rutgers.edu>
+ <84509db4-13ce-fd53-e924-cc4288d493f7@arm.com>
+ <1968F276-5D96-426B-823F-38F6A51FB465@cs.rutgers.edu>
+ <5e0e772c-7eef-e75c-2921-e80d4fbe8324@arm.com>
+ <2398C491-E1DA-4B3C-B60A-377A09A02F1A@cs.rutgers.edu>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <796cb545-7376-16a2-db3e-bc9a6ca9894d@arm.com>
+Date: Mon, 15 Oct 2018 09:36:35 +0530
 MIME-Version: 1.0
-In-Reply-To: <20181003115314.GE4714@dhcp22.suse.cz>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <2398C491-E1DA-4B3C-B60A-377A09A02F1A@cs.rutgers.edu>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, vdumpa@nvidia.com, Snikam@nvidia.com
-
-Sorry for the delayed response.
-Yes, you are correct. There is no call from IRQ in dump.
-I take back our assertion. Thanks for the insights.
+To: Zi Yan <zi.yan@cs.rutgers.edu>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, will.deacon@arm.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
 
-On Wednesday 03 October 2018 05:23 PM, Michal Hocko wrote:
-> On Wed 03-10-18 17:20:15, Ashish Mhetre wrote:
->>> This doesn't show the backtrace part which contains the allocation
->> AFAICS.
+
+On 10/15/2018 06:23 AM, Zi Yan wrote:
+> On 12 Oct 2018, at 4:00, Anshuman Khandual wrote:
+> 
+>> On 10/10/2018 06:13 PM, Zi Yan wrote:
+>>> On 10 Oct 2018, at 0:05, Anshuman Khandual wrote:
+>>>
+>>>> On 10/09/2018 07:28 PM, Zi Yan wrote:
+>>>>> cc: Naoya Horiguchi (who proposed to use !_PAGE_PRESENT && !_PAGE_PSE for x86
+>>>>> PMD migration entry check)
+>>>>>
+>>>>> On 8 Oct 2018, at 23:58, Anshuman Khandual wrote:
+>>>>>
+>>>>>> A normal mapped THP page at PMD level should be correctly differentiated
+>>>>>> from a PMD migration entry while walking the page table. A mapped THP would
+>>>>>> additionally check positive for pmd_present() along with pmd_trans_huge()
+>>>>>> as compared to a PMD migration entry. This just adds a new conditional test
+>>>>>> differentiating the two while walking the page table.
+>>>>>>
+>>>>>> Fixes: 616b8371539a6 ("mm: thp: enable thp migration in generic path")
+>>>>>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+>>>>>> ---
+>>>>>> On X86, pmd_trans_huge() and is_pmd_migration_entry() are always mutually
+>>>>>> exclusive which makes the current conditional block work for both mapped
+>>>>>> and migration entries. This is not same with arm64 where pmd_trans_huge()
+>>>>>
+>>>>> !pmd_present() && pmd_trans_huge() is used to represent THPs under splitting,
+>>>>
+>>>> Not really if we just look at code in the conditional blocks.
+>>>
+>>> Yeah, I explained it wrong above. Sorry about that.
+>>>
+>>> In x86, pmd_present() checks (_PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_PSE),
+>>> thus, it returns true even if the present bit is cleared but PSE bit is set.
 >>
->> My bad. Here is a complete dump:
->> [ 264.082531] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP ARM
->> [ 264.088350] Modules linked in:
->> [ 264.091406] CPU: 0 PID: 3805 Comm: kworker/0:4 Tainted: G W
->> 3.10.33-g990282b #1
->> [ 264.099572] Workqueue: events netstat_work_func
->> [ 264.104097] task: e7b12040 ti: dc7d4000 task.ti: dc7d4000
->> [ 264.109485] PC is at zs_map_object+0x180/0x18c
->> [ 264.113918] LR is at zram_bvec_rw.isra.15+0x304/0x88c
->> [ 264.118956] pc : [<c01581e8>] lr : [<c0456618>] psr: 200f0013
->> [ 264.118956] sp : dc7d5460 ip : fff00814 fp : 00000002
->> [ 264.130407] r10: ea8ec000 r9 : ebc93340 r8 : 00000000
->> [ 264.135618] r7 : c191502c r6 : dc7d4020 r5 : d25f5684 r4 : ec3158c0
->> [ 264.142128] r3 : 00000200 r2 : 00000002 r1 : c191502c r0 : ea8ec000
+>> Okay.
 >>
->> --------
->> [ 265.772426] [<c01581e8>] (zs_map_object+0x180/0x18c) from [<c0456618>]
->> (zram_bvec_rw.isra.15+0x304/0x88c)
->> [ 265.781973] [<c0456618>] (zram_bvec_rw.isra.15+0x304/0x88c) from
->> [<c0456d78>] (zram_make_request+0x1d8/0x378)
->> [ 265.791868] [<c0456d78>] (zram_make_request+0x1d8/0x378) from [<c02c7afc>]
->> (generic_make_request+0xb0/0xdc)
->> [ 265.801588] [<c02c7afc>] (generic_make_request+0xb0/0xdc) from
->> [<c02c7bb0>] (submit_bio+0x88/0x140)
->> [ 265.810617] [<c02c7bb0>] (submit_bio+0x88/0x140) from [<c01459d4>]
->> (__swap_writepage+0x198/0x230)
->> [ 265.819471] [<c01459d4>] (__swap_writepage+0x198/0x230) from [<c011fc50>]
->> (shrink_page_list+0x4e0/0x974)
->> [ 265.828930] [<c011fc50>] (shrink_page_list+0x4e0/0x974) from [<c0120644>]
->> (shrink_inactive_list+0x150/0x3c8)
->> [ 265.838736] [<c0120644>] (shrink_inactive_list+0x150/0x3c8) from
->> [<c0120de8>] (shrink_lruvec+0x20c/0x448)
->> [ 265.848282] [<c0120de8>] (shrink_lruvec+0x20c/0x448) from [<c012109c>]
->> (shrink_zone+0x78/0x188)
->> [ 265.856960] [<c012109c>] (shrink_zone+0x78/0x188) from [<c01212ac>]
->> (do_try_to_free_pages+0x100/0x544)
->> [ 265.866246] [<c01212ac>] (do_try_to_free_pages+0x100/0x544) from
->> [<c0121928>] (try_to_free_pages+0x238/0x428)
->> [ 265.876140] [<c0121928>] (try_to_free_pages+0x238/0x428) from [<c01179cc>]
->> (__alloc_pages_nodemask+0x5b0/0x90c)
->> [ 265.886207] [<c01179cc>] (__alloc_pages_nodemask+0x5b0/0x90c) from
->> [<c0117d44>] (__get_free_pages+0x1c/0x34)
->> [ 265.896014] [<c0117d44>] (__get_free_pages+0x1c/0x34) from [<c0844a4c>]
->> (tcp4_seq_show+0x248/0x4b4)
->> [ 265.905042] [<c0844a4c>] (tcp4_seq_show+0x248/0x4b4) from [<c017a844>]
->> (seq_read+0x1e4/0x484)
->> [ 265.913550] [<c017a844>] (seq_read+0x1e4/0x484) from [<c01a84f0>]
->> (proc_reg_read+0x60/0x88)
->> [ 265.921884] [<c01a84f0>] (proc_reg_read+0x60/0x88) from [<c015aa44>]
->> (vfs_read+0xa0/0x14c)
->> [ 265.930129] [<c015aa44>] (vfs_read+0xa0/0x14c) from [<c015b0c4>]
->> (SyS_read+0x44/0x80)
->> [ 265.937942] [<c015b0c4>] (SyS_read+0x44/0x80) from [<c052e98c>]
->> (netstat_work_func+0x54/0xec)
->> [ 265.946450] [<c052e98c>] (netstat_work_func+0x54/0xec) from [<c0086700>]
->> (process_one_work+0x13c/0x454)
->> [ 265.955823] [<c0086700>] (process_one_work+0x13c/0x454) from [<c008745c>]
->> (worker_thread+0x140/0x3dc)
->> 265.965022] [<c008745c>] (worker_thread+0x140/0x3dc) from [<c008cf4c>]
->> (kthread+0xe0/0xe4)
->> [ 265.973269] [<c008cf4c>] (kthread+0xe0/0xe4) from [<c000ef98>]
->> (ret_from_fork+0x14/0x20)
->> [ 264.148640] Flags: nzCv IRQs on FIQs on Mode SVC_32 ISA ARM Segment kernel
->> [ 264.155930] Control: 30c5387d Table: aaf7c000 DAC: fffffffd
-> This looks like a regular syscall path. How have you concluded this is
-> due to an IRQ context?
+>>> This is done so, because THPs under splitting are regarded as present in the kernel
+>>> but not present when a hardware page table walker checks it.
+>>
+>> Okay.
+>>
+>>>
+>>> For PMD migration entry, which should be regarded as not present, if PSE bit
+>>> is set, which makes pmd_trans_huge() returns true, like ARM64 does, all
+>>> PMD migration entries will be regarded as present
+>>
+>> Okay to make pmd_present() return false pmd_trans_huge() has to return false
+>> as well. Is there anything which can be done to get around this problem on
+>> X86 ? pmd_trans_huge() returning true for a migration entry sounds logical.
+>> Otherwise we would revert the condition block order to accommodate both the
+>> implementation for pmd_trans_huge() as suggested by Kirill before or just
+>> consider this patch forward.
+>>
+>> Because I am not really sure yet about the idea of getting pmd_present()
+>> check into pmd_trans_huge() on arm64 just to make it fit into this semantics
+>> as suggested by Will. If a PMD is trans huge page or not should not depend on
+>> whether it is present or not.
+> 
+> In terms of THPs, we have three cases: a present THP, a THP under splitting,
+> and a THP under migration. pmd_present() and pmd_trans_huge() both return true
+> for a present THP and a THP under splitting, because they discover _PAGE_PSE bit
+
+Then how do we differentiate between a mapped THP and a splitting THP.
+
+> is set for both cases, whereas they both return false for a THP under migration.
+> You want to change them to make pmd_trans_huge() returns true for a THP under migration
+> instead of false to help ARM64a??s support for THP migration.
+I am just trying to understand the rationale behind this semantics and see where
+it should be fixed.
+
+I think the fundamental problem here is that THP under split has been difficult
+to be re-presented through the available helper functions and in turn PTE bits.
+
+The following checks
+
+1) pmd_present()
+2) pmd_trans_huge()
+
+Represent three THP states
+
+1) Mapped THP		(pmd_present && pmd_trans_huge)
+2) Splitting THP	(pmd_present && pmd_trans_huge)
+3) Migrating THP	(!pmd_present && !pmd_trans_huge)
+
+The problem is if we make pmd_trans_huge() return true for all the three states
+which sounds logical because they are all still trans huge PMD, then pmd_present()
+can only represent two states not three as required.
+
+> 
+> For x86, this change requires:
+> 1. changing the condition in pmd_trans_huge(), so that it returns true for
+> PMD migration entries;
+> 2. changing the code, which calls pmd_trans_huge(), to match the new logic.
+Can those be fixed with an additional check for pmd_present() as suggested here
+in this patch ? Asking because in case we could not get common semantics for
+these helpers on all arch that would be a fall back option for the moment.
+
+> 
+> Another problem I see is that x86a??s pmd_present() returns true for a THP under
+> splitting but ARM64a??s pmd_present() returns false for a THP under splitting.
+
+But how did you conclude this ? I dont see any explicit helper for splitting
+THP. Could you please point me in the code ?
+
+> I do not know if there is any correctness issue with this. So I copy Andrea
+> here, since he made x86a??s pmd_present() returns true for a THP under splitting
+> as an optimization. I want to understand more about it and potentially make
+> x86 and ARM64 (maybe all other architectures, too) return the same value
+> for all three cases mentioned above.
+
+I agree. Fixing the semantics is the right thing to do. I am kind of wondering if
+it would be a good idea to have explicit helpers for (1) mapped THP, (2) splitting
+THP like the one for (3) migrating THP (e.g is_pmd_migration_entry) and use them
+in various conditional blocks instead of looking out for multiple checks like
+pmd_trans_huge(), pmd_present() etc. It will help unify the semantics as well.
+
+> 
+> 
+> Hi Andrea, what is the purpose/benefit of making x86a??s pmd_present() returns true
+> for a THP under splitting? Does it cause problems when ARM64a??s pmd_present()
+> returns false in the same situation?
+> 
+> 
+>>>
+>>> My concern is that if ARM64a??s pmd_trans_huge() returns true for migration
+>>> entries, unlike x86, there might be bugs triggered in the kernel when
+>>> THP migration is enabled in ARM64.
+>>
+>> Right and that is exactly what we are trying to fix with this patch.
+>>
+> 
+> I am not sure this patch can fix the problem in ARM64, because many other places
+> in the kernel, pmd_trans_huge() still returns false for a THP under migration.
+> We may need more comprehensive fixes for ARM64.
+Are there more places where semantics needs to be fixed than what was originally
+added through 616b8371539a ("mm: thp: enable thp migration in generic path").
