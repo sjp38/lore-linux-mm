@@ -1,70 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 984686B0006
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 17:24:23 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id h76-v6so25009482pfd.10
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 14:24:23 -0700 (PDT)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A8406B0006
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 17:57:16 -0400 (EDT)
+Received: by mail-wm1-f71.google.com with SMTP id h67-v6so30393wmh.0
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 14:57:16 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 137-v6sor5868449pge.87.2018.10.16.14.24.22
+        by mx.google.com with SMTPS id e19-v6sor9333996wrc.13.2018.10.16.14.57.14
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 16 Oct 2018 14:24:22 -0700 (PDT)
-Date: Tue, 16 Oct 2018 14:24:19 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH] mm, proc: report PR_SET_THP_DISABLE in proc
-In-Reply-To: <20181016104855.GQ18839@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.21.1810161416540.83080@chino.kir.corp.google.com>
-References: <alpine.DEB.2.21.1810021329260.87409@chino.kir.corp.google.com> <20181003073640.GF18290@dhcp22.suse.cz> <alpine.DEB.2.21.1810031547150.202532@chino.kir.corp.google.com> <20181004055842.GA22173@dhcp22.suse.cz> <alpine.DEB.2.21.1810040209130.113459@chino.kir.corp.google.com>
- <20181004094637.GG22173@dhcp22.suse.cz> <alpine.DEB.2.21.1810041130380.12951@chino.kir.corp.google.com> <20181009083326.GG8528@dhcp22.suse.cz> <20181015150325.GN18839@dhcp22.suse.cz> <alpine.DEB.2.21.1810151519250.247641@chino.kir.corp.google.com>
- <20181016104855.GQ18839@dhcp22.suse.cz>
+        Tue, 16 Oct 2018 14:57:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20181009222042.9781-1-joel@joelfernandes.org>
+References: <20181009222042.9781-1-joel@joelfernandes.org>
+From: John Stultz <john.stultz@linaro.org>
+Date: Tue, 16 Oct 2018 14:57:12 -0700
+Message-ID: <CALAqxLXD-vghiMP51tVtL1Aw8OqT-QhCeNMdFSKiHpyq10-WCw@mail.gmail.com>
+Subject: Re: [PATCH v2 1/2] mm: Add an F_SEAL_FS_WRITE seal to memfd
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: "Joel Fernandes (Google)" <joel@joelfernandes.org>
+Cc: lkml <linux-kernel@vger.kernel.org>, Android Kernel Team <kernel-team@android.com>, John Reck <jreck@google.com>, Todd Kjos <tkjos@google.com>, Greg KH <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Daniel Colascione <dancol@google.com>, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Mike Kravetz <mike.kravetz@oracle.com>, Minchan Kim <minchan@google.com>, Shuah Khan <shuah@kernel.org>
 
-On Tue, 16 Oct 2018, Michal Hocko wrote:
+On Tue, Oct 9, 2018 at 3:20 PM, Joel Fernandes (Google)
+<joel@joelfernandes.org> wrote:
+> Android uses ashmem for sharing memory regions. We are looking forward
+> to migrating all usecases of ashmem to memfd so that we can possibly
+> remove the ashmem driver in the future from staging while also
+> benefiting from using memfd and contributing to it. Note staging drivers
+> are also not ABI and generally can be removed at anytime.
+>
+> One of the main usecases Android has is the ability to create a region
+> and mmap it as writeable, then drop its protection for "future" writes
+> while keeping the existing already mmap'ed writeable-region active.
+> This allows us to implement a usecase where receivers of the shared
+> memory buffer can get a read-only view, while the sender continues to
+> write to the buffer. See CursorWindow in Android for more details:
+> https://developer.android.com/reference/android/database/CursorWindow
+>
+> This usecase cannot be implemented with the existing F_SEAL_WRITE seal.
+> To support the usecase, this patch adds a new F_SEAL_FS_WRITE seal which
+> prevents any future mmap and write syscalls from succeeding while
+> keeping the existing mmap active. The following program shows the seal
+> working in action:
+>
+> int main() {
+>     int ret, fd;
+>     void *addr, *addr2, *addr3, *addr1;
+>     ret = memfd_create_region("test_region", REGION_SIZE);
+>     printf("ret=%d\n", ret);
+>     fd = ret;
+>
+>     // Create map
+>     addr = mmap(0, REGION_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+>     if (addr == MAP_FAILED)
+>             printf("map 0 failed\n");
+>     else
+>             printf("map 0 passed\n");
+>
+>     if ((ret = write(fd, "test", 4)) != 4)
+>             printf("write failed even though no fs-write seal "
+>                    "(ret=%d errno =%d)\n", ret, errno);
+>     else
+>             printf("write passed\n");
+>
+>     addr1 = mmap(0, REGION_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+>     if (addr1 == MAP_FAILED)
+>             perror("map 1 prot-write failed even though no seal\n");
+>     else
+>             printf("map 1 prot-write passed as expected\n");
+>
+>     ret = fcntl(fd, F_ADD_SEALS, F_SEAL_FS_WRITE);
+>     if (ret == -1)
+>             printf("fcntl failed, errno: %d\n", errno);
+>     else
+>             printf("fs-write seal now active\n");
+>
+>     if ((ret = write(fd, "test", 4)) != 4)
+>             printf("write failed as expected due to fs-write seal\n");
+>     else
+>             printf("write passed (unexpected)\n");
+>
+>     addr2 = mmap(0, REGION_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+>     if (addr2 == MAP_FAILED)
+>             perror("map 2 prot-write failed as expected due to seal\n");
+>     else
+>             printf("map 2 passed\n");
+>
+>     addr3 = mmap(0, REGION_SIZE, PROT_READ, MAP_SHARED, fd, 0);
+>     if (addr3 == MAP_FAILED)
+>             perror("map 3 failed\n");
+>     else
+>             printf("map 3 prot-read passed as expected\n");
+> }
+>
+> The output of running this program is as follows:
+> ret=3
+> map 0 passed
+> write passed
+> map 1 prot-write passed as expected
+> fs-write seal now active
+> write failed as expected due to fs-write seal
+> map 2 prot-write failed as expected due to seal
+> : Permission denied
+> map 3 prot-read passed as expected
+>
+> Note: This seal will also prevent growing and shrinking of the memfd.
+> This is not something we do in Android so it does not affect us, however
+> I have mentioned this behavior of the seal in the manpage.
+>
+> Cc: jreck@google.com
+> Cc: john.stultz@linaro.org
+> Cc: tkjos@google.com
+> Cc: gregkh@linuxfoundation.org
+> Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
 
-> > I don't understand the point of extending smaps with yet another line.  
-> 
-> Because abusing a vma flag part is just wrong. What are you going to do
-> when a next bug report states that the flag is set even though no
-> userspace has set it and that leads to some malfunctioning? Can you rule
-> that out? Even your abuse of the flag is surprising so why others
-> wouldn't be?
-> 
+Reviewed-by: John Stultz <john.stultz@linaro.org>
 
-The flag has taken on the meaning of "thp disabled for this vma", how it 
-is set is not the scope of the flag.  If a thp is explicitly disabled from 
-being eligible for thp, whether by madvise, prctl, or any future 
-mechanism, it should use VM_NOHUGEPAGE or show_smap_vma_flags() needs to 
-be modified.
-
-I agree with you that this could have been done better if an interface was 
-defined earlier that userspace could have used.  PR_SET_THP_DISABLE was 
-merged long after thp had already been merged so this can be a reminder 
-that defining clean, robust, and extensible APIs is important, but I'm 
-afraid we can't go back in time and change how userspace queries 
-information, especially in cases where there was only one way to do it.
-
-> > The only way for a different process to determine if a single vma from 
-> > another process is thp disabled is by the "nh" flag, so it is reasonable 
-> > that userspace reads this.  My patch fixes that.  If smaps is extended 
-> > with another line per your patch, it doesn't change the fact that previous 
-> > binaries are built to check for "nh" so it does not deprecate that.  
-> > ("THP_Enabled" is also ambiguous since it only refers to prctl and not the 
-> > default thp setting or madvise.)
-> 
-> As I've said there are two things. Exporting PR_SET_THP_DISABLE to
-> userspace so that a 3rd party process can query it. I've already
-> explained why that might be useful. If you really insist on having
-> a per-vma field then let's do it properly now. Are you going to agree on
-> that? If yes, I am willing to spend my time on that but I am not going
-> to bother if this will lead to "I want my vma field abuse anyway".
-
-I think what you and I want is largely irrelevant :)  What's important is 
-that there are userspace implementations that query this today so 
-continuing to support it as the way to determine if a vma has been thp 
-disabled doesn't seem problematic and guarantees that userspace doesn't 
-break.
+thanks
+-john
