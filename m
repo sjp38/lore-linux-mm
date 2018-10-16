@@ -1,104 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 517336B000A
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 17:06:51 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id p128-v6so25283691qke.13
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 14:06:51 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 984686B0006
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 17:24:23 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id h76-v6so25009482pfd.10
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 14:24:23 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i207-v6sor9124009qke.29.2018.10.16.14.06.50
+        by mx.google.com with SMTPS id 137-v6sor5868449pge.87.2018.10.16.14.24.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 16 Oct 2018 14:06:50 -0700 (PDT)
-Subject: Re: [mm PATCH v3 2/6] mm: Drop meminit_pfn_in_nid as it is redundant
-References: <20181015202456.2171.88406.stgit@localhost.localdomain>
- <20181015202703.2171.40829.stgit@localhost.localdomain>
- <a21c1827-10ad-8ff5-c8b6-e34a3f1e8b80@gmail.com>
- <e4f806d4-2527-07c2-56bc-9c41789d669c@linux.intel.com>
-From: Pavel Tatashin <pasha.tatashin@gmail.com>
-Message-ID: <06e4428b-860e-1e66-defd-77666fcfa0c5@gmail.com>
-Date: Tue, 16 Oct 2018 17:06:48 -0400
+        Tue, 16 Oct 2018 14:24:22 -0700 (PDT)
+Date: Tue, 16 Oct 2018 14:24:19 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC PATCH] mm, proc: report PR_SET_THP_DISABLE in proc
+In-Reply-To: <20181016104855.GQ18839@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.21.1810161416540.83080@chino.kir.corp.google.com>
+References: <alpine.DEB.2.21.1810021329260.87409@chino.kir.corp.google.com> <20181003073640.GF18290@dhcp22.suse.cz> <alpine.DEB.2.21.1810031547150.202532@chino.kir.corp.google.com> <20181004055842.GA22173@dhcp22.suse.cz> <alpine.DEB.2.21.1810040209130.113459@chino.kir.corp.google.com>
+ <20181004094637.GG22173@dhcp22.suse.cz> <alpine.DEB.2.21.1810041130380.12951@chino.kir.corp.google.com> <20181009083326.GG8528@dhcp22.suse.cz> <20181015150325.GN18839@dhcp22.suse.cz> <alpine.DEB.2.21.1810151519250.247641@chino.kir.corp.google.com>
+ <20181016104855.GQ18839@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <e4f806d4-2527-07c2-56bc-9c41789d669c@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@linux.intel.com>, linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com, linux-kernel@vger.kernel.org, willy@infradead.org, davem@davemloft.net, yi.z.zhang@linux.intel.com, khalid.aziz@oracle.com, rppt@linux.vnet.ibm.com, vbabka@suse.cz, sparclinux@vger.kernel.org, dan.j.williams@intel.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mingo@kernel.org, kirill.shutemov@linux.intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
+On Tue, 16 Oct 2018, Michal Hocko wrote:
 
-
-On 10/16/18 4:49 PM, Alexander Duyck wrote:
-> On 10/16/2018 1:33 PM, Pavel Tatashin wrote:
->>
->>
->> On 10/15/18 4:27 PM, Alexander Duyck wrote:
->>> As best as I can tell the meminit_pfn_in_nid call is completely
->>> redundant.
->>> The deferred memory initialization is already making use of
->>> for_each_free_mem_range which in turn will call into __next_mem_range
->>> which
->>> will only return a memory range if it matches the node ID provided
->>> assuming
->>> it is not NUMA_NO_NODE.
->>>
->>> I am operating on the assumption that there are no zones or pgdata_t
->>> structures that have a NUMA node of NUMA_NO_NODE associated with
->>> them. If
->>> that is the case then __next_mem_range will never return a memory range
->>> that doesn't match the zone's node ID and as such the check is
->>> redundant.
->>>
->>> So one piece I would like to verfy on this is if this works for ia64.
->>> Technically it was using a different approach to get the node ID, but it
->>> seems to have the node ID also encoded into the memblock. So I am
->>> assuming this is okay, but would like to get confirmation on that.
->>>
->>> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
->>
->> If I am not mistaken, this code is for systems with memory interleaving.
->> Quick looks shows that x86, powerpc, s390, and sparc have it set.
->>
->> I am not sure about other arches, but at least on SPARC, there are some
->> processors with memory interleaving feature:
->>
->> http://www.fujitsu.com/global/products/computing/servers/unix/sparc-enterprise/technology/performance/memory.html
->>
->>
->> Pavel
+> > I don't understand the point of extending smaps with yet another line.  
 > 
-> I get what it is for. However as best I can tell the check is actually
-> redundant. In the case of the deferred page initialization we are
-> already pulling the memory regions via "for_each_free_mem_range". That
-> function is already passed a NUMA node ID. Because of that we are
-> already checking the memory range to determine if it is in the node or
-> not. As such it doesn't really make sense to go through for each PFN and
-> then go back to the memory range and see if the node matches or not.
+> Because abusing a vma flag part is just wrong. What are you going to do
+> when a next bug report states that the flag is set even though no
+> userspace has set it and that leads to some malfunctioning? Can you rule
+> that out? Even your abuse of the flag is surprising so why others
+> wouldn't be?
 > 
 
-Agree, it looks redundant, nice clean-up, I like it.
+The flag has taken on the meaning of "thp disabled for this vma", how it 
+is set is not the scope of the flag.  If a thp is explicitly disabled from 
+being eligible for thp, whether by madvise, prctl, or any future 
+mechanism, it should use VM_NOHUGEPAGE or show_smap_vma_flags() needs to 
+be modified.
 
-Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+I agree with you that this could have been done better if an interface was 
+defined earlier that userspace could have used.  PR_SET_THP_DISABLE was 
+merged long after thp had already been merged so this can be a reminder 
+that defining clean, robust, and extensible APIs is important, but I'm 
+afraid we can't go back in time and change how userspace queries 
+information, especially in cases where there was only one way to do it.
 
-Thank you,
-Pavel
-
-
-> You can take a look at __next_mem_range which is called by
-> for_each_free_mem_range and passed &memblock.memory and
-> &memblock.reserved to avoid:
-> https://elixir.bootlin.com/linux/latest/source/mm/memblock.c#L899
+> > The only way for a different process to determine if a single vma from 
+> > another process is thp disabled is by the "nh" flag, so it is reasonable 
+> > that userspace reads this.  My patch fixes that.  If smaps is extended 
+> > with another line per your patch, it doesn't change the fact that previous 
+> > binaries are built to check for "nh" so it does not deprecate that.  
+> > ("THP_Enabled" is also ambiguous since it only refers to prctl and not the 
+> > default thp setting or madvise.)
 > 
-> Then you can work your way through:
-> meminit_pfn_in_nid(pfn, node, state)
-> A __early_pfn_to_nid(pfn, state)
-> A  memblock_search_pfn_nid(pfn, &start_pfn, &end_pfn)
-> A A  memblock_search(&memblock.memory, pfn)
-> 
-> From what I can tell the deferred init is going back through the
-> memblock.memory list we pulled this range from and just validating it
-> against itself. This makes sense for the standard init as that is just
-> going from start_pfn->end_pfn, but for the deferred init we are pulling
-> the memory ranges ahead of time so we shouldn't need to re-validate the
-> memory that is contained within that range.
+> As I've said there are two things. Exporting PR_SET_THP_DISABLE to
+> userspace so that a 3rd party process can query it. I've already
+> explained why that might be useful. If you really insist on having
+> a per-vma field then let's do it properly now. Are you going to agree on
+> that? If yes, I am willing to spend my time on that but I am not going
+> to bother if this will lead to "I want my vma field abuse anyway".
+
+I think what you and I want is largely irrelevant :)  What's important is 
+that there are userspace implementations that query this today so 
+continuing to support it as the way to determine if a vma has been thp 
+disabled doesn't seem problematic and guarantees that userspace doesn't 
+break.
