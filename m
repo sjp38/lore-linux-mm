@@ -1,60 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B65D66B0005
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 15:43:18 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id r81-v6so24570272pfk.11
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 12:43:18 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i90-v6sor5037049pli.26.2018.10.16.12.43.17
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E4126B0003
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 15:54:31 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id y73-v6so11016076pfi.16
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 12:54:31 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id p17-v6si15491261pgk.58.2018.10.16.12.54.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 16 Oct 2018 12:43:17 -0700 (PDT)
-Date: Tue, 16 Oct 2018 12:43:13 -0700
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [PATCH 2/4] mm: speed up mremap by 500x on large regions (v2)
-Message-ID: <20181016194313.GA247930@joelaf.mtv.corp.google.com>
-References: <20181013013200.206928-1-joel@joelfernandes.org>
- <20181013013200.206928-3-joel@joelfernandes.org>
- <20181015094209.GA31999@infradead.org>
- <20181015223303.GA164293@joelaf.mtv.corp.google.com>
- <35b9c85a-b366-9ca3-5647-c2568c811961@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Oct 2018 12:54:29 -0700 (PDT)
+Date: Tue, 16 Oct 2018 21:54:26 +0200
+From: Frederic Weisbecker <frederic@kernel.org>
+Subject: Re: [PATCH 0/2] mm/swap: Add locking for pagevec
+Message-ID: <20181016195425.GB12144@lerouge>
+References: <20180914145924.22055-1-bigeasy@linutronix.de>
+ <02dd6505-2ee5-c1c1-2603-b759bc90d479@suse.cz>
+ <20181015095048.GG5819@techsingularity.net>
+ <20181016162622.GA12144@lerouge>
+ <alpine.DEB.2.21.1810161911480.1725@nanos.tec.linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <35b9c85a-b366-9ca3-5647-c2568c811961@suse.cz>
+In-Reply-To: <alpine.DEB.2.21.1810161911480.1725@nanos.tec.linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, Rich Felker <dalias@libc.org>, linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon <will.deacon@arm.com>, mhocko@kernel.org, linux-mm@kvack.org, lokeshgidra@google.com, linux-riscv@lists.infradead.org, elfring@users.sourceforge.net, Jonas Bonn <jonas@southpole.se>, kvmarm@lists.cs.columbia.edu, dancol@google.com, Yoshinori Sato <ysato@users.sourceforge.jp>, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-hexagon@vger.kernel.org, Helge Deller <deller@gmx.de>, "maintainer:X86 ARCHITECTURE 32-BIT AND 64-BIT" <x86@kernel.org>, hughd@google.com, "James E.J. Bottomley" <jejb@parisc-linux.org>, kasan-dev@googlegroups.com, anton.ivanov@kot-begemot.co.uk, Ingo Molnar <mingo@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-snps-arc@lists.infradead.org, kernel-team@android.com, Sam Creasey <sammy@sammy.net>, Fenghua Yu <fenghua.yu@intel.com>, linux-s390@vger.kernel.org, Jeff Dike <jdike@addtoit.com>, linux-um@lists.infradead.org, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Julia Lawall <Julia.Lawall@lip6.fr>, linux-m68k@lists.linux-m68k.org, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, nios2-dev@lists.rocketboards.org, kirill@shutemov.name, Stafford Horne <shorne@gmail.com>, Guan Xuetao <gxt@pku.edu.cn>, Chris Zankel <chris@zankel.net>, Tony Luck <tony.luck@intel.com>, Richard Weinberger <richard@nod.at>, linux-parisc@vger.kernel.org, pantin@google.com, Max Filippov <jcmvbkbc@gmail.com>, minchan@kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-alpha@vger.kernel.org, Ley Foon Tan <lftan@altera.com>, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, "David S. Miller" <davem@davemloft.net>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-mm@kvack.org
 
-On Tue, Oct 16, 2018 at 01:29:52PM +0200, Vlastimil Babka wrote:
-> On 10/16/18 12:33 AM, Joel Fernandes wrote:
-> > On Mon, Oct 15, 2018 at 02:42:09AM -0700, Christoph Hellwig wrote:
-> >> On Fri, Oct 12, 2018 at 06:31:58PM -0700, Joel Fernandes (Google) wrote:
-> >>> Android needs to mremap large regions of memory during memory management
-> >>> related operations.
-> >>
-> >> Just curious: why?
-> > 
-> > In Android we have a requirement of moving a large (up to a GB now, but may
-> > grow bigger in future) memory range from one location to another.
+On Tue, Oct 16, 2018 at 07:13:48PM +0200, Thomas Gleixner wrote:
+> On Tue, 16 Oct 2018, Frederic Weisbecker wrote:
 > 
-> I think Christoph's "why?" was about the requirement, not why it hurts
-> applications. I admit I'm now also curious :)
+> > On Mon, Oct 15, 2018 at 10:50:48AM +0100, Mel Gorman wrote:
+> > > On Fri, Oct 12, 2018 at 09:21:41AM +0200, Vlastimil Babka wrote:
+> > > > On 9/14/18 4:59 PM, Sebastian Andrzej Siewior wrote:
+> > > > I think this evaluation is missing the other side of the story, and
+> > > > that's the cost of using a spinlock (even uncontended) instead of
+> > > > disabling preemption. The expectation for LRU pagevec is that the local
+> > > > operations will be much more common than draining of other CPU's, so
+> > > > it's optimized for the former.
+> > > > 
+> > > 
+> > > Agreed, the drain operation should be extremely rare except under heavy
+> > > memory pressure, particularly if mixed with THP allocations. The overall
+> > > intent seems to be improving lockdep coverage but I don't think we
+> > > should take a hit in the common case just to get that coverage. Bear in
+> > > mind that the main point of the pagevec (whether it's true or not) is to
+> > > avoid the much heavier LRU lock.
+> > 
+> > So indeed, if the only purpose of this patch were to make lockdep wiser,
+> > a pair of spin_lock_acquire() / spin_unlock_release() would be enough to
+> > teach it and would avoid the overhead.
+> > 
+> > Now another significant incentive behind this change is to improve CPU isolation.
+> > Workloads relying on owning the entire CPU without being disturbed are interested
+> > in this as it allows to offload some noise. It's no big deal for those who can
+> > tolerate rare events but often CPU isolation is combined with deterministic latency
+> > requirements.
+> > 
+> > So, I'm not saying this per-CPU spinlock is necessarily the right answer, I
+> > don't know that code enough to have an opinion, but I still wish we can find
+> > a solution.
+> 
+> One way to solve this and I had played with it already is to make the smp
+> function call based variant and the lock based variant switchable at boot
+> time with a static key. That way CPU isolation can select it and take the
+> penalty while normal workloads are not affected.
 
-This issue was discovered when we wanted to be able to move the physical
-pages of a memory range to another location quickly so that, after the
-application threads are resumed, UFFDIO_REGISTER_MODE_MISSING userfaultfd
-faults can be received on the original memory range. The actual operations
-performed on the memory range are beyond the scope of this discussion. The
-user threads continue to refer to the old address which will now fault. The
-reason we want retain the old memory range and receives faults there is to
-avoid the need to fix the addresses all over the address space of the threads
-after we finish with performing operations on them in the fault handlers, so
-we mremap it and receive faults at the old addresses.
+Sounds good, and we can toggle that with "isolcpus=".
 
-Does that answer your question?
-
-thanks,
-
-- Joel
+We could also make it modifiable through cpuset.sched_load_balance,
+despite its name it's not just used to govern sched balancing but isolation
+in general. Now making it toggable at runtime could be a bit trickier in
+terms of correctness, yet probably needed in the long term.
