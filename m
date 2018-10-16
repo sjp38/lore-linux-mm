@@ -1,51 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BD3F76B0006
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 14:31:56 -0400 (EDT)
-Received: by mail-wm1-f69.google.com with SMTP id y14-v6so12877659wmd.1
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 11:31:56 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
-        by mx.google.com with ESMTPS id n10-v6si11115898wrp.273.2018.10.16.11.31.55
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CD2E36B0005
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 15:01:14 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id n1-v6so25233516qtb.17
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 12:01:14 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f6-v6sor16527794qvr.8.2018.10.16.12.01.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Oct 2018 11:31:55 -0700 (PDT)
-Content-Type: text/plain; charset="utf-8"
+        (Google Transport Security);
+        Tue, 16 Oct 2018 12:01:13 -0700 (PDT)
+Subject: Re: [mm PATCH v3 1/6] mm: Use mm_zero_struct_page from SPARC on all
+ 64b architectures
+References: <20181015202456.2171.88406.stgit@localhost.localdomain>
+ <20181015202656.2171.92963.stgit@localhost.localdomain>
+From: Pavel Tatashin <pasha.tatashin@gmail.com>
+Message-ID: <57c559f6-4858-7a52-7fbb-979caa08f240@gmail.com>
+Date: Tue, 16 Oct 2018 15:01:11 -0400
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-From: Chris Wilson <chris@chris-wilson.co.uk>
-In-Reply-To: <20181016182155.GW18839@dhcp22.suse.cz>
-References: <20181016174300.197906-1-vovoy@chromium.org>
- <20181016174300.197906-3-vovoy@chromium.org>
- <20181016182155.GW18839@dhcp22.suse.cz>
-Message-ID: <153971466599.22931.16793398326492316920@skylake-alporthouse-com>
-Subject: Re: [PATCH 2/2] drm/i915: Mark pinned shmemfs pages as unevictable
-Date: Tue, 16 Oct 2018 19:31:06 +0100
+In-Reply-To: <20181015202656.2171.92963.stgit@localhost.localdomain>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kuo-Hsin Yang <vovoy@chromium.org>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, akpm@linux-foundation.org, peterz@infradead.org, dave.hansen@intel.com, corbet@lwn.net, hughd@google.com, joonas.lahtinen@linux.intel.com, marcheu@chromium.org, hoegsberg@chromium.org
+To: Alexander Duyck <alexander.h.duyck@linux.intel.com>, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com, linux-kernel@vger.kernel.org, willy@infradead.org, davem@davemloft.net, yi.z.zhang@linux.intel.com, khalid.aziz@oracle.com, rppt@linux.vnet.ibm.com, vbabka@suse.cz, sparclinux@vger.kernel.org, dan.j.williams@intel.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mingo@kernel.org, kirill.shutemov@linux.intel.com
 
-Quoting Michal Hocko (2018-10-16 19:21:55)
-> On Wed 17-10-18 01:43:00, Kuo-Hsin Yang wrote:
-> > The i915 driver use shmemfs to allocate backing storage for gem objects.
-> > These shmemfs pages can be pinned (increased ref count) by
-> > shmem_read_mapping_page_gfp(). When a lot of pages are pinned, vmscan
-> > wastes a lot of time scanning these pinned pages. Mark these pinned
-> > pages as unevictable to speed up vmscan.
-> =
 
-> I would squash the two patches into the single one. One more thing
-> though. One more thing to be careful about here. Unless I miss something
-> such a page is not migrateable so it shouldn't be allocated from a
-> movable zone. Does mapping_gfp_constraint contains __GFP_MOVABLE? If
-> yes, we want to drop it as well. Other than that the patch makes sense
-> with my very limited knowlege of the i915 code of course.
 
-They are not migrateable today. But we have proposed hooking up
-.migratepage and setting __GFP_MOVABLE which would then include unlocking
-the mapping at migrate time.
+On 10/15/18 4:26 PM, Alexander Duyck wrote:
+> This change makes it so that we use the same approach that was already in
+> use on Sparc on all the archtectures that support a 64b long.
+> 
+> This is mostly motivated by the fact that 8 to 10 store/move instructions
+> are likely always going to be faster than having to call into a function
+> that is not specialized for handling page init.
+> 
+> An added advantage to doing it this way is that the compiler can get away
+> with combining writes in the __init_single_page call. As a result the
+> memset call will be reduced to only about 4 write operations, or at least
+> that is what I am seeing with GCC 6.2 as the flags, LRU poitners, and
+> count/mapcount seem to be cancelling out at least 4 of the 8 assignments on
+> my system.
+> 
+> One change I had to make to the function was to reduce the minimum page
+> size to 56 to support some powerpc64 configurations.
+> 
+> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 
-Fwiw, the shmem_unlock_mapping() call feels quite expensive, almost
-nullifying the advantage gained from not walking the lists in reclaim.
-I'll have better numbers in a couple of days.
--Chris
+
+I have tested on Broadcom's Stingray cpu with 48G RAM:
+__init_single_page() takes 19.30ns / 64-byte struct page
+Wit the change it takes 17.33ns / 64-byte struct page
+
+Please add this data and also the data from Intel to the description.
+
+Thank you,
+Pavel
+
+> ---
+>  arch/sparc/include/asm/pgtable_64.h |   30 ------------------------------
+>  include/linux/mm.h                  |   34 ++++++++++++++++++++++++++++++++++
+>  2 files changed, 34 insertions(+), 30 deletions(-)
+> 
+> diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
+> index 1393a8ac596b..22500c3be7a9 100644
+> --- a/arch/sparc/include/asm/pgtable_64.h
+> +++ b/arch/sparc/include/asm/pgtable_64.h
+> @@ -231,36 +231,6 @@
+>  extern struct page *mem_map_zero;
+>  #define ZERO_PAGE(vaddr)	(mem_map_zero)
+>  
+> -/* This macro must be updated when the size of struct page grows above 80
+> - * or reduces below 64.
+> - * The idea that compiler optimizes out switch() statement, and only
+> - * leaves clrx instructions
+> - */
+> -#define	mm_zero_struct_page(pp) do {					\
+> -	unsigned long *_pp = (void *)(pp);				\
+> -									\
+> -	 /* Check that struct page is either 64, 72, or 80 bytes */	\
+> -	BUILD_BUG_ON(sizeof(struct page) & 7);				\
+> -	BUILD_BUG_ON(sizeof(struct page) < 64);				\
+> -	BUILD_BUG_ON(sizeof(struct page) > 80);				\
+> -									\
+> -	switch (sizeof(struct page)) {					\
+> -	case 80:							\
+> -		_pp[9] = 0;	/* fallthrough */			\
+> -	case 72:							\
+> -		_pp[8] = 0;	/* fallthrough */			\
+> -	default:							\
+> -		_pp[7] = 0;						\
+> -		_pp[6] = 0;						\
+> -		_pp[5] = 0;						\
+> -		_pp[4] = 0;						\
+> -		_pp[3] = 0;						\
+> -		_pp[2] = 0;						\
+> -		_pp[1] = 0;						\
+> -		_pp[0] = 0;						\
+> -	}								\
+> -} while (0)
+> -
+>  /* PFNs are real physical page numbers.  However, mem_map only begins to record
+>   * per-page information starting at pfn_base.  This is to handle systems where
+>   * the first physical page in the machine is at some huge physical address,
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index bb0de406f8e7..ec6e57a0c14e 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -102,8 +102,42 @@ static inline void set_max_mapnr(unsigned long limit) { }
+>   * zeroing by defining this macro in <asm/pgtable.h>.
+>   */
+
+The comment above becomes outdated. Please change, we use optimized
+mm_zero_struct_page on every 64-bit platform.
+
+>  #ifndef mm_zero_struct_page
+> +#if BITS_PER_LONG == 64
+> +/* This function must be updated when the size of struct page grows above 80
+> + * or reduces below 64. The idea that compiler optimizes out switch()
+> + * statement, and only leaves move/store instructions
+> + */
+> +#define	mm_zero_struct_page(pp) __mm_zero_struct_page(pp)
+> +static inline void __mm_zero_struct_page(struct page *page)
+> +{
+> +	unsigned long *_pp = (void *)page;
+> +
+> +	 /* Check that struct page is either 56, 64, 72, or 80 bytes */
+> +	BUILD_BUG_ON(sizeof(struct page) & 7);
+> +	BUILD_BUG_ON(sizeof(struct page) < 56);
+> +	BUILD_BUG_ON(sizeof(struct page) > 80);
+> +
+> +	switch (sizeof(struct page)) {
+> +	case 80:
+> +		_pp[9] = 0;	/* fallthrough */
+> +	case 72:
+> +		_pp[8] = 0;	/* fallthrough */
+> +	default:
+> +		_pp[7] = 0;	/* fallthrough */
+> +	case 56:
+> +		_pp[6] = 0;
+> +		_pp[5] = 0;
+> +		_pp[4] = 0;
+> +		_pp[3] = 0;
+> +		_pp[2] = 0;
+> +		_pp[1] = 0;
+> +		_pp[0] = 0;
+> +	}
+> +}
+> +#else
+>  #define mm_zero_struct_page(pp)  ((void)memset((pp), 0, sizeof(struct page)))
+>  #endif
+> +#endif
+>  
+>  /*
+>   * Default maximum number of active map areas, this limits the number of vmas
+> 
