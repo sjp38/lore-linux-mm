@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AE31B6B0287
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 23:20:25 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id s24-v6so17059992plp.12
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 20:20:25 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F19EE6B0289
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 23:20:32 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id s15-v6so16233832pgv.9
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 20:20:32 -0700 (PDT)
 Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id z138-v6si14311689pfc.181.2018.10.15.20.20.24
+        by mx.google.com with ESMTPS id u12-v6si12241318pls.150.2018.10.15.20.20.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Oct 2018 20:20:24 -0700 (PDT)
-Subject: [PATCH 20/26] ocfs2: truncate page cache for clone destination file
- before remapping
+        Mon, 15 Oct 2018 20:20:31 -0700 (PDT)
+Subject: [PATCH 21/26] ocfs2: fix pagecache truncation prior to reflink
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Mon, 15 Oct 2018 20:20:21 -0700
-Message-ID: <153966002134.3607.2095885321354295269.stgit@magnolia>
+Date: Mon, 15 Oct 2018 20:20:28 -0700
+Message-ID: <153966002809.3607.17959416355714610983.stgit@magnolia>
 In-Reply-To: <153965939489.1256.7400115244528045860.stgit@magnolia>
 References: <153965939489.1256.7400115244528045860.stgit@magnolia>
 MIME-Version: 1.0
@@ -26,35 +25,32 @@ Cc: sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, l
 
 From: Darrick J. Wong <darrick.wong@oracle.com>
 
-When cloning blocks into another file, truncate the page cache before we
-start remapping blocks so that concurrent reads wait for us to finish.
+Prior to remapping blocks, it is necessary to remove pages from the
+destination file's page cache.  Unfortunately, the truncation is not
+aggressive enough -- if page size > block size, we'll end up zeroing
+subpage blocks instead of removing them.  So, round the start offset
+down and the end offset up to page boundaries.  We already wrote all
+the dirty data so the larger range should be fine.
 
 Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 ---
- fs/ocfs2/refcounttree.c |   10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ fs/ocfs2/refcounttree.c |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
 
 diff --git a/fs/ocfs2/refcounttree.c b/fs/ocfs2/refcounttree.c
-index 46bbd315c39f..2a5c96bc9677 100644
+index 2a5c96bc9677..7c709229e108 100644
 --- a/fs/ocfs2/refcounttree.c
 +++ b/fs/ocfs2/refcounttree.c
-@@ -4861,14 +4861,12 @@ int ocfs2_reflink_remap_range(struct file *file_in,
- 		down_write_nested(&OCFS2_I(inode_out)->ip_alloc_sem,
+@@ -4862,8 +4862,9 @@ int ocfs2_reflink_remap_range(struct file *file_in,
  				  SINGLE_DEPTH_NESTING);
  
--	ret = ocfs2_reflink_remap_blocks(inode_in, in_bh, pos_in, inode_out,
--					 out_bh, pos_out, len);
--
  	/* Zap any page cache for the destination file's range. */
--	if (!ret)
--		truncate_inode_pages_range(&inode_out->i_data, pos_out,
--					   PAGE_ALIGN(pos_out + len) - 1);
-+	truncate_inode_pages_range(&inode_out->i_data, pos_out,
-+				   PAGE_ALIGN(pos_out + len) - 1);
+-	truncate_inode_pages_range(&inode_out->i_data, pos_out,
+-				   PAGE_ALIGN(pos_out + len) - 1);
++	truncate_inode_pages_range(&inode_out->i_data,
++				   round_down(pos_out, PAGE_SIZE),
++				   round_up(pos_out + len, PAGE_SIZE) - 1);
  
-+	ret = ocfs2_reflink_remap_blocks(inode_in, in_bh, pos_in, inode_out,
-+					 out_bh, pos_out, len);
- 	up_write(&OCFS2_I(inode_in)->ip_alloc_sem);
- 	if (!same_inode)
- 		up_write(&OCFS2_I(inode_out)->ip_alloc_sem);
+ 	ret = ocfs2_reflink_remap_blocks(inode_in, in_bh, pos_in, inode_out,
+ 					 out_bh, pos_out, len);
