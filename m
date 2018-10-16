@@ -1,310 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6494F6B000C
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 03:52:26 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id t9-v6so17478439plq.15
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 00:52:26 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z3-v6sor4001711pga.7.2018.10.16.00.52.24
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EB62B6B0003
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 04:25:42 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id h48-v6so13485058edh.22
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 01:25:42 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 40-v6si9982985edq.257.2018.10.16.01.25.41
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 16 Oct 2018 00:52:24 -0700 (PDT)
-Subject: Re: [PATCH V3 1/2] mm: Add get_user_pages_cma_migrate
-References: <20180918115839.22154-1-aneesh.kumar@linux.ibm.com>
- <20180918115839.22154-2-aneesh.kumar@linux.ibm.com>
- <6112386d-65cd-fc1f-b012-e33da2c3b8fe@ozlabs.ru>
- <87murewecs.fsf@linux.ibm.com>
-From: Alexey Kardashevskiy <aik@ozlabs.ru>
-Message-ID: <485adcad-4996-ae2c-c098-9dc7bcd2d29a@ozlabs.ru>
-Date: Tue, 16 Oct 2018 18:52:18 +1100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Oct 2018 01:25:41 -0700 (PDT)
+Date: Tue, 16 Oct 2018 10:25:40 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
+Message-ID: <20181016082540.GA18918@quack2.suse.cz>
+References: <20181002100531.GC4135@quack2.suse.cz>
+ <x49woqqykgi.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <87murewecs.fsf@linux.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <x49woqqykgi.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, mpe@ellerman.id.au
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
+Hi Jeff,
 
-
-On 16/10/2018 18:16, Aneesh Kumar K.V wrote:
-> Alexey Kardashevskiy <aik@ozlabs.ru> writes:
+On Tue 09-10-18 15:43:41, Jeff Moyer wrote:
+> Jan Kara <jack@suse.cz> writes:
+> > commit e1fb4a086495 "dax: remove VM_MIXEDMAP for fsdax and device dax" has
+> > removed VM_MIXEDMAP flag from DAX VMAs. Now our testing shows that in the
+> > mean time certain customer of ours started poking into /proc/<pid>/smaps
+> > and looks at VMA flags there and if VM_MIXEDMAP is missing among the VMA
+> > flags, the application just fails to start complaining that DAX support is
+> > missing in the kernel. The question now is how do we go about this?
+> >
+> > Strictly speaking, this is a userspace visible regression (as much as I
+> > think that application poking into VMA flags at this level is just too
+> > bold). Is there any precedens in handling similar issues with smaps which
+> > really exposes a lot of information that is dependent on kernel
+> > implementation details?
+> >
+> > I have attached a patch that is an obvious "fix" for the issue - just fake
+> > VM_MIXEDMAP flag in smaps. But I'm open to other suggestions...
 > 
->> On 18/09/2018 21:58, Aneesh Kumar K.V wrote:
->>> This helper does a get_user_pages_fast and if it find pages in the CMA area
->>> it will try to migrate them before taking page reference. This makes sure that
->>> we don't keep non-movable pages (due to page reference count) in the CMA area.
->>> Not able to move pages out of CMA area result in CMA allocation failures.
->>>
->>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
->>> ---
->>>  include/linux/hugetlb.h |   2 +
->>>  include/linux/migrate.h |   3 +
->>>  mm/hugetlb.c            |   4 +-
->>>  mm/migrate.c            | 132 ++++++++++++++++++++++++++++++++++++++++
->>>  4 files changed, 139 insertions(+), 2 deletions(-)
->>>
->>> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
->>> index 6b68e345f0ca..1abccb1a1ecc 100644
->>> --- a/include/linux/hugetlb.h
->>> +++ b/include/linux/hugetlb.h
->>> @@ -357,6 +357,8 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
->>>  				nodemask_t *nmask);
->>>  struct page *alloc_huge_page_vma(struct hstate *h, struct vm_area_struct *vma,
->>>  				unsigned long address);
->>> +struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
->>> +				     int nid, nodemask_t *nmask);
->>>  int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
->>>  			pgoff_t idx);
->>>  
->>> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
->>> index f2b4abbca55e..d82b35afd2eb 100644
->>> --- a/include/linux/migrate.h
->>> +++ b/include/linux/migrate.h
->>> @@ -286,6 +286,9 @@ static inline int migrate_vma(const struct migrate_vma_ops *ops,
->>>  }
->>>  #endif /* IS_ENABLED(CONFIG_MIGRATE_VMA_HELPER) */
->>>  
->>> +extern int get_user_pages_cma_migrate(unsigned long start, int nr_pages, int write,
->>> +				      struct page **pages);
->>> +
->>>  #endif /* CONFIG_MIGRATION */
->>>  
->>>  #endif /* _LINUX_MIGRATE_H */
->>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->>> index 3c21775f196b..1abbfcb84f66 100644
->>> --- a/mm/hugetlb.c
->>> +++ b/mm/hugetlb.c
->>> @@ -1585,8 +1585,8 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
->>>  	return page;
->>>  }
->>>  
->>> -static struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
->>> -		int nid, nodemask_t *nmask)
->>> +struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
->>> +				     int nid, nodemask_t *nmask)
->>>  {
->>>  	struct page *page;
->>>  
->>> diff --git a/mm/migrate.c b/mm/migrate.c
->>> index d6a2e89b086a..2f92534ea7a1 100644
->>> --- a/mm/migrate.c
->>> +++ b/mm/migrate.c
->>> @@ -3006,3 +3006,135 @@ int migrate_vma(const struct migrate_vma_ops *ops,
->>>  }
->>>  EXPORT_SYMBOL(migrate_vma);
->>>  #endif /* defined(MIGRATE_VMA_HELPER) */
->>> +
->>> +static struct page *new_non_cma_page(struct page *page, unsigned long private)
->>> +{
->>> +	/*
->>> +	 * We want to make sure we allocate the new page from the same node
->>> +	 * as the source page.
->>> +	 */
->>> +	int nid = page_to_nid(page);
->>> +	gfp_t gfp_mask = GFP_USER | __GFP_THISNODE;
->>> +
->>> +	if (PageHighMem(page))
->>> +		gfp_mask |= __GFP_HIGHMEM;
->>> +
->>> +	if (PageTransHuge(page)) {
->>> +		struct page *thp;
->>> +		gfp_t thp_gfpmask = GFP_TRANSHUGE | __GFP_THISNODE;
->>> +
->>> +		/*
->>> +		 * Remove the movable mask so that we don't allocate from
->>> +		 * CMA area again.
->>> +		 */
->>> +		thp_gfpmask &= ~__GFP_MOVABLE;
->>> +		thp = __alloc_pages_node(nid, thp_gfpmask, HPAGE_PMD_ORDER);
->>
->>
->> HPAGE_PMD_ORDER is 2MB or 1GB? THP are always that PMD order?
-> 
-> 2M or 16M. THP is at PMD level.
-> 
->>
->>
->>> +		if (!thp)
->>> +			return NULL;
->>> +		prep_transhuge_page(thp);
->>> +		return thp;
->>> +
->>> +#ifdef  CONFIG_HUGETLB_PAGE
->>> +	} else if (PageHuge(page)) {
->>> +
->>> +		struct hstate *h = page_hstate(page);
->>> +		/*
->>> +		 * We don't want to dequeue from the pool because pool pages will
->>> +		 * mostly be from the CMA region.
->>> +		 */
->>> +		return alloc_migrate_huge_page(h, gfp_mask, nid, NULL);
->>> +#endif
->>> +	}
->>> +
->>> +	return __alloc_pages_node(nid, gfp_mask, 0);
->>> +}
->>> +
->>> +/**
->>> + * get_user_pages_cma_migrate() - pin user pages in memory by migrating pages in CMA region
->>> + * @start:	starting user address
->>> + * @nr_pages:	number of pages from start to pin
->>> + * @write:	whether pages will be written to
->>> + * @pages:	array that receives pointers to the pages pinned.
->>> + *		Should be at least nr_pages long.
->>> + *
->>> + * Attempt to pin user pages in memory without taking mm->mmap_sem.
->>> + * If not successful, it will fall back to taking the lock and
->>> + * calling get_user_pages().
->>
->>
->> I do not see any locking or get_user_pages(), hidden somewhere?
->>
-> 
-> The rules are same as get_user_pages_fast, which does that pin attempt
-> without taking mm->mmap_sem. If it fail get_user_pages_fast will take
-> the mmap_sem and try to pin the pages. The details are in
-> get_user_pages_fast. You can look at get_user_pages_unlocked
+> I'm intrigued by the use case.  Do I understand you correctly that the
+> database in question does not intend to make data persistent from
+> userspace?  In other words, fsync/msync system calls are being issued by
+> the database?
 
-Ah, right.
+Yes, at least at the initial stage, they use fsync / msync to persist data.
 
+> I guess what I'm really after is a statement of requirements or
+> expectations.  It would be great if you could convince the database
+> developer to engage in this discussion directly.
 
->>> + *
->>> + * If the pinned pages are backed by CMA region, we migrate those pages out,
->>> + * allocating new pages from non-CMA region. This helps in avoiding keeping
->>> + * pages pinned in the CMA region for a long time thereby resulting in
->>> + * CMA allocation failures.
->>> + *
->>> + * Returns number of pages pinned. This may be fewer than the number
->>> + * requested. If nr_pages is 0 or negative, returns 0. If no pages
->>> + * were pinned, returns -errno.
->>> + */
->>> +
->>> +int get_user_pages_cma_migrate(unsigned long start, int nr_pages, int write,
->>> +			       struct page **pages)
->>> +{
->>> +	int i, ret;
->>> +	bool drain_allow = true;
->>> +	bool migrate_allow = true;
->>> +	LIST_HEAD(cma_page_list);
->>> +
->>> +get_user_again:
->>> +	ret = get_user_pages_fast(start, nr_pages, write, pages);
->>> +	if (ret <= 0)
->>> +		return ret;
->>> +
->>> +	for (i = 0; i < ret; ++i) {
->>> +		/*
->>> +		 * If we get a page from the CMA zone, since we are going to
->>> +		 * be pinning these entries, we might as well move them out
->>> +		 * of the CMA zone if possible.
->>> +		 */
->>> +		if (is_migrate_cma_page(pages[i]) && migrate_allow) {
->>> +			if (PageHuge(pages[i]))
->>> +				isolate_huge_page(pages[i], &cma_page_list);
->>> +			else {
->>> +				struct page *head = compound_head(pages[i]);
->>> +
->>> +				if (!PageLRU(head) && drain_allow) {
->>> +					lru_add_drain_all();
->>> +					drain_allow = false;
->>> +				}
->>> +
->>> +				if (!isolate_lru_page(head)) {
->>> +					list_add_tail(&head->lru, &cma_page_list);
->>> +					mod_node_page_state(page_pgdat(head),
->>> +							    NR_ISOLATED_ANON +
->>> +							    page_is_file_cache(head),
->>> +							    hpage_nr_pages(head));
->>
->>
->> Above 10 lines I cannot really comment due to my massive ignorance in
->> this area, especially about what lru_add_drain_all() and
->> mod_node_page_state() :(
-> 
-> That makes sure we move the pages from per cpu lru vec and add them to
-> the right lru list so that we can isolate the pages correctly.
+So I talked to them and what they really look after is the control over the
+amount of memory needed by the kernel. And they are right that if your
+storage needs page cache, the amount of memory you need to set aside for the
+kernel is larger.
 
-I understand the idea but cannot confirm the correctness :-/
-
-
-> 
->>
->>
->>> +				}
->>> +			}
->>> +		}
->>> +	}
->>> +	if (!list_empty(&cma_page_list)) {
->>> +		/*
->>> +		 * drop the above get_user_pages reference.
->>> +		 */
-
-
-btw, can these pages be used by somebody else in this short window
-before we migrated and pinned them?
-
-
->>> +		for (i = 0; i < ret; ++i)
->>> +			put_page(pages[i]);
->>> +
->>> +		if (migrate_pages(&cma_page_list, new_non_cma_page,
->>> +				  NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE)) {
->>> +			/*
->>> +			 * some of the pages failed migration. Do get_user_pages
->>> +			 * without migration.
->>> +			 */
->>> +			migrate_allow = false;
->>
->>
->> migrate_allow seems useless, simply calling get_user_pages_fast() should
->> make the code easier to read imho. And the comment says
->> get_user_pages(), where does this guy hide?
-> 
-> I didn't get that suggestion. What we want to do here is try to migrate pages as
-> long as we find CMA pages in the result of get_user_pages_fast. If we
-> failed any migration attempt, don't try to migrate again.
-
-
-Setting migrate_allow to false here means you jump up, call
-get_user_pages_fast() and then run the loop which will do nothing just
-because if(...migrate_allow) is false. Instead of jumping up you could
-just call get_user_pages_fast().
-
-btw what is migrate_pages() leaves something in cma_page_list (I cannot
-see it removing pages)? Won't it loop indefinitely?
-
-
-
-> 
->>
->>> +
->>> +			if (!list_empty(&cma_page_list))
->>> +				putback_movable_pages(&cma_page_list);
->>> +		}
->>> +		/*
->>> +		 * We did migrate all the pages, Try to get the page references again
->>> +		 * migrating any new CMA pages which we failed to isolate earlier.
->>> +		 */
->>> +		drain_allow = true;
->>
->> Move this "drain_allow = true" right after "get_user_again:"? 1
->  
->>
->>
->>> +		goto get_user_again;
->>> +	}
->>> +	return ret;
->>> +}
->>>
->>
->> -- 
->> Alexey
-> 
-> -aneesh
-> 
-
+								Honza
 -- 
-Alexey
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
