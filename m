@@ -1,55 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BBA66B0006
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 03:44:15 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id b27-v6so22643065pfm.15
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 00:44:15 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id o5-v6si12871518plk.95.2018.10.16.00.44.14
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4091A6B0008
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 03:46:12 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id e5-v6so13607292eda.4
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 00:46:12 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h8-v6si124991eja.18.2018.10.16.00.46.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 16 Oct 2018 00:44:14 -0700 (PDT)
-Date: Tue, 16 Oct 2018 09:43:51 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v6 17/18] mm/memory-failure: increase queued recovery
- work's priority
-Message-ID: <20181016074351.GC4030@hirez.programming.kicks-ass.net>
-References: <20180921221705.6478-1-james.morse@arm.com>
- <20180921221705.6478-18-james.morse@arm.com>
- <20181015164913.GE11434@zn.tnic>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Oct 2018 00:46:10 -0700 (PDT)
+Date: Tue, 16 Oct 2018 08:46:06 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
+ mappings
+Message-ID: <20181016074606.GH6931@suse.de>
+References: <20181005232155.GA2298@redhat.com>
+ <alpine.DEB.2.21.1810081303060.221006@chino.kir.corp.google.com>
+ <20181009094825.GC6931@suse.de>
+ <20181009122745.GN8528@dhcp22.suse.cz>
+ <20181009130034.GD6931@suse.de>
+ <20181009142510.GU8528@dhcp22.suse.cz>
+ <20181009230352.GE9307@redhat.com>
+ <alpine.DEB.2.21.1810101410530.53455@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1810151525460.247641@chino.kir.corp.google.com>
+ <20181015154459.e870c30df5c41966ffb4aed8@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20181015164913.GE11434@zn.tnic>
+In-Reply-To: <20181015154459.e870c30df5c41966ffb4aed8@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: James Morse <james.morse@arm.com>, linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
 
-On Mon, Oct 15, 2018 at 06:49:13PM +0200, Borislav Petkov wrote:
-> On Fri, Sep 21, 2018 at 11:17:04PM +0100, James Morse wrote:
-> > @@ -1463,11 +1465,14 @@ void memory_failure_queue(unsigned long pfn, int flags)
-> >  
-> >  	mf_cpu = &get_cpu_var(memory_failure_cpu);
-> >  	spin_lock_irqsave(&mf_cpu->lock, proc_flags);
-> > -	if (kfifo_put(&mf_cpu->fifo, entry))
-> > -		schedule_work_on(smp_processor_id(), &mf_cpu->work);
-> > -	else
-> > +	if (kfifo_put(&mf_cpu->fifo, entry)) {
-> > +		queue_work_on(cpu, system_highpri_wq, &mf_cpu->work);
-> > +		set_tsk_need_resched(current);
-> > +		preempt_set_need_resched();
+On Mon, Oct 15, 2018 at 03:44:59PM -0700, Andrew Morton wrote:
+> On Mon, 15 Oct 2018 15:30:17 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
 > 
-> What guarantees the workqueue would run before the process? I see this:
+> > At the risk of beating a dead horse that has already been beaten, what are 
+> > the plans for this patch when the merge window opens?
 > 
-> ``WQ_HIGHPRI``
->   Work items of a highpri wq are queued to the highpri
->   worker-pool of the target cpu.  Highpri worker-pools are
->   served by worker threads with elevated nice level.
+> I'll hold onto it until we've settled on something.  Worst case,
+> Andrea's original is easily backportable.
 > 
-> but is that enough?
 
-Nope. Nice just makes it more likely, but no guarantees what so ever.
+I consider this to be an unfortunate outcome. On the one hand, we have a
+problem that three people can trivially reproduce with known test cases
+and a patch shown to resolve the problem. Two of those three people work
+on distributions that are exposed to a large number of users. On the
+other, we have a problem that requires the system to be in a specific
+state and an unknown workload that suffers badly from the remote access
+penalties with a patch that has review concerns and has not been proven
+to resolve the trivial cases. In the case of distributions, the first
+patch addresses concerns with a common workload where on the other hand
+we have an internal workload of a single company that is affected --
+which indirectly affects many users admittedly but only one entity directly.
 
-If you want to absolutely run something before we return to userspace,
-would not task_work() be what we're looking for?
+At the absolute minimum, a test case for the "system fragmentation incurs
+access penalties for a workload" scenario that could both replicate the
+fragmentation and demonstrate the problem should have been available before
+the patch was rejected.  With the test case, there would be a chance that
+others could analyse the problem and prototype some fixes. The test case
+was requested in the thread and never produced so even if someone were to
+prototype fixes, it would be dependant on a third party to test and produce
+data which is a time-consuming loop. Instead, we are more or less in limbo.
+
+-- 
+Mel Gorman
+SUSE Labs
