@@ -1,80 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CD6066B000C
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 04:49:27 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c26-v6so13538280eda.7
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 01:49:27 -0700 (PDT)
-Received: from outbound-smtp26.blacknight.com (outbound-smtp26.blacknight.com. [81.17.249.194])
-        by mx.google.com with ESMTPS id u21si6565098edy.88.2018.10.16.01.49.26
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EF0B6B000E
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 04:51:05 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id c1-v6so13677938eds.15
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 01:51:05 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s8-v6si3847723eja.42.2018.10.16.01.51.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 16 Oct 2018 01:49:26 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp26.blacknight.com (Postfix) with ESMTPS id A0B80B87C7
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 09:49:23 +0100 (IST)
-Date: Tue, 16 Oct 2018 09:49:23 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 3/4] mm: workingset: add vmstat counter for shadow nodes
-Message-ID: <20181016084923.GH5819@techsingularity.net>
-References: <20181009184732.762-1-hannes@cmpxchg.org>
- <20181009184732.762-4-hannes@cmpxchg.org>
- <20181009150845.8656eb8ede045ca5f4cc4b21@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Oct 2018 01:51:04 -0700 (PDT)
+Date: Tue, 16 Oct 2018 10:51:02 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 4/6] mm: introduce page->dma_pinned_flags, _count
+Message-ID: <20181016085102.GB18918@quack2.suse.cz>
+References: <20181012060014.10242-1-jhubbard@nvidia.com>
+ <20181012060014.10242-5-jhubbard@nvidia.com>
+ <20181013035516.GA18822@dastard>
+ <7c2e3b54-0b1d-6726-a508-804ef8620cfd@nvidia.com>
+ <20181013230124.GB18822@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181009150845.8656eb8ede045ca5f4cc4b21@linux-foundation.org>
+In-Reply-To: <20181013230124.GB18822@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Dave Chinner <david@fromorbit.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org
 
-On Tue, Oct 09, 2018 at 03:08:45PM -0700, Andrew Morton wrote:
-> On Tue,  9 Oct 2018 14:47:32 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Sun 14-10-18 10:01:24, Dave Chinner wrote:
+> On Sat, Oct 13, 2018 at 12:34:12AM -0700, John Hubbard wrote:
+> > On 10/12/18 8:55 PM, Dave Chinner wrote:
+> > > On Thu, Oct 11, 2018 at 11:00:12PM -0700, john.hubbard@gmail.com wrote:
+> > >> From: John Hubbard <jhubbard@nvidia.com>
+> > [...]
+> > >> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> > >> index 5ed8f6292a53..017ab82e36ca 100644
+> > >> --- a/include/linux/mm_types.h
+> > >> +++ b/include/linux/mm_types.h
+> > >> @@ -78,12 +78,22 @@ struct page {
+> > >>  	 */
+> > >>  	union {
+> > >>  		struct {	/* Page cache and anonymous pages */
+> > >> -			/**
+> > >> -			 * @lru: Pageout list, eg. active_list protected by
+> > >> -			 * zone_lru_lock.  Sometimes used as a generic list
+> > >> -			 * by the page owner.
+> > >> -			 */
+> > >> -			struct list_head lru;
+> > >> +			union {
+> > >> +				/**
+> > >> +				 * @lru: Pageout list, eg. active_list protected
+> > >> +				 * by zone_lru_lock.  Sometimes used as a
+> > >> +				 * generic list by the page owner.
+> > >> +				 */
+> > >> +				struct list_head lru;
+> > >> +				/* Used by get_user_pages*(). Pages may not be
+> > >> +				 * on an LRU while these dma_pinned_* fields
+> > >> +				 * are in use.
+> > >> +				 */
+> > >> +				struct {
+> > >> +					unsigned long dma_pinned_flags;
+> > >> +					atomic_t      dma_pinned_count;
+> > >> +				};
+> > >> +			};
+> > > 
+> > > Isn't this broken for mapped file-backed pages? i.e. they may be
+> > > passed as the user buffer to read/write direct IO and so the pages
+> > > passed to gup will be on the active/inactive LRUs. hence I can't see
+> > > how you can have dual use of the LRU list head like this....
+> > > 
+> > > What am I missing here?
+> > 
+> > Hi Dave,
+> > 
+> > In patch 6/6, pin_page_for_dma(), which is called at the end of get_user_pages(),
+> > unceremoniously rips the pages out of the LRU, as a prerequisite to using
+> > either of the page->dma_pinned_* fields. 
 > 
-> > --- a/mm/workingset.c
-> > +++ b/mm/workingset.c
-> > @@ -378,11 +378,17 @@ void workingset_update_node(struct xa_node *node)
-> >  	 * as node->private_list is protected by the i_pages lock.
-> >  	 */
-> >  	if (node->count && node->count == node->nr_values) {
-> > -		if (list_empty(&node->private_list))
-> > +		if (list_empty(&node->private_list)) {
-> >  			list_lru_add(&shadow_nodes, &node->private_list);
-> > +			__inc_lruvec_page_state(virt_to_page(node),
-> > +						WORKINGSET_NODES);
-> > +		}
-> >  	} else {
-> > -		if (!list_empty(&node->private_list))
-> > +		if (!list_empty(&node->private_list)) {
-> >  			list_lru_del(&shadow_nodes, &node->private_list);
-> > +			__dec_lruvec_page_state(virt_to_page(node),
-> > +						WORKINGSET_NODES);
-> > +		}
-> >  	}
-> >  }
-> 
-> A bit worried that we're depending on the caller's caller to have
-> disabled interrupts to avoid subtle and rare errors.
-> 
-> Can we do this?
-> 
-> --- a/mm/workingset.c~mm-workingset-add-vmstat-counter-for-shadow-nodes-fix
-> +++ a/mm/workingset.c
-> @@ -377,6 +377,8 @@ void workingset_update_node(struct radix
->  	 * already where they should be. The list_empty() test is safe
->  	 * as node->private_list is protected by the i_pages lock.
->  	 */
-> +	WARN_ON_ONCE(!irqs_disabled());	/* For __inc_lruvec_page_state */
-> +
->  	if (node->count && node->count == node->exceptional) {
->  		if (list_empty(&node->private_list)) {
->  			list_lru_add(&shadow_nodes, &node->private_list);
+> How is that safe? If you've ripped the page out of the LRU, it's no
+> longer being tracked by the page cache aging and reclaim algorithms.
+> Patch 6 doesn't appear to put these pages back in the LRU, either,
+> so it looks to me like this just dumps them on the ground after the
+> gup reference is dropped.  How do we reclaim these page cache pages
+> when there is memory pressure if they aren't in the LRU?
 
-Note that for whatever reason, I've observed that irqs_disabled() is
-actually quite an expensive call. I'm not saying the warning is a bad
-idea but it should not be sprinkled around unnecessary and may be more
-suitable as a debug option.
+Yeah, that's a bug in patch 6/6 (possibly in ClearPageDmaPinned). It should
+return the page to the LRU from put_user_page().
 
+								Honza
 -- 
-Mel Gorman
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
