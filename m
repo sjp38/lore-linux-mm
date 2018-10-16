@@ -1,48 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 400646B0003
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 20:04:18 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id p89-v6so21771507pfj.12
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 17:04:18 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b74-v6sor3337438pfc.12.2018.10.15.17.04.16
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5014F6B0006
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 20:15:10 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id f4-v6so21968124pff.2
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 17:15:10 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
+        by mx.google.com with ESMTPS id f15-v6si12089832pgi.378.2018.10.15.17.15.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 15 Oct 2018 17:04:16 -0700 (PDT)
-Date: Mon, 15 Oct 2018 17:04:15 -0700 (PDT)
-Subject: Re: [PATCH v2 0/6] sparsemem support for RISC-V
-In-Reply-To: <20181015175702.9036-1-logang@deltatee.com>
-From: Palmer Dabbelt <palmer@sifive.com>
-Message-ID: <mhng-fd0541de-3ac1-4772-916d-be6b2d02e63e@palmer-si-x1c4>
-Mime-Version: 1.0 (MHng)
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 15 Oct 2018 17:15:09 -0700 (PDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH] selftests/vm: Add a test for MAP_FIXED_NOREPLACE
+In-Reply-To: <20181015080724.GC18839@dhcp22.suse.cz>
+References: <20181013133929.28653-1-mpe@ellerman.id.au> <20181015080724.GC18839@dhcp22.suse.cz>
+Date: Tue, 16 Oct 2018 11:15:04 +1100
+Message-ID: <87va62lpbr.fsf@concordia.ellerman.id.au>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-riscv@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, sbates@raithlin.com, aou@eecs.berkeley.edu, Christoph Hellwig <hch@lst.de>, akpm@linux-foundation.org, Arnd Bergmann <arnd@arndb.de>, logang@deltatee.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, jannh@google.com, linux-mm@kvack.org, khalid.aziz@oracle.com, aarcange@redhat.com, fweimer@redhat.com, jhubbard@nvidia.com, willy@infradead.org, abdhalee@linux.vnet.ibm.com, joel@jms.id.au, keescook@chromium.org, jasone@google.com, davidtgoldblatt@gmail.com, trasz@freebsd.org, danielmicay@gmail.com
 
-On Mon, 15 Oct 2018 10:56:56 PDT (-0700), logang@deltatee.com wrote:
-> This patchset implements sparsemem on RISC-V. The first few patches
-> move some code in existing architectures into common helpers
-> so they can be used by the new RISC-V implementation. The final
-> patch actually adds sparsmem support to RISC-V.
+Michal Hocko <mhocko@kernel.org> writes:
+
+> On Sun 14-10-18 00:39:29, Michael Ellerman wrote:
+>> Add a test for MAP_FIXED_NOREPLACE, based on some code originally by
+>> Jann Horn. This would have caught the overlap bug reported by Daniel Micay.
+>> 
+>> I originally suggested to Michal that we create MAP_FIXED_NOREPLACE, but
+>> instead of writing a selftest I spent my time bike-shedding whether it
+>> should be called MAP_FIXED_SAFE/NOCLOBBER/WEAK/NEW .. mea culpa.
 >
-> This is the first small step in supporting P2P on RISC-V.
+> You wer one of those to provide a useful feedback actually. So no reason
+> to feel sorry. I should have been forced to write a test case instead.
+> No idea why I haven't considered that myself actually. So I steal your
+> culpa here.
 
-Thanks.  I see less maintainer tags for the parts that touch other ports than I 
-would feel comfortable merging.  I'm going to let this sit in my inbox for 
-a bit and we'll see if anything collects.
+Haha, plenty of culpa to go around :)
 
-For patch sets I submit that clean up other ports I've attempted to split the 
-patch into N patch sets, where:
+Yeah we should try to always have selftests for new flags and things
+like this.
 
-* One part adds the generic support, which starts out as dead code.
-* One part per arch uses the generic support.
+This one was a bit special because the original point of the new flag
+was for the kernel to use internally, and we sort of forgot that we were
+also adding a user-visible flag.
 
-This is a bit of a headache, but it at least allows us to get the RISC-V 
-version that uses the generic support in quickly while waiting on acks from the 
-other arch maintainers.
+>> Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+>
+> Thanks for doing this!
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
-Like I said, I'll wait a bit and hope people ack.
+Thanks.
 
-Thanks!
+cheers
