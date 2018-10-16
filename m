@@ -1,54 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 814736B0006
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 07:30:02 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id e5-v6so13941768eda.4
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 04:30:02 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z22-v6si3192788ejm.80.2018.10.16.04.30.00
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 05CD36B000C
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 07:43:20 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id a72-v6so7255538pfj.14
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 04:43:19 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id j16-v6si13692745pgm.501.2018.10.16.04.43.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Oct 2018 04:30:01 -0700 (PDT)
-Subject: Re: [PATCH 2/4] mm: speed up mremap by 500x on large regions (v2)
-References: <20181013013200.206928-1-joel@joelfernandes.org>
- <20181013013200.206928-3-joel@joelfernandes.org>
- <20181015094209.GA31999@infradead.org>
- <20181015223303.GA164293@joelaf.mtv.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <35b9c85a-b366-9ca3-5647-c2568c811961@suse.cz>
-Date: Tue, 16 Oct 2018 13:29:52 +0200
+        Tue, 16 Oct 2018 04:43:18 -0700 (PDT)
+Date: Tue, 16 Oct 2018 14:43:12 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH RFC] ksm: Assist buddy allocator to assemble 1-order pages
+Message-ID: <20181016114312.bxkxxuttonfbjmsg@black.fi.intel.com>
+References: <153925511661.21256.9692370932417728663.stgit@localhost.localdomain>
+ <20181015154112.6bj5p4zuxjtz43pd@kshutemo-mobl1>
+ <0b0a81c4-d0b3-99f4-6910-10b757732825@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <20181015223303.GA164293@joelaf.mtv.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0b0a81c4-d0b3-99f4-6910-10b757732825@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joel Fernandes <joel@joelfernandes.org>, Christoph Hellwig <hch@infradead.org>
-Cc: linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, Rich Felker <dalias@libc.org>, linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon <will.deacon@arm.com>, mhocko@kernel.org, linux-mm@kvack.org, lokeshgidra@google.com, linux-riscv@lists.infradead.org, elfring@users.sourceforge.net, Jonas Bonn <jonas@southpole.se>, kvmarm@lists.cs.columbia.edu, dancol@google.com, Yoshinori Sato <ysato@users.sourceforge.jp>, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-hexagon@vger.kernel.org, Helge Deller <deller@gmx.de>, "maintainer:X86 ARCHITECTURE 32-BIT AND 64-BIT" <x86@kernel.org>, hughd@google.com, "James E.J. Bottomley" <jejb@parisc-linux.org>, kasan-dev@googlegroups.com, anton.ivanov@kot-begemot.co.uk, Ingo Molnar <mingo@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-snps-arc@lists.infradead.org, kernel-team@android.com, Sam Creasey <sammy@sammy.net>, Fenghua Yu <fenghua.yu@intel.com>, linux-s390@vger.kernel.org, Jeff Dike <jdike@addtoit.com>, linux-um@lists.infradead.org, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Julia Lawall <Julia.Lawall@lip6.fr>, linux-m68k@lists.linux-m68k.org, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, nios2-dev@lists.rocketboards.org, kirill@shutemov.name, Stafford Horne <shorne@gmail.com>, Guan Xuetao <gxt@pku.edu.cn>, Chris Zankel <chris@zankel.net>, Tony Luck <tony.luck@intel.com>, Richard Weinberger <richard@nod.at>, linux-parisc@vger.kernel.org, pantin@google.com, Max Filippov <jcmvbkbc@gmail.com>, minchan@kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-alpha@vger.kernel.org, Ley Foon Tan <lftan@altera.com>, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, "David S. Miller" <davem@davemloft.net>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, akpm@linux-foundation.org, andriy.shevchenko@linux.intel.com, mhocko@suse.com, rppt@linux.vnet.ibm.com, imbrenda@linux.vnet.ibm.com, corbet@lwn.net, ndesaulniers@google.com, dave.jiang@intel.com, jglisse@redhat.com, jia.he@hxt-semitech.com, paulmck@linux.vnet.ibm.com, colin.king@canonical.com, jiang.biao2@zte.com.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/16/18 12:33 AM, Joel Fernandes wrote:
-> On Mon, Oct 15, 2018 at 02:42:09AM -0700, Christoph Hellwig wrote:
->> On Fri, Oct 12, 2018 at 06:31:58PM -0700, Joel Fernandes (Google) wrote:
->>> Android needs to mremap large regions of memory during memory management
->>> related operations.
->>
->> Just curious: why?
+On Tue, Oct 16, 2018 at 09:34:11AM +0000, Kirill Tkhai wrote:
+> On 15.10.2018 18:41, Kirill A. Shutemov wrote:
+> > On Thu, Oct 11, 2018 at 01:52:22PM +0300, Kirill Tkhai wrote:
+> >> try_to_merge_two_pages() merges two pages, one of them
+> >> is a page of currently scanned mm, the second is a page
+> >> with identical hash from unstable tree. Currently, we
+> >> merge the page from unstable tree into the first one,
+> >> and then free it.
+> >>
+> >> The idea of this patch is to prefer freeing that page
+> >> of them, which has a free neighbour (i.e., neighbour
+> >> with zero page_count()). This allows buddy allocator
+> >> to assemble at least 1-order set from the freed page
+> >> and its neighbour; this is a kind of cheep passive
+> >> compaction.
+> >>
+> >> AFAIK, 1-order pages set consists of pages with PFNs
+> >> [2n, 2n+1] (odd, even), so the neighbour's pfn is
+> >> calculated via XOR with 1. We check the result pfn
+> >> is valid and its page_count(), and prefer merging
+> >> into @tree_page if neighbour's usage count is zero.
+> >>
+> >> There a is small difference with current behavior
+> >> in case of error path. In case of the second
+> >> try_to_merge_with_ksm_page() is failed, we return
+> >> from try_to_merge_two_pages() with @tree_page
+> >> removed from unstable tree. It does not seem to matter,
+> >> but if we do not want a change at all, it's not
+> >> a problem to move remove_rmap_item_from_tree() from
+> >> try_to_merge_with_ksm_page() to its callers.
+> >>
+> >> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+> >> ---
+> >>  mm/ksm.c |   15 +++++++++++++++
+> >>  1 file changed, 15 insertions(+)
+> >>
+> >> diff --git a/mm/ksm.c b/mm/ksm.c
+> >> index 5b0894b45ee5..b83ca37e28f0 100644
+> >> --- a/mm/ksm.c
+> >> +++ b/mm/ksm.c
+> >> @@ -1321,6 +1321,21 @@ static struct page *try_to_merge_two_pages(struct rmap_item *rmap_item,
+> >>  {
+> >>  	int err;
+> >>  
+> >> +	if (IS_ENABLED(CONFIG_COMPACTION)) {
+> >> +		unsigned long pfn;
+> >> +		/*
+> >> +		 * Find neighbour of @page containing 1-order pair
+> >> +		 * in buddy-allocator and check whether it is free.
+> > 
+> > You cannot really check if the page is free. There are some paths that
+> > makes the refcount zero temporarely, but doesn't free the page.
+> > See page_ref_freeze() for instance.
 > 
-> In Android we have a requirement of moving a large (up to a GB now, but may
-> grow bigger in future) memory range from one location to another.
-
-I think Christoph's "why?" was about the requirement, not why it hurts
-applications. I admit I'm now also curious :)
-
-> This move
-> operation has to happen when the application threads are paused for this
-> operation. Therefore, an inefficient move like it is now (for example 250ms
-> on arm64) will cause response time issues for applications, which is not
-> acceptable. Huge pages cannot be used in such memory ranges to avoid this
-> inefficiency as (when the application threads are running) our fault handlers
-> are designed to process 4KB pages at a time, to keep response times low. So
-> using huge pages in this context can, again, cause response time issues.
+> Thanks. Does this look better?
 > 
-> Also, the mremap syscall waiting for quarter of a second for a large mremap
-> is quite weird and we ought to improve it where possible.
+>   Find neighbour of @page containing 1-order pair in buddy-allocator
+>   and check whether its count is 0. If it is so, we consider it's as free
+>   (this is more probable than it's freezed via page_ref_freeze()),
+>   and we try to use @tree_page as ksm page and to free @page.
+
+Looks fine to me.
+
+-- 
+ Kirill A. Shutemov
