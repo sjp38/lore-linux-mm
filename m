@@ -1,108 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 10B5C6B0006
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 05:34:26 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id h7-v6so6265296ljc.15
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 02:34:25 -0700 (PDT)
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id c18-v6si11079475lja.167.2018.10.16.02.34.23
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C05326B0008
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 05:35:02 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id n8-v6so12543544ybo.9
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 02:35:02 -0700 (PDT)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id e133-v6si4028712ywb.57.2018.10.16.02.35.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Oct 2018 02:34:23 -0700 (PDT)
-Subject: Re: [PATCH RFC] ksm: Assist buddy allocator to assemble 1-order pages
-References: <153925511661.21256.9692370932417728663.stgit@localhost.localdomain>
- <20181015154112.6bj5p4zuxjtz43pd@kshutemo-mobl1>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <0b0a81c4-d0b3-99f4-6910-10b757732825@virtuozzo.com>
-Date: Tue, 16 Oct 2018 12:34:11 +0300
+        Tue, 16 Oct 2018 02:35:01 -0700 (PDT)
+Subject: Re: [PATCH] mm: Avoid swapping in interrupt context
+References: <1538387115-2363-1-git-send-email-amhetre@nvidia.com>
+ <20181001122400.GF18290@dhcp22.suse.cz>
+ <988dfe01-6553-1e0a-1d98-1b3d3aa67517@nvidia.com>
+ <20181003110146.GB4714@dhcp22.suse.cz>
+ <f54a61b2-b398-19e3-2b9b-1711ba3c75b7@nvidia.com>
+ <20181003115314.GE4714@dhcp22.suse.cz>
+From: Ashish Mhetre <amhetre@nvidia.com>
+Message-ID: <bea75af0-aa5b-0811-d746-35b2c1ed3d16@nvidia.com>
+Date: Tue, 16 Oct 2018 15:05:00 +0530
 MIME-Version: 1.0
-In-Reply-To: <20181015154112.6bj5p4zuxjtz43pd@kshutemo-mobl1>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
+In-Reply-To: <20181003115314.GE4714@dhcp22.suse.cz>
+Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, andriy.shevchenko@linux.intel.com, mhocko@suse.com, rppt@linux.vnet.ibm.com, imbrenda@linux.vnet.ibm.com, corbet@lwn.net, ndesaulniers@google.com, dave.jiang@intel.com, jglisse@redhat.com, jia.he@hxt-semitech.com, paulmck@linux.vnet.ibm.com, colin.king@canonical.com, jiang.biao2@zte.com.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, vdumpa@nvidia.com, Snikam@nvidia.com
 
-On 15.10.2018 18:41, Kirill A. Shutemov wrote:
-> On Thu, Oct 11, 2018 at 01:52:22PM +0300, Kirill Tkhai wrote:
->> try_to_merge_two_pages() merges two pages, one of them
->> is a page of currently scanned mm, the second is a page
->> with identical hash from unstable tree. Currently, we
->> merge the page from unstable tree into the first one,
->> and then free it.
->>
->> The idea of this patch is to prefer freeing that page
->> of them, which has a free neighbour (i.e., neighbour
->> with zero page_count()). This allows buddy allocator
->> to assemble at least 1-order set from the freed page
->> and its neighbour; this is a kind of cheep passive
->> compaction.
->>
->> AFAIK, 1-order pages set consists of pages with PFNs
->> [2n, 2n+1] (odd, even), so the neighbour's pfn is
->> calculated via XOR with 1. We check the result pfn
->> is valid and its page_count(), and prefer merging
->> into @tree_page if neighbour's usage count is zero.
->>
->> There a is small difference with current behavior
->> in case of error path. In case of the second
->> try_to_merge_with_ksm_page() is failed, we return
->> from try_to_merge_two_pages() with @tree_page
->> removed from unstable tree. It does not seem to matter,
->> but if we do not want a change at all, it's not
->> a problem to move remove_rmap_item_from_tree() from
->> try_to_merge_with_ksm_page() to its callers.
->>
->> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
->> ---
->>  mm/ksm.c |   15 +++++++++++++++
->>  1 file changed, 15 insertions(+)
->>
->> diff --git a/mm/ksm.c b/mm/ksm.c
->> index 5b0894b45ee5..b83ca37e28f0 100644
->> --- a/mm/ksm.c
->> +++ b/mm/ksm.c
->> @@ -1321,6 +1321,21 @@ static struct page *try_to_merge_two_pages(struct rmap_item *rmap_item,
->>  {
->>  	int err;
->>  
->> +	if (IS_ENABLED(CONFIG_COMPACTION)) {
->> +		unsigned long pfn;
->> +		/*
->> +		 * Find neighbour of @page containing 1-order pair
->> +		 * in buddy-allocator and check whether it is free.
-> 
-> You cannot really check if the page is free. There are some paths that
-> makes the refcount zero temporarely, but doesn't free the page.
-> See page_ref_freeze() for instance.
+Sorry for the delayed response.
+Yes, you are correct. There is no call from IRQ in dump.
+I take back our assertion. Thanks for the insights.
 
-Thanks. Does this look better?
 
-  Find neighbour of @page containing 1-order pair in buddy-allocator
-  and check whether its count is 0. If it is so, we consider it's as free
-  (this is more probable than it's freezed via page_ref_freeze()),
-  and we try to use @tree_page as ksm page and to free @page.
- 
-> It should be fine for the use case, but comment should state that we
-> speculate about page usage, not having definetive answer.
-> 
-> [ I don't know enough about KSM to ack the patch in general, but it looks
-> fine to me at the first glance.]
-> 
->> +		 * If it is so, try to use @tree_page as ksm page
->> +		 * and to free @page.
->> +		 */
->> +		pfn = (page_to_pfn(page) ^ 1);
->> +		if (pfn_valid(pfn) && page_count(pfn_to_page(pfn)) == 0) {
->> +			swap(rmap_item, tree_rmap_item);
->> +			swap(page, tree_page);
->> +		}
->> +	}
->> +
->>  	err = try_to_merge_with_ksm_page(rmap_item, page, NULL);
->>  	if (!err) {
->>  		err = try_to_merge_with_ksm_page(tree_rmap_item,
+On Wednesday 03 October 2018 05:23 PM, Michal Hocko wrote:
+> On Wed 03-10-18 17:20:15, Ashish Mhetre wrote:
+>>> This doesn't show the backtrace part which contains the allocation
+>> AFAICS.
 >>
-> 
+>> My bad. Here is a complete dump:
+>> [ 264.082531] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP ARM
+>> [ 264.088350] Modules linked in:
+>> [ 264.091406] CPU: 0 PID: 3805 Comm: kworker/0:4 Tainted: G W
+>> 3.10.33-g990282b #1
+>> [ 264.099572] Workqueue: events netstat_work_func
+>> [ 264.104097] task: e7b12040 ti: dc7d4000 task.ti: dc7d4000
+>> [ 264.109485] PC is at zs_map_object+0x180/0x18c
+>> [ 264.113918] LR is at zram_bvec_rw.isra.15+0x304/0x88c
+>> [ 264.118956] pc : [<c01581e8>] lr : [<c0456618>] psr: 200f0013
+>> [ 264.118956] sp : dc7d5460 ip : fff00814 fp : 00000002
+>> [ 264.130407] r10: ea8ec000 r9 : ebc93340 r8 : 00000000
+>> [ 264.135618] r7 : c191502c r6 : dc7d4020 r5 : d25f5684 r4 : ec3158c0
+>> [ 264.142128] r3 : 00000200 r2 : 00000002 r1 : c191502c r0 : ea8ec000
+>>
+>> --------
+>> [ 265.772426] [<c01581e8>] (zs_map_object+0x180/0x18c) from [<c0456618>]
+>> (zram_bvec_rw.isra.15+0x304/0x88c)
+>> [ 265.781973] [<c0456618>] (zram_bvec_rw.isra.15+0x304/0x88c) from
+>> [<c0456d78>] (zram_make_request+0x1d8/0x378)
+>> [ 265.791868] [<c0456d78>] (zram_make_request+0x1d8/0x378) from [<c02c7afc>]
+>> (generic_make_request+0xb0/0xdc)
+>> [ 265.801588] [<c02c7afc>] (generic_make_request+0xb0/0xdc) from
+>> [<c02c7bb0>] (submit_bio+0x88/0x140)
+>> [ 265.810617] [<c02c7bb0>] (submit_bio+0x88/0x140) from [<c01459d4>]
+>> (__swap_writepage+0x198/0x230)
+>> [ 265.819471] [<c01459d4>] (__swap_writepage+0x198/0x230) from [<c011fc50>]
+>> (shrink_page_list+0x4e0/0x974)
+>> [ 265.828930] [<c011fc50>] (shrink_page_list+0x4e0/0x974) from [<c0120644>]
+>> (shrink_inactive_list+0x150/0x3c8)
+>> [ 265.838736] [<c0120644>] (shrink_inactive_list+0x150/0x3c8) from
+>> [<c0120de8>] (shrink_lruvec+0x20c/0x448)
+>> [ 265.848282] [<c0120de8>] (shrink_lruvec+0x20c/0x448) from [<c012109c>]
+>> (shrink_zone+0x78/0x188)
+>> [ 265.856960] [<c012109c>] (shrink_zone+0x78/0x188) from [<c01212ac>]
+>> (do_try_to_free_pages+0x100/0x544)
+>> [ 265.866246] [<c01212ac>] (do_try_to_free_pages+0x100/0x544) from
+>> [<c0121928>] (try_to_free_pages+0x238/0x428)
+>> [ 265.876140] [<c0121928>] (try_to_free_pages+0x238/0x428) from [<c01179cc>]
+>> (__alloc_pages_nodemask+0x5b0/0x90c)
+>> [ 265.886207] [<c01179cc>] (__alloc_pages_nodemask+0x5b0/0x90c) from
+>> [<c0117d44>] (__get_free_pages+0x1c/0x34)
+>> [ 265.896014] [<c0117d44>] (__get_free_pages+0x1c/0x34) from [<c0844a4c>]
+>> (tcp4_seq_show+0x248/0x4b4)
+>> [ 265.905042] [<c0844a4c>] (tcp4_seq_show+0x248/0x4b4) from [<c017a844>]
+>> (seq_read+0x1e4/0x484)
+>> [ 265.913550] [<c017a844>] (seq_read+0x1e4/0x484) from [<c01a84f0>]
+>> (proc_reg_read+0x60/0x88)
+>> [ 265.921884] [<c01a84f0>] (proc_reg_read+0x60/0x88) from [<c015aa44>]
+>> (vfs_read+0xa0/0x14c)
+>> [ 265.930129] [<c015aa44>] (vfs_read+0xa0/0x14c) from [<c015b0c4>]
+>> (SyS_read+0x44/0x80)
+>> [ 265.937942] [<c015b0c4>] (SyS_read+0x44/0x80) from [<c052e98c>]
+>> (netstat_work_func+0x54/0xec)
+>> [ 265.946450] [<c052e98c>] (netstat_work_func+0x54/0xec) from [<c0086700>]
+>> (process_one_work+0x13c/0x454)
+>> [ 265.955823] [<c0086700>] (process_one_work+0x13c/0x454) from [<c008745c>]
+>> (worker_thread+0x140/0x3dc)
+>> 265.965022] [<c008745c>] (worker_thread+0x140/0x3dc) from [<c008cf4c>]
+>> (kthread+0xe0/0xe4)
+>> [ 265.973269] [<c008cf4c>] (kthread+0xe0/0xe4) from [<c000ef98>]
+>> (ret_from_fork+0x14/0x20)
+>> [ 264.148640] Flags: nzCv IRQs on FIQs on Mode SVC_32 ISA ARM Segment kernel
+>> [ 264.155930] Control: 30c5387d Table: aaf7c000 DAC: fffffffd
+> This looks like a regular syscall path. How have you concluded this is
+> due to an IRQ context?
