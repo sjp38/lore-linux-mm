@@ -1,126 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 77E4C6B0266
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 09:14:22 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id r134-v6so12031819pgr.19
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 06:14:22 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l20-v6sor4443475pgh.86.2018.10.16.06.14.21
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 16 Oct 2018 06:14:21 -0700 (PDT)
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: [PATCH v2 5/5] mm: optimise pte dirty/accessed bit setting by demand based pte insertion
-Date: Tue, 16 Oct 2018 23:13:43 +1000
-Message-Id: <20181016131343.20556-6-npiggin@gmail.com>
-In-Reply-To: <20181016131343.20556-1-npiggin@gmail.com>
-References: <20181016131343.20556-1-npiggin@gmail.com>
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C14806B026A
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 09:16:55 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id d34so16799887otb.10
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 06:16:55 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g12si4536896otl.218.2018.10.16.06.16.54
+        for <linux-mm@kvack.org>;
+        Tue, 16 Oct 2018 06:16:54 -0700 (PDT)
+Subject: Re: [PATCH] mm/thp: Correctly differentiate between mapped THP and
+ PMD migration entry
+References: <1539057538-27446-1-git-send-email-anshuman.khandual@arm.com>
+ <20181009130421.bmus632ocurn275u@kshutemo-mobl1>
+ <20181009131803.GH6248@arm.com>
+ <fb0ee5dd-5799-f5af-891a-992dd9a16a9f@arm.com>
+ <4bf3951d-410f-fac4-dfb2-7dee5568e6ff@linux.ibm.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <7e11e5b0-fad5-01fb-6b01-66bbd50b6a2e@arm.com>
+Date: Tue, 16 Oct 2018 18:46:48 +0530
+MIME-Version: 1.0
+In-Reply-To: <4bf3951d-410f-fac4-dfb2-7dee5568e6ff@linux.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nicholas Piggin <npiggin@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, ppc-dev <linuxppc-dev@lists.ozlabs.org>, Ley Foon Tan <ley.foon.tan@intel.com>
+To: "Aneesh Kumar K.V" <aneeshkumar.opensource@gmail.com>, Will Deacon <will.deacon@arm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, zi.yan@cs.rutgers.edu
 
-Similarly to the previous patch, this tries to optimise dirty/accessed
-bits in ptes to avoid access costs of hardware setting them.
 
-Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
----
- mm/huge_memory.c | 12 ++++++++----
- mm/memory.c      |  9 ++++++---
- 2 files changed, 14 insertions(+), 7 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 1f43265204d4..38c2cd3b4879 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1197,6 +1197,7 @@ static vm_fault_t do_huge_pmd_wp_page_fallback(struct vm_fault *vmf,
- 	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
- 		pte_t entry;
- 		entry = mk_pte(pages[i], vma->vm_page_prot);
-+		entry = pte_mkyoung(entry);
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
- 		memcg = (void *)page_private(pages[i]);
- 		set_page_private(pages[i], 0);
-@@ -2067,7 +2068,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 	struct page *page;
- 	pgtable_t pgtable;
- 	pmd_t old_pmd, _pmd;
--	bool young, write, soft_dirty, pmd_migration = false;
-+	bool young, write, dirty, soft_dirty, pmd_migration = false;
- 	unsigned long addr;
- 	int i;
- 
-@@ -2145,7 +2146,8 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 		page = pmd_page(old_pmd);
- 	VM_BUG_ON_PAGE(!page_count(page), page);
- 	page_ref_add(page, HPAGE_PMD_NR - 1);
--	if (pmd_dirty(old_pmd))
-+	dirty = pmd_dirty(old_pmd);
-+	if (dirty)
- 		SetPageDirty(page);
- 	write = pmd_write(old_pmd);
- 	young = pmd_young(old_pmd);
-@@ -2176,8 +2178,10 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 			entry = maybe_mkwrite(entry, vma);
- 			if (!write)
- 				entry = pte_wrprotect(entry);
--			if (!young)
--				entry = pte_mkold(entry);
-+			if (young)
-+				entry = pte_mkyoung(entry);
-+			if (dirty)
-+				entry = pte_mkdirty(entry);
- 			if (soft_dirty)
- 				entry = pte_mksoft_dirty(entry);
- 		}
-diff --git a/mm/memory.c b/mm/memory.c
-index 9e314339a0bd..f907ea7a6303 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1804,10 +1804,9 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 		entry = pte_mkspecial(pfn_t_pte(pfn, prot));
- 
- out_mkwrite:
--	if (mkwrite) {
--		entry = pte_mkyoung(entry);
-+	entry = pte_mkyoung(entry);
-+	if (mkwrite)
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
--	}
- 
- 	set_pte_at(mm, addr, pte, entry);
- 	update_mmu_cache(vma, addr, pte); /* XXX: why not for insert_page? */
-@@ -2534,6 +2533,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
- 		}
- 		flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
- 		entry = mk_pte(new_page, vma->vm_page_prot);
-+		entry = pte_mkyoung(entry);
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
- 		/*
- 		 * Clear the pte entry and flush it first, before updating the
-@@ -3043,6 +3043,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
- 	inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
- 	dec_mm_counter_fast(vma->vm_mm, MM_SWAPENTS);
- 	pte = mk_pte(page, vma->vm_page_prot);
-+	pte = pte_mkyoung(pte);
- 	if ((vmf->flags & FAULT_FLAG_WRITE) && reuse_swap_page(page, NULL)) {
- 		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
- 		vmf->flags &= ~FAULT_FLAG_WRITE;
-@@ -3185,6 +3186,7 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
- 	__SetPageUptodate(page);
- 
- 	entry = mk_pte(page, vma->vm_page_prot);
-+	entry = pte_mkyoung(entry);
- 	if (vma->vm_flags & VM_WRITE)
- 		entry = pte_mkwrite(pte_mkdirty(entry));
- 
-@@ -3453,6 +3455,7 @@ vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
- 
- 	flush_icache_page(vma, page);
- 	entry = mk_pte(page, vma->vm_page_prot);
-+	entry = pte_mkyoung(entry);
- 	if (write)
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
- 	/* copy-on-write page */
--- 
-2.18.0
+On 10/15/2018 02:02 PM, Aneesh Kumar K.V wrote:
+> On 10/12/18 1:32 PM, Anshuman Khandual wrote:
+>>
+>>
+>> On 10/09/2018 06:48 PM, Will Deacon wrote:
+>>> On Tue, Oct 09, 2018 at 04:04:21PM +0300, Kirill A. Shutemov wrote:
+>>>> On Tue, Oct 09, 2018 at 09:28:58AM +0530, Anshuman Khandual wrote:
+>>>>> A normal mapped THP page at PMD level should be correctly differentiated
+>>>>> from a PMD migration entry while walking the page table. A mapped THP would
+>>>>> additionally check positive for pmd_present() along with pmd_trans_huge()
+>>>>> as compared to a PMD migration entry. This just adds a new conditional test
+>>>>> differentiating the two while walking the page table.
+>>>>>
+>>>>> Fixes: 616b8371539a6 ("mm: thp: enable thp migration in generic path")
+>>>>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+>>>>> ---
+>>>>> On X86, pmd_trans_huge() and is_pmd_migration_entry() are always mutually
+>>>>> exclusive which makes the current conditional block work for both mapped
+>>>>> and migration entries. This is not same with arm64 where pmd_trans_huge()
+>>>>> returns positive for both mapped and migration entries. Could some one
+>>>>> please explain why pmd_trans_huge() has to return false for migration
+>>>>> entries which just install swap bits and its still a PMD ?
+>>>>
+>>>> I guess it's just a design choice. Any reason why arm64 cannot do the
+>>>> same?
+>>>
+>>> Anshuman, would it work to:
+>>>
+>>> #define pmd_trans_huge(pmd)A A A A  (pmd_present(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
+>> yeah this works but some how does not seem like the right thing to do
+>> but can be the very last option.
+>>
+> 
+> 
+> There can be other code paths that makes that assumption. I ended up doing the below for pmd_trans_huge on ppc64.
+>
+
+Yeah, did see that in one of the previous proposals.
+
+https://patchwork.kernel.org/patch/10544291/
+
+But the existing semantics does not look right and makes vague assumptions.
+Zi Yan has already asked Andrea for his input in this regard on the next
+thread. So I guess while being here, its a good idea to revisit existing
+semantics and it's assumptions before fixing it in arch specific helpers.
+
+- Anshuman 
+
+
+> /*
+> A * Only returns true for a THP. False for pmd migration entry.
+> A * We also need to return true when we come across a pte that
+> A * in between a thp split. While splitting THP, we mark the pmd
+> A * invalid (pmdp_invalidate()) before we set it with pte page
+> A * address. A pmd_trans_huge() check against a pmd entry during that time
+> A * should return true.
+> A * We should not call this on a hugetlb entry. We should check for HugeTLB
+> A * entry using vma->vm_flags
+> A * The page table walk rule is explained in Documentation/vm/transhuge.rst
+> A */
+> static inline int pmd_trans_huge(pmd_t pmd)
+> {
+> A A A A if (!pmd_present(pmd))
+> A A A A A A A  return false;
+> 
+> A A A A if (radix_enabled())
+> A A A A A A A  return radix__pmd_trans_huge(pmd);
+> A A A A return hash__pmd_trans_huge(pmd);
+> }
+> 
+> -aneesh
+> 
