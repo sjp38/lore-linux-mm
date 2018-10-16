@@ -1,51 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CE90C6B0006
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 08:24:04 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id j11-v6so13088058edq.16
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 05:24:04 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f19-v6si9125028eje.41.2018.10.16.05.24.02
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DD9FC6B0007
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 08:35:15 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id j63-v6so13929908qte.13
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 05:35:15 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k30-v6si5251543qtd.180.2018.10.16.05.35.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Oct 2018 05:24:03 -0700 (PDT)
-Subject: Re: [patch] mm, page_alloc: set num_movable in move_freepages()
-References: <alpine.DEB.2.21.1810051355490.212229@chino.kir.corp.google.com>
- <20181005142143.30032b7a4fb9dc2b587a8c21@linux-foundation.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <31b62d5d-11f6-6a68-fa04-889c98b66d9b@suse.cz>
-Date: Tue, 16 Oct 2018 14:24:01 +0200
+        Tue, 16 Oct 2018 05:35:15 -0700 (PDT)
+From: Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
+References: <20181002100531.GC4135@quack2.suse.cz>
+	<x49woqqykgi.fsf@segfault.boston.devel.redhat.com>
+	<20181016082540.GA18918@quack2.suse.cz>
+Date: Tue, 16 Oct 2018 08:35:00 -0400
+In-Reply-To: <20181016082540.GA18918@quack2.suse.cz> (Jan Kara's message of
+	"Tue, 16 Oct 2018 10:25:40 +0200")
+Message-ID: <x49d0sahxxn.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20181005142143.30032b7a4fb9dc2b587a8c21@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-On 10/5/18 11:21 PM, Andrew Morton wrote:
-> On Fri, 5 Oct 2018 13:56:39 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
-> 
->> If move_freepages() returns 0 because zone_spans_pfn(), *num_movable can
-> 
->      move_free_pages_block()?           !zone_spans_pfn()?
+Jan Kara <jack@suse.cz> writes:
 
-Also the subject would be more accurate if it said "initialize
-num_movable in move_freepages_block()" ?
+> Hi Jeff,
+>
+> On Tue 09-10-18 15:43:41, Jeff Moyer wrote:
+>> I'm intrigued by the use case.  Do I understand you correctly that the
+>> database in question does not intend to make data persistent from
+>> userspace?  In other words, fsync/msync system calls are being issued by
+>> the database?
+>
+> Yes, at least at the initial stage, they use fsync / msync to persist data.
 
-Otherwise,
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+OK.
 
->> hold the value from the stack because it does not get initialized in
->> move_freepages().
->>
->> Move the initialization to move_freepages_block() to guarantee the value
->> actually makes sense.
->>
->> This currently doesn't affect its only caller where num_movable != NULL,
->> so no bug fix, but just more robust.
->>
->> ...
-> 
+>> I guess what I'm really after is a statement of requirements or
+>> expectations.  It would be great if you could convince the database
+>> developer to engage in this discussion directly.
+>
+> So I talked to them and what they really look after is the control over the
+> amount of memory needed by the kernel. And they are right that if your
+> storage needs page cache, the amount of memory you need to set aside for the
+> kernel is larger.
+
+OK, thanks a lot for following up, Jan!
+
+-Jeff
