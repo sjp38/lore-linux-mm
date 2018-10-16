@@ -1,87 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 91FF56B0003
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 11:17:58 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id y201-v6so24209860qka.1
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 08:17:58 -0700 (PDT)
-Received: from a9-92.smtp-out.amazonses.com (a9-92.smtp-out.amazonses.com. [54.240.9.92])
-        by mx.google.com with ESMTPS id 42si5432459qvn.159.2018.10.16.08.17.57
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 519156B0003
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 12:26:29 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id o3-v6so18639972pll.7
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 09:26:29 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id w12-v6si14004683pld.166.2018.10.16.09.26.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 16 Oct 2018 08:17:57 -0700 (PDT)
-Date: Tue, 16 Oct 2018 15:17:56 +0000
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [patch] mm, slab: avoid high-order slab pages when it does not
- reduce waste
-In-Reply-To: <alpine.DEB.2.21.1810151715220.21338@chino.kir.corp.google.com>
-Message-ID: <010001667d7476a2-f91dcf12-5e90-4ade-97e8-9fd651f7bf17-000000@email.amazonses.com>
-References: <alpine.DEB.2.21.1810121424420.116562@chino.kir.corp.google.com> <20181012151341.286cd91321cdda9b6bde4de9@linux-foundation.org> <0100016679e3c96f-c78df4e2-9ab8-48db-8796-271c4b439f16-000000@email.amazonses.com>
- <alpine.DEB.2.21.1810151715220.21338@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Oct 2018 09:26:27 -0700 (PDT)
+Date: Tue, 16 Oct 2018 18:26:23 +0200
+From: Frederic Weisbecker <frederic@kernel.org>
+Subject: Re: [PATCH 0/2] mm/swap: Add locking for pagevec
+Message-ID: <20181016162622.GA12144@lerouge>
+References: <20180914145924.22055-1-bigeasy@linutronix.de>
+ <02dd6505-2ee5-c1c1-2603-b759bc90d479@suse.cz>
+ <20181015095048.GG5819@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181015095048.GG5819@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-mm@kvack.org, tglx@linutronix.de
 
-On Mon, 15 Oct 2018, David Rientjes wrote:
+On Mon, Oct 15, 2018 at 10:50:48AM +0100, Mel Gorman wrote:
+> On Fri, Oct 12, 2018 at 09:21:41AM +0200, Vlastimil Babka wrote:
+> > On 9/14/18 4:59 PM, Sebastian Andrzej Siewior wrote:
+> > I think this evaluation is missing the other side of the story, and
+> > that's the cost of using a spinlock (even uncontended) instead of
+> > disabling preemption. The expectation for LRU pagevec is that the local
+> > operations will be much more common than draining of other CPU's, so
+> > it's optimized for the former.
+> > 
+> 
+> Agreed, the drain operation should be extremely rare except under heavy
+> memory pressure, particularly if mixed with THP allocations. The overall
+> intent seems to be improving lockdep coverage but I don't think we
+> should take a hit in the common case just to get that coverage. Bear in
+> mind that the main point of the pagevec (whether it's true or not) is to
+> avoid the much heavier LRU lock.
 
-> On Mon, 15 Oct 2018, Christopher Lameter wrote:
->
-> > > > If the amount of waste is the same at higher cachep->gfporder values,
-> > > > there is no significant benefit to allocating higher order memory.  There
-> > > > will be fewer calls to the page allocator, but each call will require
-> > > > zone->lock and finding the page of best fit from the per-zone free areas.
-> >
-> > There is a benefit because the management overhead is halved.
-> >
->
-> It depends on (1) how difficult it is to allocate higher order memory and
-> (2) the long term affects of preferring high order memory over order 0.
+So indeed, if the only purpose of this patch were to make lockdep wiser,
+a pair of spin_lock_acquire() / spin_unlock_release() would be enough to
+teach it and would avoid the overhead.
 
-The overhead of the page allocator is orders of magnitudes bigger than
-slab allocation. Higher order may be faster because the pcp overhead is
-not there. It all depends. Please come up with some benchmarking to
-substantiate these ideas.
+Now another significant incentive behind this change is to improve CPU isolation.
+Workloads relying on owning the entire CPU without being disturbed are interested
+in this as it allows to offload some noise. It's no big deal for those who can
+tolerate rare events but often CPU isolation is combined with deterministic latency
+requirements.
 
->
-> For (1), slab has no minimum order fallback like slub does so the
-> allocation either succeeds at cachep->gfporder or it fails.  If memory
-> fragmentation is such that order-1 memory is not possible, this is fixing
-> an issue where the slab allocation would succeed but now fails
-> unnecessarily.  If that order-1 memory is painful to allocate, we've
-> reclaimed and compacted unnecessarily when order-0 pages are available
-> from the pcp list.
->
+So, I'm not saying this per-CPU spinlock is necessarily the right answer, I
+don't know that code enough to have an opinion, but I still wish we can find
+a solution.
 
-Ok that sounds good but the performance impact is still an issue. Also we
-agreed that the page allocator will provide allocations up to
-COSTLY_ORDER without too much fuss. Other system components may fail if
-these smaller order pages are not available.
-
-> > Have a benchmark that shows this?
-> >
->
-> I'm not necessarily approaching this from a performance point of view, but
-> rather as a means to reduce slab fragmentation when fallback to order-0
-> memory, especially when completely legitimate, is prohibited.  From a
-> performance standpoint, this will depend on separately on fragmentation
-> and contention on zone->lock which both don't exist for order-0 memory
-> until fallback is required and then the pcp are filled with up to
-> batchcount pages.
-
-Fragmentation is a performance issue and causes degradation of Linux MM
-performance over time.  There are pretty complex mechanism that need to be
-played against one another.
-
-Come up with some metrics to get meaningful data that allows us to see the
-impact.
-
-I think what would be beneficial to have is a load that gradually
-degrade as another process causes fragmentation. Any patch like the one
-proposed should have an effect on the degree of fragmentation after a
-certain time.
-
-Having something like that could lead to a whole serial of optimizations.
-Ideally we would like to have a MM subsystem that does not degrade as
-today.
+Thanks.
