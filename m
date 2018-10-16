@@ -1,112 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EEBA06B0003
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 20:39:28 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id t10-v6so1411701plh.14
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 17:39:28 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h4-v6sor2852730plk.55.2018.10.15.17.39.27
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D8EF6B0006
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2018 20:55:39 -0400 (EDT)
+Received: by mail-it1-f200.google.com with SMTP id i15-v6so20871122itb.0
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2018 17:55:39 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id w133-v6si8977031itf.106.2018.10.15.17.55.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 15 Oct 2018 17:39:27 -0700 (PDT)
-Date: Mon, 15 Oct 2018 17:39:24 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, slab: avoid high-order slab pages when it does not
- reduce waste
-In-Reply-To: <0100016679e3c96f-c78df4e2-9ab8-48db-8796-271c4b439f16-000000@email.amazonses.com>
-Message-ID: <alpine.DEB.2.21.1810151715220.21338@chino.kir.corp.google.com>
-References: <alpine.DEB.2.21.1810121424420.116562@chino.kir.corp.google.com> <20181012151341.286cd91321cdda9b6bde4de9@linux-foundation.org> <0100016679e3c96f-c78df4e2-9ab8-48db-8796-271c4b439f16-000000@email.amazonses.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 Oct 2018 17:55:37 -0700 (PDT)
+Message-Id: <201810160055.w9G0t62E045154@www262.sakura.ne.jp>
+Subject: Re: [RFC PATCH] memcg, oom: throttle =?ISO-2022-JP?B?ZHVtcF9oZWFkZXIgZm9y?=
+ =?ISO-2022-JP?B?IG1lbWNnIG9vbXMgd2l0aG91dCBlbGlnaWJsZSB0YXNrcw==?=
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Tue, 16 Oct 2018 09:55:06 +0900
+References: <6c0a57b3-bfd4-d832-b0bd-5dd3bcae460e@i-love.sakura.ne.jp> <20181015133524.GM18839@dhcp22.suse.cz>
+In-Reply-To: <20181015133524.GM18839@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>
 
-On Mon, 15 Oct 2018, Christopher Lameter wrote:
-
-> > > If the amount of waste is the same at higher cachep->gfporder values,
-> > > there is no significant benefit to allocating higher order memory.  There
-> > > will be fewer calls to the page allocator, but each call will require
-> > > zone->lock and finding the page of best fit from the per-zone free areas.
+On 2018/10/15 22:35, Michal Hocko wrote:
+>> Nobody can prove that it never kills some machine. This is just one example result of
+>> one example stress tried in my environment. Since I am secure programming man from security
+>> subsystem, I really hate your "Can you trigger it?" resistance. Since this is OOM path
+>> where nobody tests, starting from being prepared for the worst case keeps things simple.
 > 
-> There is a benefit because the management overhead is halved.
+> There is simply no way to be generally safe this kind of situation. As
+> soon as your console is so slow that you cannot push the oom report
+> through there is only one single option left and that is to disable the
+> oom report altogether. And that might be a viable option.
+
+There is a way to be safe this kind of situation. The way is to make sure that printk()
+is called with enough interval. That is, count the interval between the end of previous
+printk() messages and the beginning of next printk() messages.
+
+And you are misunderstanding my patch. Although my patch does not ratelimit the first
+occurrence of memcg OOM in each memcg domain (because the first
+
+ 		dump_header(oc, NULL);
+ 		pr_warn("Out of memory and no killable processes...\n");
+
+output is usually a useful information to get) which is serialized by oom_lock mutex,
+my patch cannot cause lockup because my patch ratelimits subsequent outputs in any
+memcg domain. That is, my patch might cause
+
+  "** %u printk messages dropped **\n"
+
+when we have hundreds of different memcgs triggering this path around the same time,
+my patch refrains from "keep disturbing administrator's manual recovery operation from
+console by printing
+
+  "%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=%*pbl, order=%d, oom_score_adj=%hd\n"
+  "Out of memory and no killable processes...\n"
+
+on each page fault event from hundreds of different memcgs triggering this path".
+
+There is no need to print
+
+  "%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=%*pbl, order=%d, oom_score_adj=%hd\n"
+  "Out of memory and no killable processes...\n"
+
+lines on evey page fault event. A kernel which consumes multiple milliseconds on each page
+fault event (due to printk() messages from the defunctional OOM killer) is stupid.
+
+>                                                           But fiddling
+> with per memcg limit is not going to fly. Just realize what will happen
+> if you have hundreds of different memcgs triggering this path around the
+> same time.
+
+You have just said that "No killable process should be a rare event which
+requires a seriously misconfigured memcg to happen so wildly." and now you
+refer to a very bad case "Just realize what will happen if you have hundreds
+of different memcgs triggering this path around the same time." which makes
+your former comment suspicious.
+
 > 
-
-It depends on (1) how difficult it is to allocate higher order memory and 
-(2) the long term affects of preferring high order memory over order 0.
-
-For (1), slab has no minimum order fallback like slub does so the 
-allocation either succeeds at cachep->gfporder or it fails.  If memory 
-fragmentation is such that order-1 memory is not possible, this is fixing 
-an issue where the slab allocation would succeed but now fails 
-unnecessarily.  If that order-1 memory is painful to allocate, we've 
-reclaimed and compacted unnecessarily when order-0 pages are available 
-from the pcp list.
-
-For (2), high-order slab allocations increase fragmentation of the zone 
-under memory pressure.  If the per-zone free area is void of 
-MIGRATE_UNMOVABLE pageblocks such that it must fallback, which it is under 
-memory pressure, these order-1 pages can be returned from pageblocks that 
-are filled with movable memory, or otherwise free.  This ends up making 
-hugepages difficult to allocate from (to the extent where 1.5GB of slab on 
-a node is spread over 100GB of pageblocks).  This occurs even though there 
-may be MIGRATE_UNMOVABLE pages available on pcp lists.  Using this patch, 
-it is possible to backfill the pcp list up to the batchcount with 
-MIGRATE_UNMOVABLE order-0 pages that we can subsequently allocate and 
-free to, which turns out to be optimized for caches like TCPv6 that result 
-in both faster page allocation and less slab fragmentation.
-
-> > > Instead, it is better to allocate order-0 memory if possible so that pages
-> > > can be returned from the per-cpu pagesets (pcp).
-> 
-> Have a benchmark that shows this?
-> 
-
-I'm not necessarily approaching this from a performance point of view, but 
-rather as a means to reduce slab fragmentation when fallback to order-0 
-memory, especially when completely legitimate, is prohibited.  From a 
-performance standpoint, this will depend on separately on fragmentation 
-and contention on zone->lock which both don't exist for order-0 memory 
-until fallback is required and then the pcp are filled with up to 
-batchcount pages.
-
-> >
-> > > There are two reasons to prefer this over allocating high order memory:
-> > >
-> > >  - allocating from the pcp lists does not require a per-zone lock, and
-> > >
-> > >  - this reduces stranding of MIGRATE_UNMOVABLE pageblocks on pcp lists
-> > >    that increases slab fragmentation across a zone.
-> 
-> The slab allocators generally buffer pages from the page allocator to
-> avoid this effect given the slowness of page allocator operations anyways.
-> 
-
-It is possible to buffer the same number of pages once they are allocated, 
-absent memory pressure, and does not require high-order memory.  This 
-seems like a separate issue.
-
-> > > We are particularly interested in the second point to eliminate cases
-> > > where all other pages on a pageblock are movable (or free) and fallback to
-> > > pageblocks of other migratetypes from the per-zone free areas causes
-> > > high-order slab memory to be allocated from them rather than from free
-> > > MIGRATE_UNMOVABLE pages on the pcp.
-> 
-> Well does this actually do some good?
+> So can you start being reasonable and try to look at a wider picture
+> finally please?
 > 
 
-Examining pageblocks via tools/vm/page-types under memory pressure that 
-show all B (buddy) and UlAMab (anon mapped) pages and then a single 
-order-1 S (slab) page would suggest that the pageblock would not be 
-exempted from ever being allocated for a hugepage until the slab is 
-completely freed (indeterminate amount of time) if there are any pages on 
-the MIGRATE_UNMOVABLE pcp list.
+Honestly, I can't look at a wider picture because I have never been shown a picture from you.
+What we are doing is endless loop of "let's do ... because ..." and "hmm, our assumption
+was wrong because ..."; that is, making changes without firstly considering the worst case.
+For example, OOM victims which David Rientjes is complaining is that our assumption that
+"__oom_reap_task_mm() can reclaim majority of memory" was wrong. (And your proposal to
+hand over is getting no response.) For another example, __set_oom_adj() which Yong-Taek Lee
+is trying to optimize is that our assumption that "we already succeeded enforcing same
+oom_score_adj among multiple thread groups" was wrong. For yet another example,
+CVE-2018-1000200 and CVE-2016-10723 are caused by ignoring my concern. And funny thing
+is that you negated the rationale of "mm, oom: remove sleep from under oom_lock" by
+"mm, oom: remove oom_lock from oom_reaper" after only 4 days...
 
-This change is eliminating the exemption from allocating from unmovable 
-pages that are readily available instead of preferring to expensively 
-allocate order-1 with no reduction in waste.
+Anyway, I'm OK if we apply _BOTH_ your patch and my patch. Or I'm OK with simplified
+one shown below (because you don't like per memcg limit).
 
-For users of slab_max_order, which we are not for obvious reasons, I can 
-change this to only consider when testing gfporder == 0 since that 
-logically makes sense if you prefer.
+---
+ mm/oom_kill.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index f10aa53..9056f9b 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -1106,6 +1106,11 @@ bool out_of_memory(struct oom_control *oc)
+ 	select_bad_process(oc);
+ 	/* Found nothing?!?! */
+ 	if (!oc->chosen) {
++		static unsigned long last_warned;
++
++		if ((is_sysrq_oom(oc) || is_memcg_oom(oc)) &&
++		    time_in_range(jiffies, last_warned, last_warned + 60 * HZ))
++			return false;
+ 		dump_header(oc, NULL);
+ 		pr_warn("Out of memory and no killable processes...\n");
+ 		/*
+@@ -1115,6 +1120,7 @@ bool out_of_memory(struct oom_control *oc)
+ 		 */
+ 		if (!is_sysrq_oom(oc) && !is_memcg_oom(oc))
+ 			panic("System is deadlocked on memory\n");
++		last_warned = jiffies;
+ 	}
+ 	if (oc->chosen && oc->chosen != (void *)-1UL)
+ 		oom_kill_process(oc, !is_memcg_oom(oc) ? "Out of memory" :
+-- 
+1.8.3.1
