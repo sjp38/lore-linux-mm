@@ -1,75 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 19D4A6B0003
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 05:20:48 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id c28-v6so9362127pfe.4
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 02:20:48 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ay8-v6si13079753plb.235.2018.10.16.02.20.46
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 10B5C6B0006
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 05:34:26 -0400 (EDT)
+Received: by mail-lj1-f200.google.com with SMTP id h7-v6so6265296ljc.15
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 02:34:25 -0700 (PDT)
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id c18-v6si11079475lja.167.2018.10.16.02.34.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Oct 2018 02:20:47 -0700 (PDT)
-Date: Tue, 16 Oct 2018 11:20:43 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] memcg, oom: throttle dump_header for memcg ooms
- without eligible tasks
-Message-ID: <20181016092043.GP18839@dhcp22.suse.cz>
-References: <6c0a57b3-bfd4-d832-b0bd-5dd3bcae460e@i-love.sakura.ne.jp>
- <20181015133524.GM18839@dhcp22.suse.cz>
- <201810160055.w9G0t62E045154@www262.sakura.ne.jp>
+        Tue, 16 Oct 2018 02:34:23 -0700 (PDT)
+Subject: Re: [PATCH RFC] ksm: Assist buddy allocator to assemble 1-order pages
+References: <153925511661.21256.9692370932417728663.stgit@localhost.localdomain>
+ <20181015154112.6bj5p4zuxjtz43pd@kshutemo-mobl1>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <0b0a81c4-d0b3-99f4-6910-10b757732825@virtuozzo.com>
+Date: Tue, 16 Oct 2018 12:34:11 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201810160055.w9G0t62E045154@www262.sakura.ne.jp>
+In-Reply-To: <20181015154112.6bj5p4zuxjtz43pd@kshutemo-mobl1>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, andriy.shevchenko@linux.intel.com, mhocko@suse.com, rppt@linux.vnet.ibm.com, imbrenda@linux.vnet.ibm.com, corbet@lwn.net, ndesaulniers@google.com, dave.jiang@intel.com, jglisse@redhat.com, jia.he@hxt-semitech.com, paulmck@linux.vnet.ibm.com, colin.king@canonical.com, jiang.biao2@zte.com.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 16-10-18 09:55:06, Tetsuo Handa wrote:
-> On 2018/10/15 22:35, Michal Hocko wrote:
-> >> Nobody can prove that it never kills some machine. This is just one example result of
-> >> one example stress tried in my environment. Since I am secure programming man from security
-> >> subsystem, I really hate your "Can you trigger it?" resistance. Since this is OOM path
-> >> where nobody tests, starting from being prepared for the worst case keeps things simple.
-> > 
-> > There is simply no way to be generally safe this kind of situation. As
-> > soon as your console is so slow that you cannot push the oom report
-> > through there is only one single option left and that is to disable the
-> > oom report altogether. And that might be a viable option.
+On 15.10.2018 18:41, Kirill A. Shutemov wrote:
+> On Thu, Oct 11, 2018 at 01:52:22PM +0300, Kirill Tkhai wrote:
+>> try_to_merge_two_pages() merges two pages, one of them
+>> is a page of currently scanned mm, the second is a page
+>> with identical hash from unstable tree. Currently, we
+>> merge the page from unstable tree into the first one,
+>> and then free it.
+>>
+>> The idea of this patch is to prefer freeing that page
+>> of them, which has a free neighbour (i.e., neighbour
+>> with zero page_count()). This allows buddy allocator
+>> to assemble at least 1-order set from the freed page
+>> and its neighbour; this is a kind of cheep passive
+>> compaction.
+>>
+>> AFAIK, 1-order pages set consists of pages with PFNs
+>> [2n, 2n+1] (odd, even), so the neighbour's pfn is
+>> calculated via XOR with 1. We check the result pfn
+>> is valid and its page_count(), and prefer merging
+>> into @tree_page if neighbour's usage count is zero.
+>>
+>> There a is small difference with current behavior
+>> in case of error path. In case of the second
+>> try_to_merge_with_ksm_page() is failed, we return
+>> from try_to_merge_two_pages() with @tree_page
+>> removed from unstable tree. It does not seem to matter,
+>> but if we do not want a change at all, it's not
+>> a problem to move remove_rmap_item_from_tree() from
+>> try_to_merge_with_ksm_page() to its callers.
+>>
+>> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+>> ---
+>>  mm/ksm.c |   15 +++++++++++++++
+>>  1 file changed, 15 insertions(+)
+>>
+>> diff --git a/mm/ksm.c b/mm/ksm.c
+>> index 5b0894b45ee5..b83ca37e28f0 100644
+>> --- a/mm/ksm.c
+>> +++ b/mm/ksm.c
+>> @@ -1321,6 +1321,21 @@ static struct page *try_to_merge_two_pages(struct rmap_item *rmap_item,
+>>  {
+>>  	int err;
+>>  
+>> +	if (IS_ENABLED(CONFIG_COMPACTION)) {
+>> +		unsigned long pfn;
+>> +		/*
+>> +		 * Find neighbour of @page containing 1-order pair
+>> +		 * in buddy-allocator and check whether it is free.
 > 
-> There is a way to be safe this kind of situation. The way is to make sure that printk()
-> is called with enough interval. That is, count the interval between the end of previous
-> printk() messages and the beginning of next printk() messages.
+> You cannot really check if the page is free. There are some paths that
+> makes the refcount zero temporarely, but doesn't free the page.
+> See page_ref_freeze() for instance.
 
-You are simply wrong. Because any interval is meaningless without
-knowing the printk throughput.
+Thanks. Does this look better?
 
-[...]
-
-> lines on evey page fault event. A kernel which consumes multiple milliseconds on each page
-> fault event (due to printk() messages from the defunctional OOM killer) is stupid.
-
-Not if it represent an unusual situation where there is no eligible
-task available. Because this is an exceptional case where the cost of
-the printk is simply not relevant.
-
-[...]
-
-I am sorry to skip large part of your message but this discussion, like
-many others, doesn't lead anywhere. You simply refuse to understand
-some of the core assumptions in this area.
-
-> Anyway, I'm OK if we apply _BOTH_ your patch and my patch. Or I'm OK with simplified
-> one shown below (because you don't like per memcg limit).
-
-My patch is adding a rate-limit! I really fail to see why we need yet
-another one on top of it. This is just ridiculous. I can see reasons to
-tune that rate limit but adding 2 different mechanisms is just wrong.
-
-If your NAK to unify the ratelimit for dump_header for all paths
-still holds then I do not care too much to push it forward. But I find
-thiis way of the review feedback counter productive.
--- 
-Michal Hocko
-SUSE Labs
+  Find neighbour of @page containing 1-order pair in buddy-allocator
+  and check whether its count is 0. If it is so, we consider it's as free
+  (this is more probable than it's freezed via page_ref_freeze()),
+  and we try to use @tree_page as ksm page and to free @page.
+ 
+> It should be fine for the use case, but comment should state that we
+> speculate about page usage, not having definetive answer.
+> 
+> [ I don't know enough about KSM to ack the patch in general, but it looks
+> fine to me at the first glance.]
+> 
+>> +		 * If it is so, try to use @tree_page as ksm page
+>> +		 * and to free @page.
+>> +		 */
+>> +		pfn = (page_to_pfn(page) ^ 1);
+>> +		if (pfn_valid(pfn) && page_count(pfn_to_page(pfn)) == 0) {
+>> +			swap(rmap_item, tree_rmap_item);
+>> +			swap(page, tree_page);
+>> +		}
+>> +	}
+>> +
+>>  	err = try_to_merge_with_ksm_page(rmap_item, page, NULL);
+>>  	if (!err) {
+>>  		err = try_to_merge_with_ksm_page(tree_rmap_item,
+>>
+> 
