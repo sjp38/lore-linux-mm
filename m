@@ -1,57 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DD9BB6B0008
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 07:12:32 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id x10-v6so14020676edx.9
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 04:12:32 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 8978D6B0003
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 07:17:10 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id h48-v6so13737482edh.22
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 04:17:10 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i1-v6si8585361ejf.66.2018.10.16.04.12.31
+        by mx.google.com with ESMTPS id h15-v6si4255520ejq.203.2018.10.16.04.17.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Oct 2018 04:12:31 -0700 (PDT)
-Date: Tue, 16 Oct 2018 13:12:30 +0200
+        Tue, 16 Oct 2018 04:17:09 -0700 (PDT)
+Date: Tue, 16 Oct 2018 13:17:07 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v4 1/3] mm: Shuffle initial free memory
-Message-ID: <20181016111230.GR18839@dhcp22.suse.cz>
-References: <153922180166.838512.8260339805733812034.stgit@dwillia2-desk3.amr.corp.intel.com>
- <153922180696.838512.12621709717839260874.stgit@dwillia2-desk3.amr.corp.intel.com>
- <CAGXu5j+PStxYhiJaWM-mt4+WWbS_WAfvyHoyZYD5ndDLN2SY6w@mail.gmail.com>
+Subject: Re: [RFC PATCH] memcg, oom: throttle dump_header for memcg ooms
+ without eligible tasks
+Message-ID: <20181016111707.GS18839@dhcp22.suse.cz>
+References: <6c0a57b3-bfd4-d832-b0bd-5dd3bcae460e@i-love.sakura.ne.jp>
+ <20181015133524.GM18839@dhcp22.suse.cz>
+ <201810160055.w9G0t62E045154@www262.sakura.ne.jp>
+ <20181016092043.GP18839@dhcp22.suse.cz>
+ <59b9bd23-ff75-0488-fd96-68ee7f049d00@i-love.sakura.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAGXu5j+PStxYhiJaWM-mt4+WWbS_WAfvyHoyZYD5ndDLN2SY6w@mail.gmail.com>
+In-Reply-To: <59b9bd23-ff75-0488-fd96-68ee7f049d00@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>
 
-On Mon 15-10-18 15:25:47, Kees Cook wrote:
-> On Wed, Oct 10, 2018 at 6:36 PM, Dan Williams <dan.j.williams@intel.com> wrote:
-> > While SLAB_FREELIST_RANDOM reduces the predictability of some local slab
-> > caches it leaves vast bulk of memory to be predictably in order
-> > allocated. That ordering can be detected by a memory side-cache.
-> >
-> > The shuffling is done in terms of CONFIG_SHUFFLE_PAGE_ORDER sized free
-> > pages where the default CONFIG_SHUFFLE_PAGE_ORDER is MAX_ORDER-1 i.e.
-> > 10, 4MB this trades off randomization granularity for time spent
-> > shuffling.  MAX_ORDER-1 was chosen to be minimally invasive to the page
-> > allocator while still showing memory-side cache behavior improvements,
-> > and the expectation that the security implications of finer granularity
-> > randomization is mitigated by CONFIG_SLAB_FREELIST_RANDOM.
+On Tue 16-10-18 20:05:47, Tetsuo Handa wrote:
+> On 2018/10/16 18:20, Michal Hocko wrote:
+> >> Anyway, I'm OK if we apply _BOTH_ your patch and my patch. Or I'm OK with simplified
+> >> one shown below (because you don't like per memcg limit).
+> > 
+> > My patch is adding a rate-limit! I really fail to see why we need yet
+> > another one on top of it. This is just ridiculous. I can see reasons to
+> > tune that rate limit but adding 2 different mechanisms is just wrong.
+> > 
+> > If your NAK to unify the ratelimit for dump_header for all paths
+> > still holds then I do not care too much to push it forward. But I find
+> > thiis way of the review feedback counter productive.
+> > 
 > 
-> Perhaps it would help some of the detractors of this feature to make
-> this a runtime choice? Some benchmarks show improvements, some show
-> regressions. It could just be up to the admin to turn this on/off
-> given their paranoia levels? (i.e. the shuffling could become a no-op
-> with a given specific boot param?)
+> Your patch is _NOT_ adding a rate-limit for
+> 
+>   "%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=%*pbl, order=%d, oom_score_adj=%hd\n"
+>   "Out of memory and no killable processes...\n"
+> 
+> lines!
 
-Sure, making this a opt-in is really necessary but it would be even
-_better_ to actually evaluate how much security relevance it has as
-well. If for nothing else then to allow an educated decision rather than
-a fear driven one. And that pretty much involves evaluation on how hard
-it is to bypass the randomness. If I am going to pay some overhead I
-would like to know how much hardening I get in return, right? Something
-completely missing in the current evaluation so far.
+And I've said I do not have objections to have an _incremental_ patch to
+move the ratelimit up with a clear cost/benefit evaluation.
 -- 
 Michal Hocko
 SUSE Labs
