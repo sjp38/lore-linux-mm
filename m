@@ -1,93 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CA006B0006
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 09:54:08 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id r16-v6so17058037pgv.17
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 06:54:08 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g3-v6si14061978pgj.74.2018.10.16.06.54.06
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CF556B0008
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 09:59:57 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id b13-v6so14165895edb.1
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 06:59:57 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cd14-v6si8660528ejb.135.2018.10.16.06.59.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 16 Oct 2018 06:54:06 -0700 (PDT)
-Date: Tue, 16 Oct 2018 06:54:04 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC PATCH] mm: add a vma to vmacache when addr overlaps the vma
- range
-Message-ID: <20181016135404.GA13818@bombadil.infradead.org>
-References: <20181016134712.18123-1-richard.weiyang@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Oct 2018 06:59:55 -0700 (PDT)
+Subject: Re: [PATCH v2] mm: don't warn about large allocations for slab
+References: <20180927171502.226522-1-dvyukov@gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <12881182-2459-910a-8f3a-04b3e85f08b6@suse.cz>
+Date: Tue, 16 Oct 2018 15:59:52 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181016134712.18123-1-richard.weiyang@gmail.com>
+In-Reply-To: <20180927171502.226522-1-dvyukov@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com, linux-mm@kvack.org
+To: Dmitry Vyukov <dvyukov@gmail.com>, cl@linux.com, penberg@kernel.org, akpm@linux-foundation.org, rientjes@google.com, iamjoonsoo.kim@lge.com
+Cc: Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Oct 16, 2018 at 09:47:12PM +0800, Wei Yang wrote:
-> Based on my understanding, this change would put more accurate vma entry in the
-> cache, which means reduce unnecessary vmacache update and vmacache find.
+On 9/27/18 7:15 PM, Dmitry Vyukov wrote:
+> From: Dmitry Vyukov <dvyukov@google.com>
 > 
-> But the test result is not as expected. From the original changelog, I don't
-> see the explanation to add this non-overlap entry into the vmacache, so
-> curious about why this performs a little better than putting an overlapped
-> entry.
+> Slub does not call kmalloc_slab() for sizes > KMALLOC_MAX_CACHE_SIZE,
+> instead it falls back to kmalloc_large().
+> For slab KMALLOC_MAX_CACHE_SIZE == KMALLOC_MAX_SIZE and it calls
+> kmalloc_slab() for all allocations relying on NULL return value
+> for over-sized allocations.
+> This inconsistency leads to unwanted warnings from kmalloc_slab()
+> for over-sized allocations for slab. Returning NULL for failed
+> allocations is the expected behavior.
+> 
+> Make slub and slab code consistent by checking size >
+> KMALLOC_MAX_CACHE_SIZE in slab before calling kmalloc_slab().
+> 
+> While we are here also fix the check in kmalloc_slab().
+> We should check against KMALLOC_MAX_CACHE_SIZE rather than
+> KMALLOC_MAX_SIZE. It all kinda worked because for slab the
+> constants are the same, and slub always checks the size against
+> KMALLOC_MAX_CACHE_SIZE before kmalloc_slab().
+> But if we get there with size > KMALLOC_MAX_CACHE_SIZE anyhow
+> bad things will happen. For example, in case of a newly introduced
+> bug in slub code.
+> 
+> Also move the check in kmalloc_slab() from function entry
+> to the size > 192 case. This partially compensates for the additional
+> check in slab code and makes slub code a bit faster
+> (at least theoretically).
+> 
+> Also drop __GFP_NOWARN in the warning check.
+> This warning means a bug in slab code itself,
+> user-passed flags have nothing to do with it.
+> 
+> Nothing of this affects slob.
+> 
+> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
+> Reported-by: syzbot+87829a10073277282ad1@syzkaller.appspotmail.com
+> Reported-by: syzbot+ef4e8fc3a06e9019bb40@syzkaller.appspotmail.com
+> Reported-by: syzbot+6e438f4036df52cbb863@syzkaller.appspotmail.com
+> Reported-by: syzbot+8574471d8734457d98aa@syzkaller.appspotmail.com
+> Reported-by: syzbot+af1504df0807a083dbd9@syzkaller.appspotmail.com
 
-What makes you think this performs any differently for this test-case?
-The numbers all seem to fall within a "reasonable variation" range to me.
-You're going to need to do some statistics (with a much larger sample
-size) to know whether there's any difference at all.
-
-> Below is the test result for building kernel in two cases:
-> 
->          make -j4                   make -j8
-> base-line:
-> 
-> real    6m15.947s          real    5m11.684s
-> user    21m14.481s         user    27m23.471s
-> sys     2m34.407s          sys     3m13.233s
-> 
-> real    6m16.089s          real    5m11.445s
-> user    21m18.295s         user    27m24.045s
-> sys     2m35.551s          sys     3m13.443s
-> 
-> real    6m16.239s          real    5m11.218s
-> user    21m17.590s         user    27m19.133s
-> sys     2m35.252s          sys     3m12.684s
-> 
-> patched:
-> 
-> real    6m15.416s          real    5m10.810s
-> user    21m21.800s         user    27m25.223s
-> sys     2m33.398s          sys     3m14.784s
-> 
-> real    6m15.114s          real    5m12.285s
-> user    21m19.986s         user    27m32.055s
-> sys     2m34.718s          sys     3m13.107s
-> 
-> 
-> real    6m16.206s          real    5m11.509s
-> user    21m22.557s         user    27m28.265s
-> sys     2m35.637s          sys     3m12.747s
-> 
-> 
-> ---
->  mm/mmap.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 2e0daf666f42..dda495d84862 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2214,7 +2214,7 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
->  			rb_node = rb_node->rb_right;
->  	}
->  
-> -	if (vma)
-> +	if (vma && vma->vm_start <= addr)
->  		vmacache_update(addr, vma);
->  	return vma;
->  }
-> -- 
-> 2.15.1
-> 
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
