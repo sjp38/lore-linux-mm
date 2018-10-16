@@ -1,80 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CA476B0003
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 06:48:58 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id a12-v6so13559246eda.8
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 03:48:58 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gs15-v6si3790167ejb.59.2018.10.16.03.48.57
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 91E006B0006
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 07:06:23 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id y68-v6so15458365oie.21
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 04:06:23 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id w205-v6si6248949oif.130.2018.10.16.04.06.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Oct 2018 03:48:57 -0700 (PDT)
-Date: Tue, 16 Oct 2018 12:48:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, proc: report PR_SET_THP_DISABLE in proc
-Message-ID: <20181016104855.GQ18839@dhcp22.suse.cz>
-References: <alpine.DEB.2.21.1810021329260.87409@chino.kir.corp.google.com>
- <20181003073640.GF18290@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810031547150.202532@chino.kir.corp.google.com>
- <20181004055842.GA22173@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810040209130.113459@chino.kir.corp.google.com>
- <20181004094637.GG22173@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810041130380.12951@chino.kir.corp.google.com>
- <20181009083326.GG8528@dhcp22.suse.cz>
- <20181015150325.GN18839@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810151519250.247641@chino.kir.corp.google.com>
+        Tue, 16 Oct 2018 04:06:22 -0700 (PDT)
+Subject: Re: [RFC PATCH] memcg, oom: throttle dump_header for memcg ooms
+ without eligible tasks
+References: <6c0a57b3-bfd4-d832-b0bd-5dd3bcae460e@i-love.sakura.ne.jp>
+ <20181015133524.GM18839@dhcp22.suse.cz>
+ <201810160055.w9G0t62E045154@www262.sakura.ne.jp>
+ <20181016092043.GP18839@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <59b9bd23-ff75-0488-fd96-68ee7f049d00@i-love.sakura.ne.jp>
+Date: Tue, 16 Oct 2018 20:05:47 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1810151519250.247641@chino.kir.corp.google.com>
+In-Reply-To: <20181016092043.GP18839@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>
 
-On Mon 15-10-18 15:25:14, David Rientjes wrote:
-> On Mon, 15 Oct 2018, Michal Hocko wrote:
+On 2018/10/16 18:20, Michal Hocko wrote:
+>> Anyway, I'm OK if we apply _BOTH_ your patch and my patch. Or I'm OK with simplified
+>> one shown below (because you don't like per memcg limit).
 > 
-> > > > No, because the offending commit actually changed the precedence itself: 
-> > > > PR_SET_THP_DISABLE used to be honored for future mappings and the commit 
-> > > > changed that for all current mappings.
-> > > 
-> > > Which is the actual and the full point of the fix as described in the
-> > > changelog. The original implementation was poor and inconsistent.
-> > > 
-> > > > So as a result of the commit 
-> > > > itself we would have had to change the documentation and userspace can't 
-> > > > be expected to keep up with yet a fourth variable: kernel version.  It 
-> > > > really needs to be simpler, just a per-mapping specifier.
-> > > 
-> > > As I've said, if you really need a per-vma granularity then make it a
-> > > dedicated line in the output with a clear semantic. Do not make VMA
-> > > flags even more confusing.
-> > 
-> > Can we settle with something please?
+> My patch is adding a rate-limit! I really fail to see why we need yet
+> another one on top of it. This is just ridiculous. I can see reasons to
+> tune that rate limit but adding 2 different mechanisms is just wrong.
 > 
-> I don't understand the point of extending smaps with yet another line.  
+> If your NAK to unify the ratelimit for dump_header for all paths
+> still holds then I do not care too much to push it forward. But I find
+> thiis way of the review feedback counter productive.
+> 
 
-Because abusing a vma flag part is just wrong. What are you going to do
-when a next bug report states that the flag is set even though no
-userspace has set it and that leads to some malfunctioning? Can you rule
-that out? Even your abuse of the flag is surprising so why others
-wouldn't be?
+Your patch is _NOT_ adding a rate-limit for
 
-> The only way for a different process to determine if a single vma from 
-> another process is thp disabled is by the "nh" flag, so it is reasonable 
-> that userspace reads this.  My patch fixes that.  If smaps is extended 
-> with another line per your patch, it doesn't change the fact that previous 
-> binaries are built to check for "nh" so it does not deprecate that.  
-> ("THP_Enabled" is also ambiguous since it only refers to prctl and not the 
-> default thp setting or madvise.)
+  "%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=%*pbl, order=%d, oom_score_adj=%hd\n"
+  "Out of memory and no killable processes...\n"
 
-As I've said there are two things. Exporting PR_SET_THP_DISABLE to
-userspace so that a 3rd party process can query it. I've already
-explained why that might be useful. If you really insist on having
-a per-vma field then let's do it properly now. Are you going to agree on
-that? If yes, I am willing to spend my time on that but I am not going
-to bother if this will lead to "I want my vma field abuse anyway".
--- 
-Michal Hocko
-SUSE Labs
+lines!
+
+[   97.519229] Out of memory and no killable processes...
+[   97.522060] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.525507] Out of memory and no killable processes...
+[   97.528817] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.532345] Out of memory and no killable processes...
+[   97.534813] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.538270] Out of memory and no killable processes...
+[   97.541449] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.546268] Out of memory and no killable processes...
+[   97.548823] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.552399] Out of memory and no killable processes...
+[   97.554939] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.558616] Out of memory and no killable processes...
+[   97.562257] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.565998] Out of memory and no killable processes...
+[   97.568642] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.572169] Out of memory and no killable processes...
+[   97.575200] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.579357] Out of memory and no killable processes...
+[   97.581912] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.585414] Out of memory and no killable processes...
+[   97.589191] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.593586] Out of memory and no killable processes...
+[   97.596527] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.600118] Out of memory and no killable processes...
+[   97.603237] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.606837] Out of memory and no killable processes...
+[   97.611550] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.615244] Out of memory and no killable processes...
+[   97.617859] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.621634] Out of memory and no killable processes...
+[   97.624884] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.629256] Out of memory and no killable processes...
+[   97.631885] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.635367] Out of memory and no killable processes...
+[   97.638033] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.641827] Out of memory and no killable processes...
+[   97.641993] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.648453] Out of memory and no killable processes...
+[   97.651481] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.655082] Out of memory and no killable processes...
+[   97.657941] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.663036] Out of memory and no killable processes...
+[   97.665890] a.out invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=-1000
+[   97.669473] Out of memory and no killable processes...
+
+We don't need to print these lines every few milliseconds. Even if an exceptional case,
+this is a DoS for console users. Printing once (or a few times) per a minute will be
+enough. Otherwise, users cannot see what they are typing and what are printed.
