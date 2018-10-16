@@ -1,177 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 25C7F6B0266
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 04:56:08 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id b55-v6so24024880qtb.5
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 01:56:08 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j4-v6si1209401qtb.398.2018.10.16.01.56.06
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 19D4A6B0003
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2018 05:20:48 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id c28-v6so9362127pfe.4
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 02:20:48 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ay8-v6si13079753plb.235.2018.10.16.02.20.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Oct 2018 01:56:07 -0700 (PDT)
-Subject: Re: [PATCH 2/5] mm/memory_hotplug: Create add/del_device_memory
- functions
-References: <20181015153034.32203-1-osalvador@techadventures.net>
- <20181015153034.32203-3-osalvador@techadventures.net>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <d0a12eb5-3824-8d25-75f8-3e62f1e81994@redhat.com>
-Date: Tue, 16 Oct 2018 10:55:56 +0200
+        Tue, 16 Oct 2018 02:20:47 -0700 (PDT)
+Date: Tue, 16 Oct 2018 11:20:43 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] memcg, oom: throttle dump_header for memcg ooms
+ without eligible tasks
+Message-ID: <20181016092043.GP18839@dhcp22.suse.cz>
+References: <6c0a57b3-bfd4-d832-b0bd-5dd3bcae460e@i-love.sakura.ne.jp>
+ <20181015133524.GM18839@dhcp22.suse.cz>
+ <201810160055.w9G0t62E045154@www262.sakura.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20181015153034.32203-3-osalvador@techadventures.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201810160055.w9G0t62E045154@www262.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>, akpm@linux-foundation.org
-Cc: mhocko@suse.com, dan.j.williams@intel.com, yasu.isimatu@gmail.com, rppt@linux.vnet.ibm.com, malat@debian.org, linux-kernel@vger.kernel.org, pavel.tatashin@microsoft.com, jglisse@redhat.com, Jonathan.Cameron@huawei.com, rafael@kernel.org, dave.jiang@intel.com, linux-mm@kvack.org, alexander.h.duyck@linux.intel.com, Oscar Salvador <osalvador@suse.de>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>
 
-
-> index 42d79bcc8aab..d3e52ae71bd9 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -996,6 +996,7 @@ static void hmm_devmem_release(struct device *dev, void *data)
->  	struct zone *zone;
->  	struct page *page;
->  	int nid;
-> +	bool mapping;
->  
->  	if (percpu_ref_tryget_live(&devmem->ref)) {
->  		dev_WARN(dev, "%s: page mapping is still live!\n", __func__);
-> @@ -1010,12 +1011,15 @@ static void hmm_devmem_release(struct device *dev, void *data)
->  	zone = page_zone(page);
->  	nid = zone->zone_pgdat->node_id;
->  
-> -	mem_hotplug_begin();
->  	if (resource->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY)
-> -		__remove_pages(zone, start_pfn, npages, NULL);
-> +		mapping = false;
->  	else
-> -		arch_remove_memory(nid, start_pfn << PAGE_SHIFT,
-> -				   npages << PAGE_SHIFT, NULL);
-> +		mapping = true;
-> +
-> +	mem_hotplug_begin();
-> +	del_device_memory(nid, start_pfn << PAGE_SHIFT, npages << PAGE_SHIFT,
-> +								NULL,
-> +								mapping);
->  	mem_hotplug_done();
->  
->  	hmm_devmem_radix_release(resource);
-> @@ -1026,6 +1030,7 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
->  	resource_size_t key, align_start, align_size, align_end;
->  	struct device *device = devmem->device;
->  	int ret, nid, is_ram;
-> +	bool mapping;
->  
->  	align_start = devmem->resource->start & ~(PA_SECTION_SIZE - 1);
->  	align_size = ALIGN(devmem->resource->start +
-> @@ -1084,7 +1089,6 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
->  	if (nid < 0)
->  		nid = numa_mem_id();
->  
-> -	mem_hotplug_begin();
->  	/*
->  	 * For device private memory we call add_pages() as we only need to
->  	 * allocate and initialize struct page for the device memory. More-
-> @@ -1096,20 +1100,17 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
->  	 * want the linear mapping and thus use arch_add_memory().
->  	 */
-
-Some parts of this comment should be moved into add_device_memory now.
-(e.g. we call add_pages() ...)
-
->  	if (devmem->pagemap.type == MEMORY_DEVICE_PUBLIC)
-> -		ret = arch_add_memory(nid, align_start, align_size, NULL,
-> -				false);
-> +		mapping = true;
->  	else
-> -		ret = add_pages(nid, align_start >> PAGE_SHIFT,
-> -				align_size >> PAGE_SHIFT, NULL, false);
-> -	if (ret) {
-> -		mem_hotplug_done();
-> -		goto error_add_memory;
-> -	}
-> -	move_pfn_range_to_zone(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
-> -				align_start >> PAGE_SHIFT,
-> -				align_size >> PAGE_SHIFT, NULL);
-> +		mapping = false;
-> +
-> +	mem_hotplug_begin();
-> +	ret = add_device_memory(nid, align_start, align_size, NULL, mapping);
->  	mem_hotplug_done();
->  
-> +	if (ret)
-> +		goto error_add_memory;
-> +
->  	/*
->  	 * Initialization of the pages has been deferred until now in order
->  	 * to allow us to do the work while not holding the hotplug lock.
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 33d448314b3f..5874aceb81ac 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1889,4 +1889,45 @@ void remove_memory(int nid, u64 start, u64 size)
->  	unlock_device_hotplug();
->  }
->  EXPORT_SYMBOL_GPL(remove_memory);
-> +
-> +#ifdef CONFIG_ZONE_DEVICE
-> +int del_device_memory(int nid, unsigned long start, unsigned long size,
-> +				struct vmem_altmap *altmap, bool mapping)
-> +{
-> +	int ret;
-
-nit: personally I prefer short parameters last in the list.
-
-> +	unsigned long start_pfn = PHYS_PFN(start);
-> +	unsigned long nr_pages = size >> PAGE_SHIFT;
-> +	struct zone *zone = page_zone(pfn_to_page(pfn));
-> +
-> +	if (mapping)
-> +		ret = arch_remove_memory(nid, start, size, altmap);
-> +	else
-> +		ret = __remove_pages(zone, start_pfn, nr_pages, altmap);
-> +
-> +	return ret;
-> +}
-> +#endif
->  #endif /* CONFIG_MEMORY_HOTREMOVE */
-> +
-> +#ifdef CONFIG_ZONE_DEVICE
-> +int add_device_memory(int nid, unsigned long start, unsigned long size,
-> +				struct vmem_altmap *altmap, bool mapping)
-> +{
-> +	int ret;
-
-dito
-
-> +	unsigned long start_pfn = PHYS_PFN(start);
-> +	unsigned long nr_pages = size >> PAGE_SHIFT;
-> +
-> +	if (mapping)
-> +		ret = arch_add_memory(nid, start, size, altmap, false);
-> +	else
-> +		ret = add_pages(nid, start_pfn, nr_pages, altmap, false);
-> +
-> +	if (!ret) {
-> +		struct zone *zone = &NODE_DATA(nid)->node_zones[ZONE_DEVICE];
-> +
-> +		move_pfn_range_to_zone(zone, start_pfn, nr_pages, altmap);
-> +	}
-> +
-> +	return ret;
-> +}
-> +#endif
+On Tue 16-10-18 09:55:06, Tetsuo Handa wrote:
+> On 2018/10/15 22:35, Michal Hocko wrote:
+> >> Nobody can prove that it never kills some machine. This is just one example result of
+> >> one example stress tried in my environment. Since I am secure programming man from security
+> >> subsystem, I really hate your "Can you trigger it?" resistance. Since this is OOM path
+> >> where nobody tests, starting from being prepared for the worst case keeps things simple.
+> > 
+> > There is simply no way to be generally safe this kind of situation. As
+> > soon as your console is so slow that you cannot push the oom report
+> > through there is only one single option left and that is to disable the
+> > oom report altogether. And that might be a viable option.
 > 
+> There is a way to be safe this kind of situation. The way is to make sure that printk()
+> is called with enough interval. That is, count the interval between the end of previous
+> printk() messages and the beginning of next printk() messages.
 
-Can you document for both functions that they should be called with the
-memory hotplug lock in write?
+You are simply wrong. Because any interval is meaningless without
+knowing the printk throughput.
 
-Apart from that looks good to me.
+[...]
 
+> lines on evey page fault event. A kernel which consumes multiple milliseconds on each page
+> fault event (due to printk() messages from the defunctional OOM killer) is stupid.
+
+Not if it represent an unusual situation where there is no eligible
+task available. Because this is an exceptional case where the cost of
+the printk is simply not relevant.
+
+[...]
+
+I am sorry to skip large part of your message but this discussion, like
+many others, doesn't lead anywhere. You simply refuse to understand
+some of the core assumptions in this area.
+
+> Anyway, I'm OK if we apply _BOTH_ your patch and my patch. Or I'm OK with simplified
+> one shown below (because you don't like per memcg limit).
+
+My patch is adding a rate-limit! I really fail to see why we need yet
+another one on top of it. This is just ridiculous. I can see reasons to
+tune that rate limit but adding 2 different mechanisms is just wrong.
+
+If your NAK to unify the ratelimit for dump_header for all paths
+still holds then I do not care too much to push it forward. But I find
+thiis way of the review feedback counter productive.
 -- 
-
-Thanks,
-
-David / dhildenb
+Michal Hocko
+SUSE Labs
