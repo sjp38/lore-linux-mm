@@ -1,183 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DBDF66B0005
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 03:31:01 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id c1-v6so15987307eds.15
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 00:31:01 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id dt1-v6si9986419ejb.243.2018.10.17.00.30.59
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 26D386B0008
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 03:41:09 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id e7-v6so15664020edb.23
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 00:41:09 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h30-v6si673049edj.421.2018.10.17.00.41.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 00:31:00 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w9H7T8pq018219
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 03:30:58 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2n5yu6ajkw-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 03:30:58 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 17 Oct 2018 08:30:56 +0100
-Date: Wed, 17 Oct 2018 10:30:46 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: Re: [mm PATCH v3 1/6] mm: Use mm_zero_struct_page from SPARC on all
- 64b architectures
-References: <20181015202456.2171.88406.stgit@localhost.localdomain>
- <20181015202656.2171.92963.stgit@localhost.localdomain>
- <57c559f6-4858-7a52-7fbb-979caa08f240@gmail.com>
+        Wed, 17 Oct 2018 00:41:07 -0700 (PDT)
+Subject: Re: [PATCH 2/4] mm: speed up mremap by 500x on large regions (v2)
+References: <20181013013200.206928-1-joel@joelfernandes.org>
+ <20181013013200.206928-3-joel@joelfernandes.org>
+ <20181015094209.GA31999@infradead.org>
+ <20181015223303.GA164293@joelaf.mtv.corp.google.com>
+ <35b9c85a-b366-9ca3-5647-c2568c811961@suse.cz>
+ <20181016194313.GA247930@joelaf.mtv.corp.google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <80a7d851-51ca-2d81-1273-393d4f701bc4@suse.cz>
+Date: Wed, 17 Oct 2018 09:38:16 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <57c559f6-4858-7a52-7fbb-979caa08f240@gmail.com>
-Message-Id: <20181017073045.GA20004@rapoport-lnx>
+In-Reply-To: <20181016194313.GA247930@joelaf.mtv.corp.google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@gmail.com>
-Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>, linux-mm@kvack.org, akpm@linux-foundation.org, pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com, linux-kernel@vger.kernel.org, willy@infradead.org, davem@davemloft.net, yi.z.zhang@linux.intel.com, khalid.aziz@oracle.com, rppt@linux.vnet.ibm.com, vbabka@suse.cz, sparclinux@vger.kernel.org, dan.j.williams@intel.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mingo@kernel.org, kirill.shutemov@linux.intel.com
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, Rich Felker <dalias@libc.org>, linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon <will.deacon@arm.com>, mhocko@kernel.org, linux-mm@kvack.org, lokeshgidra@google.com, linux-riscv@lists.infradead.org, elfring@users.sourceforge.net, Jonas Bonn <jonas@southpole.se>, kvmarm@lists.cs.columbia.edu, dancol@google.com, Yoshinori Sato <ysato@users.sourceforge.jp>, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-hexagon@vger.kernel.org, Helge Deller <deller@gmx.de>, "maintainer:X86 ARCHITECTURE 32-BIT AND 64-BIT" <x86@kernel.org>, hughd@google.com, "James E.J. Bottomley" <jejb@parisc-linux.org>, kasan-dev@googlegroups.com, anton.ivanov@kot-begemot.co.uk, Ingo Molnar <mingo@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-snps-arc@lists.infradead.org, kernel-team@android.com, Sam Creasey <sammy@sammy.net>, Fenghua Yu <fenghua.yu@intel.com>, linux-s390@vger.kernel.org, Jeff Dike <jdike@addtoit.com>, linux-um@lists.infradead.org, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Julia Lawall <Julia.Lawall@lip6.fr>, linux-m68k@lists.linux-m68k.org, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, nios2-dev@lists.rocketboards.org, kirill@shutemov.name, Stafford Horne <shorne@gmail.com>, Guan Xuetao <gxt@pku.edu.cn>, Chris Zankel <chris@zankel.net>, Tony Luck <tony.luck@intel.com>, Richard Weinberger <richard@nod.at>, linux-parisc@vger.kernel.org, pantin@google.com, Max Filippov <jcmvbkbc@gmail.com>, minchan@kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-alpha@vger.kernel.org, Ley Foon Tan <lftan@altera.com>, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, "David S. Miller" <davem@davemloft.net>
 
-On Tue, Oct 16, 2018 at 03:01:11PM -0400, Pavel Tatashin wrote:
+On 10/16/18 9:43 PM, Joel Fernandes wrote:
+> On Tue, Oct 16, 2018 at 01:29:52PM +0200, Vlastimil Babka wrote:
+>> On 10/16/18 12:33 AM, Joel Fernandes wrote:
+>>> On Mon, Oct 15, 2018 at 02:42:09AM -0700, Christoph Hellwig wrote:
+>>>> On Fri, Oct 12, 2018 at 06:31:58PM -0700, Joel Fernandes (Google) wrote:
+>>>>> Android needs to mremap large regions of memory during memory management
+>>>>> related operations.
+>>>>
+>>>> Just curious: why?
+>>>
+>>> In Android we have a requirement of moving a large (up to a GB now, but may
+>>> grow bigger in future) memory range from one location to another.
+>>
+>> I think Christoph's "why?" was about the requirement, not why it hurts
+>> applications. I admit I'm now also curious :)
 > 
+> This issue was discovered when we wanted to be able to move the physical
+> pages of a memory range to another location quickly so that, after the
+> application threads are resumed, UFFDIO_REGISTER_MODE_MISSING userfaultfd
+> faults can be received on the original memory range. The actual operations
+> performed on the memory range are beyond the scope of this discussion. The
+> user threads continue to refer to the old address which will now fault. The
+> reason we want retain the old memory range and receives faults there is to
+> avoid the need to fix the addresses all over the address space of the threads
+> after we finish with performing operations on them in the fault handlers, so
+> we mremap it and receive faults at the old addresses.
 > 
-> On 10/15/18 4:26 PM, Alexander Duyck wrote:
-> > This change makes it so that we use the same approach that was already in
-> > use on Sparc on all the archtectures that support a 64b long.
-> > 
-> > This is mostly motivated by the fact that 8 to 10 store/move instructions
-> > are likely always going to be faster than having to call into a function
-> > that is not specialized for handling page init.
-> > 
-> > An added advantage to doing it this way is that the compiler can get away
-> > with combining writes in the __init_single_page call. As a result the
-> > memset call will be reduced to only about 4 write operations, or at least
-> > that is what I am seeing with GCC 6.2 as the flags, LRU poitners, and
-> > count/mapcount seem to be cancelling out at least 4 of the 8 assignments on
-> > my system.
-> > 
-> > One change I had to make to the function was to reduce the minimum page
-> > size to 56 to support some powerpc64 configurations.
-> > 
-> > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> 
-> 
-> I have tested on Broadcom's Stingray cpu with 48G RAM:
-> __init_single_page() takes 19.30ns / 64-byte struct page
-> Wit the change it takes 17.33ns / 64-byte struct page
- 
-I gave it a run on an OpenPower (S812LC 8348-21C) with Power8 processor and
-with 128G of RAM. My results for 64-byte struct page were:
+> Does that answer your question?
 
-before: 4.6788ns
-after: 4.5882ns
+Yes, interesting, thanks!
 
-My two cents :)
+Vlastimil
 
-> Please add this data and also the data from Intel to the description.
+> thanks,
 > 
-> Thank you,
-> Pavel
+> - Joel
 > 
-> > ---
-> >  arch/sparc/include/asm/pgtable_64.h |   30 ------------------------------
-> >  include/linux/mm.h                  |   34 ++++++++++++++++++++++++++++++++++
-> >  2 files changed, 34 insertions(+), 30 deletions(-)
-> > 
-> > diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-> > index 1393a8ac596b..22500c3be7a9 100644
-> > --- a/arch/sparc/include/asm/pgtable_64.h
-> > +++ b/arch/sparc/include/asm/pgtable_64.h
-> > @@ -231,36 +231,6 @@
-> >  extern struct page *mem_map_zero;
-> >  #define ZERO_PAGE(vaddr)	(mem_map_zero)
-> >  
-> > -/* This macro must be updated when the size of struct page grows above 80
-> > - * or reduces below 64.
-> > - * The idea that compiler optimizes out switch() statement, and only
-> > - * leaves clrx instructions
-> > - */
-> > -#define	mm_zero_struct_page(pp) do {					\
-> > -	unsigned long *_pp = (void *)(pp);				\
-> > -									\
-> > -	 /* Check that struct page is either 64, 72, or 80 bytes */	\
-> > -	BUILD_BUG_ON(sizeof(struct page) & 7);				\
-> > -	BUILD_BUG_ON(sizeof(struct page) < 64);				\
-> > -	BUILD_BUG_ON(sizeof(struct page) > 80);				\
-> > -									\
-> > -	switch (sizeof(struct page)) {					\
-> > -	case 80:							\
-> > -		_pp[9] = 0;	/* fallthrough */			\
-> > -	case 72:							\
-> > -		_pp[8] = 0;	/* fallthrough */			\
-> > -	default:							\
-> > -		_pp[7] = 0;						\
-> > -		_pp[6] = 0;						\
-> > -		_pp[5] = 0;						\
-> > -		_pp[4] = 0;						\
-> > -		_pp[3] = 0;						\
-> > -		_pp[2] = 0;						\
-> > -		_pp[1] = 0;						\
-> > -		_pp[0] = 0;						\
-> > -	}								\
-> > -} while (0)
-> > -
-> >  /* PFNs are real physical page numbers.  However, mem_map only begins to record
-> >   * per-page information starting at pfn_base.  This is to handle systems where
-> >   * the first physical page in the machine is at some huge physical address,
-> > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > index bb0de406f8e7..ec6e57a0c14e 100644
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -102,8 +102,42 @@ static inline void set_max_mapnr(unsigned long limit) { }
-> >   * zeroing by defining this macro in <asm/pgtable.h>.
-> >   */
-> 
-> The comment above becomes outdated. Please change, we use optimized
-> mm_zero_struct_page on every 64-bit platform.
-> 
-> >  #ifndef mm_zero_struct_page
-> > +#if BITS_PER_LONG == 64
-> > +/* This function must be updated when the size of struct page grows above 80
-> > + * or reduces below 64. The idea that compiler optimizes out switch()
-> > + * statement, and only leaves move/store instructions
-> > + */
-> > +#define	mm_zero_struct_page(pp) __mm_zero_struct_page(pp)
-> > +static inline void __mm_zero_struct_page(struct page *page)
-> > +{
-> > +	unsigned long *_pp = (void *)page;
-> > +
-> > +	 /* Check that struct page is either 56, 64, 72, or 80 bytes */
-> > +	BUILD_BUG_ON(sizeof(struct page) & 7);
-> > +	BUILD_BUG_ON(sizeof(struct page) < 56);
-> > +	BUILD_BUG_ON(sizeof(struct page) > 80);
-> > +
-> > +	switch (sizeof(struct page)) {
-> > +	case 80:
-> > +		_pp[9] = 0;	/* fallthrough */
-> > +	case 72:
-> > +		_pp[8] = 0;	/* fallthrough */
-> > +	default:
-> > +		_pp[7] = 0;	/* fallthrough */
-> > +	case 56:
-> > +		_pp[6] = 0;
-> > +		_pp[5] = 0;
-> > +		_pp[4] = 0;
-> > +		_pp[3] = 0;
-> > +		_pp[2] = 0;
-> > +		_pp[1] = 0;
-> > +		_pp[0] = 0;
-> > +	}
-> > +}
-> > +#else
-> >  #define mm_zero_struct_page(pp)  ((void)memset((pp), 0, sizeof(struct page)))
-> >  #endif
-> > +#endif
-> >  
-> >  /*
-> >   * Default maximum number of active map areas, this limits the number of vmas
-> > 
-> 
-
--- 
-Sincerely yours,
-Mike.
