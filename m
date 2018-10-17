@@ -1,46 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EC3F96B0006
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 07:09:55 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id m45-v6so16333057edc.2
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 04:09:55 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i31-v6si5543735edc.211.2018.10.17.04.09.54
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DA2E6B0008
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 07:17:31 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id h9-v6so19512888pgs.11
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 04:17:31 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h20-v6sor7629786pgg.78.2018.10.17.04.17.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 04:09:54 -0700 (PDT)
-Date: Wed, 17 Oct 2018 13:09:52 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/6] mm: introduce page->dma_pinned_flags, _count
-Message-ID: <20181017110952.GN18839@dhcp22.suse.cz>
-References: <20181012060014.10242-1-jhubbard@nvidia.com>
- <20181012060014.10242-5-jhubbard@nvidia.com>
- <20181013035516.GA18822@dastard>
- <7c2e3b54-0b1d-6726-a508-804ef8620cfd@nvidia.com>
- <20181013230124.GB18822@dastard>
- <20181016085102.GB18918@quack2.suse.cz>
- <a9f1df2f-da9d-bf7b-b977-d3d3ca710776@nvidia.com>
+        (Google Transport Security);
+        Wed, 17 Oct 2018 04:17:30 -0700 (PDT)
+Date: Wed, 17 Oct 2018 20:17:24 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v3] mm: memcontrol: Don't flood OOM messages with no
+ eligible task.
+Message-ID: <20181017111724.GA459@jagdpanzerIV>
+References: <1539770782-3343-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20181017102821.GM18839@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <a9f1df2f-da9d-bf7b-b977-d3d3ca710776@nvidia.com>
+In-Reply-To: <20181017102821.GM18839@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>
 
-On Tue 16-10-18 18:48:23, John Hubbard wrote:
-[...]
-> It's hard to say exactly what the active/inactive/unevictable list should
-> be when DMA is done and put_user_page*() is called, because we don't know
-> if some device read, wrote, or ignored any of those pages. Although if 
-> put_user_pages_dirty() is called, that's an argument for "active", at least.
+On (10/17/18 12:28), Michal Hocko wrote:
+> > Michal proposed ratelimiting dump_header() [2]. But I don't think that
+> > that patch is appropriate because that patch does not ratelimit
+> > 
+> >   "%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=%*pbl, order=%d, oom_score_adj=%hd\n"
+> >   "Out of memory and no killable processes...\n"
+[..]
+> > Let's make sure that next dump_header() waits for at least 60 seconds from
+> > previous "Out of memory and no killable processes..." message.
+> 
+> Could you explain why this is any better than using a well established
+> ratelimit approach?
 
-Any reason to not use putback_lru_page?
+Tetsuo, let's use a well established rate-limit approach both in
+dump_hedaer() and out_of_memory(). I actually was under impression
+that Michal added rate-limiting to both of these functions.
 
-Please note I haven't really got through your patches to have a wider
-picture of the change so this is just hint for the LRU part of the
-issue.
--- 
-Michal Hocko
-SUSE Labs
+The appropriate rate-limit value looks like something that printk()
+should know and be able to tell to the rest of the kernel. I don't
+think that middle ground will ever be found elsewhere.
+
+
+printk() knows what consoles are registered, and printk() also knows
+(sometimes) what console="..." options the kernel was provided with.
+If baud rates ware not provided as console= options, then serial
+consoles usually use some default value. We can probably ask consoles.
+
+So *maybe* we can do something like this
+
+//
+// WARNING: this is just a sketch. A silly idea.
+//          I don't know if we can make it usable.
+//
+
+---
+
+int printk_ratelimit_interval(void)
+{
+       int ret = DEFAULT_RATELIMIT_INTERVAL;
+       struct tty_driver *driver = NULL;
+       speed_t min_baud = MAX_INT;
+
+       console_lock();
+       for_each_console(c) {
+               speed_t br;
+
+               if (!c->device)
+                       continue;
+               if (!(c->flags & CON_ENABLED))
+                       continue;
+               if (!c->write)
+                       continue;
+               driver = c->device(c, index);
+               if (!driver)
+                       continue;
+
+               br = tty_get_baud_rate(tty_driver to tty_struct [???]);
+               min_baud = min(min_baud, br);
+       }
+       console_unlock();
+
+       switch (min_baud) {
+       case 115200:
+               return ret;
+
+       case ...blah blah...:
+               return ret * 2;
+
+       case 9600:
+               return ret * 4;
+       }
+       return ret;
+}
+
+---
+
+	-ss
