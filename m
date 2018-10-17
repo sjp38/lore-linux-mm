@@ -1,60 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 039676B026A
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 07:29:35 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id e5-v6so16394307eda.4
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 04:29:34 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y16si2732215edw.172.2018.10.17.04.29.33
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1428C6B0006
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 08:08:40 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id t10-v6so5266623plh.14
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 05:08:40 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id t206-v6si2547071pgb.505.2018.10.17.05.08.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 04:29:33 -0700 (PDT)
-Date: Wed, 17 Oct 2018 13:29:31 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] mm: memcontrol: Don't flood OOM messages with no
- eligible task.
-Message-ID: <20181017112931.GP18839@dhcp22.suse.cz>
-References: <1539770782-3343-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20181017102821.GM18839@dhcp22.suse.cz>
- <20181017111724.GA459@jagdpanzerIV>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 17 Oct 2018 05:08:38 -0700 (PDT)
+Date: Wed, 17 Oct 2018 05:08:29 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v2 1/2] mm: Add an F_SEAL_FS_WRITE seal to memfd
+Message-ID: <20181017120829.GA19731@infradead.org>
+References: <20181009222042.9781-1-joel@joelfernandes.org>
+ <20181017095155.GA354@infradead.org>
+ <20181017103958.GB230639@joelaf.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181017111724.GA459@jagdpanzerIV>
+In-Reply-To: <20181017103958.GB230639@joelaf.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, kernel-team@android.com, jreck@google.com, john.stultz@linaro.org, tkjos@google.com, gregkh@linuxfoundation.org, Andrew Morton <akpm@linux-foundation.org>, dancol@google.com, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, minchan@google.com, Shuah Khan <shuah@kernel.org>
 
-On Wed 17-10-18 20:17:24, Sergey Senozhatsky wrote:
-> On (10/17/18 12:28), Michal Hocko wrote:
-> > > Michal proposed ratelimiting dump_header() [2]. But I don't think that
-> > > that patch is appropriate because that patch does not ratelimit
-> > > 
-> > >   "%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=%*pbl, order=%d, oom_score_adj=%hd\n"
-> > >   "Out of memory and no killable processes...\n"
-> [..]
-> > > Let's make sure that next dump_header() waits for at least 60 seconds from
-> > > previous "Out of memory and no killable processes..." message.
+On Wed, Oct 17, 2018 at 03:39:58AM -0700, Joel Fernandes wrote:
+> > > This usecase cannot be implemented with the existing F_SEAL_WRITE seal.
+> > > To support the usecase, this patch adds a new F_SEAL_FS_WRITE seal which
+> > > prevents any future mmap and write syscalls from succeeding while
+> > > keeping the existing mmap active. The following program shows the seal
+> > > working in action:
 > > 
-> > Could you explain why this is any better than using a well established
-> > ratelimit approach?
+> > Where does the FS come from?  I'd rather expect this to be implemented
+> > as a 'force' style flag that applies the seal even if the otherwise
+> > required precondition is not met.
 > 
-> Tetsuo, let's use a well established rate-limit approach both in
-> dump_hedaer() and out_of_memory(). I actually was under impression
-> that Michal added rate-limiting to both of these functions.
+> The "FS" was meant to convey that the seal is preventing writes at the VFS
+> layer itself, for example vfs_write checks FMODE_WRITE and does not proceed,
+> it instead returns an error if the flag is not set. I could not find a better
+> name for it, I could call it F_SEAL_VFS_WRITE if you prefer?
 
-I have http://lkml.kernel.org/r/20181010151135.25766-1-mhocko@kernel.org
-Then the discussion took the usual direction of back and forth resulting
-in "you do not ratelimit the allocation oom context" and "please do that
-as an incremental patch" route and here we are. I do not have time and
-energy to argue in an endless loop.
+I don't think there is anything VFS or FS about that - at best that
+is an implementation detail.
 
-> The appropriate rate-limit value looks like something that printk()
-> should know and be able to tell to the rest of the kernel. I don't
-> think that middle ground will ever be found elsewhere.
+Either do something like the force flag I suggested in the last mail,
+or give it a name that matches the intention, e.g F_SEAL_FUTURE_WRITE.
 
-Yes, that makes sense.
--- 
-Michal Hocko
-SUSE Labs
+> I could make it such that this seal would not be allowed unless F_SEAL_SHRINK
+> and F_SEAL_GROW are either previously set, or they are passed along with this
+> seal. Would that make more sense to you?
+
+Yes.
+
+> > >  static int memfd_add_seals(struct file *file, unsigned int seals)
+> > >  {
+> > > @@ -219,6 +220,9 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
+> > >  		}
+> > >  	}
+> > >  
+> > > +	if ((seals & F_SEAL_FS_WRITE) && !(*file_seals & F_SEAL_FS_WRITE))
+> > > +		file->f_mode &= ~(FMODE_WRITE | FMODE_PWRITE);
+> > > +
+> > 
+> > This seems to lack any synchronization for f_mode.
+> 
+> The f_mode is set when the struct file is first created and then memfd sets
+> additional flags in memfd_create. Then later we are changing it here at the
+> time of setting the seal. I donot see any possiblity of a race since it is
+> impossible to set the seal before memfd_create returns. Could you provide
+> more details about what kind of synchronization is needed and what is the
+> race condition scenario you were thinking off?
+
+Even if no one changes these specific flags we still need a lock due
+to rmw cycles on the field.  For example fadvise can set or clear
+FMODE_RANDOM.  It seems to use file->f_lock for synchronization.
