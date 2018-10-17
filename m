@@ -1,62 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DEEDA6B026B
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 05:52:06 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id d7-v6so10235102pfj.6
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 02:52:06 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id s9-v6si17268605pgk.371.2018.10.17.02.52.05
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B8036B0280
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 06:06:55 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id c21-v6so24348554ioi.14
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 03:06:55 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id c5-v6si12604709jae.126.2018.10.17.03.06.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Oct 2018 02:52:05 -0700 (PDT)
-Date: Wed, 17 Oct 2018 02:51:55 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH v2 1/2] mm: Add an F_SEAL_FS_WRITE seal to memfd
-Message-ID: <20181017095155.GA354@infradead.org>
-References: <20181009222042.9781-1-joel@joelfernandes.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181009222042.9781-1-joel@joelfernandes.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Oct 2018 03:06:53 -0700 (PDT)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH v3] mm: memcontrol: Don't flood OOM messages with no eligible task.
+Date: Wed, 17 Oct 2018 19:06:22 +0900
+Message-Id: <1539770782-3343-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-Cc: linux-kernel@vger.kernel.org, kernel-team@android.com, jreck@google.com, john.stultz@linaro.org, tkjos@google.com, gregkh@linuxfoundation.org, Andrew Morton <akpm@linux-foundation.org>, dancol@google.com, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, minchan@google.com, Shuah Khan <shuah@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@suse.com>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>
 
-On Tue, Oct 09, 2018 at 03:20:41PM -0700, Joel Fernandes (Google) wrote:
-> One of the main usecases Android has is the ability to create a region
-> and mmap it as writeable, then drop its protection for "future" writes
-> while keeping the existing already mmap'ed writeable-region active.
+syzbot is hitting RCU stall at shmem_fault() [1].
+This is because memcg-OOM events with no eligible task (current thread
+is marked as OOM-unkillable) continued calling dump_header() from
+out_of_memory() enabled by commit 3100dab2aa09dc6e ("mm: memcontrol:
+print proper OOM header when no eligible victim left.").
 
-s/drop/add/ ?
+Michal proposed ratelimiting dump_header() [2]. But I don't think that
+that patch is appropriate because that patch does not ratelimit
 
-Otherwise this doesn't make much sense to me.
+  "%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=%*pbl, order=%d, oom_score_adj=%hd\n"
+  "Out of memory and no killable processes...\n"
 
-> This usecase cannot be implemented with the existing F_SEAL_WRITE seal.
-> To support the usecase, this patch adds a new F_SEAL_FS_WRITE seal which
-> prevents any future mmap and write syscalls from succeeding while
-> keeping the existing mmap active. The following program shows the seal
-> working in action:
+messages which can be printed for every few milliseconds (i.e. effectively
+denial of service for console users) until the OOM situation is solved.
 
-Where does the FS come from?  I'd rather expect this to be implemented
-as a 'force' style flag that applies the seal even if the otherwise
-required precondition is not met.
+Let's make sure that next dump_header() waits for at least 60 seconds from
+previous "Out of memory and no killable processes..." message. Michal is
+thinking that any interval is meaningless without knowing the printk()
+throughput. But since printk() is synchronous unless handed over to
+somebody else by commit dbdda842fe96f893 ("printk: Add console owner and
+waiter logic to load balance console writes"), it is likely that all OOM
+messages from this out_of_memory() request is already flushed to consoles
+when pr_warn("Out of memory and no killable processes...\n") returned.
+Thus, we will be able to allow console users to do what they need to do.
 
-> Note: This seal will also prevent growing and shrinking of the memfd.
-> This is not something we do in Android so it does not affect us, however
-> I have mentioned this behavior of the seal in the manpage.
+To summarize, this patch allows threads in requested memcg to complete
+memory allocation requests for doing recovery operation, and also allows
+administrators to manually do recovery operation from console if
+OOM-unkillable thread is failing to solve the OOM situation automatically.
 
-This seems odd, as that is otherwise split into the F_SEAL_SHRINK /
-F_SEAL_GROW flags.
+[1] https://syzkaller.appspot.com/bug?id=4ae3fff7fcf4c33a47c1192d2d62d2e03efffa64
+[2] https://lkml.kernel.org/r/20181010151135.25766-1-mhocko@kernel.org
 
->  static int memfd_add_seals(struct file *file, unsigned int seals)
->  {
-> @@ -219,6 +220,9 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
->  		}
->  	}
->  
-> +	if ((seals & F_SEAL_FS_WRITE) && !(*file_seals & F_SEAL_FS_WRITE))
-> +		file->f_mode &= ~(FMODE_WRITE | FMODE_PWRITE);
-> +
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Reported-by: syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.com>
+---
+ mm/oom_kill.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
-This seems to lack any synchronization for f_mode.
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index f10aa53..9056f9b 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -1106,6 +1106,11 @@ bool out_of_memory(struct oom_control *oc)
+ 	select_bad_process(oc);
+ 	/* Found nothing?!?! */
+ 	if (!oc->chosen) {
++		static unsigned long last_warned;
++
++		if ((is_sysrq_oom(oc) || is_memcg_oom(oc)) &&
++		    time_in_range(jiffies, last_warned, last_warned + 60 * HZ))
++			return false;
+ 		dump_header(oc, NULL);
+ 		pr_warn("Out of memory and no killable processes...\n");
+ 		/*
+@@ -1115,6 +1120,7 @@ bool out_of_memory(struct oom_control *oc)
+ 		 */
+ 		if (!is_sysrq_oom(oc) && !is_memcg_oom(oc))
+ 			panic("System is deadlocked on memory\n");
++		last_warned = jiffies;
+ 	}
+ 	if (oc->chosen && oc->chosen != (void *)-1UL)
+ 		oom_kill_process(oc, !is_memcg_oom(oc) ? "Out of memory" :
+-- 
+1.8.3.1
