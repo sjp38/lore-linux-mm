@@ -1,112 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A273A6B000E
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 10:03:35 -0400 (EDT)
-Received: by mail-lj1-f199.google.com with SMTP id v62-v6so7721642lje.9
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 07:03:35 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i8-v6sor1243244lfc.39.2018.10.17.07.03.33
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Oct 2018 07:03:33 -0700 (PDT)
-From: Anders Roxell <anders.roxell@linaro.org>
-Subject: [PATCH 2/2] writeback: don't decrement wb->refcnt if !wb->bdi
-Date: Wed, 17 Oct 2018 16:03:11 +0200
-Message-Id: <20181017140311.28679-2-anders.roxell@linaro.org>
-In-Reply-To: <20181017140311.28679-1-anders.roxell@linaro.org>
-References: <20181017140311.28679-1-anders.roxell@linaro.org>
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C6256B0266
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 10:07:01 -0400 (EDT)
+Received: by mail-oi1-f198.google.com with SMTP id f77-v6so18125679oic.15
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 07:07:01 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id e128-v6si7640228oib.202.2018.10.17.07.06.59
+        for <linux-mm@kvack.org>;
+        Wed, 17 Oct 2018 07:06:59 -0700 (PDT)
+Subject: Re: [PATCH v7 0/8] arm64: untag user pointers passed to the kernel
+References: <cover.1538485901.git.andreyknvl@google.com>
+From: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Message-ID: <be684ce5-92fd-e970-b002-83452cf50abd@arm.com>
+Date: Wed, 17 Oct 2018 15:06:53 +0100
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <cover.1538485901.git.andreyknvl@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux@armlinux.org.uk, gregkh@linuxfoundation.org, akpm@linux-foundation.org
-Cc: linux-serial@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, tj@kernel.org, Anders Roxell <anders.roxell@linaro.org>, Arnd Bergmann <arnd@arndb.de>
+To: Andrey Konovalov <andreyknvl@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Evgeniy Stepanov <eugenis@google.com>
 
-When enabling CONFIG_DEBUG_TEST_DRIVER_REMOVE devtmpfs gets killed
-because we try to remove a file and decrement the wb reference count
-before the noop_backing_device_info gets initialized.
+Hi Andrey,
 
-Since arch_initcall(pl011_init) came before
-subsys_initcall(default_bdi_init), devtmpfs' handle_remove() crashes
-because the reference count is a NULL pointer only because bdi->wb
-hasn't been initialized yet.
+On 02/10/2018 14:12, Andrey Konovalov wrote:
+> arm64 has a feature called Top Byte Ignore, which allows to embed pointer
+> tags into the top byte of each pointer. Userspace programs (such as
+> HWASan, a memory debugging tool [1]) might use this feature and pass
+> tagged user pointers to the kernel through syscalls or other interfaces.
+> 
+> Right now the kernel is already able to handle user faults with tagged
+> pointers, due to these patches:
+> 
+> 1. 81cddd65 ("arm64: traps: fix userspace cache maintenance emulation on a
+>              tagged pointer")
+> 2. 7dcd9dd8 ("arm64: hw_breakpoint: fix watchpoint matching for tagged
+> 	      pointers")
+> 3. 276e9327 ("arm64: entry: improve data abort handling of tagged
+> 	      pointers")
+> 
+> When passing tagged pointers to syscalls, there's a special case of such a
+> pointer being passed to one of the memory syscalls (mmap, mprotect, etc.).
+> These syscalls don't do memory accesses but rather deal with memory
+> ranges, hence an untagged pointer is better suited.
+> 
+> This patchset extends tagged pointer support to non-memory syscalls. This
+> is done by reusing the untagged_addr macro to untag user pointers when the
+> kernel performs pointer checking to find out whether the pointer comes
+> from userspace (most notably in access_ok).
+> 
+> The following testing approaches has been taken to find potential issues
+> with user pointer untagging:
+> 
+> 1. Static testing (with sparse [2] and separately with a custom static
+>    analyzer based on Clang) to track casts of __user pointers to integer
+>    types to find places where untagging needs to be done.
+> 
+> 2. Dynamic testing: adding BUG_ON(has_tag(addr)) to find_vma() and running
+>    a modified syzkaller version that passes tagged pointers to the kernel.
+> 
+...
 
-[    0.332075] Serial: AMBA PL011 UART driver
-[    0.485276] 9000000.pl011: ttyAMA0 at MMIO 0x9000000 (irq = 39, base_baud = 0) is a PL011 rev1
-[    0.502382] console [ttyAMA0] enabled
-[    0.515710] Unable to handle kernel paging request at virtual address 0000800074c12000
-[    0.516053] Mem abort info:
-[    0.516222]   ESR = 0x96000004
-[    0.516417]   Exception class = DABT (current EL), IL = 32 bits
-[    0.516641]   SET = 0, FnV = 0
-[    0.516826]   EA = 0, S1PTW = 0
-[    0.516984] Data abort info:
-[    0.517149]   ISV = 0, ISS = 0x00000004
-[    0.517339]   CM = 0, WnR = 0
-[    0.517553] [0000800074c12000] user address but active_mm is swapper
-[    0.517928] Internal error: Oops: 96000004 [#1] PREEMPT SMP
-[    0.518305] Modules linked in:
-[    0.518839] CPU: 0 PID: 13 Comm: kdevtmpfs Not tainted 4.19.0-rc5-next-20180928-00002-g2ba39ab0cd01-dirty #82
-[    0.519307] Hardware name: linux,dummy-virt (DT)
-[    0.519681] pstate: 80000005 (Nzcv daif -PAN -UAO)
-[    0.519959] pc : __destroy_inode+0x94/0x2a8
-[    0.520212] lr : __destroy_inode+0x78/0x2a8
-[    0.520401] sp : ffff0000098c3b20
-[    0.520590] x29: ffff0000098c3b20 x28: 00000000087a3714
-[    0.520904] x27: 0000000000002000 x26: 0000000000002000
-[    0.521179] x25: ffff000009583000 x24: 0000000000000000
-[    0.521467] x23: ffff80007bb52000 x22: ffff80007bbaa7c0
-[    0.521737] x21: ffff0000093f9338 x20: 0000000000000000
-[    0.522033] x19: ffff80007bbb05d8 x18: 0000000000000400
-[    0.522376] x17: 0000000000000000 x16: 0000000000000000
-[    0.522727] x15: 0000000000000400 x14: 0000000000000400
-[    0.523068] x13: 0000000000000001 x12: 0000000000000001
-[    0.523421] x11: 0000000000000000 x10: 0000000000000970
-[    0.523749] x9 : ffff0000098c3a60 x8 : ffff80007bbab190
-[    0.524017] x7 : ffff80007bbaa880 x6 : 0000000000000c88
-[    0.524305] x5 : ffff0000093d96c8 x4 : 61c8864680b583eb
-[    0.524567] x3 : ffff0000093d6180 x2 : ffffffffffffffff
-[    0.524872] x1 : 0000800074c12000 x0 : 0000800074c12000
-[    0.525207] Process kdevtmpfs (pid: 13, stack limit = 0x(____ptrval____))
-[    0.525529] Call trace:
-[    0.525806]  __destroy_inode+0x94/0x2a8
-[    0.526108]  destroy_inode+0x34/0x88
-[    0.526370]  evict+0x144/0x1c8
-[    0.526636]  iput+0x184/0x230
-[    0.526871]  dentry_unlink_inode+0x118/0x130
-[    0.527152]  d_delete+0xd8/0xe0
-[    0.527420]  vfs_unlink+0x240/0x270
-[    0.527665]  handle_remove+0x1d8/0x330
-[    0.527875]  devtmpfsd+0x138/0x1c8
-[    0.528085]  kthread+0x14c/0x158
-[    0.528291]  ret_from_fork+0x10/0x18
-[    0.528720] Code: 92800002 aa1403e0 d538d081 8b010000 (c85f7c04)
-[    0.529367] ---[ end trace 5a3dee47727f877c ]---
+I have been thinking a bit lately on how to address the problem of user tagged pointers passed to the kernel through syscalls, and IMHO probably the best way we have to catch them all and make sure that the approach is maintainable in the long term is to introduce shims that tag/untag the pointers passed to the kernel.
 
-Rework so that wb_put have an extra check if wb->bdi before decrement
-wb->refcnt and also add a WARN_ON to get a warning if it happens again
-in other drivers.
+In details, what I am proposing can live either in userspace (preferred solution so that we do not have to relax the ABI) or in kernel space and can be summarized as follows:
+ - A shim is specific to a syscall and is called by the libc when it needs to invoke the respective syscall.
+ - It is required only if the syscall accepts pointers.
+ - It saves the tags of a pointers passed to the syscall in memory (same approach if the we are passing a struct that contains pointers to the kernel, with the difference that all the tags of the pointers in the struct need to be saved singularly)
+ - Untags the pointers
+ - Invokes the syscall
+ - Retags the pointers with the tags stored in memory
+ - Returns
 
-Fixes: 52ebea749aae ("writeback: make backing_dev_info host cgroup-specific bdi_writebacks")
-Cc: Arnd Bergmann <arnd@arndb.de>
-Co-developed-by: Arnd Bergmann <arnd@arndb.de>
-Signed-off-by: Anders Roxell <anders.roxell@linaro.org>
----
- include/linux/backing-dev-defs.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+What do you think?
 
-diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
-index 9a6bc0951cfa..20721550d32a 100644
---- a/include/linux/backing-dev-defs.h
-+++ b/include/linux/backing-dev-defs.h
-@@ -258,7 +258,7 @@ static inline void wb_get(struct bdi_writeback *wb)
-  */
- static inline void wb_put(struct bdi_writeback *wb)
- {
--	if (wb != &wb->bdi->wb)
-+	if (!WARN_ON(!wb->bdi) && wb != &wb->bdi->wb)
- 		percpu_ref_put(&wb->refcnt);
- }
- 
 -- 
-2.19.1
+Regards,
+Vincenzo
