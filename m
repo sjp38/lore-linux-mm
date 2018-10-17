@@ -1,36 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 187D16B0007
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 11:38:20 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id 4-v6so27938658qtt.22
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 08:38:20 -0700 (PDT)
-Received: from a9-112.smtp-out.amazonses.com (a9-112.smtp-out.amazonses.com. [54.240.9.112])
-        by mx.google.com with ESMTPS id k57si955038qvk.16.2018.10.17.08.38.19
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CC6716B000C
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 11:40:26 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id c16-v6so20885502wrr.8
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 08:40:26 -0700 (PDT)
+Received: from eu-smtp-delivery-151.mimecast.com (eu-smtp-delivery-151.mimecast.com. [207.82.80.151])
+        by mx.google.com with ESMTPS id g205-v6si1911853wmf.89.2018.10.17.08.40.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 17 Oct 2018 08:38:19 -0700 (PDT)
-Date: Wed, 17 Oct 2018 15:38:19 +0000
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [patch] mm, slab: avoid high-order slab pages when it does not
- reduce waste
-In-Reply-To: <8eaaa366-415a-5d72-7720-82468d853efd@suse.cz>
-Message-ID: <0100016682ad79b9-b1dafb6b-98e2-4d43-835d-fded2028840d-000000@email.amazonses.com>
-References: <alpine.DEB.2.21.1810121424420.116562@chino.kir.corp.google.com> <20181012151341.286cd91321cdda9b6bde4de9@linux-foundation.org> <0100016679e3c96f-c78df4e2-9ab8-48db-8796-271c4b439f16-000000@email.amazonses.com> <alpine.DEB.2.21.1810151715220.21338@chino.kir.corp.google.com>
- <010001667d7476a2-f91dcf12-5e90-4ade-97e8-9fd651f7bf17-000000@email.amazonses.com> <8eaaa366-415a-5d72-7720-82468d853efd@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Oct 2018 08:40:25 -0700 (PDT)
+From: David Laight <David.Laight@ACULAB.COM>
+Subject: RE: [mm PATCH v3 1/6] mm: Use mm_zero_struct_page from SPARC on all
+ 64b architectures
+Date: Wed, 17 Oct 2018 15:40:25 +0000
+Message-ID: <7d313318f1234a1eb45b608bd853c17c@AcuMS.aculab.com>
+References: <20181015202456.2171.88406.stgit@localhost.localdomain>
+ <20181015202656.2171.92963.stgit@localhost.localdomain>
+ <20181017084744.GH18839@dhcp22.suse.cz>
+ <9700b00f-a8a4-e318-f6a8-71fd1e7021b3@linux.intel.com>
+ <8aaa0fa2-5f12-ea3c-a0ca-ded9e1a639e2@gmail.com>
+In-Reply-To: <8aaa0fa2-5f12-ea3c-a0ca-ded9e1a639e2@gmail.com>
+Content-Language: en-US
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: 'Pavel Tatashin' <pasha.tatashin@gmail.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Michal Hocko <mhocko@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pavel.tatashin@microsoft.com" <pavel.tatashin@microsoft.com>, "dave.jiang@intel.com" <dave.jiang@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "willy@infradead.org" <willy@infradead.org>, "davem@davemloft.net" <davem@davemloft.net>, "yi.z.zhang@linux.intel.com" <yi.z.zhang@linux.intel.com>, "khalid.aziz@oracle.com" <khalid.aziz@oracle.com>, "rppt@linux.vnet.ibm.com" <rppt@linux.vnet.ibm.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "ldufour@linux.vnet.ibm.com" <ldufour@linux.vnet.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mingo@kernel.org" <mingo@kernel.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
 
-On Wed, 17 Oct 2018, Vlastimil Babka wrote:
-
-> I.e. the benefits vs drawbacks of higher order allocations for SLAB are
-> out of scope here. It would be nice if somebody evaluated them, but the
-> potential resulting change would be much larger than what concerns this
-> patch. But it would arguably also make SLAB more like SLUB, which you
-> already questioned at some point...
-
-Well if this leads to more code going into mm/slab_common.c then I would
-certainly welcome that.
+RnJvbTogUGF2ZWwgVGF0YXNoaW4NCj4gU2VudDogMTcgT2N0b2JlciAyMDE4IDE2OjEyDQo+IE9u
+IDEwLzE3LzE4IDExOjA3IEFNLCBBbGV4YW5kZXIgRHV5Y2sgd3JvdGU6DQo+ID4gT24gMTAvMTcv
+MjAxOCAxOjQ3IEFNLCBNaWNoYWwgSG9ja28gd3JvdGU6DQo+ID4+IE9uIE1vbiAxNS0xMC0xOCAx
+MzoyNjo1NiwgQWxleGFuZGVyIER1eWNrIHdyb3RlOg0KPiA+Pj4gVGhpcyBjaGFuZ2UgbWFrZXMg
+aXQgc28gdGhhdCB3ZSB1c2UgdGhlIHNhbWUgYXBwcm9hY2ggdGhhdCB3YXMNCj4gPj4+IGFscmVh
+ZHkgaW4NCj4gPj4+IHVzZSBvbiBTcGFyYyBvbiBhbGwgdGhlIGFyY2h0ZWN0dXJlcyB0aGF0IHN1
+cHBvcnQgYSA2NGIgbG9uZy4NCj4gPj4+DQo+ID4+PiBUaGlzIGlzIG1vc3RseSBtb3RpdmF0ZWQg
+YnkgdGhlIGZhY3QgdGhhdCA4IHRvIDEwIHN0b3JlL21vdmUNCj4gPj4+IGluc3RydWN0aW9ucw0K
+PiA+Pj4gYXJlIGxpa2VseSBhbHdheXMgZ29pbmcgdG8gYmUgZmFzdGVyIHRoYW4gaGF2aW5nIHRv
+IGNhbGwgaW50byBhIGZ1bmN0aW9uDQo+ID4+PiB0aGF0IGlzIG5vdCBzcGVjaWFsaXplZCBmb3Ig
+aGFuZGxpbmcgcGFnZSBpbml0Lg0KPiA+Pj4NCj4gPj4+IEFuIGFkZGVkIGFkdmFudGFnZSB0byBk
+b2luZyBpdCB0aGlzIHdheSBpcyB0aGF0IHRoZSBjb21waWxlciBjYW4gZ2V0DQo+ID4+PiBhd2F5
+DQo+ID4+PiB3aXRoIGNvbWJpbmluZyB3cml0ZXMgaW4gdGhlIF9faW5pdF9zaW5nbGVfcGFnZSBj
+YWxsLiBBcyBhIHJlc3VsdCB0aGUNCj4gPj4+IG1lbXNldCBjYWxsIHdpbGwgYmUgcmVkdWNlZCB0
+byBvbmx5IGFib3V0IDQgd3JpdGUgb3BlcmF0aW9ucywgb3IgYXQNCj4gPj4+IGxlYXN0DQo+ID4+
+PiB0aGF0IGlzIHdoYXQgSSBhbSBzZWVpbmcgd2l0aCBHQ0MgNi4yIGFzIHRoZSBmbGFncywgTFJV
+IHBvaXRuZXJzLCBhbmQNCj4gPj4+IGNvdW50L21hcGNvdW50IHNlZW0gdG8gYmUgY2FuY2VsbGlu
+ZyBvdXQgYXQgbGVhc3QgNCBvZiB0aGUgOA0KPiA+Pj4gYXNzaWdubWVudHMgb24NCj4gPj4+IG15
+IHN5c3RlbS4NCj4gPj4+DQo+ID4+PiBPbmUgY2hhbmdlIEkgaGFkIHRvIG1ha2UgdG8gdGhlIGZ1
+bmN0aW9uIHdhcyB0byByZWR1Y2UgdGhlIG1pbmltdW0gcGFnZQ0KPiA+Pj4gc2l6ZSB0byA1NiB0
+byBzdXBwb3J0IHNvbWUgcG93ZXJwYzY0IGNvbmZpZ3VyYXRpb25zLg0KPiA+Pg0KPiA+PiBUaGlz
+IHJlYWxseSBiZWdzIGZvciBudW1iZXJzLiBJIGRvIG5vdCBtaW5kIHRoZSBjaGFuZ2UgaXRzZWxm
+IHdpdGggc29tZQ0KPiA+PiBtaW5vciBjb21tZW50cyBiZWxvdy4NCj4gPj4NCj4gPj4gWy4uLl0N
+Cj4gPj4+IGRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L21tLmggYi9pbmNsdWRlL2xpbnV4L21t
+LmgNCj4gPj4+IGluZGV4IGJiMGRlNDA2ZjhlNy4uZWM2ZTU3YTBjMTRlIDEwMDY0NA0KPiA+Pj4g
+LS0tIGEvaW5jbHVkZS9saW51eC9tbS5oDQo+ID4+PiArKysgYi9pbmNsdWRlL2xpbnV4L21tLmgN
+Cj4gPj4+IEBAIC0xMDIsOCArMTAyLDQyIEBAIHN0YXRpYyBpbmxpbmUgdm9pZCBzZXRfbWF4X21h
+cG5yKHVuc2lnbmVkIGxvbmcNCj4gPj4+IGxpbWl0KSB7IH0NCj4gPj4+IMKgwqAgKiB6ZXJvaW5n
+IGJ5IGRlZmluaW5nIHRoaXMgbWFjcm8gaW4gPGFzbS9wZ3RhYmxlLmg+Lg0KPiA+Pj4gwqDCoCAq
+Lw0KPiA+Pj4gwqAgI2lmbmRlZiBtbV96ZXJvX3N0cnVjdF9wYWdlDQo+ID4+DQo+ID4+IERvIHdl
+IHN0aWxsIG5lZWQgdGhpcyBpZmRlZj8gSSBndWVzcyB3ZSBjYW4gd2FpdCBmb3IgYW4gYXJjaCB3
+aGljaA0KPiA+PiBkb2Vzbid0IGxpa2UgdGhpcyBjaGFuZ2UgYW5kIHRoZW4gYWRkIHRoZSBvdmVy
+cmlkZS4gSSB3b3VsZCByYXRoZXIgZ28NCj4gPj4gc2ltcGxlIGlmIHBvc3NpYmxlLg0KPiA+DQo+
+ID4gV2UgcHJvYmFibHkgZG9uJ3QsIGJ1dCBhcyBzb29uIGFzIEkgcmVtb3ZlIGl0IHNvbWVib2R5
+IHdpbGwgcHJvYmFibHkNCj4gPiBjb21wbGFpbiBzb21ld2hlcmUuIEkgZ3Vlc3MgSSBjb3VsZCBk
+cm9wIGl0IGZvciBub3cgYW5kIHNlZSBpZiBhbnlib2R5DQo+ID4gc2NyZWFtcy4gQWRkaW5nIGl0
+IGJhY2sgc2hvdWxkIGJlIHByZXR0eSBzdHJhaWdodCBmb3J3YXJkIHNpbmNlIGl0IHdvdWxkDQo+
+ID4gb25seSBiZSAyIGxpbmVzLg0KPiA+DQo+ID4+PiArI2lmIEJJVFNfUEVSX0xPTkcgPT0gNjQN
+Cj4gPj4+ICsvKiBUaGlzIGZ1bmN0aW9uIG11c3QgYmUgdXBkYXRlZCB3aGVuIHRoZSBzaXplIG9m
+IHN0cnVjdCBwYWdlIGdyb3dzDQo+ID4+PiBhYm92ZSA4MA0KPiA+Pj4gKyAqIG9yIHJlZHVjZXMg
+YmVsb3cgNjQuIFRoZSBpZGVhIHRoYXQgY29tcGlsZXIgb3B0aW1pemVzIG91dCBzd2l0Y2goKQ0K
+PiA+Pj4gKyAqIHN0YXRlbWVudCwgYW5kIG9ubHkgbGVhdmVzIG1vdmUvc3RvcmUgaW5zdHJ1Y3Rp
+b25zDQo+ID4+PiArICovDQo+ID4+PiArI2RlZmluZcKgwqDCoCBtbV96ZXJvX3N0cnVjdF9wYWdl
+KHBwKSBfX21tX3plcm9fc3RydWN0X3BhZ2UocHApDQo+ID4+PiArc3RhdGljIGlubGluZSB2b2lk
+IF9fbW1femVyb19zdHJ1Y3RfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSkNCj4gPj4+ICt7DQo+ID4+
+PiArwqDCoMKgIHVuc2lnbmVkIGxvbmcgKl9wcCA9ICh2b2lkICopcGFnZTsNCj4gPj4+ICsNCj4g
+Pj4+ICvCoMKgwqDCoCAvKiBDaGVjayB0aGF0IHN0cnVjdCBwYWdlIGlzIGVpdGhlciA1NiwgNjQs
+IDcyLCBvciA4MCBieXRlcyAqLw0KPiA+Pj4gK8KgwqDCoCBCVUlMRF9CVUdfT04oc2l6ZW9mKHN0
+cnVjdCBwYWdlKSAmIDcpOw0KPiA+Pj4gK8KgwqDCoCBCVUlMRF9CVUdfT04oc2l6ZW9mKHN0cnVj
+dCBwYWdlKSA8IDU2KTsNCj4gPj4+ICvCoMKgwqAgQlVJTERfQlVHX09OKHNpemVvZihzdHJ1Y3Qg
+cGFnZSkgPiA4MCk7DQo+ID4+PiArDQo+ID4+PiArwqDCoMKgIHN3aXRjaCAoc2l6ZW9mKHN0cnVj
+dCBwYWdlKSkgew0KPiA+Pj4gK8KgwqDCoCBjYXNlIDgwOg0KPiA+Pj4gK8KgwqDCoMKgwqDCoMKg
+IF9wcFs5XSA9IDA7wqDCoMKgIC8qIGZhbGx0aHJvdWdoICovDQo+ID4+PiArwqDCoMKgIGNhc2Ug
+NzI6DQo+ID4+PiArwqDCoMKgwqDCoMKgwqAgX3BwWzhdID0gMDvCoMKgwqAgLyogZmFsbHRocm91
+Z2ggKi8NCj4gPj4+ICvCoMKgwqAgZGVmYXVsdDoNCj4gPj4+ICvCoMKgwqDCoMKgwqDCoCBfcHBb
+N10gPSAwO8KgwqDCoCAvKiBmYWxsdGhyb3VnaCAqLw0KPiA+Pj4gK8KgwqDCoCBjYXNlIDU2Og0K
+PiA+Pj4gK8KgwqDCoMKgwqDCoMKgIF9wcFs2XSA9IDA7DQo+ID4+PiArwqDCoMKgwqDCoMKgwqAg
+X3BwWzVdID0gMDsNCj4gPj4+ICvCoMKgwqDCoMKgwqDCoCBfcHBbNF0gPSAwOw0KPiA+Pj4gK8Kg
+wqDCoMKgwqDCoMKgIF9wcFszXSA9IDA7DQo+ID4+PiArwqDCoMKgwqDCoMKgwqAgX3BwWzJdID0g
+MDsNCj4gPj4+ICvCoMKgwqDCoMKgwqDCoCBfcHBbMV0gPSAwOw0KPiA+Pj4gK8KgwqDCoMKgwqDC
+oMKgIF9wcFswXSA9IDA7DQo+ID4+PiArwqDCoMKgIH0NCj4gPj4NCj4gPj4gVGhpcyBqdXN0IGhp
+dCBteSBleWVzLiBJIGhhdmUgdG8gY29uZmVzcyBJIGhhdmUgbmV2ZXIgc2VlbiBkZWZhdWx0OiB0
+bw0KPiA+PiBiZSBub3QgdGhlIGxhc3Qgb25lIGluIHRoZSBzd2l0Y2guIENhbiB3ZSBoYXZlIGNh
+c2UgNjQgaW5zdGVhZCBvciBkb2VzDQo+ID4+IGdjYw0KPiA+PiBjb21wbGFpbj8gSSB3b3VsZCBi
+ZSBzdXJwcmlzZWQgd2l0aCB0aGUgc2V0IG9mIEJVSUxEX0JVR19PTnMuDQo+IA0KPiBJdCB3YXMg
+bWUsIEMgZG9lcyBub3QgcmVhbGx5IGNhcmUgd2hlcmUgZGVmYXVsdCBpcyBwbGFjZWQsIEkgd2Fz
+IHRyeWluZw0KPiB0byBrZWVwIHN0b3JlcyBzZXF1ZW50aWFsIGZvciBiZXR0ZXIgY2FjaGUgbG9j
+YWxpdHksIGJ1dCAiY2FzZSA2NCINCj4gc2hvdWxkIGJlIE9LLCBhbmQgZXZlbiBiZXR0ZXIgZm9y
+IHRoaXMgcHVycG9zZS4NCg0KWW91J2QgbmVlZCB0byBwdXQgbWVtb3J5IGJhcnJpZXJzIGJldHdl
+ZW4gdGhlbSB0byBmb3JjZSBzZXF1ZW50aWFsIHN0b3Jlcy4NCkknbSBhbHNvIHN1cnByaXNlZCB0
+aGF0IGdjYyBkb2Vzbid0IGlubGluZSB0aGUgbWVtc2V0KCkuDQoNCglEYXZpZA0KDQotDQpSZWdp
+c3RlcmVkIEFkZHJlc3MgTGFrZXNpZGUsIEJyYW1sZXkgUm9hZCwgTW91bnQgRmFybSwgTWlsdG9u
+IEtleW5lcywgTUsxIDFQVCwgVUsNClJlZ2lzdHJhdGlvbiBObzogMTM5NzM4NiAoV2FsZXMpDQo=
