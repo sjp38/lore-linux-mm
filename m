@@ -1,63 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 288856B026B
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 04:19:25 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id 91so18652132otr.18
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 01:19:25 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id m7-v6si7834693oif.157.2018.10.17.01.19.23
-        for <linux-mm@kvack.org>;
-        Wed, 17 Oct 2018 01:19:23 -0700 (PDT)
-Subject: Re: [PATCH V2 0/5] arm64/mm: Enable HugeTLB migration
-References: <1539316799-6064-1-git-send-email-anshuman.khandual@arm.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <e1703454-e500-3a1b-35cb-6368dff91f10@arm.com>
-Date: Wed, 17 Oct 2018 13:49:17 +0530
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E83A26B000E
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 04:26:04 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id 17-v6so19169882pgs.18
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 01:26:04 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id v2-v6si17141892pgc.570.2018.10.17.01.26.03
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 17 Oct 2018 01:26:04 -0700 (PDT)
+Date: Wed, 17 Oct 2018 01:26:00 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 04/26] vfs: exit early from zero length remap operations
+Message-ID: <20181017082600.GA16896@infradead.org>
+References: <153965939489.1256.7400115244528045860.stgit@magnolia>
+ <153965942391.1256.1491987046439132016.stgit@magnolia>
 MIME-Version: 1.0
-In-Reply-To: <1539316799-6064-1-git-send-email-anshuman.khandual@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <153965942391.1256.1491987046439132016.stgit@magnolia>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
-Cc: suzuki.poulose@arm.com, punit.agrawal@arm.com, will.deacon@arm.com, Steven.Price@arm.com, steve.capper@arm.com, catalin.marinas@arm.com, mhocko@kernel.org, akpm@linux-foundation.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: david@fromorbit.com, sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, ocfs2-devel@oss.oracle.com
 
-
-
-On 10/12/2018 09:29 AM, Anshuman Khandual wrote:
-> This patch series enables HugeTLB migration support for all supported
-> huge page sizes at all levels including contiguous bit implementation.
-> Following HugeTLB migration support matrix has been enabled with this
-> patch series. All permutations have been tested except for the 16GB.
+On Mon, Oct 15, 2018 at 08:10:23PM -0700, Darrick J. Wong wrote:
+> From: Darrick J. Wong <darrick.wong@oracle.com>
 > 
->          CONT PTE    PMD    CONT PMD    PUD
->          --------    ---    --------    ---
-> 4K:         64K     2M         32M     1G
-> 16K:         2M    32M          1G
-> 64K:         2M   512M         16G
+> If a remap caller asks us to remap to the source file's EOF and the
+> source file has zero bytes, exit early.
 > 
-> First the series adds migration support for PUD based huge pages. It
-> then adds a platform specific hook to query an architecture if a
-> given huge page size is supported for migration while also providing
-> a default fallback option preserving the existing semantics which just
-> checks for (PMD|PUD|PGDIR)_SHIFT macros. The last two patches enables
-> HugeTLB migration on arm64 and subscribe to this new platform specific
-> hook by defining an override.
-> 
-> The second patch differentiates between movability and migratability
-> aspects of huge pages and implements hugepage_movable_supported() which
-> can then be used during allocation to decide whether to place the huge
-> page in movable zone or not.
-> 
-> Changes in V2:
-> 
-> - Added a new patch which differentiates migratability and movability
->   of huge pages and implements hugepage_movable_supported() function
->   as suggested by Michal Hocko.
+> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 
-Hello Andrew/Michal/Mike/Naoya/Catalin,
+Looks good,
 
-Just checking for an update. Does this series looks okay ?
-
-- Anshuman
+Reviewed-by: Christoph Hellwig <hch@lst.de>
