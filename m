@@ -1,62 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FCBD6B026E
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 06:28:24 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id v15-v6so16426925edm.13
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 03:28:24 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j19-v6si2212121edj.18.2018.10.17.03.28.22
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 413C96B0008
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 06:40:03 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id d63-v6so20386717pld.18
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 03:40:03 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a8-v6sor6507744plz.7.2018.10.17.03.40.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 03:28:22 -0700 (PDT)
-Date: Wed, 17 Oct 2018 12:28:21 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] mm: memcontrol: Don't flood OOM messages with no
- eligible task.
-Message-ID: <20181017102821.GM18839@dhcp22.suse.cz>
-References: <1539770782-3343-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (Google Transport Security);
+        Wed, 17 Oct 2018 03:40:01 -0700 (PDT)
+Date: Wed, 17 Oct 2018 03:39:58 -0700
+From: Joel Fernandes <joel@joelfernandes.org>
+Subject: Re: [PATCH v2 1/2] mm: Add an F_SEAL_FS_WRITE seal to memfd
+Message-ID: <20181017103958.GB230639@joelaf.mtv.corp.google.com>
+References: <20181009222042.9781-1-joel@joelfernandes.org>
+ <20181017095155.GA354@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1539770782-3343-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <20181017095155.GA354@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: linux-kernel@vger.kernel.org, kernel-team@android.com, jreck@google.com, john.stultz@linaro.org, tkjos@google.com, gregkh@linuxfoundation.org, Andrew Morton <akpm@linux-foundation.org>, dancol@google.com, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, minchan@google.com, Shuah Khan <shuah@kernel.org>
 
-On Wed 17-10-18 19:06:22, Tetsuo Handa wrote:
-> syzbot is hitting RCU stall at shmem_fault() [1].
-> This is because memcg-OOM events with no eligible task (current thread
-> is marked as OOM-unkillable) continued calling dump_header() from
-> out_of_memory() enabled by commit 3100dab2aa09dc6e ("mm: memcontrol:
-> print proper OOM header when no eligible victim left.").
+On Wed, Oct 17, 2018 at 02:51:55AM -0700, Christoph Hellwig wrote:
+> On Tue, Oct 09, 2018 at 03:20:41PM -0700, Joel Fernandes (Google) wrote:
+> > One of the main usecases Android has is the ability to create a region
+> > and mmap it as writeable, then drop its protection for "future" writes
+> > while keeping the existing already mmap'ed writeable-region active.
 > 
-> Michal proposed ratelimiting dump_header() [2]. But I don't think that
-> that patch is appropriate because that patch does not ratelimit
+> s/drop/add/ ?
 > 
->   "%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=%*pbl, order=%d, oom_score_adj=%hd\n"
->   "Out of memory and no killable processes...\n"
-> 
-> messages which can be printed for every few milliseconds (i.e. effectively
-> denial of service for console users) until the OOM situation is solved.
-> 
-> Let's make sure that next dump_header() waits for at least 60 seconds from
-> previous "Out of memory and no killable processes..." message. Michal is
-> thinking that any interval is meaningless without knowing the printk()
-> throughput. But since printk() is synchronous unless handed over to
-> somebody else by commit dbdda842fe96f893 ("printk: Add console owner and
-> waiter logic to load balance console writes"), it is likely that all OOM
-> messages from this out_of_memory() request is already flushed to consoles
-> when pr_warn("Out of memory and no killable processes...\n") returned.
-> Thus, we will be able to allow console users to do what they need to do.
-> 
-> To summarize, this patch allows threads in requested memcg to complete
-> memory allocation requests for doing recovery operation, and also allows
-> administrators to manually do recovery operation from console if
-> OOM-unkillable thread is failing to solve the OOM situation automatically.
+> Otherwise this doesn't make much sense to me.
 
-Could you explain why this is any better than using a well established
-ratelimit approach?
--- 
-Michal Hocko
-SUSE Labs
+Sure, you are right that "add" is more appropriate. I'll change it to that.
+
+> > This usecase cannot be implemented with the existing F_SEAL_WRITE seal.
+> > To support the usecase, this patch adds a new F_SEAL_FS_WRITE seal which
+> > prevents any future mmap and write syscalls from succeeding while
+> > keeping the existing mmap active. The following program shows the seal
+> > working in action:
+> 
+> Where does the FS come from?  I'd rather expect this to be implemented
+> as a 'force' style flag that applies the seal even if the otherwise
+> required precondition is not met.
+
+The "FS" was meant to convey that the seal is preventing writes at the VFS
+layer itself, for example vfs_write checks FMODE_WRITE and does not proceed,
+it instead returns an error if the flag is not set. I could not find a better
+name for it, I could call it F_SEAL_VFS_WRITE if you prefer?
+
+> > Note: This seal will also prevent growing and shrinking of the memfd.
+> > This is not something we do in Android so it does not affect us, however
+> > I have mentioned this behavior of the seal in the manpage.
+> 
+> This seems odd, as that is otherwise split into the F_SEAL_SHRINK /
+> F_SEAL_GROW flags.
+
+I could make it such that this seal would not be allowed unless F_SEAL_SHRINK
+and F_SEAL_GROW are either previously set, or they are passed along with this
+seal. Would that make more sense to you?
+
+> >  static int memfd_add_seals(struct file *file, unsigned int seals)
+> >  {
+> > @@ -219,6 +220,9 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
+> >  		}
+> >  	}
+> >  
+> > +	if ((seals & F_SEAL_FS_WRITE) && !(*file_seals & F_SEAL_FS_WRITE))
+> > +		file->f_mode &= ~(FMODE_WRITE | FMODE_PWRITE);
+> > +
+> 
+> This seems to lack any synchronization for f_mode.
+
+The f_mode is set when the struct file is first created and then memfd sets
+additional flags in memfd_create. Then later we are changing it here at the
+time of setting the seal. I donot see any possiblity of a race since it is
+impossible to set the seal before memfd_create returns. Could you provide
+more details about what kind of synchronization is needed and what is the
+race condition scenario you were thinking off?
+
+thanks for the review,
+
+ - Joel
