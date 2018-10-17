@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B2ED16B0291
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 18:47:16 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id b76-v6so17579304ywb.11
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 15:47:16 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id h5-v6si3930282ywb.278.2018.10.17.15.47.15
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D0D276B0293
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 18:47:21 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id n23-v6so28015570pfk.23
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 15:47:21 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id 94-v6si19943188pla.11.2018.10.17.15.47.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 15:47:15 -0700 (PDT)
-Subject: [PATCH 24/29] xfs: fix pagecache truncation prior to reflink
+        Wed, 17 Oct 2018 15:47:20 -0700 (PDT)
+Subject: [PATCH 25/29] xfs: clean up xfs_reflink_remap_blocks call site
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Wed, 17 Oct 2018 15:47:06 -0700
-Message-ID: <153981642640.5568.16793693439327747778.stgit@magnolia>
+Date: Wed, 17 Oct 2018 15:47:13 -0700
+Message-ID: <153981643329.5568.5878961664707094374.stgit@magnolia>
 In-Reply-To: <153981625504.5568.2708520119290577378.stgit@magnolia>
 References: <153981625504.5568.2708520119290577378.stgit@magnolia>
 MIME-Version: 1.0
@@ -21,38 +21,107 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: david@fromorbit.com, darrick.wong@oracle.com
-Cc: sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, Dave Chinner <dchinner@redhat.com>, linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, ocfs2-devel@oss.oracle.com
+Cc: sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, ocfs2-devel@oss.oracle.com
 
 From: Darrick J. Wong <darrick.wong@oracle.com>
 
-Prior to remapping blocks, it is necessary to remove pages from the
-destination file's page cache.  Unfortunately, the truncation is not
-aggressive enough -- if page size > block size, we'll end up zeroing
-subpage blocks instead of removing them.  So, round the start offset
-down and the end offset up to page boundaries.  We already wrote all
-the dirty data so the larger range shouldn't be a problem.
+Move the offset <-> blocks unit conversions into
+xfs_reflink_remap_blocks to make the call site less ugly.
 
 Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-Reviewed-by: Dave Chinner <dchinner@redhat.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/xfs/xfs_reflink.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ fs/xfs/xfs_reflink.c |   37 ++++++++++++++++++-------------------
+ 1 file changed, 18 insertions(+), 19 deletions(-)
 
 
 diff --git a/fs/xfs/xfs_reflink.c b/fs/xfs/xfs_reflink.c
-index 9b1ea42c81d1..e8e86646bb4b 100644
+index e8e86646bb4b..79dec457f7fb 100644
 --- a/fs/xfs/xfs_reflink.c
 +++ b/fs/xfs/xfs_reflink.c
-@@ -1369,8 +1369,9 @@ xfs_reflink_remap_prep(
+@@ -1119,16 +1119,23 @@ xfs_reflink_remap_extent(
+ STATIC int
+ xfs_reflink_remap_blocks(
+ 	struct xfs_inode	*src,
+-	xfs_fileoff_t		srcoff,
++	loff_t			pos_in,
+ 	struct xfs_inode	*dest,
+-	xfs_fileoff_t		destoff,
+-	xfs_filblks_t		len,
+-	xfs_off_t		new_isize)
++	loff_t			pos_out,
++	loff_t			remap_len)
+ {
+ 	struct xfs_bmbt_irec	imap;
++	xfs_fileoff_t		srcoff;
++	xfs_fileoff_t		destoff;
++	xfs_filblks_t		len;
++	xfs_filblks_t		range_len;
++	xfs_off_t		new_isize = pos_out + remap_len;
+ 	int			nimaps;
+ 	int			error = 0;
+-	xfs_filblks_t		range_len;
++
++	destoff = XFS_B_TO_FSBT(src->i_mount, pos_out);
++	srcoff = XFS_B_TO_FSBT(src->i_mount, pos_in);
++	len = XFS_B_TO_FSB(src->i_mount, remap_len);
+ 
+ 	/* drange = (destoff, destoff + len); srange = (srcoff, srcoff + len) */
+ 	while (len) {
+@@ -1143,7 +1150,7 @@ xfs_reflink_remap_blocks(
+ 		error = xfs_bmapi_read(src, srcoff, len, &imap, &nimaps, 0);
+ 		xfs_iunlock(src, lock_mode);
+ 		if (error)
+-			goto err;
++			break;
+ 		ASSERT(nimaps == 1);
+ 
+ 		trace_xfs_reflink_remap_imap(src, srcoff, len, XFS_IO_OVERWRITE,
+@@ -1157,11 +1164,11 @@ xfs_reflink_remap_blocks(
+ 		error = xfs_reflink_remap_extent(dest, &imap, destoff,
+ 				new_isize);
+ 		if (error)
+-			goto err;
++			break;
+ 
+ 		if (fatal_signal_pending(current)) {
+ 			error = -EINTR;
+-			goto err;
++			break;
+ 		}
+ 
+ 		/* Advance drange/srange */
+@@ -1170,10 +1177,8 @@ xfs_reflink_remap_blocks(
+ 		len -= range_len;
+ 	}
+ 
+-	return 0;
+-
+-err:
+-	trace_xfs_reflink_remap_blocks_error(dest, error, _RET_IP_);
++	if (error)
++		trace_xfs_reflink_remap_blocks_error(dest, error, _RET_IP_);
+ 	return error;
+ }
+ 
+@@ -1396,8 +1401,6 @@ xfs_reflink_remap_range(
+ 	struct inode		*inode_out = file_inode(file_out);
+ 	struct xfs_inode	*dest = XFS_I(inode_out);
+ 	struct xfs_mount	*mp = src->i_mount;
+-	xfs_fileoff_t		sfsbno, dfsbno;
+-	xfs_filblks_t		fsblen;
+ 	xfs_extlen_t		cowextsize;
+ 	ssize_t			ret;
+ 
+@@ -1415,11 +1418,7 @@ xfs_reflink_remap_range(
+ 
+ 	trace_xfs_reflink_remap_range(src, pos_in, len, dest, pos_out);
+ 
+-	dfsbno = XFS_B_TO_FSBT(mp, pos_out);
+-	sfsbno = XFS_B_TO_FSBT(mp, pos_in);
+-	fsblen = XFS_B_TO_FSB(mp, len);
+-	ret = xfs_reflink_remap_blocks(src, sfsbno, dest, dfsbno, fsblen,
+-			pos_out + len);
++	ret = xfs_reflink_remap_blocks(src, pos_in, dest, pos_out, len);
+ 	if (ret)
  		goto out_unlock;
  
- 	/* Zap any page cache for the destination file's range. */
--	truncate_inode_pages_range(&inode_out->i_data, pos_out,
--				   PAGE_ALIGN(pos_out + *len) - 1);
-+	truncate_inode_pages_range(&inode_out->i_data,
-+			round_down(pos_out, PAGE_SIZE),
-+			round_up(pos_out + *len, PAGE_SIZE) - 1);
- 
- 	return 1;
- out_unlock:
