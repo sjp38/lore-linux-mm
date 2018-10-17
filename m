@@ -1,110 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 04DE06B027C
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 05:00:24 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id e6-v6so19367046pge.5
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 02:00:23 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 27E856B027E
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 05:04:12 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id w42-v6so16176500edd.0
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 02:04:12 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 72-v6si18057234pla.334.2018.10.17.02.00.22
+        by mx.google.com with ESMTPS id b12-v6si8456346edk.370.2018.10.17.02.04.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 02:00:22 -0700 (PDT)
-Date: Wed, 17 Oct 2018 10:00:15 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
- mappings
-Message-ID: <20181017090015.GI6931@suse.de>
-References: <20181009094825.GC6931@suse.de>
- <20181009122745.GN8528@dhcp22.suse.cz>
- <20181009130034.GD6931@suse.de>
- <20181009142510.GU8528@dhcp22.suse.cz>
- <20181009230352.GE9307@redhat.com>
- <alpine.DEB.2.21.1810101410530.53455@chino.kir.corp.google.com>
- <alpine.DEB.2.21.1810151525460.247641@chino.kir.corp.google.com>
- <20181015154459.e870c30df5c41966ffb4aed8@linux-foundation.org>
- <20181016074606.GH6931@suse.de>
- <20181016153715.b40478ff2eebe8d6cf1aead5@linux-foundation.org>
+        Wed, 17 Oct 2018 02:04:10 -0700 (PDT)
+Date: Wed, 17 Oct 2018 11:04:07 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [mm PATCH v3 2/6] mm: Drop meminit_pfn_in_nid as it is redundant
+Message-ID: <20181017090407.GI18839@dhcp22.suse.cz>
+References: <20181015202456.2171.88406.stgit@localhost.localdomain>
+ <20181015202703.2171.40829.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181016153715.b40478ff2eebe8d6cf1aead5@linux-foundation.org>
+In-Reply-To: <20181015202703.2171.40829.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
+To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, pavel.tatashin@microsoft.com, dave.jiang@intel.com, linux-kernel@vger.kernel.org, willy@infradead.org, davem@davemloft.net, yi.z.zhang@linux.intel.com, khalid.aziz@oracle.com, rppt@linux.vnet.ibm.com, vbabka@suse.cz, sparclinux@vger.kernel.org, dan.j.williams@intel.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mingo@kernel.org, kirill.shutemov@linux.intel.com
 
-On Tue, Oct 16, 2018 at 03:37:15PM -0700, Andrew Morton wrote:
-> On Tue, 16 Oct 2018 08:46:06 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> > I consider this to be an unfortunate outcome. On the one hand, we have a
-> > problem that three people can trivially reproduce with known test cases
-> > and a patch shown to resolve the problem. Two of those three people work
-> > on distributions that are exposed to a large number of users. On the
-> > other, we have a problem that requires the system to be in a specific
-> > state and an unknown workload that suffers badly from the remote access
-> > penalties with a patch that has review concerns and has not been proven
-> > to resolve the trivial cases. In the case of distributions, the first
-> > patch addresses concerns with a common workload where on the other hand
-> > we have an internal workload of a single company that is affected --
-> > which indirectly affects many users admittedly but only one entity directly.
-> > 
-> > At the absolute minimum, a test case for the "system fragmentation incurs
-> > access penalties for a workload" scenario that could both replicate the
-> > fragmentation and demonstrate the problem should have been available before
-> > the patch was rejected.  With the test case, there would be a chance that
-> > others could analyse the problem and prototype some fixes. The test case
-> > was requested in the thread and never produced so even if someone were to
-> > prototype fixes, it would be dependant on a third party to test and produce
-> > data which is a time-consuming loop. Instead, we are more or less in limbo.
-> > 
+On Mon 15-10-18 13:27:03, Alexander Duyck wrote:
+> As best as I can tell the meminit_pfn_in_nid call is completely redundant.
+> The deferred memory initialization is already making use of
+> for_each_free_mem_range which in turn will call into __next_mem_range which
+> will only return a memory range if it matches the node ID provided assuming
+> it is not NUMA_NO_NODE.
 > 
-> OK, thanks.
+> I am operating on the assumption that there are no zones or pgdata_t
+> structures that have a NUMA node of NUMA_NO_NODE associated with them. If
+> that is the case then __next_mem_range will never return a memory range
+> that doesn't match the zone's node ID and as such the check is redundant.
 > 
-> But we're OK holding off for a few weeks, yes?  If we do that
-> we'll still make it into 4.19.1.  Am reluctant to merge this while
-> discussion, testing and possibly more development are ongoing.
+> So one piece I would like to verfy on this is if this works for ia64.
+> Technically it was using a different approach to get the node ID, but it
+> seems to have the node ID also encoded into the memblock. So I am
+> assuming this is okay, but would like to get confirmation on that.
+
+Good catch. Both for_each_free_mem_range and __early_pfn_to_nid rely on
+the memblock layer to properly map ranges to nids. I haven't checked too
+closely whether this was really necessary in the original deferred
+implementatiob by Mel but it is much more clear that it is not needed
+now with the clear iterator.
+
+> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  mm/page_alloc.c |   50 ++++++++++++++------------------------------------
+>  1 file changed, 14 insertions(+), 36 deletions(-)
 > 
-
-Without a test case that reproduces the Google case, we are a bit stuck.
-Previous experience indicates that just fragmenting memory is not enough
-to give a reliable case as unless the unmovable/reclaimable pages are
-"sticky", the normal reclaim can handle it. Similarly, the access
-pattern of the target workload is important as it would need to be
-something larger than L3 cache to constantly hit the access penalty. We
-do not know what the exact characteristics of the Google workload are
-but we know that a fix for three cases is not equivalent for the Google
-case.
-
-The discussion has circled around wish-list items such as better
-fragmentation control, node-aware compaction, improved compact deferred
-logic and lower latencies with little in the way of actual specifics
-of implementation or patches. Improving fragmentation control would
-benefit from a workload that actually fragments so the extfrag events
-can be monitored as well as maybe a dump of pageblocks with mixed pages.
-
-On node-aware compaction, that was not implemented initially simply
-because HighMem was common and that needs to be treated as a corner case
--- we cannot safely migrate pages from zone normal to highmem. That one
-is relatively trivial to measure as it's a functional issue.
-
-However, backing off compaction properly to maximise allocation success
-rates while minimising allocation latency and access latency needs a live
-workload that is representative. Trivial cases like the java workloads,
-nas or usemem won't do as they either exhibit special locality or are
-streaming readers/writers. Memcache might work but the driver in that
-case is critical to ensure the access penalties are incurred. Again,
-a modern example is missing.
-
-As for why this took so long to discover, it is highly likely that it's
-due to VM's being sized such as they typically fit in a NUMA node so
-it would have avoided the worst case scenarios. Furthermore, a machine
-dedicated to VM's has fewer concerns with respect to slab allocations
-and unmovable allocations fragmenting memory long-term. Finally, the
-worst case scenarios are encountered when there is a mix of different
-workloads of variable duration which may be common in a Google-like setup
-with different jobs being dispatched across a large network but less so
-in other setups where a service tends to be persistent. We already know
-that some of the worst performance problems take years to discover.
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 4bd858d1c3ba..a766a15fad81 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1301,36 +1301,22 @@ int __meminit early_pfn_to_nid(unsigned long pfn)
+>  #endif
+>  
+>  #ifdef CONFIG_NODES_SPAN_OTHER_NODES
+> -static inline bool __meminit __maybe_unused
+> -meminit_pfn_in_nid(unsigned long pfn, int node,
+> -		   struct mminit_pfnnid_cache *state)
+> +/* Only safe to use early in boot when initialisation is single-threaded */
+> +static inline bool __meminit early_pfn_in_nid(unsigned long pfn, int node)
+>  {
+>  	int nid;
+>  
+> -	nid = __early_pfn_to_nid(pfn, state);
+> +	nid = __early_pfn_to_nid(pfn, &early_pfnnid_cache);
+>  	if (nid >= 0 && nid != node)
+>  		return false;
+>  	return true;
+>  }
+>  
+> -/* Only safe to use early in boot when initialisation is single-threaded */
+> -static inline bool __meminit early_pfn_in_nid(unsigned long pfn, int node)
+> -{
+> -	return meminit_pfn_in_nid(pfn, node, &early_pfnnid_cache);
+> -}
+> -
+>  #else
+> -
+>  static inline bool __meminit early_pfn_in_nid(unsigned long pfn, int node)
+>  {
+>  	return true;
+>  }
+> -static inline bool __meminit  __maybe_unused
+> -meminit_pfn_in_nid(unsigned long pfn, int node,
+> -		   struct mminit_pfnnid_cache *state)
+> -{
+> -	return true;
+> -}
+>  #endif
+>  
+>  
+> @@ -1459,21 +1445,13 @@ static inline void __init pgdat_init_report_one_done(void)
+>   *
+>   * Then, we check if a current large page is valid by only checking the validity
+>   * of the head pfn.
+> - *
+> - * Finally, meminit_pfn_in_nid is checked on systems where pfns can interleave
+> - * within a node: a pfn is between start and end of a node, but does not belong
+> - * to this memory node.
+>   */
+> -static inline bool __init
+> -deferred_pfn_valid(int nid, unsigned long pfn,
+> -		   struct mminit_pfnnid_cache *nid_init_state)
+> +static inline bool __init deferred_pfn_valid(unsigned long pfn)
+>  {
+>  	if (!pfn_valid_within(pfn))
+>  		return false;
+>  	if (!(pfn & (pageblock_nr_pages - 1)) && !pfn_valid(pfn))
+>  		return false;
+> -	if (!meminit_pfn_in_nid(pfn, nid, nid_init_state))
+> -		return false;
+>  	return true;
+>  }
+>  
+> @@ -1481,15 +1459,14 @@ static inline void __init pgdat_init_report_one_done(void)
+>   * Free pages to buddy allocator. Try to free aligned pages in
+>   * pageblock_nr_pages sizes.
+>   */
+> -static void __init deferred_free_pages(int nid, int zid, unsigned long pfn,
+> +static void __init deferred_free_pages(unsigned long pfn,
+>  				       unsigned long end_pfn)
+>  {
+> -	struct mminit_pfnnid_cache nid_init_state = { };
+>  	unsigned long nr_pgmask = pageblock_nr_pages - 1;
+>  	unsigned long nr_free = 0;
+>  
+>  	for (; pfn < end_pfn; pfn++) {
+> -		if (!deferred_pfn_valid(nid, pfn, &nid_init_state)) {
+> +		if (!deferred_pfn_valid(pfn)) {
+>  			deferred_free_range(pfn - nr_free, nr_free);
+>  			nr_free = 0;
+>  		} else if (!(pfn & nr_pgmask)) {
+> @@ -1509,17 +1486,18 @@ static void __init deferred_free_pages(int nid, int zid, unsigned long pfn,
+>   * by performing it only once every pageblock_nr_pages.
+>   * Return number of pages initialized.
+>   */
+> -static unsigned long  __init deferred_init_pages(int nid, int zid,
+> +static unsigned long  __init deferred_init_pages(struct zone *zone,
+>  						 unsigned long pfn,
+>  						 unsigned long end_pfn)
+>  {
+> -	struct mminit_pfnnid_cache nid_init_state = { };
+>  	unsigned long nr_pgmask = pageblock_nr_pages - 1;
+> +	int nid = zone_to_nid(zone);
+>  	unsigned long nr_pages = 0;
+> +	int zid = zone_idx(zone);
+>  	struct page *page = NULL;
+>  
+>  	for (; pfn < end_pfn; pfn++) {
+> -		if (!deferred_pfn_valid(nid, pfn, &nid_init_state)) {
+> +		if (!deferred_pfn_valid(pfn)) {
+>  			page = NULL;
+>  			continue;
+>  		} else if (!page || !(pfn & nr_pgmask)) {
+> @@ -1582,12 +1560,12 @@ static int __init deferred_init_memmap(void *data)
+>  	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
+>  		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+>  		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
+> -		nr_pages += deferred_init_pages(nid, zid, spfn, epfn);
+> +		nr_pages += deferred_init_pages(zone, spfn, epfn);
+>  	}
+>  	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
+>  		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+>  		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
+> -		deferred_free_pages(nid, zid, spfn, epfn);
+> +		deferred_free_pages(spfn, epfn);
+>  	}
+>  	pgdat_resize_unlock(pgdat, &flags);
+>  
+> @@ -1676,7 +1654,7 @@ static int __init deferred_init_memmap(void *data)
+>  		while (spfn < epfn && nr_pages < nr_pages_needed) {
+>  			t = ALIGN(spfn + PAGES_PER_SECTION, PAGES_PER_SECTION);
+>  			first_deferred_pfn = min(t, epfn);
+> -			nr_pages += deferred_init_pages(nid, zid, spfn,
+> +			nr_pages += deferred_init_pages(zone, spfn,
+>  							first_deferred_pfn);
+>  			spfn = first_deferred_pfn;
+>  		}
+> @@ -1688,7 +1666,7 @@ static int __init deferred_init_memmap(void *data)
+>  	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
+>  		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+>  		epfn = min_t(unsigned long, first_deferred_pfn, PFN_DOWN(epa));
+> -		deferred_free_pages(nid, zid, spfn, epfn);
+> +		deferred_free_pages(spfn, epfn);
+>  
+>  		if (first_deferred_pfn == epfn)
+>  			break;
+> 
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
