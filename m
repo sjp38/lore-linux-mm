@@ -1,88 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E81B36B0007
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 16:23:54 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id 4-v6so28990870qtt.22
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 13:23:54 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a5-v6si8532782qvn.135.2018.10.17.13.23.53
+Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 29DB56B000A
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 16:25:44 -0400 (EDT)
+Received: by mail-vs1-f72.google.com with SMTP id j28so12307783vsa.6
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 13:25:44 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b187sor11243578vsd.54.2018.10.17.13.25.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 13:23:53 -0700 (PDT)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
-References: <20181002100531.GC4135@quack2.suse.cz>
-	<20181002121039.GA3274@linux-x5ow.site>
-	<20181002142959.GD9127@quack2.suse.cz>
-Date: Wed, 17 Oct 2018 16:23:50 -0400
-In-Reply-To: <20181002142959.GD9127@quack2.suse.cz> (Jan Kara's message of
-	"Tue, 2 Oct 2018 16:29:59 +0200")
-Message-ID: <x49h8hkfhk9.fsf@segfault.boston.devel.redhat.com>
+        (Google Transport Security);
+        Wed, 17 Oct 2018 13:25:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <CAAeHK+yEZTLjgSj8YUzeJec9Pp2TwuLT5nCa1OpfBLXJkx_hhg@mail.gmail.com>
+References: <cover.1538485901.git.andreyknvl@google.com> <be684ce5-92fd-e970-b002-83452cf50abd@arm.com>
+ <CAAeHK+yEZTLjgSj8YUzeJec9Pp2TwuLT5nCa1OpfBLXJkx_hhg@mail.gmail.com>
+From: Evgenii Stepanov <eugenis@google.com>
+Date: Wed, 17 Oct 2018 13:25:42 -0700
+Message-ID: <CAFKCwrh4-BvFB_R1J0LWcbfeR=d02OazowFuMU+hmq8Y=Dx+4w@mail.gmail.com>
+Subject: Re: [PATCH v7 0/8] arm64: untag user pointers passed to the kernel
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Johannes Thumshirn <jthumshirn@suse.de>, Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-api@vger.kernel.org
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Vincenzo Frascino <vincenzo.frascino@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
 
-Jan Kara <jack@suse.cz> writes:
-
-> [Added ext4, xfs, and linux-api folks to CC for the interface discussion]
+On Wed, Oct 17, 2018 at 7:20 AM, Andrey Konovalov <andreyknvl@google.com> w=
+rote:
+> On Wed, Oct 17, 2018 at 4:06 PM, Vincenzo Frascino
+> <vincenzo.frascino@arm.com> wrote:
+>> Hi Andrey,
+>> I have been thinking a bit lately on how to address the problem of user =
+tagged pointers passed to the kernel through syscalls, and IMHO probably th=
+e best way we have to catch them all and make sure that the approach is mai=
+ntainable in the long term is to introduce shims that tag/untag the pointer=
+s passed to the kernel.
+>>
+>> In details, what I am proposing can live either in userspace (preferred =
+solution so that we do not have to relax the ABI) or in kernel space and ca=
+n be summarized as follows:
+>>  - A shim is specific to a syscall and is called by the libc when it nee=
+ds to invoke the respective syscall.
+>>  - It is required only if the syscall accepts pointers.
+>>  - It saves the tags of a pointers passed to the syscall in memory (same=
+ approach if the we are passing a struct that contains pointers to the kern=
+el, with the difference that all the tags of the pointers in the struct nee=
+d to be saved singularly)
+>>  - Untags the pointers
+>>  - Invokes the syscall
+>>  - Retags the pointers with the tags stored in memory
+>>  - Returns
+>>
+>> What do you think?
 >
-> On Tue 02-10-18 14:10:39, Johannes Thumshirn wrote:
->> On Tue, Oct 02, 2018 at 12:05:31PM +0200, Jan Kara wrote:
->> > Hello,
->> > 
->> > commit e1fb4a086495 "dax: remove VM_MIXEDMAP for fsdax and device dax" has
->> > removed VM_MIXEDMAP flag from DAX VMAs. Now our testing shows that in the
->> > mean time certain customer of ours started poking into /proc/<pid>/smaps
->> > and looks at VMA flags there and if VM_MIXEDMAP is missing among the VMA
->> > flags, the application just fails to start complaining that DAX support is
->> > missing in the kernel. The question now is how do we go about this?
->> 
->> OK naive question from me, how do we want an application to be able to
->> check if it is running on a DAX mapping?
+> Hi Vincenzo,
 >
-> The question from me is: Should application really care? After all DAX is
-> just a caching decision. Sure it affects performance characteristics and
-> memory usage of the kernel but it is not a correctness issue (in particular
-> we took care for MAP_SYNC to return EOPNOTSUPP if the feature cannot be
-> supported for current mapping). And in the future the details of what we do
-> with DAX mapping can change - e.g. I could imagine we might decide to cache
-> writes in DRAM but do direct PMEM access on reads. And all this could be
-> auto-tuned based on media properties. And we don't want to tie our hands by
-> specifying too narrowly how the kernel is going to behave.
+> If I correctly understand what you are proposing, I'm not sure if that
+> would work with the countless number of different ioctl calls. For
+> example when an ioctl accepts a struct with a bunch of pointer fields.
+> In this case a shim like the one you propose can't live in userspace,
+> since libc doesn't know about the interface of all ioctls, so it can't
+> know which fields to untag. The kernel knows about those interfaces
+> (since the kernel implements them), but then we would need a custom
+> shim for each ioctl variation, which doesn't seem practical.
 
-For read and write, I would expect the O_DIRECT open flag to still work,
-even for dax-capable persistent memory.  Is that a contentious opinion?
-
-So, what we're really discussing is the behavior for mmap.  MAP_SYNC
-will certainly ensure that the page cache is not used for writes.  It
-would also be odd for us to decide to cache reads.  The only issue I can
-see is that perhaps the application doesn't want to take a performance
-hit on write faults.  I haven't heard that concern expressed in this
-thread, though.
-
-Just to be clear, this is my understanding of the world:
-
-MAP_SYNC
-- file system guarantees that metadata required to reach faulted-in file
-  data is consistent on media before a write fault is completed.  A
-  side-effect is that the page cache will not be used for
-  writably-mapped pages.
-
-and what I think Dan had proposed:
-
-mmap flag, MAP_DIRECT
-- file system guarantees that page cache will not be used to front storage.
-  storage MUST be directly addressable.  This *almost* implies MAP_SYNC.
-  The subtle difference is that a write fault /may/ not result in metadata
-  being written back to media.
-
-and this is what I think you were proposing, Jan:
-
-madvise flag, MADV_DIRECT_ACCESS
-- same semantics as MAP_DIRECT, but specified via the madvise system call
-
-Cheers,
-Jeff
+The current patchset handles majority of pointers in a just a few
+common places, like copy_from_user. Userspace shims will need to untag
+& retag all pointer arguments - we are looking at hundreds if not
+thousands of shims. They will also be located in a different code base
+from the syscall / ioctl implementations, which would make them
+impossible to keep up to date.
