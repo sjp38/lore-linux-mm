@@ -1,162 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D918F6B0010
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 06:42:04 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id 110-v6so16976777wra.9
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 03:42:04 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTPS id y6-v6si12890727wrh.91.2018.10.17.03.42.03
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C97326B026A
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 06:44:30 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id i16-v6so16121016ede.11
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 03:44:30 -0700 (PDT)
+Received: from outbound-smtp27.blacknight.com (outbound-smtp27.blacknight.com. [81.17.249.195])
+        by mx.google.com with ESMTPS id 62-v6si12887468edy.200.2018.10.17.03.44.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 03:42:03 -0700 (PDT)
-Date: Wed, 17 Oct 2018 12:41:37 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v5 03/27] x86/fpu/xstate: Introduce XSAVES system states
-Message-ID: <20181017104137.GE22535@zn.tnic>
-References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
- <20181011151523.27101-4-yu-cheng.yu@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 17 Oct 2018 03:44:29 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
+	by outbound-smtp27.blacknight.com (Postfix) with ESMTPS id C8B39B89CD
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 11:44:26 +0100 (IST)
+Date: Wed, 17 Oct 2018 11:44:27 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [RFC v4 PATCH 2/5] mm/__free_one_page: skip merge for order-0
+ page unless compaction failed
+Message-ID: <20181017104427.GJ5819@techsingularity.net>
+References: <20181017063330.15384-1-aaron.lu@intel.com>
+ <20181017063330.15384-3-aaron.lu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20181011151523.27101-4-yu-cheng.yu@intel.com>
+In-Reply-To: <20181017063330.15384-3-aaron.lu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, Tariq Toukan <tariqt@mellanox.com>, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Thu, Oct 11, 2018 at 08:14:59AM -0700, Yu-cheng Yu wrote:
-> Control Flow Enforcement (CET) MSRs are XSAVES system states.
-
-That sentence needs massaging. MSRs are system states?!?!
-
-> To support CET, we introduce XSAVES system states first.
-
-Pls drop the "we" in all commit messages and convert the tone to
-impartial and passive.
-
-Also, this commit message needs to explain *why* you're doing this - it
-is too laconic.
-
-> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> ---
->  arch/x86/include/asm/fpu/internal.h |  3 +-
->  arch/x86/include/asm/fpu/xstate.h   |  4 +-
->  arch/x86/kernel/fpu/core.c          |  6 +-
->  arch/x86/kernel/fpu/init.c          | 10 ----
->  arch/x86/kernel/fpu/xstate.c        | 86 ++++++++++++++++++-----------
->  5 files changed, 62 insertions(+), 47 deletions(-)
+On Wed, Oct 17, 2018 at 02:33:27PM +0800, Aaron Lu wrote:
+> Running will-it-scale/page_fault1 process mode workload on a 2 sockets
+> Intel Skylake server showed severe lock contention of zone->lock, as
+> high as about 80%(42% on allocation path and 35% on free path) CPU
+> cycles are burnt spinning. With perf, the most time consuming part inside
+> that lock on free path is cache missing on page structures, mostly on
+> the to-be-freed page's buddy due to merging.
 > 
-> diff --git a/arch/x86/include/asm/fpu/internal.h b/arch/x86/include/asm/fpu/internal.h
-> index 02c4296478c8..9a5db5a63f60 100644
-> --- a/arch/x86/include/asm/fpu/internal.h
-> +++ b/arch/x86/include/asm/fpu/internal.h
-> @@ -45,7 +45,6 @@ extern void fpu__init_cpu_xstate(void);
->  extern void fpu__init_system(struct cpuinfo_x86 *c);
->  extern void fpu__init_check_bugs(void);
->  extern void fpu__resume_cpu(void);
-> -extern u64 fpu__get_supported_xfeatures_mask(void);
+
+This confuses me slightly. The commit log for d8a759b57035 ("mm,
+page_alloc: double zone's batchsize") indicates that the contention for
+will-it-scale moved from the zone lock to the LRU lock. This appears to
+contradict that although the exact test case is different (page_fault_1
+vs page_fault2). Can you clarify why commit d8a759b57035 is
+insufficient?
+
+I'm wondering is this really about reducing the number of dirtied cache
+lines due to struct page updates and less about the actual zone lock.
+
+> One way to avoid this overhead is not do any merging at all for order-0
+> pages. With this approach, the lock contention for zone->lock on free
+> path dropped to 1.1% but allocation side still has as high as 42% lock
+> contention. In the meantime, the dropped lock contention on free side
+> doesn't translate to performance increase, instead, it's consumed by
+> increased lock contention of the per node lru_lock(rose from 5% to 37%)
+> and the final performance slightly dropped about 1%.
+> 
+
+Although this implies it's really about contention.
+
+> Though performance dropped a little, it almost eliminated zone lock
+> contention on free path and it is the foundation for the next patch
+> that eliminates zone lock contention for allocation path.
+> 
+
+Can you clarify whether THP was enabled or not? As this is order-0 focused,
+it would imply the series should have minimal impact due to limited merging.
+
+> Suggested-by: Dave Hansen <dave.hansen@intel.com>
+> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+> ---
+>  include/linux/mm_types.h |  9 +++-
+>  mm/compaction.c          | 13 +++++-
+>  mm/internal.h            | 27 ++++++++++++
+>  mm/page_alloc.c          | 88 ++++++++++++++++++++++++++++++++++------
+>  4 files changed, 121 insertions(+), 16 deletions(-)
+> 
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 5ed8f6292a53..aed93053ef6e 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -179,8 +179,13 @@ struct page {
+>  		int units;			/* SLOB */
+>  	};
 >  
->  /*
->   * Debugging facility:
-> @@ -93,7 +92,7 @@ static inline void fpstate_init_xstate(struct xregs_state *xsave)
->  	 * XRSTORS requires these bits set in xcomp_bv, or it will
->  	 * trigger #GP:
->  	 */
-> -	xsave->header.xcomp_bv = XCOMP_BV_COMPACTED_FORMAT | xfeatures_mask_user;
-> +	xsave->header.xcomp_bv = XCOMP_BV_COMPACTED_FORMAT | xfeatures_mask_all;
->  }
+> -	/* Usage count. *DO NOT USE DIRECTLY*. See page_ref.h */
+> -	atomic_t _refcount;
+> +	union {
+> +		/* Usage count. *DO NOT USE DIRECTLY*. See page_ref.h */
+> +		atomic_t _refcount;
+> +
+> +		/* For pages in Buddy: if skipped merging when added to Buddy */
+> +		bool buddy_merge_skipped;
+> +	};
 >  
->  static inline void fpstate_init_fxstate(struct fxregs_state *fx)
-> diff --git a/arch/x86/include/asm/fpu/xstate.h b/arch/x86/include/asm/fpu/xstate.h
-> index 76f83d2ac10e..d8e2ec99f635 100644
-> --- a/arch/x86/include/asm/fpu/xstate.h
-> +++ b/arch/x86/include/asm/fpu/xstate.h
-> @@ -19,9 +19,6 @@
->  #define XSAVE_YMM_SIZE	    256
->  #define XSAVE_YMM_OFFSET    (XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET)
+
+In some instances, bools within structrs are frowned upon because of
+differences in sizes across architectures. Because this is part of a
+union, I don't think it's problematic but bear in mind in case someone
+else spots it.
+
+>  #ifdef CONFIG_MEMCG
+>  	struct mem_cgroup *mem_cgroup;
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index faca45ebe62d..0c9c7a30dde3 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -777,8 +777,19 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+>  		 * potential isolation targets.
+>  		 */
+>  		if (PageBuddy(page)) {
+> -			unsigned long freepage_order = page_order_unsafe(page);
+> +			unsigned long freepage_order;
 >  
-> -/* Supervisor features */
-> -#define XFEATURE_MASK_SUPERVISOR (XFEATURE_MASK_PT)
-> -
->  /* All currently supported features */
->  #define SUPPORTED_XFEATURES_MASK (XFEATURE_MASK_FP | \
->  				  XFEATURE_MASK_SSE | \
-> @@ -40,6 +37,7 @@
->  #endif
+> +			/*
+> +			 * If this is a merge_skipped page, do merge now
+> +			 * since high-order pages are needed. zone lock
+> +			 * isn't taken for the merge_skipped check so the
+> +			 * check could be wrong but the worst case is we
+> +			 * lose a merge opportunity.
+> +			 */
+> +			if (page_merge_was_skipped(page))
+> +				try_to_merge_page(page);
+> +
+> +			freepage_order = page_order_unsafe(page);
+>  			/*
+>  			 * Without lock, we cannot be sure that what we got is
+>  			 * a valid page order. Consider only values in the
+> diff --git a/mm/internal.h b/mm/internal.h
+> index 87256ae1bef8..c166735a559e 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -527,4 +527,31 @@ static inline bool is_migrate_highatomic_page(struct page *page)
 >  
->  extern u64 xfeatures_mask_user;
-> +extern u64 xfeatures_mask_all;
+>  void setup_zone_pageset(struct zone *zone);
+>  extern struct page *alloc_new_node_page(struct page *page, unsigned long node);
+> +
+> +static inline bool page_merge_was_skipped(struct page *page)
+> +{
+> +	return page->buddy_merge_skipped;
+> +}
+> +
+> +void try_to_merge_page(struct page *page);
+> +
+> +#ifdef CONFIG_COMPACTION
+> +static inline bool can_skip_merge(struct zone *zone, int order)
+> +{
+> +	/* Compaction has failed in this zone, we shouldn't skip merging */
+> +	if (zone->compact_considered)
+> +		return false;
+> +
+> +	/* Only consider no_merge for order 0 pages */
+> +	if (order)
+> +		return false;
+> +
+> +	return true;
+> +}
+> +#else /* CONFIG_COMPACTION */
+> +static inline bool can_skip_merge(struct zone *zone, int order)
+> +{
+> +	return false;
+> +}
+> +#endif  /* CONFIG_COMPACTION */
+>  #endif	/* __MM_INTERNAL_H */
 
-You have a bunch of places where you generate the system mask by doing
-~xfeatures_mask_user.
+Strictly speaking, lazy buddy merging does not need to be linked to
+compaction. Lazy merging doesn't say anything about the mobility of
+buddy pages that are still allocated.
 
-Why not define
-
-	xfeatures_mask_system
-
-instead and generate the _all mask at the places you need it by doing
-
-	xfeatures_mask_user | xfeatures_mask_system
-
-?
-
-We are differentiating user and system states now so it is only logical
-to have that mirrored in the variables, right?
-
-You even do that in fpu__init_system_xstate().
-
-...
-
-> @@ -225,20 +230,19 @@ void fpu__init_cpu_xstate(void)
->  	 * set here.
->  	 */
->  
-> -	xfeatures_mask_user &= ~XFEATURE_MASK_SUPERVISOR;
-> -
->  	cr4_set_bits(X86_CR4_OSXSAVE);
->  	xsetbv(XCR_XFEATURE_ENABLED_MASK, xfeatures_mask_user);
-
-<---- newline here.
-
-> +	/*
-> +	 * MSR_IA32_XSS sets which XSAVES system states to be managed by
-
-Improve:
-
-"MSR_IA32_XSS controls which system (not user) states are going to be
-managed by XSAVES."
-
-> @@ -702,6 +703,7 @@ static int init_xstate_size(void)
->   */
->  static void fpu__init_disable_system_xstate(void)
->  {
-> +	xfeatures_mask_all = 0;
->  	xfeatures_mask_user = 0;
->  	cr4_clear_bits(X86_CR4_OSXSAVE);
->  	fpu__xstate_clear_all_cpu_caps();
-> @@ -717,6 +719,8 @@ void __init fpu__init_system_xstate(void)
->  	static int on_boot_cpu __initdata = 1;
->  	int err;
->  	int i;
-> +	u64 cpu_user_xfeatures_mask;
-> +	u64 cpu_system_xfeatures_mask;
-
-Please sort function local variables declaration in a reverse christmas
-tree order:
-
-	<type> longest_variable_name;
-	<type> shorter_var_name;
-	<type> even_shorter;
-	<type> i;
-
->  
->  	WARN_ON_FPU(!on_boot_cpu);
->  	on_boot_cpu = 0;
-
-...
+When lazy buddy merging was last examined years ago, a consequence was
+that high-order allocation success rates were reduced. I see you do the
+merging when compaction has been recently considered but I don't see how
+that is sufficient. If a high-order allocation fails, there is no
+guarantee that compaction will find those unmerged buddies. There is
+also no guarantee that a page free will find them. So, in the event of a
+high-order allocation failure, what finds all those unmerged buddies and
+puts them together to see if the allocation would succeed without
+reclaim/compaction/etc.
 
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Mel Gorman
+SUSE Labs
