@@ -1,137 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 301656B026E
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 04:58:56 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id r81-v6so26014936pfk.11
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 01:58:56 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p8-v6sor7099507pgf.59.2018.10.17.01.58.54
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 04DE06B027C
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 05:00:24 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id e6-v6so19367046pge.5
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 02:00:23 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 72-v6si18057234pla.334.2018.10.17.02.00.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Oct 2018 01:58:54 -0700 (PDT)
-From: Kuo-Hsin Yang <vovoy@chromium.org>
-Subject: [PATCH v2] shmem, drm/i915: mark pinned shmemfs pages as unevictable
-Date: Wed, 17 Oct 2018 16:58:01 +0800
-Message-Id: <20181017085801.220742-1-vovoy@chromium.org>
-In-Reply-To: <20181016174300.197906-1-vovoy@chromium.org>
-References: <20181016174300.197906-1-vovoy@chromium.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Oct 2018 02:00:22 -0700 (PDT)
+Date: Wed, 17 Oct 2018 10:00:15 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
+ mappings
+Message-ID: <20181017090015.GI6931@suse.de>
+References: <20181009094825.GC6931@suse.de>
+ <20181009122745.GN8528@dhcp22.suse.cz>
+ <20181009130034.GD6931@suse.de>
+ <20181009142510.GU8528@dhcp22.suse.cz>
+ <20181009230352.GE9307@redhat.com>
+ <alpine.DEB.2.21.1810101410530.53455@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1810151525460.247641@chino.kir.corp.google.com>
+ <20181015154459.e870c30df5c41966ffb4aed8@linux-foundation.org>
+ <20181016074606.GH6931@suse.de>
+ <20181016153715.b40478ff2eebe8d6cf1aead5@linux-foundation.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20181016153715.b40478ff2eebe8d6cf1aead5@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vovoy@chromium.org
-Cc: akpm@linux-foundation.org, chris@chris-wilson.co.uk, corbet@lwn.net, dave.hansen@intel.com, hoegsberg@chromium.org, hughd@google.com, intel-gfx@lists.freedesktop.org, joonas.lahtinen@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, marcheu@chromium.org, mhocko@suse.com, peterz@infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
 
-The i915 driver uses shmemfs to allocate backing storage for gem
-objects. These shmemfs pages can be pinned (increased ref count) by
-shmem_read_mapping_page_gfp(). When a lot of pages are pinned, vmscan
-wastes a lot of time scanning these pinned pages. In some extreme case,
-all pages in the inactive anon lru are pinned, and only the inactive
-anon lru is scanned due to inactive_ratio, the system cannot swap and
-invokes the oom-killer. Mark these pinned pages as unevictable to speed
-up vmscan.
+On Tue, Oct 16, 2018 at 03:37:15PM -0700, Andrew Morton wrote:
+> On Tue, 16 Oct 2018 08:46:06 +0100 Mel Gorman <mgorman@suse.de> wrote:
+> > I consider this to be an unfortunate outcome. On the one hand, we have a
+> > problem that three people can trivially reproduce with known test cases
+> > and a patch shown to resolve the problem. Two of those three people work
+> > on distributions that are exposed to a large number of users. On the
+> > other, we have a problem that requires the system to be in a specific
+> > state and an unknown workload that suffers badly from the remote access
+> > penalties with a patch that has review concerns and has not been proven
+> > to resolve the trivial cases. In the case of distributions, the first
+> > patch addresses concerns with a common workload where on the other hand
+> > we have an internal workload of a single company that is affected --
+> > which indirectly affects many users admittedly but only one entity directly.
+> > 
+> > At the absolute minimum, a test case for the "system fragmentation incurs
+> > access penalties for a workload" scenario that could both replicate the
+> > fragmentation and demonstrate the problem should have been available before
+> > the patch was rejected.  With the test case, there would be a chance that
+> > others could analyse the problem and prototype some fixes. The test case
+> > was requested in the thread and never produced so even if someone were to
+> > prototype fixes, it would be dependant on a third party to test and produce
+> > data which is a time-consuming loop. Instead, we are more or less in limbo.
+> > 
+> 
+> OK, thanks.
+> 
+> But we're OK holding off for a few weeks, yes?  If we do that
+> we'll still make it into 4.19.1.  Am reluctant to merge this while
+> discussion, testing and possibly more development are ongoing.
+> 
 
-By exporting shmem_unlock_mapping, drivers can: 1. mark a shmemfs
-address space as unevictable with mapping_set_unevictable(), pages in
-the address space will be moved to unevictable list in vmscan. 2. mark
-an address space as evictable with mapping_clear_unevictable(), and move
-these pages back to evictable list with shmem_unlock_mapping().
+Without a test case that reproduces the Google case, we are a bit stuck.
+Previous experience indicates that just fragmenting memory is not enough
+to give a reliable case as unless the unmovable/reclaimable pages are
+"sticky", the normal reclaim can handle it. Similarly, the access
+pattern of the target workload is important as it would need to be
+something larger than L3 cache to constantly hit the access penalty. We
+do not know what the exact characteristics of the Google workload are
+but we know that a fix for three cases is not equivalent for the Google
+case.
 
-This patch was inspired by Chris Wilson's change [1].
+The discussion has circled around wish-list items such as better
+fragmentation control, node-aware compaction, improved compact deferred
+logic and lower latencies with little in the way of actual specifics
+of implementation or patches. Improving fragmentation control would
+benefit from a workload that actually fragments so the extfrag events
+can be monitored as well as maybe a dump of pageblocks with mixed pages.
 
-[1]: https://patchwork.kernel.org/patch/9768741/
+On node-aware compaction, that was not implemented initially simply
+because HighMem was common and that needs to be treated as a corner case
+-- we cannot safely migrate pages from zone normal to highmem. That one
+is relatively trivial to measure as it's a functional issue.
 
-Signed-off-by: Kuo-Hsin Yang <vovoy@chromium.org>
----
-Changes for v2:
- Squashed the two patches.
+However, backing off compaction properly to maximise allocation success
+rates while minimising allocation latency and access latency needs a live
+workload that is representative. Trivial cases like the java workloads,
+nas or usemem won't do as they either exhibit special locality or are
+streaming readers/writers. Memcache might work but the driver in that
+case is critical to ensure the access penalties are incurred. Again,
+a modern example is missing.
 
- Documentation/vm/unevictable-lru.rst | 4 +++-
- drivers/gpu/drm/i915/i915_gem.c      | 8 ++++++++
- mm/shmem.c                           | 2 ++
- 3 files changed, 13 insertions(+), 1 deletion(-)
+As for why this took so long to discover, it is highly likely that it's
+due to VM's being sized such as they typically fit in a NUMA node so
+it would have avoided the worst case scenarios. Furthermore, a machine
+dedicated to VM's has fewer concerns with respect to slab allocations
+and unmovable allocations fragmenting memory long-term. Finally, the
+worst case scenarios are encountered when there is a mix of different
+workloads of variable duration which may be common in a Google-like setup
+with different jobs being dispatched across a large network but less so
+in other setups where a service tends to be persistent. We already know
+that some of the worst performance problems take years to discover.
 
-diff --git a/Documentation/vm/unevictable-lru.rst b/Documentation/vm/unevictable-lru.rst
-index fdd84cb8d511..a812fb55136d 100644
---- a/Documentation/vm/unevictable-lru.rst
-+++ b/Documentation/vm/unevictable-lru.rst
-@@ -143,7 +143,7 @@ using a number of wrapper functions:
- 	Query the address space, and return true if it is completely
- 	unevictable.
- 
--These are currently used in two places in the kernel:
-+These are currently used in three places in the kernel:
- 
-  (1) By ramfs to mark the address spaces of its inodes when they are created,
-      and this mark remains for the life of the inode.
-@@ -154,6 +154,8 @@ These are currently used in two places in the kernel:
-      swapped out; the application must touch the pages manually if it wants to
-      ensure they're in memory.
- 
-+ (3) By the i915 driver to mark pinned address space until it's unpinned.
-+
- 
- Detecting Unevictable Pages
- ---------------------------
-diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
-index fcc73a6ab503..e0ff5b736128 100644
---- a/drivers/gpu/drm/i915/i915_gem.c
-+++ b/drivers/gpu/drm/i915/i915_gem.c
-@@ -2390,6 +2390,7 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
- {
- 	struct sgt_iter sgt_iter;
- 	struct page *page;
-+	struct address_space *mapping;
- 
- 	__i915_gem_object_release_shmem(obj, pages, true);
- 
-@@ -2409,6 +2410,10 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
- 	}
- 	obj->mm.dirty = false;
- 
-+	mapping = file_inode(obj->base.filp)->i_mapping;
-+	mapping_clear_unevictable(mapping);
-+	shmem_unlock_mapping(mapping);
-+
- 	sg_free_table(pages);
- 	kfree(pages);
- }
-@@ -2551,6 +2556,7 @@ static int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
- 	 * Fail silently without starting the shrinker
- 	 */
- 	mapping = obj->base.filp->f_mapping;
-+	mapping_set_unevictable(mapping);
- 	noreclaim = mapping_gfp_constraint(mapping, ~__GFP_RECLAIM);
- 	noreclaim |= __GFP_NORETRY | __GFP_NOWARN;
- 
-@@ -2664,6 +2670,8 @@ static int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
- err_pages:
- 	for_each_sgt_page(page, sgt_iter, st)
- 		put_page(page);
-+	mapping_clear_unevictable(mapping);
-+	shmem_unlock_mapping(mapping);
- 	sg_free_table(st);
- 	kfree(st);
- 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 446942677cd4..d1ce34c09df6 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -786,6 +786,7 @@ void shmem_unlock_mapping(struct address_space *mapping)
- 		cond_resched();
- 	}
- }
-+EXPORT_SYMBOL_GPL(shmem_unlock_mapping);
- 
- /*
-  * Remove range of pages and swap entries from radix tree, and free them.
-@@ -3874,6 +3875,7 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
- void shmem_unlock_mapping(struct address_space *mapping)
- {
- }
-+EXPORT_SYMBOL_GPL(shmem_unlock_mapping);
- 
- #ifdef CONFIG_MMU
- unsigned long shmem_get_unmapped_area(struct file *file,
 -- 
-2.19.1.331.ge82ca0e54c-goog
+Mel Gorman
+SUSE Labs
