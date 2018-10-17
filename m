@@ -1,47 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B9F636B0266
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 05:51:34 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id 31-v6so16380325edr.19
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 02:51:34 -0700 (PDT)
-Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.106])
-        by mx.google.com with ESMTPS id v11-v6si6942614eju.193.2018.10.17.02.51.33
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DEEDA6B026B
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 05:52:06 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id d7-v6so10235102pfj.6
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 02:52:06 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id s9-v6si17268605pgk.371.2018.10.17.02.52.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 02:51:33 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id E80E11C19A6
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 10:51:32 +0100 (IST)
-Date: Wed, 17 Oct 2018 10:51:31 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [RFC v4 PATCH 1/5] mm/page_alloc: use helper functions to
- add/remove a page to/from buddy
-Message-ID: <20181017095131.GI5819@techsingularity.net>
-References: <20181017063330.15384-1-aaron.lu@intel.com>
- <20181017063330.15384-2-aaron.lu@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 17 Oct 2018 02:52:05 -0700 (PDT)
+Date: Wed, 17 Oct 2018 02:51:55 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v2 1/2] mm: Add an F_SEAL_FS_WRITE seal to memfd
+Message-ID: <20181017095155.GA354@infradead.org>
+References: <20181009222042.9781-1-joel@joelfernandes.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181017063330.15384-2-aaron.lu@intel.com>
+In-Reply-To: <20181009222042.9781-1-joel@joelfernandes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, Tariq Toukan <tariqt@mellanox.com>, Jesper Dangaard Brouer <brouer@redhat.com>
+To: "Joel Fernandes (Google)" <joel@joelfernandes.org>
+Cc: linux-kernel@vger.kernel.org, kernel-team@android.com, jreck@google.com, john.stultz@linaro.org, tkjos@google.com, gregkh@linuxfoundation.org, Andrew Morton <akpm@linux-foundation.org>, dancol@google.com, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, minchan@google.com, Shuah Khan <shuah@kernel.org>
 
-On Wed, Oct 17, 2018 at 02:33:26PM +0800, Aaron Lu wrote:
-> There are multiple places that add/remove a page into/from buddy,
-> introduce helper functions for them.
-> 
-> This also makes it easier to add code when a page is added/removed
-> to/from buddy.
-> 
-> No functionality change.
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+On Tue, Oct 09, 2018 at 03:20:41PM -0700, Joel Fernandes (Google) wrote:
+> One of the main usecases Android has is the ability to create a region
+> and mmap it as writeable, then drop its protection for "future" writes
+> while keeping the existing already mmap'ed writeable-region active.
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
+s/drop/add/ ?
 
--- 
-Mel Gorman
-SUSE Labs
+Otherwise this doesn't make much sense to me.
+
+> This usecase cannot be implemented with the existing F_SEAL_WRITE seal.
+> To support the usecase, this patch adds a new F_SEAL_FS_WRITE seal which
+> prevents any future mmap and write syscalls from succeeding while
+> keeping the existing mmap active. The following program shows the seal
+> working in action:
+
+Where does the FS come from?  I'd rather expect this to be implemented
+as a 'force' style flag that applies the seal even if the otherwise
+required precondition is not met.
+
+> Note: This seal will also prevent growing and shrinking of the memfd.
+> This is not something we do in Android so it does not affect us, however
+> I have mentioned this behavior of the seal in the manpage.
+
+This seems odd, as that is otherwise split into the F_SEAL_SHRINK /
+F_SEAL_GROW flags.
+
+>  static int memfd_add_seals(struct file *file, unsigned int seals)
+>  {
+> @@ -219,6 +220,9 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
+>  		}
+>  	}
+>  
+> +	if ((seals & F_SEAL_FS_WRITE) && !(*file_seals & F_SEAL_FS_WRITE))
+> +		file->f_mode &= ~(FMODE_WRITE | FMODE_PWRITE);
+> +
+
+This seems to lack any synchronization for f_mode.
