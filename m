@@ -1,52 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AE2C96B000E
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 02:33:49 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id g63-v6so9960796pfc.9
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2018 23:33:49 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id v202-v6si1081311pgb.96.2018.10.16.23.33.48
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 437066B0007
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 03:05:34 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id g36-v6so16140807edb.3
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 00:05:34 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q23-v6si5226579edg.419.2018.10.17.00.05.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Oct 2018 23:33:48 -0700 (PDT)
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: [RFC v4 PATCH 5/5] mm/can_skip_merge(): make it more aggressive to attempt cluster alloc/free
-Date: Wed, 17 Oct 2018 14:33:30 +0800
-Message-Id: <20181017063330.15384-6-aaron.lu@intel.com>
-In-Reply-To: <20181017063330.15384-1-aaron.lu@intel.com>
-References: <20181017063330.15384-1-aaron.lu@intel.com>
+        Wed, 17 Oct 2018 00:05:32 -0700 (PDT)
+Date: Wed, 17 Oct 2018 09:05:31 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm, proc: report PR_SET_THP_DISABLE in proc
+Message-ID: <20181017070531.GC18839@dhcp22.suse.cz>
+References: <alpine.DEB.2.21.1810031547150.202532@chino.kir.corp.google.com>
+ <20181004055842.GA22173@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810040209130.113459@chino.kir.corp.google.com>
+ <20181004094637.GG22173@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810041130380.12951@chino.kir.corp.google.com>
+ <20181009083326.GG8528@dhcp22.suse.cz>
+ <20181015150325.GN18839@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810151519250.247641@chino.kir.corp.google.com>
+ <20181016104855.GQ18839@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810161416540.83080@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.21.1810161416540.83080@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, Tariq Toukan <tariqt@mellanox.com>, Jesper Dangaard Brouer <brouer@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-After system runs a long time, it's easy for a zone to have no
-suitable high order page available and that will stop cluster alloc
-and free in current implementation due to compact_considered > 0.
+On Tue 16-10-18 14:24:19, David Rientjes wrote:
+> On Tue, 16 Oct 2018, Michal Hocko wrote:
+> 
+> > > I don't understand the point of extending smaps with yet another line.  
+> > 
+> > Because abusing a vma flag part is just wrong. What are you going to do
+> > when a next bug report states that the flag is set even though no
+> > userspace has set it and that leads to some malfunctioning? Can you rule
+> > that out? Even your abuse of the flag is surprising so why others
+> > wouldn't be?
+> > 
+> 
+> The flag has taken on the meaning of "thp disabled for this vma", how it 
+> is set is not the scope of the flag.  If a thp is explicitly disabled from 
+> being eligible for thp, whether by madvise, prctl, or any future 
+> mechanism, it should use VM_NOHUGEPAGE or show_smap_vma_flags() needs to 
+> be modified.
 
-To make it favour order0 alloc/free, relax the condition to only
-disallow cluster alloc/free when problem would occur, e.g. when
-compaction is in progress.
+No, this is not the meaning which is documented
 
-Signed-off-by: Aaron Lu <aaron.lu@intel.com>
----
- mm/internal.h | 4 ----
- 1 file changed, 4 deletions(-)
+nh  - no-huge page advise flag
 
-diff --git a/mm/internal.h b/mm/internal.h
-index fb4e8f7976e5..309a3f43e613 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -538,10 +538,6 @@ void try_to_merge_page(struct page *page);
- #ifdef CONFIG_COMPACTION
- static inline bool can_skip_merge(struct zone *zone, int order)
- {
--	/* Compaction has failed in this zone, we shouldn't skip merging */
--	if (zone->compact_considered)
--		return false;
--
- 	/* Only consider no_merge for order 0 pages */
- 	if (order)
- 		return false;
+and as far as I know it is only you who has complained so far.
+ 
+> > As I've said there are two things. Exporting PR_SET_THP_DISABLE to
+> > userspace so that a 3rd party process can query it. I've already
+> > explained why that might be useful. If you really insist on having
+> > a per-vma field then let's do it properly now. Are you going to agree on
+> > that? If yes, I am willing to spend my time on that but I am not going
+> > to bother if this will lead to "I want my vma field abuse anyway".
+> 
+> I think what you and I want is largely irrelevant :)  What's important is 
+> that there are userspace implementations that query this today so 
+> continuing to support it as the way to determine if a vma has been thp 
+> disabled doesn't seem problematic and guarantees that userspace doesn't 
+> break.
+
+Do you know of any other userspace except your usecase? Is there
+anything fundamental that would prevent a proper API adoption for you?
+
 -- 
-2.17.2
+Michal Hocko
+SUSE Labs
