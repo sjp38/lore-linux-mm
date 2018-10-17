@@ -1,63 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 86A896B0005
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 10:20:43 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id v12-v6so24786554iob.15
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 07:20:43 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 123-v6sor6839873ioy.110.2018.10.17.07.20.42
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ED5C6B026A
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 10:23:33 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id v138-v6so19928032pgb.7
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 07:23:33 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id b28-v6si18121588pff.192.2018.10.17.07.23.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Oct 2018 07:20:42 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Oct 2018 07:23:31 -0700 (PDT)
+Date: Wed, 17 Oct 2018 22:23:27 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [RFC v4 PATCH 3/5] mm/rmqueue_bulk: alloc without touching
+ individual page structure
+Message-ID: <20181017142327.GB9167@intel.com>
+References: <20181017063330.15384-1-aaron.lu@intel.com>
+ <20181017063330.15384-4-aaron.lu@intel.com>
+ <20181017112042.GK5819@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <be684ce5-92fd-e970-b002-83452cf50abd@arm.com>
-References: <cover.1538485901.git.andreyknvl@google.com> <be684ce5-92fd-e970-b002-83452cf50abd@arm.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Wed, 17 Oct 2018 16:20:41 +0200
-Message-ID: <CAAeHK+yEZTLjgSj8YUzeJec9Pp2TwuLT5nCa1OpfBLXJkx_hhg@mail.gmail.com>
-Subject: Re: [PATCH v7 0/8] arm64: untag user pointers passed to the kernel
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181017112042.GK5819@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Evgeniy Stepanov <eugenis@google.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, Tariq Toukan <tariqt@mellanox.com>, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Wed, Oct 17, 2018 at 4:06 PM, Vincenzo Frascino
-<vincenzo.frascino@arm.com> wrote:
-> Hi Andrey,
-> I have been thinking a bit lately on how to address the problem of user t=
-agged pointers passed to the kernel through syscalls, and IMHO probably the=
- best way we have to catch them all and make sure that the approach is main=
-tainable in the long term is to introduce shims that tag/untag the pointers=
- passed to the kernel.
->
-> In details, what I am proposing can live either in userspace (preferred s=
-olution so that we do not have to relax the ABI) or in kernel space and can=
- be summarized as follows:
->  - A shim is specific to a syscall and is called by the libc when it need=
-s to invoke the respective syscall.
->  - It is required only if the syscall accepts pointers.
->  - It saves the tags of a pointers passed to the syscall in memory (same =
-approach if the we are passing a struct that contains pointers to the kerne=
-l, with the difference that all the tags of the pointers in the struct need=
- to be saved singularly)
->  - Untags the pointers
->  - Invokes the syscall
->  - Retags the pointers with the tags stored in memory
->  - Returns
->
-> What do you think?
+On Wed, Oct 17, 2018 at 12:20:42PM +0100, Mel Gorman wrote:
+> On Wed, Oct 17, 2018 at 02:33:28PM +0800, Aaron Lu wrote:
+> > Profile on Intel Skylake server shows the most time consuming part
+> > under zone->lock on allocation path is accessing those to-be-returned
+> > page's "struct page" on the free_list inside zone->lock. One explanation
+> > is, different CPUs are releasing pages to the head of free_list and
+> > those page's 'struct page' may very well be cache cold for the allocating
+> > CPU when it grabs these pages from free_list' head. The purpose here
+> > is to avoid touching these pages one by one inside zone->lock.
+> > 
+> 
+> I didn't read this one in depth because it's somewhat ortogonal to the
+> lazy buddy merging which I think would benefit from being finalised and
+> ensuring that there are no reductions in high-order allocation success
+> rates.  Pages being allocated on one CPU and freed on another is not that
+> unusual -- ping-pong workloads or things like netperf used to exhibit
+> this sort of pattern.
+> 
+> However, this part stuck out
+> 
+> > +static inline void zone_wait_cluster_alloc(struct zone *zone)
+> > +{
+> > +	while (atomic_read(&zone->cluster.in_progress))
+> > +		cpu_relax();
+> > +}
+> > +
+> 
+> RT has had problems with cpu_relax in the past but more importantly, as
+> this delay for parallel compactions and allocations of contig ranges,
+> we could be stuck here for very long periods of time with interrupts
 
-Hi Vincenzo,
+The longest possible time is one CPU accessing pcp->batch number cold
+cachelines. Reason:
+When zone_wait_cluster_alloc() is called, we already held zone lock so
+no more allocations are possible. Waiting in_progress to become zero
+means waiting any CPU that increased in_progress to finish processing
+their allocated pages. Since they will at most allocate pcp->batch pages
+and worse case are all these page structres are cache cold, so the
+longest wait time is one CPU accessing pcp->batch number cold cache lines.
 
-If I correctly understand what you are proposing, I'm not sure if that
-would work with the countless number of different ioctl calls. For
-example when an ioctl accepts a struct with a bunch of pointer fields.
-In this case a shim like the one you propose can't live in userspace,
-since libc doesn't know about the interface of all ioctls, so it can't
-know which fields to untag. The kernel knows about those interfaces
-(since the kernel implements them), but then we would need a custom
-shim for each ioctl variation, which doesn't seem practical.
+I have no idea if this time is too long though.
 
-Thanks!
+> disabled. It gets even worse if it's from an interrupt context such as
+> jumbo frame allocation or a high-order slab allocation that is atomic.
+
+My understanding is atomic allocation won't trigger compaction, no?
+
+> These potentially large periods of time with interrupts disabled is very
+> hazardous.
+
+I see and agree, thanks for pointing this out.
+Hopefully, the above mentioned worst case time won't be regarded as
+unbound or too long.
+
+> It may be necessary to consider instead minimising the number
+> of struct page update when merging to PCP and then either increasing the
+> size of the PCP or allowing it to exceed pcp->high for short periods of
+> time to batch the struct page updates.
+
+I don't quite follow this part. It doesn't seem possible we can exceed
+pcp->high in allocation path, or are you talking about free path?
+
+And thanks a lot for the review!
