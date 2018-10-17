@@ -1,49 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 607F16B0003
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 11:35:17 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id n1-v6so28505895qtb.17
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 08:35:17 -0700 (PDT)
-Received: from a9-46.smtp-out.amazonses.com (a9-46.smtp-out.amazonses.com. [54.240.9.46])
-        by mx.google.com with ESMTPS id j68-v6si3868761qke.173.2018.10.17.08.35.16
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 187D16B0007
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 11:38:20 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id 4-v6so27938658qtt.22
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 08:38:20 -0700 (PDT)
+Received: from a9-112.smtp-out.amazonses.com (a9-112.smtp-out.amazonses.com. [54.240.9.112])
+        by mx.google.com with ESMTPS id k57si955038qvk.16.2018.10.17.08.38.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 17 Oct 2018 08:35:16 -0700 (PDT)
-Date: Wed, 17 Oct 2018 15:35:15 +0000
+        Wed, 17 Oct 2018 08:38:19 -0700 (PDT)
+Date: Wed, 17 Oct 2018 15:38:19 +0000
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: WARNING: kmalloc bug in input_mt_init_slots
-In-Reply-To: <20181017000955.GG230131@dtor-ws>
-Message-ID: <0100016682aaae79-d1382d3d-83f8-4972-b4b9-6220367f4f65-000000@email.amazonses.com>
-References: <000000000000e5f76c057664e73d@google.com> <CAKdAkRS7PSXv65MTnvKOewqESxt0_FtKohd86ioOuYR3R0z9dw@mail.gmail.com> <CACT4Y+YOb6M=xuPG64PAvd=0bcteicGtwQO60CevN_V67SJ=MQ@mail.gmail.com> <010001660c1fafb2-6d0dc7e1-d898-4589-874c-1be1af94e22d-000000@email.amazonses.com>
- <CACT4Y+ayX8vzd2JPrLeFhf3K_Quf4x6SDtmtkNJuwNLyOh67tQ@mail.gmail.com> <010001660c4a8bbe-91200766-00df-48bd-bc60-a03da2ccdb7d-000000@email.amazonses.com> <20180924184158.GA156847@dtor-ws> <20180927143537.GB19006@bombadil.infradead.org>
- <20181017000955.GG230131@dtor-ws>
+Subject: Re: [patch] mm, slab: avoid high-order slab pages when it does not
+ reduce waste
+In-Reply-To: <8eaaa366-415a-5d72-7720-82468d853efd@suse.cz>
+Message-ID: <0100016682ad79b9-b1dafb6b-98e2-4d43-835d-fded2028840d-000000@email.amazonses.com>
+References: <alpine.DEB.2.21.1810121424420.116562@chino.kir.corp.google.com> <20181012151341.286cd91321cdda9b6bde4de9@linux-foundation.org> <0100016679e3c96f-c78df4e2-9ab8-48db-8796-271c4b439f16-000000@email.amazonses.com> <alpine.DEB.2.21.1810151715220.21338@chino.kir.corp.google.com>
+ <010001667d7476a2-f91dcf12-5e90-4ade-97e8-9fd651f7bf17-000000@email.amazonses.com> <8eaaa366-415a-5d72-7720-82468d853efd@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Torokhov <dmitry.torokhov@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, syzbot+87829a10073277282ad1@syzkaller.appspotmail.com, Pekka Enberg <penberg@kernel.org>, "linux-input@vger.kernel.org" <linux-input@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>, Henrik Rydberg <rydberg@bitmath.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 16 Oct 2018, Dmitry Torokhov wrote:
+On Wed, 17 Oct 2018, Vlastimil Babka wrote:
 
-> On Thu, Sep 27, 2018 at 07:35:37AM -0700, Matthew Wilcox wrote:
-> > On Mon, Sep 24, 2018 at 11:41:58AM -0700, Dmitry Torokhov wrote:
-> > > > How large is the allocation? AFACIT nRequests larger than KMALLOC_MAX_SIZE
-> > > > are larger than the maximum allowed by the page allocator. Thus the warning
-> > > > and the NULL return.
-> > >
-> > > The size in this particular case is being derived from a value passed
-> > > from userspace. Input core does not care about any limits on size of
-> > > memory kmalloc() can support and is perfectly happy with getting NULL
-> > > and telling userspace to go away with their silly requests by returning
-> > > -ENOMEM.
-> > >
-> > > For the record: I definitely do not want to pre-sanitize size neither in
-> > > uinput nor in input core.
-> >
-> > Probably should be using kvzalloc then.
->
-> No. No sane input device can track so many contacts so we need to use
-> kvzalloc(). Failing to allocate memory is proper response here.
+> I.e. the benefits vs drawbacks of higher order allocations for SLAB are
+> out of scope here. It would be nice if somebody evaluated them, but the
+> potential resulting change would be much larger than what concerns this
+> patch. But it would arguably also make SLAB more like SLUB, which you
+> already questioned at some point...
 
-What is a "contact" here? Are we talking about SG segments?
+Well if this leads to more code going into mm/slab_common.c then I would
+certainly welcome that.
