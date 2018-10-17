@@ -1,100 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CFA06B000D
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 12:34:15 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id b34-v6so16907952ede.5
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 09:34:15 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d17-v6si4981677edj.182.2018.10.17.09.34.13
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 09:34:13 -0700 (PDT)
-Date: Wed, 17 Oct 2018 18:34:11 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [mm PATCH v3 1/6] mm: Use mm_zero_struct_page from SPARC on all
- 64b architectures
-Message-ID: <20181017163411.GT18839@dhcp22.suse.cz>
-References: <20181015202456.2171.88406.stgit@localhost.localdomain>
- <20181015202656.2171.92963.stgit@localhost.localdomain>
- <20181017084744.GH18839@dhcp22.suse.cz>
- <9700b00f-a8a4-e318-f6a8-71fd1e7021b3@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9700b00f-a8a4-e318-f6a8-71fd1e7021b3@linux.intel.com>
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 119C86B0010
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 12:35:21 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id m206-v6so18554121oig.0
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 09:35:21 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id w3-v6si8166561oib.18.2018.10.17.09.35.19
+        for <linux-mm@kvack.org>;
+        Wed, 17 Oct 2018 09:35:19 -0700 (PDT)
+From: Steve Capper <steve.capper@arm.com>
+Subject: [PATCH V2 0/4] 52-bit userspace VAs
+Date: Wed, 17 Oct 2018 17:34:55 +0100
+Message-Id: <20181017163459.20175-1-steve.capper@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, pavel.tatashin@microsoft.com, dave.jiang@intel.com, linux-kernel@vger.kernel.org, willy@infradead.org, davem@davemloft.net, yi.z.zhang@linux.intel.com, khalid.aziz@oracle.com, rppt@linux.vnet.ibm.com, vbabka@suse.cz, sparclinux@vger.kernel.org, dan.j.williams@intel.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mingo@kernel.org, kirill.shutemov@linux.intel.com
+To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@linaro.org, jcm@redhat.com, Steve Capper <steve.capper@arm.com>
 
-On Wed 17-10-18 08:07:06, Alexander Duyck wrote:
-> On 10/17/2018 1:47 AM, Michal Hocko wrote:
-> > On Mon 15-10-18 13:26:56, Alexander Duyck wrote:
-[...]
-> > > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > > index bb0de406f8e7..ec6e57a0c14e 100644
-> > > --- a/include/linux/mm.h
-> > > +++ b/include/linux/mm.h
-> > > @@ -102,8 +102,42 @@ static inline void set_max_mapnr(unsigned long limit) { }
-> > >    * zeroing by defining this macro in <asm/pgtable.h>.
-> > >    */
-> > >   #ifndef mm_zero_struct_page
-> > 
-> > Do we still need this ifdef? I guess we can wait for an arch which
-> > doesn't like this change and then add the override. I would rather go
-> > simple if possible.
-> 
-> We probably don't, but as soon as I remove it somebody will probably
-> complain somewhere. I guess I could drop it for now and see if anybody
-> screams. Adding it back should be pretty straight forward since it would
-> only be 2 lines.
+This patch series brings support for 52-bit userspace VAs to systems that
+have ARMv8.2-LVA and are running with a 48-bit VA_BITS and a 64KB
+PAGE_SIZE.
 
-Let's make it simpler please. If somebody really cares then this is
-trivial to add later.
- 
-> > > +#if BITS_PER_LONG == 64
-> > > +/* This function must be updated when the size of struct page grows above 80
-> > > + * or reduces below 64. The idea that compiler optimizes out switch()
-> > > + * statement, and only leaves move/store instructions
-> > > + */
-> > > +#define	mm_zero_struct_page(pp) __mm_zero_struct_page(pp)
-> > > +static inline void __mm_zero_struct_page(struct page *page)
-> > > +{
-> > > +	unsigned long *_pp = (void *)page;
-> > > +
-> > > +	 /* Check that struct page is either 56, 64, 72, or 80 bytes */
-> > > +	BUILD_BUG_ON(sizeof(struct page) & 7);
-> > > +	BUILD_BUG_ON(sizeof(struct page) < 56);
-> > > +	BUILD_BUG_ON(sizeof(struct page) > 80);
-> > > +
-> > > +	switch (sizeof(struct page)) {
-> > > +	case 80:
-> > > +		_pp[9] = 0;	/* fallthrough */
-> > > +	case 72:
-> > > +		_pp[8] = 0;	/* fallthrough */
-> > > +	default:
-> > > +		_pp[7] = 0;	/* fallthrough */
-> > > +	case 56:
-> > > +		_pp[6] = 0;
-> > > +		_pp[5] = 0;
-> > > +		_pp[4] = 0;
-> > > +		_pp[3] = 0;
-> > > +		_pp[2] = 0;
-> > > +		_pp[1] = 0;
-> > > +		_pp[0] = 0;
-> > > +	}
-> > 
-> > This just hit my eyes. I have to confess I have never seen default: to
-> > be not the last one in the switch. Can we have case 64 instead or does gcc
-> > complain? I would be surprised with the set of BUILD_BUG_ONs.
-> 
-> I can probably just replace the "default:" with "case 64:". I think I have
-> seen other switch statements in the kernel without a default so odds are it
-> should be okay.
+If no hardware support is present, the kernel runs with a 48-bit VA space
+for userspace.
 
-Please do, there shouldn't be any need to obfuscate the code more than
-necessary.
+Userspace can exploit this feature by providing an address hint to mmap
+where addr[51:48] != 0. Otherwise all the VA mappings will behave in the
+same way as a 48-bit VA system (this is to maintain compatibility with
+software that assumes the maximum VA size on arm64 is 48-bit).
+
+This patch series applies to 4.19-rc7.
+
+Testing was in a model with Trusted Firmware and UEFI for boot.
+
+The major change to V2 of the series is that mm/mmap.c is altered in the
+first patch of the series (rather than copied over to arch/arm64).
+
+
+Steve Capper (4):
+  mm: mmap: Allow for "high" userspace addresses
+  arm64: mm: Introduce DEFAULT_MAP_WINDOW
+  arm64: mm: Define arch_get_mmap_end, arch_get_mmap_base
+  arm64: mm: introduce 52-bit userspace support
+
+ arch/arm64/Kconfig                      |  4 ++++
+ arch/arm64/include/asm/assembler.h      |  7 +++----
+ arch/arm64/include/asm/elf.h            |  2 +-
+ arch/arm64/include/asm/mmu_context.h    |  3 +++
+ arch/arm64/include/asm/pgalloc.h        |  4 ++++
+ arch/arm64/include/asm/pgtable.h        | 16 +++++++++++++---
+ arch/arm64/include/asm/processor.h      | 29 ++++++++++++++++++++++-------
+ arch/arm64/kernel/head.S                | 13 +++++++++++++
+ arch/arm64/mm/fault.c                   |  2 +-
+ arch/arm64/mm/mmu.c                     |  1 +
+ arch/arm64/mm/proc.S                    | 10 +++++++++-
+ drivers/firmware/efi/arm-runtime.c      |  2 +-
+ drivers/firmware/efi/libstub/arm-stub.c |  2 +-
+ mm/mmap.c                               | 25 ++++++++++++++++++-------
+ 14 files changed, 94 insertions(+), 26 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+2.11.0
