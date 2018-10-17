@@ -1,64 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 799756B0266
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 11:44:03 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id 91so19462359otr.18
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 08:44:03 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y17-v6sor10064285oie.69.2018.10.17.08.44.02
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ECC86B0005
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 11:53:59 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id u28-v6so29279816qtu.3
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 08:53:59 -0700 (PDT)
+Received: from a9-99.smtp-out.amazonses.com (a9-99.smtp-out.amazonses.com. [54.240.9.99])
+        by mx.google.com with ESMTPS id 14-v6si3340869qtw.283.2018.10.17.08.53.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Oct 2018 08:44:02 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 17 Oct 2018 08:53:58 -0700 (PDT)
+Date: Wed, 17 Oct 2018 15:53:58 +0000
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: WARNING: kmalloc bug in input_mt_init_slots
+In-Reply-To: <CE3D3608-F320-4DAB-8BEB-3EFDDB54F97E@gmail.com>
+Message-ID: <0100016682bbce08-fad65518-19e4-4fa2-a482-0bfdacd3fb42-000000@email.amazonses.com>
+References: <000000000000e5f76c057664e73d@google.com> <CAKdAkRS7PSXv65MTnvKOewqESxt0_FtKohd86ioOuYR3R0z9dw@mail.gmail.com> <CACT4Y+YOb6M=xuPG64PAvd=0bcteicGtwQO60CevN_V67SJ=MQ@mail.gmail.com> <010001660c1fafb2-6d0dc7e1-d898-4589-874c-1be1af94e22d-000000@email.amazonses.com>
+ <CACT4Y+ayX8vzd2JPrLeFhf3K_Quf4x6SDtmtkNJuwNLyOh67tQ@mail.gmail.com> <010001660c4a8bbe-91200766-00df-48bd-bc60-a03da2ccdb7d-000000@email.amazonses.com> <20180924184158.GA156847@dtor-ws> <20180927143537.GB19006@bombadil.infradead.org> <20181017000955.GG230131@dtor-ws>
+ <0100016682aaae79-d1382d3d-83f8-4972-b4b9-6220367f4f65-000000@email.amazonses.com> <CE3D3608-F320-4DAB-8BEB-3EFDDB54F97E@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20181017120829.GA19731@infradead.org>
-References: <20181009222042.9781-1-joel@joelfernandes.org> <20181017095155.GA354@infradead.org>
- <20181017103958.GB230639@joelaf.mtv.corp.google.com> <20181017120829.GA19731@infradead.org>
-From: Daniel Colascione <dancol@google.com>
-Date: Wed, 17 Oct 2018 08:44:01 -0700
-Message-ID: <CAKOZuesr_8vrob-XfEpGmyeKFEhWWXZo4BEC0PixfjT2ibaRZQ@mail.gmail.com>
-Subject: Re: [PATCH v2 1/2] mm: Add an F_SEAL_FS_WRITE seal to memfd
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Joel Fernandes <joel@joelfernandes.org>, linux-kernel <linux-kernel@vger.kernel.org>, kernel-team@android.com, John Reck <jreck@google.com>, John Stultz <john.stultz@linaro.org>, Todd Kjos <tkjos@google.com>, Greg KH <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Mike Kravetz <mike.kravetz@oracle.com>, Minchan Kim <minchan@google.com>, Shuah Khan <shuah@kernel.org>
+To: Dmitry Torokhov <dmitry.torokhov@gmail.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, syzbot+87829a10073277282ad1@syzkaller.appspotmail.com, Pekka Enberg <penberg@kernel.org>, "linux-input@vger.kernel.org" <linux-input@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>, Henrik Rydberg <rydberg@bitmath.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
 
-On Wed, Oct 17, 2018 at 5:08 AM, Christoph Hellwig <hch@infradead.org> wrote:
-> On Wed, Oct 17, 2018 at 03:39:58AM -0700, Joel Fernandes wrote:
->> > > This usecase cannot be implemented with the existing F_SEAL_WRITE seal.
->> > > To support the usecase, this patch adds a new F_SEAL_FS_WRITE seal which
->> > > prevents any future mmap and write syscalls from succeeding while
->> > > keeping the existing mmap active. The following program shows the seal
->> > > working in action:
->> >
->> > Where does the FS come from?  I'd rather expect this to be implemented
->> > as a 'force' style flag that applies the seal even if the otherwise
->> > required precondition is not met.
->>
->> The "FS" was meant to convey that the seal is preventing writes at the VFS
->> layer itself, for example vfs_write checks FMODE_WRITE and does not proceed,
->> it instead returns an error if the flag is not set. I could not find a better
->> name for it, I could call it F_SEAL_VFS_WRITE if you prefer?
+On Wed, 17 Oct 2018, Dmitry Torokhov wrote:
+
+> >What is a "contact" here? Are we talking about SG segments?
 >
-> I don't think there is anything VFS or FS about that - at best that
-> is an implementation detail.
->
-> Either do something like the force flag I suggested in the last mail,
-> or give it a name that matches the intention, e.g F_SEAL_FUTURE_WRITE.
+> No, we are talking about maximum number of fingers a person can have. Devices don't usually track more than 10 distinct contacts on the touch surface at a time.
 
-+1
+Ohh... Way off my usual contexts of development. Sorry.
 
->> > This seems to lack any synchronization for f_mode.
->>
->> The f_mode is set when the struct file is first created and then memfd sets
->> additional flags in memfd_create. Then later we are changing it here at the
->> time of setting the seal. I donot see any possiblity of a race since it is
->> impossible to set the seal before memfd_create returns. Could you provide
->> more details about what kind of synchronization is needed and what is the
->> race condition scenario you were thinking off?
->
-> Even if no one changes these specific flags we still need a lock due
-> to rmw cycles on the field.  For example fadvise can set or clear
-> FMODE_RANDOM.  It seems to use file->f_lock for synchronization.
-
-Compare-and-exchange will suffice, right?
+Ok you have my blessing.
