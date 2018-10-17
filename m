@@ -1,96 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BD63D6B0005
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 12:31:11 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id y22so20023657oty.3
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 09:31:11 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u205-v6sor8024414oig.120.2018.10.17.09.31.10
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 531566B000A
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 12:31:23 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id a72-v6so11741424pfj.14
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 09:31:23 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id t7-v6si16802518pfb.16.2018.10.17.09.31.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Oct 2018 09:31:10 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Oct 2018 09:31:22 -0700 (PDT)
+Subject: Re: [mm PATCH v3 1/6] mm: Use mm_zero_struct_page from SPARC on all
+ 64b architectures
+References: <20181015202456.2171.88406.stgit@localhost.localdomain>
+ <20181015202656.2171.92963.stgit@localhost.localdomain>
+ <20181017084744.GH18839@dhcp22.suse.cz>
+ <9700b00f-a8a4-e318-f6a8-71fd1e7021b3@linux.intel.com>
+ <8aaa0fa2-5f12-ea3c-a0ca-ded9e1a639e2@gmail.com>
+ <7d313318f1234a1eb45b608bd853c17c@AcuMS.aculab.com>
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Message-ID: <e7cd1e6f-cc04-31ea-3322-5c8e25a6e58a@linux.intel.com>
+Date: Wed, 17 Oct 2018 09:31:12 -0700
 MIME-Version: 1.0
-References: <153936657159.1198040.4489957977352276272.stgit@dwillia2-desk3.amr.corp.intel.com>
- <153936657702.1198040.119388737535638846.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20181017081753.GG18839@dhcp22.suse.cz>
-In-Reply-To: <20181017081753.GG18839@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 17 Oct 2018 09:30:58 -0700
-Message-ID: <CAPcyv4hMFQYekvZWMzKYckuVLSGd3GizRtoDudFBQj5bfxD3Mw@mail.gmail.com>
-Subject: Re: [PATCH v7 1/7] mm, devm_memremap_pages: Mark devm_memremap_pages()
- EXPORT_SYMBOL_GPL
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <7d313318f1234a1eb45b608bd853c17c@AcuMS.aculab.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: David Laight <David.Laight@ACULAB.COM>, 'Pavel Tatashin' <pasha.tatashin@gmail.com>, Michal Hocko <mhocko@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pavel.tatashin@microsoft.com" <pavel.tatashin@microsoft.com>, "dave.jiang@intel.com" <dave.jiang@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "willy@infradead.org" <willy@infradead.org>, "davem@davemloft.net" <davem@davemloft.net>, "yi.z.zhang@linux.intel.com" <yi.z.zhang@linux.intel.com>, "khalid.aziz@oracle.com" <khalid.aziz@oracle.com>, "rppt@linux.vnet.ibm.com" <rppt@linux.vnet.ibm.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "ldufour@linux.vnet.ibm.com" <ldufour@linux.vnet.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mingo@kernel.org" <mingo@kernel.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
 
-On Wed, Oct 17, 2018 at 1:18 AM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Fri 12-10-18 10:49:37, Dan Williams wrote:
-> > devm_memremap_pages() is a facility that can create struct page entries
-> > for any arbitrary range and give drivers the ability to subvert core
-> > aspects of page management.
-> >
-> > Specifically the facility is tightly integrated with the kernel's memory
-> > hotplug functionality. It injects an altmap argument deep into the
-> > architecture specific vmemmap implementation to allow allocating from
-> > specific reserved pages, and it has Linux specific assumptions about
-> > page structure reference counting relative to get_user_pages() and
-> > get_user_pages_fast(). It was an oversight and a mistake that this was
-> > not marked EXPORT_SYMBOL_GPL from the outset.
->
-> One thing is still not clear to me. Both devm_memremap_* and
-> hmm_devmem_add essentially do the same thing AFAICS. They both allow to
-> hotplug a device memory. Both rely on the hotplug code (namely
-> add_pages) which itself is not exported to modules. One is GPL only
-> while the later is a general export. Is this mismatch desirable?
+On 10/17/2018 8:40 AM, David Laight wrote:
+> From: Pavel Tatashin
+>> Sent: 17 October 2018 16:12
+>> On 10/17/18 11:07 AM, Alexander Duyck wrote:
+>>> On 10/17/2018 1:47 AM, Michal Hocko wrote:
+>>>> On Mon 15-10-18 13:26:56, Alexander Duyck wrote:
+>>>>> This change makes it so that we use the same approach that was
+>>>>> already in
+>>>>> use on Sparc on all the archtectures that support a 64b long.
+>>>>>
+>>>>> This is mostly motivated by the fact that 8 to 10 store/move
+>>>>> instructions
+>>>>> are likely always going to be faster than having to call into a function
+>>>>> that is not specialized for handling page init.
+>>>>>
+>>>>> An added advantage to doing it this way is that the compiler can get
+>>>>> away
+>>>>> with combining writes in the __init_single_page call. As a result the
+>>>>> memset call will be reduced to only about 4 write operations, or at
+>>>>> least
+>>>>> that is what I am seeing with GCC 6.2 as the flags, LRU poitners, and
+>>>>> count/mapcount seem to be cancelling out at least 4 of the 8
+>>>>> assignments on
+>>>>> my system.
+>>>>>
+>>>>> One change I had to make to the function was to reduce the minimum page
+>>>>> size to 56 to support some powerpc64 configurations.
+>>>>
+>>>> This really begs for numbers. I do not mind the change itself with some
+>>>> minor comments below.
+>>>>
+>>>> [...]
+>>>>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>>>>> index bb0de406f8e7..ec6e57a0c14e 100644
+>>>>> --- a/include/linux/mm.h
+>>>>> +++ b/include/linux/mm.h
+>>>>> @@ -102,8 +102,42 @@ static inline void set_max_mapnr(unsigned long
+>>>>> limit) { }
+>>>>>  A A  * zeroing by defining this macro in <asm/pgtable.h>.
+>>>>>  A A  */
+>>>>>  A  #ifndef mm_zero_struct_page
+>>>>
+>>>> Do we still need this ifdef? I guess we can wait for an arch which
+>>>> doesn't like this change and then add the override. I would rather go
+>>>> simple if possible.
+>>>
+>>> We probably don't, but as soon as I remove it somebody will probably
+>>> complain somewhere. I guess I could drop it for now and see if anybody
+>>> screams. Adding it back should be pretty straight forward since it would
+>>> only be 2 lines.
+>>>
+>>>>> +#if BITS_PER_LONG == 64
+>>>>> +/* This function must be updated when the size of struct page grows
+>>>>> above 80
+>>>>> + * or reduces below 64. The idea that compiler optimizes out switch()
+>>>>> + * statement, and only leaves move/store instructions
+>>>>> + */
+>>>>> +#defineA A A  mm_zero_struct_page(pp) __mm_zero_struct_page(pp)
+>>>>> +static inline void __mm_zero_struct_page(struct page *page)
+>>>>> +{
+>>>>> +A A A  unsigned long *_pp = (void *)page;
+>>>>> +
+>>>>> +A A A A  /* Check that struct page is either 56, 64, 72, or 80 bytes */
+>>>>> +A A A  BUILD_BUG_ON(sizeof(struct page) & 7);
+>>>>> +A A A  BUILD_BUG_ON(sizeof(struct page) < 56);
+>>>>> +A A A  BUILD_BUG_ON(sizeof(struct page) > 80);
+>>>>> +
+>>>>> +A A A  switch (sizeof(struct page)) {
+>>>>> +A A A  case 80:
+>>>>> +A A A A A A A  _pp[9] = 0;A A A  /* fallthrough */
+>>>>> +A A A  case 72:
+>>>>> +A A A A A A A  _pp[8] = 0;A A A  /* fallthrough */
+>>>>> +A A A  default:
+>>>>> +A A A A A A A  _pp[7] = 0;A A A  /* fallthrough */
+>>>>> +A A A  case 56:
+>>>>> +A A A A A A A  _pp[6] = 0;
+>>>>> +A A A A A A A  _pp[5] = 0;
+>>>>> +A A A A A A A  _pp[4] = 0;
+>>>>> +A A A A A A A  _pp[3] = 0;
+>>>>> +A A A A A A A  _pp[2] = 0;
+>>>>> +A A A A A A A  _pp[1] = 0;
+>>>>> +A A A A A A A  _pp[0] = 0;
+>>>>> +A A A  }
+>>>>
+>>>> This just hit my eyes. I have to confess I have never seen default: to
+>>>> be not the last one in the switch. Can we have case 64 instead or does
+>>>> gcc
+>>>> complain? I would be surprised with the set of BUILD_BUG_ONs.
+>>
+>> It was me, C does not really care where default is placed, I was trying
+>> to keep stores sequential for better cache locality, but "case 64"
+>> should be OK, and even better for this purpose.
+> 
+> You'd need to put memory barriers between them to force sequential stores.
+> I'm also surprised that gcc doesn't inline the memset().
+> 
+> 	David
 
-That is resolved by the last patch in this series.
+We don't need them to be sequential. The general idea is we have have to 
+fill a given amount of space with 0s. After that we have some calls that 
+are initialing the memory that doesn't have to be zero. Ideally the 
+compiler is smart enough to realize that since we don't have barriers 
+and we are performing assignments after the assignment of zero it can 
+just combine the two writes into one and drop the zero assignment.
 
-> API exported by the core hotplug is ad-hoc to say the least. Symbols
-> that we actually export are GPL mostly (only try_offline_node is
-> EXPORT_SYMBOL without any explanation whatsoever). So I would call it a
-> general mess tweaked for specific usecases.
->
-> I personally do not care about EXPORT_SYMBOL vs. EXPORT_SYMBOL_GPL
-> much to be honest. I understand an argument that we do not care about
-> out-of-tree modules a wee bit. I would just be worried those will find a
-> way around and my experience tells me that it would be much uglier than
-> what the core kernel can provide. But this seems more political than
-> technical discussion.
-
-I'm not worried about people finding a way around, I'm sure
-cringe-worthy workarounds of core kernel details happen on a regular
-basis in out-of-tree code. EXPORT_SYMBOL_GPL in this instance is not a
-political statement, it is a statement of the rate of evolution and
-depth of the api.
-
->
-> > Again, devm_memremap_pagex() exposes and relies upon core kernel
-> > internal assumptions and will continue to evolve along with 'struct
-> > page', memory hotplug, and support for new memory types / topologies.
-> > Only an in-kernel GPL-only driver is expected to keep up with this
-> > ongoing evolution. This interface, and functionality derived from this
-> > interface, is not suitable for kernel-external drivers.
->
-> I do not follow this line of argumentation though. We generally do not
-> care about out-of-tree modules and breaking them if the interface has to
-> be updated.
-
-Exactly right. The EXPORT_SYMBOL_GPL is there to say that this api has
-deep enough ties into the core kernel to lower the confidence that the
-API will stay stable from one kernel revision to the next. It's also
-an api that is attracting widening and varied reuse and the long term
-health of the implementation depends on being able to peer deeply into
-its users and refactor the interface and the core kernel as a result.
-
-> Also what about GPL out of tree modules?
-
-These are precisely the modules we want upstream.
-
-> That being said, I do not mind this patch. You and Christoph are the
-> authors and therefore it is you to decide. I just find the current
-> situation confusing to say the least.
-
-Hopefully I clarified, let me know if not.
+- Alex
