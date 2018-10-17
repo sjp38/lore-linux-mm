@@ -1,80 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AA08E6B0006
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 05:45:56 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id l75-v6so26658730qke.23
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 02:45:56 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r23-v6si6894478qte.383.2018.10.17.02.45.55
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B9F636B0266
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 05:51:34 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id 31-v6so16380325edr.19
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 02:51:34 -0700 (PDT)
+Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.106])
+        by mx.google.com with ESMTPS id v11-v6si6942614eju.193.2018.10.17.02.51.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 02:45:55 -0700 (PDT)
-Subject: Re: [PATCH 2/5] mm/memory_hotplug: Create add/del_device_memory
- functions
-References: <20181015153034.32203-1-osalvador@techadventures.net>
- <20181015153034.32203-3-osalvador@techadventures.net>
- <d0a12eb5-3824-8d25-75f8-3e62f1e81994@redhat.com>
- <20181017093331.GA25724@techadventures.net>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <883d3ab7-b2df-9b9a-7681-1019ce3b9e18@redhat.com>
-Date: Wed, 17 Oct 2018 11:45:50 +0200
+        Wed, 17 Oct 2018 02:51:33 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id E80E11C19A6
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 10:51:32 +0100 (IST)
+Date: Wed, 17 Oct 2018 10:51:31 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [RFC v4 PATCH 1/5] mm/page_alloc: use helper functions to
+ add/remove a page to/from buddy
+Message-ID: <20181017095131.GI5819@techsingularity.net>
+References: <20181017063330.15384-1-aaron.lu@intel.com>
+ <20181017063330.15384-2-aaron.lu@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20181017093331.GA25724@techadventures.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20181017063330.15384-2-aaron.lu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com, yasu.isimatu@gmail.com, rppt@linux.vnet.ibm.com, malat@debian.org, linux-kernel@vger.kernel.org, pavel.tatashin@microsoft.com, jglisse@redhat.com, Jonathan.Cameron@huawei.com, rafael@kernel.org, dave.jiang@intel.com, linux-mm@kvack.org, alexander.h.duyck@linux.intel.com, Oscar Salvador <osalvador@suse.de>
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, Tariq Toukan <tariqt@mellanox.com>, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On 17/10/2018 11:33, Oscar Salvador wrote:
->>>  	/*
->>>  	 * For device private memory we call add_pages() as we only need to
->>>  	 * allocate and initialize struct page for the device memory. More-
->>> @@ -1096,20 +1100,17 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
->>>  	 * want the linear mapping and thus use arch_add_memory().
->>>  	 */
->>
->> Some parts of this comment should be moved into add_device_memory now.
->> (e.g. we call add_pages() ...)
+On Wed, Oct 17, 2018 at 02:33:26PM +0800, Aaron Lu wrote:
+> There are multiple places that add/remove a page into/from buddy,
+> introduce helper functions for them.
 > 
-> I agree.
+> This also makes it easier to add code when a page is added/removed
+> to/from buddy.
 > 
->>> +#ifdef CONFIG_ZONE_DEVICE
->>> +int del_device_memory(int nid, unsigned long start, unsigned long size,
->>> +				struct vmem_altmap *altmap, bool mapping)
->>> +{
->>> +	int ret;
->>
->> nit: personally I prefer short parameters last in the list.
+> No functionality change.
 > 
-> I do not have a strong opinion here.
-> If people think that long parameters should be placed at the end because
-> it improves readability, I am ok with moving them there.
->  
->> Can you document for both functions that they should be called with the
->> memory hotplug lock in write?
-> 
-> Sure, I will do that in the next version, once I get some more feedback.
-> 
->> Apart from that looks good to me.
-> 
-> Thanks for reviewing it David ;-)!
-> May I assume your Reviewed-by here (if the above comments are addressed)?
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
 
-Here you go ;)
-
-Reviewed-by: David Hildenbrand <david@redhat.com>
-
-I'm planning to look into the other patches as well, but I'll be busy
-with traveling and KVM forum the next 1.5 weeks.
-
-Cheers!
-
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
 -- 
-
-Thanks,
-
-David / dhildenb
+Mel Gorman
+SUSE Labs
