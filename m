@@ -1,91 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0ED5C6B026A
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 10:23:33 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id v138-v6so19928032pgb.7
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 07:23:33 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id b28-v6si18121588pff.192.2018.10.17.07.23.31
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CF6C76B0005
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 10:52:18 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id f17-v6so21280346plr.1
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 07:52:18 -0700 (PDT)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id x32-v6si17693282pld.323.2018.10.17.07.52.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 07:23:31 -0700 (PDT)
-Date: Wed, 17 Oct 2018 22:23:27 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [RFC v4 PATCH 3/5] mm/rmqueue_bulk: alloc without touching
- individual page structure
-Message-ID: <20181017142327.GB9167@intel.com>
-References: <20181017063330.15384-1-aaron.lu@intel.com>
- <20181017063330.15384-4-aaron.lu@intel.com>
- <20181017112042.GK5819@techsingularity.net>
+        Wed, 17 Oct 2018 07:52:17 -0700 (PDT)
+Subject: Re: [mm PATCH v3 1/6] mm: Use mm_zero_struct_page from SPARC on all
+ 64b architectures
+References: <20181015202456.2171.88406.stgit@localhost.localdomain>
+ <20181015202656.2171.92963.stgit@localhost.localdomain>
+ <57c559f6-4858-7a52-7fbb-979caa08f240@gmail.com>
+ <20181017073045.GA20004@rapoport-lnx>
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Message-ID: <debbf05a-5ab8-3886-f199-0bbdede7f50e@linux.intel.com>
+Date: Wed, 17 Oct 2018 07:52:16 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181017112042.GK5819@techsingularity.net>
+In-Reply-To: <20181017073045.GA20004@rapoport-lnx>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, Tariq Toukan <tariqt@mellanox.com>, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Mike Rapoport <rppt@linux.ibm.com>, Pavel Tatashin <pasha.tatashin@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com, linux-kernel@vger.kernel.org, willy@infradead.org, davem@davemloft.net, yi.z.zhang@linux.intel.com, khalid.aziz@oracle.com, rppt@linux.vnet.ibm.com, vbabka@suse.cz, sparclinux@vger.kernel.org, dan.j.williams@intel.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mingo@kernel.org, kirill.shutemov@linux.intel.com
 
-On Wed, Oct 17, 2018 at 12:20:42PM +0100, Mel Gorman wrote:
-> On Wed, Oct 17, 2018 at 02:33:28PM +0800, Aaron Lu wrote:
-> > Profile on Intel Skylake server shows the most time consuming part
-> > under zone->lock on allocation path is accessing those to-be-returned
-> > page's "struct page" on the free_list inside zone->lock. One explanation
-> > is, different CPUs are releasing pages to the head of free_list and
-> > those page's 'struct page' may very well be cache cold for the allocating
-> > CPU when it grabs these pages from free_list' head. The purpose here
-> > is to avoid touching these pages one by one inside zone->lock.
-> > 
+On 10/17/2018 12:30 AM, Mike Rapoport wrote:
+> On Tue, Oct 16, 2018 at 03:01:11PM -0400, Pavel Tatashin wrote:
+>>
+>>
+>> On 10/15/18 4:26 PM, Alexander Duyck wrote:
+>>> This change makes it so that we use the same approach that was already in
+>>> use on Sparc on all the archtectures that support a 64b long.
+>>>
+>>> This is mostly motivated by the fact that 8 to 10 store/move instructions
+>>> are likely always going to be faster than having to call into a function
+>>> that is not specialized for handling page init.
+>>>
+>>> An added advantage to doing it this way is that the compiler can get away
+>>> with combining writes in the __init_single_page call. As a result the
+>>> memset call will be reduced to only about 4 write operations, or at least
+>>> that is what I am seeing with GCC 6.2 as the flags, LRU poitners, and
+>>> count/mapcount seem to be cancelling out at least 4 of the 8 assignments on
+>>> my system.
+>>>
+>>> One change I had to make to the function was to reduce the minimum page
+>>> size to 56 to support some powerpc64 configurations.
+>>>
+>>> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+>>
+>>
+>> I have tested on Broadcom's Stingray cpu with 48G RAM:
+>> __init_single_page() takes 19.30ns / 64-byte struct page
+>> Wit the change it takes 17.33ns / 64-byte struct page
+>   
+> I gave it a run on an OpenPower (S812LC 8348-21C) with Power8 processor and
+> with 128G of RAM. My results for 64-byte struct page were:
 > 
-> I didn't read this one in depth because it's somewhat ortogonal to the
-> lazy buddy merging which I think would benefit from being finalised and
-> ensuring that there are no reductions in high-order allocation success
-> rates.  Pages being allocated on one CPU and freed on another is not that
-> unusual -- ping-pong workloads or things like netperf used to exhibit
-> this sort of pattern.
+> before: 4.6788ns
+> after: 4.5882ns
 > 
-> However, this part stuck out
-> 
-> > +static inline void zone_wait_cluster_alloc(struct zone *zone)
-> > +{
-> > +	while (atomic_read(&zone->cluster.in_progress))
-> > +		cpu_relax();
-> > +}
-> > +
-> 
-> RT has had problems with cpu_relax in the past but more importantly, as
-> this delay for parallel compactions and allocations of contig ranges,
-> we could be stuck here for very long periods of time with interrupts
+> My two cents :)
 
-The longest possible time is one CPU accessing pcp->batch number cold
-cachelines. Reason:
-When zone_wait_cluster_alloc() is called, we already held zone lock so
-no more allocations are possible. Waiting in_progress to become zero
-means waiting any CPU that increased in_progress to finish processing
-their allocated pages. Since they will at most allocate pcp->batch pages
-and worse case are all these page structres are cache cold, so the
-longest wait time is one CPU accessing pcp->batch number cold cache lines.
+Thanks. I will add this and Pavel's data to the patch description.
 
-I have no idea if this time is too long though.
-
-> disabled. It gets even worse if it's from an interrupt context such as
-> jumbo frame allocation or a high-order slab allocation that is atomic.
-
-My understanding is atomic allocation won't trigger compaction, no?
-
-> These potentially large periods of time with interrupts disabled is very
-> hazardous.
-
-I see and agree, thanks for pointing this out.
-Hopefully, the above mentioned worst case time won't be regarded as
-unbound or too long.
-
-> It may be necessary to consider instead minimising the number
-> of struct page update when merging to PCP and then either increasing the
-> size of the PCP or allowing it to exceed pcp->high for short periods of
-> time to batch the struct page updates.
-
-I don't quite follow this part. It doesn't seem possible we can exceed
-pcp->high in allocation path, or are you talking about free path?
-
-And thanks a lot for the review!
+- Alex
