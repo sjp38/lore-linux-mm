@@ -1,109 +1,206 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B0B796B0005
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 09:41:15 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id c46so19524280otd.0
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 06:41:15 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l124-v6si8370096oig.143.2018.10.17.06.41.14
-        for <linux-mm@kvack.org>;
-        Wed, 17 Oct 2018 06:41:14 -0700 (PDT)
-Date: Wed, 17 Oct 2018 14:41:09 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH] kmemleak: Add config to select auto scan
-Message-ID: <20181017134109.GA223677@arrakis.emea.arm.com>
-References: <1539763408-22085-1-git-send-email-prpatel@nvidia.com>
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 023896B0007
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 09:58:12 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id l51-v6so16616925edc.14
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 06:58:11 -0700 (PDT)
+Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.106])
+        by mx.google.com with ESMTPS id w21si2599957edx.263.2018.10.17.06.58.09
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Oct 2018 06:58:10 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id 5FE8C1C17DC
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 14:58:09 +0100 (IST)
+Date: Wed, 17 Oct 2018 14:58:07 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [RFC v4 PATCH 2/5] mm/__free_one_page: skip merge for order-0
+ page unless compaction failed
+Message-ID: <20181017135807.GL5819@techsingularity.net>
+References: <20181017063330.15384-1-aaron.lu@intel.com>
+ <20181017063330.15384-3-aaron.lu@intel.com>
+ <20181017104427.GJ5819@techsingularity.net>
+ <20181017131059.GA9167@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1539763408-22085-1-git-send-email-prpatel@nvidia.com>
+In-Reply-To: <20181017131059.GA9167@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Prateek Patel <prpatel@nvidia.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-tegra@vger.kernel.org, snikam@nvidia.com, vdumpa@nvidia.com, talho@nvidia.com, swarren@nvidia.com, Sri Krishna chowdary <schowdary@nvidia.com>
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, Tariq Toukan <tariqt@mellanox.com>, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Wed, Oct 17, 2018 at 01:33:28PM +0530, Prateek Patel wrote:
-> diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-> index e5e7c03..9542852 100644
-> --- a/lib/Kconfig.debug
-> +++ b/lib/Kconfig.debug
-> @@ -593,6 +593,17 @@ config DEBUG_KMEMLEAK_DEFAULT_OFF
->  	  Say Y here to disable kmemleak by default. It can then be enabled
->  	  on the command line via kmemleak=on.
->  
-> +config DEBUG_KMEMLEAK_SCAN_ON
+On Wed, Oct 17, 2018 at 09:10:59PM +0800, Aaron Lu wrote:
+> On Wed, Oct 17, 2018 at 11:44:27AM +0100, Mel Gorman wrote:
+> > On Wed, Oct 17, 2018 at 02:33:27PM +0800, Aaron Lu wrote:
+> > > Running will-it-scale/page_fault1 process mode workload on a 2 sockets
+> > > Intel Skylake server showed severe lock contention of zone->lock, as
+> > > high as about 80%(42% on allocation path and 35% on free path) CPU
+> > > cycles are burnt spinning. With perf, the most time consuming part inside
+> > > that lock on free path is cache missing on page structures, mostly on
+> > > the to-be-freed page's buddy due to merging.
+> > > 
+> > 
+> > This confuses me slightly. The commit log for d8a759b57035 ("mm,
+> > page_alloc: double zone's batchsize") indicates that the contention for
+> > will-it-scale moved from the zone lock to the LRU lock. This appears to
+> > contradict that although the exact test case is different (page_fault_1
+> > vs page_fault2). Can you clarify why commit d8a759b57035 is
+> > insufficient?
+> 
+> commit d8a759b57035 helps zone lock scalability and while it reduced
+> zone lock scalability to some extent(but not entirely eliminated it),
+> the lock contention shifted to LRU lock in the meantime.
+> 
 
-Nitpick: DEBUG_KMEMLEAK_AUTO_SCAN may be a better name since you don't
-aim to disable scanning altogether.
+I assume you meant "zone lock contention" in the second case.
 
-> +	bool "Enable kmemleak auto scan thread on boot up"
-> +	default y
-> +	depends on DEBUG_KMEMLEAK
-> +	help
-> +	  Kmemleak scan is cpu intensive and can stall user tasks at times.
+> e.g. from commit d8a759b57035's changelog, with the same test case
+> will-it-scale/page_fault1:
+> 
+> 4 sockets Skylake:
+>     batch   score     change   zone_contention   lru_contention   total_contention
+>      31   15345900    +0.00%       64%                 8%           72%
+>      63   17992886   +17.25%       24%                45%           69%
+> 
+> 4 sockets Broadwell:
+>     batch   score     change   zone_contention   lru_contention   total_contention
+>      31   16703983    +0.00%       67%                 7%           74%
+>      63   18288885    +9.49%       38%                33%           71%
+> 
+> 2 sockets Skylake:
+>     batch   score     change   zone_contention   lru_contention   total_contention
+>      31   9554867     +0.00%       66%                 3%           69%
+>      63   9980145     +4.45%       62%                 4%           66%
+> 
+> Please note that though zone lock contention for the 4 sockets server
+> reduced a lot with commit d8a759b57035, 2 sockets Skylake still suffered
+> a lot from zone lock contention even after we doubled batch size.
+> 
 
-I guess that depends on the CPU.
+Any particuular reason why? I assume it's related to the number of zone
+locks with the increase number of zones and the number of threads used
+for the test.
 
-> +	  This option enables/disables automatic kmemleak scan at boot up.
-> +
-> +	  Say N here to disable kmemleak auto scan thread to stop automatic
-> +	  scanning.
+> Also, the reduced zone lock contention will again get worse if LRU lock
+> is optimized away by Daniel's work, or in cases there are no LRU in the
+> picture, e.g. an in-kernel user of page allocator like Tariq Toukan
+> demonstrated with netperf.
+> 
 
-You should also mention that disabling this option also disables
-automatic reporting of memory leaks. And I'd add a "if unsure, say Y".
+Vaguely understood, I never looked at the LRU lock patches.
 
-> +
->  config DEBUG_STACK_USAGE
->  	bool "Stack utilization instrumentation"
->  	depends on DEBUG_KERNEL && !IA64
-> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-> index 877de4f..ac53678 100644
-> --- a/mm/kmemleak.c
-> +++ b/mm/kmemleak.c
-> @@ -1647,11 +1647,14 @@ static void kmemleak_scan(void)
->   */
->  static int kmemleak_scan_thread(void *arg)
->  {
-> +#ifdef CONFIG_DEBUG_KMEMLEAK_SCAN_ON
->  	static int first_run = 1;
-> +#endif
+> > I'm wondering is this really about reducing the number of dirtied cache
+> > lines due to struct page updates and less about the actual zone lock.
+> 
+> Hmm...if we reduce the time it takes under the zone lock, aren't we
+> helping the zone lock? :-)
+> 
 
-	static int first_run = IS_ENABLED(CONFIG_DEBUG_KMEMLEAK_AUTO_SCAN);
+Indirectly yes but reducing cache line dirtying is useful in itself so
+they should be at least considered separately as independent
+optimisations.
 
->  
->  	pr_info("Automatic memory scanning thread started\n");
->  	set_user_nice(current, 10);
->  
-> +#ifdef CONFIG_DEBUG_KMEMLEAK_SCAN_ON
->  	/*
->  	 * Wait before the first scan to allow the system to fully initialize.
->  	 */
-> @@ -1661,6 +1664,7 @@ static int kmemleak_scan_thread(void *arg)
->  		while (timeout && !kthread_should_stop())
->  			timeout = schedule_timeout_interruptible(timeout);
->  	}
-> +#endif
+> > 
+> > > One way to avoid this overhead is not do any merging at all for order-0
+> > > pages. With this approach, the lock contention for zone->lock on free
+> > > path dropped to 1.1% but allocation side still has as high as 42% lock
+> > > contention. In the meantime, the dropped lock contention on free side
+> > > doesn't translate to performance increase, instead, it's consumed by
+> > > increased lock contention of the per node lru_lock(rose from 5% to 37%)
+> > > and the final performance slightly dropped about 1%.
+> > > 
+> > 
+> > Although this implies it's really about contention.
+> > 
+> > > Though performance dropped a little, it almost eliminated zone lock
+> > > contention on free path and it is the foundation for the next patch
+> > > that eliminates zone lock contention for allocation path.
+> > > 
+> > 
+> > Can you clarify whether THP was enabled or not? As this is order-0 focused,
+> > it would imply the series should have minimal impact due to limited merging.
+> 
+> Sorry about this, I should have mentioned THP is not used here.
+> 
 
-With the first_run change above, this #ifdef is no longer needed.
+That's important to know. It does reduce the utility of the patch
+somewhat but not all arches support THP and THP is not always enabled on
+x86.
 
->  
->  	while (!kthread_should_stop()) {
->  		signed long timeout = jiffies_scan_wait;
-> @@ -2141,9 +2145,11 @@ static int __init kmemleak_late_init(void)
->  		return -ENOMEM;
->  	}
->  
-> +#ifdef CONFIG_DEBUG_KMEMLEAK_SCAN_ON
->  	mutex_lock(&scan_mutex);
->  	start_scan_thread();
->  	mutex_unlock(&scan_mutex);
-> +#endif
+> > compaction. Lazy merging doesn't say anything about the mobility of
+> > buddy pages that are still allocated.
+> 
+> True.
+> I was thinking if compactions isn't enabled, we probably shouldn't
+> enable this lazy buddy merging feature as it would make high order
+> allocation success rate dropping a lot.
+> 
 
-Please use:
+It probably is lower as reclaim is not that aggressive. Add a comment
+with an explanation as to why it's compaction-specific.
 
-	if (IS_ENABLED(CONFIG_DEBUG_KMEMLEAK_AUTO_SCAN)) {
-		...
-	}
+> I probably should have mentioned clearly somewhere in the changelog that
+> the function of merging those unmerged order0 pages are embedded in
+> compaction code, in function isolate_migratepages_block() when isolate
+> candidates are scanned.
+> 
+
+Yes, but note that the concept is still problematic.
+isolate_migratepages_block is not guaranteed to find a pageblock with
+unmerged buddies in it. If there are pageblocks towards the end of the
+zone with unmerged pages, they may never be found. This will be very hard
+to detect at runtime because it's heavily dependant on the exact state
+of the system.
+
+
+> > 
+> > When lazy buddy merging was last examined years ago, a consequence was
+> > that high-order allocation success rates were reduced. I see you do the
+> 
+> I tried mmtests/stress-highalloc on one desktop and didn't see
+> high-order allocation success rate dropping as shown in patch0's
+> changelog. But it could be that I didn't test enough machines or using
+> other test cases? Any suggestions on how to uncover this problem?
+> 
+
+stress-highalloc is nowhere near as useful as it used to be
+unfortunately. It was built at a time when 4G machines were unusual.
+config-global-dhp__workload_thpscale can be sometimes useful but it's
+variable. There is not a good modern example of detecting allocation success
+rates of highly fragmented systems at the moment which is a real pity.
+
+> > merging when compaction has been recently considered but I don't see how
+> > that is sufficient. If a high-order allocation fails, there is no
+> > guarantee that compaction will find those unmerged buddies. There is
+> 
+> Any unmerged buddies will have page->buddy_merge_skipped set and during
+> compaction, when isolate_migratepages_block() iterates pages to find
+> isolate candidates, it will find these unmerged pages and will do_merge()
+> for them. Suppose an order-9 pageblock, every page is merge_skipped
+> order-0 page; after isolate_migratepages_block() iterates them one by one
+> and calls do_merge() for them one by one, higher order page will be
+> formed during this process and after the last unmerged order0 page goes
+> through do_merge(), an order-9 buddy page will be formed.
+> 
+
+Again, as compaction is not guaranteed to find the pageblocks, it would
+be important to consider whether a) that matters or b) find an
+alternative way of keeping unmerged buddies on separate lists so they
+can be quickly discovered when a high-order allocation fails.
+
+> > also no guarantee that a page free will find them. So, in the event of a
+> > high-order allocation failure, what finds all those unmerged buddies and
+> > puts them together to see if the allocation would succeed without
+> > reclaim/compaction/etc.
+> 
+> compaction is needed to form a high-order page after high-order
+> allocation failed, I think this is also true for vanilla kernel?
+
+It's needed to form them efficiently but excessive reclaim or writing 3
+to drop_caches can also do it. Be careful of tying lazy buddy too
+closely to compaction.
 
 -- 
-Catalin
+Mel Gorman
+SUSE Labs
