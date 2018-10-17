@@ -1,77 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 437066B0007
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 03:05:34 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id g36-v6so16140807edb.3
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 00:05:34 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EF556B000A
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 03:08:28 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id x10-v6so16130251edx.9
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 00:08:28 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q23-v6si5226579edg.419.2018.10.17.00.05.32
+        by mx.google.com with ESMTPS id f7-v6si4371583edd.297.2018.10.17.00.08.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 00:05:32 -0700 (PDT)
-Date: Wed, 17 Oct 2018 09:05:31 +0200
+        Wed, 17 Oct 2018 00:08:27 -0700 (PDT)
+Date: Wed, 17 Oct 2018 09:08:25 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, proc: report PR_SET_THP_DISABLE in proc
-Message-ID: <20181017070531.GC18839@dhcp22.suse.cz>
-References: <alpine.DEB.2.21.1810031547150.202532@chino.kir.corp.google.com>
- <20181004055842.GA22173@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810040209130.113459@chino.kir.corp.google.com>
- <20181004094637.GG22173@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810041130380.12951@chino.kir.corp.google.com>
- <20181009083326.GG8528@dhcp22.suse.cz>
- <20181015150325.GN18839@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810151519250.247641@chino.kir.corp.google.com>
- <20181016104855.GQ18839@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810161416540.83080@chino.kir.corp.google.com>
+Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
+ mappings
+Message-ID: <20181017070825.GD18839@dhcp22.suse.cz>
+References: <20181009130034.GD6931@suse.de>
+ <20181009142510.GU8528@dhcp22.suse.cz>
+ <20181009230352.GE9307@redhat.com>
+ <alpine.DEB.2.21.1810101410530.53455@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1810151525460.247641@chino.kir.corp.google.com>
+ <20181015154459.e870c30df5c41966ffb4aed8@linux-foundation.org>
+ <20181016074606.GH6931@suse.de>
+ <20181016153715.b40478ff2eebe8d6cf1aead5@linux-foundation.org>
+ <20181016231149.GJ30832@redhat.com>
+ <20181016161643.9c16164889b4d99d6eff6763@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1810161416540.83080@chino.kir.corp.google.com>
+In-Reply-To: <20181016161643.9c16164889b4d99d6eff6763@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
 
-On Tue 16-10-18 14:24:19, David Rientjes wrote:
-> On Tue, 16 Oct 2018, Michal Hocko wrote:
+On Tue 16-10-18 16:16:43, Andrew Morton wrote:
+> On Tue, 16 Oct 2018 19:11:49 -0400 Andrea Arcangeli <aarcange@redhat.com> wrote:
 > 
-> > > I don't understand the point of extending smaps with yet another line.  
-> > 
-> > Because abusing a vma flag part is just wrong. What are you going to do
-> > when a next bug report states that the flag is set even though no
-> > userspace has set it and that leads to some malfunctioning? Can you rule
-> > that out? Even your abuse of the flag is surprising so why others
-> > wouldn't be?
-> > 
+> > This was a severe regression
+> > compared to previous kernels that made important workloads unusable
+> > and it starts when __GFP_THISNODE was added to THP allocations under
+> > MADV_HUGEPAGE. It is not a significant risk to go to the previous
+> > behavior before __GFP_THISNODE was added, it worked like that for
+> > years.@s1@s2@s1
 > 
-> The flag has taken on the meaning of "thp disabled for this vma", how it 
-> is set is not the scope of the flag.  If a thp is explicitly disabled from 
-> being eligible for thp, whether by madvise, prctl, or any future 
-> mechanism, it should use VM_NOHUGEPAGE or show_smap_vma_flags() needs to 
-> be modified.
+> 5265047ac301 ("mm, thp: really limit transparent hugepage allocation to
+> local node") was April 2015.  That's a long time for a "severe
+> regression" to go unnoticed?
 
-No, this is not the meaning which is documented
-
-nh  - no-huge page advise flag
-
-and as far as I know it is only you who has complained so far.
- 
-> > As I've said there are two things. Exporting PR_SET_THP_DISABLE to
-> > userspace so that a 3rd party process can query it. I've already
-> > explained why that might be useful. If you really insist on having
-> > a per-vma field then let's do it properly now. Are you going to agree on
-> > that? If yes, I am willing to spend my time on that but I am not going
-> > to bother if this will lead to "I want my vma field abuse anyway".
-> 
-> I think what you and I want is largely irrelevant :)  What's important is 
-> that there are userspace implementations that query this today so 
-> continuing to support it as the way to determine if a vma has been thp 
-> disabled doesn't seem problematic and guarantees that userspace doesn't 
-> break.
-
-Do you know of any other userspace except your usecase? Is there
-anything fundamental that would prevent a proper API adoption for you?
-
+Well, it gets some time to adopt changes in enterprise and we start
+seeing people reporting this issue. That is why I believe we should
+start with something really simple and stable tree backportable first
+and then build something more complex on top.
 -- 
 Michal Hocko
 SUSE Labs
