@@ -1,206 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 023896B0007
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 09:58:12 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id l51-v6so16616925edc.14
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 06:58:11 -0700 (PDT)
-Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.106])
-        by mx.google.com with ESMTPS id w21si2599957edx.263.2018.10.17.06.58.09
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D4EA6B000A
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 10:03:26 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id v62-v6so7721502lje.9
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 07:03:26 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s81-v6sor3309457lfs.47.2018.10.17.07.03.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 06:58:10 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id 5FE8C1C17DC
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 14:58:09 +0100 (IST)
-Date: Wed, 17 Oct 2018 14:58:07 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [RFC v4 PATCH 2/5] mm/__free_one_page: skip merge for order-0
- page unless compaction failed
-Message-ID: <20181017135807.GL5819@techsingularity.net>
-References: <20181017063330.15384-1-aaron.lu@intel.com>
- <20181017063330.15384-3-aaron.lu@intel.com>
- <20181017104427.GJ5819@techsingularity.net>
- <20181017131059.GA9167@intel.com>
+        (Google Transport Security);
+        Wed, 17 Oct 2018 07:03:23 -0700 (PDT)
+From: Anders Roxell <anders.roxell@linaro.org>
+Subject: [PATCH 1/2] serial: set suppress_bind_attrs flag only if builtin
+Date: Wed, 17 Oct 2018 16:03:10 +0200
+Message-Id: <20181017140311.28679-1-anders.roxell@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20181017131059.GA9167@intel.com>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, Tariq Toukan <tariqt@mellanox.com>, Jesper Dangaard Brouer <brouer@redhat.com>
+To: linux@armlinux.org.uk, gregkh@linuxfoundation.org, akpm@linux-foundation.org
+Cc: linux-serial@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, tj@kernel.org, Anders Roxell <anders.roxell@linaro.org>, Arnd Bergmann <arnd@arndb.de>
 
-On Wed, Oct 17, 2018 at 09:10:59PM +0800, Aaron Lu wrote:
-> On Wed, Oct 17, 2018 at 11:44:27AM +0100, Mel Gorman wrote:
-> > On Wed, Oct 17, 2018 at 02:33:27PM +0800, Aaron Lu wrote:
-> > > Running will-it-scale/page_fault1 process mode workload on a 2 sockets
-> > > Intel Skylake server showed severe lock contention of zone->lock, as
-> > > high as about 80%(42% on allocation path and 35% on free path) CPU
-> > > cycles are burnt spinning. With perf, the most time consuming part inside
-> > > that lock on free path is cache missing on page structures, mostly on
-> > > the to-be-freed page's buddy due to merging.
-> > > 
-> > 
-> > This confuses me slightly. The commit log for d8a759b57035 ("mm,
-> > page_alloc: double zone's batchsize") indicates that the contention for
-> > will-it-scale moved from the zone lock to the LRU lock. This appears to
-> > contradict that although the exact test case is different (page_fault_1
-> > vs page_fault2). Can you clarify why commit d8a759b57035 is
-> > insufficient?
-> 
-> commit d8a759b57035 helps zone lock scalability and while it reduced
-> zone lock scalability to some extent(but not entirely eliminated it),
-> the lock contention shifted to LRU lock in the meantime.
-> 
+When the test 'CONFIG_DEBUG_TEST_DRIVER_REMOVE=y' is enabled,
+arch_initcall(pl011_init) came before subsys_initcall(default_bdi_init).
+devtmpfs gets killed because we try to remove a file and decrement the
+wb reference count before the noop_backing_device_info gets initialized.
 
-I assume you meant "zone lock contention" in the second case.
+[    0.332075] Serial: AMBA PL011 UART driver
+[    0.485276] 9000000.pl011: ttyAMA0 at MMIO 0x9000000 (irq = 39, base_baud = 0) is a PL011 rev1
+[    0.502382] console [ttyAMA0] enabled
+[    0.515710] Unable to handle kernel paging request at virtual address 0000800074c12000
+[    0.516053] Mem abort info:
+[    0.516222]   ESR = 0x96000004
+[    0.516417]   Exception class = DABT (current EL), IL = 32 bits
+[    0.516641]   SET = 0, FnV = 0
+[    0.516826]   EA = 0, S1PTW = 0
+[    0.516984] Data abort info:
+[    0.517149]   ISV = 0, ISS = 0x00000004
+[    0.517339]   CM = 0, WnR = 0
+[    0.517553] [0000800074c12000] user address but active_mm is swapper
+[    0.517928] Internal error: Oops: 96000004 [#1] PREEMPT SMP
+[    0.518305] Modules linked in:
+[    0.518839] CPU: 0 PID: 13 Comm: kdevtmpfs Not tainted 4.19.0-rc5-next-20180928-00002-g2ba39ab0cd01-dirty #82
+[    0.519307] Hardware name: linux,dummy-virt (DT)
+[    0.519681] pstate: 80000005 (Nzcv daif -PAN -UAO)
+[    0.519959] pc : __destroy_inode+0x94/0x2a8
+[    0.520212] lr : __destroy_inode+0x78/0x2a8
+[    0.520401] sp : ffff0000098c3b20
+[    0.520590] x29: ffff0000098c3b20 x28: 00000000087a3714
+[    0.520904] x27: 0000000000002000 x26: 0000000000002000
+[    0.521179] x25: ffff000009583000 x24: 0000000000000000
+[    0.521467] x23: ffff80007bb52000 x22: ffff80007bbaa7c0
+[    0.521737] x21: ffff0000093f9338 x20: 0000000000000000
+[    0.522033] x19: ffff80007bbb05d8 x18: 0000000000000400
+[    0.522376] x17: 0000000000000000 x16: 0000000000000000
+[    0.522727] x15: 0000000000000400 x14: 0000000000000400
+[    0.523068] x13: 0000000000000001 x12: 0000000000000001
+[    0.523421] x11: 0000000000000000 x10: 0000000000000970
+[    0.523749] x9 : ffff0000098c3a60 x8 : ffff80007bbab190
+[    0.524017] x7 : ffff80007bbaa880 x6 : 0000000000000c88
+[    0.524305] x5 : ffff0000093d96c8 x4 : 61c8864680b583eb
+[    0.524567] x3 : ffff0000093d6180 x2 : ffffffffffffffff
+[    0.524872] x1 : 0000800074c12000 x0 : 0000800074c12000
+[    0.525207] Process kdevtmpfs (pid: 13, stack limit = 0x(____ptrval____))
+[    0.525529] Call trace:
+[    0.525806]  __destroy_inode+0x94/0x2a8
+[    0.526108]  destroy_inode+0x34/0x88
+[    0.526370]  evict+0x144/0x1c8
+[    0.526636]  iput+0x184/0x230
+[    0.526871]  dentry_unlink_inode+0x118/0x130
+[    0.527152]  d_delete+0xd8/0xe0
+[    0.527420]  vfs_unlink+0x240/0x270
+[    0.527665]  handle_remove+0x1d8/0x330
+[    0.527875]  devtmpfsd+0x138/0x1c8
+[    0.528085]  kthread+0x14c/0x158
+[    0.528291]  ret_from_fork+0x10/0x18
+[    0.528720] Code: 92800002 aa1403e0 d538d081 8b010000 (c85f7c04)
+[    0.529367] ---[ end trace 5a3dee47727f877c ]---
 
-> e.g. from commit d8a759b57035's changelog, with the same test case
-> will-it-scale/page_fault1:
-> 
-> 4 sockets Skylake:
->     batch   score     change   zone_contention   lru_contention   total_contention
->      31   15345900    +0.00%       64%                 8%           72%
->      63   17992886   +17.25%       24%                45%           69%
-> 
-> 4 sockets Broadwell:
->     batch   score     change   zone_contention   lru_contention   total_contention
->      31   16703983    +0.00%       67%                 7%           74%
->      63   18288885    +9.49%       38%                33%           71%
-> 
-> 2 sockets Skylake:
->     batch   score     change   zone_contention   lru_contention   total_contention
->      31   9554867     +0.00%       66%                 3%           69%
->      63   9980145     +4.45%       62%                 4%           66%
-> 
-> Please note that though zone lock contention for the 4 sockets server
-> reduced a lot with commit d8a759b57035, 2 sockets Skylake still suffered
-> a lot from zone lock contention even after we doubled batch size.
-> 
+Rework to set suppress_bind_attrs flag to avoid removing the device when
+CONFIG_DEBUG_TEST_DRIVER_REMOVE=y. This applies for pic32_uart and
+xilinx_uartps as well.
 
-Any particuular reason why? I assume it's related to the number of zone
-locks with the increase number of zones and the number of threads used
-for the test.
+Cc: Arnd Bergmann <arnd@arndb.de>
+Co-developed-by: Arnd Bergmann <arnd@arndb.de>
+Signed-off-by: Anders Roxell <anders.roxell@linaro.org>
+---
+ drivers/tty/serial/amba-pl011.c    | 2 ++
+ drivers/tty/serial/pic32_uart.c    | 1 +
+ drivers/tty/serial/xilinx_uartps.c | 1 +
+ 3 files changed, 4 insertions(+)
 
-> Also, the reduced zone lock contention will again get worse if LRU lock
-> is optimized away by Daniel's work, or in cases there are no LRU in the
-> picture, e.g. an in-kernel user of page allocator like Tariq Toukan
-> demonstrated with netperf.
-> 
-
-Vaguely understood, I never looked at the LRU lock patches.
-
-> > I'm wondering is this really about reducing the number of dirtied cache
-> > lines due to struct page updates and less about the actual zone lock.
-> 
-> Hmm...if we reduce the time it takes under the zone lock, aren't we
-> helping the zone lock? :-)
-> 
-
-Indirectly yes but reducing cache line dirtying is useful in itself so
-they should be at least considered separately as independent
-optimisations.
-
-> > 
-> > > One way to avoid this overhead is not do any merging at all for order-0
-> > > pages. With this approach, the lock contention for zone->lock on free
-> > > path dropped to 1.1% but allocation side still has as high as 42% lock
-> > > contention. In the meantime, the dropped lock contention on free side
-> > > doesn't translate to performance increase, instead, it's consumed by
-> > > increased lock contention of the per node lru_lock(rose from 5% to 37%)
-> > > and the final performance slightly dropped about 1%.
-> > > 
-> > 
-> > Although this implies it's really about contention.
-> > 
-> > > Though performance dropped a little, it almost eliminated zone lock
-> > > contention on free path and it is the foundation for the next patch
-> > > that eliminates zone lock contention for allocation path.
-> > > 
-> > 
-> > Can you clarify whether THP was enabled or not? As this is order-0 focused,
-> > it would imply the series should have minimal impact due to limited merging.
-> 
-> Sorry about this, I should have mentioned THP is not used here.
-> 
-
-That's important to know. It does reduce the utility of the patch
-somewhat but not all arches support THP and THP is not always enabled on
-x86.
-
-> > compaction. Lazy merging doesn't say anything about the mobility of
-> > buddy pages that are still allocated.
-> 
-> True.
-> I was thinking if compactions isn't enabled, we probably shouldn't
-> enable this lazy buddy merging feature as it would make high order
-> allocation success rate dropping a lot.
-> 
-
-It probably is lower as reclaim is not that aggressive. Add a comment
-with an explanation as to why it's compaction-specific.
-
-> I probably should have mentioned clearly somewhere in the changelog that
-> the function of merging those unmerged order0 pages are embedded in
-> compaction code, in function isolate_migratepages_block() when isolate
-> candidates are scanned.
-> 
-
-Yes, but note that the concept is still problematic.
-isolate_migratepages_block is not guaranteed to find a pageblock with
-unmerged buddies in it. If there are pageblocks towards the end of the
-zone with unmerged pages, they may never be found. This will be very hard
-to detect at runtime because it's heavily dependant on the exact state
-of the system.
-
-
-> > 
-> > When lazy buddy merging was last examined years ago, a consequence was
-> > that high-order allocation success rates were reduced. I see you do the
-> 
-> I tried mmtests/stress-highalloc on one desktop and didn't see
-> high-order allocation success rate dropping as shown in patch0's
-> changelog. But it could be that I didn't test enough machines or using
-> other test cases? Any suggestions on how to uncover this problem?
-> 
-
-stress-highalloc is nowhere near as useful as it used to be
-unfortunately. It was built at a time when 4G machines were unusual.
-config-global-dhp__workload_thpscale can be sometimes useful but it's
-variable. There is not a good modern example of detecting allocation success
-rates of highly fragmented systems at the moment which is a real pity.
-
-> > merging when compaction has been recently considered but I don't see how
-> > that is sufficient. If a high-order allocation fails, there is no
-> > guarantee that compaction will find those unmerged buddies. There is
-> 
-> Any unmerged buddies will have page->buddy_merge_skipped set and during
-> compaction, when isolate_migratepages_block() iterates pages to find
-> isolate candidates, it will find these unmerged pages and will do_merge()
-> for them. Suppose an order-9 pageblock, every page is merge_skipped
-> order-0 page; after isolate_migratepages_block() iterates them one by one
-> and calls do_merge() for them one by one, higher order page will be
-> formed during this process and after the last unmerged order0 page goes
-> through do_merge(), an order-9 buddy page will be formed.
-> 
-
-Again, as compaction is not guaranteed to find the pageblocks, it would
-be important to consider whether a) that matters or b) find an
-alternative way of keeping unmerged buddies on separate lists so they
-can be quickly discovered when a high-order allocation fails.
-
-> > also no guarantee that a page free will find them. So, in the event of a
-> > high-order allocation failure, what finds all those unmerged buddies and
-> > puts them together to see if the allocation would succeed without
-> > reclaim/compaction/etc.
-> 
-> compaction is needed to form a high-order page after high-order
-> allocation failed, I think this is also true for vanilla kernel?
-
-It's needed to form them efficiently but excessive reclaim or writing 3
-to drop_caches can also do it. Be careful of tying lazy buddy too
-closely to compaction.
-
+diff --git a/drivers/tty/serial/amba-pl011.c b/drivers/tty/serial/amba-pl011.c
+index ebd33c0232e6..89ade213a1a9 100644
+--- a/drivers/tty/serial/amba-pl011.c
++++ b/drivers/tty/serial/amba-pl011.c
+@@ -2780,6 +2780,7 @@ static struct platform_driver arm_sbsa_uart_platform_driver = {
+ 		.name	= "sbsa-uart",
+ 		.of_match_table = of_match_ptr(sbsa_uart_of_match),
+ 		.acpi_match_table = ACPI_PTR(sbsa_uart_acpi_match),
++		.suppress_bind_attrs = IS_BUILTIN(CONFIG_SERIAL_AMBA_PL011),
+ 	},
+ };
+ 
+@@ -2808,6 +2809,7 @@ static struct amba_driver pl011_driver = {
+ 	.drv = {
+ 		.name	= "uart-pl011",
+ 		.pm	= &pl011_dev_pm_ops,
++		.suppress_bind_attrs = IS_BUILTIN(CONFIG_SERIAL_AMBA_PL011),
+ 	},
+ 	.id_table	= pl011_ids,
+ 	.probe		= pl011_probe,
+diff --git a/drivers/tty/serial/pic32_uart.c b/drivers/tty/serial/pic32_uart.c
+index fd80d999308d..0bdf1687983f 100644
+--- a/drivers/tty/serial/pic32_uart.c
++++ b/drivers/tty/serial/pic32_uart.c
+@@ -919,6 +919,7 @@ static struct platform_driver pic32_uart_platform_driver = {
+ 	.driver		= {
+ 		.name	= PIC32_DEV_NAME,
+ 		.of_match_table	= of_match_ptr(pic32_serial_dt_ids),
++		.suppress_bind_attrs = IS_BUILTIN(CONFIG_SERIAL_PIC32),
+ 	},
+ };
+ 
+diff --git a/drivers/tty/serial/xilinx_uartps.c b/drivers/tty/serial/xilinx_uartps.c
+index 0e3dae461f71..806a953ac8d4 100644
+--- a/drivers/tty/serial/xilinx_uartps.c
++++ b/drivers/tty/serial/xilinx_uartps.c
+@@ -1717,6 +1717,7 @@ static struct platform_driver cdns_uart_platform_driver = {
+ 		.name = CDNS_UART_NAME,
+ 		.of_match_table = cdns_uart_of_match,
+ 		.pm = &cdns_uart_dev_pm_ops,
++		.suppress_bind_attrs = IS_BUILTIN(CONFIG_SERIAL_XILINX_PS_UART),
+ 		},
+ };
+ 
 -- 
-Mel Gorman
-SUSE Labs
+2.19.1
