@@ -1,79 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CC036B0003
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 02:10:25 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id m4-v6so21738543pgv.15
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 23:10:25 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o18-v6sor9753597pgv.19.2018.10.17.23.10.24
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E21346B0006
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 02:21:44 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id c28-v6so15525412pfe.4
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 23:21:44 -0700 (PDT)
+Received: from terminus.zytor.com (terminus.zytor.com. [198.137.202.136])
+        by mx.google.com with ESMTPS id 17-v6si19775197pgz.577.2018.10.17.23.21.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Oct 2018 23:10:24 -0700 (PDT)
-Date: Thu, 18 Oct 2018 15:10:18 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v3] mm: memcontrol: Don't flood OOM messages with no
- eligible task.
-Message-ID: <20181018061018.GB650@jagdpanzerIV>
-References: <201810180246.w9I2koi3011358@www262.sakura.ne.jp>
- <20181018042739.GA650@jagdpanzerIV>
- <201810180526.w9I5QvVn032670@www262.sakura.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 17 Oct 2018 23:21:43 -0700 (PDT)
+Date: Wed, 17 Oct 2018 23:21:15 -0700
+From: tip-bot for Jan Kiszka <tipbot@zytor.com>
+Message-ID: <tip-04f4f954b69526d7af8ffb8e5780f08b8a6cda2d@git.kernel.org>
+Reply-To: jgross@suse.com, jpoimboe@redhat.com, jkosina@suse.cz,
+        x86@kernel.org, gregkh@linuxfoundation.org, luto@kernel.org,
+        mingo@kernel.org, linux-kernel@vger.kernel.org, aarcange@redhat.com,
+        jroedel@suse.de, hpa@zytor.com, dvlasenk@redhat.com,
+        boris.ostrovsky@oracle.com, torvalds@linux-foundation.org,
+        linux-mm@kvack.org, dave.hansen@intel.com, jan.kiszka@siemens.com,
+        eduval@amazon.com, bp@suse.de, will.deacon@arm.com, tglx@linutronix.de,
+        David.Laight@aculab.com, brgerst@gmail.com, peterz@infradead.org
+In-Reply-To: <f271c747-1714-5a5b-a71f-ae189a093b8d@siemens.com>
+References: <f271c747-1714-5a5b-a71f-ae189a093b8d@siemens.com>
+Subject: [tip:x86/urgent] x86/entry/32: Clear the CS high bits
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
 Content-Disposition: inline
-In-Reply-To: <201810180526.w9I5QvVn032670@www262.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Michal Hocko <mhocko@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>
+To: linux-tip-commits@vger.kernel.org
+Cc: jkosina@suse.cz, jpoimboe@redhat.com, x86@kernel.org, jgross@suse.com, aarcange@redhat.com, linux-kernel@vger.kernel.org, jroedel@suse.de, gregkh@linuxfoundation.org, mingo@kernel.org, luto@kernel.org, boris.ostrovsky@oracle.com, linux-mm@kvack.org, torvalds@linux-foundation.org, dave.hansen@intel.com, jan.kiszka@siemens.com, eduval@amazon.com, hpa@zytor.com, dvlasenk@redhat.com, tglx@linutronix.de, brgerst@gmail.com, David.Laight@aculab.com, peterz@infradead.org, bp@suse.de, will.deacon@arm.com
 
-On (10/18/18 14:26), Tetsuo Handa wrote:
-> Sergey Senozhatsky wrote:
-> > To my personal taste, "baud rate of registered and enabled consoles"
-> > approach is drastically more relevant than hard coded 10 * HZ or
-> > 60 * HZ magic numbers... But not in the form of that "min baud rate"
-> > brain fart, which I have posted.
-> 
-> I'm saying that my 60 * HZ is "duration which the OOM killer keeps refraining
->  from calling printk()". Such period is required for allowing console users
-> to do their operations without being disturbed by the OOM killer.
-> 
+Commit-ID:  04f4f954b69526d7af8ffb8e5780f08b8a6cda2d
+Gitweb:     https://git.kernel.org/tip/04f4f954b69526d7af8ffb8e5780f08b8a6cda2d
+Author:     Jan Kiszka <jan.kiszka@siemens.com>
+AuthorDate: Mon, 15 Oct 2018 16:09:29 +0200
+Committer:  Ingo Molnar <mingo@kernel.org>
+CommitDate: Wed, 17 Oct 2018 12:30:20 +0200
 
-Got you. I'm probably not paying too much attention to this discussion.
-You start your commit message with "RCU stalls" and end with a compleely
-different problem "admin interaction". I skipped the last part of the
-commit message.
+x86/entry/32: Clear the CS high bits
 
-OK. That makes sense if any user intervention/interaction actually happens.
-I'm not sure that someone at facebook or google logins to every server
-that is under OOM to do something critically important there. Net console
-logs and postmortem analysis, *perhaps*, would be their choice. I believe
-it was Johannes who said that his net console is capable of keeping up
-with the traffic and that 60 * HZ is too long for him. So I can see why
-people might not be happy with your patch. I don't think that 60 * HZ
-enforcement will go anywhere.
+Even if not on an entry stack, the CS's high bits must be
+initialized because they are unconditionally evaluated in
+PARANOID_EXIT_TO_KERNEL_MODE.
 
-Now, if your problem is
-     "I'm actually logged in, and want to do something
-      sane, how do I stop this OOM report flood because
-      it wipes out everything I have on my console?"
+Failing to do so broke the boot on Galileo Gen2 and IOT2000 boards.
 
-then let's formulate it as
-     "I'm actually logged in, and want to do something
-      sane, how do I stop this OOM report flood because
-      it wipes out everything I have on my console?"
+ [ bp: Make the commit message tone passive and impartial. ]
 
-and let's hear from MM people what they can suggest.
+Fixes: b92a165df17e ("x86/entry/32: Handle Entry from Kernel-Mode on Entry-Stack")
+Signed-off-by: Jan Kiszka <jan.kiszka@siemens.com>
+Signed-off-by: Borislav Petkov <bp@suse.de>
+Reviewed-by: Joerg Roedel <jroedel@suse.de>
+Acked-by: Joerg Roedel <jroedel@suse.de>
+CC: "H. Peter Anvin" <hpa@zytor.com>
+CC: Andrea Arcangeli <aarcange@redhat.com>
+CC: Andy Lutomirski <luto@kernel.org>
+CC: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+CC: Brian Gerst <brgerst@gmail.com>
+CC: Dave Hansen <dave.hansen@intel.com>
+CC: David Laight <David.Laight@aculab.com>
+CC: Denys Vlasenko <dvlasenk@redhat.com>
+CC: Eduardo Valentin <eduval@amazon.com>
+CC: Greg KH <gregkh@linuxfoundation.org>
+CC: Ingo Molnar <mingo@kernel.org>
+CC: Jiri Kosina <jkosina@suse.cz>
+CC: Josh Poimboeuf <jpoimboe@redhat.com>
+CC: Juergen Gross <jgross@suse.com>
+CC: Linus Torvalds <torvalds@linux-foundation.org>
+CC: Peter Zijlstra <peterz@infradead.org>
+CC: Thomas Gleixner <tglx@linutronix.de>
+CC: Will Deacon <will.deacon@arm.com>
+CC: aliguori@amazon.com
+CC: daniel.gruss@iaik.tugraz.at
+CC: hughd@google.com
+CC: keescook@google.com
+CC: linux-mm <linux-mm@kvack.org>
+CC: x86-ml <x86@kernel.org>
+Link: http://lkml.kernel.org/r/f271c747-1714-5a5b-a71f-ae189a093b8d@siemens.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+---
+ arch/x86/entry/entry_32.S | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
 
-Michal, Andrew, Johannes, any thoughts?
-
-For instance,
-   change /proc/sys/kernel/printk and suppress most of the warnings?
-
-   // not only OOM but possibly other printk()-s that can come from
-   // different CPUs
-
-If your problem is "syzbot hits RCU stalls" then let's have a baud rate
-based ratelimiting; I think we can get more or less reasonable timeout
-values.
-
-	-ss
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index 2767c625a52c..fbbf1ba57ec6 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -389,6 +389,13 @@
+ 	 * that register for the time this macro runs
+ 	 */
+ 
++	/*
++	 * The high bits of the CS dword (__csh) are used for
++	 * CS_FROM_ENTRY_STACK and CS_FROM_USER_CR3. Clear them in case
++	 * hardware didn't do this for us.
++	 */
++	andl	$(0x0000ffff), PT_CS(%esp)
++
+ 	/* Are we on the entry stack? Bail out if not! */
+ 	movl	PER_CPU_VAR(cpu_entry_area), %ecx
+ 	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
+@@ -407,12 +414,6 @@
+ 	/* Load top of task-stack into %edi */
+ 	movl	TSS_entry2task_stack(%edi), %edi
+ 
+-	/*
+-	 * Clear unused upper bits of the dword containing the word-sized CS
+-	 * slot in pt_regs in case hardware didn't clear it for us.
+-	 */
+-	andl	$(0x0000ffff), PT_CS(%esp)
+-
+ 	/* Special case - entry from kernel mode via entry stack */
+ #ifdef CONFIG_VM86
+ 	movl	PT_EFLAGS(%esp), %ecx		# mix EFLAGS and CS
