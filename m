@@ -1,116 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E246C6B0007
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 15:10:27 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id f18so8722196oth.4
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 12:10:27 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g18-v6sor10945960oib.172.2018.10.18.12.10.26
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FE526B0006
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 16:23:29 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id x75-v6so32189411qka.18
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 13:23:29 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id o23sor24253078qvc.7.2018.10.18.13.23.27
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 18 Oct 2018 12:10:26 -0700 (PDT)
-MIME-Version: 1.0
-References: <20181002142010.GB4963@linux-x5ow.site> <20181002144547.GA26735@infradead.org>
- <20181002150123.GD4963@linux-x5ow.site> <20181002150634.GA22209@infradead.org>
- <20181004100949.GF6682@linux-x5ow.site> <20181005062524.GA30582@infradead.org>
- <20181005063519.GA5491@linux-x5ow.site> <CAPcyv4jD4VgRaKDQF9eMmjhMEHjUJqRU8i6OC+-=0domCc9u3A@mail.gmail.com>
- <CAPcyv4i7WJsq3BMASozjjbpMmEiS4AqmRS0kt3=rHdGfb5YvLA@mail.gmail.com>
- <CAPcyv4jt_w-89+m4w=FcN0oF3axiGqPBTHfEcWwdhnr12_=17Q@mail.gmail.com> <20181018174300.GT23493@quack2.suse.cz>
-In-Reply-To: <20181018174300.GT23493@quack2.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 18 Oct 2018 12:10:13 -0700
-Message-ID: <CAPcyv4gEmCt3OwQ_AoFCmpX5fmmBppvaxtQ+uPT=_f2MXezcGg@mail.gmail.com>
-Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
-Content-Type: text/plain; charset="UTF-8"
+        Thu, 18 Oct 2018 13:23:28 -0700 (PDT)
+From: Josef Bacik <josef@toxicpanda.com>
+Subject: [PATCH 0/7][V3] drop the mmap_sem when doing IO in the fault path
+Date: Thu, 18 Oct 2018 16:23:11 -0400
+Message-Id: <20181018202318.9131-1-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Johannes Thumshirn <jthumshirn@suse.de>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Michal Hocko <mhocko@suse.cz>
+To: kernel-team@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tj@kernel.org, david@fromorbit.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-btrfs@vger.kernel.org, riel@fb.com, linux-mm@kvack.org
 
-On Thu, Oct 18, 2018 at 10:43 AM Jan Kara <jack@suse.cz> wrote:
->
-> On Wed 17-10-18 13:01:15, Dan Williams wrote:
-> > On Sun, Oct 14, 2018 at 8:47 AM Dan Williams <dan.j.williams@intel.com> wrote:
-> > >
-> > > On Fri, Oct 5, 2018 at 6:17 PM Dan Williams <dan.j.williams@intel.com> wrote:
-> > > >
-> > > > On Thu, Oct 4, 2018 at 11:35 PM Johannes Thumshirn <jthumshirn@suse.de> wrote:
-> > > > >
-> > > > > On Thu, Oct 04, 2018 at 11:25:24PM -0700, Christoph Hellwig wrote:
-> > > > > > Since when is an article on some website a promise (of what exactly)
-> > > > > > by linux kernel developers?
-> > > > >
-> > > > > Let's stop it here, this doesn't make any sort of forward progress.
-> > > > >
-> > > >
-> > > > I do think there is some progress we can make if we separate DAX as an
-> > > > access mechanism vs DAX as a resource utilization contract. My attempt
-> > > > at representing Christoph's position is that the kernel should not be
-> > > > advertising / making access mechanism guarantees. That makes sense.
-> > > > Even with MAP_SYNC+DAX the kernel reserves the right to write-protect
-> > > > mappings at will and trap access into a kernel handler. Additionally,
-> > > > whether read(2) / write(2) does anything different behind the scenes
-> > > > in DAX mode, or not should be irrelevant to the application.
-> > > >
-> > > > That said what is certainly not irrelevant is a kernel giving
-> > > > userspace visibility and control into resource utilization. Jan's
-> > > > MADV_DIRECT_ACCESS let's the application make assumptions about page
-> > > > cache utilization, we just need to another mechanism to read if a
-> > > > mapping is effectively already in that state.
-> > >
-> > > I thought more about this today while reviewing the virtio-pmem driver
-> > > that will behave mostly like a DAX-capable pmem device except it will
-> > > be implemented by passing host page cache through to the guest as a
-> > > pmem device with a paravirtualized / asynchronous flush interface.
-> > > MAP_SYNC obviously needs to be disabled for this case, but still need
-> > > allow to some semblance of DAX operation to save allocating page cache
-> > > in the guest. The need to explicitly clarify the state of DAX is
-> > > growing with the different nuances of DAX operation.
-> > >
-> > > Lets use a new MAP_DIRECT flag to positively assert that a given
-> > > mmap() call is setting up a memory mapping without page-cache or
-> > > buffered indirection. To be clear not my original MAP_DIRECT proposal
-> > > from a while back, instead just a flag to mmap() that causes the
-> > > mapping attempt to fail if there is any software buffering fronting
-> > > the memory mapping, or any requirement for software to manage flushing
-> > > outside of pushing writes through the cpu cache. This way, if we ever
-> > > extend MAP_SYNC for a buffered use case we can still definitely assert
-> > > that the mapping is "direct". So, MAP_DIRECT would fail for
-> > > traditional non-DAX block devices, and for this new virtio-pmem case.
-> > > It would also fail for any pmem device where we cannot assert that the
-> > > platform will take care of flushing write-pending-queues on power-loss
-> > > events.
-> >
-> > After letting this set for a few days I think I'm back to liking
-> > MADV_DIRECT_ACCESS more since madvise() is more closely related to the
-> > page-cache management than mmap. It does not solve the query vs enable
-> > problem, but it's still a step towards giving applications what they
-> > want with respect to resource expectations.
->
-> Yeah, I don't have a strong opinion wrt mmap flag vs madvise flag.
+Getting some production testing running on these patches shortly to verify they
+are ready for primetime, but in the meantime they've had a bunch of xfstests
+runs on xfs, btrfs, and ext4 using kvm-xfstests.
 
-MADV_DIRECT_ACCESS seems more flexible as the agent setting up the
-mapping does not need to be the one concerned with the DAX-state of
-the mapping. It's also the canonical interface for affecting page
-cache behavior.
+v2->v3:
+- dropped the RFC, ready for a real review.
+- fixed a kbuild error for !MMU configs.
+- dropped the swapcache patches since Johannes is still working on those parts.
 
-> > Perhaps a new syscall to retrieve the effective advice for a range?
-> >
-> >      int madvice(void *addr, size_t length, int *advice);
->
-> After some thought, I'm not 100% sure this is really needed. I know about
-> apps that want to make sure DRAM is not consumed - for those mmap / madvise
-> flag is fine if it returns error in case the feature cannot be provided.
-> Most other apps don't care whether DAX is on or off. So this call would be
-> needed only if someone wanted to behave differently depending on whether
-> DAX is used or not. And although I can imagine some application like that,
-> I'm not sure how real that is...
+v1->v2:
+- reworked so it only affects x86, since its the only arch I can build and test.
+- fixed the fact that do_page_mkwrite wasn't actually sending ALLOW_RETRY down
+  to ->page_mkwrite.
+- fixed error handling in do_page_mkwrite/callers to explicitly catch
+  VM_FAULT_RETRY.
+- fixed btrfs to set ->cached_page properly.
 
-True, yes, if an application wants the behavior just ask.
+This time I've verified that the ->page_mkwrite retry path is actually getting
+used (apparently I only verified the read side last time).  xfstests is still
+running but it passed the couple of mmap tests I ran directly.  Again this is an
+RFC, I'm still doing a bunch of testing, but I'd appreciate comments on the
+overall strategy.
 
-The only caveat to address all the use cases for applications making
-decisions based on the presence of DAX is to make MADV_DIRECT_ACCESS
-fail if the mapping was not established with MAP_SYNC. That way we
-have both a way to assert that page cache resources are not being
-consumed, and that the kernel is handling metadata synchronization for
-any write-faults.
+-- Original message --
+
+Now that we have proper isolation in place with cgroups2 we have started going
+through and fixing the various priority inversions.  Most are all gone now, but
+this one is sort of weird since it's not necessarily a priority inversion that
+happens within the kernel, but rather because of something userspace does.
+
+We have giant applications that we want to protect, and parts of these giant
+applications do things like watch the system state to determine how healthy the
+box is for load balancing and such.  This involves running 'ps' or other such
+utilities.  These utilities will often walk /proc/<pid>/whatever, and these
+files can sometimes need to down_read(&task->mmap_sem).  Not usually a big deal,
+but we noticed when we are stress testing that sometimes our protected
+application has latency spikes trying to get the mmap_sem for tasks that are in
+lower priority cgroups.
+
+This is because any down_write() on a semaphore essentially turns it into a
+mutex, so even if we currently have it held for reading, any new readers will
+not be allowed on to keep from starving the writer.  This is fine, except a
+lower priority task could be stuck doing IO because it has been throttled to the
+point that its IO is taking much longer than normal.  But because a higher
+priority group depends on this completing it is now stuck behind lower priority
+work.
+
+In order to avoid this particular priority inversion we want to use the existing
+retry mechanism to stop from holding the mmap_sem at all if we are going to do
+IO.  This already exists in the read case sort of, but needed to be extended for
+more than just grabbing the page lock.  With io.latency we throttle at
+submit_bio() time, so the readahead stuff can block and even page_cache_read can
+block, so all these paths need to have the mmap_sem dropped.
+
+The other big thing is ->page_mkwrite.  btrfs is particularly shitty here
+because we have to reserve space for the dirty page, which can be a very
+expensive operation.  We use the same retry method as the read path, and simply
+cache the page and verify the page is still setup properly the next pass through
+->page_mkwrite().
+
+I've tested these patches with xfstests and there are no regressions.  Let me
+know what you think.  Thanks,
+
+Josef
