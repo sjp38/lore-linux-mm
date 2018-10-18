@@ -1,105 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E07A16B0003
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 00:10:53 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id n10-v6so15708470iog.5
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 21:10:53 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id t200-v6si3117321itc.56.2018.10.17.21.10.52
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EFBC6B0006
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 00:27:46 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 25-v6so25312603pfs.5
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 21:27:46 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id bd5-v6sor8938350plb.70.2018.10.17.21.27.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 21:10:52 -0700 (PDT)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH] hugetlbfs: dirty pages as they are added to pagecache
-Date: Wed, 17 Oct 2018 21:10:22 -0700
-Message-Id: <20181018041022.4529-1-mike.kravetz@oracle.com>
+        (Google Transport Security);
+        Wed, 17 Oct 2018 21:27:44 -0700 (PDT)
+Date: Thu, 18 Oct 2018 13:27:39 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v3] mm: memcontrol: Don't flood OOM messages with no
+ eligible task.
+Message-ID: <20181018042739.GA650@jagdpanzerIV>
+References: <20181017102821.GM18839@dhcp22.suse.cz>
+ <20181017111724.GA459@jagdpanzerIV>
+ <201810180246.w9I2koi3011358@www262.sakura.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201810180246.w9I2koi3011358@www262.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Alexander Viro <viro@zeniv.linux.org.uk>, Mike Kravetz <mike.kravetz@oracle.com>, stable@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>
 
-Some test systems were experiencing negative huge page reserve
-counts and incorrect file block counts.  This was traced to
-/proc/sys/vm/drop_caches removing clean pages from hugetlbfs
-file pagecaches.  When non-hugetlbfs explicit code removes the
-pages, the appropriate accounting is not performed.
+On (10/18/18 11:46), Tetsuo Handa wrote:
+> Sergey Senozhatsky wrote:
+> > 
+> > int printk_ratelimit_interval(void)
+> > {
+> >        int ret = DEFAULT_RATELIMIT_INTERVAL;
+> >        struct tty_driver *driver = NULL;
+> >        speed_t min_baud = MAX_INT;
+> > 
+> >        console_lock();
+> >        for_each_console(c) {
+> >                speed_t br;
+> > 
+> >                if (!c->device)
+> >                        continue;
+> >                if (!(c->flags & CON_ENABLED))
+> >                        continue;
+> >                if (!c->write)
+> >                        continue;
+> >                driver = c->device(c, index);
+> >                if (!driver)
+> >                        continue;
+> > 
+> >                br = tty_get_baud_rate(tty_driver to tty_struct [???]);
+> >                min_baud = min(min_baud, br);
+> >        }
+> >        console_unlock();
+> > 
+> >        switch (min_baud) {
+> >        case 115200:
+> >                return ret;
+> > 
+> >        case ...blah blah...:
+> >                return ret * 2;
+> > 
+> >        case 9600:
+> >                return ret * 4;
+> >        }
+> >        return ret;
+> > }
+> 
+> I don't think that baud rate is relevant. Writing to console messes up
+> operations by console users. What matters is that we don't mess up consoles
+> to the level (or frequency) where console users cannot do their operations.
+> That is, interval between the last moment we wrote to a console and the
+> first moment we will write to a console for the next time matters. Roughly
+> speaking, remember the time stamp when we called call_console_drivers() for
+> the last time, and compare with that stamp before trying to call a sort of
+> ratelimited printk(). My patch is doing it using per call-site stamp recording.
 
-This can be recreated as follows:
- fallocate -l 2M /dev/hugepages/foo
- echo 1 > /proc/sys/vm/drop_caches
- fallocate -l 2M /dev/hugepages/foo
- grep -i huge /proc/meminfo
-   AnonHugePages:         0 kB
-   ShmemHugePages:        0 kB
-   HugePages_Total:    2048
-   HugePages_Free:     2047
-   HugePages_Rsvd:    18446744073709551615
-   HugePages_Surp:        0
-   Hugepagesize:       2048 kB
-   Hugetlb:         4194304 kB
- ls -lsh /dev/hugepages/foo
-   4.0M -rw-r--r--. 1 root root 2.0M Oct 17 20:05 /dev/hugepages/foo
+To my personal taste, "baud rate of registered and enabled consoles"
+approach is drastically more relevant than hard coded 10 * HZ or
+60 * HZ magic numbers... But not in the form of that "min baud rate"
+brain fart, which I have posted.
 
-To address this issue, dirty pages as they are added to pagecache.
-This can easily be reproduced with fallocate as shown above. Read
-faulted pages will eventually end up being marked dirty.  But there
-is a window where they are clean and could be impacted by code such
-as drop_caches.  So, just dirty them all as they are added to the
-pagecache.
+What I'd do:
 
-In addition, it makes little sense to even try to drop hugetlbfs
-pagecache pages, so disable calls to these filesystems in drop_caches
-code.
+-- Iterate over all registered and enabled serial consoles
+-- Sum up all the baud rates
+-- Calculate (*roughly*) how many bytes per second/minute/etc my
+   call_console_driver() can push
 
-Fixes: 70c3547e36f5 ("hugetlbfs: add hugetlbfs_fallocate()")
-Cc: stable@vger.kernel.org
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- fs/drop_caches.c | 7 +++++++
- mm/hugetlb.c     | 6 ++++++
- 2 files changed, 13 insertions(+)
+        -- we actually don't even have to iterate all consoles. Just
+	   add a baud rate in register_console() and sub baud rate
+	   in unregister_console() of each console individually
+	-- and have a static unsigned long in printk.c, which OOM
+	   can use in rate-limit interval check
 
-diff --git a/fs/drop_caches.c b/fs/drop_caches.c
-index 82377017130f..b72c5bc502a8 100644
---- a/fs/drop_caches.c
-+++ b/fs/drop_caches.c
-@@ -9,6 +9,7 @@
- #include <linux/writeback.h>
- #include <linux/sysctl.h>
- #include <linux/gfp.h>
-+#include <linux/magic.h>
- #include "internal.h"
- 
- /* A global variable is a bit ugly, but it keeps the code simple */
-@@ -18,6 +19,12 @@ static void drop_pagecache_sb(struct super_block *sb, void *unused)
- {
- 	struct inode *inode, *toput_inode = NULL;
- 
-+	/*
-+	 * It makes no sense to try and drop hugetlbfs page cache pages.
-+	 */
-+	if (sb->s_magic == HUGETLBFS_MAGIC)
-+		return;
-+
- 	spin_lock(&sb->s_inode_list_lock);
- 	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
- 		spin_lock(&inode->i_lock);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 5c390f5a5207..7b5c0ad9a6bd 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -3690,6 +3690,12 @@ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
- 		return err;
- 	ClearPagePrivate(page);
- 
-+	/*
-+	 * set page dirty so that it will not be removed from cache/file
-+	 * by non-hugetlbfs specific code paths.
-+	 */
-+	set_page_dirty(page);
-+
- 	spin_lock(&inode->i_lock);
- 	inode->i_blocks += blocks_per_huge_page(h);
- 	spin_unlock(&inode->i_lock);
--- 
-2.17.2
+-- Leave all the noise behind: e.g. console_sem can be locked by
+   a preempted fbcon, etc. It's out of my control; bad luck, there
+   is nothing I can do about it.
+-- Then I would, probably, take the most recent, say, 100 OOM
+   reports, and calculate the *average* strlen() value
+   (including \r and \n at the end of each line)
+
+	(strlen(oom_report1) + ... + strlen(omm_report100)) / 100
+
+   Then I'd try to reach an agreement with MM people that we will
+   use this "average" oom_report_strlen() in ratelimit interval
+   calculation. Yes, some reports will be longer, some shorter.
+
+	Say, suppose...
+	
+	I have 2 consoles, and I can write 250 bytes per second.
+	And average oom_report is 5000 bytes.
+	Then I can print one oom_report every (5000 / 250) seconds
+	in the *best* case. That's the optimistic baseline. There
+	can be printk()-s from other CPUs, etc. etc. No one can
+	predict those things.
+
+	Note, how things change when I have just 1 console enabled.
+
+	I have 1 console, and I can write 500 bytes per second.
+	And average oom_report is 5000 bytes.
+	Then I can print one oom_report every (5000 / 500) seconds
+	in the *best* case.
+
+Just my $0.02. Who knows, may be it's dumb and ugly.
+I don't have a dog in this fight.
+
+	-ss
