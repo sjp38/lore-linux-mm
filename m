@@ -1,86 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D84CE6B000C
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 16:23:33 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id y23-v6so33192262qtc.7
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 13:23:33 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 822F96B000D
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 16:23:35 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id x75-v6so32189886qka.18
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 13:23:35 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m30-v6sor25788238qtd.70.2018.10.18.13.23.32
+        by mx.google.com with SMTPS id f35sor14318138qvd.54.2018.10.18.13.23.34
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 18 Oct 2018 13:23:32 -0700 (PDT)
+        Thu, 18 Oct 2018 13:23:34 -0700 (PDT)
 From: Josef Bacik <josef@toxicpanda.com>
-Subject: [PATCH 3/7] mm: drop the mmap_sem in all read fault cases
-Date: Thu, 18 Oct 2018 16:23:14 -0400
-Message-Id: <20181018202318.9131-4-josef@toxicpanda.com>
+Subject: [PATCH 4/7] mm: use the cached page for filemap_fault
+Date: Thu, 18 Oct 2018 16:23:15 -0400
+Message-Id: <20181018202318.9131-5-josef@toxicpanda.com>
 In-Reply-To: <20181018202318.9131-1-josef@toxicpanda.com>
 References: <20181018202318.9131-1-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: kernel-team@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tj@kernel.org, david@fromorbit.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-btrfs@vger.kernel.org, riel@fb.com, linux-mm@kvack.org
 
-Johannes' patches didn't quite cover all of the IO cases that we need to
-drop the mmap_sem for, this patch covers the rest of them.
+If we drop the mmap_sem we have to redo the vma lookup which requires
+redoing the fault handler.  Chances are we will just come back to the
+same page, so save this page in our vmf->cached_page and reuse it in the
+next loop through the fault handler.
 
 Signed-off-by: Josef Bacik <josef@toxicpanda.com>
 ---
- mm/filemap.c | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ mm/filemap.c | 30 ++++++++++++++++++++++++++++--
+ 1 file changed, 28 insertions(+), 2 deletions(-)
 
 diff --git a/mm/filemap.c b/mm/filemap.c
-index 1ed35cd99b2c..65395ee132a0 100644
+index 65395ee132a0..5212ab637832 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -2523,6 +2523,7 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
- 	int error;
- 	struct mm_struct *mm = vmf->vma->vm_mm;
- 	struct file *file = vmf->vma->vm_file;
-+	struct file *fpin = NULL;
- 	struct address_space *mapping = file->f_mapping;
- 	struct file_ra_state *ra = &file->f_ra;
- 	struct inode *inode = mapping->host;
-@@ -2610,11 +2611,15 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
- 	return ret | VM_FAULT_LOCKED;
+@@ -2530,13 +2530,38 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
+ 	pgoff_t offset = vmf->pgoff;
+ 	int flags = vmf->flags;
+ 	pgoff_t max_off;
+-	struct page *page;
++	struct page *page = NULL;
++	struct page *cached_page = vmf->cached_page;
+ 	vm_fault_t ret = 0;
  
- no_cached_page:
-+	fpin = maybe_unlock_mmap_for_io(vmf->vma, vmf->flags);
+ 	max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+ 	if (unlikely(offset >= max_off))
+ 		return VM_FAULT_SIGBUS;
+ 
++	/*
++	 * We may have read in the page already and have a page from an earlier
++	 * loop.  If so we need to see if this page is still valid, and if not
++	 * do the whole dance over again.
++	 */
++	if (cached_page) {
++		if (flags & FAULT_FLAG_KILLABLE) {
++			error = lock_page_killable(cached_page);
++			if (error) {
++				up_read(&mm->mmap_sem);
++				goto out_retry;
++			}
++		} else
++			lock_page(cached_page);
++		vmf->cached_page = NULL;
++		if (cached_page->mapping == mapping &&
++		    cached_page->index == offset) {
++			page = cached_page;
++			goto have_cached_page;
++		}
++		unlock_page(cached_page);
++		put_page(cached_page);
++	}
 +
  	/*
- 	 * We're only likely to ever get here if MADV_RANDOM is in
- 	 * effect.
+ 	 * Do we have something in the page cache already?
  	 */
- 	error = page_cache_read(file, offset, vmf->gfp_mask);
-+	if (fpin)
-+		goto out_retry;
- 
- 	/*
- 	 * The page we want has now been added to the page cache.
-@@ -2634,6 +2639,8 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
- 	return VM_FAULT_SIGBUS;
- 
- page_not_uptodate:
-+	fpin = maybe_unlock_mmap_for_io(vmf->vma, vmf->flags);
-+
- 	/*
- 	 * Umm, take care of errors if the page isn't up-to-date.
- 	 * Try to re-read it _once_. We do this synchronously,
-@@ -2647,6 +2654,8 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
- 		if (!PageUptodate(page))
- 			error = -EIO;
- 	}
-+	if (fpin)
-+		goto out_retry;
- 	put_page(page);
- 
- 	if (!error || error == AOP_TRUNCATED_PAGE)
-@@ -2665,6 +2674,8 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
- 	}
- 
- out_retry:
-+	if (fpin)
-+		fput(fpin);
- 	if (page)
+@@ -2587,6 +2612,7 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
  		put_page(page);
+ 		goto retry_find;
+ 	}
++have_cached_page:
+ 	VM_BUG_ON_PAGE(page->index != offset, page);
+ 
+ 	/*
+@@ -2677,7 +2703,7 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
+ 	if (fpin)
+ 		fput(fpin);
+ 	if (page)
+-		put_page(page);
++		vmf->cached_page = page;
  	return ret | VM_FAULT_RETRY;
+ }
+ EXPORT_SYMBOL(filemap_fault);
 -- 
 2.14.3
