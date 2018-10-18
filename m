@@ -1,101 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D58BB6B0008
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 19:16:55 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id k3-v6so2753077qta.23
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 16:16:55 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id y24si4112887qve.86.2018.10.18.16.16.53
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 52CD06B0003
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 19:54:34 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id 75-v6so2218830pgc.13
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 16:54:34 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 19-v6sor11995409pgv.22.2018.10.18.16.54.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Oct 2018 16:16:54 -0700 (PDT)
-Subject: Re: [PATCH] hugetlbfs: dirty pages as they are added to pagecache
-References: <20181018041022.4529-1-mike.kravetz@oracle.com>
- <20181018160827.0cb656d594ffb2f0f069326c@linux-foundation.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <6d6e4733-39aa-a958-c0a2-c5a47cdcc7d0@oracle.com>
-Date: Thu, 18 Oct 2018 16:16:40 -0700
+        (Google Transport Security);
+        Thu, 18 Oct 2018 16:54:33 -0700 (PDT)
+Date: Fri, 19 Oct 2018 08:54:27 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v3] mm: memcontrol: Don't flood OOM messages with no
+ eligible task.
+Message-ID: <20181018235427.GA877@jagdpanzerIV>
+References: <201810180246.w9I2koi3011358@www262.sakura.ne.jp>
+ <20181018042739.GA650@jagdpanzerIV>
+ <201810180526.w9I5QvVn032670@www262.sakura.ne.jp>
+ <20181018061018.GB650@jagdpanzerIV>
+ <20181018075611.GY18839@dhcp22.suse.cz>
+ <20181018081352.GA438@jagdpanzerIV>
+ <2c2b2820-e6f8-76c8-c431-18f60845b3ab@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20181018160827.0cb656d594ffb2f0f069326c@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2c2b2820-e6f8-76c8-c431-18f60845b3ab@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Alexander Viro <viro@zeniv.linux.org.uk>, stable@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>
 
-On 10/18/18 4:08 PM, Andrew Morton wrote:
-> On Wed, 17 Oct 2018 21:10:22 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+On (10/18/18 20:58), Tetsuo Handa wrote:
+> > 
+> > A knob might do.
+> > As well as /proc/sys/kernel/printk tweaks, probably. One can even add
+> > echo "a b c d" > /proc/sys/kernel/printk to .bashrc and adjust printk
+> > console levels on login and rollback to old values in .bash_logout
+> > May be.
 > 
->> Some test systems were experiencing negative huge page reserve
->> counts and incorrect file block counts.  This was traced to
->> /proc/sys/vm/drop_caches removing clean pages from hugetlbfs
->> file pagecaches.  When non-hugetlbfs explicit code removes the
->> pages, the appropriate accounting is not performed.
->>
->> This can be recreated as follows:
->>  fallocate -l 2M /dev/hugepages/foo
->>  echo 1 > /proc/sys/vm/drop_caches
->>  fallocate -l 2M /dev/hugepages/foo
->>  grep -i huge /proc/meminfo
->>    AnonHugePages:         0 kB
->>    ShmemHugePages:        0 kB
->>    HugePages_Total:    2048
->>    HugePages_Free:     2047
->>    HugePages_Rsvd:    18446744073709551615
->>    HugePages_Surp:        0
->>    Hugepagesize:       2048 kB
->>    Hugetlb:         4194304 kB
->>  ls -lsh /dev/hugepages/foo
->>    4.0M -rw-r--r--. 1 root root 2.0M Oct 17 20:05 /dev/hugepages/foo
->>
->> To address this issue, dirty pages as they are added to pagecache.
->> This can easily be reproduced with fallocate as shown above. Read
->> faulted pages will eventually end up being marked dirty.  But there
->> is a window where they are clean and could be impacted by code such
->> as drop_caches.  So, just dirty them all as they are added to the
->> pagecache.
->>
->> In addition, it makes little sense to even try to drop hugetlbfs
->> pagecache pages, so disable calls to these filesystems in drop_caches
->> code.
->>
->> ...
->>
->> --- a/fs/drop_caches.c
->> +++ b/fs/drop_caches.c
->> @@ -9,6 +9,7 @@
->>  #include <linux/writeback.h>
->>  #include <linux/sysctl.h>
->>  #include <linux/gfp.h>
->> +#include <linux/magic.h>
->>  #include "internal.h"
->>  
->>  /* A global variable is a bit ugly, but it keeps the code simple */
->> @@ -18,6 +19,12 @@ static void drop_pagecache_sb(struct super_block *sb, void *unused)
->>  {
->>  	struct inode *inode, *toput_inode = NULL;
->>  
->> +	/*
->> +	 * It makes no sense to try and drop hugetlbfs page cache pages.
->> +	 */
->> +	if (sb->s_magic == HUGETLBFS_MAGIC)
->> +		return;
-> 
-> Hardcoding hugetlbfs seems wrong here.  There are other filesystems
-> where it makes no sense to try to drop pagecache.  ramfs and, errrr...
-> 
-> I'm struggling to remember which is the correct thing to test here. 
-> BDI_CAP_NO_WRITEBACK should get us there, but doesn't seem quite
-> appropriate.
+> That can work for only single login with root user case.
+> Not everyone logs into console as root user.
 
-I was not sure about this, and expected someone could come up with
-something better.  It just seems there are filesystems like huegtlbfs,
-where it makes no sense wasting cycles traversing the filesystem.  So,
-let's not even try.
+Add sudo ;)
 
-Hoping someone can come up with a better method than hard coding as
-I have done above.
--- 
-Mike Kravetz
+> It is pity that we can't send kernel messages to only selected consoles
+> (e.g. all messages are sent to netconsole, but only critical messages are
+> sent to local consoles).
+
+OK, that's a fair point. There was a patch from FB, which would allow us
+to set a log_level on per-console basis. So the noise goes to heav^W net
+console; only critical stuff goes to the serial console (if I recall it
+correctly). I'm not sure what happened to that patch, it was a while ago.
+I'll try to find that out.
+
+[..]
+> That boils down to a "user interaction" problem.
+> Not limiting
+> 
+>   "%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=%*pbl, order=%d, oom_score_adj=%hd\n"
+>   "Out of memory and no killable processes...\n"
+> 
+> is very annoying.
+> 
+> And I really can't understand why Michal thinks "handling this requirement" as
+> "make the code more complex than necessary and squash different things together".
+
+Michal is trying very hard to address the problem in a reasonable way.
+The problem you are talking about is not MM specific. You can have a
+faulty SCSI device, corrupted FS, and so and on.
+
+	-ss
