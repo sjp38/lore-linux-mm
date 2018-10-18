@@ -1,62 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 63B076B000D
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 11:39:38 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id f64-v6so27697821ioa.8
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 08:39:38 -0700 (PDT)
-Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
-        by mx.google.com with ESMTPS id m11-v6si12866311ioq.144.2018.10.18.08.39.35
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F5196B0010
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 11:41:10 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id d63-v6so23282573pld.18
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 08:41:10 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 29-v6si21598951pgl.104.2018.10.18.08.41.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Oct 2018 08:39:37 -0700 (PDT)
-Date: Thu, 18 Oct 2018 16:38:36 +0100
-From: Jonathan Cameron <jonathan.cameron@huawei.com>
-Subject: Re: [PATCH 5/5] mm/memory-hotplug: Rework
- unregister_mem_sect_under_nodes
-Message-ID: <20181018163836.00005a45@huawei.com>
-In-Reply-To: <20181018150221.GA31605@techadventures.net>
-References: <20181015153034.32203-1-osalvador@techadventures.net>
-	<20181015153034.32203-6-osalvador@techadventures.net>
-	<20181018152434.00001845@huawei.com>
-	<20181018150221.GA31605@techadventures.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 18 Oct 2018 08:41:09 -0700 (PDT)
+From: Christoph Hellwig <hch@lst.de>
+Subject: [PATCH] userfaultfd: disable irqs when taking the waitqueue lock
+Date: Thu, 18 Oct 2018 17:41:01 +0200
+Message-Id: <20181018154101.18750-1-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com, yasu.isimatu@gmail.com, rppt@linux.vnet.ibm.com, malat@debian.org, linux-kernel@vger.kernel.org, pavel.tatashin@microsoft.com, jglisse@redhat.com, rafael@kernel.org, david@redhat.com, dave.jiang@intel.com, linux-mm@kvack.org, alexander.h.duyck@linux.intel.com, Oscar Salvador <osalvador@suse.de>, linuxarm@huawei.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 
-On Thu, 18 Oct 2018 17:02:21 +0200
-Oscar Salvador <osalvador@techadventures.net> wrote:
+userfaultfd contains howe-grown locking of the waitqueue lock,
+and does not disable interrupts.  This relies on the fact that
+no one else takes it from interrupt context and violates an
+invariat of the normal waitqueue locking scheme.  With aio poll
+it is easy to trigger other locks that disable interrupts (or
+are called from interrupt context).
 
-> On Thu, Oct 18, 2018 at 03:24:34PM +0100, Jonathan Cameron wrote:
-> > Tested-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>  
-> 
-> Thanks a lot Jonathan for having tested it!
-> 
-> Did you test the whole serie or only this patch?
-> Since you have caught some bugs testing the memory-hotplug code
-> on ARM64, I wonder if you could test it with the whole serie
-> applied (if you got some free time, of course).
-> 
-> 
-> thanks again!
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ fs/userfaultfd.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-Sorry I should have said.  Whole series on latest mmotm as of yesterday.
-Obviously that only tested some of the code paths as I didn't test
-hmm at all.
-
-There are a few more quirks to chase down on my list, but nothing
-related to this series and all superficial stuff.
-
-I'm away from my boards (or the remote connection to them anyway) until
-the 29th so any other tests will probably have to wait until then.
-
-It's not clear if we'll take the actual arm64 support forwards but
-hopefully someone will pick it up in the near future if we don't.
-The complexity around pfn_valid on arm64 may take some time to unwind.
-
-Thanks,
-
-Jonathan
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index bfa0ec69f924..356d2b8568c1 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -1026,7 +1026,7 @@ static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
+ 	struct userfaultfd_ctx *fork_nctx = NULL;
+ 
+ 	/* always take the fd_wqh lock before the fault_pending_wqh lock */
+-	spin_lock(&ctx->fd_wqh.lock);
++	spin_lock_irq(&ctx->fd_wqh.lock);
+ 	__add_wait_queue(&ctx->fd_wqh, &wait);
+ 	for (;;) {
+ 		set_current_state(TASK_INTERRUPTIBLE);
+@@ -1112,13 +1112,13 @@ static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
+ 			ret = -EAGAIN;
+ 			break;
+ 		}
+-		spin_unlock(&ctx->fd_wqh.lock);
++		spin_unlock_irq(&ctx->fd_wqh.lock);
+ 		schedule();
+-		spin_lock(&ctx->fd_wqh.lock);
++		spin_lock_irq(&ctx->fd_wqh.lock);
+ 	}
+ 	__remove_wait_queue(&ctx->fd_wqh, &wait);
+ 	__set_current_state(TASK_RUNNING);
+-	spin_unlock(&ctx->fd_wqh.lock);
++	spin_unlock_irq(&ctx->fd_wqh.lock);
+ 
+ 	if (!ret && msg->event == UFFD_EVENT_FORK) {
+ 		ret = resolve_userfault_fork(ctx, fork_nctx, msg);
+-- 
+2.19.1
