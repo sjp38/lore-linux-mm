@@ -1,40 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7832D6B0003
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 05:26:38 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id w17-v6so23872747wrt.0
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 02:26:38 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTPS id u184-v6si3731709wmf.78.2018.10.18.02.26.37
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F27056B0003
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 06:19:54 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id x44-v6so18147138edd.17
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 03:19:54 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e1-v6si7511166ejf.311.2018.10.18.03.19.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Oct 2018 02:26:37 -0700 (PDT)
-Date: Thu, 18 Oct 2018 11:26:03 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v5 03/27] x86/fpu/xstate: Introduce XSAVES system states
-Message-ID: <20181018092603.GB20831@zn.tnic>
-References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
- <20181011151523.27101-4-yu-cheng.yu@intel.com>
- <20181017104137.GE22535@zn.tnic>
- <32da559b-7958-60db-e328-f0eb316e668e@infradead.org>
- <20181017225829.GA32023@zn.tnic>
- <fde4c237-6210-f4e4-5362-c2e24a9916a2@infradead.org>
+        Thu, 18 Oct 2018 03:19:53 -0700 (PDT)
+Date: Thu, 18 Oct 2018 12:19:51 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v4 2/3] mm: introduce put_user_page*(), placeholder
+ versions
+Message-ID: <20181018101951.GO23493@quack2.suse.cz>
+References: <20181008211623.30796-1-jhubbard@nvidia.com>
+ <20181008211623.30796-3-jhubbard@nvidia.com>
+ <20181008171442.d3b3a1ea07d56c26d813a11e@linux-foundation.org>
+ <5198a797-fa34-c859-ff9d-568834a85a83@nvidia.com>
+ <20181010164541.ec4bf53f5a9e4ba6e5b52a21@linux-foundation.org>
+ <20181011084929.GB8418@quack2.suse.cz>
+ <20181011132013.GA5968@ziepe.ca>
+ <97e89e08-5b94-240a-56e9-ece2b91f6dbc@nvidia.com>
+ <b9899626-9033-348b-6f07-dc90bcd8a468@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fde4c237-6210-f4e4-5362-c2e24a9916a2@infradead.org>
+In-Reply-To: <b9899626-9033-348b-6f07-dc90bcd8a468@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Ralph Campbell <rcampbell@nvidia.com>
 
-On Wed, Oct 17, 2018 at 04:17:01PM -0700, Randy Dunlap wrote:
-> I asked what I really wanted to know.
+On Thu 11-10-18 20:53:34, John Hubbard wrote:
+> On 10/11/18 6:23 PM, John Hubbard wrote:
+> > On 10/11/18 6:20 AM, Jason Gunthorpe wrote:
+> >> On Thu, Oct 11, 2018 at 10:49:29AM +0200, Jan Kara wrote:
+> >>
+> >>>> This is a real worry.  If someone uses a mistaken put_page() then how
+> >>>> will that bug manifest at runtime?  Under what set of circumstances
+> >>>> will the kernel trigger the bug?
+> >>>
+> >>> At runtime such bug will manifest as a page that can never be evicted from
+> >>> memory. We could warn in put_page() if page reference count drops below
+> >>> bare minimum for given user pin count which would be able to catch some
+> >>> issues but it won't be 100% reliable. So at this point I'm more leaning
+> >>> towards making get_user_pages() return a different type than just
+> >>> struct page * to make it much harder for refcount to go wrong...
+> >>
+> >> At least for the infiniband code being used as an example here we take
+> >> the struct page from get_user_pages, then stick it in a sgl, and at
+> >> put_page time we get the page back out of the sgl via sg_page()
+> >>
+> >> So type safety will not help this case... I wonder how many other
+> >> users are similar? I think this is a pretty reasonable flow for DMA
+> >> with user pages.
+> >>
+> > 
+> > That is true. The infiniband code, fortunately, never mixes the two page
+> > types into the same pool (or sg list), so it's actually an easier example
+> > than some other subsystems. But, yes, type safety doesn't help there. I can 
+> > take a moment to look around at the other areas, to quantify how much a type
+> > safety change might help.
+> > 
+> > Back to page flags again, out of desperation:
+> > 
+> > How much do we know about the page types that all of these subsystems
+> > use? In other words, can we, for example, use bit 1 of page->lru.next (see [1]
+> > for context) as the "dma-pinned" page flag, while tracking pages within parts 
+> > of the kernel that call a mix of alloc_pages, get_user_pages, and other allocators? 
+> > In order for that to work, page->index, page->private, and bit 1 of page->mapping
+> > must not be used. I doubt that this is always going to hold, but...does it?
+> > 
+> 
+> Oops, pardon me, please ignore that nonsense about page->index and page->private
+> and page->mapping, that's actually fine (I was seeing "union", where "struct" was
+> written--too much staring at this code). 
+> 
+> So actually, I think maybe we can just use bit 1 in page->lru.next to sort out
+> which pages are dma-pinned, in the calling code, just like we're going to do
+> in writeback situations. This should also allow run-time checking that Andrew was 
+> hoping for:
+> 
+>     put_user_page(): assert that the page is dma-pinned
+>     put_page(): assert that the page is *not* dma-pinned
+> 
+> ...both of which depend on that bit being, essentially, available as sort
+> of a general page flag. And in fact, if it's not, then the whole approach
+> is dead anyway.
 
-Then the answer is a bit better readability, I'd guess.
+Well, put_page() cannot assert page is not dma-pinned as someone can still
+to get_page(), put_page() on dma-pinned page and that must not barf. But
+put_page() could assert that if the page is pinned, refcount is >=
+pincount. That will detect leaked pin references relatively quickly.
 
+								Honza
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
