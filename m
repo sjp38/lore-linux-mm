@@ -1,36 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AE8BE6B0006
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 17:05:34 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id s123-v6so32467537qkf.12
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 14:05:34 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i90-v6si8422469qkh.253.2018.10.18.14.05.33
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4728B6B0003
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 18:56:16 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id d7-v6so14617203pfj.6
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 15:56:16 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id i72-v6si22382251pfe.224.2018.10.18.15.56.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Oct 2018 14:05:33 -0700 (PDT)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
-References: <20181002100531.GC4135@quack2.suse.cz>
-	<20181002121039.GA3274@linux-x5ow.site>
-	<20181002142959.GD9127@quack2.suse.cz>
-	<x49h8hkfhk9.fsf@segfault.boston.devel.redhat.com>
-	<20181018002510.GC6311@dastard>
-Date: Thu, 18 Oct 2018 17:05:30 -0400
-In-Reply-To: <20181018002510.GC6311@dastard> (Dave Chinner's message of "Thu,
-	18 Oct 2018 11:25:10 +1100")
-Message-ID: <x49woqfq82t.fsf@segfault.boston.devel.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Thu, 18 Oct 2018 15:56:15 -0700 (PDT)
+Date: Thu, 18 Oct 2018 15:56:11 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] userfaultfd: disable irqs when taking the waitqueue
+ lock
+Message-Id: <20181018155611.42b9977ba08419b7869619c5@linux-foundation.org>
+In-Reply-To: <20181018154101.18750-1-hch@lst.de>
+References: <20181018154101.18750-1-hch@lst.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, Johannes Thumshirn <jthumshirn@suse.de>, Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-api@vger.kernel.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-mm@kvack.org
 
-Dave,
+On Thu, 18 Oct 2018 17:41:01 +0200 Christoph Hellwig <hch@lst.de> wrote:
 
-Thanks for the detailed response!  I hadn't considered the NOVA use case
-at all.
+> userfaultfd contains howe-grown locking of the waitqueue lock,
+> and does not disable interrupts.  This relies on the fact that
+> no one else takes it from interrupt context and violates an
+> invariat of the normal waitqueue locking scheme.  With aio poll
+> it is easy to trigger other locks that disable interrupts (or
+> are called from interrupt context).
 
-Cheers,
-Jeff
+So...  this is needed in 4.19.x but not earlier?  Or something else?
