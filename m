@@ -1,110 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F0DD16B000A
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 13:43:03 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id h24-v6so18942096eda.10
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 10:43:03 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v10-v6si1039819ejr.314.2018.10.18.10.43.02
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A85246B0008
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 14:29:18 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id j63-v6so22775291qte.13
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 11:29:18 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k36-v6sor25250674qtc.18.2018.10.18.11.29.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Oct 2018 10:43:02 -0700 (PDT)
-Date: Thu, 18 Oct 2018 19:43:00 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
-Message-ID: <20181018174300.GT23493@quack2.suse.cz>
-References: <20181002142010.GB4963@linux-x5ow.site>
- <20181002144547.GA26735@infradead.org>
- <20181002150123.GD4963@linux-x5ow.site>
- <20181002150634.GA22209@infradead.org>
- <20181004100949.GF6682@linux-x5ow.site>
- <20181005062524.GA30582@infradead.org>
- <20181005063519.GA5491@linux-x5ow.site>
- <CAPcyv4jD4VgRaKDQF9eMmjhMEHjUJqRU8i6OC+-=0domCc9u3A@mail.gmail.com>
- <CAPcyv4i7WJsq3BMASozjjbpMmEiS4AqmRS0kt3=rHdGfb5YvLA@mail.gmail.com>
- <CAPcyv4jt_w-89+m4w=FcN0oF3axiGqPBTHfEcWwdhnr12_=17Q@mail.gmail.com>
+        (Google Transport Security);
+        Thu, 18 Oct 2018 11:29:17 -0700 (PDT)
+Subject: Re: [mm PATCH v4 1/6] mm: Use mm_zero_struct_page from SPARC on all
+ 64b architectures
+References: <20181017235043.17213.92459.stgit@localhost.localdomain>
+ <20181017235408.17213.38641.stgit@localhost.localdomain>
+From: Pavel Tatashin <pasha.tatashin@gmail.com>
+Message-ID: <04e89c12-a05b-bda3-716f-10f885fc5bf0@gmail.com>
+Date: Thu, 18 Oct 2018 14:29:14 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4jt_w-89+m4w=FcN0oF3axiGqPBTHfEcWwdhnr12_=17Q@mail.gmail.com>
+In-Reply-To: <20181017235408.17213.38641.stgit@localhost.localdomain>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Johannes Thumshirn <jthumshirn@suse.de>, Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Michal Hocko <mhocko@suse.cz>
+To: Alexander Duyck <alexander.h.duyck@linux.intel.com>, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com, linux-kernel@vger.kernel.org, willy@infradead.org, davem@davemloft.net, yi.z.zhang@linux.intel.com, khalid.aziz@oracle.com, rppt@linux.vnet.ibm.com, vbabka@suse.cz, sparclinux@vger.kernel.org, dan.j.williams@intel.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mingo@kernel.org, kirill.shutemov@linux.intel.com
 
-On Wed 17-10-18 13:01:15, Dan Williams wrote:
-> On Sun, Oct 14, 2018 at 8:47 AM Dan Williams <dan.j.williams@intel.com> wrote:
-> >
-> > On Fri, Oct 5, 2018 at 6:17 PM Dan Williams <dan.j.williams@intel.com> wrote:
-> > >
-> > > On Thu, Oct 4, 2018 at 11:35 PM Johannes Thumshirn <jthumshirn@suse.de> wrote:
-> > > >
-> > > > On Thu, Oct 04, 2018 at 11:25:24PM -0700, Christoph Hellwig wrote:
-> > > > > Since when is an article on some website a promise (of what exactly)
-> > > > > by linux kernel developers?
-> > > >
-> > > > Let's stop it here, this doesn't make any sort of forward progress.
-> > > >
-> > >
-> > > I do think there is some progress we can make if we separate DAX as an
-> > > access mechanism vs DAX as a resource utilization contract. My attempt
-> > > at representing Christoph's position is that the kernel should not be
-> > > advertising / making access mechanism guarantees. That makes sense.
-> > > Even with MAP_SYNC+DAX the kernel reserves the right to write-protect
-> > > mappings at will and trap access into a kernel handler. Additionally,
-> > > whether read(2) / write(2) does anything different behind the scenes
-> > > in DAX mode, or not should be irrelevant to the application.
-> > >
-> > > That said what is certainly not irrelevant is a kernel giving
-> > > userspace visibility and control into resource utilization. Jan's
-> > > MADV_DIRECT_ACCESS let's the application make assumptions about page
-> > > cache utilization, we just need to another mechanism to read if a
-> > > mapping is effectively already in that state.
-> >
-> > I thought more about this today while reviewing the virtio-pmem driver
-> > that will behave mostly like a DAX-capable pmem device except it will
-> > be implemented by passing host page cache through to the guest as a
-> > pmem device with a paravirtualized / asynchronous flush interface.
-> > MAP_SYNC obviously needs to be disabled for this case, but still need
-> > allow to some semblance of DAX operation to save allocating page cache
-> > in the guest. The need to explicitly clarify the state of DAX is
-> > growing with the different nuances of DAX operation.
-> >
-> > Lets use a new MAP_DIRECT flag to positively assert that a given
-> > mmap() call is setting up a memory mapping without page-cache or
-> > buffered indirection. To be clear not my original MAP_DIRECT proposal
-> > from a while back, instead just a flag to mmap() that causes the
-> > mapping attempt to fail if there is any software buffering fronting
-> > the memory mapping, or any requirement for software to manage flushing
-> > outside of pushing writes through the cpu cache. This way, if we ever
-> > extend MAP_SYNC for a buffered use case we can still definitely assert
-> > that the mapping is "direct". So, MAP_DIRECT would fail for
-> > traditional non-DAX block devices, and for this new virtio-pmem case.
-> > It would also fail for any pmem device where we cannot assert that the
-> > platform will take care of flushing write-pending-queues on power-loss
-> > events.
+
+
+On 10/17/18 7:54 PM, Alexander Duyck wrote:
+> This change makes it so that we use the same approach that was already in
+> use on Sparc on all the archtectures that support a 64b long.
 > 
-> After letting this set for a few days I think I'm back to liking
-> MADV_DIRECT_ACCESS more since madvise() is more closely related to the
-> page-cache management than mmap. It does not solve the query vs enable
-> problem, but it's still a step towards giving applications what they
-> want with respect to resource expectations.
-
-Yeah, I don't have a strong opinion wrt mmap flag vs madvise flag.
-
-> Perhaps a new syscall to retrieve the effective advice for a range?
+> This is mostly motivated by the fact that 7 to 10 store/move instructions
+> are likely always going to be faster than having to call into a function
+> that is not specialized for handling page init.
 > 
->      int madvice(void *addr, size_t length, int *advice);
+> An added advantage to doing it this way is that the compiler can get away
+> with combining writes in the __init_single_page call. As a result the
+> memset call will be reduced to only about 4 write operations, or at least
+> that is what I am seeing with GCC 6.2 as the flags, LRU poitners, and
+> count/mapcount seem to be cancelling out at least 4 of the 8 assignments on
+> my system.
+> 
+> One change I had to make to the function was to reduce the minimum page
+> size to 56 to support some powerpc64 configurations.
+> 
+> This change should introduce no change on SPARC since it already had this
+> code. In the case of x86_64 I saw a reduction from 3.75s to 2.80s when
+> initializing 384GB of RAM per node. Pavel Tatashin tested on a system with
+> Broadcom's Stingray CPU and 48GB of RAM and found that __init_single_page()
+> takes 19.30ns / 64-byte struct page before this patch and with this patch
+> it takes 17.33ns / 64-byte struct page. Mike Rapoport ran a similar test on
+> a OpenPower (S812LC 8348-21C) with Power8 processor and 128GB or RAM. His
+> results per 64-byte struct page were 4.68ns before, and 4.59ns after this
+> patch.
 
-After some thought, I'm not 100% sure this is really needed. I know about
-apps that want to make sure DRAM is not consumed - for those mmap / madvise
-flag is fine if it returns error in case the feature cannot be provided.
-Most other apps don't care whether DAX is on or off. So this call would be
-needed only if someone wanted to behave differently depending on whether
-DAX is used or not. And although I can imagine some application like that,
-I'm not sure how real that is...
+Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> 
+> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> ---
+>  arch/sparc/include/asm/pgtable_64.h |   30 --------------------------
+>  include/linux/mm.h                  |   41 ++++++++++++++++++++++++++++++++---
+>  2 files changed, 38 insertions(+), 33 deletions(-)
+> 
+> diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
+> index 1393a8ac596b..22500c3be7a9 100644
+> --- a/arch/sparc/include/asm/pgtable_64.h
+> +++ b/arch/sparc/include/asm/pgtable_64.h
+> @@ -231,36 +231,6 @@
+>  extern struct page *mem_map_zero;
+>  #define ZERO_PAGE(vaddr)	(mem_map_zero)
+>  
+> -/* This macro must be updated when the size of struct page grows above 80
+> - * or reduces below 64.
+> - * The idea that compiler optimizes out switch() statement, and only
+> - * leaves clrx instructions
+> - */
+> -#define	mm_zero_struct_page(pp) do {					\
+> -	unsigned long *_pp = (void *)(pp);				\
+> -									\
+> -	 /* Check that struct page is either 64, 72, or 80 bytes */	\
+> -	BUILD_BUG_ON(sizeof(struct page) & 7);				\
+> -	BUILD_BUG_ON(sizeof(struct page) < 64);				\
+> -	BUILD_BUG_ON(sizeof(struct page) > 80);				\
+> -									\
+> -	switch (sizeof(struct page)) {					\
+> -	case 80:							\
+> -		_pp[9] = 0;	/* fallthrough */			\
+> -	case 72:							\
+> -		_pp[8] = 0;	/* fallthrough */			\
+> -	default:							\
+> -		_pp[7] = 0;						\
+> -		_pp[6] = 0;						\
+> -		_pp[5] = 0;						\
+> -		_pp[4] = 0;						\
+> -		_pp[3] = 0;						\
+> -		_pp[2] = 0;						\
+> -		_pp[1] = 0;						\
+> -		_pp[0] = 0;						\
+> -	}								\
+> -} while (0)
+> -
+>  /* PFNs are real physical page numbers.  However, mem_map only begins to record
+>   * per-page information starting at pfn_base.  This is to handle systems where
+>   * the first physical page in the machine is at some huge physical address,
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index fcf9cc9d535f..6e2c9631af05 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -98,10 +98,45 @@ static inline void set_max_mapnr(unsigned long limit) { }
+>  
+>  /*
+>   * On some architectures it is expensive to call memset() for small sizes.
+> - * Those architectures should provide their own implementation of "struct page"
+> - * zeroing by defining this macro in <asm/pgtable.h>.
+> + * If an architecture decides to implement their own version of
+> + * mm_zero_struct_page they should wrap the defines below in a #ifndef and
+> + * define their own version of this macro in <asm/pgtable.h>
+>   */
+> -#ifndef mm_zero_struct_page
+> +#if BITS_PER_LONG == 64
+> +/* This function must be updated when the size of struct page grows above 80
+> + * or reduces below 56. The idea that compiler optimizes out switch()
+> + * statement, and only leaves move/store instructions. Also the compiler can
+> + * combine write statments if they are both assignments and can be reordered,
+> + * this can result in several of the writes here being dropped.
+> + */
+> +#define	mm_zero_struct_page(pp) __mm_zero_struct_page(pp)
+> +static inline void __mm_zero_struct_page(struct page *page)
+> +{
+> +	unsigned long *_pp = (void *)page;
+> +
+> +	 /* Check that struct page is either 56, 64, 72, or 80 bytes */
+> +	BUILD_BUG_ON(sizeof(struct page) & 7);
+> +	BUILD_BUG_ON(sizeof(struct page) < 56);
+> +	BUILD_BUG_ON(sizeof(struct page) > 80);
+> +
+> +	switch (sizeof(struct page)) {
+> +	case 80:
+> +		_pp[9] = 0;	/* fallthrough */
+> +	case 72:
+> +		_pp[8] = 0;	/* fallthrough */
+> +	case 64:
+> +		_pp[7] = 0;	/* fallthrough */
+> +	case 56:
+> +		_pp[6] = 0;
+> +		_pp[5] = 0;
+> +		_pp[4] = 0;
+> +		_pp[3] = 0;
+> +		_pp[2] = 0;
+> +		_pp[1] = 0;
+> +		_pp[0] = 0;
+> +	}
+> +}
+> +#else
+>  #define mm_zero_struct_page(pp)  ((void)memset((pp), 0, sizeof(struct page)))
+>  #endif
+>  
+> 
