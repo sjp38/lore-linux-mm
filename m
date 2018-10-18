@@ -1,108 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C16D86B0008
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 07:24:01 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id m45-v6so18441269edc.2
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 04:24:01 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x16-v6si4347239ejc.242.2018.10.18.04.24.00
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6934E6B0003
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 07:59:23 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id k9-v6so27561046iob.16
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 04:59:23 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id t87-v6si1426435jad.79.2018.10.18.04.59.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Oct 2018 04:24:00 -0700 (PDT)
-Date: Thu, 18 Oct 2018 13:23:58 +0200
-From: Michal Hocko <mhocko@kernel.org>
+        Thu, 18 Oct 2018 04:59:21 -0700 (PDT)
 Subject: Re: [PATCH v3] mm: memcontrol: Don't flood OOM messages with no
  eligible task.
-Message-ID: <20181018112358.GB18839@dhcp22.suse.cz>
-References: <20181017102821.GM18839@dhcp22.suse.cz>
- <20181017111724.GA459@jagdpanzerIV>
- <201810180246.w9I2koi3011358@www262.sakura.ne.jp>
- <20181018065519.GV18839@dhcp22.suse.cz>
- <6bbb0449-1f22-4d05-9e2a-636965b7dbc6@i-love.sakura.ne.jp>
+References: <201810180246.w9I2koi3011358@www262.sakura.ne.jp>
+ <20181018042739.GA650@jagdpanzerIV>
+ <201810180526.w9I5QvVn032670@www262.sakura.ne.jp>
+ <20181018061018.GB650@jagdpanzerIV> <20181018075611.GY18839@dhcp22.suse.cz>
+ <20181018081352.GA438@jagdpanzerIV>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <2c2b2820-e6f8-76c8-c431-18f60845b3ab@i-love.sakura.ne.jp>
+Date: Thu, 18 Oct 2018 20:58:53 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <6bbb0449-1f22-4d05-9e2a-636965b7dbc6@i-love.sakura.ne.jp>
+In-Reply-To: <20181018081352.GA438@jagdpanzerIV>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>
 
-On Thu 18-10-18 19:37:18, Tetsuo Handa wrote:
-> On 2018/10/18 15:55, Michal Hocko wrote:
-> > On Thu 18-10-18 11:46:50, Tetsuo Handa wrote:
-> >> This is essentially a ratelimit approach, roughly equivalent with:
-> >>
-> >>   static DEFINE_RATELIMIT_STATE(oom_no_victim_rs, 60 * HZ, 1);
-> >>   oom_no_victim_rs.flags |= RATELIMIT_MSG_ON_RELEASE;
-> >>
-> >>   if (__ratelimit(&oom_no_victim_rs)) {
-> >>     dump_header(oc, NULL);
-> >>     pr_warn("Out of memory and no killable processes...\n");
-> >>     oom_no_victim_rs.begin = jiffies;
-> >>   }
-> > 
-> > Then there is no reason to reinvent the wheel. So use the standard
-> > ratelimit approach. Or put it in other words, this place is no special
-> > to any other that needs some sort of printk throttling. We surely do not
-> > want an ad-hoc solutions all over the kernel.
-> 
-> netdev_wait_allrefs() in net/core/dev.c is doing the same thing. Since
-> out_of_memory() is serialized by oom_lock mutex, there is no need to use
-> "struct ratelimit_state"->lock field. Plain "unsigned long" is enough.
+On 2018/10/18 17:13, Sergey Senozhatsky wrote:
+> On (10/18/18 09:56), Michal Hocko wrote:
+>> On Thu 18-10-18 15:10:18, Sergey Senozhatsky wrote:
+>> [...]
+>>> and let's hear from MM people what they can suggest.
+>>>
+>>> Michal, Andrew, Johannes, any thoughts?
+>>
+>> I have already stated my position. Let's not reinvent the wheel and use
+>> the standard printk throttling. If there are cases where oom reports
+>> cause more harm than good I am open to add a knob to allow disabling it
+>> altogether (it can be even fine grained one to control whether to dump
+>> show_mem, task_list etc.).
 
-That code probably predates generalized ratelimit api.
-
-> > And once you realize that the ratelimit api is the proper one (put aside
-> > any potential improvements in the implementation of this api) then you
-> > quickly learn that we already do throttle oom reports and it would be
-> > nice to unify that and ... we are back to a naked patch. So please stop
-> > being stuborn and try to cooperate finally.
-> 
-> I don't think that ratelimit API is the proper one, for I am touching
-> "struct ratelimit_state"->begin field which is not exported by ratelimit API.
-> But if you insist on ratelimit API version, I can tolerate with below one.
-
-I just give up. I do not really see why you always have to make the code
-more complex than necessary and squash different things together. This
-is a complete kernel code development antipattern.
-
-I am not goging to reply to this thread more but let me note that this
-is beyond fun in any aspect I can think off (and yeah I have considered
-dark sense of humor as well).
+Moderate OOM reports with making progress is good.
+But OOM reports without making progress is bad.
 
 > 
->  mm/oom_kill.c | 7 +++++++
->  1 file changed, 7 insertions(+)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index f10aa53..7c6118e 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -1106,6 +1106,12 @@ bool out_of_memory(struct oom_control *oc)
->  	select_bad_process(oc);
->  	/* Found nothing?!?! */
->  	if (!oc->chosen) {
-> +		static DEFINE_RATELIMIT_STATE(no_eligible_rs, 60 * HZ, 1);
-> +
-> +		ratelimit_set_flags(&no_eligible_rs, RATELIMIT_MSG_ON_RELEASE);
-> +		if ((is_sysrq_oom(oc) || is_memcg_oom(oc)) &&
-> +		    !__ratelimit(&no_eligible_rs))
-> +			return false;
->  		dump_header(oc, NULL);
->  		pr_warn("Out of memory and no killable processes...\n");
->  		/*
-> @@ -1115,6 +1121,7 @@ bool out_of_memory(struct oom_control *oc)
->  		 */
->  		if (!is_sysrq_oom(oc) && !is_memcg_oom(oc))
->  			panic("System is deadlocked on memory\n");
-> +		no_eligible_rs.begin = jiffies;
->  	}
->  	if (oc->chosen && oc->chosen != (void *)-1UL)
->  		oom_kill_process(oc, !is_memcg_oom(oc) ? "Out of memory" :
-> -- 
-> 1.8.3.1
+> A knob might do.
+> As well as /proc/sys/kernel/printk tweaks, probably. One can even add
+> echo "a b c d" > /proc/sys/kernel/printk to .bashrc and adjust printk
+> console levels on login and rollback to old values in .bash_logout
+> May be.
 
--- 
-Michal Hocko
-SUSE Labs
+That can work for only single login with root user case.
+Not everyone logs into console as root user.
+
+It is pity that we can't send kernel messages to only selected consoles
+(e.g. all messages are sent to netconsole, but only critical messages are
+sent to local consoles).
+
+> 
+>> But please let's stop this dubious one-off approaches.
+> 
+> OK. Well, I'm not proposing anything actually. I didn't even
+> realize until recently that Tetsuo was talking about "user
+> interaction" problem; I thought that his problem was stalled
+> RCU.
+
+The "stalled RCU" was the trigger for considering this problem.
+Nobody has seriously considered what we should do when the memcg OOM killer
+cannot make progress. If the OOM killer cannot make progress, we need to
+handle situations where the OOM-unkillable process cannot solve the memcg OOM
+situation. Then, the poorest recovery method is that the root user enters
+commands for recovery (It might be to increase the memory limit. It might be
+to move to a different cgroup. It might be to gracefully terminate the
+OOM-unkillable process.) from "consoles" where the OOM messages are sent.
+
+If we start from the worst case, it is obvious that we need to make sure that
+the OOM messages do not disturb "consoles" so that the root user can enter
+commands for recovery. That boils down to a "user interaction" problem.
+Not limiting
+
+  "%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=%*pbl, order=%d, oom_score_adj=%hd\n"
+  "Out of memory and no killable processes...\n"
+
+is very annoying.
+
+And I really can't understand why Michal thinks "handling this requirement" as
+"make the code more complex than necessary and squash different things together".
+Satisfying the most difficult error path handling is not a simple thing.
