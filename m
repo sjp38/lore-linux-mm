@@ -1,40 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EA68B6B000C
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 22:28:33 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id 43-v6so22673604ple.19
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 19:28:33 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id f34-v6si3361118ple.31.2018.10.17.19.28.31
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 86E306B000E
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 22:45:37 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id e3-v6so22680125pld.13
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 19:45:37 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id h13-v6si17580075pgq.285.2018.10.17.19.45.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 19:28:32 -0700 (PDT)
-Date: Thu, 18 Oct 2018 10:28:07 +0800
+        Wed, 17 Oct 2018 19:45:36 -0700 (PDT)
+Date: Thu, 18 Oct 2018 10:44:55 +0800
 From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH V2 3/4] arm64: mm: Define arch_get_mmap_end,
- arch_get_mmap_base
-Message-ID: <201810181001.S8feTq0v%fengguang.wu@intel.com>
-References: <20181017163459.20175-4-steve.capper@arm.com>
+Subject: Re: [PATCH V2 4/4] arm64: mm: introduce 52-bit userspace support
+Message-ID: <201810181050.dj7G9iVO%fengguang.wu@intel.com>
+References: <20181017163459.20175-5-steve.capper@arm.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="jI8keyz6grp/JLjh"
+Content-Type: multipart/mixed; boundary="7AUc2qLy4jB3hD7Z"
 Content-Disposition: inline
-In-Reply-To: <20181017163459.20175-4-steve.capper@arm.com>
+In-Reply-To: <20181017163459.20175-5-steve.capper@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Steve Capper <steve.capper@arm.com>
 Cc: kbuild-all@01.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@linaro.org, jcm@redhat.com
 
 
---jI8keyz6grp/JLjh
+--7AUc2qLy4jB3hD7Z
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
 Hi Steve,
 
-Thank you for the patch! Perhaps something to improve:
+Thank you for the patch! Yet something to improve:
 
-[auto build test WARNING on arm64/for-next/core]
-[also build test WARNING on v4.19-rc8]
+[auto build test ERROR on arm64/for-next/core]
+[also build test ERROR on v4.19-rc8]
 [cannot apply to next-20181017]
 [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
@@ -48,111 +47,67 @@ reproduce:
         # save the attached .config to linux build tree
         GCC_VERSION=7.2.0 make.cross ARCH=arm64 
 
-All warnings (new ones prefixed by >>):
+All error/warnings (new ones prefixed by >>):
 
-   In file included from include/asm-generic/qrwlock.h:23:0,
-                    from ./arch/arm64/include/generated/asm/qrwlock.h:1,
-                    from arch/arm64/include/asm/spinlock.h:19,
-                    from include/linux/spinlock.h:88,
-                    from include/linux/mmzone.h:8,
-                    from include/linux/gfp.h:6,
-                    from include/linux/slab.h:15,
-                    from mm/mmap.c:12:
-   mm/mmap.c: In function 'arch_get_unmapped_area':
-   arch/arm64/include/asm/processor.h:63:50: error: 'tsk' undeclared (first use in this function)
-    #define DEFAULT_MAP_WINDOW (test_tsk_thread_flag(tsk, TIF_32BIT) ? \
-                                                     ^
-   arch/arm64/include/asm/processor.h:81:42: note: in expansion of macro 'DEFAULT_MAP_WINDOW'
-    #define arch_get_mmap_end(addr) ((addr > DEFAULT_MAP_WINDOW) ? TASK_SIZE :\
-                                             ^~~~~~~~~~~~~~~~~~
->> mm/mmap.c:2073:33: note: in expansion of macro 'arch_get_mmap_end'
-     const unsigned long mmap_end = arch_get_mmap_end(addr);
-                                    ^~~~~~~~~~~~~~~~~
-   arch/arm64/include/asm/processor.h:63:50: note: each undeclared identifier is reported only once for each function it appears in
-    #define DEFAULT_MAP_WINDOW (test_tsk_thread_flag(tsk, TIF_32BIT) ? \
-                                                     ^
-   arch/arm64/include/asm/processor.h:81:42: note: in expansion of macro 'DEFAULT_MAP_WINDOW'
-    #define arch_get_mmap_end(addr) ((addr > DEFAULT_MAP_WINDOW) ? TASK_SIZE :\
-                                             ^~~~~~~~~~~~~~~~~~
->> mm/mmap.c:2073:33: note: in expansion of macro 'arch_get_mmap_end'
-     const unsigned long mmap_end = arch_get_mmap_end(addr);
-                                    ^~~~~~~~~~~~~~~~~
-   mm/mmap.c: In function 'arch_get_unmapped_area_topdown':
-   arch/arm64/include/asm/processor.h:63:50: error: 'tsk' undeclared (first use in this function)
-    #define DEFAULT_MAP_WINDOW (test_tsk_thread_flag(tsk, TIF_32BIT) ? \
-                                                     ^
-   arch/arm64/include/asm/processor.h:81:42: note: in expansion of macro 'DEFAULT_MAP_WINDOW'
-    #define arch_get_mmap_end(addr) ((addr > DEFAULT_MAP_WINDOW) ? TASK_SIZE :\
-                                             ^~~~~~~~~~~~~~~~~~
-   mm/mmap.c:2113:33: note: in expansion of macro 'arch_get_mmap_end'
-     const unsigned long mmap_end = arch_get_mmap_end(addr);
-                                    ^~~~~~~~~~~~~~~~~
+   In file included from include/linux/export.h:45:0,
+                    from include/linux/linkage.h:7,
+                    from include/linux/kernel.h:7,
+                    from arch/arm64/mm/init.c:20:
+   arch/arm64/mm/init.c: In function 'mem_init':
+>> include/linux/compiler.h:358:38: error: call to '__compiletime_assert_613' declared with attribute error: BUILD_BUG_ON failed: TASK_SIZE_32 > TASK_SIZE_64
+     _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+                                         ^
+   include/linux/compiler.h:338:4: note: in definition of macro '__compiletime_assert'
+       prefix ## suffix();    \
+       ^~~~~~
+   include/linux/compiler.h:358:2: note: in expansion of macro '_compiletime_assert'
+     _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+     ^~~~~~~~~~~~~~~~~~~
+   include/linux/build_bug.h:45:37: note: in expansion of macro 'compiletime_assert'
+    #define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
+                                        ^~~~~~~~~~~~~~~~~~
+   include/linux/build_bug.h:69:2: note: in expansion of macro 'BUILD_BUG_ON_MSG'
+     BUILD_BUG_ON_MSG(condition, "BUILD_BUG_ON failed: " #condition)
+     ^~~~~~~~~~~~~~~~
+>> arch/arm64/mm/init.c:613:2: note: in expansion of macro 'BUILD_BUG_ON'
+     BUILD_BUG_ON(TASK_SIZE_32   > TASK_SIZE_64);
+     ^~~~~~~~~~~~
 
-vim +/arch_get_mmap_end +2073 mm/mmap.c
+vim +/__compiletime_assert_613 +358 include/linux/compiler.h
 
-d5d60952 Steve Capper           2018-10-17  2053  
-^1da177e Linus Torvalds         2005-04-16  2054  /* Get an address range which is currently unmapped.
-^1da177e Linus Torvalds         2005-04-16  2055   * For shmat() with addr=0.
-^1da177e Linus Torvalds         2005-04-16  2056   *
-^1da177e Linus Torvalds         2005-04-16  2057   * Ugly calling convention alert:
-^1da177e Linus Torvalds         2005-04-16  2058   * Return value with the low bits set means error value,
-^1da177e Linus Torvalds         2005-04-16  2059   * ie
-^1da177e Linus Torvalds         2005-04-16  2060   *	if (ret & ~PAGE_MASK)
-^1da177e Linus Torvalds         2005-04-16  2061   *		error = ret;
-^1da177e Linus Torvalds         2005-04-16  2062   *
-^1da177e Linus Torvalds         2005-04-16  2063   * This function "knows" that -ENOMEM has the bits set.
-^1da177e Linus Torvalds         2005-04-16  2064   */
-^1da177e Linus Torvalds         2005-04-16  2065  #ifndef HAVE_ARCH_UNMAPPED_AREA
-^1da177e Linus Torvalds         2005-04-16  2066  unsigned long
-^1da177e Linus Torvalds         2005-04-16  2067  arch_get_unmapped_area(struct file *filp, unsigned long addr,
-^1da177e Linus Torvalds         2005-04-16  2068  		unsigned long len, unsigned long pgoff, unsigned long flags)
-^1da177e Linus Torvalds         2005-04-16  2069  {
-^1da177e Linus Torvalds         2005-04-16  2070  	struct mm_struct *mm = current->mm;
-1be7107f Hugh Dickins           2017-06-19  2071  	struct vm_area_struct *vma, *prev;
-db4fbfb9 Michel Lespinasse      2012-12-11  2072  	struct vm_unmapped_area_info info;
-d5d60952 Steve Capper           2018-10-17 @2073  	const unsigned long mmap_end = arch_get_mmap_end(addr);
-^1da177e Linus Torvalds         2005-04-16  2074  
-d5d60952 Steve Capper           2018-10-17  2075  	if (len > mmap_end - mmap_min_addr)
-^1da177e Linus Torvalds         2005-04-16  2076  		return -ENOMEM;
-^1da177e Linus Torvalds         2005-04-16  2077  
-06abdfb4 Benjamin Herrenschmidt 2007-05-06  2078  	if (flags & MAP_FIXED)
-06abdfb4 Benjamin Herrenschmidt 2007-05-06  2079  		return addr;
-06abdfb4 Benjamin Herrenschmidt 2007-05-06  2080  
-^1da177e Linus Torvalds         2005-04-16  2081  	if (addr) {
-^1da177e Linus Torvalds         2005-04-16  2082  		addr = PAGE_ALIGN(addr);
-1be7107f Hugh Dickins           2017-06-19  2083  		vma = find_vma_prev(mm, addr, &prev);
-d5d60952 Steve Capper           2018-10-17  2084  		if (mmap_end - len >= addr && addr >= mmap_min_addr &&
-1be7107f Hugh Dickins           2017-06-19  2085  		    (!vma || addr + len <= vm_start_gap(vma)) &&
-1be7107f Hugh Dickins           2017-06-19  2086  		    (!prev || addr >= vm_end_gap(prev)))
-^1da177e Linus Torvalds         2005-04-16  2087  			return addr;
-^1da177e Linus Torvalds         2005-04-16  2088  	}
-^1da177e Linus Torvalds         2005-04-16  2089  
-db4fbfb9 Michel Lespinasse      2012-12-11  2090  	info.flags = 0;
-db4fbfb9 Michel Lespinasse      2012-12-11  2091  	info.length = len;
-4e99b021 Heiko Carstens         2013-11-12  2092  	info.low_limit = mm->mmap_base;
-d5d60952 Steve Capper           2018-10-17  2093  	info.high_limit = mmap_end;
-db4fbfb9 Michel Lespinasse      2012-12-11  2094  	info.align_mask = 0;
-db4fbfb9 Michel Lespinasse      2012-12-11  2095  	return vm_unmapped_area(&info);
-^1da177e Linus Torvalds         2005-04-16  2096  }
-^1da177e Linus Torvalds         2005-04-16  2097  #endif
-^1da177e Linus Torvalds         2005-04-16  2098  
+9a8ab1c3 Daniel Santos 2013-02-21  344  
+9a8ab1c3 Daniel Santos 2013-02-21  345  #define _compiletime_assert(condition, msg, prefix, suffix) \
+9a8ab1c3 Daniel Santos 2013-02-21  346  	__compiletime_assert(condition, msg, prefix, suffix)
+9a8ab1c3 Daniel Santos 2013-02-21  347  
+9a8ab1c3 Daniel Santos 2013-02-21  348  /**
+9a8ab1c3 Daniel Santos 2013-02-21  349   * compiletime_assert - break build and emit msg if condition is false
+9a8ab1c3 Daniel Santos 2013-02-21  350   * @condition: a compile-time constant condition to check
+9a8ab1c3 Daniel Santos 2013-02-21  351   * @msg:       a message to emit if condition is false
+9a8ab1c3 Daniel Santos 2013-02-21  352   *
+9a8ab1c3 Daniel Santos 2013-02-21  353   * In tradition of POSIX assert, this macro will break the build if the
+9a8ab1c3 Daniel Santos 2013-02-21  354   * supplied condition is *false*, emitting the supplied error message if the
+9a8ab1c3 Daniel Santos 2013-02-21  355   * compiler has support to do so.
+9a8ab1c3 Daniel Santos 2013-02-21  356   */
+9a8ab1c3 Daniel Santos 2013-02-21  357  #define compiletime_assert(condition, msg) \
+9a8ab1c3 Daniel Santos 2013-02-21 @358  	_compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+9a8ab1c3 Daniel Santos 2013-02-21  359  
 
-:::::: The code at line 2073 was first introduced by commit
-:::::: d5d60952691e93644f4e7692baffbef33c93f91a mm: mmap: Allow for "high" userspace addresses
+:::::: The code at line 358 was first introduced by commit
+:::::: 9a8ab1c39970a4938a72d94e6fd13be88a797590 bug.h, compiler.h: introduce compiletime_assert & BUILD_BUG_ON_MSG
 
-:::::: TO: Steve Capper <steve.capper@arm.com>
-:::::: CC: 0day robot <lkp@intel.com>
+:::::: TO: Daniel Santos <daniel.santos@pobox.com>
+:::::: CC: Linus Torvalds <torvalds@linux-foundation.org>
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---jI8keyz6grp/JLjh
+--7AUc2qLy4jB3hD7Z
 Content-Type: application/gzip
 Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
 
-H4sICLzux1sAAy5jb25maWcAjDxbc9u20u/9FZr0pZ0z6ZFkxXa+b/wAgqCEircAoGTnhaPa
+H4sICM3yx1sAAy5jb25maWcAjDxbc9u20u/9FZr0pZ0z6ZFkxXa+b/wAgqCEircAoGTnhaPa
 Suo5tpwjy23z788uwAsAgmo7mTTcXdwWi8XeoB9/+HFC3k4vz7vT4/3u6en75Ov+sD/uTvuH
 yZfHp/3/T+JikhdqwmKufgHi9PHw9te/d8fny8Vk8cvs4y/T98f7+WS9Px72TxP6cvjy+PUN
 2j++HH748Qf48yMAn79BV8f/m+x2x/vfLxfvn7CT918Pb++/3t9Pfor3vz3uDpOrX+bQ22z2
@@ -898,4 +853,4 @@ QKw8GXkIgVRWd6UFgmvlPQiHI5a6LeqEUdeeRFEExTQNWIHbjyHxcbZCTShAL59FlaAicdsl
 a4KGlS/K/CUUiVobbrBQ7WbfYpidUsZ0A+Y+4TKD411WeHY1Q/TEDJYChXu6vOC+E54HQt2d
 FpBwnojbFPO54iGZZOM+7a3smIpF3qrioW/ytLCfzc3HTq6wfIsJ/T8ZhB++tKsCAA==
 
---jI8keyz6grp/JLjh--
+--7AUc2qLy4jB3hD7Z--
