@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F02C6B0003
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 21:50:18 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id z8-v6so21380524pgp.20
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 18:50:18 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id bj3-v6si18732105plb.12.2018.10.17.18.50.16
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E7F66B0006
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2018 22:10:29 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id t28-v6so14769039pfk.21
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2018 19:10:29 -0700 (PDT)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id b13-v6si18908469pgg.89.2018.10.17.19.10.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Oct 2018 18:50:16 -0700 (PDT)
-Date: Thu, 18 Oct 2018 09:50:07 +0800
+        Wed, 17 Oct 2018 19:10:27 -0700 (PDT)
+Date: Thu, 18 Oct 2018 10:09:59 +0800
 From: kbuild test robot <lkp@intel.com>
 Subject: Re: [PATCH V2 2/4] arm64: mm: Introduce DEFAULT_MAP_WINDOW
-Message-ID: <201810180952.4NR6F0Y7%fengguang.wu@intel.com>
+Message-ID: <201810181056.kv4MsksX%fengguang.wu@intel.com>
 References: <20181017163459.20175-3-steve.capper@arm.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="/04w6evG8XlLl3ft"
+Content-Type: multipart/mixed; boundary="DocE+STaALJfprDB"
 Content-Disposition: inline
 In-Reply-To: <20181017163459.20175-3-steve.capper@arm.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,16 +24,16 @@ To: Steve Capper <steve.capper@arm.com>
 Cc: kbuild-all@01.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@linaro.org, jcm@redhat.com
 
 
---/04w6evG8XlLl3ft
+--DocE+STaALJfprDB
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
 Hi Steve,
 
-Thank you for the patch! Yet something to improve:
+Thank you for the patch! Perhaps something to improve:
 
-[auto build test ERROR on arm64/for-next/core]
-[also build test ERROR on v4.19-rc8]
+[auto build test WARNING on arm64/for-next/core]
+[also build test WARNING on v4.19-rc8]
 [cannot apply to next-20181017]
 [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
@@ -47,7 +47,7 @@ reproduce:
         # save the attached .config to linux build tree
         GCC_VERSION=7.2.0 make.cross ARCH=arm64 
 
-All error/warnings (new ones prefixed by >>):
+All warnings (new ones prefixed by >>):
 
    In file included from include/linux/cache.h:5:0,
                     from include/linux/printk.h:9,
@@ -55,29 +55,31 @@ All error/warnings (new ones prefixed by >>):
                     from include/asm-generic/bug.h:18,
                     from arch/arm64/include/asm/bug.h:37,
                     from include/linux/bug.h:5,
-                    from include/linux/thread_info.h:12,
-                    from fs//hugetlbfs/inode.c:12:
-   fs//hugetlbfs/inode.c: In function 'hugetlb_get_unmapped_area':
->> arch/arm64/include/asm/processor.h:63:50: error: 'tsk' undeclared (first use in this function)
+                    from arch/arm64/include/asm/ptrace.h:90,
+                    from arch/arm64/include/asm/elf.h:24,
+                    from include/linux/elf.h:5,
+                    from arch/arm64/mm/mmap.c:19:
+   arch/arm64/mm/mmap.c: In function 'arch_pick_mmap_layout':
+   arch/arm64/include/asm/processor.h:63:50: error: 'tsk' undeclared (first use in this function)
     #define DEFAULT_MAP_WINDOW (test_tsk_thread_flag(tsk, TIF_32BIT) ? \
                                                      ^
    include/uapi/linux/kernel.h:11:41: note: in definition of macro '__ALIGN_KERNEL_MASK'
     #define __ALIGN_KERNEL_MASK(x, mask) (((x) + (mask)) & ~(mask))
                                             ^
->> include/linux/kernel.h:58:22: note: in expansion of macro '__ALIGN_KERNEL'
+   include/linux/kernel.h:58:22: note: in expansion of macro '__ALIGN_KERNEL'
     #define ALIGN(x, a)  __ALIGN_KERNEL((x), (a))
                          ^~~~~~~~~~~~~~
->> include/linux/mm.h:144:26: note: in expansion of macro 'ALIGN'
+   include/linux/mm.h:144:26: note: in expansion of macro 'ALIGN'
     #define PAGE_ALIGN(addr) ALIGN(addr, PAGE_SIZE)
                              ^~~~~
->> arch/arm64/include/asm/processor.h:70:29: note: in expansion of macro 'PAGE_ALIGN'
+   arch/arm64/include/asm/processor.h:70:29: note: in expansion of macro 'PAGE_ALIGN'
     #define TASK_UNMAPPED_BASE (PAGE_ALIGN(DEFAULT_MAP_WINDOW / 4))
                                 ^~~~~~~~~~
->> arch/arm64/include/asm/processor.h:70:40: note: in expansion of macro 'DEFAULT_MAP_WINDOW'
+   arch/arm64/include/asm/processor.h:70:40: note: in expansion of macro 'DEFAULT_MAP_WINDOW'
     #define TASK_UNMAPPED_BASE (PAGE_ALIGN(DEFAULT_MAP_WINDOW / 4))
                                            ^~~~~~~~~~~~~~~~~~
->> fs//hugetlbfs/inode.c:214:19: note: in expansion of macro 'TASK_UNMAPPED_BASE'
-     info.low_limit = TASK_UNMAPPED_BASE;
+>> arch/arm64/mm/mmap.c:98:19: note: in expansion of macro 'TASK_UNMAPPED_BASE'
+      mm->mmap_base = TASK_UNMAPPED_BASE + random_factor;
                       ^~~~~~~~~~~~~~~~~~
    arch/arm64/include/asm/processor.h:63:50: note: each undeclared identifier is reported only once for each function it appears in
     #define DEFAULT_MAP_WINDOW (test_tsk_thread_flag(tsk, TIF_32BIT) ? \
@@ -85,108 +87,66 @@ All error/warnings (new ones prefixed by >>):
    include/uapi/linux/kernel.h:11:41: note: in definition of macro '__ALIGN_KERNEL_MASK'
     #define __ALIGN_KERNEL_MASK(x, mask) (((x) + (mask)) & ~(mask))
                                             ^
->> include/linux/kernel.h:58:22: note: in expansion of macro '__ALIGN_KERNEL'
+   include/linux/kernel.h:58:22: note: in expansion of macro '__ALIGN_KERNEL'
     #define ALIGN(x, a)  __ALIGN_KERNEL((x), (a))
                          ^~~~~~~~~~~~~~
->> include/linux/mm.h:144:26: note: in expansion of macro 'ALIGN'
+   include/linux/mm.h:144:26: note: in expansion of macro 'ALIGN'
     #define PAGE_ALIGN(addr) ALIGN(addr, PAGE_SIZE)
                              ^~~~~
->> arch/arm64/include/asm/processor.h:70:29: note: in expansion of macro 'PAGE_ALIGN'
+   arch/arm64/include/asm/processor.h:70:29: note: in expansion of macro 'PAGE_ALIGN'
     #define TASK_UNMAPPED_BASE (PAGE_ALIGN(DEFAULT_MAP_WINDOW / 4))
                                 ^~~~~~~~~~
->> arch/arm64/include/asm/processor.h:70:40: note: in expansion of macro 'DEFAULT_MAP_WINDOW'
+   arch/arm64/include/asm/processor.h:70:40: note: in expansion of macro 'DEFAULT_MAP_WINDOW'
     #define TASK_UNMAPPED_BASE (PAGE_ALIGN(DEFAULT_MAP_WINDOW / 4))
                                            ^~~~~~~~~~~~~~~~~~
->> fs//hugetlbfs/inode.c:214:19: note: in expansion of macro 'TASK_UNMAPPED_BASE'
-     info.low_limit = TASK_UNMAPPED_BASE;
-                      ^~~~~~~~~~~~~~~~~~
---
-   In file included from include/linux/cache.h:5:0,
-                    from include/linux/printk.h:9,
-                    from include/linux/kernel.h:14,
-                    from include/asm-generic/bug.h:18,
-                    from arch/arm64/include/asm/bug.h:37,
-                    from include/linux/bug.h:5,
-                    from include/linux/thread_info.h:12,
-                    from fs/hugetlbfs/inode.c:12:
-   fs/hugetlbfs/inode.c: In function 'hugetlb_get_unmapped_area':
->> arch/arm64/include/asm/processor.h:63:50: error: 'tsk' undeclared (first use in this function)
-    #define DEFAULT_MAP_WINDOW (test_tsk_thread_flag(tsk, TIF_32BIT) ? \
-                                                     ^
-   include/uapi/linux/kernel.h:11:41: note: in definition of macro '__ALIGN_KERNEL_MASK'
-    #define __ALIGN_KERNEL_MASK(x, mask) (((x) + (mask)) & ~(mask))
-                                            ^
->> include/linux/kernel.h:58:22: note: in expansion of macro '__ALIGN_KERNEL'
-    #define ALIGN(x, a)  __ALIGN_KERNEL((x), (a))
-                         ^~~~~~~~~~~~~~
->> include/linux/mm.h:144:26: note: in expansion of macro 'ALIGN'
-    #define PAGE_ALIGN(addr) ALIGN(addr, PAGE_SIZE)
-                             ^~~~~
->> arch/arm64/include/asm/processor.h:70:29: note: in expansion of macro 'PAGE_ALIGN'
-    #define TASK_UNMAPPED_BASE (PAGE_ALIGN(DEFAULT_MAP_WINDOW / 4))
-                                ^~~~~~~~~~
->> arch/arm64/include/asm/processor.h:70:40: note: in expansion of macro 'DEFAULT_MAP_WINDOW'
-    #define TASK_UNMAPPED_BASE (PAGE_ALIGN(DEFAULT_MAP_WINDOW / 4))
-                                           ^~~~~~~~~~~~~~~~~~
-   fs/hugetlbfs/inode.c:214:19: note: in expansion of macro 'TASK_UNMAPPED_BASE'
-     info.low_limit = TASK_UNMAPPED_BASE;
-                      ^~~~~~~~~~~~~~~~~~
-   arch/arm64/include/asm/processor.h:63:50: note: each undeclared identifier is reported only once for each function it appears in
-    #define DEFAULT_MAP_WINDOW (test_tsk_thread_flag(tsk, TIF_32BIT) ? \
-                                                     ^
-   include/uapi/linux/kernel.h:11:41: note: in definition of macro '__ALIGN_KERNEL_MASK'
-    #define __ALIGN_KERNEL_MASK(x, mask) (((x) + (mask)) & ~(mask))
-                                            ^
->> include/linux/kernel.h:58:22: note: in expansion of macro '__ALIGN_KERNEL'
-    #define ALIGN(x, a)  __ALIGN_KERNEL((x), (a))
-                         ^~~~~~~~~~~~~~
->> include/linux/mm.h:144:26: note: in expansion of macro 'ALIGN'
-    #define PAGE_ALIGN(addr) ALIGN(addr, PAGE_SIZE)
-                             ^~~~~
->> arch/arm64/include/asm/processor.h:70:29: note: in expansion of macro 'PAGE_ALIGN'
-    #define TASK_UNMAPPED_BASE (PAGE_ALIGN(DEFAULT_MAP_WINDOW / 4))
-                                ^~~~~~~~~~
->> arch/arm64/include/asm/processor.h:70:40: note: in expansion of macro 'DEFAULT_MAP_WINDOW'
-    #define TASK_UNMAPPED_BASE (PAGE_ALIGN(DEFAULT_MAP_WINDOW / 4))
-                                           ^~~~~~~~~~~~~~~~~~
-   fs/hugetlbfs/inode.c:214:19: note: in expansion of macro 'TASK_UNMAPPED_BASE'
-     info.low_limit = TASK_UNMAPPED_BASE;
+>> arch/arm64/mm/mmap.c:98:19: note: in expansion of macro 'TASK_UNMAPPED_BASE'
+      mm->mmap_base = TASK_UNMAPPED_BASE + random_factor;
                       ^~~~~~~~~~~~~~~~~~
 
-vim +/tsk +63 arch/arm64/include/asm/processor.h
+vim +/TASK_UNMAPPED_BASE +98 arch/arm64/mm/mmap.c
 
-    52	
-    53	/*
-    54	 * TASK_SIZE - the maximum size of a user space task.
-    55	 * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area.
-    56	 */
-    57	#ifdef CONFIG_COMPAT
-    58	#define TASK_SIZE_32		UL(0x100000000)
-    59	#define TASK_SIZE		(test_thread_flag(TIF_32BIT) ? \
-    60					TASK_SIZE_32 : TASK_SIZE_64)
-    61	#define TASK_SIZE_OF(tsk)	(test_tsk_thread_flag(tsk, TIF_32BIT) ? \
-    62					TASK_SIZE_32 : TASK_SIZE_64)
-  > 63	#define DEFAULT_MAP_WINDOW	(test_tsk_thread_flag(tsk, TIF_32BIT) ? \
-    64					TASK_SIZE_32 : DEFAULT_MAP_WINDOW_64)
-    65	#else
-    66	#define TASK_SIZE		TASK_SIZE_64
-    67	#define DEFAULT_MAP_WINDOW	DEFAULT_MAP_WINDOW_64
-    68	#endif /* CONFIG_COMPAT */
-    69	
-  > 70	#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(DEFAULT_MAP_WINDOW / 4))
-    71	#define STACK_TOP_MAX		DEFAULT_MAP_WINDOW_64
-    72	
+1d18c47c Catalin Marinas 2012-03-05   81  
+1d18c47c Catalin Marinas 2012-03-05   82  /*
+1d18c47c Catalin Marinas 2012-03-05   83   * This function, called very early during the creation of a new process VM
+1d18c47c Catalin Marinas 2012-03-05   84   * image, sets up which VM layout function to use:
+1d18c47c Catalin Marinas 2012-03-05   85   */
+8f2af155 Kees Cook       2018-04-10   86  void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
+1d18c47c Catalin Marinas 2012-03-05   87  {
+dd04cff1 Kees Cook       2015-04-14   88  	unsigned long random_factor = 0UL;
+dd04cff1 Kees Cook       2015-04-14   89  
+dd04cff1 Kees Cook       2015-04-14   90  	if (current->flags & PF_RANDOMIZE)
+2b68f6ca Kees Cook       2015-04-14   91  		random_factor = arch_mmap_rnd();
+dd04cff1 Kees Cook       2015-04-14   92  
+1d18c47c Catalin Marinas 2012-03-05   93  	/*
+1d18c47c Catalin Marinas 2012-03-05   94  	 * Fall back to the standard layout if the personality bit is set, or
+1d18c47c Catalin Marinas 2012-03-05   95  	 * if the expected stack growth is unlimited:
+1d18c47c Catalin Marinas 2012-03-05   96  	 */
+8f2af155 Kees Cook       2018-04-10   97  	if (mmap_is_legacy(rlim_stack)) {
+dd04cff1 Kees Cook       2015-04-14  @98  		mm->mmap_base = TASK_UNMAPPED_BASE + random_factor;
+1d18c47c Catalin Marinas 2012-03-05   99  		mm->get_unmapped_area = arch_get_unmapped_area;
+1d18c47c Catalin Marinas 2012-03-05  100  	} else {
+8f2af155 Kees Cook       2018-04-10  101  		mm->mmap_base = mmap_base(random_factor, rlim_stack);
+1d18c47c Catalin Marinas 2012-03-05  102  		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
+1d18c47c Catalin Marinas 2012-03-05  103  	}
+1d18c47c Catalin Marinas 2012-03-05  104  }
+1d18c47c Catalin Marinas 2012-03-05  105  
+
+:::::: The code at line 98 was first introduced by commit
+:::::: dd04cff1dceab18226853b555cf07914648a235f arm64: standardize mmap_rnd() usage
+
+:::::: TO: Kees Cook <keescook@chromium.org>
+:::::: CC: Linus Torvalds <torvalds@linux-foundation.org>
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---/04w6evG8XlLl3ft
+--DocE+STaALJfprDB
 Content-Type: application/gzip
 Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
 
-H4sICLzlx1sAAy5jb25maWcAjDxbc9u20u/9FZr0pZ0z6ZFkxXa+b/wAgqCEircAoGTnhaPa
+H4sICJjqx1sAAy5jb25maWcAjDxbc9u20u/9FZr0pZ0z6ZFkxXa+b/wAgqCEircAoGTnhaPa
 Suo5tpwjy23z788uwAsAgmo7mTTcXdwWi8XeoB9/+HFC3k4vz7vT4/3u6en75Ov+sD/uTvuH
 yZfHp/3/T+JikhdqwmKufgHi9PHw9te/d8fny8Vk8cvs4y/T98f7+WS9Px72TxP6cvjy+PUN
 2j++HH748Qf48yMAn79BV8f/m+x2x/vfLxfvn7CT918Pb++/3t9Pfor3vz3uDpOrX+bQ22z2
@@ -932,4 +892,4 @@ QKw8GXkIgVRWd6UFgmvlPQiHI5a6LeqEUdeeRFEExTQNWIHbjyHxcbZCTShAL59FlaAicdsl
 a4KGlS/K/CUUiVobbrBQ7WbfYpidUsZ0A+Y+4TKD411WeHY1Q/TEDJYChXu6vOC+E54HQt2d
 FpBwnojbFPO54iGZZOM+7a3smIpF3qrioW/ytLCfzc3HTq6wfIsJ/T8ZhB++tKsCAA==
 
---/04w6evG8XlLl3ft--
+--DocE+STaALJfprDB--
