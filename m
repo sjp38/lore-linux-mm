@@ -1,93 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B9BCF6B0008
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 06:37:52 -0400 (EDT)
-Received: by mail-it1-f199.google.com with SMTP id e197-v6so5162653ita.9
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 03:37:52 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id e27-v6si261086jal.38.2018.10.18.03.37.51
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 85C996B0003
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 06:47:11 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id y22so21940381oty.3
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 03:47:11 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0063.outbound.protection.outlook.com. [104.47.1.63])
+        by mx.google.com with ESMTPS id u19si10161591ota.0.2018.10.18.03.47.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Oct 2018 03:37:51 -0700 (PDT)
-Subject: Re: [PATCH v3] mm: memcontrol: Don't flood OOM messages with no
- eligible task.
-References: <20181017102821.GM18839@dhcp22.suse.cz>
- <20181017111724.GA459@jagdpanzerIV>
- <201810180246.w9I2koi3011358@www262.sakura.ne.jp>
- <20181018065519.GV18839@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <6bbb0449-1f22-4d05-9e2a-636965b7dbc6@i-love.sakura.ne.jp>
-Date: Thu, 18 Oct 2018 19:37:18 +0900
-MIME-Version: 1.0
-In-Reply-To: <20181018065519.GV18839@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
+        Thu, 18 Oct 2018 03:47:10 -0700 (PDT)
+From: Steve Capper <Steve.Capper@arm.com>
+Subject: Re: [PATCH V2 2/4] arm64: mm: Introduce DEFAULT_MAP_WINDOW
+Date: Thu, 18 Oct 2018 10:47:06 +0000
+Message-ID: <20181018104644.k5uhtf2dwc3mr2xr@capper-debian.cambridge.arm.com>
+References: <20181017163459.20175-1-steve.capper@arm.com>
+ <20181017163459.20175-3-steve.capper@arm.com>
+In-Reply-To: <20181017163459.20175-3-steve.capper@arm.com>
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <ECE138087D0C534692B36B4261C175E3@eurprd08.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+Cc: Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <Will.Deacon@arm.com>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "jcm@redhat.com" <jcm@redhat.com>, nd <nd@arm.com>
 
-On 2018/10/18 15:55, Michal Hocko wrote:
-> On Thu 18-10-18 11:46:50, Tetsuo Handa wrote:
->> This is essentially a ratelimit approach, roughly equivalent with:
->>
->>   static DEFINE_RATELIMIT_STATE(oom_no_victim_rs, 60 * HZ, 1);
->>   oom_no_victim_rs.flags |= RATELIMIT_MSG_ON_RELEASE;
->>
->>   if (__ratelimit(&oom_no_victim_rs)) {
->>     dump_header(oc, NULL);
->>     pr_warn("Out of memory and no killable processes...\n");
->>     oom_no_victim_rs.begin = jiffies;
->>   }
-> 
-> Then there is no reason to reinvent the wheel. So use the standard
-> ratelimit approach. Or put it in other words, this place is no special
-> to any other that needs some sort of printk throttling. We surely do not
-> want an ad-hoc solutions all over the kernel.
+On Wed, Oct 17, 2018 at 05:34:57PM +0100, Steve Capper wrote:
+> We wish to introduce a 52-bit virtual address space for userspace but
+> maintain compatibility with software that assumes the maximum VA space
+> size is 48 bit.
+>=20
+> In order to achieve this, on 52-bit VA systems, we make mmap behave as
+> if it were running on a 48-bit VA system (unless userspace explicitly
+> requests a VA where addr[51:48] !=3D 0).
+>=20
+> On a system running a 52-bit userspace we need TASK_SIZE to represent
+> the 52-bit limit as it is used in various places to distinguish between
+> kernelspace and userspace addresses.
+>=20
+> Thus we need a new limit for mmap, stack, ELF loader and EFI (which uses
+> TTBR0) to represent the non-extended VA space.
+>=20
+> This patch introduces DEFAULT_MAP_WINDOW and DEFAULT_MAP_WINDOW_64 and
+> switches the appropriate logic to use that instead of TASK_SIZE.
+>=20
+> Signed-off-by: Steve Capper <steve.capper@arm.com>
 
-netdev_wait_allrefs() in net/core/dev.c is doing the same thing. Since
-out_of_memory() is serialized by oom_lock mutex, there is no need to use
-"struct ratelimit_state"->lock field. Plain "unsigned long" is enough.
+Whilst testing this series I inadvertantly dropped CONFIG_COMPAT which
+has led to some kbuild errors with defconfig.
 
-> 
-> And once you realize that the ratelimit api is the proper one (put aside
-> any potential improvements in the implementation of this api) then you
-> quickly learn that we already do throttle oom reports and it would be
-> nice to unify that and ... we are back to a naked patch. So please stop
-> being stuborn and try to cooperate finally.
+I will make the following changes to this patch.
 
-I don't think that ratelimit API is the proper one, for I am touching
-"struct ratelimit_state"->begin field which is not exported by ratelimit API.
-But if you insist on ratelimit API version, I can tolerate with below one.
+[...]
+> diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/=
+processor.h
+> index 79657ad91397..46c9d9ff028c 100644
+> --- a/arch/arm64/include/asm/processor.h
+> +++ b/arch/arm64/include/asm/processor.h
+> @@ -26,6 +26,8 @@
+> =20
+>  #ifndef __ASSEMBLY__
+> =20
+> +#define DEFAULT_MAP_WINDOW_64	(UL(1) << VA_BITS)
+> +
+>  /*
+>   * Default implementation of macro that returns current
+>   * instruction pointer ("program counter").
+> @@ -58,13 +60,16 @@
+>  				TASK_SIZE_32 : TASK_SIZE_64)
+>  #define TASK_SIZE_OF(tsk)	(test_tsk_thread_flag(tsk, TIF_32BIT) ? \
+>  				TASK_SIZE_32 : TASK_SIZE_64)
+> +#define DEFAULT_MAP_WINDOW	(test_tsk_thread_flag(tsk, TIF_32BIT) ? \
+> +				TASK_SIZE_32 : DEFAULT_MAP_WINDOW_64)
 
- mm/oom_kill.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+Instead of test_tsk_thread_flag I will use test_thread_flag for
+DEFAULT_MAP_WINDOW.
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index f10aa53..7c6118e 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -1106,6 +1106,12 @@ bool out_of_memory(struct oom_control *oc)
- 	select_bad_process(oc);
- 	/* Found nothing?!?! */
- 	if (!oc->chosen) {
-+		static DEFINE_RATELIMIT_STATE(no_eligible_rs, 60 * HZ, 1);
-+
-+		ratelimit_set_flags(&no_eligible_rs, RATELIMIT_MSG_ON_RELEASE);
-+		if ((is_sysrq_oom(oc) || is_memcg_oom(oc)) &&
-+		    !__ratelimit(&no_eligible_rs))
-+			return false;
- 		dump_header(oc, NULL);
- 		pr_warn("Out of memory and no killable processes...\n");
- 		/*
-@@ -1115,6 +1121,7 @@ bool out_of_memory(struct oom_control *oc)
- 		 */
- 		if (!is_sysrq_oom(oc) && !is_memcg_oom(oc))
- 			panic("System is deadlocked on memory\n");
-+		no_eligible_rs.begin = jiffies;
- 	}
- 	if (oc->chosen && oc->chosen != (void *)-1UL)
- 		oom_kill_process(oc, !is_memcg_oom(oc) ? "Out of memory" :
--- 
-1.8.3.1
+>  #else
+>  #define TASK_SIZE		TASK_SIZE_64
+> +#define DEFAULT_MAP_WINDOW	DEFAULT_MAP_WINDOW_64
+>  #endif /* CONFIG_COMPAT */
+> =20
+> -#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 4))
+> +#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(DEFAULT_MAP_WINDOW / 4))
+> +#define STACK_TOP_MAX		DEFAULT_MAP_WINDOW_64
+> =20
+> -#define STACK_TOP_MAX		TASK_SIZE_64
+>  #ifdef CONFIG_COMPAT
+>  #define AARCH32_VECTORS_BASE	0xffff0000
+>  #define STACK_TOP		(test_thread_flag(TIF_32BIT) ? \
+> diff --git a/drivers/firmware/efi/arm-runtime.c b/drivers/firmware/efi/ar=
+m-runtime.c
+> index 922cfb813109..952cec5b611a 100644
+> --- a/drivers/firmware/efi/arm-runtime.c
+> +++ b/drivers/firmware/efi/arm-runtime.c
+> @@ -38,7 +38,7 @@ static struct ptdump_info efi_ptdump_info =3D {
+>  	.mm		=3D &efi_mm,
+>  	.markers	=3D (struct addr_marker[]){
+>  		{ 0,		"UEFI runtime start" },
+> -		{ TASK_SIZE_64,	"UEFI runtime end" }
+> +		{ DEFAULT_MAP_WINDOW_64, "UEFI runtime end" }
+>  	},
+>  	.base_addr	=3D 0,
+>  };
+[...]
+
+Also I will modify arch/arm64/mm/init.c:615 to be:
+BUILD_BUG_ON(TASK_SIZE_32 > DEFAULT_MAP_WINDOW_64);
+
+The above give me a working kernel with defconig. I will perform more tests
+on COMPAT before sending a revised series out.
+
+Cheers,
+--=20
+Steve
