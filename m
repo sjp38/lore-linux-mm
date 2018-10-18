@@ -1,45 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B97A6B0006
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 08:10:59 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id e5-v6so18522808eda.4
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 05:10:59 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTPS id l3si5071821edv.432.2018.10.18.05.10.57
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 74AE86B0003
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 09:04:39 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id 87-v6so29306763pfq.8
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 06:04:39 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f1-v6sor580207pgv.58.2018.10.18.06.04.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Oct 2018 05:10:58 -0700 (PDT)
-Date: Thu, 18 Oct 2018 14:10:32 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v5 03/27] x86/fpu/xstate: Introduce XSAVES system states
-Message-ID: <20181018121032.GD20831@zn.tnic>
-References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
- <20181011151523.27101-4-yu-cheng.yu@intel.com>
- <20181017104137.GE22535@zn.tnic>
- <32da559b-7958-60db-e328-f0eb316e668e@infradead.org>
- <20181017225829.GA32023@zn.tnic>
- <fde4c237-6210-f4e4-5362-c2e24a9916a2@infradead.org>
- <20181018092603.GB20831@zn.tnic>
- <20181018093125.GB10861@amd>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20181018093125.GB10861@amd>
+        (Google Transport Security);
+        Thu, 18 Oct 2018 06:04:38 -0700 (PDT)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH] mm: get pfn by page_to_pfn() instead of save in page->private
+Date: Thu, 18 Oct 2018 21:04:29 +0800
+Message-Id: <20181018130429.37837-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Randy Dunlap <rdunlap@infradead.org>, Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: akpm@linux-foundation.org, mhocko@suse.com, mgorman@techsingularity.net
+Cc: linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-On Thu, Oct 18, 2018 at 11:31:25AM +0200, Pavel Machek wrote:
-> We want readable sources, not neat ascii art everywhere.
+This is not necessary to save the pfn to page->private.
 
-And we want pink ponies.
+The pfn could be retrieved by page_to_pfn() directly.
 
-Reverse xmas tree order is and has been the usual variable sorting in
-the tip tree for years.
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+---
+Maybe I missed some critical reason to save pfn to private.
 
+Thanks in advance if someone could reveal the special reason.
+---
+ mm/page_alloc.c | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 15ea511fb41c..a398eafbae46 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2793,24 +2793,19 @@ void free_unref_page(struct page *page)
+ void free_unref_page_list(struct list_head *list)
+ {
+ 	struct page *page, *next;
+-	unsigned long flags, pfn;
++	unsigned long flags;
+ 	int batch_count = 0;
+ 
+ 	/* Prepare pages for freeing */
+-	list_for_each_entry_safe(page, next, list, lru) {
+-		pfn = page_to_pfn(page);
+-		if (!free_unref_page_prepare(page, pfn))
++	list_for_each_entry_safe(page, next, list, lru)
++		if (!free_unref_page_prepare(page, page_to_pfn(page)))
+ 			list_del(&page->lru);
+-		set_page_private(page, pfn);
+-	}
+ 
+ 	local_irq_save(flags);
+ 	list_for_each_entry_safe(page, next, list, lru) {
+-		unsigned long pfn = page_private(page);
+-
+ 		set_page_private(page, 0);
+ 		trace_mm_page_free_batched(page);
+-		free_unref_page_commit(page, pfn);
++		free_unref_page_commit(page, page_to_pfn(page));
+ 
+ 		/*
+ 		 * Guard against excessive IRQ disabled times when we get
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+2.15.1
