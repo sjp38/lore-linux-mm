@@ -1,57 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BA19E6B0006
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 04:13:58 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id t9-v6so22895084plq.15
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 01:13:58 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g80-v6sor10466361pfd.36.2018.10.18.01.13.57
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 51A396B0008
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 04:15:59 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id k21-v6so9067768ede.12
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 01:15:59 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d14si13336702edx.427.2018.10.18.01.15.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 18 Oct 2018 01:13:57 -0700 (PDT)
-Date: Thu, 18 Oct 2018 17:13:52 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v3] mm: memcontrol: Don't flood OOM messages with no
- eligible task.
-Message-ID: <20181018081352.GA438@jagdpanzerIV>
-References: <201810180246.w9I2koi3011358@www262.sakura.ne.jp>
- <20181018042739.GA650@jagdpanzerIV>
- <201810180526.w9I5QvVn032670@www262.sakura.ne.jp>
- <20181018061018.GB650@jagdpanzerIV>
- <20181018075611.GY18839@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Oct 2018 01:15:58 -0700 (PDT)
+Date: Thu, 18 Oct 2018 10:15:52 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] drm/i915: Mark pinned shmemfs pages as unevictable
+Message-ID: <20181018081552.GZ18839@dhcp22.suse.cz>
+References: <20181016174300.197906-1-vovoy@chromium.org>
+ <20181016174300.197906-3-vovoy@chromium.org>
+ <20181016182155.GW18839@dhcp22.suse.cz>
+ <153971466599.22931.16793398326492316920@skylake-alporthouse-com>
+ <153984580501.19935.11456945882099910977@skylake-alporthouse-com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181018075611.GY18839@dhcp22.suse.cz>
+In-Reply-To: <153984580501.19935.11456945882099910977@skylake-alporthouse-com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>
+To: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Kuo-Hsin Yang <vovoy@chromium.org>, linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, akpm@linux-foundation.org, peterz@infradead.org, dave.hansen@intel.com, corbet@lwn.net, hughd@google.com, joonas.lahtinen@linux.intel.com, marcheu@chromium.org, hoegsberg@chromium.org
 
-On (10/18/18 09:56), Michal Hocko wrote:
-> On Thu 18-10-18 15:10:18, Sergey Senozhatsky wrote:
-> [...]
-> > and let's hear from MM people what they can suggest.
-> > 
-> > Michal, Andrew, Johannes, any thoughts?
+On Thu 18-10-18 07:56:45, Chris Wilson wrote:
+> Quoting Chris Wilson (2018-10-16 19:31:06)
+> > Fwiw, the shmem_unlock_mapping() call feels quite expensive, almost
+> > nullifying the advantage gained from not walking the lists in reclaim.
+> > I'll have better numbers in a couple of days.
 > 
-> I have already stated my position. Let's not reinvent the wheel and use
-> the standard printk throttling. If there are cases where oom reports
-> cause more harm than good I am open to add a knob to allow disabling it
-> altogether (it can be even fine grained one to control whether to dump
-> show_mem, task_list etc.).
+> Using a test ("igt/benchmarks/gem_syslatency -t 120 -b -m" on kbl)
+> consisting of cycletest with a background load of trying to allocate +
+> populate 2MiB (to hit thp) while catting all files to /dev/null, the
+> result of using mapping_set_unevictable is mixed.
 
-A knob might do.
-As well as /proc/sys/kernel/printk tweaks, probably. One can even add
-echo "a b c d" > /proc/sys/kernel/printk to .bashrc and adjust printk
-console levels on login and rollback to old values in .bash_logout
-May be.
+I haven't really read through your report completely yet but I wanted to
+point out that the above test scenario is unlikely show the real effect of
+the LRU scanning overhead because shmem pages do live on the anonymous
+LRU list. With a plenty of file page cache available we do not even scan
+anonymous LRU lists. You would have to generate a swapout workload to
+test this properly.
 
-> But please let's stop this dubious one-off approaches.
-
-OK. Well, I'm not proposing anything actually. I didn't even
-realize until recently that Tetsuo was talking about "user
-interaction" problem; I thought that his problem was stalled
-RCU.
-
-	-ss
+On the other hand if mapping_set_unevictable has really a measurably bad
+performance impact then this is probably not worth much because most
+workloads are swap modest.
+-- 
+Michal Hocko
+SUSE Labs
