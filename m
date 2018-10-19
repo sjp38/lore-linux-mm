@@ -1,60 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A4B706B0006
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 22:32:34 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id o6-v6so22231050oib.9
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 19:32:34 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id t88-v6si10666867oij.53.2018.10.18.19.32.33
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 330146B0003
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 23:01:09 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id be11-v6so18106839plb.2
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 20:01:09 -0700 (PDT)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id n5-v6si23129297pgh.397.2018.10.18.20.01.06
         for <linux-mm@kvack.org>;
-        Thu, 18 Oct 2018 19:32:33 -0700 (PDT)
-Subject: Re: [PATCH V2 2/5] mm/hugetlb: Distinguish between migratability and
- movability
-References: <1539316799-6064-1-git-send-email-anshuman.khandual@arm.com>
- <1539316799-6064-3-git-send-email-anshuman.khandual@arm.com>
- <20181019015931.GA18973@hori1.linux.bs1.fc.nec.co.jp>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <e7a3d5d8-dc65-72fc-5764-010af02d1517@arm.com>
-Date: Fri, 19 Oct 2018 08:02:26 +0530
+        Thu, 18 Oct 2018 20:01:07 -0700 (PDT)
+Date: Fri, 19 Oct 2018 14:01:03 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
+Message-ID: <20181019030103.GG18822@dastard>
+References: <20181002150123.GD4963@linux-x5ow.site>
+ <20181002150634.GA22209@infradead.org>
+ <20181004100949.GF6682@linux-x5ow.site>
+ <20181005062524.GA30582@infradead.org>
+ <20181005063519.GA5491@linux-x5ow.site>
+ <CAPcyv4jD4VgRaKDQF9eMmjhMEHjUJqRU8i6OC+-=0domCc9u3A@mail.gmail.com>
+ <CAPcyv4i7WJsq3BMASozjjbpMmEiS4AqmRS0kt3=rHdGfb5YvLA@mail.gmail.com>
+ <CAPcyv4jt_w-89+m4w=FcN0oF3axiGqPBTHfEcWwdhnr12_=17Q@mail.gmail.com>
+ <20181018174300.GT23493@quack2.suse.cz>
+ <CAPcyv4gEmCt3OwQ_AoFCmpX5fmmBppvaxtQ+uPT=_f2MXezcGg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20181019015931.GA18973@hori1.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4gEmCt3OwQ_AoFCmpX5fmmBppvaxtQ+uPT=_f2MXezcGg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "suzuki.poulose@arm.com" <suzuki.poulose@arm.com>, "punit.agrawal@arm.com" <punit.agrawal@arm.com>, "will.deacon@arm.com" <will.deacon@arm.com>, "Steven.Price@arm.com" <Steven.Price@arm.com>, "steve.capper@arm.com" <steve.capper@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Johannes Thumshirn <jthumshirn@suse.de>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Michal Hocko <mhocko@suse.cz>
 
+On Thu, Oct 18, 2018 at 12:10:13PM -0700, Dan Williams wrote:
+> The only caveat to address all the use cases for applications making
+> decisions based on the presence of DAX
 
+And that's how we've got into this mess.
 
-On 10/19/2018 07:29 AM, Naoya Horiguchi wrote:
-> On Fri, Oct 12, 2018 at 09:29:56AM +0530, Anshuman Khandual wrote:
->> During huge page allocation it's migratability is checked to determine if
->> it should be placed under movable zones with GFP_HIGHUSER_MOVABLE. But the
->> movability aspect of the huge page could depend on other factors than just
->> migratability. Movability in itself is a distinct property which should not
->> be tied with migratability alone.
->>
->> This differentiates these two and implements an enhanced movability check
->> which also considers huge page size to determine if it is feasible to be
->> placed under a movable zone. At present it just checks for gigantic pages
->> but going forward it can incorporate other enhanced checks.
-> 
-> (nitpicking...)
-> The following code just checks hugepage_migration_supported(), so maybe
-> s/Movability/Migratability/ is expected in the comment?
-> 
->   static int unmap_and_move_huge_page(...)
->   {
->           ...
->           /*
->            * Movability of hugepages depends on architectures and hugepage size.
->            * This check is necessary because some callers of hugepage migration
->            * like soft offline and memory hotremove don't walk through page
->            * tables or check whether the hugepage is pmd-based or not before
->            * kicking migration.
->            */
->           if (!hugepage_migration_supported(page_hstate(hpage))) {
-> 
-Sure, will update this patch only unless other changes are suggested.
+Applications need to focus on the functionality they require, not
+the technology that provides it. That's the root of the we are
+trying to solve here and really I don't care if we have to break
+existing applications to do it. i.e. we've made no promises about
+API/ABI stability and the functionality is still experimental.
+
+Fundamentally, DAX is a technology, not an API property. The two
+"DAX" API properties that matter to applications are:
+
+	1. does mmap allow us to use CPU flush instructions for data
+	integrity operations safely? And
+	2. can mmap directly access the backing store without
+	incurring any additional overhead?
+
+MAP_SYNC provides #1, MAP_DIRECT provides #2, and DAX provides both.
+However, they do not define DAX, nor does DAX define them. e.g.
+
+	MAP_SYNC can be provided by a persistent memory page cache.
+	But a persistent memory page cache does not provide
+	MAP_DIRECT.
+
+	MAP_SYNC can be provided by filesystem DAX, but *only* when
+	direct access is used. i.e. MAP_SYNC | MAP_DIRECT
+
+	MAP_DIRECT can be provided by filesystem DAX, but it does
+	not imply or require MAP_SYNC behaviour.
+
+IOWs, using MAP_SYNC and/or MAP_DIRECT to answering an "is DAX
+present" question ties the API to a technology rather than to the
+functionality the technology provides applications.
+
+i.e. If the requested behaviour/property is not available from the
+underlying technology, then the app needs to handle that error and
+use a different access method.
+
+> applications making
+> decisions based on the presence of DAX
+> is to make MADV_DIRECT_ACCESS
+> fail if the mapping was not established with MAP_SYNC.
+
+And so this is wrong - MADV_DIRECT_ACCESS does not require MAP_SYNC.
+
+It is perfectly legal for MADV_DIRECT_ACCESS to be used without
+MAP_SYNC - the app just needs to use msync/fsync instead.
+
+Wanting to enable full userspace CPU data sync semantics via
+madvise() implies we also need MADV_SYNC in addition to
+MADV_DIRECT_ACCESS.
+
+i.e. Apps that are currently testing for dax should use
+mmap(MAP_SYNC|MAP_DIRECT) or madvise(MADV_SYNC|MADV_DIRECT) and they
+will fail if the underlying storage is not DAX capable. The app
+doesn't need to poke at anything else to see if DAX is enabled - if
+the functionality is there then it will work, otherwise they need to
+handle the error and do something else.
+
+> That way we
+> have both a way to assert that page cache resources are not being
+> consumed, and that the kernel is handling metadata synchronization for
+> any write-faults.
+
+Yes, we need to do that, but not at the cost of having the API
+prevent apps from ever being able to use direct access + msync/fsync
+data integrity operations.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
