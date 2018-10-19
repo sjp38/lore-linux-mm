@@ -1,108 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C56B6B0007
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 20:18:45 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id 91so23065514otr.18
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 17:18:45 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id u7-v6si10478231oie.95.2018.10.18.17.18.43
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 402116B0003
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 20:46:25 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id c21-v6so29549002ioi.14
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 17:46:25 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c135-v6si1397081ith.124.2018.10.18.17.46.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Oct 2018 17:18:43 -0700 (PDT)
-Message-Id: <201810190018.w9J0IGI2019559@www262.sakura.ne.jp>
-Subject: Re: [PATCH v3] mm: memcontrol: Don't flood OOM messages with no eligible
- task.
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+        Thu, 18 Oct 2018 17:46:24 -0700 (PDT)
+Date: Thu, 18 Oct 2018 20:46:21 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] hugetlbfs: dirty pages as they are added to pagecache
+Message-ID: <20181019004621.GA30067@redhat.com>
+References: <20181018041022.4529-1-mike.kravetz@oracle.com>
+ <20181018160827.0cb656d594ffb2f0f069326c@linux-foundation.org>
+ <6d6e4733-39aa-a958-c0a2-c5a47cdcc7d0@oracle.com>
 MIME-Version: 1.0
-Date: Fri, 19 Oct 2018 09:18:16 +0900
-References: <20181018042739.GA650@jagdpanzerIV> <20181018143033.z5gck2enrictqja3@pathway.suse.cz>
-In-Reply-To: <20181018143033.z5gck2enrictqja3@pathway.suse.cz>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6d6e4733-39aa-a958-c0a2-c5a47cdcc7d0@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Alexander Viro <viro@zeniv.linux.org.uk>, stable@vger.kernel.org
 
-Petr Mladek wrote:
-> This looks very complex and I see even more problems:
+On Thu, Oct 18, 2018 at 04:16:40PM -0700, Mike Kravetz wrote:
+> I was not sure about this, and expected someone could come up with
+> something better.  It just seems there are filesystems like huegtlbfs,
+> where it makes no sense wasting cycles traversing the filesystem.  So,
+> let's not even try.
 > 
->   + You would need to update the rate limit intervals when
->     new console is attached. Note that the ratelimits might
->     get initialized early during boot. It might be solvable
->     but ...
-> 
->   + You might need to update the length of the message
->     when the text (code) is updated. It might be hard
->     to maintain.
+> Hoping someone can come up with a better method than hard coding as
+> I have done above.
 
-I assumed we calculate the average dynamically, for the amount of
-messages printed by an OOM event is highly unstable (depends on
-hardware configuration such as number of nodes, number of zones,
-and how many processes are there as a candidate for OOM victim).
+It's not strictly required after marking the pages dirty though. The
+real fix is the other one? Could we just drop the hardcoding and let
+it run after the real fix is applied?
 
-> 
->   + You would need to take into account also console_level
->     and the level of the printed messages
+The performance of drop_caches doesn't seem critical, especially with
+gigapages. tmpfs doesn't seem to be optimized away from drop_caches
+and the gain would be bigger for tmpfs if THP is not enabled in the
+mount, so I'm not sure if we should worry about hugetlbfs first.
 
-Isn't that counted by call_console_drivers() ?
-
-> 
->   + This approach does not take into account all other
->     messages that might be printed by other subsystems.
-
-Yes. And I wonder whether unlimited printk() alone is the cause of RCU
-stalls. I think that printk() is serving as an amplifier for any CPU users.
-That is, the average speed might not be safe enough to guarantee that RCU
-stalls won't occur. Then, there is no safe average value we can use.
-
-> 
-> 
-> I have just talked with Michal in person. He pointed out
-> that we primary need to know when and if the last printed
-> message already reached the console.
-
-I think we can estimate when call_console_drivers() started/completed for
-the last time as when and if the last printed message already reached the
-console. Sometimes callers might append to the logbuf without waiting for
-completion of call_console_drivers(), but the system is already unusable
-if majority of ratelimited printk() users hit that race window.
-
-> 
-> A solution might be to handle printk and ratelimit together.
-> For example:
-> 
->    + store log_next_idx of the printed message into
->      the ratelimit structure
-> 
->    + eventually store pointer of the ratelimit structure
->      into printk_log
-> 
->    + eventually store the timestamp when the message
->      reached the console into the ratelimit structure
-> 
-> Then the ratelimited printk might take into acount whether
-> the previous message already reached console and even when.
-
-If printk() becomes asynchronous (e.g. printk() kernel thread), we would
-need to use something like srcu_synchronize() so that the caller waits for
-only completion of messages the caller wants to wait.
-
-> 
-> 
-> Well, this is still rather complex. I am not persuaded that
-> it is worth it.
-> 
-> I suggest to take a breath, stop looking for a perfect solution
-> for a bit. The existing ratelimit might be perfectly fine
-> in practice. You might always create stress test that would
-> fail but the test might be far from reality. Any complex
-> solution might bring more problems that solve.
-> 
-> Console full of repeated messages need not be a catastrophe
-> when it helps to fix the problem and the system is usable
-> and need a reboot anyway.
-
-I wish that memcg OOM events do not use printk(). Since memcg OOM is not
-out of physical memory, we can dynamically allocate physical memory for
-holding memcg OOM messages and let the userspace poll it via some interface.
+Thanks,
+Andrea
