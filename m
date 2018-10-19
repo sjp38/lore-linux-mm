@@ -1,210 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CC836B0007
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 13:35:54 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id k10-v6so10335942ljc.4
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 10:35:54 -0700 (PDT)
+Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F14016B0008
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 13:35:55 -0400 (EDT)
+Received: by mail-lf1-f72.google.com with SMTP id m3-v6so795123lfh.14
+        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 10:35:55 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g94-v6sor11684196ljg.17.2018.10.19.10.35.51
+        by mx.google.com with SMTPS id n24-v6sor7822936lfe.33.2018.10.19.10.35.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 19 Oct 2018 10:35:51 -0700 (PDT)
+        Fri, 19 Oct 2018 10:35:53 -0700 (PDT)
 From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
-Subject: [RFC PATCH 0/2] improve vmalloc allocation
-Date: Fri, 19 Oct 2018 19:35:36 +0200
-Message-Id: <20181019173538.590-1-urezki@gmail.com>
+Subject: [RFC PATCH 2/2] mm: add priority threshold to __purge_vmap_area_lazy()
+Date: Fri, 19 Oct 2018 19:35:38 +0200
+Message-Id: <20181019173538.590-3-urezki@gmail.com>
+In-Reply-To: <20181019173538.590-1-urezki@gmail.com>
+References: <20181019173538.590-1-urezki@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 Cc: LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Thomas Garnier <thgarnie@google.com>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt <rostedt@goodmis.org>, Joel Fernandes <joelaf@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Tejun Heo <tj@kernel.org>, "Uladzislau Rezki (Sony)" <urezki@gmail.com>
 
-Objective
----------
-Initiative of improving vmalloc allocator comes from getting many issues
-related to allocation time, i.e. sometimes it is terribly slow. As a result
-many workloads which are sensitive for long (more than 1 millisecond) preemption
-off scenario are affected by that slowness(test cases like UI or audio, etc.).
+commit 763b218ddfaf ("mm: add preempt points into
+__purge_vmap_area_lazy()")
 
-The problem is that, currently an allocation of the new VA area is done over
-busy list iteration until a suitable hole is found between two busy areas.
-Therefore each new allocation causes the list being grown. Due to long list
-and different permissive parameters an allocation can take a long time on
-embedded devices(milliseconds).
+introduced some preempt points, one of those is making
+an allocation more prioritized.
 
-Description
------------
-This approach keeps track of free blocks and allocation is done over free list
-iteration instead. During initialization phase the vmalloc memory layout is
-organized into one free area(can be more) building free double linked list
-within VMALLOC_START-VMALLOC_END range.
+Prioritizing an allocation over freeing does not work
+well all the time, i.e. it should be rather a compromise.
 
-Proposed algorithm uses red-black tree that keeps blocks sorted by their offsets
-in pair with linked list keeping the free space in order of increasing addresses.
+1) Number of lazy pages directly influence on busy list
+length thus on operations like: allocation, lookup, unmap,
+remove, etc.
 
-Allocation. It uses a first-fit policy. To allocate a new block a search is done
-over free list areas until a first suitable block is large enough to encompass
-the requested size. If the block is bigger than requested size - it is split.
+2) Under heavy simultaneous allocations/releases there may
+be a situation when memory usage grows too fast hitting
+out_of_memory -> panic.
 
-A free block can be split by three different ways. Their names are FL_FIT_TYPE,
-LE_FIT_TYPE/RE_FIT_TYPE and NE_FIT_TYPE, i.e. they correspond to how requested
-size and alignment fit to a free block.
+Establish a threshold passing which the freeing path is
+prioritized over allocation creating a balance between both.
 
-FL_FIT_TYPE - in this case a free block is just removed from the free list/tree
-because it fully fits. Comparing with current design there is an extra work with
-rb-tree updating.
+Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
+---
+ mm/vmalloc.c | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
 
-LE_FIT_TYPE/RE_FIT_TYPE - left/right edges fit. In this case what we do is
-just cutting a free block. It is as fast as a current design. Most of the vmalloc
-allocations just end up with this case, because the edge is always aligned to 1.
-
-NE_FIT_TYPE - Is much less common case. Basically it happens when requested size
-and alignment does not fit left nor right edges, i.e. it is between them. In this
-case during splitting we have to build a remaining left free area and place it
-back to the free list/tree.
-
-Comparing with current design there are two extra steps. First one is we have to
-allocate a new vmap_area structure. Second one we have to insert that remaining 
-free block to the address sorted list/tree.
-
-In order to optimize a first case there is a cache with free_vmap objects. Instead
-of allocating from slab we just take an object from the cache and reuse it.
-
-Second one is pretty optimized. Since we know a start point in the tree we do not
-do a search from the top. Instead a traversal begins from a rb-tree node we split.
-
-De-allocation. Red-black tree allows efficiently find a spot in the tree whereas
-a linked list allows fast access to neighbors, thus a fast merge of de-allocated
-memory chunks with existing free blocks creating large coalesced areas. It means
-comparing with current design there is an extra step we have to done when a block
-is freed.
-
-In order to optimize a merge logic a free vmap area is not inserted straight
-away into free structures. Instead we find a place in the rbtree where a free
-block potentially can be inserted. Its parent node and left or right direction.
-Knowing that, we can identify future next/prev list nodes, thus at this point
-it becomes possible to check if a block can be merged. If not, just link it.
-
-Test environment
-----------------
-I have used two systems to test. One is i5-3320M CPU @ 2.60GHz and another
-is HiKey960(arm64) board. i5-3320M runs on 4.18 kernel, whereas Hikey960
-uses 4.15 linaro kernel.
-
-i5-3320M:
-set performance governor
-echo 0 > /proc/sys/kernel/nmi_watchdog
-echo -1 > /proc/sys/kernel/perf_event_paranoid
-echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo
-
-Stability and stress tests
---------------------------
-As for stress testing of the new approach, i wrote a small patch with
-different test cases and allocations methods to make a pressure on
-vmalloc subsystem. In short, it runs different kind of allocation
-tests simultaneously on each online CPU with different run-time(few days).
-
-A test-suite patch you can find here, it is based on 4.18 kernel.
-ftp://vps418301.ovh.net/incoming/0001-mm-vmalloc-stress-test-suite-v4.18.patch
-
-Below are some issues i run into during stability check phase(default kernel).
-
-1) This Kernel BUG can be triggered by align_shift_alloc_test() stress test.
-See it in test-suite patch:
-
-<snip>
-[66970.279289] kernel BUG at mm/vmalloc.c:512!
-[66970.279363] invalid opcode: 0000 [#1] PREEMPT SMP PTI
-[66970.279411] CPU: 1 PID: 652 Comm: insmod Tainted: G           O      4.18.0+ #741
-[66970.279463] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1 04/01/2014
-[66970.279525] RIP: 0010:alloc_vmap_area+0x358/0x370
-<snip>
-
-Patched version does not suffer from that BUG().
-
-2) This one has been introduced by commit 763b218ddfaf. Which introduced some
-preemption points into __purge_vmap_area_lazy(). Under heavy simultaneous
-allocations/releases number of lazy pages can easily go beyond millions
-hitting out_of_memory -> panic or making operations like: allocation, lookup,
-unmap, remove, etc. much slower.
-
-It is fixed by second commit in this series. Please see more description in
-the commit message of the patch.
-
-3) This one is related to PCPU allocator(see pcpu_alloc_test()). In that
-stress test case i see that SUnreclaim(/proc/meminfo) parameter gets increased,
-i.e. there is a memory leek somewhere in percpu allocator. It sounds like
-a memory that is allocated by pcpu_get_vm_areas() sometimes is not freed.
-Resulting in memory leaking or "Kernel panic":
-
----[ end Kernel panic - not syncing: Out of memory and no killable processes...
-
-There is no fix for that.
-
-Performance test results
-------------------------
-I run 5 different tests to compare the performance between the new approach
-and current one. Since there are three different type of allocations i wanted
-to compare them with default version, apart of those there are two extra.
-One allocates in long busy list condition. Another one does random number
-of pages allocation(will not post here to keep it short).
-
-- reboot the system;
-- do three iteration of full run. One run is 5 tests;
-- calculate average of three run(microseconds).
-
-i5-3320M:
-le_fit_alloc_test                b_fit_alloc_test
-1218459 vs 1146597 diff 5%       972322 vs 1008655 diff -3.74%
-1219721 vs 1145212 diff 6%      1013817 vs  994195 diff  1.94%
-1226255 vs 1142134 diff 6%      1002057 vs  993364 diff  0.87%
-1239828 vs 1144809 diff 7%       985092 vs  977549 diff  0.77%
-1232131 vs 1144775 diff 7%      1031320 vs  999952 diff  3.04%
-
-ne_fit_alloc_test                long_busy_list_alloc_test
-2056336 vs 2043121 diff 0.64%    55866315 vs 15037680 diff 73%
-2043136 vs 2041888 diff 0.06%    57601435 vs 14809454 diff 74%
-2042384 vs 2040181 diff 0.11%    52612371 vs 14550292 diff 72%
-2041287 vs 2038905 diff 0.12%    48894648 vs 14769538 diff 69%
-2039014 vs 2038632 diff 0.02%    55718063 vs 14727350 diff 73%
-
-Hikey960:
-le_fit_alloc_test                b_fit_alloc_test
-2382168 vs 2115617 diff 11.19%   2864080 vs 2081309 diff 27.33%
-2772909 vs 2114988 diff 23.73%   2968612 vs 2062716 diff 30.52%
-2772579 vs 2113069 diff 23.79%   2748495 vs 2106658 diff 23.35%
-2770596 vs 2111823 diff 23.78%   2966023 vs 2071139 diff 30.17%
-2759768 vs 2111868 diff 23.48%   2765568 vs 2125216 diff 23.15%
-
-ne_fit_alloc_test                long_busy_list_alloc_test
-4353846 vs 4241838 diff  2.57    239789754 vs 33364305 diff 86%
-4133506 vs 4241615 diff -2.62    778283461 vs 34551548 diff 95%
-4134769 vs 4240714 diff -2.56    210244212 vs 33467529 diff 84%
-4132224 vs 4242281 diff -2.66    429232377 vs 33307173 diff 92%
-4410969 vs 4240864 diff  3.86    527560967 vs 33661115 diff 93%
-
-Almost all results are better. Full data and the test module you can find here:
-
-ftp://vps418301.ovh.net/incoming/vmalloc_test_module.tar.bz2
-ftp://vps418301.ovh.net/incoming/HiKey960_test_result.txt
-ftp://vps418301.ovh.net/incoming/i5-3320M_test_result.txt
-
-Conclusion
-----------
-According to provided results and my subjective opinion, it is worth to organize
-and maintain a free list and do an allocation based on it.
-
-Appreciate for any valuable comments and sorry for the long description :)
-
-Best Regards,
-Uladzislau Rezki
-
-Uladzislau Rezki (Sony) (2):
-  mm/vmalloc: keep track of free blocks for allocation
-  mm: add priority threshold to __purge_vmap_area_lazy()
-
- include/linux/vmalloc.h |   2 +-
- mm/vmalloc.c            | 850 ++++++++++++++++++++++++++++++++++++++----------
- 2 files changed, 676 insertions(+), 176 deletions(-)
-
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index a7f257540a05..bbafcff6632b 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1124,23 +1124,23 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
+ 	struct llist_node *valist;
+ 	struct vmap_area *va;
+ 	struct vmap_area *n_va;
+-	bool do_free = false;
++	int resched_threshold;
+ 
+ 	lockdep_assert_held(&vmap_purge_lock);
+ 
+ 	valist = llist_del_all(&vmap_purge_list);
++	if (unlikely(valist == NULL))
++		return false;
++
+ 	llist_for_each_entry(va, valist, purge_list) {
+ 		if (va->va_start < start)
+ 			start = va->va_start;
+ 		if (va->va_end > end)
+ 			end = va->va_end;
+-		do_free = true;
+ 	}
+ 
+-	if (!do_free)
+-		return false;
+-
+ 	flush_tlb_kernel_range(start, end);
++	resched_threshold = (int) lazy_max_pages() << 1;
+ 
+ 	spin_lock(&vmap_area_lock);
+ 	llist_for_each_entry_safe(va, n_va, valist, purge_list) {
+@@ -1148,7 +1148,9 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
+ 
+ 		__free_vmap_area(va);
+ 		atomic_sub(nr, &vmap_lazy_nr);
+-		cond_resched_lock(&vmap_area_lock);
++
++		if (atomic_read(&vmap_lazy_nr) < resched_threshold)
++			cond_resched_lock(&vmap_area_lock);
+ 	}
+ 	spin_unlock(&vmap_area_lock);
+ 	return true;
 -- 
 2.11.0
