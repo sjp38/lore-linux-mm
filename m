@@ -1,46 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 977E06B0007
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 06:58:57 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id f5-v6so25098459plf.11
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 03:58:57 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c89-v6si25066189pfe.60.2018.10.19.03.58.56
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C7CF36B0007
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 07:35:16 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id k21-v6so11184078ede.12
+        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 04:35:16 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i16-v6si6966769edv.433.2018.10.19.04.35.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 19 Oct 2018 03:58:56 -0700 (PDT)
-Date: Fri, 19 Oct 2018 12:58:51 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] mm/kasan: make quarantine_lock a raw_spinlock_t
-Message-ID: <20181019105851.GG3121@hirez.programming.kicks-ass.net>
-References: <20181009142742.ikh7xv2dn5skjjbe@linutronix.de>
- <CACT4Y+ZB38pKvT8+BAjDZ1t4ZjXQQKoya+ytXT+ASQxHUkWwnA@mail.gmail.com>
- <20181010092929.a5gd3fkkw6swco4c@linutronix.de>
- <CACT4Y+agGPSTZ-8A8r8haSeRM8UpRYMAF8BC4A87yeM9nvpP6w@mail.gmail.com>
- <20181010095343.6qxved3owi6yokoa@linutronix.de>
- <CACT4Y+ZpMjYBPS0GHP0AsEJZZmDjwV9DJBiVUzYKBnD+r9W4+A@mail.gmail.com>
- <20181010214945.5owshc3mlrh74z4b@linutronix.de>
- <20181012165655.f067886428a394dc7fbae7af@linux-foundation.org>
- <20181013135058.GC4931@worktop.programming.kicks-ass.net>
- <20181015163529.30ed9b0ac18e20dd975f4253@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Oct 2018 04:35:14 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 0/8] lru_lock scalability and SMP list functions
+References: <20180911004240.4758-1-daniel.m.jordan@oracle.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <2705c814-a6b8-0b14-7ea8-790325833d95@suse.cz>
+Date: Fri, 19 Oct 2018 13:35:11 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181015163529.30ed9b0ac18e20dd975f4253@linux-foundation.org>
+In-Reply-To: <20180911004240.4758-1-daniel.m.jordan@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Clark Williams <williams@redhat.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rt-users@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+Cc: aaron.lu@intel.com, ak@linux.intel.com, akpm@linux-foundation.org, dave.dice@oracle.com, dave.hansen@linux.intel.com, hannes@cmpxchg.org, levyossi@icloud.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mhocko@kernel.org, Pavel.Tatashin@microsoft.com, steven.sistare@oracle.com, tim.c.chen@intel.com, vdavydov.dev@gmail.com, ying.huang@intel.com
 
-On Mon, Oct 15, 2018 at 04:35:29PM -0700, Andrew Morton wrote:
-> On Sat, 13 Oct 2018 15:50:58 +0200 Peter Zijlstra <peterz@infradead.org> wrote:
+On 9/11/18 2:42 AM, Daniel Jordan wrote:
+> Hi,
 > 
-> > The whole raw_spinlock_t is for RT, no other reason.
+> This is a work-in-progress of what I presented at LSF/MM this year[0] to
+> greatly reduce contention on lru_lock, allowing it to scale on large systems.
 > 
-> Oh.  I never realised that.
+> This is completely different from the lru_lock series posted last January[1].
 > 
-> Is this documented anywhere?  Do there exist guidelines which tell
-> non-rt developers and reviewers when it should be used?
+> I'm hoping for feedback on the overall design and general direction as I do
+> more real-world performance testing and polish the code.  Is this a workable
+> approach?
+> 
+>                                         Thanks,
+>                                           Daniel
+> 
+> ---
+> 
+> Summary:  lru_lock can be one of the hottest locks in the kernel on big
+> systems.  It guards too much state, so introduce new SMP-safe list functions to
+> allow multiple threads to operate on the LRUs at once.  The SMP list functions
+> are provided in a standalone API that can be used in other parts of the kernel.
+> When lru_lock and zone->lock are both fixed, the kernel can do up to 73.8% more
+> page faults per second on a 44-core machine.
+> 
+> ---
+> 
+> On large systems, lru_lock can become heavily contended in memory-intensive
+> workloads such as decision support, applications that manage their memory
+> manually by allocating and freeing pages directly from the kernel, and
+> workloads with short-lived processes that force many munmap and exit
+> operations.  lru_lock also inhibits scalability in many of the MM paths that
+> could be parallelized, such as freeing pages during exit/munmap and inode
+> eviction.
 
-I'm afraid not; I'll put it on the todo list ... I've also been working
-on some lockdep validation for the lock order stuff.
+Interesting, I would have expected isolate_lru_pages() to be the main
+culprit, as the comment says:
+
+ * For pagecache intensive workloads, this function is the hottest
+ * spot in the kernel (apart from copy_*_user functions).
+
+It also says "Some of the functions that shrink the lists perform better
+by taking out a batch of pages and working on them outside the LRU
+lock." Makes me wonder why isolate_lru_pages() also doesn't cut the list
+first instead of doing per-page list_move() (and perhaps also prefetch
+batch of struct pages outside the lock first? Could be doable with some
+care hopefully).
+
+> The problem is that lru_lock is too big of a hammer.  It guards all the LRUs in
+> a pgdat's lruvec, needlessly serializing add-to-front, add-to-tail, and delete
+> operations that are done on disjoint parts of an LRU, or even completely
+> different LRUs.
+> 
+> This RFC series, developed in collaboration with Yossi Lev and Dave Dice,
+> offers a two-part solution to this problem.
+> 
+> First, three new list functions are introduced to allow multiple threads to
+> operate on the same linked list simultaneously under certain conditions, which
+> are spelled out in more detail in code comments and changelogs.  The functions
+> are smp_list_del, smp_list_splice, and smp_list_add, and do the same things as
+> their non-SMP-safe counterparts.  These primitives may be used elsewhere in the
+> kernel as the need arises; for example, in the page allocator free lists to
+> scale zone->lock[2], or in file system LRUs[3].
+> 
+> Second, lru_lock is converted from a spinlock to a rwlock.  The idea is to
+> repurpose rwlock as a two-mode lock, where callers take the lock in shared
+> (i.e. read) mode for code using the SMP list functions, and exclusive (i.e.
+> write) mode for existing code that expects exclusive access to the LRUs.
+> Multiple threads are allowed in under the read lock, of course, and they use
+> the SMP list functions to synchronize amongst themselves.
+> 
+> The rwlock is scaffolding to facilitate the transition from big-hammer lru_lock
+> as it exists today to just using the list locking primitives and getting rid of
+> lru_lock entirely.  Such an approach allows incremental conversion of lru_lock
+> writers until everything uses the SMP list functions and takes the lock in
+> shared mode, at which point lru_lock can just go away.
+
+Yeah I guess that will need more care, e.g. I think smp_list_del() can
+break any thread doing just a read-only traversal as it can end up with
+an entry that's been deleted and its next/prev poisoned. It's a bit
+counterintuitive that "read lock" is now enough for selected modify
+operations, while read-only traversal would need a write lock.
+
+> This RFC series is incomplete.  More, and more realistic, performance
+> numbers are needed; for now, I show only will-it-scale/page_fault1.
+> Also, there are extensions I'd like to make to the locking scheme to
+> handle certain lru_lock paths--in particular, those where multiple
+> threads may delete the same node from an LRU.  The SMP list functions
+> now handle only removal of _adjacent_ nodes from an LRU.  Finally, the
+> diffstat should become more supportive after I remove some of the code
+> duplication in patch 6 by converting the rest of the per-CPU pagevec
+> code in mm/swap.c to use the SMP list functions.
