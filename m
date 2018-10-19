@@ -1,115 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F17A6B0007
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 11:14:57 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id 88-v6so26999309wrp.21
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 08:14:57 -0700 (PDT)
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id p5si4242058wrx.116.2018.10.19.08.14.55
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DBDB76B0003
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 11:36:17 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id b34-v6so20680285ede.5
+        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 08:36:17 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id q2-v6si10617495ejm.190.2018.10.19.08.36.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Oct 2018 08:14:55 -0700 (PDT)
-Message-Id: <336eb81e62d6c683a69d312f533899dcb6bcf770.1539959864.git.christophe.leroy@c-s.fr>
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: [RFC PATCH] mm: add probe_user_read() and probe_user_address()
-Date: Fri, 19 Oct 2018 15:14:54 +0000 (UTC)
+        Fri, 19 Oct 2018 08:36:16 -0700 (PDT)
+Date: Fri, 19 Oct 2018 08:35:55 -0700
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [RFC PATCH v2 0/8] lru_lock scalability and SMP list functions
+Message-ID: <20181019153555.mza7t5siubhk3ohu@ca-dmjordan1.us.oracle.com>
+References: <20180911004240.4758-1-daniel.m.jordan@oracle.com>
+ <2705c814-a6b8-0b14-7ea8-790325833d95@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2705c814-a6b8-0b14-7ea8-790325833d95@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, aaron.lu@intel.com, ak@linux.intel.com, akpm@linux-foundation.org, dave.dice@oracle.com, dave.hansen@linux.intel.com, hannes@cmpxchg.org, levyossi@icloud.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mhocko@kernel.org, Pavel.Tatashin@microsoft.com, steven.sistare@oracle.com, tim.c.chen@intel.com, vdavydov.dev@gmail.com, ying.huang@intel.com
 
-In the powerpc, there are several places implementing safe
-access to user data. This is sometimes implemented using
-probe_kerne_address() with additional access_ok() verification,
-sometimes with get_user() enclosed in a pagefault_disable()/enable()
-pair, etc... :
-    show_user_instructions()
-    bad_stack_expansion()
-    p9_hmi_special_emu()
-    fsl_pci_mcheck_exception()
-    read_user_stack_64()
-    read_user_stack_32() on PPC64
-    read_user_stack_32() on PPC32
-    power_pmu_bhrb_to()
+On Fri, Oct 19, 2018 at 01:35:11PM +0200, Vlastimil Babka wrote:
+> On 9/11/18 2:42 AM, Daniel Jordan wrote:
+> > On large systems, lru_lock can become heavily contended in memory-intensive
+> > workloads such as decision support, applications that manage their memory
+> > manually by allocating and freeing pages directly from the kernel, and
+> > workloads with short-lived processes that force many munmap and exit
+> > operations.  lru_lock also inhibits scalability in many of the MM paths that
+> > could be parallelized, such as freeing pages during exit/munmap and inode
+> > eviction.
+> 
+> Interesting, I would have expected isolate_lru_pages() to be the main
+> culprit, as the comment says:
+> 
+>  * For pagecache intensive workloads, this function is the hottest
+>  * spot in the kernel (apart from copy_*_user functions).
 
-In the same spirit as probe_kernel_read() and probe_kernel_address(),
-this patch adds probe_user_read() and probe_user_address().
+Yes, I'm planning to stress reclaim to see how lru_lock responds.  I've
+experimented some with using dd on lots of nvme drives to keep kswapd busy, but
+I'm always looking for more realistic stuff.  Suggestions welcome :)
 
-probe_user_read() does the same as probe_kernel_read() but
-first checks that it is really a user address.
+> It also says "Some of the functions that shrink the lists perform better
+> by taking out a batch of pages and working on them outside the LRU
+> lock." Makes me wonder why isolate_lru_pages() also doesn't cut the list
+> first instead of doing per-page list_move() (and perhaps also prefetch
+> batch of struct pages outside the lock first? Could be doable with some
+> care hopefully).
 
-probe_user_address() is a shortcut to probe_user_read()
+Seems like the batch prefetching and list cutting would go hand in hand, since
+cutting requires walking the LRU to find where to cut, which could miss on all
+the page list nodes along the way.
 
-Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
----
- include/linux/uaccess.h | 10 ++++++++++
- mm/maccess.c            | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+)
+I'll experiment with this.
 
-diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
-index efe79c1cdd47..fb00e3f847d7 100644
---- a/include/linux/uaccess.h
-+++ b/include/linux/uaccess.h
-@@ -266,6 +266,16 @@ extern long strncpy_from_unsafe(char *dst, const void *unsafe_addr, long count);
- #define probe_kernel_address(addr, retval)		\
- 	probe_kernel_read(&retval, addr, sizeof(retval))
- 
-+/**
-+ * probe_user_address(): safely attempt to read from a user location
-+ * @addr: address to read from
-+ * @retval: read into this variable
-+ *
-+ * Returns 0 on success, or -EFAULT.
-+ */
-+#define probe_user_address(addr, retval)		\
-+	probe_user_read(&(retval), addr, sizeof(retval))
-+
- #ifndef user_access_begin
- #define user_access_begin() do { } while (0)
- #define user_access_end() do { } while (0)
-diff --git a/mm/maccess.c b/mm/maccess.c
-index ec00be51a24f..85d4a88a6917 100644
---- a/mm/maccess.c
-+++ b/mm/maccess.c
-@@ -67,6 +67,39 @@ long __probe_kernel_write(void *dst, const void *src, size_t size)
- EXPORT_SYMBOL_GPL(probe_kernel_write);
- 
- /**
-+ * probe_user_read(): safely attempt to read from a user location
-+ * @dst: pointer to the buffer that shall take the data
-+ * @src: address to read from
-+ * @size: size of the data chunk
-+ *
-+ * Safely read from address @src to the buffer at @dst.  If a kernel fault
-+ * happens, handle that and return -EFAULT.
-+ *
-+ * We ensure that the copy_from_user is executed in atomic context so that
-+ * do_page_fault() doesn't attempt to take mmap_sem.  This makes
-+ * probe_user_read() suitable for use within regions where the caller
-+ * already holds mmap_sem, or other locks which nest inside mmap_sem.
-+ */
-+
-+long __weak probe_user_read(void *dst, const void *src, size_t size)
-+	__attribute__((alias("__probe_user_read")));
-+
-+long __probe_user_read(void *dst, const void __user *src, size_t size)
-+{
-+	long ret;
-+
-+	if (!access_ok(VERIFY_READ, src, size))
-+		return -EFAULT;
-+
-+	pagefault_disable();
-+	ret = __copy_from_user_inatomic(dst, src, size);
-+	pagefault_enable();
-+
-+	return ret ? -EFAULT : 0;
-+}
-+EXPORT_SYMBOL_GPL(probe_user_read);
-+
-+/**
-  * strncpy_from_unsafe: - Copy a NUL terminated string from unsafe address.
-  * @dst:   Destination address, in kernel space.  This buffer must be at
-  *         least @count bytes long.
--- 
-2.13.3
+> > Second, lru_lock is converted from a spinlock to a rwlock.  The idea is to
+> > repurpose rwlock as a two-mode lock, where callers take the lock in shared
+> > (i.e. read) mode for code using the SMP list functions, and exclusive (i.e.
+> > write) mode for existing code that expects exclusive access to the LRUs.
+> > Multiple threads are allowed in under the read lock, of course, and they use
+> > the SMP list functions to synchronize amongst themselves.
+> > 
+> > The rwlock is scaffolding to facilitate the transition from big-hammer lru_lock
+> > as it exists today to just using the list locking primitives and getting rid of
+> > lru_lock entirely.  Such an approach allows incremental conversion of lru_lock
+> > writers until everything uses the SMP list functions and takes the lock in
+> > shared mode, at which point lru_lock can just go away.
+> 
+> Yeah I guess that will need more care, e.g. I think smp_list_del() can
+> break any thread doing just a read-only traversal as it can end up with
+> an entry that's been deleted and its next/prev poisoned.
+
+As far as I can see from checking everywhere the kernel takes lru_lock, nothing
+currently walks the LRUs.  LRU-using code just deletes a page from anywhere, or
+adds one page at a time from the head or tail, so it seems safe to use
+smp_list_* for all LRU paths.
+
+This RFC doesn't handle adding and removing from list tails yet, but that seems
+doable.
+
+> It's a bit
+> counterintuitive that "read lock" is now enough for selected modify
+> operations, while read-only traversal would need a write lock.
+
+Yes, I considered introducing wrappers to clarify this, e.g. an inline function
+exclusive_lock_irqsave that just calls write_lock_irqsave, to let people know
+the locks are being used specially.  Would be happy to add these in.
+
+Thanks for taking a look, Vlastimil, and for your comments!
