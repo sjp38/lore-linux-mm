@@ -1,84 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BD7B56B0003
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 22:18:29 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id w12-v6so12421733plp.9
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 19:18:29 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d9-v6si22699618pll.414.2018.10.18.19.18.28
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Oct 2018 19:18:28 -0700 (PDT)
-Date: Thu, 18 Oct 2018 19:18:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 1/2] memory_hotplug: Free pages as higher order
-Message-Id: <20181018191825.fcad6e28f32a3686f201acdf@linux-foundation.org>
-In-Reply-To: <20181011075503.GQ5873@dhcp22.suse.cz>
-References: <1538727006-5727-1-git-send-email-arunks@codeaurora.org>
-	<72215e75-6c7e-0aef-c06e-e3aba47cf806@suse.cz>
-	<efb65160af41d0e18cb2dcb30c2fb86a@codeaurora.org>
-	<20181010173334.GL5873@dhcp22.suse.cz>
-	<a2d576a5fc82cdf54fc89409686e58f5@codeaurora.org>
-	<20181011075503.GQ5873@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A4B706B0006
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2018 22:32:34 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id o6-v6so22231050oib.9
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 19:32:34 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id t88-v6si10666867oij.53.2018.10.18.19.32.33
+        for <linux-mm@kvack.org>;
+        Thu, 18 Oct 2018 19:32:33 -0700 (PDT)
+Subject: Re: [PATCH V2 2/5] mm/hugetlb: Distinguish between migratability and
+ movability
+References: <1539316799-6064-1-git-send-email-anshuman.khandual@arm.com>
+ <1539316799-6064-3-git-send-email-anshuman.khandual@arm.com>
+ <20181019015931.GA18973@hori1.linux.bs1.fc.nec.co.jp>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <e7a3d5d8-dc65-72fc-5764-010af02d1517@arm.com>
+Date: Fri, 19 Oct 2018 08:02:26 +0530
+MIME-Version: 1.0
+In-Reply-To: <20181019015931.GA18973@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Arun KS <arunks@codeaurora.org>, Vlastimil Babka <vbabka@suse.cz>, kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, gregkh@linuxfoundation.org, osalvador@suse.de, malat@debian.org, kirill.shutemov@linux.intel.com, jrdr.linux@gmail.com, yasu.isimatu@gmail.com, mgorman@techsingularity.net, aaron.lu@intel.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "suzuki.poulose@arm.com" <suzuki.poulose@arm.com>, "punit.agrawal@arm.com" <punit.agrawal@arm.com>, "will.deacon@arm.com" <will.deacon@arm.com>, "Steven.Price@arm.com" <Steven.Price@arm.com>, "steve.capper@arm.com" <steve.capper@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>
 
-On Thu, 11 Oct 2018 09:55:03 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 
-> > > > > This is now not called anymore, although the xen/hv variants still do
-> > > > > it. The function seems empty these days, maybe remove it as a followup
-> > > > > cleanup?
-> > > > >
-> > > > > > -	__online_page_increment_counters(page);
-> > > > > > -	__online_page_free(page);
-> > > > > > +	__free_pages_core(page, order);
-> > > > > > +	totalram_pages += (1UL << order);
-> > > > > > +#ifdef CONFIG_HIGHMEM
-> > > > > > +	if (PageHighMem(page))
-> > > > > > +		totalhigh_pages += (1UL << order);
-> > > > > > +#endif
-> > > > >
-> > > > > __online_page_increment_counters() would have used
-> > > > > adjust_managed_page_count() which would do the changes under
-> > > > > managed_page_count_lock. Are we safe without the lock? If yes, there
-> > > > > should perhaps be a comment explaining why.
-> > > > 
-> > > > Looks unsafe without managed_page_count_lock.
-> > > 
-> > > Why does it matter actually? We cannot online/offline memory in
-> > > parallel. This is not the case for the boot where we initialize memory
-> > > in parallel on multiple nodes. So this seems to be safe currently unless
-> > > I am missing something. A comment explaining that would be helpful
-> > > though.
-> > 
-> > Other main callers of adjust_manage_page_count(),
-> > 
-> > static inline void free_reserved_page(struct page *page)
-> > {
-> >         __free_reserved_page(page);
-> >         adjust_managed_page_count(page, 1);
-> > }
-> > 
-> > static inline void mark_page_reserved(struct page *page)
-> > {
-> >         SetPageReserved(page);
-> >         adjust_managed_page_count(page, -1);
-> > }
-> > 
-> > Won't they race with memory hotplug?
-> > 
-> > Few more,
-> > ./drivers/xen/balloon.c:519:            adjust_managed_page_count(page, -1);
-> > ./drivers/virtio/virtio_balloon.c:175:  adjust_managed_page_count(page, -1);
-> > ./drivers/virtio/virtio_balloon.c:196:  adjust_managed_page_count(page, 1);
-> > ./mm/hugetlb.c:2158:                    adjust_managed_page_count(page, 1 <<
-> > h->order);
+
+On 10/19/2018 07:29 AM, Naoya Horiguchi wrote:
+> On Fri, Oct 12, 2018 at 09:29:56AM +0530, Anshuman Khandual wrote:
+>> During huge page allocation it's migratability is checked to determine if
+>> it should be placed under movable zones with GFP_HIGHUSER_MOVABLE. But the
+>> movability aspect of the huge page could depend on other factors than just
+>> migratability. Movability in itself is a distinct property which should not
+>> be tied with migratability alone.
+>>
+>> This differentiates these two and implements an enhanced movability check
+>> which also considers huge page size to determine if it is feasible to be
+>> placed under a movable zone. At present it just checks for gigantic pages
+>> but going forward it can incorporate other enhanced checks.
 > 
-> They can, and I have missed those.
-
-So this patch needs more work, yes?
+> (nitpicking...)
+> The following code just checks hugepage_migration_supported(), so maybe
+> s/Movability/Migratability/ is expected in the comment?
+> 
+>   static int unmap_and_move_huge_page(...)
+>   {
+>           ...
+>           /*
+>            * Movability of hugepages depends on architectures and hugepage size.
+>            * This check is necessary because some callers of hugepage migration
+>            * like soft offline and memory hotremove don't walk through page
+>            * tables or check whether the hugepage is pmd-based or not before
+>            * kicking migration.
+>            */
+>           if (!hugepage_migration_supported(page_hstate(hpage))) {
+> 
+Sure, will update this patch only unless other changes are suggested.
