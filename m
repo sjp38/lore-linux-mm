@@ -1,76 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AAA1E6B0006
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 00:33:07 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b34-v6so19829573ede.5
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 21:33:07 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m17-v6sor7494431eje.24.2018.10.18.21.33.05
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A00DE6B0003
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 00:50:42 -0400 (EDT)
+Received: by mail-it1-f197.google.com with SMTP id v13-v6so2485491itc.4
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2018 21:50:42 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id y6si1765386itk.74.2018.10.18.21.50.41
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 18 Oct 2018 21:33:05 -0700 (PDT)
-Date: Fri, 19 Oct 2018 04:33:03 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [RFC] put page to pcp->lists[] tail if it is not on the same node
-Message-ID: <20181019043303.s5axhjfb2v2lzsr3@master>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Oct 2018 21:50:41 -0700 (PDT)
+Subject: Re: [PATCH] hugetlbfs: dirty pages as they are added to pagecache
+References: <20181018041022.4529-1-mike.kravetz@oracle.com>
+ <20181018160827.0cb656d594ffb2f0f069326c@linux-foundation.org>
+ <6d6e4733-39aa-a958-c0a2-c5a47cdcc7d0@oracle.com>
+ <20181019004621.GA30067@redhat.com>
+ <20181018184726.fb8da5c733da5e0c6a235101@linux-foundation.org>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <9eb7cf71-5bc8-5cd4-9f3e-95375d40060b@oracle.com>
+Date: Thu, 18 Oct 2018 21:50:32 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20181018184726.fb8da5c733da5e0c6a235101@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: willy@infradead.org, mhocko@suse.com, mgorman@techsingularity.net
-Cc: richard.weiyang@gmail.com, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Alexander Viro <viro@zeniv.linux.org.uk>, stable@vger.kernel.org
 
-node
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
+On 10/18/18 6:47 PM, Andrew Morton wrote:
+> On Thu, 18 Oct 2018 20:46:21 -0400 Andrea Arcangeli <aarcange@redhat.com> wrote:
+> 
+>> On Thu, Oct 18, 2018 at 04:16:40PM -0700, Mike Kravetz wrote:
+>>> I was not sure about this, and expected someone could come up with
+>>> something better.  It just seems there are filesystems like huegtlbfs,
+>>> where it makes no sense wasting cycles traversing the filesystem.  So,
+>>> let's not even try.
+>>>
+>>> Hoping someone can come up with a better method than hard coding as
+>>> I have done above.
+>>
+>> It's not strictly required after marking the pages dirty though. The
+>> real fix is the other one? Could we just drop the hardcoding and let
+>> it run after the real fix is applied?
 
-Masters,
+Yeah.  The other part of the patch is the real fix.  This drop_caches
+part is not necessary.
 
-During the code reading, I pop up this idea.
+>> The performance of drop_caches doesn't seem critical, especially with
+>> gigapages. tmpfs doesn't seem to be optimized away from drop_caches
+>> and the gain would be bigger for tmpfs if THP is not enabled in the
+>> mount, so I'm not sure if we should worry about hugetlbfs first.
+> 
+> I guess so.  I can't immediately see a clean way of expressing this so
+> perhaps it would need a new BDI_CAP_NO_BACKING_STORE.  Such a
+> thing hardly seems worthwhile for drop_caches.
+> 
+> And drop_caches really shouldn't be there anyway.  It's a standing
+> workaround for ongoing suckage in pagecache and metadata reclaim
+> behaviour :(
 
-    In case we put some intelegence of NUMA node to pcp->lists[], we may
-    get a better performance.
+I'm OK with dropping the other part.  It just seemed like there was no
+real reason to try and drop_caches for hugetlbfs (and perhaps others).
 
-The idea is simple:
+Andrew, would you like another version?  Or can you just drop the
+fs/drop_caches.c part?
 
-    Put page on other nodes to the tail of pcp->lists[], because we
-    allocate from head and free from tail.
-
-Since my desktop just has one numa node, I couldn't test the effect. I
-just run a kernel build test to see if it would degrade current kernel.
-The result looks not bad.
-
-                    make -j4 bzImage
-           base-line:
-           
-           real    6m15.947s        
-           user    21m14.481s       
-           sys     2m34.407s        
-           
-           real    6m16.089s        
-           user    21m18.295s       
-           sys     2m35.551s        
-           
-           real    6m16.239s        
-           user    21m17.590s       
-           sys     2m35.252s        
-           
-           patched:
-           
-           real    6m14.558s
-           user    21m18.374s
-           sys     2m33.143s
-           
-           real    6m14.606s
-           user    21m14.969s
-           sys     2m32.039s
-           
-           real    6m15.264s
-           user    21m16.698s
-           sys     2m33.024s
-
-Sorry for sending this without a real justification. Hope this will not
-make you uncomfortable. I would be very glad if you suggest some
-verifications that I could do.
-
-Below is my testing patch, look forward your comments.
+-- 
+Mike Kravetz
