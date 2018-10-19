@@ -1,71 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DD3356B026B
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 04:38:21 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id x20-v6so20027907eda.21
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 01:38:21 -0700 (PDT)
-Received: from outbound-smtp25.blacknight.com (outbound-smtp25.blacknight.com. [81.17.249.193])
-        by mx.google.com with ESMTPS id bo22-v6si5299066ejb.123.2018.10.19.01.38.20
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3278D6B000C
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 04:54:39 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id w42-v6so20146401edd.0
+        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 01:54:39 -0700 (PDT)
+Received: from outbound-smtp16.blacknight.com (outbound-smtp16.blacknight.com. [46.22.139.233])
+        by mx.google.com with ESMTPS id a18-v6si538727ejt.250.2018.10.19.01.54.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 Oct 2018 01:38:20 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp25.blacknight.com (Postfix) with ESMTPS id 62797B89C7
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 09:38:20 +0100 (IST)
-Date: Fri, 19 Oct 2018 09:38:18 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Oct 2018 01:54:37 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp16.blacknight.com (Postfix) with ESMTPS id 3F8FB1C226A
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 09:54:37 +0100 (IST)
+Date: Fri, 19 Oct 2018 09:54:35 +0100
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [RFC] put page to pcp->lists[] tail if it is not on the same node
-Message-ID: <20181019083818.GQ5819@techsingularity.net>
-References: <20181019043303.s5axhjfb2v2lzsr3@master>
+Subject: Re: [RFC v4 PATCH 2/5] mm/__free_one_page: skip merge for order-0
+ page unless compaction failed
+Message-ID: <20181019085435.GR5819@techsingularity.net>
+References: <20181017063330.15384-1-aaron.lu@intel.com>
+ <20181017063330.15384-3-aaron.lu@intel.com>
+ <20181017104427.GJ5819@techsingularity.net>
+ <20181017131059.GA9167@intel.com>
+ <20181017135807.GL5819@techsingularity.net>
+ <20181017145904.GC9167@intel.com>
+ <20181018111632.GM5819@techsingularity.net>
+ <20181019055703.GA2401@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20181019043303.s5axhjfb2v2lzsr3@master>
+In-Reply-To: <20181019055703.GA2401@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: willy@infradead.org, mhocko@suse.com, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, Tariq Toukan <tariqt@mellanox.com>, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Fri, Oct 19, 2018 at 04:33:03AM +0000, Wei Yang wrote:
-> node
-> Reply-To: Wei Yang <richard.weiyang@gmail.com>
+On Fri, Oct 19, 2018 at 01:57:03PM +0800, Aaron Lu wrote:
+> > 
+> > I don't think this is the right way of thinking about it because it's
+> > possible to have the system split in such a way so that the migration
+> > scanner only encounters unmovable pages before it meets the free scanner
+> > where unmerged buddies were in the higher portion of the address space.
 > 
-> Masters,
+> Yes it is possible unmerged pages are in the higher portion.
 > 
-> During the code reading, I pop up this idea.
-> 
->     In case we put some intelegence of NUMA node to pcp->lists[], we may
->     get a better performance.
-> 
-
-Why?
-
-> The idea is simple:
-> 
->     Put page on other nodes to the tail of pcp->lists[], because we
->     allocate from head and free from tail.
+> My understanding is, when the two scanners meet, all unmerged pages will
+> be either used by the free scanner as migrate targets or sent to merge
+> by the migration scanner.
 > 
 
-Pages from remote nodes are not placed on local lists. Even in the slab
-context, such objects are placed on alien caches which have special
-handling.
+It's not guaranteed if the lower portion of the address space consisted
+entirely of pages that cannot migrate (because they are unmovable or because
+migration failed due to pins). It's actually a fundamental limitation
+of compaction that it can miss migration and compaction opportunities
+due to how the scanners are implemented. It was designed that way to
+avoid pageblocks being migrated unnecessarily back and forth but the
+downside is missed opportunities.
 
-> Since my desktop just has one numa node, I couldn't test the effect.
-
-I suspect it would eventually cause a crash or at least weirdness as the
-page zone ids would not match due to different nodes.
-
-> Sorry for sending this without a real justification. Hope this will not
-> make you uncomfortable. I would be very glad if you suggest some
-> verifications that I could do.
+> > You either need to keep unmerged buddies on a separate list or search
+> > the order-0 free list for merge candidates prior to compaction.
+> > 
+> > > > It's needed to form them efficiently but excessive reclaim or writing 3
+> > > > to drop_caches can also do it. Be careful of tying lazy buddy too
+> > > > closely to compaction.
+> > > 
+> > > That's the current design of this patchset, do you see any immediate
+> > > problem of this? Is it that you are worried about high-order allocation
+> > > success rate using this design?
+> > 
+> > I've pointed out what I see are the design flaws but yes, in general, I'm
+> > worried about the high order allocation success rate using this design,
+> > the reliance on compaction and the fact that the primary motivation is
+> > when THP is disabled.
 > 
-> Below is my testing patch, look forward your comments.
+> When THP is in use, zone lock contention is pretty much nowhere :-)
 > 
+> I'll see what I can get with 'address space range' lock first and will
+> come back to 'lazy buddy' if it doesn't work out. Thank you and
+> Vlastimil for all the suggestions.
 
-I commend you trying to understand how the page allocator works but I
-suggest you take a step back, pick a workload that is of interest and
-profile it to see where hot spots are that may pinpoint where an
-improvement can be made.
+My pleasure.
 
 -- 
 Mel Gorman
