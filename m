@@ -1,70 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7245B6B0010
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 05:04:52 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id a206-v6so22230353oib.7
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 02:04:52 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l19si10550762otn.248.2018.10.19.02.04.51
-        for <linux-mm@kvack.org>;
-        Fri, 19 Oct 2018 02:04:51 -0700 (PDT)
-Subject: Re: [PATCH v7 0/8] arm64: untag user pointers passed to the kernel
-References: <cover.1538485901.git.andreyknvl@google.com>
- <be684ce5-92fd-e970-b002-83452cf50abd@arm.com>
- <CAAeHK+yEZTLjgSj8YUzeJec9Pp2TwuLT5nCa1OpfBLXJkx_hhg@mail.gmail.com>
- <CAFKCwrh4-BvFB_R1J0LWcbfeR=d02OazowFuMU+hmq8Y=Dx+4w@mail.gmail.com>
-From: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Message-ID: <9bb7fefd-3f8f-266a-3cc9-cc64f8927206@arm.com>
-Date: Fri, 19 Oct 2018 10:04:42 +0100
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C3BD6B0003
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 06:36:25 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id d12-v6so2081711iof.10
+        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 03:36:25 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id e10-v6si592009iog.67.2018.10.19.03.36.23
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Oct 2018 03:36:23 -0700 (PDT)
+Subject: Re: [PATCH v3] mm: memcontrol: Don't flood OOM messages with no
+ eligible task.
+References: <201810180246.w9I2koi3011358@www262.sakura.ne.jp>
+ <20181018042739.GA650@jagdpanzerIV>
+ <201810180526.w9I5QvVn032670@www262.sakura.ne.jp>
+ <20181018061018.GB650@jagdpanzerIV> <20181018075611.GY18839@dhcp22.suse.cz>
+ <20181018081352.GA438@jagdpanzerIV>
+ <2c2b2820-e6f8-76c8-c431-18f60845b3ab@i-love.sakura.ne.jp>
+ <20181018235427.GA877@jagdpanzerIV>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <5d472476-7852-f97b-9412-63536dffaa0e@i-love.sakura.ne.jp>
+Date: Fri, 19 Oct 2018 19:35:53 +0900
 MIME-Version: 1.0
-In-Reply-To: <CAFKCwrh4-BvFB_R1J0LWcbfeR=d02OazowFuMU+hmq8Y=Dx+4w@mail.gmail.com>
+In-Reply-To: <20181018235427.GA877@jagdpanzerIV>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Evgenii Stepanov <eugenis@google.com>, Andrey Konovalov <andreyknvl@google.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>
 
-On 10/17/18 9:25 PM, Evgenii Stepanov wrote:
-> On Wed, Oct 17, 2018 at 7:20 AM, Andrey Konovalov <andreyknvl@google.com> wrote:
->> On Wed, Oct 17, 2018 at 4:06 PM, Vincenzo Frascino
->> <vincenzo.frascino@arm.com> wrote:
->>> Hi Andrey,
->>> I have been thinking a bit lately on how to address the problem of user tagged pointers passed to the kernel through syscalls, and IMHO probably the best way we have to catch them all and make sure that the approach is maintainable in the long term is to introduce shims that tag/untag the pointers passed to the kernel.
+On 2018/10/19 8:54, Sergey Senozhatsky wrote:
+> On (10/18/18 20:58), Tetsuo Handa wrote:
 >>>
->>> In details, what I am proposing can live either in userspace (preferred solution so that we do not have to relax the ABI) or in kernel space and can be summarized as follows:
->>>  - A shim is specific to a syscall and is called by the libc when it needs to invoke the respective syscall.
->>>  - It is required only if the syscall accepts pointers.
->>>  - It saves the tags of a pointers passed to the syscall in memory (same approach if the we are passing a struct that contains pointers to the kernel, with the difference that all the tags of the pointers in the struct need to be saved singularly)
->>>  - Untags the pointers
->>>  - Invokes the syscall
->>>  - Retags the pointers with the tags stored in memory
->>>  - Returns
->>>
->>> What do you think?
+>>> A knob might do.
+>>> As well as /proc/sys/kernel/printk tweaks, probably. One can even add
+>>> echo "a b c d" > /proc/sys/kernel/printk to .bashrc and adjust printk
+>>> console levels on login and rollback to old values in .bash_logout
+>>> May be.
 >>
->> Hi Vincenzo,
+>> That can work for only single login with root user case.
+>> Not everyone logs into console as root user.
+> 
+> Add sudo ;)
+
+That will not work. ;-) As long as the console loglevel setting is
+system wide, we can't allow multiple login sessions.
+
+> 
+>> It is pity that we can't send kernel messages to only selected consoles
+>> (e.g. all messages are sent to netconsole, but only critical messages are
+>> sent to local consoles).
+> 
+> OK, that's a fair point. There was a patch from FB, which would allow us
+> to set a log_level on per-console basis. So the noise goes to heav^W net
+> console; only critical stuff goes to the serial console (if I recall it
+> correctly). I'm not sure what happened to that patch, it was a while ago.
+> I'll try to find that out.
+
+Per a console loglevel setting would help for several environments.
+But syzbot environment cannot count on netconsole. We can't expect that
+unlimited printk() will become safe.
+
+> 
+> [..]
+>> That boils down to a "user interaction" problem.
+>> Not limiting
 >>
->> If I correctly understand what you are proposing, I'm not sure if that
->> would work with the countless number of different ioctl calls. For
->> example when an ioctl accepts a struct with a bunch of pointer fields.
->> In this case a shim like the one you propose can't live in userspace,
->> since libc doesn't know about the interface of all ioctls, so it can't
->> know which fields to untag. The kernel knows about those interfaces
->> (since the kernel implements them), but then we would need a custom
->> shim for each ioctl variation, which doesn't seem practical.
+>>   "%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=%*pbl, order=%d, oom_score_adj=%hd\n"
+>>   "Out of memory and no killable processes...\n"
+>>
+>> is very annoying.
+>>
+>> And I really can't understand why Michal thinks "handling this requirement" as
+>> "make the code more complex than necessary and squash different things together".
 > 
-> The current patchset handles majority of pointers in a just a few
-> common places, like copy_from_user. Userspace shims will need to untag
-> & retag all pointer arguments - we are looking at hundreds if not
-> thousands of shims. They will also be located in a different code base
-> from the syscall / ioctl implementations, which would make them
-> impossible to keep up to date.
-> 
+> Michal is trying very hard to address the problem in a reasonable way.
 
-I agree with both of you, ioctl is the real show stopper for this approach. Thanks for pointing this out.
+OK. But Michal, do we have a reasonable way which can be applied now instead of
+my patch or one of below patches? Just enumerating words like "hackish" or "a mess"
+without YOU ACTUALLY PROPOSE PATCHES will bounce back to YOU.
 
--- 
-Regards,
-Vincenzo
+> The problem you are talking about is not MM specific. You can have a
+> faulty SCSI device, corrupted FS, and so and on.
+
+"a faulty SCSI device, corrupted FS, and so and on" are reporting problems
+which will complete a request. They can use (and are using) ratelimit,
+aren't they?
+
+"a memcg OOM with no eligible task" is reporting a problem which cannot
+complete a request. But it can use ratelimit as well.
+
+But we have an immediately applicable mitigation for a problem that
+already OOM-killed threads are triggering "a memcg OOM with no eligible
+task" using one of below patches.
