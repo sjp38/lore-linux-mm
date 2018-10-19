@@ -1,122 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C4EB86B0007
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 11:42:17 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id 123-v6so3304870ywt.12
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 08:42:17 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x124-v6sor2929720ywa.149.2018.10.19.08.42.16
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 19 Oct 2018 08:42:16 -0700 (PDT)
-Received: from mail-yw1-f43.google.com (mail-yw1-f43.google.com. [209.85.161.43])
-        by smtp.gmail.com with ESMTPSA id 200-v6sm5930819ywq.97.2018.10.19.08.42.14
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FC066B000A
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 12:04:50 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id w5-v6so1447776qto.18
+        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 09:04:50 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q125-v6si652584qkd.100.2018.10.19.09.04.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Oct 2018 08:42:14 -0700 (PDT)
-Received: by mail-yw1-f43.google.com with SMTP id d126-v6so13355434ywa.5
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 08:42:14 -0700 (PDT)
+        Fri, 19 Oct 2018 09:04:49 -0700 (PDT)
+From: jglisse@redhat.com
+Subject: [PATCH 0/6] HMM updates, improvements and fixes v2
+Date: Fri, 19 Oct 2018 12:04:36 -0400
+Message-Id: <20181019160442.18723-1-jglisse@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <336eb81e62d6c683a69d312f533899dcb6bcf770.1539959864.git.christophe.leroy@c-s.fr>
-References: <336eb81e62d6c683a69d312f533899dcb6bcf770.1539959864.git.christophe.leroy@c-s.fr>
-From: Kees Cook <keescook@chromium.org>
-Date: Fri, 19 Oct 2018 08:42:12 -0700
-Message-ID: <CAGXu5jJzp0v_Ox4gJcSdMVT7Rzuoy4mH-J3tPfrpeyCTi4o5YQ@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm: add probe_user_read() and probe_user_address()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christophe Leroy <christophe.leroy@c-s.fr>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, LKML <linux-kernel@vger.kernel.org>, PowerPC <linuxppc-dev@lists.ozlabs.org>, Linux-MM <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-On Fri, Oct 19, 2018 at 8:14 AM, Christophe Leroy
-<christophe.leroy@c-s.fr> wrote:
-> In the powerpc, there are several places implementing safe
-> access to user data. This is sometimes implemented using
-> probe_kerne_address() with additional access_ok() verification,
-> sometimes with get_user() enclosed in a pagefault_disable()/enable()
-> pair, etc... :
->     show_user_instructions()
->     bad_stack_expansion()
->     p9_hmi_special_emu()
->     fsl_pci_mcheck_exception()
->     read_user_stack_64()
->     read_user_stack_32() on PPC64
->     read_user_stack_32() on PPC32
->     power_pmu_bhrb_to()
->
-> In the same spirit as probe_kernel_read() and probe_kernel_address(),
-> this patch adds probe_user_read() and probe_user_address().
->
-> probe_user_read() does the same as probe_kernel_read() but
-> first checks that it is really a user address.
->
-> probe_user_address() is a shortcut to probe_user_read()
->
-> Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
-> ---
->  include/linux/uaccess.h | 10 ++++++++++
->  mm/maccess.c            | 33 +++++++++++++++++++++++++++++++++
->  2 files changed, 43 insertions(+)
->
-> diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
-> index efe79c1cdd47..fb00e3f847d7 100644
-> --- a/include/linux/uaccess.h
-> +++ b/include/linux/uaccess.h
-> @@ -266,6 +266,16 @@ extern long strncpy_from_unsafe(char *dst, const void *unsafe_addr, long count);
->  #define probe_kernel_address(addr, retval)             \
->         probe_kernel_read(&retval, addr, sizeof(retval))
->
-> +/**
-> + * probe_user_address(): safely attempt to read from a user location
-> + * @addr: address to read from
-> + * @retval: read into this variable
-> + *
-> + * Returns 0 on success, or -EFAULT.
-> + */
-> +#define probe_user_address(addr, retval)               \
-> +       probe_user_read(&(retval), addr, sizeof(retval))
-> +
->  #ifndef user_access_begin
->  #define user_access_begin() do { } while (0)
->  #define user_access_end() do { } while (0)
-> diff --git a/mm/maccess.c b/mm/maccess.c
-> index ec00be51a24f..85d4a88a6917 100644
-> --- a/mm/maccess.c
-> +++ b/mm/maccess.c
-> @@ -67,6 +67,39 @@ long __probe_kernel_write(void *dst, const void *src, size_t size)
->  EXPORT_SYMBOL_GPL(probe_kernel_write);
->
->  /**
-> + * probe_user_read(): safely attempt to read from a user location
-> + * @dst: pointer to the buffer that shall take the data
-> + * @src: address to read from
-> + * @size: size of the data chunk
-> + *
-> + * Safely read from address @src to the buffer at @dst.  If a kernel fault
-> + * happens, handle that and return -EFAULT.
-> + *
-> + * We ensure that the copy_from_user is executed in atomic context so that
-> + * do_page_fault() doesn't attempt to take mmap_sem.  This makes
-> + * probe_user_read() suitable for use within regions where the caller
-> + * already holds mmap_sem, or other locks which nest inside mmap_sem.
-> + */
-> +
-> +long __weak probe_user_read(void *dst, const void *src, size_t size)
-> +       __attribute__((alias("__probe_user_read")));
+From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-Let's use #defines to deal with per-arch aliases so we can keep the
-inline I'm suggesting below...
+[Andrew this is for 4.20, stable fixes as cc to stable]
 
-> +
-> +long __probe_user_read(void *dst, const void __user *src, size_t size)
+Few fixes that only affect HMM users. Improve the synchronization call
+back so that we match was other mmu_notifier listener do and add proper
+support to the new blockable flags in the process.
 
-Please make this __always_inline so the "size" variable can be
-examined for const-ness by the check_object_size() in
-__copy_from_user_inatomic().
+For curious folks here are branches to leverage HMM in various existing
+device drivers:
 
--Kees
+https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-nouveau-v01
+https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-radeon-v00
+https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-intel-v00
+
+More to come (amd gpu, Mellanox, ...)
+
+I expect more of the preparatory work for nouveau will be merge in 4.20
+(like we have been doing since 4.16) and i will wait until this patchset
+is upstream before pushing the patches that actualy make use of HMM (to
+avoid complex tree inter-dependency).
+
+JA(C)rA'me Glisse (4):
+  mm/hmm: fix utf8 ...
+  mm/hmm: properly handle migration pmd v3
+  mm/hmm: use a structure for update callback parameters v2
+  mm/hmm: invalidate device page table at start of invalidation
+
+Ralph Campbell (2):
+  mm/rmap: map_pte() was not handling private ZONE_DEVICE page properly
+    v3
+  mm/hmm: fix race between hmm_mirror_unregister() and mmu_notifier
+    callback
+
+ include/linux/hmm.h  |  33 +++++++----
+ mm/hmm.c             | 134 +++++++++++++++++++++++++++++--------------
+ mm/page_vma_mapped.c |  24 +++++++-
+ 3 files changed, 137 insertions(+), 54 deletions(-)
 
 -- 
-Kees Cook
-Pixel Security
+2.17.2
