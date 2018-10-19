@@ -1,59 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C223E6B0006
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 15:32:21 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id i81-v6so33332261pfj.1
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 12:32:21 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 91-v6sor13347661plh.52.2018.10.19.12.32.20
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7959C6B0003
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 18:46:02 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id q23so25899341otg.9
+        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 15:46:02 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id v17si10930900otk.261.2018.10.19.15.46.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 19 Oct 2018 12:32:20 -0700 (PDT)
-Date: Fri, 19 Oct 2018 12:32:17 -0700
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [PATCH v3 1/2] mm: Add an F_SEAL_FUTURE_WRITE seal to memfd
-Message-ID: <20181019193217.GA181176@joelaf.mtv.corp.google.com>
-References: <20181018065908.254389-1-joel@joelfernandes.org>
- <42922.1539970322@turing-police.cc.vt.edu>
- <CAEXW_YTS2n2tOpXs3eVQZhYu7tmM_at0ZBA-04qYkHw4UE80nw@mail.gmail.com>
- <118792.1539974951@turing-police.cc.vt.edu>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Oct 2018 15:46:01 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [RFC PATCH 0/2] improve vmalloc allocation
+Date: Fri, 19 Oct 2018 22:44:39 +0000
+Message-ID: <20181019224432.GA616@tower.DHCP.thefacebook.com>
+References: <20181019173538.590-1-urezki@gmail.com>
+In-Reply-To: <20181019173538.590-1-urezki@gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <4C67FFCE1E1F254D917A38028823A9C3@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <118792.1539974951@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: valdis.kletnieks@vt.edu
-Cc: LKML <linux-kernel@vger.kernel.org>, kernel-team <kernel-team@android.com>, John Reck <jreck@google.com>, John Stultz <john.stultz@linaro.org>, Todd Kjos <tkjos@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Christoph Hellwig <hch@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Daniel Colascione <dancol@google.com>, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@kernel.org>, linux-fsdevel@vger.kernel.org, linux-kselftest <linux-kselftest@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, marcandre.lureau@redhat.com, Mike Kravetz <mike.kravetz@oracle.com>, Minchan Kim <minchan@kernel.org>, Shuah Khan <shuah@kernel.org>, Thomas Gleixner <tglx@linutronix.de>
+To: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Thomas
+ Garnier <thgarnie@google.com>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt <rostedt@goodmis.org>, Joel Fernandes <joelaf@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Tejun Heo <tj@kernel.org>
 
-On Fri, Oct 19, 2018 at 02:49:11PM -0400, valdis.kletnieks@vt.edu wrote:
-> On Fri, 19 Oct 2018 10:57:31 -0700, Joel Fernandes said:
-> > On Fri, Oct 19, 2018 at 10:32 AM,  <valdis.kletnieks@vt.edu> wrote:
-> > > What is supposed to happen if some other process has an already existing R/W
-> > > mmap of the region?  (For that matter, the test program doesn't seem to
-> > > actually test that the existing mmap region remains writable?)
-> 
-> > Why would it not remain writable? We don't change anything in the
-> > mapping that prevents it from being writable, in the patch.
-> 
-> OK, if the meaning here is "if another process races and gets its own R/W mmap
-> before we seal our mmap, it's OK".  Seems like somewhat shaky security-wise - a
-> possibly malicious process can fail to get a R/W map because we just sealed it,
-> but if it had done the attempt a few milliseconds earlier it would have its own
-> R/W mmap to do as it pleases...
-> 
-> On the other hand, decades of trying have proven that trying to do any sort
-> of revoke() is a lot harder to do than it looks...
-> 
+On Fri, Oct 19, 2018 at 07:35:36PM +0200, Uladzislau Rezki (Sony) wrote:
+> Objective
+> ---------
+> Initiative of improving vmalloc allocator comes from getting many issues
+> related to allocation time, i.e. sometimes it is terribly slow. As a resu=
+lt
+> many workloads which are sensitive for long (more than 1 millisecond) pre=
+emption
+> off scenario are affected by that slowness(test cases like UI or audio, e=
+tc.).
+>=20
+> The problem is that, currently an allocation of the new VA area is done o=
+ver
+> busy list iteration until a suitable hole is found between two busy areas=
+.
+> Therefore each new allocation causes the list being grown. Due to long li=
+st
+> and different permissive parameters an allocation can take a long time on
+> embedded devices(milliseconds).
+...
+> 3) This one is related to PCPU allocator(see pcpu_alloc_test()). In that
+> stress test case i see that SUnreclaim(/proc/meminfo) parameter gets incr=
+eased,
+> i.e. there is a memory leek somewhere in percpu allocator. It sounds like
+> a memory that is allocated by pcpu_get_vm_areas() sometimes is not freed.
+> Resulting in memory leaking or "Kernel panic":
+>=20
 
-No it is not a security issue. The issue you bring up can happen even with
-the existing F_SEAL_WRITE where someone else races to mmap it.
+Can you, please, try the following patch:
+6685b357363b ("percpu: stop leaking bitmap metadata blocks") ?
 
-And if someone else could race and do an mmap on the memfd, then they somehow
-goes the fd at which point that is a security issue anyway. That is the whole
-point of memfd, that it can be securely sent over IPC to another process.
-Also, before sending it to the receiving/racing process, the memfd would have
-already been sealed with the F_SEAL_FUTURE_WRITE so there is no question of a
-race on the receiving side.
+BTW, with growing number of vmalloc users (per-cpu allocator and bpf stuff =
+are
+big drivers), I find the patchset very interesting.
 
-- Joel
+Thanks!
