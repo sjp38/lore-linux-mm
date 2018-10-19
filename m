@@ -1,86 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B147E6B0007
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 08:34:17 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id p20-v6so10039269ljg.20
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 05:34:17 -0700 (PDT)
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id b17-v6si21538787ljd.168.2018.10.19.05.34.15
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 582356B0003
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2018 09:43:33 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id g36-v6so20740480edb.3
+        for <linux-mm@kvack.org>; Fri, 19 Oct 2018 06:43:33 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x39-v6si1974597edx.261.2018.10.19.06.43.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Oct 2018 05:34:15 -0700 (PDT)
-Subject: [PATCH v3] ksm: Assist buddy allocator to assemble 1-order pages
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Fri, 19 Oct 2018 15:33:39 +0300
-Message-ID: <153995241537.4096.15189862239521235797.stgit@localhost.localdomain>
+        Fri, 19 Oct 2018 06:43:31 -0700 (PDT)
+Subject: Re: [RFC] put page to pcp->lists[] tail if it is not on the same node
+References: <20181019043303.s5axhjfb2v2lzsr3@master>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <36be02a3-cdb9-15d0-a491-eba34675db3b@suse.cz>
+Date: Fri, 19 Oct 2018 15:43:29 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <20181019043303.s5axhjfb2v2lzsr3@master>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hughd@google.com, aarcange@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, andriy.shevchenko@linux.intel.com, mhocko@suse.com, rppt@linux.vnet.ibm.com, imbrenda@linux.vnet.ibm.com, corbet@lwn.net, ndesaulniers@google.com, ktkhai@virtuozzo.com, dave.jiang@intel.com, jglisse@redhat.com, jia.he@hxt-semitech.com, paulmck@linux.vnet.ibm.com, colin.king@canonical.com, jiang.biao2@zte.com.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wei Yang <richard.weiyang@gmail.com>, willy@infradead.org, mhocko@suse.com, mgorman@techsingularity.net
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 
-v3: Comment improvements.
-v2: Style improvements.
+On 10/19/18 6:33 AM, Wei Yang wrote:
+> @@ -2763,7 +2764,14 @@ static void free_unref_page_commit(struct page *page, unsigned long pfn)
+>  	}
+>  
+>  	pcp = &this_cpu_ptr(zone->pageset)->pcp;
+> -	list_add(&page->lru, &pcp->lists[migratetype]);
 
-try_to_merge_two_pages() merges two pages, one of them
-is a page of currently scanned mm, the second is a page
-with identical hash from unstable tree. Currently, we
-merge the page from unstable tree into the first one,
-and then free it.
+My impression is that you think there's only one pcp per cpu. But the
+"pcp" here is already specific to the zone (and thus node) of the page
+being freed. So it doesn't matter if we put the page to the list or
+tail. For allocation we already typically prefer local nodes, thus local
+zones, thus pcp's containing only local pages.
 
-The idea of this patch is to prefer freeing that page
-of them, which has a free neighbour (i.e., neighbour
-with zero page_count()). This allows buddy allocator
-to assemble at least 1-order set from the freed page
-and its neighbour; this is a kind of cheep passive
-compaction.
+> +	/*
+> +	 * If the page has the same node_id as this cpu, put the page at head.
+> +	 * Otherwise, put at the end.
+> +	 */
+> +	if (page_node == pcp->node)
 
-AFAIK, 1-order pages set consists of pages with PFNs
-[2n, 2n+1] (odd, even), so the neighbour's pfn is
-calculated via XOR with 1. We check the result pfn
-is valid and its page_count(), and prefer merging
-into @tree_page if neighbour's usage count is zero.
+So this should in fact be always true due to what I explained above.
 
-There a is small difference with current behavior
-in case of error path. In case of the second
-try_to_merge_with_ksm_page() is failed, we return
-from try_to_merge_two_pages() with @tree_page
-removed from unstable tree. It does not seem to matter,
-but if we do not want a change at all, it's not
-a problem to move remove_rmap_item_from_tree() from
-try_to_merge_with_ksm_page() to its callers.
+Otherwise I second the recommendation from Mel.
 
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
----
- mm/ksm.c |   17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
-
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 5b0894b45ee5..47c2dfd1cf4f 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1321,6 +1321,23 @@ static struct page *try_to_merge_two_pages(struct rmap_item *rmap_item,
- {
- 	int err;
- 
-+	if (IS_ENABLED(CONFIG_COMPACTION)) {
-+		unsigned long pfn;
-+
-+		/*
-+		 * Find neighbour of @page containing 1-order pair in buddy
-+		 * allocator and check whether its count is 0. If so, we
-+		 * consider the neighbour as a free page (this is more
-+		 * probable than it's freezed via page_ref_freeze()), and
-+		 * we try to use @tree_page as ksm page and to free @page.
-+		 */
-+		pfn = page_to_pfn(page) ^ 1;
-+		if (pfn_valid(pfn) && page_count(pfn_to_page(pfn)) == 0) {
-+			swap(rmap_item, tree_rmap_item);
-+			swap(page, tree_page);
-+		}
-+	}
-+
- 	err = try_to_merge_with_ksm_page(rmap_item, page, NULL);
- 	if (!err) {
- 		err = try_to_merge_with_ksm_page(tree_rmap_item,
+Cheers,
+Vlastimil
