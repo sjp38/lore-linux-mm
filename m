@@ -1,66 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A017E6B000D
-	for <linux-mm@kvack.org>; Sat, 20 Oct 2018 13:41:51 -0400 (EDT)
-Received: by mail-lf1-f69.google.com with SMTP id w11-v6so110425lfc.12
-        for <linux-mm@kvack.org>; Sat, 20 Oct 2018 10:41:51 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id q37-v6si26654815lfi.117.2018.10.20.10.41.49
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A6D16B0006
+	for <linux-mm@kvack.org>; Sat, 20 Oct 2018 19:53:00 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id d63-v6so27478044pld.18
+        for <linux-mm@kvack.org>; Sat, 20 Oct 2018 16:53:00 -0700 (PDT)
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-oln040092070081.outbound.protection.outlook.com. [40.92.70.81])
+        by mx.google.com with ESMTPS id q10-v6si31463843pli.202.2018.10.20.16.52.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 20 Oct 2018 10:41:49 -0700 (PDT)
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: Memory management issue in 4.18.15
-Date: Sat, 20 Oct 2018 17:41:00 +0000
-Message-ID: <20181020174053.GA6149@castle.DHCP.thefacebook.com>
-References: <CADa=ObrwYaoNFn0x06mvv5W1F9oVccT5qjGM8qFBGNPoNuMUNw@mail.gmail.com>
- <a655c898-0701-f10d-bbf3-8a0090544560@infradead.org>
-In-Reply-To: <a655c898-0701-f10d-bbf3-8a0090544560@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sat, 20 Oct 2018 16:52:58 -0700 (PDT)
+From: Shayan Doust <shayan.doust@outlook.com>
+Subject: [PATCH 06/10] x86/entry/32: Clear the CS high bits
+Date: Sat, 20 Oct 2018 23:52:54 +0000
+Message-ID: <AM2PR08MB01951A14AFA4335905FA464287FA0@AM2PR08MB0195.eurprd08.prod.outlook.com>
+References: <20181020235230.37324-1-shayan.doust@outlook.com>
+In-Reply-To: <20181020235230.37324-1-shayan.doust@outlook.com>
 Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <124A14B832841745B95D28394CA443FC@namprd15.prod.outlook.com>
+Content-Type: text/plain; charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Spock <dairinin@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@surriel.com>, Sasha Levin <alexander.levin@microsoft.com>
+To: "hello@shayandoust.me" <hello@shayandoust.me>
+Cc: Jan Kiszka <jan.kiszka@siemens.com>, Borislav Petkov <bp@suse.de>, "H.
+ Peter Anvin" <hpa@zytor.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy
+ Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@intel.com>, David
+ Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Ingo Molnar <mingo@kernel.org>, Jiri Kosina <jkosina@suse.cz>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Will Deacon <will.deacon@arm.com>, "aliguori@amazon.com" <aliguori@amazon.com>, "daniel.gruss@iaik.tugraz.at" <daniel.gruss@iaik.tugraz.at>, "hughd@google.com" <hughd@google.com>, "keescook@google.com" <keescook@google.com>, linux-mm <linux-mm@kvack.org>, x86-ml <x86@kernel.org>
 
-On Sat, Oct 20, 2018 at 08:37:28AM -0700, Randy Dunlap wrote:
-> [add linux-mm mailing list + people]
->=20
->=20
-> On 10/20/18 4:41 AM, Spock wrote:
-> > Hello,
-> >=20
-> > I have a workload, which creates lots of cache pages. Before 4.18.15,
-> > the behavior was very stable: pagecache is constantly growing until it
-> > consumes all the free memory, and then kswapd is balancing it around
-> > low watermark. After 4.18.15, once in a while khugepaged is waking up
-> > and reclaims almost all the pages from pagecache, so there is always
-> > around 2G of 8G unused. THP is enabled only for madvise case and are
-> > not used.
-> >=20
-> > The exact change that leads to current behavior is
-> > https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/commit=
-/?h=3Dlinux-4.18.y&id=3D62aad93f09c1952ede86405894df1b22012fd5ab
-> >=20
+From: Jan Kiszka <jan.kiszka@siemens.com>
 
-Hello!
+Even if not on an entry stack, the CS's high bits must be
+initialized because they are unconditionally evaluated in
+PARANOID_EXIT_TO_KERNEL_MODE.
 
-Can you, please, describe your workload in more details?
-Do you use memory cgroups? How many of them? What's the ratio between slabs
-and pagecache in the affected cgroup? Is the pagecache mmapped by some proc=
-ess?
-Is the majority of the pagecache created by few cached files or the number
-of files is big?
+Failing to do so broke the boot on Galileo Gen2 and IOT2000 boards.
 
-This is definitely a strange effect. The change shouldn't affect pagecache
-reclaim directly, so the only possibility I see is that because we started
-applying some minimal pressure on slabs, we also started reclaim some inter=
-nal
-fs structures under background memory pressure, which leads to a more aggre=
-ssive
-pagecache reclaim.
+ [ bp: Make the commit message tone passive and impartial. ]
 
-Thanks!
+Fixes: b92a165df17e ("x86/entry/32: Handle Entry from Kernel-Mode on Entry-=
+Stack")
+Signed-off-by: Jan Kiszka <jan.kiszka@siemens.com>
+Signed-off-by: Borislav Petkov <bp@suse.de>
+Reviewed-by: Joerg Roedel <jroedel@suse.de>
+Acked-by: Joerg Roedel <jroedel@suse.de>
+CC: "H. Peter Anvin" <hpa@zytor.com>
+CC: Andrea Arcangeli <aarcange@redhat.com>
+CC: Andy Lutomirski <luto@kernel.org>
+CC: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+CC: Brian Gerst <brgerst@gmail.com>
+CC: Dave Hansen <dave.hansen@intel.com>
+CC: David Laight <David.Laight@aculab.com>
+CC: Denys Vlasenko <dvlasenk@redhat.com>
+CC: Eduardo Valentin <eduval@amazon.com>
+CC: Greg KH <gregkh@linuxfoundation.org>
+CC: Ingo Molnar <mingo@kernel.org>
+CC: Jiri Kosina <jkosina@suse.cz>
+CC: Josh Poimboeuf <jpoimboe@redhat.com>
+CC: Juergen Gross <jgross@suse.com>
+CC: Linus Torvalds <torvalds@linux-foundation.org>
+CC: Peter Zijlstra <peterz@infradead.org>
+CC: Thomas Gleixner <tglx@linutronix.de>
+CC: Will Deacon <will.deacon@arm.com>
+CC: aliguori@amazon.com
+CC: daniel.gruss@iaik.tugraz.at
+CC: hughd@google.com
+CC: keescook@google.com
+CC: linux-mm <linux-mm@kvack.org>
+CC: x86-ml <x86@kernel.org>
+Link: http://lkml.kernel.org/r/f271c747-1714-5a5b-a71f-ae189a093b8d@siemens=
+.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+---
+ arch/x86/entry/entry_32.S | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index 2767c625a52c..fbbf1ba57ec6 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -389,6 +389,13 @@
+ 	 * that register for the time this macro runs
+ 	 */
+=20
++	/*
++	 * The high bits of the CS dword (__csh) are used for
++	 * CS_FROM_ENTRY_STACK and CS_FROM_USER_CR3. Clear them in case
++	 * hardware didn't do this for us.
++	 */
++	andl	$(0x0000ffff), PT_CS(%esp)
++
+ 	/* Are we on the entry stack? Bail out if not! */
+ 	movl	PER_CPU_VAR(cpu_entry_area), %ecx
+ 	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
+@@ -407,12 +414,6 @@
+ 	/* Load top of task-stack into %edi */
+ 	movl	TSS_entry2task_stack(%edi), %edi
+=20
+-	/*
+-	 * Clear unused upper bits of the dword containing the word-sized CS
+-	 * slot in pt_regs in case hardware didn't clear it for us.
+-	 */
+-	andl	$(0x0000ffff), PT_CS(%esp)
+-
+ 	/* Special case - entry from kernel mode via entry stack */
+ #ifdef CONFIG_VM86
+ 	movl	PT_EFLAGS(%esp), %ecx		# mix EFLAGS and CS
+--=20
+2.17.1
