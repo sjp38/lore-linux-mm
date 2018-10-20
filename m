@@ -1,47 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BE0A6B0003
-	for <linux-mm@kvack.org>; Sat, 20 Oct 2018 11:37:48 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id x5-v6so33604356ioa.6
-        for <linux-mm@kvack.org>; Sat, 20 Oct 2018 08:37:48 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id b1-v6si17082711jae.32.2018.10.20.08.37.46
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BA5A6B0003
+	for <linux-mm@kvack.org>; Sat, 20 Oct 2018 12:10:12 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id x10-v6so22245947edx.9
+        for <linux-mm@kvack.org>; Sat, 20 Oct 2018 09:10:12 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d26-v6sor9370557ejc.0.2018.10.20.09.10.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 20 Oct 2018 08:37:46 -0700 (PDT)
-Subject: Re: Memory management issue in 4.18.15
-References: <CADa=ObrwYaoNFn0x06mvv5W1F9oVccT5qjGM8qFBGNPoNuMUNw@mail.gmail.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <a655c898-0701-f10d-bbf3-8a0090544560@infradead.org>
-Date: Sat, 20 Oct 2018 08:37:28 -0700
+        (Google Transport Security);
+        Sat, 20 Oct 2018 09:10:11 -0700 (PDT)
+Date: Sat, 20 Oct 2018 16:10:08 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [RFC] put page to pcp->lists[] tail if it is not on the same node
+Message-ID: <20181020161008.zwi3uft3377fd6dv@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181019043303.s5axhjfb2v2lzsr3@master>
+ <36be02a3-cdb9-15d0-a491-eba34675db3b@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CADa=ObrwYaoNFn0x06mvv5W1F9oVccT5qjGM8qFBGNPoNuMUNw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <36be02a3-cdb9-15d0-a491-eba34675db3b@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Spock <dairinin@gmail.com>, linux-kernel@vger.kernel.org, Linux MM <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Rik van Riel <riel@surriel.com>, Sasha Levin <alexander.levin@microsoft.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Wei Yang <richard.weiyang@gmail.com>, willy@infradead.org, mhocko@suse.com, mgorman@techsingularity.net, linux-mm@kvack.org, akpm@linux-foundation.org
 
-[add linux-mm mailing list + people]
+On Fri, Oct 19, 2018 at 03:43:29PM +0200, Vlastimil Babka wrote:
+>On 10/19/18 6:33 AM, Wei Yang wrote:
+>> @@ -2763,7 +2764,14 @@ static void free_unref_page_commit(struct page *page, unsigned long pfn)
+>>  	}
+>>  
+>>  	pcp = &this_cpu_ptr(zone->pageset)->pcp;
+>> -	list_add(&page->lru, &pcp->lists[migratetype]);
+>
+>My impression is that you think there's only one pcp per cpu. But the
+>"pcp" here is already specific to the zone (and thus node) of the page
+>being freed. So it doesn't matter if we put the page to the list or
+>tail. For allocation we already typically prefer local nodes, thus local
+>zones, thus pcp's containing only local pages.
+>
+>> +	/*
+>> +	 * If the page has the same node_id as this cpu, put the page at head.
+>> +	 * Otherwise, put at the end.
+>> +	 */
+>> +	if (page_node == pcp->node)
+>
+>So this should in fact be always true due to what I explained above.
 
+Vlastimil,
 
-On 10/20/18 4:41 AM, Spock wrote:
-> Hello,
-> 
-> I have a workload, which creates lots of cache pages. Before 4.18.15,
-> the behavior was very stable: pagecache is constantly growing until it
-> consumes all the free memory, and then kswapd is balancing it around
-> low watermark. After 4.18.15, once in a while khugepaged is waking up
-> and reclaims almost all the pages from pagecache, so there is always
-> around 2G of 8G unused. THP is enabled only for madvise case and are
-> not used.
-> 
-> The exact change that leads to current behavior is
-> https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/commit/?h=linux-4.18.y&id=62aad93f09c1952ede86405894df1b22012fd5ab
-> 
+After looking at the code, I got some new understanding of the pcp
+pages, which maybe a little different from yours.
 
+Every zone has a per_cpu_pageset for each cpu, and the pages allocated
+to per_cpu_pageset is either of the same node with this *cpu* or
+different node.
+
+So this comparison (page_node == pcp->node) would always be true or
+false for a particular per_cpu_pageset.
+
+Well, one thing for sure is putting a page to tail will not improve the
+locality.
+
+>
+>Otherwise I second the recommendation from Mel.
+>
+>Cheers,
+>Vlastimil
 
 -- 
-~Randy
+Wei Yang
+Help you, Help me
