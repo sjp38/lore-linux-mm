@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1015B6B000E
-	for <linux-mm@kvack.org>; Sun, 21 Oct 2018 12:15:44 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id c6-v6so23253544ybm.10
-        for <linux-mm@kvack.org>; Sun, 21 Oct 2018 09:15:44 -0700 (PDT)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D37806B0266
+	for <linux-mm@kvack.org>; Sun, 21 Oct 2018 12:15:57 -0400 (EDT)
+Received: by mail-yb1-f198.google.com with SMTP id f2-v6so5926846ybo.1
+        for <linux-mm@kvack.org>; Sun, 21 Oct 2018 09:15:57 -0700 (PDT)
 Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id g9-v6si2511560ybi.174.2018.10.21.09.15.42
+        by mx.google.com with ESMTPS id s9-v6si13765631ybg.344.2018.10.21.09.15.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 21 Oct 2018 09:15:42 -0700 (PDT)
-Subject: [PATCH 05/28] vfs: avoid problematic remapping requests into
- partial EOF block
+        Sun, 21 Oct 2018 09:15:56 -0700 (PDT)
+Subject: [PATCH 07/28] vfs: rename vfs_clone_file_prep to be more descriptive
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Sun, 21 Oct 2018 09:15:37 -0700
-Message-ID: <154013853780.29026.5441191187672186537.stgit@magnolia>
+Date: Sun, 21 Oct 2018 09:15:51 -0700
+Message-ID: <154013855179.29026.12300431992865619414.stgit@magnolia>
 In-Reply-To: <154013850285.29026.16168387526580596209.stgit@magnolia>
 References: <154013850285.29026.16168387526580596209.stgit@magnolia>
 MIME-Version: 1.0
@@ -22,91 +21,90 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: david@fromorbit.com, darrick.wong@oracle.com
-Cc: sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, ocfs2-devel@oss.oracle.com
+Cc: sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, Amir Goldstein <amir73il@gmail.com>, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, ocfs2-devel@oss.oracle.com
 
 From: Darrick J. Wong <darrick.wong@oracle.com>
 
-A deduplication data corruption is exposed in XFS and btrfs. It is
-caused by extending the block match range to include the partial EOF
-block, but then allowing unknown data beyond EOF to be considered a
-"match" to data in the destination file because the comparison is only
-made to the end of the source file. This corrupts the destination file
-when the source extent is shared with it.
-
-The VFS remapping prep functions  only support whole block dedupe, but
-we still need to appear to support whole file dedupe correctly.  Hence
-if the dedupe request includes the last block of the souce file, don't
-include it in the actual dedupe operation. If the rest of the range
-dedupes successfully, then reject the entire request.  A subsequent
-patch will enable us to shorten dedupe requests correctly.
-
-When reflinking sub-file ranges, a data corruption can occur when the
-source file range includes a partial EOF block. This shares the unknown
-data beyond EOF into the second file at a position inside EOF, exposing
-stale data in the second file.
-
-If the reflink request includes the last block of the souce file, only
-proceed with the reflink operation if it lands at or past the
-destination file's current EOF. If it lands within the destination file
-EOF, reject the entire request with -EINVAL and make the caller go the
-hard way.  A subsequent patch will enable us to shorten reflink requests
-correctly.
+The vfs_clone_file_prep is a generic function to be called by filesystem
+implementations only.  Rename the prefix to generic_ and make it more
+clear that it applies to remap operations, not just clones.
 
 Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Amir Goldstein <amir73il@gmail.com>
 ---
- fs/read_write.c |   33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ fs/ocfs2/refcounttree.c |    2 +-
+ fs/read_write.c         |    8 ++++----
+ fs/xfs/xfs_reflink.c    |    2 +-
+ include/linux/fs.h      |    6 +++---
+ 4 files changed, 9 insertions(+), 9 deletions(-)
 
 
+diff --git a/fs/ocfs2/refcounttree.c b/fs/ocfs2/refcounttree.c
+index 19e03936c5e1..36c56dfbe485 100644
+--- a/fs/ocfs2/refcounttree.c
++++ b/fs/ocfs2/refcounttree.c
+@@ -4850,7 +4850,7 @@ int ocfs2_reflink_remap_range(struct file *file_in,
+ 	    (OCFS2_I(inode_out)->ip_flags & OCFS2_INODE_SYSTEM_FILE))
+ 		goto out_unlock;
+ 
+-	ret = vfs_clone_file_prep(file_in, pos_in, file_out, pos_out,
++	ret = generic_remap_file_range_prep(file_in, pos_in, file_out, pos_out,
+ 			&len, is_dedupe);
+ 	if (ret <= 0)
+ 		goto out_unlock;
 diff --git a/fs/read_write.c b/fs/read_write.c
-index 2456da3f8a41..0f0a6efdd502 100644
+index f5395d8da741..aca75a97a695 100644
 --- a/fs/read_write.c
 +++ b/fs/read_write.c
-@@ -1708,6 +1708,34 @@ static int clone_verify_area(struct file *file, loff_t pos, u64 len, bool write)
+@@ -1745,9 +1745,9 @@ static int generic_remap_check_len(struct inode *inode_in,
+  * Returns: 0 for "nothing to clone", 1 for "something to clone", or
+  * the usual negative error code.
+  */
+-int vfs_clone_file_prep(struct file *file_in, loff_t pos_in,
+-			struct file *file_out, loff_t pos_out,
+-			u64 *len, bool is_dedupe)
++int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
++				  struct file *file_out, loff_t pos_out,
++				  u64 *len, bool is_dedupe)
+ {
+ 	struct inode *inode_in = file_inode(file_in);
+ 	struct inode *inode_out = file_inode(file_out);
+@@ -1822,7 +1822,7 @@ int vfs_clone_file_prep(struct file *file_in, loff_t pos_in,
  
- 	return security_file_permission(file, write ? MAY_WRITE : MAY_READ);
- }
-+/*
-+ * Ensure that we don't remap a partial EOF block in the middle of something
-+ * else.  Assume that the offsets have already been checked for block
-+ * alignment.
-+ *
-+ * For deduplication we always scale down to the previous block because we
-+ * can't meaningfully compare post-EOF contents.
-+ *
-+ * For clone we only link a partial EOF block above the destination file's EOF.
-+ */
-+static int generic_remap_check_len(struct inode *inode_in,
-+				   struct inode *inode_out,
-+				   loff_t pos_out,
-+				   u64 *len,
-+				   bool is_dedupe)
-+{
-+	u64 blkmask = i_blocksize(inode_in) - 1;
-+
-+	if ((*len & blkmask) == 0)
-+		return 0;
-+
-+	if (is_dedupe)
-+		*len &= ~blkmask;
-+	else if (pos_out + *len < i_size_read(inode_out))
-+		return -EINVAL;
-+
-+	return 0;
-+}
- 
- /*
-  * Check that the two inodes are eligible for cloning, the ranges make
-@@ -1787,6 +1815,11 @@ int vfs_clone_file_prep(struct file *file_in, loff_t pos_in,
- 			return -EBADE;
- 	}
- 
-+	ret = generic_remap_check_len(inode_in, inode_out, pos_out, len,
-+			is_dedupe);
-+	if (ret)
-+		return ret;
-+
  	return 1;
  }
- EXPORT_SYMBOL(vfs_clone_file_prep);
+-EXPORT_SYMBOL(vfs_clone_file_prep);
++EXPORT_SYMBOL(generic_remap_file_range_prep);
+ 
+ int do_clone_file_range(struct file *file_in, loff_t pos_in,
+ 			struct file *file_out, loff_t pos_out, u64 len)
+diff --git a/fs/xfs/xfs_reflink.c b/fs/xfs/xfs_reflink.c
+index 281d5f53f2ec..a7757a128a78 100644
+--- a/fs/xfs/xfs_reflink.c
++++ b/fs/xfs/xfs_reflink.c
+@@ -1326,7 +1326,7 @@ xfs_reflink_remap_prep(
+ 	if (IS_DAX(inode_in) || IS_DAX(inode_out))
+ 		goto out_unlock;
+ 
+-	ret = vfs_clone_file_prep(file_in, pos_in, file_out, pos_out,
++	ret = generic_remap_file_range_prep(file_in, pos_in, file_out, pos_out,
+ 			len, is_dedupe);
+ 	if (ret <= 0)
+ 		goto out_unlock;
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index ba93a6e7dac4..55729e1c2e75 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1825,9 +1825,9 @@ extern ssize_t vfs_readv(struct file *, const struct iovec __user *,
+ 		unsigned long, loff_t *, rwf_t);
+ extern ssize_t vfs_copy_file_range(struct file *, loff_t , struct file *,
+ 				   loff_t, size_t, unsigned int);
+-extern int vfs_clone_file_prep(struct file *file_in, loff_t pos_in,
+-			       struct file *file_out, loff_t pos_out,
+-			       u64 *count, bool is_dedupe);
++extern int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
++					 struct file *file_out, loff_t pos_out,
++					 u64 *count, bool is_dedupe);
+ extern int do_clone_file_range(struct file *file_in, loff_t pos_in,
+ 			       struct file *file_out, loff_t pos_out, u64 len);
+ extern int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
