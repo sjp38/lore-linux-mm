@@ -1,63 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A2326B0010
-	for <linux-mm@kvack.org>; Sat, 20 Oct 2018 23:33:30 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 14-v6so35655520pfk.22
-        for <linux-mm@kvack.org>; Sat, 20 Oct 2018 20:33:30 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q200-v6sor17415030pgq.80.2018.10.20.20.33.29
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DEAC16B000E
+	for <linux-mm@kvack.org>; Sun, 21 Oct 2018 03:30:26 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id 30so16500094ota.15
+        for <linux-mm@kvack.org>; Sun, 21 Oct 2018 00:30:26 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id h9si12122921otl.322.2018.10.21.00.30.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 20 Oct 2018 20:33:29 -0700 (PDT)
-Date: Sat, 20 Oct 2018 20:33:25 -0700
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: Question about ptep_get_and_clear and TLB flush
-Message-ID: <20181021033325.GC243578@joelaf.mtv.corp.google.com>
-References: <CAJWu+oqnGC6FFZP5Trxh=WKHwAM3LM1c1mbhtJsh1yoh=ABi0g@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 21 Oct 2018 00:30:25 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w9L7TL0v126195
+	for <linux-mm@kvack.org>; Sun, 21 Oct 2018 03:30:24 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2n8hb2dx2q-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 21 Oct 2018 03:30:24 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Sun, 21 Oct 2018 08:30:22 +0100
+Date: Sun, 21 Oct 2018 10:30:16 +0300
+In-Reply-To: <20181019081729.klvckcytnhheaian@master>
+References: <1538067825-24835-1-git-send-email-rppt@linux.vnet.ibm.com> <20181019081729.klvckcytnhheaian@master>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJWu+oqnGC6FFZP5Trxh=WKHwAM3LM1c1mbhtJsh1yoh=ABi0g@mail.gmail.com>
+Content-Type: text/plain;
+ charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH] memblock: remove stale #else and the code it protects
+From: Mike Rapoport <rppt@linux.ibm.com>
+Message-Id: <6EEAA7EC-75B7-4899-A562-35A58FC037E6@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joel Fernandes <joelaf@google.com>
-Cc: "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Jann Horn <jannh@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, kirill.shutemov@linux.intel.com, Minchan Kim <minchan@kernel.org>, Ramon Pantin <pantin@google.com>
+To: Wei Yang <richard.weiyang@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Duyck <alexander.duyck@gmail.com>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Oct 18, 2018 at 11:04:02PM -0700, Joel Fernandes wrote:
-> Hello friends,
-> I was trying to understand the safety of this piece of code in
-> move_ptes in mremap.c
-> Here we have some code that does this in a loop:
-> 
-> for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
->  new_pte++, new_addr += PAGE_SIZE) {
->   if (pte_none(*old_pte))
->        continue;
->     pte = ptep_get_and_clear(mm, old_addr, old_pte);
->     if (pte_present(pte) && pte_dirty(pte))
->          force_flush = true;
->     pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
->     pte = move_soft_dirty_pte(pte);
->     set_pte_at(mm, new_addr, new_pte, pte);
-> }
-> 
-> If I understand correctly, the ptep_get_and_clear is needed to
-> atomically get and clear the page table entry so that we do not miss
-> any other bits in PTE that may get set but have not been read, before
-> we clear it. Such as the dirty bit.
-> 
-> My question is, After the ptep_get_and_clear runs, what happens if
-> another CPU has a valid TLB entry for this old_addr and does a
-> memory-write *before* the TLBs are flushed. Would that not cause us to
-> lose the dirty bit? Once set_pte_at runs, it would be using the PTE
-> fetched earlier which did not have the dirty bit set. This seems wrong
-> to me. What do you think?
 
-Just for completeness of discussion, I'd like to say Ramon kindly helped me
-understand this by explaining to me that the stores would not be affected by
-stale TLB entries, and they would end up doing an actual page-table walk so
-the issue I was hypothesizing would not arise.
 
-thanks,
+On October 19, 2018 11:17:30 AM GMT+03:00, Wei Yang <richard=2Eweiyang@gma=
+il=2Ecom> wrote:
+>Which tree it applies?
 
-- Joel
+To mmotm of the end of September=2E
+
+>On Thu, Sep 27, 2018 at 08:03:45PM +0300, Mike Rapoport wrote:
+>>During removal of HAVE_MEMBLOCK definition, the #else clause of the
+>>
+>>	#ifdef CONFIG_HAVE_MEMBLOCK
+>>		=2E=2E=2E
+>>	#else
+>>		=2E=2E=2E
+>>	#endif
+>>
+>>conditional was not removed=2E
+>>
+>>Remove it now=2E
+>>
+>>Signed-off-by: Mike Rapoport <rppt@linux=2Evnet=2Eibm=2Ecom>
+>>Reported-by: Alexander Duyck <alexander=2Eduyck@gmail=2Ecom>
+>>Cc: Michal Hocko <mhocko@suse=2Ecom>
+>>---
+>> include/linux/memblock=2Eh | 5 -----
+>> 1 file changed, 5 deletions(-)
+>>
+>>diff --git a/include/linux/memblock=2Eh b/include/linux/memblock=2Eh
+>>index d3bc270=2E=2Ed4d0e01 100644
+>>--- a/include/linux/memblock=2Eh
+>>+++ b/include/linux/memblock=2Eh
+>>@@ -597,11 +597,6 @@ static inline void early_memtest(phys_addr_t
+>start, phys_addr_t end)
+>> {
+>> }
+>> #endif
+>>-#else
+>>-static inline phys_addr_t memblock_alloc(phys_addr_t size,
+>phys_addr_t align)
+>>-{
+>>-	return 0;
+>>-}
+>>=20
+>> #endif /* __KERNEL__ */
+>>=20
+>>--=20
+>>2=2E7=2E4
+
+--=20
+Sent from my Android device with K-9 Mail=2E Please excuse my brevity=2E
