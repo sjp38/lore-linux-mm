@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CC6AD6B0287
-	for <linux-mm@kvack.org>; Sun, 21 Oct 2018 12:17:55 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id n205-v6so25616424ywc.16
-        for <linux-mm@kvack.org>; Sun, 21 Oct 2018 09:17:55 -0700 (PDT)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BDE06B0289
+	for <linux-mm@kvack.org>; Sun, 21 Oct 2018 12:18:07 -0400 (EDT)
+Received: by mail-yb1-f197.google.com with SMTP id h10-v6so4627112ybc.14
+        for <linux-mm@kvack.org>; Sun, 21 Oct 2018 09:18:07 -0700 (PDT)
 Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id 204-v6si603985ywf.99.2018.10.21.09.17.54
+        by mx.google.com with ESMTPS id 186-v6si9545696ybb.447.2018.10.21.09.18.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 21 Oct 2018 09:17:54 -0700 (PDT)
-Subject: [PATCH 24/28] xfs: clean up xfs_reflink_remap_blocks call site
+        Sun, 21 Oct 2018 09:18:06 -0700 (PDT)
+Subject: [PATCH 25/28] xfs: support returning partial reflink results
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Sun, 21 Oct 2018 09:17:50 -0700
-Message-ID: <154013867045.29026.12266020817835171751.stgit@magnolia>
+Date: Sun, 21 Oct 2018 09:17:57 -0700
+Message-ID: <154013867727.29026.14417615066515846065.stgit@magnolia>
 In-Reply-To: <154013850285.29026.16168387526580596209.stgit@magnolia>
 References: <154013850285.29026.16168387526580596209.stgit@magnolia>
 MIME-Version: 1.0
@@ -25,103 +25,126 @@ Cc: sandeen@redhat.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, l
 
 From: Darrick J. Wong <darrick.wong@oracle.com>
 
-Move the offset <-> blocks unit conversions into
-xfs_reflink_remap_blocks to make the call site less ugly.
+Back when the XFS reflink code only supported clone_file_range, we were
+only able to return zero or negative error codes to userspace.  However,
+now that copy_file_range (which returns bytes copied) can use XFS'
+clone_file_range, we have the opportunity to return partial results.
+For example, if userspace sends a 1GB clone request and we run out of
+space halfway through, we at least can tell userspace that we completed
+512M of that request like a regular write.
 
 Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 ---
- fs/xfs/xfs_reflink.c |   37 ++++++++++++++++++-------------------
- 1 file changed, 18 insertions(+), 19 deletions(-)
+ fs/xfs/xfs_file.c    |    5 +----
+ fs/xfs/xfs_reflink.c |   17 ++++++++++++-----
+ fs/xfs/xfs_reflink.h |    2 +-
+ 3 files changed, 14 insertions(+), 10 deletions(-)
 
 
+diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+index 38fde4e11714..7d42ab8fe6e1 100644
+--- a/fs/xfs/xfs_file.c
++++ b/fs/xfs/xfs_file.c
+@@ -928,14 +928,11 @@ xfs_file_remap_range(
+ 	loff_t		len,
+ 	unsigned int	remap_flags)
+ {
+-	int		ret;
+-
+ 	if (remap_flags & ~(REMAP_FILE_DEDUP | REMAP_FILE_ADVISORY))
+ 		return -EINVAL;
+ 
+-	ret = xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
++	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
+ 			len, remap_flags);
+-	return ret < 0 ? ret : len;
+ }
+ 
+ STATIC int
 diff --git a/fs/xfs/xfs_reflink.c b/fs/xfs/xfs_reflink.c
-index e8e86646bb4b..79dec457f7fb 100644
+index 79dec457f7fb..4abb2aea8f31 100644
 --- a/fs/xfs/xfs_reflink.c
 +++ b/fs/xfs/xfs_reflink.c
-@@ -1119,16 +1119,23 @@ xfs_reflink_remap_extent(
- STATIC int
- xfs_reflink_remap_blocks(
- 	struct xfs_inode	*src,
--	xfs_fileoff_t		srcoff,
-+	loff_t			pos_in,
+@@ -1122,13 +1122,15 @@ xfs_reflink_remap_blocks(
+ 	loff_t			pos_in,
  	struct xfs_inode	*dest,
--	xfs_fileoff_t		destoff,
--	xfs_filblks_t		len,
--	xfs_off_t		new_isize)
-+	loff_t			pos_out,
-+	loff_t			remap_len)
+ 	loff_t			pos_out,
+-	loff_t			remap_len)
++	loff_t			remap_len,
++	loff_t			*remapped)
  {
  	struct xfs_bmbt_irec	imap;
-+	xfs_fileoff_t		srcoff;
-+	xfs_fileoff_t		destoff;
-+	xfs_filblks_t		len;
-+	xfs_filblks_t		range_len;
-+	xfs_off_t		new_isize = pos_out + remap_len;
+ 	xfs_fileoff_t		srcoff;
+ 	xfs_fileoff_t		destoff;
+ 	xfs_filblks_t		len;
+ 	xfs_filblks_t		range_len;
++	xfs_filblks_t		remapped_len = 0;
+ 	xfs_off_t		new_isize = pos_out + remap_len;
  	int			nimaps;
  	int			error = 0;
--	xfs_filblks_t		range_len;
-+
-+	destoff = XFS_B_TO_FSBT(src->i_mount, pos_out);
-+	srcoff = XFS_B_TO_FSBT(src->i_mount, pos_in);
-+	len = XFS_B_TO_FSB(src->i_mount, remap_len);
- 
- 	/* drange = (destoff, destoff + len); srange = (srcoff, srcoff + len) */
- 	while (len) {
-@@ -1143,7 +1150,7 @@ xfs_reflink_remap_blocks(
- 		error = xfs_bmapi_read(src, srcoff, len, &imap, &nimaps, 0);
- 		xfs_iunlock(src, lock_mode);
- 		if (error)
--			goto err;
-+			break;
- 		ASSERT(nimaps == 1);
- 
- 		trace_xfs_reflink_remap_imap(src, srcoff, len, XFS_IO_OVERWRITE,
-@@ -1157,11 +1164,11 @@ xfs_reflink_remap_blocks(
- 		error = xfs_reflink_remap_extent(dest, &imap, destoff,
- 				new_isize);
- 		if (error)
--			goto err;
-+			break;
- 
- 		if (fatal_signal_pending(current)) {
- 			error = -EINTR;
--			goto err;
-+			break;
- 		}
- 
- 		/* Advance drange/srange */
-@@ -1170,10 +1177,8 @@ xfs_reflink_remap_blocks(
+@@ -1175,10 +1177,13 @@ xfs_reflink_remap_blocks(
+ 		srcoff += range_len;
+ 		destoff += range_len;
  		len -= range_len;
++		remapped_len += range_len;
  	}
  
--	return 0;
--
--err:
--	trace_xfs_reflink_remap_blocks_error(dest, error, _RET_IP_);
-+	if (error)
-+		trace_xfs_reflink_remap_blocks_error(dest, error, _RET_IP_);
+ 	if (error)
+ 		trace_xfs_reflink_remap_blocks_error(dest, error, _RET_IP_);
++	*remapped = min_t(loff_t, remap_len,
++			  XFS_FSB_TO_B(src->i_mount, remapped_len));
  	return error;
  }
  
-@@ -1396,8 +1401,6 @@ xfs_reflink_remap_range(
+@@ -1387,7 +1392,7 @@ xfs_reflink_remap_prep(
+ /*
+  * Link a range of blocks from one file to another.
+  */
+-int
++loff_t
+ xfs_reflink_remap_range(
+ 	struct file		*file_in,
+ 	loff_t			pos_in,
+@@ -1401,8 +1406,9 @@ xfs_reflink_remap_range(
  	struct inode		*inode_out = file_inode(file_out);
  	struct xfs_inode	*dest = XFS_I(inode_out);
  	struct xfs_mount	*mp = src->i_mount;
--	xfs_fileoff_t		sfsbno, dfsbno;
--	xfs_filblks_t		fsblen;
++	loff_t			remapped = 0;
  	xfs_extlen_t		cowextsize;
- 	ssize_t			ret;
+-	ssize_t			ret;
++	int			ret;
  
-@@ -1415,11 +1418,7 @@ xfs_reflink_remap_range(
+ 	if (!xfs_sb_version_hasreflink(&mp->m_sb))
+ 		return -EOPNOTSUPP;
+@@ -1418,7 +1424,8 @@ xfs_reflink_remap_range(
  
  	trace_xfs_reflink_remap_range(src, pos_in, len, dest, pos_out);
  
--	dfsbno = XFS_B_TO_FSBT(mp, pos_out);
--	sfsbno = XFS_B_TO_FSBT(mp, pos_in);
--	fsblen = XFS_B_TO_FSB(mp, len);
--	ret = xfs_reflink_remap_blocks(src, sfsbno, dest, dfsbno, fsblen,
--			pos_out + len);
-+	ret = xfs_reflink_remap_blocks(src, pos_in, dest, pos_out, len);
+-	ret = xfs_reflink_remap_blocks(src, pos_in, dest, pos_out, len);
++	ret = xfs_reflink_remap_blocks(src, pos_in, dest, pos_out, len,
++			&remapped);
  	if (ret)
  		goto out_unlock;
  
+@@ -1441,7 +1448,7 @@ xfs_reflink_remap_range(
+ 	xfs_reflink_remap_unlock(file_in, file_out);
+ 	if (ret)
+ 		trace_xfs_reflink_remap_range_error(dest, ret, _RET_IP_);
+-	return ret;
++	return remapped > 0 ? remapped : ret;
+ }
+ 
+ /*
+diff --git a/fs/xfs/xfs_reflink.h b/fs/xfs/xfs_reflink.h
+index c3c46c276fe1..cbc26ff79a8f 100644
+--- a/fs/xfs/xfs_reflink.h
++++ b/fs/xfs/xfs_reflink.h
+@@ -27,7 +27,7 @@ extern int xfs_reflink_cancel_cow_range(struct xfs_inode *ip, xfs_off_t offset,
+ extern int xfs_reflink_end_cow(struct xfs_inode *ip, xfs_off_t offset,
+ 		xfs_off_t count);
+ extern int xfs_reflink_recover_cow(struct xfs_mount *mp);
+-extern int xfs_reflink_remap_range(struct file *file_in, loff_t pos_in,
++extern loff_t xfs_reflink_remap_range(struct file *file_in, loff_t pos_in,
+ 		struct file *file_out, loff_t pos_out, loff_t len,
+ 		unsigned int remap_flags);
+ extern int xfs_reflink_inode_has_shared_extents(struct xfs_trans *tp,
