@@ -1,49 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D284A6B0005
-	for <linux-mm@kvack.org>; Sat, 20 Oct 2018 22:36:40 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b34-v6so22615749ede.5
-        for <linux-mm@kvack.org>; Sat, 20 Oct 2018 19:36:40 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b25-v6sor525250ejo.11.2018.10.20.19.36.39
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 678036B000D
+	for <linux-mm@kvack.org>; Sat, 20 Oct 2018 22:39:51 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id j9-v6so24039628plt.3
+        for <linux-mm@kvack.org>; Sat, 20 Oct 2018 19:39:51 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e192-v6sor16621497pgc.33.2018.10.20.19.39.50
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 20 Oct 2018 19:36:39 -0700 (PDT)
-Date: Sun, 21 Oct 2018 02:36:37 +0000
+        Sat, 20 Oct 2018 19:39:50 -0700 (PDT)
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [RFC] put page to pcp->lists[] tail if it is not on the same node
-Message-ID: <20181021023637.v6d3jjo65hc3nn7t@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20181019043303.s5axhjfb2v2lzsr3@master>
- <20181019083818.GQ5819@techsingularity.net>
- <20181020163318.72oqszgdtqfafycu@master>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181020163318.72oqszgdtqfafycu@master>
+Subject: [PATCH] mm: remove reset of pcp->counter in pageset_init()
+Date: Sun, 21 Oct 2018 10:39:20 +0800
+Message-Id: <20181021023920.5501-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, willy@infradead.org, mhocko@suse.com, linux-mm@kvack.org, akpm@linux-foundation.org
+To: akpm@linux-foundation.org, mhocko@suse.com
+Cc: linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-On Sat, Oct 20, 2018 at 04:33:18PM +0000, Wei Yang wrote:
->>
->>I suspect it would eventually cause a crash or at least weirdness as the
->>page zone ids would not match due to different nodes.
->>
->
->If my analysis is correct, there are only two relationship between page
->node_id of those pages in pcp and the pcp's node_id, either the same or
->not.
->
->Let me have a try with qemu emulated numa system. :-)
->
+per_cpu_pageset is cleared by memset, it is not necessary to reset it
+again.
 
-Just run an emulated sytem with 4 numa nodes in qemu, the kernel with
-this change looks good.
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+---
+ mm/page_alloc.c | 1 -
+ 1 file changed, 1 deletion(-)
 
-But nothing to be happy, just want you be informed.
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 15ea511fb41c..730fadd9b639 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5647,7 +5647,6 @@ static void pageset_init(struct per_cpu_pageset *p)
+ 	memset(p, 0, sizeof(*p));
+ 
+ 	pcp = &p->pcp;
+-	pcp->count = 0;
+ 	for (migratetype = 0; migratetype < MIGRATE_PCPTYPES; migratetype++)
+ 		INIT_LIST_HEAD(&pcp->lists[migratetype]);
+ }
 -- 
-Wei Yang
-Help you, Help me
+2.15.1
