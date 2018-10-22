@@ -1,99 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0990B6B0003
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 14:09:02 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id p18-v6so25576962ybe.0
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 11:09:02 -0700 (PDT)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id a15-v6si4214299ybs.443.2018.10.22.11.09.00
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 62ACB6B0003
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 14:48:21 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id g1-v6so4459439wrq.18
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 11:48:21 -0700 (PDT)
+Received: from fuzix.org (www.llwyncelyn.cymru. [82.70.14.225])
+        by mx.google.com with ESMTPS id f184-v6si10054884wme.36.2018.10.22.11.48.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Oct 2018 11:09:00 -0700 (PDT)
-From: Prateek Patel <prpatel@nvidia.com>
-Subject: [PATCH V2] kmemleak: Add config to select auto scan
-Date: Mon, 22 Oct 2018 23:38:43 +0530
-Message-ID: <1540231723-7087-1-git-send-email-prpatel@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 22 Oct 2018 11:48:19 -0700 (PDT)
+Date: Mon, 22 Oct 2018 19:48:17 +0100
+From: Alan Cox <gnomes@lxorguk.ukuu.org.uk>
+Subject: Re: 32-bit PTI with THP = userspace corruption
+Message-ID: <20181022194817.148796e6@alans-desktop>
+In-Reply-To: <20181022075642.icowfdg3y5wcam63@suse.de>
+References: <alpine.LRH.2.21.1808301639570.15669@math.ut.ee>
+	<20180830205527.dmemjwxfbwvkdzk2@suse.de>
+	<alpine.LRH.2.21.1808310711380.17865@math.ut.ee>
+	<20180831070722.wnulbbmillxkw7ke@suse.de>
+	<alpine.DEB.2.21.1809081223450.1402@nanos.tec.linutronix.de>
+	<20180911114927.gikd3uf3otxn2ekq@suse.de>
+	<alpine.LRH.2.21.1809111454100.29433@math.ut.ee>
+	<20180911121128.ikwptix6e4slvpt2@suse.de>
+	<20180918140030.248afa21@alans-desktop>
+	<20181021123745.GA26042@amd>
+	<20181022075642.icowfdg3y5wcam63@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: catalin.marinas@arm.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-tegra@vger.kernel.org, snikam@nvidia.com, vdumpa@nvidia.com, talho@nvidia.com, swarren@nvidia.com, prpatel@nvidia.com, Sri Krishna chowdary <schowdary@nvidia.com>
+To: Joerg Roedel <jroedel@suse.de>
+Cc: Pavel Machek <pavel@ucw.cz>, Meelis Roos <mroos@linux.ee>, Thomas Gleixner <tglx@linutronix.de>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-From: Sri Krishna chowdary <schowdary@nvidia.com>
+On Mon, 22 Oct 2018 09:56:42 +0200
+Joerg Roedel <jroedel@suse.de> wrote:
 
-Kmemleak scan can be cpu intensive and can stall user tasks at times.
-To prevent this, add config DEBUG_KMEMLEAK_AUTO_SCAN to enable/disable
-auto scan on boot up.
-Also protect first_run with DEBUG_KMEMLEAK_AUTO_SCAN as this is meant
-for only first automatic scan.
+> On Sun, Oct 21, 2018 at 02:37:45PM +0200, Pavel Machek wrote:
+> > On Tue 2018-09-18 14:00:30, Alan Cox wrote:  
+> > > There are pretty much no machines that don't support PAE and are still
+> > > even vaguely able to boot a modern Linux kernel. The oddity is the
+> > > Pentium-M but most distros shipped a hack to use PAE on the Pentium M
+> > > anyway as it seems to work fine.  
+> > 
+> > I do have some AMD Geode here, in form of subnotebook. Definitely
+> > newer then Pentium Ms, but no PAE...  
+> 
+> Are the AMD Geode chips affected by Meltdown?
 
-Signed-off-by: Sri Krishna chowdary <schowdary@nvidia.com>
-Signed-off-by: Sachin Nikam <snikam@nvidia.com>
-Signed-off-by: Prateek <prpatel@nvidia.com>
----
-v2:
-* change config name to DEBUG_KMEMLEAK_AUTO_SCAN from DEBUG_KMEMLEAK_SCAN_ON
-* use IS_ENABLED(...) instead of #ifdef ...
-* update commit message according to config name
----
- lib/Kconfig.debug | 15 +++++++++++++++
- mm/kmemleak.c     | 10 ++++++----
- 2 files changed, 21 insertions(+), 4 deletions(-)
+Geode for AMD was just a marketing name.
 
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index c958013..a14166d 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -593,6 +593,21 @@ config DEBUG_KMEMLEAK_DEFAULT_OFF
- 	  Say Y here to disable kmemleak by default. It can then be enabled
- 	  on the command line via kmemleak=on.
- 
-+config DEBUG_KMEMLEAK_AUTO_SCAN
-+	bool "Enable kmemleak auto scan thread on boot up"
-+	default y
-+	depends on DEBUG_KMEMLEAK
-+	help
-+	  Depending on the cpu, kmemleak scan may be cpu intensive and can
-+	  stall user tasks at times. This option enables/disables automatic
-+	  kmemleak scan at boot up.
-+
-+	  Say N here to disable kmemleak auto scan thread to stop automatic
-+	  scanning. Disabling this option disables automatic reporting of
-+	  memory leaks.
-+
-+	  If unsure, say Y.
-+
- config DEBUG_STACK_USAGE
- 	bool "Stack utilization instrumentation"
- 	depends on DEBUG_KERNEL && !IA64
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 877de4f..a614930 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -1647,7 +1647,7 @@ static void kmemleak_scan(void)
-  */
- static int kmemleak_scan_thread(void *arg)
- {
--	static int first_run = 1;
-+	static int first_run = IS_ENABLED(CONFIG_DEBUG_KMEMLEAK_AUTO_SCAN);
- 
- 	pr_info("Automatic memory scanning thread started\n");
- 	set_user_nice(current, 10);
-@@ -2141,9 +2141,11 @@ static int __init kmemleak_late_init(void)
- 		return -ENOMEM;
- 	}
- 
--	mutex_lock(&scan_mutex);
--	start_scan_thread();
--	mutex_unlock(&scan_mutex);
-+	if (IS_ENABLED(CONFIG_DEBUG_KMEMLEAK_AUTO_SCAN)) {
-+		mutex_lock(&scan_mutex);
-+		start_scan_thread();
-+		mutex_unlock(&scan_mutex);
-+	}
- 
- 	pr_info("Kernel memory leak detector initialized\n");
- 
--- 
-2.1.4
+The AMD athlon labelled as 'Geode' will behave like any other Athlon but
+I've not seen anyone successfully implement Meltdown on the Athlon so it's
+probably ok. 
+
+The earlier NatSemi ones are not AFAIK vulnerable to either. The later
+ones might do Spectre (they have branch prediction which is disabled on
+the earlier ones) but quite possibly not enough to be attacked usefully -
+and you can turn it off anyway if you care.
+
+And I doubt your subnotebook can usefully run modern Linux since the
+memory limit on most Geode was about 64MB.
+
+Alan
