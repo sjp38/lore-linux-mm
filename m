@@ -1,56 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 42DC06B0003
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 16:50:07 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id h16-v6so3734560qto.23
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 13:50:07 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id x50-v6si487373qvc.6.2018.10.22.13.50.06
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BCFF6B0006
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 16:54:37 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id w15-v6so30551475pge.2
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 13:54:37 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j32-v6sor21621709pgj.16.2018.10.22.13.54.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Oct 2018 13:50:06 -0700 (PDT)
-Date: Mon, 22 Oct 2018 16:06:17 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [kvm PATCH 1/2] mm: export __vmalloc_node_range()
-Message-ID: <20181022200617.GD14374@char.us.oracle.com>
-References: <20181020211200.255171-1-marcorr@google.com>
- <20181020211200.255171-2-marcorr@google.com>
+        (Google Transport Security);
+        Mon, 22 Oct 2018 13:54:35 -0700 (PDT)
+Date: Mon, 22 Oct 2018 13:54:33 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
+ mappings
+In-Reply-To: <20181015231953.GC30832@redhat.com>
+Message-ID: <alpine.DEB.2.21.1810221346130.120157@chino.kir.corp.google.com>
+References: <20181005232155.GA2298@redhat.com> <alpine.DEB.2.21.1810081303060.221006@chino.kir.corp.google.com> <20181009094825.GC6931@suse.de> <20181009122745.GN8528@dhcp22.suse.cz> <20181009130034.GD6931@suse.de> <20181009142510.GU8528@dhcp22.suse.cz>
+ <20181009230352.GE9307@redhat.com> <alpine.DEB.2.21.1810101410530.53455@chino.kir.corp.google.com> <alpine.DEB.2.21.1810151525460.247641@chino.kir.corp.google.com> <20181015154459.e870c30df5c41966ffb4aed8@linux-foundation.org>
+ <20181015231953.GC30832@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181020211200.255171-2-marcorr@google.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marc Orr <marcorr@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: kvm@vger.kernel.org, jmattson@google.com, rientjes@google.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
 
-On Sat, Oct 20, 2018 at 02:11:59PM -0700, Marc Orr wrote:
-> The __vmalloc_node_range() is in the include/linux/vmalloc.h file, but
-> it's not exported so it can't be used. This patch exports the API. The
-> motivation to export it is so that we can do aligned vmalloc's of KVM
-> vcpus.
+On Mon, 15 Oct 2018, Andrea Arcangeli wrote:
 
-Would it make more sense to change it to not have __ in front of it?
-Also you forgot to CC the linux-mm folks. Doing that for you.
+> > On Mon, 15 Oct 2018 15:30:17 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+> > >  Would it be possible to test with my 
+> > > patch[*] that does not try reclaim to address the thrashing issue?
+> > 
+> > Yes please.
+> 
+> It'd also be great if a testcase reproducing the 40% higher access
+> latency (with the one liner original fix) was available.
+> 
 
+I never said 40% higher access latency, I said 40% higher fault latency.  
+
+The higher access latency is 13.9% as measured on Haswell.
+
+The test case is rather trivial: fragment all memory with order-4 memory 
+to replicate a fragmented local zone, use sched_setaffinity() to bind to 
+that node, and fault a reasonable number of hugepages (128MB, 256, 
+whatever).  The cost of faulting remotely in this case was measured to be 
+40% higher than falling back to local small pages.  This occurs quite 
+obviously because you are thrashing the remote node trying to allocate 
+thp.
+
+> We don't have a testcase for David's 40% latency increase problem, but
+> that's likely to only happen when the system is somewhat low on memory
+> globally.
+
+Well, yes, but that's most of our systems.  We can't keep around gigabytes 
+of memory free just to work around this patch.  Removing __GFP_THISNODE to 
+avoid thrashing the local node obviously will incur a substantial 
+performance degradation if you thrash the remote node as well.  This 
+should be rather straight forward.
+
+> When there's 75% or more of the RAM free (not even allocated as easily
+> reclaimable pagecache) globally, you don't expect to hit heavy
+> swapping.
 > 
-> Signed-off-by: Marc Orr <marcorr@google.com>
-> ---
->  mm/vmalloc.c | 1 +
->  1 file changed, 1 insertion(+)
+
+I agree there is no regression introduced by your patch when 75% of memory 
+is free.
+
+> The 40% THP allocation latency increase if you use MADV_HUGEPAGE in
+> such window where all remote zones are fully fragmented is somehow
+> lesser of a concern in my view (plus there's the compact deferred
+> logic that should mitigate that scenario). Furthermore it is only a
+> concern for page faults in MADV_HUGEPAGE ranges. If MADV_HUGEPAGE is
+> set the userland allocation is long lived, so such higher allocation
+> latency won't risk to hit short lived allocations that don't set
+> MADV_HUGEPAGE (unless madvise=always, but that's not the default
+> precisely because not all allocations are long lived).
 > 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index a728fc492557..9e7974ab1da4 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -1763,6 +1763,7 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
->  			  "vmalloc: allocation failure: %lu bytes", real_size);
->  	return NULL;
->  }
-> +EXPORT_SYMBOL_GPL(__vmalloc_node_range);
->  
->  /**
->   *	__vmalloc_node  -  allocate virtually contiguous memory
-> -- 
-> 2.19.1.568.g152ad8e336-goog
+> If the MADV_HUGEPAGE using library was freely available it'd also be
+> nice.
 > 
+
+You scan your mappings for .text segments, map a hugepage-aligned region 
+sufficient in size, mremap() to that region, and do MADV_HUGEPAGE.
