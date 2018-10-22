@@ -1,63 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A3D86B0003
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 08:51:48 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id c1-v6so24617653eds.15
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 05:51:48 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 964836B0006
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 09:15:41 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id y23-v6so1864588eds.12
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 06:15:41 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g13-v6si3661017edp.57.2018.10.22.05.51.46
+        by mx.google.com with ESMTPS id k2-v6si2375104edh.40.2018.10.22.06.15.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Oct 2018 05:51:46 -0700 (PDT)
-Date: Mon, 22 Oct 2018 14:51:42 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 0/2] improve vmalloc allocation
-Message-ID: <20181022125142.GD18839@dhcp22.suse.cz>
-References: <20181019173538.590-1-urezki@gmail.com>
+        Mon, 22 Oct 2018 06:15:40 -0700 (PDT)
+Subject: Re: [PATCH 2/2] mm, thp: consolidate THP gfp handling into
+ alloc_hugepage_direct_gfpmask
+References: <20180925120326.24392-1-mhocko@kernel.org>
+ <20180925120326.24392-3-mhocko@kernel.org>
+ <20180926133039.y7o5x4nafovxzh2s@kshutemo-mobl1>
+ <20180926141708.GX6278@dhcp22.suse.cz> <20180926142227.GZ6278@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <26cb01ff-a094-79f4-7ceb-291e5e053c58@suse.cz>
+Date: Mon, 22 Oct 2018 15:15:38 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181019173538.590-1-urezki@gmail.com>
+In-Reply-To: <20180926142227.GZ6278@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Thomas Garnier <thgarnie@google.com>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt <rostedt@goodmis.org>, Joel Fernandes <joelaf@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Tejun Heo <tj@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Hi,
-I haven't read through the implementation yet but I have say that I
-really love this cover letter. It is clear on intetion, it covers design
-from high level enough to start discussion and provides a very nice
-testing coverage. Nice work!
-
-I also think that we need a better performing vmalloc implementation
-long term because of the increasing number of kvmalloc users.
-
-I just have two mostly workflow specific comments.
-
-> A test-suite patch you can find here, it is based on 4.18 kernel.
-> ftp://vps418301.ovh.net/incoming/0001-mm-vmalloc-stress-test-suite-v4.18.patch
-
-Can you fit this stress test into the standard self test machinery?
-
-> It is fixed by second commit in this series. Please see more description in
-> the commit message of the patch.
-
-Bug fixes should go first and new functionality should be built on top.
-A kernel crash sounds serious enough to have a fix marked for stable. If
-the fix is too hard/complex then we might consider a revert of the
-faulty commit.
+On 9/26/18 4:22 PM, Michal Hocko wrote:
+> On Wed 26-09-18 16:17:08, Michal Hocko wrote:
+>> On Wed 26-09-18 16:30:39, Kirill A. Shutemov wrote:
+>>> On Tue, Sep 25, 2018 at 02:03:26PM +0200, Michal Hocko wrote:
+>>>> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+>>>> index c3bc7e9c9a2a..c0bcede31930 100644
+>>>> --- a/mm/huge_memory.c
+>>>> +++ b/mm/huge_memory.c
+>>>> @@ -629,21 +629,40 @@ static vm_fault_t __do_huge_pmd_anonymous_page(struct vm_fault *vmf,
+>>>>   *	    available
+>>>>   * never: never stall for any thp allocation
+>>>>   */
+>>>> -static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
+>>>> +static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma, unsigned long addr)
+>>>>  {
+>>>>  	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
+>>>> +	gfp_t this_node = 0;
+>>>> +
+>>>> +#ifdef CONFIG_NUMA
+>>>> +	struct mempolicy *pol;
+>>>> +	/*
+>>>> +	 * __GFP_THISNODE is used only when __GFP_DIRECT_RECLAIM is not
+>>>> +	 * specified, to express a general desire to stay on the current
+>>>> +	 * node for optimistic allocation attempts. If the defrag mode
+>>>> +	 * and/or madvise hint requires the direct reclaim then we prefer
+>>>> +	 * to fallback to other node rather than node reclaim because that
+>>>> +	 * can lead to excessive reclaim even though there is free memory
+>>>> +	 * on other nodes. We expect that NUMA preferences are specified
+>>>> +	 * by memory policies.
+>>>> +	 */
+>>>> +	pol = get_vma_policy(vma, addr);
+>>>> +	if (pol->mode != MPOL_BIND)
+>>>> +		this_node = __GFP_THISNODE;
+>>>> +	mpol_cond_put(pol);
+>>>> +#endif
+>>>
+>>> I'm not very good with NUMA policies. Could you explain in more details how
+>>> the code above is equivalent to the code below?
+>>
+>> MPOL_PREFERRED is handled by policy_node() before we call __alloc_pages_nodemask.
+>> __GFP_THISNODE is applied only when we are not using
+>> __GFP_DIRECT_RECLAIM which is handled in alloc_hugepage_direct_gfpmask
+>> now.
+>> Lastly MPOL_BIND wasn't handled explicitly but in the end the removed
+>> late check would remove __GFP_THISNODE for it as well. So in the end we
+>> are doing the same thing unless I miss something
 > 
-> 3) This one is related to PCPU allocator(see pcpu_alloc_test()). In that
-> stress test case i see that SUnreclaim(/proc/meminfo) parameter gets increased,
-> i.e. there is a memory leek somewhere in percpu allocator. It sounds like
-> a memory that is allocated by pcpu_get_vm_areas() sometimes is not freed.
-> Resulting in memory leaking or "Kernel panic":
-> 
-> ---[ end Kernel panic - not syncing: Out of memory and no killable processes...
+> Forgot to add. One notable exception would be that the previous code
+> would allow to hit
+> 	WARN_ON_ONCE(policy->mode == MPOL_BIND && (gfp & __GFP_THISNODE));
+> in policy_node if the requested node (e.g. cpu local one) was outside of
+> the mbind nodemask. This is not possible now. We haven't heard about any
+> such warning yet so it is unlikely that it happens though.
 
-It would be great to pin point this one down before the rework as well.
-
-Thanks a lot!
--- 
-Michal Hocko
-SUSE Labs
+I don't think the previous code could hit the warning, as the hugepage
+path that would add __GFP_THISNODE didn't call policy_node() (containing
+the warning) at all. IIRC early of your patch did hit the warning
+though, which is why you added the MPOL_BIND policy check.
