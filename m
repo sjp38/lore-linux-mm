@@ -1,86 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 38A3C6B000C
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 03:13:46 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id t18-v6so21565380plo.16
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 00:13:46 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 19-v6sor20803810pft.4.2018.10.22.00.13.44
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B475A6B0010
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 03:16:27 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id h48-v6so23828901edh.22
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 00:16:27 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p29-v6si1860593eda.132.2018.10.22.00.16.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 22 Oct 2018 00:13:45 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Oct 2018 00:16:26 -0700 (PDT)
+Date: Mon, 22 Oct 2018 09:16:25 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH 2/2] memcg: do not report racy no-eligible OOM tasks
-Date: Mon, 22 Oct 2018 09:13:23 +0200
-Message-Id: <20181022071323.9550-3-mhocko@kernel.org>
-In-Reply-To: <20181022071323.9550-1-mhocko@kernel.org>
-References: <20181022071323.9550-1-mhocko@kernel.org>
+Subject: Re: [PATCH V2 1/5] mm/hugetlb: Enable PUD level huge page migration
+Message-ID: <20181022071625.GS18839@dhcp22.suse.cz>
+References: <1539316799-6064-1-git-send-email-anshuman.khandual@arm.com>
+ <1539316799-6064-2-git-send-email-anshuman.khandual@arm.com>
+ <20181019080959.GL18839@dhcp22.suse.cz>
+ <7d32fcdc-1ee3-7666-3b33-eda14ca8b380@arm.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <7d32fcdc-1ee3-7666-3b33-eda14ca8b380@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, suzuki.poulose@arm.com, punit.agrawal@arm.com, will.deacon@arm.com, Steven.Price@arm.com, steve.capper@arm.com, catalin.marinas@arm.com, akpm@linux-foundation.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
 
-From: Michal Hocko <mhocko@suse.com>
+On Mon 22-10-18 08:31:05, Anshuman Khandual wrote:
+> On 10/19/2018 01:39 PM, Michal Hocko wrote:
+> > I would probably fold it into the one which defines arch specific hook.
+> 
+> Hmm but that may be like doing two functionality changes together. Adding one
+> more conditional check and at the same time wrapping it over with a new name
+> which is part of a new scheme. I would suggest keeping the patches separate.
 
-Tetsuo has reported [1] that a single process group memcg might easily
-swamp the log with no-eligible oom victim reports due to race between
-the memcg charge and oom_reaper
+I will surely not insist. If you think it is better this way then no
+objections from me of course.
 
-Thread 1		Thread2				oom_reaper
-try_charge		try_charge
-			  mem_cgroup_out_of_memory
-			    mutex_lock(oom_lock)
-  mem_cgroup_out_of_memory
-    mutex_lock(oom_lock)
-			      out_of_memory
-			        select_bad_process
-				oom_kill_process(current)
-				  wake_oom_reaper
-							  oom_reap_task
-							  MMF_OOM_SKIP->victim
-			    mutex_unlock(oom_lock)
-    out_of_memory
-      select_bad_process # no task
-
-If Thread1 didn't race it would bail out from try_charge and force the
-charge. We can achieve the same by checking tsk_is_oom_victim inside
-the oom_lock and therefore close the race.
-
-[1] http://lkml.kernel.org/r/bb2074c0-34fe-8c2c-1c7d-db71338f1e7f@i-love.sakura.ne.jp
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/memcontrol.c | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e79cb59552d9..a9dfed29967b 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1380,10 +1380,22 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 		.gfp_mask = gfp_mask,
- 		.order = order,
- 	};
--	bool ret;
-+	bool ret = true;
- 
- 	mutex_lock(&oom_lock);
-+
-+	/*
-+	 * multi-threaded tasks might race with oom_reaper and gain
-+	 * MMF_OOM_SKIP before reaching out_of_memory which can lead
-+	 * to out_of_memory failure if the task is the last one in
-+	 * memcg which would be a false possitive failure reported
-+	 */
-+	if (tsk_is_oom_victim(current))
-+		goto unlock;
-+
- 	ret = out_of_memory(&oc);
-+
-+unlock:
- 	mutex_unlock(&oom_lock);
- 	return ret;
- }
 -- 
-2.19.1
+Michal Hocko
+SUSE Labs
