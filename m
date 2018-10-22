@@ -1,46 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 030BB6B0006
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 11:08:35 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id b76-v6so26944241ywb.11
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 08:08:34 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id x14-v6si463327ybk.301.2018.10.22.08.08.33
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1477F6B0006
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 11:13:03 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id e136-v6so28419352oib.11
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 08:13:03 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id l69si15754167otc.63.2018.10.22.08.13.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Oct 2018 08:08:33 -0700 (PDT)
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: Memory management issue in 4.18.15
-Date: Mon, 22 Oct 2018 15:08:22 +0000
-Message-ID: <20181022150815.GA4287@tower.DHCP.thefacebook.com>
-References: <CADa=ObrwYaoNFn0x06mvv5W1F9oVccT5qjGM8qFBGNPoNuMUNw@mail.gmail.com>
- <20181022083322.GE32333@dhcp22.suse.cz>
-In-Reply-To: <20181022083322.GE32333@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <691E3861403A884F9C13E463795DDAC2@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+        Mon, 22 Oct 2018 08:13:01 -0700 (PDT)
+Subject: Re: [RFC PATCH 2/2] memcg: do not report racy no-eligible OOM tasks
+References: <20181022071323.9550-1-mhocko@kernel.org>
+ <20181022071323.9550-3-mhocko@kernel.org>
+ <f9a8079f-55b0-301e-9b3d-a5250bd7d277@i-love.sakura.ne.jp>
+ <20181022120308.GB18839@dhcp22.suse.cz>
+ <0a84d3de-f342-c183-579b-d672c116ba25@i-love.sakura.ne.jp>
+ <20181022134315.GF18839@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <2deec266-2eaf-f754-ae94-d290f10c79ec@i-love.sakura.ne.jp>
+Date: Tue, 23 Oct 2018 00:12:48 +0900
 MIME-Version: 1.0
+In-Reply-To: <20181022134315.GF18839@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Spock <dairinin@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@surriel.com>, Johannes
- Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Shakeel Butt <shakeelb@google.com>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <alexander.levin@microsoft.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Oct 22, 2018 at 10:33:22AM +0200, Michal Hocko wrote:
-> Cc som more people.
->=20
-> I am wondering why 172b06c32b94 ("mm: slowly shrink slabs with a
-> relatively small number of objects") has been backported to the stable
-> tree when not marked that way. Put that aside it seems likely that the
-> upstream kernel will have the same issue I suspect. Roman, could you
-> have a look please?
+On 2018/10/22 22:43, Michal Hocko wrote:
+> On Mon 22-10-18 22:20:36, Tetsuo Handa wrote:
+>> I mean:
+>>
+>>  mm/memcontrol.c |   3 +-
+>>  mm/oom_kill.c   | 111 +++++---------------------------------------------------
+>>  2 files changed, 12 insertions(+), 102 deletions(-)
+> 
+> This is much larger change than I feel comfortable with to plug this
+> specific issue. A simple and easy to understand fix which doesn't add
+> maintenance burden should be preferred in general.
+> 
+> The code reduction looks attractive but considering it is based on
+> removing one of the heuristics to prevent OOM reports in some case it
+> should be done on its own with a careful and throughout justification.
+> E.g. how often is the heuristic really helpful.
 
-Sure, already looking... Spock provided some useful details, and I think,
-I know what's happening... Hope to propose a solution soon.
+I think the heuristic is hardly helpful.
 
-RE backporting: I'm slightly surprised that only one patch of the memcg
-reclaim fix series has been backported. Either all or none makes much more
-sense to me.
 
-Thanks!
+Regarding task_will_free_mem(current) condition in out_of_memory(),
+this served for two purposes. One is that mark_oom_victim() is not yet
+called on current thread group when mark_oom_victim() was already called
+on other thread groups. But such situation disappears by removing
+task_will_free_mem() shortcuts and forcing for_each_process(p) loop
+in __oom_kill_process().
+
+The other is that mark_oom_victim() is not yet called on any thread groups when
+all thread groups are exiting. In that case, we will fail to wait for current
+thread group to release its mm... But it is unlikely that only threads which
+task_will_free_mem(current) returns true can call out_of_memory() (note that
+task_will_free_mem(p) returns false if p->mm == NULL).
+
+
+I think it is highly unlikely to hit task_will_free_mem(p) condition
+in oom_kill_process(). To hit it, the candidate who was chosen due to
+the largest memory user has to be already exiting. However, if already
+exiting, it is likely the candidate already released its mm (and hence
+no longer the largest memory user). I can't say such race never happens,
+but I think it is unlikely. Also, since task_will_free_mem(p) returns false
+if thread group leader's mm is NULL whereas oom_badness() from
+select_bad_process() evaluates any mm in that thread group and returns
+a thread group leader, this heuristic is incomplete after all.
+
+> 
+> In principle I do not oppose to remove the shortcut after all due
+> diligence is done because this particular one had given us quite a lot
+> headaches in the past.
+> 
