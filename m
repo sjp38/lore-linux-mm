@@ -1,45 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A6316B0006
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 05:37:57 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id c13-v6so24229495ede.6
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 02:37:57 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b17-v6si17183728ejj.38.2018.10.22.02.37.55
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E945B6B0007
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 05:42:44 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id x30so20377340ota.7
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 02:42:44 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id 33si14947515otu.91.2018.10.22.02.42.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Oct 2018 02:37:55 -0700 (PDT)
-Subject: Re: [RFC v4 PATCH 3/5] mm/rmqueue_bulk: alloc without touching
- individual page structure
-References: <20181017063330.15384-1-aaron.lu@intel.com>
- <20181017063330.15384-4-aaron.lu@intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <b343cf1a-ea15-b70e-ff5a-e08d3dc5354d@suse.cz>
-Date: Mon, 22 Oct 2018 11:37:53 +0200
+        Mon, 22 Oct 2018 02:42:43 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/2] mm, oom: marks all killed tasks as oom victims
+References: <20181022071323.9550-1-mhocko@kernel.org>
+ <20181022071323.9550-2-mhocko@kernel.org>
+ <201810220758.w9M7wojE016890@www262.sakura.ne.jp>
+ <20181022084842.GW18839@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <f5b257f9-47a5-e071-02fa-ce901bd34b04@i-love.sakura.ne.jp>
+Date: Mon, 22 Oct 2018 18:42:30 +0900
 MIME-Version: 1.0
-In-Reply-To: <20181017063330.15384-4-aaron.lu@intel.com>
+In-Reply-To: <20181022084842.GW18839@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, Tariq Toukan <tariqt@mellanox.com>, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 10/17/18 8:33 AM, Aaron Lu wrote:
-> Profile on Intel Skylake server shows the most time consuming part
-> under zone->lock on allocation path is accessing those to-be-returned
-> page's "struct page" on the free_list inside zone->lock. One explanation
-> is, different CPUs are releasing pages to the head of free_list and
-> those page's 'struct page' may very well be cache cold for the allocating
-> CPU when it grabs these pages from free_list' head. The purpose here
-> is to avoid touching these pages one by one inside zone->lock.
+On 2018/10/22 17:48, Michal Hocko wrote:
+> On Mon 22-10-18 16:58:50, Tetsuo Handa wrote:
+>> Michal Hocko wrote:
+>>> --- a/mm/oom_kill.c
+>>> +++ b/mm/oom_kill.c
+>>> @@ -898,6 +898,7 @@ static void __oom_kill_process(struct task_struct *victim)
+>>>  		if (unlikely(p->flags & PF_KTHREAD))
+>>>  			continue;
+>>>  		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, PIDTYPE_TGID);
+>>> +		mark_oom_victim(p);
+>>>  	}
+>>>  	rcu_read_unlock();
+>>>  
+>>> -- 
+>>
+>> Wrong. Either
+> 
+> You are right. The mm might go away between process_shares_mm and here.
+> While your find_lock_task_mm would be correct I believe we can do better
+> by using the existing mm that we already have. I will make it a separate
+> patch to clarity.
 
-What about making the pages cache-hot first, without zone->lock, by
-traversing via page->lru. It would need some safety checks obviously
-(maybe based on page_to_pfn + pfn_valid, or something) to make sure we
-only read from real struct pages in case there's some update racing. The
-worst case would be not populating enough due to race, and thus not
-gaining the performance when doing the actual rmqueueing under lock.
+Still wrong. p->mm == NULL means that we are too late to set TIF_MEMDIE
+on that thread. Passing non-NULL mm to mark_oom_victim() won't help.
 
-Vlastimil
+> @@ -898,7 +897,7 @@ static void __oom_kill_process(struct task_struct *victim)
+>  		if (unlikely(p->flags & PF_KTHREAD))
+>  			continue;
+>  		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, PIDTYPE_TGID);
+> -		mark_oom_victim(p);
+> +		mark_oom_victim(p, mm);
+>  	}
+>  	rcu_read_unlock();
+>  
