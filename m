@@ -1,113 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0647D6B0003
-	for <linux-mm@kvack.org>; Sun, 21 Oct 2018 21:20:11 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id d16-v6so31845185wrr.17
-        for <linux-mm@kvack.org>; Sun, 21 Oct 2018 18:20:10 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CB8456B0006
+	for <linux-mm@kvack.org>; Sun, 21 Oct 2018 21:24:09 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id v18-v6so1943418edq.23
+        for <linux-mm@kvack.org>; Sun, 21 Oct 2018 18:24:09 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o18-v6sor18289891wru.46.2018.10.21.18.20.08
+        by mx.google.com with SMTPS id b28-v6sor21893174edc.13.2018.10.21.18.24.08
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 21 Oct 2018 18:20:09 -0700 (PDT)
+        Sun, 21 Oct 2018 18:24:08 -0700 (PDT)
+Date: Mon, 22 Oct 2018 01:24:06 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [RFC] put page to pcp->lists[] tail if it is not on the same node
+Message-ID: <20181022012406.7qenlvgabt2s34as@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181019043303.s5axhjfb2v2lzsr3@master>
+ <20181019083818.GQ5819@techsingularity.net>
+ <20181020163318.72oqszgdtqfafycu@master>
+ <20181021121251.GA8041@techsingularity.net>
 MIME-Version: 1.0
-References: <CADF2uSroEHML=v7hjQ=KLvK9cuP9=YcRUy9MiStDc0u+BxTApg@mail.gmail.com>
- <6ef03395-6baa-a6e5-0d5a-63d4721e6ec0@suse.cz> <20180823122111.GG29735@dhcp22.suse.cz>
- <CADF2uSpnYp31mr6q3Mnx0OBxCDdu6NFCQ=LTeG61dcfAJB5usg@mail.gmail.com>
- <76c6e92b-df49-d4b5-27f7-5f2013713727@suse.cz> <CADF2uSrNoODvoX_SdS3_127-aeZ3FwvwnhswoGDN0wNM2cgvbg@mail.gmail.com>
- <8b211f35-0722-cd94-1360-a2dd9fba351e@suse.cz> <CADF2uSoDFrEAb0Z-w19Mfgj=Tskqrjh_h=N6vTNLXcQp7jdTOQ@mail.gmail.com>
- <20180829150136.GA10223@dhcp22.suse.cz> <CADF2uSoViODBbp4OFHTBhXvgjOVL8ft1UeeaCQjYHZM0A=p-dA@mail.gmail.com>
- <20180829152716.GB10223@dhcp22.suse.cz> <CADF2uSoG_RdKF0pNMBaCiPWGq3jn1VrABbm-rSnqabSSStixDw@mail.gmail.com>
-In-Reply-To: <CADF2uSoG_RdKF0pNMBaCiPWGq3jn1VrABbm-rSnqabSSStixDw@mail.gmail.com>
-From: Marinko Catovic <marinko.catovic@gmail.com>
-Date: Mon, 22 Oct 2018 03:19:57 +0200
-Message-ID: <CADF2uSpiD9t-dF6bp-3-EnqWK9BBEwrfp69=_tcxUOLk_DytUA@mail.gmail.com>
-Subject: Re: Caching/buffers become useless after some time
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181021121251.GA8041@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Christopher Lameter <cl@linux.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Wei Yang <richard.weiyang@gmail.com>, willy@infradead.org, mhocko@suse.com, linux-mm@kvack.org, akpm@linux-foundation.org
 
-Am Mi., 29. Aug. 2018 um 18:44 Uhr schrieb Marinko Catovic
-<marinko.catovic@gmail.com>:
+On Sun, Oct 21, 2018 at 01:12:51PM +0100, Mel Gorman wrote:
+>On Sat, Oct 20, 2018 at 04:33:18PM +0000, Wei Yang wrote:
+>> >Pages from remote nodes are not placed on local lists. Even in the slab
+>> >context, such objects are placed on alien caches which have special
+>> >handling.
+>> >
+>> 
+>> Hmm... I am not sure get your point correctly.
+>> 
 >
->
->> > one host is at a healthy state right now, I'd run that over there immediately.
->>
->> Let's see what we can get from here.
->
->
-> oh well, that went fast. actually with having low values for buffers (around 100MB) with caches
-> around 20G or so, the performance was nevertheless super-low, I really had to drop
-> the caches right now. This is the first time I see it with caches >10G happening, but hopefully
-> this also provides a clue for you.
->
-> Just after starting the stats I reset from previously defer to madvise - I suspect that this somehow
-> caused the rapid reaction, since a few minutes later I saw that the free RAM jumped from 5GB to 10GB,
-> after that I went afk, returning to the pc since my monitoring systems went crazy telling me about downtime.
->
-> If you think changing /sys/kernel/mm/transparent_hugepage/defrag back to its default, while it was
-> on defer now for days, was a mistake, then please tell me.
->
-> here you go: https://nofile.io/f/VqRg644AT01/vmstat.tar.gz
-> trace_pipe: https://nofile.io/f/wFShvZScpvn/trace_pipe.gz
+>The point is that one list should not contain a mix of pages belonging to
+>different nodes or zones or it'll result in unexpected behaviour. If you
+>are just shuffling the ordering of pages in the list, it needs justification
+>as to why that makes sense.
 >
 
-There we go again.
+Yep, you are right :-)
 
-First of all, I have set up this monitoring on 1 host, as a matter of
-fact it did not occur on that single
-one for days and weeks now, so I set this up again on all the hosts
-and it just happened again on another one.
+>-- 
+>Mel Gorman
+>SUSE Labs
 
-This issue is far from over, even when upgrading to the latest 4.18.12
-
-https://nofile.io/f/z2KeNwJSMDj/vmstat-2.zip
-https://nofile.io/f/5ezPUkFWtnx/trace_pipe-2.gz
-
-Please note: the trace_pipe is quite big in size, but it covers a
-full-RAM to unused-RAM within just ~24 hours,
-the measurements were initiated right after echo 3 > drop_caches and
-stopped when the RAM was unused
-aka re-used after another echo 3 in the end.
-
-This issue is alive for about half a year now, any suggestions, hints
-or solutions are greatly appreciated,
-again, I can not possibly be the only one experiencing this, I just
-may be among the few ones who actually
-notice this and are indeed suffering from very poor performance with
-lots of I/O on cache/buffers.
-
-Also, I'd like to ask for a workaround until this is fixed someday:
-echo 3 > drop_caches can take a very
-long time when the host is busy with I/O in the background. According
-to some resources in the net I discovered
-that dropping caches operates until some lower threshold is reached,
-which is less and less likely, when the
-host is really busy. Could one point out what threshold this is perhaps?
-I was thinking of e.g. mm/vmscan.c
-
- 549 void drop_slab_node(int nid)
- 550 {
- 551         unsigned long freed;
- 552
- 553         do {
- 554                 struct mem_cgroup *memcg = NULL;
- 555
- 556                 freed = 0;
- 557                 do {
- 558                         freed += shrink_slab(GFP_KERNEL, nid, memcg, 0);
- 559                 } while ((memcg = mem_cgroup_iter(NULL, memcg,
-NULL)) != NULL);
- 560         } while (freed > 10);
- 561 }
-
-..would it make sense to increase > 10 here with, for example, > 100 ?
-I could easily adjust this, or any other relevant threshold, since I
-am compiling the kernel in use.
-
-I'd just like it to be able to finish dropping caches to achieve the
-workaround here until this issue is fixed,
-which as mentioned, can take hours on a busy host, causing the host to
-hang (having low performance) since
-buffers/caches are not used at that time while drop_caches is being
-set to 3, until that freeing up is finished.
+-- 
+Wei Yang
+Help you, Help me
