@@ -1,65 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id ADC726B0003
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 09:53:48 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id c13-v6so24659987ede.6
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 06:53:48 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l8-v6si10165346eje.206.2018.10.22.06.53.47
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 334946B0008
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 10:00:56 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id z26-v6so48461971qtz.4
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 07:00:56 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q6sor14043207qvf.24.2018.10.22.07.00.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Oct 2018 06:53:47 -0700 (PDT)
-Subject: Re: [PATCH 2/2] mm, thp: consolidate THP gfp handling into
- alloc_hugepage_direct_gfpmask
-References: <20180925120326.24392-1-mhocko@kernel.org>
- <20180925120326.24392-3-mhocko@kernel.org>
- <20180926133039.y7o5x4nafovxzh2s@kshutemo-mobl1>
- <20180926141708.GX6278@dhcp22.suse.cz> <20180926142227.GZ6278@dhcp22.suse.cz>
- <26cb01ff-a094-79f4-7ceb-291e5e053c58@suse.cz>
- <20181022133058.GE18839@dhcp22.suse.cz>
- <18476b0b-7300-f340-5845-9de0a019c65c@suse.cz>
- <20181022134657.GG18839@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <ccbf8264-8408-bfff-9da3-3408a4a7446e@suse.cz>
-Date: Mon, 22 Oct 2018 15:53:45 +0200
+        (Google Transport Security);
+        Mon, 22 Oct 2018 07:00:54 -0700 (PDT)
+From: "Zi Yan" <zi.yan@cs.rutgers.edu>
+Subject: Re: [PATCH] mm/thp: Correctly differentiate between mapped THP and
+ PMD migration entry
+Date: Mon, 22 Oct 2018 10:00:53 -0400
+Message-ID: <781B64F4-99AA-4771-B1E7-5B71896D4006@cs.rutgers.edu>
+In-Reply-To: <20181017020930.GN30832@redhat.com>
+References: <1539057538-27446-1-git-send-email-anshuman.khandual@arm.com>
+ <7E8E6B14-D5C4-4A30-840D-A7AB046517FB@cs.rutgers.edu>
+ <84509db4-13ce-fd53-e924-cc4288d493f7@arm.com>
+ <1968F276-5D96-426B-823F-38F6A51FB465@cs.rutgers.edu>
+ <5e0e772c-7eef-e75c-2921-e80d4fbe8324@arm.com>
+ <2398C491-E1DA-4B3C-B60A-377A09A02F1A@cs.rutgers.edu>
+ <20181017020930.GN30832@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20181022134657.GG18839@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed;
+ boundary="=_MailMate_D856A4E0-C8A9-4444-BE45-64A95EE50944_=";
+ micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, will.deacon@arm.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On 10/22/18 3:46 PM, Michal Hocko wrote:
-> On Mon 22-10-18 15:35:24, Vlastimil Babka wrote:
->> On 10/22/18 3:30 PM, Michal Hocko wrote:
->>> On Mon 22-10-18 15:15:38, Vlastimil Babka wrote:
->>>>> Forgot to add. One notable exception would be that the previous code
->>>>> would allow to hit
->>>>> 	WARN_ON_ONCE(policy->mode == MPOL_BIND && (gfp & __GFP_THISNODE));
->>>>> in policy_node if the requested node (e.g. cpu local one) was outside of
->>>>> the mbind nodemask. This is not possible now. We haven't heard about any
->>>>> such warning yet so it is unlikely that it happens though.
->>>>
->>>> I don't think the previous code could hit the warning, as the hugepage
->>>> path that would add __GFP_THISNODE didn't call policy_node() (containing
->>>> the warning) at all. IIRC early of your patch did hit the warning
->>>> though, which is why you added the MPOL_BIND policy check.
->>>
->>> Are you sure? What prevents node_isset(node, policy_nodemask()) == F and
->>> fallback to the !huge allocation path?
->>
->> That can indeed happen, but then the code also skipped the "gfp |=
->> __GFP_THISNODE" part, right? So the warning wouldn't trigger.
-> 
-> I thought I have crawled all the code paths back then but maybe there
-> were some phantom ones... If you are sure about then we can stick with
-> the original changelog.
+This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
 
-The __GFP_THISNODE would have to already be set in the 'gfp' parameter
-of alloc_pages_vma(), and alloc_hugepage_direct_gfpmask() could not add
-it. So in the context of alloc_hugepage_direct_gfpmask() users I believe
-the patch is not removing nor adding the possibility of the warning to
-trigger.
+--=_MailMate_D856A4E0-C8A9-4444-BE45-64A95EE50944_=
+Content-Type: text/plain; charset=utf-8; markup=markdown
+Content-Transfer-Encoding: quoted-printable
+
+Hi Andrea,
+
+On 16 Oct 2018, at 22:09, Andrea Arcangeli wrote:
+
+> Hello Zi,
+>
+> On Sun, Oct 14, 2018 at 08:53:55PM -0400, Zi Yan wrote:
+>> Hi Andrea, what is the purpose/benefit of making x86=E2=80=99s pmd_pre=
+sent() returns true
+>> for a THP under splitting? Does it cause problems when ARM64=E2=80=99s=
+ pmd_present()
+>> returns false in the same situation?
+>
+> !pmd_present means it's a migration entry or swap entry and doesn't
+> point to RAM. It means if you do pmd_to_page(*pmd) it will return you
+> an undefined result.
+>
+> During splitting the physical page is still very well pointed by the
+> pmd as long as pmd_trans_huge returns true and you hold the
+> pmd_lock.
+>
+> pmd_trans_huge must be true at all times for a transhuge pmd that
+> points to a hugepage, or all VM fast paths won't serialize with the
+> pmd_lock, that is the only reason why, and it's a very good reason
+> because it avoids to take the pmd_lock when walking over non transhuge
+> pmds (i.e. when there are no THP allocated).
+>
+> Now if we've to keep _PAGE_PSE set and return true in pmd_trans_huge
+> at all times, why would you want to make pmd_present return false? How
+> could it help if pmd_trans_huge returns true, but pmd_present returns
+> false despite pmd_to_page works fine and the pmd is really still
+> pointing to the page?
+>
+> When userland faults on such pmd !pmd_present it will make the page
+> fault take a swap or migration path, but that's the wrong path if the
+> pmd points to RAM.
+>
+> What we need to do during split is an invalidate of the huge TLB.
+> There's no pmd_trans_splitting anymore, so we only clear the present
+> bit in the PTE despite pmd_present still returns true (just like
+> PROT_NONE, nothing new in this respect). pmd_present never meant the
+> real present bit in the pte was set, it just means the pmd points to
+> RAM. It means it doesn't point to swap or migration entry and you can
+> do pmd_to_page and it works fine.
+>
+> We need to invalidate the TLB by clearing the present bit and by
+> flushing the TLB before overwriting the transhuge pmd with the regular
+> pte (i.e. to make it non huge). That is actually required by an errata
+> (l1 cache aliasing of the same mapping through two different TLB of
+> two different sizes broke some old CPU and triggered machine checks).
+> It's not something fundamentally necessary from a common code point of
+> view. It's more risky from an hardware (not software) standpoint and
+> before you can get rid of the pmd you need to do a TLB flush anyway to
+> be sure CPUs stops using it, so better clear the present bit before
+> doing the real costly thing (the tlb flush with IPIs). Clearing the
+> present bit during the TLB flush is a cost that gets lost in the noise.=
+
+>
+> The clear of the real present bit during pmd (virtual) splitting is
+> done with pmdp_invalidate, that is created specifically to keeps
+> pmd_trans_huge=3Dtrue, pmd_present=3Dtrue despite the present bit is no=
+t
+> set. So you could imagine _PAGE_PSE as the real present bit.
+>
+> Before the physical split was deferred and decoupled from the virtual
+> memory pmd split, pmd_trans_splitting allowed to wait the split to
+> finish and to keep all gup_fast at bay during it (while the page was
+> still mapped readable and writable in userland by other CPUs). Now the
+> physical split is deferred so you just split the pmd locally and only
+> a physical split invoked on the page (not the virtual split invoked on
+> the pmd with split_huge_pmd) has to keep gup at bay, and it does so by
+> freezing the refcount so all gup_fast fail with the
+> page_cache_get_speculative during the freeze. This removed the need of
+> the pmd_splitting flag in gup_fast (when pmd_splitting was set gup
+> fast had to go through the non-fast gup), but it means that now a
+> hugepage cannot be physically splitted if it's gup pinned. The main
+> difference is that freezing the refcount can fail, so the code must
+> learn to cope with such failure and defer it. Decoupling the physical
+> and virtual splits introduced the need of tracking the doublemap case
+> with a new PG_double_map flag too. It makes the refcounting of
+> hugepages trivial in comparison (identical to hugetlbfs in fact), but
+> it requires total_mapcount to account for all those huge and non huge
+> mappings. It primarily pays off to add THP to tmpfs where the physical
+> split may have to be deferred for pagecache reasons anyway.
+
+Thanks for your detailed explanation!
+
+Do you think it is worth documenting what you have said? At least on
+why we want pmd_present() and pmd_trans_huge() both return true when
+a THP is under splitting, so that we can avoid some confusion in the futu=
+re.
+I can send a patch to add it to Document/vm/transhuge.rst.
+
+--
+Best Regards
+Yan Zi
+
+--=_MailMate_D856A4E0-C8A9-4444-BE45-64A95EE50944_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename=signature.asc
+Content-Type: application/pgp-signature; name=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - https://gpgtools.org
+
+iQFKBAEBCgA0FiEEOXBxLIohamfZUwd5QYsvEZxOpswFAlvN2BUWHHppLnlhbkBj
+cy5ydXRnZXJzLmVkdQAKCRBBiy8RnE6mzKijCACXzk7Z7ghLl/WE6OAInRORCuUL
+3TrfdqnHY2Qr8qOUF5MPq9Blwe9oTXLlByAq1zUUeo+mQaHBDOZTjBSvBOgGOtYN
+w0O+uWkJwwKfp71K2FPqcOLX76he6U8M09bBIoRlstz55TMtxkm2E/s+PtR0dfxD
+fETDmJ54d5wyI+La0VB+g9c1vRBRDVgWBft7kcIhtdRBTVl/RF8QMlP/Jp2lEhZ9
+0xWpvA9htEpBU11S/2mjE04zxAQxK1+LK6S1OVsJfeVIl3twEnOdMkZp4IzhYcj4
+JtmihDCROp1d2ps2IM9hnuYXieYB0q3dzAo5O5dHPaILKKGLxmese6rRNDlU
+=qKvb
+-----END PGP SIGNATURE-----
+
+--=_MailMate_D856A4E0-C8A9-4444-BE45-64A95EE50944_=--
