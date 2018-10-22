@@ -1,50 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EB916B0003
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 03:56:45 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id e49-v6so20253859edd.20
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 00:56:45 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y18-v6si4044114ejp.13.2018.10.22.00.56.43
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B2416B0006
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 03:59:01 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id m7-v6so37840144iop.9
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 00:59:01 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id v11si8055937itj.98.2018.10.22.00.58.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Oct 2018 00:56:43 -0700 (PDT)
-Date: Mon, 22 Oct 2018 09:56:42 +0200
-From: Joerg Roedel <jroedel@suse.de>
-Subject: Re: 32-bit PTI with THP = userspace corruption
-Message-ID: <20181022075642.icowfdg3y5wcam63@suse.de>
-References: <alpine.LRH.2.21.1808301639570.15669@math.ut.ee>
- <20180830205527.dmemjwxfbwvkdzk2@suse.de>
- <alpine.LRH.2.21.1808310711380.17865@math.ut.ee>
- <20180831070722.wnulbbmillxkw7ke@suse.de>
- <alpine.DEB.2.21.1809081223450.1402@nanos.tec.linutronix.de>
- <20180911114927.gikd3uf3otxn2ekq@suse.de>
- <alpine.LRH.2.21.1809111454100.29433@math.ut.ee>
- <20180911121128.ikwptix6e4slvpt2@suse.de>
- <20180918140030.248afa21@alans-desktop>
- <20181021123745.GA26042@amd>
+        Mon, 22 Oct 2018 00:59:00 -0700 (PDT)
+Message-Id: <201810220758.w9M7wojE016890@www262.sakura.ne.jp>
+Subject: Re: [RFC PATCH 1/2] mm, oom: marks all killed tasks as oom victims
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181021123745.GA26042@amd>
+Date: Mon, 22 Oct 2018 16:58:50 +0900
+References: <20181022071323.9550-1-mhocko@kernel.org> <20181022071323.9550-2-mhocko@kernel.org>
+In-Reply-To: <20181022071323.9550-2-mhocko@kernel.org>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Meelis Roos <mroos@linux.ee>, Thomas Gleixner <tglx@linutronix.de>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Sun, Oct 21, 2018 at 02:37:45PM +0200, Pavel Machek wrote:
-> On Tue 2018-09-18 14:00:30, Alan Cox wrote:
-> > There are pretty much no machines that don't support PAE and are still
-> > even vaguely able to boot a modern Linux kernel. The oddity is the
-> > Pentium-M but most distros shipped a hack to use PAE on the Pentium M
-> > anyway as it seems to work fine.
-> 
-> I do have some AMD Geode here, in form of subnotebook. Definitely
-> newer then Pentium Ms, but no PAE...
+Michal Hocko wrote:
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -898,6 +898,7 @@ static void __oom_kill_process(struct task_struct *victim)
+>  		if (unlikely(p->flags & PF_KTHREAD))
+>  			continue;
+>  		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, PIDTYPE_TGID);
+> +		mark_oom_victim(p);
+>  	}
+>  	rcu_read_unlock();
+>  
+> -- 
 
-Are the AMD Geode chips affected by Meltdown?
+Wrong. Either
 
+---
+ mm/oom_kill.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
-Regards,
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index f10aa53..99b36ff 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -879,6 +879,8 @@ static void __oom_kill_process(struct task_struct *victim)
+ 	 */
+ 	rcu_read_lock();
+ 	for_each_process(p) {
++		struct task_struct *t;
++
+ 		if (!process_shares_mm(p, mm))
+ 			continue;
+ 		if (same_thread_group(p, victim))
+@@ -898,6 +900,11 @@ static void __oom_kill_process(struct task_struct *victim)
+ 		if (unlikely(p->flags & PF_KTHREAD))
+ 			continue;
+ 		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, PIDTYPE_TGID);
++		t = find_lock_task_mm(p);
++		if (!t)
++			continue;
++		mark_oom_victim(t);
++		task_unlock(t);
+ 	}
+ 	rcu_read_unlock();
+ 
+-- 
+1.8.3.1
 
-	Joerg
+or
+
+---
+ mm/oom_kill.c | 32 +++++++++++++++++++-------------
+ 1 file changed, 19 insertions(+), 13 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index f10aa53..7fa9b7c 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -854,13 +854,6 @@ static void __oom_kill_process(struct task_struct *victim)
+ 	count_vm_event(OOM_KILL);
+ 	memcg_memory_event_mm(mm, MEMCG_OOM_KILL);
+ 
+-	/*
+-	 * We should send SIGKILL before granting access to memory reserves
+-	 * in order to prevent the OOM victim from depleting the memory
+-	 * reserves from the user space under its control.
+-	 */
+-	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, PIDTYPE_TGID);
+-	mark_oom_victim(victim);
+ 	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+ 		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
+ 		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
+@@ -879,11 +872,23 @@ static void __oom_kill_process(struct task_struct *victim)
+ 	 */
+ 	rcu_read_lock();
+ 	for_each_process(p) {
+-		if (!process_shares_mm(p, mm))
++		struct task_struct *t;
++
++		/*
++		 * No use_mm() user needs to read from the userspace so we are
++		 * ok to reap it.
++		 */
++		if (unlikely(p->flags & PF_KTHREAD))
++			continue;
++		t = find_lock_task_mm(p);
++		if (!t)
+ 			continue;
+-		if (same_thread_group(p, victim))
++		if (likely(t->mm != mm)) {
++			task_unlock(t);
+ 			continue;
++		}
+ 		if (is_global_init(p)) {
++			task_unlock(t);
+ 			can_oom_reap = false;
+ 			set_bit(MMF_OOM_SKIP, &mm->flags);
+ 			pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
+@@ -892,12 +897,13 @@ static void __oom_kill_process(struct task_struct *victim)
+ 			continue;
+ 		}
+ 		/*
+-		 * No use_mm() user needs to read from the userspace so we are
+-		 * ok to reap it.
++		 * We should send SIGKILL before granting access to memory
++		 * reserves in order to prevent the OOM victim from depleting
++		 * the memory reserves from the user space under its control.
+ 		 */
+-		if (unlikely(p->flags & PF_KTHREAD))
+-			continue;
+ 		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, PIDTYPE_TGID);
++		mark_oom_victim(t);
++		task_unlock(t);
+ 	}
+ 	rcu_read_unlock();
+ 
+-- 
+1.8.3.1
+
+will be needed.
