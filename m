@@ -1,73 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AD8E26B0003
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 15:43:33 -0400 (EDT)
-Received: by mail-it1-f199.google.com with SMTP id m67-v6so12773654ita.8
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 12:43:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q185-v6sor21214000itd.33.2018.10.22.12.43.32
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BC2C6B0003
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 16:18:38 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id j9-v6so27750468plt.3
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 13:18:38 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id m16-v6si35901816pgd.48.2018.10.22.13.18.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 22 Oct 2018 12:43:32 -0700 (PDT)
-Date: Mon, 22 Oct 2018 13:43:29 -0600
-From: Jason Gunthorpe <jgg@ziepe.ca>
-Subject: Re: [PATCH v4 2/3] mm: introduce put_user_page*(), placeholder
- versions
-Message-ID: <20181022194329.GG30059@ziepe.ca>
-References: <20181008211623.30796-1-jhubbard@nvidia.com>
- <20181008211623.30796-3-jhubbard@nvidia.com>
- <20181008171442.d3b3a1ea07d56c26d813a11e@linux-foundation.org>
- <5198a797-fa34-c859-ff9d-568834a85a83@nvidia.com>
- <20181010164541.ec4bf53f5a9e4ba6e5b52a21@linux-foundation.org>
- <20181011084929.GB8418@quack2.suse.cz>
- <20181011132013.GA5968@ziepe.ca>
- <97e89e08-5b94-240a-56e9-ece2b91f6dbc@nvidia.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <97e89e08-5b94-240a-56e9-ece2b91f6dbc@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Oct 2018 13:18:36 -0700 (PDT)
+Subject: [PATCH 0/9] Allow persistent memory to be used like normal RAM
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Date: Mon, 22 Oct 2018 13:13:17 -0700
+Message-Id: <20181022201317.8558C1D8@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Ralph Campbell <rcampbell@nvidia.com>
+To: linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, dan.j.williams@intel.com, dave.jiang@intel.com, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, akpm@linux-foundation.org, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, ying.huang@intel.com, fengguang.wu@intel.com
 
-On Thu, Oct 11, 2018 at 06:23:24PM -0700, John Hubbard wrote:
-> On 10/11/18 6:20 AM, Jason Gunthorpe wrote:
-> > On Thu, Oct 11, 2018 at 10:49:29AM +0200, Jan Kara wrote:
-> > 
-> >>> This is a real worry.  If someone uses a mistaken put_page() then how
-> >>> will that bug manifest at runtime?  Under what set of circumstances
-> >>> will the kernel trigger the bug?
-> >>
-> >> At runtime such bug will manifest as a page that can never be evicted from
-> >> memory. We could warn in put_page() if page reference count drops below
-> >> bare minimum for given user pin count which would be able to catch some
-> >> issues but it won't be 100% reliable. So at this point I'm more leaning
-> >> towards making get_user_pages() return a different type than just
-> >> struct page * to make it much harder for refcount to go wrong...
-> > 
-> > At least for the infiniband code being used as an example here we take
-> > the struct page from get_user_pages, then stick it in a sgl, and at
-> > put_page time we get the page back out of the sgl via sg_page()
-> > 
-> > So type safety will not help this case... I wonder how many other
-> > users are similar? I think this is a pretty reasonable flow for DMA
-> > with user pages.
-> > 
-> 
-> That is true. The infiniband code, fortunately, never mixes the two page
-> types into the same pool (or sg list), so it's actually an easier example
-> than some other subsystems. But, yes, type safety doesn't help there. I can 
-> take a moment to look around at the other areas, to quantify how much a type
-> safety change might help.
+Persistent memory is cool.  But, currently, you have to rewrite
+your applications to use it.  Wouldn't it be cool if you could
+just have it show up in your system like normal RAM and get to
+it like a slow blob of memory?  Well... have I got the patch
+series for you!
 
-Are most (all?) of the places working with SGLs?
+This series adds a new "driver" to which pmem devices can be
+attached.  Once attached, the memory "owned" by the device is
+hot-added to the kernel and managed like any other memory.  On
+systems with an HMAT (a new ACPI table), each socket (roughly)
+will have a separate NUMA node for its persistent memory so
+this newly-added memory can be selected by its unique NUMA
+node.
 
-Maybe we could just have a 'get_user_pages_to_sgl' and 'put_pages_sgl'
-sort of interface that handled all this instead of trying to make
-something that is struct page based?
+This is highly RFC, and I really want the feedback from the
+nvdimm/pmem folks about whether this is a viable long-term
+perversion of their code and device mode.  It's insufficiently
+documented and probably not bisectable either.
 
-It seems easier to get an extra bit for user/!user in the SGL
-datastructure?
+Todo:
+1. The device re-binding hacks are ham-fisted at best.  We
+   need a better way of doing this, especially so the kmem
+   driver does not get in the way of normal pmem devices.
+2. When the device has no proper node, we default it to
+   NUMA node 0.  Is that OK?
+3. We muck with the 'struct resource' code quite a bit. It
+   definitely needs a once-over from folks more familiar
+   with it than I.
+4. Is there a better way to do this than starting with a
+   copy of pmem.c?
 
-Jason
+Here's how I set up a system to test this thing:
+
+1. Boot qemu with lots of memory: "-m 4096", for instance
+2. Reserve 512MB of physical memory.  Reserving a spot a 2GB
+   physical seems to work: memmap=512M!0x0000000080000000
+   This will end up looking like a pmem device at boot.
+3. When booted, convert fsdax device to "device dax":
+	ndctl create-namespace -fe namespace0.0 -m dax
+4. In the background, the kmem driver will probably bind to the
+   new device.
+5. Now, online the new memory sections.  Perhaps:
+
+grep ^MemTotal /proc/meminfo
+for f in `grep -vl online /sys/devices/system/memory/*/state`; do
+	echo $f: `cat $f`
+	echo online > $f
+	grep ^MemTotal /proc/meminfo
+done
+
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Jiang <dave.jiang@intel.com>
+Cc: Ross Zwisler <zwisler@kernel.org>
+Cc: Vishal Verma <vishal.l.verma@intel.com>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: linux-nvdimm@lists.01.org
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: Huang Ying <ying.huang@intel.com>
+Cc: Fengguang Wu <fengguang.wu@intel.com>
