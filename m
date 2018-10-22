@@ -1,28 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A02526B0010
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 16:18:45 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id s24-v6so31286776plp.12
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 13:18:45 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id m13-v6si36529525pfd.123.2018.10.22.13.18.44
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D11006B0269
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 16:18:49 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id v7-v6so31240097plo.23
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 13:18:49 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id r15-v6si34776466pgh.88.2018.10.22.13.18.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Oct 2018 13:18:44 -0700 (PDT)
-Subject: [PATCH 5/9] dax/kmem: add more nd dax kmem infrastructure
+        Mon, 22 Oct 2018 13:18:48 -0700 (PDT)
+Subject: [PATCH 7/9] dax/kmem: actually perform memory hotplug
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Mon, 22 Oct 2018 13:13:26 -0700
+Date: Mon, 22 Oct 2018 13:13:29 -0700
 References: <20181022201317.8558C1D8@viggo.jf.intel.com>
 In-Reply-To: <20181022201317.8558C1D8@viggo.jf.intel.com>
-Message-Id: <20181022201326.5E3F2752@viggo.jf.intel.com>
+Message-Id: <20181022201329.518577A4@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Dave Hansen <dave.hansen@linux.intel.com>, dan.j.williams@intel.com, dave.jiang@intel.com, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, akpm@linux-foundation.org, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, ying.huang@intel.com, fengguang.wu@intel.com
 
 
-Each DAX mode has a set of wrappers and helpers.  Add them
-for the kmem mode.
+This is the meat of this whole series.  When the "kmem" device's
+probe function is called and we know we have a good persistent
+memory device, hotplug the memory back into the main kernel.
 
 Cc: Dan Williams <dan.j.williams@intel.com>
 Cc: Dave Jiang <dave.jiang@intel.com>
@@ -39,92 +40,67 @@ Cc: Fengguang Wu <fengguang.wu@intel.com>
 
 ---
 
- b/drivers/nvdimm/bus.c      |    2 ++
- b/drivers/nvdimm/dax_devs.c |   35 +++++++++++++++++++++++++++++++++++
- b/drivers/nvdimm/nd.h       |    6 ++++++
- 3 files changed, 43 insertions(+)
+ b/drivers/dax/kmem.c |   28 +++++++++++++++++++++++++---
+ 1 file changed, 25 insertions(+), 3 deletions(-)
 
-diff -puN drivers/nvdimm/bus.c~dax-kmem-try-again-2018-4-bus-dev-type-kmem drivers/nvdimm/bus.c
---- a/drivers/nvdimm/bus.c~dax-kmem-try-again-2018-4-bus-dev-type-kmem	2018-10-22 13:12:23.024930389 -0700
-+++ b/drivers/nvdimm/bus.c	2018-10-22 13:12:23.031930389 -0700
-@@ -46,6 +46,8 @@ static int to_nd_device_type(struct devi
- 		return ND_DEVICE_REGION_BLK;
- 	else if (is_nd_dax(dev))
- 		return ND_DEVICE_DAX_PMEM;
-+	else if (is_nd_dax_kmem(dev))
-+		return ND_DEVICE_DAX_KMEM;
- 	else if (is_nd_region(dev->parent))
- 		return nd_region_to_nstype(to_nd_region(dev->parent));
+diff -puN drivers/dax/kmem.c~dax-kmem-hotplug drivers/dax/kmem.c
+--- a/drivers/dax/kmem.c~dax-kmem-hotplug	2018-10-22 13:12:24.069930387 -0700
++++ b/drivers/dax/kmem.c	2018-10-22 13:12:24.072930387 -0700
+@@ -55,10 +55,12 @@ static void dax_kmem_percpu_kill(void *d
+ static int dax_kmem_probe(struct device *dev)
+ {
+ 	void *addr;
++	int numa_node;
+ 	struct resource res;
+ 	int rc, id, region_id;
+ 	struct nd_pfn_sb *pfn_sb;
+ 	struct dev_dax *dev_dax;
++	struct resource *new_res;
+ 	struct dax_kmem *dax_kmem;
+ 	struct nd_namespace_io *nsio;
+ 	struct dax_region *dax_region;
+@@ -86,13 +88,30 @@ static int dax_kmem_probe(struct device
  
-diff -puN drivers/nvdimm/dax_devs.c~dax-kmem-try-again-2018-4-bus-dev-type-kmem drivers/nvdimm/dax_devs.c
---- a/drivers/nvdimm/dax_devs.c~dax-kmem-try-again-2018-4-bus-dev-type-kmem	2018-10-22 13:12:23.026930389 -0700
-+++ b/drivers/nvdimm/dax_devs.c	2018-10-22 13:12:23.031930389 -0700
-@@ -51,6 +51,41 @@ struct nd_dax *to_nd_dax(struct device *
- }
- EXPORT_SYMBOL(to_nd_dax);
+ 	pfn_sb = nd_pfn->pfn_sb;
  
-+/* nd_dax_kmem */
-+static void nd_dax_kmem_release(struct device *dev)
-+{
-+	struct nd_region *nd_region = to_nd_region(dev->parent);
-+	struct nd_dax_kmem *nd_dax_kmem = to_nd_dax_kmem(dev);
-+	struct nd_pfn *nd_pfn = &nd_dax_kmem->nd_pfn;
-+
-+	dev_dbg(dev, "trace\n");
-+	nd_detach_ndns(dev, &nd_pfn->ndns);
-+	ida_simple_remove(&nd_region->dax_ida, nd_pfn->id);
-+	kfree(nd_pfn->uuid);
-+	kfree(nd_dax_kmem);
-+}
-+
-+static struct device_type nd_dax_kmem_device_type = {
-+	.name = "nd_dax_kmem",
-+	.release = nd_dax_kmem_release,
-+};
-+
-+bool is_nd_dax_kmem(struct device *dev)
-+{
-+	return dev ? dev->type == &nd_dax_kmem_device_type : false;
-+}
-+EXPORT_SYMBOL(is_nd_dax_kmem);
-+
-+struct nd_dax_kmem *to_nd_dax_kmem(struct device *dev)
-+{
-+	struct nd_dax_kmem *nd_dax_kmem = container_of(dev, struct nd_dax_kmem, nd_pfn.dev);
-+
-+	WARN_ON(!is_nd_dax_kmem(dev));
-+	return nd_dax_kmem;
-+}
-+EXPORT_SYMBOL(to_nd_dax_kmem);
-+/* end nd_dax_kmem */
-+
- static const struct attribute_group *nd_dax_attribute_groups[] = {
- 	&nd_pfn_attribute_group,
- 	&nd_device_attribute_group,
-diff -puN drivers/nvdimm/nd.h~dax-kmem-try-again-2018-4-bus-dev-type-kmem drivers/nvdimm/nd.h
---- a/drivers/nvdimm/nd.h~dax-kmem-try-again-2018-4-bus-dev-type-kmem	2018-10-22 13:12:23.027930389 -0700
-+++ b/drivers/nvdimm/nd.h	2018-10-22 13:12:23.031930389 -0700
-@@ -215,6 +215,10 @@ struct nd_dax {
- 	struct nd_pfn nd_pfn;
- };
+-	if (!devm_request_mem_region(dev, nsio->res.start,
+-				resource_size(&nsio->res),
+-				dev_name(&ndns->dev))) {
++	new_res = devm_request_mem_region(dev, nsio->res.start,
++					  resource_size(&nsio->res),
++					  "System RAM (pmem)");
++	if (!new_res) {
+ 		dev_warn(dev, "could not reserve region %pR\n", &nsio->res);
+ 		return -EBUSY;
+ 	}
  
-+struct nd_dax_kmem {
-+	struct nd_pfn nd_pfn;
-+};
++	/*
++	 * Set flags appropriate for System RAM.  Leave ..._BUSY clear
++	 * so that add_memory() can add a child resource.
++	 */
++	new_res->flags = IORESOURCE_SYSTEM_RAM;
 +
- enum nd_async_mode {
- 	ND_SYNC,
- 	ND_ASYNC,
-@@ -318,9 +322,11 @@ static inline int nd_pfn_validate(struct
- #endif
++	numa_node = dev_to_node(dev);
++	if (numa_node < 0) {
++		pr_warn_once("bad numa_node: %d, forcing to 0\n", numa_node);
++		numa_node = 0;
++	}
++
++	rc = add_memory(numa_node, nsio->res.start, resource_size(&nsio->res));
++	if (rc)
++		return rc;
++
+ 	dax_kmem->dev = dev;
+ 	init_completion(&dax_kmem->cmp);
+ 	rc = percpu_ref_init(&dax_kmem->ref, dax_kmem_percpu_release, 0,
+@@ -106,6 +125,9 @@ static int dax_kmem_probe(struct device
+ 		return rc;
  
- struct nd_dax *to_nd_dax(struct device *dev);
-+struct nd_dax_kmem *to_nd_dax_kmem(struct device *dev);
- #if IS_ENABLED(CONFIG_NVDIMM_DAX)
- int nd_dax_probe(struct device *dev, struct nd_namespace_common *ndns);
- bool is_nd_dax(struct device *dev);
-+bool is_nd_dax_kmem(struct device *dev);
- struct device *nd_dax_create(struct nd_region *nd_region);
- #else
- static inline int nd_dax_probe(struct device *dev,
+ 	dax_kmem->pgmap.ref = &dax_kmem->ref;
++
++	dax_kmem->pgmap.res.name = "name_kmem_override2";
++
+ 	addr = devm_memremap_pages(dev, &dax_kmem->pgmap);
+ 	if (IS_ERR(addr))
+ 		return PTR_ERR(addr);
 _
