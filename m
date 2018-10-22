@@ -1,48 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AF7FA6B0003
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 05:32:31 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id c26-v6so24054047eda.7
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 02:32:31 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 8A6316B0006
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 05:37:57 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id c13-v6so24229495ede.6
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 02:37:57 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s27-v6si4296770edm.206.2018.10.22.02.32.30
+        by mx.google.com with ESMTPS id b17-v6si17183728ejj.38.2018.10.22.02.37.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Oct 2018 02:32:30 -0700 (PDT)
-Date: Mon, 22 Oct 2018 11:32:26 +0200
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: 4.14 backport request for dbdda842fe96f: "printk: Add console
- owner and waiter logic to load balance console writes"
-Message-ID: <20181022093226.nn5h7ohuzcyeezyt@pathway.suse.cz>
-References: <CAJmjG2-RrG5XKeW1-+rN3C=F6bZ-L3=YKhCiQ_muENDTzm_Ofg@mail.gmail.com>
- <20181002212327.7aab0b79@vmware.local.home>
- <20181003091400.rgdjpjeaoinnrysx@pathway.suse.cz>
- <CAJmjG2_4JFA=qL-d2Pb9umUEcPt9h13w-g40JQMbdKsZTRSZww@mail.gmail.com>
- <20181003133704.43a58cf5@gandalf.local.home>
- <CAJmjG291w2ZPRiAevSzxGNcuR6vTuqyk6z4SG3xRsbaQh5U3zQ@mail.gmail.com>
- <20181004074442.GA12879@jagdpanzerIV>
- <20181004083609.kcziz2ynwi2w7lcm@pathway.suse.cz>
- <20181004085515.GC12879@jagdpanzerIV>
- <CAJmjG2-e6f6p=pE5uDECMc=W=81SYyGCmoabrC1ePXwL5DFdSw@mail.gmail.com>
+        Mon, 22 Oct 2018 02:37:55 -0700 (PDT)
+Subject: Re: [RFC v4 PATCH 3/5] mm/rmqueue_bulk: alloc without touching
+ individual page structure
+References: <20181017063330.15384-1-aaron.lu@intel.com>
+ <20181017063330.15384-4-aaron.lu@intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <b343cf1a-ea15-b70e-ff5a-e08d3dc5354d@suse.cz>
+Date: Mon, 22 Oct 2018 11:37:53 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJmjG2-e6f6p=pE5uDECMc=W=81SYyGCmoabrC1ePXwL5DFdSw@mail.gmail.com>
+In-Reply-To: <20181017063330.15384-4-aaron.lu@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Wang <wonderfly@google.com>
-Cc: sergey.senozhatsky.work@gmail.com, rostedt@goodmis.org, stable@vger.kernel.org, Alexander.Levin@microsoft.com, akpm@linux-foundation.org, byungchul.park@lge.com, dave.hansen@intel.com, hannes@cmpxchg.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Mel Gorman <mgorman@suse.de>, mhocko@kernel.org, pavel@ucw.cz, penguin-kernel@i-love.sakura.ne.jp, peterz@infradead.org, tj@kernel.org, torvalds@linux-foundation.org, vbabka@suse.cz, Cong Wang <xiyou.wangcong@gmail.com>, Peter Feiner <pfeiner@google.com>
+To: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, Tariq Toukan <tariqt@mellanox.com>, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Sun 2018-10-21 11:09:22, Daniel Wang wrote:
-> Just got back from vacation. Thanks for the continued discussion. Just so
-> I understand the current state. Looks like we've got a pretty good explanation
-> of what's going on (though not completely sure), and backporting Steven's
-> patches is still the way to go? I see that Sergey had sent an RFC series
-> for similar things. Are those trying to solve the deadlock problem in a
-> different way?On Thu, Oct 4, 2018 at 1:55 AM Sergey Senozhatsky
+On 10/17/18 8:33 AM, Aaron Lu wrote:
+> Profile on Intel Skylake server shows the most time consuming part
+> under zone->lock on allocation path is accessing those to-be-returned
+> page's "struct page" on the free_list inside zone->lock. One explanation
+> is, different CPUs are releasing pages to the head of free_list and
+> those page's 'struct page' may very well be cache cold for the allocating
+> CPU when it grabs these pages from free_list' head. The purpose here
+> is to avoid touching these pages one by one inside zone->lock.
 
-I suggest to go with backporting Steven's patchset. We do not have
-anything better at the moment.
+What about making the pages cache-hot first, without zone->lock, by
+traversing via page->lru. It would need some safety checks obviously
+(maybe based on page_to_pfn + pfn_valid, or something) to make sure we
+only read from real struct pages in case there's some update racing. The
+worst case would be not populating enough due to race, and thus not
+gaining the performance when doing the actual rmqueueing under lock.
 
-Best Regards,
-Petr
+Vlastimil
