@@ -1,41 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 760066B026A
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 16:18:50 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id x2-v6so30236805pgr.8
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 13:18:50 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id g10-v6si32754692plt.212.2018.10.22.13.18.49
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E4366B026B
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 16:18:51 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id d7-v6so25094962pfj.6
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 13:18:51 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id c81-v6si37899551pfb.153.2018.10.22.13.18.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Oct 2018 13:18:49 -0700 (PDT)
-Subject: [PATCH 8/9] dax/kmem: let walk_system_ram_range() search child resources
+        Mon, 22 Oct 2018 13:18:50 -0700 (PDT)
+Subject: [PATCH 9/9] dax/kmem: actually enable the code in Makefile
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Mon, 22 Oct 2018 13:13:31 -0700
+Date: Mon, 22 Oct 2018 13:13:32 -0700
 References: <20181022201317.8558C1D8@viggo.jf.intel.com>
 In-Reply-To: <20181022201317.8558C1D8@viggo.jf.intel.com>
-Message-Id: <20181022201331.8DDC3CDD@viggo.jf.intel.com>
+Message-Id: <20181022201332.FC3B5EB7@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Dave Hansen <dave.hansen@linux.intel.com>, dan.j.williams@intel.com, dave.jiang@intel.com, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, akpm@linux-foundation.org, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, ying.huang@intel.com, fengguang.wu@intel.com
 
 
-In the process of onlining memory, we use walk_system_ram_range()
-to find the actual RAM areas inside of the area being onlined.
-
-However, it currently only finds memory resources which are
-"top-level" iomem_resources.  Children are not currently
-searched which causes it to skip System RAM in areas like this
-(in the format of /proc/iomem):
-
-a0000000-bfffffff : Persistent Memory (legacy)
-  a0000000-afffffff : System RAM
-
-Changing the true->false here allows children to be searched
-as well.  We need this because we add a new "System RAM"
-resource underneath the "persistent memory" resource when
-we use persistent memory in a volatile mode.
+Most of the new code was dead up to this point.  Now that
+all the pieces are in place, enable it.
 
 Cc: Dan Williams <dan.j.williams@intel.com>
 Cc: Dave Jiang <dave.jiang@intel.com>
@@ -52,29 +39,20 @@ Cc: Fengguang Wu <fengguang.wu@intel.com>
 
 ---
 
- b/kernel/resource.c |    5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ b/drivers/dax/Makefile |    2 ++
+ 1 file changed, 2 insertions(+)
 
-diff -puN kernel/resource.c~mm-walk_system_ram_range-search-child-resources kernel/resource.c
---- a/kernel/resource.c~mm-walk_system_ram_range-search-child-resources	2018-10-22 13:12:24.565930386 -0700
-+++ b/kernel/resource.c	2018-10-22 13:12:24.572930386 -0700
-@@ -445,6 +445,9 @@ int walk_mem_res(u64 start, u64 end, voi
-  * This function calls the @func callback against all memory ranges of type
-  * System RAM which are marked as IORESOURCE_SYSTEM_RAM and IORESOUCE_BUSY.
-  * It is to be used only for System RAM.
-+ *
-+ * This will find System RAM ranges that are children of top-level resources
-+ * in addition to top-level System RAM resources.
-  */
- int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
- 			  void *arg, int (*func)(unsigned long, unsigned long, void *))
-@@ -460,7 +463,7 @@ int walk_system_ram_range(unsigned long
- 	flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
- 	while (start < end &&
- 	       !find_next_iomem_res(start, end, flags, IORES_DESC_NONE,
--				    true, &res)) {
-+				    false, &res)) {
- 		pfn = (res.start + PAGE_SIZE - 1) >> PAGE_SHIFT;
- 		end_pfn = (res.end + 1) >> PAGE_SHIFT;
- 		if (end_pfn > pfn)
+diff -puN drivers/dax/Makefile~dax-kmem-makefile drivers/dax/Makefile
+--- a/drivers/dax/Makefile~dax-kmem-makefile	2018-10-22 13:12:25.068930384 -0700
++++ b/drivers/dax/Makefile	2018-10-22 13:12:25.071930384 -0700
+@@ -2,7 +2,9 @@
+ obj-$(CONFIG_DAX) += dax.o
+ obj-$(CONFIG_DEV_DAX) += device_dax.o
+ obj-$(CONFIG_DEV_DAX_PMEM) += dax_pmem.o
++obj-$(CONFIG_DEV_DAX_PMEM) += dax_kmem.o
+ 
+ dax-y := super.o
+ dax_pmem-y := pmem.o
++dax_kmem-y := kmem.o
+ device_dax-y := device.o
 _
