@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E1C366B0007
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 03:13:43 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id w12-v6so17638894plp.9
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 00:13:43 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 38A3C6B000C
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 03:13:46 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id t18-v6so21565380plo.16
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 00:13:46 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e2-v6sor20005698pfb.55.2018.10.22.00.13.42
+        by mx.google.com with SMTPS id 19-v6sor20803810pft.4.2018.10.22.00.13.44
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 22 Oct 2018 00:13:42 -0700 (PDT)
+        Mon, 22 Oct 2018 00:13:45 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH 1/2] mm, oom: marks all killed tasks as oom victims
-Date: Mon, 22 Oct 2018 09:13:22 +0200
-Message-Id: <20181022071323.9550-2-mhocko@kernel.org>
+Subject: [RFC PATCH 2/2] memcg: do not report racy no-eligible OOM tasks
+Date: Mon, 22 Oct 2018 09:13:23 +0200
+Message-Id: <20181022071323.9550-3-mhocko@kernel.org>
 In-Reply-To: <20181022071323.9550-1-mhocko@kernel.org>
 References: <20181022071323.9550-1-mhocko@kernel.org>
 MIME-Version: 1.0
@@ -24,35 +24,63 @@ Cc: Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SA
 
 From: Michal Hocko <mhocko@suse.com>
 
-Historically we have called mark_oom_victim only to the main task
-selected as the oom victim because oom victims have access to memory
-reserves and granting the access to all killed tasks could deplete
-memory reserves very quickly and cause even larger problems.
+Tetsuo has reported [1] that a single process group memcg might easily
+swamp the log with no-eligible oom victim reports due to race between
+the memcg charge and oom_reaper
 
-Since only a partial access to memory reserves is allowed there is no
-longer this risk and so all tasks killed along with the oom victim
-can be considered as well.
+Thread 1		Thread2				oom_reaper
+try_charge		try_charge
+			  mem_cgroup_out_of_memory
+			    mutex_lock(oom_lock)
+  mem_cgroup_out_of_memory
+    mutex_lock(oom_lock)
+			      out_of_memory
+			        select_bad_process
+				oom_kill_process(current)
+				  wake_oom_reaper
+							  oom_reap_task
+							  MMF_OOM_SKIP->victim
+			    mutex_unlock(oom_lock)
+    out_of_memory
+      select_bad_process # no task
 
-The primary motivation for that is that process groups which do not
-shared signals would behave more like standard thread groups wrt oom
-handling (aka tsk_is_oom_victim will work the same way for them).
+If Thread1 didn't race it would bail out from try_charge and force the
+charge. We can achieve the same by checking tsk_is_oom_victim inside
+the oom_lock and therefore close the race.
 
+[1] http://lkml.kernel.org/r/bb2074c0-34fe-8c2c-1c7d-db71338f1e7f@i-love.sakura.ne.jp
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/oom_kill.c | 1 +
- 1 file changed, 1 insertion(+)
+ mm/memcontrol.c | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index f10aa5360616..188ae490cf3e 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -898,6 +898,7 @@ static void __oom_kill_process(struct task_struct *victim)
- 		if (unlikely(p->flags & PF_KTHREAD))
- 			continue;
- 		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, PIDTYPE_TGID);
-+		mark_oom_victim(p);
- 	}
- 	rcu_read_unlock();
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index e79cb59552d9..a9dfed29967b 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1380,10 +1380,22 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 		.gfp_mask = gfp_mask,
+ 		.order = order,
+ 	};
+-	bool ret;
++	bool ret = true;
  
+ 	mutex_lock(&oom_lock);
++
++	/*
++	 * multi-threaded tasks might race with oom_reaper and gain
++	 * MMF_OOM_SKIP before reaching out_of_memory which can lead
++	 * to out_of_memory failure if the task is the last one in
++	 * memcg which would be a false possitive failure reported
++	 */
++	if (tsk_is_oom_victim(current))
++		goto unlock;
++
+ 	ret = out_of_memory(&oc);
++
++unlock:
+ 	mutex_unlock(&oom_lock);
+ 	return ret;
+ }
 -- 
 2.19.1
