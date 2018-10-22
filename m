@@ -1,73 +1,68 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E87796B0005
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 23:55:40 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id y73-v6so15569377pfi.16
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 20:55:40 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
-        by mx.google.com with ESMTPS id v19-v6si12361878pfn.26.2018.10.31.20.55.38
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 31 Oct 2018 20:55:39 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: PIE binaries are no longer mapped below 4 GiB on ppc64le
-In-Reply-To: <87k1lyf2x3.fsf@oldenburg.str.redhat.com>
-References: <87k1lyf2x3.fsf@oldenburg.str.redhat.com>
-Date: Thu, 01 Nov 2018 14:55:34 +1100
-Message-ID: <87lg6dfo3t.fsf@concordia.ellerman.id.au>
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Date: Mon, 22 Oct 2018 22:56:03 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: 32-bit PTI with THP = userspace corruption
+Message-ID: <20181022205603.GA13595@amd>
+References: <20180830205527.dmemjwxfbwvkdzk2@suse.de>
+ <alpine.LRH.2.21.1808310711380.17865@math.ut.ee>
+ <20180831070722.wnulbbmillxkw7ke@suse.de>
+ <alpine.DEB.2.21.1809081223450.1402@nanos.tec.linutronix.de>
+ <20180911114927.gikd3uf3otxn2ekq@suse.de>
+ <alpine.LRH.2.21.1809111454100.29433@math.ut.ee>
+ <20180911121128.ikwptix6e4slvpt2@suse.de>
+ <20180918140030.248afa21@alans-desktop>
+ <20181021123745.GA26042@amd>
+ <20181022075642.icowfdg3y5wcam63@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain
-Sender: owner-linux-mm@kvack.org
+Content-Type: multipart/signed; micalg=pgp-sha1;
+        protocol="application/pgp-signature"; boundary="7JfCtLOvnd9MIVvH"
+Content-Disposition: inline
+In-Reply-To: <20181022075642.icowfdg3y5wcam63@suse.de>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Joerg Roedel <jroedel@suse.de>
+Cc: Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Meelis Roos <mroos@linux.ee>, Thomas Gleixner <tglx@linutronix.de>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>, linuxppc-dev@lists.ozlabs.org
-Cc: linux-mm@kvack.org, keescook@chromium.org, amodra@gmail.com
 
-Hi Florian,
 
-Florian Weimer <fweimer@redhat.com> writes:
-> We tried to use Go to build PIE binaries, and while the Go toolchain is
-> definitely not ready (it produces text relocations and problematic
-> relocations in general), it exposed what could be an accidental
-> userspace ABI change.
->
-> With our 4.10-derived kernel, PIE binaries are mapped below 4 GiB, so
-> relocations like R_PPC64_ADDR16_HA work:
->
-> 21f00000-220d0000 r-xp 00000000 fd:00 36593493                           /root/extld
-> 220d0000-220e0000 r--p 001c0000 fd:00 36593493                           /root/extld
-> 220e0000-22100000 rw-p 001d0000 fd:00 36593493                           /root/extld
-...
->
-> With a 4.18-derived kernel (with the hashed mm), we get this instead:
->
-> 120e60000-121030000 rw-p 00000000 fd:00 102447141                        /root/extld
-> 121030000-121060000 rw-p 001c0000 fd:00 102447141                        /root/extld
-> 121060000-121080000 rw-p 00000000 00:00 0 
+--7JfCtLOvnd9MIVvH
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-I assume that's caused by:
+On Mon 2018-10-22 09:56:42, Joerg Roedel wrote:
+> On Sun, Oct 21, 2018 at 02:37:45PM +0200, Pavel Machek wrote:
+> > On Tue 2018-09-18 14:00:30, Alan Cox wrote:
+> > > There are pretty much no machines that don't support PAE and are still
+> > > even vaguely able to boot a modern Linux kernel. The oddity is the
+> > > Pentium-M but most distros shipped a hack to use PAE on the Pentium M
+> > > anyway as it seems to work fine.
+> >=20
+> > I do have some AMD Geode here, in form of subnotebook. Definitely
+> > newer then Pentium Ms, but no PAE...
+>=20
+> Are the AMD Geode chips affected by Meltdown?
 
-  47ebb09d5485 ("powerpc: move ELF_ET_DYN_BASE to 4GB / 4MB")
+Probably not.
 
-Which did roughly:
+I'm not saying this has meltdown/spectre etc. I'm just saying there
+are relatively new machines without PAE.
 
-  -#define ELF_ET_DYN_BASE	0x20000000
-  +#define ELF_ET_DYN_BASE		(is_32bit_task() ? 0x000400000UL : \
-  +					   0x100000000UL)
+									Pavel
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
 
-And went into 4.13.
+--7JfCtLOvnd9MIVvH
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
 
-> ...
-> I'm not entirely sure what to make of this, but I'm worried that this
-> could be a regression that matters to userspace.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
 
-It was a deliberate change, and it seemed to not break anything so we
-merged it. But obviously we didn't test widely enough.
+iEYEARECAAYFAlvOOWMACgkQMOfwapXb+vKdnQCfQWRIYB0YVhUQy5x2lAKP3R7S
+UCgAn1H9DxQwUf2iJyC1WampdF4XOkY2
+=dtC3
+-----END PGP SIGNATURE-----
 
-So I guess it clearly can matter to userspace, and it used to work, so
-therefore it is a regression.
-
-But at the same time we haven't had any other reports of breakage, so is
-this somehow specific to something Go is doing? Or did we just get lucky
-up until now? Or is no one actually testing on Power? ;)
-
-cheers
+--7JfCtLOvnd9MIVvH--
