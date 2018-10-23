@@ -1,51 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 91D146B0003
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 01:11:34 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id k1-v6so47767ljk.9
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 22:11:34 -0700 (PDT)
-Received: from forwardcorp1g.cmail.yandex.net (forwardcorp1g.cmail.yandex.net. [87.250.241.190])
-        by mx.google.com with ESMTPS id c4si202754lff.66.2018.10.22.22.11.32
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A97C6B0006
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 01:34:03 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id c13-v6so349463ede.6
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 22:34:03 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g1-v6si231497eji.299.2018.10.22.22.34.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Oct 2018 22:11:32 -0700 (PDT)
+        Mon, 22 Oct 2018 22:34:02 -0700 (PDT)
+Date: Tue, 23 Oct 2018 07:33:59 +0200
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH] mm: convert totalram_pages, totalhigh_pages and
  managed_pages to atomic.
+Message-ID: <20181023053359.GL18839@dhcp22.suse.cz>
 References: <1540229092-25207-1-git-send-email-arunks@codeaurora.org>
- <c57bcc584b3700c483b0311881ec3ae8786f88b1.camel@perches.com>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <15247f54-53f3-83d4-6706-e9264b90ca7a@yandex-team.ru>
-Date: Tue, 23 Oct 2018 08:11:31 +0300
+ <20181022181122.GK18839@dhcp22.suse.cz>
+ <CABOM9Zpq41Ox8wQvsNjgfCtwuqh6CnyeW1B09DWa1TQN+JKf0w@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <c57bcc584b3700c483b0311881ec3ae8786f88b1.camel@perches.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-CA
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CABOM9Zpq41Ox8wQvsNjgfCtwuqh6CnyeW1B09DWa1TQN+JKf0w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>, Arun KS <arunks@codeaurora.org>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>, Arun Sudhilal <getarunks@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Arun Sudhilal <getarunks@gmail.com>
+Cc: Arun KS <arunks@codeaurora.org>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Julia Lawall <julia.lawall@lip6.fr>
 
-On 23.10.2018 7:15, Joe Perches wrote:> On Mon, 2018-10-22 at 22:53 +0530, Arun KS wrote:
- >> Remove managed_page_count_lock spinlock and instead use atomic
- >> variables.
- >
- > Perhaps better to define and use macros for the accesses
- > instead of specific uses of atomic_long_<inc/dec/read>
- >
- > Something like:
- >
- > #define totalram_pages()	(unsigned long)atomic_long_read(&_totalram_pages)
+[Trimmed CC list + Julia - there is indeed no need to CC everybody maintain a
+file you are updating for the change like this]
 
-or proper static inline
-this code isn't so low level for breaking include dependencies with macro
+On Tue 23-10-18 10:16:51, Arun Sudhilal wrote:
+> On Mon, Oct 22, 2018 at 11:41 PM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Mon 22-10-18 22:53:22, Arun KS wrote:
+> > > Remove managed_page_count_lock spinlock and instead use atomic
+> > > variables.
+> >
+> 
+> Hello Michal,
+> > I assume this has been auto-generated. If yes, it would be better to
+> > mention the script so that people can review it and regenerate for
+> > comparision. Such a large change is hard to review manually.
+> 
+> Changes were made partially with script.  For totalram_pages and
+> totalhigh_pages,
+> 
+> find dir -type f -exec sed -i
+> 's/totalram_pages/atomic_long_read(\&totalram_pages)/g' {} \;
+> find dir -type f -exec sed -i
+> 's/totalhigh_pages/atomic_long_read(\&totalhigh_pages)/g' {} \;
+> 
+> For managed_pages it was mostly manual edits after using,
+> find mm/ -type f -exec sed -i
+> 's/zone->managed_pages/atomic_long_read(\&zone->managed_pages)/g' {}
+> \;
 
- > #define totalram_pages_inc()	(unsigned long)atomic_long_inc(&_totalram_pages)
- > #define totalram_pages_dec()	(unsigned long)atomic_long_dec(&_totalram_pages)
-
-these are void
-
-
-conversion zone->managed_pages should be split into separate patch
-
-
-[dropped bloated cc - my server rejects this mess]
+I guess we should be able to use coccinelle for this kind of change and
+reduce the amount of manual intervention to absolute minimum.
+-- 
+Michal Hocko
+SUSE Labs
