@@ -1,94 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 31CEB6B0003
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 08:48:51 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id 31-v6so923738edr.19
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 05:48:51 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p14-v6si1069630edi.343.2018.10.23.05.48.49
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 03F686B0006
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 09:00:26 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id b27-v6so788010pfm.15
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 06:00:25 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id n26-v6si1316691pfk.14.2018.10.23.06.00.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Oct 2018 05:48:49 -0700 (PDT)
-Date: Tue, 23 Oct 2018 14:48:47 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/2] memcg: do not report racy no-eligible OOM tasks
-Message-ID: <20181023124847.GT18839@dhcp22.suse.cz>
-References: <f9a8079f-55b0-301e-9b3d-a5250bd7d277@i-love.sakura.ne.jp>
- <20181022120308.GB18839@dhcp22.suse.cz>
- <201810230101.w9N118i3042448@www262.sakura.ne.jp>
- <20181023114246.GR18839@dhcp22.suse.cz>
- <20181023121055.GS18839@dhcp22.suse.cz>
- <a55e70bd-dc5f-9a11-72e6-7cd7b3b48ab7@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 23 Oct 2018 06:00:24 -0700 (PDT)
+Date: Tue, 23 Oct 2018 05:59:28 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v2] mm: Introduce new function vm_insert_kmem_page
+Message-ID: <20181023125928.GC20085@bombadil.infradead.org>
+References: <CANiq72kVJn7985EET067Dgj+z0dwb0x2MTUnREMWKCVU6=WnJA@mail.gmail.com>
+ <CAFqt6zZ4sPjtb5BaDfwc5tZv+vMj6ao3NJZ_3quX9AH5pCMwJg@mail.gmail.com>
+ <CANiq72m9u1PL9X+dPNLxgkhvttj=4ijLyM2sFex=Kws7wswKzw@mail.gmail.com>
+ <CAFqt6zYH4Aczu8AYke8AfGuMS70SJXCMn-n8X8C_Tz03gTjn8g@mail.gmail.com>
+ <CANiq72kRAZE9SyM4EkpaBZH03Ex0Z=4Pk2iOuc2jBDKTfKjHQg@mail.gmail.com>
+ <CAFqt6zZCCPFE3sQ3u_gjiN8wwd99nwWatk9JRsiGxbCwhi91mg@mail.gmail.com>
+ <CANiq72k-e_j67==VdrayqggjAd7MAfpaJS-_0=jkmh4OWynukQ@mail.gmail.com>
+ <CAFqt6zZ2yHkVcbYtK1dxr9B3K5WVYGboavjP1ibmYei0u4zFbQ@mail.gmail.com>
+ <20181023122435.GB20085@bombadil.infradead.org>
+ <CAFqt6zZp=UsSGH148=tPWLnSxC51EGdR0Vv4f5tP58MO-6OS_w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <a55e70bd-dc5f-9a11-72e6-7cd7b3b48ab7@I-love.SAKURA.ne.jp>
+In-Reply-To: <CAFqt6zZp=UsSGH148=tPWLnSxC51EGdR0Vv4f5tP58MO-6OS_w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin@protonic.nl, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Kees Cook <keescook@chromium.org>, treding@nvidia.com, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mark Rutland <mark.rutland@arm.com>, aryabinin@virtuozzo.com, Dmitry Vyukov <dvyukov@google.com>, Kate Stewart <kstewart@linuxfoundation.org>, tchibo@google.com, riel@redhat.com, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Huang, Ying" <ying.huang@intel.com>, ak@linux.intel.com, rppt@linux.vnet.ibm.com, linux@dominikbrodowski.net, Arnd Bergmann <arnd@arndb.de>, cpandya@codeaurora.org, hannes@cmpxchg.org, Joe Perches <joe@perches.com>, mcgrof@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, Linux-MM <linux-mm@kvack.org>
 
-On Tue 23-10-18 21:33:43, Tetsuo Handa wrote:
-> On 2018/10/23 21:10, Michal Hocko wrote:
-> > On Tue 23-10-18 13:42:46, Michal Hocko wrote:
-> >> On Tue 23-10-18 10:01:08, Tetsuo Handa wrote:
-> >>> Michal Hocko wrote:
-> >>>> On Mon 22-10-18 20:45:17, Tetsuo Handa wrote:
-> >>>>>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> >>>>>> index e79cb59552d9..a9dfed29967b 100644
-> >>>>>> --- a/mm/memcontrol.c
-> >>>>>> +++ b/mm/memcontrol.c
-> >>>>>> @@ -1380,10 +1380,22 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> >>>>>>  		.gfp_mask = gfp_mask,
-> >>>>>>  		.order = order,
-> >>>>>>  	};
-> >>>>>> -	bool ret;
-> >>>>>> +	bool ret = true;
-> >>>>>>  
-> >>>>>>  	mutex_lock(&oom_lock);
-> >>>>>> +
-> >>>>>> +	/*
-> >>>>>> +	 * multi-threaded tasks might race with oom_reaper and gain
-> >>>>>> +	 * MMF_OOM_SKIP before reaching out_of_memory which can lead
-> >>>>>> +	 * to out_of_memory failure if the task is the last one in
-> >>>>>> +	 * memcg which would be a false possitive failure reported
-> >>>>>> +	 */
-> >>>>>> +	if (tsk_is_oom_victim(current))
-> >>>>>> +		goto unlock;
-> >>>>>> +
-> >>>>>
-> >>>>> This is not wrong but is strange. We can use mutex_lock_killable(&oom_lock)
-> >>>>> so that any killed threads no longer wait for oom_lock.
-> >>>>
-> >>>> tsk_is_oom_victim is stronger because it doesn't depend on
-> >>>> fatal_signal_pending which might be cleared throughout the exit process.
-> >>>>
-> >>>
-> >>> I still want to propose this. No need to be memcg OOM specific.
-> >>
-> >> Well, I maintain what I've said [1] about simplicity and specific fix
-> >> for a specific issue. Especially in the tricky code like this where all
-> >> the consequences are far more subtle than they seem to be.
-> >>
-> >> This is obviously a matter of taste but I don't see much point discussing
-> >> this back and forth for ever. Unless there is a general agreement that
-> >> the above is less appropriate then I am willing to consider a different
-> >> change but I simply do not have energy to nit pick for ever.
-> >>
-> >> [1] http://lkml.kernel.org/r/20181022134315.GF18839@dhcp22.suse.cz
-> > 
-> > In other words. Having a memcg specific fix means, well, a memcg
-> > maintenance burden. Like any other memcg specific oom decisions we
-> > already have. So are you OK with that Johannes or you would like to see
-> > a more generic fix which might turn out to be more complex?
-> > 
+On Tue, Oct 23, 2018 at 06:03:42PM +0530, Souptick Joarder wrote:
+> On Tue, Oct 23, 2018 at 5:54 PM Matthew Wilcox <willy@infradead.org> wrote:
+> > On Tue, Oct 23, 2018 at 05:44:32PM +0530, Souptick Joarder wrote:
+> > > Instruction from Matthew  Wilcox who is supervising the entire vm_fault_t
+> > > migration work :-)
+> >
+> > Hang on.  That was for the initial vm_fault_t conversion in which each
+> > step was clearly an improvement.  What you're looking at now is far
+> > from that.
 > 
-> I don't know what "that Johannes" refers to.
+> Ok. But my understanding was, the approach of vm_insert_range comes
+> into discussion as part of converting vm_insert_page into vmf_insert_page
+> which is still part of original vm_fault_t conversion discussion.  No ?
 
-let me rephrase
+No.  The initial part (converting all page fault methods to vm_fault_t)
+is done.  What remains undone (looking at akpm's tree) is changing the
+typedef of vm_fault_t from int to unsigned int.  That will prevent new
+page fault handlers with the wrong type from being added.
 
-Johannes, are you OK with that (memcg specific fix) or you would like to
-see a more generic fix which might turn out to be more complex.
--- 
-Michal Hocko
-SUSE Labs
+I don't necessarily want to get rid of vm_insert_page().  Maybe it will
+make sense to do that, and maybe not.  What I do want to see is thought,
+and not "Matthew told me to do it", when I didn't.
