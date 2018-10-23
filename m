@@ -1,65 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 831066B0006
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 04:54:50 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id d7-v6so423645pfj.6
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 01:54:50 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g1-v6si693772pgk.593.2018.10.23.01.54.49
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AE486B0003
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 06:23:40 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id r68-v6so456171oie.12
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 03:23:40 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id g6-v6si376626oia.212.2018.10.23.03.23.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Oct 2018 01:54:49 -0700 (PDT)
-Date: Tue, 23 Oct 2018 10:54:45 +0200
-From: Michal Hocko <mhocko@kernel.org>
+        Tue, 23 Oct 2018 03:23:38 -0700 (PDT)
 Subject: Re: [PATCH v3] mm: memcontrol: Don't flood OOM messages with no
  eligible task.
-Message-ID: <20181023085445.GQ18839@dhcp22.suse.cz>
-References: <201810180246.w9I2koi3011358@www262.sakura.ne.jp>
- <20181018042739.GA650@jagdpanzerIV>
- <201810180526.w9I5QvVn032670@www262.sakura.ne.jp>
- <20181018061018.GB650@jagdpanzerIV>
- <20181018075611.GY18839@dhcp22.suse.cz>
- <20181018081352.GA438@jagdpanzerIV>
- <2c2b2820-e6f8-76c8-c431-18f60845b3ab@i-love.sakura.ne.jp>
- <20181018235427.GA877@jagdpanzerIV>
- <5d472476-7852-f97b-9412-63536dffaa0e@i-love.sakura.ne.jp>
- <20181023083738.o4wo3jxw3xkp3rwx@pathway.suse.cz>
+References: <20181018042739.GA650@jagdpanzerIV>
+ <20181018143033.z5gck2enrictqja3@pathway.suse.cz>
+ <201810190018.w9J0IGI2019559@www262.sakura.ne.jp>
+ <20181023082111.edb3ela4mhwaaimi@pathway.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <5251d336-4ad0-ccf0-e31f-35d9c832b0be@i-love.sakura.ne.jp>
+Date: Tue, 23 Oct 2018 19:23:00 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181023083738.o4wo3jxw3xkp3rwx@pathway.suse.cz>
+In-Reply-To: <20181023082111.edb3ela4mhwaaimi@pathway.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Petr Mladek <pmladek@suse.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, rientjes@google.com, yang.s@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, syzbot <syzbot+77e6b28a7a7106ad0def@syzkaller.appspotmail.com>
 
-[I strongly suspect this whole email thread went way out of scope of the
- issue really deserves]
+On 2018/10/23 17:21, Petr Mladek wrote:
+> On Fri 2018-10-19 09:18:16, Tetsuo Handa wrote:
+>> I assumed we calculate the average dynamically, for the amount of
+>> messages printed by an OOM event is highly unstable (depends on
+>> hardware configuration such as number of nodes, number of zones,
+>> and how many processes are there as a candidate for OOM victim).
+> 
+> Is there any idea how the average length can be counted dynamically?
 
-I didn't want to participate any further but let me clarify one thing
-because I can see how the discussion could generate some confusion.
+I don't have one. Maybe sum up return values of printk() from OOM context?
 
-On Tue 23-10-18 10:37:38, Petr Mladek wrote:
-[...]
-> My understanding is that this situation happens when the system is
-> misconfigured and unusable without manual intervention. If
-> the user is able to see what the problem is then we are good.
 
-Not really. The flood of _memcg_ oom report about no eligible tasks
-should indeed happen only when the memcg is misconfigured. The system is
-and should be still usable at this stage. Ratelimit is aimed to reduce
-pointless message which do not help to debug the issue itself much.
-There is a race condition as explained by Tetsuo that could lead to this
-situation even without a misconfiguration and that is clearly a bug and
-something to deal with and patches have been posted in that regards [1]
 
-The rest of the discussion is about how to handle printk rate-limiting
-properly and whether ad-hoc solution is more appropriate than a real API
-we have in place and whether the later needs some enhancements. That is
-completely orthogonal on the issue at hands and as such it should be
-really discussed separately.
+> This reminds me another problem. We would need to use the same
+> decision for all printk() calls that logically belongs to each
+> other. Otherwise we might get mixed lines that might confuse
+> poeple. I mean that OOM messages might look like:
+> 
+>   OOM: A
+>   OOM: B
+>   OOM: C
+> 
+> If we do not synchronize the rateliting, we might see:
+> 
+>   OOM: A
+>   OOM: B
+>   OOM: C
+>   OOM: B
+>   OOM: B
+>   OOM: A
+>   OOM: C
+>   OOM: C
 
-[1] http://lkml.kernel.org/r/20181022071323.9550-1-mhocko@kernel.org
--- 
-Michal Hocko
-SUSE Labs
+Messages from out_of_memory() are serialized by oom_lock mutex.
+Messages from warn_alloc() are not serialized, and thus cause confusion.
+
+
+
+>> I wish that memcg OOM events do not use printk(). Since memcg OOM is not
+>> out of physical memory, we can dynamically allocate physical memory for
+>> holding memcg OOM messages and let the userspace poll it via some interface.
+> 
+> Would the userspace work when the system gets blocked on allocations?
+
+Yes for memcg OOM events. No for global OOM events.
+You can try reproducers shown below from your environment.
+
+Regarding case 2, we can solve the problem by checking tsk_is_oom_victim(current) == true.
+But regarding case 1, Michal's patch is not sufficient for allowing administrators
+to enter commands for recovery from console.
+
+---------- Case 1: Flood of memcg OOM events caused by misconfiguration. ----------
+
+#include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdlib.h>
+
+int main(int argc, char *argv[])
+{
+	FILE *fp;
+	const unsigned long size = 1048576 * 200;
+	char *buf = malloc(size);
+	mkdir("/sys/fs/cgroup/memory/test1", 0755);
+	fp = fopen("/sys/fs/cgroup/memory/test1/memory.limit_in_bytes", "w");
+	fprintf(fp, "%lu\n", size / 2);
+	fclose(fp);
+	fp = fopen("/sys/fs/cgroup/memory/test1/tasks", "w");
+	fprintf(fp, "%u\n", getpid());
+	fclose(fp);
+	fp = fopen("/proc/self/oom_score_adj", "w");
+	fprintf(fp, "-1000\n");
+	fclose(fp);
+	fp = fopen("/dev/zero", "r");
+	fread(buf, 1, size, fp);
+	fclose(fp);
+	return 0;
+}
+
+---------- Case 2: Flood of memcg OOM events caused by MMF_OOM_SKIP race. ----------
+
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sched.h>
+#include <sys/mman.h>
+
+#define NUMTHREADS 256
+#define MMAPSIZE 4 * 10485760
+#define STACKSIZE 4096
+static int pipe_fd[2] = { EOF, EOF };
+static int memory_eater(void *unused)
+{
+	int fd = open("/dev/zero", O_RDONLY);
+	char *buf = mmap(NULL, MMAPSIZE, PROT_WRITE | PROT_READ,
+			 MAP_ANONYMOUS | MAP_SHARED, EOF, 0);
+	read(pipe_fd[0], buf, 1);
+	read(fd, buf, MMAPSIZE);
+	pause();
+	return 0;
+}
+int main(int argc, char *argv[])
+{
+	int i;
+	char *stack;
+	FILE *fp;
+	const unsigned long size = 1048576 * 200;
+	mkdir("/sys/fs/cgroup/memory/test1", 0755);
+	fp = fopen("/sys/fs/cgroup/memory/test1/memory.limit_in_bytes", "w");
+	fprintf(fp, "%lu\n", size);
+	fclose(fp);
+	fp = fopen("/sys/fs/cgroup/memory/test1/tasks", "w");
+	fprintf(fp, "%u\n", getpid());
+	fclose(fp);
+	if (setgid(-2) || setuid(-2))
+		return 1;
+	stack = mmap(NULL, STACKSIZE * NUMTHREADS, PROT_WRITE | PROT_READ,
+		     MAP_ANONYMOUS | MAP_SHARED, EOF, 0);
+	for (i = 0; i < NUMTHREADS; i++)
+		if (clone(memory_eater, stack + (i + 1) * STACKSIZE,
+			  CLONE_SIGHAND | CLONE_THREAD | CLONE_VM | CLONE_FS | CLONE_FILES, NULL) == -1)
+			break;
+	sleep(1);
+	close(pipe_fd[1]);
+	pause();
+	return 0;
+}
