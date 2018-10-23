@@ -1,52 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BE376B0007
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 14:16:54 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id o3-v6so1071161pll.7
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 11:16:54 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id n11-v6si1844428plk.333.2018.10.23.11.16.52
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D3E1F6B000A
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 14:26:22 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id c13-v6so397664wmb.8
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 11:26:22 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p127-v6sor1700527wmd.28.2018.10.23.11.26.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Oct 2018 11:16:52 -0700 (PDT)
-Subject: Re: [PATCH 0/9] Allow persistent memory to be used like normal RAM
-References: <20181022201317.8558C1D8@viggo.jf.intel.com>
- <CAPcyv4hxs-GnmwQU1wPZyg5aydCY5K09-YpSrrLpvU1v_8dbBw@mail.gmail.com>
- <AT5PR8401MB11694012893ED2121D7A345EABF50@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <2677a7f9-5dc8-7590-2b8b-a67da1cb6b92@intel.com>
-Date: Tue, 23 Oct 2018 11:16:52 -0700
+        (Google Transport Security);
+        Tue, 23 Oct 2018 11:26:20 -0700 (PDT)
+From: Timofey Titovets <nefelim4ag@gmail.com>
+Subject: [PATCH RESEND V8 0/2] Currently used jhash are slow enough and replace it allow as to make KSM
+Date: Tue, 23 Oct 2018 21:25:52 +0300
+Message-Id: <20181023182554.23464-1-nefelim4ag@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <AT5PR8401MB11694012893ED2121D7A345EABF50@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>, 'Dan Williams' <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Tom Lendacky <thomas.lendacky@amd.com>, "Hocko, Michal" <MHocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, "Huang, Ying" <ying.huang@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "zwisler@kernel.org" <zwisler@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>
+To: linux-mm@kvack.org
+Cc: Timofey Titovets <timofey.titovets@synesis.ru>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, leesioh <solee@os.korea.ac.kr>
 
->> This series adds a new "driver" to which pmem devices can be
->> attached.  Once attached, the memory "owned" by the device is
->> hot-added to the kernel and managed like any other memory.  On
-> 
-> Would this memory be considered volatile (with the driver initializing
-> it to zeros), or persistent (contents are presented unchanged,
-> applications may guarantee persistence by using cache flush
-> instructions, fence instructions, and writing to flush hint addresses
-> per the persistent memory programming model)?
+From: Timofey Titovets <timofey.titovets@synesis.ru>
 
-Volatile.
+About speed (in kernel):
+        ksm: crc32c   hash() 12081 MB/s
+        ksm: xxh64    hash()  8770 MB/s
+        ksm: xxh32    hash()  4529 MB/s
+        ksm: jhash2   hash()  1569 MB/s
 
->> I expect udev can automate this by setting up a rule to watch for
->> device-dax instances by UUID and call a script to do the detach /
->> reattach dance.
-> 
-> Where would that rule be stored? Storing it on another device
-> is problematic. If that rule is lost, it could confuse other
-> drivers trying to grab device DAX devices for use as persistent
-> memory.
+By sioh Lee tests (copy from other mail):
+Test platform: openstack cloud platform (NEWTON version)
+Experiment node: openstack based cloud compute node (CPU: xeon E5-2620 v3, memory 64gb)
+VM: (2 VCPU, RAM 4GB, DISK 20GB) * 4
+Linux kernel: 4.14 (latest version)
+KSM setup - sleep_millisecs: 200ms, pages_to_scan: 200
 
-Well, we do lots of things like stable device naming from udev scripts.
- We depend on them not being lost.  At least this "fails safe" so we'll
-default to persistence instead of defaulting to "eat your data".
+Experiment process
+Firstly, we turn off KSM and launch 4 VMs.
+Then we turn on the KSM and measure the checksum computation time until full_scans become two.
+
+The experimental results (the experimental value is the average of the measured values)
+crc32c_intel: 1084.10ns
+crc32c (no hardware acceleration): 7012.51ns
+xxhash32: 2227.75ns
+xxhash64: 1413.16ns
+jhash2: 5128.30ns
+
+In summary, the result shows that crc32c_intel has advantages over all 
+of the hash function used in the experiment. (decreased by 84.54% compared to crc32c,
+78.86% compared to jhash2, 51.33% xxhash32, 23.28% compared to xxhash64)
+the results are similar to those of Timofey.
+
+But,
+use only xxhash for now, because for using crc32c,
+cryptoapi must be initialized first - that require some
+tricky solution to work good in all situations.
+
+So:
+  - Fisrt patch implement compile time pickup of fastest implementation of xxhash
+    for target platform.
+  - Second replace jhash2 with xxhash
+
+Thanks.
+
+CC: Andrea Arcangeli <aarcange@redhat.com>
+CC: linux-mm@kvack.org
+CC: kvm@vger.kernel.org
+CC: leesioh <solee@os.korea.ac.kr>
+
+Timofey Titovets (2):
+  xxHash: create arch dependent 32/64-bit xxhash()
+  ksm: replace jhash2 with xxhash
+
+ include/linux/xxhash.h | 23 +++++++++++++++++++++++
+ mm/Kconfig             |  1 +
+ mm/ksm.c               |  4 ++--
+ 3 files changed, 26 insertions(+), 2 deletions(-)
+
+-- 
+2.19.0
