@@ -1,168 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E00C6B0010
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 13:41:52 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id i16-v6so1390761ede.11
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 10:41:52 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x16-v6si1340368eds.184.2018.10.23.10.41.50
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CF1B6B0005
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 14:12:17 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id s2so1423344ote.13
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 11:12:17 -0700 (PDT)
+Received: from g9t5008.houston.hpe.com (g9t5008.houston.hpe.com. [15.241.48.72])
+        by mx.google.com with ESMTPS id b54si997216otd.72.2018.10.23.11.12.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Oct 2018 10:41:50 -0700 (PDT)
-Date: Tue, 23 Oct 2018 19:41:48 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] hugetlbfs: dirty pages as they are added to pagecache
-Message-ID: <20181023174148.GX18839@dhcp22.suse.cz>
-References: <20181018041022.4529-1-mike.kravetz@oracle.com>
- <20181023074340.GO18839@dhcp22.suse.cz>
- <b5be45b8-5afe-56cd-9482-28384699a049@oracle.com>
+        Tue, 23 Oct 2018 11:12:15 -0700 (PDT)
+From: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
+Subject: RE: [PATCH 0/9] Allow persistent memory to be used like normal RAM
+Date: Tue, 23 Oct 2018 18:12:11 +0000
+Message-ID: <AT5PR8401MB11694012893ED2121D7A345EABF50@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
+References: <20181022201317.8558C1D8@viggo.jf.intel.com>
+ <CAPcyv4hxs-GnmwQU1wPZyg5aydCY5K09-YpSrrLpvU1v_8dbBw@mail.gmail.com>
+In-Reply-To: <CAPcyv4hxs-GnmwQU1wPZyg5aydCY5K09-YpSrrLpvU1v_8dbBw@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b5be45b8-5afe-56cd-9482-28384699a049@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Alexander Viro <viro@zeniv.linux.org.uk>, stable@vger.kernel.org
+To: 'Dan Williams' <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>, "Hocko, Michal" <MHocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, "Huang, Ying" <ying.huang@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "zwisler@kernel.org" <zwisler@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>
 
-On Tue 23-10-18 10:30:44, Mike Kravetz wrote:
-> On 10/23/18 12:43 AM, Michal Hocko wrote:
-> > On Wed 17-10-18 21:10:22, Mike Kravetz wrote:
-> >> Some test systems were experiencing negative huge page reserve
-> >> counts and incorrect file block counts.  This was traced to
-> >> /proc/sys/vm/drop_caches removing clean pages from hugetlbfs
-> >> file pagecaches.  When non-hugetlbfs explicit code removes the
-> >> pages, the appropriate accounting is not performed.
-> >>
-> >> This can be recreated as follows:
-> >>  fallocate -l 2M /dev/hugepages/foo
-> >>  echo 1 > /proc/sys/vm/drop_caches
-> >>  fallocate -l 2M /dev/hugepages/foo
-> >>  grep -i huge /proc/meminfo
-> >>    AnonHugePages:         0 kB
-> >>    ShmemHugePages:        0 kB
-> >>    HugePages_Total:    2048
-> >>    HugePages_Free:     2047
-> >>    HugePages_Rsvd:    18446744073709551615
-> >>    HugePages_Surp:        0
-> >>    Hugepagesize:       2048 kB
-> >>    Hugetlb:         4194304 kB
-> >>  ls -lsh /dev/hugepages/foo
-> >>    4.0M -rw-r--r--. 1 root root 2.0M Oct 17 20:05 /dev/hugepages/foo
-> >>
-> >> To address this issue, dirty pages as they are added to pagecache.
-> >> This can easily be reproduced with fallocate as shown above. Read
-> >> faulted pages will eventually end up being marked dirty.  But there
-> >> is a window where they are clean and could be impacted by code such
-> >> as drop_caches.  So, just dirty them all as they are added to the
-> >> pagecache.
-> >>
-> >> In addition, it makes little sense to even try to drop hugetlbfs
-> >> pagecache pages, so disable calls to these filesystems in drop_caches
-> >> code.
-> >>
-> >> Fixes: 70c3547e36f5 ("hugetlbfs: add hugetlbfs_fallocate()")
-> >> Cc: stable@vger.kernel.org
-> >> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> > 
-> > I do agree with others that HUGETLBFS_MAGIC check in drop_pagecache_sb
-> > is wrong in principal. I am not even sure we want to special case memory
-> > backed filesystems. What if we ever implement MADV_FREE on fs? Should
-> > those pages be dropped? My first idea take would be yes.
-> 
-> Ok, I have removed that hard coded check.  Implementing MADV_FREE on
-> hugetlbfs would take some work, but it could be done.
-> 
-> > Acked-by: Michal Hocko <mhocko@suse.com> to the set_page_dirty dirty
-> > part.
-> > 
-> > Although I am wondering why you haven't covered only the fallocate path
-> > wrt Fixes tag. In other words, do we need the same treatment for the
-> > page fault path? We do not set dirty bit on page there as well. We rely
-> > on the dirty bit in pte and only for writable mappings. I have hard time
-> > to see why we have been safe there as well. So maybe it is your Fixes:
-> > tag which is not entirely correct, or I am simply missing the fault
-> > path.
-> 
-> No, you are not missing anything.  In the commit log I mentioned that this
-> also does apply to the fault path.  The change takes care of them both.
-> 
-> I was struggling with what to put in the fixes tag.  As mentioned, this
-> problem also exists in the fault path.  Since 3.16 is the oldest stable
-> release, I went back and used the commit next to the add_to_page_cache code
-> there.  However, that seems kind of random.  Is there a better way to say
-> the patch applies to all stable releases?
 
-OK, good, I was afraid I was missing something, well except for not
-reading the changelog properly. I would go with
 
-Cc: stable # all kernels with hugetlb
+> -----Original Message-----
+> From: Linux-nvdimm [mailto:linux-nvdimm-bounces@lists.01.org] On Behalf O=
+f Dan Williams
+> Sent: Monday, October 22, 2018 8:05 PM
+> Subject: Re: [PATCH 0/9] Allow persistent memory to be used like normal R=
+AM
+>=20
+> On Mon, Oct 22, 2018 at 1:18 PM Dave Hansen <dave.hansen@linux.intel.com>=
+ wrote:
+...
+> This series adds a new "driver" to which pmem devices can be
+> attached.  Once attached, the memory "owned" by the device is
+> hot-added to the kernel and managed like any other memory.  On
 
-> Here is updated patch without the drop_caches change and updated fixes tag.
-> 
-> From: Mike Kravetz <mike.kravetz@oracle.com>
-> 
-> hugetlbfs: dirty pages as they are added to pagecache
-> 
-> Some test systems were experiencing negative huge page reserve
-> counts and incorrect file block counts.  This was traced to
-> /proc/sys/vm/drop_caches removing clean pages from hugetlbfs
-> file pagecaches.  When non-hugetlbfs explicit code removes the
-> pages, the appropriate accounting is not performed.
-> 
-> This can be recreated as follows:
->  fallocate -l 2M /dev/hugepages/foo
->  echo 1 > /proc/sys/vm/drop_caches
->  fallocate -l 2M /dev/hugepages/foo
->  grep -i huge /proc/meminfo
->    AnonHugePages:         0 kB
->    ShmemHugePages:        0 kB
->    HugePages_Total:    2048
->    HugePages_Free:     2047
->    HugePages_Rsvd:    18446744073709551615
->    HugePages_Surp:        0
->    Hugepagesize:       2048 kB
->    Hugetlb:         4194304 kB
->  ls -lsh /dev/hugepages/foo
->    4.0M -rw-r--r--. 1 root root 2.0M Oct 17 20:05 /dev/hugepages/foo
-> 
-> To address this issue, dirty pages as they are added to pagecache.
-> This can easily be reproduced with fallocate as shown above. Read
-> faulted pages will eventually end up being marked dirty.  But there
-> is a window where they are clean and could be impacted by code such
-> as drop_caches.  So, just dirty them all as they are added to the
-> pagecache.
-> 
-> Fixes: 6bda666a03f0 ("hugepages: fold find_or_alloc_pages into huge_no_page()")
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+Would this memory be considered volatile (with the driver initializing
+it to zeros), or persistent (contents are presented unchanged,
+applications may guarantee persistence by using cache flush
+instructions, fence instructions, and writing to flush hint addresses
+per the persistent memory programming model)?
 
-Acked-by: Mihcla Hocko <mhocko@suse.com>
+> > 1. The device re-binding hacks are ham-fisted at best.  We
+> >    need a better way of doing this, especially so the kmem
+> >    driver does not get in the way of normal pmem devices.
+...
+> To me this looks like teaching the nvdimm-bus and this dax_kmem driver
+> to require explicit matching based on 'id'. The attachment scheme
+> would look like this:
+>=20
+> modprobe dax_kmem
+> echo dax0.0 > /sys/bus/nd/drivers/dax_kmem/new_id
+> echo dax0.0 > /sys/bus/nd/drivers/dax_pmem/unbind
+> echo dax0.0 > /sys/bus/nd/drivers/dax_kmem/bind
+>=20
+> At step1 the dax_kmem drivers will match no devices and stays out of
+> the way of dax_pmem. It learns about devices it cares about by being
+> explicitly told about them. Then unbind from the typical dax_pmem
+> driver and attach to dax_kmem to perform the one way hotplug.
+>=20
+> I expect udev can automate this by setting up a rule to watch for
+> device-dax instances by UUID and call a script to do the detach /
+> reattach dance.
 
-> ---
->  mm/hugetlb.c | 6 ++++++
->  1 file changed, 6 insertions(+)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 5c390f5a5207..7b5c0ad9a6bd 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -3690,6 +3690,12 @@ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
->  		return err;
->  	ClearPagePrivate(page);
->  
-> +	/*
-> +	 * set page dirty so that it will not be removed from cache/file
-> +	 * by non-hugetlbfs specific code paths.
-> +	 */
-> +	set_page_dirty(page);
-> +
->  	spin_lock(&inode->i_lock);
->  	inode->i_blocks += blocks_per_huge_page(h);
->  	spin_unlock(&inode->i_lock);
-> -- 
-> 2.17.2
+Where would that rule be stored? Storing it on another device
+is problematic. If that rule is lost, it could confuse other
+drivers trying to grab device DAX devices for use as persistent
+memory.
 
--- 
-Michal Hocko
-SUSE Labs
+A new namespace mode would record the intended usage in the
+device itself, eliminating dependencies. It could join the
+other modes like:
+
+	ndctl create-namespace -m raw
+		create /dev/pmem4 block device
+	ndctl create-namespace -m sector
+		create /dev/pmem4s block device
+	ndctl create-namespace -m fsdax
+		create /dev/pmem4 block device
+	ndctl create-namespace -m devdax
+		create /dev/dax4.3 character device
+		for use as persistent memory
+	ndctl create-namespace -m mem
+		create /dev/mem4.3 character device
+		for use as volatile memory
+
+---
+Robert Elliott, HPE Persistent Memory
