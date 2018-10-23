@@ -1,69 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A4C186B0006
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 17:02:02 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id 43-v6so1304539ple.19
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 14:02:02 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 223466B000A
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 17:11:09 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id y131-v6so2374982wmd.5
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 14:11:09 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z5-v6sor21847plo.58.2018.10.23.14.02.01
+        by mx.google.com with SMTPS id 136-v6sor1963713wmu.12.2018.10.23.14.11.07
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 23 Oct 2018 14:02:01 -0700 (PDT)
-Date: Tue, 23 Oct 2018 14:01:58 -0700
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [RFC PATCH 0/2] improve vmalloc allocation
-Message-ID: <20181023210158.GA229730@joelaf.mtv.corp.google.com>
-References: <20181022125142.GD18839@dhcp22.suse.cz>
- <20181022165253.uphv3xzqivh44o3d@pc636>
- <20181023072306.GN18839@dhcp22.suse.cz>
- <dd0c3528-9c01-12bc-3400-ca88060cb7cf@kernel.org>
- <20181023152640.GD20085@bombadil.infradead.org>
- <20181023170532.GW18839@dhcp22.suse.cz>
- <98842edb-d462-96b1-311f-27c6ebfc108a@kernel.org>
- <20181023193044.GA139403@joelaf.mtv.corp.google.com>
- <024af44a-77e1-1c61-c9b2-64ffbe4f7c49@kernel.org>
- <20181023200923.GB25444@bombadil.infradead.org>
+        Tue, 23 Oct 2018 14:11:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181023200923.GB25444@bombadil.infradead.org>
+References: <20181020211200.255171-1-marcorr@google.com> <20181020211200.255171-2-marcorr@google.com>
+ <20181022200617.GD14374@char.us.oracle.com> <20181023123355.GI32333@dhcp22.suse.cz>
+In-Reply-To: <20181023123355.GI32333@dhcp22.suse.cz>
+From: Marc Orr <marcorr@google.com>
+Date: Tue, 23 Oct 2018 17:10:55 -0400
+Message-ID: <CAA03e5ENHGQ_5WhiY=Ya+Kpz+jZsR=in5NAwtrW0p8iGqDg5Vw@mail.gmail.com>
+Subject: Re: [kvm PATCH 1/2] mm: export __vmalloc_node_range()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Shuah Khan <shuah@kernel.org>, Michal Hocko <mhocko@kernel.org>, Uladzislau Rezki <urezki@gmail.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Thomas Garnier <thgarnie@google.com>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt <rostedt@goodmis.org>, Joel Fernandes <joelaf@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Tejun Heo <tj@kernel.org>, maco@android.com
+To: mhocko@kernel.org
+Cc: konrad.wilk@oracle.com, linux-mm@kvack.org, akpm@linux-foundation.org, kvm@vger.kernel.org, Jim Mattson <jmattson@google.com>, David Rientjes <rientjes@google.com>
 
-On Tue, Oct 23, 2018 at 01:09:23PM -0700, Matthew Wilcox wrote:
-> On Tue, Oct 23, 2018 at 01:48:32PM -0600, Shuah Khan wrote:
-> > On 10/23/2018 01:30 PM, Joel Fernandes wrote:
-> > > On Tue, Oct 23, 2018 at 11:13:36AM -0600, Shuah Khan wrote:
-> > >> I like this proposal. I think we will open up lot of test opportunities with
-> > >> this approach.
-> > >>
-> > >> Maybe we can use this stress test as a pilot and see where it takes us.
-> > > 
-> > > I am a bit worried that such an EXPORT_SYMBOL_KSELFTEST mechanism can be abused by
-> > > out-of-tree module writers to call internal functionality.
-> > 
-> > That is  valid concern to consider before we go forward with the proposal.
-> > 
-> > We could wrap EXPORT_SYMBOL_KSELFTEST this in an existing debug option. This could
-> > be fine grained for each sub-system for its debug option. We do have a few of these
-> > now
-> 
-> This all seems far more complicated than my proposed solution.
+Ack. The user is the 2nd patch in this series, the kvm_intel module,
+which uses this version of vmalloc() to allocate vcpus across
+non-contiguous memory. I will cc everyone here on that 2nd patch for
+context.
+Thanks,
+Marc
 
-Matthew's solution seems Ok to me where it works. A problem could be that it
-will not always work.
-
-As an example, recently I wanted to directly set the sysctl_sched_rt_runtime
-variable from the rcutorture test, just for forcing some conditions. This
-symbol is internal and inaccessible from modules. This can also be done by
-calling the internal sched_rt_handler with some parameters.  However I don't
-think including an internal source file in a test source file can achieve the
-objective of setting it since access to the internal symbol is not possible
-without exporting it somehow. This could be a "special" case too but is an
-example where the include trick may fall apart.
-
-I do think its a cool trick though ;-)
-
- - Joel
+On Tue, Oct 23, 2018 at 8:33 AM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Mon 22-10-18 16:06:17, Konrad Rzeszutek Wilk wrote:
+> > On Sat, Oct 20, 2018 at 02:11:59PM -0700, Marc Orr wrote:
+> > > The __vmalloc_node_range() is in the include/linux/vmalloc.h file, but
+> > > it's not exported so it can't be used. This patch exports the API. The
+> > > motivation to export it is so that we can do aligned vmalloc's of KVM
+> > > vcpus.
+> >
+> > Would it make more sense to change it to not have __ in front of it?
+> > Also you forgot to CC the linux-mm folks. Doing that for you.
+>
+> Please also add a user so that we can see how the symbol is actually
+> used with a short explanation why the existing API is not suitable.
+>
+> > >
+> > > Signed-off-by: Marc Orr <marcorr@google.com>
+> > > ---
+> > >  mm/vmalloc.c | 1 +
+> > >  1 file changed, 1 insertion(+)
+> > >
+> > > diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> > > index a728fc492557..9e7974ab1da4 100644
+> > > --- a/mm/vmalloc.c
+> > > +++ b/mm/vmalloc.c
+> > > @@ -1763,6 +1763,7 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+> > >                       "vmalloc: allocation failure: %lu bytes", real_size);
+> > >     return NULL;
+> > >  }
+> > > +EXPORT_SYMBOL_GPL(__vmalloc_node_range);
+> > >
+> > >  /**
+> > >   * __vmalloc_node  -  allocate virtually contiguous memory
+> > > --
+> > > 2.19.1.568.g152ad8e336-goog
+> > >
+>
+> --
+> Michal Hocko
+> SUSE Labs
