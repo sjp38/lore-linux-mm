@@ -1,100 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 907F76B000A
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 21:01:22 -0400 (EDT)
-Received: by mail-it1-f200.google.com with SMTP id d10so13671778itk.3
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 18:01:22 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id n19-v6si9782994itn.23.2018.10.22.18.01.20
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 49EB46B000D
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2018 21:05:24 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id x30so22100120ota.7
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 18:05:24 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i203-v6sor366564oia.24.2018.10.22.18.05.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Oct 2018 18:01:21 -0700 (PDT)
-Message-Id: <201810230101.w9N118i3042448@www262.sakura.ne.jp>
-Subject: Re: [RFC PATCH 2/2] memcg: do not report racy no-eligible OOM tasks
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+        (Google Transport Security);
+        Mon, 22 Oct 2018 18:05:23 -0700 (PDT)
 MIME-Version: 1.0
-Date: Tue, 23 Oct 2018 10:01:08 +0900
-References: <f9a8079f-55b0-301e-9b3d-a5250bd7d277@i-love.sakura.ne.jp> <20181022120308.GB18839@dhcp22.suse.cz>
-In-Reply-To: <20181022120308.GB18839@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+References: <20181022201317.8558C1D8@viggo.jf.intel.com>
+In-Reply-To: <20181022201317.8558C1D8@viggo.jf.intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 22 Oct 2018 18:05:11 -0700
+Message-ID: <CAPcyv4hxs-GnmwQU1wPZyg5aydCY5K09-YpSrrLpvU1v_8dbBw@mail.gmail.com>
+Subject: Re: [PATCH 0/9] Allow persistent memory to be used like normal RAM
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dave Jiang <dave.jiang@intel.com>, zwisler@kernel.org, Vishal L Verma <vishal.l.verma@intel.com>, Tom Lendacky <thomas.lendacky@amd.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, "Huang, Ying" <ying.huang@intel.com>, Fengguang Wu <fengguang.wu@intel.com>
 
-Michal Hocko wrote:
-> On Mon 22-10-18 20:45:17, Tetsuo Handa wrote:
-> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > index e79cb59552d9..a9dfed29967b 100644
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -1380,10 +1380,22 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> > >  		.gfp_mask = gfp_mask,
-> > >  		.order = order,
-> > >  	};
-> > > -	bool ret;
-> > > +	bool ret = true;
-> > >  
-> > >  	mutex_lock(&oom_lock);
-> > > +
-> > > +	/*
-> > > +	 * multi-threaded tasks might race with oom_reaper and gain
-> > > +	 * MMF_OOM_SKIP before reaching out_of_memory which can lead
-> > > +	 * to out_of_memory failure if the task is the last one in
-> > > +	 * memcg which would be a false possitive failure reported
-> > > +	 */
-> > > +	if (tsk_is_oom_victim(current))
-> > > +		goto unlock;
-> > > +
-> > 
-> > This is not wrong but is strange. We can use mutex_lock_killable(&oom_lock)
-> > so that any killed threads no longer wait for oom_lock.
-> 
-> tsk_is_oom_victim is stronger because it doesn't depend on
-> fatal_signal_pending which might be cleared throughout the exit process.
-> 
+On Mon, Oct 22, 2018 at 1:18 PM Dave Hansen <dave.hansen@linux.intel.com> wrote:
+>
+> Persistent memory is cool.  But, currently, you have to rewrite
+> your applications to use it.  Wouldn't it be cool if you could
+> just have it show up in your system like normal RAM and get to
+> it like a slow blob of memory?  Well... have I got the patch
+> series for you!
+>
+> This series adds a new "driver" to which pmem devices can be
+> attached.  Once attached, the memory "owned" by the device is
+> hot-added to the kernel and managed like any other memory.  On
+> systems with an HMAT (a new ACPI table), each socket (roughly)
+> will have a separate NUMA node for its persistent memory so
+> this newly-added memory can be selected by its unique NUMA
+> node.
+>
+> This is highly RFC, and I really want the feedback from the
+> nvdimm/pmem folks about whether this is a viable long-term
+> perversion of their code and device mode.  It's insufficiently
+> documented and probably not bisectable either.
+>
+> Todo:
+> 1. The device re-binding hacks are ham-fisted at best.  We
+>    need a better way of doing this, especially so the kmem
+>    driver does not get in the way of normal pmem devices.
+> 2. When the device has no proper node, we default it to
+>    NUMA node 0.  Is that OK?
+> 3. We muck with the 'struct resource' code quite a bit. It
+>    definitely needs a once-over from folks more familiar
+>    with it than I.
+> 4. Is there a better way to do this than starting with a
+>    copy of pmem.c?
 
-I still want to propose this. No need to be memcg OOM specific.
+So I don't think we want to do patch 2, 3, or 5. Just jump to patch 7
+and remove all the devm_memremap_pages() infrastructure and dax_region
+infrastructure.
 
- mm/memcontrol.c |  3 ++-
- mm/oom_kill.c   | 10 ++++++++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+The driver should be a dead simple turn around to call add_memory()
+for the passed in range. The hard part is, as you say, arranging for
+the kmem driver to not stand in the way of typical range / device
+claims by the dax_pmem device.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e79cb59..2c1e1ac 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1382,7 +1382,8 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	};
- 	bool ret;
- 
--	mutex_lock(&oom_lock);
-+	if (mutex_lock_killable(&oom_lock))
-+		return true;
- 	ret = out_of_memory(&oc);
- 	mutex_unlock(&oom_lock);
- 	return ret;
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index f10aa53..e453bad 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -1055,6 +1055,16 @@ bool out_of_memory(struct oom_control *oc)
- 	unsigned long freed = 0;
- 	enum oom_constraint constraint = CONSTRAINT_NONE;
- 
-+	/*
-+	 * It is possible that multi-threaded OOM victims get
-+	 * task_will_free_mem(current) == false when the OOM reaper quickly
-+	 * set MMF_OOM_SKIP. But since we know that tsk_is_oom_victim() == true
-+	 * tasks won't loop forever (unleess it is a __GFP_NOFAIL allocation
-+	 * request), we don't need to select next OOM victim.
-+	 */
-+	if (tsk_is_oom_victim(current) && !(oc->gfp_mask & __GFP_NOFAIL))
-+		return true;
-+
- 	if (oom_killer_disabled)
- 		return false;
- 
--- 
-1.8.3.1
+To me this looks like teaching the nvdimm-bus and this dax_kmem driver
+to require explicit matching based on 'id'. The attachment scheme
+would look like this:
+
+modprobe dax_kmem
+echo dax0.0 > /sys/bus/nd/drivers/dax_kmem/new_id
+echo dax0.0 > /sys/bus/nd/drivers/dax_pmem/unbind
+echo dax0.0 > /sys/bus/nd/drivers/dax_kmem/bind
+
+At step1 the dax_kmem drivers will match no devices and stays out of
+the way of dax_pmem. It learns about devices it cares about by being
+explicitly told about them. Then unbind from the typical dax_pmem
+driver and attach to dax_kmem to perform the one way hotplug.
+
+I expect udev can automate this by setting up a rule to watch for
+device-dax instances by UUID and call a script to do the detach /
+reattach dance.
