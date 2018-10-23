@@ -1,77 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D0AC06B0003
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 03:11:32 -0400 (EDT)
-Received: by mail-yb1-f198.google.com with SMTP id u14-v6so207413ybi.3
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 00:11:32 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u3-v6sor162087ybm.176.2018.10.23.00.11.31
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E389D6B0006
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 03:23:09 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id u6-v6so357607eds.10
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 00:23:09 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c19-v6si386417ejz.249.2018.10.23.00.23.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 23 Oct 2018 00:11:31 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Oct 2018 00:23:08 -0700 (PDT)
+Date: Tue, 23 Oct 2018 09:23:06 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 0/2] improve vmalloc allocation
+Message-ID: <20181023072306.GN18839@dhcp22.suse.cz>
+References: <20181019173538.590-1-urezki@gmail.com>
+ <20181022125142.GD18839@dhcp22.suse.cz>
+ <20181022165253.uphv3xzqivh44o3d@pc636>
 MIME-Version: 1.0
-References: <1540229092-25207-1-git-send-email-arunks@codeaurora.org>
- <20181022181122.GK18839@dhcp22.suse.cz> <CABOM9Zpq41Ox8wQvsNjgfCtwuqh6CnyeW1B09DWa1TQN+JKf0w@mail.gmail.com>
- <20181023053359.GL18839@dhcp22.suse.cz> <alpine.DEB.2.21.1810230711220.2343@hadrien>
-In-Reply-To: <alpine.DEB.2.21.1810230711220.2343@hadrien>
-From: Arun Sudhilal <getarunks@gmail.com>
-Date: Tue, 23 Oct 2018 12:41:19 +0530
-Message-ID: <CABOM9Zr48HTphfbmk9v7a3A+cqzrAFZT71pEyvvseV8PpbWOhg@mail.gmail.com>
-Subject: Re: [PATCH] mm: convert totalram_pages, totalhigh_pages and
- managed_pages to atomic.
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181022165253.uphv3xzqivh44o3d@pc636>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: julia.lawall@lip6.fr
-Cc: mhocko@kernel.org, arunks@codeaurora.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, minchan@kernel.org, mhocko@suse.com, gregkh@linuxfoundation.org, Andrew Morton <akpm@linux-foundation.org>
+To: Uladzislau Rezki <urezki@gmail.com>, Shuah Khan <shuah@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Thomas Garnier <thgarnie@google.com>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt <rostedt@goodmis.org>, Joel Fernandes <joelaf@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Tejun Heo <tj@kernel.org>
 
-On Tue, Oct 23, 2018 at 12:11 PM Julia Lawall <julia.lawall@lip6.fr> wrote:
->
->
->
-> On Tue, 23 Oct 2018, Michal Hocko wrote:
->
-> > [Trimmed CC list + Julia - there is indeed no need to CC everybody maintain a
-> > file you are updating for the change like this]
-> >
-> > On Tue 23-10-18 10:16:51, Arun Sudhilal wrote:
-> > > On Mon, Oct 22, 2018 at 11:41 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > > >
-> > > > On Mon 22-10-18 22:53:22, Arun KS wrote:
-> > > > > Remove managed_page_count_lock spinlock and instead use atomic
-> > > > > variables.
-> > > >
-> > >
-> > > Hello Michal,
-> > > > I assume this has been auto-generated. If yes, it would be better to
-> > > > mention the script so that people can review it and regenerate for
-> > > > comparision. Such a large change is hard to review manually.
-> > >
-> > > Changes were made partially with script.  For totalram_pages and
-> > > totalhigh_pages,
-> > >
-> > > find dir -type f -exec sed -i
-> > > 's/totalram_pages/atomic_long_read(\&totalram_pages)/g' {} \;
-> > > find dir -type f -exec sed -i
-> > > 's/totalhigh_pages/atomic_long_read(\&totalhigh_pages)/g' {} \;
-> > >
-> > > For managed_pages it was mostly manual edits after using,
-> > > find mm/ -type f -exec sed -i
-> > > 's/zone->managed_pages/atomic_long_read(\&zone->managed_pages)/g' {}
-> > > \;
-> >
-> > I guess we should be able to use coccinelle for this kind of change and
-> > reduce the amount of manual intervention to absolute minimum.
->
-> Coccinelle looks like it would be desirable, especially in case the word
-> zone is not always used.
->
-> Arun, please feel free to contact me if you want to try it and need help.
+Hi Shuah,
 
-Thanks Julia. I m starting with,
-http://coccinelle.lip6.fr/papers/backport_edcc15.pdf
+On Mon 22-10-18 18:52:53, Uladzislau Rezki wrote:
+> On Mon, Oct 22, 2018 at 02:51:42PM +0200, Michal Hocko wrote:
+> > Hi,
+> > I haven't read through the implementation yet but I have say that I
+> > really love this cover letter. It is clear on intetion, it covers design
+> > from high level enough to start discussion and provides a very nice
+> > testing coverage. Nice work!
+> > 
+> > I also think that we need a better performing vmalloc implementation
+> > long term because of the increasing number of kvmalloc users.
+> > 
+> > I just have two mostly workflow specific comments.
+> > 
+> > > A test-suite patch you can find here, it is based on 4.18 kernel.
+> > > ftp://vps418301.ovh.net/incoming/0001-mm-vmalloc-stress-test-suite-v4.18.patch
+> > 
+> > Can you fit this stress test into the standard self test machinery?
+> > 
+> If you mean "tools/testing/selftests", then i can fit that as a kernel module.
+> But not all the tests i can trigger from kernel module, because 3 of 8 tests
+> use __vmalloc_node_range() function that is not marked as EXPORT_SYMBOL.
 
-Regards,
-Arun
->
-> julia
+Is there any way to conditionally export these internal symbols just for
+kselftests? Or is there any other standard way how to test internal
+functionality that is not exported to modules?
+-- 
+Michal Hocko
+SUSE Labs
