@@ -1,59 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 186CE6B0006
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 14:58:19 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id o6-v6so1544672oib.9
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 11:58:19 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D21B6B0006
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 15:30:50 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id a13-v6so1227134pgw.3
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 12:30:50 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d3-v6sor1122457oia.8.2018.10.23.11.58.17
+        by mx.google.com with SMTPS id k1-v6sor2023912pld.0.2018.10.23.12.30.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 23 Oct 2018 11:58:18 -0700 (PDT)
+        Tue, 23 Oct 2018 12:30:48 -0700 (PDT)
+Date: Tue, 23 Oct 2018 12:30:44 -0700
+From: Joel Fernandes <joel@joelfernandes.org>
+Subject: Re: [RFC PATCH 0/2] improve vmalloc allocation
+Message-ID: <20181023193044.GA139403@joelaf.mtv.corp.google.com>
+References: <20181019173538.590-1-urezki@gmail.com>
+ <20181022125142.GD18839@dhcp22.suse.cz>
+ <20181022165253.uphv3xzqivh44o3d@pc636>
+ <20181023072306.GN18839@dhcp22.suse.cz>
+ <dd0c3528-9c01-12bc-3400-ca88060cb7cf@kernel.org>
+ <20181023152640.GD20085@bombadil.infradead.org>
+ <20181023170532.GW18839@dhcp22.suse.cz>
+ <98842edb-d462-96b1-311f-27c6ebfc108a@kernel.org>
 MIME-Version: 1.0
-References: <20181022201317.8558C1D8@viggo.jf.intel.com> <CAPcyv4hxs-GnmwQU1wPZyg5aydCY5K09-YpSrrLpvU1v_8dbBw@mail.gmail.com>
- <AT5PR8401MB11694012893ED2121D7A345EABF50@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
- <2677a7f9-5dc8-7590-2b8b-a67da1cb6b92@intel.com>
-In-Reply-To: <2677a7f9-5dc8-7590-2b8b-a67da1cb6b92@intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 23 Oct 2018 11:58:06 -0700
-Message-ID: <CAPcyv4jcgRTR-NnHPpsLm=z8uSLJZYN530nGm5f9k6Q3WGHr0g@mail.gmail.com>
-Subject: Re: [PATCH 0/9] Allow persistent memory to be used like normal RAM
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <98842edb-d462-96b1-311f-27c6ebfc108a@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>, Dave Hansen <dave.hansen@linux.intel.com>, Tom Lendacky <thomas.lendacky@amd.com>, Michal Hocko <MHocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, "Huang, Ying" <ying.huang@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, zwisler@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>
+To: Shuah Khan <shuah@kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>, Uladzislau Rezki <urezki@gmail.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Thomas Garnier <thgarnie@google.com>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt <rostedt@goodmis.org>, Joel Fernandes <joelaf@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Tejun Heo <tj@kernel.org>, maco@android.com
 
-On Tue, Oct 23, 2018 at 11:17 AM Dave Hansen <dave.hansen@intel.com> wrote:
->
-> >> This series adds a new "driver" to which pmem devices can be
-> >> attached.  Once attached, the memory "owned" by the device is
-> >> hot-added to the kernel and managed like any other memory.  On
-> >
-> > Would this memory be considered volatile (with the driver initializing
-> > it to zeros), or persistent (contents are presented unchanged,
-> > applications may guarantee persistence by using cache flush
-> > instructions, fence instructions, and writing to flush hint addresses
-> > per the persistent memory programming model)?
->
-> Volatile.
->
-> >> I expect udev can automate this by setting up a rule to watch for
-> >> device-dax instances by UUID and call a script to do the detach /
-> >> reattach dance.
-> >
-> > Where would that rule be stored? Storing it on another device
-> > is problematic. If that rule is lost, it could confuse other
-> > drivers trying to grab device DAX devices for use as persistent
-> > memory.
->
-> Well, we do lots of things like stable device naming from udev scripts.
->  We depend on them not being lost.  At least this "fails safe" so we'll
-> default to persistence instead of defaulting to "eat your data".
->
+On Tue, Oct 23, 2018 at 11:13:36AM -0600, Shuah Khan wrote:
+> On 10/23/2018 11:05 AM, Michal Hocko wrote:
+> > On Tue 23-10-18 08:26:40, Matthew Wilcox wrote:
+> >> On Tue, Oct 23, 2018 at 09:02:56AM -0600, Shuah Khan wrote:
+> > [...]
+> >>> The way it can be handled is by adding a test module under lib. test_kmod,
+> >>> test_sysctl, test_user_copy etc.
+> >>
+> >> The problem is that said module can only invoke functions which are
+> >> exported using EXPORT_SYMBOL.  And there's a cost to exporting them,
+> >> which I don't think we're willing to pay, purely to get test coverage.
+> > 
+> > Yes, I think we do not want to export internal functionality which might
+> > be still interesting for the testing coverage. Maybe we want something
+> > like EXPORT_SYMBOL_KSELFTEST which would allow to link within the
+> > kselftest machinery but it wouldn't allow the same for general modules
+> > and will not give any API promisses.
+> > 
+> 
+> I like this proposal. I think we will open up lot of test opportunities with
+> this approach.
+> 
+> Maybe we can use this stress test as a pilot and see where it takes us.
 
-Right, and at least for the persistent memory to volatile conversion
-case we will have the UUID to positively identify the DAX device. So
-it will indeed "fail safe" and just become a dax_pmem device again if
-the configuration is lost. We'll likely need to create/use a "by-path"
-scheme for non-pmem use cases.
+I am a bit worried that such an EXPORT_SYMBOL_KSELFTEST mechanism can be abused by
+out-of-tree module writers to call internal functionality.
+
+How would you prevent that?
+
+thanks,
+
+ - Joel
