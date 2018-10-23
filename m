@@ -1,56 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 03F686B0006
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 09:00:26 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id b27-v6so788010pfm.15
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 06:00:25 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id n26-v6si1316691pfk.14.2018.10.23.06.00.24
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 23 Oct 2018 06:00:24 -0700 (PDT)
-Date: Tue, 23 Oct 2018 05:59:28 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2] mm: Introduce new function vm_insert_kmem_page
-Message-ID: <20181023125928.GC20085@bombadil.infradead.org>
-References: <CANiq72kVJn7985EET067Dgj+z0dwb0x2MTUnREMWKCVU6=WnJA@mail.gmail.com>
- <CAFqt6zZ4sPjtb5BaDfwc5tZv+vMj6ao3NJZ_3quX9AH5pCMwJg@mail.gmail.com>
- <CANiq72m9u1PL9X+dPNLxgkhvttj=4ijLyM2sFex=Kws7wswKzw@mail.gmail.com>
- <CAFqt6zYH4Aczu8AYke8AfGuMS70SJXCMn-n8X8C_Tz03gTjn8g@mail.gmail.com>
- <CANiq72kRAZE9SyM4EkpaBZH03Ex0Z=4Pk2iOuc2jBDKTfKjHQg@mail.gmail.com>
- <CAFqt6zZCCPFE3sQ3u_gjiN8wwd99nwWatk9JRsiGxbCwhi91mg@mail.gmail.com>
- <CANiq72k-e_j67==VdrayqggjAd7MAfpaJS-_0=jkmh4OWynukQ@mail.gmail.com>
- <CAFqt6zZ2yHkVcbYtK1dxr9B3K5WVYGboavjP1ibmYei0u4zFbQ@mail.gmail.com>
- <20181023122435.GB20085@bombadil.infradead.org>
- <CAFqt6zZp=UsSGH148=tPWLnSxC51EGdR0Vv4f5tP58MO-6OS_w@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAFqt6zZp=UsSGH148=tPWLnSxC51EGdR0Vv4f5tP58MO-6OS_w@mail.gmail.com>
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C76136B000A
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 09:02:19 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id j47so682257ota.16
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 06:02:19 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id w2si525543otj.68.2018.10.23.06.02.15
+        for <linux-mm@kvack.org>;
+        Tue, 23 Oct 2018 06:02:15 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: [PATCH V3 0/5] arm64/mm: Enable HugeTLB migration
+Date: Tue, 23 Oct 2018 18:31:56 +0530
+Message-Id: <1540299721-26484-1-git-send-email-anshuman.khandual@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin@protonic.nl, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Kees Cook <keescook@chromium.org>, treding@nvidia.com, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mark Rutland <mark.rutland@arm.com>, aryabinin@virtuozzo.com, Dmitry Vyukov <dvyukov@google.com>, Kate Stewart <kstewart@linuxfoundation.org>, tchibo@google.com, riel@redhat.com, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Huang, Ying" <ying.huang@intel.com>, ak@linux.intel.com, rppt@linux.vnet.ibm.com, linux@dominikbrodowski.net, Arnd Bergmann <arnd@arndb.de>, cpandya@codeaurora.org, hannes@cmpxchg.org, Joe Perches <joe@perches.com>, mcgrof@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, Linux-MM <linux-mm@kvack.org>
+To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
+Cc: suzuki.poulose@arm.com, punit.agrawal@arm.com, will.deacon@arm.com, Steven.Price@arm.com, steve.capper@arm.com, catalin.marinas@arm.com, mhocko@kernel.org, akpm@linux-foundation.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
 
-On Tue, Oct 23, 2018 at 06:03:42PM +0530, Souptick Joarder wrote:
-> On Tue, Oct 23, 2018 at 5:54 PM Matthew Wilcox <willy@infradead.org> wrote:
-> > On Tue, Oct 23, 2018 at 05:44:32PM +0530, Souptick Joarder wrote:
-> > > Instruction from Matthew  Wilcox who is supervising the entire vm_fault_t
-> > > migration work :-)
-> >
-> > Hang on.  That was for the initial vm_fault_t conversion in which each
-> > step was clearly an improvement.  What you're looking at now is far
-> > from that.
-> 
-> Ok. But my understanding was, the approach of vm_insert_range comes
-> into discussion as part of converting vm_insert_page into vmf_insert_page
-> which is still part of original vm_fault_t conversion discussion.  No ?
+This patch series enables HugeTLB migration support for all supported
+huge page sizes at all levels including contiguous bit implementation.
+Following HugeTLB migration support matrix has been enabled with this
+patch series. All permutations have been tested except for the 16GB.
 
-No.  The initial part (converting all page fault methods to vm_fault_t)
-is done.  What remains undone (looking at akpm's tree) is changing the
-typedef of vm_fault_t from int to unsigned int.  That will prevent new
-page fault handlers with the wrong type from being added.
+         CONT PTE    PMD    CONT PMD    PUD
+         --------    ---    --------    ---
+4K:         64K     2M         32M     1G
+16K:         2M    32M          1G
+64K:         2M   512M         16G
 
-I don't necessarily want to get rid of vm_insert_page().  Maybe it will
-make sense to do that, and maybe not.  What I do want to see is thought,
-and not "Matthew told me to do it", when I didn't.
+First the series adds migration support for PUD based huge pages. It
+then adds a platform specific hook to query an architecture if a
+given huge page size is supported for migration while also providing
+a default fallback option preserving the existing semantics which just
+checks for (PMD|PUD|PGDIR)_SHIFT macros. The last two patches enables
+HugeTLB migration on arm64 and subscribe to this new platform specific
+hook by defining an override.
+
+The second patch differentiates between movability and migratability
+aspects of huge pages and implements hugepage_movable_supported() which
+can then be used during allocation to decide whether to place the huge
+page in movable zone or not.
+
+Changes in V3:
+
+- Re-ordered patches 1 and 2 per Michal
+- s/Movability/Migratability/ in unmap_and_move_huge_page() per Naoya
+
+Changes in V2: (https://lkml.org/lkml/2018/10/12/190)
+
+- Added a new patch which differentiates migratability and movability
+  of huge pages and implements hugepage_movable_supported() function
+  as suggested by Michal Hocko.
+
+Anshuman Khandual (5):
+  mm/hugetlb: Distinguish between migratability and movability
+  mm/hugetlb: Enable PUD level huge page migration
+  mm/hugetlb: Enable arch specific huge page size support for migration
+  arm64/mm: Enable HugeTLB migration
+  arm64/mm: Enable HugeTLB migration for contiguous bit HugeTLB pages
+
+ arch/arm64/Kconfig               |  4 ++++
+ arch/arm64/include/asm/hugetlb.h |  5 +++++
+ arch/arm64/mm/hugetlbpage.c      | 20 +++++++++++++++++
+ include/linux/hugetlb.h          | 48 +++++++++++++++++++++++++++++++++++++---
+ mm/hugetlb.c                     |  2 +-
+ mm/migrate.c                     |  2 +-
+ 6 files changed, 76 insertions(+), 5 deletions(-)
+
+-- 
+2.7.4
