@@ -1,95 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 310E16B0003
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 02:36:53 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id p12-v6so228889pfn.0
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2018 23:36:53 -0700 (PDT)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D0AC06B0003
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 03:11:32 -0400 (EDT)
+Received: by mail-yb1-f198.google.com with SMTP id u14-v6so207413ybi.3
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 00:11:32 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f5-v6sor232031pgs.87.2018.10.22.23.36.51
+        by mx.google.com with SMTPS id u3-v6sor162087ybm.176.2018.10.23.00.11.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 22 Oct 2018 23:36:51 -0700 (PDT)
-Date: Mon, 22 Oct 2018 23:36:48 -0700
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [RFC PATCH 0/2] improve vmalloc allocation
-Message-ID: <20181023063648.GB22110@joelaf.mtv.corp.google.com>
-References: <20181019173538.590-1-urezki@gmail.com>
- <20181020001145.GA243578@joelaf.mtv.corp.google.com>
- <20181022145006.ga2n3hjtkc2pqhub@pc636>
+        Tue, 23 Oct 2018 00:11:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181022145006.ga2n3hjtkc2pqhub@pc636>
+References: <1540229092-25207-1-git-send-email-arunks@codeaurora.org>
+ <20181022181122.GK18839@dhcp22.suse.cz> <CABOM9Zpq41Ox8wQvsNjgfCtwuqh6CnyeW1B09DWa1TQN+JKf0w@mail.gmail.com>
+ <20181023053359.GL18839@dhcp22.suse.cz> <alpine.DEB.2.21.1810230711220.2343@hadrien>
+In-Reply-To: <alpine.DEB.2.21.1810230711220.2343@hadrien>
+From: Arun Sudhilal <getarunks@gmail.com>
+Date: Tue, 23 Oct 2018 12:41:19 +0530
+Message-ID: <CABOM9Zr48HTphfbmk9v7a3A+cqzrAFZT71pEyvvseV8PpbWOhg@mail.gmail.com>
+Subject: Re: [PATCH] mm: convert totalram_pages, totalhigh_pages and
+ managed_pages to atomic.
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Uladzislau Rezki <urezki@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Thomas Garnier <thgarnie@google.com>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt <rostedt@goodmis.org>, Joel Fernandes <joelaf@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Tejun Heo <tj@kernel.org>
+To: julia.lawall@lip6.fr
+Cc: mhocko@kernel.org, arunks@codeaurora.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, minchan@kernel.org, mhocko@suse.com, gregkh@linuxfoundation.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Oct 22, 2018 at 04:50:06PM +0200, Uladzislau Rezki wrote:
-> On Fri, Oct 19, 2018 at 05:11:45PM -0700, Joel Fernandes wrote:
-> > On Fri, Oct 19, 2018 at 07:35:36PM +0200, Uladzislau Rezki (Sony) wrote:
-> > > Objective
-> > > ---------
-> > > Initiative of improving vmalloc allocator comes from getting many issues
-> > > related to allocation time, i.e. sometimes it is terribly slow. As a result
-> > > many workloads which are sensitive for long (more than 1 millisecond) preemption
-> > > off scenario are affected by that slowness(test cases like UI or audio, etc.).
-> > > 
-> > > The problem is that, currently an allocation of the new VA area is done over
-> > > busy list iteration until a suitable hole is found between two busy areas.
-> > > Therefore each new allocation causes the list being grown. Due to long list
-> > > and different permissive parameters an allocation can take a long time on
-> > > embedded devices(milliseconds).
-> > 
-> > I am not super familiar with the vmap allocation code, it has been some
-> > years. But I have 2 comments:
-> > 
-> > (1) It seems the issue you are reporting is the walking of the list in
-> > alloc_vmap_area().
-> > 
-> > Can we not solve this by just simplifying the following code?
-> > 
-> > 	/* from the starting point, walk areas until a suitable hole is found
-> > 	 */
-> > 	while (addr + size > first->va_start && addr + size <= vend) {
-> > 		if (addr + cached_hole_size < first->va_start)
-> > 			cached_hole_size = first->va_start - addr;
-> > 		addr = ALIGN(first->va_end, align);
-> > 		if (addr + size < addr)
-> > 			goto overflow;
-> > 
-> > 		if (list_is_last(&first->list, &vmap_area_list))
-> > 			goto found;
-> > 
-> > 		first = list_next_entry(first, list);
-> > 	}
-> > 
-> > Instead of going through the vmap_area_list, can we not just binary search
-> > the existing address-sorted vmap_area_root rbtree to find a hole? If yes,
-> > that would bring down the linear search overhead. If not, why not?
+On Tue, Oct 23, 2018 at 12:11 PM Julia Lawall <julia.lawall@lip6.fr> wrote:
+>
+>
+>
+> On Tue, 23 Oct 2018, Michal Hocko wrote:
+>
+> > [Trimmed CC list + Julia - there is indeed no need to CC everybody maintain a
+> > file you are updating for the change like this]
 > >
-> vmap_area_root rb-tree is used for fast access to vmap_area knowing
-> the address(any va_start). That is why we use the tree. To use that tree
-> in order to check holes will require to start from the left most node or
-> specified "vstart" and move forward by rb_next(). What is much slower
-> than regular(list_next_entry O(1)) access in this case. 
+> > On Tue 23-10-18 10:16:51, Arun Sudhilal wrote:
+> > > On Mon, Oct 22, 2018 at 11:41 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > > >
+> > > > On Mon 22-10-18 22:53:22, Arun KS wrote:
+> > > > > Remove managed_page_count_lock spinlock and instead use atomic
+> > > > > variables.
+> > > >
+> > >
+> > > Hello Michal,
+> > > > I assume this has been auto-generated. If yes, it would be better to
+> > > > mention the script so that people can review it and regenerate for
+> > > > comparision. Such a large change is hard to review manually.
+> > >
+> > > Changes were made partially with script.  For totalram_pages and
+> > > totalhigh_pages,
+> > >
+> > > find dir -type f -exec sed -i
+> > > 's/totalram_pages/atomic_long_read(\&totalram_pages)/g' {} \;
+> > > find dir -type f -exec sed -i
+> > > 's/totalhigh_pages/atomic_long_read(\&totalhigh_pages)/g' {} \;
+> > >
+> > > For managed_pages it was mostly manual edits after using,
+> > > find mm/ -type f -exec sed -i
+> > > 's/zone->managed_pages/atomic_long_read(\&zone->managed_pages)/g' {}
+> > > \;
+> >
+> > I guess we should be able to use coccinelle for this kind of change and
+> > reduce the amount of manual intervention to absolute minimum.
+>
+> Coccinelle looks like it would be desirable, especially in case the word
+> zone is not always used.
+>
+> Arun, please feel free to contact me if you want to try it and need help.
 
-Ah, sorry. Don't know what I was thinking, you are right.  By the way the
-binder driver does something similar too for buffer allocations, maintains an
-rb tree of free areas:
-https://github.com/torvalds/linux/blob/master/drivers/android/binder_alloc.c#L415
+Thanks Julia. I m starting with,
+http://coccinelle.lip6.fr/papers/backport_edcc15.pdf
 
-> > (2) I am curious, do you have any measurements of how much time
-> > alloc_vmap_area() is taking? You mentioned it takes milliseconds but I was
-> > wondering if you had more finer grained function profiling measurements. And
-> > also any data on how big are the lists at the time you see this issue.
-> > 
-> Basically it depends on how much or heavily your system uses vmalloc
-> allocations. I was using CONFIG_DEBUG_PREEMPT with an extra patch. See it
-> here: ftp://vps418301.ovh.net/incoming/0001-tracing-track-preemption-disable-callers.patch
-> 
-> As for list size. It can be easily thousands.
-
-Understood. I will go through your patches more in the coming days, thanks!
-
- - Joel
+Regards,
+Arun
+>
+> julia
