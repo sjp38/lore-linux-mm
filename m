@@ -1,89 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D14386B026C
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 09:02:58 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id y81-v6so689679oig.20
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 06:02:58 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id c1si558333oto.262.2018.10.23.06.02.57
-        for <linux-mm@kvack.org>;
-        Tue, 23 Oct 2018 06:02:57 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Subject: [PATCH V3 5/5] arm64/mm: Enable HugeTLB migration for contiguous bit HugeTLB pages
-Date: Tue, 23 Oct 2018 18:32:01 +0530
-Message-Id: <1540299721-26484-6-git-send-email-anshuman.khandual@arm.com>
-In-Reply-To: <1540299721-26484-1-git-send-email-anshuman.khandual@arm.com>
-References: <1540299721-26484-1-git-send-email-anshuman.khandual@arm.com>
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 161E96B026D
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 09:05:16 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id b22-v6so788617pfc.18
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 06:05:16 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id p6-v6si1253252pgd.312.2018.10.23.06.05.13
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Oct 2018 06:05:14 -0700 (PDT)
+Received: from fsav105.sakura.ne.jp (fsav105.sakura.ne.jp [27.133.134.232])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id w9ND5CYI068418
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 22:05:12 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Received: from [192.168.1.8] (softbank060157065137.bbtec.net [60.157.65.137])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id w9ND5C26068406
+	(version=TLSv1.2 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 22:05:12 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Subject: memcg versus clone(CLONE_VM without CLONE_THREAD)
+Message-ID: <4a36ab60-ab2b-eb54-f5a8-33f969f00e73@i-love.sakura.ne.jp>
+Date: Tue, 23 Oct 2018 22:05:12 +0900
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
-Cc: suzuki.poulose@arm.com, punit.agrawal@arm.com, will.deacon@arm.com, Steven.Price@arm.com, steve.capper@arm.com, catalin.marinas@arm.com, mhocko@kernel.org, akpm@linux-foundation.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
+To: linux-mm <linux-mm@kvack.org>
 
-Let arm64 subscribe to the previously added framework in which architecture
-can inform whether a given huge page size is supported for migration. This
-just overrides the default function arch_hugetlb_migration_supported() and
-enables migration for all possible HugeTLB page sizes on arm64. With this,
-HugeTLB migration support on arm64 now covers all possible HugeTLB options.
+I noticed that memcg OOM event does not trigger as expected when a thread
+group ID assigned by clone(CLONE_VM without CLONE_THREAD) is specified.
+A bit of surprise because what the "tasks" file says is not what the
+limitation is applied to...
 
-        CONT PTE    PMD    CONT PMD    PUD
-        --------    ---    --------    ---
-4K:        64K      2M        32M      1G
-16K:        2M     32M         1G
-64K:        2M    512M        16G
+----------
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sched.h>
+#include <unistd.h>
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
----
- arch/arm64/include/asm/hugetlb.h |  5 +++++
- arch/arm64/mm/hugetlbpage.c      | 20 ++++++++++++++++++++
- 2 files changed, 25 insertions(+)
+static int memory_eater(void *unused) {
+	FILE *fp;
+	const unsigned long size = 1048576 * 200;
+	char *buf = malloc(size);
+	mkdir("/sys/fs/cgroup/memory/test1", 0755);
+	fp = fopen("/sys/fs/cgroup/memory/test1/memory.limit_in_bytes", "w");
+	fprintf(fp, "%lu\n", size / 2);
+	fclose(fp);
+	fp = fopen("/sys/fs/cgroup/memory/test1/tasks", "w");
+	fprintf(fp, "%u\n", getpid());
+	fclose(fp);
+	fp = fopen("/dev/zero", "r");
+	fread(buf, 1, size, fp);
+	fclose(fp);
+	return 0;
+}
 
-diff --git a/arch/arm64/include/asm/hugetlb.h b/arch/arm64/include/asm/hugetlb.h
-index e73f685..656f70e 100644
---- a/arch/arm64/include/asm/hugetlb.h
-+++ b/arch/arm64/include/asm/hugetlb.h
-@@ -20,6 +20,11 @@
- 
- #include <asm/page.h>
- 
-+#ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
-+#define arch_hugetlb_migration_supported arch_hugetlb_migration_supported
-+extern bool arch_hugetlb_migration_supported(struct hstate *h);
-+#endif
-+
- static inline pte_t huge_ptep_get(pte_t *ptep)
- {
- 	return READ_ONCE(*ptep);
-diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
-index 21512ca..f3afdcf 100644
---- a/arch/arm64/mm/hugetlbpage.c
-+++ b/arch/arm64/mm/hugetlbpage.c
-@@ -27,6 +27,26 @@
- #include <asm/tlbflush.h>
- #include <asm/pgalloc.h>
- 
-+#ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
-+bool arch_hugetlb_migration_supported(struct hstate *h)
-+{
-+	size_t pagesize = huge_page_size(h);
-+
-+	switch (pagesize) {
-+#ifdef CONFIG_ARM64_4K_PAGES
-+	case PUD_SIZE:
-+#endif
-+	case PMD_SIZE:
-+	case CONT_PMD_SIZE:
-+	case CONT_PTE_SIZE:
-+		return true;
-+	}
-+	pr_warn("%s: unrecognized huge page size 0x%lx\n",
-+			__func__, pagesize);
-+	return false;
-+}
-+#endif
-+
- int pmd_huge(pmd_t pmd)
- {
- 	return pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT);
--- 
-2.7.4
+int main(int argc, char *argv[])
+{
+	if (clone(memory_eater, malloc(8192) + 8192,
+		  /*CLONE_SIGHAND | CLONE_THREAD | */CLONE_VM, NULL) == -1)
+		return 1;
+	while (1)
+		pause();
+	return 0;
+}
+----------
