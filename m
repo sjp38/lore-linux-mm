@@ -1,56 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E8EE6B000D
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 02:26:21 -0400 (EDT)
-Received: by mail-it1-f199.google.com with SMTP id v13-v6so3867468itc.4
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 23:26:21 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0049.hostedemail.com. [216.40.44.49])
-        by mx.google.com with ESMTPS id k3-v6si2727146ite.86.2018.10.23.23.26.20
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EAA0B6B0010
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 03:52:45 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id n23-v6so2734880pfk.23
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 00:52:45 -0700 (PDT)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id b6-v6si4120276pgi.255.2018.10.24.00.52.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Oct 2018 23:26:20 -0700 (PDT)
-Message-ID: <0e1fc40af360ed55fd32784f6973af5940232f99.camel@perches.com>
-Subject: Re: [PATCH] mm: convert totalram_pages, totalhigh_pages and
- managed_pages to atomic.
-From: Joe Perches <joe@perches.com>
-Date: Tue, 23 Oct 2018 23:26:16 -0700
-In-Reply-To: <20181024061546.GY18839@dhcp22.suse.cz>
-References: <1540229092-25207-1-git-send-email-arunks@codeaurora.org>
-	 <c57bcc584b3700c483b0311881ec3ae8786f88b1.camel@perches.com>
-	 <15247f54-53f3-83d4-6706-e9264b90ca7a@yandex-team.ru>
-	 <CAGXu5j+NsDHRWA5PKAKeJCO_oiGkFAUeWE8O-1fEBQX80MDu1A@mail.gmail.com>
-	 <7a4fcbaee7efb71d2a3c6b403c090db4@codeaurora.org>
-	 <20181024061546.GY18839@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Wed, 24 Oct 2018 00:52:44 -0700 (PDT)
+Date: Wed, 24 Oct 2018 22:32:11 +0800
+From: Yi Zhang <yi.z.zhang@linux.intel.com>
+Subject: Re: [PATCH V5 1/4] kvm: remove redundant reserved page check
+Message-ID: <20181024143210.GA10874@tiger-server>
+References: <cover.1536342881.git.yi.z.zhang@linux.intel.com>
+ <26f79872e78cc643937059003763b5cfc1333167.1536342881.git.yi.z.zhang@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <26f79872e78cc643937059003763b5cfc1333167.1536342881.git.yi.z.zhang@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Arun KS <arunks@codeaurora.org>
-Cc: Kees Cook <keescook@chromium.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, Arun Sudhilal <getarunks@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, pbonzini@redhat.com, yu.c.zhang@intel.com, pagupta@redhat.com, david@redhat.com, jack@suse.cz, hch@lst.de
+Cc: linux-mm@kvack.org, rkrcmar@redhat.com, jglisse@redhat.com, yi.z.zhang@intel.com
 
-On Wed, 2018-10-24 at 08:15 +0200, Michal Hocko wrote:
-> On Wed 24-10-18 10:47:52, Arun KS wrote:
-> > On 2018-10-24 01:34, Kees Cook wrote:
-> [...]
-> > > Thank you -- I was struggling to figure out the best way to reply to
-> > > this. :)
-> > I'm sorry for the trouble caused. Sent the email using,
-> > git send-email  --to-cmd="scripts/get_maintainer.pl -i"
-> > 0001-convert-totalram_pages-totalhigh_pages-and-managed_p.patch
-> > 
-> > Is this not a recommended approach?
+On 2018-09-08 at 02:03:28 +0800, Zhang Yi wrote:
+> PageReserved() is already checked inside kvm_is_reserved_pfn(),
+> remove it from kvm_set_pfn_dirty().
 > 
-> Not really for tree wide mechanical changes. It is much more preferrable
-> IMHO to only CC people who should review the intention of the change
-> rather than each and every maintainer whose code is going to be changed.
-> This is a case by case thing of course but as soon as you see a giant CC
-> list from get_maintainer.pl then you should try to think twice to use
-> it. If not sure, just ask on the mailing list.
+> Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
+> Signed-off-by: Zhang Yu <yu.c.zhang@linux.intel.com>
+> Reviewed-by: David Hildenbrand <david@redhat.com>
+> Acked-by: Pankaj Gupta <pagupta@redhat.com>
+> ---
+>  virt/kvm/kvm_main.c | 8 ++------
+>  1 file changed, 2 insertions(+), 6 deletions(-)
+> 
+> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+> index 8b47507f..c44c406 100644
+> --- a/virt/kvm/kvm_main.c
+> +++ b/virt/kvm/kvm_main.c
+> @@ -1690,12 +1690,8 @@ EXPORT_SYMBOL_GPL(kvm_release_pfn_dirty);
+>  
+>  void kvm_set_pfn_dirty(kvm_pfn_t pfn)
+>  {
+> -	if (!kvm_is_reserved_pfn(pfn)) {
+> -		struct page *page = pfn_to_page(pfn);
+> -
+> -		if (!PageReserved(page))
+> -			SetPageDirty(page);
+> -	}
+> +	if (!kvm_is_reserved_pfn(pfn))
+> +		SetPageDirty(pfn_to_page(pfn));
+>  }
+>  EXPORT_SYMBOL_GPL(kvm_set_pfn_dirty);
+>  
+> -- 
+> 2.7.4
+>
+Hi Paolo,
+We will remove the reserved flag in dax pages, then patch 2[3,4]/4 is
+unnecessary,  can we queue this 1/4 to next merge? 
 
-Generally, it's better to use scripts to control
-the --to-cmd and --cc-cmd options.
-
-Something like what I detailed here:
-
-https://lkml.org/lkml/2016/9/14/482
+Thank you very much.
+Yi
