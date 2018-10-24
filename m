@@ -1,76 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 683156B027D
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 07:41:49 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id a72-v6so3115729pfj.14
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 04:41:49 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 81BDC6B027F
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 07:55:02 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id e3-v6so2460197pld.13
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 04:55:02 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id y76-v6si4721786pfd.254.2018.10.24.04.41.47
+        by mx.google.com with ESMTPS id x2-v6si4443487pgr.432.2018.10.24.04.55.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 24 Oct 2018 04:41:48 -0700 (PDT)
-Date: Wed, 24 Oct 2018 04:41:42 -0700
+        Wed, 24 Oct 2018 04:55:01 -0700 (PDT)
+Date: Wed, 24 Oct 2018 04:54:47 -0700
 From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [kvm PATCH 2/2] kvm: vmx: use vmalloc() to allocate vcpus
-Message-ID: <20181024114142.GD25444@bombadil.infradead.org>
-References: <20181020211200.255171-1-marcorr@google.com>
- <20181020211200.255171-3-marcorr@google.com>
- <CAA03e5HWA4Vca=_J=VuQ__bLAdO8ohUU4r-hmxY1EbnVzsQHww@mail.gmail.com>
+Subject: Re: [PATCH 1/2] x86/mm: Move LDT remap out of KASLR region on
+ 5-level paging
+Message-ID: <20181024115447.GE25444@bombadil.infradead.org>
+References: <20181023163157.41441-1-kirill.shutemov@linux.intel.com>
+ <20181023163157.41441-2-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAA03e5HWA4Vca=_J=VuQ__bLAdO8ohUU4r-hmxY1EbnVzsQHww@mail.gmail.com>
+In-Reply-To: <20181023163157.41441-2-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marc Orr <marcorr@google.com>
-Cc: kvm@vger.kernel.org, Jim Mattson <jmattson@google.com>, David Rientjes <rientjes@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, akpm@linux-foundation.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: tglx@linutronix.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Oct 23, 2018 at 05:13:40PM -0400, Marc Orr wrote:
-> > +       struct vcpu_vmx *vmx = __vmalloc_node_range(
-> > +                       sizeof(struct vcpu_vmx),
-> > +                       __alignof__(struct vcpu_vmx),
-> > +                       VMALLOC_START,
-> > +                       VMALLOC_END,
-> > +                       GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO | __GFP_ACCOUNT,
-> > +                       PAGE_KERNEL,
-> > +                       0,
-> > +                       NUMA_NO_NODE,
-> > +                       __builtin_return_address(0));
+On Tue, Oct 23, 2018 at 07:31:56PM +0300, Kirill A. Shutemov wrote:
+> -ffff880000000000 - ffffc7ffffffffff (=64 TB) direct mapping of all phys. memory
+> +ffff888000000000 - ffff887fffffffff (=39 bits) LDT remap for PTI
 
-I don't understand why you need to expose the lowest-level
-__vmalloc_node_range to do what you need to do.
+I'm a little bit cross-eyed at this point, but I think the above '888'
+should be '880'.
 
-For example, __vmalloc_node would be easier for you to use while giving you
-all the flexibility you think you want.
+> @@ -14,7 +15,6 @@ ffffec0000000000 - fffffbffffffffff (=44 bits) kasan shadow memory (16TB)
+>  ... unused hole ...
+>  				    vaddr_end for KASLR
+>  fffffe0000000000 - fffffe7fffffffff (=39 bits) cpu_entry_area mapping
+> -fffffe8000000000 - fffffeffffffffff (=39 bits) LDT remap for PTI
 
-In fact, I don't think you need all the flexibility you're using.
-vmalloc is always going to give you a page-aligned address, so
-__alignof__(struct foo) isn't going to do anything worthwhile.
+... and the line above this one should be adjusted to finish at
+fffffeffffffffff (also it's now 40 bits).  Or should there be something
+else here?
 
-VMALLOC_START, VMALLOC_END, PAGE_KERNEL, 0, NUMA_NO_NODE, and
-__builtin_return_address(0) are all the defaults.  So all you actually
-need are these GFP flags.  __GFP_HIGHMEM isn't needed; vmalloc can
-always allocate from highmem unless you're doing a DMA alloc.  So
-it's just __GFP_ACCOUNT that's not supported by regular vzalloc().
+>  ffffff0000000000 - ffffff7fffffffff (=39 bits) %esp fixup stacks
+>  ... unused hole ...
+>  ffffffef00000000 - fffffffeffffffff (=64 GB) EFI region mapping space
+> @@ -30,8 +30,8 @@ Virtual memory map with 5 level page tables:
+>  0000000000000000 - 00ffffffffffffff (=56 bits) user space, different per mm
+>  hole caused by [56:63] sign extension
+>  ff00000000000000 - ff0fffffffffffff (=52 bits) guard hole, reserved for hypervisor
+> -ff10000000000000 - ff8fffffffffffff (=55 bits) direct mapping of all phys. memory
+> -ff90000000000000 - ff9fffffffffffff (=52 bits) LDT remap for PTI
+> +ff10000000000000 - ff10ffffffffffff (=48 bits) LDT remap for PTI
+> +ff11000000000000 - ff90ffffffffffff (=55 bits) direct mapping of all phys. memory
 
-I see __vmalloc_node_flags_caller is already non-static, so that would
-be where I went and your call becomes simply:
+What's at ff910..0 to ff9f..f ?
 
-	vmx = __vmalloc_node_flags_caller(sizeof(struct vcpu_vmx),
-				NUMA_NO_NODE,
-				GFP_KERNEL | __GFP_ZERO | __GFP_ACCOUNT,
-				__builtin_return_address(0));
-
-I suspect a better option might be to add a vzalloc_account() call
-and then your code becomes:
-
-	vmx = vzalloc_account(sizeof(struct vcpu_vmx));
-
-while vmalloc gains:
-
-void *vmalloc_account(unsigned long size)
-{
-	return __vmalloc_node_flags(size, NUMA_NO_NODE,
-				GFP_KERNEL | __GFP_ZERO | __GFP_ACCOUNT);
-}
-EXPORT_SYMBOL(vmalloc_account);
+Is there any way we can generate this part of this file to prevent human
+error from creeping in over time?  ;-)
