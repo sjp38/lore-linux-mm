@@ -1,118 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 40CC86B0003
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 12:37:11 -0400 (EDT)
-Received: by mail-lj1-f199.google.com with SMTP id z16-v6so2126336ljh.5
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 09:37:11 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r8-v6sor3392738ljb.23.2018.10.24.09.37.09
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CC7F6B0007
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 13:24:29 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id x44-v6so3209779edd.17
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 10:24:29 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id d3-v6si2237195edp.215.2018.10.24.10.24.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 Oct 2018 09:37:09 -0700 (PDT)
-From: Uladzislau Rezki <urezki@gmail.com>
-Date: Wed, 24 Oct 2018 18:36:58 +0200
-Subject: Re: [RFC PATCH 0/2] improve vmalloc allocation
-Message-ID: <20181024163658.ojar7gvstaycn2wz@pc636>
-References: <20181019173538.590-1-urezki@gmail.com>
- <20181022125142.GD18839@dhcp22.suse.cz>
- <20181022165253.uphv3xzqivh44o3d@pc636>
- <20181023072306.GN18839@dhcp22.suse.cz>
- <dd0c3528-9c01-12bc-3400-ca88060cb7cf@kernel.org>
- <20181023152640.GD20085@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Oct 2018 10:24:27 -0700 (PDT)
+Date: Wed, 24 Oct 2018 10:24:10 -0700
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [PATCH -V6 00/21] swap: Swapout/swapin THP in one piece
+Message-ID: <20181024172410.a3pibijoc2u2awwo@ca-dmjordan1.us.oracle.com>
+References: <20181010071924.18767-1-ying.huang@intel.com>
+ <20181023122738.a5j2vk554tsx4f6i@ca-dmjordan1.us.oracle.com>
+ <87sh0wuijl.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181023152640.GD20085@bombadil.infradead.org>
+In-Reply-To: <87sh0wuijl.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Shuah Khan <shuah@kernel.org>, Michal Hocko <mhocko@kernel.org>, Uladzislau Rezki <urezki@gmail.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Thomas Garnier <thgarnie@google.com>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt <rostedt@goodmis.org>, Joel Fernandes <joelaf@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Tejun Heo <tj@kernel.org>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Tue, Oct 23, 2018 at 08:26:40AM -0700, Matthew Wilcox wrote:
-> On Tue, Oct 23, 2018 at 09:02:56AM -0600, Shuah Khan wrote:
-> > Hi Michal,
-> > 
-> > On 10/23/2018 01:23 AM, Michal Hocko wrote:
-> > > Hi Shuah,
-> > > 
-> > > On Mon 22-10-18 18:52:53, Uladzislau Rezki wrote:
-> > >> On Mon, Oct 22, 2018 at 02:51:42PM +0200, Michal Hocko wrote:
-> > >>> Hi,
-> > >>> I haven't read through the implementation yet but I have say that I
-> > >>> really love this cover letter. It is clear on intetion, it covers design
-> > >>> from high level enough to start discussion and provides a very nice
-> > >>> testing coverage. Nice work!
-> > >>>
-> > >>> I also think that we need a better performing vmalloc implementation
-> > >>> long term because of the increasing number of kvmalloc users.
-> > >>>
-> > >>> I just have two mostly workflow specific comments.
-> > >>>
-> > >>>> A test-suite patch you can find here, it is based on 4.18 kernel.
-> > >>>> ftp://vps418301.ovh.net/incoming/0001-mm-vmalloc-stress-test-suite-v4.18.patch
-> > >>>
-> > >>> Can you fit this stress test into the standard self test machinery?
-> > >>>
-> > >> If you mean "tools/testing/selftests", then i can fit that as a kernel module.
-> > >> But not all the tests i can trigger from kernel module, because 3 of 8 tests
-> > >> use __vmalloc_node_range() function that is not marked as EXPORT_SYMBOL.
-> > > 
-> > > Is there any way to conditionally export these internal symbols just for
-> > > kselftests? Or is there any other standard way how to test internal
-> > > functionality that is not exported to modules?
-> > > 
-> > 
-> > The way it can be handled is by adding a test module under lib. test_kmod,
-> > test_sysctl, test_user_copy etc.
+On Wed, Oct 24, 2018 at 11:31:42AM +0800, Huang, Ying wrote:
+> Hi, Daniel,
 > 
-> The problem is that said module can only invoke functions which are
-> exported using EXPORT_SYMBOL.  And there's a cost to exporting them,
-> which I don't think we're willing to pay, purely to get test coverage.
+> Daniel Jordan <daniel.m.jordan@oracle.com> writes:
 > 
-> Based on my own experience with the IDA & XArray test suites, I would
-> like to propose a solution which does not require exporting all of
-> these symbols:
+> > On Wed, Oct 10, 2018 at 03:19:03PM +0800, Huang Ying wrote:
+> >> And for all, Any comment is welcome!
+> >> 
+> >> This patchset is based on the 2018-10-3 head of mmotm/master.
+> >
+> > There seems to be some infrequent memory corruption with THPs that have been
+> > swapped out: page contents differ after swapin.
 > 
-> Create a new kernel module in mm/test_vmalloc.c
+> Thanks a lot for testing this!  I know there were big effort behind this
+> and it definitely will improve the quality of the patchset greatly!
+
+You're welcome!  Hopefully I'll have more results and tests to share in the
+next two weeks.
+
 > 
-> Towards the top of that file,
+> > Reproducer at the bottom.  Part of some tests I'm writing, had to separate it a
+> > little hack-ily.  Basically it writes the word offset _at_ each word offset in
+> > a memory blob, tries to push it to swap, and verifies the offset is the same
+> > after swapin.
+> >
+> > I ran with THP enabled=always.  THP swapin_enabled could be always or never, it
+> > happened with both.  Every time swapping occurred, a single THP-sized chunk in
+> > the middle of the blob had different offsets.  Example:
+> >
+> > ** > word corruption gap
+> > ** corruption detected 14929920 bytes in (got 15179776, expected 14929920) **
+> > ** corruption detected 14929928 bytes in (got 15179784, expected 14929928) **
+> > ** corruption detected 14929936 bytes in (got 15179792, expected 14929936) **
+> > ...pattern continues...
+> > ** corruption detected 17027048 bytes in (got 15179752, expected 17027048) **
+> > ** corruption detected 17027056 bytes in (got 15179760, expected 17027056) **
+> > ** corruption detected 17027064 bytes in (got 15179768, expected 17027064) **
 > 
-> #include <linux/export.h>
-> #undef EXPORT_SYMBOL
-> #define EXPORT_SYMBOL(x)	/* */
-> #include "vmalloc.c"
+> 15179776 < 15179xxx <= 17027064
 > 
-> Now you can invoke even static functions from your test harness.
-I see your point. But i also think that it would not be so easy to go.
+> 15179776 % 4096 = 0
+> 
+> And 15179776 = 15179768 + 8
+> 
+> So I guess we have some alignment bug.  Could you try the patches
+> attached?  It deal with some alignment issue.
 
-<snip>
-#undef CONFIG_HAVE_ARCH_HUGE_VMAP
-#undef CONFIG_PROC_FS
-
-#include "../hikey_linux.git/mm/vmalloc.c"
-#include <linux/random.h>
-<snip>
-
-<snip>
-  LD [M]  /mnt/coding/vmalloc_performance_test/vmalloc_test.o
-  Building modules, stage 2.
-  MODPOST 1 modules
-WARNING: "__pud_alloc" [/mnt/coding/vmalloc_performance_test/vmalloc_test.ko] undefined!
-WARNING: "__sync_icache_dcache" [/mnt/coding/vmalloc_performance_test/vmalloc_test.ko] undefined!
-WARNING: "warn_alloc" [/mnt/coding/vmalloc_performance_test/vmalloc_test.ko] undefined!
-WARNING: "pmd_clear_bad" [/mnt/coding/vmalloc_performance_test/vmalloc_test.ko] undefined!
-WARNING: "pgd_clear_bad" [/mnt/coding/vmalloc_performance_test/vmalloc_test.ko] undefined!
-WARNING: "swapper_pg_dir" [/mnt/coding/vmalloc_performance_test/vmalloc_test.ko] undefined!
-WARNING: "__pmd_alloc" [/mnt/coding/vmalloc_performance_test/vmalloc_test.ko] undefined!
-WARNING: "pud_clear_bad" [/mnt/coding/vmalloc_performance_test/vmalloc_test.ko] undefined!
-WARNING: "__pte_alloc_kernel" [/mnt/coding/vmalloc_performance_test/vmalloc_test.ko] undefined!
- LD [M]  /mnt/coding/vmalloc_performance_test/vmalloc_test.ko
-<snip>
-
-i.e. i will need either link with objects where those functions are or
-wrap them up somehow. 
-
-Thanks!
-
---
-Vlad Rezki
+That fixed it.  And removed three lines of code.  Nice :)
