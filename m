@@ -1,34 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D94716B000D
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 19:01:12 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id p89-v6so5046505pfj.12
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 16:01:12 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EEA546B000A
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 19:10:52 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id i19-v6so3609380pgb.19
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 16:10:52 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id t62-v6si6199638pfd.133.2018.10.24.16.01.08
+        by mx.google.com with ESMTPS id x85-v6si6055788pfk.54.2018.10.24.16.10.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Oct 2018 16:01:08 -0700 (PDT)
-Date: Wed, 24 Oct 2018 16:01:06 -0700
+        Wed, 24 Oct 2018 16:10:51 -0700 (PDT)
+Date: Wed, 24 Oct 2018 16:10:47 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH 0/2] improve vmalloc allocation
-Message-Id: <20181024160106.29ff3877d06fa1de520cc48a@linux-foundation.org>
-In-Reply-To: <20181019173538.590-1-urezki@gmail.com>
-References: <20181019173538.590-1-urezki@gmail.com>
+Subject: Re: [PATCH 3/6] mm/hmm: fix race between hmm_mirror_unregister()
+ and mmu_notifier callback
+Message-Id: <20181024161047.cd979d1c3da115844182de3b@linux-foundation.org>
+In-Reply-To: <20181019160442.18723-4-jglisse@redhat.com>
+References: <20181019160442.18723-1-jglisse@redhat.com>
+	<20181019160442.18723-4-jglisse@redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Thomas Garnier <thgarnie@google.com>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt <rostedt@goodmis.org>, Joel Fernandes <joelaf@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Tejun Heo <tj@kernel.org>
+To: jglisse@redhat.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, stable@vger.kernel.org
 
-On Fri, 19 Oct 2018 19:35:36 +0200 "Uladzislau Rezki (Sony)" <urezki@gmail.com> wrote:
+On Fri, 19 Oct 2018 12:04:39 -0400 jglisse@redhat.com wrote:
 
-> improving vmalloc allocator
+> From: Ralph Campbell <rcampbell@nvidia.com>
+>=20
+> In hmm_mirror_unregister(), mm->hmm is set to NULL and then
+> mmu_notifier_unregister_no_release() is called. That creates a small
+> window where mmu_notifier can call mmu_notifier_ops with mm->hmm equal
+> to NULL. Fix this by first unregistering mmu notifier callbacks and
+> then setting mm->hmm to NULL.
+>=20
+> Similarly in hmm_register(), set mm->hmm before registering mmu_notifier
+> callbacks so callback functions always see mm->hmm set.
+>=20
+> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
+> Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+> Reviewed-by: J=E9r=F4me Glisse <jglisse@redhat.com>
+> Reviewed-by: Balbir Singh <bsingharora@gmail.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: stable@vger.kernel.org
 
-It's about time ;)
-
-Are you aware of https://lwn.net/Articles/285341/ ?  If not, please do
-take a look through Nick's work and see if there are any good things
-there which can be borrowed.
+I added your Signed-off-by: to this one.  It's required since you were
+on the patch delivery path.
