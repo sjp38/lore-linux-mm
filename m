@@ -1,96 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B3BEE6B0003
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 21:17:07 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id x10-v6so2555899wrs.10
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 18:17:07 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 136-v6sor2195613wmb.26.2018.10.23.18.17.05
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 614656B0003
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 23:12:24 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id j9-v6so1813973plt.3
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 20:12:24 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 11-v6si3359923plc.224.2018.10.23.20.12.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 23 Oct 2018 18:17:05 -0700 (PDT)
-From: Michael Jones <mj@mikejonesey.co.uk>
-Subject: re: [PATCH] kernel:mm/vmstat.c: correct typo in comment to variables
- for counters.
-Message-ID: <962da370-9f6f-9543-bc7c-42c71b6cb2bc@mikejonesey.co.uk>
-Date: Wed, 24 Oct 2018 02:17:03 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 23 Oct 2018 20:12:23 -0700 (PDT)
+Date: Tue, 23 Oct 2018 20:12:00 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 08/17] prmem: struct page: track vmap_area
+Message-ID: <20181024031200.GC25444@bombadil.infradead.org>
+References: <20181023213504.28905-1-igor.stoppa@huawei.com>
+ <20181023213504.28905-9-igor.stoppa@huawei.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
- boundary="------------25D141CD796573E0B214E844"
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181023213504.28905-9-igor.stoppa@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: trivial@kernel.org
+To: Igor Stoppa <igor.stoppa@gmail.com>
+Cc: Mimi Zohar <zohar@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Dave Chinner <david@fromorbit.com>, James Morris <jmorris@namei.org>, Michal Hocko <mhocko@kernel.org>, kernel-hardening@lists.openwall.com, linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org, igor.stoppa@huawei.com, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This is a multi-part message in MIME format.
---------------25D141CD796573E0B214E844
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Wed, Oct 24, 2018 at 12:34:55AM +0300, Igor Stoppa wrote:
+> The connection between each page and its vmap_area avoids more expensive
+> searches through the btree of vmap_areas.
 
-Signed-off-by: Michael Jones <mj@mikejonesey.co.uk>
+Typo -- it's an rbtree.
 
-commit 012af68d1e66525390aa37c70d28ac2e191894ff
-Author: Michael Jones <mj@mikejonesey.co.uk>
-Date:   Wed Oct 24 01:40:13 2018 +0100
+> +++ b/include/linux/mm_types.h
+> @@ -87,13 +87,24 @@ struct page {
+>  			/* See page-flags.h for PAGE_MAPPING_FLAGS */
+>  			struct address_space *mapping;
+>  			pgoff_t index;		/* Our offset within mapping. */
+> -			/**
+> -			 * @private: Mapping-private opaque data.
+> -			 * Usually used for buffer_heads if PagePrivate.
+> -			 * Used for swp_entry_t if PageSwapCache.
+> -			 * Indicates order in the buddy system if PageBuddy.
+> -			 */
+> -			unsigned long private;
+> +			union {
+> +				/**
+> +				 * @private: Mapping-private opaque data.
+> +				 * Usually used for buffer_heads if
+> +				 * PagePrivate.
+> +				 * Used for swp_entry_t if PageSwapCache.
+> +				 * Indicates order in the buddy system if
+> +				 * PageBuddy.
+> +				 */
+> +				unsigned long private;
+> +				/**
+> +				 * @area: reference to the containing area
+> +				 * For pages that are mapped into a virtually
+> +				 * contiguous area, avoids performing a more
+> +				 * expensive lookup.
+> +				 */
+> +				struct vmap_area *area;
+> +			};
 
-    mm/vmstat.c: correct typo in comment
-   =20
-    no functional change, just correcting a typo in comments.
+Not like this.  Make it part of a different struct in the existing union,
+not a part of the pagecache struct.  And there's no need to use ->private
+explicitly.
 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 7878da76abf2..158c23bfbcf5 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1106,7 +1106,7 @@ int fragmentation_index(struct zone *zone, unsigned=
- int order)
-                                        TEXT_FOR_HIGHMEM(xx) xx "_movable=
-",
-=20
- const char * const vmstat_text[] =3D {
--       /* enum zone_stat_item countes */
-+       /* enum zone_stat_item counters */
-        "nr_free_pages",
-        "nr_zone_inactive_anon",
-        "nr_zone_active_anon",
+> @@ -1747,6 +1750,10 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+>  	if (!addr)
+>  		return NULL;
+>  
+> +	va = __find_vmap_area((unsigned long)addr);
+> +	for (i = 0; i < va->vm->nr_pages; i++)
+> +		va->vm->pages[i]->area = va;
 
-
---------------25D141CD796573E0B214E844
-Content-Type: text/html; charset=utf-8
-Content-Transfer-Encoding: 8bit
-
-<html>
-  <head>
-
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-  </head>
-  <body bgcolor="#FFFFFF" text="#000000">
-    <pre><span></span>Signed-off-by: Michael Jones <a class="moz-txt-link-rfc2396E" href="mailto:mj@mikejonesey.co.uk">&lt;mj@mikejonesey.co.uk&gt;</a>
-
-commit 012af68d1e66525390aa37c70d28ac2e191894ff
-Author: Michael Jones <a class="moz-txt-link-rfc2396E" href="mailto:mj@mikejonesey.co.uk">&lt;mj@mikejonesey.co.uk&gt;</a>
-Date:   Wed Oct 24 01:40:13 2018 +0100
-
-    mm/vmstat.c: correct typo in comment
-    
-    no functional change, just correcting a typo in comments.
-
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 7878da76abf2..158c23bfbcf5 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1106,7 +1106,7 @@ int fragmentation_index(struct zone *zone, unsigned int order)
-                                        TEXT_FOR_HIGHMEM(xx) xx "_movable",
- 
- const char * const vmstat_text[] = {
--       /* enum zone_stat_item countes */
-+       /* enum zone_stat_item counters */
-        "nr_free_pages",
-        "nr_zone_inactive_anon",
-        "nr_zone_active_anon",
-
-</pre>
-  </body>
-</html>
-
---------------25D141CD796573E0B214E844--
+I don't like it that you're calling this for _every_ vmalloc() caller
+when most of them will never use this.  Perhaps have page->va be initially
+NULL and then cache the lookup in it when it's accessed for the first time.
