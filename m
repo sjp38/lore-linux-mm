@@ -1,74 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 04E886B0277
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 07:00:37 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id d7-v6so3054435pfj.6
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 04:00:36 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id j184-v6si4407988pfg.210.2018.10.24.04.00.35
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CB396B0279
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 07:00:38 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id x17-v6so2380066pln.4
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 04:00:38 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h1-v6sor4001633pgh.69.2018.10.24.04.00.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Oct 2018 04:00:35 -0700 (PDT)
-Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
- in mind (for KVM to isolate its guests per CPU)
-From: Khalid Aziz <khalid.aziz@oracle.com>
-References: <CA+55aFxyUdhYjnQdnmWAt8tTwn4HQ1xz3SAMZJiawkLpMiJ_+w@mail.gmail.com>
- <ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com>
- <CA+55aFzHj_GNZWG4K2oDu4DPP9sZdTZ9PY7sBxGB6WoN9g8d=A@mail.gmail.com>
- <ciirm8zhwyiqh4.fsf@u54ee758033e858cfa736.ant.amazon.com>
- <ciirm8efdy916l.fsf@u54ee758033e858cfa736.ant.amazon.com>
- <5efc291c-b0ed-577e-02d1-285d080c293d@oracle.com>
- <ciirm8va743105.fsf@u54ee758033e858cfa736.ant.amazon.com>
- <7221975d-6b67-effa-2747-06c22c041e78@oracle.com>
- <1537800341.9745.20.camel@amazon.de>
- <063f5efc-afb2-471f-eb4b-79bf90db22dd@oracle.com>
-Message-ID: <6cc985bb-6aed-4fb7-0ef2-43aad2717095@oracle.com>
-Date: Wed, 24 Oct 2018 16:30:42 +0530
+        (Google Transport Security);
+        Wed, 24 Oct 2018 04:00:37 -0700 (PDT)
+Date: Wed, 24 Oct 2018 22:00:31 +1100
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [PATCH 4/6] mm: introduce page->dma_pinned_flags, _count
+Message-ID: <20181024110031.GM8537@350D>
+References: <20181012060014.10242-1-jhubbard@nvidia.com>
+ <20181012060014.10242-5-jhubbard@nvidia.com>
+ <20181012105612.GK8537@350D>
+ <b115b2ce-8fe8-db03-da9c-452511c8ed27@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <063f5efc-afb2-471f-eb4b-79bf90db22dd@oracle.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b115b2ce-8fe8-db03-da9c-452511c8ed27@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Stecklina, Julian" <jsteckli@amazon.de>
-Cc: "juerg.haefliger@hpe.com" <juerg.haefliger@hpe.com>, "deepa.srinivasan@oracle.com" <deepa.srinivasan@oracle.com>, "jmattson@google.com" <jmattson@google.com>, "andrew.cooper3@citrix.com" <andrew.cooper3@citrix.com>, "Woodhouse, David" <dwmw@amazon.co.uk>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "boris.ostrovsky@oracle.com" <boris.ostrovsky@oracle.com>, "pradeep.vincent@oracle.com" <pradeep.vincent@oracle.com>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "kanth.ghatraju@oracle.com" <kanth.ghatraju@oracle.com>, "joao.m.martins@oracle.com" <joao.m.martins@oracle.com>, "liran.alon@oracle.com" <liran.alon@oracle.com>, "ak@linux.intel.com" <ak@linux.intel.com>, "keescook@google.com" <keescook@google.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "chris.hyser@oracle.com" <chris.hyser@oracle.com>, "tyhicks@canonical.com" <tyhicks@canonical.com>, "john.haxby@oracle.com" <john.haxby@oracle.com>, "jcm@redhat.com" <jcm@redhat.com>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org
 
-On 10/15/2018 01:37 PM, Khalid Aziz wrote:
-> On 09/24/2018 08:45 AM, Stecklina, Julian wrote:
->> I didn't test the version with TLB flushes, because it's clear that the
->> overhead is so bad that no one wants to use this.
+On Fri, Oct 12, 2018 at 05:15:51PM -0700, John Hubbard wrote:
+> On 10/12/18 3:56 AM, Balbir Singh wrote:
+> > On Thu, Oct 11, 2018 at 11:00:12PM -0700, john.hubbard@gmail.com wrote:
+> >> From: John Hubbard <jhubbard@nvidia.com>
+> [...]
+> >> + * Because page->dma_pinned_flags is unioned with page->lru, any page that
+> >> + * uses these flags must NOT be on an LRU. That's partly enforced by
+> >> + * ClearPageDmaPinned, which gives the page back to LRU.
+> >> + *
+> >> + * PageDmaPinned also corresponds to PageTail (the 0th bit in the first union
+> >> + * of struct page), and this flag is checked without knowing whether it is a
+> >> + * tail page or a PageDmaPinned page. Therefore, start the flags at bit 1 (0x2),
+> >> + * rather than bit 0.
+> >> + */
+> >> +#define PAGE_DMA_PINNED		0x2
+> >> +#define PAGE_DMA_PINNED_FLAGS	(PAGE_DMA_PINNED)
+> >> +
+> > 
+> > This is really subtle, additional changes to compound_head will need to coordinate
+> > with these flags? Also doesn't this bit need to be unique across all structs in
+> > the union? I guess that is guaranteed by the fact that page == compound_head(page)
+> > as per your assertion, but I've forgotten why that is true. Could you please
+> > add some commentary on that
+> > 
 > 
-> I don't think we can ignore the vulnerability caused by not flushing 
-> stale TLB entries. On a mostly idle system, TLB entries hang around long 
-> enough to make it fairly easy to exploit this. I was able to use the 
-> additional test in lkdtm module added by this patch series to 
-> successfully read pages unmapped from physmap by just waiting for system 
-> to become idle. A rogue program can simply monitor system load and mount 
-> its attack using ret2dir exploit when system is mostly idle. This brings 
-> us back to the prohibitive cost of TLB flushes. If we are unmapping a 
-> page from physmap every time the page is allocated to userspace, we are 
-> forced to incur the cost of TLB flushes in some way. Work Tycho was 
-> doing to implement Dave's suggestion can help here. Once Tycho has 
-> something working, I can measure overhead on my test machine. Tycho, I 
-> can help with your implementation if you need.
+> Yes, agreed. I've rewritten and augmented that comment block, plus removed the 
+> PAGE_DMA_PINNED_FLAGS (there are no more bits available, so it's just misleading 
+> to even have it). So now it looks like this:
+> 
+> /*
+>  * Because page->dma_pinned_flags is unioned with page->lru, any page that
+>  * uses these flags must NOT be on an LRU. That's partly enforced by
+>  * ClearPageDmaPinned, which gives the page back to LRU.
+>  *
+>  * PageDmaPinned is checked without knowing whether it is a tail page or a
+>  * PageDmaPinned page. For that reason, PageDmaPinned avoids PageTail (the 0th
+>  * bit in the first union of struct page), and instead uses bit 1 (0x2),
+>  * rather than bit 0.
+>  *
+>  * PageDmaPinned can only be used if no other systems are using the same bit
+>  * across the first struct page union. In this regard, it is similar to
+>  * PageTail, and in fact, because of PageTail's constraint that bit 0 be left
+>  * alone, bit 1 is also left alone so far: other union elements (ignoring tail
+>  * pages) put pointers there, and pointer alignment leaves the lower two bits
+>  * available.
+>  *
+>  * So, constraints include:
+>  *
+>  *     -- Only use PageDmaPinned on non-tail pages.
+>  *     -- Remove the page from any LRU list first.
+>  */
+> #define PAGE_DMA_PINNED		0x2
+> 
+> /*
+>  * Because these flags are read outside of a lock, ensure visibility between
+>  * different threads, by using READ|WRITE_ONCE.
+>  */
+> static __always_inline int PageDmaPinned(struct page *page)
+> {
+> 	VM_BUG_ON(page != compound_head(page));
+> 	return (READ_ONCE(page->dma_pinned_flags) & PAGE_DMA_PINNED) != 0;
+> }
+> 
+> [...]
+> >> +static __always_inline void SetPageDmaPinned(struct page *page)
+> >> +{
+> >> +	VM_BUG_ON(page != compound_head(page));
+> > 
+> > VM_BUG_ON(!list_empty(&page->lru))
+> 
+> 
+> There is only one place where we set this flag, and that is when (in patch 6/6)
+> transitioning from a page that might (or might not) have been
+> on an LRU. In that case, the calling code has already corrupted page->lru, by
+> writing to page->dma_pinned_count, which is unions with page->lru:
+> 
+> 		atomic_set(&page->dma_pinned_count, 1);
+> 		SetPageDmaPinned(page);
+> 
+> ...so it would be inappropriate to call a list function, such as 
+> list_empty(), on that field.  Let's just leave it as-is.
+> 
+> 
+> > 
+> >> +	WRITE_ONCE(page->dma_pinned_flags, PAGE_DMA_PINNED);
+> >> +}
+> >> +
+> >> +static __always_inline void ClearPageDmaPinned(struct page *page)
+> >> +{
+> >> +	VM_BUG_ON(page != compound_head(page));
+> >> +	VM_BUG_ON_PAGE(!PageDmaPinnedFlags(page), page);
+> >> +
+> >> +	/* This does a WRITE_ONCE to the lru.next, which is also the
+> >> +	 * page->dma_pinned_flags field. So in addition to restoring page->lru,
+> >> +	 * this provides visibility to other threads.
+> >> +	 */
+> >> +	INIT_LIST_HEAD(&page->lru);
+> > 
+> > This assumes certain things about list_head, why not use the correct
+> > initialization bits.
+> > 
+> 
+> Yes, OK, changed to:
+> 
+> static __always_inline void ClearPageDmaPinned(struct page *page)
+> {
+> 	VM_BUG_ON(page != compound_head(page));
+> 	VM_BUG_ON_PAGE(!PageDmaPinned(page), page);
+> 
+> 	/* Provide visibility to other threads: */
+> 	WRITE_ONCE(page->dma_pinned_flags, 0);
+> 
+> 	/*
+> 	 * Safety precaution: restore the list head, before possibly returning
+> 	 * the page to other subsystems.
+> 	 */
+> 	INIT_LIST_HEAD(&page->lru);
+> }
+> 
+>
 
-I looked at Tycho's last patch with batch update from 
-<https://lkml.org/lkml/2017/11/9/951>. I ported it on top of Julian's 
-patches and got it working well enough to gather performance numbers. 
-Here is what I see for system times on a machine with dual Xeon E5-2630 
-and 256GB of memory when running "make -j30 all" on 4.18.6 kernel 
-(percentages are relative to base 4.19-rc8 kernel without xpfo):
+Sorry, I've been distracted with other things
 
+This looks better, do we still need the INIT_LIST_HEAD?
 
-Base 4.19-rc8				913.84s
-4.19-rc8 + xpfo, no TLB flush		1027.985s (+12.5%)
-4.19-rc8 + batch update, no TLB flush	970.39s (+6.2%)
-4.19-rc8 + xpfo, TLB flush		8458.449s (+825.6%)
-4.19-rc8 + batch update, TLB flush	4665.659s (+410.6%)
-
-Batch update is significant improvement but we are starting so far 
-behind baseline, it is still a huge slow down.
-
---
-Khalid
+Balbir Singh.
+ 
+> 
+> -- 
+> thanks,
+> John Hubbard
+> NVIDIA
