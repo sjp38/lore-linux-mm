@@ -1,87 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D20AB6B0273
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 04:39:22 -0400 (EDT)
-Received: by mail-it1-f200.google.com with SMTP id k69-v6so4200221ite.9
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 01:39:22 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0084.hostedemail.com. [216.40.44.84])
-        by mx.google.com with ESMTPS id v62-v6si987906itg.71.2018.10.24.01.39.21
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B76C96B0275
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 06:13:04 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id be11-v6so2329538plb.2
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 03:13:04 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 64-v6sor3574092pla.2.2018.10.24.03.13.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Oct 2018 01:39:21 -0700 (PDT)
-Message-ID: <02a1bfc2eed324f3d03aa4a7b5eb6fde4e4a3bdd.camel@perches.com>
-Subject: Re: [PATCH] mm: convert totalram_pages, totalhigh_pages and
- managed_pages to atomic.
-From: Joe Perches <joe@perches.com>
-Date: Wed, 24 Oct 2018 01:39:18 -0700
-In-Reply-To: <20181024082312.GD18839@dhcp22.suse.cz>
-References: <1540229092-25207-1-git-send-email-arunks@codeaurora.org>
-	 <c57bcc584b3700c483b0311881ec3ae8786f88b1.camel@perches.com>
-	 <15247f54-53f3-83d4-6706-e9264b90ca7a@yandex-team.ru>
-	 <CAGXu5j+NsDHRWA5PKAKeJCO_oiGkFAUeWE8O-1fEBQX80MDu1A@mail.gmail.com>
-	 <7a4fcbaee7efb71d2a3c6b403c090db4@codeaurora.org>
-	 <20181024061546.GY18839@dhcp22.suse.cz>
-	 <0e1fc40af360ed55fd32784f6973af5940232f99.camel@perches.com>
-	 <20181024082312.GD18839@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Wed, 24 Oct 2018 03:13:03 -0700 (PDT)
+Date: Wed, 24 Oct 2018 13:12:56 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 2/4] mm: speed up mremap by 500x on large regions (v2)
+Message-ID: <20181024101255.it4lptrjogalxbey@kshutemo-mobl1>
+References: <20181013013200.206928-1-joel@joelfernandes.org>
+ <20181013013200.206928-3-joel@joelfernandes.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181013013200.206928-3-joel@joelfernandes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Arun KS <arunks@codeaurora.org>, Kees Cook <keescook@chromium.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, Arun Sudhilal <getarunks@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: "Joel Fernandes (Google)" <joel@joelfernandes.org>
+Cc: linux-kernel@vger.kernel.org, kernel-team@android.com, minchan@kernel.org, pantin@google.com, hughd@google.com, lokeshgidra@google.com, dancol@google.com, mhocko@kernel.org, akpm@linux-foundation.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, anton.ivanov@kot-begemot.co.uk, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, elfring@users.sourceforge.net, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, Julia Lawall <Julia.Lawall@lip6.fr>, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, Max Filippov <jcmvbkbc@gmail.com>, nios2-dev@lists.rocketboards.org, Peter Zijlstra <peterz@infradead.org>, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>
 
-On Wed, 2018-10-24 at 10:23 +0200, Michal Hocko wrote:
-> On Tue 23-10-18 23:26:16, Joe Perches wrote:
-> > On Wed, 2018-10-24 at 08:15 +0200, Michal Hocko wrote:
-> > > On Wed 24-10-18 10:47:52, Arun KS wrote:
-> > > > On 2018-10-24 01:34, Kees Cook wrote:
-> > > [...]
-> > > > > Thank you -- I was struggling to figure out the best way to reply to
-> > > > > this. :)
-> > > > I'm sorry for the trouble caused. Sent the email using,
-> > > > git send-email  --to-cmd="scripts/get_maintainer.pl -i"
-> > > > 0001-convert-totalram_pages-totalhigh_pages-and-managed_p.patch
-> > > > 
-> > > > Is this not a recommended approach?
-> > > 
-> > > Not really for tree wide mechanical changes. It is much more preferrable
-> > > IMHO to only CC people who should review the intention of the change
-> > > rather than each and every maintainer whose code is going to be changed.
-> > > This is a case by case thing of course but as soon as you see a giant CC
-> > > list from get_maintainer.pl then you should try to think twice to use
-> > > it. If not sure, just ask on the mailing list.
-> > 
-> > Generally, it's better to use scripts to control
-> > the --to-cmd and --cc-cmd options.
-> 
-> I would argue that it is better to use a common sense much more than
-> scripts.
+On Fri, Oct 12, 2018 at 06:31:58PM -0700, Joel Fernandes (Google) wrote:
+> diff --git a/mm/mremap.c b/mm/mremap.c
+> index 9e68a02a52b1..2fd163cff406 100644
+> --- a/mm/mremap.c
+> +++ b/mm/mremap.c
+> @@ -191,6 +191,54 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
+>  		drop_rmap_locks(vma);
+>  }
+>  
+> +static bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
+> +		  unsigned long new_addr, unsigned long old_end,
+> +		  pmd_t *old_pmd, pmd_t *new_pmd, bool *need_flush)
+> +{
+> +	spinlock_t *old_ptl, *new_ptl;
+> +	struct mm_struct *mm = vma->vm_mm;
+> +
+> +	if ((old_addr & ~PMD_MASK) || (new_addr & ~PMD_MASK)
+> +	    || old_end - old_addr < PMD_SIZE)
+> +		return false;
+> +
+> +	/*
+> +	 * The destination pmd shouldn't be established, free_pgtables()
+> +	 * should have release it.
+> +	 */
+> +	if (WARN_ON(!pmd_none(*new_pmd)))
+> +		return false;
+> +
+> +	/*
+> +	 * We don't have to worry about the ordering of src and dst
+> +	 * ptlocks because exclusive mmap_sem prevents deadlock.
+> +	 */
+> +	old_ptl = pmd_lock(vma->vm_mm, old_pmd);
+> +	if (old_ptl) {
 
-Common sense isn't common.
+How can it ever be false?
 
-Perhaps you could describe some guidelines you
-use to determine what you think is sensible to
-send patches to maintainers and reviewers and
-appropriate mailing lists.
-
-Then compare those to the rules in the scripts
-I suggested.
-
-My suggestions:
-
-o send to all top-level listed maintainers and
-  reviewers in MAINTAINERS for the specific files
-  in a patch
-o cc all maintainers and reviewers that are upstream
-  paths for the files in a patch
-o cc all the upstream mailing lists for the files
-  in the patch.
-o do not generally use git-history to exclude authors
-  of patches like drive-by/whitespace cleanups
-
-Other advanced possibilities for patches that
-modify specific and perhaps complex logic blocks:
-
-o cc the people that are not maintainers that
-  have modified the specific blocks or functions
+> +		pmd_t pmd;
+> +
+> +		new_ptl = pmd_lockptr(mm, new_pmd);
+> +		if (new_ptl != old_ptl)
+> +			spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
+> +
+> +		/* Clear the pmd */
+> +		pmd = *old_pmd;
+> +		pmd_clear(old_pmd);
+> +
+> +		VM_BUG_ON(!pmd_none(*new_pmd));
+> +
+> +		/* Set the new pmd */
+> +		set_pmd_at(mm, new_addr, new_pmd, pmd);
+> +		if (new_ptl != old_ptl)
+> +			spin_unlock(new_ptl);
+> +		spin_unlock(old_ptl);
+> +
+> +		*need_flush = true;
+> +		return true;
+> +	}
+> +	return false;
+> +}
+> +
+-- 
+ Kirill A. Shutemov
