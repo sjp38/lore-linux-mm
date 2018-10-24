@@ -1,65 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A38B6B000C
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 19:17:57 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id r16-v6so4098068pgv.17
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 16:17:57 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id r28-v6si6192319pgb.444.2018.10.24.16.17.56
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8255E6B0005
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 19:49:48 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id j17-v6so7417322qtp.9
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 16:49:48 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id m4-v6si4220562qtp.48.2018.10.24.16.49.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Oct 2018 16:17:56 -0700 (PDT)
-Date: Wed, 24 Oct 2018 16:17:54 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] mm, thp: consolidate THP gfp handling into
- alloc_hugepage_direct_gfpmask
-Message-Id: <20181024161754.0d174e7c22113f4f8aad1940@linux-foundation.org>
-In-Reply-To: <583b20e5-4925-e175-1533-5c2d2bab9192@suse.cz>
-References: <20180925120326.24392-1-mhocko@kernel.org>
-	<20180925120326.24392-3-mhocko@kernel.org>
-	<20180926133039.y7o5x4nafovxzh2s@kshutemo-mobl1>
-	<20180926141708.GX6278@dhcp22.suse.cz>
-	<20180926142227.GZ6278@dhcp22.suse.cz>
-	<20181018191147.33e8d5e1ebd785c06aab7b30@linux-foundation.org>
-	<20181019080657.GJ18839@dhcp22.suse.cz>
-	<583b20e5-4925-e175-1533-5c2d2bab9192@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 24 Oct 2018 16:49:47 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [RFC PATCH] mm: don't reclaim inodes with many attached pages
+Date: Wed, 24 Oct 2018 23:49:01 +0000
+Message-ID: <20181024234850.GA15663@castle.DHCP.thefacebook.com>
+References: <20181023164302.20436-1-guro@fb.com>
+ <20181024151853.3edd9097400b0d52edff1f16@linux-foundation.org>
+In-Reply-To: <20181024151853.3edd9097400b0d52edff1f16@linux-foundation.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <6212D75D74E5C145A20548F85CF0AF78@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, Michal
+ Hocko <mhocko@kernel.org>, Rik van Riel <riel@surriel.com>, Randy Dunlap <rdunlap@infradead.org>
 
-On Mon, 22 Oct 2018 15:27:54 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
+On Wed, Oct 24, 2018 at 03:18:53PM -0700, Andrew Morton wrote:
+> On Tue, 23 Oct 2018 16:43:29 +0000 Roman Gushchin <guro@fb.com> wrote:
+>=20
+> > Spock reported that the commit 172b06c32b94 ("mm: slowly shrink slabs
+> > with a relatively small number of objects") leads to a regression on
+> > his setup: periodically the majority of the pagecache is evicted
+> > without an obvious reason, while before the change the amount of free
+> > memory was balancing around the watermark.
+> >=20
+> > The reason behind is that the mentioned above change created some
+> > minimal background pressure on the inode cache. The problem is that
+> > if an inode is considered to be reclaimed, all belonging pagecache
+> > page are stripped, no matter how many of them are there. So, if a huge
+> > multi-gigabyte file is cached in the memory, and the goal is to
+> > reclaim only few slab objects (unused inodes), we still can eventually
+> > evict all gigabytes of the pagecache at once.
+> >=20
+> > The workload described by Spock has few large non-mapped files in the
+> > pagecache, so it's especially noticeable.
+> >=20
+> > To solve the problem let's postpone the reclaim of inodes, which have
+> > more than 1 attached page. Let's wait until the pagecache pages will
+> > be evicted naturally by scanning the corresponding LRU lists, and only
+> > then reclaim the inode structure.
+> >=20
+> > ...
+> >
+> > --- a/fs/inode.c
+> > +++ b/fs/inode.c
+> > @@ -730,8 +730,11 @@ static enum lru_status inode_lru_isolate(struct li=
+st_head *item,
+> >  		return LRU_REMOVED;
+> >  	}
+> > =20
+> > -	/* recently referenced inodes get one more pass */
+> > -	if (inode->i_state & I_REFERENCED) {
+> > +	/*
+> > +	 * Recently referenced inodes and inodes with many attached pages
+> > +	 * get one more pass.
+> > +	 */
+> > +	if (inode->i_state & I_REFERENCED || inode->i_data.nrpages > 1) {
+> >  		inode->i_state &=3D ~I_REFERENCED;
+> >  		spin_unlock(&inode->i_lock);
+> >  		return LRU_ROTATE;
+>=20
+> hm, why "1"?
+>=20
+> I guess one could argue that this will encompass long symlinks, but I
+> just made that up to make "1" appear more justifiable ;)=20
+>=20
 
-> > : Moreover the oriinal code allowed to trigger
-> > : 	WARN_ON_ONCE(policy->mode == MPOL_BIND && (gfp & __GFP_THISNODE));
-> > : in policy_node if the requested node (e.g. cpu local one) was outside of
-> > : the mbind nodemask. This is not possible now. We haven't heard about any
-> > : such warning yet so it is unlikely that it happens but still a signal of
-> > : a wrong code layering.
-> 
-> Ah, as I said in the other mail, I think it's inaccurate, the warning
-> was not possible to hit.
-> 
-> There's also a slight difference wrt MPOL_BIND. The previous code would
-> avoid using __GFP_THISNODE if the local node was outside of
-> policy_nodemask(). After your patch __GFP_THISNODE is avoided for all
-> MPOL_BIND policies. So there's a difference that if local node is
-> actually allowed by the bind policy's nodemask, previously
-> __GFP_THISNODE would be added, but now it won't be. I don't think it
-> matters that much though, but maybe the changelog could say that
-> (instead of the inaccurate note about warning). Note the other policy
-> where nodemask is relevant is MPOL_INTERLEAVE, and that's unchanged by
-> this patch.
+Well, I'm slightly aware of introducing an inode leak here, so I was thinki=
+ng
+about some small number of pages. It's definitely makes no sense to reclaim
+several Gb of pagecache, however throwing away a couple of pages to speed u=
+p
+inode reuse is totally fine.
+But then I realized that I don't have any justification for a number like
+4 or 32, so I ended up with 1. I'm pretty open here, but not sure that swit=
+ching
+to 0 is much better.
 
-So the above could go into the changelog, yes?
-
-> When that's addressed, you can add
-
-What is it that you'd like to see addressed?  Purely changelog updates?
-
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-Thanks.
+Thanks!
