@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 569716B0003
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 18:18:58 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id t10-v6so3950996plh.14
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 15:18:58 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7521E6B0007
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 18:19:54 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id a72-v6so5027968pfj.14
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 15:19:54 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id n2-v6si5885069plk.255.2018.10.24.15.18.56
+        by mx.google.com with ESMTPS id s13-v6si6108280pfc.149.2018.10.24.15.19.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Oct 2018 15:18:57 -0700 (PDT)
-Date: Wed, 24 Oct 2018 15:18:53 -0700
+        Wed, 24 Oct 2018 15:19:53 -0700 (PDT)
+Date: Wed, 24 Oct 2018 15:19:50 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [RFC PATCH] mm: don't reclaim inodes with many attached pages
-Message-Id: <20181024151853.3edd9097400b0d52edff1f16@linux-foundation.org>
+Message-Id: <20181024151950.36fe2c41957d807756f587ca@linux-foundation.org>
 In-Reply-To: <20181023164302.20436-1-guro@fb.com>
 References: <20181023164302.20436-1-guro@fb.com>
 Mime-Version: 1.0
@@ -46,27 +46,5 @@ On Tue, 23 Oct 2018 16:43:29 +0000 Roman Gushchin <guro@fb.com> wrote:
 > more than 1 attached page. Let's wait until the pagecache pages will
 > be evicted naturally by scanning the corresponding LRU lists, and only
 > then reclaim the inode structure.
-> 
-> ...
->
-> --- a/fs/inode.c
-> +++ b/fs/inode.c
-> @@ -730,8 +730,11 @@ static enum lru_status inode_lru_isolate(struct list_head *item,
->  		return LRU_REMOVED;
->  	}
->  
-> -	/* recently referenced inodes get one more pass */
-> -	if (inode->i_state & I_REFERENCED) {
-> +	/*
-> +	 * Recently referenced inodes and inodes with many attached pages
-> +	 * get one more pass.
-> +	 */
-> +	if (inode->i_state & I_REFERENCED || inode->i_data.nrpages > 1) {
->  		inode->i_state &= ~I_REFERENCED;
->  		spin_unlock(&inode->i_lock);
->  		return LRU_ROTATE;
 
-hm, why "1"?
-
-I guess one could argue that this will encompass long symlinks, but I
-just made that up to make "1" appear more justifiable ;) 
+Is this regression serious enough to warrant fixing 4.19.1?
