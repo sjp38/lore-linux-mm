@@ -1,86 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DB6526B0007
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 14:05:33 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id h15-v6so4942824wmd.0
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 11:05:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f198-v6sor3919016wmd.26.2018.10.24.11.05.31
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 98EF66B0003
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 14:49:33 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id w15-v6so3620253pge.2
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 11:49:33 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id z67-v6si5999313pfz.5.2018.10.24.11.49.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 Oct 2018 11:05:32 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Oct 2018 11:49:31 -0700 (PDT)
+Received: from mail-wr1-f49.google.com (mail-wr1-f49.google.com [209.85.221.49])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 41C9920831
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 18:49:30 +0000 (UTC)
+Received: by mail-wr1-f49.google.com with SMTP id q7-v6so6701316wrr.8
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 11:49:30 -0700 (PDT)
 MIME-Version: 1.0
-References: <20181020211200.255171-1-marcorr@google.com> <20181020211200.255171-3-marcorr@google.com>
- <CAA03e5HWA4Vca=_J=VuQ__bLAdO8ohUU4r-hmxY1EbnVzsQHww@mail.gmail.com> <20181024114142.GD25444@bombadil.infradead.org>
-In-Reply-To: <20181024114142.GD25444@bombadil.infradead.org>
-From: Marc Orr <marcorr@google.com>
-Date: Wed, 24 Oct 2018 19:05:19 +0100
-Message-ID: <CAA03e5GsKySE76v1fwqvawqhNFL7V_Te8ZzNArNNtUiF+podgg@mail.gmail.com>
-Subject: Re: [kvm PATCH 2/2] kvm: vmx: use vmalloc() to allocate vcpus
+References: <20181023163157.41441-1-kirill.shutemov@linux.intel.com> <20181023163157.41441-3-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20181023163157.41441-3-kirill.shutemov@linux.intel.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Wed, 24 Oct 2018 11:49:17 -0700
+Message-ID: <CALCETrUsqCzU6VO0h4EFpsdXOOn-kJY7ogwKQiQScNY9YJ6hWA@mail.gmail.com>
+Subject: Re: [PATCH 2/2] x86/ldt: Unmap PTEs for the slow before freeing LDT
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: willy@infradead.org
-Cc: kvm@vger.kernel.org, Jim Mattson <jmattson@google.com>, David Rientjes <rientjes@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, akpm@linux-foundation.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andrew Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, X86 ML <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Oct 24, 2018 at 12:41 PM Matthew Wilcox <willy@infradead.org> wrote:
+On Tue, Oct 23, 2018 at 9:32 AM Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
 >
-> On Tue, Oct 23, 2018 at 05:13:40PM -0400, Marc Orr wrote:
-> > > +       struct vcpu_vmx *vmx = __vmalloc_node_range(
-> > > +                       sizeof(struct vcpu_vmx),
-> > > +                       __alignof__(struct vcpu_vmx),
-> > > +                       VMALLOC_START,
-> > > +                       VMALLOC_END,
-> > > +                       GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO | __GFP_ACCOUNT,
-> > > +                       PAGE_KERNEL,
-> > > +                       0,
-> > > +                       NUMA_NO_NODE,
-> > > +                       __builtin_return_address(0));
+> modify_ldt(2) leaves old LDT mapped after we switch over to the new one.
+> Memory for the old LDT gets freed and the pages can be re-used.
 >
-> I don't understand why you need to expose the lowest-level
-> __vmalloc_node_range to do what you need to do.
->
-> For example, __vmalloc_node would be easier for you to use while giving you
-> all the flexibility you think you want.
->
-> In fact, I don't think you need all the flexibility you're using.
-> vmalloc is always going to give you a page-aligned address, so
-> __alignof__(struct foo) isn't going to do anything worthwhile.
->
-> VMALLOC_START, VMALLOC_END, PAGE_KERNEL, 0, NUMA_NO_NODE, and
-> __builtin_return_address(0) are all the defaults.  So all you actually
-> need are these GFP flags.  __GFP_HIGHMEM isn't needed; vmalloc can
-> always allocate from highmem unless you're doing a DMA alloc.  So
-> it's just __GFP_ACCOUNT that's not supported by regular vzalloc().
->
-> I see __vmalloc_node_flags_caller is already non-static, so that would
-> be where I went and your call becomes simply:
->
->         vmx = __vmalloc_node_flags_caller(sizeof(struct vcpu_vmx),
->                                 NUMA_NO_NODE,
->                                 GFP_KERNEL | __GFP_ZERO | __GFP_ACCOUNT,
->                                 __builtin_return_address(0));
->
-> I suspect a better option might be to add a vzalloc_account() call
-> and then your code becomes:
->
->         vmx = vzalloc_account(sizeof(struct vcpu_vmx));
->
-> while vmalloc gains:
->
-> void *vmalloc_account(unsigned long size)
-> {
->         return __vmalloc_node_flags(size, NUMA_NO_NODE,
->                                 GFP_KERNEL | __GFP_ZERO | __GFP_ACCOUNT);
-> }
-> EXPORT_SYMBOL(vmalloc_account);
+> Leaving the mapping in place can have security implications. The mapping
+> is present in userspace copy of page tables and Meltdown-like attack can
+> read these freed and possibly reused pages.
 
-I 100% agree with this review! I only need the __GFP_ACCOUNT flag.
-Actually, the first version of this patch that I developed downstream,
-resembled what you're suggesting here. But I've never touched the mm
-subsystem before, and we were not confident on how to shape the patch
-for upstreaming, so that's how we ended up with this version, which
-makes minimal changes to the mm subsystem.
+Code looks okay.  But:
 
-Anyway, let me refactor the patch exactly as you've suggested in your
-review, and send out a new version.
+> -       /*
+> -        * Did we already have the top level entry allocated?  We can't
+> -        * use pgd_none() for this because it doens't do anything on
+> -        * 4-level page table kernels.
+> -        */
+> -       pgd = pgd_offset(mm, LDT_BASE_ADDR);
+
+This looks like an unrelated cleanup.  Can it be its own patch?
