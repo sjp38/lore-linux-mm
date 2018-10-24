@@ -1,66 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EAA0B6B0010
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 03:52:45 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id n23-v6so2734880pfk.23
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 00:52:45 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id b6-v6si4120276pgi.255.2018.10.24.00.52.44
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 516576B0269
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 04:13:06 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id f13-v6so3236452wrr.4
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 01:13:06 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g12-v6sor104369wmd.18.2018.10.24.01.13.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Oct 2018 00:52:44 -0700 (PDT)
-Date: Wed, 24 Oct 2018 22:32:11 +0800
-From: Yi Zhang <yi.z.zhang@linux.intel.com>
-Subject: Re: [PATCH V5 1/4] kvm: remove redundant reserved page check
-Message-ID: <20181024143210.GA10874@tiger-server>
-References: <cover.1536342881.git.yi.z.zhang@linux.intel.com>
- <26f79872e78cc643937059003763b5cfc1333167.1536342881.git.yi.z.zhang@linux.intel.com>
+        (Google Transport Security);
+        Wed, 24 Oct 2018 01:13:05 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <26f79872e78cc643937059003763b5cfc1333167.1536342881.git.yi.z.zhang@linux.intel.com>
+References: <20181020211200.255171-1-marcorr@google.com> <20181020211200.255171-2-marcorr@google.com>
+ <20181022200617.GD14374@char.us.oracle.com> <20181023123355.GI32333@dhcp22.suse.cz>
+ <CAA03e5ENHGQ_5WhiY=Ya+Kpz+jZsR=in5NAwtrW0p8iGqDg5Vw@mail.gmail.com> <20181024061650.GZ18839@dhcp22.suse.cz>
+In-Reply-To: <20181024061650.GZ18839@dhcp22.suse.cz>
+From: Marc Orr <marcorr@google.com>
+Date: Wed, 24 Oct 2018 09:12:52 +0100
+Message-ID: <CAA03e5Gw1UsFRtQ2drnkXteDFj1J_+PXe0RLjXnCEytZdL4gUw@mail.gmail.com>
+Subject: Re: [kvm PATCH 1/2] mm: export __vmalloc_node_range()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, pbonzini@redhat.com, yu.c.zhang@intel.com, pagupta@redhat.com, david@redhat.com, jack@suse.cz, hch@lst.de
-Cc: linux-mm@kvack.org, rkrcmar@redhat.com, jglisse@redhat.com, yi.z.zhang@intel.com
+To: mhocko@kernel.org
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, akpm@linux-foundation.org, kvm@vger.kernel.org, Jim Mattson <jmattson@google.com>, David Rientjes <rientjes@google.com>
 
-On 2018-09-08 at 02:03:28 +0800, Zhang Yi wrote:
-> PageReserved() is already checked inside kvm_is_reserved_pfn(),
-> remove it from kvm_set_pfn_dirty().
-> 
-> Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
-> Signed-off-by: Zhang Yu <yu.c.zhang@linux.intel.com>
-> Reviewed-by: David Hildenbrand <david@redhat.com>
-> Acked-by: Pankaj Gupta <pagupta@redhat.com>
-> ---
->  virt/kvm/kvm_main.c | 8 ++------
->  1 file changed, 2 insertions(+), 6 deletions(-)
-> 
-> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-> index 8b47507f..c44c406 100644
-> --- a/virt/kvm/kvm_main.c
-> +++ b/virt/kvm/kvm_main.c
-> @@ -1690,12 +1690,8 @@ EXPORT_SYMBOL_GPL(kvm_release_pfn_dirty);
->  
->  void kvm_set_pfn_dirty(kvm_pfn_t pfn)
->  {
-> -	if (!kvm_is_reserved_pfn(pfn)) {
-> -		struct page *page = pfn_to_page(pfn);
-> -
-> -		if (!PageReserved(page))
-> -			SetPageDirty(page);
-> -	}
-> +	if (!kvm_is_reserved_pfn(pfn))
-> +		SetPageDirty(pfn_to_page(pfn));
->  }
->  EXPORT_SYMBOL_GPL(kvm_set_pfn_dirty);
->  
-> -- 
-> 2.7.4
+No. I separated them because they're going to two different subsystems
+(i.e., mm and kvm). I'll fold them and resend the patch.
+Thanks,
+Marc
+On Wed, Oct 24, 2018 at 7:16 AM Michal Hocko <mhocko@kernel.org> wrote:
 >
-Hi Paolo,
-We will remove the reserved flag in dax pages, then patch 2[3,4]/4 is
-unnecessary,  can we queue this 1/4 to next merge? 
-
-Thank you very much.
-Yi
+> On Tue 23-10-18 17:10:55, Marc Orr wrote:
+> > Ack. The user is the 2nd patch in this series, the kvm_intel module,
+> > which uses this version of vmalloc() to allocate vcpus across
+> > non-contiguous memory. I will cc everyone here on that 2nd patch for
+> > context.
+>
+> Is there any reason to not fold those two into a single one?
+> --
+> Michal Hocko
+> SUSE Labs
