@@ -1,62 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 412246B026B
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 04:22:20 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id k17-v6so2320344edr.18
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 01:22:20 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A9076B026D
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 04:23:15 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id w42-v6so2414816edd.0
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 01:23:15 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f4-v6si2754091edc.98.2018.10.24.01.22.18
+        by mx.google.com with ESMTPS id m22-v6si185990edj.236.2018.10.24.01.23.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Oct 2018 01:22:19 -0700 (PDT)
-Date: Wed, 24 Oct 2018 10:22:17 +0200
+        Wed, 24 Oct 2018 01:23:13 -0700 (PDT)
+Date: Wed, 24 Oct 2018 10:23:12 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [kvm PATCH 1/2] mm: export __vmalloc_node_range()
-Message-ID: <20181024082217.GC18839@dhcp22.suse.cz>
-References: <20181020211200.255171-1-marcorr@google.com>
- <20181020211200.255171-2-marcorr@google.com>
- <20181022200617.GD14374@char.us.oracle.com>
- <20181023123355.GI32333@dhcp22.suse.cz>
- <CAA03e5ENHGQ_5WhiY=Ya+Kpz+jZsR=in5NAwtrW0p8iGqDg5Vw@mail.gmail.com>
- <20181024061650.GZ18839@dhcp22.suse.cz>
- <CAA03e5Gw1UsFRtQ2drnkXteDFj1J_+PXe0RLjXnCEytZdL4gUw@mail.gmail.com>
+Subject: Re: [PATCH] mm: convert totalram_pages, totalhigh_pages and
+ managed_pages to atomic.
+Message-ID: <20181024082312.GD18839@dhcp22.suse.cz>
+References: <1540229092-25207-1-git-send-email-arunks@codeaurora.org>
+ <c57bcc584b3700c483b0311881ec3ae8786f88b1.camel@perches.com>
+ <15247f54-53f3-83d4-6706-e9264b90ca7a@yandex-team.ru>
+ <CAGXu5j+NsDHRWA5PKAKeJCO_oiGkFAUeWE8O-1fEBQX80MDu1A@mail.gmail.com>
+ <7a4fcbaee7efb71d2a3c6b403c090db4@codeaurora.org>
+ <20181024061546.GY18839@dhcp22.suse.cz>
+ <0e1fc40af360ed55fd32784f6973af5940232f99.camel@perches.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAA03e5Gw1UsFRtQ2drnkXteDFj1J_+PXe0RLjXnCEytZdL4gUw@mail.gmail.com>
+In-Reply-To: <0e1fc40af360ed55fd32784f6973af5940232f99.camel@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marc Orr <marcorr@google.com>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, akpm@linux-foundation.org, kvm@vger.kernel.org, Jim Mattson <jmattson@google.com>, David Rientjes <rientjes@google.com>
+To: Joe Perches <joe@perches.com>
+Cc: Arun KS <arunks@codeaurora.org>, Kees Cook <keescook@chromium.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, Arun Sudhilal <getarunks@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Please do not top-post
+On Tue 23-10-18 23:26:16, Joe Perches wrote:
+> On Wed, 2018-10-24 at 08:15 +0200, Michal Hocko wrote:
+> > On Wed 24-10-18 10:47:52, Arun KS wrote:
+> > > On 2018-10-24 01:34, Kees Cook wrote:
+> > [...]
+> > > > Thank you -- I was struggling to figure out the best way to reply to
+> > > > this. :)
+> > > I'm sorry for the trouble caused. Sent the email using,
+> > > git send-email  --to-cmd="scripts/get_maintainer.pl -i"
+> > > 0001-convert-totalram_pages-totalhigh_pages-and-managed_p.patch
+> > > 
+> > > Is this not a recommended approach?
+> > 
+> > Not really for tree wide mechanical changes. It is much more preferrable
+> > IMHO to only CC people who should review the intention of the change
+> > rather than each and every maintainer whose code is going to be changed.
+> > This is a case by case thing of course but as soon as you see a giant CC
+> > list from get_maintainer.pl then you should try to think twice to use
+> > it. If not sure, just ask on the mailing list.
+> 
+> Generally, it's better to use scripts to control
+> the --to-cmd and --cc-cmd options.
 
-On Wed 24-10-18 09:12:52, Marc Orr wrote:
-> No. I separated them because they're going to two different subsystems
-> (i.e., mm and kvm).
-
-Yes, they do go to two different subsystems but they would have to
-coordinate for the final merge because the later wouldn't work without
-the former. So it is easier to have them in a single tree. From the
-review POV it is better to have them in the single patch to see the
-usecase for the export and judge whether this is the best option.
-
-> I'll fold them and resend the patch.
-
-Thanks!
-
-> On Wed, Oct 24, 2018 at 7:16 AM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Tue 23-10-18 17:10:55, Marc Orr wrote:
-> > > Ack. The user is the 2nd patch in this series, the kvm_intel module,
-> > > which uses this version of vmalloc() to allocate vcpus across
-> > > non-contiguous memory. I will cc everyone here on that 2nd patch for
-> > > context.
-> >
-> > Is there any reason to not fold those two into a single one?
-> > --
-> > Michal Hocko
-> > SUSE Labs
+I would argue that it is better to use a common sense much more than
+scripts.
 
 -- 
 Michal Hocko
