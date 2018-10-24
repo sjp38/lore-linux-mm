@@ -1,78 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 614656B0003
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 23:12:24 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id j9-v6so1813973plt.3
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 20:12:24 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 11-v6si3359923plc.224.2018.10.23.20.12.23
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 25C8E6B0007
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2018 23:27:25 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id c5-v6so2949234ioa.0
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2018 20:27:25 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id y140-v6si1593573iof.56.2018.10.23.20.27.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 23 Oct 2018 20:12:23 -0700 (PDT)
-Date: Tue, 23 Oct 2018 20:12:00 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 08/17] prmem: struct page: track vmap_area
-Message-ID: <20181024031200.GC25444@bombadil.infradead.org>
+        Tue, 23 Oct 2018 20:27:20 -0700 (PDT)
+Subject: Re: [PATCH 06/17] prmem: test cases for memory protection
 References: <20181023213504.28905-1-igor.stoppa@huawei.com>
- <20181023213504.28905-9-igor.stoppa@huawei.com>
+ <20181023213504.28905-7-igor.stoppa@huawei.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <a6c74bb1-bd0c-ed8a-1dd3-b04f2e3c78d4@infradead.org>
+Date: Tue, 23 Oct 2018 20:27:06 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181023213504.28905-9-igor.stoppa@huawei.com>
+In-Reply-To: <20181023213504.28905-7-igor.stoppa@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@gmail.com>
-Cc: Mimi Zohar <zohar@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Dave Chinner <david@fromorbit.com>, James Morris <jmorris@namei.org>, Michal Hocko <mhocko@kernel.org>, kernel-hardening@lists.openwall.com, linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org, igor.stoppa@huawei.com, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Igor Stoppa <igor.stoppa@gmail.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, James Morris <jmorris@namei.org>, Michal Hocko <mhocko@kernel.org>, kernel-hardening@lists.openwall.com, linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org
+Cc: igor.stoppa@huawei.com, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Oct 24, 2018 at 12:34:55AM +0300, Igor Stoppa wrote:
-> The connection between each page and its vmap_area avoids more expensive
-> searches through the btree of vmap_areas.
+On 10/23/18 2:34 PM, Igor Stoppa wrote:
+> diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
+> index 9a7b8b049d04..57de5b3c0bae 100644
+> --- a/mm/Kconfig.debug
+> +++ b/mm/Kconfig.debug
+> @@ -94,3 +94,12 @@ config DEBUG_RODATA_TEST
+>      depends on STRICT_KERNEL_RWX
+>      ---help---
+>        This option enables a testcase for the setting rodata read-only.
+> +
+> +config DEBUG_PRMEM_TEST
+> +    tristate "Run self test for protected memory"
+> +    depends on STRICT_KERNEL_RWX
+> +    select PRMEM
+> +    default n
+> +    help
+> +      Tries to verify that the memory protection works correctly and that
+> +      the memory is effectively protected.
 
-Typo -- it's an rbtree.
+Hi,
 
-> +++ b/include/linux/mm_types.h
-> @@ -87,13 +87,24 @@ struct page {
->  			/* See page-flags.h for PAGE_MAPPING_FLAGS */
->  			struct address_space *mapping;
->  			pgoff_t index;		/* Our offset within mapping. */
-> -			/**
-> -			 * @private: Mapping-private opaque data.
-> -			 * Usually used for buffer_heads if PagePrivate.
-> -			 * Used for swp_entry_t if PageSwapCache.
-> -			 * Indicates order in the buddy system if PageBuddy.
-> -			 */
-> -			unsigned long private;
-> +			union {
-> +				/**
-> +				 * @private: Mapping-private opaque data.
-> +				 * Usually used for buffer_heads if
-> +				 * PagePrivate.
-> +				 * Used for swp_entry_t if PageSwapCache.
-> +				 * Indicates order in the buddy system if
-> +				 * PageBuddy.
-> +				 */
-> +				unsigned long private;
-> +				/**
-> +				 * @area: reference to the containing area
-> +				 * For pages that are mapped into a virtually
-> +				 * contiguous area, avoids performing a more
-> +				 * expensive lookup.
-> +				 */
-> +				struct vmap_area *area;
-> +			};
+a. It seems backwards (or upside down) to have a test case select a feature (PRMEM)
+instead of depending on that feature.
 
-Not like this.  Make it part of a different struct in the existing union,
-not a part of the pagecache struct.  And there's no need to use ->private
-explicitly.
+b. Since PRMEM depends on MMU (in patch 04/17), the "select" here could try to
+enabled PRMEM even when MMU is not enabled.
 
-> @@ -1747,6 +1750,10 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
->  	if (!addr)
->  		return NULL;
->  
-> +	va = __find_vmap_area((unsigned long)addr);
-> +	for (i = 0; i < va->vm->nr_pages; i++)
-> +		va->vm->pages[i]->area = va;
+Changing this to "depends on PRMEM" would solve both of these issues.
 
-I don't like it that you're calling this for _every_ vmalloc() caller
-when most of them will never use this.  Perhaps have page->va be initially
-NULL and then cache the lookup in it when it's accessed for the first time.
+c. Don't use "default n".  That is already the default.
+
+
+thanks,
+-- 
+~Randy
