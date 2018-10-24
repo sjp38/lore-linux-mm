@@ -1,80 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F1B86B0269
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 13:35:11 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id w15-v6so3439006pge.2
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 10:35:11 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id i35-v6si5121021plg.361.2018.10.24.10.35.10
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DB6526B0007
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 14:05:33 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id h15-v6so4942824wmd.0
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 11:05:33 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f198-v6sor3919016wmd.26.2018.10.24.11.05.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Oct 2018 10:35:10 -0700 (PDT)
-Message-ID: <15bf78bdadd282b0587097d49cc39d0d7b662736.camel@linux.intel.com>
-Subject: Re: [mm PATCH v3 4/6] mm: Move hot-plug specific memory init into
- separate functions and optimize
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Date: Wed, 24 Oct 2018 10:35:09 -0700
-In-Reply-To: <20181024152742.GJ18839@dhcp22.suse.cz>
-References: <20181015202456.2171.88406.stgit@localhost.localdomain>
-	 <20181015202716.2171.7284.stgit@localhost.localdomain>
-	 <20181017091824.GL18839@dhcp22.suse.cz>
-	 <d9011108-4099-58dc-8b8c-110c5f2a3674@linux.intel.com>
-	 <20181024123640.GF18839@dhcp22.suse.cz>
-	 <40b17814b2a65531c5059e52a61c8f41b9603904.camel@linux.intel.com>
-	 <20181024152742.GJ18839@dhcp22.suse.cz>
+        (Google Transport Security);
+        Wed, 24 Oct 2018 11:05:32 -0700 (PDT)
+MIME-Version: 1.0
+References: <20181020211200.255171-1-marcorr@google.com> <20181020211200.255171-3-marcorr@google.com>
+ <CAA03e5HWA4Vca=_J=VuQ__bLAdO8ohUU4r-hmxY1EbnVzsQHww@mail.gmail.com> <20181024114142.GD25444@bombadil.infradead.org>
+In-Reply-To: <20181024114142.GD25444@bombadil.infradead.org>
+From: Marc Orr <marcorr@google.com>
+Date: Wed, 24 Oct 2018 19:05:19 +0100
+Message-ID: <CAA03e5GsKySE76v1fwqvawqhNFL7V_Te8ZzNArNNtUiF+podgg@mail.gmail.com>
+Subject: Re: [kvm PATCH 2/2] kvm: vmx: use vmalloc() to allocate vcpus
 Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, pavel.tatashin@microsoft.com, dave.jiang@intel.com, linux-kernel@vger.kernel.org, willy@infradead.org, davem@davemloft.net, yi.z.zhang@linux.intel.com, khalid.aziz@oracle.com, rppt@linux.vnet.ibm.com, vbabka@suse.cz, sparclinux@vger.kernel.org, dan.j.williams@intel.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, mingo@kernel.org, kirill.shutemov@linux.intel.com
+To: willy@infradead.org
+Cc: kvm@vger.kernel.org, Jim Mattson <jmattson@google.com>, David Rientjes <rientjes@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, akpm@linux-foundation.org
 
-On Wed, 2018-10-24 at 17:27 +0200, Michal Hocko wrote:
-> On Wed 24-10-18 08:08:41, Alexander Duyck wrote:
-> > On Wed, 2018-10-24 at 14:36 +0200, Michal Hocko wrote:
-> > > On Wed 17-10-18 08:26:20, Alexander Duyck wrote:
-> > > [...]
-> > > > With that said I am also wondering if a possible solution to
-> > > > the complaints you had would be to look at just exporting the
-> > > > __init_pageblock function later and moving the call to
-> > > > memmap_init_zone_device out to the memremap or hotplug code
-> > > > when Dan gets the refactoring for HMM and memremap all sorted
-> > > > out.
-> > > 
-> > > Why cannot we simply provide a constructor for each page by the
-> > > caller if there are special requirements? we currently have
-> > > alt_map
-> > > to do struct page allocation but nothing really prevents to make
-> > > it
-> > > more generic and control both allocation and initialization
-> > > whatever
-> > > suits a specific usecase. I really do not want make special cases
-> > > here and there.
-> > 
-> > The advantage to the current __init_pageblock function is that we
-> > end up constructing everything we are going to write outside of the
-> > main loop and then are focused only on init.
-> 
-> But we do really want move_pfn_range_to_zone to provide a usable pfn
-> range without any additional tweaks. If there are potential
-> optimizations to be done there then let's do it but please do not try
-> to micro optimize to the point that the interface doesn't make any
-> sense anymore.
+On Wed, Oct 24, 2018 at 12:41 PM Matthew Wilcox <willy@infradead.org> wrote:
+>
+> On Tue, Oct 23, 2018 at 05:13:40PM -0400, Marc Orr wrote:
+> > > +       struct vcpu_vmx *vmx = __vmalloc_node_range(
+> > > +                       sizeof(struct vcpu_vmx),
+> > > +                       __alignof__(struct vcpu_vmx),
+> > > +                       VMALLOC_START,
+> > > +                       VMALLOC_END,
+> > > +                       GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO | __GFP_ACCOUNT,
+> > > +                       PAGE_KERNEL,
+> > > +                       0,
+> > > +                       NUMA_NO_NODE,
+> > > +                       __builtin_return_address(0));
+>
+> I don't understand why you need to expose the lowest-level
+> __vmalloc_node_range to do what you need to do.
+>
+> For example, __vmalloc_node would be easier for you to use while giving you
+> all the flexibility you think you want.
+>
+> In fact, I don't think you need all the flexibility you're using.
+> vmalloc is always going to give you a page-aligned address, so
+> __alignof__(struct foo) isn't going to do anything worthwhile.
+>
+> VMALLOC_START, VMALLOC_END, PAGE_KERNEL, 0, NUMA_NO_NODE, and
+> __builtin_return_address(0) are all the defaults.  So all you actually
+> need are these GFP flags.  __GFP_HIGHMEM isn't needed; vmalloc can
+> always allocate from highmem unless you're doing a DMA alloc.  So
+> it's just __GFP_ACCOUNT that's not supported by regular vzalloc().
+>
+> I see __vmalloc_node_flags_caller is already non-static, so that would
+> be where I went and your call becomes simply:
+>
+>         vmx = __vmalloc_node_flags_caller(sizeof(struct vcpu_vmx),
+>                                 NUMA_NO_NODE,
+>                                 GFP_KERNEL | __GFP_ZERO | __GFP_ACCOUNT,
+>                                 __builtin_return_address(0));
+>
+> I suspect a better option might be to add a vzalloc_account() call
+> and then your code becomes:
+>
+>         vmx = vzalloc_account(sizeof(struct vcpu_vmx));
+>
+> while vmalloc gains:
+>
+> void *vmalloc_account(unsigned long size)
+> {
+>         return __vmalloc_node_flags(size, NUMA_NO_NODE,
+>                                 GFP_KERNEL | __GFP_ZERO | __GFP_ACCOUNT);
+> }
+> EXPORT_SYMBOL(vmalloc_account);
 
-The actual difference between the two setups is not all that great.
->From the sound of things the ultimate difference between the
-ZONE_DEVICE pages and regular pages is the pgmap and if we want the
-reserved bit set or not.
+I 100% agree with this review! I only need the __GFP_ACCOUNT flag.
+Actually, the first version of this patch that I developed downstream,
+resembled what you're suggesting here. But I've never touched the mm
+subsystem before, and we were not confident on how to shape the patch
+for upstreaming, so that's how we ended up with this version, which
+makes minimal changes to the mm subsystem.
 
-What I am providing with __init_pageblock at this point is a function
-that is flexible enough for us to be able to do either one and then
-just expose a different front end on it for the specific type of page
-we have to initialize. It works for regular hotplug, ZONE_DEVICE, and
-deferred memory initialization. The way I view it is that this funciton
-is a high performance multi-tasker, not something that is micro-
-optimized for any one specific function.
-
-Thanks.
-
-- Alex
+Anyway, let me refactor the patch exactly as you've suggested in your
+review, and send out a new version.
