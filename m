@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EEED6B029F
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 09:46:51 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id w5-v6so9015420qto.18
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 06:46:51 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A97196B02A1
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 09:53:07 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id p36-v6so9133534qta.10
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 06:53:07 -0700 (PDT)
 Received: from a9-112.smtp-out.amazonses.com (a9-112.smtp-out.amazonses.com. [54.240.9.112])
-        by mx.google.com with ESMTPS id w16-v6si3403762qts.169.2018.10.25.06.46.50
+        by mx.google.com with ESMTPS id w137-v6si1836657qkb.257.2018.10.25.06.53.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 25 Oct 2018 06:46:50 -0700 (PDT)
-Date: Thu, 25 Oct 2018 13:46:49 +0000
+        Thu, 25 Oct 2018 06:53:06 -0700 (PDT)
+Date: Thu, 25 Oct 2018 13:53:06 +0000
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/3] mm, slub: not retrieve cpu_slub again in
- new_slab_objects()
-In-Reply-To: <20181025094437.18951-1-richard.weiyang@gmail.com>
-Message-ID: <01000166ab7a489c-a877d05e-957c-45b1-8b62-9ede88db40a3-000000@email.amazonses.com>
-References: <20181025094437.18951-1-richard.weiyang@gmail.com>
+Subject: Re: [PATCH 2/3] mm, slub: unify access to s->cpu_slab by replacing
+ raw_cpu_ptr() with this_cpu_ptr()
+In-Reply-To: <20181025094437.18951-2-richard.weiyang@gmail.com>
+Message-ID: <01000166ab8007d8-7d1d4733-c13d-4e9d-b485-ae0846a5d78c-000000@email.amazonses.com>
+References: <20181025094437.18951-1-richard.weiyang@gmail.com> <20181025094437.18951-2-richard.weiyang@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -25,18 +25,12 @@ Cc: penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm
 
 On Thu, 25 Oct 2018, Wei Yang wrote:
 
-> In current code, the following context always meets:
+> In current code, we use two forms to access s->cpu_slab
 >
->   local_irq_save/disable()
->     ___slab_alloc()
->       new_slab_objects()
->   local_irq_restore/enable()
->
-> This context ensures cpu will continue running until it finish this job
-> before yield its control, which means the cpu_slab retrieved in
-> new_slab_objects() is the same as passed in.
+>   * raw_cpu_ptr()
+>   * this_cpu_ptr()
 
-Interrupts can be switched on in new_slab() since it goes to the page
-allocator. See allocate_slab().
+Ok the only difference is that for CONFIG_DEBUG_PREEMPT we will do the
+debug checks twice.
 
-This means that the percpu slab may change.
+That tolerable I think but is this really a worthwhile change?
