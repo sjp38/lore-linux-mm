@@ -1,69 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 869636B000D
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 22:18:27 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id m63-v6so7944307qkb.9
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 19:18:27 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z50-v6si586848qth.129.2018.10.24.19.18.26
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B35A36B0010
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 22:21:02 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id k9-v6so5713175iob.16
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 19:21:02 -0700 (PDT)
+Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id i21-v6si4397516ioa.94.2018.10.24.19.21.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Oct 2018 19:18:26 -0700 (PDT)
-Date: Thu, 25 Oct 2018 10:18:09 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: [PATCHv2 1/2] x86/mm: Move LDT remap out of KASLR region on
- 5-level paging
-Message-ID: <20181025021809.GB2120@MiWiFi-R3L-srv>
-References: <20181024125112.55999-1-kirill.shutemov@linux.intel.com>
- <20181024125112.55999-2-kirill.shutemov@linux.intel.com>
+        Wed, 24 Oct 2018 19:21:01 -0700 (PDT)
+From: Yufen Yu <yuyufen@huawei.com>
+Subject: [PATCH] tmpfs: let lseek return ENXIO with a negative offset
+Date: Thu, 25 Oct 2018 10:22:56 +0800
+Message-ID: <1540434176-14349-1-git-send-email-yuyufen@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181024125112.55999-2-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: tglx@linutronix.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org, boris.ostrovsky@oracle.com, jgross@suse.com, willy@infradead.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: viro@zeniv.linux.org.uk, hughd@google.com
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-unionfs@vger.kernel.org
 
-Hi Kirill,
+For now, the others filesystems, such as ext4, f2fs, ubifs,
+all of them return ENXIO when lseek with a negative offset.
+It is better to let tmpfs return ENXIO too. After that, tmpfs
+can also pass generic/448.
 
-Thanks for making this patchset. I have small concerns, please see the
-inline comments.
+Signed-off-by: Yufen Yu <yuyufen@huawei.com>
+---
+ mm/shmem.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-On 10/24/18 at 03:51pm, Kirill A. Shutemov wrote:
-> On 5-level paging LDT remap area is placed in the middle of
-> KASLR randomization region and it can overlap with direct mapping,
-> vmalloc or vmap area.
-> 
-> Let's move LDT just before direct mapping which makes it safe for KASLR.
-> This also allows us to unify layout between 4- and 5-level paging.
-
-In crash utility and makedumpfile which are used to analyze system
-memory content, PAGE_OFFSET is hardcoded as below in non-KASLR case:
-
-#define PAGE_OFFSET_2_6_27         0xffff880000000000
-
-Seems this time they need add another value for them. For 4-level and
-5-level, since 5-level code also exist in stable kernel. Surely this
-doesn't matter much.
-
-> 
-> We don't touch 4 pgd slot gap just before the direct mapping reserved
-> for a hypervisor, but move direct mapping by one slot instead.
-> 
-> The LDT mapping is per-mm, so we cannot move it into P4D page table next
-> to CPU_ENTRY_AREA without complicating PGD table allocation for 5-level
-> paging.
-
-Here as discussed in private thread, at the first place you also agreed
-to put it in p4d entry next to CPU_ENTRY_AREA, but finally you changd
-mind, there must be some reasons when you implemented and investigated
-further to find out. Could you please say more about how it will
-complicating PGD table allocation for 5-level paging? Or give an use
-case where it will complicate?
-
-Very sorry I am stupid, still don't get what's the point. Really
-appreciate it.
-
-Thanks
-Baoquan
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 0376c124..f37bf06 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -2608,9 +2608,7 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
+ 	inode_lock(inode);
+ 	/* We're holding i_mutex so we can access i_size directly */
+ 
+-	if (offset < 0)
+-		offset = -EINVAL;
+-	else if (offset >= inode->i_size)
++	if (offset < 0 || offset >= inode->i_size)
+ 		offset = -ENXIO;
+ 	else {
+ 		start = offset >> PAGE_SHIFT;
+-- 
+2.7.4
