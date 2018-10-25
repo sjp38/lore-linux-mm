@@ -1,52 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B28826B02A6
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 10:54:26 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id d17-v6so4169099edv.4
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 07:54:26 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i34-v6sor6164562ede.1.2018.10.25.07.54.25
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A1E06B02A8
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 11:00:59 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id x10-v6so5002214edx.9
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 08:00:58 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id l3si3531125edv.432.2018.10.25.08.00.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 25 Oct 2018 07:54:25 -0700 (PDT)
-Date: Thu, 25 Oct 2018 14:54:23 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH 1/3] mm, slub: not retrieve cpu_slub again in
- new_slab_objects()
-Message-ID: <20181025145423.rngxmrpnq7g2xvic@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20181025094437.18951-1-richard.weiyang@gmail.com>
- <01000166ab7a489c-a877d05e-957c-45b1-8b62-9ede88db40a3-000000@email.amazonses.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Oct 2018 08:00:57 -0700 (PDT)
+Date: Thu, 25 Oct 2018 08:00:44 -0700
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [PATCH -V6 06/21] swap: Support PMD swap mapping when splitting
+ huge PMD
+Message-ID: <20181025150044.urvklakbzd6jauyb@ca-dmjordan1.us.oracle.com>
+References: <20181010071924.18767-1-ying.huang@intel.com>
+ <20181010071924.18767-7-ying.huang@intel.com>
+ <20181024172549.xyevip5kclq2ig33@ca-dmjordan1.us.oracle.com>
+ <87bm7ivoav.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <01000166ab7a489c-a877d05e-957c-45b1-8b62-9ede88db40a3-000000@email.amazonses.com>
+In-Reply-To: <87bm7ivoav.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Thu, Oct 25, 2018 at 01:46:49PM +0000, Christopher Lameter wrote:
->On Thu, 25 Oct 2018, Wei Yang wrote:
->
->> In current code, the following context always meets:
->>
->>   local_irq_save/disable()
->>     ___slab_alloc()
->>       new_slab_objects()
->>   local_irq_restore/enable()
->>
->> This context ensures cpu will continue running until it finish this job
->> before yield its control, which means the cpu_slab retrieved in
->> new_slab_objects() is the same as passed in.
->
->Interrupts can be switched on in new_slab() since it goes to the page
->allocator. See allocate_slab().
->
->This means that the percpu slab may change.
+On Thu, Oct 25, 2018 at 08:54:16AM +0800, Huang, Ying wrote:
+> Daniel Jordan <daniel.m.jordan@oracle.com> writes:
+> 
+> > On Wed, Oct 10, 2018 at 03:19:09PM +0800, Huang Ying wrote:
+> >> +#ifdef CONFIG_THP_SWAP
+> >> +/*
+> >> + * The corresponding page table shouldn't be changed under us, that
+> >> + * is, the page table lock should be held.
+> >> + */
+> >> +int split_swap_cluster_map(swp_entry_t entry)
+> >> +{
+> >> +	struct swap_info_struct *si;
+> >> +	struct swap_cluster_info *ci;
+> >> +	unsigned long offset = swp_offset(entry);
+> >> +
+> >> +	VM_BUG_ON(!IS_ALIGNED(offset, SWAPFILE_CLUSTER));
+> >> +	si = _swap_info_get(entry);
+> >> +	if (!si)
+> >> +		return -EBUSY;
+> >
+> > I think this return value doesn't get used anywhere?
+> 
+> Yes.  And the error is only possible if page table is corrupted.  So
+> maybe add a VM_BUG_ON() in it caller __split_huge_swap_pmd()?
 
-Ah, you are right, thank :-)
+Taking a second look at this, I see we'd get some nice pr_err message in this
+case, so VM_BUG_ON doesn't seem necessary.
 
--- 
-Wei Yang
-Help you, Help me
+Still odd there's an unchecked return value, but it could be useful to future
+callers.  Just my nitpick, feel free to leave as is.
