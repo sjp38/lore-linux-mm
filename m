@@ -1,91 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 857186B0287
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 06:43:03 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id y22-v6so2488807ljy.0
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 03:43:03 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AE816B0289
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 06:47:10 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id v88-v6so6188919pfk.19
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 03:47:10 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x9-v6sor4888407ljx.9.2018.10.25.03.43.01
+        by mx.google.com with SMTPS id bj11-v6sor6148749plb.16.2018.10.25.03.47.08
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 25 Oct 2018 03:43:01 -0700 (PDT)
-From: Uladzislau Rezki <urezki@gmail.com>
-Date: Thu, 25 Oct 2018 12:42:57 +0200
-Subject: Re: [RFC PATCH 0/2] improve vmalloc allocation
-Message-ID: <20181025104257.adtktxmggxewspvy@pc636>
-References: <20181022165253.uphv3xzqivh44o3d@pc636>
- <20181023072306.GN18839@dhcp22.suse.cz>
- <dd0c3528-9c01-12bc-3400-ca88060cb7cf@kernel.org>
- <20181023152640.GD20085@bombadil.infradead.org>
- <20181023170532.GW18839@dhcp22.suse.cz>
- <98842edb-d462-96b1-311f-27c6ebfc108a@kernel.org>
- <20181023193044.GA139403@joelaf.mtv.corp.google.com>
- <20181024062252.GA18839@dhcp22.suse.cz>
- <20181024173418.2bxkdjbcyzfkgfeu@pc636>
- <20181025084327.GN18839@dhcp22.suse.cz>
+        Thu, 25 Oct 2018 03:47:08 -0700 (PDT)
+Date: Thu, 25 Oct 2018 13:47:03 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 1/4] treewide: remove unused address argument from
+ pte_alloc functions (v2)
+Message-ID: <20181025104703.esl6wxyg2ihe4zoc@kshutemo-mobl1>
+References: <20181013013200.206928-1-joel@joelfernandes.org>
+ <20181013013200.206928-2-joel@joelfernandes.org>
+ <20181024083716.GN3109@worktop.c.hoisthospitality.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181025084327.GN18839@dhcp22.suse.cz>
+In-Reply-To: <20181024083716.GN3109@worktop.c.hoisthospitality.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Uladzislau Rezki <urezki@gmail.com>, Joel Fernandes <joel@joelfernandes.org>, Shuah Khan <shuah@kernel.org>, Matthew Wilcox <willy@infradead.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Thomas Garnier <thgarnie@google.com>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt <rostedt@goodmis.org>, Joel Fernandes <joelaf@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Tejun Heo <tj@kernel.org>, maco@android.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: "Joel Fernandes (Google)" <joel@joelfernandes.org>, linux-kernel@vger.kernel.org, kernel-team@android.com, Michal Hocko <mhocko@kernel.org>, Julia Lawall <Julia.Lawall@lip6.fr>, akpm@linux-foundation.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, anton.ivanov@kot-begemot.co.uk, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, dancol@google.com, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, elfring@users.sourceforge.net, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, hughd@google.com, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, lokeshgidra@google.com, Max Filippov <jcmvbkbc@gmail.com>, minchan@kernel.org, nios2-dev@lists.rocketboards.org, pantin@google.com, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>
 
-On Thu, Oct 25, 2018 at 10:43:27AM +0200, Michal Hocko wrote:
-> On Wed 24-10-18 19:34:18, Uladzislau Rezki wrote:
-> > Hi.
-> > 
-> > On Wed, Oct 24, 2018 at 08:22:52AM +0200, Michal Hocko wrote:
-> > > On Tue 23-10-18 12:30:44, Joel Fernandes wrote:
-> > > > On Tue, Oct 23, 2018 at 11:13:36AM -0600, Shuah Khan wrote:
-> > > > > On 10/23/2018 11:05 AM, Michal Hocko wrote:
-> > > > > > On Tue 23-10-18 08:26:40, Matthew Wilcox wrote:
-> > > > > >> On Tue, Oct 23, 2018 at 09:02:56AM -0600, Shuah Khan wrote:
-> > > > > > [...]
-> > > > > >>> The way it can be handled is by adding a test module under lib. test_kmod,
-> > > > > >>> test_sysctl, test_user_copy etc.
-> > > > > >>
-> > > > > >> The problem is that said module can only invoke functions which are
-> > > > > >> exported using EXPORT_SYMBOL.  And there's a cost to exporting them,
-> > > > > >> which I don't think we're willing to pay, purely to get test coverage.
-> > > > > > 
-> > > > > > Yes, I think we do not want to export internal functionality which might
-> > > > > > be still interesting for the testing coverage. Maybe we want something
-> > > > > > like EXPORT_SYMBOL_KSELFTEST which would allow to link within the
-> > > > > > kselftest machinery but it wouldn't allow the same for general modules
-> > > > > > and will not give any API promisses.
-> > > > > > 
-> > > > > 
-> > > > > I like this proposal. I think we will open up lot of test opportunities with
-> > > > > this approach.
-> > > > > 
-> > > > > Maybe we can use this stress test as a pilot and see where it takes us.
-> > > > 
-> > > > I am a bit worried that such an EXPORT_SYMBOL_KSELFTEST mechanism can be abused by
-> > > > out-of-tree module writers to call internal functionality.
-> > > > 
-> > > > How would you prevent that?
-> > > 
-> > > There is no way to prevent non-exported symbols abuse by 3rd party
-> > > AFAIK. EXPORT_SYMBOL_* is not there to prohibid abuse. It is a mere
-> > > signal of what is, well, an exported API.
-> > 
-> > Can we just use kallsyms_lookup_name()?
+On Wed, Oct 24, 2018 at 10:37:16AM +0200, Peter Zijlstra wrote:
+> On Fri, Oct 12, 2018 at 06:31:57PM -0700, Joel Fernandes (Google) wrote:
+> > This series speeds up mremap(2) syscall by copying page tables at the
+> > PMD level even for non-THP systems. There is concern that the extra
+> > 'address' argument that mremap passes to pte_alloc may do something
+> > subtle architecture related in the future that may make the scheme not
+> > work.  Also we find that there is no point in passing the 'address' to
+> > pte_alloc since its unused. So this patch therefore removes this
+> > argument tree-wide resulting in a nice negative diff as well. Also
+> > ensuring along the way that the enabled architectures do not do anything
+> > funky with 'address' argument that goes unnoticed by the optimization.
 > 
-> Heh, this is the abuse I've had in mind ;)
-> > <snip>
-> > static void *((*__my_vmalloc_node_range)(unsigned long size,
-> >     unsigned long align,unsigned long start, unsigned long end,
-> >     gfp_t gfp_mask,pgprot_t prot, unsigned long vm_flags,
-> >     int node, const void *caller));
-> > 
-> > __my_vmalloc_node_range = (void *) kallsyms_lookup_name("__vmalloc_node_range");
-> > <snip>
-> 
-> This is just too ugly to live. So I would go with it only if there is no
-> reasonable way to export what tests need with a sane interface.
-Agree, that is a bit ugly and not generic even though it is easy :)
+> Did you happen to look at the history of where that address argument
+> came from? -- just being curious here. ISTR something vague about
+> architectures having different paging structure for different memory
+> ranges.
 
---
-Vlad Rezki
+I see some archicetures (i.e. sparc and, I believe power) used the address
+for coloring. It's not needed anymore. Page allocator and SL?B are good
+enough now.
+
+See 3c936465249f ("[SPARC64]: Kill pgtable quicklists and use SLAB.")
+
+-- 
+ Kirill A. Shutemov
