@@ -1,53 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 530C86B0269
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 22:21:23 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id x8-v6so4400033pgp.9
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 19:21:23 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x8-v6sor6296539pgp.61.2018.10.24.19.21.22
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D2966B0003
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 00:59:30 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id r16-v6so4518887pgv.17
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 21:59:30 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cd15-v6si6899812plb.219.2018.10.24.21.59.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 Oct 2018 19:21:22 -0700 (PDT)
-Date: Wed, 24 Oct 2018 19:21:19 -0700
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [PATCH 1/4] treewide: remove unused address argument from
- pte_alloc functions (v2)
-Message-ID: <20181025022119.GC13560@joelaf.mtv.corp.google.com>
-References: <20181013013200.206928-1-joel@joelfernandes.org>
- <20181013013200.206928-2-joel@joelfernandes.org>
- <20181024083716.GN3109@worktop.c.hoisthospitality.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Oct 2018 21:59:28 -0700 (PDT)
+Subject: Re: [PATCH 2/2] mm, thp: consolidate THP gfp handling into
+ alloc_hugepage_direct_gfpmask
+References: <20180925120326.24392-1-mhocko@kernel.org>
+ <20180925120326.24392-3-mhocko@kernel.org>
+ <20180926133039.y7o5x4nafovxzh2s@kshutemo-mobl1>
+ <20180926141708.GX6278@dhcp22.suse.cz> <20180926142227.GZ6278@dhcp22.suse.cz>
+ <20181018191147.33e8d5e1ebd785c06aab7b30@linux-foundation.org>
+ <20181019080657.GJ18839@dhcp22.suse.cz>
+ <583b20e5-4925-e175-1533-5c2d2bab9192@suse.cz>
+ <20181024161754.0d174e7c22113f4f8aad1940@linux-foundation.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <983e0c59-99ef-796c-bfc4-00e67782d1f1@suse.cz>
+Date: Thu, 25 Oct 2018 06:56:37 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181024083716.GN3109@worktop.c.hoisthospitality.com>
+In-Reply-To: <20181024161754.0d174e7c22113f4f8aad1940@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: linux-kernel@vger.kernel.org, kernel-team@android.com, "Kirill A . Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@kernel.org>, Julia Lawall <Julia.Lawall@lip6.fr>, akpm@linux-foundation.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, anton.ivanov@kot-begemot.co.uk, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, dancol@google.com, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, elfring@users.sourceforge.net, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, hughd@google.com, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, lokeshgidra@google.com, Max Filippov <jcmvbkbc@gmail.com>, minchan@kernel.org, nios2-dev@lists.rocketboards.org, pantin@google.com, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Oct 24, 2018 at 10:37:16AM +0200, Peter Zijlstra wrote:
-> On Fri, Oct 12, 2018 at 06:31:57PM -0700, Joel Fernandes (Google) wrote:
-> > This series speeds up mremap(2) syscall by copying page tables at the
-> > PMD level even for non-THP systems. There is concern that the extra
-> > 'address' argument that mremap passes to pte_alloc may do something
-> > subtle architecture related in the future that may make the scheme not
-> > work.  Also we find that there is no point in passing the 'address' to
-> > pte_alloc since its unused. So this patch therefore removes this
-> > argument tree-wide resulting in a nice negative diff as well. Also
-> > ensuring along the way that the enabled architectures do not do anything
-> > funky with 'address' argument that goes unnoticed by the optimization.
+On 10/25/18 1:17 AM, Andrew Morton wrote:
+> On Mon, 22 Oct 2018 15:27:54 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
 > 
-> Did you happen to look at the history of where that address argument
-> came from? -- just being curious here. ISTR something vague about
-> architectures having different paging structure for different memory
-> ranges.
+>>> : Moreover the oriinal code allowed to trigger
+>>> : 	WARN_ON_ONCE(policy->mode == MPOL_BIND && (gfp & __GFP_THISNODE));
+>>> : in policy_node if the requested node (e.g. cpu local one) was outside of
+>>> : the mbind nodemask. This is not possible now. We haven't heard about any
+>>> : such warning yet so it is unlikely that it happens but still a signal of
+>>> : a wrong code layering.
+>>
+>> Ah, as I said in the other mail, I think it's inaccurate, the warning
+>> was not possible to hit.
+>>
+>> There's also a slight difference wrt MPOL_BIND. The previous code would
+>> avoid using __GFP_THISNODE if the local node was outside of
+>> policy_nodemask(). After your patch __GFP_THISNODE is avoided for all
+>> MPOL_BIND policies. So there's a difference that if local node is
+>> actually allowed by the bind policy's nodemask, previously
+>> __GFP_THISNODE would be added, but now it won't be. I don't think it
+>> matters that much though, but maybe the changelog could say that
+>> (instead of the inaccurate note about warning). Note the other policy
+>> where nodemask is relevant is MPOL_INTERLEAVE, and that's unchanged by
+>> this patch.
+> 
+> So the above could go into the changelog, yes?
 
-I didn't happen to do that analysis but from code analysis, no architecutre
-is using it. Since its unused in the kernel, may be such architectures don't
-exist or were removed, so we don't need to bother? Could you share more about
-your concern with the removal of this argument?
+Yeah.
 
-thanks,
+>> When that's addressed, you can add
+> 
+> What is it that you'd like to see addressed?  Purely changelog updates?
 
- - Joel
+Right.
+
+>> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> 
+> Thanks.
+> 
