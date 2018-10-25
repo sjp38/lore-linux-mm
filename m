@@ -1,51 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C87376B0269
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 04:11:05 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id v198-v6so8469400qka.16
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 01:11:05 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n9si50866qke.100.2018.10.25.01.11.04
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8963E6B026B
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 04:24:13 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id k17-v6so4185095edr.18
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 01:24:13 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b25-v6sor2265800ejo.11.2018.10.25.01.24.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Oct 2018 01:11:05 -0700 (PDT)
-Date: Thu, 25 Oct 2018 16:11:00 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: [PATCHv2 1/2] x86/mm: Move LDT remap out of KASLR region on
- 5-level paging
-Message-ID: <20181025081100.GA31346@MiWiFi-R3L-srv>
-References: <20181024125112.55999-1-kirill.shutemov@linux.intel.com>
- <20181024125112.55999-2-kirill.shutemov@linux.intel.com>
- <20181025021809.GB2120@MiWiFi-R3L-srv>
- <20181025072429.k54aem37sefqonqy@kshutemo-mobl1>
+        (Google Transport Security);
+        Thu, 25 Oct 2018 01:24:11 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [RFC PATCH v2 0/3] oom: rework oom_reaper vs. exit_mmap handoff
+Date: Thu, 25 Oct 2018 10:24:00 +0200
+Message-Id: <20181025082403.3806-1-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181025072429.k54aem37sefqonqy@kshutemo-mobl1>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, tglx@linutronix.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org, boris.ostrovsky@oracle.com, jgross@suse.com, willy@infradead.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 10/25/18 at 10:24am, Kirill A. Shutemov wrote:
-> On Thu, Oct 25, 2018 at 10:18:09AM +0800, Baoquan He wrote:
-> > > We don't touch 4 pgd slot gap just before the direct mapping reserved
-> > > for a hypervisor, but move direct mapping by one slot instead.
-> > > 
-> > > The LDT mapping is per-mm, so we cannot move it into P4D page table next
-> > > to CPU_ENTRY_AREA without complicating PGD table allocation for 5-level
-> > > paging.
-> > 
-> > Here as discussed in private thread, at the first place you also agreed
-> > to put it in p4d entry next to CPU_ENTRY_AREA, but finally you changd
-> > mind, there must be some reasons when you implemented and investigated
-> > further to find out. Could you please say more about how it will
-> > complicating PGD table allocation for 5-level paging? Or give an use
-> > case where it will complicate?
-> 
-> On 5-level machine all memory starting from CPU_ENTRY_AREA (and part of
-> KASAN memory) is in the same P4D page table. All this memory is shared
-> across all processes, we just copy PGD entry -- all proceses point to the
-> same P4D page table. (I leave out PTI from the picture for simplicity.)
+The previous version of this RFC has been posted here [1]. I have fixed
+few issues spotted during the review and by 0day bot. I have also reworked
+patch 2 to be ratio rather than an absolute number based.
 
-Yes, got it, I didn't notice this, thanks a lot.
+With this series applied the locking protocol between the oom_reaper and
+the exit path is as follows.
+
+All parts which cannot race should use the exclusive lock on the exit
+path. Once the exit path has passed the moment when no blocking locks
+are taken then it clears mm->mmap under the exclusive lock. oom_reaper
+checks for this and sets MMF_OOM_SKIP only if the exit path is not guaranteed
+to finish the job. This is patch 3 so see the changelog for all the details.
+
+I would really appreciate if David could give this a try and see how
+this behaves in workloads where the oom_reaper falls flat now. I have
+been playing with sparsely allocated memory with a high pte/real memory
+ratio and large mlocked processes and it worked reasonably well.
+
+There is still some room for tuning here of course. We can change the
+number of retries for the oom_reaper as well as the threshold when the
+keep retrying.
+
+Michal Hocko (3):
+      mm, oom: rework mmap_exit vs. oom_reaper synchronization
+      mm, oom: keep retrying the oom_reap operation as long as there is substantial memory left
+      mm, oom: hand over MMF_OOM_SKIP to exit path if it is guranteed to finish
+
+Diffstat:
+ include/linux/oom.h |  2 --
+ mm/internal.h       |  3 +++
+ mm/memory.c         | 28 ++++++++++++++--------
+ mm/mmap.c           | 69 +++++++++++++++++++++++++++++++++--------------------
+ mm/oom_kill.c       | 45 ++++++++++++++++++++++++----------
+ 5 files changed, 97 insertions(+), 50 deletions(-)
+
+[1] http://lkml.kernel.org/r/20180910125513.311-1-mhocko@kernel.org
