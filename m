@@ -1,154 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DA3E06B0278
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 05:28:26 -0400 (EDT)
-Received: by mail-lf1-f69.google.com with SMTP id y12-v6so966438lfh.16
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 02:28:26 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 47AB16B027B
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 05:45:32 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 87-v6so6029517pfq.8
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 02:45:32 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z12-v6sor4788094ljb.6.2018.10.25.02.28.24
+        by mx.google.com with SMTPS id z31-v6sor2926595plb.35.2018.10.25.02.45.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 25 Oct 2018 02:28:24 -0700 (PDT)
-Date: Thu, 25 Oct 2018 11:28:21 +0200
-From: Vitaly Wool <vitalywool@gmail.com>
-Subject: [PATCH] z3fold: encode object length in the handle
-Message-Id: <20181025112821.0924423fb9ecc7918896ec2b@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 25 Oct 2018 02:45:31 -0700 (PDT)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH 1/3] mm, slub: not retrieve cpu_slub again in new_slab_objects()
+Date: Thu, 25 Oct 2018 17:44:35 +0800
+Message-Id: <20181025094437.18951-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleksiy.Avramchenko@sony.com, Guenter Roeck <linux@roeck-us.net>
+To: cl@linux.com, penberg@kernel.org, rientjes@google.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-Reclaim and free can race on an object (which is basically ok) but
-in order for reclaim to be able to  map "freed" object we need to
-encode object length in the handle. handle_to_chunks() is thus
-introduced to extract object length from a handle and use it during
-mapping of the last object we couldn't correctly map before.
+In current code, the following context always meets:
 
-Signed-off-by: Vitaly Wool <vitaly.vul@sony.com>
+  local_irq_save/disable()
+    ___slab_alloc()
+      new_slab_objects()
+  local_irq_restore/enable()
+
+This context ensures cpu will continue running until it finish this job
+before yield its control, which means the cpu_slab retrieved in
+new_slab_objects() is the same as passed in.
+
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 ---
- mm/z3fold.c | 48 +++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 35 insertions(+), 13 deletions(-)
+ mm/slub.c | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
 
-diff --git a/mm/z3fold.c b/mm/z3fold.c
-index 4b366d181f35..86359b565d45 100644
---- a/mm/z3fold.c
-+++ b/mm/z3fold.c
-@@ -99,6 +99,7 @@ struct z3fold_header {
- #define NCHUNKS		((PAGE_SIZE - ZHDR_SIZE_ALIGNED) >> CHUNK_SHIFT)
- 
- #define BUDDY_MASK	(0x3)
-+#define BUDDY_SHIFT	2
- 
- /**
-  * struct z3fold_pool - stores metadata for each z3fold pool
-@@ -223,8 +224,17 @@ static unsigned long encode_handle(struct z3fold_header *zhdr, enum buddy bud)
- 	unsigned long handle;
- 
- 	handle = (unsigned long)zhdr;
--	if (bud != HEADLESS)
--		handle += (bud + zhdr->first_num) & BUDDY_MASK;
-+	if (bud != HEADLESS) {
-+		unsigned short num_chunks = zhdr->first_chunks;
-+
-+		if (bud == MIDDLE)
-+			num_chunks = zhdr->middle_chunks;
-+		if (bud == LAST)
-+			num_chunks = zhdr->last_chunks;
-+
-+		handle |= (bud + zhdr->first_num) & BUDDY_MASK;
-+		handle |= (num_chunks << BUDDY_SHIFT);
-+	}
- 	return handle;
+diff --git a/mm/slub.c b/mm/slub.c
+index ce2b9e5cea77..11e49d95e0ac 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2402,10 +2402,9 @@ slab_out_of_memory(struct kmem_cache *s, gfp_t gfpflags, int nid)
  }
  
-@@ -234,6 +244,11 @@ static struct z3fold_header *handle_to_z3fold_header(unsigned long handle)
- 	return (struct z3fold_header *)(handle & PAGE_MASK);
- }
+ static inline void *new_slab_objects(struct kmem_cache *s, gfp_t flags,
+-			int node, struct kmem_cache_cpu **pc)
++			int node, struct kmem_cache_cpu *c)
+ {
+ 	void *freelist;
+-	struct kmem_cache_cpu *c = *pc;
+ 	struct page *page;
  
-+static unsigned short handle_to_chunks(unsigned long handle)
-+{
-+	return (handle & ~PAGE_MASK) >> BUDDY_SHIFT;
-+}
-+
- /*
-  * (handle & BUDDY_MASK) < zhdr->first_num is possible in encode_handle
-  *  but that doesn't matter. because the masking will result in the
-@@ -732,7 +747,6 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 			break;
- 		case MIDDLE:
- 			zhdr->middle_chunks = 0;
--			zhdr->start_middle = 0;
- 			break;
- 		case LAST:
- 			zhdr->last_chunks = 0;
-@@ -746,11 +760,14 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+ 	WARN_ON_ONCE(s->ctor && (flags & __GFP_ZERO));
+@@ -2417,7 +2416,6 @@ static inline void *new_slab_objects(struct kmem_cache *s, gfp_t flags,
+ 
+ 	page = new_slab(s, flags, node);
+ 	if (page) {
+-		c = raw_cpu_ptr(s->cpu_slab);
+ 		if (c->page)
+ 			flush_slab(s, c);
+ 
+@@ -2430,7 +2428,6 @@ static inline void *new_slab_objects(struct kmem_cache *s, gfp_t flags,
+ 
+ 		stat(s, ALLOC_SLAB);
+ 		c->page = page;
+-		*pc = c;
+ 	} else
+ 		freelist = NULL;
+ 
+@@ -2567,7 +2564,7 @@ static void *___slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
+ 		goto redo;
  	}
  
- 	if (bud == HEADLESS) {
--		spin_lock(&pool->lock);
--		list_del(&page->lru);
--		spin_unlock(&pool->lock);
--		free_z3fold_page(page);
--		atomic64_dec(&pool->pages_nr);
-+		/* if a headless page is under reclaim, just leave */
-+		if (!test_bit(UNDER_RECLAIM, &page->private)) {
-+			spin_lock(&pool->lock);
-+			list_del(&page->lru);
-+			spin_unlock(&pool->lock);
-+			free_z3fold_page(page);
-+			atomic64_dec(&pool->pages_nr);
-+		}
- 		return;
- 	}
+-	freelist = new_slab_objects(s, gfpflags, node, &c);
++	freelist = new_slab_objects(s, gfpflags, node, c);
  
-@@ -836,20 +853,24 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 		}
- 		list_for_each_prev(pos, &pool->lru) {
- 			page = list_entry(pos, struct page, lru);
-+			zhdr = page_address(page);
- 			if (test_bit(PAGE_HEADLESS, &page->private))
--				/* candidate found */
- 				break;
- 
--			zhdr = page_address(page);
--			if (!z3fold_page_trylock(zhdr))
-+			if (!z3fold_page_trylock(zhdr)) {
-+				zhdr = NULL;
- 				continue; /* can't evict at this point */
-+			}
- 			kref_get(&zhdr->refcount);
- 			list_del_init(&zhdr->buddy);
- 			zhdr->cpu = -1;
--			set_bit(UNDER_RECLAIM, &page->private);
- 			break;
- 		}
- 
-+		if (!zhdr)
-+			break;
-+
-+		set_bit(UNDER_RECLAIM, &page->private);
- 		list_del_init(&page->lru);
- 		spin_unlock(&pool->lock);
- 
-@@ -898,6 +919,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 		if (test_bit(PAGE_HEADLESS, &page->private)) {
- 			if (ret == 0) {
- 				free_z3fold_page(page);
-+				atomic64_dec(&pool->pages_nr);
- 				return 0;
- 			}
- 			spin_lock(&pool->lock);
-@@ -964,7 +986,7 @@ static void *z3fold_map(struct z3fold_pool *pool, unsigned long handle)
- 		set_bit(MIDDLE_CHUNK_MAPPED, &page->private);
- 		break;
- 	case LAST:
--		addr += PAGE_SIZE - (zhdr->last_chunks << CHUNK_SHIFT);
-+		addr += PAGE_SIZE - (handle_to_chunks(handle) << CHUNK_SHIFT);
- 		break;
- 	default:
- 		pr_err("unknown buddy id %d\n", buddy);
+ 	if (unlikely(!freelist)) {
+ 		slab_out_of_memory(s, gfpflags, node);
 -- 
-2.11.0
+2.15.1
