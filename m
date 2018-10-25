@@ -1,54 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EA9606B0007
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 22:13:28 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id c28-v6so5429020pfe.4
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 19:13:28 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d11-v6si6309558pgd.342.2018.10.24.19.13.27
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 898636B000A
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 22:13:53 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id o18-v6so4359811pgv.14
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 19:13:53 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e11-v6sor2788285pgl.77.2018.10.24.19.13.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 24 Oct 2018 19:13:27 -0700 (PDT)
-Date: Wed, 24 Oct 2018 19:13:07 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 08/17] prmem: struct page: track vmap_area
-Message-ID: <20181025021307.GH25444@bombadil.infradead.org>
-References: <20181023213504.28905-1-igor.stoppa@huawei.com>
- <20181023213504.28905-9-igor.stoppa@huawei.com>
- <20181024031200.GC25444@bombadil.infradead.org>
- <ffb887e1-2029-42d5-3a97-54546e4d28d8@gmail.com>
+        (Google Transport Security);
+        Wed, 24 Oct 2018 19:13:52 -0700 (PDT)
+Date: Wed, 24 Oct 2018 19:13:50 -0700
+From: Joel Fernandes <joel@joelfernandes.org>
+Subject: Re: [PATCH 2/4] mm: speed up mremap by 500x on large regions (v2)
+Message-ID: <20181025021350.GB13560@joelaf.mtv.corp.google.com>
+References: <20181013013200.206928-1-joel@joelfernandes.org>
+ <20181013013200.206928-3-joel@joelfernandes.org>
+ <20181024101255.it4lptrjogalxbey@kshutemo-mobl1>
+ <20181024115733.GN8537@350D>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <ffb887e1-2029-42d5-3a97-54546e4d28d8@gmail.com>
+In-Reply-To: <20181024115733.GN8537@350D>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@gmail.com>
-Cc: Mimi Zohar <zohar@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Dave Chinner <david@fromorbit.com>, James Morris <jmorris@namei.org>, Michal Hocko <mhocko@kernel.org>, kernel-hardening@lists.openwall.com, linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org, igor.stoppa@huawei.com, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, kernel-team@android.com, minchan@kernel.org, pantin@google.com, hughd@google.com, lokeshgidra@google.com, dancol@google.com, mhocko@kernel.org, akpm@linux-foundation.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, anton.ivanov@kot-begemot.co.uk, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, elfring@users.sourceforge.net, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, Julia Lawall <Julia.Lawall@lip6.fr>, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, Max Filippov <jcmvbkbc@gmail.com>, nios2-dev@lists.rocketboards.org, Peter Zijlstra <peterz@infradead.org>, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>
 
-On Thu, Oct 25, 2018 at 02:01:02AM +0300, Igor Stoppa wrote:
-> > > @@ -1747,6 +1750,10 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
-> > >   	if (!addr)
-> > >   		return NULL;
-> > > +	va = __find_vmap_area((unsigned long)addr);
-> > > +	for (i = 0; i < va->vm->nr_pages; i++)
-> > > +		va->vm->pages[i]->area = va;
-> > 
-> > I don't like it that you're calling this for _every_ vmalloc() caller
-> > when most of them will never use this.  Perhaps have page->va be initially
-> > NULL and then cache the lookup in it when it's accessed for the first time.
-> > 
+On Wed, Oct 24, 2018 at 10:57:33PM +1100, Balbir Singh wrote:
+[...]
+> > > +		pmd_t pmd;
+> > > +
+> > > +		new_ptl = pmd_lockptr(mm, new_pmd);
 > 
-> If __find_vmap_area() was part of the API, this loop could be left out from
-> __vmalloc_node_range() and the user of the allocation could initialize the
-> field, if needed.
 > 
-> What is the reason for keeping __find_vmap_area() private?
+> Looks like this is largely inspired by move_huge_pmd(), I guess a lot of
+> the code applies, why not just reuse as much as possible? The same comments
+> w.r.t mmap_sem helping protect against lock order issues applies as well.
 
-Well, for one, you're walking the rbtree without holding the spinlock,
-so you're going to get crashes.  I don't see why we shouldn't export
-find_vmap_area() though.
+I thought about this and when I looked into it, it seemed there are subtle
+differences that make such sharing not worth it (or not possible).
 
-Another way we could approach this is to embed the vmap_area in the
-vm_struct.  It'd require a bit of juggling of the alloc/free paths in
-vmalloc, but it might be worthwhile.
+ - Joel
