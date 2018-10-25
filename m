@@ -1,43 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 898636B000A
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 22:13:53 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id o18-v6so4359811pgv.14
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 19:13:53 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e11-v6sor2788285pgl.77.2018.10.24.19.13.52
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 869636B000D
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2018 22:18:27 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id m63-v6so7944307qkb.9
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 19:18:27 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z50-v6si586848qth.129.2018.10.24.19.18.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 Oct 2018 19:13:52 -0700 (PDT)
-Date: Wed, 24 Oct 2018 19:13:50 -0700
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [PATCH 2/4] mm: speed up mremap by 500x on large regions (v2)
-Message-ID: <20181025021350.GB13560@joelaf.mtv.corp.google.com>
-References: <20181013013200.206928-1-joel@joelfernandes.org>
- <20181013013200.206928-3-joel@joelfernandes.org>
- <20181024101255.it4lptrjogalxbey@kshutemo-mobl1>
- <20181024115733.GN8537@350D>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Oct 2018 19:18:26 -0700 (PDT)
+Date: Thu, 25 Oct 2018 10:18:09 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: [PATCHv2 1/2] x86/mm: Move LDT remap out of KASLR region on
+ 5-level paging
+Message-ID: <20181025021809.GB2120@MiWiFi-R3L-srv>
+References: <20181024125112.55999-1-kirill.shutemov@linux.intel.com>
+ <20181024125112.55999-2-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181024115733.GN8537@350D>
+In-Reply-To: <20181024125112.55999-2-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, kernel-team@android.com, minchan@kernel.org, pantin@google.com, hughd@google.com, lokeshgidra@google.com, dancol@google.com, mhocko@kernel.org, akpm@linux-foundation.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, anton.ivanov@kot-begemot.co.uk, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, elfring@users.sourceforge.net, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, Julia Lawall <Julia.Lawall@lip6.fr>, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, Max Filippov <jcmvbkbc@gmail.com>, nios2-dev@lists.rocketboards.org, Peter Zijlstra <peterz@infradead.org>, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: tglx@linutronix.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org, boris.ostrovsky@oracle.com, jgross@suse.com, willy@infradead.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Oct 24, 2018 at 10:57:33PM +1100, Balbir Singh wrote:
-[...]
-> > > +		pmd_t pmd;
-> > > +
-> > > +		new_ptl = pmd_lockptr(mm, new_pmd);
+Hi Kirill,
+
+Thanks for making this patchset. I have small concerns, please see the
+inline comments.
+
+On 10/24/18 at 03:51pm, Kirill A. Shutemov wrote:
+> On 5-level paging LDT remap area is placed in the middle of
+> KASLR randomization region and it can overlap with direct mapping,
+> vmalloc or vmap area.
 > 
+> Let's move LDT just before direct mapping which makes it safe for KASLR.
+> This also allows us to unify layout between 4- and 5-level paging.
+
+In crash utility and makedumpfile which are used to analyze system
+memory content, PAGE_OFFSET is hardcoded as below in non-KASLR case:
+
+#define PAGE_OFFSET_2_6_27         0xffff880000000000
+
+Seems this time they need add another value for them. For 4-level and
+5-level, since 5-level code also exist in stable kernel. Surely this
+doesn't matter much.
+
 > 
-> Looks like this is largely inspired by move_huge_pmd(), I guess a lot of
-> the code applies, why not just reuse as much as possible? The same comments
-> w.r.t mmap_sem helping protect against lock order issues applies as well.
+> We don't touch 4 pgd slot gap just before the direct mapping reserved
+> for a hypervisor, but move direct mapping by one slot instead.
+> 
+> The LDT mapping is per-mm, so we cannot move it into P4D page table next
+> to CPU_ENTRY_AREA without complicating PGD table allocation for 5-level
+> paging.
 
-I thought about this and when I looked into it, it seemed there are subtle
-differences that make such sharing not worth it (or not possible).
+Here as discussed in private thread, at the first place you also agreed
+to put it in p4d entry next to CPU_ENTRY_AREA, but finally you changd
+mind, there must be some reasons when you implemented and investigated
+further to find out. Could you please say more about how it will
+complicating PGD table allocation for 5-level paging? Or give an use
+case where it will complicate?
 
- - Joel
+Very sorry I am stupid, still don't get what's the point. Really
+appreciate it.
+
+Thanks
+Baoquan
