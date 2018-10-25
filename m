@@ -1,59 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 300CE6B0007
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 02:23:45 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id q23so5286620otl.1
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2018 23:23:45 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id k44si3093443otk.44.2018.10.24.23.23.44
-        for <linux-mm@kvack.org>;
-        Wed, 24 Oct 2018 23:23:44 -0700 (PDT)
-Subject: Re: [PATCH V3 3/5] mm/hugetlb: Enable arch specific huge page size
- support for migration
-References: <1540299721-26484-1-git-send-email-anshuman.khandual@arm.com>
- <1540299721-26484-4-git-send-email-anshuman.khandual@arm.com>
- <20181024135639.GH18839@dhcp22.suse.cz>
- <20181024135859.GI18839@dhcp22.suse.cz>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <bf5e636c-9cc4-50d6-4160-78a1a7703860@arm.com>
-Date: Thu, 25 Oct 2018 11:53:34 +0530
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C2266B0003
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 03:11:44 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id v18-v6so4086068edq.23
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 00:11:43 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l8-v6si3048774eje.206.2018.10.25.00.11.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Oct 2018 00:11:42 -0700 (PDT)
+Date: Thu, 25 Oct 2018 09:11:40 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,oom: Use timeout based back off.
+Message-ID: <20181025071140.GK18839@dhcp22.suse.cz>
+References: <1540033021-3258-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.21.1810221406400.120157@chino.kir.corp.google.com>
+ <20181024155454.4e63191fbfaa0441f2e62f56@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20181024135859.GI18839@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181024155454.4e63191fbfaa0441f2e62f56@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, suzuki.poulose@arm.com, punit.agrawal@arm.com, will.deacon@arm.com, Steven.Price@arm.com, steve.capper@arm.com, catalin.marinas@arm.com, akpm@linux-foundation.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, guro@fb.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, yang.s@alibaba-inc.com, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>
 
+On Wed 24-10-18 15:54:54, Andrew Morton wrote:
+[...]
+> There has been a lot of heat and noise and confusion and handwaving in
+> all of this.  What we're crying out for is simple testcases which
+> everyone can run.  Find a problem, write the testcase, distribute that.
+> Develop a solution for that testcase then move on to the next one.
 
-
-On 10/24/2018 07:28 PM, Michal Hocko wrote:
-> On Wed 24-10-18 15:56:39, Michal Hocko wrote:
->> On Tue 23-10-18 18:31:59, Anshuman Khandual wrote:
->>> Architectures like arm64 have HugeTLB page sizes which are different than
->>> generic sizes at PMD, PUD, PGD level and implemented via contiguous bits.
->>> At present these special size HugeTLB pages cannot be identified through
->>> macros like (PMD|PUD|PGDIR)_SHIFT and hence chosen not be migrated.
->>>
->>> Enabling migration support for these special HugeTLB page sizes along with
->>> the generic ones (PMD|PUD|PGD) would require identifying all of them on a
->>> given platform. A platform specific hook can precisely enumerate all huge
->>> page sizes supported for migration. Instead of comparing against standard
->>> huge page orders let hugetlb_migration_support() function call a platform
->>> hook arch_hugetlb_migration_support(). Default definition for the platform
->>> hook maintains existing semantics which checks standard huge page order.
->>> But an architecture can choose to override the default and provide support
->>> for a comprehensive set of huge page sizes.
->>>
->>> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
->>
->> Acked-by: Michal Hocko <mhocko@use.com>
-> 
-> fat fingers here, should be mhocko@suse.com of course.
-
-Sure no problems. As we had discussed earlier and agreed to keep the previous
-patch "mm/hugetlb: Enable PUD level huge page migration" separate and not fold
-into this one, I will assume your ACK on it as well unless your disagree.
+Agreed! It is important for these test to represent some reasonable
+workloads though.
+-- 
+Michal Hocko
+SUSE Labs
