@@ -1,76 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1290E6B0275
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 05:21:54 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id u6-v6so4304313eds.10
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 02:21:54 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F9676B0276
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 05:23:56 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id k17-v6so4285933edr.18
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 02:23:56 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t9-v6si218459edr.225.2018.10.25.02.21.52
+        by mx.google.com with ESMTPS id l33-v6si523014edc.77.2018.10.25.02.23.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Oct 2018 02:21:52 -0700 (PDT)
-Date: Thu, 25 Oct 2018 11:21:51 +0200
+        Thu, 25 Oct 2018 02:23:55 -0700 (PDT)
+Date: Thu, 25 Oct 2018 11:23:52 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: convert totalram_pages, totalhigh_pages and
- managed_pages to atomic.
-Message-ID: <20181025092151.GO18839@dhcp22.suse.cz>
-References: <1540229092-25207-1-git-send-email-arunks@codeaurora.org>
- <c57bcc584b3700c483b0311881ec3ae8786f88b1.camel@perches.com>
- <15247f54-53f3-83d4-6706-e9264b90ca7a@yandex-team.ru>
- <CAGXu5j+NsDHRWA5PKAKeJCO_oiGkFAUeWE8O-1fEBQX80MDu1A@mail.gmail.com>
- <7a4fcbaee7efb71d2a3c6b403c090db4@codeaurora.org>
- <20181024061546.GY18839@dhcp22.suse.cz>
- <0e1fc40af360ed55fd32784f6973af5940232f99.camel@perches.com>
- <20181024082312.GD18839@dhcp22.suse.cz>
- <02a1bfc2eed324f3d03aa4a7b5eb6fde4e4a3bdd.camel@perches.com>
+Subject: Re: [RFC PATCH] mm: don't reclaim inodes with many attached pages
+Message-ID: <20181025092352.GP18839@dhcp22.suse.cz>
+References: <20181023164302.20436-1-guro@fb.com>
+ <20181024151950.36fe2c41957d807756f587ca@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <02a1bfc2eed324f3d03aa4a7b5eb6fde4e4a3bdd.camel@perches.com>
+In-Reply-To: <20181024151950.36fe2c41957d807756f587ca@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: Arun KS <arunks@codeaurora.org>, Kees Cook <keescook@chromium.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, Arun Sudhilal <getarunks@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Roman Gushchin <guro@fb.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, Rik van Riel <riel@surriel.com>, Randy Dunlap <rdunlap@infradead.org>
 
-On Wed 24-10-18 01:39:18, Joe Perches wrote:
-> On Wed, 2018-10-24 at 10:23 +0200, Michal Hocko wrote:
-> > On Tue 23-10-18 23:26:16, Joe Perches wrote:
-> > > On Wed, 2018-10-24 at 08:15 +0200, Michal Hocko wrote:
-> > > > On Wed 24-10-18 10:47:52, Arun KS wrote:
-> > > > > On 2018-10-24 01:34, Kees Cook wrote:
-> > > > [...]
-> > > > > > Thank you -- I was struggling to figure out the best way to reply to
-> > > > > > this. :)
-> > > > > I'm sorry for the trouble caused. Sent the email using,
-> > > > > git send-email  --to-cmd="scripts/get_maintainer.pl -i"
-> > > > > 0001-convert-totalram_pages-totalhigh_pages-and-managed_p.patch
-> > > > > 
-> > > > > Is this not a recommended approach?
-> > > > 
-> > > > Not really for tree wide mechanical changes. It is much more preferrable
-> > > > IMHO to only CC people who should review the intention of the change
-> > > > rather than each and every maintainer whose code is going to be changed.
-> > > > This is a case by case thing of course but as soon as you see a giant CC
-> > > > list from get_maintainer.pl then you should try to think twice to use
-> > > > it. If not sure, just ask on the mailing list.
-> > > 
-> > > Generally, it's better to use scripts to control
-> > > the --to-cmd and --cc-cmd options.
-> > 
-> > I would argue that it is better to use a common sense much more than
-> > scripts.
+On Wed 24-10-18 15:19:50, Andrew Morton wrote:
+> On Tue, 23 Oct 2018 16:43:29 +0000 Roman Gushchin <guro@fb.com> wrote:
 > 
-> Common sense isn't common.
+> > Spock reported that the commit 172b06c32b94 ("mm: slowly shrink slabs
+> > with a relatively small number of objects") leads to a regression on
+> > his setup: periodically the majority of the pagecache is evicted
+> > without an obvious reason, while before the change the amount of free
+> > memory was balancing around the watermark.
+> > 
+> > The reason behind is that the mentioned above change created some
+> > minimal background pressure on the inode cache. The problem is that
+> > if an inode is considered to be reclaimed, all belonging pagecache
+> > page are stripped, no matter how many of them are there. So, if a huge
+> > multi-gigabyte file is cached in the memory, and the goal is to
+> > reclaim only few slab objects (unused inodes), we still can eventually
+> > evict all gigabytes of the pagecache at once.
+> > 
+> > The workload described by Spock has few large non-mapped files in the
+> > pagecache, so it's especially noticeable.
+> > 
+> > To solve the problem let's postpone the reclaim of inodes, which have
+> > more than 1 attached page. Let's wait until the pagecache pages will
+> > be evicted naturally by scanning the corresponding LRU lists, and only
+> > then reclaim the inode structure.
+> 
+> Is this regression serious enough to warrant fixing 4.19.1?
 
-But you cannot replace brain by a script.
-
-Again, this is mostly a mechanical change quite internal to the MM
-proper. Involving all the maintainers which happen to use totalram_pages
-etc. are unlikely to need to know about this change. Sure there is some
-chance of merge conflicts and that is where linux-next comes really
-handy.
-
-This is the best advice I can give here.
+Let's not forget about stable tree(s) which backported 172b06c32b94. I
+would suggest reverting there.
 -- 
 Michal Hocko
 SUSE Labs
