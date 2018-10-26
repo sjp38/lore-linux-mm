@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BE5F6B02F6
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2018 07:01:28 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id b24-v6so381701pgh.5
-        for <linux-mm@kvack.org>; Fri, 26 Oct 2018 04:01:28 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A6986B02F8
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2018 07:01:29 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id q18-v6so454624pfk.3
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2018 04:01:29 -0700 (PDT)
 Received: from alexa-out-blr-01.qualcomm.com (alexa-out-blr-01.qualcomm.com. [103.229.18.197])
-        by mx.google.com with ESMTPS id g9-v6si7269096pgp.488.2018.10.26.04.01.26
+        by mx.google.com with ESMTPS id g9-v6si7269096pgp.488.2018.10.26.04.01.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Oct 2018 04:01:27 -0700 (PDT)
+        Fri, 26 Oct 2018 04:01:28 -0700 (PDT)
 From: Arun KS <arunks@codeaurora.org>
 Subject: [PATCH v1 0/4]mm: convert totalram_pages, totalhigh_pages and managed pages to atomic
-Date: Fri, 26 Oct 2018 16:30:58 +0530
-Message-Id: <1540551662-26458-1-git-send-email-arunks@codeaurora.org>
+Date: Fri, 26 Oct 2018 16:30:27 +0530
+Message-Id: <1540551631-24208-1-git-send-email-arunks@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: keescook@chromium.org, khlebnikov@yandex-team.ru, minchan@kernel.org, getarunks@gmail.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Arun KS <arunks@codeaurora.org>
+Cc: keescook@chromium.org, minchan@kernel.org, getarunks@gmail.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Arun KS <arunks@codeaurora.org>
 
 This series convert totalram_pages, totalhigh_pages and
 zone->managed_pages to atomic variables.
