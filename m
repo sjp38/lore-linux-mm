@@ -1,260 +1,247 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 79FF96B02C7
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 20:43:32 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id o7-v6so8530963ioh.22
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 17:43:32 -0700 (PDT)
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id z18-v6si5822337iol.134.2018.10.25.17.43.30
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Oct 2018 17:43:30 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH RFC v2 1/1] hugetlbfs: use i_mmap_rwsem for pmd sharing
- and truncate/fault sync
-Date: Fri, 26 Oct 2018 00:42:20 +0000
-Message-ID: <20181026004220.GA8637@hori1.linux.bs1.fc.nec.co.jp>
-References: <20181024045053.1467-1-mike.kravetz@oracle.com>
- <20181024045053.1467-2-mike.kravetz@oracle.com>
-In-Reply-To: <20181024045053.1467-2-mike.kravetz@oracle.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <EC126A47AF18E3438874B0F13E115092@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E46A56B02C9
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2018 21:39:17 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id w65-v6so7497776oif.14
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 18:39:17 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id n44si4774914otb.57.2018.10.25.18.39.15
+        for <linux-mm@kvack.org>;
+        Thu, 25 Oct 2018 18:39:16 -0700 (PDT)
+Subject: Re: [PATCH] mm/thp: Correctly differentiate between mapped THP and
+ PMD migration entry
+References: <1539057538-27446-1-git-send-email-anshuman.khandual@arm.com>
+ <7E8E6B14-D5C4-4A30-840D-A7AB046517FB@cs.rutgers.edu>
+ <84509db4-13ce-fd53-e924-cc4288d493f7@arm.com>
+ <1968F276-5D96-426B-823F-38F6A51FB465@cs.rutgers.edu>
+ <5e0e772c-7eef-e75c-2921-e80d4fbe8324@arm.com>
+ <2398C491-E1DA-4B3C-B60A-377A09A02F1A@cs.rutgers.edu>
+ <796cb545-7376-16a2-db3e-bc9a6ca9894d@arm.com>
+ <5A0A88EF-4B86-4173-A506-DE19BDB786B8@cs.rutgers.edu>
+ <dcd972a6-a508-1fab-4ba9-04043ca9992c@arm.com>
+ <B26B3F91-BA46-479E-8030-D581F4D90D47@cs.rutgers.edu>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <bcb3a3e1-da2f-265f-82db-02b20e438bc5@arm.com>
+Date: Fri, 26 Oct 2018 07:09:07 +0530
 MIME-Version: 1.0
+In-Reply-To: <B26B3F91-BA46-479E-8030-D581F4D90D47@cs.rutgers.edu>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Prakash Sangappa <prakash.sangappa@oracle.com>
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, will.deacon@arm.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Hi Mike,
 
-On Tue, Oct 23, 2018 at 09:50:53PM -0700, Mike Kravetz wrote:
-> hugetlbfs does not correctly handle page faults racing with truncation.
-> In addition, shared pmds can cause additional issues.
->=20
-> Without pmd sharing, issues can occur as follows:
->   A huegtlbfs file is mmap(MAP_SHARED) with a size of 4 pages.  At
->   mmap time, 4 huge pages are reserved for the file/mapping.  So,
->   the global reserve count is 4.  In addition, since this is a shared
->   mapping an entry for 4 pages is added to the file's reserve map.
->   The first 3 of the 4 pages are faulted into the file.  As a result,
->   the global reserve count is now 1.
->=20
->   Task A starts to fault in the last page (routines hugetlb_fault,
->   hugetlb_no_page).  It allocates a huge page (alloc_huge_page).
->   The reserve map indicates there is a reserved page, so this is
->   used and the global reserve count goes to 0.
->=20
->   Now, task B truncates the file to size 0.  It starts by setting
->   inode size to 0(hugetlb_vmtruncate).  It then unmaps all mapping
->   of the file (hugetlb_vmdelete_list).  Since task A's page table
->   lock is not held at the time, truncation is not blocked.  Truncation
->   removes the 3 pages from the file (remove_inode_hugepages).  When
->   cleaning up the reserved pages (hugetlb_unreserve_pages), it notices
->   the reserve map was for 4 pages.  However, it has only freed 3 pages.
->   So it assumes there is still (4 - 3) 1 reserved pages.  It then
->   decrements the global reserve count by 1 and it goes negative.
->=20
->   Task A then continues the page fault process and adds it's newly
->   acquired page to the page cache.  Note that the index of this page
->   is beyond the size of the truncated file (0).  The page fault process
->   then notices the file has been truncated and exits.  However, the
->   page is left in the cache associated with the file.
->=20
->   Now, if the file is immediately deleted the truncate code runs again.
->   It will find and free the one page associated with the file.  When
->   cleaning up reserves, it notices the reserve map is empty.  Yet, one
->   page freed.  So, the global reserve count is decremented by (0 - 1) -1.
->   This returns the global count to 0 as it should be.  But, it is
->   possible for someone else to mmap this file/range before it is deleted.
->   If this happens, a reserve map entry for the allocated page is created
->   and the reserved page is forever leaked.
->=20
-> With pmd sharing, the situation is even worse.  Consider the following:
->   A task processes a page fault on a shared hugetlbfs file and calls
->   huge_pte_alloc to get a ptep.  Suppose the returned ptep points to a
->   shared pmd.
->=20
->   Now, anopther task truncates the hugetlbfs file.  As part of truncation=
-,
->   it unmaps everyone who has the file mapped.  If a task has a shared pmd
->   in this range, huge_pmd_unshhare will be called.  If this is not the la=
-st
 
-(sorry, nitpicking ..) a few typos ("anophter" and "unshhare").
+On 10/26/2018 12:15 AM, Zi Yan wrote:
+> On 25 Oct 2018, at 4:10, Anshuman Khandual wrote:
+> 
+>> On 10/16/2018 08:01 PM, Zi Yan wrote:
+>>> On 15 Oct 2018, at 0:06, Anshuman Khandual wrote:
+>>>
+>>>> On 10/15/2018 06:23 AM, Zi Yan wrote:
+>>>>> On 12 Oct 2018, at 4:00, Anshuman Khandual wrote:
+>>>>>
+>>>>>> On 10/10/2018 06:13 PM, Zi Yan wrote:
+>>>>>>> On 10 Oct 2018, at 0:05, Anshuman Khandual wrote:
+>>>>>>>
+>>>>>>>> On 10/09/2018 07:28 PM, Zi Yan wrote:
+>>>>>>>>> cc: Naoya Horiguchi (who proposed to use !_PAGE_PRESENT && !_PAGE_PSE for x86
+>>>>>>>>> PMD migration entry check)
+>>>>>>>>>
+>>>>>>>>> On 8 Oct 2018, at 23:58, Anshuman Khandual wrote:
+>>>>>>>>>
+>>>>>>>>>> A normal mapped THP page at PMD level should be correctly differentiated
+>>>>>>>>>> from a PMD migration entry while walking the page table. A mapped THP would
+>>>>>>>>>> additionally check positive for pmd_present() along with pmd_trans_huge()
+>>>>>>>>>> as compared to a PMD migration entry. This just adds a new conditional test
+>>>>>>>>>> differentiating the two while walking the page table.
+>>>>>>>>>>
+>>>>>>>>>> Fixes: 616b8371539a6 ("mm: thp: enable thp migration in generic path")
+>>>>>>>>>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+>>>>>>>>>> ---
+>>>>>>>>>> On X86, pmd_trans_huge() and is_pmd_migration_entry() are always mutually
+>>>>>>>>>> exclusive which makes the current conditional block work for both mapped
+>>>>>>>>>> and migration entries. This is not same with arm64 where pmd_trans_huge()
+>>>>>>>>>
+>>>>>>>>> !pmd_present() && pmd_trans_huge() is used to represent THPs under splitting,
+>>>>>>>>
+>>>>>>>> Not really if we just look at code in the conditional blocks.
+>>>>>>>
+>>>>>>> Yeah, I explained it wrong above. Sorry about that.
+>>>>>>>
+>>>>>>> In x86, pmd_present() checks (_PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_PSE),
+>>>>>>> thus, it returns true even if the present bit is cleared but PSE bit is set.
+>>>>>>
+>>>>>> Okay.
+>>>>>>
+>>>>>>> This is done so, because THPs under splitting are regarded as present in the kernel
+>>>>>>> but not present when a hardware page table walker checks it.
+>>>>>>
+>>>>>> Okay.
+>>>>>>
+>>>>>>>
+>>>>>>> For PMD migration entry, which should be regarded as not present, if PSE bit
+>>>>>>> is set, which makes pmd_trans_huge() returns true, like ARM64 does, all
+>>>>>>> PMD migration entries will be regarded as present
+>>>>>>
+>>>>>> Okay to make pmd_present() return false pmd_trans_huge() has to return false
+>>>>>> as well. Is there anything which can be done to get around this problem on
+>>>>>> X86 ? pmd_trans_huge() returning true for a migration entry sounds logical.
+>>>>>> Otherwise we would revert the condition block order to accommodate both the
+>>>>>> implementation for pmd_trans_huge() as suggested by Kirill before or just
+>>>>>> consider this patch forward.
+>>>>>>
+>>>>>> Because I am not really sure yet about the idea of getting pmd_present()
+>>>>>> check into pmd_trans_huge() on arm64 just to make it fit into this semantics
+>>>>>> as suggested by Will. If a PMD is trans huge page or not should not depend on
+>>>>>> whether it is present or not.
+>>>>>
+>>>>> In terms of THPs, we have three cases: a present THP, a THP under splitting,
+>>>>> and a THP under migration. pmd_present() and pmd_trans_huge() both return true
+>>>>> for a present THP and a THP under splitting, because they discover _PAGE_PSE bit
+>>>>
+>>>> Then how do we differentiate between a mapped THP and a splitting THP.
+>>>
+>>> AFAIK, in x86, there is no distinction between a mapped THP and a splitting THP
+>>> using helper functions.
+>>>
+>>> A mapped THP has _PAGE_PRESENT bit and _PAGE_PSE bit set, whereas a splitting THP
+>>> has only _PAGE_PSE bit set. But both pmd_present() and pmd_trans_huge() return
+>>> true as long as _PAGE_PSE bit is set.
+>>
+>> I understand that. What I was wondering was since there is a need to differentiate
+>> between a mapped THP and a splitting THP at various places in generic THP, we would
+>> need to way to identify each of them unambiguously some how. Is that particular
+>> assumption wrong ? Dont we need to differentiate between a mapped THP and THP under
+>> splitting ?
+> 
+> According to Andrea's explanation here: https://lore.kernel.org/patchwork/patch/997412/#1184298,
+> we do not distinguish between a mapped THP and a splitting THP, because pmd_to_page()
+> can return valid pages for both cases.
 
->   user sharing the pmd, huge_pmd_unshare will clear pud pointing to the
->   pmd.  For the task in the middle of the page fault, the ptep returned b=
-y
->   huge_pte_alloc points to another task's page table or worse.  This lead=
-s
->   to bad things such as incorrect page map/reference counts or invalid
->   memory references.
->=20
-> i_mmap_rwsem is currently used for pmd sharing synchronization.  It is al=
-so
-> held during unmap and whenever a call to huge_pmd_unshare is possible.  I=
-t
-> is only acquired in write mode.  Expand and modify the use of i_mmap_rwse=
-m
-> as follows:
-> - i_mmap_rwsem is held in write mode for the duration of truncate
->   processing.
-> - i_mmap_rwsem is held in write mode whenever huge_pmd_share is called.
+I have gone through Andrea's explanation but still trying to understand all those
+details in there. Will get back on this.
 
-I guess you mean huge_pmd_unshare here, right?
+> 
+>>>
+>>>>
+>>>>> is set for both cases, whereas they both return false for a THP under migration.
+>>>>> You want to change them to make pmd_trans_huge() returns true for a THP under migration
+>>>>> instead of false to help ARM64a??s support for THP migration.
+>>>> I am just trying to understand the rationale behind this semantics and see where
+>>>> it should be fixed.
+>>>>
+>>>> I think the fundamental problem here is that THP under split has been difficult
+>>>> to be re-presented through the available helper functions and in turn PTE bits.
+>>>>
+>>>> The following checks
+>>>>
+>>>> 1) pmd_present()
+>>>> 2) pmd_trans_huge()
+>>>>
+>>>> Represent three THP states
+>>>>
+>>>> 1) Mapped THP		(pmd_present && pmd_trans_huge)
+>>>> 2) Splitting THP	(pmd_present && pmd_trans_huge)
+>>>> 3) Migrating THP	(!pmd_present && !pmd_trans_huge)
+>>>>
+>>>> The problem is if we make pmd_trans_huge() return true for all the three states
+>>>> which sounds logical because they are all still trans huge PMD, then pmd_present()
+>>>> can only represent two states not three as required.
+>>>
+>>> We are on the same page about representing three THP states in x86.
+>>> I also agree with you that it is logical to use three distinct representations
+>>> for these three states, i.e. splitting THP could be changed to (!pmd_present && pmd_trans_huge
+>>
+>> Right. Also we need clear wrapper around them in line with is_pmd_migration_entry() to
+>> represent three states all of which calling pmd_present() and pmd_trans_huge() which
+>> are exported by various architectures with exact same semantics without any ambiguity.
+>>
+>> 1) is_pmd_mapped_entry()
+>> 2) is_pmd_splitting_entry()
+>> 3) is_pmd_migration_entry()
+> 
+> I think the semantics of pmd_trans_huge() is that the pmd entry is pointing to
+> a huge page. So is_pmd_mapped_entry() is the same as is_pmd_splitting_entry()
+> in terms of that.
 
-> - i_mmap_rwsem is held in read mode whenever huge_pmd_share is called.
->   Today that is only via huge_pte_alloc.
-> - i_mmap_rwsem is held in read mode after huge_pte_alloc, until the calle=
-r
->   is finished with the returned ptep.
->=20
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> ---
->  fs/hugetlbfs/inode.c | 21 ++++++++++----
->  mm/hugetlb.c         | 65 +++++++++++++++++++++++++++++++++-----------
->  mm/rmap.c            | 10 +++++++
->  mm/userfaultfd.c     | 11 ++++++--
->  4 files changed, 84 insertions(+), 23 deletions(-)
->=20
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index 32920a10100e..6ee97622a231 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -426,10 +426,16 @@ static void remove_inode_hugepages(struct inode *in=
-ode, loff_t lstart,
->  			u32 hash;
-> =20
->  			index =3D page->index;
-> -			hash =3D hugetlb_fault_mutex_hash(h, current->mm,
-> +			/*
-> +			 * No need to take fault mutex for truncation as we
-> +			 * are synchronized via i_mmap_rwsem.
-> +			 */
-> +			if (!truncate_op) {
-> +				hash =3D hugetlb_fault_mutex_hash(h, current->mm,
->  							&pseudo_vma,
->  							mapping, index, 0);
-> -			mutex_lock(&hugetlb_fault_mutex_table[hash]);
-> +				mutex_lock(&hugetlb_fault_mutex_table[hash]);
-> +			}
-> =20
->  			/*
->  			 * If page is mapped, it was faulted in after being
-> @@ -470,7 +476,8 @@ static void remove_inode_hugepages(struct inode *inod=
-e, loff_t lstart,
->  			}
-> =20
->  			unlock_page(page);
-> -			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-> +			if (!truncate_op)
-> +				mutex_unlock(&hugetlb_fault_mutex_table[hash]);
->  		}
->  		huge_pagevec_release(&pvec);
->  		cond_resched();
-> @@ -505,8 +512,8 @@ static int hugetlb_vmtruncate(struct inode *inode, lo=
-ff_t offset)
->  	i_mmap_lock_write(mapping);
->  	if (!RB_EMPTY_ROOT(&mapping->i_mmap.rb_root))
->  		hugetlb_vmdelete_list(&mapping->i_mmap, pgoff, 0);
-> -	i_mmap_unlock_write(mapping);
->  	remove_inode_hugepages(inode, offset, LLONG_MAX);
-> +	i_mmap_unlock_write(mapping);
+Because in both the situations pmd_page() returns true which means PMD really points
+to a huge page in the RAM which is true for a mapped and a splitting PMD entry.
 
-I just have an impression that hugetlbfs_punch_hole() could have the
-similar race and extending lock range there could be an improvement,
-although I might miss something as always.
+> 
+> According to Andrea's explanation:https://lore.kernel.org/patchwork/patch/997412/#1184298,
+> the semantics can avoid pmd_lock serializations on all VM fast paths, which
+> is valid IMHO.
 
->  	return 0;
->  }
-> =20
-> @@ -624,7 +631,11 @@ static long hugetlbfs_fallocate(struct file *file, i=
-nt mode, loff_t offset,
->  		/* addr is the offset within the file (zero based) */
->  		addr =3D index * hpage_size;
-> =20
-> -		/* mutex taken here, fault path and hole punch */
-> +		/*
-> +		 * fault mutex taken here, protects against fault path
-> +		 * and hole punch.  inode_lock previously taken protects
-> +		 * against truncation.
-> +		 */
->  		hash =3D hugetlb_fault_mutex_hash(h, mm, &pseudo_vma, mapping,
->  						index, addr);
->  		mutex_lock(&hugetlb_fault_mutex_table[hash]);
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 7b5c0ad9a6bd..e9da3eee262f 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -3252,18 +3252,33 @@ int copy_hugetlb_page_range(struct mm_struct *dst=
-, struct mm_struct *src,
-> =20
->  	for (addr =3D vma->vm_start; addr < vma->vm_end; addr +=3D sz) {
->  		spinlock_t *src_ptl, *dst_ptl;
-> +		struct vm_area_struct *dst_vma;
-> +		struct address_space *mapping;
-> +
->  		src_pte =3D huge_pte_offset(src, addr, sz);
->  		if (!src_pte)
->  			continue;
-> +
-> +		/*
-> +		 * i_mmap_rwsem must be held to call huge_pte_alloc.
-> +		 * Continue to hold until finished with dst_pte, otherwise
-> +		 * it could go away if part of a shared pmd.
-> +		 */
-> +		dst_vma =3D find_vma(dst, addr);
-> +		mapping =3D dst_vma->vm_file->f_mapping;
+But still I do not understand how not distinguishing between a mapped PMD entry
+and splitting PMD entry can help speed up core VM paths by not taking pmd_lock.
+IIUC pmd_lock has to be taken before splitting the PMD entry into constituent
+pages and generic page table walk does not take the lock. Hence trying to see
+how not distinguishing mapped and splitting PMD entry helps here.
 
-If vma->vm_file->f_mapping gives the same mapping, you may omit the find_vm=
-a()?
+> 
+> 
+>>>
+>>>
+>>>>>
+>>>>> For x86, this change requires:
+>>>>> 1. changing the condition in pmd_trans_huge(), so that it returns true for
+>>>>> PMD migration entries;
+>>>>> 2. changing the code, which calls pmd_trans_huge(), to match the new logic.
+>>>> Can those be fixed with an additional check for pmd_present() as suggested here
+>>>> in this patch ? Asking because in case we could not get common semantics for
+>>>> these helpers on all arch that would be a fall back option for the moment.
+>>>
+>>> It would be OK for x86, since pmd_trans_huge() implies pmd_present() and hence
+>>> adding pmd_present() to pmd_trans_huge() makes no difference. But for ARM64,
+>>> from my understanding of the code described below, adding pmd_present() to
+>>> pmd_trans_huge() seems to exclude splitting THPs from the original semantic.
+>>>
+>>>
+>>>>>
+>>>>> Another problem I see is that x86a??s pmd_present() returns true for a THP under
+>>>>> splitting but ARM64a??s pmd_present() returns false for a THP under splitting.
+>>>>
+>>>> But how did you conclude this ? I dont see any explicit helper for splitting
+>>>> THP. Could you please point me in the code ?
+>>>
+>>> From the code I read for ARM64
+>>> (https://elixir.bootlin.com/linux/v4.19-rc8/source/arch/arm64/include/asm/pgtable.h#L360
+>>> and https://elixir.bootlin.com/linux/v4.19-rc8/source/arch/arm64/include/asm/pgtable.h#L86),
+>>> pmd_present() only checks _PAGE_PRESENT and _PAGE_PROTONE. During a THP splitting,
+>>
+>> These are PTE_VALID and PTE_PROT_NONE instead on arm64. But yes, they are equivalent
+>> to __PAGE_PRESENT and __PAGE_PROTNONE on other archs.
+>>
+>> #define pmd_present(pmd)        pte_present(pmd_pte(pmd))
+>> #define pte_present(pte)        (!!(pte_val(pte) & (PTE_VALID | PTE_PROT_NONE)))
+>>
+>>> pmdp_invalidate() clears _PAGE_PRESENT (https://elixir.bootlin.com/linux/v4.19-rc8/source/mm/huge_memory.c#L2130). So pmd_present() returns false in ARM64. Let me know
+>>> if I got anything wrong.
+>>>
+>>
+>> old_pmd = pmdp_invalidate(vma, haddr, pmd);
+>>
+>> __split_huge_pmd_locked -> pmdp_invalidate (the above mentioned instance)
+>> pmdp_invalidate -> pmd_mknotpresent
+>>
+>> #define pmd_mknotpresent(pmd)   (__pmd(pmd_val(pmd) & ~PMD_SECT_VALID)
+>>
+>> Generic pmdp invalidation removes PMD_SECT_VALID from a mapped PMD entry.
+>> PMD_SECT_VALID is similar to PTE_VALID through identified separately. So you
+>> are right, on arm64 pmd_present() return false for THP under splitting.
+> 
+> This may actually cause problems in arm64, since the kernel will miss all splitting THPs.
 
-> +		i_mmap_lock_read(mapping);
->  		dst_pte =3D huge_pte_alloc(dst, addr, sz);
->  		if (!dst_pte) {
-> +			i_mmap_unlock_read(mapping);
->  			ret =3D -ENOMEM;
->  			break;
->  		}
-> =20
->  		/* If the pagetables are shared don't copy or take references */
-> -		if (dst_pte =3D=3D src_pte)
-> +		if (dst_pte =3D=3D src_pte) {
-> +			i_mmap_unlock_read(mapping);
->  			continue;
-> +		}
-> =20
->  		dst_ptl =3D huge_pte_lock(h, dst, dst_pte);
->  		src_ptl =3D huge_pte_lockptr(h, src, src_pte);
+Now I understand why pmd_present() needs to return true for a splitting PMD entry.
+Yeah, this needs to be fixed on arm64.
 
-[...]
+> 
+> In sum, according to Andrea's explanation, I think it is better to adjust
+> arm64's pmd_present() and pmd_trans_huge() to match what x86's semantics.
+> Otherwise, arm64 might hit bugs while handling THPs.
 
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 1e79fac3186b..db49e734dda8 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1347,6 +1347,7 @@ static bool try_to_unmap_one(struct page *page, str=
-uct vm_area_struct *vma,
->  	bool ret =3D true;
->  	unsigned long start =3D address, end;
->  	enum ttu_flags flags =3D (enum ttu_flags)arg;
-> +	bool pmd_sharing_possible =3D false;
-> =20
->  	/* munlock has nothing to gain from examining un-locked vmas */
->  	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
-> @@ -1376,8 +1377,15 @@ static bool try_to_unmap_one(struct page *page, st=
-ruct vm_area_struct *vma,
->  		 * accordingly.
->  		 */
->  		adjust_range_if_pmd_sharing_possible(vma, &start, &end);
-> +		if ((end - start) > (PAGE_SIZE << compound_order(page)))
-> +			pmd_sharing_possible =3D true;
-
-Maybe the similar check is done in adjust_range_if_pmd_sharing_possible()
-as the function name claims, so does it make more sense to get this bool
-value via the return value?
-
-Thanks,
-Naoya Horiguchi=
+I will look into this further. Thanks for the explanation.
