@@ -1,130 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E30C66B02CA
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2018 01:43:12 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id l92so7626658otc.12
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 22:43:12 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j14sor5241964otk.110.2018.10.25.22.43.11
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DEF686B02CF
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2018 01:48:17 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id i17-v6so4809501wre.5
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 22:48:17 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 63-v6sor7070618wrs.20.2018.10.25.22.48.16
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 25 Oct 2018 22:43:11 -0700 (PDT)
-Subject: Re: [PATCH 0/9] Allow persistent memory to be used like normal RAM
-References: <20181022201317.8558C1D8@viggo.jf.intel.com>
-From: Xishi Qiu <qiuxishi@gmail.com>
-Message-ID: <debe98dd-39f3-18d5-aeb4-fe94519aa0c9@gmail.com>
-Date: Fri, 26 Oct 2018 13:42:43 +0800
+        Thu, 25 Oct 2018 22:48:16 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20181022201317.8558C1D8@viggo.jf.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <CADF2uSroEHML=v7hjQ=KLvK9cuP9=YcRUy9MiStDc0u+BxTApg@mail.gmail.com>
+ <6ef03395-6baa-a6e5-0d5a-63d4721e6ec0@suse.cz> <20180823122111.GG29735@dhcp22.suse.cz>
+ <CADF2uSpnYp31mr6q3Mnx0OBxCDdu6NFCQ=LTeG61dcfAJB5usg@mail.gmail.com>
+ <76c6e92b-df49-d4b5-27f7-5f2013713727@suse.cz> <CADF2uSrNoODvoX_SdS3_127-aeZ3FwvwnhswoGDN0wNM2cgvbg@mail.gmail.com>
+ <8b211f35-0722-cd94-1360-a2dd9fba351e@suse.cz> <CADF2uSoDFrEAb0Z-w19Mfgj=Tskqrjh_h=N6vTNLXcQp7jdTOQ@mail.gmail.com>
+ <20180829150136.GA10223@dhcp22.suse.cz> <CADF2uSoViODBbp4OFHTBhXvgjOVL8ft1UeeaCQjYHZM0A=p-dA@mail.gmail.com>
+ <20180829152716.GB10223@dhcp22.suse.cz> <CADF2uSoG_RdKF0pNMBaCiPWGq3jn1VrABbm-rSnqabSSStixDw@mail.gmail.com>
+ <CADF2uSpiD9t-dF6bp-3-EnqWK9BBEwrfp69=_tcxUOLk_DytUA@mail.gmail.com> <CADF2uSrh=sUwKN1WLGzkQ0V=2Fgn0B8TGh7pY-ARJOvYq7Yn1Q@mail.gmail.com>
+In-Reply-To: <CADF2uSrh=sUwKN1WLGzkQ0V=2Fgn0B8TGh7pY-ARJOvYq7Yn1Q@mail.gmail.com>
+From: Marinko Catovic <marinko.catovic@gmail.com>
+Date: Fri, 26 Oct 2018 07:48:02 +0200
+Message-ID: <CADF2uSoqzy0g-0=G_aq2DBjeBgmBF4NwM2rvzEqACHOeL_paAw@mail.gmail.com>
+Subject: Re: Caching/buffers become useless after some time
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org
-Cc: dan.j.williams@intel.com, dave.jiang@intel.com, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, akpm@linux-foundation.org, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, ying.huang@intel.com, fengguang.wu@intel.com, Xishi Qiu <qiuxishi@linux.alibaba.com>, zy107165@alibaba-inc.com
+To: Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Christopher Lameter <cl@linux.com>
 
-Hi Dave,
+Am Di., 23. Okt. 2018 um 19:41 Uhr schrieb Marinko Catovic
+<marinko.catovic@gmail.com>:
+>
+> Am Mo., 22. Okt. 2018 um 03:19 Uhr schrieb Marinko Catovic
+> <marinko.catovic@gmail.com>:
+> >
+> > Am Mi., 29. Aug. 2018 um 18:44 Uhr schrieb Marinko Catovic
+> > <marinko.catovic@gmail.com>:
+> > >
+> > >
+> > >> > one host is at a healthy state right now, I'd run that over there immediately.
+> > >>
+> > >> Let's see what we can get from here.
+> > >
+> > >
+> > > oh well, that went fast. actually with having low values for buffers (around 100MB) with caches
+> > > around 20G or so, the performance was nevertheless super-low, I really had to drop
+> > > the caches right now. This is the first time I see it with caches >10G happening, but hopefully
+> > > this also provides a clue for you.
+> > >
+> > > Just after starting the stats I reset from previously defer to madvise - I suspect that this somehow
+> > > caused the rapid reaction, since a few minutes later I saw that the free RAM jumped from 5GB to 10GB,
+> > > after that I went afk, returning to the pc since my monitoring systems went crazy telling me about downtime.
+> > >
+> > > If you think changing /sys/kernel/mm/transparent_hugepage/defrag back to its default, while it was
+> > > on defer now for days, was a mistake, then please tell me.
+> > >
+> > > here you go: https://nofile.io/f/VqRg644AT01/vmstat.tar.gz
+> > > trace_pipe: https://nofile.io/f/wFShvZScpvn/trace_pipe.gz
+> > >
+> >
+> > There we go again.
+> >
+> > First of all, I have set up this monitoring on 1 host, as a matter of
+> > fact it did not occur on that single
+> > one for days and weeks now, so I set this up again on all the hosts
+> > and it just happened again on another one.
+> >
+> > This issue is far from over, even when upgrading to the latest 4.18.12
+> >
+> > https://nofile.io/f/z2KeNwJSMDj/vmstat-2.zip
+> > https://nofile.io/f/5ezPUkFWtnx/trace_pipe-2.gz
+> >
+> > Please note: the trace_pipe is quite big in size, but it covers a
+> > full-RAM to unused-RAM within just ~24 hours,
+> > the measurements were initiated right after echo 3 > drop_caches and
+> > stopped when the RAM was unused
+> > aka re-used after another echo 3 in the end.
+> >
+> > This issue is alive for about half a year now, any suggestions, hints
+> > or solutions are greatly appreciated,
+> > again, I can not possibly be the only one experiencing this, I just
+> > may be among the few ones who actually
+> > notice this and are indeed suffering from very poor performance with
+> > lots of I/O on cache/buffers.
+> >
+> > Also, I'd like to ask for a workaround until this is fixed someday:
+> > echo 3 > drop_caches can take a very
+> > long time when the host is busy with I/O in the background. According
+> > to some resources in the net I discovered
+> > that dropping caches operates until some lower threshold is reached,
+> > which is less and less likely, when the
+> > host is really busy. Could one point out what threshold this is perhaps?
+> > I was thinking of e.g. mm/vmscan.c
+> >
+> >  549 void drop_slab_node(int nid)
+> >  550 {
+> >  551         unsigned long freed;
+> >  552
+> >  553         do {
+> >  554                 struct mem_cgroup *memcg = NULL;
+> >  555
+> >  556                 freed = 0;
+> >  557                 do {
+> >  558                         freed += shrink_slab(GFP_KERNEL, nid, memcg, 0);
+> >  559                 } while ((memcg = mem_cgroup_iter(NULL, memcg,
+> > NULL)) != NULL);
+> >  560         } while (freed > 10);
+> >  561 }
+> >
+> > ..would it make sense to increase > 10 here with, for example, > 100 ?
+> > I could easily adjust this, or any other relevant threshold, since I
+> > am compiling the kernel in use.
+> >
+> > I'd just like it to be able to finish dropping caches to achieve the
+> > workaround here until this issue is fixed,
+> > which as mentioned, can take hours on a busy host, causing the host to
+> > hang (having low performance) since
+> > buffers/caches are not used at that time while drop_caches is being
+> > set to 3, until that freeing up is finished.
+>
+> by the way, it seems to happen on the one mentioned host on a daily
+> basis now, like dropping
+> to 100M/10G every 24 hours, so it is actually a lot easier now to
+> capture relevant data/stats, since
+> it occurs again and again right now.
+>
+> strangely, other hosts are currently not affected for days.
+> So if there is anything you need to know, beside the vmstat and
+> trace_pipe files, please let me know.
 
-This patchset hotadd a pmem and use it like a normal DRAM, I
-have some questions here, and I think my production line may
-also concerned.
+As it happened again now for the 2nd time within 2 days, and mainly on
+the very same host I mentioned before and with the reports given with
+my previous reply, I just wanted to point
+out something that I observed: earlier I stated that the buffers were
+really low and the caches as well - however, I just monitored for the
+second or third time, that this applies to buffers way more
+significantly than to caches. As an example: 50MB buffers were in use,
+yet 10GB for caches, still leaving around 20GB or RAM totally unused.
+Note: buffer/caches were surely around 5GB/35GB in the healthy state
+before, so still both are getting lower.
 
-1) How to set the AEP (Apache Pass) usage percentage for one
-process (or a vma)?
-e.g. there are two vms from two customers, they pay different
-money for the vm. So if we alloc and convert AEP/DRAM by global,
-the high load vm may get 100% DRAM, and the low load vm may get
-100% AEP, this is unfair. The low load is compared to another
-one, for himself, the actual low load maybe is high load.
+So the performance dropped that much so all services on the host
+basically stopped working since there was so much I/O wait, again. I
+tried to summarize what file contents people asked me to post, so
+besides the trace_pipe and vmstat-folder from my previos post, here
+goes another with the others while in the 50MB buffers state:
 
-2) I find page idle only check the access bit, _PAGE_BIT_ACCESSED,
-as we know AEP read performance is much higher than write, so I
-think we should also check the dirty bit, _PAGE_BIT_DIRTY. Test
-and clear dirty bit is safe for anon page, but unsafe for file
-page, e.g. should call clear_page_dirty_for_io first, right?
+cat /proc/pagetypeinfo https://pastebin.com/W1sJscsZ
+cat /proc/slabinfo     https://pastebin.com/9ZPU3q7X
+cat /proc/zoneinfo     https://pastebin.com/RMTwtXGr
 
-3) I think we should manage the AEP memory separately instead
-of together with the DRAM. Manage them together maybe change less
-code, but it will cause some problems at high priority DRAM
-allocation if there is no DRAM, then should convert (steal DRAM)
-from another one, it takes much time.
-How about create a new zone, e.g. ZONE_AEP, and use madvise
-to set a new flag VM_AEP, which will enable the vma to alloc AEP
-memory in page fault later, then use vma_rss_stat(like mm_rss_stat)
-to control the AEP usage percentage for a vma.
-
-4) I am interesting about the conversion mechanism betweent AEP
-and DRAM. I think numa balancing will cause page fault, this is
-unacceptable for some apps, it cause performance jitter. And the
-kswapd is not precise enough. So use a daemon kernel thread
-(like khugepaged) maybe a good solution, add the AEP used processes
-to a list, then scan the VM_AEP marked vmas, get the access state,
-and do the conversion.
-
-Thanks,
-Xishi Qiu
-On 2018/10/23 04:13, Dave Hansen wrote:
-> Persistent memory is cool.  But, currently, you have to rewrite
-> your applications to use it.  Wouldn't it be cool if you could
-> just have it show up in your system like normal RAM and get to
-> it like a slow blob of memory?  Well... have I got the patch
-> series for you!
-> 
-> This series adds a new "driver" to which pmem devices can be
-> attached.  Once attached, the memory "owned" by the device is
-> hot-added to the kernel and managed like any other memory.  On
-> systems with an HMAT (a new ACPI table), each socket (roughly)
-> will have a separate NUMA node for its persistent memory so
-> this newly-added memory can be selected by its unique NUMA
-> node.
-> 
-> This is highly RFC, and I really want the feedback from the
-> nvdimm/pmem folks about whether this is a viable long-term
-> perversion of their code and device mode.  It's insufficiently
-> documented and probably not bisectable either.
-> 
-> Todo:
-> 1. The device re-binding hacks are ham-fisted at best.  We
->    need a better way of doing this, especially so the kmem
->    driver does not get in the way of normal pmem devices.
-> 2. When the device has no proper node, we default it to
->    NUMA node 0.  Is that OK?
-> 3. We muck with the 'struct resource' code quite a bit. It
->    definitely needs a once-over from folks more familiar
->    with it than I.
-> 4. Is there a better way to do this than starting with a
->    copy of pmem.c?
-> 
-> Here's how I set up a system to test this thing:
-> 
-> 1. Boot qemu with lots of memory: "-m 4096", for instance
-> 2. Reserve 512MB of physical memory.  Reserving a spot a 2GB
->    physical seems to work: memmap=512M!0x0000000080000000
->    This will end up looking like a pmem device at boot.
-> 3. When booted, convert fsdax device to "device dax":
-> 	ndctl create-namespace -fe namespace0.0 -m dax
-> 4. In the background, the kmem driver will probably bind to the
->    new device.
-> 5. Now, online the new memory sections.  Perhaps:
-> 
-> grep ^MemTotal /proc/meminfo
-> for f in `grep -vl online /sys/devices/system/memory/*/state`; do
-> 	echo $f: `cat $f`
-> 	echo online > $f
-> 	grep ^MemTotal /proc/meminfo
-> done
-> 
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Dave Jiang <dave.jiang@intel.com>
-> Cc: Ross Zwisler <zwisler@kernel.org>
-> Cc: Vishal Verma <vishal.l.verma@intel.com>
-> Cc: Tom Lendacky <thomas.lendacky@amd.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: linux-nvdimm@lists.01.org
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> Cc: Huang Ying <ying.huang@intel.com>
-> Cc: Fengguang Wu <fengguang.wu@intel.com>
-> 
+Hopefully you can read something from this.
+As always, feel free to ask whatever info you'd like me to share.
