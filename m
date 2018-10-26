@@ -1,41 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B87FB6B0313
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2018 09:58:11 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id d8-v6so621854pgq.3
-        for <linux-mm@kvack.org>; Fri, 26 Oct 2018 06:58:11 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id m9-v6si11437540pge.326.2018.10.26.06.58.10
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BEE3B6B0318
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2018 10:25:35 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id f62-v6so1119483qtb.17
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2018 07:25:35 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f9sor12779612qvj.63.2018.10.26.07.25.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Oct 2018 06:58:10 -0700 (PDT)
-Subject: Re: [PATCH 0/9] Allow persistent memory to be used like normal RAM
-References: <20181022201317.8558C1D8@viggo.jf.intel.com>
- <CAPcyv4hxs-GnmwQU1wPZyg5aydCY5K09-YpSrrLpvU1v_8dbBw@mail.gmail.com>
- <CAPcyv4hFoPkda0YfNKo=nFxttyBG3OjD7vKWyNzLY+8T5gLc=g@mail.gmail.com>
- <352acc87-a6da-65e4-bbe6-0dbffdc72acc@gmail.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <b6239107-3c49-8041-babd-844eef84c361@intel.com>
-Date: Fri, 26 Oct 2018 06:58:08 -0700
+        (Google Transport Security);
+        Fri, 26 Oct 2018 07:25:34 -0700 (PDT)
+Date: Fri, 26 Oct 2018 10:25:31 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC PATCH 2/2] memcg: do not report racy no-eligible OOM tasks
+Message-ID: <20181026142531.GA27370@cmpxchg.org>
+References: <20181022071323.9550-1-mhocko@kernel.org>
+ <20181022071323.9550-3-mhocko@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <352acc87-a6da-65e4-bbe6-0dbffdc72acc@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181022071323.9550-3-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dave Jiang <dave.jiang@intel.com>, zwisler@kernel.org, Vishal L Verma <vishal.l.verma@intel.com>, Tom Lendacky <thomas.lendacky@amd.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, "Huang, Ying" <ying.huang@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Xishi Qiu <qiuxishi@linux.alibaba.com>, zy107165@alibaba-inc.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On 10/26/18 1:03 AM, Xishi Qiu wrote:
-> How about let the BIOS report a new type for kmem in e820 table?
-> e.g.
-> #define E820_PMEM	7
-> #define E820_KMEM	8
+On Mon, Oct 22, 2018 at 09:13:23AM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> Tetsuo has reported [1] that a single process group memcg might easily
+> swamp the log with no-eligible oom victim reports due to race between
+> the memcg charge and oom_reaper
+> 
+> Thread 1		Thread2				oom_reaper
+> try_charge		try_charge
+> 			  mem_cgroup_out_of_memory
+> 			    mutex_lock(oom_lock)
+>   mem_cgroup_out_of_memory
+>     mutex_lock(oom_lock)
+> 			      out_of_memory
+> 			        select_bad_process
+> 				oom_kill_process(current)
+> 				  wake_oom_reaper
+> 							  oom_reap_task
+> 							  MMF_OOM_SKIP->victim
+> 			    mutex_unlock(oom_lock)
+>     out_of_memory
+>       select_bad_process # no task
+> 
+> If Thread1 didn't race it would bail out from try_charge and force the
+> charge. We can achieve the same by checking tsk_is_oom_victim inside
+> the oom_lock and therefore close the race.
+> 
+> [1] http://lkml.kernel.org/r/bb2074c0-34fe-8c2c-1c7d-db71338f1e7f@i-love.sakura.ne.jp
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/memcontrol.c | 14 +++++++++++++-
+>  1 file changed, 13 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index e79cb59552d9..a9dfed29967b 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1380,10 +1380,22 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  		.gfp_mask = gfp_mask,
+>  		.order = order,
+>  	};
+> -	bool ret;
+> +	bool ret = true;
+>  
+>  	mutex_lock(&oom_lock);
+> +
+> +	/*
+> +	 * multi-threaded tasks might race with oom_reaper and gain
+> +	 * MMF_OOM_SKIP before reaching out_of_memory which can lead
+> +	 * to out_of_memory failure if the task is the last one in
+> +	 * memcg which would be a false possitive failure reported
+> +	 */
+> +	if (tsk_is_oom_victim(current))
+> +		goto unlock;
+> +
+>  	ret = out_of_memory(&oc);
 
-It would be best if the BIOS just did this all for us.  But, what you're
-describing would take years to get from concept to showing up in
-someone's hands.  I'd rather not wait.
+We already check tsk_is_oom_victim(current) in try_charge() before
+looping on the OOM killer, so at most we'd have a single "no eligible
+tasks" message from such a race before we force the charge - right?
 
-Plus, doing it the way I suggested gives the OS the most control.  The
-BIOS isn't in the critical path to do the right thing.
+While that's not perfect, I don't think it warrants complicating this
+code even more. I honestly find it near-impossible to follow the code
+and the possible scenarios at this point.
+
+out_of_memory() bails on task_will_free_mem(current), which
+specifically *excludes* already reaped tasks. Why are we then adding a
+separate check before that to bail on already reaped victims?
+
+Do we want to bail if current is a reaped victim or not?
+
+I don't see how we could skip it safely in general: the current task
+might have been killed and reaped and gotten access to the memory
+reserve and still fail to allocate on its way out. It needs to kill
+the next task if there is one, or warn if there isn't another
+one. Because we're genuinely oom without reclaimable tasks.
+
+There is of course the scenario brought forward in this thread, where
+multiple threads of a process race and the second one enters oom even
+though it doesn't need to anymore. What the global case does to catch
+this is to grab the oom lock and do one last alloc attempt. Should
+memcg lock the oom_lock and try one more time to charge the memcg?
+
+Some simplification in this area would really be great. I'm reluctant
+to ack patches like the above, even if they have some optical benefits
+for the user, because the code is already too tricky for what it does.
