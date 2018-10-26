@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E1A76B031F
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2018 11:57:20 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id w6-v6so1428570qka.15
-        for <linux-mm@kvack.org>; Fri, 26 Oct 2018 08:57:20 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EDDCD6B0322
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2018 11:58:52 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id j63-v6so1488303qte.13
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2018 08:58:52 -0700 (PDT)
 Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id f23-v6si634097qvd.124.2018.10.26.08.57.19
+        by mx.google.com with ESMTPS id b7-v6si688506qtt.31.2018.10.26.08.58.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Oct 2018 08:57:19 -0700 (PDT)
+        Fri, 26 Oct 2018 08:58:52 -0700 (PDT)
 From: Roman Gushchin <guro@fb.com>
 Subject: Re: [RFC PATCH] mm: don't reclaim inodes with many attached pages
-Date: Fri, 26 Oct 2018 15:56:55 +0000
-Message-ID: <20181026155652.GA7647@tower.DHCP.thefacebook.com>
+Date: Fri, 26 Oct 2018 15:58:15 +0000
+Message-ID: <20181026155812.GB6019@tower.DHCP.thefacebook.com>
 References: <20181023164302.20436-1-guro@fb.com>
  <20181026085735.GZ18839@dhcp22.suse.cz>
 In-Reply-To: <20181026085735.GZ18839@dhcp22.suse.cz>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
-Content-ID: <F06829E07D1E6740BB7B73B6C40FC021@namprd15.prod.outlook.com>
+Content-ID: <ADCAA52362A08F4A8B809D4CF4DF8141@namprd15.prod.outlook.com>
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
@@ -54,20 +54,39 @@ On Fri, Oct 26, 2018 at 10:57:35AM +0200, Michal Hocko wrote:
 > > then reclaim the inode structure.
 >=20
 > Has this actually fixed/worked around the issue?
+>=20
+> > Reported-by: Spock <dairinin@gmail.com>
+> > Signed-off-by: Roman Gushchin <guro@fb.com>
+> > Cc: Michal Hocko <mhocko@kernel.org>
+> > Cc: Rik van Riel <riel@surriel.com>
+> > Cc: Randy Dunlap <rdunlap@infradead.org>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > ---
+> >  fs/inode.c | 7 +++++--
+> >  1 file changed, 5 insertions(+), 2 deletions(-)
+> >=20
+> > diff --git a/fs/inode.c b/fs/inode.c
+> > index 73432e64f874..0cd47fe0dbe5 100644
+> > --- a/fs/inode.c
+> > +++ b/fs/inode.c
+> > @@ -730,8 +730,11 @@ static enum lru_status inode_lru_isolate(struct li=
+st_head *item,
+> >  		return LRU_REMOVED;
+> >  	}
+> > =20
+> > -	/* recently referenced inodes get one more pass */
+> > -	if (inode->i_state & I_REFERENCED) {
+> > +	/*
+> > +	 * Recently referenced inodes and inodes with many attached pages
+> > +	 * get one more pass.
+> > +	 */
+> > +	if (inode->i_state & I_REFERENCED || inode->i_data.nrpages > 1) {
+>=20
+> The comment is just confusing. Did you mean to say s@many@any@ ?
 
-Spock wrote this earlier to me directly. I believe I can quote it here:
+No, here many =3D=3D more than 1.
 
-"Patch applied, looks good so far. System behaves like it was with
-pre-4.18.15 kernels.
-Also tried to add some user-level tests to the geneic background activity, =
-like
-- stat'ing a bunch of files
-- streamed read several large files at once on ext4 and XFS
-- random reads on the whole collection with a read size of 16K
+I'm happy to fix the comment, if you have any suggestions.
 
-I will be monitoring while fragmentation stacks up and report back if
-something bad happens."
-
-Spock, please let me know if you have any new results.
 
 Thanks!
