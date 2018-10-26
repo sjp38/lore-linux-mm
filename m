@@ -1,154 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DEF686B02CF
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2018 01:48:17 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id i17-v6so4809501wre.5
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2018 22:48:17 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 63-v6sor7070618wrs.20.2018.10.25.22.48.16
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 34DD26B02D1
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2018 03:33:13 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id h25-v6so199630eds.21
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2018 00:33:13 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o4-v6si1162159eje.276.2018.10.26.00.33.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 25 Oct 2018 22:48:16 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Oct 2018 00:33:11 -0700 (PDT)
+Date: Fri, 26 Oct 2018 09:33:03 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm: don't reclaim inodes with many attached pages
+Message-ID: <20181026073303.GW18839@dhcp22.suse.cz>
+References: <20181023164302.20436-1-guro@fb.com>
+ <20181024151950.36fe2c41957d807756f587ca@linux-foundation.org>
+ <20181025092352.GP18839@dhcp22.suse.cz>
+ <20181025124442.5513d282273786369bbb7460@linux-foundation.org>
+ <20181025202014.GA216405@sasha-vm>
+ <20181025203240.GA2504@tower.DHCP.thefacebook.com>
 MIME-Version: 1.0
-References: <CADF2uSroEHML=v7hjQ=KLvK9cuP9=YcRUy9MiStDc0u+BxTApg@mail.gmail.com>
- <6ef03395-6baa-a6e5-0d5a-63d4721e6ec0@suse.cz> <20180823122111.GG29735@dhcp22.suse.cz>
- <CADF2uSpnYp31mr6q3Mnx0OBxCDdu6NFCQ=LTeG61dcfAJB5usg@mail.gmail.com>
- <76c6e92b-df49-d4b5-27f7-5f2013713727@suse.cz> <CADF2uSrNoODvoX_SdS3_127-aeZ3FwvwnhswoGDN0wNM2cgvbg@mail.gmail.com>
- <8b211f35-0722-cd94-1360-a2dd9fba351e@suse.cz> <CADF2uSoDFrEAb0Z-w19Mfgj=Tskqrjh_h=N6vTNLXcQp7jdTOQ@mail.gmail.com>
- <20180829150136.GA10223@dhcp22.suse.cz> <CADF2uSoViODBbp4OFHTBhXvgjOVL8ft1UeeaCQjYHZM0A=p-dA@mail.gmail.com>
- <20180829152716.GB10223@dhcp22.suse.cz> <CADF2uSoG_RdKF0pNMBaCiPWGq3jn1VrABbm-rSnqabSSStixDw@mail.gmail.com>
- <CADF2uSpiD9t-dF6bp-3-EnqWK9BBEwrfp69=_tcxUOLk_DytUA@mail.gmail.com> <CADF2uSrh=sUwKN1WLGzkQ0V=2Fgn0B8TGh7pY-ARJOvYq7Yn1Q@mail.gmail.com>
-In-Reply-To: <CADF2uSrh=sUwKN1WLGzkQ0V=2Fgn0B8TGh7pY-ARJOvYq7Yn1Q@mail.gmail.com>
-From: Marinko Catovic <marinko.catovic@gmail.com>
-Date: Fri, 26 Oct 2018 07:48:02 +0200
-Message-ID: <CADF2uSoqzy0g-0=G_aq2DBjeBgmBF4NwM2rvzEqACHOeL_paAw@mail.gmail.com>
-Subject: Re: Caching/buffers become useless after some time
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181025203240.GA2504@tower.DHCP.thefacebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Christopher Lameter <cl@linux.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: Sasha Levin <sashal@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, Rik van Riel <riel@surriel.com>, Randy Dunlap <rdunlap@infradead.org>, Sasha Levin <Alexander.Levin@microsoft.com>
 
-Am Di., 23. Okt. 2018 um 19:41 Uhr schrieb Marinko Catovic
-<marinko.catovic@gmail.com>:
->
-> Am Mo., 22. Okt. 2018 um 03:19 Uhr schrieb Marinko Catovic
-> <marinko.catovic@gmail.com>:
-> >
-> > Am Mi., 29. Aug. 2018 um 18:44 Uhr schrieb Marinko Catovic
-> > <marinko.catovic@gmail.com>:
-> > >
-> > >
-> > >> > one host is at a healthy state right now, I'd run that over there immediately.
-> > >>
-> > >> Let's see what we can get from here.
-> > >
-> > >
-> > > oh well, that went fast. actually with having low values for buffers (around 100MB) with caches
-> > > around 20G or so, the performance was nevertheless super-low, I really had to drop
-> > > the caches right now. This is the first time I see it with caches >10G happening, but hopefully
-> > > this also provides a clue for you.
-> > >
-> > > Just after starting the stats I reset from previously defer to madvise - I suspect that this somehow
-> > > caused the rapid reaction, since a few minutes later I saw that the free RAM jumped from 5GB to 10GB,
-> > > after that I went afk, returning to the pc since my monitoring systems went crazy telling me about downtime.
-> > >
-> > > If you think changing /sys/kernel/mm/transparent_hugepage/defrag back to its default, while it was
-> > > on defer now for days, was a mistake, then please tell me.
-> > >
-> > > here you go: https://nofile.io/f/VqRg644AT01/vmstat.tar.gz
-> > > trace_pipe: https://nofile.io/f/wFShvZScpvn/trace_pipe.gz
-> > >
-> >
-> > There we go again.
-> >
-> > First of all, I have set up this monitoring on 1 host, as a matter of
-> > fact it did not occur on that single
-> > one for days and weeks now, so I set this up again on all the hosts
-> > and it just happened again on another one.
-> >
-> > This issue is far from over, even when upgrading to the latest 4.18.12
-> >
-> > https://nofile.io/f/z2KeNwJSMDj/vmstat-2.zip
-> > https://nofile.io/f/5ezPUkFWtnx/trace_pipe-2.gz
-> >
-> > Please note: the trace_pipe is quite big in size, but it covers a
-> > full-RAM to unused-RAM within just ~24 hours,
-> > the measurements were initiated right after echo 3 > drop_caches and
-> > stopped when the RAM was unused
-> > aka re-used after another echo 3 in the end.
-> >
-> > This issue is alive for about half a year now, any suggestions, hints
-> > or solutions are greatly appreciated,
-> > again, I can not possibly be the only one experiencing this, I just
-> > may be among the few ones who actually
-> > notice this and are indeed suffering from very poor performance with
-> > lots of I/O on cache/buffers.
-> >
-> > Also, I'd like to ask for a workaround until this is fixed someday:
-> > echo 3 > drop_caches can take a very
-> > long time when the host is busy with I/O in the background. According
-> > to some resources in the net I discovered
-> > that dropping caches operates until some lower threshold is reached,
-> > which is less and less likely, when the
-> > host is really busy. Could one point out what threshold this is perhaps?
-> > I was thinking of e.g. mm/vmscan.c
-> >
-> >  549 void drop_slab_node(int nid)
-> >  550 {
-> >  551         unsigned long freed;
-> >  552
-> >  553         do {
-> >  554                 struct mem_cgroup *memcg = NULL;
-> >  555
-> >  556                 freed = 0;
-> >  557                 do {
-> >  558                         freed += shrink_slab(GFP_KERNEL, nid, memcg, 0);
-> >  559                 } while ((memcg = mem_cgroup_iter(NULL, memcg,
-> > NULL)) != NULL);
-> >  560         } while (freed > 10);
-> >  561 }
-> >
-> > ..would it make sense to increase > 10 here with, for example, > 100 ?
-> > I could easily adjust this, or any other relevant threshold, since I
-> > am compiling the kernel in use.
-> >
-> > I'd just like it to be able to finish dropping caches to achieve the
-> > workaround here until this issue is fixed,
-> > which as mentioned, can take hours on a busy host, causing the host to
-> > hang (having low performance) since
-> > buffers/caches are not used at that time while drop_caches is being
-> > set to 3, until that freeing up is finished.
->
-> by the way, it seems to happen on the one mentioned host on a daily
-> basis now, like dropping
-> to 100M/10G every 24 hours, so it is actually a lot easier now to
-> capture relevant data/stats, since
-> it occurs again and again right now.
->
-> strangely, other hosts are currently not affected for days.
-> So if there is anything you need to know, beside the vmstat and
-> trace_pipe files, please let me know.
+On Thu 25-10-18 20:32:47, Roman Gushchin wrote:
+> On Thu, Oct 25, 2018 at 04:20:14PM -0400, Sasha Levin wrote:
+> > On Thu, Oct 25, 2018 at 12:44:42PM -0700, Andrew Morton wrote:
+> > > On Thu, 25 Oct 2018 11:23:52 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+> > > 
+> > > > On Wed 24-10-18 15:19:50, Andrew Morton wrote:
+> > > > > On Tue, 23 Oct 2018 16:43:29 +0000 Roman Gushchin <guro@fb.com> wrote:
+> > > > >
+> > > > > > Spock reported that the commit 172b06c32b94 ("mm: slowly shrink slabs
+> > > > > > with a relatively small number of objects") leads to a regression on
+> > > > > > his setup: periodically the majority of the pagecache is evicted
+> > > > > > without an obvious reason, while before the change the amount of free
+> > > > > > memory was balancing around the watermark.
+> > > > > >
+> > > > > > The reason behind is that the mentioned above change created some
+> > > > > > minimal background pressure on the inode cache. The problem is that
+> > > > > > if an inode is considered to be reclaimed, all belonging pagecache
+> > > > > > page are stripped, no matter how many of them are there. So, if a huge
+> > > > > > multi-gigabyte file is cached in the memory, and the goal is to
+> > > > > > reclaim only few slab objects (unused inodes), we still can eventually
+> > > > > > evict all gigabytes of the pagecache at once.
+> > > > > >
+> > > > > > The workload described by Spock has few large non-mapped files in the
+> > > > > > pagecache, so it's especially noticeable.
+> > > > > >
+> > > > > > To solve the problem let's postpone the reclaim of inodes, which have
+> > > > > > more than 1 attached page. Let's wait until the pagecache pages will
+> > > > > > be evicted naturally by scanning the corresponding LRU lists, and only
+> > > > > > then reclaim the inode structure.
+> > > > >
+> > > > > Is this regression serious enough to warrant fixing 4.19.1?
+> > > > 
+> > > > Let's not forget about stable tree(s) which backported 172b06c32b94. I
+> > > > would suggest reverting there.
+> > > 
+> > > Yup.  Sasha, can you please take care of this?
+> > 
+> > Sure, I'll revert it from current stable trees.
+> > 
+> > Should 172b06c32b94 and this commit be backported once Roman confirms
+> > the issue is fixed? As far as I understand 172b06c32b94 addressed an
+> > issue FB were seeing in their fleet and needed to be fixed.
+> 
+> The memcg leak was also independently reported by several companies,
+> so it's not only about our fleet.
 
-As it happened again now for the 2nd time within 2 days, and mainly on
-the very same host I mentioned before and with the reports given with
-my previous reply, I just wanted to point
-out something that I observed: earlier I stated that the buffers were
-really low and the caches as well - however, I just monitored for the
-second or third time, that this applies to buffers way more
-significantly than to caches. As an example: 50MB buffers were in use,
-yet 10GB for caches, still leaving around 20GB or RAM totally unused.
-Note: buffer/caches were surely around 5GB/35GB in the healthy state
-before, so still both are getting lower.
+By memcg leak you mean a lot of dead memcgs with small amount of memory
+which are staying behind and the global memory pressure removes them
+only very slowly or almost not at all, right?
 
-So the performance dropped that much so all services on the host
-basically stopped working since there was so much I/O wait, again. I
-tried to summarize what file contents people asked me to post, so
-besides the trace_pipe and vmstat-folder from my previos post, here
-goes another with the others while in the 50MB buffers state:
+I have avague recollection that systemd can trigger a pattern which
+makes this "leak" noticeable. Is that right? If yes what would be a
+minimal and safe fix for the stable tree? "mm: don't miss the last page
+because of round-off error" would sound like the candidate but I never
+got around to review it properly.
 
-cat /proc/pagetypeinfo https://pastebin.com/W1sJscsZ
-cat /proc/slabinfo     https://pastebin.com/9ZPU3q7X
-cat /proc/zoneinfo     https://pastebin.com/RMTwtXGr
+> The memcg css leak is fixed by a series of commits (as in the mm tree):
+>   37e521912118 math64: prevent double calculation of DIV64_U64_ROUND_UP() arguments
+>   c6be4e82b1b3 mm: don't miss the last page because of round-off error
+>   f2e821fc8c63 mm: drain memcg stocks on css offlining
+>   03a971b56f18 mm: rework memcg kernel stack accounting
 
-Hopefully you can read something from this.
-As always, feel free to ask whatever info you'd like me to share.
+btw. none of these sha are refering to anything in my git tree. They all
+seem to be in the next tree though.
+
+>   172b06c32b94 mm: slowly shrink slabs with a relatively small number of objects
+> 
+> The last one by itself isn't enough, and it makes no sense to backport it
+> without all other patches. So, I'd either backport them all (including
+> 47036ad4032e ("mm: don't reclaim inodes with many attached pages"),
+> either just revert 172b06c32b94.
+> 
+> Also 172b06c32b94 ("mm: slowly shrink slabs with a relatively small number of objects")
+> by itself is fine, but it reveals an independent issue in inode reclaim code,
+> which 47036ad4032e ("mm: don't reclaim inodes with many attached pages") aims to fix.
+
+To me it sounds it needs much more time to settle before it can be
+considered safe for the stable tree. Even if the patch itself is correct
+it seems too subtle and reveal a behavior which was not anticipated and
+that just proves it is far from straightforward.
+
+-- 
+Michal Hocko
+SUSE Labs
