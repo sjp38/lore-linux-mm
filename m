@@ -1,50 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CAE0A6B0311
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2018 08:29:53 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id i81-v6so583398pfj.1
-        for <linux-mm@kvack.org>; Fri, 26 Oct 2018 05:29:53 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q188-v6si11631533pfb.132.2018.10.26.05.29.52
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B87FB6B0313
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2018 09:58:11 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id d8-v6so621854pgq.3
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2018 06:58:11 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id m9-v6si11437540pge.326.2018.10.26.06.58.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 26 Oct 2018 05:29:52 -0700 (PDT)
-Date: Fri, 26 Oct 2018 05:29:48 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [kvm PATCH v4 0/2] use vmalloc to allocate vmx vcpus
-Message-ID: <20181026122948.GQ25444@bombadil.infradead.org>
-References: <20181026075900.111462-1-marcorr@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Oct 2018 06:58:10 -0700 (PDT)
+Subject: Re: [PATCH 0/9] Allow persistent memory to be used like normal RAM
+References: <20181022201317.8558C1D8@viggo.jf.intel.com>
+ <CAPcyv4hxs-GnmwQU1wPZyg5aydCY5K09-YpSrrLpvU1v_8dbBw@mail.gmail.com>
+ <CAPcyv4hFoPkda0YfNKo=nFxttyBG3OjD7vKWyNzLY+8T5gLc=g@mail.gmail.com>
+ <352acc87-a6da-65e4-bbe6-0dbffdc72acc@gmail.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <b6239107-3c49-8041-babd-844eef84c361@intel.com>
+Date: Fri, 26 Oct 2018 06:58:08 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181026075900.111462-1-marcorr@google.com>
+In-Reply-To: <352acc87-a6da-65e4-bbe6-0dbffdc72acc@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marc Orr <marcorr@google.com>
-Cc: kvm@vger.kernel.org, jmattson@google.com, rientjes@google.com, konrad.wilk@oracle.com, linux-mm@kvack.org, akpm@linux-foundation.org, pbonzini@redhat.com, rkrcmar@redhat.com, sean.j.christopherson@intel.com
+To: Xishi Qiu <qiuxishi@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dave Jiang <dave.jiang@intel.com>, zwisler@kernel.org, Vishal L Verma <vishal.l.verma@intel.com>, Tom Lendacky <thomas.lendacky@amd.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, "Huang, Ying" <ying.huang@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Xishi Qiu <qiuxishi@linux.alibaba.com>, zy107165@alibaba-inc.com
 
-On Fri, Oct 26, 2018 at 12:58:58AM -0700, Marc Orr wrote:
-> A couple of patches to allocate vmx vcpus with vmalloc instead of
-> kalloc, which enables vcpu allocation to succeeed when contiguous
-> physical memory is sparse.
+On 10/26/18 1:03 AM, Xishi Qiu wrote:
+> How about let the BIOS report a new type for kmem in e820 table?
+> e.g.
+> #define E820_PMEM	7
+> #define E820_KMEM	8
 
-A question that may have been asked already, but if so I didn't see it ...
-does kvm_vcpu need to be so damn big?  It's 22kB with the random .config
-I happen to have (which gets rounded to 32kB, an order-3 allocation).  If
-we can knock 6kB off it (either by allocating pieces separately), it becomes
-an order-2 allocation.  So, biggest chunks:
+It would be best if the BIOS just did this all for us.  But, what you're
+describing would take years to get from concept to showing up in
+someone's hands.  I'd rather not wait.
 
-        struct kvm_vcpu_arch       arch;                 /*   576 21568 */
-
-        struct kvm_mmu             mmu;                  /*   336   400 */
-        struct kvm_mmu             nested_mmu;           /*   736   400 */
-        struct fpu                 user_fpu;             /*  2176  4160 */
-        struct fpu                 guest_fpu;            /*  6336  4160 */
-        struct kvm_cpuid_entry2    cpuid_entries[80];    /* 10580  3200 */
-        struct x86_emulate_ctxt    emulate_ctxt;         /* 13792  2656 */
-        struct kvm_pmu             pmu;                  /* 17344  1520 */
-        struct kvm_vcpu_hv         hyperv;               /* 18872  1872 */
-                gfn_t              gfns[64];             /* 20832   512 */
-
-that's about 19kB of the 22kB right there.  Can any of them be shrunk
-in size or allocated separately?
+Plus, doing it the way I suggested gives the OS the most control.  The
+BIOS isn't in the critical path to do the right thing.
