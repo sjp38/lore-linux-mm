@@ -1,54 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5380E6B02E5
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2018 04:56:45 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id v30-v6so330233wra.19
-        for <linux-mm@kvack.org>; Fri, 26 Oct 2018 01:56:45 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id e1-v6si8364277wrt.230.2018.10.26.01.56.43
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BE3286B02E7
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2018 04:57:51 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b34-v6so326327edb.3
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2018 01:57:51 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a18-v6si1440204ejj.161.2018.10.26.01.57.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 26 Oct 2018 01:56:43 -0700 (PDT)
-Date: Fri, 26 Oct 2018 10:50:47 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 1/4] treewide: remove unused address argument from
- pte_alloc functions (v2)
-Message-ID: <20181026085047.GB3109@worktop.c.hoisthospitality.com>
-References: <20181013013200.206928-1-joel@joelfernandes.org>
- <20181013013200.206928-2-joel@joelfernandes.org>
- <20181024083716.GN3109@worktop.c.hoisthospitality.com>
- <20181025104703.esl6wxyg2ihe4zoc@kshutemo-mobl1>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Oct 2018 01:57:50 -0700 (PDT)
+Date: Fri, 26 Oct 2018 10:57:35 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm: don't reclaim inodes with many attached pages
+Message-ID: <20181026085735.GZ18839@dhcp22.suse.cz>
+References: <20181023164302.20436-1-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181025104703.esl6wxyg2ihe4zoc@kshutemo-mobl1>
+In-Reply-To: <20181023164302.20436-1-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Joel Fernandes (Google)" <joel@joelfernandes.org>, linux-kernel@vger.kernel.org, kernel-team@android.com, Michal Hocko <mhocko@kernel.org>, Julia Lawall <Julia.Lawall@lip6.fr>, akpm@linux-foundation.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, anton.ivanov@kot-begemot.co.uk, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, dancol@google.com, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, elfring@users.sourceforge.net, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, hughd@google.com, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, lokeshgidra@google.com, Max Filippov <jcmvbkbc@gmail.com>, minchan@kernel.org, nios2-dev@lists.rocketboards.org, pantin@google.com, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>
+To: Roman Gushchin <guro@fb.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, Rik van Riel <riel@surriel.com>, Randy Dunlap <rdunlap@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, dairinin@gmail.com
 
-On Thu, Oct 25, 2018 at 01:47:03PM +0300, Kirill A. Shutemov wrote:
-> On Wed, Oct 24, 2018 at 10:37:16AM +0200, Peter Zijlstra wrote:
-> > On Fri, Oct 12, 2018 at 06:31:57PM -0700, Joel Fernandes (Google) wrote:
-> > > This series speeds up mremap(2) syscall by copying page tables at the
-> > > PMD level even for non-THP systems. There is concern that the extra
-> > > 'address' argument that mremap passes to pte_alloc may do something
-> > > subtle architecture related in the future that may make the scheme not
-> > > work.  Also we find that there is no point in passing the 'address' to
-> > > pte_alloc since its unused. So this patch therefore removes this
-> > > argument tree-wide resulting in a nice negative diff as well. Also
-> > > ensuring along the way that the enabled architectures do not do anything
-> > > funky with 'address' argument that goes unnoticed by the optimization.
-> > 
-> > Did you happen to look at the history of where that address argument
-> > came from? -- just being curious here. ISTR something vague about
-> > architectures having different paging structure for different memory
-> > ranges.
-> 
-> I see some archicetures (i.e. sparc and, I believe power) used the address
-> for coloring. It's not needed anymore. Page allocator and SL?B are good
-> enough now.
-> 
-> See 3c936465249f ("[SPARC64]: Kill pgtable quicklists and use SLAB.")
+Spock doesn't seem to be cced here - fixed now
 
-Ah, shiny. Thanks.
+On Tue 23-10-18 16:43:29, Roman Gushchin wrote:
+> Spock reported that the commit 172b06c32b94 ("mm: slowly shrink slabs
+> with a relatively small number of objects") leads to a regression on
+> his setup: periodically the majority of the pagecache is evicted
+> without an obvious reason, while before the change the amount of free
+> memory was balancing around the watermark.
+> 
+> The reason behind is that the mentioned above change created some
+> minimal background pressure on the inode cache. The problem is that
+> if an inode is considered to be reclaimed, all belonging pagecache
+> page are stripped, no matter how many of them are there. So, if a huge
+> multi-gigabyte file is cached in the memory, and the goal is to
+> reclaim only few slab objects (unused inodes), we still can eventually
+> evict all gigabytes of the pagecache at once.
+> 
+> The workload described by Spock has few large non-mapped files in the
+> pagecache, so it's especially noticeable.
+> 
+> To solve the problem let's postpone the reclaim of inodes, which have
+> more than 1 attached page. Let's wait until the pagecache pages will
+> be evicted naturally by scanning the corresponding LRU lists, and only
+> then reclaim the inode structure.
+
+Has this actually fixed/worked around the issue?
+
+> Reported-by: Spock <dairinin@gmail.com>
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Rik van Riel <riel@surriel.com>
+> Cc: Randy Dunlap <rdunlap@infradead.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>  fs/inode.c | 7 +++++--
+>  1 file changed, 5 insertions(+), 2 deletions(-)
+> 
+> diff --git a/fs/inode.c b/fs/inode.c
+> index 73432e64f874..0cd47fe0dbe5 100644
+> --- a/fs/inode.c
+> +++ b/fs/inode.c
+> @@ -730,8 +730,11 @@ static enum lru_status inode_lru_isolate(struct list_head *item,
+>  		return LRU_REMOVED;
+>  	}
+>  
+> -	/* recently referenced inodes get one more pass */
+> -	if (inode->i_state & I_REFERENCED) {
+> +	/*
+> +	 * Recently referenced inodes and inodes with many attached pages
+> +	 * get one more pass.
+> +	 */
+> +	if (inode->i_state & I_REFERENCED || inode->i_data.nrpages > 1) {
+
+The comment is just confusing. Did you mean to say s@many@any@ ?
+
+>  		inode->i_state &= ~I_REFERENCED;
+>  		spin_unlock(&inode->i_lock);
+>  		return LRU_ROTATE;
+> -- 
+> 2.17.2
+
+-- 
+Michal Hocko
+SUSE Labs
