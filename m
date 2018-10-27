@@ -1,57 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AD6216B032C
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2018 19:31:19 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id i17-v6so2287094wre.5
-        for <linux-mm@kvack.org>; Fri, 26 Oct 2018 16:31:19 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id w2-v6sor8814132wrm.40.2018.10.26.16.31.18
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E68B16B032E
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2018 21:10:27 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id o8-v6so2610635iom.6
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2018 18:10:27 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id s4-v6si2394913jad.111.2018.10.26.18.10.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 26 Oct 2018 16:31:18 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Oct 2018 18:10:26 -0700 (PDT)
+Subject: Re: [RFC PATCH 2/2] memcg: do not report racy no-eligible OOM tasks
+References: <20181022071323.9550-1-mhocko@kernel.org>
+ <20181022071323.9550-3-mhocko@kernel.org>
+ <20181026142531.GA27370@cmpxchg.org> <20181026192551.GC18839@dhcp22.suse.cz>
+ <20181026193304.GD18839@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <dfafc626-2233-db9b-49fa-9d4bae16d4aa@i-love.sakura.ne.jp>
+Date: Sat, 27 Oct 2018 10:10:06 +0900
 MIME-Version: 1.0
-References: <CADF2uSpnYp31mr6q3Mnx0OBxCDdu6NFCQ=LTeG61dcfAJB5usg@mail.gmail.com>
- <76c6e92b-df49-d4b5-27f7-5f2013713727@suse.cz> <CADF2uSrNoODvoX_SdS3_127-aeZ3FwvwnhswoGDN0wNM2cgvbg@mail.gmail.com>
- <8b211f35-0722-cd94-1360-a2dd9fba351e@suse.cz> <CADF2uSoDFrEAb0Z-w19Mfgj=Tskqrjh_h=N6vTNLXcQp7jdTOQ@mail.gmail.com>
- <20180829150136.GA10223@dhcp22.suse.cz> <CADF2uSoViODBbp4OFHTBhXvgjOVL8ft1UeeaCQjYHZM0A=p-dA@mail.gmail.com>
- <20180829152716.GB10223@dhcp22.suse.cz> <CADF2uSoG_RdKF0pNMBaCiPWGq3jn1VrABbm-rSnqabSSStixDw@mail.gmail.com>
- <CADF2uSpiD9t-dF6bp-3-EnqWK9BBEwrfp69=_tcxUOLk_DytUA@mail.gmail.com> <20181026080019.GX18839@dhcp22.suse.cz>
-In-Reply-To: <20181026080019.GX18839@dhcp22.suse.cz>
-From: Marinko Catovic <marinko.catovic@gmail.com>
-Date: Sat, 27 Oct 2018 01:31:05 +0200
-Message-ID: <CADF2uSobj6fkvwObaU9mkhksyTGeqxQi1Vcyx2=HfJ1fVqfKDg@mail.gmail.com>
-Subject: Re: Caching/buffers become useless after some time
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20181026193304.GD18839@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Christopher Lameter <cl@linux.com>
+To: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-Am Fr., 26. Okt. 2018 um 10:02 Uhr schrieb Michal Hocko <mhocko@suse.com>:
->
-> Sorry for late reply. Busy as always...
->
-> On Mon 22-10-18 03:19:57, Marinko Catovic wrote:
+On 2018/10/27 4:25, Michal Hocko wrote:
+>> out_of_memory() bails on task_will_free_mem(current), which
+>> specifically *excludes* already reaped tasks. Why are we then adding a
+>> separate check before that to bail on already reaped victims?
+> 
+> 696453e66630a has introduced the bail out.
+> 
+>> Do we want to bail if current is a reaped victim or not?
+>>
+>> I don't see how we could skip it safely in general: the current task
+>> might have been killed and reaped and gotten access to the memory
+>> reserve and still fail to allocate on its way out. It needs to kill
+>> the next task if there is one, or warn if there isn't another
+>> one. Because we're genuinely oom without reclaimable tasks.
+> 
+> Yes, this would be the case for the global case which is a real OOM
+> situation. Memcg oom is somehow more relaxed because the oom is local.
+
+We can handle possibility of genuinely OOM without reclaimable tasks.
+Only __GFP_NOFAIL OOM has to select next OOM victim. There is no need to
+select next OOM victim unless __GFP_NOFAIL. Commit 696453e66630ad45
+("mm, oom: task_will_free_mem should skip oom_reaped tasks") was too simple.
+
+On 2018/10/27 4:33, Michal Hocko wrote:
+> On Fri 26-10-18 21:25:51, Michal Hocko wrote:
+>> On Fri 26-10-18 10:25:31, Johannes Weiner wrote:
 > [...]
-> > There we go again.
-> >
-> > First of all, I have set up this monitoring on 1 host, as a matter of
-> > fact it did not occur on that single
-> > one for days and weeks now, so I set this up again on all the hosts
-> > and it just happened again on another one.
-> >
-> > This issue is far from over, even when upgrading to the latest 4.18.12
-> >
-> > https://nofile.io/f/z2KeNwJSMDj/vmstat-2.zip
-> > https://nofile.io/f/5ezPUkFWtnx/trace_pipe-2.gz
->
-> I cannot download these. I am getting an invalid certificate and
-> 403 when ignoring it
+>>> There is of course the scenario brought forward in this thread, where
+>>> multiple threads of a process race and the second one enters oom even
+>>> though it doesn't need to anymore. What the global case does to catch
+>>> this is to grab the oom lock and do one last alloc attempt. Should
+>>> memcg lock the oom_lock and try one more time to charge the memcg?
+>>
+>> That would be another option. I agree that making it more towards the
+>> global case makes it more attractive. My tsk_is_oom_victim is more
+>> towards "plug this particular case".
+> 
+> Nevertheless let me emphasise that tsk_is_oom_victim will close the race
+> completely, while mem_cgroup_margin will always be racy. So the question
+> is whether we want to close the race because it is just too easy for
+> userspace to hit it or keep the global and memcg oom handling as close
+> as possible.
+> 
 
-are you sure about that? I can download both just fine, different
-browsers, the cert seems fine, no 403 there.
-
-> This is worth a separate discussion. Please start a new email thread.
-
-I was merely looking for a real quick-hotfix there in the meantime,
-also wondering why '10' is hardcoded
+Yes, adding tsk_is_oom_victim(current) before calling out_of_memory() from
+both global OOM and memcg OOM paths can close the race completely. (But
+note that tsk_is_oom_victim(current) for global OOM path needs to check for
+__GFP_NOFAIL in order to handle genuinely OOM case.)
