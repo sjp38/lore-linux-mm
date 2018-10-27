@@ -1,97 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 53B116B0330
-	for <linux-mm@kvack.org>; Sat, 27 Oct 2018 00:45:44 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id 36so2242181ott.22
-        for <linux-mm@kvack.org>; Fri, 26 Oct 2018 21:45:44 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 37sor7641613otj.70.2018.10.26.21.45.42
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 732A06B0332
+	for <linux-mm@kvack.org>; Sat, 27 Oct 2018 02:42:44 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id g26-v6so1276210edp.13
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2018 23:42:44 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t26-v6si2688363ejr.158.2018.10.26.23.42.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 26 Oct 2018 21:45:42 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Oct 2018 23:42:42 -0700 (PDT)
+Date: Sat, 27 Oct 2018 08:42:40 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: Caching/buffers become useless after some time
+Message-ID: <20181027064240.GG18839@dhcp22.suse.cz>
+References: <CADF2uSrNoODvoX_SdS3_127-aeZ3FwvwnhswoGDN0wNM2cgvbg@mail.gmail.com>
+ <8b211f35-0722-cd94-1360-a2dd9fba351e@suse.cz>
+ <CADF2uSoDFrEAb0Z-w19Mfgj=Tskqrjh_h=N6vTNLXcQp7jdTOQ@mail.gmail.com>
+ <20180829150136.GA10223@dhcp22.suse.cz>
+ <CADF2uSoViODBbp4OFHTBhXvgjOVL8ft1UeeaCQjYHZM0A=p-dA@mail.gmail.com>
+ <20180829152716.GB10223@dhcp22.suse.cz>
+ <CADF2uSoG_RdKF0pNMBaCiPWGq3jn1VrABbm-rSnqabSSStixDw@mail.gmail.com>
+ <CADF2uSpiD9t-dF6bp-3-EnqWK9BBEwrfp69=_tcxUOLk_DytUA@mail.gmail.com>
+ <20181026080019.GX18839@dhcp22.suse.cz>
+ <CADF2uSobj6fkvwObaU9mkhksyTGeqxQi1Vcyx2=HfJ1fVqfKDg@mail.gmail.com>
 MIME-Version: 1.0
-References: <20181022201317.8558C1D8@viggo.jf.intel.com> <CAPcyv4hxs-GnmwQU1wPZyg5aydCY5K09-YpSrrLpvU1v_8dbBw@mail.gmail.com>
- <CAPcyv4hFoPkda0YfNKo=nFxttyBG3OjD7vKWyNzLY+8T5gLc=g@mail.gmail.com>
-In-Reply-To: <CAPcyv4hFoPkda0YfNKo=nFxttyBG3OjD7vKWyNzLY+8T5gLc=g@mail.gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 26 Oct 2018 21:45:30 -0700
-Message-ID: <CAPcyv4iE8o1rs+a9YrFPhtH6bQ73HECnLin1MShR0-vV_eWKEQ@mail.gmail.com>
-Subject: Re: [PATCH 0/9] Allow persistent memory to be used like normal RAM
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CADF2uSobj6fkvwObaU9mkhksyTGeqxQi1Vcyx2=HfJ1fVqfKDg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dave Jiang <dave.jiang@intel.com>, zwisler@kernel.org, Vishal L Verma <vishal.l.verma@intel.com>, Tom Lendacky <thomas.lendacky@amd.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, "Huang, Ying" <ying.huang@intel.com>, Fengguang Wu <fengguang.wu@intel.com>
+To: Marinko Catovic <marinko.catovic@gmail.com>
+Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Christopher Lameter <cl@linux.com>
 
-On Mon, Oct 22, 2018 at 6:11 PM Dan Williams <dan.j.williams@intel.com> wrote:
->
-> On Mon, Oct 22, 2018 at 6:05 PM Dan Williams <dan.j.williams@intel.com> wrote:
+On Sat 27-10-18 01:31:05, Marinko Catovic wrote:
+> Am Fr., 26. Okt. 2018 um 10:02 Uhr schrieb Michal Hocko <mhocko@suse.com>:
 > >
-> > On Mon, Oct 22, 2018 at 1:18 PM Dave Hansen <dave.hansen@linux.intel.com> wrote:
+> > Sorry for late reply. Busy as always...
+> >
+> > On Mon 22-10-18 03:19:57, Marinko Catovic wrote:
+> > [...]
+> > > There we go again.
 > > >
-> > > Persistent memory is cool.  But, currently, you have to rewrite
-> > > your applications to use it.  Wouldn't it be cool if you could
-> > > just have it show up in your system like normal RAM and get to
-> > > it like a slow blob of memory?  Well... have I got the patch
-> > > series for you!
+> > > First of all, I have set up this monitoring on 1 host, as a matter of
+> > > fact it did not occur on that single
+> > > one for days and weeks now, so I set this up again on all the hosts
+> > > and it just happened again on another one.
 > > >
-> > > This series adds a new "driver" to which pmem devices can be
-> > > attached.  Once attached, the memory "owned" by the device is
-> > > hot-added to the kernel and managed like any other memory.  On
-> > > systems with an HMAT (a new ACPI table), each socket (roughly)
-> > > will have a separate NUMA node for its persistent memory so
-> > > this newly-added memory can be selected by its unique NUMA
-> > > node.
+> > > This issue is far from over, even when upgrading to the latest 4.18.12
 > > >
-> > > This is highly RFC, and I really want the feedback from the
-> > > nvdimm/pmem folks about whether this is a viable long-term
-> > > perversion of their code and device mode.  It's insufficiently
-> > > documented and probably not bisectable either.
-> > >
-> > > Todo:
-> > > 1. The device re-binding hacks are ham-fisted at best.  We
-> > >    need a better way of doing this, especially so the kmem
-> > >    driver does not get in the way of normal pmem devices.
-> > > 2. When the device has no proper node, we default it to
-> > >    NUMA node 0.  Is that OK?
-> > > 3. We muck with the 'struct resource' code quite a bit. It
-> > >    definitely needs a once-over from folks more familiar
-> > >    with it than I.
-> > > 4. Is there a better way to do this than starting with a
-> > >    copy of pmem.c?
+> > > https://nofile.io/f/z2KeNwJSMDj/vmstat-2.zip
+> > > https://nofile.io/f/5ezPUkFWtnx/trace_pipe-2.gz
 > >
-> > So I don't think we want to do patch 2, 3, or 5. Just jump to patch 7
-> > and remove all the devm_memremap_pages() infrastructure and dax_region
-> > infrastructure.
-> >
-> > The driver should be a dead simple turn around to call add_memory()
-> > for the passed in range. The hard part is, as you say, arranging for
-> > the kmem driver to not stand in the way of typical range / device
-> > claims by the dax_pmem device.
-> >
-> > To me this looks like teaching the nvdimm-bus and this dax_kmem driver
-> > to require explicit matching based on 'id'. The attachment scheme
-> > would look like this:
-> >
-> > modprobe dax_kmem
-> > echo dax0.0 > /sys/bus/nd/drivers/dax_kmem/new_id
-> > echo dax0.0 > /sys/bus/nd/drivers/dax_pmem/unbind
-> > echo dax0.0 > /sys/bus/nd/drivers/dax_kmem/bind
-> >
-> > At step1 the dax_kmem drivers will match no devices and stays out of
-> > the way of dax_pmem. It learns about devices it cares about by being
-> > explicitly told about them. Then unbind from the typical dax_pmem
-> > driver and attach to dax_kmem to perform the one way hotplug.
-> >
-> > I expect udev can automate this by setting up a rule to watch for
-> > device-dax instances by UUID and call a script to do the detach /
-> > reattach dance.
->
-> The next question is how to support this for ranges that don't
-> originate from the pmem sub-system. I expect we want dax_kmem to
-> register a generic platform device representing the range and have a
-> generic platofrm driver that turns around and does the add_memory().
+> > I cannot download these. I am getting an invalid certificate and
+> > 403 when ignoring it
+> 
+> are you sure about that? I can download both just fine, different
+> browsers, the cert seems fine, no 403 there.
 
-I forgot I have some old patches that do something along these lines
-and make device-dax it's own bus. I'll dust those off so we can
-discern what's left.
+Interesting. It works now from my home network. Something must have been
+fishy in the office network when I've tried the same thing.
+
+I have it now. Will have a look at monday at earliest.
+-- 
+Michal Hocko
+SUSE Labs
