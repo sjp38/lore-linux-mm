@@ -1,46 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7846F6B0334
-	for <linux-mm@kvack.org>; Sat, 27 Oct 2018 05:20:41 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id k24so1371245otl.13
-        for <linux-mm@kvack.org>; Sat, 27 Oct 2018 02:20:41 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id j187-v6si6277oih.22.2018.10.27.02.20.40
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F0E3F6B0336
+	for <linux-mm@kvack.org>; Sat, 27 Oct 2018 06:21:09 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id b7-v6so2141990pgt.10
+        for <linux-mm@kvack.org>; Sat, 27 Oct 2018 03:21:09 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k33-v6sor11249375pld.54.2018.10.27.03.21.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 27 Oct 2018 02:20:40 -0700 (PDT)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w9R9IiwS078954
-	for <linux-mm@kvack.org>; Sat, 27 Oct 2018 05:20:39 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ncn39rath-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 27 Oct 2018 05:20:39 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Sat, 27 Oct 2018 10:20:36 +0100
-Date: Sat, 27 Oct 2018 10:20:29 +0100
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH RESEND] c6x: switch to NO_BOOTMEM
+        (Google Transport Security);
+        Sat, 27 Oct 2018 03:21:08 -0700 (PDT)
+Date: Sat, 27 Oct 2018 21:21:02 +1100
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [PATCH 2/4] mm: speed up mremap by 500x on large regions (v2)
+Message-ID: <20181027102102.GO8537@350D>
+References: <20181013013200.206928-1-joel@joelfernandes.org>
+ <20181013013200.206928-3-joel@joelfernandes.org>
+ <20181024101255.it4lptrjogalxbey@kshutemo-mobl1>
+ <20181024115733.GN8537@350D>
+ <20181025021350.GB13560@joelaf.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <20181027092028.GC6770@rapoport-lnx>
+In-Reply-To: <20181025021350.GB13560@joelaf.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mark Salter <msalter@redhat.com>, linux-c6x-dev@linux-c6x.org, linux-mm@kvack.org
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, kernel-team@android.com, minchan@kernel.org, pantin@google.com, hughd@google.com, lokeshgidra@google.com, dancol@google.com, mhocko@kernel.org, akpm@linux-foundation.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, anton.ivanov@kot-begemot.co.uk, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, elfring@users.sourceforge.net, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, Julia Lawall <Julia.Lawall@lip6.fr>, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, Max Filippov <jcmvbkbc@gmail.com>, nios2-dev@lists.rocketboards.org, Peter Zijlstra <peterz@infradead.org>, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>
 
-Hi,
+On Wed, Oct 24, 2018 at 07:13:50PM -0700, Joel Fernandes wrote:
+> On Wed, Oct 24, 2018 at 10:57:33PM +1100, Balbir Singh wrote:
+> [...]
+> > > > +		pmd_t pmd;
+> > > > +
+> > > > +		new_ptl = pmd_lockptr(mm, new_pmd);
+> > 
+> > 
+> > Looks like this is largely inspired by move_huge_pmd(), I guess a lot of
+> > the code applies, why not just reuse as much as possible? The same comments
+> > w.r.t mmap_sem helping protect against lock order issues applies as well.
+> 
+> I thought about this and when I looked into it, it seemed there are subtle
+> differences that make such sharing not worth it (or not possible).
+>
 
-The patch below that switches c6x to NO_BOOTMEM is already merged into c6x
-tree, but as there were no pull request from c6x during v4.19 merge window
-it is still not present in Linus' tree.
+Could you elaborate on them?
 
-Probably it would be better to direct it via mm tree to avoid possible
-conflicts and breakage because of bootmem removal.
-
--- 
-Sincerely yours,
-Mike.
+Thanks,
+Balbir Singh. 
