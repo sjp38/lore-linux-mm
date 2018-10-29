@@ -1,50 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 505686B0370
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2018 06:56:05 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id s15-v6so7580051iob.11
-        for <linux-mm@kvack.org>; Mon, 29 Oct 2018 03:56:05 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DA5616B0373
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2018 07:45:24 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id l7-v6so9496976qkd.5
+        for <linux-mm@kvack.org>; Mon, 29 Oct 2018 04:45:24 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s7si8895987itl.14.2018.10.29.03.56.04
+        by mx.google.com with ESMTPS id o45-v6si1762762qto.166.2018.10.29.04.45.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Oct 2018 03:56:04 -0700 (PDT)
-Date: Mon, 29 Oct 2018 06:56:01 -0400
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/2] mm: thp:  relax __GFP_THISNODE for MADV_HUGEPAGE
- mappings
-Message-ID: <20181029105601.GB3823@redhat.com>
-References: <20180925120326.24392-1-mhocko@kernel.org>
- <20180925120326.24392-2-mhocko@kernel.org>
- <20181029051752.GB16399@350D>
- <20181029090035.GE32673@dhcp22.suse.cz>
- <20181029094253.GC16399@350D>
- <20181029100834.GG32673@dhcp22.suse.cz>
+        Mon, 29 Oct 2018 04:45:23 -0700 (PDT)
+Reply-To: crecklin@redhat.com
+Subject: Re: [PATCH 09/17] prmem: hardened usercopy
+References: <20181023213504.28905-1-igor.stoppa@huawei.com>
+ <20181023213504.28905-10-igor.stoppa@huawei.com>
+From: Chris von Recklinghausen <crecklin@redhat.com>
+Message-ID: <cd768a99-5afa-999c-989a-efee66fa0ddb@redhat.com>
+Date: Mon, 29 Oct 2018 07:45:14 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181029100834.GG32673@dhcp22.suse.cz>
+In-Reply-To: <20181023213504.28905-10-igor.stoppa@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Balbir Singh <bsingharora@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Andrea Argangeli <andrea@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
+To: Igor Stoppa <igor.stoppa@gmail.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, James Morris <jmorris@namei.org>, Michal Hocko <mhocko@kernel.org>, kernel-hardening@lists.openwall.com, linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org
+Cc: igor.stoppa@huawei.com, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello,
+On 10/23/2018 05:34 PM, Igor Stoppa wrote:
+> Prevent leaks of protected memory to userspace.
+> The protection from overwrited from userspace is already available, once
+> the memory is write protected.
+>
+> Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+> CC: Kees Cook <keescook@chromium.org>
+> CC: Chris von Recklinghausen <crecklin@redhat.com>
+> CC: linux-mm@kvack.org
+> CC: linux-kernel@vger.kernel.org
+> ---
+>  include/linux/prmem.h | 24 ++++++++++++++++++++++++
+>  mm/usercopy.c         |  5 +++++
+>  2 files changed, 29 insertions(+)
+>
+> diff --git a/include/linux/prmem.h b/include/linux/prmem.h
+> index cf713fc1c8bb..919d853ddc15 100644
+> --- a/include/linux/prmem.h
+> +++ b/include/linux/prmem.h
+> @@ -273,6 +273,30 @@ struct pmalloc_pool {
+>  	uint8_t mode;
+>  };
+>  
+> +void __noreturn usercopy_abort(const char *name, const char *detail,
+> +			       bool to_user, unsigned long offset,
+> +			       unsigned long len);
+> +
+> +/**
+> + * check_pmalloc_object() - helper for hardened usercopy
+> + * @ptr: the beginning of the memory to check
+> + * @n: the size of the memory to check
+> + * @to_user: copy to userspace or from userspace
+> + *
+> + * If the check is ok, it will fall-through, otherwise it will abort.
+> + * The function is inlined, to minimize the performance impact of the
+> + * extra check that can end up on a hot path.
+> + * Non-exhaustive micro benchmarking with QEMU x86_64 shows a reduction of
+> + * the time spent in this fragment by 60%, when inlined.
+> + */
+> +static inline
+> +void check_pmalloc_object(const void *ptr, unsigned long n, bool to_user)
+> +{
+> +	if (unlikely(__is_wr_after_init(ptr, n) || __is_wr_pool(ptr, n)))
+> +		usercopy_abort("pmalloc", "accessing pmalloc obj", to_user,
+> +			       (const unsigned long)ptr, n);
+> +}
+> +
+>  /*
+>   * The write rare functionality is fully implemented as __always_inline,
+>   * to prevent having an internal function call that is capable of modifying
+> diff --git a/mm/usercopy.c b/mm/usercopy.c
+> index 852eb4e53f06..a080dd37b684 100644
+> --- a/mm/usercopy.c
+> +++ b/mm/usercopy.c
+> @@ -22,8 +22,10 @@
+>  #include <linux/thread_info.h>
+>  #include <linux/atomic.h>
+>  #include <linux/jump_label.h>
+> +#include <linux/prmem.h>
+>  #include <asm/sections.h>
+>  
+> +
+>  /*
+>   * Checks if a given pointer and length is contained by the current
+>   * stack frame (if possible).
+> @@ -284,6 +286,9 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
+>  
+>  	/* Check for object in kernel to avoid text exposure. */
+>  	check_kernel_text_object((const unsigned long)ptr, n, to_user);
+> +
+> +	/* Check if object is from a pmalloc chunk. */
+> +	check_pmalloc_object(ptr, n, to_user);
+>  }
+>  EXPORT_SYMBOL(__check_object_size);
+>  
 
-On Mon, Oct 29, 2018 at 11:08:34AM +0100, Michal Hocko wrote:
-> This seems like a separate issue which should better be debugged. Please
-> open a new thread describing the problem and the state of the node.
-
-Yes, in my view it should be evaluated separately too, because it's
-overall less concerning: __GFP_THISNODE there can only be set by the
-root user there. So it has a chance to be legitimate behavior
-there. Let's focus on solving the __GFP_THISNODE that any user in the
-system can set (not only root) and cause severe and unexpected swap
-storms or slowdowns to all other processes run by other users.
-
-ls -l /sys/kernel/mm/hugepages/*/nr_hugepages
-
-(and boot command line)
+Could you add code somewhere (lkdtm driver if possible) to demonstrate
+the issue and verify the code change?
 
 Thanks,
-Andrea
+
+Chris
