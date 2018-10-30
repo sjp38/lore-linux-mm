@@ -1,74 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 563236B04D6
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2018 02:56:02 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id t3-v6so7910033pgp.0
-        for <linux-mm@kvack.org>; Mon, 29 Oct 2018 23:56:02 -0700 (PDT)
-Received: from mailgw01.mediatek.com ([210.61.82.183])
-        by mx.google.com with ESMTPS id c41-v6si10588037plj.194.2018.10.29.23.56.00
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FA916B000D
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2018 04:05:41 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id x17-v6so8639721pln.4
+        for <linux-mm@kvack.org>; Tue, 30 Oct 2018 01:05:41 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u5-v6sor23031390pfd.38.2018.10.30.01.05.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Oct 2018 23:56:01 -0700 (PDT)
-Message-ID: <1540882551.23278.12.camel@mtkswgap22>
-Subject: Re: [PATCH v3] mm/page_owner: use kvmalloc instead of kmalloc
-From: Miles Chen <miles.chen@mediatek.com>
-Date: Tue, 30 Oct 2018 14:55:51 +0800
-In-Reply-To: <20181030060601.GR32673@dhcp22.suse.cz>
-References: <1540790176-32339-1-git-send-email-miles.chen@mediatek.com>
-	 <20181029080708.GA32673@dhcp22.suse.cz>
-	 <20181029081706.GC32673@dhcp22.suse.cz>
-	 <1540862950.12374.40.camel@mtkswgap22>
-	 <20181030060601.GR32673@dhcp22.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Tue, 30 Oct 2018 01:05:40 -0700 (PDT)
 MIME-Version: 1.0
+References: <20181011085509.GS5873@dhcp22.suse.cz> <6f32f23c-c21c-9d42-7dda-a1d18613cd3c@linux.intel.com>
+ <20181017075257.GF18839@dhcp22.suse.cz> <971729e6-bcfe-a386-361b-d662951e69a7@linux.intel.com>
+ <20181029141210.GJ32673@dhcp22.suse.cz> <84f09883c16608ddd2ba88103f43ec6a1c649e97.camel@linux.intel.com>
+ <20181029163528.GL32673@dhcp22.suse.cz> <18dfc5a0db11650ff31433311da32c95e19944d9.camel@linux.intel.com>
+ <20181029172415.GM32673@dhcp22.suse.cz> <8e7a4311a240b241822945c0bb4095c9ffe5a14d.camel@linux.intel.com>
+ <20181029181827.GO32673@dhcp22.suse.cz> <3281f3044fa231bbc1b02d5c5efca3502a0d05a8.camel@linux.intel.com>
+In-Reply-To: <3281f3044fa231bbc1b02d5c5efca3502a0d05a8.camel@linux.intel.com>
+From: Oscar Salvador <osalvador.vilardaga@gmail.com>
+Date: Tue, 30 Oct 2018 09:05:27 +0100
+Message-ID: <CAOXBz7h-yiFCPoK5tNm6qSAGm8n83fSwHYU42x5DjtSbL84zQg@mail.gmail.com>
+Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
+ point where we init pgmap
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joe Perches <joe@perches.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com
+To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-nvdimm@lists.01.org, Pavel Tatashin <pavel.tatashin@microsoft.com>, dave.hansen@intel.com, Jerome Glisse <jglisse@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, mingo@kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, yi.z.zhang@linux.intel.com
 
-On Tue, 2018-10-30 at 07:06 +0100, Michal Hocko wrote:
-> On Tue 30-10-18 09:29:10, Miles Chen wrote:
-> > On Mon, 2018-10-29 at 09:17 +0100, Michal Hocko wrote:
-> > > On Mon 29-10-18 09:07:08, Michal Hocko wrote:
-> > > [...]
-> > > > Besides that, the following doesn't make much sense to me. It simply
-> > > > makes no sense to use vmalloc for sub page allocation regardless of
-> > > > HIGHMEM.
-> > > 
-> > > OK, it is still early morning here. Now I get the point of the patch.
-> > > You just want to (ab)use highmeme for smaller requests. I do not like
-> > > this, to be honest. It causes an internal fragmentation and more
-> > > importantly the VMALLOC space on 32b where HIGHMEM is enabled (do we
-> > > have any 64b with HIGHMEM btw?) is quite small to be wasted like that.
-> > > 
-> > thanks for your comment. It looks like that using vmalloc fallback for
-> > sub page allocation is not good here.
-> > 
-> > Your comment gave another idea:
-> > 
-> > 1. force kbuf to PAGE_SIZE
-> > 2. allocate a page by alloc_page(GFP_KERNEL | __GFP_HIGHMEM); so we can
-> > get a highmem page if possible
-> > 3. use kmap/kunmap pair to create mapping for this page. No vmalloc
-> > space is used.
-> > 4. do not change kvmalloc logic.
-> 
-> If you mean for this particular situation then is this really worth
-> it? I mean this is a short term allocation for root only so you do not
-> have to worry about low mem depletion.
-
-The 1...3 are applied to print_page_owner(), not in kmalloc() or
-kvmalloc() logic. 
+> Yes, the hotplug lock was part of the original issue. However that
+> starts to drift into the area I believe Oscar was working on as a part
+> of his patch set in encapsulating the move_pfn_range_to_zone and other
+> calls that were contained in the hotplug lock into their own functions.
 
 
-It's a real problem when using page_owner.
-I found this issue recently: I'm not able to read page_owner information
-during a overnight test. (error: read failed: Out of memory). I replace
-kmalloc() with vmalloc() and it worked well.
+While reworking it for my patchset, I thought that we can move
+move_pfn_range_to_zone
+out of hotplug lock.
+But then I __think__ we would have to move init_currently_empty_zone() within
+the span lock as zone->zone_start_pfn is being touched there.
+At least that is what the zone locking rules say about it.
 
-> 
-> If you are thiking in more generic terms to allow kmalloc to use highmem
-> then I am not really sure this will work out.
+Since I saw that Dan was still reworking his patchset about unify HMM/devm code,
+I just took one step back and I went simpler [1].
+The main reason for backing off was I felt a bit demotivated due to
+the lack of feedback,
+and I did not want to interfer either with your work or Dan's work.
+Plus I also was unsure about some other things like whether it is ok calling
+kasan_add_zero_shadow/kasan_remove_zero_shadow out of the lock.
+So I decided to make less changes in regard of HMM/devm.
 
-I'm thinking about modify print_page_owner().
+Unfortunately, I did not get a lot of feedback there yet.
+Just some reviews from David and a confirmation that fixes one of the
+issues Jonathan reported [2].
+
+>
+> I was hoping to wait until after Dan's HMM patches and Oscar's changes
+> had been sorted before I get into any further refactor of this specific
+> code.
+
+
+I plan to ping the series, but I wanted to give more time to people
+since we are in the merge window now.
+
+[1] https://patchwork.kernel.org/cover/10642049/
+[2] https://patchwork.kernel.org/patch/10642057/#22275173
