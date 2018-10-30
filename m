@@ -1,124 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C3B2A6B04C5
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2018 02:29:23 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id x17-v6so8493906pln.4
-        for <linux-mm@kvack.org>; Mon, 29 Oct 2018 23:29:23 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k68-v6si15970250pgk.294.2018.10.29.23.29.22
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FDB46B04C8
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2018 02:30:55 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id g6so6906084otl.23
+        for <linux-mm@kvack.org>; Mon, 29 Oct 2018 23:30:55 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e82-v6sor11260382oif.49.2018.10.29.23.30.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Oct 2018 23:29:22 -0700 (PDT)
-Date: Tue, 30 Oct 2018 07:29:15 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
- point where we init pgmap
-Message-ID: <20181030062915.GT32673@dhcp22.suse.cz>
-References: <20181017075257.GF18839@dhcp22.suse.cz>
- <971729e6-bcfe-a386-361b-d662951e69a7@linux.intel.com>
- <20181029141210.GJ32673@dhcp22.suse.cz>
- <84f09883c16608ddd2ba88103f43ec6a1c649e97.camel@linux.intel.com>
- <20181029163528.GL32673@dhcp22.suse.cz>
- <18dfc5a0db11650ff31433311da32c95e19944d9.camel@linux.intel.com>
- <20181029172415.GM32673@dhcp22.suse.cz>
- <8e7a4311a240b241822945c0bb4095c9ffe5a14d.camel@linux.intel.com>
- <20181029181827.GO32673@dhcp22.suse.cz>
- <3281f3044fa231bbc1b02d5c5efca3502a0d05a8.camel@linux.intel.com>
+        (Google Transport Security);
+        Mon, 29 Oct 2018 23:30:53 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3281f3044fa231bbc1b02d5c5efca3502a0d05a8.camel@linux.intel.com>
+References: <20181002100531.GC4135@quack2.suse.cz> <20181002121039.GA3274@linux-x5ow.site>
+ <20181002142959.GD9127@quack2.suse.cz> <x49h8hkfhk9.fsf@segfault.boston.devel.redhat.com>
+ <20181018002510.GC6311@dastard> <20181018145555.GS23493@quack2.suse.cz> <20181019004303.GI6311@dastard>
+In-Reply-To: <20181019004303.GI6311@dastard>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 29 Oct 2018 23:30:41 -0700
+Message-ID: <CAPcyv4ixoAh7HEMfm+B4sRDx1Qwm6SHGjtQ+5r3EKsxreRydrA@mail.gmail.com>
+Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Dave Hansen <dave.hansen@intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, rppt@linux.vnet.ibm.com, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, yi.z.zhang@linux.intel.com, osalvador@techadventures.net
+To: david <david@fromorbit.com>
+Cc: Jan Kara <jack@suse.cz>, jmoyer <jmoyer@redhat.com>, Johannes Thumshirn <jthumshirn@suse.de>, Dave Jiang <dave.jiang@intel.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Mon 29-10-18 12:59:11, Alexander Duyck wrote:
-> On Mon, 2018-10-29 at 19:18 +0100, Michal Hocko wrote:
-[...]
+On Thu, Oct 18, 2018 at 5:58 PM Dave Chinner <david@fromorbit.com> wrote:
+>
+> On Thu, Oct 18, 2018 at 04:55:55PM +0200, Jan Kara wrote:
+> > On Thu 18-10-18 11:25:10, Dave Chinner wrote:
+> > > On Wed, Oct 17, 2018 at 04:23:50PM -0400, Jeff Moyer wrote:
+> > > > MAP_SYNC
+> > > > - file system guarantees that metadata required to reach faulted-in file
+> > > >   data is consistent on media before a write fault is completed.  A
+> > > >   side-effect is that the page cache will not be used for
+> > > >   writably-mapped pages.
+> > >
+> > > I think you are conflating current implementation with API
+> > > requirements - MAP_SYNC doesn't guarantee anything about page cache
+> > > use. The man page definition simply says "supported only for files
+> > > supporting DAX" and that it provides certain data integrity
+> > > guarantees. It does not define the implementation.
+> > >
+> > > We've /implemented MAP_SYNC/ as O_DSYNC page fault behaviour,
+> > > because that's the only way we can currently provide the required
+> > > behaviour to userspace. However, if a filesystem can use the page
+> > > cache to provide the required functionality, then it's free to do
+> > > so.
+> > >
+> > > i.e. if someone implements a pmem-based page cache, MAP_SYNC data
+> > > integrity could be provided /without DAX/ by any filesystem using
+> > > that persistent page cache. i.e. MAP_SYNC really only requires
+> > > mmap() of CPU addressable persistent memory - it does not require
+> > > DAX. Right now, however, the only way to get this functionality is
+> > > through a DAX capable filesystem on dax capable storage.
+> > >
+> > > And, FWIW, this is pretty much how NOVA maintains DAX w/ COW - it
+> > > COWs new pages in pmem and attaches them a special per-inode cache
+> > > on clean->dirty transition. Then on data sync, background writeback
+> > > or crash recovery, it migrates them from the cache into the file map
+> > > proper via atomic metadata pointer swaps.
+> > >
+> > > IOWs, NOVA provides the correct MAP_SYNC semantics by using a
+> > > separate persistent per-inode write cache to provide the correct
+> > > crash recovery semantics for MAP_SYNC.
+> >
+> > Corect. NOVA would be able to provide MAP_SYNC semantics without DAX. But
+> > effectively it will be also able to provide MAP_DIRECT semantics, right?
+>
+> Yes, I think so. It still needs to do COW on first write fault,
+> but then the app has direct access to the data buffer until it is
+> cleaned and put back in place. The "put back in place" is just an
+> atomic swap of metadata pointers, so it doesn't need the page cache
+> at all...
+>
+> > Because there won't be DRAM between app and persistent storage and I don't
+> > think COW tricks or other data integrity methods are that interesting for
+> > the application.
+>
+> Not for the application, but the filesystem still wants to support
+> snapshots and other such functionality that requires COW. And NOVA
+> doesn't have write-in-place functionality at all - it always COWs
+> on the clean->dirty transition.
+>
+> > Most users of O_DIRECT are concerned about getting close
+> > to media speed performance and low DRAM usage...
+>
+> *nod*
+>
+> > > > and what I think Dan had proposed:
+> > > >
+> > > > mmap flag, MAP_DIRECT
+> > > > - file system guarantees that page cache will not be used to front storage.
+> > > >   storage MUST be directly addressable.  This *almost* implies MAP_SYNC.
+> > > >   The subtle difference is that a write fault /may/ not result in metadata
+> > > >   being written back to media.
+> > >
+> > > SIimilar to O_DIRECT, these semantics do not allow userspace apps to
+> > > replace msync/fsync with CPU cache flush operations. So any
+> > > application that uses this mode still needs to use either MAP_SYNC
+> > > or issue msync/fsync for data integrity.
+> > >
+> > > If the app is using MAP_DIRECT, the what do we do if the filesystem
+> > > can't provide the required semantics for that specific operation? In
+> > > the case of O_DIRECT, we fall back to buffered IO because it has the
+> > > same data integrity semantics as O_DIRECT and will always work. It's
+> > > just slower and consumes more memory, but the app continues to work
+> > > just fine.
+> > >
+> > > Sending SIGBUS to apps when we can't perform MAP_DIRECT operations
+> > > without using the pagecache seems extremely problematic to me.  e.g.
+> > > an app already has an open MAP_DIRECT file, and a third party
+> > > reflinks it or dedupes it and the fs has to fall back to buffered IO
+> > > to do COW operations. This isn't the app's fault - the kernel should
+> > > just fall back transparently to using the page cache for the
+> > > MAP_DIRECT app and just keep working, just like it would if it was
+> > > using O_DIRECT read/write.
+> >
+> > There's another option of failing reflink / dedupe with EBUSY if the file
+> > is mapped with MAP_DIRECT and the filesystem cannot support relink &
+> > MAP_DIRECT together. But there are downsides to that as well.
+>
+> Yup, not the least that setting MAP_DIRECT can race with a
+> reflink....
+>
+> > > The point I'm trying to make here is that O_DIRECT is a /hint/, not
+> > > a guarantee, and it's done that way to prevent applications from
+> > > being presented with transient, potentially fatal error cases
+> > > because a filesystem implementation can't do a specific operation
+> > > through the direct IO path.
+> > >
+> > > IMO, MAP_DIRECT needs to be a hint like O_DIRECT and not a
+> > > guarantee. Over time we'll end up with filesystems that can
+> > > guarantee that MAP_DIRECT is always going to use DAX, in the same
+> > > way we have filesystems that guarantee O_DIRECT will always be
+> > > O_DIRECT (e.g. XFS). But if we decide that MAP_DIRECT must guarantee
+> > > no page cache will ever be used, then we are basically saying
+> > > "filesystems won't provide MAP_DIRECT even in common, useful cases
+> > > because they can't provide MAP_DIRECT in all cases." And that
+> > > doesn't seem like a very good solution to me.
+> >
+> > These are good points. I'm just somewhat wary of the situation where users
+> > will map files with MAP_DIRECT and then the machine starts thrashing
+> > because the file got reflinked and thus pagecache gets used suddently.
+>
+> It's still better than apps randomly getting SIGBUS.
+>
+> FWIW, this suggests that we probably need to be able to host both
+> DAX pages and page cache pages on the same file at the same time,
+> and be able to handle page faults based on the type of page being
+> mapped (different sets of fault ops for different page types?)
+> and have fallback paths when the page type needs to be changed
+> between direct and cached during the fault....
+>
+> > With O_DIRECT the fallback to buffered IO is quite rare (at least for major
+> > filesystems) so usually people just won't notice. If fallback for
+> > MAP_DIRECT will be easy to hit, I'm not sure it would be very useful.
+>
+> Which is just like the situation where O_DIRECT on ext3 was not very
+> useful, but on other filesystems like XFS it was fully functional.
+>
+> IMO, the fact that a specific filesytem has a suboptimal fallback
+> path for an uncommon behaviour isn't an argument against MAP_DIRECT
+> as a hint - it's actually a feature. If MAP_DIRECT can't be used
+> until it's always direct access, then most filesystems wouldn't be
+> able to provide any faster paths at all. It's much better to have
+> partial functionality now than it is to never have the functionality
+> at all, and so we need to design in the flexibility we need to
+> iteratively improve implementations without needing API changes that
+> will break applications.
 
-I will try to get to your other points later.
-
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 89d2a2ab3fe6..048e4cc72fdf 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -5474,8 +5474,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
-> >  	 * Honor reservation requested by the driver for this ZONE_DEVICE
-> >  	 * memory
-> >  	 */
-> > -	if (altmap && start_pfn == altmap->base_pfn)
-> > -		start_pfn += altmap->reserve;
-> > +	if (pgmap && pgmap->get_memmap)
-> > +		start_pfn = pgmap->get_memmap(pgmap, start_pfn);
-> >  
-> >  	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-> >  		/*
-> > 
-> > [...]
-> 
-> The only reason why I hadn't bothered with these bits is that I was
-> actually trying to leave this generic since I thought I had seen other
-> discussions about hotplug scenerios where memory may want to change
-> where the vmmemmap is initialized other than just the case of
-> ZONE_DEVICE pages. So I was thinking at some point we may see altmap
-> without the pgmap.
-
-I wanted to abuse altmap to allocate struct pages from the physical
-range to be added. In that case I would abstract the
-allocation/initialization part of pgmap into a more abstract type.
-Something trivially to be done without affecting end users of the
-hotplug API.
-
-[...]
-> > Anyway we have gone into details while the primary problem here was that
-> > the hotplug lock doesn't scale AFAIR. And my question was why cannot we
-> > pull move_pfn_range_to_zone and what has to be done to achieve that.
-> > That is a fundamental thing to address first. Then you can microptimize
-> > on top.
-> 
-> Yes, the hotplug lock was part of the original issue. However that
-> starts to drift into the area I believe Oscar was working on as a part
-> of his patch set in encapsulating the move_pfn_range_to_zone and other
-> calls that were contained in the hotplug lock into their own functions.
-
-Well, I would really love to keep the external API as simple as
-possible. That means that we need arch_add_memory/add_pages and 
-move_pfn_range_to_zone to associate pages with a zone. The hotplug lock
-should be preferably hidden from callers of those two and ideally it
-shouldn't be a global lock. We should be good with a range lock.
- 
-> The patches Andrew pushed addressed the immediate issue so that now
-> systems with nvdimm/DAX memory can at least initialize quick enough
-> that systemd doesn't refuse to mount the root file system due to a
-> timeout.
-
-This is about the first time you actually mention that. I have re-read
-the cover letter and all changelogs of patches in this serious. Unless I
-have missed something there is nothing about real users hitting issues
-out there. nvdimm is still considered a toy because there is no real HW
-users can play with.
-
-And hence my complains about half baked solutions rushed in just to fix
-a performance regression. I can certainly understand that a pressing
-problem might justify to rush things a bit but this should be always
-carefuly justified.
-
-> The next patch set I have refactors things to reduce code and
-> allow us to reuse some of the hotplug code for the deferred page init, 
-> https://lore.kernel.org/lkml/20181017235043.17213.92459.stgit@localhost.localdomain/
-> . After that I was planning to work on dealing with the PageReserved
-> flag and trying to get that sorted out.
-> 
-> I was hoping to wait until after Dan's HMM patches and Oscar's changes
-> had been sorted before I get into any further refactor of this specific
-> code.
-
-Yes there is quite a lot going on here. I would really appreciate if we
-all sit and actually try to come up with something robust rather than
-hack here and there. I haven't yet seen your follow up series completely
-so maybe you are indeed heading the correct direction.
-
--- 
-Michal Hocko
-SUSE Labs
+The hard guarantee requirement still remains though because an
+application that expects combined MAP_SYNC|MAP_DIRECT semantics will
+be surprised if the MAP_DIRECT property silently disappears. I think
+it still makes some sense as a hint for apps that want to minimize
+page cache, but for the applications with a flush from userspace model
+I think that wants to be an F_SETLEASE / F_DIRECTLCK operation. This
+still gives the filesystem the option to inject page-cache at will,
+but with an application coordination point.
