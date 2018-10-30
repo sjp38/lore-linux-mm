@@ -1,67 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B93CE6B04D8
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2018 04:18:00 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id g63-v6so9843170pfc.9
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2018 01:18:00 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e11-v6si24264030pln.21.2018.10.30.01.17.59
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D025A6B0399
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2018 05:48:03 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id d12-v6so10439815iof.10
+        for <linux-mm@kvack.org>; Tue, 30 Oct 2018 02:48:03 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id q15-v6si18724964jam.8.2018.10.30.02.48.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Oct 2018 01:17:59 -0700 (PDT)
-Date: Tue, 30 Oct 2018 09:17:57 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v5 4/4] mm: Defer ZONE_DEVICE page initialization to the
- point where we init pgmap
-Message-ID: <20181030081757.GX32673@dhcp22.suse.cz>
-References: <20181029141210.GJ32673@dhcp22.suse.cz>
- <84f09883c16608ddd2ba88103f43ec6a1c649e97.camel@linux.intel.com>
- <20181029163528.GL32673@dhcp22.suse.cz>
- <18dfc5a0db11650ff31433311da32c95e19944d9.camel@linux.intel.com>
- <20181029172415.GM32673@dhcp22.suse.cz>
- <8e7a4311a240b241822945c0bb4095c9ffe5a14d.camel@linux.intel.com>
- <20181029181827.GO32673@dhcp22.suse.cz>
- <3281f3044fa231bbc1b02d5c5efca3502a0d05a8.camel@linux.intel.com>
- <20181030062915.GT32673@dhcp22.suse.cz>
- <CAPcyv4itSde5oiW2j5uK8PCqdpXkHKz=kS8NBk2Ge+Ldb=yLUg@mail.gmail.com>
+        Tue, 30 Oct 2018 02:48:02 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 3/3] mm, oom: hand over MMF_OOM_SKIP to exit path
+ if it is guranteed to finish
+References: <20181025082403.3806-1-mhocko@kernel.org>
+ <20181025082403.3806-4-mhocko@kernel.org>
+ <201810300445.w9U4jMhu076672@www262.sakura.ne.jp>
+ <20181030063136.GU32673@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <95cb93ec-2421-3c5d-fd1e-91d9696b0f5a@I-love.SAKURA.ne.jp>
+Date: Tue, 30 Oct 2018 18:47:43 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4itSde5oiW2j5uK8PCqdpXkHKz=kS8NBk2Ge+Ldb=yLUg@mail.gmail.com>
+In-Reply-To: <20181030063136.GU32673@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: alexander.h.duyck@linux.intel.com, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, Dave Hansen <dave.hansen@intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, rppt@linux.vnet.ibm.com, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, osalvador@techadventures.net
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 29-10-18 23:55:12, Dan Williams wrote:
-> On Mon, Oct 29, 2018 at 11:29 PM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Mon 29-10-18 12:59:11, Alexander Duyck wrote:
-> > > On Mon, 2018-10-29 at 19:18 +0100, Michal Hocko wrote:
-> [..]
-> > > The patches Andrew pushed addressed the immediate issue so that now
-> > > systems with nvdimm/DAX memory can at least initialize quick enough
-> > > that systemd doesn't refuse to mount the root file system due to a
-> > > timeout.
-> >
-> > This is about the first time you actually mention that. I have re-read
-> > the cover letter and all changelogs of patches in this serious. Unless I
-> > have missed something there is nothing about real users hitting issues
-> > out there. nvdimm is still considered a toy because there is no real HW
-> > users can play with.
+On 2018/10/30 15:31, Michal Hocko wrote:
+> On Tue 30-10-18 13:45:22, Tetsuo Handa wrote:
+>> Michal Hocko wrote:
+>>> @@ -3156,6 +3166,13 @@ void exit_mmap(struct mm_struct *mm)
+>>>                 vma = remove_vma(vma);
+>>>         }
+>>>         vm_unacct_memory(nr_accounted);
+>>> +
+>>> +       /*
+>>> +        * Now that the full address space is torn down, make sure the
+>>> +        * OOM killer skips over this task
+>>> +        */
+>>> +       if (oom)
+>>> +               set_bit(MMF_OOM_SKIP, &mm->flags);
+>>>  }
+>>>
+>>>  /* Insert vm structure into process list sorted by address
+>>
+>> I don't like setting MMF_OOF_SKIP after remove_vma() loop. 50 users might
+>> call vma->vm_ops->close() from remove_vma(). Some of them are doing fs
+>> writeback, some of them might be doing GFP_KERNEL allocation from
+>> vma->vm_ops->open() with a lock also held by vma->vm_ops->close().
+>>
+>> I don't think that waiting for completion of remove_vma() loop is safe.
 > 
-> Yes, you have missed something, because that's incorrect. There's been
-> public articles about these parts sampling since May.
+> What do you mean by 'safe' here?
 > 
->     https://www.anandtech.com/show/12828/intel-launches-optane-dimms-up-to-512gb-apache-pass-is-here
 
-indeed!
+safe = "Does not cause OOM lockup."
 
-> That testing identified this initialization performance problem and
-> thankfully got it addressed in time for the current merge window.
-
-And I still cannot see a word about that in changelogs.
-
--- 
-Michal Hocko
-SUSE Labs
+remove_vma() is allowed to sleep, and some users might depend on memory
+allocation when the OOM killer is waiting for remove_vma() to complete.
