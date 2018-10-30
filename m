@@ -1,94 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DA8AE6B02C4
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2018 13:05:11 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id r81-v6so11137446pfk.11
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2018 10:05:11 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id w16-v6si24524936pge.9.2018.10.30.10.05.10
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F0D936B02AF
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2018 13:49:51 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id c123-v6so9372464ywf.9
+        for <linux-mm@kvack.org>; Tue, 30 Oct 2018 10:49:51 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id 1-v6si14154228ywk.98.2018.10.30.10.49.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Oct 2018 10:05:10 -0700 (PDT)
-Date: Tue, 30 Oct 2018 18:05:43 +0100
-From: "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH v3 00/20] vmw_balloon: compaction, shrinker, 64-bit, etc.
-Message-ID: <20181030170543.GA24012@kroah.com>
-References: <20180926191336.101885-1-namit@vmware.com>
- <E1B69BF2-458D-435C-8065-6944111A9EC6@vmware.com>
- <20181030165119.GA23017@kroah.com>
- <0AC59738-06A0-43DC-8622-D4177FDDC1F3@vmware.com>
+        Tue, 30 Oct 2018 10:49:50 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: [PATCH] mm: hide incomplete nr_indirectly_reclaimable in
+ /proc/zoneinfo
+Date: Tue, 30 Oct 2018 17:48:25 +0000
+Message-ID: <20181030174649.16778-1-guro@fb.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <0AC59738-06A0-43DC-8622-D4177FDDC1F3@vmware.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <namit@vmware.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, Xavier Deguillard <xdeguillard@vmware.com>, LKML <linux-kernel@vger.kernel.org>, "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>
+To: "stable@vger.kernel.org" <stable@vger.kernel.org>
+Cc: Yongqin Liu <yongqin.liu@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, Roman
+ Gushchin <guro@fb.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Oct 30, 2018 at 04:52:55PM +0000, Nadav Amit wrote:
-> From: gregkh@linuxfoundation.org
-> Sent: October 30, 2018 at 4:51:19 PM GMT
-> > To: Nadav Amit <namit@vmware.com>
-> > Cc: Arnd Bergmann <arnd@arndb.de>, Xavier Deguillard <xdeguillard@vmware.com>, LKML <linux-kernel@vger.kernel.org>, Michael S. Tsirkin <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, linux-mm@kvack.org <linux-mm@kvack.org>, virtualization@lists.linux-foundation.org <virtualization@lists.linux-foundation.org>
-> > Subject: Re: [PATCH v3 00/20] vmw_balloon: compaction, shrinker, 64-bit, etc.
-> > 
-> > 
-> > On Tue, Oct 30, 2018 at 04:32:22PM +0000, Nadav Amit wrote:
-> >> From: Nadav Amit
-> >> Sent: September 26, 2018 at 7:13:16 PM GMT
-> >>> To: Arnd Bergmann <arnd@arndb.de>, gregkh@linuxfoundation.org
-> >>> Cc: Xavier Deguillard <xdeguillard@vmware.com>, linux-kernel@vger.kernel.org>, Nadav Amit <namit@vmware.com>, Michael S. Tsirkin <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, linux-mm@kvack.org>, virtualization@lists.linux-foundation.org
-> >>> Subject: [PATCH v3 00/20] vmw_balloon: compaction, shrinker, 64-bit, etc.
-> >>> 
-> >>> 
-> >>> This patch-set adds the following enhancements to the VMware balloon
-> >>> driver:
-> >>> 
-> >>> 1. Balloon compaction support.
-> >>> 2. Report the number of inflated/deflated ballooned pages through vmstat.
-> >>> 3. Memory shrinker to avoid balloon over-inflation (and OOM).
-> >>> 4. Support VMs with memory limit that is greater than 16TB.
-> >>> 5. Faster and more aggressive inflation.
-> >>> 
-> >>> To support compaction we wish to use the existing infrastructure.
-> >>> However, we need to make slight adaptions for it. We add a new list
-> >>> interface to balloon-compaction, which is more generic and efficient,
-> >>> since it does not require as many IRQ save/restore operations. We leave
-> >>> the old interface that is used by the virtio balloon.
-> >>> 
-> >>> Big parts of this patch-set are cleanup and documentation. Patches 1-13
-> >>> simplify the balloon code, document its behavior and allow the balloon
-> >>> code to run concurrently. The support for concurrency is required for
-> >>> compaction and the shrinker interface.
-> >>> 
-> >>> For documentation we use the kernel-doc format. We are aware that the
-> >>> balloon interface is not public, but following the kernel-doc format may
-> >>> be useful one day.
-> >>> 
-> >>> v2->v3: * Moving the balloon magic-number out of uapi (Greg)
-> >>> 
-> >>> v1->v2:	* Fix build error when THP is off (kbuild)
-> >>> 	* Fix build error on i386 (kbuild)
-> >> 
-> >> Greg,
-> >> 
-> >> I realize you didna??t apply patches 17-20. Any reason for that?
-> > 
-> > I have no idea, that was a few thousand patches reviewed ago...
-> > 
-> > Did I not say anything about this when I applied them?
-> > 
-> > greg k-h
-> 
-> You regarded the magic-number in v2, which I fixed for v3.
-> 
-> Should I resend?
+Yongqin reported that /proc/zoneinfo format is broken in 4.14
+due to commit 7aaf77272358 ("mm: don't show nr_indirectly_reclaimable
+in /proc/vmstat")
 
-Please do, but note that I will not be reviewing anything until after
-4.20-rc1 is out.
+Node 0, zone      DMA
+  per-node stats
+      nr_inactive_anon 403
+      nr_active_anon 89123
+      nr_inactive_file 128887
+      nr_active_file 47377
+      nr_unevictable 2053
+      nr_slab_reclaimable 7510
+      nr_slab_unreclaimable 10775
+      nr_isolated_anon 0
+      nr_isolated_file 0
+      <...>
+      nr_vmscan_write 0
+      nr_vmscan_immediate_reclaim 0
+      nr_dirtied   6022
+      nr_written   5985
+                   74240
+      ^^^^^^^^^^
+  pages free     131656
 
-thanks,
+The problem is caused by the nr_indirectly_reclaimable counter,
+which is hidden from the /proc/vmstat, but not from the
+/proc/zoneinfo. Let's fix this inconsistency and hide the
+counter from /proc/zoneinfo exactly as from /proc/vmstat.
 
-greg k-h
+BTW, in 4.19+ the counter has been renamed and exported by
+the commit b29940c1abd7 ("mm: rename and change semantics of
+nr_indirectly_reclaimable_bytes"), so there is no such a problem
+anymore.
+
+Cc: <stable@vger.kernel.org> # 4.14.x-4.18.x
+Fixes: 7aaf77272358 ("mm: don't show nr_indirectly_reclaimable in /proc/vms=
+tat")
+Reported-by: Yongqin Liu <yongqin.liu@linaro.org>
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+---
+ mm/vmstat.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 527ae727d547..6389e876c7a7 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1500,6 +1500,10 @@ static void zoneinfo_show_print(struct seq_file *m, =
+pg_data_t *pgdat,
+ 	if (is_zone_first_populated(pgdat, zone)) {
+ 		seq_printf(m, "\n  per-node stats");
+ 		for (i =3D 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
++			/* Skip hidden vmstat items. */
++			if (*vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
++					 NR_VM_NUMA_STAT_ITEMS] =3D=3D '\0')
++				continue;
+ 			seq_printf(m, "\n      %-12s %lu",
+ 				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
+ 				NR_VM_NUMA_STAT_ITEMS],
+--=20
+2.17.2
