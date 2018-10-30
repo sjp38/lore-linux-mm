@@ -1,74 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A46BB6B0377
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2018 12:50:47 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id b16-v6so11131066pfi.10
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2018 09:50:47 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id e3-v6si24572115pgg.530.2018.10.30.09.50.45
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E2E16B037D
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2018 12:52:59 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id z13-v6so9144171pgv.18
+        for <linux-mm@kvack.org>; Tue, 30 Oct 2018 09:52:59 -0700 (PDT)
+Received: from NAM04-CO1-obe.outbound.protection.outlook.com (mail-eopbgr690073.outbound.protection.outlook.com. [40.107.69.73])
+        by mx.google.com with ESMTPS id 131-v6si1387072pfx.213.2018.10.30.09.52.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Oct 2018 09:50:46 -0700 (PDT)
-Date: Tue, 30 Oct 2018 17:51:19 +0100
-From: "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 30 Oct 2018 09:52:58 -0700 (PDT)
+From: Nadav Amit <namit@vmware.com>
 Subject: Re: [PATCH v3 00/20] vmw_balloon: compaction, shrinker, 64-bit, etc.
-Message-ID: <20181030165119.GA23017@kroah.com>
+Date: Tue, 30 Oct 2018 16:52:55 +0000
+Message-ID: <0AC59738-06A0-43DC-8622-D4177FDDC1F3@vmware.com>
 References: <20180926191336.101885-1-namit@vmware.com>
  <E1B69BF2-458D-435C-8065-6944111A9EC6@vmware.com>
+ <20181030165119.GA23017@kroah.com>
+In-Reply-To: <20181030165119.GA23017@kroah.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <0CCA2CD2D1B0CB40BFE7D3E9D4A8D497@namprd05.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <E1B69BF2-458D-435C-8065-6944111A9EC6@vmware.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <namit@vmware.com>
+To: "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>
 Cc: Arnd Bergmann <arnd@arndb.de>, Xavier Deguillard <xdeguillard@vmware.com>, LKML <linux-kernel@vger.kernel.org>, "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>
 
-On Tue, Oct 30, 2018 at 04:32:22PM +0000, Nadav Amit wrote:
-> From: Nadav Amit
-> Sent: September 26, 2018 at 7:13:16 PM GMT
-> > To: Arnd Bergmann <arnd@arndb.de>, gregkh@linuxfoundation.org
-> > Cc: Xavier Deguillard <xdeguillard@vmware.com>, linux-kernel@vger.kernel.org>, Nadav Amit <namit@vmware.com>, Michael S. Tsirkin <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, linux-mm@kvack.org>, virtualization@lists.linux-foundation.org
-> > Subject: [PATCH v3 00/20] vmw_balloon: compaction, shrinker, 64-bit, etc.
-> > 
-> > 
-> > This patch-set adds the following enhancements to the VMware balloon
-> > driver:
-> > 
-> > 1. Balloon compaction support.
-> > 2. Report the number of inflated/deflated ballooned pages through vmstat.
-> > 3. Memory shrinker to avoid balloon over-inflation (and OOM).
-> > 4. Support VMs with memory limit that is greater than 16TB.
-> > 5. Faster and more aggressive inflation.
-> > 
-> > To support compaction we wish to use the existing infrastructure.
-> > However, we need to make slight adaptions for it. We add a new list
-> > interface to balloon-compaction, which is more generic and efficient,
-> > since it does not require as many IRQ save/restore operations. We leave
-> > the old interface that is used by the virtio balloon.
-> > 
-> > Big parts of this patch-set are cleanup and documentation. Patches 1-13
-> > simplify the balloon code, document its behavior and allow the balloon
-> > code to run concurrently. The support for concurrency is required for
-> > compaction and the shrinker interface.
-> > 
-> > For documentation we use the kernel-doc format. We are aware that the
-> > balloon interface is not public, but following the kernel-doc format may
-> > be useful one day.
-> > 
-> > v2->v3: * Moving the balloon magic-number out of uapi (Greg)
-> > 
-> > v1->v2:	* Fix build error when THP is off (kbuild)
-> > 	* Fix build error on i386 (kbuild)
-> > 
-> 
-> Greg,
-> 
-> I realize you didna??t apply patches 17-20. Any reason for that?
-
-I have no idea, that was a few thousand patches reviewed ago...
-
-Did I not say anything about this when I applied them?
-
-greg k-h
+RnJvbTogZ3JlZ2toQGxpbnV4Zm91bmRhdGlvbi5vcmcNClNlbnQ6IE9jdG9iZXIgMzAsIDIwMTgg
+YXQgNDo1MToxOSBQTSBHTVQNCj4gVG86IE5hZGF2IEFtaXQgPG5hbWl0QHZtd2FyZS5jb20+DQo+
+IENjOiBBcm5kIEJlcmdtYW5uIDxhcm5kQGFybmRiLmRlPiwgWGF2aWVyIERlZ3VpbGxhcmQgPHhk
+ZWd1aWxsYXJkQHZtd2FyZS5jb20+LCBMS01MIDxsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3Jn
+PiwgTWljaGFlbCBTLiBUc2lya2luIDxtc3RAcmVkaGF0LmNvbT4sIEphc29uIFdhbmcgPGphc293
+YW5nQHJlZGhhdC5jb20+LCBsaW51eC1tbUBrdmFjay5vcmcgPGxpbnV4LW1tQGt2YWNrLm9yZz4s
+IHZpcnR1YWxpemF0aW9uQGxpc3RzLmxpbnV4LWZvdW5kYXRpb24ub3JnIDx2aXJ0dWFsaXphdGlv
+bkBsaXN0cy5saW51eC1mb3VuZGF0aW9uLm9yZz4NCj4gU3ViamVjdDogUmU6IFtQQVRDSCB2MyAw
+MC8yMF0gdm13X2JhbGxvb246IGNvbXBhY3Rpb24sIHNocmlua2VyLCA2NC1iaXQsIGV0Yy4NCj4g
+DQo+IA0KPiBPbiBUdWUsIE9jdCAzMCwgMjAxOCBhdCAwNDozMjoyMlBNICswMDAwLCBOYWRhdiBB
+bWl0IHdyb3RlOg0KPj4gRnJvbTogTmFkYXYgQW1pdA0KPj4gU2VudDogU2VwdGVtYmVyIDI2LCAy
+MDE4IGF0IDc6MTM6MTYgUE0gR01UDQo+Pj4gVG86IEFybmQgQmVyZ21hbm4gPGFybmRAYXJuZGIu
+ZGU+LCBncmVna2hAbGludXhmb3VuZGF0aW9uLm9yZw0KPj4+IENjOiBYYXZpZXIgRGVndWlsbGFy
+ZCA8eGRlZ3VpbGxhcmRAdm13YXJlLmNvbT4sIGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc+
+LCBOYWRhdiBBbWl0IDxuYW1pdEB2bXdhcmUuY29tPiwgTWljaGFlbCBTLiBUc2lya2luIDxtc3RA
+cmVkaGF0LmNvbT4sIEphc29uIFdhbmcgPGphc293YW5nQHJlZGhhdC5jb20+LCBsaW51eC1tbUBr
+dmFjay5vcmc+LCB2aXJ0dWFsaXphdGlvbkBsaXN0cy5saW51eC1mb3VuZGF0aW9uLm9yZw0KPj4+
+IFN1YmplY3Q6IFtQQVRDSCB2MyAwMC8yMF0gdm13X2JhbGxvb246IGNvbXBhY3Rpb24sIHNocmlu
+a2VyLCA2NC1iaXQsIGV0Yy4NCj4+PiANCj4+PiANCj4+PiBUaGlzIHBhdGNoLXNldCBhZGRzIHRo
+ZSBmb2xsb3dpbmcgZW5oYW5jZW1lbnRzIHRvIHRoZSBWTXdhcmUgYmFsbG9vbg0KPj4+IGRyaXZl
+cjoNCj4+PiANCj4+PiAxLiBCYWxsb29uIGNvbXBhY3Rpb24gc3VwcG9ydC4NCj4+PiAyLiBSZXBv
+cnQgdGhlIG51bWJlciBvZiBpbmZsYXRlZC9kZWZsYXRlZCBiYWxsb29uZWQgcGFnZXMgdGhyb3Vn
+aCB2bXN0YXQuDQo+Pj4gMy4gTWVtb3J5IHNocmlua2VyIHRvIGF2b2lkIGJhbGxvb24gb3Zlci1p
+bmZsYXRpb24gKGFuZCBPT00pLg0KPj4+IDQuIFN1cHBvcnQgVk1zIHdpdGggbWVtb3J5IGxpbWl0
+IHRoYXQgaXMgZ3JlYXRlciB0aGFuIDE2VEIuDQo+Pj4gNS4gRmFzdGVyIGFuZCBtb3JlIGFnZ3Jl
+c3NpdmUgaW5mbGF0aW9uLg0KPj4+IA0KPj4+IFRvIHN1cHBvcnQgY29tcGFjdGlvbiB3ZSB3aXNo
+IHRvIHVzZSB0aGUgZXhpc3RpbmcgaW5mcmFzdHJ1Y3R1cmUuDQo+Pj4gSG93ZXZlciwgd2UgbmVl
+ZCB0byBtYWtlIHNsaWdodCBhZGFwdGlvbnMgZm9yIGl0LiBXZSBhZGQgYSBuZXcgbGlzdA0KPj4+
+IGludGVyZmFjZSB0byBiYWxsb29uLWNvbXBhY3Rpb24sIHdoaWNoIGlzIG1vcmUgZ2VuZXJpYyBh
+bmQgZWZmaWNpZW50LA0KPj4+IHNpbmNlIGl0IGRvZXMgbm90IHJlcXVpcmUgYXMgbWFueSBJUlEg
+c2F2ZS9yZXN0b3JlIG9wZXJhdGlvbnMuIFdlIGxlYXZlDQo+Pj4gdGhlIG9sZCBpbnRlcmZhY2Ug
+dGhhdCBpcyB1c2VkIGJ5IHRoZSB2aXJ0aW8gYmFsbG9vbi4NCj4+PiANCj4+PiBCaWcgcGFydHMg
+b2YgdGhpcyBwYXRjaC1zZXQgYXJlIGNsZWFudXAgYW5kIGRvY3VtZW50YXRpb24uIFBhdGNoZXMg
+MS0xMw0KPj4+IHNpbXBsaWZ5IHRoZSBiYWxsb29uIGNvZGUsIGRvY3VtZW50IGl0cyBiZWhhdmlv
+ciBhbmQgYWxsb3cgdGhlIGJhbGxvb24NCj4+PiBjb2RlIHRvIHJ1biBjb25jdXJyZW50bHkuIFRo
+ZSBzdXBwb3J0IGZvciBjb25jdXJyZW5jeSBpcyByZXF1aXJlZCBmb3INCj4+PiBjb21wYWN0aW9u
+IGFuZCB0aGUgc2hyaW5rZXIgaW50ZXJmYWNlLg0KPj4+IA0KPj4+IEZvciBkb2N1bWVudGF0aW9u
+IHdlIHVzZSB0aGUga2VybmVsLWRvYyBmb3JtYXQuIFdlIGFyZSBhd2FyZSB0aGF0IHRoZQ0KPj4+
+IGJhbGxvb24gaW50ZXJmYWNlIGlzIG5vdCBwdWJsaWMsIGJ1dCBmb2xsb3dpbmcgdGhlIGtlcm5l
+bC1kb2MgZm9ybWF0IG1heQ0KPj4+IGJlIHVzZWZ1bCBvbmUgZGF5Lg0KPj4+IA0KPj4+IHYyLT52
+MzogKiBNb3ZpbmcgdGhlIGJhbGxvb24gbWFnaWMtbnVtYmVyIG91dCBvZiB1YXBpIChHcmVnKQ0K
+Pj4+IA0KPj4+IHYxLT52MjoJKiBGaXggYnVpbGQgZXJyb3Igd2hlbiBUSFAgaXMgb2ZmIChrYnVp
+bGQpDQo+Pj4gCSogRml4IGJ1aWxkIGVycm9yIG9uIGkzODYgKGtidWlsZCkNCj4+IA0KPj4gR3Jl
+ZywNCj4+IA0KPj4gSSByZWFsaXplIHlvdSBkaWRu4oCZdCBhcHBseSBwYXRjaGVzIDE3LTIwLiBB
+bnkgcmVhc29uIGZvciB0aGF0Pw0KPiANCj4gSSBoYXZlIG5vIGlkZWEsIHRoYXQgd2FzIGEgZmV3
+IHRob3VzYW5kIHBhdGNoZXMgcmV2aWV3ZWQgYWdvLi4uDQo+IA0KPiBEaWQgSSBub3Qgc2F5IGFu
+eXRoaW5nIGFib3V0IHRoaXMgd2hlbiBJIGFwcGxpZWQgdGhlbT8NCj4gDQo+IGdyZWcgay1oDQoN
+CllvdSByZWdhcmRlZCB0aGUgbWFnaWMtbnVtYmVyIGluIHYyLCB3aGljaCBJIGZpeGVkIGZvciB2
+My4NCg0KU2hvdWxkIEkgcmVzZW5kPw0KDQo=
