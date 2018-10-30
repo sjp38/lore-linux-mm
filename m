@@ -1,158 +1,239 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 576006B02C5
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2018 18:59:22 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id 36so9915341ott.22
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2018 15:59:22 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 29sor3123149otk.170.2018.10.30.15.59.20
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D61FA6B0331
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2018 19:09:08 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id b3-v6so10845854plr.17
+        for <linux-mm@kvack.org>; Tue, 30 Oct 2018 16:09:08 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id bh1-v6si24373322plb.298.2018.10.30.16.09.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 30 Oct 2018 15:59:20 -0700 (PDT)
-MIME-Version: 1.0
-References: <20181002100531.GC4135@quack2.suse.cz> <20181002121039.GA3274@linux-x5ow.site>
- <20181002142959.GD9127@quack2.suse.cz> <x49h8hkfhk9.fsf@segfault.boston.devel.redhat.com>
- <20181018002510.GC6311@dastard> <20181018145555.GS23493@quack2.suse.cz>
- <20181019004303.GI6311@dastard> <CAPcyv4ixoAh7HEMfm+B4sRDx1Qwm6SHGjtQ+5r3EKsxreRydrA@mail.gmail.com>
- <20181030224904.GT19305@dastard>
-In-Reply-To: <20181030224904.GT19305@dastard>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 30 Oct 2018 15:59:09 -0700
-Message-ID: <CAPcyv4gwBJ65170Gy+EaDLpomA93kxuWTM10mZeaPYV6Rq=SRw@mail.gmail.com>
-Subject: Re: Problems with VM_MIXEDMAP removal from /proc/<pid>/smaps
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Oct 2018 16:09:06 -0700 (PDT)
+Date: Tue, 30 Oct 2018 16:09:05 -0700
+From: akpm@linux-foundation.org
+Subject: mmotm 2018-10-30-16-08 uploaded
+Message-ID: <20181030230905.xHZmM%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, jmoyer <jmoyer@redhat.com>, Johannes Thumshirn <jthumshirn@suse.de>, Dave Jiang <dave.jiang@intel.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: broonie@kernel.org, mhocko@suse.cz, sfr@canb.auug.org.au, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org
 
-On Tue, Oct 30, 2018 at 3:49 PM Dave Chinner <david@fromorbit.com> wrote:
->
-> On Mon, Oct 29, 2018 at 11:30:41PM -0700, Dan Williams wrote:
-> > On Thu, Oct 18, 2018 at 5:58 PM Dave Chinner <david@fromorbit.com> wrote:
-> > > On Thu, Oct 18, 2018 at 04:55:55PM +0200, Jan Kara wrote:
-> > > > On Thu 18-10-18 11:25:10, Dave Chinner wrote:
-> > > > > On Wed, Oct 17, 2018 at 04:23:50PM -0400, Jeff Moyer wrote:
-> > > > > > MAP_SYNC
-> > > > > > - file system guarantees that metadata required to reach faulted-in file
-> > > > > >   data is consistent on media before a write fault is completed.  A
-> > > > > >   side-effect is that the page cache will not be used for
-> > > > > >   writably-mapped pages.
-> > > > >
-> > > > > I think you are conflating current implementation with API
-> > > > > requirements - MAP_SYNC doesn't guarantee anything about page cache
-> > > > > use. The man page definition simply says "supported only for files
-> > > > > supporting DAX" and that it provides certain data integrity
-> > > > > guarantees. It does not define the implementation.
-> ....
-> > > > With O_DIRECT the fallback to buffered IO is quite rare (at least for major
-> > > > filesystems) so usually people just won't notice. If fallback for
-> > > > MAP_DIRECT will be easy to hit, I'm not sure it would be very useful.
-> > >
-> > > Which is just like the situation where O_DIRECT on ext3 was not very
-> > > useful, but on other filesystems like XFS it was fully functional.
-> > >
-> > > IMO, the fact that a specific filesytem has a suboptimal fallback
-> > > path for an uncommon behaviour isn't an argument against MAP_DIRECT
-> > > as a hint - it's actually a feature. If MAP_DIRECT can't be used
-> > > until it's always direct access, then most filesystems wouldn't be
-> > > able to provide any faster paths at all. It's much better to have
-> > > partial functionality now than it is to never have the functionality
-> > > at all, and so we need to design in the flexibility we need to
-> > > iteratively improve implementations without needing API changes that
-> > > will break applications.
-> >
-> > The hard guarantee requirement still remains though because an
-> > application that expects combined MAP_SYNC|MAP_DIRECT semantics will
-> > be surprised if the MAP_DIRECT property silently disappears.
->
-> Why would they be surprised? They won't even notice it if the
-> filesystem can provide MAP_SYNC without MAP_DIRECT.
->
-> And that's the whole point.
->
-> MAP_DIRECT is a private mapping state. So is MAP_SYNC. They are not
-> visible to the filesystem and the filesystem does nothing to enforce
-> them. If someone does something that requires the page cache (e.g.
-> calls do_splice_direct()) then that MAP_DIRECT mapping has a whole
-> heap of new work to do. And, in some cases, the filesystem may not
-> be able to provide MAP_DIRECT as a result..
->
-> IOWs, the filesystem cannot guarantee MAP_DIRECT and the
-> circumstances under which MAP_DIRECT will and will not work are
-> dynamic. If MAP_DIRECT is supposed to be a guarantee then we'll have
-> applications randomly segfaulting in production as things like
-> backups, indexers, etc run over the filesystem and do their work.
->
-> This is why MAP_DIRECT needs to be an optimisation, not a
-> requirement - things will still work if MAP_DIRECT is not used. What
-> matters to these applications is MAP_SYNC - if we break MAP_SYNC,
-> then the application data integrity model is violated. That's not an
-> acceptible outcome.
->
-> The problem, it seems to me, is that people are unable to separate
-> MAP_DIRECT and MAP_SYNC. I suspect that is because, at present,
-> MAP_SYNC on XFS and ext4 requires MAP_DIRECT. i.e. we can only
-> provide MAP_SYNC functionality on DAX mappings. However, that's a
-> /filesystem implementation issue/, not an API guarantee we need to
-> provide to userspace.
->
-> If we implement a persistent page cache (e.g. allocate page cache
-> pages out of ZONE_DEVICE pmem), then filesystems like XFS and ext4
-> could provide applications with the MAP_SYNC data integrity model
-> without MAP_DIRECT. Indeed, those filesystems would not even be able
-> to provide MAP_DIRECT semantics because they aren't backed by pmem.
->
-> Hence if applications that want MAP_SYNC are hard coded
-> MAP_SYNC|MAP_DIRECT and we make MAP_DIRECT a hard guarantee, then
-> those applications are going to fail on a filesystem that provides
-> only MAP_SYNC. This is despite the fact the applications would
-> function correctly and the data integrity model would be maintained.
-> i.e. the failure is because applications have assumed MAP_SYNC can
-> only be provided by a DAX implementation, not because MAP_SYNC is
-> not supported.
->
-> MAP_SYNC really isn't about DAX at all. It's about enabling a data
-> integrity model that requires the filesystem to provide userspace
-> access to CPU addressable persistent memory.  DAX+MAP_DIRECT is just
-> one method of providing this functionality, but it's not the only
-> method. Our API needs to be future proof rather than an encoding of
-> the existing implementation limitations, otherwise apps will have to
-> be re-written as every new MAP_SYNC capable technology comes along.
->
-> In summary:
->
->         MAP_DIRECT is an access hint.
->
->         MAP_SYNC provides a data integrity model guarantee.
->
->         MAP_SYNC may imply MAP_DIRECT for specific implementations,
->         but it does not require or guarantee MAP_DIRECT.
->
-> Let's compare that with O_DIRECT:
->
->         O_DIRECT in an access hint.
->
->         O_DSYNC provides a data integrity model guarantee.
->
->         O_DSYNC may imply O_DIRECT for specific implementations, but
->         it does not require or guarantee O_DIRECT.
->
-> Consistency in access and data integrity models is a good thing. DAX
-> and pmem is not an exception. We need to use a model we know works
-> and has proven itself over a long period of time.
->
-> > I think
-> > it still makes some sense as a hint for apps that want to minimize
-> > page cache, but for the applications with a flush from userspace model
-> > I think that wants to be an F_SETLEASE / F_DIRECTLCK operation. This
-> > still gives the filesystem the option to inject page-cache at will,
-> > but with an application coordination point.
->
-> Why make it more complex for applications than it needs to be?
+The mm-of-the-moment snapshot 2018-10-30-16-08 has been uploaded to
 
-With the clarification that MAP_SYNC implies "cpu cache flush to
-persistent memory page-cache *or* dax to persistent memory" I think
-all of the concerns are addressed. I was conflating MAP_DIRECT as "no
-page cache indirection", but the indirection does not matter if the
-page cache itself is persisted.
+   http://www.ozlabs.org/~akpm/mmotm/
+
+mmotm-readme.txt says
+
+README for mm-of-the-moment:
+
+http://www.ozlabs.org/~akpm/mmotm/
+
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
+
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
+
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
+
+
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+
+To develop on top of mmotm git:
+
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
+
+To rebase a branch with older patches to a new mmotm release:
+
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 4.19:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+* mm-hmm-fix-utf8.patch
+* mm-rmap-map_pte-was-not-handling-private-zone_device-page-properly-v3.patch
+* mm-hmm-fix-race-between-hmm_mirror_unregister-and-mmu_notifier-callback.patch
+* mm-hmm-properly-handle-migration-pmd-v3.patch
+* mm-hmm-use-a-structure-for-update-callback-parameters-v2.patch
+* mm-hmm-invalidate-device-page-table-at-start-of-invalidation.patch
+* mm-gup_benchmark-prevent-integer-overflow-in-ioctl.patch
+* fs-proc-vmcorec-convert-to-use-vmf_error.patch
+* include-linux-compilerh-add-version-detection-to-asm_volatile_goto.patch
+* add-oleksij-rempel-to-mailmap.patch
+* treewide-remove-current_text_addr.patch
+* error-injection-remove-meaningless-null-pointer-check-before-debugfs_remove_recursive.patch
+* lib-bitmapc-remove-wrong-documentation.patch
+* linux-bitmaph-handle-constant-zero-size-bitmaps-correctly.patch
+* linux-bitmaph-remove-redundant-uses-of-small_const_nbits.patch
+* linux-bitmaph-fix-type-of-nbits-in-bitmap_shift_right.patch
+* linux-bitmaph-relax-comment-on-compile-time-constant-nbits.patch
+* lib-bitmapc-fix-remaining-space-computation-in-bitmap_print_to_pagebuf.patch
+* lib-bitmapc-simplify-bitmap_print_to_pagebuf.patch
+* lib-parserc-switch-match_strdup-over-to-use-kmemdup_nul.patch
+* lib-parserc-switch-match_u64int-over-to-use-match_strdup.patch
+* lib-parserc-switch-match_number-over-to-use-match_strdup.patch
+* zlib-remove-fall-through-warnings.patch
+* lib-sg_pool-remove-unnecessary-null-check-when-free-the-object.patch
+* lib-rbtreec-fix-typo-in-comment-of-rb_insert_augmented.patch
+* kstrtox-delete-unnecessary-casts.patch
+* compat-mark-expected-switch-fall-throughs.patch
+* checkpatch-remove-gcc_binary_constant-warning.patch
+* init-do_mountsc-add-root=partlabel=name-support.patch
+* hfsplus-prevent-btree-data-loss-on-root-split.patch
+* hfsplus-fix-bug-on-bnode-parent-update.patch
+* hfs-prevent-btree-data-loss-on-root-split.patch
+* hfs-fix-bug-on-bnode-parent-update.patch
+* hfsplus-prevent-btree-data-loss-on-enospc.patch
+* hfs-prevent-btree-data-loss-on-enospc.patch
+* hfsplus-fix-return-value-of-hfsplus_get_block.patch
+* hfs-fix-return-value-of-hfs_get_block.patch
+* hfsplus-update-timestamps-on-truncate.patch
+* hfs-update-timestamp-on-truncate.patch
+* hfs-fix-array-out-of-bounds-read-of-array-extent.patch
+* reiserfs-propagate-errors-from-fill_with_dentries-properly.patch
+* reiserfs-remove-workaround-code-for-gcc-3x.patch
+* fat-expand-a-slightly-out-of-date-comment.patch
+* fat-create-a-function-to-calculate-the-timezone-offest.patch
+* fat-add-functions-to-update-and-truncate-timestamps-appropriately.patch
+* fat-change-timestamp-updates-to-use-fat_truncate_time.patch
+* fat-truncate-inode-timestamp-updates-in-setattr.patch
+* kernel-fix-a-comment-error.patch
+* signal-mark-expected-switch-fall-throughs.patch
+* kernel-panic-do-not-append-newline-to-the-stack-protector-panic-string.patch
+* kernel-panic-filter-out-a-potential-trailing-newline.patch
+* ipc-ipcmni-limit-check-for-msgmni-and-shmmni.patch
+* ipc-ipcmni-limit-check-for-semmni.patch
+* lib-lz4-update-lz4-decompressor-module.patch
+* kbuild-fix-kernel-boundsc-w=1-warning.patch
+* percpu-cleanup-per_cpu_def_attributes-macro.patch
+* mm-remove-config_no_bootmem.patch
+* mm-remove-config_have_memblock.patch
+* mm-remove-bootmem-allocator-implementation.patch
+* mm-nobootmem-remove-dead-code.patch
+* memblock-rename-memblock_alloc_nid_try_nid-to-memblock_phys_alloc.patch
+* memblock-remove-_virt-from-apis-returning-virtual-address.patch
+* memblock-replace-alloc_bootmem_align-with-memblock_alloc.patch
+* memblock-replace-alloc_bootmem_low-with-memblock_alloc_low.patch
+* memblock-replace-__alloc_bootmem_node_nopanic-with-memblock_alloc_try_nid_nopanic.patch
+* memblock-replace-alloc_bootmem_pages_nopanic-with-memblock_alloc_nopanic.patch
+* memblock-replace-alloc_bootmem_low-with-memblock_alloc_low-2.patch
+* memblock-replace-__alloc_bootmem_nopanic-with-memblock_alloc_from_nopanic.patch
+* memblock-add-align-parameter-to-memblock_alloc_node.patch
+* memblock-replace-alloc_bootmem_pages_node-with-memblock_alloc_node.patch
+* memblock-replace-__alloc_bootmem_node-with-appropriate-memblock_-api.patch
+* memblock-replace-alloc_bootmem_node-with-memblock_alloc_node.patch
+* memblock-replace-alloc_bootmem_low_pages-with-memblock_alloc_low.patch
+* memblock-replace-alloc_bootmem_pages-with-memblock_alloc.patch
+* memblock-replace-__alloc_bootmem-with-memblock_alloc_from.patch
+* memblock-replace-alloc_bootmem-with-memblock_alloc.patch
+* mm-nobootmem-remove-bootmem-allocation-apis.patch
+* memblock-replace-free_bootmem_node-with-memblock_free.patch
+* memblock-replace-free_bootmem_late-with-memblock_free_late.patch
+* memblock-rename-free_all_bootmem-to-memblock_free_all.patch
+* memblock-rename-__free_pages_bootmem-to-memblock_free_pages.patch
+* mm-remove-nobootmem.patch
+* memblock-replace-bootmem_alloc_-with-memblock-variants.patch
+* mm-remove-include-linux-bootmemh.patch
+* docs-boot-time-mm-remove-bootmem-documentation.patch
+* memblock-stop-using-implicit-alignement-to-smp_cache_bytes.patch
+* memblock-warn-if-zero-alignment-was-requested.patch
+* android-binder-replace-vm_insert_page-with-vmf_insert_page.patch
+* mm-memory_hotplug-make-remove_memory-take-the-device_hotplug_lock.patch
+* mm-memory_hotplug-make-add_memory-take-the-device_hotplug_lock.patch
+* mm-memory_hotplug-fix-online-offline_pages-called-wo-mem_hotplug_lock.patch
+* powerpc-powernv-hold-device_hotplug_lock-when-calling-device_online.patch
+* powerpc-powernv-hold-device_hotplug_lock-when-calling-memtrace_offline_pages.patch
+* memory-hotplugtxt-add-some-details-about-locking-internals.patch
+* mm-fix-warning-in-insert_pfn.patch
+* mm-fix-__get_user_pages_fast-comment.patch
+* mm-handle-no-memcg-case-in-memcg_kmem_charge-properly.patch
+* kernel-srcu-fix-ctags.patch
+* mm-dont-reclaim-inodes-with-many-attached-pages.patch
+* mm-thp-always-specify-disabled-vmas-as-nh-in-smaps.patch
+* mm-thp-relax-__gfp_thisnode-for-madv_hugepage-mappings.patch
+* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
+* ocfs2-get-rid-of-ocfs2_is_o2cb_active-function.patch
+* ocfs2-without-quota-support-try-to-avoid-calling-quota-recovery.patch
+* ocfs2-dont-use-iocb-when-eiocbqueued-returns.patch
+* ocfs2-fix-a-misuse-a-of-brelse-after-failing-ocfs2_check_dir_entry.patch
+* ocfs2-dont-put-and-assigning-null-to-bh-allocated-outside.patch
+* ocfs2-dlmglue-clean-up-timestamp-handling.patch
+* fix-dead-lock-caused-by-ocfs2_defrag_extent.patch
+* ocfs2-fix-dead-lock-caused-by-ocfs2_defrag_extent.patch
+* fix-clusters-leak-in-ocfs2_defrag_extent.patch
+* fix-clusters-leak-in-ocfs2_defrag_extent-fix.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* vfs-allow-dedupe-of-user-owned-read-only-files.patch
+* vfs-dedupe-should-return-eperm-if-permission-is-not-granted.patch
+  mm.patch
+* mm-thp-consolidate-thp-gfp-handling-into-alloc_hugepage_direct_gfpmask.patch
+* memory_hotplug-free-pages-as-higher-order.patch
+* memory_hotplug-free-pages-as-higher-order-fix.patch
+* mm-page_alloc-remove-software-prefetching-in-__free_pages_core.patch
+* z3fold-fix-wrong-handling-of-headless-pages.patch
+* mm-swap-fix-race-between-swapoff-and-some-swap-operations.patch
+* mm-swap-fix-race-between-swapoff-and-some-swap-operations-v6.patch
+* mm-fix-race-between-swapoff-and-mincore.patch
+* list_lru-prefetch-neighboring-list-entries-before-acquiring-lock.patch
+* list_lru-prefetch-neighboring-list-entries-before-acquiring-lock-fix.patch
+* mm-add-strictlimit-knob-v2.patch
+* mm-dont-expose-page-to-fast-gup-before-its-ready.patch
+* mm-page_owner-align-with-pageblock_nr_pages.patch
+* mm-page_owner-align-with-pageblock_nr-pages.patch
+* info-task-hung-in-generic_file_write_iter.patch
+* kernel-kexec_file-remove-some-duplicated-include-file.patch
+* kernel-sysctlc-remove-duplicated-include.patch
+* bfs-add-sanity-check-at-bfs_fill_super.patch
+* ipc-allow-boot-time-extension-of-ipcmni-from-32k-to-8m.patch
+* ipc-allow-boot-time-extension-of-ipcmni-from-32k-to-8m-checkpatch-fixes.patch
+* ipc-conserve-sequence-numbers-in-extended-ipcmni-mode.patch
+  linux-next.patch
+  linux-next-rejects.patch
+* vfs-replace-current_kernel_time64-with-ktime-equivalent.patch
+* fix-read-buffer-overflow-in-delta-ipc.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  mutex-subsystem-synchro-test-module.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  slab-leaks3-default-y.patch
+  workaround-for-a-pci-restoring-bug.patch
