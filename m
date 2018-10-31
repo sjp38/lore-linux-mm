@@ -1,83 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A802C6B0006
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 08:59:17 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c2-v6so8702344edi.6
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 05:59:17 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m17-v6sor7255992eje.24.2018.10.31.05.59.15
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DC8546B0274
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 09:00:10 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id 34so11229374otj.2
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 06:00:10 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 123-v6si13075280oii.193.2018.10.31.06.00.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 31 Oct 2018 05:59:15 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] memory_hotplug: cond_resched in __remove_pages
-Date: Wed, 31 Oct 2018 13:58:40 +0100
-Message-Id: <20181031125840.23982-1-mhocko@kernel.org>
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Oct 2018 06:00:09 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w9VCxAdH005548
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 09:00:09 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2nfctx8643-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 09:00:08 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Wed, 31 Oct 2018 13:00:06 -0000
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: [PATCH 1/4] mm: make the __PAGETABLE_PxD_FOLDED defines non-empty
+Date: Wed, 31 Oct 2018 13:59:58 +0100
+In-Reply-To: <1540990801-4261-1-git-send-email-schwidefsky@de.ibm.com>
+References: <1540990801-4261-1-git-send-email-schwidefsky@de.ibm.com>
+Message-Id: <1540990801-4261-2-git-send-email-schwidefsky@de.ibm.com>
+Content-Type: text/plain
 Content-Transfer-Encoding: 8bit
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Williams <dan.j.williams@gmail.com>, Johannes Thumshirn <jthumshirn@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Li Wang <liwang@redhat.com>, Guenter Roeck <linux@roeck-us.net>, Janosch Frank <frankja@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-From: Michal Hocko <mhocko@suse.com>
+Change the currently empty defines for __PAGETABLE_PMD_FOLDED,
+__PAGETABLE_PUD_FOLDED and __PAGETABLE_P4D_FOLDED to return 1.
+This makes it possible to use __is_defined() to test if the
+preprocessor define exists.
 
-We have received a bug report that unbinding a large pmem (>1TB)
-can result in a soft lockup:
-[  380.339203] NMI watchdog: BUG: soft lockup - CPU#9 stuck for 23s! [ndctl:4365]
-[...]
-[  380.339316] Supported: Yes
-[  380.339318] CPU: 9 PID: 4365 Comm: ndctl Not tainted 4.12.14-94.40-default #1 SLE12-SP4
-[  380.339318] Hardware name: Intel Corporation S2600WFD/S2600WFD, BIOS SE5C620.86B.01.00.0833.051120182255 05/11/2018
-[  380.339319] task: ffff9cce7d4410c0 task.stack: ffffbe9eb1bc4000
-[  380.339325] RIP: 0010:__put_page+0x62/0x80
-[  380.339326] RSP: 0018:ffffbe9eb1bc7d30 EFLAGS: 00000282 ORIG_RAX: ffffffffffffff10
-[  380.339327] RAX: 000040540081c0d3 RBX: ffffeb8f03557200 RCX: 000063af40000000
-[  380.339328] RDX: 0000000000000002 RSI: ffff9cce75bff498 RDI: ffff9e4a76072ff8
-[  380.339329] RBP: 0000000a43557200 R08: 0000000000000000 R09: ffffbe9eb1bc7bb0
-[  380.339329] R10: ffffbe9eb1bc7d08 R11: 0000000000000000 R12: ffff9e194a22a0e0
-[  380.339330] R13: ffff9cce7062fc10 R14: ffff9e194a22a0a0 R15: ffff9cce6559c0e0
-[  380.339331] FS:  00007fd132368880(0000) GS:ffff9cce7ea40000(0000) knlGS:0000000000000000
-[  380.339332] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[  380.339332] CR2: 00000000020820a0 CR3: 000000017ef7a003 CR4: 00000000007606e0
-[  380.339333] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[  380.339334] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-[  380.339334] PKRU: 55555554
-[  380.339334] Call Trace:
-[  380.339338]  devm_memremap_pages_release+0x152/0x260
-[  380.339342]  release_nodes+0x18d/0x1d0
-[  380.339347]  device_release_driver_internal+0x160/0x210
-[  380.339350]  unbind_store+0xb3/0xe0
-[  380.339355]  kernfs_fop_write+0x102/0x180
-[  380.339358]  __vfs_write+0x26/0x150
-[  380.339363]  ? security_file_permission+0x3c/0xc0
-[  380.339364]  vfs_write+0xad/0x1a0
-[  380.339366]  SyS_write+0x42/0x90
-[  380.339370]  do_syscall_64+0x74/0x150
-[  380.339375]  entry_SYSCALL_64_after_hwframe+0x3d/0xa2
-[  380.339377] RIP: 0033:0x7fd13166b3d0
-
-It has been reported on an older (4.12) kernel but the current upstream
-code doesn't cond_resched in the hot remove code at all and the given
-range to remove might be really large. Fix the issue by calling cond_resched
-once per memory section.
-
-Signed-off-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 ---
- mm/memory_hotplug.c | 1 +
- 1 file changed, 1 insertion(+)
+ arch/arm/include/asm/pgtable-2level.h    | 2 +-
+ arch/m68k/include/asm/pgtable_mm.h       | 4 ++--
+ arch/microblaze/include/asm/pgtable.h    | 2 +-
+ arch/nds32/include/asm/pgtable.h         | 2 +-
+ arch/parisc/include/asm/pgtable.h        | 2 +-
+ include/asm-generic/4level-fixup.h       | 2 +-
+ include/asm-generic/5level-fixup.h       | 2 +-
+ include/asm-generic/pgtable-nop4d-hack.h | 2 +-
+ include/asm-generic/pgtable-nop4d.h      | 2 +-
+ include/asm-generic/pgtable-nopmd.h      | 2 +-
+ include/asm-generic/pgtable-nopud.h      | 2 +-
+ 11 files changed, 12 insertions(+), 12 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 7e6509a53d79..1d87724fa558 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -587,6 +587,7 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
- 	for (i = 0; i < sections_to_remove; i++) {
- 		unsigned long pfn = phys_start_pfn + i*PAGES_PER_SECTION;
+diff --git a/arch/arm/include/asm/pgtable-2level.h b/arch/arm/include/asm/pgtable-2level.h
+index 92fd2c8..12659ce 100644
+--- a/arch/arm/include/asm/pgtable-2level.h
++++ b/arch/arm/include/asm/pgtable-2level.h
+@@ -10,7 +10,7 @@
+ #ifndef _ASM_PGTABLE_2LEVEL_H
+ #define _ASM_PGTABLE_2LEVEL_H
  
-+		cond_resched();
- 		ret = __remove_section(zone, __pfn_to_section(pfn), map_offset,
- 				altmap);
- 		map_offset = 0;
+-#define __PAGETABLE_PMD_FOLDED
++#define __PAGETABLE_PMD_FOLDED 1
+ 
+ /*
+  * Hardware-wise, we have a two level page table structure, where the first
+diff --git a/arch/m68k/include/asm/pgtable_mm.h b/arch/m68k/include/asm/pgtable_mm.h
+index 6181e41..fe3ddd7 100644
+--- a/arch/m68k/include/asm/pgtable_mm.h
++++ b/arch/m68k/include/asm/pgtable_mm.h
+@@ -55,12 +55,12 @@
+  */
+ #ifdef CONFIG_SUN3
+ #define PTRS_PER_PTE   16
+-#define __PAGETABLE_PMD_FOLDED
++#define __PAGETABLE_PMD_FOLDED 1
+ #define PTRS_PER_PMD   1
+ #define PTRS_PER_PGD   2048
+ #elif defined(CONFIG_COLDFIRE)
+ #define PTRS_PER_PTE	512
+-#define __PAGETABLE_PMD_FOLDED
++#define __PAGETABLE_PMD_FOLDED 1
+ #define PTRS_PER_PMD	1
+ #define PTRS_PER_PGD	1024
+ #else
+diff --git a/arch/microblaze/include/asm/pgtable.h b/arch/microblaze/include/asm/pgtable.h
+index f64ebb9..e14b662 100644
+--- a/arch/microblaze/include/asm/pgtable.h
++++ b/arch/microblaze/include/asm/pgtable.h
+@@ -63,7 +63,7 @@ extern int mem_init_done;
+ 
+ #include <asm-generic/4level-fixup.h>
+ 
+-#define __PAGETABLE_PMD_FOLDED
++#define __PAGETABLE_PMD_FOLDED 1
+ 
+ #ifdef __KERNEL__
+ #ifndef __ASSEMBLY__
+diff --git a/arch/nds32/include/asm/pgtable.h b/arch/nds32/include/asm/pgtable.h
+index d3e19a5..9f52db9 100644
+--- a/arch/nds32/include/asm/pgtable.h
++++ b/arch/nds32/include/asm/pgtable.h
+@@ -4,7 +4,7 @@
+ #ifndef _ASMNDS32_PGTABLE_H
+ #define _ASMNDS32_PGTABLE_H
+ 
+-#define __PAGETABLE_PMD_FOLDED
++#define __PAGETABLE_PMD_FOLDED 1
+ #include <asm-generic/4level-fixup.h>
+ #include <asm-generic/sizes.h>
+ 
+diff --git a/arch/parisc/include/asm/pgtable.h b/arch/parisc/include/asm/pgtable.h
+index b941ac7..c7bb74e 100644
+--- a/arch/parisc/include/asm/pgtable.h
++++ b/arch/parisc/include/asm/pgtable.h
+@@ -111,7 +111,7 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
+ #if CONFIG_PGTABLE_LEVELS == 3
+ #define BITS_PER_PMD	(PAGE_SHIFT + PMD_ORDER - BITS_PER_PMD_ENTRY)
+ #else
+-#define __PAGETABLE_PMD_FOLDED
++#define __PAGETABLE_PMD_FOLDED 1
+ #define BITS_PER_PMD	0
+ #endif
+ #define PTRS_PER_PMD    (1UL << BITS_PER_PMD)
+diff --git a/include/asm-generic/4level-fixup.h b/include/asm-generic/4level-fixup.h
+index 89f3b03..e3667c9 100644
+--- a/include/asm-generic/4level-fixup.h
++++ b/include/asm-generic/4level-fixup.h
+@@ -3,7 +3,7 @@
+ #define _4LEVEL_FIXUP_H
+ 
+ #define __ARCH_HAS_4LEVEL_HACK
+-#define __PAGETABLE_PUD_FOLDED
++#define __PAGETABLE_PUD_FOLDED 1
+ 
+ #define PUD_SHIFT			PGDIR_SHIFT
+ #define PUD_SIZE			PGDIR_SIZE
+diff --git a/include/asm-generic/5level-fixup.h b/include/asm-generic/5level-fixup.h
+index 9c2e070..73474bb 100644
+--- a/include/asm-generic/5level-fixup.h
++++ b/include/asm-generic/5level-fixup.h
+@@ -3,7 +3,7 @@
+ #define _5LEVEL_FIXUP_H
+ 
+ #define __ARCH_HAS_5LEVEL_HACK
+-#define __PAGETABLE_P4D_FOLDED
++#define __PAGETABLE_P4D_FOLDED 1
+ 
+ #define P4D_SHIFT			PGDIR_SHIFT
+ #define P4D_SIZE			PGDIR_SIZE
+diff --git a/include/asm-generic/pgtable-nop4d-hack.h b/include/asm-generic/pgtable-nop4d-hack.h
+index 0c34215..1d6dd38 100644
+--- a/include/asm-generic/pgtable-nop4d-hack.h
++++ b/include/asm-generic/pgtable-nop4d-hack.h
+@@ -5,7 +5,7 @@
+ #ifndef __ASSEMBLY__
+ #include <asm-generic/5level-fixup.h>
+ 
+-#define __PAGETABLE_PUD_FOLDED
++#define __PAGETABLE_PUD_FOLDED 1
+ 
+ /*
+  * Having the pud type consist of a pgd gets the size right, and allows
+diff --git a/include/asm-generic/pgtable-nop4d.h b/include/asm-generic/pgtable-nop4d.h
+index 1a29b2a..04cb913 100644
+--- a/include/asm-generic/pgtable-nop4d.h
++++ b/include/asm-generic/pgtable-nop4d.h
+@@ -4,7 +4,7 @@
+ 
+ #ifndef __ASSEMBLY__
+ 
+-#define __PAGETABLE_P4D_FOLDED
++#define __PAGETABLE_P4D_FOLDED 1
+ 
+ typedef struct { pgd_t pgd; } p4d_t;
+ 
+diff --git a/include/asm-generic/pgtable-nopmd.h b/include/asm-generic/pgtable-nopmd.h
+index f35f6e8..b85b827 100644
+--- a/include/asm-generic/pgtable-nopmd.h
++++ b/include/asm-generic/pgtable-nopmd.h
+@@ -8,7 +8,7 @@
+ 
+ struct mm_struct;
+ 
+-#define __PAGETABLE_PMD_FOLDED
++#define __PAGETABLE_PMD_FOLDED 1
+ 
+ /*
+  * Having the pmd type consist of a pud gets the size right, and allows
+diff --git a/include/asm-generic/pgtable-nopud.h b/include/asm-generic/pgtable-nopud.h
+index e950b9c..9bef475 100644
+--- a/include/asm-generic/pgtable-nopud.h
++++ b/include/asm-generic/pgtable-nopud.h
+@@ -9,7 +9,7 @@
+ #else
+ #include <asm-generic/pgtable-nop4d.h>
+ 
+-#define __PAGETABLE_PUD_FOLDED
++#define __PAGETABLE_PUD_FOLDED 1
+ 
+ /*
+  * Having the pud type consist of a p4d gets the size right, and allows
 -- 
-2.19.1
+2.7.4
