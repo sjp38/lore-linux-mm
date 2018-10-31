@@ -1,51 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0625C6B0293
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 06:36:31 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id w190-v6so11075953ywf.14
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 03:36:31 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w127-v6sor3241133ywf.54.2018.10.31.03.36.29
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 68C856B0282
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 06:43:02 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id w126-v6so11696934oib.18
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 03:43:02 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m81-v6sor8634830oif.52.2018.10.31.03.43.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 31 Oct 2018 03:36:29 -0700 (PDT)
-Date: Wed, 31 Oct 2018 13:36:23 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 3/3] s390/mm: fix mis-accounting of pgtable_bytes
-Message-ID: <20181031103623.6ykzsjdenrpeth7x@kshutemo-mobl1>
-References: <1539621759-5967-1-git-send-email-schwidefsky@de.ibm.com>
- <1539621759-5967-4-git-send-email-schwidefsky@de.ibm.com>
- <CAEemH2cHNFsiDqPF32K6TNn-XoXCRT0wP4ccAeah4bKHt=FKFA@mail.gmail.com>
- <20181031073149.55ddc085@mschwideX1>
- <20181031100944.GA3546@osiris>
+        Wed, 31 Oct 2018 03:43:01 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181031100944.GA3546@osiris>
+References: <20181031081945.207709-1-vovoy@chromium.org> <154097891543.4007.9898414288875202246@skylake-alporthouse-com>
+In-Reply-To: <154097891543.4007.9898414288875202246@skylake-alporthouse-com>
+From: Vovo Yang <vovoy@chromium.org>
+Date: Wed, 31 Oct 2018 18:42:50 +0800
+Message-ID: <CAEHM+4q-70qnjqdJ1HNq4GWU5=rVoiWNDFRa=7oSNWfTxsrp-g@mail.gmail.com>
+Subject: Re: [PATCH v3] mm, drm/i915: mark pinned shmemfs pages as unevictable
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Li Wang <liwang@redhat.com>, Guenter Roeck <linux@roeck-us.net>, Janosch Frank <frankja@linux.vnet.ibm.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: intel-gfx@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, peterz@infradead.org, akpm@linux-foundation.org, dave.hansen@intel.com
 
-On Wed, Oct 31, 2018 at 11:09:44AM +0100, Heiko Carstens wrote:
-> On Wed, Oct 31, 2018 at 07:31:49AM +0100, Martin Schwidefsky wrote:
-> > Thanks for testing. Unfortunately Heiko reported another issue yesterday
-> > with the patch applied. This time the other way around:
-> > 
-> > BUG: non-zero pgtables_bytes on freeing mm: -16384
-> > 
-> > I am trying to understand how this can happen. For now I would like to
-> > keep the patch on hold in case they need another change.
-> 
-> FWIW, Kirill: is there a reason why this "BUG:" output is done with
-> pr_alert() and not with VM_BUG_ON() or one of the WARN*() variants?
-> 
-> That would to get more information with DEBUG_VM and / or
-> panic_on_warn=1 set. At least for automated testing it would be nice
-> to have such triggers.
+On Wed, Oct 31, 2018 at 5:42 PM Chris Wilson <chris@chris-wilson.co.uk> wrote:
+> Will do. As you are confident, I'll try a few different machines. :)
+> -Chris
+Great! Thanks for your help. :)
 
-Stack trace is not helpful there. It will always show the exit path which
-is useless.
-
--- 
- Kirill A. Shutemov
+Vovo
