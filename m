@@ -1,45 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 85B536B0008
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 12:42:34 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id y5-v6so8413314edp.7
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 09:42:34 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i14-v6si10081145edj.23.2018.10.31.09.42.33
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 53F7A6B000C
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 12:56:55 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id k17-v6so11125131edr.18
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 09:56:55 -0700 (PDT)
+Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
+        by mx.google.com with ESMTPS id y30-v6si4384830edb.128.2018.10.31.09.56.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Oct 2018 09:42:33 -0700 (PDT)
-Date: Wed, 31 Oct 2018 17:42:31 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] mm, drm/i915: mark pinned shmemfs pages as unevictable
-Message-ID: <20181031164231.GQ32673@dhcp22.suse.cz>
-References: <20181031081945.207709-1-vovoy@chromium.org>
- <20181031142458.GP32673@dhcp22.suse.cz>
- <cc44aa53-8705-02ea-6c59-f311427d93af@intel.com>
+        Wed, 31 Oct 2018 09:56:54 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id B50581C1DC5
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 16:56:53 +0000 (GMT)
+Date: Wed, 31 Oct 2018 16:56:52 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 3/5] mm: Reclaim small amounts of memory when an external
+ fragmentation event occurs
+Message-ID: <20181031165651.GE23537@techsingularity.net>
+References: <20181031160645.7633-1-mgorman@techsingularity.net>
+ <20181031160645.7633-4-mgorman@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <cc44aa53-8705-02ea-6c59-f311427d93af@intel.com>
+In-Reply-To: <20181031160645.7633-4-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Kuo-Hsin Yang <vovoy@chromium.org>, linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Linux-MM <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 31-10-18 07:40:14, Dave Hansen wrote:
-> On 10/31/18 7:24 AM, Michal Hocko wrote:
-> > I am also wondering whether unevictable pages culling can be
-> > really visible when we do the anon LRU reclaim because the swap path is
-> > quite expensinve on its own.
+On Wed, Oct 31, 2018 at 04:06:43PM +0000, Mel Gorman wrote:
+> An external fragmentation event was previously described as
 > 
-> Didn't we create the unevictable lists in the first place because
-> scanning alone was observed to be so expensive in some scenarios?
+>     When the page allocator fragments memory, it records the event using
+>     the mm_page_alloc_extfrag event. If the fallback_order is smaller
+>     than a pageblock order (order-9 on 64-bit x86) then it's considered
+>     an event that will cause external fragmentation issues in the future.
+> 
 
-Yes, that is the case. I might just misunderstood the code I thought
-those pages were already on the LRU when unevictable flag was set and
-we would only move these pages to the unevictable list lazy during the
-reclaim. If the flag is set at the time when the page is added to the
-LRU then it should get to the proper LRU list right away. But then I do
-not understand the test results from previous run at all.
+This had a build error reported by the 0-day bot. It's trivially fixed
+with
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 77bcc35903e0..e36c279dfade 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3317,8 +3317,8 @@ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
+  * probably too small. It only makes sense to spread allocations to avoid
+  * fragmentation between the Normal and DMA32 zones.
+  */
+-static inline unsigned int alloc_flags_nofragment(struct zone *zone,
+-							gfp_t gfp_mask)
++static inline unsigned int
++alloc_flags_nofragment(struct zone *zone, gfp_t gfp_mask)
+ {
+ 	if (zone_idx(zone) != ZONE_NORMAL)
+ 		return 0;
+@@ -3340,7 +3340,8 @@ static inline unsigned int alloc_flags_nofragment(struct zone *zone,
+ 	return ALLOC_NOFRAGMENT;
+ }
+ #else
+-static inline unsigned int alloc_flags_nofragment(struct zone *zone)
++static inline unsigned int
++alloc_flags_nofragment(struct zone *zone, gfp_t gfp_mask)
+ {
+ 	return 0;
+ }
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
