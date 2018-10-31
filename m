@@ -1,55 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D5056B0282
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 06:09:53 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id w131-v6so234329oie.4
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 03:09:53 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id v14si11803401otj.229.2018.10.31.03.09.52
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E1B66B02E3
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 06:15:05 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id q10-v6so10406855edd.20
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 03:15:05 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c58-v6si3930133ede.329.2018.10.31.03.15.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Oct 2018 03:09:52 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w9VA4R8K016473
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 06:09:52 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2nf9rhsqg8-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 06:09:51 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
-	Wed, 31 Oct 2018 10:09:50 -0000
-Date: Wed, 31 Oct 2018 11:09:44 +0100
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: [PATCH 3/3] s390/mm: fix mis-accounting of pgtable_bytes
-References: <1539621759-5967-1-git-send-email-schwidefsky@de.ibm.com>
- <1539621759-5967-4-git-send-email-schwidefsky@de.ibm.com>
- <CAEemH2cHNFsiDqPF32K6TNn-XoXCRT0wP4ccAeah4bKHt=FKFA@mail.gmail.com>
- <20181031073149.55ddc085@mschwideX1>
+        Wed, 31 Oct 2018 03:15:04 -0700 (PDT)
+Date: Wed, 31 Oct 2018 11:15:01 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3] mm/page_owner: use kvmalloc instead of kmalloc
+Message-ID: <20181031101501.GL32673@dhcp22.suse.cz>
+References: <1540790176-32339-1-git-send-email-miles.chen@mediatek.com>
+ <20181029080708.GA32673@dhcp22.suse.cz>
+ <20181029081706.GC32673@dhcp22.suse.cz>
+ <1540862950.12374.40.camel@mtkswgap22>
+ <20181030060601.GR32673@dhcp22.suse.cz>
+ <1540882551.23278.12.camel@mtkswgap22>
+ <20181030081537.GV32673@dhcp22.suse.cz>
+ <1540975637.10275.10.camel@mtkswgap22>
 MIME-Version: 1.0
-In-Reply-To: <20181031073149.55ddc085@mschwideX1>
-Message-Id: <20181031100944.GA3546@osiris>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 8bit
 Content-Disposition: inline
+In-Reply-To: <1540975637.10275.10.camel@mtkswgap22>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Li Wang <liwang@redhat.com>, Guenter Roeck <linux@roeck-us.net>, Janosch Frank <frankja@linux.vnet.ibm.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Miles Chen <miles.chen@mediatek.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joe Perches <joe@perches.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com
 
-On Wed, Oct 31, 2018 at 07:31:49AM +0100, Martin Schwidefsky wrote:
-> Thanks for testing. Unfortunately Heiko reported another issue yesterday
-> with the patch applied. This time the other way around:
+On Wed 31-10-18 16:47:17, Miles Chen wrote:
+> On Tue, 2018-10-30 at 09:15 +0100, Michal Hocko wrote:
+> > On Tue 30-10-18 14:55:51, Miles Chen wrote:
+> > [...]
+> > > It's a real problem when using page_owner.
+> > > I found this issue recently: I'm not able to read page_owner information
+> > > during a overnight test. (error: read failed: Out of memory). I replace
+> > > kmalloc() with vmalloc() and it worked well.
+> > 
+> > Is this with trimming the allocation to a single page and doing shorter
+> > than requested reads?
 > 
-> BUG: non-zero pgtables_bytes on freeing mm: -16384
 > 
-> I am trying to understand how this can happen. For now I would like to
-> keep the patch on hold in case they need another change.
+> I printed out the allocate count on my device the request count is <=
+> 4096. So I tested this scenario by trimming the count to from 4096 to
+> 1024 bytes and it works fine. 
+> 
+> count = count > 1024? 1024: count;
+> 
+> It tested it on both 32bit and 64bit kernel.
 
-FWIW, Kirill: is there a reason why this "BUG:" output is done with
-pr_alert() and not with VM_BUG_ON() or one of the WARN*() variants?
+Are you saying that you see OOMs for 4k size?
 
-That would to get more information with DEBUG_VM and / or
-panic_on_warn=1 set. At least for automated testing it would be nice
-to have such triggers.
+-- 
+Michal Hocko
+SUSE Labs
