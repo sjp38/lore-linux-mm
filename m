@@ -1,20 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A6B36B0006
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 03:32:29 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id h25-v6so10299457eds.21
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 00:32:29 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 991E56B000A
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 03:34:13 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id m45-v6so10385186edc.2
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 00:34:13 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g5-v6si11088428eje.11.2018.10.31.00.32.27
+        by mx.google.com with ESMTPS id g20-v6si5781551ejj.20.2018.10.31.00.34.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Oct 2018 00:32:27 -0700 (PDT)
-Date: Wed, 31 Oct 2018 08:32:25 +0100
+        Wed, 31 Oct 2018 00:34:12 -0700 (PDT)
+Date: Wed, 31 Oct 2018 08:34:11 +0100
 From: Michal Hocko <mhocko@suse.com>
 Subject: Re: Caching/buffers become useless after some time
-Message-ID: <20181031072721.GH32673@dhcp22.suse.cz>
-References: <CADF2uSoDFrEAb0Z-w19Mfgj=Tskqrjh_h=N6vTNLXcQp7jdTOQ@mail.gmail.com>
- <20180829150136.GA10223@dhcp22.suse.cz>
+Message-ID: <20181031073411.GI32673@dhcp22.suse.cz>
+References: <20180829150136.GA10223@dhcp22.suse.cz>
  <CADF2uSoViODBbp4OFHTBhXvgjOVL8ft1UeeaCQjYHZM0A=p-dA@mail.gmail.com>
  <20180829152716.GB10223@dhcp22.suse.cz>
  <CADF2uSoG_RdKF0pNMBaCiPWGq3jn1VrABbm-rSnqabSSStixDw@mail.gmail.com>
@@ -23,23 +22,27 @@ References: <CADF2uSoDFrEAb0Z-w19Mfgj=Tskqrjh_h=N6vTNLXcQp7jdTOQ@mail.gmail.com>
  <20181030152632.GG32673@dhcp22.suse.cz>
  <CADF2uSr2V+6MosROF7dJjs_Pn_hR8u6Z+5bKPqXYUUKx=5knDg@mail.gmail.com>
  <98305976-612f-cf6d-1377-2f9f045710a9@suse.cz>
+ <CADF2uSry7SNQE0NPazAtra-4OELPonnWzzhbrBcqGRiVKWRg5Q@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <98305976-612f-cf6d-1377-2f9f045710a9@suse.cz>
+In-Reply-To: <CADF2uSry7SNQE0NPazAtra-4OELPonnWzzhbrBcqGRiVKWRg5Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Marinko Catovic <marinko.catovic@gmail.com>, linux-mm@kvack.org, Christopher Lameter <cl@linux.com>
+To: Marinko Catovic <marinko.catovic@gmail.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Christopher Lameter <cl@linux.com>
 
-On Tue 30-10-18 18:00:23, Vlastimil Babka wrote:
+On Tue 30-10-18 19:26:32, Marinko Catovic wrote:
 [...]
-> I suspect there are lots of short-lived processes, so these are probably
-> rapidly recycled and not causing compaction. It also seems to be pgd
-> allocation (2 pages due to PTI) not kernel stack?
+> > > I would not really know whether this is a NUMA, it is some usual
+> > > server running with a i7-8700
+> > > and ECC RAM. How would I find out?
+> >
+> > Please provide /proc/zoneinfo and we'll see.
+> 
+> there you go: cat /proc/zoneinfo     https://pastebin.com/RMTwtXGr
 
-I guess you are right. I have misread order=2 yesterday. order=1 stack
-would be quite unexpected.
+Nope, a single node machine so no NUMA.
 -- 
 Michal Hocko
 SUSE Labs
