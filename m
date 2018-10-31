@@ -1,82 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A92A46B02E0
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 05:39:19 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id m2-v6so11754827oic.16
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 02:39:19 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 77si3606525otf.271.2018.10.31.02.39.18
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 298AC6B02DF
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 05:42:36 -0400 (EDT)
+Received: by mail-wm1-f71.google.com with SMTP id h67-v6so13641908wmh.0
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 02:42:36 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
+        by mx.google.com with ESMTPS id e1-v6si1115675wrt.130.2018.10.31.02.42.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Oct 2018 02:39:18 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w9V9YCqG053743
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 05:39:18 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2nf9fc1e56-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 05:39:17 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Wed, 31 Oct 2018 09:39:16 -0000
-Date: Wed, 31 Oct 2018 10:39:10 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH 3/3] s390/mm: fix mis-accounting of pgtable_bytes
-In-Reply-To: <20181031074647.32c6e0d7@mschwideX1>
-References: <1539621759-5967-1-git-send-email-schwidefsky@de.ibm.com>
-	<1539621759-5967-4-git-send-email-schwidefsky@de.ibm.com>
-	<CAEemH2cHNFsiDqPF32K6TNn-XoXCRT0wP4ccAeah4bKHt=FKFA@mail.gmail.com>
-	<20181031073149.55ddc085@mschwideX1>
-	<CAEemH2f2gW22PJYpVrh7p5zJyHOVRfVawJWD+kN3+8LmApePbw@mail.gmail.com>
-	<20181031074647.32c6e0d7@mschwideX1>
+        Wed, 31 Oct 2018 02:42:34 -0700 (PDT)
+Content-Type: text/plain; charset="utf-8"
 MIME-Version: 1.0
-Message-Id: <20181031103910.41f916ea@mschwideX1>
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: quoted-printable
+From: Chris Wilson <chris@chris-wilson.co.uk>
+In-Reply-To: <20181031081945.207709-1-vovoy@chromium.org>
+References: <20181031081945.207709-1-vovoy@chromium.org>
+Message-ID: <154097891543.4007.9898414288875202246@skylake-alporthouse-com>
+Subject: Re: [PATCH v3] mm, drm/i915: mark pinned shmemfs pages as unevictable
+Date: Wed, 31 Oct 2018 09:41:55 +0000
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Wang <liwang@redhat.com>
-Cc: Guenter Roeck <linux@roeck-us.net>, Janosch Frank <frankja@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Kuo-Hsin Yang <vovoy@chromium.org>, intel-gfx@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>
 
-On Wed, 31 Oct 2018 07:46:47 +0100
-Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
+Quoting Kuo-Hsin Yang (2018-10-31 08:19:45)
+> The i915 driver uses shmemfs to allocate backing storage for gem
+> objects. These shmemfs pages can be pinned (increased ref count) by
+> shmem_read_mapping_page_gfp(). When a lot of pages are pinned, vmscan
+> wastes a lot of time scanning these pinned pages. In some extreme case,
+> all pages in the inactive anon lru are pinned, and only the inactive
+> anon lru is scanned due to inactive_ratio, the system cannot swap and
+> invokes the oom-killer. Mark these pinned pages as unevictable to speed
+> up vmscan.
+> =
 
-> On Wed, 31 Oct 2018 14:43:38 +0800
-> Li Wang <liwang@redhat.com> wrote:
-> 
-> > On Wed, Oct 31, 2018 at 2:31 PM, Martin Schwidefsky <schwidefsky@de.ibm.com>
-> > wrote:
-> >   
-> > > BUG: non-zero pgtables_bytes on freeing mm: -16384
-> > >    
-> > 
-> > Okay, the problem is still triggered by LTP/cve-2017-17052.c?  
-> 
-> No, unfortunately we do not have a simple testcase to trigger this new bug.
-> It happened once with one of our test kernels, the path that leads to this
-> is completely unclear.
- 
-Ok, got it. There is a mm_inc_nr_puds(mm) missing in the s390 code:
+> Add check_move_lru_page() to move page to appropriate lru list.
+> =
 
-diff --git a/arch/s390/mm/pgalloc.c b/arch/s390/mm/pgalloc.c
-index 76d89ee8b428..814f26520aa2 100644
---- a/arch/s390/mm/pgalloc.c
-+++ b/arch/s390/mm/pgalloc.c
-@@ -101,6 +101,7 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
-                        mm->context.asce_limit = _REGION1_SIZE;
-                        mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
-                                _ASCE_USER_BITS | _ASCE_TYPE_REGION2;
-+                       mm_inc_nr_puds(mm);
-                } else {
-                        crst_table_init(table, _REGION1_ENTRY_EMPTY);
-                        pgd_populate(mm, (pgd_t *) table, (p4d_t *) pgd);
+> This patch was inspired by Chris Wilson's change [1].
+> =
 
-One of our test-cases did an upgrade of a 3-level page table.
-I'll update the patch and send a v3.
+> [1]: https://patchwork.kernel.org/patch/9768741/
+> =
 
--- 
-blue skies,
-   Martin.
+> Cc: Chris Wilson <chris@chris-wilson.co.uk>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Signed-off-by: Kuo-Hsin Yang <vovoy@chromium.org>
+> ---
+> The previous mapping_set_unevictable patch is worse on gem_syslatency
+> because it defers to vmscan to move these pages to the unevictable list
+> and the test measures latency to allocate 2MiB pages. This performance
+> impact can be solved by explicit moving pages to the unevictable list in
+> the i915 function.
+> =
 
-"Reality continues to ruin my life." - Calvin.
+> Chris, can you help to run the "igt/benchmarks/gem_syslatency -t 120 -b -=
+m"
+> test with this patch on your testing machine? I tried to run the test on
+> a Celeron N4000, 4GB Ram machine. The mean value with this patch is
+> similar to that with the mlock patch.
+
+Will do. As you are confident, I'll try a few different machines. :)
+-Chris
