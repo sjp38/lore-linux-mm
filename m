@@ -1,68 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 298AC6B02DF
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 05:42:36 -0400 (EDT)
-Received: by mail-wm1-f71.google.com with SMTP id h67-v6so13641908wmh.0
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 02:42:36 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
-        by mx.google.com with ESMTPS id e1-v6si1115675wrt.130.2018.10.31.02.42.34
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 41CB16B02E4
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 05:48:49 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id k25-v6so13249625pff.15
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 02:48:49 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s17-v6sor24047573plp.3.2018.10.31.02.48.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Oct 2018 02:42:34 -0700 (PDT)
-Content-Type: text/plain; charset="utf-8"
+        (Google Transport Security);
+        Wed, 31 Oct 2018 02:48:48 -0700 (PDT)
+Date: Wed, 31 Oct 2018 12:48:41 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 1/3] mm: introduce mm_[p4d|pud|pmd]_folded
+Message-ID: <20181031094841.cawzzoddkemmufwl@kshutemo-mobl1>
+References: <1539621759-5967-1-git-send-email-schwidefsky@de.ibm.com>
+ <1539621759-5967-2-git-send-email-schwidefsky@de.ibm.com>
+ <20181031090255.bvmp3jnsdaunhzn7@kshutemo-mobl1>
+ <20181031103536.0cab673d@mschwideX1>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-From: Chris Wilson <chris@chris-wilson.co.uk>
-In-Reply-To: <20181031081945.207709-1-vovoy@chromium.org>
-References: <20181031081945.207709-1-vovoy@chromium.org>
-Message-ID: <154097891543.4007.9898414288875202246@skylake-alporthouse-com>
-Subject: Re: [PATCH v3] mm, drm/i915: mark pinned shmemfs pages as unevictable
-Date: Wed, 31 Oct 2018 09:41:55 +0000
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181031103536.0cab673d@mschwideX1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kuo-Hsin Yang <vovoy@chromium.org>, intel-gfx@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Michal Hocko <mhocko@suse.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Li Wang <liwang@redhat.com>, Guenter Roeck <linux@roeck-us.net>, Janosch Frank <frankja@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-Quoting Kuo-Hsin Yang (2018-10-31 08:19:45)
-> The i915 driver uses shmemfs to allocate backing storage for gem
-> objects. These shmemfs pages can be pinned (increased ref count) by
-> shmem_read_mapping_page_gfp(). When a lot of pages are pinned, vmscan
-> wastes a lot of time scanning these pinned pages. In some extreme case,
-> all pages in the inactive anon lru are pinned, and only the inactive
-> anon lru is scanned due to inactive_ratio, the system cannot swap and
-> invokes the oom-killer. Mark these pinned pages as unevictable to speed
-> up vmscan.
-> =
+On Wed, Oct 31, 2018 at 10:35:36AM +0100, Martin Schwidefsky wrote:
+> > Maybe
+> > 	return __is_defined(__PAGETABLE_P4D_FOLDED);
+> > 
+> > ?
+>  
+> I have tried that, doesn't work. The reason is that the
+> __PAGETABLE_xxx_FOLDED defines to not have a value.
+> 
+> #define __PAGETABLE_P4D_FOLDED
+> #define __PAGETABLE_PMD_FOLDED
+> #define __PAGETABLE_PUD_FOLDED
+> 
+> While the definition of CONFIG_xxx symbols looks like this
+> 
+> #define CONFIG_xxx 1
+> 
+> The __is_defined needs the value for the __take_second_arg trick.
 
-> Add check_move_lru_page() to move page to appropriate lru list.
-> =
+I guess this is easily fixable :)
 
-> This patch was inspired by Chris Wilson's change [1].
-> =
-
-> [1]: https://patchwork.kernel.org/patch/9768741/
-> =
-
-> Cc: Chris Wilson <chris@chris-wilson.co.uk>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Signed-off-by: Kuo-Hsin Yang <vovoy@chromium.org>
-> ---
-> The previous mapping_set_unevictable patch is worse on gem_syslatency
-> because it defers to vmscan to move these pages to the unevictable list
-> and the test measures latency to allocate 2MiB pages. This performance
-> impact can be solved by explicit moving pages to the unevictable list in
-> the i915 function.
-> =
-
-> Chris, can you help to run the "igt/benchmarks/gem_syslatency -t 120 -b -=
-m"
-> test with this patch on your testing machine? I tried to run the test on
-> a Celeron N4000, 4GB Ram machine. The mean value with this patch is
-> similar to that with the mlock patch.
-
-Will do. As you are confident, I'll try a few different machines. :)
--Chris
+-- 
+ Kirill A. Shutemov
