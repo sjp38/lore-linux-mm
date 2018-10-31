@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B9606B0003
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 19:49:35 -0400 (EDT)
-Received: by mail-vk1-f198.google.com with SMTP id r75-v6so7693185vkr.1
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 16:49:35 -0700 (PDT)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 608906B0006
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 19:49:39 -0400 (EDT)
+Received: by mail-it1-f199.google.com with SMTP id y144-v6so10239616itc.5
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 16:49:39 -0700 (PDT)
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id z72sor15496357vsc.113.2018.10.31.16.49.34
+        by mx.google.com with SMTPS id t17-v6sor26825349itf.4.2018.10.31.16.49.38
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 31 Oct 2018 16:49:34 -0700 (PDT)
-Date: Wed, 31 Oct 2018 16:49:26 -0700
-Message-Id: <20181031234928.144206-1-marcorr@google.com>
+        Wed, 31 Oct 2018 16:49:38 -0700 (PDT)
+Date: Wed, 31 Oct 2018 16:49:27 -0700
+In-Reply-To: <20181031234928.144206-1-marcorr@google.com>
+Message-Id: <20181031234928.144206-2-marcorr@google.com>
 Mime-Version: 1.0
-Subject: [kvm PATCH v6 0/2] shrink vcpu_vmx down to order 2
+References: <20181031234928.144206-1-marcorr@google.com>
+Subject: [kvm PATCH v6 1/2] kvm: x86: Use task structs fpu field for user
 From: Marc Orr <marcorr@google.com>
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
@@ -20,22 +22,72 @@ List-ID: <linux-mm.kvack.org>
 To: kvm@vger.kernel.org, jmattson@google.com, rientjes@google.com, konrad.wilk@oracle.com, linux-mm@kvack.org, akpm@linux-foundation.org, pbonzini@redhat.com, rkrcmar@redhat.com, willy@infradead.org, sean.j.christopherson@intel.com, dave.hansen@linux.intel.com, kernellwp@gmail.com
 Cc: Marc Orr <marcorr@google.com>
 
-Compared to the last version, I've:
-(1) dropped the vmalloc patches
-(2) updated the kmem cache for the guest_fpu field in the kvm_vcpu_arch
-    struct to be sized according to fpu_kernel_xstate_size
-(3) Added minimum FPU checks in KVM's x86 init logic to avoid memory
-    corruption issues.
+Previously, x86's instantiation of 'struct kvm_vcpu_arch' added an fpu
+field to save/restore fpu-related architectural state, which will differ
+from kvm's fpu state. However, this is redundant to the 'struct fpu'
+field, called fpu, embedded in the task struct, via the thread field.
+Thus, this patch removes the user_fpu field from the kvm_vcpu_arch
+struct and replaces it with the task struct's fpu field.
 
-Marc Orr (2):
-  kvm: x86: Use task structs fpu field for user
-  kvm: x86: Dynamically allocate guest_fpu
+This change is significant because the fpu struct is actually quite
+large. For example, on the system used to develop this patch, this
+change reduces the size of the vcpu_vmx struct from 23680 bytes down to
+19520 bytes, when building the kernel with kvmconfig. This reduction in
+the size of the vcpu_vmx struct moves us closer to being able to
+allocate the struct at order 2, rather than order 3.
 
- arch/x86/include/asm/kvm_host.h | 10 +++---
- arch/x86/kvm/svm.c              | 10 ++++++
- arch/x86/kvm/vmx.c              | 10 ++++++
- arch/x86/kvm/x86.c              | 55 ++++++++++++++++++++++++---------
- 4 files changed, 65 insertions(+), 20 deletions(-)
+Suggested-by: Dave Hansen <dave.hansen@intel.com>
+Signed-off-by: Marc Orr <marcorr@google.com>
+---
+ arch/x86/include/asm/kvm_host.h | 7 +++----
+ arch/x86/kvm/x86.c              | 4 ++--
+ 2 files changed, 5 insertions(+), 6 deletions(-)
 
+diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+index 55e51ff7e421..ebb1d7a755d4 100644
+--- a/arch/x86/include/asm/kvm_host.h
++++ b/arch/x86/include/asm/kvm_host.h
+@@ -601,16 +601,15 @@ struct kvm_vcpu_arch {
+ 
+ 	/*
+ 	 * QEMU userspace and the guest each have their own FPU state.
+-	 * In vcpu_run, we switch between the user and guest FPU contexts.
+-	 * While running a VCPU, the VCPU thread will have the guest FPU
+-	 * context.
++	 * In vcpu_run, we switch between the user, maintained in the
++	 * task_struct struct, and guest FPU contexts. While running a VCPU,
++	 * the VCPU thread will have the guest FPU context.
+ 	 *
+ 	 * Note that while the PKRU state lives inside the fpu registers,
+ 	 * it is switched out separately at VMENTER and VMEXIT time. The
+ 	 * "guest_fpu" state here contains the guest FPU context, with the
+ 	 * host PRKU bits.
+ 	 */
+-	struct fpu user_fpu;
+ 	struct fpu guest_fpu;
+ 
+ 	u64 xcr0;
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index bdcb5babfb68..ff77514f7367 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -7999,7 +7999,7 @@ static int complete_emulated_mmio(struct kvm_vcpu *vcpu)
+ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
+ {
+ 	preempt_disable();
+-	copy_fpregs_to_fpstate(&vcpu->arch.user_fpu);
++	copy_fpregs_to_fpstate(&current->thread.fpu);
+ 	/* PKRU is separately restored in kvm_x86_ops->run.  */
+ 	__copy_kernel_to_fpregs(&vcpu->arch.guest_fpu.state,
+ 				~XFEATURE_MASK_PKRU);
+@@ -8012,7 +8012,7 @@ static void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
+ {
+ 	preempt_disable();
+ 	copy_fpregs_to_fpstate(&vcpu->arch.guest_fpu);
+-	copy_kernel_to_fpregs(&vcpu->arch.user_fpu.state);
++	copy_kernel_to_fpregs(&current->thread.fpu.state);
+ 	preempt_enable();
+ 	++vcpu->stat.fpu_reload;
+ 	trace_kvm_fpu(0);
 -- 
 2.19.1.568.g152ad8e336-goog
