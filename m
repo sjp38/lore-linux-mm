@@ -1,52 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B7A296B000D
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 17:23:46 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id 127-v6so12589262pgb.7
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 14:23:46 -0700 (PDT)
-Received: from giraffe.birch.relay.mailchannels.net (giraffe.birch.relay.mailchannels.net. [23.83.209.69])
-        by mx.google.com with ESMTPS id g3-v6si27974044pgj.74.2018.10.31.14.23.44
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E10F6B0010
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 17:24:37 -0400 (EDT)
+Received: by mail-wm1-f69.google.com with SMTP id a126-v6so13697963wmf.4
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 14:24:37 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 59-v6sor2703629wro.34.2018.10.31.14.24.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Oct 2018 14:23:44 -0700 (PDT)
-From: Tulio Magno Quites Machado Filho <tuliom@ascii.art.br>
-Subject: Re: PIE binaries are no longer mapped below 4 GiB on ppc64le
-In-Reply-To: <877ehyf1cj.fsf@oldenburg.str.redhat.com>
-References: <87k1lyf2x3.fsf@oldenburg.str.redhat.com> <20181031185032.679e170a@naga.suse.cz> <877ehyf1cj.fsf@oldenburg.str.redhat.com>
-Date: Wed, 31 Oct 2018 18:23:37 -0300
-Message-ID: <87efc5n73a.fsf@linux.ibm.com>
+        (Google Transport Security);
+        Wed, 31 Oct 2018 14:24:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+References: <20181031132634.50440-1-marcorr@google.com> <20181031132634.50440-3-marcorr@google.com>
+ <cf476e07-e2fc-45c9-7259-3952a5cbb30e@intel.com> <CAA03e5HmMq-+9WsJ+Kd05ary85A7HJ5HJbNMUzc87QCRxamJGg@mail.gmail.com>
+ <4094fe59-a161-99f0-e3cd-7ac14eb9f5a4@intel.com>
+In-Reply-To: <4094fe59-a161-99f0-e3cd-7ac14eb9f5a4@intel.com>
+From: Marc Orr <marcorr@google.com>
+Date: Wed, 31 Oct 2018 14:24:24 -0700
+Message-ID: <CAA03e5F7LsYcrr6fgHWdwQ=hyYm2Su7Lqke7==Un7tSp57JtSA@mail.gmail.com>
+Subject: Re: [kvm PATCH v5 2/4] kvm: x86: Dynamically allocate guest_fpu
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>, Michal =?utf-8?Q?Such=C3=A1nek?= <msuchanek@suse.de>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Lynn A. Boger" <laboger@linux.ibm.com>
+To: dave.hansen@intel.com
+Cc: kvm@vger.kernel.org, Jim Mattson <jmattson@google.com>, David Rientjes <rientjes@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, akpm@linux-foundation.org, pbonzini@redhat.com, rkrcmar@redhat.com, willy@infradead.org, sean.j.christopherson@intel.com, dave.hansen@linux.intel.com, Wanpeng Li <kernellwp@gmail.com>
 
-Florian Weimer <fweimer@redhat.com> writes:
-
-> * Michal Such=C3=A1nek:
+> It can get set to sizeof(struct fregs_state) for systems where XSAVE is
+> not in use.  I was neglecting to mention those when I said the "~500
+> byte" number.
 >
->> On Wed, 31 Oct 2018 18:20:56 +0100
->> Florian Weimer <fweimer@redhat.com> wrote:
->>
->>> And it needs to be built with:
->>>=20
->>>   go build -ldflags=3D-extldflags=3D-pie extld.go
->>>=20
->>> I'm not entirely sure what to make of this, but I'm worried that this
->>> could be a regression that matters to userspace.
->>
->> I encountered the same when trying to build go on ppc64le. I am not
->> familiar with the internals so I just let it be.
->>
->> It does not seem to matter to any other userspace.
->
-> It would matter to C code which returns the address of a global variable
-> in the main program through and (implicit) int return value.
+> My point was that it can vary wildly and that any static allocation
+> scheme will waste lots of memory when we have small hardware-supported
+> buffers.
 
-I wonder if this is restricted to linker that Golang uses.
-Were you able to reproduce the same problem with Binutils' linker?
-
---=20
-Tulio Magno
+Got it. Then I think we need to set the size for the kmem cache to
+max(fpu_kernel_xstate_size, sizeof(fxregs_state)), unless I'm missing
+something. I'll send out a version of the patch that does this in a
+bit. Thanks!
