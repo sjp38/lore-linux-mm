@@ -1,158 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 009A26B0003
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 13:08:27 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id m91so11558209otc.17
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 10:08:27 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id r5si2016805ote.302.2018.10.31.10.08.26
-        for <linux-mm@kvack.org>;
-        Wed, 31 Oct 2018 10:08:26 -0700 (PDT)
-From: Robin Murphy <robin.murphy@arm.com>
-Subject: __HAVE_ARCH_PTE_DEVMAP - bug or intended behaviour?
-Message-ID: <9cf5c075-c83f-0915-99ef-b2aa59eca685@arm.com>
-Date: Wed, 31 Oct 2018 17:08:23 +0000
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 302706B0008
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 13:21:09 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id u20-v6so17813924qka.21
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 10:21:09 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e127si770947qkc.256.2018.10.31.10.21.07
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Oct 2018 10:21:07 -0700 (PDT)
+From: Florian Weimer <fweimer@redhat.com>
+Subject: PIE binaries are no longer mapped below 4 GiB on ppc64le
+Date: Wed, 31 Oct 2018 18:20:56 +0100
+Message-ID: <87k1lyf2x3.fsf@oldenburg.str.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: dan.j.williams@intel.com, jglisse@redhat.com
+To: linuxppc-dev@lists.ozlabs.org
+Cc: linux-mm@kvack.org
 
-Hi mm folks,
+We tried to use Go to build PIE binaries, and while the Go toolchain is
+definitely not ready (it produces text relocations and problematic
+relocations in general), it exposed what could be an accidental
+userspace ABI change.
 
-I'm looking at ZONE_DEVICE support for arm64, and trying to make sense 
-of a build failure has led me down the rabbit hole of pfn_t.h, and 
-specifically __HAVE_ARCH_PTE_DEVMAP in this first instance.
+With our 4.10-derived kernel, PIE binaries are mapped below 4 GiB, so
+relocations like R_PPC64_ADDR16_HA work:
 
-The failure itself is a link error in remove_migration_pte() due to a 
-missing definition of pte_mkdevmap(), but I'm a little confused at the 
-fact that it's explicitly declared without a definition, as if that 
-breakage is deliberate.
+21f00000-220d0000 r-xp 00000000 fd:00 36593493                           /r=
+oot/extld
+220d0000-220e0000 r--p 001c0000 fd:00 36593493                           /r=
+oot/extld
+220e0000-22100000 rw-p 001d0000 fd:00 36593493                           /r=
+oot/extld
+22100000-22120000 rw-p 00000000 00:00 0
+264b0000-264e0000 rw-p 00000000 00:00 0                                  [h=
+eap]
+c000000000-c000010000 rw-p 00000000 00:00 0
+c41ffe0000-c420300000 rw-p 00000000 00:00 0
+3fff8c000000-3fff8c030000 rw-p 00000000 00:00 0
+3fff8c030000-3fff90000000 ---p 00000000 00:00 0
+3fff90000000-3fff90030000 rw-p 00000000 00:00 0
+3fff90030000-3fff94000000 ---p 00000000 00:00 0
+3fff94000000-3fff94030000 rw-p 00000000 00:00 0
+3fff94030000-3fff98000000 ---p 00000000 00:00 0
+3fff98000000-3fff98030000 rw-p 00000000 00:00 0
+3fff98030000-3fff9c000000 ---p 00000000 00:00 0
+3fff9c000000-3fff9c030000 rw-p 00000000 00:00 0
+3fff9c030000-3fffa0000000 ---p 00000000 00:00 0
+3fffa2290000-3fffa22d0000 rw-p 00000000 00:00 0
+3fffa22d0000-3fffa22e0000 ---p 00000000 00:00 0
+3fffa22e0000-3fffa2ae0000 rw-p 00000000 00:00 0
+3fffa2ae0000-3fffa2af0000 ---p 00000000 00:00 0
+3fffa2af0000-3fffa32f0000 rw-p 00000000 00:00 0
+3fffa32f0000-3fffa3300000 ---p 00000000 00:00 0
+3fffa3300000-3fffa3b00000 rw-p 00000000 00:00 0
+3fffa3b00000-3fffa3b10000 ---p 00000000 00:00 0
+3fffa3b10000-3fffa4310000 rw-p 00000000 00:00 0
+3fffa4310000-3fffa4320000 ---p 00000000 00:00 0
+3fffa4320000-3fffa4bb0000 rw-p 00000000 00:00 0
+3fffa4bb0000-3fffa4da0000 r-xp 00000000 fd:00 34316081                   /u=
+sr/lib64/power9/libc-2.28.so
+3fffa4da0000-3fffa4db0000 r--p 001e0000 fd:00 34316081                   /u=
+sr/lib64/power9/libc-2.28.so
+3fffa4db0000-3fffa4dc0000 rw-p 001f0000 fd:00 34316081                   /u=
+sr/lib64/power9/libc-2.28.so
+3fffa4dc0000-3fffa4df0000 r-xp 00000000 fd:00 34316085                   /u=
+sr/lib64/power9/libpthread-2.28.so
+3fffa4df0000-3fffa4e00000 r--p 00020000 fd:00 34316085                   /u=
+sr/lib64/power9/libpthread-2.28.so
+3fffa4e00000-3fffa4e10000 rw-p 00030000 fd:00 34316085                   /u=
+sr/lib64/power9/libpthread-2.28.so
+3fffa4e10000-3fffa4e20000 rw-p 00000000 00:00 0
+3fffa4e20000-3fffa4e40000 r-xp 00000000 00:00 0                          [v=
+dso]
+3fffa4e40000-3fffa4e70000 r-xp 00000000 fd:00 874114                     /u=
+sr/lib64/ld-2.28.so
+3fffa4e70000-3fffa4e80000 r--p 00020000 fd:00 874114                     /u=
+sr/lib64/ld-2.28.so
+3fffa4e80000-3fffa4e90000 rw-p 00030000 fd:00 874114                     /u=
+sr/lib64/ld-2.28.so
+3ffff3000000-3ffff3030000 rw-p 00000000 00:00 0
+[stack]
 
-So, is the !__HAVE_ARCH_PTE_DEVMAP case actually expected to work? If 
-not, then it seems to me that the relevant code could just be gated by 
-CONFIG_ZONE_DEVICE directly to remove the confusion. If it is, though, 
-then what should the generic definitions of p??_mkdevmap() be? I guess 
-either way I still need to figure out the implications of _PAGE_DEVMAP 
-at the arch end and whether/how arm64 should implement it, but given 
-this initial hurdle it's not clear exactly where to go next.
+With a 4.18-derived kernel (with the hashed mm), we get this instead:
 
-Tangentially, is it also right that is_device_{public,private}_page() 
-can still get non-stub definitions even with 
-CONFIG_DEVICE_{PUBLIC,PRIVATE} disabled? As it happens, the patch below 
-is enough to dodge the build failure for my configuration (i.e. 
-CONFIG_FS_DAX && !CONFIG_HMM) by optimising the offending call away, 
-however I'm not sure I'd want to rely on that; conceptually, though, it 
-does still seem like it might be appropriate.
+120e60000-121030000 rw-p 00000000 fd:00 102447141                        /r=
+oot/extld
+121030000-121060000 rw-p 001c0000 fd:00 102447141                        /r=
+oot/extld
+121060000-121080000 rw-p 00000000 00:00 0=20
+7fffb5b00000-7fffb5cf0000 r-xp 00000000 fd:00 67169871                   /u=
+sr/lib64/power9/libc-2.28.so
+7fffb5cf0000-7fffb5d00000 r--p 001e0000 fd:00 67169871                   /u=
+sr/lib64/power9/libc-2.28.so
+7fffb5d00000-7fffb5d10000 rw-p 001f0000 fd:00 67169871                   /u=
+sr/lib64/power9/libc-2.28.so
+7fffb5d10000-7fffb5d40000 r-xp 00000000 fd:00 67169875                   /u=
+sr/lib64/power9/libpthread-2.28.so
+7fffb5d40000-7fffb5d50000 r--p 00020000 fd:00 67169875                   /u=
+sr/lib64/power9/libpthread-2.28.so
+7fffb5d50000-7fffb5d60000 rw-p 00030000 fd:00 67169875                   /u=
+sr/lib64/power9/libpthread-2.28.so
+7fffb5d60000-7fffb5d70000 r--p 00000000 fd:00 67780267                   /e=
+tc/ld.so.cache
+7fffb5d70000-7fffb5d90000 r-xp 00000000 00:00 0                          [v=
+dso]
+7fffb5d90000-7fffb5dc0000 r-xp 00000000 fd:00 1477                       /u=
+sr/lib64/ld-2.28.so
+7fffb5dc0000-7fffb5de0000 rw-p 00020000 fd:00 1477                       /u=
+sr/lib64/ld-2.28.so
+7fffff6c0000-7fffff6f0000 rw-p 00000000 00:00 0                          [s=
+tack]
+
+There are fewer mappings because the loader detects a relocation
+overflow and aborts (=E2=80=9Cerror while loading shared libraries:
+R_PPC64_ADDR16_HA reloc at 0x0000000120f0983c for symbol `' out of
+range=E2=80=9D), so I had to recover the mappings externally.  Disabling AS=
+LR
+does not help.
+
+The Go program looks like this:
+
+package main
+
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+)
+
+// #include <gnu/libc-version.h>
+import "C"
+
+func main() {
+	// Force external linking against glibc.
+	fmt.Printf("%#v\n", C.GoString(C.gnu_get_libc_version()))
+
+	maps, err :=3D os.Open("/proc/self/maps")
+	if err !=3D nil {
+     		panic(err)
+	}
+	defer maps.Close()
+	contents, err :=3D ioutil.ReadAll(maps)
+	if err !=3D nil {
+		panic(err)
+	}
+	_, err =3D os.Stdout.Write(contents)
+	if err !=3D nil {
+		panic(err)
+	}
+}
+
+And it needs to be built with:
+
+  go build -ldflags=3D-extldflags=3D-pie extld.go
+
+I'm not entirely sure what to make of this, but I'm worried that this
+could be a regression that matters to userspace.
 
 Thanks,
-Robin.
-
------>8-----
-From: Robin Murphy <robin.murphy@arm.com>
-Date: Wed, 31 Oct 2018 15:57:17 +0000
-Subject: [PATCH] mm: Clean up is_device_*_page() definitions
-
-Refactor is_device_{public,private}_page() with is_pci_p2pdma_page()
-to make them all consistent in depending on their respective config
-options even when CONFIG_DEV_PAGEMAP_OPS is enabled for other reasons.
-This allows a little more compile-time optimisation as well as the
-conceptual and cosmetic cleanup.
-
-Signed-off-by: Robin Murphy <robin.murphy@arm.com>
----
-  include/linux/mm.h | 52 ++++++++++++++++++++++------------------------
-  1 file changed, 25 insertions(+), 27 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 1e52b8fd1685..15a49ed5436c 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -879,32 +879,6 @@ static inline bool put_devmap_managed_page(struct 
-page *page)
-  	}
-  	return false;
-  }
--
--static inline bool is_device_private_page(const struct page *page)
--{
--	return is_zone_device_page(page) &&
--		page->pgmap->type == MEMORY_DEVICE_PRIVATE;
--}
--
--static inline bool is_device_public_page(const struct page *page)
--{
--	return is_zone_device_page(page) &&
--		page->pgmap->type == MEMORY_DEVICE_PUBLIC;
--}
--
--#ifdef CONFIG_PCI_P2PDMA
--static inline bool is_pci_p2pdma_page(const struct page *page)
--{
--	return is_zone_device_page(page) &&
--		page->pgmap->type == MEMORY_DEVICE_PCI_P2PDMA;
--}
--#else /* CONFIG_PCI_P2PDMA */
--static inline bool is_pci_p2pdma_page(const struct page *page)
--{
--	return false;
--}
--#endif /* CONFIG_PCI_P2PDMA */
--
-  #else /* CONFIG_DEV_PAGEMAP_OPS */
-  static inline void dev_pagemap_get_ops(void)
-  {
-@@ -918,22 +892,46 @@ static inline bool put_devmap_managed_page(struct 
-page *page)
-  {
-  	return false;
-  }
-+#endif /* CONFIG_DEV_PAGEMAP_OPS */
-
-+#if defined(CONFIG_DEV_PAGEMAP_OPS) && defined(CONFIG_DEVICE_PRIVATE)
-+static inline bool is_device_private_page(const struct page *page)
-+{
-+	return is_zone_device_page(page) &&
-+		page->pgmap->type == MEMORY_DEVICE_PRIVATE;
-+}
-+#else
-  static inline bool is_device_private_page(const struct page *page)
-  {
-  	return false;
-  }
-+#endif
-
-+#if defined(CONFIG_DEV_PAGEMAP_OPS) && defined(CONFIG_DEVICE_PUBLIC)
-+static inline bool is_device_public_page(const struct page *page)
-+{
-+	return is_zone_device_page(page) &&
-+		page->pgmap->type == MEMORY_DEVICE_PUBLIC;
-+}
-+#else
-  static inline bool is_device_public_page(const struct page *page)
-  {
-  	return false;
-  }
-+#endif
-
-+#if defined(CONFIG_DEV_PAGEMAP_OPS) && defined(CONFIG_PCI_P2PDMA)
-+static inline bool is_pci_p2pdma_page(const struct page *page)
-+{
-+	return is_zone_device_page(page) &&
-+		page->pgmap->type == MEMORY_DEVICE_PCI_P2PDMA;
-+}
-+#else
-  static inline bool is_pci_p2pdma_page(const struct page *page)
-  {
-  	return false;
-  }
--#endif /* CONFIG_DEV_PAGEMAP_OPS */
-+#endif
-
-  static inline void get_page(struct page *page)
-  {
--- 
-2.19.1.dirty
+Florian
