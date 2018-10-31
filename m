@@ -1,50 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ED76D6B0310
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 04:47:22 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id d7-v6so13176389pfj.6
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 01:47:22 -0700 (PDT)
-Received: from mailgw02.mediatek.com ([210.61.82.184])
-        by mx.google.com with ESMTPS id j5-v6si25413931plk.145.2018.10.31.01.47.21
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B8C5B6B0270
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 05:03:03 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id i81-v6so13197551pfj.1
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 02:03:03 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h20-v6sor27058516pgg.78.2018.10.31.02.03.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Oct 2018 01:47:21 -0700 (PDT)
-Message-ID: <1540975637.10275.10.camel@mtkswgap22>
-Subject: Re: [PATCH v3] mm/page_owner: use kvmalloc instead of kmalloc
-From: Miles Chen <miles.chen@mediatek.com>
-Date: Wed, 31 Oct 2018 16:47:17 +0800
-In-Reply-To: <20181030081537.GV32673@dhcp22.suse.cz>
-References: <1540790176-32339-1-git-send-email-miles.chen@mediatek.com>
-	 <20181029080708.GA32673@dhcp22.suse.cz>
-	 <20181029081706.GC32673@dhcp22.suse.cz>
-	 <1540862950.12374.40.camel@mtkswgap22>
-	 <20181030060601.GR32673@dhcp22.suse.cz>
-	 <1540882551.23278.12.camel@mtkswgap22>
-	 <20181030081537.GV32673@dhcp22.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Wed, 31 Oct 2018 02:03:02 -0700 (PDT)
+Date: Wed, 31 Oct 2018 12:02:55 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 1/3] mm: introduce mm_[p4d|pud|pmd]_folded
+Message-ID: <20181031090255.bvmp3jnsdaunhzn7@kshutemo-mobl1>
+References: <1539621759-5967-1-git-send-email-schwidefsky@de.ibm.com>
+ <1539621759-5967-2-git-send-email-schwidefsky@de.ibm.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1539621759-5967-2-git-send-email-schwidefsky@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joe Perches <joe@perches.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Li Wang <liwang@redhat.com>, Guenter Roeck <linux@roeck-us.net>, Janosch Frank <frankja@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Tue, 2018-10-30 at 09:15 +0100, Michal Hocko wrote:
-> On Tue 30-10-18 14:55:51, Miles Chen wrote:
-> [...]
-> > It's a real problem when using page_owner.
-> > I found this issue recently: I'm not able to read page_owner information
-> > during a overnight test. (error: read failed: Out of memory). I replace
-> > kmalloc() with vmalloc() and it worked well.
+On Mon, Oct 15, 2018 at 06:42:37PM +0200, Martin Schwidefsky wrote:
+> Add three architecture overrideable function to test if the
+> p4d, pud, or pmd layer of a page table is folded or not.
 > 
-> Is this with trimming the allocation to a single page and doing shorter
-> than requested reads?
+> Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> ---
+>  include/linux/mm.h | 40 ++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 40 insertions(+)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 0416a7204be3..d1029972541c 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
 
+Shouldn't it be somewhere in asm-generic/pgtable*?
 
-I printed out the allocate count on my device the request count is <=
-4096. So I tested this scenario by trimming the count to from 4096 to
-1024 bytes and it works fine. 
+> @@ -105,6 +105,46 @@ extern int mmap_rnd_compat_bits __read_mostly;
+>  #define mm_zero_struct_page(pp)  ((void)memset((pp), 0, sizeof(struct page)))
+>  #endif
+>  
+> +/*
+> + * On some architectures it depends on the mm if the p4d/pud or pmd
+> + * layer of the page table hierarchy is folded or not.
+> + */
+> +#ifndef mm_p4d_folded
+> +#define mm_p4d_folded(mm) mm_p4d_folded(mm)
 
-count = count > 1024? 1024: count;
+Do we need to define it in generic header?
 
-It tested it on both 32bit and 64bit kernel.
+> +static inline bool mm_p4d_folded(struct mm_struct *mm)
+> +{
+> +#ifdef __PAGETABLE_P4D_FOLDED
+> +	return 1;
+> +#else
+> +	return 0;
+> +#endif
+
+Maybe
+	return __is_defined(__PAGETABLE_P4D_FOLDED);
+
+?
+
+-- 
+ Kirill A. Shutemov
