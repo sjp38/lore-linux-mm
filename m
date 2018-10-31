@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 181B16B0351
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2018 23:25:11 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id s23-v6so143680plq.7
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2018 20:25:11 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 14-v6si25976552pgl.157.2018.10.30.20.25.09
+	by kanga.kvack.org (Postfix) with ESMTP id 1F2986B0357
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2018 23:25:16 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id x17-v6so11382173pln.4
+        for <linux-mm@kvack.org>; Tue, 30 Oct 2018 20:25:16 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id e16-v6si25778591pfn.124.2018.10.30.20.25.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Oct 2018 20:25:09 -0700 (PDT)
-Subject: [PATCH 6/8] device-dax: Move resource pinning+mapping into the
- common driver
+        Tue, 30 Oct 2018 20:25:14 -0700 (PDT)
+Subject: [PATCH 7/8] device-dax: Add support for a dax override driver
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 30 Oct 2018 20:13:20 -0700
-Message-ID: <154095560048.3271337.5958710475937860522.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Tue, 30 Oct 2018 20:13:26 -0700
+Message-ID: <154095560594.3271337.11620109886861134971.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <154095556915.3271337.12581429676272726902.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <154095556915.3271337.12581429676272726902.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -24,325 +23,268 @@ List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@linux.intel.com
 
-Move the responsibility of calling devm_request_resource() and
-devm_memremap_pages() into the common device-dax driver. This is another
-preparatory step to allowing an alternate personality driver for a
-device-dax range.
+Introduce the 'new_id' concept for enabling a custom device-driver attach
+policy for dax-bus drivers. The intended use is to have a mechanism for
+hot-plugging device-dax ranges into the page allocator on-demand. With
+this in place the default policy of using device-dax for performance
+differentiated memory can be overridden by user-space policy that can
+arrange for the memory range to be managed as 'System RAM' with
+user-defined NUMA and other performance attributes.
 
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/dax/bus.c         |    6 ++-
- drivers/dax/bus.h         |    3 +
- drivers/dax/dax-private.h |    9 ++++
- drivers/dax/device.c      |   65 ++++++++++++++++++++++++++++++
- drivers/dax/pmem.c        |   98 ++++++---------------------------------------
- 5 files changed, 94 insertions(+), 87 deletions(-)
+ drivers/dax/bus.c    |  145 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ drivers/dax/bus.h    |   10 +++
+ drivers/dax/device.c |   11 ++--
+ 3 files changed, 156 insertions(+), 10 deletions(-)
 
 diff --git a/drivers/dax/bus.c b/drivers/dax/bus.c
-index 0cff32102c4c..69aae2cbd45f 100644
+index 69aae2cbd45f..178d76504f79 100644
 --- a/drivers/dax/bus.c
 +++ b/drivers/dax/bus.c
-@@ -1,5 +1,6 @@
- // SPDX-License-Identifier: GPL-2.0
+@@ -2,11 +2,21 @@
  /* Copyright(c) 2017-2018 Intel Corporation. All rights reserved. */
-+#include <linux/memremap.h>
+ #include <linux/memremap.h>
  #include <linux/device.h>
++#include <linux/mutex.h>
++#include <linux/list.h>
  #include <linux/slab.h>
  #include <linux/dax.h>
-@@ -206,7 +207,8 @@ static void unregister_dev_dax(void *dev)
- 	put_device(dev);
- }
- 
--struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id)
-+struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id,
-+		struct dev_pagemap *pgmap)
- {
- 	struct device *parent = dax_region->dev;
- 	struct dax_device *dax_dev;
-@@ -222,6 +224,8 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id)
- 	if (!dev_dax)
- 		return ERR_PTR(-ENOMEM);
- 
-+	memcpy(&dev_dax->pgmap, pgmap, sizeof(*pgmap));
-+
- 	/*
- 	 * No 'host' or dax_operations since there is no access to this
- 	 * device outside of mmap of the resulting character device.
-diff --git a/drivers/dax/bus.h b/drivers/dax/bus.h
-index ea509504df3a..e08e0c394983 100644
---- a/drivers/dax/bus.h
-+++ b/drivers/dax/bus.h
-@@ -10,7 +10,8 @@ struct dax_region;
- void dax_region_put(struct dax_region *dax_region);
- struct dax_region *alloc_dax_region(struct device *parent, int region_id,
- 		struct resource *res, unsigned int align, unsigned long flags);
--struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id);
-+struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id,
-+		struct dev_pagemap *pgmap);
- int __dax_driver_register(struct device_driver *drv,
- 		struct module *module, const char *mod_name);
- #define dax_driver_register(driver) \
-diff --git a/drivers/dax/dax-private.h b/drivers/dax/dax-private.h
-index c3a121700837..a82ce48f5884 100644
---- a/drivers/dax/dax-private.h
-+++ b/drivers/dax/dax-private.h
-@@ -42,15 +42,22 @@ struct dax_region {
- };
- 
- /**
-- * struct dev_dax - instance data for a subdivision of a dax region
-+ * struct dev_dax - instance data for a subdivision of a dax region, and
-+ * data while the device is activated in the driver.
-  * @region - parent region
-  * @dax_dev - core dax functionality
-  * @dev - device core
-+ * @pgmap - pgmap for memmap setup / lifetime (driver owned)
-+ * @ref: pgmap reference count (driver owned)
-+ * @cmp: @ref final put completion (driver owned)
-  */
- struct dev_dax {
- 	struct dax_region *region;
- 	struct dax_device *dax_dev;
- 	struct device dev;
-+	struct dev_pagemap pgmap;
-+	struct percpu_ref ref;
-+	struct completion cmp;
- };
- 
- static inline struct dev_dax *to_dev_dax(struct device *dev)
-diff --git a/drivers/dax/device.c b/drivers/dax/device.c
-index f55829404a24..967bab097013 100644
---- a/drivers/dax/device.c
-+++ b/drivers/dax/device.c
-@@ -1,5 +1,6 @@
- // SPDX-License-Identifier: GPL-2.0
- /* Copyright(c) 2016-2018 Intel Corporation. All rights reserved. */
-+#include <linux/memremap.h>
- #include <linux/pagemap.h>
- #include <linux/module.h>
- #include <linux/device.h>
-@@ -13,6 +14,38 @@
  #include "dax-private.h"
  #include "bus.h"
  
-+static struct dev_dax *ref_to_dev_dax(struct percpu_ref *ref)
-+{
-+	return container_of(ref, struct dev_dax, ref);
-+}
++static DEFINE_MUTEX(dax_bus_lock);
 +
-+static void dev_dax_percpu_release(struct percpu_ref *ref)
-+{
-+	struct dev_dax *dev_dax = ref_to_dev_dax(ref);
++#define DAX_NAME_LEN 30
++struct dax_id {
++	struct list_head list;
++	char dev_name[DAX_NAME_LEN];
++};
 +
-+	dev_dbg(&dev_dax->dev, "%s\n", __func__);
-+	complete(&dev_dax->cmp);
-+}
-+
-+static void dev_dax_percpu_exit(void *data)
-+{
-+	struct percpu_ref *ref = data;
-+	struct dev_dax *dev_dax = ref_to_dev_dax(ref);
-+
-+	dev_dbg(&dev_dax->dev, "%s\n", __func__);
-+	wait_for_completion(&dev_dax->cmp);
-+	percpu_ref_exit(ref);
-+}
-+
-+static void dev_dax_percpu_kill(void *data)
-+{
-+	struct percpu_ref *ref = data;
-+	struct dev_dax *dev_dax = ref_to_dev_dax(ref);
-+
-+	dev_dbg(&dev_dax->dev, "%s\n", __func__);
-+	percpu_ref_kill(ref);
-+}
-+
- static int check_vma(struct dev_dax *dev_dax, struct vm_area_struct *vma,
- 		const char *func)
+ static int dax_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
  {
-@@ -416,10 +449,42 @@ static int dev_dax_probe(struct device *dev)
- {
- 	struct dev_dax *dev_dax = to_dev_dax(dev);
- 	struct dax_device *dax_dev = dev_dax->dax_dev;
-+	struct resource *res = &dev_dax->region->res;
- 	struct inode *inode;
- 	struct cdev *cdev;
-+	void *addr;
- 	int rc;
+ 	/*
+@@ -16,22 +26,115 @@ static int dax_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+ 	return add_uevent_var(env, "MODALIAS=" DAX_DEVICE_MODALIAS_FMT, 0);
+ }
  
-+	/* 1:1 map region resource range to device-dax instance range */
-+	if (!devm_request_mem_region(dev, res->start, resource_size(res),
-+				dev_name(dev))) {
-+		dev_warn(dev, "could not reserve region %pR\n", res);
-+		return -EBUSY;
++static struct dax_device_driver *to_dax_drv(struct device_driver *drv)
++{
++	return container_of(drv, struct dax_device_driver, drv);
++}
++
++static struct dax_id *__dax_match_id(struct dax_device_driver *dax_drv,
++		const char *dev_name)
++{
++	struct dax_id *dax_id;
++
++	lockdep_assert_held(&dax_bus_lock);
++
++	list_for_each_entry(dax_id, &dax_drv->ids, list)
++		if (strcmp(dax_id->dev_name, dev_name) == 0)
++			return dax_id;
++	return NULL;
++}
++
++static int dax_match_id(struct dax_device_driver *dax_drv, struct device *dev)
++{
++	int match;
++
++	mutex_lock(&dax_bus_lock);
++	match = !!__dax_match_id(dax_drv, dev_name(dev));
++	mutex_unlock(&dax_bus_lock);
++
++	return match;
++}
++
++static ssize_t do_id_store(struct device_driver *drv, const char *buf,
++		size_t count, bool add)
++{
++	struct dax_device_driver *dax_drv = to_dax_drv(drv);
++	unsigned int region_id, id;
++	struct dax_id *dax_id;
++	ssize_t rc = count;
++	int fields;
++
++	fields = sscanf(buf, "dax%d.%d", &region_id, &id);
++	if (fields != 2)
++		return -EINVAL;
++
++	if (strlen(buf) + 1 > DAX_NAME_LEN)
++		return -EINVAL;
++
++	mutex_lock(&dax_bus_lock);
++	dax_id = __dax_match_id(dax_drv, buf);
++	if (!dax_id) {
++		if (add) {
++			dax_id = kzalloc(sizeof(*dax_id), GFP_KERNEL);
++			if (dax_id) {
++				strncpy(dax_id->dev_name, buf, DAX_NAME_LEN);
++				list_add(&dax_id->list, &dax_drv->ids);
++			} else
++				rc = -ENOMEM;
++		} else
++			/* nothing to remove */;
++	} else if (!add) {
++		list_del(&dax_id->list);
++		kfree(dax_id);
++	} else
++		/* dax_id already added */;
++	mutex_unlock(&dax_bus_lock);
++	return rc;
++}
++
++static ssize_t new_id_store(struct device_driver *drv, const char *buf,
++		size_t count)
++{
++	return do_id_store(drv, buf, count, true);
++}
++static DRIVER_ATTR_WO(new_id);
++
++
++static ssize_t remove_id_store(struct device_driver *drv, const char *buf,
++		size_t count)
++{
++	return do_id_store(drv, buf, count, false);
++}
++static DRIVER_ATTR_WO(remove_id);
++
++static struct attribute *dax_drv_attrs[] = {
++	&driver_attr_new_id.attr,
++	&driver_attr_remove_id.attr,
++	NULL,
++};
++ATTRIBUTE_GROUPS(dax_drv);
++
+ static int dax_bus_match(struct device *dev, struct device_driver *drv);
+ 
+ static struct bus_type dax_bus_type = {
+ 	.name = "dax",
+ 	.uevent = dax_bus_uevent,
+ 	.match = dax_bus_match,
++	.drv_groups = dax_drv_groups,
+ };
+ 
+ static int dax_bus_match(struct device *dev, struct device_driver *drv)
+ {
++	struct dax_device_driver *dax_drv = to_dax_drv(drv);
++
+ 	/*
+-	 * The drivers that can register on the 'dax' bus are private to
+-	 * drivers/dax/ so any device and driver on the bus always
+-	 * match.
++	 * All but the 'device-dax' driver, which has 'match_always'
++	 * set, requires an exact id match.
+ 	 */
+-	return 1;
++	if (dax_drv->match_always)
++		return 1;
++
++	return dax_match_id(dax_drv, dev);
+ }
+ 
+ /*
+@@ -273,17 +376,49 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id,
+ }
+ EXPORT_SYMBOL_GPL(devm_create_dev_dax);
+ 
+-int __dax_driver_register(struct device_driver *drv,
++static int match_always_count;
++
++int __dax_driver_register(struct dax_device_driver *dax_drv,
+ 		struct module *module, const char *mod_name)
+ {
++	struct device_driver *drv = &dax_drv->drv;
++	int rc = 0;
++
++	INIT_LIST_HEAD(&dax_drv->ids);
+ 	drv->owner = module;
+ 	drv->name = mod_name;
+ 	drv->mod_name = mod_name;
+ 	drv->bus = &dax_bus_type;
++
++	/* there can only be one default driver */
++	mutex_lock(&dax_bus_lock);
++	match_always_count += dax_drv->match_always;
++	if (match_always_count > 1) {
++		match_always_count--;
++		WARN_ON(1);
++		rc = -EINVAL;
 +	}
-+
-+	init_completion(&dev_dax->cmp);
-+	rc = percpu_ref_init(&dev_dax->ref, dev_dax_percpu_release, 0,
-+			GFP_KERNEL);
++	mutex_unlock(&dax_bus_lock);
 +	if (rc)
 +		return rc;
+ 	return driver_register(drv);
+ }
+ EXPORT_SYMBOL_GPL(__dax_driver_register);
+ 
++void dax_driver_unregister(struct dax_device_driver *dax_drv)
++{
++	struct dax_id *dax_id, *_id;
 +
-+	rc = devm_add_action_or_reset(dev, dev_dax_percpu_exit, &dev_dax->ref);
-+	if (rc)
-+		return rc;
-+
-+	dev_dax->pgmap.ref = &dev_dax->ref;
-+	addr = devm_memremap_pages(dev, &dev_dax->pgmap);
-+	if (IS_ERR(addr)) {
-+		devm_remove_action(dev, dev_dax_percpu_exit, &dev_dax->ref);
-+		percpu_ref_exit(&dev_dax->ref);
-+		return PTR_ERR(addr);
++	mutex_lock(&dax_bus_lock);
++	match_always_count -= dax_drv->match_always;
++	list_for_each_entry_safe(dax_id, _id, &dax_drv->ids, list) {
++		list_del(&dax_id->list);
++		kfree(dax_id);
 +	}
++	mutex_unlock(&dax_bus_lock);
++}
++EXPORT_SYMBOL_GPL(dax_driver_unregister);
 +
-+	rc = devm_add_action_or_reset(dev, dev_dax_percpu_kill,
-+			&dev_dax->ref);
-+	if (rc)
-+		return rc;
-+
- 	inode = dax_inode(dax_dev);
- 	cdev = inode->i_cdev;
- 	cdev_init(cdev, &dax_fops);
-diff --git a/drivers/dax/pmem.c b/drivers/dax/pmem.c
-index c94f17e662bd..d3cefa7868ac 100644
---- a/drivers/dax/pmem.c
-+++ b/drivers/dax/pmem.c
-@@ -18,55 +18,16 @@
- #include "../nvdimm/nd.h"
- #include "bus.h"
- 
--struct dax_pmem {
--	struct device *dev;
--	struct percpu_ref ref;
--	struct dev_pagemap pgmap;
--	struct completion cmp;
--};
--
--static struct dax_pmem *to_dax_pmem(struct percpu_ref *ref)
--{
--	return container_of(ref, struct dax_pmem, ref);
--}
--
--static void dax_pmem_percpu_release(struct percpu_ref *ref)
--{
--	struct dax_pmem *dax_pmem = to_dax_pmem(ref);
--
--	dev_dbg(dax_pmem->dev, "trace\n");
--	complete(&dax_pmem->cmp);
--}
--
--static void dax_pmem_percpu_exit(void *data)
--{
--	struct percpu_ref *ref = data;
--	struct dax_pmem *dax_pmem = to_dax_pmem(ref);
--
--	dev_dbg(dax_pmem->dev, "trace\n");
--	wait_for_completion(&dax_pmem->cmp);
--	percpu_ref_exit(ref);
--}
--
--static void dax_pmem_percpu_kill(void *data)
--{
--	struct percpu_ref *ref = data;
--	struct dax_pmem *dax_pmem = to_dax_pmem(ref);
--
--	dev_dbg(dax_pmem->dev, "trace\n");
--	percpu_ref_kill(ref);
--}
--
- static int dax_pmem_probe(struct device *dev)
+ int __init dax_bus_init(void)
  {
--	void *addr;
- 	struct resource res;
- 	int rc, id, region_id;
-+	resource_size_t offset;
- 	struct nd_pfn_sb *pfn_sb;
- 	struct dev_dax *dev_dax;
--	struct dax_pmem *dax_pmem;
- 	struct nd_namespace_io *nsio;
- 	struct dax_region *dax_region;
-+	struct dev_pagemap pgmap = { 0 };
- 	struct nd_namespace_common *ndns;
- 	struct nd_dax *nd_dax = to_nd_dax(dev);
- 	struct nd_pfn *nd_pfn = &nd_dax->nd_pfn;
-@@ -76,68 +37,37 @@ static int dax_pmem_probe(struct device *dev)
- 		return PTR_ERR(ndns);
- 	nsio = to_nd_namespace_io(&ndns->dev);
+ 	return bus_register(&dax_bus_type);
+diff --git a/drivers/dax/bus.h b/drivers/dax/bus.h
+index e08e0c394983..395ab812367c 100644
+--- a/drivers/dax/bus.h
++++ b/drivers/dax/bus.h
+@@ -12,10 +12,18 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
+ 		struct resource *res, unsigned int align, unsigned long flags);
+ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id,
+ 		struct dev_pagemap *pgmap);
+-int __dax_driver_register(struct device_driver *drv,
++
++struct dax_device_driver {
++	struct device_driver drv;
++	struct list_head ids;
++	int match_always;
++};
++
++int __dax_driver_register(struct dax_device_driver *dax_drv,
+ 		struct module *module, const char *mod_name);
+ #define dax_driver_register(driver) \
+ 	__dax_driver_register(driver, THIS_MODULE, KBUILD_MODNAME)
++void dax_driver_unregister(struct dax_device_driver *dax_drv);
+ void kill_dev_dax(struct dev_dax *dev_dax);
  
--	dax_pmem = devm_kzalloc(dev, sizeof(*dax_pmem), GFP_KERNEL);
--	if (!dax_pmem)
--		return -ENOMEM;
--
- 	/* parse the 'pfn' info block via ->rw_bytes */
- 	rc = devm_nsio_enable(dev, nsio);
- 	if (rc)
- 		return rc;
--	rc = nvdimm_setup_pfn(nd_pfn, &dax_pmem->pgmap);
-+	rc = nvdimm_setup_pfn(nd_pfn, &pgmap);
- 	if (rc)
- 		return rc;
- 	devm_nsio_disable(dev, nsio);
+ /*
+diff --git a/drivers/dax/device.c b/drivers/dax/device.c
+index 967bab097013..052aed3ab600 100644
+--- a/drivers/dax/device.c
++++ b/drivers/dax/device.c
+@@ -508,9 +508,12 @@ static int dev_dax_remove(struct device *dev)
+ 	return 0;
+ }
  
--	pfn_sb = nd_pfn->pfn_sb;
--
--	if (!devm_request_mem_region(dev, nsio->res.start,
--				resource_size(&nsio->res),
-+	/* reserve the metadata area, device-dax will reserve the data */
-+        pfn_sb = nd_pfn->pfn_sb;
-+	offset = le64_to_cpu(pfn_sb->dataoff);
-+	if (!devm_request_mem_region(dev, nsio->res.start, offset,
- 				dev_name(&ndns->dev))) {
--		dev_warn(dev, "could not reserve region %pR\n", &nsio->res);
--		return -EBUSY;
--	}
--
--	dax_pmem->dev = dev;
--	init_completion(&dax_pmem->cmp);
--	rc = percpu_ref_init(&dax_pmem->ref, dax_pmem_percpu_release, 0,
--			GFP_KERNEL);
--	if (rc)
--		return rc;
--
--	rc = devm_add_action(dev, dax_pmem_percpu_exit, &dax_pmem->ref);
--	if (rc) {
--		percpu_ref_exit(&dax_pmem->ref);
--		return rc;
--	}
--
--	dax_pmem->pgmap.ref = &dax_pmem->ref;
--	addr = devm_memremap_pages(dev, &dax_pmem->pgmap);
--	if (IS_ERR(addr)) {
--		devm_remove_action(dev, dax_pmem_percpu_exit, &dax_pmem->ref);
--		percpu_ref_exit(&dax_pmem->ref);
--		return PTR_ERR(addr);
--	}
--
--	rc = devm_add_action_or_reset(dev, dax_pmem_percpu_kill,
--							&dax_pmem->ref);
--	if (rc)
--		return rc;
--
--	/* adjust the dax_region resource to the start of data */
--	memcpy(&res, &dax_pmem->pgmap.res, sizeof(res));
--	res.start += le64_to_cpu(pfn_sb->dataoff);
-+                dev_warn(dev, "could not reserve metadata\n");
-+                return -EBUSY;
-+        }
+-static struct device_driver device_dax_driver = {
+-	.probe = dev_dax_probe,
+-	.remove = dev_dax_remove,
++static struct dax_device_driver device_dax_driver = {
++	.drv = {
++		.probe = dev_dax_probe,
++		.remove = dev_dax_remove,
++	},
++	.match_always = 1,
+ };
  
- 	rc = sscanf(dev_name(&ndns->dev), "namespace%d.%d", &region_id, &id);
- 	if (rc != 2)
- 		return -EINVAL;
+ static int __init dax_init(void)
+@@ -520,7 +523,7 @@ static int __init dax_init(void)
  
-+	/* adjust the dax_region resource to the start of data */
-+	memcpy(&res, &pgmap.res, sizeof(res));
-+	res.start += offset;
- 	dax_region = alloc_dax_region(dev, region_id, &res,
- 			le32_to_cpu(pfn_sb->align), PFN_DEV|PFN_MAP);
- 	if (!dax_region)
- 		return -ENOMEM;
+ static void __exit dax_exit(void)
+ {
+-	driver_unregister(&device_dax_driver);
++	dax_driver_unregister(&device_dax_driver);
+ }
  
--	dev_dax = devm_create_dev_dax(dax_region, id);
-+	dev_dax = devm_create_dev_dax(dax_region, id, &pgmap);
- 
- 	/* child dev_dax instances now own the lifetime of the dax_region */
- 	dax_region_put(dax_region);
+ MODULE_AUTHOR("Intel Corporation");
