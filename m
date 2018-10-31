@@ -1,41 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AF2E6B000E
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 10:19:24 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id bb3-v6so12395758plb.20
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 07:19:24 -0700 (PDT)
-Subject: Re: [PATCH v3] mm, drm/i915: mark pinned shmemfs pages as unevictable
-References: <20181031081945.207709-1-vovoy@chromium.org>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <039b2768-39ff-6196-9615-1f0302ee3e0e@intel.com>
-Date: Wed, 31 Oct 2018 07:19:21 -0700
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 117236B0266
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 10:21:27 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 14-v6so13662947pfk.22
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 07:21:27 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id c38-v6si23775233pgl.166.2018.10.31.07.21.25
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 31 Oct 2018 07:21:25 -0700 (PDT)
+Date: Wed, 31 Oct 2018 07:21:22 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [kvm PATCH v4 0/2] use vmalloc to allocate vmx vcpus
+Message-ID: <20181031142122.GM10491@bombadil.infradead.org>
+References: <20181026075900.111462-1-marcorr@google.com>
+ <CANRm+Cy2K08MCWq0mtqor66Uz8g-MaVKb=JDGD0WostFeogKSA@mail.gmail.com>
+ <CALMp9eSAP6=3MOjcexZsrtGjg4z6ULjhaJZBOZCkpFKganKfhA@mail.gmail.com>
+ <20181029164813.GH28520@bombadil.infradead.org>
+ <CAA03e5GT4gR4iN-na0PR_oTrXKVuD8BRcHcR8Y58==eRae3iXA@mail.gmail.com>
+ <20181031132751.GL10491@bombadil.infradead.org>
+ <CAA03e5F+o5svBe1HTOHukD6Z6ctnKB96+SQTfMZX39uhP2AS0g@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20181031081945.207709-1-vovoy@chromium.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAA03e5F+o5svBe1HTOHukD6Z6ctnKB96+SQTfMZX39uhP2AS0g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: owner-linux-mm@kvack.org, linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.orglinux-mm@kvack.org
-Cc: Kuo-Hsin Yang <vovoy@chromium.org>, Chris Wilson <chris@chris-wilson.co.uk>, Michal Hocko <mhocko@suse.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Marc Orr <marcorr@google.com>
+Cc: Jim Mattson <jmattson@google.com>, Wanpeng Li <kernellwp@gmail.com>, kvm@vger.kernel.org, David Rientjes <rientjes@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, akpm@linux-foundation.org, pbonzini@redhat.com, rkrcmar@redhat.com, sean.j.christopherson@intel.com
 
-On 10/31/18 1:19 AM, owner-linux-mm@kvack.org wrote:
-> -These are currently used in two places in the kernel:
-> +These are currently used in three places in the kernel:
->  
->   (1) By ramfs to mark the address spaces of its inodes when they are created,
->       and this mark remains for the life of the inode.
-> @@ -154,6 +154,8 @@ These are currently used in two places in the kernel:
->       swapped out; the application must touch the pages manually if it wants to
->       ensure they're in memory.
->  
-> + (3) By the i915 driver to mark pinned address space until it's unpinned.
+On Wed, Oct 31, 2018 at 01:48:44PM +0000, Marc Orr wrote:
+> Thanks for the explanation. Is there a way to dynamically detect the
+> memory allocation done by kvmalloc() (i.e., kmalloc() or vmalloc())?
+> If so, we could use kvmalloc(), and add two code paths to do the
+> physical mapping, according to whether the underlying memory was
+> allocated with kmalloc() or vmalloc().
 
-mlock() and ramfs usage are pretty easy to track down.  /proc/$pid/smaps
-or /proc/meminfo can show us mlock() and good ol' 'df' and friends can
-show us ramfs the extent of pinned memory.
+Yes -- it's used in the implementation of kvfree():
 
-With these, if we see "Unevictable" in meminfo bump up, we at least have
-a starting point to find the cause.
-
-Do we have an equivalent for i915?
+        if (is_vmalloc_addr(addr))
+                vfree(addr);
+        else
+                kfree(addr);
