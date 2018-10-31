@@ -1,69 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 09E8A6B026A
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 09:52:45 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id 3-v6so5107860plc.18
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 06:52:45 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id i13-v6si27207732pgd.311.2018.10.31.06.52.43
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DE3536B0006
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 10:11:08 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id n5-v6so12378094plp.16
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 07:11:08 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id p67-v6si29950174pfp.68.2018.10.31.07.11.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Oct 2018 06:52:43 -0700 (PDT)
-Date: Wed, 31 Oct 2018 09:52:42 -0400
-From: Sasha Levin <sashal@kernel.org>
-Subject: Re: [PATCH 4.18] Revert "mm: slowly shrink slabs with a relatively
- small number of objects"
-Message-ID: <20181031135242.GI194472@sasha-vm>
-References: <20181026111859.23807-1-sashal@kernel.org>
+        Wed, 31 Oct 2018 07:11:07 -0700 (PDT)
+Subject: Re: [kvm PATCH v5 2/4] kvm: x86: Dynamically allocate guest_fpu
+References: <20181031132634.50440-1-marcorr@google.com>
+ <20181031132634.50440-3-marcorr@google.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <cf476e07-e2fc-45c9-7259-3952a5cbb30e@intel.com>
+Date: Wed, 31 Oct 2018 07:11:05 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20181026111859.23807-1-sashal@kernel.org>
+In-Reply-To: <20181031132634.50440-3-marcorr@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org
-Cc: stable@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Marc Orr <marcorr@google.com>, kvm@vger.kernel.org, jmattson@google.com, rientjes@google.com, konrad.wilk@oracle.com, linux-mm@kvack.org, akpm@linux-foundation.org, pbonzini@redhat.com, rkrcmar@redhat.com, willy@infradead.org, sean.j.christopherson@intel.com, dave.hansen@linux.intel.com, kernellwp@gmail.com
 
-On Fri, Oct 26, 2018 at 07:18:59AM -0400, Sasha Levin wrote:
->This reverts commit 62aad93f09c1952ede86405894df1b22012fd5ab.
->
->Which was upstream commit 172b06c32b94 ("mm: slowly shrink slabs with a
->relatively small number of objects").
->
->The upstream commit was found to cause regressions. While there is a
->proposed fix upstream, revent this patch from stable trees for now as
->testing the fix will take some time.
->
->Signed-off-by: Sasha Levin <sashal@kernel.org>
->---
-> mm/vmscan.c | 11 -----------
-> 1 file changed, 11 deletions(-)
->
->diff --git a/mm/vmscan.c b/mm/vmscan.c
->index fc0436407471..03822f86f288 100644
->--- a/mm/vmscan.c
->+++ b/mm/vmscan.c
->@@ -386,17 +386,6 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
-> 	delta = freeable >> priority;
-> 	delta *= 4;
-> 	do_div(delta, shrinker->seeks);
->-
->-	/*
->-	 * Make sure we apply some minimal pressure on default priority
->-	 * even on small cgroups. Stale objects are not only consuming memory
->-	 * by themselves, but can also hold a reference to a dying cgroup,
->-	 * preventing it from being reclaimed. A dying cgroup with all
->-	 * corresponding structures like per-cpu stats and kmem caches
->-	 * can be really big, so it may lead to a significant waste of memory.
->-	 */
->-	delta = max_t(unsigned long long, delta, min(freeable, batch_size));
->-
-> 	total_scan += delta;
-> 	if (total_scan < 0) {
-> 		pr_err("shrink_slab: %pF negative objects to delete nr=%ld\n",
+On 10/31/18 6:26 AM, Marc Orr wrote:
+>  	r = -ENOMEM;
+> +	x86_fpu_cache = kmem_cache_create_usercopy(
+> +				"x86_fpu",
+> +				sizeof(struct fpu),
+> +				__alignof__(struct fpu),
+> +				SLAB_ACCOUNT,
+> +				offsetof(struct fpu, state),
+> +				sizeof_field(struct fpu, state),
+> +				NULL);
 
-I've queued it up for 4.18.
+We should basically never be using sizeof(struct fpu), anywhere.  As you
+saw, it's about a page in size, but the actual hardware FPU structure
+can be as small as ~500 bytes or as big as ~3k.  Doing it this way is a
+pretty unnecessary waste of memory because sizeof(struct fpu) is sized
+for the worst-case (largest) possible XSAVE buffer that we support on
+*any* CPU.  It will also get way worse if anyone ever throws a bunch
+more state into the XSAVE area and we need to make it way bigger.
 
---
-Thanks,
-Sasha
+If you want a kmem cache for this, I'd suggest creating a cache which is
+the size of the host XSAVE buffer.  That can be found in a variable
+called 'fpu_kernel_xstate_size'.  I'm assuming here that the guest FPU
+is going to support a strict subset of host kernel XSAVE states.
+
+The other alternative is to calculate the actual size of the XSAVE
+buffer that the guest needs.  You can do that from the values that KVM
+sets to limit guest XCR0 values (the name of the control field is
+escaping me at the moment).
