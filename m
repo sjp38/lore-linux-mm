@@ -1,44 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4ACE36B0007
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 16:41:19 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id w126-v6so13003276oib.18
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 13:41:19 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id r17sor9353129otb.187.2018.10.31.13.41.18
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A38A6B0003
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 17:14:05 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id d16-v6so14214921wre.11
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 14:14:05 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a19-v6sor3726367wmb.2.2018.10.31.14.14.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 31 Oct 2018 13:41:18 -0700 (PDT)
+        Wed, 31 Oct 2018 14:14:03 -0700 (PDT)
 MIME-Version: 1.0
-References: <9cf5c075-c83f-0915-99ef-b2aa59eca685@arm.com>
-In-Reply-To: <9cf5c075-c83f-0915-99ef-b2aa59eca685@arm.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 31 Oct 2018 13:41:06 -0700
-Message-ID: <CAPcyv4gZyDWYiQ8DHwei+FQRL22LGo3Sr6a-9VPESnuRJy7jtg@mail.gmail.com>
-Subject: Re: __HAVE_ARCH_PTE_DEVMAP - bug or intended behaviour?
+References: <20181031132634.50440-1-marcorr@google.com> <20181031132634.50440-3-marcorr@google.com>
+ <cf476e07-e2fc-45c9-7259-3952a5cbb30e@intel.com>
+In-Reply-To: <cf476e07-e2fc-45c9-7259-3952a5cbb30e@intel.com>
+From: Marc Orr <marcorr@google.com>
+Date: Wed, 31 Oct 2018 14:13:51 -0700
+Message-ID: <CAA03e5HmMq-+9WsJ+Kd05ary85A7HJ5HJbNMUzc87QCRxamJGg@mail.gmail.com>
+Subject: Re: [kvm PATCH v5 2/4] kvm: x86: Dynamically allocate guest_fpu
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Murphy <robin.murphy@arm.com>
-Cc: Linux MM <linux-mm@kvack.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+To: dave.hansen@intel.com
+Cc: kvm@vger.kernel.org, Jim Mattson <jmattson@google.com>, David Rientjes <rientjes@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, akpm@linux-foundation.org, pbonzini@redhat.com, rkrcmar@redhat.com, willy@infradead.org, sean.j.christopherson@intel.com, dave.hansen@linux.intel.com, Wanpeng Li <kernellwp@gmail.com>
 
-On Wed, Oct 31, 2018 at 10:08 AM Robin Murphy <robin.murphy@arm.com> wrote:
+> We should basically never be using sizeof(struct fpu), anywhere.  As you
+> saw, it's about a page in size, but the actual hardware FPU structure
+> can be as small as ~500 bytes or as big as ~3k.  Doing it this way is a
+> pretty unnecessary waste of memory because sizeof(struct fpu) is sized
+> for the worst-case (largest) possible XSAVE buffer that we support on
+> *any* CPU.  It will also get way worse if anyone ever throws a bunch
+> more state into the XSAVE area and we need to make it way bigger.
 >
-> Hi mm folks,
->
-> I'm looking at ZONE_DEVICE support for arm64, and trying to make sense
-> of a build failure has led me down the rabbit hole of pfn_t.h, and
-> specifically __HAVE_ARCH_PTE_DEVMAP in this first instance.
->
-> The failure itself is a link error in remove_migration_pte() due to a
-> missing definition of pte_mkdevmap(), but I'm a little confused at the
-> fact that it's explicitly declared without a definition, as if that
-> breakage is deliberate.
+> If you want a kmem cache for this, I'd suggest creating a cache which is
+> the size of the host XSAVE buffer.  That can be found in a variable
+> called 'fpu_kernel_xstate_size'.  I'm assuming here that the guest FPU
+> is going to support a strict subset of host kernel XSAVE states.
 
-It's deliberate, it's only there to allow mm/memory.c to compile. The
-compiler can see that pfn_t_devmap(pfn) is always false in the
-!__HAVE_ARCH_PTE_DEVMAP case and throws away the attempt to link to
-pte_devmap().
 
-The summary is that an architecture needs to devote a free/software
-pte bit for Linux to indicate "device pfns".
+This suggestion sounds good. Though, I have one uncertainty. KVM
+explicitly cast guest_fpu.state as a fxregs_state in a few places
+(e.g., the ioctls). Yet, I see a code path in
+fpu__init_system_xstate_size_legacy() that sets fpu_kernel_xstate_size
+to sizeof(struct fregs_state). Will this cause problems? You mentioned
+that the fpu's state field is expected to range from ~500 bytes to
+~3k, which implies that it should never get set to sizeof(struct
+fregs_state). But I want to confirm.
+
+>
+>
+> The other alternative is to calculate the actual size of the XSAVE
+> buffer that the guest needs.  You can do that from the values that KVM
+> sets to limit guest XCR0 values (the name of the control field is
+> escaping me at the moment).
