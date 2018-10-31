@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 029AE6B026B
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 09:26:46 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id u28-v6so16980512qtu.3
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 06:26:45 -0700 (PDT)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 00C366B026E
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 09:26:48 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id j192-v6so7601207oih.11
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 06:26:47 -0700 (PDT)
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id b127sor3950749qkc.48.2018.10.31.06.26.44
+        by mx.google.com with SMTPS id e14sor2651563otk.75.2018.10.31.06.26.46
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 31 Oct 2018 06:26:44 -0700 (PDT)
-Date: Wed, 31 Oct 2018 06:26:32 -0700
+        Wed, 31 Oct 2018 06:26:46 -0700 (PDT)
+Date: Wed, 31 Oct 2018 06:26:33 -0700
 In-Reply-To: <20181031132634.50440-1-marcorr@google.com>
-Message-Id: <20181031132634.50440-3-marcorr@google.com>
+Message-Id: <20181031132634.50440-4-marcorr@google.com>
 Mime-Version: 1.0
 References: <20181031132634.50440-1-marcorr@google.com>
-Subject: [kvm PATCH v5 2/4] kvm: x86: Dynamically allocate guest_fpu
+Subject: [kvm PATCH v5 3/4] kvm: vmx: refactor vmx_msrs struct for vmalloc
 From: Marc Orr <marcorr@google.com>
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
@@ -22,269 +22,126 @@ List-ID: <linux-mm.kvack.org>
 To: kvm@vger.kernel.org, jmattson@google.com, rientjes@google.com, konrad.wilk@oracle.com, linux-mm@kvack.org, akpm@linux-foundation.org, pbonzini@redhat.com, rkrcmar@redhat.com, willy@infradead.org, sean.j.christopherson@intel.com, dave.hansen@linux.intel.com, kernellwp@gmail.com
 Cc: Marc Orr <marcorr@google.com>
 
-Previously, the guest_fpu field was embedded in the kvm_vcpu_arch
-struct. Unfortunately, the field is quite large, (e.g., 4352 bytes on my
-current setup). This bloats the kvm_vcpu_arch struct for x86 into an
-order 3 memory allocation, which can become a problem on overcommitted
-machines. Thus, this patch moves the fpu state outside of the
-kvm_vcpu_arch struct.
+Previously, the vmx_msrs struct relied being aligned within a struct
+that is backed by the direct map (e.g., memory allocated with kalloc()).
+Specifically, this enabled the virtual addresses associated with the
+struct to be translated to physical addresses. However, we'd like to
+refactor the host struct, vcpu_vmx, to be allocated with vmalloc(), so
+that allocation will succeed when contiguous physical memory is scarce.
 
-With this patch applied, the kvm_vcpu_arch struct is reduced to 15168
-bytes for vmx on my setup when building the kernel with kvmconfig.
+Thus, this patch refactors how vmx_msrs is declared and allocated, to
+ensure that it can be mapped to the physical address space, even when
+vmx_msrs resides within in a vmalloc()'d struct.
 
-Suggested-by: Dave Hansen <dave.hansen@intel.com>
 Signed-off-by: Marc Orr <marcorr@google.com>
 ---
- arch/x86/include/asm/kvm_host.h |  3 ++-
- arch/x86/kvm/svm.c              | 10 ++++++++
- arch/x86/kvm/vmx.c              | 10 ++++++++
- arch/x86/kvm/x86.c              | 45 +++++++++++++++++++++++----------
- 4 files changed, 54 insertions(+), 14 deletions(-)
+ arch/x86/kvm/vmx.c | 57 ++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 55 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index ebb1d7a755d4..c8a2a263f91f 100644
---- a/arch/x86/include/asm/kvm_host.h
-+++ b/arch/x86/include/asm/kvm_host.h
-@@ -610,7 +610,7 @@ struct kvm_vcpu_arch {
- 	 * "guest_fpu" state here contains the guest FPU context, with the
- 	 * host PRKU bits.
- 	 */
--	struct fpu guest_fpu;
-+	struct fpu *guest_fpu;
- 
- 	u64 xcr0;
- 	u64 guest_supported_xcr0;
-@@ -1194,6 +1194,7 @@ struct kvm_arch_async_pf {
- };
- 
- extern struct kvm_x86_ops *kvm_x86_ops;
-+extern struct kmem_cache *x86_fpu_cache;
- 
- #define __KVM_HAVE_ARCH_VM_ALLOC
- static inline struct kvm *kvm_arch_alloc_vm(void)
-diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
-index f416f5c7f2ae..ac0c52ca22c6 100644
---- a/arch/x86/kvm/svm.c
-+++ b/arch/x86/kvm/svm.c
-@@ -2121,6 +2121,13 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
- 		goto out;
- 	}
- 
-+	svm->vcpu.arch.guest_fpu = kmem_cache_zalloc(x86_fpu_cache, GFP_KERNEL);
-+	if (!svm->vcpu.arch.guest_fpu) {
-+		printk(KERN_ERR "kvm: failed to allocate vcpu's fpu\n");
-+		err = -ENOMEM;
-+		goto free_partial_svm;
-+	}
-+
- 	err = kvm_vcpu_init(&svm->vcpu, kvm, id);
- 	if (err)
- 		goto free_svm;
-@@ -2180,6 +2187,8 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
- uninit:
- 	kvm_vcpu_uninit(&svm->vcpu);
- free_svm:
-+	kmem_cache_free(x86_fpu_cache, svm->vcpu.arch.guest_fpu);
-+free_partial_svm:
- 	kmem_cache_free(kvm_vcpu_cache, svm);
- out:
- 	return ERR_PTR(err);
-@@ -2194,6 +2203,7 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
- 	__free_page(virt_to_page(svm->nested.hsave));
- 	__free_pages(virt_to_page(svm->nested.msrpm), MSRPM_ALLOC_ORDER);
- 	kvm_vcpu_uninit(vcpu);
-+	kmem_cache_free(x86_fpu_cache, svm->vcpu.arch.guest_fpu);
- 	kmem_cache_free(kvm_vcpu_cache, svm);
- 	/*
- 	 * The vmcb page can be recycled, causing a false negative in
 diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
-index abeeb45d1c33..4078cf15a4b0 100644
+index 4078cf15a4b0..315cf4b5f262 100644
 --- a/arch/x86/kvm/vmx.c
 +++ b/arch/x86/kvm/vmx.c
-@@ -11476,6 +11476,7 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
- 	free_loaded_vmcs(vmx->loaded_vmcs);
- 	kfree(vmx->guest_msrs);
- 	kvm_vcpu_uninit(vcpu);
-+	kmem_cache_free(x86_fpu_cache, vmx->vcpu.arch.guest_fpu);
- 	kmem_cache_free(kvm_vcpu_cache, vmx);
- }
+@@ -970,8 +970,25 @@ static inline int pi_test_sn(struct pi_desc *pi_desc)
  
-@@ -11489,6 +11490,13 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
- 	if (!vmx)
- 		return ERR_PTR(-ENOMEM);
+ struct vmx_msrs {
+ 	unsigned int		nr;
+-	struct vmx_msr_entry	val[NR_AUTOLOAD_MSRS];
++	struct vmx_msr_entry	*val;
+ };
++struct kmem_cache *vmx_msr_entry_cache;
++
++/*
++ * To prevent vmx_msr_entry array from crossing a page boundary, require:
++ * sizeof(*vmx_msrs.vmx_msr_entry.val) to be a power of two. This is guaranteed
++ * through compile-time asserts that:
++ *   - NR_AUTOLOAD_MSRS * sizeof(struct vmx_msr_entry) is a power of two
++ *   - NR_AUTOLOAD_MSRS * sizeof(struct vmx_msr_entry) <= PAGE_SIZE
++ *   - The allocation of vmx_msrs.vmx_msr_entry.val is aligned to its size.
++ */
++#define CHECK_POWER_OF_TWO(val) \
++	BUILD_BUG_ON_MSG(!((val) && !((val) & ((val) - 1))), \
++	#val " is not a power of two.")
++#define CHECK_INTRA_PAGE(val) do { \
++		CHECK_POWER_OF_TWO(val); \
++		BUILD_BUG_ON(!(val <= PAGE_SIZE)); \
++	} while (0)
  
-+	vmx->vcpu.arch.guest_fpu = kmem_cache_zalloc(x86_fpu_cache, GFP_KERNEL);
-+	if (!vmx->vcpu.arch.guest_fpu) {
-+		printk(KERN_ERR "kvm: failed to allocate vcpu's fpu\n");
+ struct vcpu_vmx {
+ 	struct kvm_vcpu       vcpu;
+@@ -11497,6 +11514,19 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
+ 		goto free_partial_vcpu;
+ 	}
+ 
++	vmx->msr_autoload.guest.val =
++		kmem_cache_zalloc(vmx_msr_entry_cache, GFP_KERNEL);
++	if (!vmx->msr_autoload.guest.val) {
 +		err = -ENOMEM;
-+		goto free_partial_vcpu;
++		goto free_fpu;
++	}
++	vmx->msr_autoload.host.val =
++		kmem_cache_zalloc(vmx_msr_entry_cache, GFP_KERNEL);
++	if (!vmx->msr_autoload.host.val) {
++		err = -ENOMEM;
++		goto free_msr_autoload_guest;
 +	}
 +
  	vmx->vpid = allocate_vpid();
  
  	err = kvm_vcpu_init(&vmx->vcpu, kvm, id);
-@@ -11576,6 +11584,8 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
+@@ -11584,6 +11614,10 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
  	kvm_vcpu_uninit(&vmx->vcpu);
  free_vcpu:
  	free_vpid(vmx->vpid);
-+	kmem_cache_free(x86_fpu_cache, vmx->vcpu.arch.guest_fpu);
-+free_partial_vcpu:
++	kmem_cache_free(vmx_msr_entry_cache, vmx->msr_autoload.host.val);
++free_msr_autoload_guest:
++	kmem_cache_free(vmx_msr_entry_cache, vmx->msr_autoload.guest.val);
++free_fpu:
+ 	kmem_cache_free(x86_fpu_cache, vmx->vcpu.arch.guest_fpu);
+ free_partial_vcpu:
  	kmem_cache_free(kvm_vcpu_cache, vmx);
- 	return ERR_PTR(err);
- }
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index ff77514f7367..420516f0749a 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -213,6 +213,9 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
- 
- u64 __read_mostly host_xcr0;
- 
-+struct kmem_cache *x86_fpu_cache;
-+EXPORT_SYMBOL_GPL(x86_fpu_cache);
+@@ -15163,6 +15197,10 @@ module_exit(vmx_exit);
+ static int __init vmx_init(void)
+ {
+ 	int r;
++	size_t vmx_msr_entry_size =
++		sizeof(struct vmx_msr_entry) * NR_AUTOLOAD_MSRS;
 +
- static int emulator_fix_hypercall(struct x86_emulate_ctxt *ctxt);
++	CHECK_INTRA_PAGE(vmx_msr_entry_size);
  
- static inline void kvm_async_pf_hash_reset(struct kvm_vcpu *vcpu)
-@@ -3635,7 +3638,7 @@ static int kvm_vcpu_ioctl_x86_set_debugregs(struct kvm_vcpu *vcpu,
+ #if IS_ENABLED(CONFIG_HYPERV)
+ 	/*
+@@ -15194,9 +15232,21 @@ static int __init vmx_init(void)
+ #endif
  
- static void fill_xsave(u8 *dest, struct kvm_vcpu *vcpu)
- {
--	struct xregs_state *xsave = &vcpu->arch.guest_fpu.state.xsave;
-+	struct xregs_state *xsave = &vcpu->arch.guest_fpu->state.xsave;
- 	u64 xstate_bv = xsave->header.xfeatures;
- 	u64 valid;
- 
-@@ -3677,7 +3680,7 @@ static void fill_xsave(u8 *dest, struct kvm_vcpu *vcpu)
- 
- static void load_xsave(struct kvm_vcpu *vcpu, u8 *src)
- {
--	struct xregs_state *xsave = &vcpu->arch.guest_fpu.state.xsave;
-+	struct xregs_state *xsave = &vcpu->arch.guest_fpu->state.xsave;
- 	u64 xstate_bv = *(u64 *)(src + XSAVE_HDR_OFFSET);
- 	u64 valid;
- 
-@@ -3725,7 +3728,7 @@ static void kvm_vcpu_ioctl_x86_get_xsave(struct kvm_vcpu *vcpu,
- 		fill_xsave((u8 *) guest_xsave->region, vcpu);
- 	} else {
- 		memcpy(guest_xsave->region,
--			&vcpu->arch.guest_fpu.state.fxsave,
-+			&vcpu->arch.guest_fpu->state.fxsave,
- 			sizeof(struct fxregs_state));
- 		*(u64 *)&guest_xsave->region[XSAVE_HDR_OFFSET / sizeof(u32)] =
- 			XFEATURE_MASK_FPSSE;
-@@ -3755,7 +3758,7 @@ static int kvm_vcpu_ioctl_x86_set_xsave(struct kvm_vcpu *vcpu,
- 		if (xstate_bv & ~XFEATURE_MASK_FPSSE ||
- 			mxcsr & ~mxcsr_feature_mask)
- 			return -EINVAL;
--		memcpy(&vcpu->arch.guest_fpu.state.fxsave,
-+		memcpy(&vcpu->arch.guest_fpu->state.fxsave,
- 			guest_xsave->region, sizeof(struct fxregs_state));
- 	}
- 	return 0;
-@@ -6819,10 +6822,23 @@ int kvm_arch_init(void *opaque)
- 	}
- 
- 	r = -ENOMEM;
-+	x86_fpu_cache = kmem_cache_create_usercopy(
-+				"x86_fpu",
-+				sizeof(struct fpu),
-+				__alignof__(struct fpu),
-+				SLAB_ACCOUNT,
-+				offsetof(struct fpu, state),
-+				sizeof_field(struct fpu, state),
-+				NULL);
-+	if (!x86_fpu_cache) {
-+		printk(KERN_ERR "kvm: failed to allocate cache for x86 fpu\n");
+ 	r = kvm_init(&vmx_x86_ops, sizeof(struct vcpu_vmx),
+-		     __alignof__(struct vcpu_vmx), THIS_MODULE);
++		__alignof__(struct vcpu_vmx), THIS_MODULE);
+ 	if (r)
+ 		return r;
++	/*
++	 * A vmx_msr_entry array resides exclusively within the kernel. Thus,
++	 * use kmem_cache_create_usercopy(), with the usersize argument set to
++	 * ZERO, to blacklist copying vmx_msr_entry to/from user space.
++	 */
++	vmx_msr_entry_cache =
++		kmem_cache_create_usercopy("vmx_msr_entry", vmx_msr_entry_size,
++				  vmx_msr_entry_size, SLAB_ACCOUNT, 0, 0, NULL);
++	if (!vmx_msr_entry_cache) {
++		r = -ENOMEM;
 +		goto out;
 +	}
-+
- 	shared_msrs = alloc_percpu(struct kvm_shared_msrs);
- 	if (!shared_msrs) {
- 		printk(KERN_ERR "kvm: failed to allocate percpu kvm_shared_msrs\n");
--		goto out;
-+		goto out_free_x86_fpu_cache;
- 	}
- 
- 	r = kvm_mmu_module_init();
-@@ -6855,6 +6871,8 @@ int kvm_arch_init(void *opaque)
- 
- out_free_percpu:
- 	free_percpu(shared_msrs);
-+out_free_x86_fpu_cache:
-+	kmem_cache_destroy(x86_fpu_cache);
- out:
- 	return r;
- }
-@@ -6878,6 +6896,7 @@ void kvm_arch_exit(void)
- 	kvm_x86_ops = NULL;
- 	kvm_mmu_module_exit();
- 	free_percpu(shared_msrs);
-+	kmem_cache_destroy(x86_fpu_cache);
- }
- 
- int kvm_vcpu_halt(struct kvm_vcpu *vcpu)
-@@ -8001,7 +8020,7 @@ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
- 	preempt_disable();
- 	copy_fpregs_to_fpstate(&current->thread.fpu);
- 	/* PKRU is separately restored in kvm_x86_ops->run.  */
--	__copy_kernel_to_fpregs(&vcpu->arch.guest_fpu.state,
-+	__copy_kernel_to_fpregs(&vcpu->arch.guest_fpu->state,
- 				~XFEATURE_MASK_PKRU);
- 	preempt_enable();
- 	trace_kvm_fpu(1);
-@@ -8011,7 +8030,7 @@ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
- static void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
- {
- 	preempt_disable();
--	copy_fpregs_to_fpstate(&vcpu->arch.guest_fpu);
-+	copy_fpregs_to_fpstate(vcpu->arch.guest_fpu);
- 	copy_kernel_to_fpregs(&current->thread.fpu.state);
- 	preempt_enable();
- 	++vcpu->stat.fpu_reload;
-@@ -8506,7 +8525,7 @@ int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
- 
- 	vcpu_load(vcpu);
- 
--	fxsave = &vcpu->arch.guest_fpu.state.fxsave;
-+	fxsave = &vcpu->arch.guest_fpu->state.fxsave;
- 	memcpy(fpu->fpr, fxsave->st_space, 128);
- 	fpu->fcw = fxsave->cwd;
- 	fpu->fsw = fxsave->swd;
-@@ -8526,7 +8545,7 @@ int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
- 
- 	vcpu_load(vcpu);
- 
--	fxsave = &vcpu->arch.guest_fpu.state.fxsave;
-+	fxsave = &vcpu->arch.guest_fpu->state.fxsave;
- 
- 	memcpy(fxsave->st_space, fpu->fpr, 128);
- 	fxsave->cwd = fpu->fcw;
-@@ -8582,9 +8601,9 @@ static int sync_regs(struct kvm_vcpu *vcpu)
- 
- static void fx_init(struct kvm_vcpu *vcpu)
- {
--	fpstate_init(&vcpu->arch.guest_fpu.state);
-+	fpstate_init(&vcpu->arch.guest_fpu->state);
- 	if (boot_cpu_has(X86_FEATURE_XSAVES))
--		vcpu->arch.guest_fpu.state.xsave.header.xcomp_bv =
-+		vcpu->arch.guest_fpu->state.xsave.header.xcomp_bv =
- 			host_xcr0 | XSTATE_COMPACTION_ENABLED;
  
  	/*
-@@ -8708,11 +8727,11 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
- 		 */
- 		if (init_event)
- 			kvm_put_guest_fpu(vcpu);
--		mpx_state_buffer = get_xsave_addr(&vcpu->arch.guest_fpu.state.xsave,
-+		mpx_state_buffer = get_xsave_addr(&vcpu->arch.guest_fpu->state.xsave,
- 					XFEATURE_MASK_BNDREGS);
- 		if (mpx_state_buffer)
- 			memset(mpx_state_buffer, 0, sizeof(struct mpx_bndreg_state));
--		mpx_state_buffer = get_xsave_addr(&vcpu->arch.guest_fpu.state.xsave,
-+		mpx_state_buffer = get_xsave_addr(&vcpu->arch.guest_fpu->state.xsave,
- 					XFEATURE_MASK_BNDCSR);
- 		if (mpx_state_buffer)
- 			memset(mpx_state_buffer, 0, sizeof(struct mpx_bndcsr));
+ 	 * Must be called after kvm_init() so enable_ept is properly set
+@@ -15220,5 +15270,8 @@ static int __init vmx_init(void)
+ 	vmx_check_vmcs12_offsets();
+ 
+ 	return 0;
++out:
++	kvm_exit();
++	return r;
+ }
+ module_init(vmx_init);
 -- 
 2.19.1.568.g152ad8e336-goog
