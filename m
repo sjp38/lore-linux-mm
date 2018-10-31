@@ -1,57 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E2F896B0008
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 09:17:53 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id d16-v6so12820291wru.22
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 06:17:53 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E3D766B0007
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 09:23:38 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id 3-v6so5042590plc.18
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 06:23:38 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 59-v6sor1746973wro.34.2018.10.31.06.17.52
+        by mx.google.com with SMTPS id v16-v6sor24737826plo.4.2018.10.31.06.23.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 31 Oct 2018 06:17:52 -0700 (PDT)
+        Wed, 31 Oct 2018 06:23:37 -0700 (PDT)
+Date: Wed, 31 Oct 2018 16:23:31 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 1/4] mm: make the __PAGETABLE_PxD_FOLDED defines non-empty
+Message-ID: <20181031132331.s5l77nsjoyiwhqhd@kshutemo-mobl1>
+References: <1540990801-4261-1-git-send-email-schwidefsky@de.ibm.com>
+ <1540990801-4261-2-git-send-email-schwidefsky@de.ibm.com>
 MIME-Version: 1.0
-References: <20181026075900.111462-1-marcorr@google.com> <CANRm+Cy2K08MCWq0mtqor66Uz8g-MaVKb=JDGD0WostFeogKSA@mail.gmail.com>
- <CALMp9eSAP6=3MOjcexZsrtGjg4z6ULjhaJZBOZCkpFKganKfhA@mail.gmail.com> <20181029164813.GH28520@bombadil.infradead.org>
-In-Reply-To: <20181029164813.GH28520@bombadil.infradead.org>
-From: Marc Orr <marcorr@google.com>
-Date: Wed, 31 Oct 2018 13:17:40 +0000
-Message-ID: <CAA03e5GT4gR4iN-na0PR_oTrXKVuD8BRcHcR8Y58==eRae3iXA@mail.gmail.com>
-Subject: Re: [kvm PATCH v4 0/2] use vmalloc to allocate vmx vcpus
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1540990801-4261-2-git-send-email-schwidefsky@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: willy@infradead.org
-Cc: Jim Mattson <jmattson@google.com>, Wanpeng Li <kernellwp@gmail.com>, kvm@vger.kernel.org, David Rientjes <rientjes@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, akpm@linux-foundation.org, pbonzini@redhat.com, rkrcmar@redhat.com, sean.j.christopherson@intel.com
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Li Wang <liwang@redhat.com>, Guenter Roeck <linux@roeck-us.net>, Janosch Frank <frankja@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Mon, Oct 29, 2018 at 9:48 AM Matthew Wilcox <willy@infradead.org> wrote:
->
-> On Mon, Oct 29, 2018 at 09:25:05AM -0700, Jim Mattson wrote:
-> > On Sun, Oct 28, 2018 at 6:58 PM, Wanpeng Li <kernellwp@gmail.com> wrote:
-> > > We have not yet encounter memory is too fragmented to allocate kvm
-> > > related metadata in our overcommit pools, is this true requirement
-> > > from the product environments?
-> >
-> > Yes.
->
-> Are your logs granular enough to determine if turning this into an
-> order-2 allocation (by splitting out "struct fpu" allocations) will be
-> sufficient to resolve your problem, or do we need to turn it into an
-> order-1 or vmalloc allocation to achieve your production goals?
+On Wed, Oct 31, 2018 at 01:59:58PM +0100, Martin Schwidefsky wrote:
+> Change the currently empty defines for __PAGETABLE_PMD_FOLDED,
+> __PAGETABLE_PUD_FOLDED and __PAGETABLE_P4D_FOLDED to return 1.
+> This makes it possible to use __is_defined() to test if the
+> preprocessor define exists.
+> 
+> Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-As noted in my response to Dave Hansen, I've got his suggestions done
-and they were successful in drastically reducing the size of the
-vcpu_vmx struct, which is great. Specifically, on an upstream kernel,
-I've reduced the size of the struct from 23680 down to 15168, which is
-order 2.
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-All that being said, I don't really understand why we wouldn't convert
-this memory allocation from a kmalloc() into a vmalloc(). From my
-point of view, we are still close to bloating vcpu_vmx into an order 3
-allocation, and it's common for vendors to append to both vcpu_vmx
-directly, or more likely to its embedded structs. Though, arguably,
-vendors should not be doing that.
-
-Most importantly, it just isn't obvious to me why kmalloc() is
-preferred over vmalloc(). From my point of view, vmalloc() does the
-exact same thing as kmalloc(), except that it works when contiguous
-memory is sparse, which seems better to me.
+-- 
+ Kirill A. Shutemov
