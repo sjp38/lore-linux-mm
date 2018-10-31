@@ -1,44 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 117236B0266
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 10:21:27 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id 14-v6so13662947pfk.22
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 07:21:27 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c38-v6si23775233pgl.166.2018.10.31.07.21.25
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 912226B026D
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 10:25:02 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id s24-v6so12354646plp.12
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 07:25:02 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w31-v6si8334449pla.347.2018.10.31.07.25.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 31 Oct 2018 07:21:25 -0700 (PDT)
-Date: Wed, 31 Oct 2018 07:21:22 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [kvm PATCH v4 0/2] use vmalloc to allocate vmx vcpus
-Message-ID: <20181031142122.GM10491@bombadil.infradead.org>
-References: <20181026075900.111462-1-marcorr@google.com>
- <CANRm+Cy2K08MCWq0mtqor66Uz8g-MaVKb=JDGD0WostFeogKSA@mail.gmail.com>
- <CALMp9eSAP6=3MOjcexZsrtGjg4z6ULjhaJZBOZCkpFKganKfhA@mail.gmail.com>
- <20181029164813.GH28520@bombadil.infradead.org>
- <CAA03e5GT4gR4iN-na0PR_oTrXKVuD8BRcHcR8Y58==eRae3iXA@mail.gmail.com>
- <20181031132751.GL10491@bombadil.infradead.org>
- <CAA03e5F+o5svBe1HTOHukD6Z6ctnKB96+SQTfMZX39uhP2AS0g@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Oct 2018 07:25:01 -0700 (PDT)
+Date: Wed, 31 Oct 2018 15:24:58 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3] mm, drm/i915: mark pinned shmemfs pages as unevictable
+Message-ID: <20181031142458.GP32673@dhcp22.suse.cz>
+References: <20181031081945.207709-1-vovoy@chromium.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAA03e5F+o5svBe1HTOHukD6Z6ctnKB96+SQTfMZX39uhP2AS0g@mail.gmail.com>
+In-Reply-To: <20181031081945.207709-1-vovoy@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marc Orr <marcorr@google.com>
-Cc: Jim Mattson <jmattson@google.com>, Wanpeng Li <kernellwp@gmail.com>, kvm@vger.kernel.org, David Rientjes <rientjes@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, akpm@linux-foundation.org, pbonzini@redhat.com, rkrcmar@redhat.com, sean.j.christopherson@intel.com
+To: Kuo-Hsin Yang <vovoy@chromium.org>
+Cc: linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>
 
-On Wed, Oct 31, 2018 at 01:48:44PM +0000, Marc Orr wrote:
-> Thanks for the explanation. Is there a way to dynamically detect the
-> memory allocation done by kvmalloc() (i.e., kmalloc() or vmalloc())?
-> If so, we could use kvmalloc(), and add two code paths to do the
-> physical mapping, according to whether the underlying memory was
-> allocated with kmalloc() or vmalloc().
+On Wed 31-10-18 16:19:45, Kuo-Hsin Yang wrote:
+[...]
+> The previous mapping_set_unevictable patch is worse on gem_syslatency
+> because it defers to vmscan to move these pages to the unevictable list
+> and the test measures latency to allocate 2MiB pages. This performance
+> impact can be solved by explicit moving pages to the unevictable list in
+> the i915 function.
 
-Yes -- it's used in the implementation of kvfree():
-
-        if (is_vmalloc_addr(addr))
-                vfree(addr);
-        else
-                kfree(addr);
+As I've mentioned in the previous version and testing results. Are you
+sure that the lazy unevictable pages collecting is the real problem
+here? The test case was generating a lot of page cache and we simply do
+not reclaim anon LRUs at all. Maybe I have misunderstood the test
+though. I am also wondering whether unevictable pages culling can be
+really visible when we do the anon LRU reclaim because the swap path is
+quite expensinve on its own.
+-- 
+Michal Hocko
+SUSE Labs
