@@ -1,49 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 98FE26B0003
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 18:04:25 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id i81-v6so14827449pfj.1
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 15:04:25 -0700 (PDT)
-Received: from catfish.maple.relay.mailchannels.net (catfish.maple.relay.mailchannels.net. [23.83.214.32])
-        by mx.google.com with ESMTPS id m3si156264pgs.8.2018.10.31.15.04.23
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E071D6B0007
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2018 18:24:45 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id s15-v6so15498282iob.11
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 15:24:45 -0700 (PDT)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id d1-v6si13478716ita.120.2018.10.31.15.24.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Oct 2018 15:04:24 -0700 (PDT)
-From: Tulio Magno Quites Machado Filho <tuliom@ascii.art.br>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 31 Oct 2018 15:24:44 -0700 (PDT)
+Message-ID: <3da6549832ef68b93b210d5a32b3f12f3565cab0.camel@kernel.crashing.org>
 Subject: Re: PIE binaries are no longer mapped below 4 GiB on ppc64le
-In-Reply-To: <87in1hlsa7.fsf@oldenburg.str.redhat.com>
-References: <87k1lyf2x3.fsf@oldenburg.str.redhat.com> <20181031185032.679e170a@naga.suse.cz> <877ehyf1cj.fsf@oldenburg.str.redhat.com> <87efc5n73a.fsf@linux.ibm.com> <87in1hlsa7.fsf@oldenburg.str.redhat.com>
-Date: Wed, 31 Oct 2018 19:04:14 -0300
-Message-ID: <87bm79n57l.fsf@linux.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Thu, 01 Nov 2018 09:24:29 +1100
+In-Reply-To: <877ehyf1cj.fsf@oldenburg.str.redhat.com>
+References: <87k1lyf2x3.fsf@oldenburg.str.redhat.com>
+	 <20181031185032.679e170a@naga.suse.cz>
+	 <877ehyf1cj.fsf@oldenburg.str.redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: Michal =?utf-8?Q?Such=C3=A1nek?= <msuchanek@suse.de>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Lynn A. Boger" <laboger@linux.ibm.com>
+To: Florian Weimer <fweimer@redhat.com>, Michal =?ISO-8859-1?Q?Such=E1nek?= <msuchanek@suse.de>
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Nick Piggin <npiggin@au1.ibm.com>, Anton Blanchard <anton@au1.ibm.com>
 
-Florian Weimer <fweimer@redhat.com> writes:
+On Wed, 2018-10-31 at 18:54 +0100, Florian Weimer wrote:
+> 
+> It would matter to C code which returns the address of a global variable
+> in the main program through and (implicit) int return value.
+> 
+> The old behavior hid some pointer truncation issues.
 
-> * Tulio Magno Quites Machado Filho:
->
->> I wonder if this is restricted to linker that Golang uses.
->> Were you able to reproduce the same problem with Binutils' linker?
->
-> The example is carefully constructed to use the external linker.  It
-> invokes gcc, which then invokes the BFD linker in my case.
+Hiding bugs like that is never a good idea..
 
-Indeed. That question was unnecessary.  :-D
+> > Maybe it would be good idea to generate 64bit relocations on 64bit
+> > targets?
+> 
+> Yes, the Go toolchain definitely needs fixing for PIE.  I don't dispute
+> that.
 
-> Based on the relocations, I assume there is only so much the linker can
-> do here.  I'm amazed that it produces an executable at all, let alone
-> one that runs correctly on some kernel versions!
+There was never any ABI guarantee that programs would be loaded below
+4G... it just *happened*, so that's not per-se an ABI change.
 
-Agreed.  That isn't expected to work.  Both the compiler and the linker have
-to generate PIE for it to work.
+That said, I'm surprised of the choice of address.. I would have rather
+moved to above 1TB to benefit from 1T segments...
 
-> I assume that the Go toolchain simply lacks PIE support on ppc64le.
+Nick, Anton, do you know anything about that change ?
 
-Maybe the support is there, but it doesn't generate PIC by default?
-
--- 
-Tulio Magno
+Ben.
