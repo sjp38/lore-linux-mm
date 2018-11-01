@@ -1,93 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C9FD6B0007
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 08:20:54 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id k22-v6so7100862wre.10
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 05:20:54 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
-        by mx.google.com with ESMTPS id x195-v6si18648831wme.21.2018.11.01.05.20.52
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7286D6B0005
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 08:55:47 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id q10-v6so12228501edd.20
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 05:55:47 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u17-v6si15866322edi.62.2018.11.01.05.55.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Nov 2018 05:20:52 -0700 (PDT)
-Content-Type: text/plain; charset="utf-8"
+        Thu, 01 Nov 2018 05:55:45 -0700 (PDT)
+Date: Thu, 1 Nov 2018 13:55:43 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2] mm/kvmalloc: do not call kmalloc for size >
+ KMALLOC_MAX_SIZE
+Message-ID: <20181101125543.GH23921@dhcp22.suse.cz>
+References: <154106356066.887821.4649178319705436373.stgit@buzz>
+ <154106695670.898059.5301435081426064314.stgit@buzz>
+ <20181101102405.GE23921@dhcp22.suse.cz>
+ <cd2a55be-17f1-5da9-1154-8e291fe958cd@yandex-team.ru>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-From: Chris Wilson <chris@chris-wilson.co.uk>
-In-Reply-To: <154097891543.4007.9898414288875202246@skylake-alporthouse-com>
-References: <20181031081945.207709-1-vovoy@chromium.org>
- <154097891543.4007.9898414288875202246@skylake-alporthouse-com>
-Message-ID: <154107481370.4007.2421593962367820741@skylake-alporthouse-com>
-Subject: Re: [PATCH v3] mm, drm/i915: mark pinned shmemfs pages as unevictable
-Date: Thu, 01 Nov 2018 12:20:13 +0000
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <cd2a55be-17f1-5da9-1154-8e291fe958cd@yandex-team.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kuo-Hsin Yang <vovoy@chromium.org>, intel-gfx@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Michal Hocko <mhocko@suse.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-Quoting Chris Wilson (2018-10-31 09:41:55)
-> Quoting Kuo-Hsin Yang (2018-10-31 08:19:45)
-> > The i915 driver uses shmemfs to allocate backing storage for gem
-> > objects. These shmemfs pages can be pinned (increased ref count) by
-> > shmem_read_mapping_page_gfp(). When a lot of pages are pinned, vmscan
-> > wastes a lot of time scanning these pinned pages. In some extreme case,
-> > all pages in the inactive anon lru are pinned, and only the inactive
-> > anon lru is scanned due to inactive_ratio, the system cannot swap and
-> > invokes the oom-killer. Mark these pinned pages as unevictable to speed
-> > up vmscan.
-> > =
+On Thu 01-11-18 13:48:17, Konstantin Khlebnikov wrote:
+> 
+> 
+> On 01.11.2018 13:24, Michal Hocko wrote:
+> > On Thu 01-11-18 13:09:16, Konstantin Khlebnikov wrote:
+> > > Allocations over KMALLOC_MAX_SIZE could be served only by vmalloc.
+> > 
+> > I would go on and say that allocations with sizes too large can actually
+> > trigger a warning (once you have posted in the previous version outside
+> > of the changelog area) because that might be interesting to people -
+> > there are deployments to panic on warning and then a warning is much
+> > more important.
+> 
+> It seems that warning isn't completely valid.
+> 
+> 
+> __alloc_pages_slowpath() handles this more gracefully:
+> 
+> 	/*
+> 	 * In the slowpath, we sanity check order to avoid ever trying to
+> 	 * reclaim >= MAX_ORDER areas which will never succeed. Callers may
+> 	 * be using allocators in order of preference for an area that is
+> 	 * too large.
+> 	 */
+> 	if (order >= MAX_ORDER) {
+> 		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
+> 		return NULL;
+> 	}
+> 
+> 
+> Fast path is ready for order >= MAX_ORDER
+> 
+> 
+> Problem is in node_reclaim() which is called earlier than __alloc_pages_slowpath()
+> from surprising place - get_page_from_freelist()
+> 
+> 
+> Probably node_reclaim() simply needs something like this:
+> 
+> 	if (order >= MAX_ORDER)
+> 		return NODE_RECLAIM_NOSCAN;
 
-> > Add check_move_lru_page() to move page to appropriate lru list.
-> > =
+Maybe but the point is that triggering this warning is possible. Even if
+the warning is bogus it doesn't really make much sense to even try
+kmalloc if the size is not supported by the allocator.
 
-> > This patch was inspired by Chris Wilson's change [1].
-> > =
-
-> > [1]: https://patchwork.kernel.org/patch/9768741/
-> > =
-
-> > Cc: Chris Wilson <chris@chris-wilson.co.uk>
-> > Cc: Michal Hocko <mhocko@suse.com>
-> > Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-> > Cc: Peter Zijlstra <peterz@infradead.org>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: Dave Hansen <dave.hansen@intel.com>
-> > Signed-off-by: Kuo-Hsin Yang <vovoy@chromium.org>
-> > ---
-> > The previous mapping_set_unevictable patch is worse on gem_syslatency
-> > because it defers to vmscan to move these pages to the unevictable list
-> > and the test measures latency to allocate 2MiB pages. This performance
-> > impact can be solved by explicit moving pages to the unevictable list in
-> > the i915 function.
-> > =
-
-> > Chris, can you help to run the "igt/benchmarks/gem_syslatency -t 120 -b=
- -m"
-> > test with this patch on your testing machine? I tried to run the test on
-> > a Celeron N4000, 4GB Ram machine. The mean value with this patch is
-> > similar to that with the mlock patch.
-> =
-
-> Will do. As you are confident, I'll try a few different machines. :)
-
-I had one anomalous result with Ivybridge, but 3/4 different machines
-confirm this is effective. I normalized the latency results from each
-such that 0 is the baseline median latency (no i915 activity) and 1 is
-the median latency with i915 running drm-tip.
-
-    N           Min           Max        Median           Avg        Stddev
-ivb 120      0.701641       2.79209       1.24469     1.3333911    0.408718=
-25
-byt 120     -0.108194     0.0777012     0.0485302    0.01343581   0.0615247=
-34
-bxt 120     -0.262057       6.27002     0.0801667    0.15963388    0.635281=
-21
-kbl 120    -0.0891262       1.22326    -0.0245336   0.041492506    0.149296=
-89
-
-Just need to go back and check on ivb, perhaps running on a few older =
-
-chipsets as well. But the evidence so far indicates that this eliminates
-the impact of i915 activity on the performance of shrink_page_list,
-reducing the amount of crippling stalls under mempressure and often
-preventing them.
--Chris
+-- 
+Michal Hocko
+SUSE Labs
