@@ -1,106 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AAC7C6B026D
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 06:48:20 -0400 (EDT)
-Received: by mail-lf1-f72.google.com with SMTP id y6so155555lfy.11
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 03:48:20 -0700 (PDT)
-Received: from forwardcorp1g.cmail.yandex.net (forwardcorp1g.cmail.yandex.net. [2a02:6b8:0:1465::fd])
-        by mx.google.com with ESMTPS id 65-v6si5536158ljb.103.2018.11.01.03.48.18
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BB94F6B026F
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 06:49:31 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id v88-v6so16208807pfk.19
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 03:49:31 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o34-v6sor30068824pgm.39.2018.11.01.03.49.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Nov 2018 03:48:19 -0700 (PDT)
-Subject: Re: [PATCH 2] mm/kvmalloc: do not call kmalloc for size >
- KMALLOC_MAX_SIZE
-References: <154106356066.887821.4649178319705436373.stgit@buzz>
- <154106695670.898059.5301435081426064314.stgit@buzz>
- <20181101102405.GE23921@dhcp22.suse.cz>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <cd2a55be-17f1-5da9-1154-8e291fe958cd@yandex-team.ru>
-Date: Thu, 1 Nov 2018 13:48:17 +0300
+        (Google Transport Security);
+        Thu, 01 Nov 2018 03:49:30 -0700 (PDT)
+Date: Thu, 1 Nov 2018 21:49:26 +1100
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [RFC PATCH v1 3/4] kvmppc: H_SVM_INIT_START and H_SVM_INIT_DONE
+ hcalls
+Message-ID: <20181101104926.GF16399@350D>
+References: <20181022051837.1165-1-bharata@linux.ibm.com>
+ <20181022051837.1165-4-bharata@linux.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20181101102405.GE23921@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-CA
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181022051837.1165-4-bharata@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Bharata B Rao <bharata@linux.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org, paulus@au1.ibm.com, benh@linux.ibm.com, aneesh.kumar@linux.vnet.ibm.com, jglisse@redhat.com, linuxram@us.ibm.com
 
-
-
-On 01.11.2018 13:24, Michal Hocko wrote:
-> On Thu 01-11-18 13:09:16, Konstantin Khlebnikov wrote:
->> Allocations over KMALLOC_MAX_SIZE could be served only by vmalloc.
+On Mon, Oct 22, 2018 at 10:48:36AM +0530, Bharata B Rao wrote:
+> H_SVM_INIT_START: Initiate securing a VM
+> H_SVM_INIT_DONE: Conclude securing a VM
 > 
-> I would go on and say that allocations with sizes too large can actually
-> trigger a warning (once you have posted in the previous version outside
-> of the changelog area) because that might be interesting to people -
-> there are deployments to panic on warning and then a warning is much
-> more important.
-
-It seems that warning isn't completely valid.
-
-
-__alloc_pages_slowpath() handles this more gracefully:
-
-	/*
-	 * In the slowpath, we sanity check order to avoid ever trying to
-	 * reclaim >= MAX_ORDER areas which will never succeed. Callers may
-	 * be using allocators in order of preference for an area that is
-	 * too large.
-	 */
-	if (order >= MAX_ORDER) {
-		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
-		return NULL;
-	}
-
-
-Fast path is ready for order >= MAX_ORDER
-
-
-Problem is in node_reclaim() which is called earlier than __alloc_pages_slowpath()
-from surprising place - get_page_from_freelist()
-
-
-Probably node_reclaim() simply needs something like this:
-
-	if (order >= MAX_ORDER)
-		return NODE_RECLAIM_NOSCAN;
-
-
+> During early guest init, these hcalls will be issued by UV.
+> As part of these hcalls, [un]register memslots with UV.
 > 
->> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> Signed-off-by: Bharata B Rao <bharata@linux.ibm.com>
+> ---
+>  arch/powerpc/include/asm/hvcall.h    |  4 ++-
+>  arch/powerpc/include/asm/kvm_host.h  |  1 +
+>  arch/powerpc/include/asm/ucall-api.h |  6 ++++
+>  arch/powerpc/kvm/book3s_hv.c         | 54 ++++++++++++++++++++++++++++
+>  4 files changed, 64 insertions(+), 1 deletion(-)
 > 
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> Thanks!
-> 
->> ---
->>   mm/util.c |    4 ++++
->>   1 file changed, 4 insertions(+)
->>
->> diff --git a/mm/util.c b/mm/util.c
->> index 8bf08b5b5760..f5f04fa22814 100644
->> --- a/mm/util.c
->> +++ b/mm/util.c
->> @@ -392,6 +392,9 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
->>   	gfp_t kmalloc_flags = flags;
->>   	void *ret;
->>   
->> +	if (size > KMALLOC_MAX_SIZE)
->> +		goto fallback;
->> +
->>   	/*
->>   	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
->>   	 * so the given set of flags has to be compatible.
->> @@ -422,6 +425,7 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
->>   	if (ret || size <= PAGE_SIZE)
->>   		return ret;
->>   
->> +fallback:
->>   	return __vmalloc_node_flags_caller(size, node, flags,
->>   			__builtin_return_address(0));
->>   }
->>
+> diff --git a/arch/powerpc/include/asm/hvcall.h b/arch/powerpc/include/asm/hvcall.h
+> index 89e6b70c1857..6091276fef07 100644
+> --- a/arch/powerpc/include/asm/hvcall.h
+> +++ b/arch/powerpc/include/asm/hvcall.h
+> @@ -300,7 +300,9 @@
+>  #define H_INT_RESET             0x3D0
+>  #define H_SVM_PAGE_IN		0x3D4
+>  #define H_SVM_PAGE_OUT		0x3D8
+> -#define MAX_HCALL_OPCODE	H_SVM_PAGE_OUT
+> +#define H_SVM_INIT_START	0x3DC
+> +#define H_SVM_INIT_DONE		0x3E0
+> +#define MAX_HCALL_OPCODE	H_SVM_INIT_DONE
+>  
+>  /* H_VIOCTL functions */
+>  #define H_GET_VIOA_DUMP_SIZE	0x01
+> diff --git a/arch/powerpc/include/asm/kvm_host.h b/arch/powerpc/include/asm/kvm_host.h
+> index 194e6e0ff239..267f8c568bc3 100644
+> --- a/arch/powerpc/include/asm/kvm_host.h
+> +++ b/arch/powerpc/include/asm/kvm_host.h
+> @@ -292,6 +292,7 @@ struct kvm_arch {
+>  	struct dentry *debugfs_dir;
+>  	struct dentry *htab_dentry;
+>  	struct kvm_resize_hpt *resize_hpt; /* protected by kvm->lock */
+> +	bool svm_init_start; /* Indicates H_SVM_INIT_START has been called */
+>  #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
+>  #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
+>  	struct mutex hpt_mutex;
+> diff --git a/arch/powerpc/include/asm/ucall-api.h b/arch/powerpc/include/asm/ucall-api.h
+> index 2c12f514f8ab..9ddfcf541211 100644
+> --- a/arch/powerpc/include/asm/ucall-api.h
+> +++ b/arch/powerpc/include/asm/ucall-api.h
+> @@ -17,4 +17,10 @@ static inline int uv_page_out(u64 lpid, u64 dw0, u64 dw1, u64 dw2, u64 dw3)
+>  	return U_SUCCESS;
+>  }
+>  
+> +static inline int uv_register_mem_slot(u64 lpid, u64 dw0, u64 dw1, u64 dw2,
+> +				       u64 dw3)
+> +{
+> +	return 0;
+> +}
+> +
+>  #endif	/* _ASM_POWERPC_UCALL_API_H */
+> diff --git a/arch/powerpc/kvm/book3s_hv.c b/arch/powerpc/kvm/book3s_hv.c
+> index 05084eb8aadd..47f366f634fd 100644
+> --- a/arch/powerpc/kvm/book3s_hv.c
+> +++ b/arch/powerpc/kvm/book3s_hv.c
+> @@ -819,6 +819,50 @@ static int kvmppc_get_yield_count(struct kvm_vcpu *vcpu)
+>  	return yield_count;
+>  }
+>  
+> +#ifdef CONFIG_PPC_SVM
+> +#include <asm/ucall-api.h>
+> +/*
+> + * TODO: Check if memslots related calls here need to be called
+> + * under any lock.
+> + */
+> +static unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
+> +{
+> +	struct kvm_memslots *slots;
+> +	struct kvm_memory_slot *memslot;
+> +	int ret;
+> +
+> +	slots = kvm_memslots(kvm);
+> +	kvm_for_each_memslot(memslot, slots) {
+> +		ret = uv_register_mem_slot(kvm->arch.lpid,
+> +					   memslot->base_gfn << PAGE_SHIFT,
+> +					   memslot->npages * PAGE_SIZE,
+> +					   0, memslot->id);
+
+For every memslot their is a corresponding registration in the ultravisor?
+Is there a corresponding teardown?
+
+> +		if (ret < 0)
+> +			return H_PARAMETER;
+> +	}
+> +	kvm->arch.svm_init_start = true;
+> +	return H_SUCCESS;
+> +}
+> +
+> +static unsigned long kvmppc_h_svm_init_done(struct kvm *kvm)
+> +{
+> +	if (kvm->arch.svm_init_start)
+> +		return H_SUCCESS;
+> +	else
+> +		return H_UNSUPPORTED;
+> +}
+> +#else
+> +static unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
+> +{
+> +	return H_UNSUPPORTED;
+> +}
+> +
+> +static unsigned long kvmppc_h_svm_init_done(struct kvm *kvm)
+> +{
+> +	return H_UNSUPPORTED;
+> +}
+> +#endif
+> +
+>  int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
+>  {
+>  	unsigned long req = kvmppc_get_gpr(vcpu, 3);
+> @@ -950,6 +994,12 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
+>  					    kvmppc_get_gpr(vcpu, 6),
+>  					    kvmppc_get_gpr(vcpu, 7));
+>  		break;
+> +	case H_SVM_INIT_START:
+> +		ret = kvmppc_h_svm_init_start(vcpu->kvm);
+> +		break;
+> +	case H_SVM_INIT_DONE:
+> +		ret = kvmppc_h_svm_init_done(vcpu->kvm);
+> +		break;
+>  	default:
+>  		return RESUME_HOST;
+>  	}
+> @@ -978,6 +1028,8 @@ static int kvmppc_hcall_impl_hv(unsigned long cmd)
+>  #endif
+>  	case H_SVM_PAGE_IN:
+>  	case H_SVM_PAGE_OUT:
+> +	case H_SVM_INIT_START:
+> +	case H_SVM_INIT_DONE:
+>  		return 1;
+>  	}
+>  
+> @@ -4413,6 +4465,8 @@ static unsigned int default_hcall_list[] = {
+>  #endif
+>  	H_SVM_PAGE_IN,
+>  	H_SVM_PAGE_OUT,
+> +	H_SVM_INIT_START,
+> +	H_SVM_INIT_DONE,
+>  	0
+>  };
+>  
+> -- 
+> 2.17.1
 > 
