@@ -1,57 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 25CAA6B000D
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 05:37:05 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id v6-v6so12197514wri.23
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 02:37:05 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id g16-v6si20005699wrv.174.2018.11.01.02.37.03
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B950D6B0010
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 05:42:52 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id c33-v6so19884448qta.20
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 02:42:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t64-v6si8475396qkd.154.2018.11.01.02.42.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 01 Nov 2018 02:37:03 -0700 (PDT)
-Date: Thu, 1 Nov 2018 10:36:51 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [PATCH] x86/build: Build VSMP support only if selected
-In-Reply-To: <9e14d183-55a4-8299-7a18-0404e50bf004@infradead.org>
-Message-ID: <alpine.DEB.2.21.1811011032190.1642@nanos.tec.linutronix.de>
-References: <20181030230905.xHZmM%akpm@linux-foundation.org> <9e14d183-55a4-8299-7a18-0404e50bf004@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Nov 2018 02:42:52 -0700 (PDT)
+Date: Thu, 1 Nov 2018 17:42:43 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: Memory hotplug failed to offline on bare metal system of
+ multiple nodes
+Message-ID: <20181101094243.GD14493@MiWiFi-R3L-srv>
+References: <20181101091055.GA15166@MiWiFi-R3L-srv>
+ <20181101092212.GB23921@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181101092212.GB23921@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, broonie@kernel.org, mhocko@suse.cz, Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, mm-commits@vger.kernel.org, Ravikiran Thirumalai <kiran@scalemp.com>, Shai Fultheim <shai@scalemp.com>, X86 ML <x86@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-VSMP support is built even if CONFIG_X86_VSMP is not set. This leads to a build
-breakage when CONFIG_PCI is disabled as well.
+On 11/01/18 at 10:22am, Michal Hocko wrote:
+> > I haven't figured out why the above commit caused those memmory
+> > block in MOVABL zone being not removable. Still checking. Attach the
+> > tested reverting patch in this mail.
+> 
+> Could you check which of the test inside has_unmovable_pages claimed the
+> failure? Going back to marking movable_zone as guaranteed to offline is
+> just too fragile.
 
-Build VSMP code only when selected.
-
-Reported-by: Randy Dunlap <rdunlap@infradead.org>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-
----
-diff --git a/arch/x86/include/asm/setup.h b/arch/x86/include/asm/setup.h
-index ae13bc974416..b6b911c4c7f3 100644
---- a/arch/x86/include/asm/setup.h
-+++ b/arch/x86/include/asm/setup.h
-@@ -33,7 +33,7 @@
- extern u64 relocated_ramdisk;
- 
- /* Interrupt control for vSMPowered x86_64 systems */
--#ifdef CONFIG_X86_64
-+#if defined(CONFIG_X86_64) && defined(CONFIG_X86_VSMP)
- void vsmp_init(void);
- #else
- static inline void vsmp_init(void) { }
-diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
-index 8824d01c0c35..647ce52b17d5 100644
---- a/arch/x86/kernel/Makefile
-+++ b/arch/x86/kernel/Makefile
-@@ -148,5 +148,5 @@ ifeq ($(CONFIG_X86_64),y)
- 	obj-$(CONFIG_CALGARY_IOMMU)	+= pci-calgary_64.o tce_64.o
- 
- 	obj-$(CONFIG_MMCONF_FAM10H)	+= mmconf-fam10h_64.o
--	obj-y				+= vsmp_64.o
-+	obj-$(CONFIG_X86_VSMP)		+= vsmp_64.o
- endif
+Sure, will add debugging code and check. Will update if anything found.
