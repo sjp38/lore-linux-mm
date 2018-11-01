@@ -1,45 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A96406B000E
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 06:39:36 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id b76-v6so13564193ywb.11
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 03:39:36 -0700 (PDT)
-Received: from NAM05-DM3-obe.outbound.protection.outlook.com (mail-eopbgr730057.outbound.protection.outlook.com. [40.107.73.57])
-        by mx.google.com with ESMTPS id e133-v6si18666043ybc.161.2018.11.01.03.39.35
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A2B4D6B026A
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 06:45:58 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id s23-v6so3794561plq.7
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 03:45:58 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h4-v6sor27048937plk.55.2018.11.01.03.45.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 01 Nov 2018 03:39:35 -0700 (PDT)
-From: "Shai Fultheim (Shai@ScaleMP.com)" <Shai@ScaleMP.com>
-Subject: RE: [PATCH] x86/build: Build VSMP support only if selected
-Date: Thu, 1 Nov 2018 10:39:32 +0000
-Message-ID: 
- <SN6PR15MB2366D7688B41535AF0A331F9C3CE0@SN6PR15MB2366.namprd15.prod.outlook.com>
-References: <20181030230905.xHZmM%akpm@linux-foundation.org>
- <9e14d183-55a4-8299-7a18-0404e50bf004@infradead.org>
- <alpine.DEB.2.21.1811011032190.1642@nanos.tec.linutronix.de>
-In-Reply-To: <alpine.DEB.2.21.1811011032190.1642@nanos.tec.linutronix.de>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Thu, 01 Nov 2018 03:45:57 -0700 (PDT)
+Date: Thu, 1 Nov 2018 21:45:52 +1100
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [RFC PATCH v1 2/4] kvmppc: Add support for shared pages in HMM
+ driver
+Message-ID: <20181101104552.GE16399@350D>
+References: <20181022051837.1165-1-bharata@linux.ibm.com>
+ <20181022051837.1165-3-bharata@linux.ibm.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181022051837.1165-3-bharata@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>, Randy Dunlap <rdunlap@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "broonie@kernel.org" <broonie@kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, Stephen Rothwell <sfr@canb.auug.org.au>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, Ravikiran Thirumalai <kiran@scalemp.com>, X86 ML <x86@kernel.org>, "'Eial Czerwacki (eial@scalemp.com)'" <eial@scalemp.com>, 'Oren Twaig' <oren@scalemp.com>
+To: Bharata B Rao <bharata@linux.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org, paulus@au1.ibm.com, benh@linux.ibm.com, aneesh.kumar@linux.vnet.ibm.com, jglisse@redhat.com, linuxram@us.ibm.com
 
-On 01/11/18 11:37, Thomas Gleixner wrote:
+On Mon, Oct 22, 2018 at 10:48:35AM +0530, Bharata B Rao wrote:
+> A secure guest will share some of its pages with hypervisor (Eg. virtio
+> bounce buffers etc). Support shared pages in HMM driver.
+> 
+> Signed-off-by: Bharata B Rao <bharata@linux.ibm.com>
+> ---
+>  arch/powerpc/kvm/book3s_hv_hmm.c | 69 ++++++++++++++++++++++++++++++--
+>  1 file changed, 65 insertions(+), 4 deletions(-)
+> 
+> diff --git a/arch/powerpc/kvm/book3s_hv_hmm.c b/arch/powerpc/kvm/book3s_hv_hmm.c
+> index a2ee3163a312..09b8e19b7605 100644
+> --- a/arch/powerpc/kvm/book3s_hv_hmm.c
+> +++ b/arch/powerpc/kvm/book3s_hv_hmm.c
+> @@ -50,6 +50,7 @@ struct kvmppc_hmm_page_pvt {
+>  	struct hlist_head *hmm_hash;
+>  	unsigned int lpid;
+>  	unsigned long gpa;
+> +	bool skip_page_out;
+>  };
+>  
+>  struct kvmppc_hmm_migrate_args {
+> @@ -278,6 +279,65 @@ static unsigned long kvmppc_gpa_to_hva(struct kvm *kvm, unsigned long gpa,
+>  	return hva;
+>  }
+>  
+> +/*
+> + * Shares the page with HV, thus making it a normal page.
+> + *
+> + * - If the page is already secure, then provision a new page and share
+> + * - If the page is a normal page, share the existing page
+> + *
+> + * In the former case, uses the HMM fault handler to release the HMM page.
+> + */
+> +static unsigned long
+> +kvmppc_share_page(struct kvm *kvm, unsigned long gpa,
+> +		  unsigned long addr, unsigned long page_shift)
+> +{
+> +
 
-> VSMP support is built even if CONFIG_X86_VSMP is not set. This leads to a=
- build
-> breakage when CONFIG_PCI is disabled as well.
->=20
-> Build VSMP code only when selected.
+So this is a special flag passed via the hypercall to say
+this page can be skipped from page_out from secure memory?
+Who has the master copy of the page at this point?
 
-This patch disables detect_vsmp_box() on systems without CONFIG_X86_VSMP, d=
-ue to
-the recent 6da63eb241a05b0e676d68975e793c0521387141.  This is significant
-regression that will affect significant number of deployments.
+In which case the question is
 
-We will reply shortly with an updated patch that fix the dependency on pv_i=
-rq_ops,
-and revert to CONFIG_PARAVIRT, with proper protection for CONFIG_PCI.
+Why did we get a fault on the page which resulted in the
+fault migration ops being called?
+What category of pages are considered shared?
+
+Balbir
