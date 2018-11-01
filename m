@@ -1,62 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EE3126B000D
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 17:47:32 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id a40-v6so15449302pla.5
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 14:47:32 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id o12-v6si31538235plg.154.2018.11.01.14.47.31
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A32FB6B0010
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 18:46:41 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id v6-v6so42054wri.23
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 15:46:41 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id c12-v6sor9785511wrs.36.2018.11.01.15.46.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Nov 2018 14:47:31 -0700 (PDT)
-Date: Thu, 1 Nov 2018 14:47:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4] mm/page_owner: clamp read count to PAGE_SIZE
-Message-Id: <20181101144723.3ddc1fa1ab7f81184bc2fdb8@linux-foundation.org>
-In-Reply-To: <1541091607-27402-1-git-send-email-miles.chen@mediatek.com>
-References: <1541091607-27402-1-git-send-email-miles.chen@mediatek.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Thu, 01 Nov 2018 15:46:40 -0700 (PDT)
+MIME-Version: 1.0
+References: <CADF2uSoG_RdKF0pNMBaCiPWGq3jn1VrABbm-rSnqabSSStixDw@mail.gmail.com>
+ <CADF2uSpiD9t-dF6bp-3-EnqWK9BBEwrfp69=_tcxUOLk_DytUA@mail.gmail.com>
+ <6e3a9434-32f2-0388-e0c7-2bd1c2ebc8b1@suse.cz> <20181030152632.GG32673@dhcp22.suse.cz>
+ <CADF2uSr2V+6MosROF7dJjs_Pn_hR8u6Z+5bKPqXYUUKx=5knDg@mail.gmail.com>
+ <98305976-612f-cf6d-1377-2f9f045710a9@suse.cz> <b9dd0c10-d87b-94a8-0234-7c6c0264d672@suse.cz>
+ <CADF2uSorU5P+Jw--oL5huOHN1Oe+Uss+maSXy0V9GLfHWjTBbA@mail.gmail.com>
+ <20181031170108.GR32673@dhcp22.suse.cz> <CADF2uSpE9=iS5_KwPDRCuBECE+Kp5i5yDn3Vz8A+SxGTQ=DC3Q@mail.gmail.com>
+ <20181101132307.GJ23921@dhcp22.suse.cz>
+In-Reply-To: <20181101132307.GJ23921@dhcp22.suse.cz>
+From: Marinko Catovic <marinko.catovic@gmail.com>
+Date: Thu, 1 Nov 2018 23:46:27 +0100
+Message-ID: <CADF2uSqO8+_uZA5qHjWJ08UOqqH6C_d-_R+9qAAbxw5sdTYSMg@mail.gmail.com>
+Subject: Re: Caching/buffers become useless after some time
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: miles.chen@mediatek.com
-Cc: Michal Hocko <mhocko@suse.com>, Joe Perches <joe@perches.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com, Michal Hocko <mhocko@kernel.org>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Christopher Lameter <cl@linux.com>
 
-On Fri, 2 Nov 2018 01:00:07 +0800 <miles.chen@mediatek.com> wrote:
-
-> From: Miles Chen <miles.chen@mediatek.com>
-> 
-> The page owner read might allocate a large size of memory with
-> a large read count. Allocation fails can easily occur when doing
-> high order allocations.
-> 
-> Clamp buffer size to PAGE_SIZE to avoid arbitrary size allocation
-> and avoid allocation fails due to high order allocation.
-> 
-> ...
+Am Do., 1. Nov. 2018 um 14:23 Uhr schrieb Michal Hocko <mhocko@suse.com>:
 >
-> --- a/mm/page_owner.c
-> +++ b/mm/page_owner.c
-> @@ -351,6 +351,7 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
->  		.skip = 0
->  	};
->  
-> +	count = count > PAGE_SIZE ? PAGE_SIZE : count;
->  	kbuf = kmalloc(count, GFP_KERNEL);
->  	if (!kbuf)
->  		return -ENOMEM;
+> On Wed 31-10-18 20:21:42, Marinko Catovic wrote:
+> > Am Mi., 31. Okt. 2018 um 18:01 Uhr schrieb Michal Hocko <mhocko@suse.com>:
+> > >
+> > > On Wed 31-10-18 15:53:44, Marinko Catovic wrote:
+> > > [...]
+> > > > Well caching of any operations with find/du is not necessary imho
+> > > > anyway, since walking over all these millions of files in that time
+> > > > period is really not worth caching at all - if there is a way you
+> > > > mentioned to limit the commands there, that would be great.
+> > >
+> > > One possible way would be to run this find/du workload inside a memory
+> > > cgroup with high limit set to something reasonable (that will likely
+> > > require some tuning). I am not 100% sure that will behave for metadata
+> > > mostly workload without almost any pagecache to reclaim so it might turn
+> > > out this will result in other issues. But it is definitely worth trying.
+> >
+> > hm, how would that be possible..? every user has its UID, the group
+> > can also not be a factor, since this memory restriction would apply to
+> > all users then, find/du are running as UID 0 to have access to
+> > everyone's data.
+>
+> I thought you have a dedicated script(s) to do all the stats. All you
+> need is to run that particular script(s) within a memory cgroup
 
-A bit tidier:
+yes, that is the case - the scripts are running as root, since as
+mentioned all users have own UIDs and specific groups, so to have
+access one would need root privileges.
+My question was how to limit this using cgroups, since afaik limits
+there apply to given UIDs/GIDs
 
---- a/mm/page_owner.c~mm-page_owner-clamp-read-count-to-page_size-fix
-+++ a/mm/page_owner.c
-@@ -351,7 +351,7 @@ print_page_owner(char __user *buf, size_
- 		.skip = 0
- 	};
- 
--	count = count > PAGE_SIZE ? PAGE_SIZE : count;
-+	count = min_t(size_t, count, PAGE_SIZE);
- 	kbuf = kmalloc(count, GFP_KERNEL);
- 	if (!kbuf)
- 		return -ENOMEM;
+> > so what is the conclusion from this issue now btw? is it something
+> > that will be changed/fixed at any time?
+>
+> It is likely that you are triggering a pathological memory fragmentation
+> with a lot of unmovable objects that prevent it to get resolved. That
+> leads to memory over reclaim to make a forward progress. A hard nut to
+> resolve but something that is definitely on radar to be solved
+> eventually. So far we have been quite lucky to not trigger it that
+> badly.
+
+good to hear :)
+
+> > As I understand everyone would have this issue when extensive walking
+> > over files is performed, basically any `cloud`, shared hosting or
+> > storage systems should experience it, true?
+>
+> Not really. You need also a high demand for high order allocations to
+> require contiguous physical memory. Maybe there is something in your
+> workload triggering this particular pattern.
+
+I would not even know what triggers it, nor what it has to do with
+high order, I'm just running find/du, nothing special I'd say.
