@@ -1,95 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E12C96B0006
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 12:55:24 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id 87-v6so16904401pfq.8
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 09:55:24 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s22-v6si43605238pfs.13.2018.11.01.09.55.23
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 217176B0008
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 13:00:22 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id c15-v6so5093720pls.15
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 10:00:22 -0700 (PDT)
+Received: from mailgw01.mediatek.com ([210.61.82.183])
+        by mx.google.com with ESMTPS id v6-v6si29516489plo.134.2018.11.01.10.00.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Nov 2018 09:55:23 -0700 (PDT)
-Date: Thu, 1 Nov 2018 17:55:19 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2] mm/kvmalloc: do not call kmalloc for size >
- KMALLOC_MAX_SIZE
-Message-ID: <20181101165519.GM23921@dhcp22.suse.cz>
-References: <154106356066.887821.4649178319705436373.stgit@buzz>
- <154106695670.898059.5301435081426064314.stgit@buzz>
- <20181101102405.GE23921@dhcp22.suse.cz>
- <cd2a55be-17f1-5da9-1154-8e291fe958cd@yandex-team.ru>
- <20181101125543.GH23921@dhcp22.suse.cz>
- <ae51e16b-459c-7d59-6277-b1a197dbf5ff@yandex-team.ru>
+        Thu, 01 Nov 2018 10:00:21 -0700 (PDT)
+From: <miles.chen@mediatek.com>
+Subject: [PATCH v4] mm/page_owner: clamp read count to PAGE_SIZE
+Date: Fri, 2 Nov 2018 01:00:07 +0800
+Message-ID: <1541091607-27402-1-git-send-email-miles.chen@mediatek.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ae51e16b-459c-7d59-6277-b1a197dbf5ff@yandex-team.ru>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Joe Perches <joe@perches.com>, Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com, Miles Chen <miles.chen@mediatek.com>, Michal Hocko <mhocko@kernel.org>
 
-On Thu 01-11-18 19:42:48, Konstantin Khlebnikov wrote:
-> On 01.11.2018 15:55, Michal Hocko wrote:
-> > On Thu 01-11-18 13:48:17, Konstantin Khlebnikov wrote:
-> > > 
-> > > 
-> > > On 01.11.2018 13:24, Michal Hocko wrote:
-> > > > On Thu 01-11-18 13:09:16, Konstantin Khlebnikov wrote:
-> > > > > Allocations over KMALLOC_MAX_SIZE could be served only by vmalloc.
-> > > > 
-> > > > I would go on and say that allocations with sizes too large can actually
-> > > > trigger a warning (once you have posted in the previous version outside
-> > > > of the changelog area) because that might be interesting to people -
-> > > > there are deployments to panic on warning and then a warning is much
-> > > > more important.
-> > > 
-> > > It seems that warning isn't completely valid.
-> > > 
-> > > 
-> > > __alloc_pages_slowpath() handles this more gracefully:
-> > > 
-> > > 	/*
-> > > 	 * In the slowpath, we sanity check order to avoid ever trying to
-> > > 	 * reclaim >= MAX_ORDER areas which will never succeed. Callers may
-> > > 	 * be using allocators in order of preference for an area that is
-> > > 	 * too large.
-> > > 	 */
-> > > 	if (order >= MAX_ORDER) {
-> > > 		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
-> > > 		return NULL;
-> > > 	}
-> > > 
-> > > 
-> > > Fast path is ready for order >= MAX_ORDER
-> > > 
-> > > 
-> > > Problem is in node_reclaim() which is called earlier than __alloc_pages_slowpath()
-> > > from surprising place - get_page_from_freelist()
-> > > 
-> > > 
-> > > Probably node_reclaim() simply needs something like this:
-> > > 
-> > > 	if (order >= MAX_ORDER)
-> > > 		return NODE_RECLAIM_NOSCAN;
-> > 
-> > Maybe but the point is that triggering this warning is possible. Even if
-> > the warning is bogus it doesn't really make much sense to even try
-> > kmalloc if the size is not supported by the allocator.
-> > 
-> 
-> But __GFP_NOWARN allocation (like in this case) should just fail silently
-> without warnings regardless of reason because caller can deal with that.
+From: Miles Chen <miles.chen@mediatek.com>
 
-__GFP_NOWARN is not about no warning to be triggered from the allocation
-context. It is more about not complaining about the allocation failure.
-I do not think we want to check the gfp mask in all possible paths
-triggered from the allocator/reclaim.
+The page owner read might allocate a large size of memory with
+a large read count. Allocation fails can easily occur when doing
+high order allocations.
 
-I have just looked at the original warning you have hit and it came from
-88d6ac40c1c6 ("mm/vmstat: fix divide error at __fragmentation_index"). I
-would argue that the warning is a bit of an over-reaction. Regardless of
-the gfp_mask.
+Clamp buffer size to PAGE_SIZE to avoid arbitrary size allocation
+and avoid allocation fails due to high order allocation.
+
+Change since v3:
+  - remove the change in kvmalloc
+  - keep kmalloc in page_owner.c
+
+Change since v2:
+  - improve kvmalloc, allow sub page allocations fallback to
+    vmalloc when CONFIG_HIGHMEM=y
+
+Change since v1:
+  - use kvmalloc()
+  - clamp buffer size to PAGE_SIZE
+
+Signed-off-by: Miles Chen <miles.chen@mediatek.com>
+Cc: Joe Perches <joe@perches.com>
+Cc: Matthew Wilcox <willy@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+---
+ mm/page_owner.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index 87bc0dfdb52b..b83f295e4eca 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -351,6 +351,7 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
+ 		.skip = 0
+ 	};
+ 
++	count = count > PAGE_SIZE ? PAGE_SIZE : count;
+ 	kbuf = kmalloc(count, GFP_KERNEL);
+ 	if (!kbuf)
+ 		return -ENOMEM;
 -- 
-Michal Hocko
-SUSE Labs
+2.18.0
