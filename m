@@ -1,90 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E53E36B0007
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 09:10:13 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id m45-v6so12420571edc.2
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 06:10:13 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e1-v6si1842255eja.164.2018.11.01.06.10.12
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E288B6B000A
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 09:10:48 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id w131-v6so3134679oie.4
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 06:10:48 -0700 (PDT)
+Received: from scalemp.com (www.scalemp.com. [169.44.78.149])
+        by mx.google.com with ESMTPS id z3-v6si4180134oig.92.2018.11.01.06.10.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Nov 2018 06:10:12 -0700 (PDT)
-Date: Thu, 1 Nov 2018 14:09:10 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] mm, drm/i915: mark pinned shmemfs pages as unevictable
-Message-ID: <20181101130910.GI23921@dhcp22.suse.cz>
-References: <20181031081945.207709-1-vovoy@chromium.org>
- <20181031142458.GP32673@dhcp22.suse.cz>
- <cc44aa53-8705-02ea-6c59-f311427d93af@intel.com>
- <20181031164231.GQ32673@dhcp22.suse.cz>
- <CAEHM+4pSkv_fD3Yb2KX1xFrOmRHU1e=+wCBrCyLAAMBG3zP75w@mail.gmail.com>
+        Thu, 01 Nov 2018 06:10:47 -0700 (PDT)
+Subject: Re: [PATCH] x86/build: Build VSMP support only if selected
+References: <20181030230905.xHZmM%akpm@linux-foundation.org>
+ <9e14d183-55a4-8299-7a18-0404e50bf004@infradead.org>
+ <alpine.DEB.2.21.1811011032190.1642@nanos.tec.linutronix.de>
+ <SN6PR15MB2366D7688B41535AF0A331F9C3CE0@SN6PR15MB2366.namprd15.prod.outlook.com>
+From: Eial Czerwacki <eial@scalemp.com>
+Message-ID: <a8f2ac8e-45dc-1c12-e888-6ad880b1306f@scalemp.com>
+Date: Thu, 1 Nov 2018 15:10:35 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAEHM+4pSkv_fD3Yb2KX1xFrOmRHU1e=+wCBrCyLAAMBG3zP75w@mail.gmail.com>
+In-Reply-To: <SN6PR15MB2366D7688B41535AF0A331F9C3CE0@SN6PR15MB2366.namprd15.prod.outlook.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vovo Yang <vovoy@chromium.org>
-Cc: dave.hansen@intel.com, linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, peterz@infradead.org, akpm@linux-foundation.org
+To: Thomas Gleixner <tglx@linutronix.de>, Randy Dunlap <rdunlap@infradead.org>
+Cc: "Shai Fultheim (Shai@ScaleMP.com)" <Shai@ScaleMP.com>, Andrew Morton <akpm@linux-foundation.org>, "broonie@kernel.org" <broonie@kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, Stephen Rothwell <sfr@canb.auug.org.au>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, X86 ML <x86@kernel.org>, 'Oren Twaig' <oren@scalemp.com>
 
-On Thu 01-11-18 19:28:46, Vovo Yang wrote:
-> On Thu, Nov 1, 2018 at 12:42 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > On Wed 31-10-18 07:40:14, Dave Hansen wrote:
-> > > Didn't we create the unevictable lists in the first place because
-> > > scanning alone was observed to be so expensive in some scenarios?
-> >
-> > Yes, that is the case. I might just misunderstood the code I thought
-> > those pages were already on the LRU when unevictable flag was set and
-> > we would only move these pages to the unevictable list lazy during the
-> > reclaim. If the flag is set at the time when the page is added to the
-> > LRU then it should get to the proper LRU list right away. But then I do
-> > not understand the test results from previous run at all.
-> 
-> "gem_syslatency -t 120 -b -m" allocates a lot of anon pages, it consists of
-> these looping threads:
->   * ncpu threads to alloc i915 shmem buffers, these buffers are freed by i915
-> shrinker.
->   * ncpu threads to mmap, write, munmap an 2 MiB mapping.
->   * 1 thread to cat all files to /dev/null
-> 
-> Without the unevictable patch, after rebooting and running
-> "gem_syslatency -t 120 -b -m", I got these custom vmstat:
->   pgsteal_kswapd_anon 29261
->   pgsteal_kswapd_file 1153696
->   pgsteal_direct_anon 255
->   pgsteal_direct_file 13050
->   pgscan_kswapd_anon 14524536
->   pgscan_kswapd_file 1488683
->   pgscan_direct_anon 1702448
->   pgscan_direct_file 25849
-> 
-> And meminfo shows large anon lru size during test.
->   # cat /proc/meminfo | grep -i "active("
->   Active(anon):     377760 kB
->   Inactive(anon):  3195392 kB
->   Active(file):      19216 kB
->   Inactive(file):    16044 kB
-> 
-> With this patch, the custom vmstat after test:
->   pgsteal_kswapd_anon 74962
->   pgsteal_kswapd_file 903588
->   pgsteal_direct_anon 4434
->   pgsteal_direct_file 14969
->   pgscan_kswapd_anon 2814791
->   pgscan_kswapd_file 1113676
->   pgscan_direct_anon 526766
->   pgscan_direct_file 32432
-> 
-> The anon pgscan count is reduced.
+Greetings,
 
-OK, so that explain my question about the test case. Even though you
-generate a lot of page cache, the amount is still too small to trigger
-pagecache mostly reclaim and anon LRUs are scanned as well.
+On 11/01/2018 12:39 PM, Shai Fultheim (Shai@ScaleMP.com) wrote:
+> On 01/11/18 11:37, Thomas Gleixner wrote:
+> 
+>> VSMP support is built even if CONFIG_X86_VSMP is not set. This leads to a build
+>> breakage when CONFIG_PCI is disabled as well.
+>>
+>> Build VSMP code only when selected.
+> 
+> This patch disables detect_vsmp_box() on systems without CONFIG_X86_VSMP, due to
+> the recent 6da63eb241a05b0e676d68975e793c0521387141.  This is significant
+> regression that will affect significant number of deployments.
+> 
+> We will reply shortly with an updated patch that fix the dependency on pv_irq_ops,
+> and revert to CONFIG_PARAVIRT, with proper protection for CONFIG_PCI.
+> 
 
-Now to the difference with the previous version which simply set the
-UNEVICTABLE flag on mapping. Am I right assuming that pages are already
-at LRU at the time? Is there any reason the mapping cannot have the flag
-set before they are added to the LRU?
--- 
-Michal Hocko
-SUSE Labs
+here is the proper patch which fixes the issue on hand:
