@@ -1,87 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CA186B000D
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 02:49:18 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id z13-v6so13690757pgv.18
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2018 23:49:18 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y40-v6sor12436478pla.26.2018.10.31.23.49.16
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 467206B0005
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 03:13:37 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id g24-v6so12842295pfi.23
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 00:13:37 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id m10-v6si28609082plt.394.2018.11.01.00.13.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 31 Oct 2018 23:49:17 -0700 (PDT)
-Date: Thu, 1 Nov 2018 17:19:11 +1030
-From: Alan Modra <amodra@gmail.com>
-Subject: Re: PIE binaries are no longer mapped below 4 GiB on ppc64le
-Message-ID: <20181101064911.GB29482@bubble.grove.modra.org>
-References: <87k1lyf2x3.fsf@oldenburg.str.redhat.com>
- <87lg6dfo3t.fsf@concordia.ellerman.id.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87lg6dfo3t.fsf@concordia.ellerman.id.au>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Nov 2018 00:13:35 -0700 (PDT)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.1 \(3445.101.1\))
+Subject: Re: [PATCH] tmpfs: let lseek return ENXIO with a negative offset
+From: William Kucharski <william.kucharski@oracle.com>
+In-Reply-To: <1540434176-14349-1-git-send-email-yuyufen@huawei.com>
+Date: Thu, 1 Nov 2018 01:13:25 -0600
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <88ED1518-A829-4933-8E1B-0576C79491B3@oracle.com>
+References: <1540434176-14349-1-git-send-email-yuyufen@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Florian Weimer <fweimer@redhat.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, keescook@chromium.org
+To: Yufen Yu <yuyufen@huawei.com>
+Cc: viro@zeniv.linux.org.uk, hughd@google.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-unionfs@vger.kernel.org
 
-On Thu, Nov 01, 2018 at 02:55:34PM +1100, Michael Ellerman wrote:
-> Hi Florian,
-> 
-> Florian Weimer <fweimer@redhat.com> writes:
-> > We tried to use Go to build PIE binaries, and while the Go toolchain is
-> > definitely not ready (it produces text relocations and problematic
-> > relocations in general), it exposed what could be an accidental
-> > userspace ABI change.
-> >
-> > With our 4.10-derived kernel, PIE binaries are mapped below 4 GiB, so
-> > relocations like R_PPC64_ADDR16_HA work:
-> >
-> > 21f00000-220d0000 r-xp 00000000 fd:00 36593493                           /root/extld
-> > 220d0000-220e0000 r--p 001c0000 fd:00 36593493                           /root/extld
-> > 220e0000-22100000 rw-p 001d0000 fd:00 36593493                           /root/extld
-> ...
-> >
-> > With a 4.18-derived kernel (with the hashed mm), we get this instead:
-> >
-> > 120e60000-121030000 rw-p 00000000 fd:00 102447141                        /root/extld
-> > 121030000-121060000 rw-p 001c0000 fd:00 102447141                        /root/extld
-> > 121060000-121080000 rw-p 00000000 00:00 0 
-> 
-> I assume that's caused by:
-> 
->   47ebb09d5485 ("powerpc: move ELF_ET_DYN_BASE to 4GB / 4MB")
-> 
-> Which did roughly:
-> 
->   -#define ELF_ET_DYN_BASE	0x20000000
->   +#define ELF_ET_DYN_BASE		(is_32bit_task() ? 0x000400000UL : \
->   +					   0x100000000UL)
-> 
-> And went into 4.13.
-> 
-> > ...
-> > I'm not entirely sure what to make of this, but I'm worried that this
-> > could be a regression that matters to userspace.
-> 
-> It was a deliberate change, and it seemed to not break anything so we
-> merged it. But obviously we didn't test widely enough.
-> 
-> So I guess it clearly can matter to userspace, and it used to work, so
-> therefore it is a regression.
-> 
-> But at the same time we haven't had any other reports of breakage, so is
-> this somehow specific to something Go is doing? Or did we just get lucky
-> up until now? Or is no one actually testing on Power? ;)
 
-Mapping PIEs above 4G should be fine.  It works for gcc C and C++
-after all.  The problem is that ppc64le Go is generating code not
-suitable for a PIE.  Dynamic text relocations are evidence of non-PIC
-object files.
 
-Quoting Lynn Boger <boger@us.ibm.com>:
-"When building a pie binary with golang, they should be using
--buildmode=pie and not just pass -pie to the linker".
+> On Oct 24, 2018, at 8:22 PM, Yufen Yu <yuyufen@huawei.com> wrote:
+>=20
+> For now, the others filesystems, such as ext4, f2fs, ubifs,
+> all of them return ENXIO when lseek with a negative offset.
+> It is better to let tmpfs return ENXIO too. After that, tmpfs
+> can also pass generic/448.
+>=20
+> Signed-off-by: Yufen Yu <yuyufen@huawei.com>
+> ---
+> mm/shmem.c | 4 +---
+> 1 file changed, 1 insertion(+), 3 deletions(-)
+>=20
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 0376c124..f37bf06 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -2608,9 +2608,7 @@ static loff_t shmem_file_llseek(struct file =
+*file, loff_t offset, int whence)
+> 	inode_lock(inode);
+> 	/* We're holding i_mutex so we can access i_size directly */
+>=20
+> -	if (offset < 0)
+> -		offset =3D -EINVAL;
+> -	else if (offset >=3D inode->i_size)
+> +	if (offset < 0 || offset >=3D inode->i_size)
+> 		offset =3D -ENXIO;
+> 	else {
+> 		start =3D offset >> PAGE_SHIFT;
+> --
 
--- 
-Alan Modra
-Australia Development Lab, IBM
+It's not at all clear what the proper thing to do is if a negative =
+offset is passed.
+
+The man page for lseek(2) states:
+
+       SEEK_DATA
+              Adjust the file offset to the next location in the file
+              greater than or equal to offset containing data.  If =
+offset
+              points to data, then the file offset is set to offset.
+      =20
+       SEEK_HOLE
+              Adjust the file offset to the next hole in the file =
+greater
+              than or equal to offset.  If offset points into the middle =
+of
+              a hole, then the file offset is set to offset.  If there =
+is no
+              hole past offset, then the file offset is adjusted to the =
+end
+              of the file (i.e., there is an implicit hole at the end of =
+any
+              file).
+
+This seems to indicate that if passed a negative offset, a whence of =
+either SEEK_DATA
+or SEEK_HOLE should operate the same as if passed an offset of 0.
+
+ENXIO just seems to be the wrong error code to return for a passed =
+negative offset in
+these cases (also from lseek(2)):
+
+       ENXIO  whence is SEEK_DATA or SEEK_HOLE, and the file offset is
+              beyond the end of the file.
+
+but EINVAL isn't technically appropriate either:
+
+       EINVAL whence is not valid.  Or: the resulting file offset would =
+be
+              negative, or beyond the end of a seekable device.
+
+At the very least it seems the man page should be updated to reflect =
+that ENXIO may be
+returned if whence is SEEK_DATA or SEEK_HOLE and the passed offset is =
+negative.
+
+    William Kucharski
