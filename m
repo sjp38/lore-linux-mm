@@ -1,73 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F3556B0005
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 07:28:59 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id m2-v6so14549844oic.16
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 04:28:59 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F30866B0005
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 08:06:24 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id y81-v6so14582107oig.20
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 05:06:24 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t91sor4356033ota.152.2018.11.01.04.28.58
+        by mx.google.com with SMTPS id l3sor5988817ota.177.2018.11.01.05.06.23
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 01 Nov 2018 04:28:58 -0700 (PDT)
+        Thu, 01 Nov 2018 05:06:23 -0700 (PDT)
 MIME-Version: 1.0
-References: <20181031081945.207709-1-vovoy@chromium.org> <20181031142458.GP32673@dhcp22.suse.cz>
- <cc44aa53-8705-02ea-6c59-f311427d93af@intel.com> <20181031164231.GQ32673@dhcp22.suse.cz>
-In-Reply-To: <20181031164231.GQ32673@dhcp22.suse.cz>
+References: <20181031081945.207709-1-vovoy@chromium.org> <039b2768-39ff-6196-9615-1f0302ee3e0e@intel.com>
+In-Reply-To: <039b2768-39ff-6196-9615-1f0302ee3e0e@intel.com>
 From: Vovo Yang <vovoy@chromium.org>
-Date: Thu, 1 Nov 2018 19:28:46 +0800
-Message-ID: <CAEHM+4pSkv_fD3Yb2KX1xFrOmRHU1e=+wCBrCyLAAMBG3zP75w@mail.gmail.com>
+Date: Thu, 1 Nov 2018 20:06:12 +0800
+Message-ID: <CAEHM+4q7V3d+EiHR6+TKoJC=6Ga0eCLWik0oJgDRQCpWps=wMA@mail.gmail.com>
 Subject: Re: [PATCH v3] mm, drm/i915: mark pinned shmemfs pages as unevictable
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: dave.hansen@intel.com, linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, peterz@infradead.org, akpm@linux-foundation.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: owner-linux-mm@kvack.org, linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.orglinux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, Michal Hocko <mhocko@suse.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Nov 1, 2018 at 12:42 AM Michal Hocko <mhocko@kernel.org> wrote:
-> On Wed 31-10-18 07:40:14, Dave Hansen wrote:
-> > Didn't we create the unevictable lists in the first place because
-> > scanning alone was observed to be so expensive in some scenarios?
+On Wed, Oct 31, 2018 at 10:19 PM Dave Hansen <dave.hansen@intel.com> wrote:
+> On 10/31/18 1:19 AM, owner-linux-mm@kvack.org wrote:
+> > -These are currently used in two places in the kernel:
+> > +These are currently used in three places in the kernel:
+> >
+> >   (1) By ramfs to mark the address spaces of its inodes when they are created,
+> >       and this mark remains for the life of the inode.
+> > @@ -154,6 +154,8 @@ These are currently used in two places in the kernel:
+> >       swapped out; the application must touch the pages manually if it wants to
+> >       ensure they're in memory.
+> >
+> > + (3) By the i915 driver to mark pinned address space until it's unpinned.
 >
-> Yes, that is the case. I might just misunderstood the code I thought
-> those pages were already on the LRU when unevictable flag was set and
-> we would only move these pages to the unevictable list lazy during the
-> reclaim. If the flag is set at the time when the page is added to the
-> LRU then it should get to the proper LRU list right away. But then I do
-> not understand the test results from previous run at all.
+> mlock() and ramfs usage are pretty easy to track down.  /proc/$pid/smaps
+> or /proc/meminfo can show us mlock() and good ol' 'df' and friends can
+> show us ramfs the extent of pinned memory.
+>
+> With these, if we see "Unevictable" in meminfo bump up, we at least have
+> a starting point to find the cause.
+>
+> Do we have an equivalent for i915?
 
-"gem_syslatency -t 120 -b -m" allocates a lot of anon pages, it consists of
-these looping threads:
-  * ncpu threads to alloc i915 shmem buffers, these buffers are freed by i915
-shrinker.
-  * ncpu threads to mmap, write, munmap an 2 MiB mapping.
-  * 1 thread to cat all files to /dev/null
-
-Without the unevictable patch, after rebooting and running
-"gem_syslatency -t 120 -b -m", I got these custom vmstat:
-  pgsteal_kswapd_anon 29261
-  pgsteal_kswapd_file 1153696
-  pgsteal_direct_anon 255
-  pgsteal_direct_file 13050
-  pgscan_kswapd_anon 14524536
-  pgscan_kswapd_file 1488683
-  pgscan_direct_anon 1702448
-  pgscan_direct_file 25849
-
-And meminfo shows large anon lru size during test.
-  # cat /proc/meminfo | grep -i "active("
-  Active(anon):     377760 kB
-  Inactive(anon):  3195392 kB
-  Active(file):      19216 kB
-  Inactive(file):    16044 kB
-
-With this patch, the custom vmstat after test:
-  pgsteal_kswapd_anon 74962
-  pgsteal_kswapd_file 903588
-  pgsteal_direct_anon 4434
-  pgsteal_direct_file 14969
-  pgscan_kswapd_anon 2814791
-  pgscan_kswapd_file 1113676
-  pgscan_direct_anon 526766
-  pgscan_direct_file 32432
-
-The anon pgscan count is reduced.
+AFAIK, there is no way to get i915 unevictable page count, some
+modification to i915 debugfs is required.
