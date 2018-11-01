@@ -1,63 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CC8A6B0008
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 16:59:04 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id v4so14691471otb.0
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 13:59:04 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id z24sor3797372otj.26.2018.11.01.13.59.02
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EE3126B000D
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 17:47:32 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id a40-v6so15449302pla.5
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 14:47:32 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o12-v6si31538235plg.154.2018.11.01.14.47.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 01 Nov 2018 13:59:02 -0700 (PDT)
-MIME-Version: 1.0
-References: <9cf5c075-c83f-0915-99ef-b2aa59eca685@arm.com> <CAPcyv4gZyDWYiQ8DHwei+FQRL22LGo3Sr6a-9VPESnuRJy7jtg@mail.gmail.com>
- <35bd3ed6-1a67-85a0-7b04-0b355660a950@arm.com>
-In-Reply-To: <35bd3ed6-1a67-85a0-7b04-0b355660a950@arm.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 1 Nov 2018 13:58:50 -0700
-Message-ID: <CAPcyv4gWMRK9hPoZveLSChOLhsCPqD8_gJgu4EzFLtDedjBChg@mail.gmail.com>
-Subject: Re: __HAVE_ARCH_PTE_DEVMAP - bug or intended behaviour?
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Nov 2018 14:47:31 -0700 (PDT)
+Date: Thu, 1 Nov 2018 14:47:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v4] mm/page_owner: clamp read count to PAGE_SIZE
+Message-Id: <20181101144723.3ddc1fa1ab7f81184bc2fdb8@linux-foundation.org>
+In-Reply-To: <1541091607-27402-1-git-send-email-miles.chen@mediatek.com>
+References: <1541091607-27402-1-git-send-email-miles.chen@mediatek.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Murphy <robin.murphy@arm.com>
-Cc: Linux MM <linux-mm@kvack.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+To: miles.chen@mediatek.com
+Cc: Michal Hocko <mhocko@suse.com>, Joe Perches <joe@perches.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com, Michal Hocko <mhocko@kernel.org>
 
-On Thu, Nov 1, 2018 at 1:10 PM Robin Murphy <robin.murphy@arm.com> wrote:
+On Fri, 2 Nov 2018 01:00:07 +0800 <miles.chen@mediatek.com> wrote:
+
+> From: Miles Chen <miles.chen@mediatek.com>
+> 
+> The page owner read might allocate a large size of memory with
+> a large read count. Allocation fails can easily occur when doing
+> high order allocations.
+> 
+> Clamp buffer size to PAGE_SIZE to avoid arbitrary size allocation
+> and avoid allocation fails due to high order allocation.
+> 
+> ...
 >
-> On 31/10/2018 20:41, Dan Williams wrote:
-> > On Wed, Oct 31, 2018 at 10:08 AM Robin Murphy <robin.murphy@arm.com> wrote:
-> >>
-> >> Hi mm folks,
-> >>
-> >> I'm looking at ZONE_DEVICE support for arm64, and trying to make sense
-> >> of a build failure has led me down the rabbit hole of pfn_t.h, and
-> >> specifically __HAVE_ARCH_PTE_DEVMAP in this first instance.
-> >>
-> >> The failure itself is a link error in remove_migration_pte() due to a
-> >> missing definition of pte_mkdevmap(), but I'm a little confused at the
-> >> fact that it's explicitly declared without a definition, as if that
-> >> breakage is deliberate.
-> >
-> > It's deliberate, it's only there to allow mm/memory.c to compile. The
-> > compiler can see that pfn_t_devmap(pfn) is always false in the
-> > !__HAVE_ARCH_PTE_DEVMAP case and throws away the attempt to link to
-> > pte_devmap().
-> >
-> > The summary is that an architecture needs to devote a free/software
-> > pte bit for Linux to indicate "device pfns".
->
-> Thanks for the explanation(s), that's been super helpful. So
-> essentially, the WIP configuration I currently have
-> (ARCH_HAS_ZONE_DEVICE=y but !__HAVE_ARCH_PTE_DEVMAP) is fundamentally
-> incomplete, and even if I convince a ZONE_DEVICE=y config to build with
-> the devmap stubs, it would end up going wrong in exciting ways at
-> runtime - is that the gist of it?
+> --- a/mm/page_owner.c
+> +++ b/mm/page_owner.c
+> @@ -351,6 +351,7 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
+>  		.skip = 0
+>  	};
+>  
+> +	count = count > PAGE_SIZE ? PAGE_SIZE : count;
+>  	kbuf = kmalloc(count, GFP_KERNEL);
+>  	if (!kbuf)
+>  		return -ENOMEM;
 
-Yes, exactly.
+A bit tidier:
 
-> If that is the case, then I might also
-> have a go at streamlining some of the configs to make those dependencies
-> more apparent.
-
-Sounds good.
+--- a/mm/page_owner.c~mm-page_owner-clamp-read-count-to-page_size-fix
++++ a/mm/page_owner.c
+@@ -351,7 +351,7 @@ print_page_owner(char __user *buf, size_
+ 		.skip = 0
+ 	};
+ 
+-	count = count > PAGE_SIZE ? PAGE_SIZE : count;
++	count = min_t(size_t, count, PAGE_SIZE);
+ 	kbuf = kmalloc(count, GFP_KERNEL);
+ 	if (!kbuf)
+ 		return -ENOMEM;
