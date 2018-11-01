@@ -1,171 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 03D526B0003
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 11:10:00 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id w126-v6so14766085oib.18
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 08:09:59 -0700 (PDT)
-Received: from scalemp.com (www.scalemp.com. [169.44.78.149])
-        by mx.google.com with ESMTPS id h204-v6si8455118oib.58.2018.11.01.08.09.58
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B0706B0006
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 11:10:50 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id f22-v6so14650191pgv.21
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 08:10:50 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id a29-v6si22707981pfh.223.2018.11.01.08.10.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Nov 2018 08:09:58 -0700 (PDT)
-Subject: Re: [PATCH] x86/build: Build VSMP support only if selected
-References: <20181030230905.xHZmM%akpm@linux-foundation.org>
- <9e14d183-55a4-8299-7a18-0404e50bf004@infradead.org>
- <alpine.DEB.2.21.1811011032190.1642@nanos.tec.linutronix.de>
- <SN6PR15MB2366D7688B41535AF0A331F9C3CE0@SN6PR15MB2366.namprd15.prod.outlook.com>
- <a8f2ac8e-45dc-1c12-e888-6ad880b1306f@scalemp.com>
- <054cd800-5124-f897-0069-aba49f8eb654@suse.com>
-From: Eial Czerwacki <eial@scalemp.com>
-Message-ID: <3c75860d-e3d7-8c28-6120-f6056200f941@scalemp.com>
-Date: Thu, 1 Nov 2018 17:09:50 +0200
-MIME-Version: 1.0
-In-Reply-To: <054cd800-5124-f897-0069-aba49f8eb654@suse.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
+        Thu, 01 Nov 2018 08:10:49 -0700 (PDT)
+Message-ID: <5eb92a4b34a934459e8558d0f7695a89ee178f89.camel@linux.intel.com>
+Subject: Re: [mm PATCH v4 3/6] mm: Use memblock/zone specific iterator for
+ handling deferred page init
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Date: Thu, 01 Nov 2018 08:10:48 -0700
+In-Reply-To: <20181101061733.GA8866@rapoport-lnx>
+References: <20181017235043.17213.92459.stgit@localhost.localdomain>
+	 <20181017235419.17213.68425.stgit@localhost.localdomain>
+	 <5b937f29-a6e1-6622-b035-246229021d3e@microsoft.com>
+	 <20181101061733.GA8866@rapoport-lnx>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Juergen Gross <jgross@suse.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Randy Dunlap <rdunlap@infradead.org>, "Shai Fultheim (Shai@ScaleMP.com)" <Shai@ScaleMP.com>, Andrew Morton <akpm@linux-foundation.org>, "broonie@kernel.org" <broonie@kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, Stephen Rothwell <sfr@canb.auug.org.au>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, X86 ML <x86@kernel.org>, 'Oren Twaig' <oren@scalemp.com>
+To: Mike Rapoport <rppt@linux.ibm.com>, Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@suse.com" <mhocko@suse.com>, "dave.jiang@intel.com" <dave.jiang@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "willy@infradead.org" <willy@infradead.org>, "davem@davemloft.net" <davem@davemloft.net>, "yi.z.zhang@linux.intel.com" <yi.z.zhang@linux.intel.com>, "khalid.aziz@oracle.com" <khalid.aziz@oracle.com>, "rppt@linux.vnet.ibm.com" <rppt@linux.vnet.ibm.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "ldufour@linux.vnet.ibm.com" <ldufour@linux.vnet.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mingo@kernel.org" <mingo@kernel.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
 
-Greetings,
+On Thu, 2018-11-01 at 08:17 +0200, Mike Rapoport wrote:
+> On Wed, Oct 31, 2018 at 03:40:02PM +0000, Pasha Tatashin wrote:
+> > 
+> > 
+> > On 10/17/18 7:54 PM, Alexander Duyck wrote:
+> > > This patch introduces a new iterator for_each_free_mem_pfn_range_in_zone.
+> > > 
+> > > This iterator will take care of making sure a given memory range provided
+> > > is in fact contained within a zone. It takes are of all the bounds checking
+> > > we were doing in deferred_grow_zone, and deferred_init_memmap. In addition
+> > > it should help to speed up the search a bit by iterating until the end of a
+> > > range is greater than the start of the zone pfn range, and will exit
+> > > completely if the start is beyond the end of the zone.
+> > > 
+> > > This patch adds yet another iterator called
+> > > for_each_free_mem_range_in_zone_from and then uses it to support
+> > > initializing and freeing pages in groups no larger than MAX_ORDER_NR_PAGES.
+> > > By doing this we can greatly improve the cache locality of the pages while
+> > > we do several loops over them in the init and freeing process.
+> > > 
+> > > We are able to tighten the loops as a result since we only really need the
+> > > checks for first_init_pfn in our first iteration and after that we can
+> > > assume that all future values will be greater than this. So I have added a
+> > > function called deferred_init_mem_pfn_range_in_zone that primes the
+> > > iterators and if it fails we can just exit.
+> > > 
+> > > On my x86_64 test system with 384GB of memory per node I saw a reduction in
+> > > initialization time from 1.85s to 1.38s as a result of this patch.
+> > > 
+> > > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> 
+>  
+> [ ... ] 
+> 
+> > > ---
+> > >  include/linux/memblock.h |   58 +++++++++++++++
+> > >  mm/memblock.c            |   63 ++++++++++++++++
+> > >  mm/page_alloc.c          |  176 ++++++++++++++++++++++++++++++++--------------
+> > >  3 files changed, 242 insertions(+), 55 deletions(-)
+> > > 
+> > > diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> > > index aee299a6aa76..2ddd1bafdd03 100644
+> > > --- a/include/linux/memblock.h
+> > > +++ b/include/linux/memblock.h
+> > > @@ -178,6 +178,25 @@ void __next_reserved_mem_region(u64 *idx, phys_addr_t *out_start,
+> > >  			      p_start, p_end, p_nid))
+> > >  
+> > >  /**
+> > > + * for_each_mem_range_from - iterate through memblock areas from type_a and not
+> > > + * included in type_b. Or just type_a if type_b is NULL.
+> > > + * @i: u64 used as loop variable
+> > > + * @type_a: ptr to memblock_type to iterate
+> > > + * @type_b: ptr to memblock_type which excludes from the iteration
+> > > + * @nid: node selector, %NUMA_NO_NODE for all nodes
+> > > + * @flags: pick from blocks based on memory attributes
+> > > + * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
+> > > + * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
+> > > + * @p_nid: ptr to int for nid of the range, can be %NULL
+> > > + */
+> > > +#define for_each_mem_range_from(i, type_a, type_b, nid, flags,		\
+> > > +			   p_start, p_end, p_nid)			\
+> > > +	for (i = 0, __next_mem_range(&i, nid, flags, type_a, type_b,	\
+> > > +				     p_start, p_end, p_nid);		\
+> > > +	     i != (u64)ULLONG_MAX;					\
+> > > +	     __next_mem_range(&i, nid, flags, type_a, type_b,		\
+> > > +			      p_start, p_end, p_nid))
+> > > +/**
+> > >   * for_each_mem_range_rev - reverse iterate through memblock areas from
+> > >   * type_a and not included in type_b. Or just type_a if type_b is NULL.
+> > >   * @i: u64 used as loop variable
+> > > @@ -248,6 +267,45 @@ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
+> > >  	     i >= 0; __next_mem_pfn_range(&i, nid, p_start, p_end, p_nid))
+> > >  #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+> > >  
+> > > +#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+> 
+> Sorry for jumping late, but I've noticed this only now.
+> Do the new iterators have to be restricted by
+> CONFIG_DEFERRED_STRUCT_PAGE_INIT?
 
-On 11/01/2018 03:45 PM, Juergen Gross wrote:
-> On 01/11/2018 14:10, Eial Czerwacki wrote:
->> Greetings,
->>
->> On 11/01/2018 12:39 PM, Shai Fultheim (Shai@ScaleMP.com) wrote:
->>> On 01/11/18 11:37, Thomas Gleixner wrote:
->>>
->>>> VSMP support is built even if CONFIG_X86_VSMP is not set. This leads to a build
->>>> breakage when CONFIG_PCI is disabled as well.
->>>>
->>>> Build VSMP code only when selected.
->>>
->>> This patch disables detect_vsmp_box() on systems without CONFIG_X86_VSMP, due to
->>> the recent 6da63eb241a05b0e676d68975e793c0521387141.  This is significant
->>> regression that will affect significant number of deployments.
->>>
->>> We will reply shortly with an updated patch that fix the dependency on pv_irq_ops,
->>> and revert to CONFIG_PARAVIRT, with proper protection for CONFIG_PCI.
->>>
->>
->> here is the proper patch which fixes the issue on hand:
->> From ebff534f8cfa55d7c3ab798c44abe879f3fbe2b8 Mon Sep 17 00:00:00 2001
->> From: Eial Czerwacki <eial@scalemp.com>
->> Date: Thu, 1 Nov 2018 15:08:32 +0200
->> Subject: [PATCH] x86/build: Build VSMP support only if CONFIG_PCI is
->> selected
->>
->> vsmp dependency of pv_irq_ops removed some years ago, so now let's clean
->> it up from vsmp_64.c.
->>
->> In short, "cap & ctl & (1 << 4)" was always returning 0, as such we can
->> remove all the PARAVIRT/PARAVIRT_XXL code handling that.
->>
->> However, the rest of the code depends on CONFIG_PCI, so fix it accordingly.
->>
->> Signed-off-by: Eial Czerwacki <eial@scalemp.com>
->> Acked-by: Shai Fultheim <shai@scalemp.com>
->> ---
->>  arch/x86/Kconfig          |  1 -
->>  arch/x86/kernel/vsmp_64.c | 80
->> +++--------------------------------------------
->>  2 files changed, 5 insertions(+), 76 deletions(-)
->>
->> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
->> index c51c989..4b187ca 100644
->> --- a/arch/x86/Kconfig
->> +++ b/arch/x86/Kconfig
->> @@ -524,7 +524,6 @@ config X86_VSMP
->>         bool "ScaleMP vSMP"
->>         select HYPERVISOR_GUEST
->>         select PARAVIRT
-> 
-> Do you really still need PARAVIRT and HYPERVISOR_GUEST?
-> Maybe you want IRQ_REMAP instead?
-> 
-Better performance is achieved with PARAVIRTed kernel.   Hence we keep
-them both in.
+They don't have to be. I just wrapped them since I figured it is better
+to just strip the code if it isn't going to be used rather then leave
+it floating around taking up space.
 
->> -       select PARAVIRT_XXL
->>         depends on X86_64 && PCI
->>         depends on X86_EXTENDED_PLATFORM
->>         depends on SMP
->> diff --git a/arch/x86/kernel/vsmp_64.c b/arch/x86/kernel/vsmp_64.c
->> index 1eae5af..c6d2b76 100644
->> --- a/arch/x86/kernel/vsmp_64.c
->> +++ b/arch/x86/kernel/vsmp_64.c
->> @@ -26,64 +26,7 @@
->>
->>  #define TOPOLOGY_REGISTER_OFFSET 0x10
->>
->> -#if defined CONFIG_PCI && defined CONFIG_PARAVIRT_XXL
->> -/*
->> - * Interrupt control on vSMPowered systems:
->> - * ~AC is a shadow of IF.  If IF is 'on' AC should be 'off'
->> - * and vice versa.
->> - */
->> -
->> -asmlinkage __visible unsigned long vsmp_save_fl(void)
->> -{
->> -       unsigned long flags = native_save_fl();
->> -
->> -       if (!(flags & X86_EFLAGS_IF) || (flags & X86_EFLAGS_AC))
->> -               flags &= ~X86_EFLAGS_IF;
->> -       return flags;
->> -}
->> -PV_CALLEE_SAVE_REGS_THUNK(vsmp_save_fl);
->> -
->> -__visible void vsmp_restore_fl(unsigned long flags)
->> -{
->> -       if (flags & X86_EFLAGS_IF)
->> -               flags &= ~X86_EFLAGS_AC;
->> -       else
->> -               flags |= X86_EFLAGS_AC;
->> -       native_restore_fl(flags);
->> -}
->> -PV_CALLEE_SAVE_REGS_THUNK(vsmp_restore_fl);
->> -
->> -asmlinkage __visible void vsmp_irq_disable(void)
->> -{
->> -       unsigned long flags = native_save_fl();
->> -
->> -       native_restore_fl((flags & ~X86_EFLAGS_IF) | X86_EFLAGS_AC);
->> -}
->> -PV_CALLEE_SAVE_REGS_THUNK(vsmp_irq_disable);
->> -
->> -asmlinkage __visible void vsmp_irq_enable(void)
->> -{
->> -       unsigned long flags = native_save_fl();
->> -
->> -       native_restore_fl((flags | X86_EFLAGS_IF) & (~X86_EFLAGS_AC));
->> -}
->> -PV_CALLEE_SAVE_REGS_THUNK(vsmp_irq_enable);
->> -
->> -static unsigned __init vsmp_patch(u8 type, void *ibuf,
->> -                                 unsigned long addr, unsigned len)
->> -{
->> -       switch (type) {
->> -       case PARAVIRT_PATCH(irq.irq_enable):
->> -       case PARAVIRT_PATCH(irq.irq_disable):
->> -       case PARAVIRT_PATCH(irq.save_fl):
->> -       case PARAVIRT_PATCH(irq.restore_fl):
->> -               return paravirt_patch_default(type, ibuf, addr, len);
->> -       default:
->> -               return native_patch(type, ibuf, addr, len);
->> -       }
->> -
->> -}
->> -
->> +#if defined CONFIG_PCI
->>  static void __init set_vsmp_pv_ops(void)
-> 
-> Wouldn't be a rename of the function be appropriate now?
-you are correct, I'll fix and resend the patch.
+Thanks.
 
-> 
-> 
-> Juergen
-> 
+- Alex
