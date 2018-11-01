@@ -1,88 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 831266B0269
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 05:59:34 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id v184-v6so20333644qkh.23
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 02:59:34 -0700 (PDT)
-Received: from mail.efficios.com (mail.efficios.com. [2607:5300:60:7898::beef])
-        by mx.google.com with ESMTPS id k18-v6si311183qtj.22.2018.11.01.02.59.33
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 71AF26B0008
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 06:00:25 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id v7-v6so14852635plo.23
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 03:00:25 -0700 (PDT)
+Received: from mailgw02.mediatek.com ([210.61.82.184])
+        by mx.google.com with ESMTPS id z31-v6si31002754plb.15.2018.11.01.03.00.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Nov 2018 02:59:33 -0700 (PDT)
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: [RFC PATCH for 4.21 05/16] mm: Provide is_vma_noncached
-Date: Thu,  1 Nov 2018 10:58:33 +0100
-Message-Id: <20181101095844.24462-6-mathieu.desnoyers@efficios.com>
-In-Reply-To: <20181101095844.24462-1-mathieu.desnoyers@efficios.com>
-References: <20181101095844.24462-1-mathieu.desnoyers@efficios.com>
+        Thu, 01 Nov 2018 03:00:24 -0700 (PDT)
+Message-ID: <1541066412.31492.10.camel@mtkswgap22>
+Subject: Re: [PATCH v3] mm/page_owner: use kvmalloc instead of kmalloc
+From: Miles Chen <miles.chen@mediatek.com>
+Date: Thu, 1 Nov 2018 18:00:12 +0800
+In-Reply-To: <20181031114107.GM32673@dhcp22.suse.cz>
+References: <1540790176-32339-1-git-send-email-miles.chen@mediatek.com>
+	 <20181029080708.GA32673@dhcp22.suse.cz>
+	 <20181029081706.GC32673@dhcp22.suse.cz>
+	 <1540862950.12374.40.camel@mtkswgap22>
+	 <20181030060601.GR32673@dhcp22.suse.cz>
+	 <1540882551.23278.12.camel@mtkswgap22>
+	 <20181030081537.GV32673@dhcp22.suse.cz>
+	 <1540975637.10275.10.camel@mtkswgap22>
+	 <20181031101501.GL32673@dhcp22.suse.cz>
+	 <1540981182.16084.1.camel@mtkswgap22>
+	 <20181031114107.GM32673@dhcp22.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Boqun Feng <boqun.feng@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@amacapital.net>, Dave Watson <davejwatson@fb.com>, Paul Turner <pjt@google.com>, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Andi Kleen <andi@firstfloor.org>, Chris Lameter <cl@linux.com>, Ben Maurer <bmaurer@fb.com>, Steven Rostedt <rostedt@goodmis.org>, Josh Triplett <josh@joshtriplett.org>, Linus Torvalds <torvalds@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Joel Fernandes <joelaf@google.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joe Perches <joe@perches.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com
 
-Provide is_vma_noncached() static inline to allow generic code to
-check whether the given vma consists of noncached memory.
+On Wed, 2018-10-31 at 12:41 +0100, Michal Hocko wrote:
+> On Wed 31-10-18 18:19:42, Miles Chen wrote:
+> > On Wed, 2018-10-31 at 11:15 +0100, Michal Hocko wrote:
+> > > On Wed 31-10-18 16:47:17, Miles Chen wrote:
+> > > > On Tue, 2018-10-30 at 09:15 +0100, Michal Hocko wrote:
+> > > > > On Tue 30-10-18 14:55:51, Miles Chen wrote:
+> > > > > [...]
+> > > > > > It's a real problem when using page_owner.
+> > > > > > I found this issue recently: I'm not able to read page_owner information
+> > > > > > during a overnight test. (error: read failed: Out of memory). I replace
+> > > > > > kmalloc() with vmalloc() and it worked well.
+> > > > > 
+> > > > > Is this with trimming the allocation to a single page and doing shorter
+> > > > > than requested reads?
+> > > > 
+> > > > 
+> > > > I printed out the allocate count on my device the request count is <=
+> > > > 4096. So I tested this scenario by trimming the count to from 4096 to
+> > > > 1024 bytes and it works fine. 
+> > > > 
+> > > > count = count > 1024? 1024: count;
+> > > > 
+> > > > It tested it on both 32bit and 64bit kernel.
+> > > 
+> > > Are you saying that you see OOMs for 4k size?
+> > > 
+> > yes, because kmalloc only use normal memor, not highmem + normal memory
+> > I think that's why vmalloc() works.
+> 
+> Can I see an OOM report please? I am especially interested that 1k
+> doesn't cause the problem because there shouldn't be that much of a
+> difference between the two. Larger allocations could be a result of
+> memory fragmentation but 1k vs. 4k to make a difference really seems
+> unexpected.
+> 
+You're right.
 
-Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-CC: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Paul Turner <pjt@google.com>
-CC: Thomas Gleixner <tglx@linutronix.de>
-CC: Andy Lutomirski <luto@amacapital.net>
-CC: Andi Kleen <andi@firstfloor.org>
-CC: Dave Watson <davejwatson@fb.com>
-CC: Chris Lameter <cl@linux.com>
-CC: Ingo Molnar <mingo@redhat.com>
-CC: "H. Peter Anvin" <hpa@zytor.com>
-CC: Ben Maurer <bmaurer@fb.com>
-CC: Steven Rostedt <rostedt@goodmis.org>
-CC: Josh Triplett <josh@joshtriplett.org>
-CC: Linus Torvalds <torvalds@linux-foundation.org>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: Russell King <linux@arm.linux.org.uk>
-CC: Catalin Marinas <catalin.marinas@arm.com>
-CC: Will Deacon <will.deacon@arm.com>
-CC: Michael Kerrisk <mtk.manpages@gmail.com>
-CC: Boqun Feng <boqun.feng@gmail.com>
-CC: linux-mm@kvack.org
----
- include/linux/mm.h | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+I pulled out the log and found  that the allocation fail is for order=4.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0416a7204be3..18acf4f339f8 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2551,6 +2551,30 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
- 	return follow_page_mask(vma, address, foll_flags, &unused_page_mask);
- }
- 
-+static inline bool pgprot_same(pgprot_t a, pgprot_t b)
-+{
-+	return pgprot_val(a) == pgprot_val(b);
-+}
-+
-+#ifdef pgprot_noncached
-+static inline bool is_vma_noncached(struct vm_area_struct *vma)
-+{
-+	pgprot_t pgprot = vma->vm_page_prot;
-+
-+	/* Check whether architecture implements noncached pages. */
-+	if (pgprot_same(pgprot_noncached(PAGE_KERNEL), PAGE_KERNEL))
-+		return false;
-+	if (!pgprot_same(pgprot, pgprot_noncached(pgprot)))
-+		return false;
-+	return true;
-+}
-+#else
-+static inline bool is_vma_noncached(struct vm_area_struct *vma)
-+{
-+	return false;
-+}
-+#endif
-+
- #define FOLL_WRITE	0x01	/* check pte is writable */
- #define FOLL_TOUCH	0x02	/* mark page accessed */
- #define FOLL_GET	0x04	/* do get_page on page */
--- 
-2.11.0
+I found that the if I do the read on the device, the read count is <=
+4096; if I do the read by 'adb pull' from my host PC, the read count
+becomes 65532. (I'm working on a android device)
+
+The overnight test used 'adb pull' command, so allocation fail occurred
+because of the large read count and the arbitrary size allocation design
+of page_owner. That also explains why vmalloc() works.
+
+I did a test today, the only code changed is to clamp to read count to
+PAGE_SIZE and it worked well. Maybe we can solve this issue by just
+clamping the read count.
+
+count = count > PAGE_SIZE ? PAGE_SIZE : count;
+
+
+Here is the log:
+
+<4>[  261.841770] (0)[2880:sync svc 43]sync svc 43: page allocation
+failure: order:4, mode:0x24040c0
+<4>[  261.841815]-(0)[2880:sync svc 43]CPU: 0 PID: 2880 Comm: sync svc
+43 Tainted: G        W  O    4.4.146+ #16
+<4>[  261.841825]-(0)[2880:sync svc 43]Hardware name: Generic DT based
+system
+<4>[  261.841834]-(0)[2880:sync svc 43]Backtrace:
+<4>[  261.841844]-(0)[2880:sync svc 43][<c010d57c>] (dump_backtrace)
+from [<c010d7a4>] (show_stack+0x18/0x1c)
+<4>[  261.841866]-(0)[2880:sync svc 43] r6:60030013 r5:c123d488
+r4:00000000 r3:dc8ba692
+<4>[  261.841880]-(0)[2880:sync svc 43][<c010d78c>] (show_stack) from
+[<c0470b84>] (dump_stack+0x94/0xa8)
+<4>[  261.841892]-(0)[2880:sync svc 43][<c0470af0>] (dump_stack) from
+[<c0236060>] (warn_alloc_failed+0x108/0x148)
+<4>[  261.841905]-(0)[2880:sync svc 43] r6:00000000 r5:024040c0
+r4:c1204948 r3:dc8ba692
+<4>[  261.841919]-(0)[2880:sync svc 43][<c0235f5c>] (warn_alloc_failed)
+from [<c023a284>] (__alloc_pages_nodemask+0xa08/0xbd8)
+<4>[  261.841929]-(0)[2880:sync svc 43] r3:0000000f r2:00000000
+<4>[  261.841939]-(0)[2880:sync svc 43] r8:0000002f r7:00000004
+r6:dbb7a000 r5:024040c0
+<4>[  261.841953]-(0)[2880:sync svc 43][<c023987c>]
+(__alloc_pages_nodemask) from [<c023a5fc>] (alloc_kmem_pages+0x18/0x20)
+<4>[  261.841963]-(0)[2880:sync svc 43] r10:c0286560 r9:c027b348
+r8:0000fff8 r7:00000004
+<4>[  261.841978]-(0)[2880:sync svc 43][<c023a5e4>] (alloc_kmem_pages)
+from [<c02573c0>] (kmalloc_order_trace+0x2c/0xec)
