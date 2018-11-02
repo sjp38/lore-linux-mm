@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A2726B0008
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 876026B000A
 	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 15:30:11 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id w28-v6so2569705pgl.15
+Received: by mail-pf1-f200.google.com with SMTP id n9-v6so2511042pfg.12
         for <linux-mm@kvack.org>; Fri, 02 Nov 2018 12:30:11 -0700 (PDT)
 Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
         by mx.google.com with ESMTPS id 30si817802pgr.396.2018.11.02.12.30.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Nov 2018 12:30:09 -0700 (PDT)
+        Fri, 02 Nov 2018 12:30:10 -0700 (PDT)
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v8 1/4] vmalloc: Add __vmalloc_node_try_addr function
-Date: Fri,  2 Nov 2018 12:25:17 -0700
-Message-Id: <20181102192520.4522-2-rick.p.edgecombe@intel.com>
+Subject: [PATCH v8 2/4] x86/modules: Increase randomization for modules
+Date: Fri,  2 Nov 2018 12:25:18 -0700
+Message-Id: <20181102192520.4522-3-rick.p.edgecombe@intel.com>
 In-Reply-To: <20181102192520.4522-1-rick.p.edgecombe@intel.com>
 References: <20181102192520.4522-1-rick.p.edgecombe@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,265 +20,266 @@ List-ID: <linux-mm.kvack.org>
 To: jeyu@kernel.org, akpm@linux-foundation.org, willy@infradead.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, daniel@iogearbox.net, jannh@google.com, keescook@chromium.org
 Cc: kristen@linux.intel.com, dave.hansen@intel.com, arjan@linux.intel.com, Rick Edgecombe <rick.p.edgecombe@intel.com>
 
-Create __vmalloc_node_try_addr function that tries to allocate at a specific
-address without triggering any lazy purging. In order to support this behavior
-a try_addr argument was plugged into several of the static helpers.
+This changes the behavior of the KASLR logic for allocating memory for the text
+sections of loadable modules. It randomizes the location of each module text
+section with about 17 bits of entropy in typical use. This is enabled on X86_64
+only. For 32 bit, the behavior is unchanged.
 
-This also changes logic in __get_vm_area_node to be faster in cases where
-allocations fail due to no space, which is a lot more common when trying
-specific addresses.
+It refactors existing code around module randomization somewhat. There are now
+three different behaviors for x86 module_alloc depending on config.
+RANDOMIZE_BASE=n, and RANDOMIZE_BASE=y ARCH=x86_64, and RANDOMIZE_BASE=y
+ARCH=i386. The refactor of the existing code is to try to clearly show what
+those behaviors are without having three separate versions or threading the
+behaviors in a bunch of little spots. The reason it is not enabled on 32 bit
+yet is because the module space is much smaller and simulations haven't been
+run to see how it performs.
+
+The new algorithm breaks the module space in two, a random area and a backup
+area. It first tries to allocate at a number of randomly located starting pages
+inside the random section without purging any lazy free vmap areas and
+triggering the associated TLB flush. If this fails, then it will allocate in
+the backup area. The backup area base will be offset in the same way as the
+current algorithm does for the base area, 1024 possible locations.
+
+Due to boot_params being defined with different types in different places,
+placing the config helpers modules.h or kaslr.h caused conflicts elsewhere, and
+so they are placed in a new file, kaslr_modules.h, instead.
 
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- include/linux/vmalloc.h |   3 +
- mm/vmalloc.c            | 128 +++++++++++++++++++++++++++++-----------
- 2 files changed, 95 insertions(+), 36 deletions(-)
+ arch/x86/Kconfig                        |   3 +
+ arch/x86/include/asm/kaslr_modules.h    |  38 ++++++++
+ arch/x86/include/asm/pgtable_64_types.h |   7 ++
+ arch/x86/kernel/module.c                | 111 +++++++++++++++++++-----
+ 4 files changed, 136 insertions(+), 23 deletions(-)
+ create mode 100644 arch/x86/include/asm/kaslr_modules.h
 
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 398e9c95cd61..6eaa89612372 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -82,6 +82,9 @@ extern void *__vmalloc_node_range(unsigned long size, unsigned long align,
- 			unsigned long start, unsigned long end, gfp_t gfp_mask,
- 			pgprot_t prot, unsigned long vm_flags, int node,
- 			const void *caller);
-+extern void *__vmalloc_node_try_addr(unsigned long addr, unsigned long size,
-+			gfp_t gfp_mask,	pgprot_t prot, unsigned long vm_flags,
-+			int node, const void *caller);
- #ifndef CONFIG_MMU
- extern void *__vmalloc_node_flags(unsigned long size, int node, gfp_t flags);
- static inline void *__vmalloc_node_flags_caller(unsigned long size, int node,
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index a728fc492557..8d01f503e20d 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -326,6 +326,9 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
- #define VM_LAZY_FREE	0x02
- #define VM_VM_AREA	0x04
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 1a0be022f91d..32e1ac2e052d 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -2137,6 +2137,9 @@ config RANDOMIZE_BASE
  
-+#define VMAP_MAY_PURGE	0x2
-+#define VMAP_NO_PURGE	0x1
+ 	  If unsure, say Y.
+ 
++config RANDOMIZE_FINE_MODULE
++	def_bool y if RANDOMIZE_BASE && X86_64 && !CONFIG_UML
 +
- static DEFINE_SPINLOCK(vmap_area_lock);
- /* Export for kexec only */
- LIST_HEAD(vmap_area_list);
-@@ -402,12 +405,12 @@ static BLOCKING_NOTIFIER_HEAD(vmap_notify_list);
- static struct vmap_area *alloc_vmap_area(unsigned long size,
- 				unsigned long align,
- 				unsigned long vstart, unsigned long vend,
--				int node, gfp_t gfp_mask)
-+				int node, gfp_t gfp_mask, int try_purge)
+ # Relocation on x86 needs some additional build support
+ config X86_NEED_RELOCS
+ 	def_bool y
+diff --git a/arch/x86/include/asm/kaslr_modules.h b/arch/x86/include/asm/kaslr_modules.h
+new file mode 100644
+index 000000000000..1da6eced4b47
+--- /dev/null
++++ b/arch/x86/include/asm/kaslr_modules.h
+@@ -0,0 +1,38 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _ASM_KASLR_MODULES_H_
++#define _ASM_KASLR_MODULES_H_
++
++#ifdef CONFIG_RANDOMIZE_BASE
++/* kaslr_enabled is not always defined */
++static inline int kaslr_mod_randomize_base(void)
++{
++	return kaslr_enabled();
++}
++#else
++static inline int kaslr_mod_randomize_base(void)
++{
++	return 0;
++}
++#endif /* CONFIG_RANDOMIZE_BASE */
++
++#ifdef CONFIG_RANDOMIZE_FINE_MODULE
++/* kaslr_enabled is not always defined */
++static inline int kaslr_mod_randomize_each_module(void)
++{
++	return kaslr_enabled();
++}
++
++static inline unsigned long get_modules_rand_len(void)
++{
++	return MODULES_RAND_LEN;
++}
++#else
++static inline int kaslr_mod_randomize_each_module(void)
++{
++	return 0;
++}
++
++unsigned long get_modules_rand_len(void);
++#endif /* CONFIG_RANDOMIZE_FINE_MODULE */
++
++#endif
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index 04edd2d58211..5e26369ab86c 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -143,6 +143,13 @@ extern unsigned int ptrs_per_p4d;
+ #define MODULES_END		_AC(0xffffffffff000000, UL)
+ #define MODULES_LEN		(MODULES_END - MODULES_VADDR)
+ 
++/*
++ * Dedicate the first part of the module space to a randomized area when KASLR
++ * is in use.  Leave the remaining part for a fallback if we are unable to
++ * allocate in the random area.
++ */
++#define MODULES_RAND_LEN	PAGE_ALIGN((MODULES_LEN/3)*2)
++
+ #define ESPFIX_PGD_ENTRY	_AC(-2, UL)
+ #define ESPFIX_BASE_ADDR	(ESPFIX_PGD_ENTRY << P4D_SHIFT)
+ 
+diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
+index f58336af095c..183f70730cda 100644
+--- a/arch/x86/kernel/module.c
++++ b/arch/x86/kernel/module.c
+@@ -36,6 +36,7 @@
+ #include <asm/pgtable.h>
+ #include <asm/setup.h>
+ #include <asm/unwind.h>
++#include <asm/kaslr_modules.h>
+ 
+ #if 0
+ #define DEBUGP(fmt, ...)				\
+@@ -48,34 +49,96 @@ do {							\
+ } while (0)
+ #endif
+ 
+-#ifdef CONFIG_RANDOMIZE_BASE
+ static unsigned long module_load_offset;
++static const unsigned long NO_TRY_RAND = 10000;
+ 
+ /* Mutex protects the module_load_offset. */
+ static DEFINE_MUTEX(module_kaslr_mutex);
+ 
+ static unsigned long int get_module_load_offset(void)
  {
- 	struct vmap_area *va;
- 	struct rb_node *n;
- 	unsigned long addr;
--	int purged = 0;
-+	int purged = try_purge & VMAP_NO_PURGE;
- 	struct vmap_area *first;
- 
- 	BUG_ON(!size);
-@@ -860,7 +863,7 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
- 
- 	va = alloc_vmap_area(VMAP_BLOCK_SIZE, VMAP_BLOCK_SIZE,
- 					VMALLOC_START, VMALLOC_END,
--					node, gfp_mask);
-+					node, gfp_mask, VMAP_MAY_PURGE);
- 	if (IS_ERR(va)) {
- 		kfree(vb);
- 		return ERR_CAST(va);
-@@ -1170,8 +1173,9 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t pro
- 		addr = (unsigned long)mem;
- 	} else {
- 		struct vmap_area *va;
--		va = alloc_vmap_area(size, PAGE_SIZE,
--				VMALLOC_START, VMALLOC_END, node, GFP_KERNEL);
-+		va = alloc_vmap_area(size, PAGE_SIZE, VMALLOC_START,
-+					VMALLOC_END, node, GFP_KERNEL,
-+					VMAP_MAY_PURGE);
- 		if (IS_ERR(va))
- 			return NULL;
- 
-@@ -1372,7 +1376,8 @@ static void clear_vm_uninitialized_flag(struct vm_struct *vm)
- 
- static struct vm_struct *__get_vm_area_node(unsigned long size,
- 		unsigned long align, unsigned long flags, unsigned long start,
--		unsigned long end, int node, gfp_t gfp_mask, const void *caller)
-+		unsigned long end, int node, gfp_t gfp_mask, int try_purge,
-+		const void *caller)
+-	if (kaslr_enabled()) {
+-		mutex_lock(&module_kaslr_mutex);
+-		/*
+-		 * Calculate the module_load_offset the first time this
+-		 * code is called. Once calculated it stays the same until
+-		 * reboot.
+-		 */
+-		if (module_load_offset == 0)
+-			module_load_offset =
+-				(get_random_int() % 1024 + 1) * PAGE_SIZE;
+-		mutex_unlock(&module_kaslr_mutex);
+-	}
++	mutex_lock(&module_kaslr_mutex);
++	/*
++	 * Calculate the module_load_offset the first time this
++	 * code is called. Once calculated it stays the same until
++	 * reboot.
++	 */
++	if (module_load_offset == 0)
++		module_load_offset = (get_random_int() % 1024 + 1) * PAGE_SIZE;
++	mutex_unlock(&module_kaslr_mutex);
++
+ 	return module_load_offset;
+ }
+-#else
+-static unsigned long int get_module_load_offset(void)
++
++static unsigned long get_module_vmalloc_start(void)
  {
- 	struct vmap_area *va;
- 	struct vm_struct *area;
-@@ -1386,16 +1391,17 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
- 		align = 1ul << clamp_t(int, get_count_order_long(size),
- 				       PAGE_SHIFT, IOREMAP_MAX_ORDER);
- 
--	area = kzalloc_node(sizeof(*area), gfp_mask & GFP_RECLAIM_MASK, node);
--	if (unlikely(!area))
--		return NULL;
--
- 	if (!(flags & VM_NO_GUARD))
- 		size += PAGE_SIZE;
- 
--	va = alloc_vmap_area(size, align, start, end, node, gfp_mask);
--	if (IS_ERR(va)) {
--		kfree(area);
-+	va = alloc_vmap_area(size, align, start, end, node, gfp_mask,
-+				try_purge);
-+	if (IS_ERR(va))
+-	return 0;
++	unsigned long addr = MODULES_VADDR;
++
++	if (kaslr_mod_randomize_base())
++		addr += get_module_load_offset();
++
++	if (kaslr_mod_randomize_each_module())
++		addr += get_modules_rand_len();
++
++	return addr;
++}
++
++static void *try_module_alloc(unsigned long addr, unsigned long size)
++{
++	const unsigned long vm_flags = 0;
++
++	return __vmalloc_node_try_addr(addr, size, GFP_KERNEL, PAGE_KERNEL_EXEC,
++					vm_flags, NUMA_NO_NODE,
++					__builtin_return_address(0));
++}
++
++/*
++ * Find a random address to try that won't obviously not fit. Random areas are
++ * allowed to overflow into the backup area
++ */
++static unsigned long get_rand_module_addr(unsigned long size)
++{
++	unsigned long nr_max_pos = (MODULES_LEN - size) / MODULE_ALIGN + 1;
++	unsigned long nr_rnd_pos = get_modules_rand_len() / MODULE_ALIGN;
++	unsigned long nr_pos = min(nr_max_pos, nr_rnd_pos);
++
++	unsigned long module_position_nr = get_random_long() % nr_pos;
++	unsigned long offset = module_position_nr * MODULE_ALIGN;
++
++	return MODULES_VADDR + offset;
++}
++
++/*
++ * Try to allocate in the random area. First 5000 times without purging, then
++ * 5000 times with purging. If these fail, return NULL.
++ */
++static void *try_module_randomize_each(unsigned long size)
++{
++	void *p = NULL;
++	unsigned int i;
++
++	/* This will have a guard page */
++	unsigned long va_size = PAGE_ALIGN(size) + PAGE_SIZE;
++
++	if (!kaslr_mod_randomize_each_module())
 +		return NULL;
 +
-+	area = kzalloc_node(sizeof(*area), gfp_mask & GFP_RECLAIM_MASK, node);
-+	if (unlikely(!area)) {
-+		free_vmap_area(va);
++	/* Make sure there is at least one address that might fit. */
++	if (va_size < PAGE_ALIGN(size) || va_size > MODULES_LEN)
++		return NULL;
++
++	/* Try to find a spot that doesn't need a lazy purge */
++	for (i = 0; i < NO_TRY_RAND; i++) {
++		unsigned long addr = get_rand_module_addr(va_size);
++
++		p = try_module_alloc(addr, size);
++
++		if (p)
++			return p;
++	}
++
++	return NULL;
+ }
+-#endif
+ 
+ void *module_alloc(unsigned long size)
+ {
+@@ -84,16 +147,18 @@ void *module_alloc(unsigned long size)
+ 	if (PAGE_ALIGN(size) > MODULES_LEN)
+ 		return NULL;
+ 
+-	p = __vmalloc_node_range(size, MODULE_ALIGN,
+-				    MODULES_VADDR + get_module_load_offset(),
+-				    MODULES_END, GFP_KERNEL,
+-				    PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
+-				    __builtin_return_address(0));
++	p = try_module_randomize_each(size);
++
++	if (!p)
++		p = __vmalloc_node_range(size, MODULE_ALIGN,
++				get_module_vmalloc_start(), MODULES_END,
++				GFP_KERNEL, PAGE_KERNEL_EXEC, 0,
++				NUMA_NO_NODE, __builtin_return_address(0));
++
+ 	if (p && (kasan_module_alloc(p, size) < 0)) {
+ 		vfree(p);
  		return NULL;
  	}
- 
-@@ -1408,7 +1414,8 @@ struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
- 				unsigned long start, unsigned long end)
- {
- 	return __get_vm_area_node(size, 1, flags, start, end, NUMA_NO_NODE,
--				  GFP_KERNEL, __builtin_return_address(0));
-+				  GFP_KERNEL, VMAP_MAY_PURGE,
-+				  __builtin_return_address(0));
- }
- EXPORT_SYMBOL_GPL(__get_vm_area);
- 
-@@ -1417,7 +1424,7 @@ struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
- 				       const void *caller)
- {
- 	return __get_vm_area_node(size, 1, flags, start, end, NUMA_NO_NODE,
--				  GFP_KERNEL, caller);
-+				  GFP_KERNEL, VMAP_MAY_PURGE, caller);
+-
+ 	return p;
  }
  
- /**
-@@ -1432,7 +1439,7 @@ struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
- struct vm_struct *get_vm_area(unsigned long size, unsigned long flags)
- {
- 	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
--				  NUMA_NO_NODE, GFP_KERNEL,
-+				  NUMA_NO_NODE, GFP_KERNEL, VMAP_MAY_PURGE,
- 				  __builtin_return_address(0));
- }
- 
-@@ -1440,7 +1447,8 @@ struct vm_struct *get_vm_area_caller(unsigned long size, unsigned long flags,
- 				const void *caller)
- {
- 	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
--				  NUMA_NO_NODE, GFP_KERNEL, caller);
-+				  NUMA_NO_NODE, GFP_KERNEL, VMAP_MAY_PURGE,
-+				  caller);
- }
- 
- /**
-@@ -1709,26 +1717,10 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
- 	return NULL;
- }
- 
--/**
-- *	__vmalloc_node_range  -  allocate virtually contiguous memory
-- *	@size:		allocation size
-- *	@align:		desired alignment
-- *	@start:		vm area range start
-- *	@end:		vm area range end
-- *	@gfp_mask:	flags for the page level allocator
-- *	@prot:		protection mask for the allocated pages
-- *	@vm_flags:	additional vm area flags (e.g. %VM_NO_GUARD)
-- *	@node:		node to use for allocation or NUMA_NO_NODE
-- *	@caller:	caller's return address
-- *
-- *	Allocate enough pages to cover @size from the page level
-- *	allocator with @gfp_mask flags.  Map them into contiguous
-- *	kernel virtual space, using a pagetable protection of @prot.
-- */
--void *__vmalloc_node_range(unsigned long size, unsigned long align,
-+static void *__vmalloc_node_range_opts(unsigned long size, unsigned long align,
- 			unsigned long start, unsigned long end, gfp_t gfp_mask,
- 			pgprot_t prot, unsigned long vm_flags, int node,
--			const void *caller)
-+			int try_purge, const void *caller)
- {
- 	struct vm_struct *area;
- 	void *addr;
-@@ -1739,7 +1731,8 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
- 		goto fail;
- 
- 	area = __get_vm_area_node(size, align, VM_ALLOC | VM_UNINITIALIZED |
--				vm_flags, start, end, node, gfp_mask, caller);
-+				vm_flags, start, end, node, gfp_mask,
-+				try_purge, caller);
- 	if (!area)
- 		goto fail;
- 
-@@ -1764,6 +1757,69 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
- 	return NULL;
- }
- 
-+/**
-+ *	__vmalloc_node_range  -  allocate virtually contiguous memory
-+ *	@size:		allocation size
-+ *	@align:		desired alignment
-+ *	@start:		vm area range start
-+ *	@end:		vm area range end
-+ *	@gfp_mask:	flags for the page level allocator
-+ *	@prot:		protection mask for the allocated pages
-+ *	@vm_flags:	additional vm area flags (e.g. %VM_NO_GUARD)
-+ *	@node:		node to use for allocation or NUMA_NO_NODE
-+ *	@caller:	caller's return address
-+ *
-+ *	Allocate enough pages to cover @size from the page level
-+ *	allocator with @gfp_mask flags.  Map them into contiguous
-+ *	kernel virtual space, using a pagetable protection of @prot.
-+ */
-+void *__vmalloc_node_range(unsigned long size, unsigned long align,
-+			unsigned long start, unsigned long end, gfp_t gfp_mask,
-+			pgprot_t prot, unsigned long vm_flags, int node,
-+			const void *caller)
-+{
-+	return __vmalloc_node_range_opts(size, align, start, end, gfp_mask,
-+					prot, vm_flags, node, VMAP_MAY_PURGE,
-+					caller);
-+}
-+
-+/**
-+ *	__vmalloc_try_addr  -  try to alloc at a specific address
-+ *	@addr:		address to try
-+ *	@size:		size to try
-+ *	@gfp_mask:	flags for the page level allocator
-+ *	@prot:		protection mask for the allocated pages
-+ *	@vm_flags:	additional vm area flags (e.g. %VM_NO_GUARD)
-+ *	@node:		node to use for allocation or NUMA_NO_NODE
-+ *	@caller:	caller's return address
-+ *
-+ *	Try to allocate at the specific address. If it succeeds the address is
-+ *	returned. If it fails NULL is returned.  It will not try to purge lazy
-+ *	free vmap areas in order to fit.
-+ */
-+void *__vmalloc_node_try_addr(unsigned long addr, unsigned long size,
-+			gfp_t gfp_mask,	pgprot_t prot, unsigned long vm_flags,
-+			int node, const void *caller)
-+{
-+	unsigned long addr_end;
-+	unsigned long vsize = PAGE_ALIGN(size);
-+
-+	if (!vsize || (vsize >> PAGE_SHIFT) > totalram_pages)
-+		return NULL;
-+
-+	if (!(vm_flags & VM_NO_GUARD))
-+		vsize += PAGE_SIZE;
-+
-+	addr_end = addr + vsize;
-+
-+	if (addr > addr_end)
-+		return NULL;
-+
-+	return __vmalloc_node_range_opts(size, 1, addr, addr_end,
-+				gfp_mask | __GFP_NOWARN, prot, vm_flags, node,
-+				VMAP_NO_PURGE, caller);
-+}
-+
- /**
-  *	__vmalloc_node  -  allocate virtually contiguous memory
-  *	@size:		allocation size
 -- 
 2.17.1
