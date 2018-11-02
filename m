@@ -1,82 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 426406B0003
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 15:39:11 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id d8-v6so2627997pgq.3
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 12:39:11 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id m28-v6si36821471pfk.56.2018.11.02.12.39.10
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A5BDB6B0003
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 17:08:00 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id n5-v6so2865098pgv.6
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 14:08:00 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id bf10-v6si7329089plb.200.2018.11.02.14.07.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Nov 2018 12:39:10 -0700 (PDT)
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: Will the recent memory leak fixes be backported to longterm
- kernels?
-Date: Fri, 2 Nov 2018 19:38:35 +0000
-Message-ID: <20181102193827.GA18024@castle.DHCP.thefacebook.com>
-References: <PU1P153MB0169CB6382E0F047579D111DBFCF0@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
- <20181102005816.GA10297@tower.DHCP.thefacebook.com>
- <PU1P153MB0169FE681EF81BCE81B005A1BFCF0@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
- <20181102073009.GP23921@dhcp22.suse.cz>
- <20181102154844.GA17619@tower.DHCP.thefacebook.com>
- <20181102161314.GF28039@dhcp22.suse.cz>
- <20181102162237.GB17619@tower.DHCP.thefacebook.com>
- <20181102165147.GG28039@dhcp22.suse.cz>
- <20181102172547.GA19042@tower.DHCP.thefacebook.com>
- <20181102174823.GI28039@dhcp22.suse.cz>
-In-Reply-To: <20181102174823.GI28039@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <91355EADA23A1D47A4B5ABA6759992D0@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+        Fri, 02 Nov 2018 14:07:59 -0700 (PDT)
+Received: from mail-wm1-f42.google.com (mail-wm1-f42.google.com [209.85.128.42])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id D8B2220831
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 21:07:58 +0000 (UTC)
+Received: by mail-wm1-f42.google.com with SMTP id b203-v6so2952820wme.5
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 14:07:58 -0700 (PDT)
 MIME-Version: 1.0
+References: <20181026122856.66224-1-kirill.shutemov@linux.intel.com> <20181026122856.66224-2-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20181026122856.66224-2-kirill.shutemov@linux.intel.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Fri, 2 Nov 2018 14:07:44 -0700
+Message-ID: <CALCETrXMA=4694sstXYWK1rSiHBAFbN=kPpB5PcG2uBpyxoF3g@mail.gmail.com>
+Subject: Re: [PATCHv3 1/3] x86/mm: Move LDT remap out of KASLR region on
+ 5-level paging
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Dexuan Cui <decui@microsoft.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, Shakeel
- Butt <shakeelb@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@surriel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Matthew Wilcox <willy@infradead.org>, "Stable@vger.kernel.org" <Stable@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andrew Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Baoquan He <bhe@redhat.com>, Matthew Wilcox <willy@infradead.org>, X86 ML <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Nov 02, 2018 at 06:48:23PM +0100, Michal Hocko wrote:
-> On Fri 02-11-18 17:25:58, Roman Gushchin wrote:
-> > On Fri, Nov 02, 2018 at 05:51:47PM +0100, Michal Hocko wrote:
-> > > On Fri 02-11-18 16:22:41, Roman Gushchin wrote:
-> [...]
-> > > > 2) We do forget to scan the last page in the LRU list. So if we end=
-ed up with
-> > > > 1-page long LRU, it can stay there basically forever.
-> > >=20
-> > > Why=20
-> > > 		/*
-> > > 		 * If the cgroup's already been deleted, make sure to
-> > > 		 * scrape out the remaining cache.
-> > > 		 */
-> > > 		if (!scan && !mem_cgroup_online(memcg))
-> > > 			scan =3D min(size, SWAP_CLUSTER_MAX);
-> > >=20
-> > > in get_scan_count doesn't work for that case?
-> >=20
-> > No, it doesn't. Let's look at the whole picture:
-> >=20
-> > 		size =3D lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
-> > 		scan =3D size >> sc->priority;
-> > 		/*
-> > 		 * If the cgroup's already been deleted, make sure to
-> > 		 * scrape out the remaining cache.
-> > 		 */
-> > 		if (!scan && !mem_cgroup_online(memcg))
-> > 			scan =3D min(size, SWAP_CLUSTER_MAX);
-> >=20
-> > If size =3D=3D 1, scan =3D=3D 0 =3D> scan =3D min(1, 32) =3D=3D 1.
-> > And after proportional adjustment we'll have 0.
->=20
-> My friday brain hurst when looking at this but if it doesn't work as
-> advertized then it should be fixed. I do not see any of your patches to
-> touch this logic so how come it would work after them applied?
+On Fri, Oct 26, 2018 at 5:29 AM Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+>
+> On 5-level paging LDT remap area is placed in the middle of
+> KASLR randomization region and it can overlap with direct mapping,
+> vmalloc or vmap area.
+>
+> Let's move LDT just before direct mapping which makes it safe for KASLR.
+> This also allows us to unify layout between 4- and 5-level paging.
+>
+> We don't touch 4 pgd slot gap just before the direct mapping reserved
+> for a hypervisor, but move direct mapping by one slot instead.
+>
+> The LDT mapping is per-mm, so we cannot move it into P4D page table next
+> to CPU_ENTRY_AREA without complicating PGD table allocation for 5-level
+> paging.
 
-This part works as expected. But the following
-	scan =3D div64_u64(scan * fraction[file], denominator);
-reliable turns 1 page to scan to 0 pages to scan.
+Reviewed-by: Andy Lutomirski <luto@kernel.org>
 
-And this is the issue which my patches do address.
-
-Thanks!
+(assuming it passes tests with 4-level and 5-level.  my test setup is
+current busted, and i'm bisecting it.)
