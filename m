@@ -1,69 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4556C6B0003
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 08:33:47 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id u6-v6so1103424eds.10
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 05:33:47 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j15-v6si1328280eds.376.2018.11.02.05.33.45
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DF066B0006
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 08:35:24 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id a188-v6so1193357oih.0
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 05:35:24 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i6-v6sor719516oiy.65.2018.11.02.05.35.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Nov 2018 05:33:46 -0700 (PDT)
-Date: Fri, 2 Nov 2018 13:32:52 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/hotplug: Optimize clear_hwpoisoned_pages
-Message-ID: <20181102120856.GC28039@dhcp22.suse.cz>
-References: <20181102120001.4526-1-bsingharora@gmail.com>
+        (Google Transport Security);
+        Fri, 02 Nov 2018 05:35:23 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181102120001.4526-1-bsingharora@gmail.com>
+References: <20181031081945.207709-1-vovoy@chromium.org> <20181031142458.GP32673@dhcp22.suse.cz>
+ <cc44aa53-8705-02ea-6c59-f311427d93af@intel.com> <20181031164231.GQ32673@dhcp22.suse.cz>
+ <CAEHM+4pSkv_fD3Yb2KX1xFrOmRHU1e=+wCBrCyLAAMBG3zP75w@mail.gmail.com> <20181101130910.GI23921@dhcp22.suse.cz>
+In-Reply-To: <20181101130910.GI23921@dhcp22.suse.cz>
+From: Vovo Yang <vovoy@chromium.org>
+Date: Fri, 2 Nov 2018 20:35:11 +0800
+Message-ID: <CAEHM+4rvBmFWhzPXZrwxXvMEmVdkpsgRg26wVNYSA8HKF_8AwQ@mail.gmail.com>
+Subject: Re: [PATCH v3] mm, drm/i915: mark pinned shmemfs pages as unevictable
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org
+Cc: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri 02-11-18 23:00:01, Balbir Singh wrote:
-> In hot remove, we try to clear poisoned pages, but
-> a small optimization to check if num_poisoned_pages
-> is 0 helps remove the iteration through nr_pages.
-> 
-> Signed-off-by: Balbir Singh <bsingharora@gmail.com>
+On Thu, Nov 1, 2018 at 9:10 PM Michal Hocko <mhocko@kernel.org> wrote:
+> OK, so that explain my question about the test case. Even though you
+> generate a lot of page cache, the amount is still too small to trigger
+> pagecache mostly reclaim and anon LRUs are scanned as well.
+>
+> Now to the difference with the previous version which simply set the
+> UNEVICTABLE flag on mapping. Am I right assuming that pages are already
+> at LRU at the time? Is there any reason the mapping cannot have the flag
+> set before they are added to the LRU?
 
-Makes sense to me. It would be great to actually have some number but
-the optimization for the normal case is quite obvious.
+I checked again. When I run gem_syslatency, it sets unevictable flag
+first and then adds pages to LRU, so my explanation to the previous
+test result is wrong. It should not be necessary to explicitly move
+these pages to unevictable list for this test case. The performance
+improvement of this patch on kbl might be due to not calling
+shmem_unlock_mapping.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/sparse.c | 10 ++++++++++
->  1 file changed, 10 insertions(+)
-> 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 33307fc05c4d..16219c7ddb5f 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -724,6 +724,16 @@ static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
->  	if (!memmap)
->  		return;
->  
-> +	/*
-> +	 * A further optimization is to have per section
-> +	 * ref counted num_poisoned_pages, but that is going
-> +	 * to need more space per memmap, for now just do
-> +	 * a quick global check, this should speed up this
-> +	 * routine in the absence of bad pages.
-> +	 */
-> +	if (atomic_long_read(&num_poisoned_pages) == 0)
-> +		return;
-> +
->  	for (i = 0; i < nr_pages; i++) {
->  		if (PageHWPoison(&memmap[i])) {
->  			atomic_long_sub(1, &num_poisoned_pages);
-> -- 
-> 2.17.1
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+The perf result of a shmem lock test shows find_get_entries is the
+most expensive part of shmem_unlock_mapping.
+85.32%--ksys_shmctl
+        shmctl_do_lock
+         --85.29%--shmem_unlock_mapping
+                   |--45.98%--find_get_entries
+                   |           --10.16%--radix_tree_next_chunk
+                   |--16.78%--check_move_unevictable_pages
+                   |--16.07%--__pagevec_release
+                   |           --15.67%--release_pages
+                   |                      --4.82%--free_unref_page_list
+                   |--4.38%--pagevec_remove_exceptionals
+                    --0.59%--_cond_resched
