@@ -1,62 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B61D76B0003
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 12:01:34 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id s141-v6so2016919pgs.23
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 09:01:34 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 133-v6si870305pfb.41.2018.11.02.09.01.33
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 63EAC6B0269
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 12:05:38 -0400 (EDT)
+Received: by mail-lj1-f200.google.com with SMTP id g12-v6so848864lji.3
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 09:05:38 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m4-v6sor1053901lji.36.2018.11.02.09.05.36
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 02 Nov 2018 09:05:36 -0700 (PDT)
+Received: from mail-lj1-f179.google.com (mail-lj1-f179.google.com. [209.85.208.179])
+        by smtp.gmail.com with ESMTPSA id e14-v6sm1570735ljl.43.2018.11.02.09.05.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Nov 2018 09:01:33 -0700 (PDT)
-Date: Fri, 2 Nov 2018 12:01:22 -0400
-From: Sasha Levin <sashal@kernel.org>
-Subject: Re: Will the recent memory leak fixes be backported to longterm
- kernels?
-Message-ID: <20181102160122.GH194472@sasha-vm>
-References: <PU1P153MB0169CB6382E0F047579D111DBFCF0@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
- <20181102005816.GA10297@tower.DHCP.thefacebook.com>
- <PU1P153MB0169FE681EF81BCE81B005A1BFCF0@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
+        Fri, 02 Nov 2018 09:05:34 -0700 (PDT)
+Received: by mail-lj1-f179.google.com with SMTP id z80-v6so2202062ljb.8
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 09:05:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <PU1P153MB0169FE681EF81BCE81B005A1BFCF0@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
+References: <1541164962-28533-1-git-send-email-will.deacon@arm.com>
+ <20181102145638.gehn7eszv22lelh6@kshutemo-mobl1> <CAG48ez38PmTKPq_UQ4q39bwtWmb7epyet3-iSvt5b7JfwmCniw@mail.gmail.com>
+ <20181102152516.dkqpeubxh6c3phl2@kshutemo-mobl1>
+In-Reply-To: <20181102152516.dkqpeubxh6c3phl2@kshutemo-mobl1>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 2 Nov 2018 09:05:17 -0700
+Message-ID: <CAHk-=wjTM5588YwhAYQiH7fCu0itRjHYJZ8WaG1y_bx=6JUhtQ@mail.gmail.com>
+Subject: Re: [PATCH] mremap: properly flush TLB before releasing the page
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dexuan Cui <decui@microsoft.com>
-Cc: Roman Gushchin <guro@fb.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, Shakeel Butt <shakeelb@google.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@surriel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Matthew Wilcox <willy@infradead.org>, "Stable@vger.kernel.org" <Stable@vger.kernel.org>
+To: kirill@shutemov.name
+Cc: Jann Horn <jannh@google.com>, will.deacon@arm.com, Greg KH <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, mhocko@kernel.org, hughd@google.com
 
-On Fri, Nov 02, 2018 at 02:45:42AM +0000, Dexuan Cui wrote:
->> From: Roman Gushchin <guro@fb.com>
->> Sent: Thursday, November 1, 2018 17:58
->>
->> On Fri, Nov 02, 2018 at 12:16:02AM +0000, Dexuan Cui wrote:
->> Hello, Dexuan!
->>
->> A couple of issues has been revealed recently, here are fixes
->> (hashes are from the next tree):
->>
->> 5f4b04528b5f mm: don't reclaim inodes with many attached pages
->> 5a03b371ad6a mm: handle no memcg case in memcg_kmem_charge()
->> properly
->>
->> These two patches should be added to the serie.
+On Fri, Nov 2, 2018 at 8:25 AM Kirill A. Shutemov <kirill@shutemov.name> wrote:
 >
->Thanks for the new info!
->
->> Re stable backporting, I'd really wait for some time. Memory reclaim is a
->> quite complex and fragile area, so even if patches are correct by themselves,
->> they can easily cause a regression by revealing some other issues (as it was
->> with the inode reclaim case).
->
->I totally agree. I'm now just wondering if there is any temporary workaround,
->even if that means we have to run the kernel with some features disabled or
->with a suboptimal performance?
+> I wounder if it would be cheaper to fix this by taking i_mmap_lock_write()
+> unconditionally in mremap() path rather than do a lot of flushing.
 
-I'm not sure what workload you're seeing it on, but if you could merge
-these 7 patches and see that it solves the problem you're seeing and
-doesn't cause any regressions it'll be a useful test for the rest of us.
+That wouldn't help. Think anonymous pages and try_to_free() rmap walk.
+So then I think we'd have to take the anonvma lock or something.
 
---
-Thanks,
-Sasha
+And it's not like we are likely to even do any more flushes, really.
+We don't flush for each page, only for each page table. So every 512
+pages or so.
+
+                     Linus
