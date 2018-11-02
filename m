@@ -1,116 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A7DA6B0003
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 13:26:30 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id u6-v6so1552626eds.10
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 10:26:30 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id r4-v6si3656771edy.231.2018.11.02.10.26.28
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D5B66B0006
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 13:42:40 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id n5-v6so2385100plp.16
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 10:42:40 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id g3-v6si35216128pgr.325.2018.11.02.10.42.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Nov 2018 10:26:28 -0700 (PDT)
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: Will the recent memory leak fixes be backported to longterm
- kernels?
-Date: Fri, 2 Nov 2018 17:25:58 +0000
-Message-ID: <20181102172547.GA19042@tower.DHCP.thefacebook.com>
-References: <PU1P153MB0169CB6382E0F047579D111DBFCF0@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
- <20181102005816.GA10297@tower.DHCP.thefacebook.com>
- <PU1P153MB0169FE681EF81BCE81B005A1BFCF0@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
- <20181102073009.GP23921@dhcp22.suse.cz>
- <20181102154844.GA17619@tower.DHCP.thefacebook.com>
- <20181102161314.GF28039@dhcp22.suse.cz>
- <20181102162237.GB17619@tower.DHCP.thefacebook.com>
- <20181102165147.GG28039@dhcp22.suse.cz>
-In-Reply-To: <20181102165147.GG28039@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <DFBA2EC09ED4C44691CFA9FBFB66BF56@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+        Fri, 02 Nov 2018 10:42:39 -0700 (PDT)
+Date: Fri, 2 Nov 2018 10:42:29 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: [PATCH 05/25] vfs: avoid problematic remapping requests into
+ partial EOF block
+Message-ID: <20181102174229.GA4127@magnolia>
+References: <153923113649.5546.9840926895953408273.stgit@magnolia>
+ <153923117420.5546.13317703807467393934.stgit@magnolia>
+ <CAL3q7H7mLvCGpyitJhQ=To-aDvG9k9rxSVi2jSpcALQVj3myzg@mail.gmail.com>
+ <20181015003139.GZ6311@dastard>
+ <CAL3q7H5ofBmjh0DmbPH6Rmm523JV9byuBiYj=Jxpc44Kbh+Haw@mail.gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAL3q7H5ofBmjh0DmbPH6Rmm523JV9byuBiYj=Jxpc44Kbh+Haw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Dexuan Cui <decui@microsoft.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, Shakeel
- Butt <shakeelb@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@surriel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Matthew Wilcox <willy@infradead.org>, "Stable@vger.kernel.org" <Stable@vger.kernel.org>
+To: Filipe Manana <fdmanana@gmail.com>
+Cc: Dave Chinner <david@fromorbit.com>, Eric Sandeen <sandeen@redhat.com>, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs <linux-btrfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, ocfs2-devel@oss.oracle.com
 
-On Fri, Nov 02, 2018 at 05:51:47PM +0100, Michal Hocko wrote:
-> On Fri 02-11-18 16:22:41, Roman Gushchin wrote:
-> > On Fri, Nov 02, 2018 at 05:13:14PM +0100, Michal Hocko wrote:
-> > > On Fri 02-11-18 15:48:57, Roman Gushchin wrote:
-> > > > On Fri, Nov 02, 2018 at 09:03:55AM +0100, Michal Hocko wrote:
-> > > > > On Fri 02-11-18 02:45:42, Dexuan Cui wrote:
-> > > > > [...]
-> > > > > > I totally agree. I'm now just wondering if there is any tempora=
-ry workaround,
-> > > > > > even if that means we have to run the kernel with some features=
- disabled or
-> > > > > > with a suboptimal performance?
-> > > > >=20
-> > > > > One way would be to disable kmem accounting (cgroup.memory=3Dnokm=
-em kernel
-> > > > > option). That would reduce the memory isolation because quite a l=
-ot of
-> > > > > memory will not be accounted for but the primary source of in-fli=
-ght and
-> > > > > hard to reclaim memory will be gone.
-> > > >=20
-> > > > In my experience disabling the kmem accounting doesn't really solve=
- the issue
-> > > > (without patches), but can lower the rate of the leak.
-> > >=20
-> > > This is unexpected. 90cbc2508827e was introduced to address offline
-> > > memcgs to be reclaim even when they are small. But maybe you mean tha=
-t
-> > > we still leak in an absence of the memory pressure. Or what does prev=
-ent
-> > > memcg from going down?
-> >=20
-> > There are 3 independent issues which are contributing to this leak:
-> > 1) Kernel stack accounting weirdness: processes can reuse stack account=
-ed to
-> > different cgroups. So basically any running process can take a referenc=
-e to any
-> > cgroup.
->=20
-> yes, but kmem accounting should rule that out, right? If not then this
-> is a clear bug and easy to backport because that would mean to add a
-> missing memcg_kmem_enabled check.
+On Fri, Nov 02, 2018 at 12:04:39PM +0000, Filipe Manana wrote:
+> On Mon, Oct 15, 2018 at 1:31 AM Dave Chinner <david@fromorbit.com> wrote:
+> >
+> > On Fri, Oct 12, 2018 at 09:22:18PM +0100, Filipe Manana wrote:
+> > > On Thu, Oct 11, 2018 at 5:13 AM Darrick J. Wong <darrick.wong@oracle.com> wrote:
+> > > >
+> > > > From: Darrick J. Wong <darrick.wong@oracle.com>
+> > > >
+> > > > A deduplication data corruption is exposed by fstests generic/505 on
+> > > > XFS.
+> > >
+> > > (and btrfs)
+> > >
+> > > Btw, the generic test I wrote was indeed numbered 505, however it was
+> > > never committed and there's now a generic/505 which has nothing to do
+> > > with deduplication.
+> > > So you should update the changelog to avoid confusion.
+> >
+> > What test is it now? And if it hasn't been committed, are you going
+> > to update it and repost as it clearly had value....
+> 
+> Sorry, I lost track of this.
+> 
+> So what was the conclusion of the thread where discussion about this
+> problem started?
+> It wasn't clear to me if a consensus was reached and got lost on that
+> long user space dedupe tools discussion between you and Zygo.
+> 
+> The test assumed a fix of rounding down the range and deduping less
+> bytes then requested (which ended up included in 4.19 for btrfs).
+> 
+> From this vfs patch it seems it was decided to return errno -EDADE instead.
+> Is this the final decision?
 
-Yes, you're right, disabling kmem accounting should mitigate this problem.
+No, I reworked the whole mess to match btrfs-4.19 behavior of deduping
+fewer bytes than requested.
 
->=20
-> > 2) We do forget to scan the last page in the LRU list. So if we ended u=
-p with
-> > 1-page long LRU, it can stay there basically forever.
->=20
-> Why=20
-> 		/*
-> 		 * If the cgroup's already been deleted, make sure to
-> 		 * scrape out the remaining cache.
-> 		 */
-> 		if (!scan && !mem_cgroup_online(memcg))
-> 			scan =3D min(size, SWAP_CLUSTER_MAX);
->=20
-> in get_scan_count doesn't work for that case?
+--D
 
-No, it doesn't. Let's look at the whole picture:
-
-		size =3D lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
-		scan =3D size >> sc->priority;
-		/*
-		 * If the cgroup's already been deleted, make sure to
-		 * scrape out the remaining cache.
-		 */
-		if (!scan && !mem_cgroup_online(memcg))
-			scan =3D min(size, SWAP_CLUSTER_MAX);
-
-If size =3D=3D 1, scan =3D=3D 0 =3D> scan =3D min(1, 32) =3D=3D 1.
-And after proportional adjustment we'll have 0.
-
-So, disabling kmem accounting mitigates 2 other issues, but not this one.
-
-Anyway, I'd prefer to wait a bit for test results, and backport the whole
-series as a whole.
-
-Thanks!
+> >
+> > Cheers,
+> >
+> > Dave.
+> > --
+> > Dave Chinner
+> > david@fromorbit.com
+> 
+> 
+> 
+> -- 
+> Filipe David Manana,
+> 
+> a??Whether you think you can, or you think you can't a?? you're right.a??
