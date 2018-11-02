@@ -1,646 +1,417 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 68D816B000C
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 09:33:04 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id r68-v6so1238855oie.12
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 06:33:04 -0700 (PDT)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 624A36B0266
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 09:33:10 -0400 (EDT)
+Received: by mail-it1-f198.google.com with SMTP id y144-v6so2723947itc.5
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 06:33:10 -0700 (PDT)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id x9-v6si6512454oie.102.2018.11.02.06.33.02
+        by mx.google.com with ESMTPS id b13-v6si23305016ioc.42.2018.11.02.06.33.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Nov 2018 06:33:02 -0700 (PDT)
+        Fri, 02 Nov 2018 06:33:07 -0700 (PDT)
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH 3/3] lockdep: Use line-buffered printk() for lockdep messages.
-Date: Fri,  2 Nov 2018 22:31:57 +0900
-Message-Id: <1541165517-3557-3-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-In-Reply-To: <1541165517-3557-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1541165517-3557-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH v6 1/3] printk: Add line-buffered printk() API.
+Date: Fri,  2 Nov 2018 22:31:55 +0900
+Message-Id: <1541165517-3557-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dmitriy Vyukov <dvyukov@google.com>, Steven Rostedt <rostedt@goodmis.org>
 Cc: Alexander Potapenko <glider@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-syzbot is sometimes getting mixed output like below due to concurrent
-printk(). Mitigate such output by using line-buffered printk() API.
+Sometimes we want to print a whole line without being disturbed by
+concurrent printk() from interrupts and/or other threads, for printk()
+which does not end with '\n' can be disturbed.
 
-  RCU used illegally from idle CPU!
-  rcu_scheduler_active = 2, debug_locks = 1
-  RSP: 0018:ffffffff88007bb8 EFLAGS: 00000286
-  RCU used illegally from extended quiescent state!
-   ORIG_RAX: ffffffffffffff13
-  1 lock held by swapper/1/0:
-  RAX: dffffc0000000000 RBX: 1ffffffff1000f7b RCX: 0000000000000000
-   #0: 
-  RDX: 1ffffffff10237b8 RSI: 0000000000000001 RDI: ffffffff8811bdc0
-  000000004b34587c
-  RBP: ffffffff88007bb8 R08: ffffffff88075e00 R09: 0000000000000000
-   (
-  R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000000
-  rcu_read_lock
-  R13: ffffffff88007c78 R14: 0000000000000000 R15: 0000000000000000
-  ){....}
-   arch_safe_halt arch/x86/include/asm/paravirt.h:94 [inline]
-   default_idle+0xc2/0x410 arch/x86/kernel/process.c:498
-  , at: trace_call_bpf+0xf8/0x640 kernel/trace/bpf_trace.c:46
+Since mixed printk() output makes it hard to interpret, this patch
+introduces API for line-buffered printk() output (so that we can make
+sure that printk() ends with '\n').
+
+Since functions introduced by this patch are merely wrapping
+printk()/vprintk() calls in order to minimize possibility of using
+"struct cont", it is safe to replace printk()/vprintk() with this API.
+Since we want to remove "struct cont" eventually, we will try to remove
+both "implicit printk() users who are expecting KERN_CONT behavior" and
+"explicit pr_cont()/printk(KERN_CONT) users". Therefore, converting to
+this API is recommended.
+
+Details:
+
+  A structure named "struct printk_buffer" is introduced for buffering
+  up to LOG_LINE_MAX bytes of printk() output which did not end with '\n'.
+
+  get_printk_buffer() tries to assign a "struct printk_buffer" from
+  statically preallocated array. get_printk_buffer() returns NULL if
+  all "struct printk_buffer" are in use, but the caller does not need to
+  check for NULL.
+
+  put_printk_buffer() flushes and releases the "struct printk_buffer".
+  put_printk_buffer() must match corresponding get_printk_buffer() as with
+  rcu_read_unlock() must match corresponding rcu_read_lock().
+
+  Three functions vprintk_buffered(), printk_buffered() and
+  flush_printk_buffer() are provided for using "struct printk_buffer".
+  These are like vfprintf(), fprintf(), fflush() except that these receive
+  "struct printk_buffer *" for the first argument.
+
+  vprintk_buffered() and printk_buffered() fall back to vprintk() and
+  printk() respectively if "struct printk_buffer *" argument is NULL.
+  flush_printk_buffer() and put_printk_buffer() become no-op if
+  "struct printk_buffer *" argument is NULL. Therefore, the caller of
+  get_printk_buffer() does not need to check for NULL.
+
+How to use this API:
+
+  (1) Call get_printk_buffer() and acquire "struct printk_buffer *".
+
+  (2) Rewrite printk() calls in the following way. The "ptr" is
+      "struct printk_buffer *" obtained in step (1).
+
+      printk(fmt, ...)     => printk_buffered(ptr, fmt, ...)
+      vprintk(fmt, args)   => vprintk_buffered(ptr, fmt, args)
+      pr_emerg(fmt, ...)   => bpr_emerg(ptr, fmt, ...)
+      pr_alert(fmt, ...)   => bpr_alert(ptr, fmt, ...)
+      pr_crit(fmt, ...)    => bpr_crit(ptr, fmt, ...)
+      pr_err(fmt, ...)     => bpr_err(ptr, fmt, ...)
+      pr_warning(fmt, ...) => bpr_warning(ptr, fmt, ...)
+      pr_warn(fmt, ...)    => bpr_warn(ptr, fmt, ...)
+      pr_notice(fmt, ...)  => bpr_notice(ptr, fmt, ...)
+      pr_info(fmt, ...)    => bpr_info(ptr, fmt, ...)
+      pr_cont(fmt, ...)    => bpr_cont(ptr, fmt, ...)
+
+  (3) Release "struct printk_buffer" by calling put_printk_buffer().
+
+Note that since "struct printk_buffer" buffers only up to one line, there
+is no need to rewrite if it is known that the "struct printk_buffer" is
+empty and printk() ends with '\n'.
+
+  Good example:
+
+    printk("Hello ");    =>  buf = get_printk_buffer();
+    pr_cont("world.\n");     printk_buffered(buf, "Hello ");
+                             printk_buffered(buf, "world.\n");
+                             put_printk_buffer(buf);
+
+  Pointless example:
+
+    printk("Hello\n");   =>  buf = get_printk_buffer();
+    printk("World.\n");      printk_buffered(buf, "Hello\n");
+                             printk_buffered(buf, "World.\n");
+                             put_printk_buffer(buf);
+
+Note that bpr_devel() and bpr_debug() are not defined. This is
+because pr_devel()/pr_debug() should not be followed by pr_cont()
+because pr_devel()/pr_debug() are conditionally enabled; output from
+pr_devel()/pr_debug() should always end with '\n'.
+
+Previous version was proposed at
+https://lkml.kernel.org/r/1540375870-6235-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp .
 
 Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Will Deacon <will.deacon@arm.com>
 ---
- kernel/locking/lockdep.c | 268 +++++++++++++++++++++++++++--------------------
- 1 file changed, 155 insertions(+), 113 deletions(-)
+ include/linux/printk.h          |  43 ++++++++++
+ kernel/printk/Makefile          |   2 +-
+ kernel/printk/internal.h        |   3 +
+ kernel/printk/printk.c          |   3 -
+ kernel/printk/printk_buffered.c | 179 ++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 226 insertions(+), 4 deletions(-)
+ create mode 100644 kernel/printk/printk_buffered.c
 
-diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index 1efada2..fbc127d 100644
---- a/kernel/locking/lockdep.c
-+++ b/kernel/locking/lockdep.c
-@@ -493,7 +493,8 @@ void get_usage_chars(struct lock_class *class, char usage[LOCK_USAGE_CHARS])
- 	usage[i] = '\0';
- }
+diff --git a/include/linux/printk.h b/include/linux/printk.h
+index cf3eccf..92af345 100644
+--- a/include/linux/printk.h
++++ b/include/linux/printk.h
+@@ -157,6 +157,7 @@ static inline void printk_nmi_direct_enter(void) { }
+ static inline void printk_nmi_direct_exit(void) { }
+ #endif /* PRINTK_NMI */
  
--static void __print_lock_name(struct lock_class *class)
-+static void __print_lock_name(struct lock_class *class,
-+			      struct printk_buffer *buf)
++struct printk_buffer;
+ #ifdef CONFIG_PRINTK
+ asmlinkage __printf(5, 0)
+ int vprintk_emit(int facility, int level,
+@@ -173,6 +174,20 @@ int printk_emit(int facility, int level,
+ 
+ asmlinkage __printf(1, 2) __cold
+ int printk(const char *fmt, ...);
++struct printk_buffer *get_printk_buffer(void);
++bool flush_printk_buffer(struct printk_buffer *ptr);
++__printf(2, 3)
++int printk_buffered(struct printk_buffer *ptr, const char *fmt, ...);
++__printf(2, 0)
++int vprintk_buffered(struct printk_buffer *ptr, const char *fmt, va_list args);
++/*
++ * In order to avoid accidentally reusing "ptr" after put_printk_buffer("ptr"),
++ * put_printk_buffer() is defined as a macro which explicitly resets "ptr" to
++ * NULL.
++ */
++void __put_printk_buffer(struct printk_buffer *ptr);
++#define put_printk_buffer(ptr)					\
++	do { __put_printk_buffer(ptr); ptr = NULL; } while (0)
+ 
+ /*
+  * Special printk facility for scheduler/timekeeping use only, _DO_NOT_USE_ !
+@@ -220,6 +235,17 @@ int printk(const char *s, ...)
  {
- 	char str[KSYM_NAME_LEN];
- 	const char *name;
-@@ -501,25 +502,25 @@ static void __print_lock_name(struct lock_class *class)
- 	name = class->name;
- 	if (!name) {
- 		name = __get_key_name(class->key, str);
--		printk(KERN_CONT "%s", name);
-+		printk_buffered(buf, "%s", name);
- 	} else {
--		printk(KERN_CONT "%s", name);
-+		printk_buffered(buf, "%s", name);
- 		if (class->name_version > 1)
--			printk(KERN_CONT "#%d", class->name_version);
-+			printk_buffered(buf, "#%d", class->name_version);
- 		if (class->subclass)
--			printk(KERN_CONT "/%d", class->subclass);
-+			printk_buffered(buf, "/%d", class->subclass);
- 	}
+ 	return 0;
  }
- 
--static void print_lock_name(struct lock_class *class)
-+static void print_lock_name(struct lock_class *class, struct printk_buffer *buf)
++static inline struct printk_buffer *get_printk_buffer(void)
++{
++	return NULL;
++}
++static inline bool flush_printk_buffer(struct printk_buffer *ptr)
++{
++	return false;
++}
++#define printk_buffered(ptr, fmt, ...) printk(fmt, ##__VA_ARGS__)
++#define vprintk_buffered(ptr, fmt, args) vprintk(fmt, args)
++#define put_printk_buffer(ptr) do { ptr = NULL; } while (0)
+ static inline __printf(1, 2) __cold
+ int printk_deferred(const char *s, ...)
  {
- 	char usage[LOCK_USAGE_CHARS];
+@@ -330,6 +356,23 @@ static inline void printk_safe_flush_on_panic(void)
+ 	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+ #endif
  
- 	get_usage_chars(class, usage);
++#define bpr_emerg(ptr, fmt, ...) \
++	printk_buffered(ptr, KERN_EMERG pr_fmt(fmt), ##__VA_ARGS__)
++#define bpr_alert(ptr, fmt, ...) \
++	printk_buffered(ptr, KERN_ALERT pr_fmt(fmt), ##__VA_ARGS__)
++#define bpr_crit(ptr, fmt, ...) \
++	printk_buffered(ptr, KERN_CRIT pr_fmt(fmt), ##__VA_ARGS__)
++#define bpr_err(ptr, fmt, ...) \
++	printk_buffered(ptr, KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
++#define bpr_warning(ptr, fmt, ...) \
++	printk_buffered(ptr, KERN_WARNING pr_fmt(fmt), ##__VA_ARGS__)
++#define bpr_warn bpr_warning
++#define bpr_notice(ptr, fmt, ...) \
++	printk_buffered(ptr, KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
++#define bpr_info(ptr, fmt, ...) \
++	printk_buffered(ptr, KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
++#define bpr_cont(ptr, fmt, ...) \
++	printk_buffered(ptr, KERN_CONT fmt, ##__VA_ARGS__)
  
--	printk(KERN_CONT " (");
--	__print_lock_name(class);
--	printk(KERN_CONT "){%s}", usage);
-+	printk_buffered(buf, " (");
-+	__print_lock_name(class, buf);
-+	printk_buffered(buf, "){%s}", usage);
- }
+ /* If you are writing a driver, please use dev_dbg instead */
+ #if defined(CONFIG_DYNAMIC_DEBUG)
+diff --git a/kernel/printk/Makefile b/kernel/printk/Makefile
+index 4a2ffc3..23b1547 100644
+--- a/kernel/printk/Makefile
++++ b/kernel/printk/Makefile
+@@ -1,3 +1,3 @@
+ obj-y	= printk.o
+-obj-$(CONFIG_PRINTK)	+= printk_safe.o
++obj-$(CONFIG_PRINTK)	+= printk_safe.o printk_buffered.o
+ obj-$(CONFIG_A11Y_BRAILLE_CONSOLE)	+= braille.o
+diff --git a/kernel/printk/internal.h b/kernel/printk/internal.h
+index 0f18988..5e8c048 100644
+--- a/kernel/printk/internal.h
++++ b/kernel/printk/internal.h
+@@ -22,6 +22,9 @@
+ #define PRINTK_NMI_DIRECT_CONTEXT_MASK	 0x40000000
+ #define PRINTK_NMI_CONTEXT_MASK		 0x80000000
  
- static void print_lockdep_cache(struct lockdep_map *lock)
-@@ -534,8 +535,9 @@ static void print_lockdep_cache(struct lockdep_map *lock)
- 	printk(KERN_CONT "%s", name);
- }
++#define PREFIX_MAX		32
++#define LOG_LINE_MAX		(1024 - PREFIX_MAX)
++
+ extern raw_spinlock_t logbuf_lock;
  
--static void print_lock(struct held_lock *hlock)
-+static void print_lock(struct held_lock *hlock, struct printk_buffer *buf)
- {
-+	bool free = false;
- 	/*
- 	 * We can be called locklessly through debug_show_all_locks() so be
- 	 * extra careful, the hlock might have been released and cleared.
-@@ -546,17 +548,24 @@ static void print_lock(struct held_lock *hlock)
- 	barrier();
+ __printf(5, 0)
+diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
+index 1b2a029..0b06211 100644
+--- a/kernel/printk/printk.c
++++ b/kernel/printk/printk.c
+@@ -421,9 +421,6 @@ __packed __aligned(4)
+ static u64 clear_seq;
+ static u32 clear_idx;
  
- 	if (!class_idx || (class_idx - 1) >= MAX_LOCKDEP_KEYS) {
--		printk(KERN_CONT "<RELEASED>\n");
-+		printk_buffered(buf, "<RELEASED>\n");
- 		return;
- 	}
+-#define PREFIX_MAX		32
+-#define LOG_LINE_MAX		(1024 - PREFIX_MAX)
+-
+ #define LOG_LEVEL(v)		((v) & 0x07)
+ #define LOG_FACILITY(v)		((v) >> 3 & 0xff)
  
--	printk(KERN_CONT "%p", hlock->instance);
--	print_lock_name(lock_classes + class_idx - 1);
--	printk(KERN_CONT ", at: %pS\n", (void *)hlock->acquire_ip);
-+	if (!buf) {
-+		free = true;
-+		buf = get_printk_buffer();
+diff --git a/kernel/printk/printk_buffered.c b/kernel/printk/printk_buffered.c
+new file mode 100644
+index 0000000..d181d31
+--- /dev/null
++++ b/kernel/printk/printk_buffered.c
+@@ -0,0 +1,179 @@
++/* SPDX-License-Identifier: GPL-2.0+ */
++
++#include <linux/types.h> /* DECLARE_BITMAP() */
++#include <linux/printk.h>
++#include "internal.h"
++
++/* A structure for line-buffered printk() output. */
++struct printk_buffer {
++	unsigned short int len; /* Valid bytes in buf[]. */
++	char buf[LOG_LINE_MAX];
++} __aligned(1024);
++
++/*
++ * Number of statically preallocated buffers.
++ *
++ * We can introduce a kernel config option if someone wants to tune this value.
++ * But since "struct printk_buffer" makes difference only when there are
++ * multiple threads concurrently calling printk() which does not end with '\n',
++ * and this API will fallback to normal printk() when all buffers are in use,
++ * it is possible that nobody needs to tune this value.
++ */
++#define NUM_LINE_BUFFERS 16
++
++static struct printk_buffer printk_buffers[NUM_LINE_BUFFERS];
++static DECLARE_BITMAP(printk_buffers_in_use, NUM_LINE_BUFFERS);
++
++/**
++ * get_printk_buffer - Try to get printk_buffer.
++ *
++ * Returns pointer to "struct printk_buffer" on success, NULL otherwise.
++ *
++ * If this function returned "struct printk_buffer", the caller is responsible
++ * for passing it to put_printk_buffer() so that "struct printk_buffer" can be
++ * reused in the future.
++ *
++ * Even if this function returned NULL, the caller does not need to check for
++ * NULL, for passing NULL to printk_buffered() simply acts like normal printk()
++ * and passing NULL to flush_printk_buffer()/put_printk_buffer() is a no-op.
++ */
++struct printk_buffer *get_printk_buffer(void)
++{
++	long i;
++
++	for (i = 0; i < NUM_LINE_BUFFERS; i++) {
++		if (test_and_set_bit_lock(i, printk_buffers_in_use))
++			continue;
++		printk_buffers[i].len = 0;
++		return &printk_buffers[i];
 +	}
-+	printk_buffered(buf, "%p", hlock->instance);
-+	print_lock_name(lock_classes + class_idx - 1, buf);
-+	printk_buffered(buf, ", at: %pS\n", (void *)hlock->acquire_ip);
-+	if (free)
-+		put_printk_buffer(buf);
- }
- 
- static void lockdep_print_held_locks(struct task_struct *p)
- {
-+	struct printk_buffer *buf;
- 	int i, depth = READ_ONCE(p->lockdep_depth);
- 
- 	if (!depth)
-@@ -570,10 +579,12 @@ static void lockdep_print_held_locks(struct task_struct *p)
- 	 */
- 	if (p->state == TASK_RUNNING && p != current)
- 		return;
-+	buf = get_printk_buffer();
- 	for (i = 0; i < depth; i++) {
--		printk(" #%d: ", i);
--		print_lock(p->held_locks + i);
-+		printk_buffered(buf, " #%d: ", i);
-+		print_lock(p->held_locks + i, buf);
- 	}
-+	put_printk_buffer(buf);
- }
- 
- static void print_kernel_ident(void)
-@@ -1083,12 +1094,16 @@ static inline int __bfs_backwards(struct lock_list *src_entry,
- static noinline int
- print_circular_bug_entry(struct lock_list *target, int depth)
- {
-+	struct printk_buffer *buf;
++	return NULL;
++}
++EXPORT_SYMBOL(get_printk_buffer);
 +
- 	if (debug_locks_silent)
- 		return 0;
--	printk("\n-> #%u", depth);
--	print_lock_name(target->class);
--	printk(KERN_CONT ":\n");
-+	buf = get_printk_buffer();
-+	printk_buffered(buf, "\n-> #%u", depth);
-+	print_lock_name(target->class, buf);
-+	printk_buffered(buf, ":\n");
- 	print_stack_trace(&target->trace, 6);
-+	put_printk_buffer(buf);
- 
- 	return 0;
- }
-@@ -1098,6 +1113,7 @@ static inline int __bfs_backwards(struct lock_list *src_entry,
- 			     struct held_lock *tgt,
- 			     struct lock_list *prt)
- {
-+	struct printk_buffer *buf = get_printk_buffer();
- 	struct lock_class *source = hlock_class(src);
- 	struct lock_class *target = hlock_class(tgt);
- 	struct lock_class *parent = prt->class;
-@@ -1116,31 +1132,32 @@ static inline int __bfs_backwards(struct lock_list *src_entry,
- 	 * from the safe_class lock to the unsafe_class lock.
- 	 */
- 	if (parent != source) {
--		printk("Chain exists of:\n  ");
--		__print_lock_name(source);
--		printk(KERN_CONT " --> ");
--		__print_lock_name(parent);
--		printk(KERN_CONT " --> ");
--		__print_lock_name(target);
--		printk(KERN_CONT "\n\n");
-+		printk_buffered(buf, "Chain exists of:\n  ");
-+		__print_lock_name(source, buf);
-+		printk_buffered(buf, " --> ");
-+		__print_lock_name(parent, buf);
-+		printk_buffered(buf, " --> ");
-+		__print_lock_name(target, buf);
-+		printk_buffered(buf, "\n\n");
- 	}
- 
- 	printk(" Possible unsafe locking scenario:\n\n");
- 	printk("       CPU0                    CPU1\n");
- 	printk("       ----                    ----\n");
--	printk("  lock(");
--	__print_lock_name(target);
--	printk(KERN_CONT ");\n");
-+	printk_buffered(buf, "  lock(");
-+	__print_lock_name(target, buf);
-+	printk_buffered(buf, ");\n");
- 	printk("                               lock(");
--	__print_lock_name(parent);
--	printk(KERN_CONT ");\n");
--	printk("                               lock(");
--	__print_lock_name(target);
--	printk(KERN_CONT ");\n");
--	printk("  lock(");
--	__print_lock_name(source);
--	printk(KERN_CONT ");\n");
-+	__print_lock_name(parent, buf);
-+	printk_buffered(buf, ");\n");
-+	printk_buffered(buf, "                               lock(");
-+	__print_lock_name(target, buf);
-+	printk_buffered(buf, ");\n");
-+	printk_buffered(buf, "  lock(");
-+	__print_lock_name(source, buf);
-+	printk_buffered(buf, ");\n");
- 	printk("\n *** DEADLOCK ***\n\n");
-+	put_printk_buffer(buf);
- }
- 
- /*
-@@ -1164,11 +1181,11 @@ static inline int __bfs_backwards(struct lock_list *src_entry,
- 	pr_warn("------------------------------------------------------\n");
- 	pr_warn("%s/%d is trying to acquire lock:\n",
- 		curr->comm, task_pid_nr(curr));
--	print_lock(check_src);
-+	print_lock(check_src, NULL);
- 
- 	pr_warn("\nbut task is already holding lock:\n");
- 
--	print_lock(check_tgt);
-+	print_lock(check_tgt, NULL);
- 	pr_warn("\nwhich lock already depends on the new lock.\n\n");
- 	pr_warn("\nthe existing dependency chain (in reverse order) is:\n");
- 
-@@ -1387,21 +1404,23 @@ static inline int usage_match(struct lock_list *entry, void *bit)
- 
- static void print_lock_class_header(struct lock_class *class, int depth)
- {
-+	struct printk_buffer *buf = get_printk_buffer();
- 	int bit;
- 
--	printk("%*s->", depth, "");
--	print_lock_name(class);
-+	printk_buffered(buf, "%*s->", depth, "");
-+	print_lock_name(class, buf);
- #ifdef CONFIG_DEBUG_LOCKDEP
--	printk(KERN_CONT " ops: %lu", debug_class_ops_read(class));
-+	printk_buffered(buf, " ops: %lu", debug_class_ops_read(class));
- #endif
--	printk(KERN_CONT " {\n");
-+	printk_buffered(buf, " {\n");
- 
- 	for (bit = 0; bit < LOCK_USAGE_STATES; bit++) {
- 		if (class->usage_mask & (1 << bit)) {
- 			int len = depth;
- 
--			len += printk("%*s   %s", depth, "", usage_str[bit]);
--			len += printk(KERN_CONT " at:\n");
-+			len += printk_buffered(buf, "%*s   %s", depth, "",
-+					       usage_str[bit]);
-+			len += printk_buffered(buf, " at:\n");
- 			print_stack_trace(class->usage_traces + bit, len);
- 		}
- 	}
-@@ -1409,6 +1428,7 @@ static void print_lock_class_header(struct lock_class *class, int depth)
- 
- 	printk("%*s ... key      at: [<%px>] %pS\n",
- 		depth, "", class->key, class->key);
-+	put_printk_buffer(buf);
- }
- 
- /*
-@@ -1451,6 +1471,7 @@ static void print_lock_class_header(struct lock_class *class, int depth)
- 	struct lock_class *safe_class = safe_entry->class;
- 	struct lock_class *unsafe_class = unsafe_entry->class;
- 	struct lock_class *middle_class = prev_class;
-+	struct printk_buffer *buf = get_printk_buffer();
- 
- 	if (middle_class == safe_class)
- 		middle_class = next_class;
-@@ -1469,33 +1490,34 @@ static void print_lock_class_header(struct lock_class *class, int depth)
- 	 * from the safe_class lock to the unsafe_class lock.
- 	 */
- 	if (middle_class != unsafe_class) {
--		printk("Chain exists of:\n  ");
--		__print_lock_name(safe_class);
--		printk(KERN_CONT " --> ");
--		__print_lock_name(middle_class);
--		printk(KERN_CONT " --> ");
--		__print_lock_name(unsafe_class);
--		printk(KERN_CONT "\n\n");
-+		printk_buffered(buf, "Chain exists of:\n  ");
-+		__print_lock_name(safe_class, buf);
-+		printk_buffered(buf, " --> ");
-+		__print_lock_name(middle_class, buf);
-+		printk_buffered(buf, " --> ");
-+		__print_lock_name(unsafe_class, buf);
-+		printk_buffered(buf, "\n\n");
- 	}
- 
- 	printk(" Possible interrupt unsafe locking scenario:\n\n");
- 	printk("       CPU0                    CPU1\n");
- 	printk("       ----                    ----\n");
--	printk("  lock(");
--	__print_lock_name(unsafe_class);
--	printk(KERN_CONT ");\n");
-+	printk_buffered(buf, "  lock(");
-+	__print_lock_name(unsafe_class, buf);
-+	printk_buffered(buf, ");\n");
- 	printk("                               local_irq_disable();\n");
--	printk("                               lock(");
--	__print_lock_name(safe_class);
--	printk(KERN_CONT ");\n");
--	printk("                               lock(");
--	__print_lock_name(middle_class);
--	printk(KERN_CONT ");\n");
-+	printk_buffered(buf, "                               lock(");
-+	__print_lock_name(safe_class, buf);
-+	printk_buffered(buf, ");\n");
-+	printk_buffered(buf, "                               lock(");
-+	__print_lock_name(middle_class, buf);
-+	printk_buffered(buf, ");\n");
- 	printk("  <Interrupt>\n");
--	printk("    lock(");
--	__print_lock_name(safe_class);
--	printk(KERN_CONT ");\n");
-+	printk_buffered(buf, "    lock(");
-+	__print_lock_name(safe_class, buf);
-+	printk_buffered(buf, ");\n");
- 	printk("\n *** DEADLOCK ***\n\n");
-+	put_printk_buffer(buf);
- }
- 
- static int
-@@ -1510,9 +1532,12 @@ static void print_lock_class_header(struct lock_class *class, int depth)
- 			 enum lock_usage_bit bit2,
- 			 const char *irqclass)
- {
-+	struct printk_buffer *buf;
++/**
++ * vprintk_buffered - Try to vprintk() in line buffered mode.
++ *
++ * @ptr:  Pointer to "struct printk_buffer". It can be NULL.
++ * @fmt:  printk() format string.
++ * @args: va_list structure.
++ *
++ * Returns the return value of vprintk().
++ *
++ * Try to store to @ptr first. If it fails, flush @ptr and then try to store to
++ * @ptr again. If it still fails, use unbuffered printing.
++ */
++int vprintk_buffered(struct printk_buffer *ptr, const char *fmt, va_list args)
++{
++	va_list tmp_args;
++	int r;
++	int pos;
 +
- 	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
- 		return 0;
- 
-+	buf = get_printk_buffer();
- 	pr_warn("\n");
- 	pr_warn("=====================================================\n");
- 	pr_warn("WARNING: %s-safe -> %s-unsafe lock order detected\n",
-@@ -1525,26 +1550,26 @@ static void print_lock_class_header(struct lock_class *class, int depth)
- 		curr->softirq_context, softirq_count() >> SOFTIRQ_SHIFT,
- 		curr->hardirqs_enabled,
- 		curr->softirqs_enabled);
--	print_lock(next);
-+	print_lock(next, buf);
- 
- 	pr_warn("\nand this task is already holding:\n");
--	print_lock(prev);
-+	print_lock(prev, buf);
- 	pr_warn("which would create a new lock dependency:\n");
--	print_lock_name(hlock_class(prev));
--	pr_cont(" ->");
--	print_lock_name(hlock_class(next));
--	pr_cont("\n");
-+	print_lock_name(hlock_class(prev), buf);
-+	bpr_cont(buf, " ->");
-+	print_lock_name(hlock_class(next), buf);
-+	bpr_cont(buf, "\n");
- 
- 	pr_warn("\nbut this new dependency connects a %s-irq-safe lock:\n",
- 		irqclass);
--	print_lock_name(backwards_entry->class);
--	pr_warn("\n... which became %s-irq-safe at:\n", irqclass);
-+	print_lock_name(backwards_entry->class, buf);
-+	bpr_warn(buf, "\n... which became %s-irq-safe at:\n", irqclass);
- 
- 	print_stack_trace(backwards_entry->class->usage_traces + bit1, 1);
- 
- 	pr_warn("\nto a %s-irq-unsafe lock:\n", irqclass);
--	print_lock_name(forwards_entry->class);
--	pr_warn("\n... which became %s-irq-unsafe at:\n", irqclass);
-+	print_lock_name(forwards_entry->class, buf);
-+	bpr_warn(buf, "\n... which became %s-irq-unsafe at:\n", irqclass);
- 	pr_warn("...");
- 
- 	print_stack_trace(forwards_entry->class->usage_traces + bit2, 1);
-@@ -1557,18 +1582,20 @@ static void print_lock_class_header(struct lock_class *class, int depth)
- 
- 	pr_warn("\nthe dependencies between %s-irq-safe lock and the holding lock:\n", irqclass);
- 	if (!save_trace(&prev_root->trace))
--		return 0;
-+		goto done;
- 	print_shortest_lock_dependencies(backwards_entry, prev_root);
- 
- 	pr_warn("\nthe dependencies between the lock to be acquired");
- 	pr_warn(" and %s-irq-unsafe lock:\n", irqclass);
- 	if (!save_trace(&next_root->trace))
--		return 0;
-+		goto done;
- 	print_shortest_lock_dependencies(forwards_entry, next_root);
- 
- 	pr_warn("\nstack backtrace:\n");
- 	dump_stack();
- 
-+ done:
-+	put_printk_buffer(buf);
- 	return 0;
- }
- 
-@@ -1721,18 +1748,20 @@ static inline void inc_chains(void)
- {
- 	struct lock_class *next = hlock_class(nxt);
- 	struct lock_class *prev = hlock_class(prv);
-+	struct printk_buffer *buf = get_printk_buffer();
- 
- 	printk(" Possible unsafe locking scenario:\n\n");
- 	printk("       CPU0\n");
- 	printk("       ----\n");
--	printk("  lock(");
--	__print_lock_name(prev);
--	printk(KERN_CONT ");\n");
--	printk("  lock(");
--	__print_lock_name(next);
--	printk(KERN_CONT ");\n");
-+	printk_buffered(buf, "  lock(");
-+	__print_lock_name(prev, buf);
-+	printk_buffered(buf, ");\n");
-+	printk_buffered(buf, "  lock(");
-+	__print_lock_name(next, buf);
-+	printk_buffered(buf, ");\n");
- 	printk("\n *** DEADLOCK ***\n\n");
- 	printk(" May be due to missing lock nesting notation\n\n");
-+	put_printk_buffer(buf);
- }
- 
- static int
-@@ -1749,9 +1778,9 @@ static inline void inc_chains(void)
- 	pr_warn("--------------------------------------------\n");
- 	pr_warn("%s/%d is trying to acquire lock:\n",
- 		curr->comm, task_pid_nr(curr));
--	print_lock(next);
-+	print_lock(next, NULL);
- 	pr_warn("\nbut task is already holding lock:\n");
--	print_lock(prev);
-+	print_lock(prev, NULL);
- 
- 	pr_warn("\nother info that might help us debug this:\n");
- 	print_deadlock_scenario(next, prev);
-@@ -2048,18 +2077,20 @@ static inline int get_first_held_lock(struct task_struct *curr,
- /*
-  * Returns the next chain_key iteration
-  */
--static u64 print_chain_key_iteration(int class_idx, u64 chain_key)
-+static u64 print_chain_key_iteration(int class_idx, u64 chain_key,
-+				     struct printk_buffer *buf)
- {
- 	u64 new_chain_key = iterate_chain_key(chain_key, class_idx);
- 
--	printk(" class_idx:%d -> chain_key:%016Lx",
-+	printk_buffered(buf, " class_idx:%d -> chain_key:%016Lx",
- 		class_idx,
- 		(unsigned long long)new_chain_key);
- 	return new_chain_key;
- }
- 
--static void
--print_chain_keys_held_locks(struct task_struct *curr, struct held_lock *hlock_next)
-+static void print_chain_keys_held_locks(struct task_struct *curr,
-+					struct held_lock *hlock_next,
-+					struct printk_buffer *buf)
- {
- 	struct held_lock *hlock;
- 	u64 chain_key = 0;
-@@ -2069,16 +2100,18 @@ static u64 print_chain_key_iteration(int class_idx, u64 chain_key)
- 	printk("depth: %u\n", depth + 1);
- 	for (i = get_first_held_lock(curr, hlock_next); i < depth; i++) {
- 		hlock = curr->held_locks + i;
--		chain_key = print_chain_key_iteration(hlock->class_idx, chain_key);
-+		chain_key = print_chain_key_iteration(hlock->class_idx,
-+						      chain_key, buf);
- 
--		print_lock(hlock);
-+		print_lock(hlock, buf);
- 	}
- 
--	print_chain_key_iteration(hlock_next->class_idx, chain_key);
--	print_lock(hlock_next);
-+	print_chain_key_iteration(hlock_next->class_idx, chain_key, buf);
-+	print_lock(hlock_next, buf);
- }
- 
--static void print_chain_keys_chain(struct lock_chain *chain)
-+static void print_chain_keys_chain(struct lock_chain *chain,
-+				   struct printk_buffer *buf)
- {
- 	int i;
- 	u64 chain_key = 0;
-@@ -2087,10 +2120,11 @@ static void print_chain_keys_chain(struct lock_chain *chain)
- 	printk("depth: %u\n", chain->depth);
- 	for (i = 0; i < chain->depth; i++) {
- 		class_id = chain_hlocks[chain->base + i];
--		chain_key = print_chain_key_iteration(class_id + 1, chain_key);
-+		chain_key = print_chain_key_iteration(class_id + 1, chain_key,
-+						      buf);
- 
--		print_lock_name(lock_classes + class_id);
--		printk("\n");
-+		print_lock_name(lock_classes + class_id, buf);
-+		printk_buffered(buf, "\n");
- 	}
- }
- 
-@@ -2098,6 +2132,8 @@ static void print_collision(struct task_struct *curr,
- 			struct held_lock *hlock_next,
- 			struct lock_chain *chain)
- {
-+	struct printk_buffer *buf = get_printk_buffer();
++	if (!ptr)
++		return vprintk(fmt, args);
++	/*
++	 * Skip KERN_CONT here based on an assumption that KERN_CONT will be
++	 * given via "fmt" argument when KERN_CONT is given.
++	 */
++	pos = (printk_get_level(fmt) == 'c') ? 2 : 0;
++	while (true) {
++		va_copy(tmp_args, args);
++		r = vsnprintf(ptr->buf + ptr->len, sizeof(ptr->buf) - ptr->len,
++			      fmt + pos, tmp_args);
++		va_end(tmp_args);
++		if (likely(r + ptr->len < sizeof(ptr->buf)))
++			break;
++		if (!flush_printk_buffer(ptr))
++			return vprintk(fmt, args);
++	}
++	ptr->len += r;
++	/* Flush already completed lines if any. */
++	for (pos = ptr->len - 1; pos >= 0; pos--) {
++		if (ptr->buf[pos] != '\n')
++			continue;
++		ptr->buf[pos++] = '\0';
++		printk("%s\n", ptr->buf);
++		ptr->len -= pos;
++		memmove(ptr->buf, ptr->buf + pos, ptr->len);
++		/* This '\0' will be overwritten by next vsnprintf() above. */
++		ptr->buf[ptr->len] = '\0';
++		break;
++	}
++	return r;
++}
 +
- 	pr_warn("\n");
- 	pr_warn("============================\n");
- 	pr_warn("WARNING: chain_key collision\n");
-@@ -2106,14 +2142,15 @@ static void print_collision(struct task_struct *curr,
- 	pr_warn("%s/%d: ", current->comm, task_pid_nr(current));
- 	pr_warn("Hash chain already cached but the contents don't match!\n");
- 
--	pr_warn("Held locks:");
--	print_chain_keys_held_locks(curr, hlock_next);
-+	bpr_warn(buf, "Held locks:");
-+	print_chain_keys_held_locks(curr, hlock_next, buf);
- 
--	pr_warn("Locks in cached chain:");
--	print_chain_keys_chain(chain);
-+	bpr_warn(buf, "Locks in cached chain:");
-+	print_chain_keys_chain(chain, buf);
- 
- 	pr_warn("\nstack backtrace:\n");
- 	dump_stack();
-+	put_printk_buffer(buf);
- }
- #endif
- 
-@@ -2421,18 +2458,20 @@ static void check_chain_key(struct task_struct *curr)
- print_usage_bug_scenario(struct held_lock *lock)
- {
- 	struct lock_class *class = hlock_class(lock);
-+	struct printk_buffer *buf = get_printk_buffer();
- 
- 	printk(" Possible unsafe locking scenario:\n\n");
- 	printk("       CPU0\n");
- 	printk("       ----\n");
--	printk("  lock(");
--	__print_lock_name(class);
--	printk(KERN_CONT ");\n");
-+	printk_buffered(buf, "  lock(");
-+	__print_lock_name(class, buf);
-+	printk_buffered(buf, ");\n");
- 	printk("  <Interrupt>\n");
--	printk("    lock(");
--	__print_lock_name(class);
--	printk(KERN_CONT ");\n");
-+	printk_buffered(buf, "    lock(");
-+	__print_lock_name(class, buf);
-+	printk_buffered(buf, ");\n");
- 	printk("\n *** DEADLOCK ***\n\n");
-+	put_printk_buffer(buf);
- }
- 
- static int
-@@ -2457,7 +2496,7 @@ static void check_chain_key(struct task_struct *curr)
- 		trace_softirq_context(curr), softirq_count() >> SOFTIRQ_SHIFT,
- 		trace_hardirqs_enabled(curr),
- 		trace_softirqs_enabled(curr));
--	print_lock(this);
-+	print_lock(this, NULL);
- 
- 	pr_warn("{%s} state was registered at:\n", usage_str[prev_bit]);
- 	print_stack_trace(hlock_class(this)->usage_traces + prev_bit, 1);
-@@ -2500,6 +2539,7 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
- 			struct held_lock *this, int forwards,
- 			const char *irqclass)
- {
-+	struct printk_buffer *buf;
- 	struct lock_list *entry = other;
- 	struct lock_list *middle = NULL;
- 	int depth;
-@@ -2514,13 +2554,15 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
- 	pr_warn("--------------------------------------------------------\n");
- 	pr_warn("%s/%d just changed the state of lock:\n",
- 		curr->comm, task_pid_nr(curr));
--	print_lock(this);
-+	print_lock(this, NULL);
- 	if (forwards)
- 		pr_warn("but this lock took another, %s-unsafe lock in the past:\n", irqclass);
- 	else
- 		pr_warn("but this lock was taken by another, %s-safe lock in the past:\n", irqclass);
--	print_lock_name(other->class);
--	pr_warn("\n\nand interrupts could create inverse lock ordering between them.\n\n");
-+	buf = get_printk_buffer();
-+	print_lock_name(other->class, buf);
-+	bpr_warn(buf, "\n\nand interrupts could create inverse lock ordering between them.\n\n");
-+	put_printk_buffer(buf);
- 
- 	pr_warn("\nother info that might help us debug this:\n");
- 
-@@ -3077,7 +3119,7 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
- 	 */
- 	if (ret == 2) {
- 		printk("\nmarked lock as {%s}:\n", usage_str[new_bit]);
--		print_lock(this);
-+		print_lock(this, NULL);
- 		print_irqtrace_events(curr);
- 		dump_stack();
- 	}
-@@ -3172,7 +3214,7 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
- 	pr_warn("----------------------------------\n");
- 
- 	pr_warn("%s/%d is trying to lock:\n", curr->comm, task_pid_nr(curr));
--	print_lock(hlock);
-+	print_lock(hlock, NULL);
- 
- 	pr_warn("\nbut this task is not holding:\n");
- 	pr_warn("%s\n", hlock->nest_lock->name);
-@@ -4300,7 +4342,7 @@ void __init lockdep_init(void)
- 	pr_warn("-------------------------\n");
- 	pr_warn("%s/%d is freeing memory %px-%px, with a lock still held there!\n",
- 		curr->comm, task_pid_nr(curr), mem_from, mem_to-1);
--	print_lock(hlock);
-+	print_lock(hlock, NULL);
- 	lockdep_print_held_locks(curr);
- 
- 	pr_warn("\nstack backtrace:\n");
++/**
++ * printk_buffered - Try to printk() in line buffered mode.
++ *
++ * @ptr: Pointer to "struct printk_buffer". It can be NULL.
++ * @fmt: printk() format string, followed by arguments.
++ *
++ * Returns the return value of printk().
++ *
++ * Try to store to @ptr first. If it fails, flush @ptr and then try to store to
++ * @ptr again. If it still fails, use unbuffered printing.
++ */
++int printk_buffered(struct printk_buffer *ptr, const char *fmt, ...)
++{
++	va_list args;
++	int r;
++
++	va_start(args, fmt);
++	r = vprintk_buffered(ptr, fmt, args);
++	va_end(args);
++	return r;
++}
++EXPORT_SYMBOL(printk_buffered);
++
++/**
++ * flush_printk_buffer - Flush incomplete line in printk_buffer.
++ *
++ * @ptr: Pointer to "struct printk_buffer". It can be NULL.
++ *
++ * Returns true if flushed something, false otherwise.
++ *
++ * Flush if @ptr contains partial data. But usually there is no need to call
++ * this function because @ptr is flushed by put_printk_buffer().
++ */
++bool flush_printk_buffer(struct printk_buffer *ptr)
++{
++	if (!ptr || !ptr->len)
++		return false;
++	/*
++	 * vprintk_buffered() keeps 0 <= ptr->len < sizeof(ptr->buf) true.
++	 * But ptr->buf[ptr->len] != '\0' if this function is called due to
++	 * vsnprintf() + ptr->len >= sizeof(ptr->buf).
++	 */
++	ptr->buf[ptr->len] = '\0';
++	printk("%s", ptr->buf);
++	ptr->len = 0;
++	return true;
++}
++EXPORT_SYMBOL(flush_printk_buffer);
++
++/**
++ * __put_printk_buffer - Release printk_buffer.
++ *
++ * @ptr: Pointer to "struct printk_buffer". It can be NULL.
++ *
++ * Returns nothing.
++ *
++ * Flush and release @ptr.
++ * Please use put_printk_buffer() in order to catch use-after-free bugs.
++ */
++void __put_printk_buffer(struct printk_buffer *ptr)
++{
++	long i = (unsigned long) ptr - (unsigned long) printk_buffers;
++
++	if (!ptr)
++		return;
++	if (WARN_ON_ONCE(i % sizeof(struct printk_buffer)))
++		return;
++	i /= sizeof(struct printk_buffer);
++	if (WARN_ON_ONCE(i < 0 || i >= NUM_LINE_BUFFERS))
++		return;
++	if (ptr->len)
++		flush_printk_buffer(ptr);
++	clear_bit_unlock(i, printk_buffers_in_use);
++}
++EXPORT_SYMBOL(__put_printk_buffer);
 -- 
 1.8.3.1
