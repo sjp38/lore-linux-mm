@@ -1,48 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E289A6B0005
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 11:25:21 -0400 (EDT)
-Received: by mail-lj1-f197.google.com with SMTP id a1-v6so801943ljk.7
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 08:25:21 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z7-v6sor21210087ljk.15.2018.11.02.08.25.19
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C8E366B0003
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 11:31:54 -0400 (EDT)
+Received: by mail-wm1-f71.google.com with SMTP id t74-v6so1071427wmt.0
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 08:31:54 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [217.72.192.74])
+        by mx.google.com with ESMTPS id e8-v6si7805250wrw.379.2018.11.02.08.31.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 02 Nov 2018 08:25:20 -0700 (PDT)
-Date: Fri, 2 Nov 2018 18:25:16 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mremap: properly flush TLB before releasing the page
-Message-ID: <20181102152516.dkqpeubxh6c3phl2@kshutemo-mobl1>
-References: <1541164962-28533-1-git-send-email-will.deacon@arm.com>
- <20181102145638.gehn7eszv22lelh6@kshutemo-mobl1>
- <CAG48ez38PmTKPq_UQ4q39bwtWmb7epyet3-iSvt5b7JfwmCniw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAG48ez38PmTKPq_UQ4q39bwtWmb7epyet3-iSvt5b7JfwmCniw@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Nov 2018 08:31:53 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] mm: fix uninitialized variable warnings
+Date: Fri,  2 Nov 2018 16:31:06 +0100
+Message-Id: <20181102153138.1399758-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jannh@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, kernel list <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Linux-MM <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
+Cc: Arnd Bergmann <arnd@arndb.de>, Michal Hocko <mhocko@suse.com>, Wang Long <wanglong19@meituan.com>, Matthew Wilcox <willy@infradead.org>, Dave Chinner <dchinner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Nov 02, 2018 at 04:00:17PM +0100, Jann Horn wrote:
-> On Fri, Nov 2, 2018 at 3:56 PM Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> > On Fri, Nov 02, 2018 at 01:22:42PM +0000, Will Deacon wrote:
-> > > From: Linus Torvalds <torvalds@linux-foundation.org>
-> > >
-> > > Commit eb66ae030829605d61fbef1909ce310e29f78821 upstream.
-> >
-> > I have never seen the original patch on mailing lists, so I'll reply to
-> > the backport.
-> 
-> For context, the original bug report is public at
-> https://bugs.chromium.org/p/project-zero/issues/detail?id=1695 .
+In a rare randconfig build, I got a warning about possibly uninitialized
+variables:
 
-Okay. I see.
+mm/page-writeback.c: In function 'balance_dirty_pages':
+mm/page-writeback.c:1623:16: error: 'writeback' may be used uninitialized in this function [-Werror=maybe-uninitialized]
+    mdtc->dirty += writeback;
+                ^~
+mm/page-writeback.c:1624:4: error: 'filepages' may be used uninitialized in this function [-Werror=maybe-uninitialized]
+    mdtc_calc_avail(mdtc, filepages, headroom);
+    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+mm/page-writeback.c:1624:4: error: 'headroom' may be used uninitialized in this function [-Werror=maybe-uninitialized]
 
-I wounder if it would be cheaper to fix this by taking i_mmap_lock_write()
-unconditionally in mremap() path rather than do a lot of flushing.
-We take the lock now only to remap to lower addresses.
+The compiler evidently fails to notice that the usage is in dead code
+after 'mdtc' is set to NULL when CONFIG_CGROUP_WRITEBACK is disabled.
+Adding an IS_ENABLED() check makes this clear to the compiler.
 
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+ mm/page-writeback.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 3f690bae6b78..f02535b7731a 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1611,7 +1611,7 @@ static void balance_dirty_pages(struct bdi_writeback *wb,
+ 			bg_thresh = gdtc->bg_thresh;
+ 		}
+ 
+-		if (mdtc) {
++		if (IS_ENABLED(CONFIG_CGROUP_WRITEBACK) && mdtc) {
+ 			unsigned long filepages, headroom, writeback;
+ 
+ 			/*
+@@ -1944,7 +1944,7 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
+ 	    wb_calc_thresh(gdtc->wb, gdtc->bg_thresh))
+ 		return true;
+ 
+-	if (mdtc) {
++	if (IS_ENABLED(CONFIG_CGROUP_WRITEBACK) && mdtc) {
+ 		unsigned long filepages, headroom, writeback;
+ 
+ 		mem_cgroup_wb_stats(wb, &filepages, &headroom, &mdtc->dirty,
 -- 
- Kirill A. Shutemov
+2.18.0
