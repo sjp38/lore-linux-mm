@@ -1,53 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 39FFE6B000A
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 20:03:13 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id a72-v6so184202pfj.14
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 17:03:13 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id x87-v6si17742780pfk.54.2018.11.01.17.03.11
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D28796B026E
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 20:16:07 -0400 (EDT)
+Received: by mail-yb1-f197.google.com with SMTP id y12-v6so236026ybg.23
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 17:16:07 -0700 (PDT)
+Received: from APC01-PU1-obe.outbound.protection.outlook.com (mail-pu1apc01on0094.outbound.protection.outlook.com. [104.47.126.94])
+        by mx.google.com with ESMTPS id n204-v6si12487684ybb.311.2018.11.01.17.16.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 01 Nov 2018 17:03:11 -0700 (PDT)
-Date: Thu, 1 Nov 2018 17:03:08 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v4] mm/page_owner: clamp read count to PAGE_SIZE
-Message-ID: <20181102000307.GO10491@bombadil.infradead.org>
-References: <1541091607-27402-1-git-send-email-miles.chen@mediatek.com>
- <20181101144723.3ddc1fa1ab7f81184bc2fdb8@linux-foundation.org>
- <3c81f60ac1ff270df972ded4128a7dbf41a91113.camel@perches.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 01 Nov 2018 17:16:06 -0700 (PDT)
+From: Dexuan Cui <decui@microsoft.com>
+Subject: Will the recent memory leak fixes be backported to longterm kernels?
+Date: Fri, 2 Nov 2018 00:16:02 +0000
+Message-ID: 
+ <PU1P153MB0169CB6382E0F047579D111DBFCF0@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3c81f60ac1ff270df972ded4128a7dbf41a91113.camel@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, miles.chen@mediatek.com, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com, Michal Hocko <mhocko@kernel.org>
+To: Roman Gushchin <guro@fb.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kernel-team@fb.com" <kernel-team@fb.com>, Shakeel Butt <shakeelb@google.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@surriel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Matthew Wilcox <willy@infradead.org>
+Cc: "Stable@vger.kernel.org" <Stable@vger.kernel.org>
 
-On Thu, Nov 01, 2018 at 04:30:12PM -0700, Joe Perches wrote:
-> On Thu, 2018-11-01 at 14:47 -0700, Andrew Morton wrote:
-> > +++ a/mm/page_owner.c
-> > @@ -351,7 +351,7 @@ print_page_owner(char __user *buf, size_
-> >  		.skip = 0
-> >  	};
-> >  
-> > -	count = count > PAGE_SIZE ? PAGE_SIZE : count;
-> > +	count = min_t(size_t, count, PAGE_SIZE);
-> >  	kbuf = kmalloc(count, GFP_KERNEL);
-> >  	if (!kbuf)
-> >  		return -ENOMEM;
-> 
-> A bit tidier still might be
-> 
-> 	if (count > PAGE_SIZE)
-> 		count = PAGE_SIZE;
-> 
-> as that would not always cause a write back to count.
+Hi all,
+When debugging a memory leak issue (https://github.com/coreos/bugs/issues/2=
+516)
+with v4.14.11-coreos, we noticed the same issue may have been fixed recentl=
+y by
+Roman in the latest mainline (i.e. Linus's master branch) according to comm=
+ent #7 of=20
+https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1792349, which lists t=
+hese
+patches (I'm not sure if the 5-patch list is complete):
 
-90% chance 'count' is already in a register and will stay there.  99.9%
-chance that if it's not in a register, it's on the top of the stack,
-which is by definition a hot, local, dirty cacheline.
+010cb21d4ede math64: prevent double calculation of DIV64_U64_ROUND_UP() arg=
+uments
+f77d7a05670d mm: don't miss the last page because of round-off error
+d18bf0af683e mm: drain memcg stocks on css offlining
+71cd51b2e1ca mm: rework memcg kernel stack accounting
+f3a2fccbce15 mm: slowly shrink slabs with a relatively small number of obje=
+cts
 
-What you're saying makes sense for a struct which might well be in a
-shared cacheline state.  But for a function-local variable?  No.
+Obviously at least some of the fixes are also needed in the longterm kernel=
+s like v4.14.y,
+but none of the 5 patches has the "Cc: stable@vger.kernel.org" tag? I'm won=
+dering if
+these patches will be backported to the longterm kernels. BTW, the patches =
+are not
+in v4.19, but I suppose they will be in v4.19.1-rc1?
+
+Thanks,
+-- Dexuan
