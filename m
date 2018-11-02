@@ -1,94 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 25E2D6B0006
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 05:41:59 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id d8-v6so1149982pls.22
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 02:41:59 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
-        by mx.google.com with ESMTPS id 83si4674721pgf.572.2018.11.02.02.41.57
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 78FFC6B0003
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 07:31:24 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id a126-v6so1310484wmf.4
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 04:31:24 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 71-v6sor8717850wms.19.2018.11.02.04.31.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 02 Nov 2018 02:41:58 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: PIE binaries are no longer mapped below 4 GiB on ppc64le
-In-Reply-To: <20181101064911.GB29482@bubble.grove.modra.org>
-References: <87k1lyf2x3.fsf@oldenburg.str.redhat.com> <87lg6dfo3t.fsf@concordia.ellerman.id.au> <20181101064911.GB29482@bubble.grove.modra.org>
-Date: Fri, 02 Nov 2018 20:41:54 +1100
-Message-ID: <87d0rnerz1.fsf@concordia.ellerman.id.au>
+        (Google Transport Security);
+        Fri, 02 Nov 2018 04:31:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+References: <6e3a9434-32f2-0388-e0c7-2bd1c2ebc8b1@suse.cz> <20181030152632.GG32673@dhcp22.suse.cz>
+ <CADF2uSr2V+6MosROF7dJjs_Pn_hR8u6Z+5bKPqXYUUKx=5knDg@mail.gmail.com>
+ <98305976-612f-cf6d-1377-2f9f045710a9@suse.cz> <b9dd0c10-d87b-94a8-0234-7c6c0264d672@suse.cz>
+ <CADF2uSorU5P+Jw--oL5huOHN1Oe+Uss+maSXy0V9GLfHWjTBbA@mail.gmail.com>
+ <20181031170108.GR32673@dhcp22.suse.cz> <CADF2uSpE9=iS5_KwPDRCuBECE+Kp5i5yDn3Vz8A+SxGTQ=DC3Q@mail.gmail.com>
+ <20181101132307.GJ23921@dhcp22.suse.cz> <CADF2uSqO8+_uZA5qHjWJ08UOqqH6C_d-_R+9qAAbxw5sdTYSMg@mail.gmail.com>
+ <20181102080513.GB5564@dhcp22.suse.cz>
+In-Reply-To: <20181102080513.GB5564@dhcp22.suse.cz>
+From: Marinko Catovic <marinko.catovic@gmail.com>
+Date: Fri, 2 Nov 2018 12:31:09 +0100
+Message-ID: <CADF2uSq+wP8aF=y=MgO4EHjk=ThXY22JMx81zNPy1kzheS6f3w@mail.gmail.com>
+Subject: Re: Caching/buffers become useless after some time
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alan Modra <amodra@gmail.com>
-Cc: Florian Weimer <fweimer@redhat.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, keescook@chromium.org
+To: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Christopher Lameter <cl@linux.com>
 
-Alan Modra <amodra@gmail.com> writes:
-> On Thu, Nov 01, 2018 at 02:55:34PM +1100, Michael Ellerman wrote:
->> Hi Florian,
->> 
->> Florian Weimer <fweimer@redhat.com> writes:
->> > We tried to use Go to build PIE binaries, and while the Go toolchain is
->> > definitely not ready (it produces text relocations and problematic
->> > relocations in general), it exposed what could be an accidental
->> > userspace ABI change.
->> >
->> > With our 4.10-derived kernel, PIE binaries are mapped below 4 GiB, so
->> > relocations like R_PPC64_ADDR16_HA work:
->> >
->> > 21f00000-220d0000 r-xp 00000000 fd:00 36593493                           /root/extld
->> > 220d0000-220e0000 r--p 001c0000 fd:00 36593493                           /root/extld
->> > 220e0000-22100000 rw-p 001d0000 fd:00 36593493                           /root/extld
->> ...
->> >
->> > With a 4.18-derived kernel (with the hashed mm), we get this instead:
->> >
->> > 120e60000-121030000 rw-p 00000000 fd:00 102447141                        /root/extld
->> > 121030000-121060000 rw-p 001c0000 fd:00 102447141                        /root/extld
->> > 121060000-121080000 rw-p 00000000 00:00 0 
->> 
->> I assume that's caused by:
->> 
->>   47ebb09d5485 ("powerpc: move ELF_ET_DYN_BASE to 4GB / 4MB")
->> 
->> Which did roughly:
->> 
->>   -#define ELF_ET_DYN_BASE	0x20000000
->>   +#define ELF_ET_DYN_BASE		(is_32bit_task() ? 0x000400000UL : \
->>   +					   0x100000000UL)
->> 
->> And went into 4.13.
->> 
->> > ...
->> > I'm not entirely sure what to make of this, but I'm worried that this
->> > could be a regression that matters to userspace.
->> 
->> It was a deliberate change, and it seemed to not break anything so we
->> merged it. But obviously we didn't test widely enough.
->> 
->> So I guess it clearly can matter to userspace, and it used to work, so
->> therefore it is a regression.
->> 
->> But at the same time we haven't had any other reports of breakage, so is
->> this somehow specific to something Go is doing? Or did we just get lucky
->> up until now? Or is no one actually testing on Power? ;)
+Am Fr., 2. Nov. 2018 um 09:05 Uhr schrieb Michal Hocko <mhocko@suse.com>:
 >
-> Mapping PIEs above 4G should be fine.  It works for gcc C and C++
-> after all.  The problem is that ppc64le Go is generating code not
-> suitable for a PIE.  Dynamic text relocations are evidence of non-PIC
-> object files.
+> On Thu 01-11-18 23:46:27, Marinko Catovic wrote:
+> > Am Do., 1. Nov. 2018 um 14:23 Uhr schrieb Michal Hocko <mhocko@suse.com>:
+> > >
+> > > On Wed 31-10-18 20:21:42, Marinko Catovic wrote:
+> > > > Am Mi., 31. Okt. 2018 um 18:01 Uhr schrieb Michal Hocko <mhocko@suse.com>:
+> > > > >
+> > > > > On Wed 31-10-18 15:53:44, Marinko Catovic wrote:
+> > > > > [...]
+> > > > > > Well caching of any operations with find/du is not necessary imho
+> > > > > > anyway, since walking over all these millions of files in that time
+> > > > > > period is really not worth caching at all - if there is a way you
+> > > > > > mentioned to limit the commands there, that would be great.
+> > > > >
+> > > > > One possible way would be to run this find/du workload inside a memory
+> > > > > cgroup with high limit set to something reasonable (that will likely
+> > > > > require some tuning). I am not 100% sure that will behave for metadata
+> > > > > mostly workload without almost any pagecache to reclaim so it might turn
+> > > > > out this will result in other issues. But it is definitely worth trying.
+> > > >
+> > > > hm, how would that be possible..? every user has its UID, the group
+> > > > can also not be a factor, since this memory restriction would apply to
+> > > > all users then, find/du are running as UID 0 to have access to
+> > > > everyone's data.
+> > >
+> > > I thought you have a dedicated script(s) to do all the stats. All you
+> > > need is to run that particular script(s) within a memory cgroup
+> >
+> > yes, that is the case - the scripts are running as root, since as
+> > mentioned all users have own UIDs and specific groups, so to have
+> > access one would need root privileges.
+> > My question was how to limit this using cgroups, since afaik limits
+> > there apply to given UIDs/GIDs
 >
-> Quoting Lynn Boger <boger@us.ibm.com>:
-> "When building a pie binary with golang, they should be using
-> -buildmode=pie and not just pass -pie to the linker".
+> No. Limits apply to a specific memory cgroup and all tasks which are
+> associated with it. There are many tutorials on how to configure/use
+> memory cgroups or cgroups in general. If I were you I would simply do
+> this
+>
+> mount -t cgroup -o memory none $SOME_MOUNTPOINT
+> mkdir $SOME_MOUNTPOINT/A
+> echo 500M > $SOME_MOUNTPOINT/A/memory.limit_in_bytes
+>
+> Your script then just do
+> echo $$ > $SOME_MOUNTPOINT/A/tasks
+> # rest of your script
+> echo 1 > $SOME_MOUNTPOINT/A/memory.force_empty
+>
+> That should drop the memory cached on behalf of the memcg A including the
+> metadata.
 
-Thanks Alan.
+well, that's an interesting approach, I did not know that this was
+possible to assign cgroups to PIDs, without additionally explicitly
+defining UID/GID. This way memory.force_empty basically acts like echo
+3 > drop_caches, but only for the memory affected by the PIDs and its
+children/forks from the A/tasks-list, true?
 
-So this isn't a kernel bug per se, but the the old behaviour falls in
-the category of "shouldn't have worked but did by accident", and so the
-question is just how wide spread is the userspace breakage.
+I'll give it a try with the nightly du/find jobs, thank you!
 
-At least so far it seems not very wide spread, so we'll leave things as
-they are for now. As Florian said we can always add a personality flag
-in future if we need to.
+>
+>
+> [...]
+> > > > As I understand everyone would have this issue when extensive walking
+> > > > over files is performed, basically any `cloud`, shared hosting or
+> > > > storage systems should experience it, true?
+> > >
+> > > Not really. You need also a high demand for high order allocations to
+> > > require contiguous physical memory. Maybe there is something in your
+> > > workload triggering this particular pattern.
+> >
+> > I would not even know what triggers it, nor what it has to do with
+> > high order, I'm just running find/du, nothing special I'd say.
+>
+> Please note that find/du is mostly a fragmentation generator. It
+> seems there is other system activity which requires those high order
+> allocations.
 
-cheers
+any idea how to find out what that might be? I'd really have no idea,
+I also wonder why this never was an issue with 3.x
+find uses regex patterns, that's the only thing that may be unusual.
