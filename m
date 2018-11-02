@@ -1,84 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D5B66B0006
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 13:42:40 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id n5-v6so2385100plp.16
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 10:42:40 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id g3-v6si35216128pgr.325.2018.11.02.10.42.39
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 881CC6B000A
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 13:48:28 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id f22-v6so2327377pgv.21
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 10:48:28 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u66-v6si35316559pgu.94.2018.11.02.10.48.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Nov 2018 10:42:39 -0700 (PDT)
-Date: Fri, 2 Nov 2018 10:42:29 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH 05/25] vfs: avoid problematic remapping requests into
- partial EOF block
-Message-ID: <20181102174229.GA4127@magnolia>
-References: <153923113649.5546.9840926895953408273.stgit@magnolia>
- <153923117420.5546.13317703807467393934.stgit@magnolia>
- <CAL3q7H7mLvCGpyitJhQ=To-aDvG9k9rxSVi2jSpcALQVj3myzg@mail.gmail.com>
- <20181015003139.GZ6311@dastard>
- <CAL3q7H5ofBmjh0DmbPH6Rmm523JV9byuBiYj=Jxpc44Kbh+Haw@mail.gmail.com>
+        Fri, 02 Nov 2018 10:48:27 -0700 (PDT)
+Date: Fri, 2 Nov 2018 18:48:23 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Will the recent memory leak fixes be backported to longterm
+ kernels?
+Message-ID: <20181102174823.GI28039@dhcp22.suse.cz>
+References: <PU1P153MB0169CB6382E0F047579D111DBFCF0@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
+ <20181102005816.GA10297@tower.DHCP.thefacebook.com>
+ <PU1P153MB0169FE681EF81BCE81B005A1BFCF0@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
+ <20181102073009.GP23921@dhcp22.suse.cz>
+ <20181102154844.GA17619@tower.DHCP.thefacebook.com>
+ <20181102161314.GF28039@dhcp22.suse.cz>
+ <20181102162237.GB17619@tower.DHCP.thefacebook.com>
+ <20181102165147.GG28039@dhcp22.suse.cz>
+ <20181102172547.GA19042@tower.DHCP.thefacebook.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAL3q7H5ofBmjh0DmbPH6Rmm523JV9byuBiYj=Jxpc44Kbh+Haw@mail.gmail.com>
+In-Reply-To: <20181102172547.GA19042@tower.DHCP.thefacebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Filipe Manana <fdmanana@gmail.com>
-Cc: Dave Chinner <david@fromorbit.com>, Eric Sandeen <sandeen@redhat.com>, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, linux-btrfs <linux-btrfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, ocfs2-devel@oss.oracle.com
+To: Roman Gushchin <guro@fb.com>
+Cc: Dexuan Cui <decui@microsoft.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, Shakeel Butt <shakeelb@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@surriel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Matthew Wilcox <willy@infradead.org>, "Stable@vger.kernel.org" <Stable@vger.kernel.org>
 
-On Fri, Nov 02, 2018 at 12:04:39PM +0000, Filipe Manana wrote:
-> On Mon, Oct 15, 2018 at 1:31 AM Dave Chinner <david@fromorbit.com> wrote:
-> >
-> > On Fri, Oct 12, 2018 at 09:22:18PM +0100, Filipe Manana wrote:
-> > > On Thu, Oct 11, 2018 at 5:13 AM Darrick J. Wong <darrick.wong@oracle.com> wrote:
-> > > >
-> > > > From: Darrick J. Wong <darrick.wong@oracle.com>
-> > > >
-> > > > A deduplication data corruption is exposed by fstests generic/505 on
-> > > > XFS.
-> > >
-> > > (and btrfs)
-> > >
-> > > Btw, the generic test I wrote was indeed numbered 505, however it was
-> > > never committed and there's now a generic/505 which has nothing to do
-> > > with deduplication.
-> > > So you should update the changelog to avoid confusion.
-> >
-> > What test is it now? And if it hasn't been committed, are you going
-> > to update it and repost as it clearly had value....
+On Fri 02-11-18 17:25:58, Roman Gushchin wrote:
+> On Fri, Nov 02, 2018 at 05:51:47PM +0100, Michal Hocko wrote:
+> > On Fri 02-11-18 16:22:41, Roman Gushchin wrote:
+[...]
+> > > 2) We do forget to scan the last page in the LRU list. So if we ended up with
+> > > 1-page long LRU, it can stay there basically forever.
+> > 
+> > Why 
+> > 		/*
+> > 		 * If the cgroup's already been deleted, make sure to
+> > 		 * scrape out the remaining cache.
+> > 		 */
+> > 		if (!scan && !mem_cgroup_online(memcg))
+> > 			scan = min(size, SWAP_CLUSTER_MAX);
+> > 
+> > in get_scan_count doesn't work for that case?
 > 
-> Sorry, I lost track of this.
+> No, it doesn't. Let's look at the whole picture:
 > 
-> So what was the conclusion of the thread where discussion about this
-> problem started?
-> It wasn't clear to me if a consensus was reached and got lost on that
-> long user space dedupe tools discussion between you and Zygo.
+> 		size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
+> 		scan = size >> sc->priority;
+> 		/*
+> 		 * If the cgroup's already been deleted, make sure to
+> 		 * scrape out the remaining cache.
+> 		 */
+> 		if (!scan && !mem_cgroup_online(memcg))
+> 			scan = min(size, SWAP_CLUSTER_MAX);
 > 
-> The test assumed a fix of rounding down the range and deduping less
-> bytes then requested (which ended up included in 4.19 for btrfs).
-> 
-> From this vfs patch it seems it was decided to return errno -EDADE instead.
-> Is this the final decision?
+> If size == 1, scan == 0 => scan = min(1, 32) == 1.
+> And after proportional adjustment we'll have 0.
 
-No, I reworked the whole mess to match btrfs-4.19 behavior of deduping
-fewer bytes than requested.
-
---D
-
-> >
-> > Cheers,
-> >
-> > Dave.
-> > --
-> > Dave Chinner
-> > david@fromorbit.com
-> 
-> 
-> 
-> -- 
-> Filipe David Manana,
-> 
-> a??Whether you think you can, or you think you can't a?? you're right.a??
+My friday brain hurst when looking at this but if it doesn't work as
+advertized then it should be fixed. I do not see any of your patches to
+touch this logic so how come it would work after them applied?
+-- 
+Michal Hocko
+SUSE Labs
