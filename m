@@ -1,120 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 648686B0005
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2018 23:52:12 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id r16-v6so595774pgv.17
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 20:52:12 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r200-v6sor32435680pgr.30.2018.11.01.20.52.11
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 681AB6B0003
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 00:38:30 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id k14-v6so665250pls.21
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2018 21:38:30 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id x17-v6si31936809pgl.414.2018.11.01.21.38.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 01 Nov 2018 20:52:11 -0700 (PDT)
-Date: Fri, 2 Nov 2018 14:52:05 +1100
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: Re: [PATCH] memory_hotplug: cond_resched in __remove_pages
-Message-ID: <20181102035205.GG16399@350D>
-References: <20181031125840.23982-1-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Nov 2018 21:38:28 -0700 (PDT)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wA24ZGQw124302
+	for <linux-mm@kvack.org>; Fri, 2 Nov 2018 00:38:28 -0400
+Received: from smtp.notes.na.collabserv.com (smtp.notes.na.collabserv.com [192.155.248.72])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2ngbcrqu0f-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 02 Nov 2018 00:38:28 -0400
+Received: from localhost
+	by smtp.notes.na.collabserv.com with smtp.notes.na.collabserv.com ESMTP
+	for <linux-mm@kvack.org> from <npiggin@au1.ibm.com>;
+	Fri, 2 Nov 2018 04:38:27 -0000
+Subject: Re: PIE binaries are no longer mapped below 4 GiB on ppc64le
+In-Reply-To: <3da6549832ef68b93b210d5a32b3f12f3565cab0.camel@kernel.crashing.org>
+From: "Nick Piggin" <npiggin@au1.ibm.com>
+Date: Fri, 2 Nov 2018 04:38:20 +0000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181031125840.23982-1-mhocko@kernel.org>
+References: <3da6549832ef68b93b210d5a32b3f12f3565cab0.camel@kernel.crashing.org>,<87k1lyf2x3.fsf@oldenburg.str.redhat.com>
+ <20181031185032.679e170a@naga.suse.cz>
+ <877ehyf1cj.fsf@oldenburg.str.redhat.com>
+Message-Id: <OFD0143B4A.D4AA34CC-ON00258339.0016EFAF-00258339.00197B9C@notes.na.collabserv.com>
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@gmail.com>, Johannes Thumshirn <jthumshirn@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: benh@kernel.crashing.org
+Cc: anton@linux.ibm.com, fweimer@redhat.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, msuchanek@suse.de
 
-On Wed, Oct 31, 2018 at 01:58:40PM +0100, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> We have received a bug report that unbinding a large pmem (>1TB)
-> can result in a soft lockup:
-> [  380.339203] NMI watchdog: BUG: soft lockup - CPU#9 stuck for 23s! [ndctl:4365]
-> [...]
-> [  380.339316] Supported: Yes
-> [  380.339318] CPU: 9 PID: 4365 Comm: ndctl Not tainted 4.12.14-94.40-default #1 SLE12-SP4
-> [  380.339318] Hardware name: Intel Corporation S2600WFD/S2600WFD, BIOS SE5C620.86B.01.00.0833.051120182255 05/11/2018
-> [  380.339319] task: ffff9cce7d4410c0 task.stack: ffffbe9eb1bc4000
-> [  380.339325] RIP: 0010:__put_page+0x62/0x80
-> [  380.339326] RSP: 0018:ffffbe9eb1bc7d30 EFLAGS: 00000282 ORIG_RAX: ffffffffffffff10
-> [  380.339327] RAX: 000040540081c0d3 RBX: ffffeb8f03557200 RCX: 000063af40000000
-> [  380.339328] RDX: 0000000000000002 RSI: ffff9cce75bff498 RDI: ffff9e4a76072ff8
-> [  380.339329] RBP: 0000000a43557200 R08: 0000000000000000 R09: ffffbe9eb1bc7bb0
-> [  380.339329] R10: ffffbe9eb1bc7d08 R11: 0000000000000000 R12: ffff9e194a22a0e0
-> [  380.339330] R13: ffff9cce7062fc10 R14: ffff9e194a22a0a0 R15: ffff9cce6559c0e0
-> [  380.339331] FS:  00007fd132368880(0000) GS:ffff9cce7ea40000(0000) knlGS:0000000000000000
-> [  380.339332] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [  380.339332] CR2: 00000000020820a0 CR3: 000000017ef7a003 CR4: 00000000007606e0
-> [  380.339333] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> [  380.339334] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> [  380.339334] PKRU: 55555554
-> [  380.339334] Call Trace:
-> [  380.339338]  devm_memremap_pages_release+0x152/0x260
-> [  380.339342]  release_nodes+0x18d/0x1d0
-> [  380.339347]  device_release_driver_internal+0x160/0x210
-> [  380.339350]  unbind_store+0xb3/0xe0
-> [  380.339355]  kernfs_fop_write+0x102/0x180
-> [  380.339358]  __vfs_write+0x26/0x150
-> [  380.339363]  ? security_file_permission+0x3c/0xc0
-> [  380.339364]  vfs_write+0xad/0x1a0
-> [  380.339366]  SyS_write+0x42/0x90
-> [  380.339370]  do_syscall_64+0x74/0x150
-> [  380.339375]  entry_SYSCALL_64_after_hwframe+0x3d/0xa2
-> [  380.339377] RIP: 0033:0x7fd13166b3d0
-> 
-> It has been reported on an older (4.12) kernel but the current upstream
-> code doesn't cond_resched in the hot remove code at all and the given
-> range to remove might be really large. Fix the issue by calling cond_resched
-> once per memory section.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  mm/memory_hotplug.c | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 7e6509a53d79..1d87724fa558 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -587,6 +587,7 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
->  	for (i = 0; i < sections_to_remove; i++) {
->  		unsigned long pfn = phys_start_pfn + i*PAGES_PER_SECTION;
->  
-> +		cond_resched();
->  		ret = __remove_section(zone, __pfn_to_section(pfn), map_offset,
->  				altmap);
->  		map_offset = 0;
-
-Quick math tells me we're doing less than 44GiB's per second of offlining then?
-
-Here is a quick untested patch that might help with the speed as well
-
-In hot remove, we try to clear poisoned pages, but
-a small optimization to check if num_poisoned_pages
-is 0 helps remove the iteration through nr_pages.
-
-NOTE: We can make num_poisoned_pages counter per
-section and speed this up even more in case we
-do have some poisoned pages
-
-Signed-off-by: Balbir Singh <bsingharora@gmail.com>
----
- mm/sparse.c | 3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 33307fc05c4d..c4280ef0f383 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -724,6 +724,9 @@ static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
- 	if (!memmap)
- 		return;
- 
-+	if (atomic_long_read(&num_poisoned_pages) == 0)
-+		return;
-+
- 	for (i = 0; i < nr_pages; i++) {
- 		if (PageHWPoison(&memmap[i])) {
- 			atomic_long_sub(1, &num_poisoned_pages);
-
-Anyway for this patch:
-Acked-by: Balbir Singh <bsingharora@gmail.com>
+<div class=3D"socmaildefaultfont" dir=3D"ltr" style=3D"font-family:Arial, H=
+elvetica, sans-serif;font-size:10.5pt" ><blockquote data-history-content-mo=
+dified=3D"1" dir=3D"ltr" style=3D"border-left:solid #aaaaaa 2px; margin-lef=
+t:5px; padding-left:5px; direction:ltr; margin-right:0px" >----- Original m=
+essage -----<br>From: Benjamin Herrenschmidt &lt;benh@kernel.crashing.org&g=
+t;<br>To: Florian Weimer &lt;fweimer@redhat.com&gt;, "Michal Such=C3=A1nek"=
+ &lt;msuchanek@suse.de&gt;<br>Cc: linux-mm@kvack.org, linuxppc-dev@lists.oz=
+labs.org, Nick Piggin &lt;npiggin@au1.ibm.com&gt;, Anton Blanchard &lt;anto=
+n@au1.ibm.com&gt;<br>Subject: Re: PIE binaries are no longer mapped below 4=
+ GiB on ppc64le<br>Date: Thu, Nov 1, 2018 8:24 AM<br>&nbsp;
+<div><font size=3D"2" face=3D"Default Monospace,Courier New,Courier,monospa=
+ce" >On Wed, 2018-10-31 at 18:54 +0100, Florian Weimer wrote:<br>&gt;<br>&g=
+t; It would matter to C code which returns the address of a global variable=
+<br>&gt; in the main program through and (implicit) int return value.<br>&g=
+t;<br>&gt; The old behavior hid some pointer truncation issues.<br><br>Hidi=
+ng bugs like that is never a good idea..<br><br>&gt; &gt; Maybe it would be=
+ good idea to generate 64bit relocations on 64bit<br>&gt; &gt; targets?<br>=
+&gt;<br>&gt; Yes, the Go toolchain definitely needs fixing for PIE. &nbsp;I=
+ don't dispute<br>&gt; that.<br><br>There was never any ABI guarantee that =
+programs would be loaded below<br>4G... it just *happened*, so that's not p=
+er-se an ABI change.<br><br>That said, I'm surprised of the choice of addre=
+ss.. I would have rather<br>moved to above 1TB to benefit from 1T segments.=
+..<br><br>Nick, Anton, do you know anything about that change ?</font></div=
+></blockquote>
+<div dir=3D"ltr" >Looks like Michael found the offending commit.</div>
+<div dir=3D"ltr" >&nbsp;</div>
+<div dir=3D"ltr" >I guess there is precedent for avoiding address space exp=
+ansion as a compatibility concern, with the 128TB limit. That's pretty horr=
+ible though. I would have much rather added some new limits or a new system=
+ call even that could be used to control virtual address space allocation b=
+ehaviour without all these ad hoc mmap flags and implicit changes to behavi=
+our with different combinations of parameters to mmap(2). Anyway I digress.=
+</div>
+<div dir=3D"ltr" >&nbsp;</div>
+<div dir=3D"ltr" >I was looking at the first 1T segments issue a while ago.=
+ I *think* we might be able to use a 1T segment for address 0 by default, a=
+nd then hit it with a hammer and go back to 256MB if the app does something=
+ interesting like a fixed 4k mapping or hugetlbfs mapping.</div>
+<div dir=3D"ltr" >&nbsp;</div>
+<div dir=3D"ltr" >Thanks,</div>
+<div dir=3D"ltr" >Nick</div>
+<div dir=3D"ltr" >&nbsp;</div></div><BR>
