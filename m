@@ -1,116 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1992A6B0003
-	for <linux-mm@kvack.org>; Sat,  3 Nov 2018 05:24:58 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id v2-v6so3420618wrn.0
-        for <linux-mm@kvack.org>; Sat, 03 Nov 2018 02:24:58 -0700 (PDT)
-Received: from www.kot-begemot.co.uk (ivanoab6.miniserver.com. [5.153.251.140])
-        by mx.google.com with ESMTPS id r26-v6si7359152wmh.39.2018.11.03.02.24.56
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BA60F6B0003
+	for <linux-mm@kvack.org>; Sat,  3 Nov 2018 08:02:43 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id r16-v6so3810986pgv.17
+        for <linux-mm@kvack.org>; Sat, 03 Nov 2018 05:02:43 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 66-v6si22271211pfv.38.2018.11.03.05.02.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 03 Nov 2018 02:24:56 -0700 (PDT)
-Subject: Re: [PATCH -next 0/3] Add support for fast mremap
-References: <20181103040041.7085-1-joelaf@google.com>
- <6886607.O3ZT5bM3Cy@blindfold>
-From: Anton Ivanov <anton.ivanov@kot-begemot.co.uk>
-Message-ID: <e1d039a5-9c83-b9b9-98b5-d39bc48f04e0@kot-begemot.co.uk>
-Date: Sat, 3 Nov 2018 09:24:05 +0000
+        Sat, 03 Nov 2018 05:02:42 -0700 (PDT)
+Date: Sat, 3 Nov 2018 05:02:36 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm: Create the new vm_fault_t type
+Message-ID: <20181103120235.GA10491@bombadil.infradead.org>
+References: <20181103050504.GA3049@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
-In-Reply-To: <6886607.O3ZT5bM3Cy@blindfold>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181103050504.GA3049@jordon-HP-15-Notebook-PC>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Weinberger <richard@nod.at>, Joel Fernandes <joel@joelfernandes.org>
-Cc: linux-kernel@vger.kernel.org, kernel-team@android.com, Joel Fernandes <joelaf@google.com>, akpm@linux-foundation.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, dancol@google.com, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, elfring@users.sourceforge.net, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, hughd@google.com, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, Julia Lawall <Julia.Lawall@lip6.fr>, kasan-dev@googlegroups.com, kirill@shutemov.name, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-hexagon@vger.kernel.org, linux-ia64@vge.kvack.org, r.kernel.org@lithops.sigma-star.at, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, lokeshgidra@google.com, Max Filippov <jcmvbkbc@gmail.com>, Michal Hocko <mhocko@kernel.org>, minchan@kernel.org, nios2-dev@lists.rocketboards.org, pantin@google.com, Peter Zijlstra <peterz@infradead.org>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, pasha.tatashin@oracle.com, vbabka@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/11/2018 09:15, Richard Weinberger wrote:
-> Joel,
->
-> Am Samstag, 3. November 2018, 05:00:38 CET schrieb Joel Fernandes:
->> Hi,
->> Here is the latest "fast mremap" series. This just a repost with Kirill's
->> Acked-bys added. I would like this to be considered for linux -next.  I also
->> dropped the CONFIG enablement patch for arm64 since I am yet to test it with
->> the new TLB flushing code that is in very recent kernel releases. (None of my
->> arm64 devices run mainline right now.) so I will post the arm64 enablement once
->> I get to that. The performance numbers in the series are for x86.
->>
->> List of patches in series:
->>
->> (1) mm: select HAVE_MOVE_PMD in x86 for faster mremap
->>
->> (2) mm: speed up mremap by 20x on large regions (v4)
->> v1->v2: Added support for per-arch enablement (Kirill Shutemov)
->> v2->v3: Updated commit message to state the optimization may also
->> 	run for non-thp type of systems (Daniel Col).
->> v3->v4: Remove useless pmd_lock check (Kirill Shutemov)
->> 	Rebased ontop of Linus's master, updated perf results based
->>          on x86 testing. Added Kirill's Acks.
->>
->> (3) mm: treewide: remove unused address argument from pte_alloc functions (v2)
->> v1->v2: fix arch/um/ prototype which was missed in v1 (Anton Ivanov)
->>          update changelog with manual fixups for m68k and microblaze.
->>
->> not included - (4) mm: select HAVE_MOVE_PMD in arm64 for faster mremap
->>      This patch is dropped since last posting pending further performance
->>      testing on arm64 with new TLB gather updates. See notes in patch
->>      titled "mm: speed up mremap by 500x on large regions" for more
->>      details.
->>
-> This breaks UML build:
->    CC      mm/mremap.o
-> mm/mremap.c: In function a??move_normal_pmda??:
-> mm/mremap.c:229:2: error: implicit declaration of function a??set_pmd_ata??; did you mean a??set_pte_ata??? [-Werror=implicit-function-declaration]
->    set_pmd_at(mm, new_addr, new_pmd, pmd);
->    ^~~~~~~~~~
->    set_pte_at
->    CC      crypto/rng.o
->    CC      fs/direct-io.o
-> cc1: some warnings being treated as errors
->
-> To test yourself, just run on a x86 box:
-> $ make defconfig ARCH=um
-> $ make linux ARCH=um
->
-> Thanks,
-> //richard
->
->
->
+On Sat, Nov 03, 2018 at 10:35:04AM +0530, Souptick Joarder wrote:
+> Page fault handlers are supposed to return VM_FAULT codes,
+> but some drivers/file systems mistakenly return error
+> numbers. Now that all drivers/file systems have been converted
+> to use the vm_fault_t return type, change the type definition
+> to no longer be compatible with 'int'. By making it an unsigned
+> int, the function prototype becomes incompatible with a function
+> which returns int. Sparse will detect any attempts to return a
+> value which is not a VM_FAULT code.
 
-UM somehow managed to miss one of the 3-level functions, I sent a patch 
-at some point to add to the mmremap series, but it looks like it did not 
-get included in the final version.
 
-You need these two incremental on top of Joel's patch. Richard - feel 
-free to relocate the actual implementation of the set_pgd_at elsewhere - 
-I put it at the end of tlb.c
+> -/* Encode hstate index for a hwpoisoned large page */
+> -#define VM_FAULT_SET_HINDEX(x) ((x) << 12)
+> -#define VM_FAULT_GET_HINDEX(x) (((x) >> 12) & 0xf)
+...
+> +/* Encode hstate index for a hwpoisoned large page */
+> +#define VM_FAULT_SET_HINDEX(x) ((__force vm_fault_t)((x) << 16))
+> +#define VM_FAULT_GET_HINDEX(x) (((x) >> 16) & 0xf)
 
-diff --git a/arch/um/include/asm/pgtable.h b/arch/um/include/asm/pgtable.h
-index 7485398d0737..1692da55e63a 100644
---- a/arch/um/include/asm/pgtable.h
-+++ b/arch/um/include/asm/pgtable.h
-@@ -359,4 +359,7 @@ do {A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  \
- A A A A A A A  __flush_tlb_one((vaddr));A A A A A A A A A A A A A A  \
- A } while (0)
+I think it's important to mention in the changelog that these values
+have been changed to avoid conflicts with other VM_FAULT codes.
 
-+extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
-+A A A A A A A A A A A A A A  pmd_t *pmdp, pmd_t pmd);
-+
- A #endif
-diff --git a/arch/um/kernel/tlb.c b/arch/um/kernel/tlb.c
-index 763d35bdda01..d17b74184ba0 100644
---- a/arch/um/kernel/tlb.c
-+++ b/arch/um/kernel/tlb.c
-@@ -647,3 +647,9 @@ void force_flush_all(void)
- A A A A A A A A A A A A A A A  vma = vma->vm_next;
- A A A A A A A  }
- A }
-+void set_pmd_at(struct mm_struct *mm, unsigned long addr,
-+A A A A A A A A A A A A A A  pmd_t *pmdp, pmd_t pmd)
-+{
-+A A A A A A  *pmdp = pmd;
-+}
-+
+> +/**
+> + * typedef vm_fault_t -  __bitwise unsigned int
+> + *
+> + * vm_fault_t is the new unsigned int type to return VM_FAULT
+> + * code by page fault handlers of drivers/file systems. Now if
+> + * any page fault handlers returns non VM_FAULT code instead
+> + * of VM_FAULT code, it will be a mismatch with function
+> + * prototype and sparse will detect it.
+> + */
+
+The first line should be what the typedef *means*, not repeat the
+compiler's definition.  The rest of the description should be information
+for someone coming to the type for the first time; what you've written
+here is changelog material.
+
+/**
+ * typedef vm_fault_t - Return type for page fault handlers.
+ *
+ * Page fault handlers return a bitmask of %VM_FAULT values.
+ */
+
+> +typedef __bitwise unsigned int vm_fault_t;
+> +
+> +/**
+> + * enum - VM_FAULT code
+
+Can you document an anonymous enum?  I've never tried.  Did you run this
+through 'make htmldocs'?
+
+> + * This enum is used to track the VM_FAULT code return by page
+> + * fault handlers.
+
+ * Page fault handlers return a bitmask of these values to tell the
+ * core VM what happened when handling the fault.
