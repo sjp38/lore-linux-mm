@@ -1,59 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DBBA76B0003
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 21:56:39 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id x9so2349406otg.19
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 18:56:39 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 432476B0006
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2018 22:00:43 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id v23-v6so3729871ioh.16
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 19:00:43 -0700 (PDT)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id n205-v6si16109167oif.11.2018.11.02.18.56.37
+        by mx.google.com with ESMTPS id f34-v6si15120016jaa.109.2018.11.02.19.00.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Nov 2018 18:56:38 -0700 (PDT)
-Subject: Re: [PATCH v6 1/3] printk: Add line-buffered printk() API.
+        Fri, 02 Nov 2018 19:00:42 -0700 (PDT)
+Subject: Re: [PATCH 3/3] lockdep: Use line-buffered printk() for lockdep
+ messages.
 References: <1541165517-3557-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20181102144028.GQ10491@bombadil.infradead.org>
+ <1541165517-3557-3-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20181102133629.GN3178@hirez.programming.kicks-ass.net>
 From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <865018bd-6352-cb92-1b8a-9254768f0b5c@i-love.sakura.ne.jp>
-Date: Sat, 3 Nov 2018 10:55:57 +0900
+Message-ID: <80eb808d-4c17-9b1f-f866-3e22b9b2b18e@i-love.sakura.ne.jp>
+Date: Sat, 3 Nov 2018 11:00:10 +0900
 MIME-Version: 1.0
-In-Reply-To: <20181102144028.GQ10491@bombadil.infradead.org>
+In-Reply-To: <20181102133629.GN3178@hirez.programming.kicks-ass.net>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dmitriy Vyukov <dvyukov@google.com>, Steven Rostedt <rostedt@goodmis.org>, Alexander Potapenko <glider@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dmitriy Vyukov <dvyukov@google.com>, Steven Rostedt <rostedt@goodmis.org>, Alexander Potapenko <glider@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>
 
-On 2018/11/02 23:40, Matthew Wilcox wrote:
-> On Fri, Nov 02, 2018 at 10:31:55PM +0900, Tetsuo Handa wrote:
->>   get_printk_buffer() tries to assign a "struct printk_buffer" from
->>   statically preallocated array. get_printk_buffer() returns NULL if
->>   all "struct printk_buffer" are in use, but the caller does not need to
->>   check for NULL.
+On 2018/11/02 22:36, Peter Zijlstra wrote:
+> On Fri, Nov 02, 2018 at 10:31:57PM +0900, Tetsuo Handa wrote:
+>> syzbot is sometimes getting mixed output like below due to concurrent
+>> printk(). Mitigate such output by using line-buffered printk() API.
+>>
+>>   RCU used illegally from idle CPU!
+>>   rcu_scheduler_active = 2, debug_locks = 1
+>>   RSP: 0018:ffffffff88007bb8 EFLAGS: 00000286
+>>   RCU used illegally from extended quiescent state!
+>>    ORIG_RAX: ffffffffffffff13
+>>   1 lock held by swapper/1/0:
+>>   RAX: dffffc0000000000 RBX: 1ffffffff1000f7b RCX: 0000000000000000
+>>    #0: 
+>>   RDX: 1ffffffff10237b8 RSI: 0000000000000001 RDI: ffffffff8811bdc0
+>>   000000004b34587c
+>>   RBP: ffffffff88007bb8 R08: ffffffff88075e00 R09: 0000000000000000
+>>    (
+>>   R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000000
+>>   rcu_read_lock
+>>   R13: ffffffff88007c78 R14: 0000000000000000 R15: 0000000000000000
+>>   ){....}
+>>    arch_safe_halt arch/x86/include/asm/paravirt.h:94 [inline]
+>>    default_idle+0xc2/0x410 arch/x86/kernel/process.c:498
+>>   , at: trace_call_bpf+0xf8/0x640 kernel/trace/bpf_trace.c:46
 > 
-> This seems like a great way of wasting 16kB of memory.  Since you've
-> already made printk_buffered() work with a NULL initial argument, what's
-> the advantage over just doing kmalloc(1024, GFP_ATOMIC)?
+> WTH is that buffered aPI, and no, that breaks my earlyprintk stuff.
+> 
 
-Like "[PATCH 2/3] mm: Use line-buffered printk() for show_free_areas()."
-demonstrates, kzalloc(sizeof(struct printk_buffer), GFP_ATOMIC) can fail.
-
-And using statically preallocated buffers helps avoiding
-
-  (1) out of buffers when memory cannot be allocated
-
-  (2) kernel stack overflow when kernel stack is already tight (e.g.
-      a memory allocation attempt from an interrupt handler which was
-      invoked from deep inside call chain of a process context)
-
-. Whether
-
-  (A) tuning the number of statically preallocated buffers
-
-  (B) allocating buffers on caller side (e.g. kzalloc() or in .bss section)
-
-are useful is a future decision, for too much concurrent printk() will lockup
-the system even if there are enough buffers. I think that starting with
-statically preallocated buffers is (at least for now) a good choice for
-minimizing risk of (1) (2) while offering practically acceptable result.
+This API is nothing but a wrapper for reducing frequency of directly
+calling printk() by using snprintf() if possible. Thus, whatever your
+earlyprintk stuff is, this API should not affect it.
