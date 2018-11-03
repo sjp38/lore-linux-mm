@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7287C6B0008
-	for <linux-mm@kvack.org>; Sat,  3 Nov 2018 00:00:55 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id c15-v6so3621933pls.15
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 21:00:55 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D6C606B000C
+	for <linux-mm@kvack.org>; Sat,  3 Nov 2018 00:00:57 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id v72so3510760pgb.10
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 21:00:57 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a72sor3210008pge.21.2018.11.02.21.00.54
+        by mx.google.com with SMTPS id x8-v6sor7230877pfk.32.2018.11.02.21.00.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 02 Nov 2018 21:00:54 -0700 (PDT)
+        Fri, 02 Nov 2018 21:00:56 -0700 (PDT)
 From: Joel Fernandes <joel@joelfernandes.org>
-Subject: [PATCH -next 2/3] mm: speed up mremap by 20x on large regions (v4)
-Date: Fri,  2 Nov 2018 21:00:40 -0700
-Message-Id: <20181103040041.7085-3-joelaf@google.com>
+Subject: [PATCH -next 3/3] mm: select HAVE_MOVE_PMD in x86 for faster mremap
+Date: Fri,  2 Nov 2018 21:00:41 -0700
+Message-Id: <20181103040041.7085-4-joelaf@google.com>
 In-Reply-To: <20181103040041.7085-1-joelaf@google.com>
 References: <20181103040041.7085-1-joelaf@google.com>
 MIME-Version: 1.0
@@ -24,145 +24,27 @@ Cc: kernel-team@android.com, "Joel Fernandes (Google)" <joel@joelfernandes.org>,
 
 From: "Joel Fernandes (Google)" <joel@joelfernandes.org>
 
-Android needs to mremap large regions of memory during memory management
-related operations. The mremap system call can be really slow if THP is
-not enabled. The bottleneck is move_page_tables, which is copying each
-pte at a time, and can be really slow across a large map. Turning on THP
-may not be a viable option, and is not for us. This patch speeds up the
-performance for non-THP system by copying at the PMD level when possible.
+Moving page-tables at the PMD-level on x86 is known to be safe. Enable
+this option so that we can do fast mremap when possible.
 
-The speed up is an order of magnitude on x86 (~20x). On a 1GB mremap,
-the mremap completion times drops from 3.4-3.6 milliseconds to 144-160
-microseconds.
-
-Before:
-Total mremap time for 1GB data: 3521942 nanoseconds.
-Total mremap time for 1GB data: 3449229 nanoseconds.
-Total mremap time for 1GB data: 3488230 nanoseconds.
-
-After:
-Total mremap time for 1GB data: 150279 nanoseconds.
-Total mremap time for 1GB data: 144665 nanoseconds.
-Total mremap time for 1GB data: 158708 nanoseconds.
-
-Incase THP is enabled, the optimization is mostly skipped except in
-certain situations.
-
+Suggested-by: Kirill A. Shutemov <kirill@shutemov.name>
 Acked-by: Kirill A. Shutemov <kirill@shutemov.name>
 Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
 ---
+ arch/x86/Kconfig | 1 +
+ 1 file changed, 1 insertion(+)
 
-Note that since the bug fix in [1], we now have to flush the TLB every
-PMD move. The above numbers were obtained on x86 with a flush done every
-move. For arm64, I previously encountered performance issues doing a
-flush everytime we move, however Will Deacon says [2] the performance
-should be better now with recent release. Until we can evaluate arm64, I
-am dropping the HAVE_MOVE_PMD config enable patch for ARM64 for now. It
-can be added back once we finish the performance evaluation. Also of
-note is that the speed up on arm64 with this patch but without the TLB
-flush every PMD move is around 500x.
-
-[1] https://bugs.chromium.org/p/project-zero/issues/detail?id=1695
-[2] https://www.mail-archive.com/linuxppc-dev@lists.ozlabs.org/msg140837.html
-
- arch/Kconfig |  5 +++++
- mm/mremap.c  | 60 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 65 insertions(+)
-
-diff --git a/arch/Kconfig b/arch/Kconfig
-index e1e540ffa979..b70c952ac838 100644
---- a/arch/Kconfig
-+++ b/arch/Kconfig
-@@ -535,6 +535,11 @@ config HAVE_IRQ_TIME_ACCOUNTING
- 	  Archs need to ensure they use a high enough resolution clock to
- 	  support irq time accounting and then call enable_sched_clock_irqtime().
- 
-+config HAVE_MOVE_PMD
-+	bool
-+	help
-+	  Archs that select this are able to move page tables at the PMD level.
-+
- config HAVE_ARCH_TRANSPARENT_HUGEPAGE
- 	bool
- 
-diff --git a/mm/mremap.c b/mm/mremap.c
-index 7c9ab747f19d..7cf6b0943090 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -191,6 +191,50 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
- 		drop_rmap_locks(vma);
- }
- 
-+static bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
-+		  unsigned long new_addr, unsigned long old_end,
-+		  pmd_t *old_pmd, pmd_t *new_pmd)
-+{
-+	spinlock_t *old_ptl, *new_ptl;
-+	struct mm_struct *mm = vma->vm_mm;
-+	pmd_t pmd;
-+
-+	if ((old_addr & ~PMD_MASK) || (new_addr & ~PMD_MASK)
-+	    || old_end - old_addr < PMD_SIZE)
-+		return false;
-+
-+	/*
-+	 * The destination pmd shouldn't be established, free_pgtables()
-+	 * should have release it.
-+	 */
-+	if (WARN_ON(!pmd_none(*new_pmd)))
-+		return false;
-+
-+	/*
-+	 * We don't have to worry about the ordering of src and dst
-+	 * ptlocks because exclusive mmap_sem prevents deadlock.
-+	 */
-+	old_ptl = pmd_lock(vma->vm_mm, old_pmd);
-+	new_ptl = pmd_lockptr(mm, new_pmd);
-+	if (new_ptl != old_ptl)
-+		spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
-+
-+	/* Clear the pmd */
-+	pmd = *old_pmd;
-+	pmd_clear(old_pmd);
-+
-+	VM_BUG_ON(!pmd_none(*new_pmd));
-+
-+	/* Set the new pmd */
-+	set_pmd_at(mm, new_addr, new_pmd, pmd);
-+	flush_tlb_range(vma, old_addr, old_addr + PMD_SIZE);
-+	if (new_ptl != old_ptl)
-+		spin_unlock(new_ptl);
-+	spin_unlock(old_ptl);
-+
-+	return true;
-+}
-+
- unsigned long move_page_tables(struct vm_area_struct *vma,
- 		unsigned long old_addr, struct vm_area_struct *new_vma,
- 		unsigned long new_addr, unsigned long len,
-@@ -237,7 +281,23 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
- 			split_huge_pmd(vma, old_pmd, old_addr);
- 			if (pmd_trans_unstable(old_pmd))
- 				continue;
-+		} else if (extent == PMD_SIZE && IS_ENABLED(CONFIG_HAVE_MOVE_PMD)) {
-+			/*
-+			 * If the extent is PMD-sized, try to speed the move by
-+			 * moving at the PMD level if possible.
-+			 */
-+			bool moved;
-+
-+			if (need_rmap_locks)
-+				take_rmap_locks(vma);
-+			moved = move_normal_pmd(vma, old_addr, new_addr,
-+					old_end, old_pmd, new_pmd);
-+			if (need_rmap_locks)
-+				drop_rmap_locks(vma);
-+			if (moved)
-+				continue;
- 		}
-+
- 		if (pte_alloc(new_vma->vm_mm, new_pmd))
- 			break;
- 		next = (new_addr + PMD_SIZE) & PMD_MASK;
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index ba7e3464ee92..48aef01a0bd1 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -173,6 +173,7 @@ config X86
+ 	select HAVE_MEMBLOCK_NODE_MAP
+ 	select HAVE_MIXED_BREAKPOINTS_REGS
+ 	select HAVE_MOD_ARCH_SPECIFIC
++	select HAVE_MOVE_PMD
+ 	select HAVE_NMI
+ 	select HAVE_OPROFILE
+ 	select HAVE_OPTPROBES
 -- 
 2.19.1.930.g4563a0d9d0-goog
