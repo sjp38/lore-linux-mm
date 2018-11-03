@@ -1,200 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F0EE6B0006
-	for <linux-mm@kvack.org>; Sat,  3 Nov 2018 01:07:51 -0400 (EDT)
-Received: by mail-lj1-f197.google.com with SMTP id q185-v6so1171071ljb.14
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2018 22:07:51 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j15-v6sor5035573ljh.4.2018.11.02.22.07.48
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1992A6B0003
+	for <linux-mm@kvack.org>; Sat,  3 Nov 2018 05:24:58 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id v2-v6so3420618wrn.0
+        for <linux-mm@kvack.org>; Sat, 03 Nov 2018 02:24:58 -0700 (PDT)
+Received: from www.kot-begemot.co.uk (ivanoab6.miniserver.com. [5.153.251.140])
+        by mx.google.com with ESMTPS id r26-v6si7359152wmh.39.2018.11.03.02.24.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 02 Nov 2018 22:07:49 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sat, 03 Nov 2018 02:24:56 -0700 (PDT)
+Subject: Re: [PATCH -next 0/3] Add support for fast mremap
+References: <20181103040041.7085-1-joelaf@google.com>
+ <6886607.O3ZT5bM3Cy@blindfold>
+From: Anton Ivanov <anton.ivanov@kot-begemot.co.uk>
+Message-ID: <e1d039a5-9c83-b9b9-98b5-d39bc48f04e0@kot-begemot.co.uk>
+Date: Sat, 3 Nov 2018 09:24:05 +0000
 MIME-Version: 1.0
-References: <20181103050504.GA3049@jordon-HP-15-Notebook-PC>
-In-Reply-To: <20181103050504.GA3049@jordon-HP-15-Notebook-PC>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Sat, 3 Nov 2018 10:41:09 +0530
-Message-ID: <CAFqt6zZ80XLJJ_FDPNz4JL1cu_FkhZARyY-x_JRgOYEG_OUNqQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: Create the new vm_fault_t type
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <6886607.O3ZT5bM3Cy@blindfold>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, pasha.tatashin@oracle.com, vbabka@suse.cz, riel@redhat.com
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Richard Weinberger <richard@nod.at>, Joel Fernandes <joel@joelfernandes.org>
+Cc: linux-kernel@vger.kernel.org, kernel-team@android.com, Joel Fernandes <joelaf@google.com>, akpm@linux-foundation.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, dancol@google.com, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, elfring@users.sourceforge.net, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, hughd@google.com, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, Julia Lawall <Julia.Lawall@lip6.fr>, kasan-dev@googlegroups.com, kirill@shutemov.name, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-hexagon@vger.kernel.org, linux-ia64@vge.kvack.org, r.kernel.org@lithops.sigma-star.at, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, lokeshgidra@google.com, Max Filippov <jcmvbkbc@gmail.com>, Michal Hocko <mhocko@kernel.org>, minchan@kernel.org, nios2-dev@lists.rocketboards.org, pantin@google.com, Peter Zijlstra <peterz@infradead.org>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>
 
-On Sat, Nov 3, 2018 at 10:31 AM Souptick Joarder <jrdr.linux@gmail.com> wrote:
+On 03/11/2018 09:15, Richard Weinberger wrote:
+> Joel,
 >
-> Page fault handlers are supposed to return VM_FAULT codes,
-> but some drivers/file systems mistakenly return error
-> numbers. Now that all drivers/file systems have been converted
-> to use the vm_fault_t return type, change the type definition
-> to no longer be compatible with 'int'. By making it an unsigned
-> int, the function prototype becomes incompatible with a function
-> which returns int. Sparse will detect any attempts to return a
-> value which is not a VM_FAULT code.
+> Am Samstag, 3. November 2018, 05:00:38 CET schrieb Joel Fernandes:
+>> Hi,
+>> Here is the latest "fast mremap" series. This just a repost with Kirill's
+>> Acked-bys added. I would like this to be considered for linux -next.  I also
+>> dropped the CONFIG enablement patch for arm64 since I am yet to test it with
+>> the new TLB flushing code that is in very recent kernel releases. (None of my
+>> arm64 devices run mainline right now.) so I will post the arm64 enablement once
+>> I get to that. The performance numbers in the series are for x86.
+>>
+>> List of patches in series:
+>>
+>> (1) mm: select HAVE_MOVE_PMD in x86 for faster mremap
+>>
+>> (2) mm: speed up mremap by 20x on large regions (v4)
+>> v1->v2: Added support for per-arch enablement (Kirill Shutemov)
+>> v2->v3: Updated commit message to state the optimization may also
+>> 	run for non-thp type of systems (Daniel Col).
+>> v3->v4: Remove useless pmd_lock check (Kirill Shutemov)
+>> 	Rebased ontop of Linus's master, updated perf results based
+>>          on x86 testing. Added Kirill's Acks.
+>>
+>> (3) mm: treewide: remove unused address argument from pte_alloc functions (v2)
+>> v1->v2: fix arch/um/ prototype which was missed in v1 (Anton Ivanov)
+>>          update changelog with manual fixups for m68k and microblaze.
+>>
+>> not included - (4) mm: select HAVE_MOVE_PMD in arm64 for faster mremap
+>>      This patch is dropped since last posting pending further performance
+>>      testing on arm64 with new TLB gather updates. See notes in patch
+>>      titled "mm: speed up mremap by 500x on large regions" for more
+>>      details.
+>>
+> This breaks UML build:
+>    CC      mm/mremap.o
+> mm/mremap.c: In function a??move_normal_pmda??:
+> mm/mremap.c:229:2: error: implicit declaration of function a??set_pmd_ata??; did you mean a??set_pte_ata??? [-Werror=implicit-function-declaration]
+>    set_pmd_at(mm, new_addr, new_pmd, pmd);
+>    ^~~~~~~~~~
+>    set_pte_at
+>    CC      crypto/rng.o
+>    CC      fs/direct-io.o
+> cc1: some warnings being treated as errors
 >
-> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-> ---
->  include/linux/mm.h       | 46 -----------------------------
->  include/linux/mm_types.h | 75 +++++++++++++++++++++++++++++++++++++++++++++++-
->  2 files changed, 74 insertions(+), 47 deletions(-)
+> To test yourself, just run on a x86 box:
+> $ make defconfig ARCH=um
+> $ make linux ARCH=um
 >
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index fcf9cc9..511a3ce 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1267,52 +1267,6 @@ static inline void clear_page_pfmemalloc(struct page *page)
->  }
+> Thanks,
+> //richard
 >
->  /*
-> - * Different kinds of faults, as returned by handle_mm_fault().
-> - * Used to decide whether a process gets delivered SIGBUS or
-> - * just gets major/minor fault counters bumped up.
-> - */
-> -
-> -#define VM_FAULT_OOM   0x0001
-> -#define VM_FAULT_SIGBUS        0x0002
-> -#define VM_FAULT_MAJOR 0x0004
-> -#define VM_FAULT_WRITE 0x0008  /* Special case for get_user_pages */
-> -#define VM_FAULT_HWPOISON 0x0010       /* Hit poisoned small page */
-> -#define VM_FAULT_HWPOISON_LARGE 0x0020  /* Hit poisoned large page. Index encoded in upper bits */
-> -#define VM_FAULT_SIGSEGV 0x0040
-> -
-> -#define VM_FAULT_NOPAGE        0x0100  /* ->fault installed the pte, not return page */
-> -#define VM_FAULT_LOCKED        0x0200  /* ->fault locked the returned page */
-> -#define VM_FAULT_RETRY 0x0400  /* ->fault blocked, must retry */
-> -#define VM_FAULT_FALLBACK 0x0800       /* huge page fault failed, fall back to small */
-> -#define VM_FAULT_DONE_COW   0x1000     /* ->fault has fully handled COW */
-> -#define VM_FAULT_NEEDDSYNC  0x2000     /* ->fault did not modify page tables
-> -                                        * and needs fsync() to complete (for
-> -                                        * synchronous page faults in DAX) */
-> -
-> -#define VM_FAULT_ERROR (VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | \
-> -                        VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE | \
-> -                        VM_FAULT_FALLBACK)
-> -
-> -#define VM_FAULT_RESULT_TRACE \
-> -       { VM_FAULT_OOM,                 "OOM" }, \
-> -       { VM_FAULT_SIGBUS,              "SIGBUS" }, \
-> -       { VM_FAULT_MAJOR,               "MAJOR" }, \
-> -       { VM_FAULT_WRITE,               "WRITE" }, \
-> -       { VM_FAULT_HWPOISON,            "HWPOISON" }, \
-> -       { VM_FAULT_HWPOISON_LARGE,      "HWPOISON_LARGE" }, \
-> -       { VM_FAULT_SIGSEGV,             "SIGSEGV" }, \
-> -       { VM_FAULT_NOPAGE,              "NOPAGE" }, \
-> -       { VM_FAULT_LOCKED,              "LOCKED" }, \
-> -       { VM_FAULT_RETRY,               "RETRY" }, \
-> -       { VM_FAULT_FALLBACK,            "FALLBACK" }, \
-> -       { VM_FAULT_DONE_COW,            "DONE_COW" }, \
-> -       { VM_FAULT_NEEDDSYNC,           "NEEDDSYNC" }
-> -
-> -/* Encode hstate index for a hwpoisoned large page */
-> -#define VM_FAULT_SET_HINDEX(x) ((x) << 12)
-> -#define VM_FAULT_GET_HINDEX(x) (((x) >> 12) & 0xf)
-> -
-> -/*
->   * Can be called by the pagefault handler when it gets a VM_FAULT_OOM.
->   */
->  extern void pagefault_out_of_memory(void);
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 5ed8f62..48c2108 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -22,7 +22,6 @@
->  #endif
->  #define AT_VECTOR_SIZE (2*(AT_VECTOR_SIZE_ARCH + AT_VECTOR_SIZE_BASE + 1))
 >
-> -typedef int vm_fault_t;
 >
->  struct address_space;
->  struct mem_cgroup;
-> @@ -609,6 +608,80 @@ static inline bool mm_tlb_flush_nested(struct mm_struct *mm)
->
->  struct vm_fault;
->
-> +/**
-> + * typedef vm_fault_t -  __bitwise unsigned int
-> + *
-> + * vm_fault_t is the new unsigned int type to return VM_FAULT
-> + * code by page fault handlers of drivers/file systems. Now if
-> + * any page fault handlers returns non VM_FAULT code instead
-> + * of VM_FAULT code, it will be a mismatch with function
-> + * prototype and sparse will detect it.
-> + */
-> +typedef __bitwise unsigned int vm_fault_t;
-> +
-> +/**
-> + * enum - VM_FAULT code
-> + *
-> + * This enum is used to track the VM_FAULT code return by page
-> + * fault handlers.
-> + *
-> + * @VM_FAULT_OOM:              Out Of Memory
-> + * @VM_FAULT_SIGBUS:           Bad access
-> + * @VM_FAULT_MAJOR:            Page read from storage
-> + * @VM_FAULT_WRITE:            Special case for get_user_pages
-> + * @VM_FAULT_HWPOISON:         Hit poisoned small page
-> + * @VM_FAULT_HWPOISON_LARGE:   Hit poisoned large page. Index encoded
-> + *                             in upper bits
-> + * @VM_FAULT_SIGSEGV:          segmentation fault
-> + * @VM_FAULT_NOPAGE:           ->fault installed the pte, not return page
-> + * @VM_FAULT_LOCKED:           ->fault locked the returned page
-> + * @VM_FAULT_RETRY:            ->fault blocked, must retry
-> + * @VM_FAULT_FALLBACK:         huge page fault failed, fall back to small
-> + * @VM_FAULT_DONE_COW:         ->fault has fully handled COW
-> + * @VM_FAULT_NEEDDSYNC:                ->fault did not modify page tables and needs
-> + *                             fsync() to complete (for synchronous page faults
-> + *                             in DAX)
-> + */
-> +enum {
-> +       VM_FAULT_OOM            = (__force vm_fault_t)0x000001,
-> +       VM_FAULT_SIGBUS         = (__force vm_fault_t)0x000002,
-> +       VM_FAULT_MAJOR          = (__force vm_fault_t)0x000004,
-> +       VM_FAULT_WRITE          = (__force vm_fault_t)0x000008,
-> +       VM_FAULT_HWPOISON       = (__force vm_fault_t)0x000010,
-> +       VM_FAULT_HWPOISON_LARGE = (__force vm_fault_t)0x000020,
-> +       VM_FAULT_SIGSEGV        = (__force vm_fault_t)0x000040,
-> +       VM_FAULT_NOPAGE         = (__force vm_fault_t)0x000100,
-> +       VM_FAULT_LOCKED         = (__force vm_fault_t)0x000200,
-> +       VM_FAULT_RETRY          = (__force vm_fault_t)0x000400,
-> +       VM_FAULT_FALLBACK       = (__force vm_fault_t)0x000800,
-> +       VM_FAULT_DONE_COW       = (__force vm_fault_t)0x001000,
-> +       VM_FAULT_NEEDDSYNC      = (__force vm_fault_t)0x002000,
-> +       VM_FAULT_HINDEX_MASK    = (__force vm_fault_t)0x0f0000,
-> +};
-> +
-> +/* Encode hstate index for a hwpoisoned large page */
-> +#define VM_FAULT_SET_HINDEX(x) ((__force vm_fault_t)((x) << 16))
-> +#define VM_FAULT_GET_HINDEX(x) (((x) >> 16) & 0xf)
-> +
-> +#define VM_FAULT_ERROR (VM_FAULT_OOM | VM_FAULT_SIGBUS |       \
-> +                       VM_FAULT_SIGSEGV | VM_FAULT_HWPOISON |  \
-> +                       VM_FAULT_HWPOISON_LARGE | VM_FAULT_FALLBACK)
-> +
-> +#define VM_FAULT_RESULT_TRACE \
-> +       { VM_FAULT_OOM,                 "OOM" },        \
-> +       { VM_FAULT_SIGBUS,              "SIGBUS" },     \
-> +       { VM_FAULT_MAJOR,               "MAJOR" },      \
-> +       { VM_FAULT_WRITE,               "WRITE" },      \
-> +       { VM_FAULT_HWPOISON,            "HWPOISON" },   \
-> +       { VM_FAULT_HWPOISON_LARGE,      "HWPOISON_LARGE" },     \
-> +       { VM_FAULT_SIGSEGV,             "SIGSEGV" },    \
-> +       { VM_FAULT_NOPAGE,              "NOPAGE" },     \
-> +       { VM_FAULT_LOCKED,              "LOCKED" },     \
-> +       { VM_FAULT_RETRY,               "RETRY" },      \
-> +       { VM_FAULT_FALLBACK,            "FALLBACK" },   \
-> +       { VM_FAULT_DONE_COW,            "DONE_COW" },   \
-> +       { VM_FAULT_NEEDDSYNC,           "NEEDDSYNC" }
-> +
 
-checkpatch.pl is throwing an error "ERROR: Macros with complex values
-should be enclosed in parentheses". But if I put it under macro it leads to
-compile error for * make allyesconfig * ( x86_64 arch).
-That the reason I have ignored the error in checkpatch.pl.
+UM somehow managed to miss one of the 3-level functions, I sent a patch 
+at some point to add to the mmremap series, but it looks like it did not 
+get included in the final version.
 
->  struct vm_special_mapping {
->         const char *name;       /* The name, e.g. "[vdso]". */
->
-> --
-> 1.9.1
->
+You need these two incremental on top of Joel's patch. Richard - feel 
+free to relocate the actual implementation of the set_pgd_at elsewhere - 
+I put it at the end of tlb.c
+
+diff --git a/arch/um/include/asm/pgtable.h b/arch/um/include/asm/pgtable.h
+index 7485398d0737..1692da55e63a 100644
+--- a/arch/um/include/asm/pgtable.h
++++ b/arch/um/include/asm/pgtable.h
+@@ -359,4 +359,7 @@ do {A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  \
+ A A A A A A A  __flush_tlb_one((vaddr));A A A A A A A A A A A A A A  \
+ A } while (0)
+
++extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
++A A A A A A A A A A A A A A  pmd_t *pmdp, pmd_t pmd);
++
+ A #endif
+diff --git a/arch/um/kernel/tlb.c b/arch/um/kernel/tlb.c
+index 763d35bdda01..d17b74184ba0 100644
+--- a/arch/um/kernel/tlb.c
++++ b/arch/um/kernel/tlb.c
+@@ -647,3 +647,9 @@ void force_flush_all(void)
+ A A A A A A A A A A A A A A A  vma = vma->vm_next;
+ A A A A A A A  }
+ A }
++void set_pmd_at(struct mm_struct *mm, unsigned long addr,
++A A A A A A A A A A A A A A  pmd_t *pmdp, pmd_t pmd)
++{
++A A A A A A  *pmdp = pmd;
++}
++
