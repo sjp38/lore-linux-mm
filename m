@@ -1,46 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F13E36B0003
-	for <linux-mm@kvack.org>; Sun,  4 Nov 2018 07:50:33 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id 33-v6so6714899pld.19
-        for <linux-mm@kvack.org>; Sun, 04 Nov 2018 04:50:33 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k14-v6sor13659178pgc.11.2018.11.04.04.50.32
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C82A6B0005
+	for <linux-mm@kvack.org>; Sun,  4 Nov 2018 16:06:15 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id q25-v6so3735747wmq.9
+        for <linux-mm@kvack.org>; Sun, 04 Nov 2018 13:06:15 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id s6-v6si10376124wru.343.2018.11.04.13.06.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 04 Nov 2018 04:50:33 -0800 (PST)
-From: Yangtao Li <tiny.windzz@gmail.com>
-Subject: [PATCH] mm, slab: remove unnecessary unlikely()
-Date: Sun,  4 Nov 2018 07:50:28 -0500
-Message-Id: <20181104125028.3572-1-tiny.windzz@gmail.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Sun, 04 Nov 2018 13:06:13 -0800 (PST)
+Date: Sun, 4 Nov 2018 22:05:56 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v2] x86/build: Build VSMP support only if CONFIG_PCI is
+ selected
+In-Reply-To: <2130cd90-2c8f-2fc4-0ac8-81a5aea153b2@scalemp.com>
+Message-ID: <alpine.DEB.2.21.1811042202530.10744@nanos.tec.linutronix.de>
+References: <2130cd90-2c8f-2fc4-0ac8-81a5aea153b2@scalemp.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yangtao Li <tiny.windzz@gmail.com>
+To: Eial Czerwacki <eial@scalemp.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Juergen Gross <jgross@suse.com>, Randy Dunlap <rdunlap@infradead.org>, "Shai Fultheim (Shai@ScaleMP.com)" <Shai@ScaleMP.com>, Andrew Morton <akpm@linux-foundation.org>, "broonie@kernel.org" <broonie@kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, Stephen Rothwell <sfr@canb.auug.org.au>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, X86 ML <x86@kernel.org>, Oren Twaig <oren@scalemp.com>
 
-WARN_ON() already contains an unlikely(), so it's not necessary to use
-unlikely.
+Eial,
 
-Signed-off-by: Yangtao Li <tiny.windzz@gmail.com>
----
- mm/slab_common.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+On Thu, 1 Nov 2018, Eial Czerwacki wrote:
 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 7eb8dc136c1c..4f54684f5435 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -1029,10 +1029,8 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
- 
- 		index = size_index[size_index_elem(size)];
- 	} else {
--		if (unlikely(size > KMALLOC_MAX_CACHE_SIZE)) {
--			WARN_ON(1);
-+		if (WARN_ON(size > KMALLOC_MAX_CACHE_SIZE))
- 			return NULL;
--		}
- 		index = fls(size - 1);
- 	}
- 
--- 
-2.17.0
+> Subject: x86/build: Build VSMP support only if CONFIG_PCI is selected
+
+That's not what the patch does, right?
+
+> vsmp dependency on pv_irq_ops removed some years ago, so now let's clean
+> it up from vsmp_64.c.
+> 
+> In short, "cap & ctl & (1 << 4)" was always returning 0, as such we can
+> remove all the PARAVIRT/PARAVIRT_XXL code handling that.
+> 
+> However, the rest of the code depends on CONFIG_PCI, so fix it accordingly.
+> in addition, rename set_vsmp_pv_ops to set_vsmp_ctl.
+> 
+> Signed-off-by: Eial Czerwacki <eial@scalemp.com>
+> Acked-by: Shai Fultheim <shai@scalemp.com>
+
+Unfortunately that patch does not apply. It's white space damaged, i.e. all
+tabs are converted to spaces.
+
+Thanks,
+
+	tglx
