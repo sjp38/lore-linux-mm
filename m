@@ -1,79 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D1F26B0003
-	for <linux-mm@kvack.org>; Sun,  4 Nov 2018 01:58:44 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id j1-v6so6244922pll.8
-        for <linux-mm@kvack.org>; Sat, 03 Nov 2018 23:58:44 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id j191-v6si12738613pgc.199.2018.11.03.23.58.42
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E282A6B0003
+	for <linux-mm@kvack.org>; Sun,  4 Nov 2018 03:36:23 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id i19-v6so3879408pfi.21
+        for <linux-mm@kvack.org>; Sun, 04 Nov 2018 01:36:23 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id b34-v6si34762pld.276.2018.11.04.01.36.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 03 Nov 2018 23:58:43 -0700 (PDT)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
-Subject: Re: [PATCH -next 0/3] Add support for fast mremap
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <20181103183208.GA56850@google.com>
-Date: Sun, 4 Nov 2018 00:56:48 -0600
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <D6FB3C15-A8C1-4694-A434-A7489F590E05@oracle.com>
-References: <20181103040041.7085-1-joelaf@google.com>
- <6886607.O3ZT5bM3Cy@blindfold>
- <e1d039a5-9c83-b9b9-98b5-d39bc48f04e0@kot-begemot.co.uk>
- <20181103183208.GA56850@google.com>
+        Sun, 04 Nov 2018 01:36:22 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wA48TPIh104631
+	for <linux-mm@kvack.org>; Sun, 4 Nov 2018 03:36:22 -0500
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2nhs4cq0f8-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 04 Nov 2018 03:36:21 -0500
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Sun, 4 Nov 2018 08:36:19 -0000
+Date: Sun, 4 Nov 2018 10:36:11 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: Re: [PATCH] mm: Create the new vm_fault_t type
+References: <20181103050504.GA3049@jordon-HP-15-Notebook-PC>
+ <20181103120235.GA10491@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181103120235.GA10491@bombadil.infradead.org>
+Message-Id: <20181104083611.GB7829@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joel Fernandes <joel@joelfernandes.org>
-Cc: Anton Ivanov <anton.ivanov@kot-begemot.co.uk>, Richard Weinberger <richard@nod.at>, LKML <linux-kernel@vger.kernel.org>, kernel-team@android.com, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, dancol@google.com, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, elfring@users.sourceforge.net, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, hughd@google.com, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, Julia Lawall <Julia.Lawall@lip6.fr>, kasan-dev@googlegroups.com, "Kirill A. Shutemov" <kirill@shutemov.name>, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-hexagon@vger.kernel.org, linux-ia64@vge.kvack.org, r.kernel.org@lithops.sigma-star.at, linux-m68k@vger.kernel.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, lokeshgidra@google.com, Max Filippov <jcmvbkbc@gmail.com>, Michal Hocko <mhocko@kernel.org>, minchan@kernel.org, nios2-dev@lists.rocketboards.org, pantin@google.com, Peter Zijlstra <peterz@infradead.org>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Souptick Joarder <jrdr.linux@gmail.com>, akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, pasha.tatashin@oracle.com, vbabka@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Sat, Nov 03, 2018 at 05:02:36AM -0700, Matthew Wilcox wrote:
+> On Sat, Nov 03, 2018 at 10:35:04AM +0530, Souptick Joarder wrote:
+> > Page fault handlers are supposed to return VM_FAULT codes,
+> > but some drivers/file systems mistakenly return error
+> > numbers. Now that all drivers/file systems have been converted
+> > to use the vm_fault_t return type, change the type definition
+> > to no longer be compatible with 'int'. By making it an unsigned
+> > int, the function prototype becomes incompatible with a function
+> > which returns int. Sparse will detect any attempts to return a
+> > value which is not a VM_FAULT code.
+> 
+> 
+> > -/* Encode hstate index for a hwpoisoned large page */
+> > -#define VM_FAULT_SET_HINDEX(x) ((x) << 12)
+> > -#define VM_FAULT_GET_HINDEX(x) (((x) >> 12) & 0xf)
+> ...
+> > +/* Encode hstate index for a hwpoisoned large page */
+> > +#define VM_FAULT_SET_HINDEX(x) ((__force vm_fault_t)((x) << 16))
+> > +#define VM_FAULT_GET_HINDEX(x) (((x) >> 16) & 0xf)
+> 
+> I think it's important to mention in the changelog that these values
+> have been changed to avoid conflicts with other VM_FAULT codes.
+> 
+> > +/**
+> > + * typedef vm_fault_t -  __bitwise unsigned int
+> > + *
+> > + * vm_fault_t is the new unsigned int type to return VM_FAULT
+> > + * code by page fault handlers of drivers/file systems. Now if
+> > + * any page fault handlers returns non VM_FAULT code instead
+> > + * of VM_FAULT code, it will be a mismatch with function
+> > + * prototype and sparse will detect it.
+> > + */
+> 
+> The first line should be what the typedef *means*, not repeat the
+> compiler's definition.  The rest of the description should be information
+> for someone coming to the type for the first time; what you've written
+> here is changelog material.
+> 
+> /**
+>  * typedef vm_fault_t - Return type for page fault handlers.
+>  *
+>  * Page fault handlers return a bitmask of %VM_FAULT values.
+>  */
+> 
+> > +typedef __bitwise unsigned int vm_fault_t;
+> > +
+> > +/**
+> > + * enum - VM_FAULT code
+> 
+> Can you document an anonymous enum?  I've never tried.  Did you run this
+> through 'make htmldocs'?
 
+You cannot document an anonymous enum.
+ 
+> > + * This enum is used to track the VM_FAULT code return by page
+> > + * fault handlers.
+> 
+>  * Page fault handlers return a bitmask of these values to tell the
+>  * core VM what happened when handling the fault.
+> 
 
-> On Nov 3, 2018, at 12:32 PM, Joel Fernandes <joel@joelfernandes.org> =
-wrote:
->=20
-> Looks like more architectures don't define set_pmd_at. I am thinking =
-the
-> easiest way forward is to just do the following, instead of defining
-> set_pmd_at for every architecture that doesn't care about it. =
-Thoughts?
->=20
-> diff --git a/mm/mremap.c b/mm/mremap.c
-> index 7cf6b0943090..31ad64dcdae6 100644
-> --- a/mm/mremap.c
-> +++ b/mm/mremap.c
-> @@ -281,7 +281,8 @@ unsigned long move_page_tables(struct =
-vm_area_struct *vma,
-> 			split_huge_pmd(vma, old_pmd, old_addr);
-> 			if (pmd_trans_unstable(old_pmd))
-> 				continue;
-> -		} else if (extent =3D=3D PMD_SIZE && =
-IS_ENABLED(CONFIG_HAVE_MOVE_PMD)) {
-> +		} else if (extent =3D=3D PMD_SIZE) {
-> +#ifdef CONFIG_HAVE_MOVE_PMD
-> 			/*
-> 			 * If the extent is PMD-sized, try to speed the =
-move by
-> 			 * moving at the PMD level if possible.
-> @@ -296,6 +297,7 @@ unsigned long move_page_tables(struct =
-vm_area_struct *vma,
-> 				drop_rmap_locks(vma);
-> 			if (moved)
-> 				continue;
-> +#endif
-> 		}
->=20
-> 		if (pte_alloc(new_vma->vm_mm, new_pmd))
->=20
-
-That seems reasonable as there are going to be a lot of architectures =
-that never have
-mappings at the PMD level.
-
-Have you thought about what might be needed to extend this paradigm to =
-be able to
-perform remaps at the PUD level, given many architectures already =
-support PUD-mapped
-pages?
-
-    William Kucharski=
+-- 
+Sincerely yours,
+Mike.
