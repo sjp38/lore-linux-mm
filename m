@@ -1,51 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C82A6B0005
-	for <linux-mm@kvack.org>; Sun,  4 Nov 2018 16:06:15 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id q25-v6so3735747wmq.9
-        for <linux-mm@kvack.org>; Sun, 04 Nov 2018 13:06:15 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id s6-v6si10376124wru.343.2018.11.04.13.06.13
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C2CA86B0005
+	for <linux-mm@kvack.org>; Sun,  4 Nov 2018 17:13:14 -0500 (EST)
+Received: by mail-lj1-f200.google.com with SMTP id h12-v6so2008807ljb.12
+        for <linux-mm@kvack.org>; Sun, 04 Nov 2018 14:13:14 -0800 (PST)
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id l10-v6si8931043ljj.86.2018.11.04.14.13.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sun, 04 Nov 2018 13:06:13 -0800 (PST)
-Date: Sun, 4 Nov 2018 22:05:56 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v2] x86/build: Build VSMP support only if CONFIG_PCI is
- selected
-In-Reply-To: <2130cd90-2c8f-2fc4-0ac8-81a5aea153b2@scalemp.com>
-Message-ID: <alpine.DEB.2.21.1811042202530.10744@nanos.tec.linutronix.de>
-References: <2130cd90-2c8f-2fc4-0ac8-81a5aea153b2@scalemp.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 04 Nov 2018 14:13:12 -0800 (PST)
+From: Vasily Averin <vvs@virtuozzo.com>
+Subject: [PATCH 1/2] mm: use kvzalloc for swap_info_struct allocation
+Message-ID: <37b60523-d085-71e9-fef9-80b90bfcef18@virtuozzo.com>
+Date: Mon, 5 Nov 2018 01:13:04 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eial Czerwacki <eial@scalemp.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Juergen Gross <jgross@suse.com>, Randy Dunlap <rdunlap@infradead.org>, "Shai Fultheim (Shai@ScaleMP.com)" <Shai@ScaleMP.com>, Andrew Morton <akpm@linux-foundation.org>, "broonie@kernel.org" <broonie@kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, Stephen Rothwell <sfr@canb.auug.org.au>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, X86 ML <x86@kernel.org>, Oren Twaig <oren@scalemp.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, Aaron Lu <aaron.lu@intel.com>
 
-Eial,
+commit a2468cc9bfdf ("swap: choose swap device according to numa node")
+increased size of swap_info_struct up to 44 Kbytes, now it requires 4th order page.
+Switch to kvzmalloc allows to avoid unexpected allocation failures.
 
-On Thu, 1 Nov 2018, Eial Czerwacki wrote:
+Signed-off-by: Vasily Averin <vvs@virtuozzo.com>
+---
+ mm/swapfile.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-> Subject: x86/build: Build VSMP support only if CONFIG_PCI is selected
-
-That's not what the patch does, right?
-
-> vsmp dependency on pv_irq_ops removed some years ago, so now let's clean
-> it up from vsmp_64.c.
-> 
-> In short, "cap & ctl & (1 << 4)" was always returning 0, as such we can
-> remove all the PARAVIRT/PARAVIRT_XXL code handling that.
-> 
-> However, the rest of the code depends on CONFIG_PCI, so fix it accordingly.
-> in addition, rename set_vsmp_pv_ops to set_vsmp_ctl.
-> 
-> Signed-off-by: Eial Czerwacki <eial@scalemp.com>
-> Acked-by: Shai Fultheim <shai@scalemp.com>
-
-Unfortunately that patch does not apply. It's white space damaged, i.e. all
-tabs are converted to spaces.
-
-Thanks,
-
-	tglx
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 644f746e167a..8688ae65ef58 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -2813,7 +2813,7 @@ static struct swap_info_struct *alloc_swap_info(void)
+ 	unsigned int type;
+ 	int i;
+ 
+-	p = kzalloc(sizeof(*p), GFP_KERNEL);
++	p = kvzalloc(sizeof(*p), GFP_KERNEL);
+ 	if (!p)
+ 		return ERR_PTR(-ENOMEM);
+ 
+@@ -2824,7 +2824,7 @@ static struct swap_info_struct *alloc_swap_info(void)
+ 	}
+ 	if (type >= MAX_SWAPFILES) {
+ 		spin_unlock(&swap_lock);
+-		kfree(p);
++		kvfree(p);
+ 		return ERR_PTR(-EPERM);
+ 	}
+ 	if (type >= nr_swapfiles) {
+@@ -2838,7 +2838,7 @@ static struct swap_info_struct *alloc_swap_info(void)
+ 		smp_wmb();
+ 		nr_swapfiles++;
+ 	} else {
+-		kfree(p);
++		kvfree(p);
+ 		p = swap_info[type];
+ 		/*
+ 		 * Do not memset this entry: a racing procfs swap_next()
+-- 
+2.17.1
