@@ -1,112 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BD12E6B0276
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 16:20:09 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id 88-v6so9313670wrp.21
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 13:20:09 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id a19-v6si20714285wme.132.2018.11.05.13.20.08
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AB31D6B0278
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 16:23:30 -0500 (EST)
+Received: by mail-io1-f69.google.com with SMTP id q22-v6so12018782iog.9
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 13:23:30 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id x187-v6si25526654itd.52.2018.11.05.13.23.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 05 Nov 2018 13:20:08 -0800 (PST)
-Subject: Re: [RFC PATCH v4 01/13] ktask: add documentation
-References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
- <20181105165558.11698-2-daniel.m.jordan@oracle.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <7693f8a2-e180-520a-0d07-cc3090d2139f@infradead.org>
-Date: Mon, 5 Nov 2018 13:19:50 -0800
-MIME-Version: 1.0
-In-Reply-To: <20181105165558.11698-2-daniel.m.jordan@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Nov 2018 13:23:29 -0800 (PST)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [PATCH] hugetlbfs: fix kernel BUG at fs/hugetlbfs/inode.c:444!
+Date: Mon,  5 Nov 2018 13:23:15 -0800
+Message-Id: <20181105212315.14125-1-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-mm@kvack.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: aarcange@redhat.com, aaron.lu@intel.com, akpm@linux-foundation.org, alex.williamson@redhat.com, bsd@redhat.com, darrick.wong@oracle.com, dave.hansen@linux.intel.com, jgg@mellanox.com, jwadams@google.com, jiangshanlai@gmail.com, mhocko@kernel.org, mike.kravetz@oracle.com, Pavel.Tatashin@microsoft.com, prasad.singamsetty@oracle.com, steven.sistare@oracle.com, tim.c.chen@intel.com, tj@kernel.org, vbabka@suse.cz
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Prakash Sangappa <prakash.sangappa@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On 11/5/18 8:55 AM, Daniel Jordan wrote:
-> Motivates and explains the ktask API for kernel clients.
-> 
-> Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-> ---
->  Documentation/core-api/index.rst |   1 +
->  Documentation/core-api/ktask.rst | 213 +++++++++++++++++++++++++++++++
->  2 files changed, 214 insertions(+)
->  create mode 100644 Documentation/core-api/ktask.rst
+This bug has been experienced several times by Oracle DB team.
+The BUG is in the routine remove_inode_hugepages() as follows:
+	/*
+	 * If page is mapped, it was faulted in after being
+	 * unmapped in caller.  Unmap (again) now after taking
+	 * the fault mutex.  The mutex will prevent faults
+	 * until we finish removing the page.
+	 *
+	 * This race can only happen in the hole punch case.
+	 * Getting here in a truncate operation is a bug.
+	 */
+	if (unlikely(page_mapped(page))) {
+		BUG_ON(truncate_op);
 
-Hi,
+In this case, the elevated map count is not the result of a race.
+Rather it was incorrectly incremented as the result of a bug in the
+huge pmd sharing code.  Consider the following:
+- Process A maps a hugetlbfs file of sufficient size and alignment
+  (PUD_SIZE) that a pmd page could be shared.
+- Process B maps the same hugetlbfs file with the same size and alignment
+  such that a pmd page is shared.
+- Process B then calls mprotect() to change protections for the mapping
+  with the shared pmd.  As a result, the pmd is 'unshared'.
+- Process B then calls mprotect() again to chage protections for the
+  mapping back to their original value.  pmd remains unshared.
+- Process B then forks and process C is created.  During the fork process,
+  we do dup_mm -> dup_mmap -> copy_page_range to copy page tables.  Copying
+  page tables for hugetlb mappings is done in the routine
+  copy_hugetlb_page_range.
 
-> diff --git a/Documentation/core-api/ktask.rst b/Documentation/core-api/ktask.rst
-> new file mode 100644
-> index 000000000000..c3c00e1f802f
-> --- /dev/null
-> +++ b/Documentation/core-api/ktask.rst
-> @@ -0,0 +1,213 @@
-> +.. SPDX-License-Identifier: GPL-2.0+
-> +
-> +============================================
-> +ktask: parallelize CPU-intensive kernel work
-> +============================================
-> +
-> +:Date: November, 2018
-> +:Author: Daniel Jordan <daniel.m.jordan@oracle.com>
-> +
-> +
-> +Introduction
-> +============
+In copy_hugetlb_page_range(), the destination pte is obtained by:
+	dst_pte = huge_pte_alloc(dst, addr, sz);
+If pmd sharing is possible, the returned pointer will be to a pte in
+an existing page table.  In the situation above, process C could share
+with either process A or process B.  Since process A is first in the
+list, the returned pte is a pointer to a pte in process A's page table.
 
-[snip]
+However, the following check for pmd sharing is in copy_hugetlb_page_range.
+	/* If the pagetables are shared don't copy or take references */
+	if (dst_pte == src_pte)
+		continue;
 
+Since process C is sharing with process A instead of process B, the above
+test fails.  The code in copy_hugetlb_page_range which follows assumes
+dst_pte points to a huge_pte_none pte.  It copies the pte entry from
+src_pte to dst_pte and increments this map count of the associated page.
+This is how we end up with an elevated map count.
 
-> +Resource Limits
-> +===============
-> +
-> +ktask has resource limits on the number of work items it sends to workqueue.
+To solve, check the dst_pte entry for huge_pte_none.  If !none, this
+implies PMD sharing so do not copy.
 
-                                                                  to a workqueue.
-or:                                                               to workqueues.
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+---
+ mm/hugetlb.c | 23 +++++++++++++++++++----
+ 1 file changed, 19 insertions(+), 4 deletions(-)
 
-> +In ktask, a workqueue item is a thread that runs chunks of the task until the
-> +task is finished.
-> +
-> +These limits support the different ways ktask uses workqueues:
-> + - ktask_run to run threads on the calling thread's node.
-> + - ktask_run_numa to run threads on the node(s) specified.
-> + - ktask_run_numa with nid=NUMA_NO_NODE to run threads on any node in the
-> +   system.
-> +
-> +To support these different ways of queueing work while maintaining an efficient
-> +concurrency level, we need both system-wide and per-node limits on the number
-
-I would prefer to refer to ktask as ktask instead of "we", so
-s/we need/ktask needs/
-
-
-> +of threads.  Without per-node limits, a node might become oversubscribed
-> +despite ktask staying within the system-wide limit, and without a system-wide
-> +limit, we can't properly account for work that can run on any node.
-
-s/we/ktask/
-
-> +
-> +The system-wide limit is based on the total number of CPUs, and the per-node
-> +limit on the CPU count for each node.  A per-node work item counts against the
-> +system-wide limit.  Workqueue's max_active can't accommodate both types of
-> +limit, no matter how many workqueues are used, so ktask implements its own.
-> +
-> +If a per-node limit is reached, the work item is allowed to run anywhere on the
-> +machine to avoid overwhelming the node.  If the global limit is also reached,
-> +ktask won't queue additional work items until we fall below the limit again.
-
-s/we fall/ktask falls/
-or s/we fall/it falls/
-
-> +
-> +These limits apply only to workqueue items--that is, helper threads beyond the
-> +one starting the task.  That way, one thread per task is always allowed to run.
-
-
-thanks.
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 5c390f5a5207..0b391ef6448c 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -3233,7 +3233,7 @@ static int is_hugetlb_entry_hwpoisoned(pte_t pte)
+ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 			    struct vm_area_struct *vma)
+ {
+-	pte_t *src_pte, *dst_pte, entry;
++	pte_t *src_pte, *dst_pte, entry, dst_entry;
+ 	struct page *ptepage;
+ 	unsigned long addr;
+ 	int cow;
+@@ -3261,15 +3261,30 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 			break;
+ 		}
+ 
+-		/* If the pagetables are shared don't copy or take references */
+-		if (dst_pte == src_pte)
++		/*
++		 * If the pagetables are shared don't copy or take references.
++		 * dst_pte == src_pte is the common case of src/dest sharing.
++		 *
++		 * However, src could have 'unshared' and dst shares with
++		 * another vma.  If dst_pte !none, this implies sharing.
++		 * Check here before taking page table lock, and once again
++		 * after taking the lock below.
++		 */
++		dst_entry = huge_ptep_get(dst_pte);
++		if ((dst_pte == src_pte) || !huge_pte_none(dst_entry))
+ 			continue;
+ 
+ 		dst_ptl = huge_pte_lock(h, dst, dst_pte);
+ 		src_ptl = huge_pte_lockptr(h, src, src_pte);
+ 		spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
+ 		entry = huge_ptep_get(src_pte);
+-		if (huge_pte_none(entry)) { /* skip none entry */
++		dst_entry = huge_ptep_get(dst_pte);
++		if (huge_pte_none(entry) || !huge_pte_none(dst_entry)) {
++			/*
++			 * Skip if src entry none.  Also, skip in the
++			 * unlikely case dst entry !none as this implies
++			 * sharing with another vma.
++			 */
+ 			;
+ 		} else if (unlikely(is_hugetlb_entry_migration(entry) ||
+ 				    is_hugetlb_entry_hwpoisoned(entry))) {
 -- 
-~Randy
+2.17.2
