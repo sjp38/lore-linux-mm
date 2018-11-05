@@ -1,100 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 690276B000D
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 11:55:28 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id b34-v6so5806586ede.5
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:55:28 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q23-v6si1739302eda.97.2018.11.05.08.55.26
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 522836B0010
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 11:56:30 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id a80-v6so12435716itd.6
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:56:30 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id n1sor48044310itk.30.2018.11.05.08.56.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Nov 2018 08:55:26 -0800 (PST)
-Subject: Re: [PATCH 2] mm/kvmalloc: do not call kmalloc for size >
- KMALLOC_MAX_SIZE
-References: <154106356066.887821.4649178319705436373.stgit@buzz>
- <154106695670.898059.5301435081426064314.stgit@buzz>
- <80074d2a-2f8d-a9db-892b-105c0ad7cd47@suse.cz>
- <d033db53-129d-c031-db78-ba7f9fed5bf4@yandex-team.ru>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <af5a1d05-7ee2-b339-1c50-73ae9d66d955@suse.cz>
-Date: Mon, 5 Nov 2018 17:52:21 +0100
+        (Google Transport Security);
+        Mon, 05 Nov 2018 08:56:29 -0800 (PST)
+Subject: Re: Creating compressed backing_store as swapfile
+References: <CAOuPNLjuM5qq3go9ZFZcK0G5pQxTQb0DY36xu+8SL4vC4zJntw@mail.gmail.com>
+ <20181105155815.i654i5ctmfpqhggj@angband.pl>
+ <79d0c96a-a0a2-63ec-db91-42fd349d50c1@gmail.com>
+ <42594.1541434463@turing-police.cc.vt.edu>
+ <6a1f57b6-503c-48a2-689b-3c321cd6d29f@gmail.com>
+ <83467.1541436836@turing-police.cc.vt.edu>
+From: "Austin S. Hemmelgarn" <ahferroin7@gmail.com>
+Message-ID: <20fe7145-8426-c67d-2ab2-258ec5717966@gmail.com>
+Date: Mon, 5 Nov 2018 11:55:58 -0500
 MIME-Version: 1.0
-In-Reply-To: <d033db53-129d-c031-db78-ba7f9fed5bf4@yandex-team.ru>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <83467.1541436836@turing-police.cc.vt.edu>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org
+To: valdis.kletnieks@vt.edu
+Cc: Adam Borowski <kilobyte@angband.pl>, Pintu Agarwal <pintu.ping@gmail.com>, linux-mm@kvack.org, open list <linux-kernel@vger.kernel.org>, kernelnewbies@kernelnewbies.org
 
-On 11/5/18 5:19 PM, Konstantin Khlebnikov wrote:
+On 11/5/2018 11:53 AM, valdis.kletnieks@vt.edu wrote:
+> On Mon, 05 Nov 2018 11:28:49 -0500, "Austin S. Hemmelgarn" said:
 > 
+>> Also, it's probably worth noting that BTRFS doesn't need to decompress
+>> the entire file to read or write blocks in the middle, it splits the
+>> file into 128k blocks and compresses each of those independent of the
+>> others, so it can just decompress the 128k block that holds the actual
+>> block that's needed.
 > 
-> On 05.11.2018 16:03, Vlastimil Babka wrote:
->> On 11/1/18 11:09 AM, Konstantin Khlebnikov wrote:
->>> Allocations over KMALLOC_MAX_SIZE could be served only by vmalloc.
->>>
->>> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
->>
->> Makes sense regardless of warnings stuff.
->>
->> Acked-by: Vlastimil Babka <vbabka@suse.cz>
->>
->> But it must be moved below the GFP_KERNEL check!
+> Presumably it does something sane with block allocation for the now-compressed
+> 128K that's presumably much smaller.  Also, that limits the damage from writing to
+> the middle of a compression unit....
 > 
-> But kmalloc cannot handle it regardless of GFP.
-
-Sure, but that's less problematic than skipping to vmalloc() for
-!GFP_KERNEL. Especially for large sizes where it's likely that page
-tables might get allocated (with GFP_KERNEL).
-
-> Ok maybe write something like this
+> That *does* however increase the memory requirement - you can OOM or
+> deadlock if your read/write from the swap needs an additional 128K for the
+> compression buffer at an inconvenient time...
 > 
-> if (size > KMALLOC_MAX_SIZE) {
-> 	if (WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL)
-> 		return NULL;
-> 	goto do_vmalloc;
-> }
-
-Probably should check also for __GFP_NOWARN.
-
-> or fix that uncertainty right in vmalloc
-> 
-> For now comment in vmalloc declares
-> 
->   *	Any use of gfp flags outside of GFP_KERNEL should be consulted
->   *	with mm people.
-
-Dunno, what does Michal think?
-
-> =)
-> 
->>
->>> ---
->>>   mm/util.c |    4 ++++
->>>   1 file changed, 4 insertions(+)
->>>
->>> diff --git a/mm/util.c b/mm/util.c
->>> index 8bf08b5b5760..f5f04fa22814 100644
->>> --- a/mm/util.c
->>> +++ b/mm/util.c
->>> @@ -392,6 +392,9 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
->>>   	gfp_t kmalloc_flags = flags;
->>>   	void *ret;
->>>   
->>> +	if (size > KMALLOC_MAX_SIZE)
->>> +		goto fallback;
->>> +
->>>   	/*
->>>   	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
->>>   	 * so the given set of flags has to be compatible.
->>> @@ -422,6 +425,7 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
->>>   	if (ret || size <= PAGE_SIZE)
->>>   		return ret;
->>>   
->>> +fallback:
->>>   	return __vmalloc_node_flags_caller(size, node, flags,
->>>   			__builtin_return_address(0));
->>>   }
->>>
->>
+Indeed, and I can't really comment on how it might behave under those 
+circumstances (the systems I did the testing on never saw memory 
+pressure quite _that_ bad, and I had them set up to swap things out 
+pretty early and really aggressively).
