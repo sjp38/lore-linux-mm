@@ -1,49 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A11C6B000C
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 16:13:10 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id f9so1897849pgs.13
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 13:13:10 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id g6-v6si7275931plt.212.2018.11.05.13.13.08
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BCB96B000D
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 16:15:00 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id j13-v6so10639220pff.0
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 13:15:00 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id o13-v6si42848376pgh.61.2018.11.05.13.14.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Nov 2018 13:13:09 -0800 (PST)
-Date: Mon, 5 Nov 2018 13:13:05 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] slab.h: Avoid using & for logical and of booleans
-Message-Id: <20181105131305.574d85469f08a4b76592feb6@linux-foundation.org>
-In-Reply-To: <20181105204000.129023-1-bvanassche@acm.org>
-References: <20181105204000.129023-1-bvanassche@acm.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 05 Nov 2018 13:14:58 -0800 (PST)
+Date: Mon, 5 Nov 2018 13:14:55 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm/mmu_notifier: rename mmu_notifier_synchronize() to
+ <...>_barrier()
+Message-ID: <20181105211455.GB3074@bombadil.infradead.org>
+References: <20181105192955.26305-1-sean.j.christopherson@intel.com>
+ <20181105121833.200d5b53300a7ef4df7d349d@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181105121833.200d5b53300a7ef4df7d349d@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bart Van Assche <bvanassche@acm.org>
-Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Christoph Lameter <cl@linux.com>, Roman Gushchin <guro@fb.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sean Christopherson <sean.j.christopherson@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Oded Gabbay <oded.gabbay@amd.com>
 
-On Mon,  5 Nov 2018 12:40:00 -0800 Bart Van Assche <bvanassche@acm.org> wrote:
-
-> This patch suppresses the following sparse warning:
+On Mon, Nov 05, 2018 at 12:18:33PM -0800, Andrew Morton wrote:
+> > +++ b/mm/mmu_notifier.c
 > 
-> ./include/linux/slab.h:332:43: warning: dubious: x & !y
-> 
-> ...
->
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -329,7 +329,7 @@ static __always_inline enum kmalloc_cache_type kmalloc_type(gfp_t flags)
->  	 * If an allocation is both __GFP_DMA and __GFP_RECLAIMABLE, return
->  	 * KMALLOC_DMA and effectively ignore __GFP_RECLAIMABLE
->  	 */
-> -	return type_dma + (is_reclaimable & !is_dma) * KMALLOC_RECLAIM;
-> +	return type_dma + is_reclaimable * !is_dma * KMALLOC_RECLAIM;
->  }
->  
->  /*
+> But as it has no callers, why retain it?
 
-I suppose so.
-
-That function seems too clever for its own good :(.  I wonder if these
-branch-avoiding tricks are really worthwhile.
+... and this patch missed the declaration of mmu_notifier_synchronize
+in include/linux/mmu_notifier.h (whether we delete it or rename it,
+that mention of it needs to be fixed)
