@@ -1,131 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F1DA56B0003
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 08:50:35 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id h17-v6so2444127ljc.17
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 05:50:35 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v18-v6sor14855437ljv.21.2018.11.05.05.50.33
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AD706B0007
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 09:12:00 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id y72-v6so5438189ede.22
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 06:12:00 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n21-v6si4093025ejb.269.2018.11.05.06.11.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Nov 2018 05:50:33 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Nov 2018 06:11:58 -0800 (PST)
+Date: Mon, 5 Nov 2018 15:11:56 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm: use kvzalloc for swap_info_struct allocation
+Message-ID: <20181105141156.GB10132@dhcp22.suse.cz>
+References: <20181105061016.GA4502@intel.com>
+ <fc23172d-3c75-21e2-d551-8b1808cbe593@virtuozzo.com>
 MIME-Version: 1.0
-References: <20181103050504.GA3049@jordon-HP-15-Notebook-PC>
- <20181103120235.GA10491@bombadil.infradead.org> <20181104083611.GB7829@rapoport-lnx>
- <CAFqt6zaVUT0RGpz+jE4c7rb5prOtDhnxOy-NAiFM9G6jMwofVg@mail.gmail.com> <20181105091302.GA3713@rapoport-lnx>
-In-Reply-To: <20181105091302.GA3713@rapoport-lnx>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Mon, 5 Nov 2018 19:23:55 +0530
-Message-ID: <CAFqt6zYbb9xpnOhhoESq3BbF4aD0_UKzh=MrwJ-i+NiUqNh7+Q@mail.gmail.com>
-Subject: Re: [PATCH] mm: Create the new vm_fault_t type
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <fc23172d-3c75-21e2-d551-8b1808cbe593@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rppt@linux.ibm.com
-Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz, riel@redhat.com, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Vasily Averin <vvs@virtuozzo.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, Aaron Lu <aaron.lu@intel.com>
 
-On Mon, Nov 5, 2018 at 2:43 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
->
-> On Mon, Nov 05, 2018 at 11:14:17AM +0530, Souptick Joarder wrote:
-> > Hi Matthew,
-> >
-> > On Sun, Nov 4, 2018 at 2:06 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
-> > >
-> > > On Sat, Nov 03, 2018 at 05:02:36AM -0700, Matthew Wilcox wrote:
-> > > > On Sat, Nov 03, 2018 at 10:35:04AM +0530, Souptick Joarder wrote:
-> > > > > Page fault handlers are supposed to return VM_FAULT codes,
-> > > > > but some drivers/file systems mistakenly return error
-> > > > > numbers. Now that all drivers/file systems have been converted
-> > > > > to use the vm_fault_t return type, change the type definition
-> > > > > to no longer be compatible with 'int'. By making it an unsigned
-> > > > > int, the function prototype becomes incompatible with a function
-> > > > > which returns int. Sparse will detect any attempts to return a
-> > > > > value which is not a VM_FAULT code.
-> > > >
-> > > >
-> > > > > -/* Encode hstate index for a hwpoisoned large page */
-> > > > > -#define VM_FAULT_SET_HINDEX(x) ((x) << 12)
-> > > > > -#define VM_FAULT_GET_HINDEX(x) (((x) >> 12) & 0xf)
-> > > > ...
-> > > > > +/* Encode hstate index for a hwpoisoned large page */
-> > > > > +#define VM_FAULT_SET_HINDEX(x) ((__force vm_fault_t)((x) << 16))
-> > > > > +#define VM_FAULT_GET_HINDEX(x) (((x) >> 16) & 0xf)
-> > > >
-> > > > I think it's important to mention in the changelog that these values
-> > > > have been changed to avoid conflicts with other VM_FAULT codes.
-> > > >
-> > > > > +/**
-> > > > > + * typedef vm_fault_t -  __bitwise unsigned int
-> > > > > + *
-> > > > > + * vm_fault_t is the new unsigned int type to return VM_FAULT
-> > > > > + * code by page fault handlers of drivers/file systems. Now if
-> > > > > + * any page fault handlers returns non VM_FAULT code instead
-> > > > > + * of VM_FAULT code, it will be a mismatch with function
-> > > > > + * prototype and sparse will detect it.
-> > > > > + */
-> > > >
-> > > > The first line should be what the typedef *means*, not repeat the
-> > > > compiler's definition.  The rest of the description should be information
-> > > > for someone coming to the type for the first time; what you've written
-> > > > here is changelog material.
-> > > >
-> > > > /**
-> > > >  * typedef vm_fault_t - Return type for page fault handlers.
-> > > >  *
-> > > >  * Page fault handlers return a bitmask of %VM_FAULT values.
-> > > >  */
-> > > >
-> > > > > +typedef __bitwise unsigned int vm_fault_t;
-> > > > > +
-> > > > > +/**
-> > > > > + * enum - VM_FAULT code
-> > > >
-> > > > Can you document an anonymous enum?  I've never tried.  Did you run this
-> > > > through 'make htmldocs'?
-> > >
-> > > You cannot document an anonymous enum.
-> >
-> >
-> > I assume, you are pointing to Document folder and I don't know if this
-> > enum need to be documented or not.
->
-> The enum should be documented, even if it's documentation is (yet) not
-> linked anywhere in the Documentation/
->
-> > I didn't run 'make htmldocs' as there is no document related changes.
->
-> You can verify that kernel-doc can parse your documentation by running
->
-> scripts/kernel-doc -none -v <filename>
+On Mon 05-11-18 14:17:01, Vasily Averin wrote:
+> commit a2468cc9bfdf ("swap: choose swap device according to numa node")
+> changed 'avail_lists' field of 'struct swap_info_struct' to an array.
+> In popular linux distros it increased size of swap_info_struct up to
+> 40 Kbytes and now swap_info_struct allocation requires order-4 page.
+> Switch to kvzmalloc allows to avoid unexpected allocation failures.
 
-I run "scripts/kernel-doc -none -v include/linux/mm_types.h" and it is showing
-below error and warning which is linked to enum in discussion.
+While this fixes the most visible issue is this a good long term
+solution? Aren't we wasting memory without a good reason? IIRC our limit
+for swap files/devices is much smaller than potential NUMA nodes numbers
+so we can safely expect that would be only few numa affine nodes. I am
+not really familiar with the rework which has added numa node awareness
+but I wouls assueme that we should either go with one global table with
+a linked list of possible swap_info structure per numa node or use a
+sparse array.
 
-include/linux/mm_types.h:612: info: Scanning doc for typedef vm_fault_t
-include/linux/mm_types.h:623: info: Scanning doc for enum
-include/linux/mm_types.h:628: warning: contents before sections
-include/linux/mm_types.h:660: error: Cannot parse enum!
-1 errors
-1 warnings
+That being said I am not really objecting to this patch as it is simple
+and backportable to older (stable kernels).
+ 
+I would even dare to add
+Fixes: a2468cc9bfdf ("swap: choose swap device according to numa node")
 
-Shall I keep the documentation for enum or remove it from this patch ?
+because not being able to add a swap space on a fragmented system looks
+like a regression to me.
 
->
-> > >
-> > > > > + * This enum is used to track the VM_FAULT code return by page
-> > > > > + * fault handlers.
-> > > >
-> > > >  * Page fault handlers return a bitmask of these values to tell the
-> > > >  * core VM what happened when handling the fault.
-> > > >
-> > >
-> > > --
-> > > Sincerely yours,
-> > > Mike.
-> > >
-> >
->
-> --
-> Sincerely yours,
-> Mike.
->
+> Acked-by: Aaron Lu <aaron.lu@intel.com>
+> Signed-off-by: Vasily Averin <vvs@virtuozzo.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/swapfile.c | 6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 644f746e167a..8688ae65ef58 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -2813,7 +2813,7 @@ static struct swap_info_struct *alloc_swap_info(void)
+>  	unsigned int type;
+>  	int i;
+>  
+> -	p = kzalloc(sizeof(*p), GFP_KERNEL);
+> +	p = kvzalloc(sizeof(*p), GFP_KERNEL);
+>  	if (!p)
+>  		return ERR_PTR(-ENOMEM);
+>  
+> @@ -2824,7 +2824,7 @@ static struct swap_info_struct *alloc_swap_info(void)
+>  	}
+>  	if (type >= MAX_SWAPFILES) {
+>  		spin_unlock(&swap_lock);
+> -		kfree(p);
+> +		kvfree(p);
+>  		return ERR_PTR(-EPERM);
+>  	}
+>  	if (type >= nr_swapfiles) {
+> @@ -2838,7 +2838,7 @@ static struct swap_info_struct *alloc_swap_info(void)
+>  		smp_wmb();
+>  		nr_swapfiles++;
+>  	} else {
+> -		kfree(p);
+> +		kvfree(p);
+>  		p = swap_info[type];
+>  		/*
+>  		 * Do not memset this entry: a racing procfs swap_next()
+> -- 
+> 2.17.1
+
+-- 
+Michal Hocko
+SUSE Labs
