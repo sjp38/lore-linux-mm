@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A09F6B0005
-	for <linux-mm@kvack.org>; Sun,  4 Nov 2018 19:50:08 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id t10-v6so8524349plh.14
-        for <linux-mm@kvack.org>; Sun, 04 Nov 2018 16:50:07 -0800 (PST)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id d24-v6si8131688plr.127.2018.11.04.16.50.06
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A4EA6B0005
+	for <linux-mm@kvack.org>; Sun,  4 Nov 2018 19:57:09 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id 134-v6so7210364pga.1
+        for <linux-mm@kvack.org>; Sun, 04 Nov 2018 16:57:09 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id i66-v6si42572032pfc.173.2018.11.04.16.57.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 04 Nov 2018 16:50:06 -0800 (PST)
+        Sun, 04 Nov 2018 16:57:08 -0800 (PST)
 From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH 1/2] mm: use kvzalloc for swap_info_struct allocation
-References: <37b60523-d085-71e9-fef9-80b90bfcef18@virtuozzo.com>
-Date: Mon, 05 Nov 2018 08:50:04 +0800
-In-Reply-To: <37b60523-d085-71e9-fef9-80b90bfcef18@virtuozzo.com> (Vasily
-	Averin's message of "Mon, 5 Nov 2018 01:13:04 +0300")
-Message-ID: <87wopsbb5v.fsf@yhuang-dev.intel.com>
+Subject: Re: [PATCH 2/2] mm: avoid unnecessary swap_info_struct allocation
+References: <a24bf353-8715-2bee-d0fa-96ca06c5b69f@virtuozzo.com>
+Date: Mon, 05 Nov 2018 08:57:05 +0800
+In-Reply-To: <a24bf353-8715-2bee-d0fa-96ca06c5b69f@virtuozzo.com> (Vasily
+	Averin's message of "Mon, 5 Nov 2018 01:13:12 +0300")
+Message-ID: <87sh0gbau6.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
@@ -25,53 +25,57 @@ Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@
 
 Vasily Averin <vvs@virtuozzo.com> writes:
 
-> commit a2468cc9bfdf ("swap: choose swap device according to numa node")
-> increased size of swap_info_struct up to 44 Kbytes, now it requires
-> 4th order page.
+> Currently newly allocated swap_info_struct can be quickly freed.
+> This patch avoid uneccessary high-order page allocation and helps
+> to decrease the memory pressure.
 
-Why swap_info_struct could be so large?  Because MAX_NUMNODES could be
-thousands so that 'avail_lists' field could be tens KB?  If so, I think
-it's fair to use kvzalloc().  Can you add one line comment?  Because
-struct swap_info_struct is quite small in default configuration.
+I think swapon/swapoff are rare operations, so it will not increase the
+memory pressure much.  
 
 Best Regards,
 Huang, Ying
 
-> Switch to kvzmalloc allows to avoid unexpected allocation failures.
->
 > Signed-off-by: Vasily Averin <vvs@virtuozzo.com>
 > ---
->  mm/swapfile.c | 6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
+>  mm/swapfile.c | 18 +++++++++++++-----
+>  1 file changed, 13 insertions(+), 5 deletions(-)
 >
 > diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 644f746e167a..8688ae65ef58 100644
+> index 8688ae65ef58..53ec2f0cdf26 100644
 > --- a/mm/swapfile.c
 > +++ b/mm/swapfile.c
-> @@ -2813,7 +2813,7 @@ static struct swap_info_struct *alloc_swap_info(void)
+> @@ -2809,14 +2809,17 @@ late_initcall(max_swapfiles_check);
+>  
+>  static struct swap_info_struct *alloc_swap_info(void)
+>  {
+> -	struct swap_info_struct *p;
+> +	struct swap_info_struct *p = NULL;
 >  	unsigned int type;
 >  	int i;
+> +	bool force_alloc = false;
 >  
-> -	p = kzalloc(sizeof(*p), GFP_KERNEL);
-> +	p = kvzalloc(sizeof(*p), GFP_KERNEL);
->  	if (!p)
->  		return ERR_PTR(-ENOMEM);
->  
-> @@ -2824,7 +2824,7 @@ static struct swap_info_struct *alloc_swap_info(void)
->  	}
->  	if (type >= MAX_SWAPFILES) {
->  		spin_unlock(&swap_lock);
-> -		kfree(p);
-> +		kvfree(p);
+> -	p = kvzalloc(sizeof(*p), GFP_KERNEL);
+> -	if (!p)
+> -		return ERR_PTR(-ENOMEM);
+> -
+> +retry:
+> +	if (force_alloc) {
+> +		p = kvzalloc(sizeof(*p), GFP_KERNEL);
+> +		if (!p)
+> +			return ERR_PTR(-ENOMEM);
+> +	}
+>  	spin_lock(&swap_lock);
+>  	for (type = 0; type < nr_swapfiles; type++) {
+>  		if (!(swap_info[type]->flags & SWP_USED))
+> @@ -2828,6 +2831,11 @@ static struct swap_info_struct *alloc_swap_info(void)
 >  		return ERR_PTR(-EPERM);
 >  	}
 >  	if (type >= nr_swapfiles) {
-> @@ -2838,7 +2838,7 @@ static struct swap_info_struct *alloc_swap_info(void)
->  		smp_wmb();
->  		nr_swapfiles++;
->  	} else {
-> -		kfree(p);
-> +		kvfree(p);
->  		p = swap_info[type];
+> +		if (!force_alloc) {
+> +			force_alloc = true;
+> +			spin_unlock(&swap_lock);
+> +			goto retry;
+> +		}
+>  		p->type = type;
+>  		swap_info[type] = p;
 >  		/*
->  		 * Do not memset this entry: a racing procfs swap_next()
