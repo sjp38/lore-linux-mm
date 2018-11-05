@@ -1,96 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AD706B0007
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 09:12:00 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id y72-v6so5438189ede.22
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 06:12:00 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n21-v6si4093025ejb.269.2018.11.05.06.11.58
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E3A006B0003
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 09:23:13 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id n68so21208377qkn.8
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 06:23:13 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 42si503565qvd.29.2018.11.05.06.23.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Nov 2018 06:11:58 -0800 (PST)
-Date: Mon, 5 Nov 2018 15:11:56 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: use kvzalloc for swap_info_struct allocation
-Message-ID: <20181105141156.GB10132@dhcp22.suse.cz>
-References: <20181105061016.GA4502@intel.com>
- <fc23172d-3c75-21e2-d551-8b1808cbe593@virtuozzo.com>
+        Mon, 05 Nov 2018 06:23:12 -0800 (PST)
+Date: Mon, 5 Nov 2018 22:23:08 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: [PATCH] mm, memory_hotplug: teach has_unmovable_pages about of
+ LRU migrateable pages
+Message-ID: <20181105142308.GJ27491@MiWiFi-R3L-srv>
+References: <20181101091055.GA15166@MiWiFi-R3L-srv>
+ <20181102155528.20358-1-mhocko@kernel.org>
+ <20181105002009.GF27491@MiWiFi-R3L-srv>
+ <20181105091407.GB4361@dhcp22.suse.cz>
+ <20181105092851.GD4361@dhcp22.suse.cz>
+ <20181105102520.GB22011@MiWiFi-R3L-srv>
+ <20181105123837.GH4361@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fc23172d-3c75-21e2-d551-8b1808cbe593@virtuozzo.com>
+In-Reply-To: <20181105123837.GH4361@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasily Averin <vvs@virtuozzo.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, Aaron Lu <aaron.lu@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
 
-On Mon 05-11-18 14:17:01, Vasily Averin wrote:
-> commit a2468cc9bfdf ("swap: choose swap device according to numa node")
-> changed 'avail_lists' field of 'struct swap_info_struct' to an array.
-> In popular linux distros it increased size of swap_info_struct up to
-> 40 Kbytes and now swap_info_struct allocation requires order-4 page.
-> Switch to kvzmalloc allows to avoid unexpected allocation failures.
-
-While this fixes the most visible issue is this a good long term
-solution? Aren't we wasting memory without a good reason? IIRC our limit
-for swap files/devices is much smaller than potential NUMA nodes numbers
-so we can safely expect that would be only few numa affine nodes. I am
-not really familiar with the rework which has added numa node awareness
-but I wouls assueme that we should either go with one global table with
-a linked list of possible swap_info structure per numa node or use a
-sparse array.
-
-That being said I am not really objecting to this patch as it is simple
-and backportable to older (stable kernels).
- 
-I would even dare to add
-Fixes: a2468cc9bfdf ("swap: choose swap device according to numa node")
-
-because not being able to add a swap space on a fragmented system looks
-like a regression to me.
-
-> Acked-by: Aaron Lu <aaron.lu@intel.com>
-> Signed-off-by: Vasily Averin <vvs@virtuozzo.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-> ---
->  mm/swapfile.c | 6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
+On 11/05/18 at 01:38pm, Michal Hocko wrote:
+> On Mon 05-11-18 18:25:20, Baoquan He wrote:
+> > Hi Michal,
+> > 
+> > On 11/05/18 at 10:28am, Michal Hocko wrote:
+> > > 
+> > > Or something like this. Ugly as hell, no question about that. I also
+> > > have to think about this some more to convince myself this will not
+> > > result in an endless loop under some situations.
+> > 
+> > It failed. Paste the log and patch diff here, please help check if I made
+> > any mistake on manual code change. The log is at bottom.
 > 
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 644f746e167a..8688ae65ef58 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -2813,7 +2813,7 @@ static struct swap_info_struct *alloc_swap_info(void)
->  	unsigned int type;
->  	int i;
->  
-> -	p = kzalloc(sizeof(*p), GFP_KERNEL);
-> +	p = kvzalloc(sizeof(*p), GFP_KERNEL);
->  	if (!p)
->  		return ERR_PTR(-ENOMEM);
->  
-> @@ -2824,7 +2824,7 @@ static struct swap_info_struct *alloc_swap_info(void)
->  	}
->  	if (type >= MAX_SWAPFILES) {
->  		spin_unlock(&swap_lock);
-> -		kfree(p);
-> +		kvfree(p);
->  		return ERR_PTR(-EPERM);
->  	}
->  	if (type >= nr_swapfiles) {
-> @@ -2838,7 +2838,7 @@ static struct swap_info_struct *alloc_swap_info(void)
->  		smp_wmb();
->  		nr_swapfiles++;
->  	} else {
-> -		kfree(p);
-> +		kvfree(p);
->  		p = swap_info[type];
->  		/*
->  		 * Do not memset this entry: a racing procfs swap_next()
-> -- 
-> 2.17.1
+> The retry patch is obviously still racy, it just makes the race window
+> slightly smaller and I hoped it would catch most of those races but this
+> is obviously not the case.
+> 
+> I was thinking about your MIGRATE_MOVABLE check some more and I still do
+> not like it much, we just change migrate type at many places and I have
+> hard time to actually see this is always safe wrt. to what we need here.
+> 
+> We should be able to restore the zone type check though. The
+> primary problem fixed by 15c30bc09085 ("mm, memory_hotplug: make
+> has_unmovable_pages more robust") was that early allocations made it to
+> the zone_movable range. If we add the check _after_ the PageReserved()
+> check then we should be able to rule all bootmem allocation out.
+> 
+> So what about the following (on top of the previous patch which makes
+> sense on its own I believe).
 
--- 
-Michal Hocko
-SUSE Labs
+Yes, I think this looks very reasonable and should be robust.
+
+Have tested it, hot removing 4 hotpluggable nodes continusously
+succeeds, and then hot adding them back, still works well.
+
+So please feel free to add my Tested-by or Acked-by.
+
+Tested-by: Baoquan He <bhe@redhat.com>
+or
+Acked-by: Baoquan He <bhe@redhat.com>
+
+Thanks, Michal.
+> 
+> 
+> From d7ffd1342529c892f1de8999c3a5609211599c9d Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Mon, 5 Nov 2018 13:28:51 +0100
+> Subject: [PATCH] mm, memory_hotplug: check zone_movable in has_unmovable_pages
+> 
+> Page state checks are racy. Under a heavy memory workload (e.g. stress
+> -m 200 -t 2h) it is quite easy to hit a race window when the page is
+> allocated but its state is not fully populated yet. A debugging patch to
+> dump the struct page state shows
+> : [  476.575516] has_unmovable_pages: pfn:0x10dfec00, found:0x1, count:0x0
+> : [  476.582103] page:ffffea0437fb0000 count:1 mapcount:1 mapping:ffff880e05239841 index:0x7f26e5000 compound_mapcount: 1
+> : [  476.592645] flags: 0x5fffffc0090034(uptodate|lru|active|head|swapbacked)
+> 
+> Note that the state has been checked for both PageLRU and PageSwapBacked
+> already. Closing this race completely would require some sort of retry
+> logic. This can be tricky and error prone (think of potential endless
+> or long taking loops).
+> 
+> Workaround this problem for movable zones at least. Such a zone should
+> only contain movable pages. 15c30bc09085 ("mm, memory_hotplug: make
+> has_unmovable_pages more robust") has told us that this is not strictly
+> true though. Bootmem pages should be marked reserved though so we can
+> move the original check after the PageReserved check. Pages from other
+> zones are still prone to races but we even do not pretend that memory
+> hotremove works for those so pre-mature failure doesn't hurt that much.
+> 
+> Reported-by: Baoquan He <bhe@redhat.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/page_alloc.c | 8 ++++++++
+>  1 file changed, 8 insertions(+)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 48ceda313332..5b64c5bc6ea0 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7788,6 +7788,14 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+>  		if (PageReserved(page))
+>  			goto unmovable;
+>  
+> +		/*
+> +		 * If the zone is movable and we have ruled out all reserved
+> +		 * pages then it should be reasonably safe to assume the rest
+> +		 * is movable.
+> +		 */
+> +		if (zone_idx(zone) == ZONE_MOVABLE)
+> +			continue;
+> +
+>  		/*
+>  		 * Hugepages are not in LRU lists, but they're movable.
+>  		 * We need not scan over tail pages bacause we don't
+> -- 
+> 2.19.1
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
