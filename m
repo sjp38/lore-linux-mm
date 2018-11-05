@@ -1,55 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 234C26B0269
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 11:29:19 -0500 (EST)
-Received: by mail-io1-f72.google.com with SMTP id c7-v6so10881224iod.1
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:29:19 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 12-v6sor10767954itm.13.2018.11.05.08.29.17
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AC6736B0003
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 11:36:16 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id s19so22587010qke.20
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:36:16 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z137si299534qka.25.2018.11.05.08.36.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Nov 2018 08:29:17 -0800 (PST)
-Subject: Re: Creating compressed backing_store as swapfile
-References: <CAOuPNLjuM5qq3go9ZFZcK0G5pQxTQb0DY36xu+8SL4vC4zJntw@mail.gmail.com>
- <20181105155815.i654i5ctmfpqhggj@angband.pl>
- <79d0c96a-a0a2-63ec-db91-42fd349d50c1@gmail.com>
- <42594.1541434463@turing-police.cc.vt.edu>
-From: "Austin S. Hemmelgarn" <ahferroin7@gmail.com>
-Message-ID: <6a1f57b6-503c-48a2-689b-3c321cd6d29f@gmail.com>
-Date: Mon, 5 Nov 2018 11:28:49 -0500
-MIME-Version: 1.0
-In-Reply-To: <42594.1541434463@turing-police.cc.vt.edu>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Nov 2018 08:36:15 -0800 (PST)
+From: Brian Foster <bfoster@redhat.com>
+Subject: [PATCH] mm: don't break integrity writeback on ->writepage() error
+Date: Mon,  5 Nov 2018 11:36:13 -0500
+Message-Id: <20181105163613.7542-1-bfoster@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: valdis.kletnieks@vt.edu
-Cc: Adam Borowski <kilobyte@angband.pl>, Pintu Agarwal <pintu.ping@gmail.com>, linux-mm@kvack.org, open list <linux-kernel@vger.kernel.org>, kernelnewbies@kernelnewbies.org
+To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org
+Cc: Dave Chinner <david@fromorbit.com>
 
-On 11/5/2018 11:14 AM, valdis.kletnieks@vt.edu wrote:
-> On Mon, 05 Nov 2018 11:07:12 -0500, "Austin S. Hemmelgarn" said:
-> 
->> Performance isn't _too_ bad for the BTRFS case though (I've actually
->> tested this before), just make sure you disable direct I/O mode on the
->> loop device, otherwise you run the risk of data corruption.
-> 
-> Did you test that for random-access. or just sequential read/write?
-> (Also, see the note in my other mail regarding doing a random-access
-> write to the middle of the file...)
-> 
-Actual swap usage.  About 16 months ago, I had been running a couple of 
-Intel NUC5PPYH boxes (Pentium N3700 CPU's, 4GB of DDR3-1333 RAM) for 
-some network prototyping.  On both, I had swap set up to use a file on 
-BTRFS via a loop device, and I made a point to test both with LZ4 inline 
-compression and without any compression, and saw negligible performance 
-differences (less than 1% in most cases).  It was, of course, 
-significantly worse than running on ext4, but on a system that's so 
-resource constrained that both storage and memory are at a premium to 
-this degree, the performance hit is probably going to be worth it.
+write_cache_pages() currently breaks out of the writepage loop in
+the event of a ->writepage() error. This causes problems for
+integrity writeback on XFS in the event of a persistent error as XFS
+expects to process every dirty+delalloc page such that it can
+discard delalloc blocks when real block allocation fails.  Failure
+to handle all delalloc pages leaves the filesystem in an
+inconsistent state if the integrity writeback happens to be due to
+an unmount, for example.
 
-Also, it's probably worth noting that BTRFS doesn't need to decompress 
-the entire file to read or write blocks in the middle, it splits the 
-file into 128k blocks and compresses each of those independent of the 
-others, so it can just decompress the 128k block that holds the actual 
-block that's needed.
+Update write_cache_pages() to continue processing pages for
+integrity writeback regardless of ->writepage() errors. Save the
+first encountered error and return it once complete. This
+facilitates XFS or any other fs that expects integrity writeback to
+process the entire set of dirty pages regardless of errors.
+Background writeback continues to exit on the first error
+encountered.
+
+Signed-off-by: Brian Foster <bfoster@redhat.com>
+---
+
+Hi all,
+
+This was actually first posted[1] as a patch in XFS to not return errors
+from ->writepage() when called via write_cache_pages(). After some
+discussion with Dave, it was suggested that this is a
+write_cache_pages() bug rather than one in XFS. I think that could go
+either way, so I'm floating this patch as an alternative. FWIW, that
+same thread also includes a supporting patch for an fstests test[2] that
+demonstrates the original problem this patch attempts to resolve.
+
+This applies on top of v4.19 and I've tested it against XFS and ext4
+(defaults) and not seen any regressions. Note that it's not clear to me
+if ext4 is affected by the same or similar problem and I skipped btrfs
+since it seems to duplicate all of the associated writeback code.
+
+Finally, I'm not totally sure about the ->for_sync bit in the error
+handling logic. I included it out of caution to try and handle any sort
+of potential (->sync_mode == WB_SYNC_NONE && ->for_sync == 1)
+combination, but that doesn't appear to be used anywhere that I can see.
+Instead, ->for_sync seems more like an exceptional case of ->sync_mode
+== WB_SYNC ALL.
+
+Thoughts?
+
+Brian
+
+[1] https://marc.info/?l=linux-xfs&m=154102085505264&w=2
+[2] https://marc.info/?l=fstests&m=154031860022439&w=2
+
+ mm/page-writeback.c | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 84ae9bf5858a..9dbbf9465ff9 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2156,6 +2156,7 @@ int write_cache_pages(struct address_space *mapping,
+ {
+ 	int ret = 0;
+ 	int done = 0;
++	int error;
+ 	struct pagevec pvec;
+ 	int nr_pages;
+ 	pgoff_t uninitialized_var(writeback_index);
+@@ -2236,25 +2237,29 @@ int write_cache_pages(struct address_space *mapping,
+ 				goto continue_unlock;
+ 
+ 			trace_wbc_writepage(wbc, inode_to_bdi(mapping->host));
+-			ret = (*writepage)(page, wbc, data);
+-			if (unlikely(ret)) {
+-				if (ret == AOP_WRITEPAGE_ACTIVATE) {
++			error = (*writepage)(page, wbc, data);
++			if (unlikely(error)) {
++				if (error == AOP_WRITEPAGE_ACTIVATE) {
+ 					unlock_page(page);
+-					ret = 0;
+-				} else {
++					error = 0;
++				} else if (wbc->sync_mode != WB_SYNC_ALL &&
++					   !wbc->for_sync) {
+ 					/*
+-					 * done_index is set past this page,
+-					 * so media errors will not choke
++					 * done_index is set past this page, so
++					 * media errors will not choke
+ 					 * background writeout for the entire
+ 					 * file. This has consequences for
+ 					 * range_cyclic semantics (ie. it may
+ 					 * not be suitable for data integrity
+ 					 * writeout).
+ 					 */
++					ret = error;
+ 					done_index = page->index + 1;
+ 					done = 1;
+ 					break;
+ 				}
++				if (!ret)
++					ret = error;
+ 			}
+ 
+ 			/*
+-- 
+2.17.2
