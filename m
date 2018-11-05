@@ -1,117 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E7E0E6B000A
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 09:27:30 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id j1-v6so10054459pll.8
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 06:27:30 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id g7-v6si32527510plb.426.2018.11.05.06.27.29
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E7B406B0007
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 09:33:26 -0500 (EST)
+Received: by mail-oi1-f199.google.com with SMTP id n10-v6so6581684oib.5
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 06:33:26 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p189-v6sor15109032oia.114.2018.11.05.06.33.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Nov 2018 06:27:29 -0800 (PST)
-Date: Mon, 5 Nov 2018 22:27:27 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [PATCH v2] mm: use kvzalloc for swap_info_struct allocation
-Message-ID: <20181105142727.GB6203@intel.com>
-References: <20181105061016.GA4502@intel.com>
- <fc23172d-3c75-21e2-d551-8b1808cbe593@virtuozzo.com>
- <20181105141156.GB10132@dhcp22.suse.cz>
+        (Google Transport Security);
+        Mon, 05 Nov 2018 06:33:25 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181105141156.GB10132@dhcp22.suse.cz>
+References: <20181105111348.182492-1-vovoy@chromium.org> <20181105130209.GI4361@dhcp22.suse.cz>
+In-Reply-To: <20181105130209.GI4361@dhcp22.suse.cz>
+From: Kuo-Hsin Yang <vovoy@chromium.org>
+Date: Mon, 5 Nov 2018 22:33:13 +0800
+Message-ID: <CAEHM+4r4gRiBdRHaziiAFzwB5VD785zpUEr31zFLbx4sNUW6TQ@mail.gmail.com>
+Subject: Re: [PATCH v4] mm, drm/i915: mark pinned shmemfs pages as unevictable
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vasily Averin <vvs@virtuozzo.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org
+Cc: linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>
 
-On Mon, Nov 05, 2018 at 03:11:56PM +0100, Michal Hocko wrote:
-> On Mon 05-11-18 14:17:01, Vasily Averin wrote:
-> > commit a2468cc9bfdf ("swap: choose swap device according to numa node")
-> > changed 'avail_lists' field of 'struct swap_info_struct' to an array.
-> > In popular linux distros it increased size of swap_info_struct up to
-> > 40 Kbytes and now swap_info_struct allocation requires order-4 page.
-> > Switch to kvzmalloc allows to avoid unexpected allocation failures.
-> 
-> While this fixes the most visible issue is this a good long term
-> solution? Aren't we wasting memory without a good reason? IIRC our limit
+On Mon, Nov 5, 2018 at 9:02 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Mon 05-11-18 19:13:48, Kuo-Hsin Yang wrote:
+> > The i915 driver uses shmemfs to allocate backing storage for gem
+> > objects. These shmemfs pages can be pinned (increased ref count) by
+> > shmem_read_mapping_page_gfp(). When a lot of pages are pinned, vmscan
+> > wastes a lot of time scanning these pinned pages. In some extreme case,
+> > all pages in the inactive anon lru are pinned, and only the inactive
+> > anon lru is scanned due to inactive_ratio, the system cannot swap and
+> > invokes the oom-killer. Mark these pinned pages as unevictable to speed
+> > up vmscan.
+> >
+> > Export pagevec API check_move_unevictable_pages().
+>
+> Thanks for reworking the patch. This looks much more to my taste. At
+> least the mm part. I haven't really looked at the the drm part.
+>
+> Just a nit below
+>
+> > This patch was inspired by Chris Wilson's change [1].
+> >
+> > [1]: https://patchwork.kernel.org/patch/9768741/
+>
+> I would recommend using msg-id based url.
 
-That's right, we need a better way of handling this in the long term.
+I didn't find a msg-id based url for the [1] patch. This patch is sent
+to intel-gfx@lists.freedesktop.org and linux-mm@kvack.org, but not to
+linux-kernel@vger.kernel.org .
 
-> for swap files/devices is much smaller than potential NUMA nodes numbers
-> so we can safely expect that would be only few numa affine nodes. I am
-> not really familiar with the rework which has added numa node awareness
-> but I wouls assueme that we should either go with one global table with
-> a linked list of possible swap_info structure per numa node or use a
-> sparse array.
-
-There is a per-numa-node plist of available swap devices, so every swap
-device needs an entry on those per-numa-node plist.
-
-I think we can convert avail_lists from array to pointer and use vzalloc
-to allocate the needed memory. MAX_NUMANODES can be used for a simple
-implementation, or use the precise online node number but then we will
-need to handle node online/offline events.
-
-sparse array sounds promising, I'll take a look, thanks for the pointer.
-
-> That being said I am not really objecting to this patch as it is simple
-> and backportable to older (stable kernels).
->  
-> I would even dare to add
-> Fixes: a2468cc9bfdf ("swap: choose swap device according to numa node")
-> 
-> because not being able to add a swap space on a fragmented system looks
-> like a regression to me.
-
-Agree, especially it used to work.
-
-Regards,
-Aaron
-
-> > Acked-by: Aaron Lu <aaron.lu@intel.com>
-> > Signed-off-by: Vasily Averin <vvs@virtuozzo.com>
-> 
+>
+> > Cc: Chris Wilson <chris@chris-wilson.co.uk>
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+> > Cc: Peter Zijlstra <peterz@infradead.org>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Dave Hansen <dave.hansen@intel.com>
+> > Signed-off-by: Kuo-Hsin Yang <vovoy@chromium.org>
+>
+> other than that
 > Acked-by: Michal Hocko <mhocko@suse.com>
-> > ---
-> >  mm/swapfile.c | 6 +++---
-> >  1 file changed, 3 insertions(+), 3 deletions(-)
-> > 
-> > diff --git a/mm/swapfile.c b/mm/swapfile.c
-> > index 644f746e167a..8688ae65ef58 100644
-> > --- a/mm/swapfile.c
-> > +++ b/mm/swapfile.c
-> > @@ -2813,7 +2813,7 @@ static struct swap_info_struct *alloc_swap_info(void)
-> >  	unsigned int type;
-> >  	int i;
-> >  
-> > -	p = kzalloc(sizeof(*p), GFP_KERNEL);
-> > +	p = kvzalloc(sizeof(*p), GFP_KERNEL);
-> >  	if (!p)
-> >  		return ERR_PTR(-ENOMEM);
-> >  
-> > @@ -2824,7 +2824,7 @@ static struct swap_info_struct *alloc_swap_info(void)
-> >  	}
-> >  	if (type >= MAX_SWAPFILES) {
-> >  		spin_unlock(&swap_lock);
-> > -		kfree(p);
-> > +		kvfree(p);
-> >  		return ERR_PTR(-EPERM);
-> >  	}
-> >  	if (type >= nr_swapfiles) {
-> > @@ -2838,7 +2838,7 @@ static struct swap_info_struct *alloc_swap_info(void)
-> >  		smp_wmb();
-> >  		nr_swapfiles++;
-> >  	} else {
-> > -		kfree(p);
-> > +		kvfree(p);
-> >  		p = swap_info[type];
-> >  		/*
-> >  		 * Do not memset this entry: a racing procfs swap_next()
-> > -- 
-> > 2.17.1
-> 
-> -- 
+>
+> [...]
+>
+> > @@ -4184,15 +4185,13 @@ int page_evictable(struct page *page)
+> >
+> >  #ifdef CONFIG_SHMEM
+> >  /**
+> > - * check_move_unevictable_pages - check pages for evictability and move to appropriate zone lru list
+> > - * @pages:   array of pages to check
+> > - * @nr_pages:        number of pages to check
+> > + * check_move_unevictable_pages - move evictable pages to appropriate evictable
+> > + * lru lists
+>
+> I am not sure this is an improvement. I would just keep the original
+> wording. It is not great either but the explicit note about check for
+> evictability sounds like a better fit to me.
+
+OK, will keep the original wording.
+
+>
+> > + * @pvec: pagevec with pages to check
+> >   *
+> > - * Checks pages for evictability and moves them to the appropriate lru list.
+> > - *
+> > - * This function is only used for SysV IPC SHM_UNLOCK.
+> > + * This function is only used to move shmem pages.
+>
+> I do not really see anything that would be shmem specific here. We can
+> use this function for any LRU pages unless I am missing something
+> obscure. I would just drop the last sentence.
+
+OK, this function should not be specific to shmem pages.
+
+Is it OK to remove the #ifdef SHMEM surrounding check_move_unevictable_pages?
+
+>
+> A note that this function should be only used for LRU pages would be
+> nice.
+>
+> >   */
+> > -void check_move_unevictable_pages(struct page **pages, int nr_pages)
+> > +void check_move_unevictable_pages(struct pagevec *pvec)
+> >  {
+> >       struct lruvec *lruvec;
+> >       struct pglist_data *pgdat = NULL;
+> > @@ -4200,8 +4199,8 @@ void check_move_unevictable_pages(struct page **pages, int nr_pages)
+> >       int pgrescued = 0;
+> >       int i;
+> >
+> > -     for (i = 0; i < nr_pages; i++) {
+> > -             struct page *page = pages[i];
+> > +     for (i = 0; i < pvec->nr; i++) {
+> > +             struct page *page = pvec->pages[i];
+> >               struct pglist_data *pagepgdat = page_pgdat(page);
+> >
+> >               pgscanned++;
+> > @@ -4233,4 +4232,5 @@ void check_move_unevictable_pages(struct page **pages, int nr_pages)
+> >               spin_unlock_irq(&pgdat->lru_lock);
+> >       }
+> >  }
+> > +EXPORT_SYMBOL(check_move_unevictable_pages);
+> >  #endif /* CONFIG_SHMEM */
+> > --
+> > 2.19.1.930.g4563a0d9d0-goog
+> >
+>
+> --
 > Michal Hocko
 > SUSE Labs
-> 
