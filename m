@@ -1,56 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CC856B0007
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 11:39:25 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id t1-v6so5382727ply.23
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:39:25 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id z23-v6si1892861plo.265.2018.11.05.08.39.23
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EA7E6B026B
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 11:41:40 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id p25-v6so456212eds.15
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:41:40 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x16-v6si11539707eds.184.2018.11.05.08.41.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Nov 2018 08:39:24 -0800 (PST)
-Subject: Re: [PATCH 2/2] mm/page_alloc: use a single function to free page
-References: <20181105085820.6341-1-aaron.lu@intel.com>
- <20181105085820.6341-2-aaron.lu@intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <a91592dd-83eb-ab9d-7f59-637928f964f8@intel.com>
-Date: Mon, 5 Nov 2018 08:39:23 -0800
+        Mon, 05 Nov 2018 08:41:39 -0800 (PST)
+Date: Mon, 5 Nov 2018 17:41:35 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v4] mm, drm/i915: mark pinned shmemfs pages as unevictable
+Message-ID: <20181105164135.GM4361@dhcp22.suse.cz>
+References: <20181105111348.182492-1-vovoy@chromium.org>
+ <20181105130209.GI4361@dhcp22.suse.cz>
+ <CAEHM+4r4gRiBdRHaziiAFzwB5VD785zpUEr31zFLbx4sNUW6TQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20181105085820.6341-2-aaron.lu@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAEHM+4r4gRiBdRHaziiAFzwB5VD785zpUEr31zFLbx4sNUW6TQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?Q?Pawe=c5=82_Staszewski?= <pstaszewski@itcare.pl>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, Ilias Apalodimas <ilias.apalodimas@linaro.org>, Yoel Caspersen <yoel@kviknet.dk>, Mel Gorman <mgorman@techsingularity.net>, Saeed Mahameed <saeedm@mellanox.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Kuo-Hsin Yang <vovoy@chromium.org>
+Cc: linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>
 
-On 11/5/18 12:58 AM, Aaron Lu wrote:
-> We have multiple places of freeing a page, most of them doing similar
-> things and a common function can be used to reduce code duplicate.
+On Mon 05-11-18 22:33:13, Kuo-Hsin Yang wrote:
+> On Mon, Nov 5, 2018 at 9:02 PM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Mon 05-11-18 19:13:48, Kuo-Hsin Yang wrote:
+[...]
+> > > + * @pvec: pagevec with pages to check
+> > >   *
+> > > - * Checks pages for evictability and moves them to the appropriate lru list.
+> > > - *
+> > > - * This function is only used for SysV IPC SHM_UNLOCK.
+> > > + * This function is only used to move shmem pages.
+> >
+> > I do not really see anything that would be shmem specific here. We can
+> > use this function for any LRU pages unless I am missing something
+> > obscure. I would just drop the last sentence.
 > 
-> It also avoids bug fixed in one function and left in another.
+> OK, this function should not be specific to shmem pages.
+> 
+> Is it OK to remove the #ifdef SHMEM surrounding check_move_unevictable_pages?
 
-Haha, should have read the next patch. :)
-
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 91a9a6af41a2..2b330296e92a 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4425,9 +4425,17 @@ unsigned long get_zeroed_page(gfp_t gfp_mask)
->  }
->  EXPORT_SYMBOL(get_zeroed_page);
->  
-> -void __free_pages(struct page *page, unsigned int order)
-> +/*
-> + * Free a page by reducing its ref count by @nr.
-> + * If its refcount reaches 0, then according to its order:
-> + * order0: send to PCP;
-> + * high order: directly send to Buddy.
-> + */
-
-FWIW, I'm not a fan of comments on the function like this.  Please just
-comment the *code* that's doing what you describe.  It's easier to read
-and less likely to diverge from the code.
-
-The rest of the patch looks great, though.
+Yes, I think so.
+-- 
+Michal Hocko
+SUSE Labs
