@@ -1,42 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DA78E6B000D
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 13:52:39 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id b88-v6so10110658pfj.4
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 10:52:39 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 1-v6si24145350pln.299.2018.11.05.10.52.38
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E2436B0003
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 14:30:57 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id b15-v6so5577036pfo.3
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 11:30:57 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id u34si988293pgk.24.2018.11.05.11.30.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Nov 2018 10:52:38 -0800 (PST)
-Subject: Re: [PATCH v4] mm, drm/i915: mark pinned shmemfs pages as unevictable
-References: <20181105111348.182492-1-vovoy@chromium.org>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <516428f4-93a9-9ed7-426e-344ba91d81e0@intel.com>
-Date: Mon, 5 Nov 2018 10:52:34 -0800
+        Mon, 05 Nov 2018 11:30:56 -0800 (PST)
+From: Sean Christopherson <sean.j.christopherson@intel.com>
+Subject: [PATCH] mm/mmu_notifier: rename mmu_notifier_synchronize() to <...>_barrier()
+Date: Mon,  5 Nov 2018 11:29:55 -0800
+Message-Id: <20181105192955.26305-1-sean.j.christopherson@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20181105111348.182492-1-vovoy@chromium.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kuo-Hsin Yang <vovoy@chromium.org>, linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org
-Cc: Chris Wilson <chris@chris-wilson.co.uk>, Michal Hocko <mhocko@suse.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Oded Gabbay <oded.gabbay@amd.com>
 
-On 11/5/18 3:13 AM, Kuo-Hsin Yang wrote:
-> -These are currently used in two places in the kernel:
-> +These are currently used in three places in the kernel:
->  
->   (1) By ramfs to mark the address spaces of its inodes when they are created,
->       and this mark remains for the life of the inode.
-> @@ -154,6 +154,8 @@ These are currently used in two places in the kernel:
->       swapped out; the application must touch the pages manually if it wants to
->       ensure they're in memory.
->  
-> + (3) By the i915 driver to mark pinned address space until it's unpinned.
+...and update its comment to explicitly reference its association with
+mmu_notifier_call_srcu().
 
-At a minimum, I think we owe some documentation here of how to tell
-approximately how much memory i915 is consuming with this mechanism.
-The debugfs stuff sounds like a halfway reasonable way to approximate
-it, although it's imperfect.
+Contrary to its name, mmu_notifier_synchronize() does not synchronize
+the notifier's SRCU instance, but rather waits for RCU callbacks to
+finished, i.e. it invokes rcu_barrier().  The RCU documentation is
+quite clear on this matter, explicitly calling out that rcu_barrier()
+does not imply synchronize_rcu().  The misnomer could lean an unwary
+developer to incorrectly assume that mmu_notifier_synchronize() can
+be used in conjunction with mmu_notifier_unregister_no_release() to
+implement a variation of mmu_notifier_unregister() that synchronizes
+SRCU without invoking ->release.  A Documentation-allergic and hasty
+developer could be further confused by the fact that rcu_barrier() is
+indeed a pass-through to synchronize_rcu()... in tiny SRCU.
+
+Signed-off-by: Sean Christopherson <sean.j.christopherson@intel.com>
+---
+ mm/mmu_notifier.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+index 5119ff846769..46ebea6483bf 100644
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -35,12 +35,12 @@ void mmu_notifier_call_srcu(struct rcu_head *rcu,
+ }
+ EXPORT_SYMBOL_GPL(mmu_notifier_call_srcu);
+ 
+-void mmu_notifier_synchronize(void)
++void mmu_notifier_barrier(void)
+ {
+-	/* Wait for any running method to finish. */
++	/* Wait for any running RCU callbacks (see above) to finish. */
+ 	srcu_barrier(&srcu);
+ }
+-EXPORT_SYMBOL_GPL(mmu_notifier_synchronize);
++EXPORT_SYMBOL_GPL(mmu_notifier_barrier);
+ 
+ /*
+  * This function can't run concurrently against mmu_notifier_register
+-- 
+2.19.1
