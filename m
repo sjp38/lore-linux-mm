@@ -1,59 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F3EA6B027E
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 16:44:05 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id j9-v6so10702322pfn.20
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 13:44:05 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id q132-v6si30668449pfc.198.2018.11.05.13.44.03
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AF2056B0281
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 16:44:48 -0500 (EST)
+Received: by mail-yw1-f71.google.com with SMTP id 123-v6so8535210ywt.12
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 13:44:48 -0800 (PST)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id g127-v6si27014553ybf.30.2018.11.05.13.44.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Nov 2018 13:44:03 -0800 (PST)
-Date: Mon, 5 Nov 2018 13:44:00 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 1/2] memory_hotplug: Free pages as higher order
-Message-Id: <20181105134400.f6f52f4db0f8d6a21446476e@linux-foundation.org>
-In-Reply-To: <beaa1acf7423da7ee0f9bbc4cee2d14a@codeaurora.org>
-References: <1538727006-5727-1-git-send-email-arunks@codeaurora.org>
-	<72215e75-6c7e-0aef-c06e-e3aba47cf806@suse.cz>
-	<efb65160af41d0e18cb2dcb30c2fb86a@codeaurora.org>
-	<20181010173334.GL5873@dhcp22.suse.cz>
-	<a2d576a5fc82cdf54fc89409686e58f5@codeaurora.org>
-	<20181011075503.GQ5873@dhcp22.suse.cz>
-	<20181018191825.fcad6e28f32a3686f201acdf@linux-foundation.org>
-	<20181019080755.GK18839@dhcp22.suse.cz>
-	<c6289fada694462ed708174f9a1f3b6c@codeaurora.org>
-	<beaa1acf7423da7ee0f9bbc4cee2d14a@codeaurora.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Mon, 05 Nov 2018 13:44:47 -0800 (PST)
+Subject: Re: [PATCH] hugetlbfs: fix kernel BUG at fs/hugetlbfs/inode.c:444!
+References: <20181105212315.14125-1-mike.kravetz@oracle.com>
+ <20181105133013.35fdb58c16d9318538fc0cb6@linux-foundation.org>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <8d4b90a9-1e7c-f748-8bd2-fada0175aa31@oracle.com>
+Date: Mon, 5 Nov 2018 13:44:32 -0800
+MIME-Version: 1.0
+In-Reply-To: <20181105133013.35fdb58c16d9318538fc0cb6@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arun KS <arunks@codeaurora.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, boris.ostrovsky@oracle.com, jgross@suse.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, gregkh@linuxfoundation.org, osalvador@suse.de, malat@debian.org, kirill.shutemov@linux.intel.com, jrdr.linux@gmail.com, yasu.isimatu@gmail.com, mgorman@techsingularity.net, aaron.lu@intel.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, vatsa@codeaurora.org, vinmenon@codeaurora.org, getarunks@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Prakash Sangappa <prakash.sangappa@oracle.com>
 
-On Mon, 05 Nov 2018 15:12:27 +0530 Arun KS <arunks@codeaurora.org> wrote:
-
-> On 2018-10-22 16:03, Arun KS wrote:
-> > On 2018-10-19 13:37, Michal Hocko wrote:
-> >> On Thu 18-10-18 19:18:25, Andrew Morton wrote:
-> >> [...]
-> >>> So this patch needs more work, yes?
-> >> 
-> >> Yes, I've talked to Arun (he is offline until next week) offlist and 
-> >> he
-> >> will play with this some more.
-> > 
-> > Converted totalhigh_pages, totalram_pages and zone->managed_page to
-> > atomic and tested hot add. Latency is not effected with this change.
-> > Will send out a separate patch on top of this one.
-> Hello Andrew/Michal,
+On 11/5/18 1:30 PM, Andrew Morton wrote:
+> On Mon,  5 Nov 2018 13:23:15 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 > 
-> Will this be going in subsequent -rcs?
+>> This bug has been experienced several times by Oracle DB team.
+>> The BUG is in the routine remove_inode_hugepages() as follows:
+>> 	/*
+>> 	 * If page is mapped, it was faulted in after being
+>> 	 * unmapped in caller.  Unmap (again) now after taking
+>> 	 * the fault mutex.  The mutex will prevent faults
+>> 	 * until we finish removing the page.
+>> 	 *
+>> 	 * This race can only happen in the hole punch case.
+>> 	 * Getting here in a truncate operation is a bug.
+>> 	 */
+>> 	if (unlikely(page_mapped(page))) {
+>> 		BUG_ON(truncate_op);
+>>
+>> In this case, the elevated map count is not the result of a race.
+>> Rather it was incorrectly incremented as the result of a bug in the
+>> huge pmd sharing code.  Consider the following:
+>> - Process A maps a hugetlbfs file of sufficient size and alignment
+>>   (PUD_SIZE) that a pmd page could be shared.
+>> - Process B maps the same hugetlbfs file with the same size and alignment
+>>   such that a pmd page is shared.
+>> - Process B then calls mprotect() to change protections for the mapping
+>>   with the shared pmd.  As a result, the pmd is 'unshared'.
+>> - Process B then calls mprotect() again to chage protections for the
+>>   mapping back to their original value.  pmd remains unshared.
+>> - Process B then forks and process C is created.  During the fork process,
+>>   we do dup_mm -> dup_mmap -> copy_page_range to copy page tables.  Copying
+>>   page tables for hugetlb mappings is done in the routine
+>>   copy_hugetlb_page_range.
+>>
+>> In copy_hugetlb_page_range(), the destination pte is obtained by:
+>> 	dst_pte = huge_pte_alloc(dst, addr, sz);
+>> If pmd sharing is possible, the returned pointer will be to a pte in
+>> an existing page table.  In the situation above, process C could share
+>> with either process A or process B.  Since process A is first in the
+>> list, the returned pte is a pointer to a pte in process A's page table.
+>>
+>> However, the following check for pmd sharing is in copy_hugetlb_page_range.
+>> 	/* If the pagetables are shared don't copy or take references */
+>> 	if (dst_pte == src_pte)
+>> 		continue;
+>>
+>> Since process C is sharing with process A instead of process B, the above
+>> test fails.  The code in copy_hugetlb_page_range which follows assumes
+>> dst_pte points to a huge_pte_none pte.  It copies the pte entry from
+>> src_pte to dst_pte and increments this map count of the associated page.
+>> This is how we end up with an elevated map count.
+>>
+>> To solve, check the dst_pte entry for huge_pte_none.  If !none, this
+>> implies PMD sharing so do not copy.
+>>
+> 
+> Does it warrant a cc:stable?
 
-I thought were awaiting a new version?  "Will send out a separate patch
-on top of this one"?
+My apologies,  yes it does.  Here are the additional tags:
 
-I do think a resend would be useful, please.  Ensure the changelog is
-updated to capture the above info and any other worthy issues which
-arose during review.
+Fixes: c5c99429fa57 ("fix hugepages leak due to pagetable page sharing")
+Cc: <stable@vger.kernel.org>
+
+Let me know if you want me to resend with these.
+-- 
+Mike Kravetz
