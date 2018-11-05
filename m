@@ -1,71 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 060DF6B000A
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 11:54:06 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id s70so22798843qks.4
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:54:06 -0800 (PST)
-Received: from omr2.cc.vt.edu (omr2.cc.ipv6.vt.edu. [2607:b400:92:8400:0:33:fb76:806e])
-        by mx.google.com with ESMTPS id v17si6609259qkf.62.2018.11.05.08.54.04
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 690276B000D
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 11:55:28 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id b34-v6so5806586ede.5
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:55:28 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q23-v6si1739302eda.97.2018.11.05.08.55.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Nov 2018 08:54:05 -0800 (PST)
-Received: from mr4.cc.vt.edu (mr4.cc.ipv6.vt.edu [IPv6:2607:b400:92:8300:0:7b:e2b1:6a29])
-	by omr2.cc.vt.edu (8.14.4/8.14.4) with ESMTP id wA5Gs4Mb009707
-	for <linux-mm@kvack.org>; Mon, 5 Nov 2018 11:54:04 -0500
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by mr4.cc.vt.edu (8.14.7/8.14.7) with ESMTP id wA5GrxwF015393
-	for <linux-mm@kvack.org>; Mon, 5 Nov 2018 11:54:04 -0500
-Received: by mail-qk1-f199.google.com with SMTP id 92so22664946qkx.19
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:54:04 -0800 (PST)
-From: valdis.kletnieks@vt.edu
-Subject: Re: Creating compressed backing_store as swapfile
-In-Reply-To: <6a1f57b6-503c-48a2-689b-3c321cd6d29f@gmail.com>
-References: <CAOuPNLjuM5qq3go9ZFZcK0G5pQxTQb0DY36xu+8SL4vC4zJntw@mail.gmail.com> <20181105155815.i654i5ctmfpqhggj@angband.pl> <79d0c96a-a0a2-63ec-db91-42fd349d50c1@gmail.com> <42594.1541434463@turing-police.cc.vt.edu>
- <6a1f57b6-503c-48a2-689b-3c321cd6d29f@gmail.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1541436836_4003P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
+        Mon, 05 Nov 2018 08:55:26 -0800 (PST)
+Subject: Re: [PATCH 2] mm/kvmalloc: do not call kmalloc for size >
+ KMALLOC_MAX_SIZE
+References: <154106356066.887821.4649178319705436373.stgit@buzz>
+ <154106695670.898059.5301435081426064314.stgit@buzz>
+ <80074d2a-2f8d-a9db-892b-105c0ad7cd47@suse.cz>
+ <d033db53-129d-c031-db78-ba7f9fed5bf4@yandex-team.ru>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <af5a1d05-7ee2-b339-1c50-73ae9d66d955@suse.cz>
+Date: Mon, 5 Nov 2018 17:52:21 +0100
+MIME-Version: 1.0
+In-Reply-To: <d033db53-129d-c031-db78-ba7f9fed5bf4@yandex-team.ru>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Date: Mon, 05 Nov 2018 11:53:56 -0500
-Message-ID: <83467.1541436836@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Austin S. Hemmelgarn" <ahferroin7@gmail.com>
-Cc: Adam Borowski <kilobyte@angband.pl>, Pintu Agarwal <pintu.ping@gmail.com>, linux-mm@kvack.org, open list <linux-kernel@vger.kernel.org>, kernelnewbies@kernelnewbies.org
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org
 
---==_Exmh_1541436836_4003P
-Content-Type: text/plain; charset=us-ascii
+On 11/5/18 5:19 PM, Konstantin Khlebnikov wrote:
+> 
+> 
+> On 05.11.2018 16:03, Vlastimil Babka wrote:
+>> On 11/1/18 11:09 AM, Konstantin Khlebnikov wrote:
+>>> Allocations over KMALLOC_MAX_SIZE could be served only by vmalloc.
+>>>
+>>> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+>>
+>> Makes sense regardless of warnings stuff.
+>>
+>> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+>>
+>> But it must be moved below the GFP_KERNEL check!
+> 
+> But kmalloc cannot handle it regardless of GFP.
 
-On Mon, 05 Nov 2018 11:28:49 -0500, "Austin S. Hemmelgarn" said:
+Sure, but that's less problematic than skipping to vmalloc() for
+!GFP_KERNEL. Especially for large sizes where it's likely that page
+tables might get allocated (with GFP_KERNEL).
 
-> Also, it's probably worth noting that BTRFS doesn't need to decompress
-> the entire file to read or write blocks in the middle, it splits the
-> file into 128k blocks and compresses each of those independent of the
-> others, so it can just decompress the 128k block that holds the actual
-> block that's needed.
+> Ok maybe write something like this
+> 
+> if (size > KMALLOC_MAX_SIZE) {
+> 	if (WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL)
+> 		return NULL;
+> 	goto do_vmalloc;
+> }
 
-Presumably it does something sane with block allocation for the now-compressed
-128K that's presumably much smaller.  Also, that limits the damage from writing to
-the middle of a compression unit....
+Probably should check also for __GFP_NOWARN.
 
-That *does* however increase the memory requirement - you can OOM or
-deadlock if your read/write from the swap needs an additional 128K for the
-compression buffer at an inconvenient time...
+> or fix that uncertainty right in vmalloc
+> 
+> For now comment in vmalloc declares
+> 
+>   *	Any use of gfp flags outside of GFP_KERNEL should be consulted
+>   *	with mm people.
 
+Dunno, what does Michal think?
 
---==_Exmh_1541436836_4003P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Comment: Exmh version 2.8.0 04/21/2017
-
-iQEVAwUBW+B1pI0DS38y7CIcAQIaSwgAlaWBTJLuKtJT7ru/WLIqVahEPpFO8vgl
-0Wd9hwwQSj1a4HtpAkeRTo3/24JBDnIg315A8Q+YW0/zF9MP2cecGTCDT4tmJUR1
-NhN2hoAnKvLleU5ZebPygptkEkiQdbs7G92ok/Zi32lPUwWVt1ZdQG3HVYHWtNxJ
-ret95nyOWAgBJFJmb+I9kiO8O3RewbnfPjLRiUA1d1iaaK6Zilur44fG6K5KN5Yv
-jxN/ee4UM+w/u3cTEpVyAdFqAVq8phDKn1Pa53LSa6TtHXoUOI3ir/k2owUxfzE6
-pO+Len2d4Y2U1VcrfyB5yaLyd5gFGoe82qwsgregzqCbaygKQ4UgPg==
-=OHwC
------END PGP SIGNATURE-----
-
---==_Exmh_1541436836_4003P--
+> =)
+> 
+>>
+>>> ---
+>>>   mm/util.c |    4 ++++
+>>>   1 file changed, 4 insertions(+)
+>>>
+>>> diff --git a/mm/util.c b/mm/util.c
+>>> index 8bf08b5b5760..f5f04fa22814 100644
+>>> --- a/mm/util.c
+>>> +++ b/mm/util.c
+>>> @@ -392,6 +392,9 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
+>>>   	gfp_t kmalloc_flags = flags;
+>>>   	void *ret;
+>>>   
+>>> +	if (size > KMALLOC_MAX_SIZE)
+>>> +		goto fallback;
+>>> +
+>>>   	/*
+>>>   	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
+>>>   	 * so the given set of flags has to be compatible.
+>>> @@ -422,6 +425,7 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
+>>>   	if (ret || size <= PAGE_SIZE)
+>>>   		return ret;
+>>>   
+>>> +fallback:
+>>>   	return __vmalloc_node_flags_caller(size, node, flags,
+>>>   			__builtin_return_address(0));
+>>>   }
+>>>
+>>
