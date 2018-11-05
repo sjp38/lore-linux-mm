@@ -1,71 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E96B66B0007
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 06:17:08 -0500 (EST)
-Received: by mail-lj1-f197.google.com with SMTP id c24-v6so2554811lja.1
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 03:17:08 -0800 (PST)
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id d202si20033283lfe.126.2018.11.05.03.17.07
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CFE226B000A
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 06:24:38 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id 91so6082167otr.18
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 03:24:38 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id i12-v6sor10237384oii.165.2018.11.05.03.24.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Nov 2018 03:17:07 -0800 (PST)
-From: Vasily Averin <vvs@virtuozzo.com>
-Subject: [PATCH v2] mm: use kvzalloc for swap_info_struct allocation
-References: <20181105061016.GA4502@intel.com>
-Message-ID: <fc23172d-3c75-21e2-d551-8b1808cbe593@virtuozzo.com>
-Date: Mon, 5 Nov 2018 14:17:01 +0300
+        (Google Transport Security);
+        Mon, 05 Nov 2018 03:24:37 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20181105061016.GA4502@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <20181031081945.207709-1-vovoy@chromium.org> <039b2768-39ff-6196-9615-1f0302ee3e0e@intel.com>
+ <CAEHM+4q7V3d+EiHR6+TKoJC=6Ga0eCLWik0oJgDRQCpWps=wMA@mail.gmail.com>
+ <80347465-38fd-54d3-facf-bcd6bf38228a@intel.com> <CAEHM+4rsV9G_cahOyyH8njOYyZc5C9b0a6CV4AH_Y7EubXBLAQ@mail.gmail.com>
+ <b114017f-edeb-2055-1313-0d7821d633ae@intel.com>
+In-Reply-To: <b114017f-edeb-2055-1313-0d7821d633ae@intel.com>
+From: Kuo-Hsin Yang <vovoy@chromium.org>
+Date: Mon, 5 Nov 2018 19:24:26 +0800
+Message-ID: <CAEHM+4oR7tRv5qwKxKjRCQVHF75MnPmb3PdXtU7Ve0hj+G+tjg@mail.gmail.com>
+Subject: Re: [PATCH v3] mm, drm/i915: mark pinned shmemfs pages as unevictable
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, Aaron Lu <aaron.lu@intel.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, Michal Hocko <mhocko@suse.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 
-commit a2468cc9bfdf ("swap: choose swap device according to numa node")
-changed 'avail_lists' field of 'struct swap_info_struct' to an array.
-In popular linux distros it increased size of swap_info_struct up to
-40 Kbytes and now swap_info_struct allocation requires order-4 page.
-Switch to kvzmalloc allows to avoid unexpected allocation failures.
+On Fri, Nov 2, 2018 at 10:05 PM Dave Hansen <dave.hansen@intel.com> wrote:
+> On 11/2/18 6:22 AM, Vovo Yang wrote:
+> > Chris helped to answer this question:
+> > Though it includes a few non-shmemfs objects, see
+> > debugfs/dri/0/i915_gem_objects and the "bound objects".
+> >
+> > Example i915_gem_object output:
+> >   591 objects, 95449088 bytes
+> >   55 unbound objects, 1880064 bytes
+> >   533 bound objects, 93040640 bytes
+>
+> Do those non-shmemfs objects show up on the unevictable list?  How far
+> can the amount of memory on the unevictable list and the amount
+> displayed in this "bound objects" value diverge?
 
-Acked-by: Aaron Lu <aaron.lu@intel.com>
-Signed-off-by: Vasily Averin <vvs@virtuozzo.com>
----
- mm/swapfile.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+Those non-shmemfs objects would not show up on the unevictable list.
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 644f746e167a..8688ae65ef58 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -2813,7 +2813,7 @@ static struct swap_info_struct *alloc_swap_info(void)
- 	unsigned int type;
- 	int i;
- 
--	p = kzalloc(sizeof(*p), GFP_KERNEL);
-+	p = kvzalloc(sizeof(*p), GFP_KERNEL);
- 	if (!p)
- 		return ERR_PTR(-ENOMEM);
- 
-@@ -2824,7 +2824,7 @@ static struct swap_info_struct *alloc_swap_info(void)
- 	}
- 	if (type >= MAX_SWAPFILES) {
- 		spin_unlock(&swap_lock);
--		kfree(p);
-+		kvfree(p);
- 		return ERR_PTR(-EPERM);
- 	}
- 	if (type >= nr_swapfiles) {
-@@ -2838,7 +2838,7 @@ static struct swap_info_struct *alloc_swap_info(void)
- 		smp_wmb();
- 		nr_swapfiles++;
- 	} else {
--		kfree(p);
-+		kvfree(p);
- 		p = swap_info[type];
- 		/*
- 		 * Do not memset this entry: a racing procfs swap_next()
--- 
-2.17.1
+On typical use case, The size of gtt bounded objects (in unevictable
+list) is very close to the bound size in i915_gem_objects. E.g. on my
+laptop: i915_gem_object shows 110075904 bytes bounded objects, and
+there are 109760512 bytes gtt bounded objects, the difference is about
+0.3%.
