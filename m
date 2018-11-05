@@ -1,49 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id ED3EF6B000D
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 08:05:45 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id x14-v6so3203622edr.7
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 05:05:45 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s28-v6si1372299edd.159.2018.11.05.05.05.44
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F1DA56B0003
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 08:50:35 -0500 (EST)
+Received: by mail-lj1-f200.google.com with SMTP id h17-v6so2444127ljc.17
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 05:50:35 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v18-v6sor14855437ljv.21.2018.11.05.05.50.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Nov 2018 05:05:44 -0800 (PST)
-Date: Mon, 5 Nov 2018 14:05:44 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v4] mm, drm/i915: mark pinned shmemfs pages as unevictable
-Message-ID: <20181105130544.GJ4361@dhcp22.suse.cz>
-References: <20181105111348.182492-1-vovoy@chromium.org>
- <20181105130209.GI4361@dhcp22.suse.cz>
+        (Google Transport Security);
+        Mon, 05 Nov 2018 05:50:33 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181105130209.GI4361@dhcp22.suse.cz>
+References: <20181103050504.GA3049@jordon-HP-15-Notebook-PC>
+ <20181103120235.GA10491@bombadil.infradead.org> <20181104083611.GB7829@rapoport-lnx>
+ <CAFqt6zaVUT0RGpz+jE4c7rb5prOtDhnxOy-NAiFM9G6jMwofVg@mail.gmail.com> <20181105091302.GA3713@rapoport-lnx>
+In-Reply-To: <20181105091302.GA3713@rapoport-lnx>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Mon, 5 Nov 2018 19:23:55 +0530
+Message-ID: <CAFqt6zYbb9xpnOhhoESq3BbF4aD0_UKzh=MrwJ-i+NiUqNh7+Q@mail.gmail.com>
+Subject: Re: [PATCH] mm: Create the new vm_fault_t type
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kuo-Hsin Yang <vovoy@chromium.org>
-Cc: linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>
+To: rppt@linux.ibm.com
+Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz, riel@redhat.com, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On Mon 05-11-18 14:02:09, Michal Hocko wrote:
-> On Mon 05-11-18 19:13:48, Kuo-Hsin Yang wrote:
-> > The i915 driver uses shmemfs to allocate backing storage for gem
-> > objects. These shmemfs pages can be pinned (increased ref count) by
-> > shmem_read_mapping_page_gfp(). When a lot of pages are pinned, vmscan
-> > wastes a lot of time scanning these pinned pages. In some extreme case,
-> > all pages in the inactive anon lru are pinned, and only the inactive
-> > anon lru is scanned due to inactive_ratio, the system cannot swap and
-> > invokes the oom-killer. Mark these pinned pages as unevictable to speed
-> > up vmscan.
-> > 
-> > Export pagevec API check_move_unevictable_pages().
-> 
-> Thanks for reworking the patch. This looks much more to my taste. At
-> least the mm part. I haven't really looked at the the drm part.
+On Mon, Nov 5, 2018 at 2:43 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
+>
+> On Mon, Nov 05, 2018 at 11:14:17AM +0530, Souptick Joarder wrote:
+> > Hi Matthew,
+> >
+> > On Sun, Nov 4, 2018 at 2:06 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
+> > >
+> > > On Sat, Nov 03, 2018 at 05:02:36AM -0700, Matthew Wilcox wrote:
+> > > > On Sat, Nov 03, 2018 at 10:35:04AM +0530, Souptick Joarder wrote:
+> > > > > Page fault handlers are supposed to return VM_FAULT codes,
+> > > > > but some drivers/file systems mistakenly return error
+> > > > > numbers. Now that all drivers/file systems have been converted
+> > > > > to use the vm_fault_t return type, change the type definition
+> > > > > to no longer be compatible with 'int'. By making it an unsigned
+> > > > > int, the function prototype becomes incompatible with a function
+> > > > > which returns int. Sparse will detect any attempts to return a
+> > > > > value which is not a VM_FAULT code.
+> > > >
+> > > >
+> > > > > -/* Encode hstate index for a hwpoisoned large page */
+> > > > > -#define VM_FAULT_SET_HINDEX(x) ((x) << 12)
+> > > > > -#define VM_FAULT_GET_HINDEX(x) (((x) >> 12) & 0xf)
+> > > > ...
+> > > > > +/* Encode hstate index for a hwpoisoned large page */
+> > > > > +#define VM_FAULT_SET_HINDEX(x) ((__force vm_fault_t)((x) << 16))
+> > > > > +#define VM_FAULT_GET_HINDEX(x) (((x) >> 16) & 0xf)
+> > > >
+> > > > I think it's important to mention in the changelog that these values
+> > > > have been changed to avoid conflicts with other VM_FAULT codes.
+> > > >
+> > > > > +/**
+> > > > > + * typedef vm_fault_t -  __bitwise unsigned int
+> > > > > + *
+> > > > > + * vm_fault_t is the new unsigned int type to return VM_FAULT
+> > > > > + * code by page fault handlers of drivers/file systems. Now if
+> > > > > + * any page fault handlers returns non VM_FAULT code instead
+> > > > > + * of VM_FAULT code, it will be a mismatch with function
+> > > > > + * prototype and sparse will detect it.
+> > > > > + */
+> > > >
+> > > > The first line should be what the typedef *means*, not repeat the
+> > > > compiler's definition.  The rest of the description should be information
+> > > > for someone coming to the type for the first time; what you've written
+> > > > here is changelog material.
+> > > >
+> > > > /**
+> > > >  * typedef vm_fault_t - Return type for page fault handlers.
+> > > >  *
+> > > >  * Page fault handlers return a bitmask of %VM_FAULT values.
+> > > >  */
+> > > >
+> > > > > +typedef __bitwise unsigned int vm_fault_t;
+> > > > > +
+> > > > > +/**
+> > > > > + * enum - VM_FAULT code
+> > > >
+> > > > Can you document an anonymous enum?  I've never tried.  Did you run this
+> > > > through 'make htmldocs'?
+> > >
+> > > You cannot document an anonymous enum.
+> >
+> >
+> > I assume, you are pointing to Document folder and I don't know if this
+> > enum need to be documented or not.
+>
+> The enum should be documented, even if it's documentation is (yet) not
+> linked anywhere in the Documentation/
+>
+> > I didn't run 'make htmldocs' as there is no document related changes.
+>
+> You can verify that kernel-doc can parse your documentation by running
+>
+> scripts/kernel-doc -none -v <filename>
 
-One side note. Longterm we probably want a better pinning API. It would
-hide this LRU manipulation implementation detail + enforce some limiting
-and provide a good way that the pin is longterm. People are working on
-this already but it is a PITA and long time to get there.
--- 
-Michal Hocko
-SUSE Labs
+I run "scripts/kernel-doc -none -v include/linux/mm_types.h" and it is showing
+below error and warning which is linked to enum in discussion.
+
+include/linux/mm_types.h:612: info: Scanning doc for typedef vm_fault_t
+include/linux/mm_types.h:623: info: Scanning doc for enum
+include/linux/mm_types.h:628: warning: contents before sections
+include/linux/mm_types.h:660: error: Cannot parse enum!
+1 errors
+1 warnings
+
+Shall I keep the documentation for enum or remove it from this patch ?
+
+>
+> > >
+> > > > > + * This enum is used to track the VM_FAULT code return by page
+> > > > > + * fault handlers.
+> > > >
+> > > >  * Page fault handlers return a bitmask of these values to tell the
+> > > >  * core VM what happened when handling the fault.
+> > > >
+> > >
+> > > --
+> > > Sincerely yours,
+> > > Mike.
+> > >
+> >
+>
+> --
+> Sincerely yours,
+> Mike.
+>
