@@ -1,57 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FE316B0007
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 15:51:55 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id y185-v6so7729419wmg.6
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 12:51:55 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id u9-v6si35744701wrd.317.2018.11.05.12.51.53
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A11C6B000C
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 16:13:10 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id f9so1897849pgs.13
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 13:13:10 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id g6-v6si7275931plt.212.2018.11.05.13.13.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 05 Nov 2018 12:51:53 -0800 (PST)
-Subject: Re: [RFC PATCH v4 02/13] ktask: multithread CPU-intensive kernel work
-References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
- <20181105165558.11698-3-daniel.m.jordan@oracle.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <736b23a4-cb32-7926-101a-9b6555e59b5e@infradead.org>
-Date: Mon, 5 Nov 2018 12:51:33 -0800
-MIME-Version: 1.0
-In-Reply-To: <20181105165558.11698-3-daniel.m.jordan@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Nov 2018 13:13:09 -0800 (PST)
+Date: Mon, 5 Nov 2018 13:13:05 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] slab.h: Avoid using & for logical and of booleans
+Message-Id: <20181105131305.574d85469f08a4b76592feb6@linux-foundation.org>
+In-Reply-To: <20181105204000.129023-1-bvanassche@acm.org>
+References: <20181105204000.129023-1-bvanassche@acm.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-mm@kvack.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: aarcange@redhat.com, aaron.lu@intel.com, akpm@linux-foundation.org, alex.williamson@redhat.com, bsd@redhat.com, darrick.wong@oracle.com, dave.hansen@linux.intel.com, jgg@mellanox.com, jwadams@google.com, jiangshanlai@gmail.com, mhocko@kernel.org, mike.kravetz@oracle.com, Pavel.Tatashin@microsoft.com, prasad.singamsetty@oracle.com, steven.sistare@oracle.com, tim.c.chen@intel.com, tj@kernel.org, vbabka@suse.cz
+To: Bart Van Assche <bvanassche@acm.org>
+Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Christoph Lameter <cl@linux.com>, Roman Gushchin <guro@fb.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org
 
-On 11/5/18 8:55 AM, Daniel Jordan wrote:
-> diff --git a/init/Kconfig b/init/Kconfig
-> index 41583f468cb4..ed82f76ed0b7 100644
-> --- a/init/Kconfig
-> +++ b/init/Kconfig
-> @@ -346,6 +346,17 @@ config AUDIT_TREE
->  	depends on AUDITSYSCALL
->  	select FSNOTIFY
+On Mon,  5 Nov 2018 12:40:00 -0800 Bart Van Assche <bvanassche@acm.org> wrote:
+
+> This patch suppresses the following sparse warning:
+> 
+> ./include/linux/slab.h:332:43: warning: dubious: x & !y
+> 
+> ...
+>
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -329,7 +329,7 @@ static __always_inline enum kmalloc_cache_type kmalloc_type(gfp_t flags)
+>  	 * If an allocation is both __GFP_DMA and __GFP_RECLAIMABLE, return
+>  	 * KMALLOC_DMA and effectively ignore __GFP_RECLAIMABLE
+>  	 */
+> -	return type_dma + (is_reclaimable & !is_dma) * KMALLOC_RECLAIM;
+> +	return type_dma + is_reclaimable * !is_dma * KMALLOC_RECLAIM;
+>  }
 >  
-> +config KTASK
-> +	bool "Multithread CPU-intensive kernel work"
-> +	depends on SMP
-> +	default y
-> +	help
-> +	  Parallelize CPU-intensive kernel work.  This feature is designed for
-> +          big machines that can take advantage of their extra CPUs to speed up
-> +	  large kernel tasks.  When enabled, kworker threads may occupy more
-> +          CPU time during these kernel tasks, but these threads are throttled
-> +          when other tasks on the system need CPU time.
+>  /*
 
-Use tab + 2 spaces consistently for help text indentation, please.
+I suppose so.
 
-> +
->  source "kernel/irq/Kconfig"
->  source "kernel/time/Kconfig"
->  source "kernel/Kconfig.preempt"
-
-
--- 
-~Randy
+That function seems too clever for its own good :(.  I wonder if these
+branch-avoiding tricks are really worthwhile.
