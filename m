@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E84406B0275
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 11:56:43 -0500 (EST)
-Received: by mail-yw1-f71.google.com with SMTP id i1-v6so7901757ywd.4
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:56:43 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id r132-v6si26801412ybc.409.2018.11.05.08.56.42
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E4CB6B0278
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 11:56:44 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id o18-v6so7925425ybp.9
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:56:44 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id g15-v6si3935331ybq.110.2018.11.05.08.56.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 05 Nov 2018 08:56:42 -0800 (PST)
 From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: [RFC PATCH v4 12/13] mm: parallelize clear_gigantic_page
-Date: Mon,  5 Nov 2018 11:55:57 -0500
-Message-Id: <20181105165558.11698-13-daniel.m.jordan@oracle.com>
+Subject: [RFC PATCH v4 11/13] mm: parallelize deferred struct page initialization within each node
+Date: Mon,  5 Nov 2018 11:55:56 -0500
+Message-Id: <20181105165558.11698-12-daniel.m.jordan@oracle.com>
 In-Reply-To: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
 References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
 MIME-Version: 1.0
@@ -22,119 +22,246 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org
 Cc: aarcange@redhat.com, aaron.lu@intel.com, akpm@linux-foundation.org, alex.williamson@redhat.com, bsd@redhat.com, daniel.m.jordan@oracle.com, darrick.wong@oracle.com, dave.hansen@linux.intel.com, jgg@mellanox.com, jwadams@google.com, jiangshanlai@gmail.com, mhocko@kernel.org, mike.kravetz@oracle.com, Pavel.Tatashin@microsoft.com, prasad.singamsetty@oracle.com, rdunlap@infradead.org, steven.sistare@oracle.com, tim.c.chen@intel.com, tj@kernel.org, vbabka@suse.cz
 
-Parallelize clear_gigantic_page, which zeroes any page size larger than
-8M (e.g. 1G on x86).
+Deferred struct page initialization currently runs one thread per node,
+but this is a bottleneck during boot on big machines, so use ktask
+within each pgdatinit thread to parallelize the struct page
+initialization, allowing the system to take better advantage of its
+memory bandwidth.
 
-Performance results (the default number of threads is 4; higher thread
-counts shown for context only):
+Because the system is not fully up yet and most CPUs are idle, use more
+than the default maximum number of ktask threads.  The kernel doesn't
+know the memory bandwidth of a given system to get the most efficient
+number of threads, so there's some guesswork involved.  In testing, a
+reasonable value turned out to be about a quarter of the CPUs on the
+node.
 
-Machine:  Intel(R) Xeon(R) CPU E7-8895 v3 @ 2.60GHz, 288 CPUs, 1T memory
-Test:     Clear a range of gigantic pages (triggered via fallocate)
+__free_pages_core used to increase the zone's managed page count by the
+number of pages being freed.  To accommodate multiple threads, however,
+account the number of freed pages with an atomic shared across the ktask
+threads and bump the managed page count with it after ktask is finished.
 
-nthread   speedup   size (GiB)   min time (s)   stdev
-      1                    100          41.13    0.03
-      2     2.03x          100          20.26    0.14
-      4     4.28x          100           9.62    0.09
-      8     8.39x          100           4.90    0.05
-     16    10.44x          100           3.94    0.03
+Test:    Boot the machine with deferred struct page init three times
 
-      1                    200          89.68    0.35
-      2     2.21x          200          40.64    0.18
-      4     4.64x          200          19.33    0.32
-      8     8.99x          200           9.98    0.04
-     16    11.27x          200           7.96    0.04
+Machine: Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz, 88 CPUs, 503G memory,
+         2 sockets
 
-      1                    400         188.20    1.57
-      2     2.30x          400          81.84    0.09
-      4     4.63x          400          40.62    0.26
-      8     8.92x          400          21.09    0.50
-     16    11.78x          400          15.97    0.25
+kernel                   speedup   max time per   stdev
+                                   node (ms)
 
-      1                    800         434.91    1.81
-      2     2.54x          800         170.97    1.46
-      4     4.98x          800          87.38    1.91
-      8    10.15x          800          42.86    2.59
-     16    12.99x          800          33.48    0.83
+baseline (4.15-rc2)                        5860     8.6
+ktask                      9.56x            613    12.4
 
-The speedups are mostly due to the fact that more threads can use more
-memory bandwidth.  The loop we're stressing on the x86 chip in this test
-is clear_page_erms, which tops out at a bandwidth of 2550 MiB/s with one
-thread.  We get the same bandwidth per thread for 2, 4, or 8 threads,
-but at 16 threads the per-thread bandwidth drops to 1420 MiB/s.
+---
 
-However, the performance also improves over a single thread because of
-the ktask threads' NUMA awareness (ktask migrates worker threads to the
-node local to the work being done).  This becomes a bigger factor as the
-amount of pages to zero grows to include memory from multiple nodes, so
-that speedups increase as the size increases.
+Machine: Intel(R) Xeon(R) CPU E7-8895 v3 @ 2.60GHz, 288 CPUs, 1T memory
+         8 sockets
+
+kernel                   speedup   max time per   stdev
+                                   node (ms)
+baseline (4.15-rc2)                        1261     1.9
+ktask                      3.88x            325     5.0
 
 Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+Suggested-by: Pavel Tatashin <Pavel.Tatashin@microsoft.com>
 ---
- mm/memory.c | 32 ++++++++++++++++++++++++--------
- 1 file changed, 24 insertions(+), 8 deletions(-)
+ mm/page_alloc.c | 91 ++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 78 insertions(+), 13 deletions(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 15c417e8e31d..445d06537905 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -69,6 +69,7 @@
- #include <linux/userfaultfd_k.h>
- #include <linux/dax.h>
- #include <linux/oom.h>
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ae31839874b8..fe7b681567ba 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -66,6 +66,7 @@
+ #include <linux/lockdep.h>
+ #include <linux/nmi.h>
+ #include <linux/psi.h>
 +#include <linux/ktask.h>
  
- #include <asm/io.h>
- #include <asm/mmu_context.h>
-@@ -4415,19 +4416,28 @@ static inline void process_huge_page(
+ #include <asm/sections.h>
+ #include <asm/tlbflush.h>
+@@ -1275,7 +1276,6 @@ void __free_pages_core(struct page *page, unsigned int order)
+ 		set_page_count(p, 0);
  	}
+ 
+-	page_zone(page)->managed_pages += nr_pages;
+ 	set_page_refcounted(page);
+ 	__free_pages(page, order);
+ }
+@@ -1340,6 +1340,7 @@ void __init memblock_free_pages(struct page *page, unsigned long pfn,
+ 	if (early_page_uninitialised(pfn))
+ 		return;
+ 	__free_pages_core(page, order);
++	page_zone(page)->managed_pages += 1UL << order;
  }
  
--static void clear_gigantic_page(struct page *page,
--				unsigned long addr,
--				unsigned int pages_per_huge_page)
-+struct cgp_args {
-+	struct page	*base_page;
-+	unsigned long	addr;
+ /*
+@@ -1477,23 +1478,31 @@ deferred_pfn_valid(int nid, unsigned long pfn,
+ 	return true;
+ }
+ 
++struct deferred_args {
++	int nid;
++	int zid;
++	atomic64_t nr_pages;
 +};
 +
-+static int clear_gigantic_page_chunk(unsigned long start, unsigned long end,
-+				     struct cgp_args *args)
+ /*
+  * Free pages to buddy allocator. Try to free aligned pages in
+  * pageblock_nr_pages sizes.
+  */
+-static void __init deferred_free_pages(int nid, int zid, unsigned long pfn,
+-				       unsigned long end_pfn)
++static int __init deferred_free_pages(int nid, int zid, unsigned long pfn,
++				      unsigned long end_pfn)
  {
--	int i;
--	struct page *p = page;
-+	struct page *base_page = args->base_page;
-+	struct page *p = base_page;
-+	unsigned long addr = args->addr;
-+	unsigned long i;
+ 	struct mminit_pfnnid_cache nid_init_state = { };
+ 	unsigned long nr_pgmask = pageblock_nr_pages - 1;
+-	unsigned long nr_free = 0;
++	unsigned long nr_free = 0, nr_pages = 0;
  
- 	might_sleep();
--	for (i = 0; i < pages_per_huge_page;
--	     i++, p = mem_map_next(p, page, i)) {
-+	for (i = start; i < end; ++i) {
- 		cond_resched();
- 		clear_user_highpage(p, addr + i * PAGE_SIZE);
-+
-+		p = mem_map_next(p, base_page, i);
+ 	for (; pfn < end_pfn; pfn++) {
+ 		if (!deferred_pfn_valid(nid, pfn, &nid_init_state)) {
+ 			deferred_free_range(pfn - nr_free, nr_free);
++			nr_pages += nr_free;
+ 			nr_free = 0;
+ 		} else if (!(pfn & nr_pgmask)) {
+ 			deferred_free_range(pfn - nr_free, nr_free);
++			nr_pages += nr_free;
+ 			nr_free = 1;
+ 			touch_nmi_watchdog();
+ 		} else {
+@@ -1502,16 +1511,27 @@ static void __init deferred_free_pages(int nid, int zid, unsigned long pfn,
  	}
+ 	/* Free the last block of pages to allocator */
+ 	deferred_free_range(pfn - nr_free, nr_free);
++	nr_pages += nr_free;
 +
++	return nr_pages;
++}
++
++static int __init deferred_free_chunk(unsigned long pfn, unsigned long end_pfn,
++				      struct deferred_args *args)
++{
++	unsigned long nr_pages = deferred_free_pages(args->nid, args->zid, pfn,
++						     end_pfn);
++	atomic64_add(nr_pages, &args->nr_pages);
 +	return KTASK_RETURN_SUCCESS;
  }
  
- static void clear_subpage(unsigned long addr, int idx, void *arg)
-@@ -4444,7 +4454,13 @@ void clear_huge_page(struct page *page,
- 		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
- 
- 	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
--		clear_gigantic_page(page, addr, pages_per_huge_page);
-+		struct cgp_args args = {page, addr};
-+		struct ktask_node node = {0, pages_per_huge_page,
-+					  page_to_nid(page)};
-+		DEFINE_KTASK_CTL(ctl, clear_gigantic_page_chunk, &args,
-+				 KTASK_MEM_CHUNK);
+ /*
+  * Initialize struct pages.  We minimize pfn page lookups and scheduler checks
+  * by performing it only once every pageblock_nr_pages.
+- * Return number of pages initialized.
++ * Return number of pages initialized in deferred_args.
+  */
+-static unsigned long  __init deferred_init_pages(int nid, int zid,
+-						 unsigned long pfn,
+-						 unsigned long end_pfn)
++static int __init deferred_init_pages(int nid, int zid, unsigned long pfn,
++				      unsigned long end_pfn)
+ {
+ 	struct mminit_pfnnid_cache nid_init_state = { };
+ 	unsigned long nr_pgmask = pageblock_nr_pages - 1;
+@@ -1531,7 +1551,17 @@ static unsigned long  __init deferred_init_pages(int nid, int zid,
+ 		__init_single_page(page, pfn, zid, nid);
+ 		nr_pages++;
+ 	}
+-	return (nr_pages);
 +
-+		ktask_run_numa(&node, 1, &ctl);
- 		return;
++	return nr_pages;
++}
++
++static int __init deferred_init_chunk(unsigned long pfn, unsigned long end_pfn,
++				      struct deferred_args *args)
++{
++	unsigned long nr_pages = deferred_init_pages(args->nid, args->zid, pfn,
++						     end_pfn);
++	atomic64_add(nr_pages, &args->nr_pages);
++	return KTASK_RETURN_SUCCESS;
+ }
+ 
+ /* Initialise remaining memory on a node */
+@@ -1540,13 +1570,15 @@ static int __init deferred_init_memmap(void *data)
+ 	pg_data_t *pgdat = data;
+ 	int nid = pgdat->node_id;
+ 	unsigned long start = jiffies;
+-	unsigned long nr_pages = 0;
++	unsigned long nr_init = 0, nr_free = 0;
+ 	unsigned long spfn, epfn, first_init_pfn, flags;
+ 	phys_addr_t spa, epa;
+ 	int zid;
+ 	struct zone *zone;
+ 	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
+ 	u64 i;
++	unsigned long nr_node_cpus;
++	struct ktask_node kn;
+ 
+ 	/* Bind memory initialisation thread to a local node if possible */
+ 	if (!cpumask_empty(cpumask))
+@@ -1560,6 +1592,14 @@ static int __init deferred_init_memmap(void *data)
+ 		return 0;
  	}
  
++	/*
++	 * We'd like to know the memory bandwidth of the chip to calculate the
++	 * most efficient number of threads to start, but we can't.  In
++	 * testing, a good value for a variety of systems was a quarter of the
++	 * CPUs on the node.
++	 */
++	nr_node_cpus = DIV_ROUND_UP(cpumask_weight(cpumask), 4);
++
+ 	/* Sanity check boundaries */
+ 	BUG_ON(pgdat->first_deferred_pfn < pgdat->node_start_pfn);
+ 	BUG_ON(pgdat->first_deferred_pfn > pgdat_end_pfn(pgdat));
+@@ -1580,21 +1620,46 @@ static int __init deferred_init_memmap(void *data)
+ 	 * page in __free_one_page()).
+ 	 */
+ 	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
++		struct deferred_args args = { nid, zid, ATOMIC64_INIT(0) };
++		DEFINE_KTASK_CTL(ctl, deferred_init_chunk, &args,
++				 KTASK_PTE_MINCHUNK);
++		ktask_ctl_set_max_threads(&ctl, nr_node_cpus);
++
+ 		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+ 		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
+-		nr_pages += deferred_init_pages(nid, zid, spfn, epfn);
++
++		kn.kn_start	= (void *)spfn;
++		kn.kn_task_size	= (spfn < epfn) ? epfn - spfn : 0;
++		kn.kn_nid	= nid;
++		(void) ktask_run_numa(&kn, 1, &ctl);
++
++		nr_init += atomic64_read(&args.nr_pages);
+ 	}
+ 	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
++		struct deferred_args args = { nid, zid, ATOMIC64_INIT(0) };
++		DEFINE_KTASK_CTL(ctl, deferred_free_chunk, &args,
++				 KTASK_PTE_MINCHUNK);
++		ktask_ctl_set_max_threads(&ctl, nr_node_cpus);
++
+ 		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+ 		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
+-		deferred_free_pages(nid, zid, spfn, epfn);
++
++		kn.kn_start	= (void *)spfn;
++		kn.kn_task_size	= (spfn < epfn) ? epfn - spfn : 0;
++		kn.kn_nid	= nid;
++		(void) ktask_run_numa(&kn, 1, &ctl);
++
++		nr_free += atomic64_read(&args.nr_pages);
+ 	}
+ 	pgdat_resize_unlock(pgdat, &flags);
+ 
+ 	/* Sanity check that the next zone really is unpopulated */
+ 	WARN_ON(++zid < MAX_NR_ZONES && populated_zone(++zone));
++	VM_BUG_ON(nr_init != nr_free);
++
++	zone->managed_pages += nr_free;
+ 
+-	pr_info("node %d initialised, %lu pages in %ums\n", nid, nr_pages,
++	pr_info("node %d initialised, %lu pages in %ums\n", nid, nr_free,
+ 					jiffies_to_msecs(jiffies - start));
+ 
+ 	pgdat_init_report_one_done();
 -- 
 2.19.1
