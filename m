@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 325336B026D
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 11:56:35 -0500 (EST)
-Received: by mail-it1-f199.google.com with SMTP id o204-v6so4091433itg.0
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:56:35 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id f187-v6si29344340ioa.162.2018.11.05.08.56.33
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C4266B026E
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 11:56:37 -0500 (EST)
+Received: by mail-yw1-f70.google.com with SMTP id q188-v6so7891885ywd.2
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:56:37 -0800 (PST)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id 84-v6si7647388yby.78.2018.11.05.08.56.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Nov 2018 08:56:33 -0800 (PST)
+        Mon, 05 Nov 2018 08:56:36 -0800 (PST)
 From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: [RFC PATCH v4 01/13] ktask: add documentation
-Date: Mon,  5 Nov 2018 11:55:46 -0500
-Message-Id: <20181105165558.11698-2-daniel.m.jordan@oracle.com>
+Subject: [RFC PATCH v4 03/13] ktask: add undo support
+Date: Mon,  5 Nov 2018 11:55:48 -0500
+Message-Id: <20181105165558.11698-4-daniel.m.jordan@oracle.com>
 In-Reply-To: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
 References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
 MIME-Version: 1.0
@@ -22,245 +22,327 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org
 Cc: aarcange@redhat.com, aaron.lu@intel.com, akpm@linux-foundation.org, alex.williamson@redhat.com, bsd@redhat.com, daniel.m.jordan@oracle.com, darrick.wong@oracle.com, dave.hansen@linux.intel.com, jgg@mellanox.com, jwadams@google.com, jiangshanlai@gmail.com, mhocko@kernel.org, mike.kravetz@oracle.com, Pavel.Tatashin@microsoft.com, prasad.singamsetty@oracle.com, rdunlap@infradead.org, steven.sistare@oracle.com, tim.c.chen@intel.com, tj@kernel.org, vbabka@suse.cz
 
-Motivates and explains the ktask API for kernel clients.
+Tasks can fail midway through their work.  To recover, the finished
+chunks of work need to be undone in a task-specific way.
+
+Allow ktask clients to pass an "undo" callback that is responsible for
+undoing one chunk of work.  To avoid multiple levels of error handling,
+do not allow the callback to fail.  For simplicity and because it's a
+slow path, undoing is not multithreaded.
 
 Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- Documentation/core-api/index.rst |   1 +
- Documentation/core-api/ktask.rst | 213 +++++++++++++++++++++++++++++++
- 2 files changed, 214 insertions(+)
- create mode 100644 Documentation/core-api/ktask.rst
+ include/linux/ktask.h |  36 +++++++++++-
+ kernel/ktask.c        | 125 +++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 138 insertions(+), 23 deletions(-)
 
-diff --git a/Documentation/core-api/index.rst b/Documentation/core-api/index.rst
-index 3adee82be311..c143a280a5b1 100644
---- a/Documentation/core-api/index.rst
-+++ b/Documentation/core-api/index.rst
-@@ -18,6 +18,7 @@ Core utilities
-    refcount-vs-atomic
-    cpu_hotplug
-    idr
-+   ktask
-    local_ops
-    workqueue
-    genericirq
-diff --git a/Documentation/core-api/ktask.rst b/Documentation/core-api/ktask.rst
-new file mode 100644
-index 000000000000..c3c00e1f802f
---- /dev/null
-+++ b/Documentation/core-api/ktask.rst
-@@ -0,0 +1,213 @@
-+.. SPDX-License-Identifier: GPL-2.0+
+diff --git a/include/linux/ktask.h b/include/linux/ktask.h
+index 9c75a93b51b9..30a6a88e5dad 100644
+--- a/include/linux/ktask.h
++++ b/include/linux/ktask.h
+@@ -10,6 +10,7 @@
+ #ifndef _LINUX_KTASK_H
+ #define _LINUX_KTASK_H
+ 
++#include <linux/list.h>
+ #include <linux/mm.h>
+ #include <linux/types.h>
+ 
+@@ -23,9 +24,14 @@
+  * @kn_nid: NUMA node id to run threads on
+  */
+ struct ktask_node {
+-	void		*kn_start;
+-	size_t		kn_task_size;
+-	int		kn_nid;
++	void			*kn_start;
++	size_t			kn_task_size;
++	int			kn_nid;
 +
-+============================================
-+ktask: parallelize CPU-intensive kernel work
-+============================================
++	/* Private fields below - do not touch these. */
++	void			*kn_position;
++	size_t			kn_remaining_size;
++	struct list_head	kn_failed_works;
+ };
+ 
+ /**
+@@ -43,6 +49,14 @@ struct ktask_node {
+  */
+ typedef int (*ktask_thread_func)(void *start, void *end, void *arg);
+ 
++/**
++ * typedef ktask_undo_func
++ *
++ * The same as ktask_thread_func, with the exception that it must always
++ * succeed, so it doesn't return anything.
++ */
++typedef void (*ktask_undo_func)(void *start, void *end, void *arg);
 +
-+:Date: November, 2018
-+:Author: Daniel Jordan <daniel.m.jordan@oracle.com>
+ /**
+  * typedef ktask_iter_func
+  *
+@@ -77,6 +91,11 @@ void *ktask_iter_range(void *position, size_t size);
+  *
+  * @kc_thread_func: A thread function that completes one chunk of the task per
+  *                  call.
++ * @kc_undo_func: A function that undoes one chunk of the task per call.
++ *                If non-NULL and error(s) occur during the task, this is
++ *                called on all successfully completed chunks of work.  The
++ *                chunk(s) in which failure occurs should be handled in
++ *                kc_thread_func.
+  * @kc_func_arg: An argument to be passed to the thread and undo functions.
+  * @kc_iter_func: An iterator function to advance the iterator by some number
+  *                   of task-specific units.
+@@ -90,6 +109,7 @@ void *ktask_iter_range(void *position, size_t size);
+ struct ktask_ctl {
+ 	/* Required arguments set with DEFINE_KTASK_CTL. */
+ 	ktask_thread_func	kc_thread_func;
++	ktask_undo_func		kc_undo_func;
+ 	void			*kc_func_arg;
+ 	size_t			kc_min_chunk_size;
+ 
+@@ -101,6 +121,7 @@ struct ktask_ctl {
+ #define KTASK_CTL_INITIALIZER(thread_func, func_arg, min_chunk_size)	     \
+ 	{								     \
+ 		.kc_thread_func = (ktask_thread_func)(thread_func),	     \
++		.kc_undo_func = NULL,					     \
+ 		.kc_func_arg = (func_arg),				     \
+ 		.kc_min_chunk_size = (min_chunk_size),			     \
+ 		.kc_iter_func = (ktask_iter_range),			     \
+@@ -132,6 +153,15 @@ struct ktask_ctl {
+ #define ktask_ctl_set_iter_func(ctl, iter_func)				\
+ 	((ctl)->kc_iter_func = (ktask_iter_func)(iter_func))
+ 
++/**
++ * ktask_ctl_set_undo_func - Designate an undo function to unwind from error
++ *
++ * @ctl:  A control structure containing information about the task.
++ * @undo_func:  Undoes a piece of the task.
++ */
++#define ktask_ctl_set_undo_func(ctl, undo_func)				\
++	((ctl)->kc_undo_func = (ktask_undo_func)(undo_func))
 +
+ /**
+  * ktask_ctl_set_max_threads - Set a task-specific maximum number of threads
+  *
+diff --git a/kernel/ktask.c b/kernel/ktask.c
+index a7b2b5a62737..b91c62f14dcd 100644
+--- a/kernel/ktask.c
++++ b/kernel/ktask.c
+@@ -20,6 +20,7 @@
+ #include <linux/init.h>
+ #include <linux/kernel.h>
+ #include <linux/list.h>
++#include <linux/list_sort.h>
+ #include <linux/mutex.h>
+ #include <linux/printk.h>
+ #include <linux/random.h>
+@@ -46,7 +47,12 @@ struct ktask_work {
+ 	struct ktask_task	*kw_task;
+ 	int			kw_ktask_node_i;
+ 	int			kw_queue_nid;
+-	struct list_head	kw_list;	/* ktask_free_works linkage */
++	/* task units from kn_start to kw_error_start */
++	size_t			kw_error_offset;
++	void			*kw_error_start;
++	void			*kw_error_end;
++	/* ktask_free_works, kn_failed_works linkage */
++	struct list_head	kw_list;
+ };
+ 
+ static LIST_HEAD(ktask_free_works);
+@@ -170,11 +176,11 @@ static void ktask_thread(struct work_struct *work)
+ 	mutex_lock(&kt->kt_mutex);
+ 
+ 	while (kt->kt_total_size > 0 && kt->kt_error == KTASK_RETURN_SUCCESS) {
+-		void *start, *end;
+-		size_t size;
++		void *position, *end;
++		size_t size, position_offset;
+ 		int ret;
+ 
+-		if (kn->kn_task_size == 0) {
++		if (kn->kn_remaining_size == 0) {
+ 			/* The current node is out of work; pick a new one. */
+ 			size_t remaining_nodes_seen = 0;
+ 			size_t new_idx = prandom_u32_max(kt->kt_nr_nodes_left);
+@@ -184,7 +190,7 @@ static void ktask_thread(struct work_struct *work)
+ 			WARN_ON(kt->kt_nr_nodes_left == 0);
+ 			WARN_ON(new_idx >= kt->kt_nr_nodes_left);
+ 			for (i = 0; i < kt->kt_nr_nodes; ++i) {
+-				if (kt->kt_nodes[i].kn_task_size == 0)
++				if (kt->kt_nodes[i].kn_remaining_size == 0)
+ 					continue;
+ 
+ 				if (remaining_nodes_seen >= new_idx)
+@@ -205,27 +211,40 @@ static void ktask_thread(struct work_struct *work)
+ 			}
+ 		}
+ 
+-		start = kn->kn_start;
+-		size = min(kt->kt_chunk_size, kn->kn_task_size);
+-		end = kc->kc_iter_func(start, size);
+-		kn->kn_start = end;
+-		kn->kn_task_size -= size;
++		position = kn->kn_position;
++		position_offset = kn->kn_task_size - kn->kn_remaining_size;
++		size = min(kt->kt_chunk_size, kn->kn_remaining_size);
++		end = kc->kc_iter_func(position, size);
++		kn->kn_position = end;
++		kn->kn_remaining_size -= size;
+ 		WARN_ON(kt->kt_total_size < size);
+ 		kt->kt_total_size -= size;
+-		if (kn->kn_task_size == 0) {
++		if (kn->kn_remaining_size == 0) {
+ 			WARN_ON(kt->kt_nr_nodes_left == 0);
+ 			kt->kt_nr_nodes_left--;
+ 		}
+ 
+ 		mutex_unlock(&kt->kt_mutex);
+ 
+-		ret = kc->kc_thread_func(start, end, kc->kc_func_arg);
++		ret = kc->kc_thread_func(position, end, kc->kc_func_arg);
+ 
+ 		mutex_lock(&kt->kt_mutex);
+ 
+-		/* Save first error code only. */
+-		if (kt->kt_error == KTASK_RETURN_SUCCESS && ret != kt->kt_error)
+-			kt->kt_error = ret;
++		if (ret != KTASK_RETURN_SUCCESS) {
++			/* Save first error code only. */
++			if (kt->kt_error == KTASK_RETURN_SUCCESS)
++				kt->kt_error = ret;
++			/*
++			 * If this task has an undo function, save information
++			 * about where this thread failed for ktask_undo.
++			 */
++			if (kc->kc_undo_func) {
++				list_move(&kw->kw_list, &kn->kn_failed_works);
++				kw->kw_error_start = position;
++				kw->kw_error_offset = position_offset;
++				kw->kw_error_end = end;
++			}
++		}
+ 	}
+ 
+ 	WARN_ON(kt->kt_nr_nodes_left > 0 &&
+@@ -335,26 +354,85 @@ static size_t ktask_init_works(struct ktask_node *nodes, size_t nr_nodes,
+ }
+ 
+ static void ktask_fini_works(struct ktask_task *kt,
++			     struct ktask_work *stack_work,
+ 			     struct list_head *works_list)
+ {
+-	struct ktask_work *work;
++	struct ktask_work *work, *next;
+ 
+ 	spin_lock(&ktask_rlim_lock);
+ 
+ 	/* Put the works back on the free list, adjusting rlimits. */
+-	list_for_each_entry(work, works_list, kw_list) {
++	list_for_each_entry_safe(work, next, works_list, kw_list) {
++		if (work == stack_work) {
++			/* On this thread's stack, so not subject to rlimits. */
++			list_del(&work->kw_list);
++			continue;
++		}
+ 		if (work->kw_queue_nid != NUMA_NO_NODE) {
+ 			WARN_ON(ktask_rlim_node_cur[work->kw_queue_nid] == 0);
+ 			--ktask_rlim_node_cur[work->kw_queue_nid];
+ 		}
+ 		WARN_ON(ktask_rlim_cur == 0);
+ 		--ktask_rlim_cur;
++		list_move(&work->kw_list, &ktask_free_works);
+ 	}
+-	list_splice(works_list, &ktask_free_works);
+-
+ 	spin_unlock(&ktask_rlim_lock);
+ }
+ 
++static int ktask_error_cmp(void *unused, struct list_head *a,
++			   struct list_head *b)
++{
++	struct ktask_work *work_a = list_entry(a, struct ktask_work, kw_list);
++	struct ktask_work *work_b = list_entry(b, struct ktask_work, kw_list);
 +
-+Introduction
-+============
++	if (work_a->kw_error_offset < work_b->kw_error_offset)
++		return -1;
++	else if (work_a->kw_error_offset > work_b->kw_error_offset)
++		return 1;
++	return 0;
++}
 +
-+ktask is a generic framework for parallelizing CPU-intensive work in the
-+kernel.  The intended use is for big machines that can use their CPU power to
-+speed up large tasks that can't otherwise be multithreaded in userland.  The
-+API is generic enough to add concurrency to many different kinds of tasks--for
-+example, page clearing over an address range or freeing a list of pages--and
-+aims to save its clients the trouble of splitting up the work, choosing the
-+number of helper threads to use, maintaining an efficient concurrency level,
-+starting these threads, and load balancing the work between them.
++static void ktask_undo(struct ktask_node *nodes, size_t nr_nodes,
++		       struct ktask_ctl *ctl, struct list_head *works_list)
++{
++	size_t i;
 +
++	for (i = 0; i < nr_nodes; ++i) {
++		struct ktask_node *kn = &nodes[i];
++		struct list_head *failed_works = &kn->kn_failed_works;
++		struct ktask_work *failed_work;
++		void *undo_pos = kn->kn_start;
++		void *undo_end;
 +
-+Motivation
-+==========
++		/* Sort so the failed ranges can be checked as we go. */
++		list_sort(NULL, failed_works, ktask_error_cmp);
 +
-+A single CPU can spend an excessive amount of time in the kernel operating on
-+large amounts of data.  Often these situations arise during initialization- and
-+destruction-related tasks, where the data involved scales with system size.
-+These long-running jobs can slow startup and shutdown of applications and the
-+system itself while extra CPUs sit idle.
++		/* Undo completed work on this node, skipping failed ranges. */
++		while (undo_pos != kn->kn_position) {
++			failed_work = list_first_entry_or_null(failed_works,
++							      struct ktask_work,
++							      kw_list);
++			if (failed_work)
++				undo_end = failed_work->kw_error_start;
++			else
++				undo_end = kn->kn_position;
 +
-+To ensure that applications and the kernel continue to perform well as core
-+counts and memory sizes increase, the kernel harnesses these idle CPUs to
-+complete such jobs more quickly.
++			if (undo_pos != undo_end) {
++				ctl->kc_undo_func(undo_pos, undo_end,
++						  ctl->kc_func_arg);
++			}
 +
-+For example, when booting a large NUMA machine, ktask uses additional CPUs that
-+would otherwise be idle until the machine is fully up to avoid a needless
-+bottleneck during system boot and allow the kernel to take advantage of unused
-+memory bandwidth.  Similarly, when starting a large VM using VFIO, ktask takes
-+advantage of the VM's idle CPUs during VFIO page pinning rather than have the
-+VM's boot blocked on one thread doing all the work.
++			if (failed_work) {
++				undo_pos = failed_work->kw_error_end;
++				list_move(&failed_work->kw_list, works_list);
++			} else {
++				undo_pos = undo_end;
++			}
++		}
++		WARN_ON(!list_empty(failed_works));
++	}
++}
 +
-+ktask is not a substitute for single-threaded optimization.  However, there is
-+a point where a single CPU hits a wall despite performance tuning, so
-+parallelize!
+ int ktask_run_numa(struct ktask_node *nodes, size_t nr_nodes,
+ 		   struct ktask_ctl *ctl)
+ {
+@@ -374,6 +452,9 @@ int ktask_run_numa(struct ktask_node *nodes, size_t nr_nodes,
+ 
+ 	for (i = 0; i < nr_nodes; ++i) {
+ 		kt.kt_total_size += nodes[i].kn_task_size;
++		nodes[i].kn_position = nodes[i].kn_start;
++		nodes[i].kn_remaining_size = nodes[i].kn_task_size;
++		INIT_LIST_HEAD(&nodes[i].kn_failed_works);
+ 		if (nodes[i].kn_task_size == 0)
+ 			kt.kt_nr_nodes_left--;
+ 
+@@ -396,12 +477,16 @@ int ktask_run_numa(struct ktask_node *nodes, size_t nr_nodes,
+ 
+ 	/* Use the current thread, which saves starting a workqueue worker. */
+ 	ktask_init_work(&kw, &kt, 0, nodes[0].kn_nid);
++	INIT_LIST_HEAD(&kw.kw_list);
+ 	ktask_thread(&kw.kw_work);
+ 
+ 	/* Wait for all the jobs to finish. */
+ 	wait_for_completion(&kt.kt_ktask_done);
+ 
+-	ktask_fini_works(&kt, &works_list);
++	if (kt.kt_error && ctl->kc_undo_func)
++		ktask_undo(nodes, nr_nodes, ctl, &works_list);
 +
-+
-+Concept
-+=======
-+
-+ktask is built on unbound workqueues to take advantage of the thread management
-+facilities it provides: creation, destruction, flushing, priority setting, and
-+NUMA affinity.
-+
-+A little terminology up front:  A 'task' is the total work there is to do and a
-+'chunk' is a unit of work given to a thread.
-+
-+To complete a task using the ktask framework, a client provides a thread
-+function that is responsible for completing one chunk.  The thread function is
-+defined in a standard way, with start and end arguments that delimit the chunk
-+as well as an argument that the client uses to pass data specific to the task.
-+
-+In addition, the client supplies an object representing the start of the task
-+and an iterator function that knows how to advance some number of units in the
-+task to yield another object representing the new task position.  The framework
-+uses the start object and iterator internally to divide the task into chunks.
-+
-+Finally, the client passes the total task size and a minimum chunk size to
-+indicate the minimum amount of work that's appropriate to do in one chunk.  The
-+sizes are given in task-specific units (e.g. pages, inodes, bytes).  The
-+framework uses these sizes, along with the number of online CPUs and an
-+internal maximum number of threads, to decide how many threads to start and how
-+many chunks to divide the task into.
-+
-+For example, consider the task of clearing a gigantic page.  This used to be
-+done in a single thread with a for loop that calls a page clearing function for
-+each constituent base page.  To parallelize with ktask, the client first moves
-+the for loop to the thread function, adapting it to operate on the range passed
-+to the function.  In this simple case, the thread function's start and end
-+arguments are just addresses delimiting the portion of the gigantic page to
-+clear.  Then, where the for loop used to be, the client calls into ktask with
-+the start address of the gigantic page, the total size of the gigantic page,
-+and the thread function.  Internally, ktask will divide the address range into
-+an appropriate number of chunks and start an appropriate number of threads to
-+complete these chunks.
-+
-+
-+Configuration
-+=============
-+
-+To use ktask, configure the kernel with CONFIG_KTASK=y.
-+
-+If CONFIG_KTASK=n, calls to the ktask API are simply #define'd to run the
-+thread function that the client provides so that the task is completed without
-+concurrency in the current thread.
-+
-+
-+Interface
-+=========
-+
-+.. kernel-doc:: include/linux/ktask.h
-+
-+
-+Resource Limits
-+===============
-+
-+ktask has resource limits on the number of work items it sends to workqueue.
-+In ktask, a workqueue item is a thread that runs chunks of the task until the
-+task is finished.
-+
-+These limits support the different ways ktask uses workqueues:
-+ - ktask_run to run threads on the calling thread's node.
-+ - ktask_run_numa to run threads on the node(s) specified.
-+ - ktask_run_numa with nid=NUMA_NO_NODE to run threads on any node in the
-+   system.
-+
-+To support these different ways of queueing work while maintaining an efficient
-+concurrency level, we need both system-wide and per-node limits on the number
-+of threads.  Without per-node limits, a node might become oversubscribed
-+despite ktask staying within the system-wide limit, and without a system-wide
-+limit, we can't properly account for work that can run on any node.
-+
-+The system-wide limit is based on the total number of CPUs, and the per-node
-+limit on the CPU count for each node.  A per-node work item counts against the
-+system-wide limit.  Workqueue's max_active can't accommodate both types of
-+limit, no matter how many workqueues are used, so ktask implements its own.
-+
-+If a per-node limit is reached, the work item is allowed to run anywhere on the
-+machine to avoid overwhelming the node.  If the global limit is also reached,
-+ktask won't queue additional work items until we fall below the limit again.
-+
-+These limits apply only to workqueue items--that is, helper threads beyond the
-+one starting the task.  That way, one thread per task is always allowed to run.
-+
-+
-+Scheduler Interaction
-+=====================
-+
-+Even within the resource limits, ktask must take care to run a number of
-+threads appropriate for the system's current CPU load.  Under high CPU usage,
-+starting excessive helper threads may disturb other tasks, unfairly taking CPU
-+time away from them for the sake of an optimized kernel code path.
-+
-+ktask plays nicely in this case by setting helper threads to the lowest
-+scheduling priority on the system (MAX_NICE).  This way, helpers' CPU time is
-+appropriately throttled on a busy system and other tasks are not disturbed.
-+
-+The main thread initiating the task remains at its original priority so that it
-+still makes progress on a busy system.
-+
-+It is possible for a helper thread to start running and then be forced off-CPU
-+by a higher priority thread.  With the helper's CPU time curtailed by MAX_NICE,
-+the main thread may wait longer for the task to finish than it would have had
-+it not started any helpers, so to ensure forward progress at a single-threaded
-+pace, once the main thread is finished with all outstanding work in the task,
-+the main thread wills its priority to one helper thread at a time.  At least
-+one thread will then always be running at the priority of the calling thread.
-+
-+
-+Cgroup Awareness
-+================
-+
-+Given the potentially large amount of CPU time ktask threads may consume, they
-+should be aware of the cgroup of the task that called into ktask and
-+appropriately throttled.
-+
-+TODO: Implement cgroup-awareness in unbound workqueues.
-+
-+
-+Power Management
-+================
-+
-+Starting additional helper threads may cause the system to consume more energy,
-+which is undesirable on energy-conscious devices.  Therefore ktask needs to be
-+aware of cpufreq policies and scaling governors.
-+
-+If an energy-conscious policy is in use (e.g. powersave, conservative) on any
-+part of the system, that is a signal that the user has strong power management
-+preferences, in which case ktask is disabled.
-+
-+TODO: Implement this.
-+
-+
-+Backward Compatibility
-+======================
-+
-+ktask is written so that existing calls to the API will be backwards compatible
-+should the API gain new features in the future.  This is accomplished by
-+restricting API changes to members of struct ktask_ctl and having clients make
-+an opaque initialization call (DEFINE_KTASK_CTL).  This initialization can then
-+be modified to include any new arguments so that existing call sites stay the
-+same.
-+
-+
-+Error Handling
-+==============
-+
-+Calls to ktask fail only if the provided thread function fails.  In particular,
-+ktask avoids allocating memory internally during a task, so it's safe to use in
-+sensitive contexts.
-+
-+Tasks can fail midway through their work.  To recover, the finished chunks of
-+work need to be undone in a task-specific way, so ktask allows clients to pass
-+an "undo" callback that is responsible for undoing one chunk of work.  To avoid
-+multiple levels of error handling, this "undo" callback should not be allowed
-+to fail.  For simplicity and because it's a slow path, undoing is not
-+multithreaded.
-+
-+Each call to ktask_run and ktask_run_numa returns a single value,
-+KTASK_RETURN_SUCCESS or a client-specific value.  Since threads can fail for
-+different reasons, however, ktask may need the ability to return
-+thread-specific error information.  This can be added later if needed.
++	ktask_fini_works(&kt, &kw, &works_list);
+ 	mutex_destroy(&kt.kt_mutex);
+ 
+ 	return kt.kt_error;
 -- 
 2.19.1
