@@ -1,128 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 59C956B000D
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 04:13:16 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id n32-v6so4975124edc.17
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 01:13:16 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id c13-v6si1499377ejj.300.2018.11.05.01.13.14
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C97A6B0010
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 04:14:10 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id y72-v6so4985895ede.22
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 01:14:10 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y2-v6si7554654edl.276.2018.11.05.01.14.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Nov 2018 01:13:15 -0800 (PST)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wA59AElM093141
-	for <linux-mm@kvack.org>; Mon, 5 Nov 2018 04:13:13 -0500
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2njjx40bwm-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 05 Nov 2018 04:13:13 -0500
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 5 Nov 2018 09:13:10 -0000
-Date: Mon, 5 Nov 2018 11:13:03 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: Re: [PATCH] mm: Create the new vm_fault_t type
-References: <20181103050504.GA3049@jordon-HP-15-Notebook-PC>
- <20181103120235.GA10491@bombadil.infradead.org>
- <20181104083611.GB7829@rapoport-lnx>
- <CAFqt6zaVUT0RGpz+jE4c7rb5prOtDhnxOy-NAiFM9G6jMwofVg@mail.gmail.com>
+        Mon, 05 Nov 2018 01:14:08 -0800 (PST)
+Date: Mon, 5 Nov 2018 10:14:07 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, memory_hotplug: teach has_unmovable_pages about of
+ LRU migrateable pages
+Message-ID: <20181105091407.GB4361@dhcp22.suse.cz>
+References: <20181101091055.GA15166@MiWiFi-R3L-srv>
+ <20181102155528.20358-1-mhocko@kernel.org>
+ <20181105002009.GF27491@MiWiFi-R3L-srv>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAFqt6zaVUT0RGpz+jE4c7rb5prOtDhnxOy-NAiFM9G6jMwofVg@mail.gmail.com>
-Message-Id: <20181105091302.GA3713@rapoport-lnx>
+In-Reply-To: <20181105002009.GF27491@MiWiFi-R3L-srv>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, pasha.tatashin@oracle.com, vbabka@suse.cz, riel@redhat.com, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Baoquan He <bhe@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
 
-On Mon, Nov 05, 2018 at 11:14:17AM +0530, Souptick Joarder wrote:
-> Hi Matthew,
+On Mon 05-11-18 08:20:09, Baoquan He wrote:
+> Hi Michal,
 > 
-> On Sun, Nov 4, 2018 at 2:06 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
-> >
-> > On Sat, Nov 03, 2018 at 05:02:36AM -0700, Matthew Wilcox wrote:
-> > > On Sat, Nov 03, 2018 at 10:35:04AM +0530, Souptick Joarder wrote:
-> > > > Page fault handlers are supposed to return VM_FAULT codes,
-> > > > but some drivers/file systems mistakenly return error
-> > > > numbers. Now that all drivers/file systems have been converted
-> > > > to use the vm_fault_t return type, change the type definition
-> > > > to no longer be compatible with 'int'. By making it an unsigned
-> > > > int, the function prototype becomes incompatible with a function
-> > > > which returns int. Sparse will detect any attempts to return a
-> > > > value which is not a VM_FAULT code.
-> > >
-> > >
-> > > > -/* Encode hstate index for a hwpoisoned large page */
-> > > > -#define VM_FAULT_SET_HINDEX(x) ((x) << 12)
-> > > > -#define VM_FAULT_GET_HINDEX(x) (((x) >> 12) & 0xf)
-> > > ...
-> > > > +/* Encode hstate index for a hwpoisoned large page */
-> > > > +#define VM_FAULT_SET_HINDEX(x) ((__force vm_fault_t)((x) << 16))
-> > > > +#define VM_FAULT_GET_HINDEX(x) (((x) >> 16) & 0xf)
-> > >
-> > > I think it's important to mention in the changelog that these values
-> > > have been changed to avoid conflicts with other VM_FAULT codes.
-> > >
-> > > > +/**
-> > > > + * typedef vm_fault_t -  __bitwise unsigned int
-> > > > + *
-> > > > + * vm_fault_t is the new unsigned int type to return VM_FAULT
-> > > > + * code by page fault handlers of drivers/file systems. Now if
-> > > > + * any page fault handlers returns non VM_FAULT code instead
-> > > > + * of VM_FAULT code, it will be a mismatch with function
-> > > > + * prototype and sparse will detect it.
-> > > > + */
-> > >
-> > > The first line should be what the typedef *means*, not repeat the
-> > > compiler's definition.  The rest of the description should be information
-> > > for someone coming to the type for the first time; what you've written
-> > > here is changelog material.
-> > >
-> > > /**
-> > >  * typedef vm_fault_t - Return type for page fault handlers.
-> > >  *
-> > >  * Page fault handlers return a bitmask of %VM_FAULT values.
-> > >  */
-> > >
-> > > > +typedef __bitwise unsigned int vm_fault_t;
-> > > > +
-> > > > +/**
-> > > > + * enum - VM_FAULT code
-> > >
-> > > Can you document an anonymous enum?  I've never tried.  Did you run this
-> > > through 'make htmldocs'?
-> >
-> > You cannot document an anonymous enum.
+> On 11/02/18 at 04:55pm, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > Baoquan He has noticed that 15c30bc09085  ("mm, memory_hotplug: make
+> > has_unmovable_pages more robust") is causing memory offlining failures
+> > on a movable node. After a further debugging it turned out that
+> > has_unmovable_pages fails prematurely because it stumbles over off-LRU
+> > pages. Nevertheless those pages are not on LRU because they are waiting
+> > on the pcp LRU caches (an example of __dump_page added by a debugging
+> > patch)
+> > [  560.923297] page:ffffea043f39fa80 count:1 mapcount:0 mapping:ffff880e5dce1b59 index:0x7f6eec459
+> > [  560.931967] flags: 0x5fffffc0080024(uptodate|active|swapbacked)
+> > [  560.937867] raw: 005fffffc0080024 dead000000000100 dead000000000200 ffff880e5dce1b59
+> > [  560.945606] raw: 00000007f6eec459 0000000000000000 00000001ffffffff ffff880e43ae8000
+> > [  560.953323] page dumped because: hotplug
+> > [  560.957238] page->mem_cgroup:ffff880e43ae8000
+> > [  560.961620] has_unmovable_pages: pfn:0x10fd030d, found:0x1, count:0x0
+> > [  560.968127] page:ffffea043f40c340 count:2 mapcount:0 mapping:ffff880e2f2d8628 index:0x0
+> > [  560.976104] flags: 0x5fffffc0000006(referenced|uptodate)
+> > [  560.981401] raw: 005fffffc0000006 dead000000000100 dead000000000200 ffff880e2f2d8628
+> > [  560.989119] raw: 0000000000000000 0000000000000000 00000002ffffffff ffff88010a8f5000
+> > [  560.996833] page dumped because: hotplug
 > 
-> 
-> I assume, you are pointing to Document folder and I don't know if this
-> enum need to be documented or not.
+> Sorry, last week I didn't test this patch with memory pressure adding.
+> Today use "stress -m 200 -t 2h" to add pressure, hot removing failed.
+> Will send you output log. W/o memory pressure, it sometimes succeed. I
+> saw one failure last night, it still show un-removable as 0 in
+> hotpluggable node one time, I worried it might be caused by my compiling
+> mistake, so compile and try again this morning.
 
-The enum should be documented, even if it's documentation is (yet) not
-linked anywhere in the Documentation/
- 
-> I didn't run 'make htmldocs' as there is no document related changes.
+In a private email you have sent this (let's assume this is correctly
+testing the patch I have posted):
 
-You can verify that kernel-doc can parse your documentation by running
+: [43283.914082] has_unmovable_pages: pfn:0x10e62600, found:0x1, count:0x0 
+: [43283.920669] page:ffffea0439898000 count:1 mapcount:1 mapping:ffff880e5639d3c9 index:0x7f2430400 compound_mapcount: 1
+: [43283.931219] flags: 0x5fffffc0090034(uptodate|lru|active|head|swapbacked)
+: [43283.937954] raw: 005fffffc0090034 ffffea043ffcb888 ffffea043f728008 ffff880e5639d3c9
+: [43283.945722] raw: 00000007f2430400 0000000000000000 00000001ffffffff ffff880e2baad000
+: [43283.955381] page dumped because: hotplug
 
-scripts/kernel-doc -none -v <filename>
+The page is both LRU and SwapBacked which should hit the some of the
+checks in has_unmovable_pages. The fact it hasn't means we have clearly
+raced with the page being allocated and marked SwapBacked/LRU. This is
+surely possible and there is no universal way to prevent from that for
+all types of potentially migratedable pages. The race window should be
+relatively small. Maybe we can add a retry for movable zone pages.
 
-> >
-> > > > + * This enum is used to track the VM_FAULT code return by page
-> > > > + * fault handlers.
-> > >
-> > >  * Page fault handlers return a bitmask of these values to tell the
-> > >  * core VM what happened when handling the fault.
-> > >
-> >
-> > --
-> > Sincerely yours,
-> > Mike.
-> >
-> 
+How reproducible this is?
 
+But, as I've said memory isolation resp. has_unmovable_pages begs for a
+complete redesign.
 -- 
-Sincerely yours,
-Mike.
+Michal Hocko
+SUSE Labs
