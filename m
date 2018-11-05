@@ -1,160 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 358B86B000A
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 02:10:16 -0500 (EST)
-Received: by mail-yw1-f72.google.com with SMTP id 141-v6so6891142ywr.10
-        for <linux-mm@kvack.org>; Sun, 04 Nov 2018 23:10:16 -0800 (PST)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id w8-v6si13915493ybo.51.2018.11.04.23.10.14
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 851DC6B000D
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 02:18:01 -0500 (EST)
+Received: by mail-yb1-f200.google.com with SMTP id q124-v6so6823923ybg.18
+        for <linux-mm@kvack.org>; Sun, 04 Nov 2018 23:18:01 -0800 (PST)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id z187-v6si24914034ywe.241.2018.11.04.23.18.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 04 Nov 2018 23:10:14 -0800 (PST)
-Subject: Re: [PATCH 4/6] mm: introduce page->dma_pinned_flags, _count
-References: <20181012060014.10242-1-jhubbard@nvidia.com>
- <20181012060014.10242-5-jhubbard@nvidia.com> <20181013035516.GA18822@dastard>
- <7c2e3b54-0b1d-6726-a508-804ef8620cfd@nvidia.com>
- <20181013164740.GA6593@infradead.org>
+        Sun, 04 Nov 2018 23:18:00 -0800 (PST)
+Subject: Re: [PATCH v4 2/3] mm: introduce put_user_page*(), placeholder
+ versions
+References: <20181008211623.30796-1-jhubbard@nvidia.com>
+ <20181008211623.30796-3-jhubbard@nvidia.com>
+ <20181008171442.d3b3a1ea07d56c26d813a11e@linux-foundation.org>
+ <5198a797-fa34-c859-ff9d-568834a85a83@nvidia.com>
+ <20181010164541.ec4bf53f5a9e4ba6e5b52a21@linux-foundation.org>
+ <20181011084929.GB8418@quack2.suse.cz> <20181011132013.GA5968@ziepe.ca>
+ <97e89e08-5b94-240a-56e9-ece2b91f6dbc@nvidia.com>
+ <20181022194329.GG30059@ziepe.ca>
 From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <84811b54-60bf-2bc3-a58d-6a7925c24aad@nvidia.com>
-Date: Sun, 4 Nov 2018 23:10:12 -0800
+Message-ID: <532c7ae5-7277-74a7-93f2-afe8b7dc13fc@nvidia.com>
+Date: Sun, 4 Nov 2018 23:17:58 -0800
 MIME-Version: 1.0
-In-Reply-To: <20181013164740.GA6593@infradead.org>
+In-Reply-To: <20181022194329.GG30059@ziepe.ca>
 Content-Type: text/plain; charset="utf-8"
 Content-Language: en-US-large
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason
- Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Jerome
+ Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Ralph
+ Campbell <rcampbell@nvidia.com>
 
-On 10/13/18 9:47 AM, Christoph Hellwig wrote:
-> On Sat, Oct 13, 2018 at 12:34:12AM -0700, John Hubbard wrote:
->> In patch 6/6, pin_page_for_dma(), which is called at the end of get_user_pages(),
->> unceremoniously rips the pages out of the LRU, as a prerequisite to using
->> either of the page->dma_pinned_* fields. 
+On 10/22/18 12:43 PM, Jason Gunthorpe wrote:
+> On Thu, Oct 11, 2018 at 06:23:24PM -0700, John Hubbard wrote:
+>> On 10/11/18 6:20 AM, Jason Gunthorpe wrote:
+>>> On Thu, Oct 11, 2018 at 10:49:29AM +0200, Jan Kara wrote:
+>>>
+>>>>> This is a real worry.  If someone uses a mistaken put_page() then how
+>>>>> will that bug manifest at runtime?  Under what set of circumstances
+>>>>> will the kernel trigger the bug?
+>>>>
+>>>> At runtime such bug will manifest as a page that can never be evicted from
+>>>> memory. We could warn in put_page() if page reference count drops below
+>>>> bare minimum for given user pin count which would be able to catch some
+>>>> issues but it won't be 100% reliable. So at this point I'm more leaning
+>>>> towards making get_user_pages() return a different type than just
+>>>> struct page * to make it much harder for refcount to go wrong...
+>>>
+>>> At least for the infiniband code being used as an example here we take
+>>> the struct page from get_user_pages, then stick it in a sgl, and at
+>>> put_page time we get the page back out of the sgl via sg_page()
+>>>
+>>> So type safety will not help this case... I wonder how many other
+>>> users are similar? I think this is a pretty reasonable flow for DMA
+>>> with user pages.
+>>>
 >>
->> The idea is that LRU is not especially useful for this situation anyway,
->> so we'll just make it one or the other: either a page is dma-pinned, and
->> just hanging out doing RDMA most likely (and LRU is less meaningful during that
->> time), or it's possibly on an LRU list.
+>> That is true. The infiniband code, fortunately, never mixes the two page
+>> types into the same pool (or sg list), so it's actually an easier example
+>> than some other subsystems. But, yes, type safety doesn't help there. I can 
+>> take a moment to look around at the other areas, to quantify how much a type
+>> safety change might help.
 > 
-> Have you done any benchmarking what this does to direct I/O performance,
-> especially for small I/O directly to a (fast) block device?
+> Are most (all?) of the places working with SGLs?
+
+I finally put together a spreadsheet, in order to answer this sort of thing.
+Some notes:
+
+a) There are around 100 call sites of either get_user_pages*(), or indirect
+calls via iov_iter_get_pages*().
+
+b) There are only a few SGL users. Most are ad-hoc, instead: some loop that
+either can be collapsed nicely into the new put_user_pages*() APIs, or...
+cannot.
+
+c) The real problem is: around 20+ iov_iter_get_pages*() call sites. I need
+to change both the  iov_iter system a little bit, and also change the callers
+so that they don't pile all the gup-pinned pages into the same page** array
+that also contains other allocation types. This can be done, it just takes
+time, that's the good news.
+
+> 
+> Maybe we could just have a 'get_user_pages_to_sgl' and 'put_pages_sgl'
+> sort of interface that handled all this instead of trying to make
+> something that is struct page based?
+> 
+> It seems easier to get an extra bit for user/!user in the SGL
+> datastructure?
 > 
 
-Hi Christoph,
-
-I'm seeing about 20% slower in one case: lots of reads and writes of size 8192 B,
-on a fast NVMe device. My put_page() --> put_user_page() conversions are incomplete 
-and buggy yet, but I've got enough of them done to briefly run the test.
-
-One thing that occurs to me is that jumping on and off the LRU takes time, and
-if we limited this to 64-bit platforms, maybe we could use a real page flag? I 
-know that leaves 32-bit out in the cold, but...maybe use this slower approach
-for 32-bit, and the pure page flag for 64-bit? uggh, we shouldn't slow down anything
-by 20%. 
-
-Test program is below. I hope I didn't overlook something obvious, but it's 
-definitely possible, given my lack of experience with direct IO. 
-
-I'm preparing to send an updated RFC this week, that contains the feedback to date,
-and also many converted call sites as well, so that everyone can see what the whole
-(proposed) story would look like in its latest incarnation.
-
-#define _GNU_SOURCE
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
-
-const static unsigned BUF_SIZE       = 4096;
-static const unsigned FULL_DATA_SIZE = 2 * BUF_SIZE;
-
-void read_from_file(int fd, size_t how_much, char * buf)
-{
-	size_t bytes_read;
-
-	for (size_t index = 0; index < how_much; index += BUF_SIZE) {
-		bytes_read = read(fd, buf, BUF_SIZE);
-		if (bytes_read != BUF_SIZE) {
-			printf("reading file failed: %m\n");
-			exit(3);
-		}
-	}
-}
-
-void seek_to_start(int fd, char *caller)
-{
-	off_t result = lseek(fd, 0, SEEK_SET);
-	if (result == -1) {
-		printf("%s: lseek failed: %m\n", caller);
-		exit(4);
-	}
-}
-
-void write_to_file(int fd, size_t how_much, char * buf)
-{
-	int result;
-	for (size_t index = 0; index < how_much; index += BUF_SIZE) {
-		result = write(fd, buf, BUF_SIZE);
-		if (result < 0) {
-			printf("writing file failed: %m\n");
-			exit(3);
-		}
-	}
-}
-
-void read_and_write(int fd, size_t how_much, char * buf)
-{
-	seek_to_start(fd, "About to read");
-	read_from_file(fd, how_much, buf);
-
-	memset(buf, 'a', BUF_SIZE);
-
-	seek_to_start(fd, "About to write");
-	write_to_file(fd, how_much, buf);
-}
-
-int main(int argc, char *argv[])
-{
-	void *buf;
-	/*
-	 * O_DIRECT requires at least 512 B alighnment, but runs faster
-	 * (2.8 sec, vs. 3.5 sec) with 4096 B alignment.
-	 */
-	unsigned align = 4096;
-	posix_memalign(&buf, align, BUF_SIZE );
-
-	if (argc < 3) {
-		printf("Usage: %s <filename> <iterations>\n", argv[0]);
-		return 1;
-	}
-	char *filename = argv[1];
-	unsigned iterations = strtoul(argv[2], 0, 0);
-
-	/* Not using O_SYNC for now, anyway. */
-	int fd = open(filename, O_DIRECT | O_RDWR);
-	if (fd < 0) {
-		printf("Failed to open %s: %m\n", filename);
-		return 2;
-	}
-
-	printf("File: %s, data size: %u, interations: %u\n",
-		       filename, FULL_DATA_SIZE, iterations);
-
-	for (int count = 0; count < iterations; count++) {
-		read_and_write(fd, FULL_DATA_SIZE, buf);
-	}
-
-	close(fd);
-	return 0;
-}
-
+So at the moment I don't think we need this *_sgl interface. We need iov_iter*
+changes instead.
 
 thanks,
 -- 
