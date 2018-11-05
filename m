@@ -1,65 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C6AFD6B000A
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 11:14:32 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id k66so22612959qkf.1
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:14:32 -0800 (PST)
-Received: from omr2.cc.vt.edu (omr2.cc.ipv6.vt.edu. [2607:b400:92:8400:0:33:fb76:806e])
-        by mx.google.com with ESMTPS id r4-v6si1166333qkd.257.2018.11.05.08.14.32
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D07326B0269
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 11:19:32 -0500 (EST)
+Received: by mail-lj1-f200.google.com with SMTP id y5-v6so2809590ljj.19
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:19:32 -0800 (PST)
+Received: from forwardcorp1o.cmail.yandex.net (forwardcorp1o.cmail.yandex.net. [37.9.109.47])
+        by mx.google.com with ESMTPS id q12-v6si28822877ljg.5.2018.11.05.08.19.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Nov 2018 08:14:32 -0800 (PST)
-Received: from mr4.cc.vt.edu (mr4.cc.ipv6.vt.edu [IPv6:2607:b400:92:8300:0:7b:e2b1:6a29])
-	by omr2.cc.vt.edu (8.14.4/8.14.4) with ESMTP id wA5GEW6f022694
-	for <linux-mm@kvack.org>; Mon, 5 Nov 2018 11:14:32 -0500
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by mr4.cc.vt.edu (8.14.7/8.14.7) with ESMTP id wA5GEQQ7005449
-	for <linux-mm@kvack.org>; Mon, 5 Nov 2018 11:14:32 -0500
-Received: by mail-qk1-f198.google.com with SMTP id c84so22515477qkb.13
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:14:31 -0800 (PST)
-From: valdis.kletnieks@vt.edu
-Subject: Re: Creating compressed backing_store as swapfile
-In-Reply-To: <79d0c96a-a0a2-63ec-db91-42fd349d50c1@gmail.com>
-References: <CAOuPNLjuM5qq3go9ZFZcK0G5pQxTQb0DY36xu+8SL4vC4zJntw@mail.gmail.com> <20181105155815.i654i5ctmfpqhggj@angband.pl>
- <79d0c96a-a0a2-63ec-db91-42fd349d50c1@gmail.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1541434463_4003P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
+        Mon, 05 Nov 2018 08:19:30 -0800 (PST)
+Subject: Re: [PATCH 2] mm/kvmalloc: do not call kmalloc for size >
+ KMALLOC_MAX_SIZE
+References: <154106356066.887821.4649178319705436373.stgit@buzz>
+ <154106695670.898059.5301435081426064314.stgit@buzz>
+ <80074d2a-2f8d-a9db-892b-105c0ad7cd47@suse.cz>
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Message-ID: <d033db53-129d-c031-db78-ba7f9fed5bf4@yandex-team.ru>
+Date: Mon, 5 Nov 2018 19:19:28 +0300
+MIME-Version: 1.0
+In-Reply-To: <80074d2a-2f8d-a9db-892b-105c0ad7cd47@suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-CA
 Content-Transfer-Encoding: 7bit
-Date: Mon, 05 Nov 2018 11:14:23 -0500
-Message-ID: <42594.1541434463@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Austin S. Hemmelgarn" <ahferroin7@gmail.com>
-Cc: Adam Borowski <kilobyte@angband.pl>, Pintu Agarwal <pintu.ping@gmail.com>, linux-mm@kvack.org, open list <linux-kernel@vger.kernel.org>, kernelnewbies@kernelnewbies.org
-
---==_Exmh_1541434463_4003P
-Content-Type: text/plain; charset=us-ascii
-
-On Mon, 05 Nov 2018 11:07:12 -0500, "Austin S. Hemmelgarn" said:
-
-> Performance isn't _too_ bad for the BTRFS case though (I've actually
-> tested this before), just make sure you disable direct I/O mode on the
-> loop device, otherwise you run the risk of data corruption.
-
-Did you test that for random-access. or just sequential read/write?
-(Also, see the note in my other mail regarding doing a random-access
-write to the middle of the file...)
+To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org
 
 
---==_Exmh_1541434463_4003P
-Content-Type: application/pgp-signature
 
------BEGIN PGP SIGNATURE-----
-Comment: Exmh version 2.8.0 04/21/2017
+On 05.11.2018 16:03, Vlastimil Babka wrote:
+> On 11/1/18 11:09 AM, Konstantin Khlebnikov wrote:
+>> Allocations over KMALLOC_MAX_SIZE could be served only by vmalloc.
+>>
+>> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> 
+> Makes sense regardless of warnings stuff.
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> 
+> But it must be moved below the GFP_KERNEL check!
 
-iQEVAwUBW+BsX40DS38y7CIcAQKKYwf+JIV/RuxK/7zIKKuu0D7pKRGkvTgaqGWD
-zEMpdlcFYT3HXlXwL84EElJ4hiE3b1CZKfaDHqyYjLG+Q7WbY93n8Hmu9IFPH3F5
-riIz1q62Ik8jfpjKFEoRGibbPutIgCL5y7WAXtdDnGy+1LB3ifHl3qu/Z3AlJzp1
-zE8S5Du91C4qF+N0sPN9TyyKPu7+xGgGL3yYYpyRS58wMO6fxOLGwd82tNiv90mc
-4wka1FtNq88S+l9WhREscHIctAt57pHStkDcChiFGmpf8Fb6WzATMUWO3JCo4mKr
-Fd+zC9LB3/8hsaBxTYP88+MBp8qtj+2deUCW0U97pLs/Mz/rLaWK5w==
-=yLe4
------END PGP SIGNATURE-----
+But kmalloc cannot handle it regardless of GFP.
 
---==_Exmh_1541434463_4003P--
+Ok maybe write something like this
+
+if (size > KMALLOC_MAX_SIZE) {
+	if (WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL)
+		return NULL;
+	goto do_vmalloc;
+}
+
+or fix that uncertainty right in vmalloc
+
+For now comment in vmalloc declares
+
+  *	Any use of gfp flags outside of GFP_KERNEL should be consulted
+  *	with mm people.
+
+=)
+
+> 
+>> ---
+>>   mm/util.c |    4 ++++
+>>   1 file changed, 4 insertions(+)
+>>
+>> diff --git a/mm/util.c b/mm/util.c
+>> index 8bf08b5b5760..f5f04fa22814 100644
+>> --- a/mm/util.c
+>> +++ b/mm/util.c
+>> @@ -392,6 +392,9 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
+>>   	gfp_t kmalloc_flags = flags;
+>>   	void *ret;
+>>   
+>> +	if (size > KMALLOC_MAX_SIZE)
+>> +		goto fallback;
+>> +
+>>   	/*
+>>   	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
+>>   	 * so the given set of flags has to be compatible.
+>> @@ -422,6 +425,7 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
+>>   	if (ret || size <= PAGE_SIZE)
+>>   		return ret;
+>>   
+>> +fallback:
+>>   	return __vmalloc_node_flags_caller(size, node, flags,
+>>   			__builtin_return_address(0));
+>>   }
+>>
+> 
