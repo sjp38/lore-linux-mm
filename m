@@ -1,90 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D07326B0269
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 11:19:32 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id y5-v6so2809590ljj.19
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:19:32 -0800 (PST)
-Received: from forwardcorp1o.cmail.yandex.net (forwardcorp1o.cmail.yandex.net. [37.9.109.47])
-        by mx.google.com with ESMTPS id q12-v6si28822877ljg.5.2018.11.05.08.19.30
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 234C26B0269
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 11:29:19 -0500 (EST)
+Received: by mail-io1-f72.google.com with SMTP id c7-v6so10881224iod.1
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 08:29:19 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 12-v6sor10767954itm.13.2018.11.05.08.29.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Nov 2018 08:19:30 -0800 (PST)
-Subject: Re: [PATCH 2] mm/kvmalloc: do not call kmalloc for size >
- KMALLOC_MAX_SIZE
-References: <154106356066.887821.4649178319705436373.stgit@buzz>
- <154106695670.898059.5301435081426064314.stgit@buzz>
- <80074d2a-2f8d-a9db-892b-105c0ad7cd47@suse.cz>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <d033db53-129d-c031-db78-ba7f9fed5bf4@yandex-team.ru>
-Date: Mon, 5 Nov 2018 19:19:28 +0300
+        (Google Transport Security);
+        Mon, 05 Nov 2018 08:29:17 -0800 (PST)
+Subject: Re: Creating compressed backing_store as swapfile
+References: <CAOuPNLjuM5qq3go9ZFZcK0G5pQxTQb0DY36xu+8SL4vC4zJntw@mail.gmail.com>
+ <20181105155815.i654i5ctmfpqhggj@angband.pl>
+ <79d0c96a-a0a2-63ec-db91-42fd349d50c1@gmail.com>
+ <42594.1541434463@turing-police.cc.vt.edu>
+From: "Austin S. Hemmelgarn" <ahferroin7@gmail.com>
+Message-ID: <6a1f57b6-503c-48a2-689b-3c321cd6d29f@gmail.com>
+Date: Mon, 5 Nov 2018 11:28:49 -0500
 MIME-Version: 1.0
-In-Reply-To: <80074d2a-2f8d-a9db-892b-105c0ad7cd47@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-CA
+In-Reply-To: <42594.1541434463@turing-police.cc.vt.edu>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org
+To: valdis.kletnieks@vt.edu
+Cc: Adam Borowski <kilobyte@angband.pl>, Pintu Agarwal <pintu.ping@gmail.com>, linux-mm@kvack.org, open list <linux-kernel@vger.kernel.org>, kernelnewbies@kernelnewbies.org
 
-
-
-On 05.11.2018 16:03, Vlastimil Babka wrote:
-> On 11/1/18 11:09 AM, Konstantin Khlebnikov wrote:
->> Allocations over KMALLOC_MAX_SIZE could be served only by vmalloc.
->>
->> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+On 11/5/2018 11:14 AM, valdis.kletnieks@vt.edu wrote:
+> On Mon, 05 Nov 2018 11:07:12 -0500, "Austin S. Hemmelgarn" said:
 > 
-> Makes sense regardless of warnings stuff.
+>> Performance isn't _too_ bad for the BTRFS case though (I've actually
+>> tested this before), just make sure you disable direct I/O mode on the
+>> loop device, otherwise you run the risk of data corruption.
 > 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Did you test that for random-access. or just sequential read/write?
+> (Also, see the note in my other mail regarding doing a random-access
+> write to the middle of the file...)
 > 
-> But it must be moved below the GFP_KERNEL check!
+Actual swap usage.  About 16 months ago, I had been running a couple of 
+Intel NUC5PPYH boxes (Pentium N3700 CPU's, 4GB of DDR3-1333 RAM) for 
+some network prototyping.  On both, I had swap set up to use a file on 
+BTRFS via a loop device, and I made a point to test both with LZ4 inline 
+compression and without any compression, and saw negligible performance 
+differences (less than 1% in most cases).  It was, of course, 
+significantly worse than running on ext4, but on a system that's so 
+resource constrained that both storage and memory are at a premium to 
+this degree, the performance hit is probably going to be worth it.
 
-But kmalloc cannot handle it regardless of GFP.
-
-Ok maybe write something like this
-
-if (size > KMALLOC_MAX_SIZE) {
-	if (WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL)
-		return NULL;
-	goto do_vmalloc;
-}
-
-or fix that uncertainty right in vmalloc
-
-For now comment in vmalloc declares
-
-  *	Any use of gfp flags outside of GFP_KERNEL should be consulted
-  *	with mm people.
-
-=)
-
-> 
->> ---
->>   mm/util.c |    4 ++++
->>   1 file changed, 4 insertions(+)
->>
->> diff --git a/mm/util.c b/mm/util.c
->> index 8bf08b5b5760..f5f04fa22814 100644
->> --- a/mm/util.c
->> +++ b/mm/util.c
->> @@ -392,6 +392,9 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
->>   	gfp_t kmalloc_flags = flags;
->>   	void *ret;
->>   
->> +	if (size > KMALLOC_MAX_SIZE)
->> +		goto fallback;
->> +
->>   	/*
->>   	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
->>   	 * so the given set of flags has to be compatible.
->> @@ -422,6 +425,7 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
->>   	if (ret || size <= PAGE_SIZE)
->>   		return ret;
->>   
->> +fallback:
->>   	return __vmalloc_node_flags_caller(size, node, flags,
->>   			__builtin_return_address(0));
->>   }
->>
-> 
+Also, it's probably worth noting that BTRFS doesn't need to decompress 
+the entire file to read or write blocks in the middle, it splits the 
+file into 128k blocks and compresses each of those independent of the 
+others, so it can just decompress the 128k block that holds the actual 
+block that's needed.
