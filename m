@@ -1,92 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DCC026B02A7
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 21:28:04 -0500 (EST)
-Received: by mail-yb1-f200.google.com with SMTP id g14-v6so361403ybf.12
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 18:28:04 -0800 (PST)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id e195-v6si29735138ywa.54.2018.11.05.18.28.03
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 26E186B02A9
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 21:42:50 -0500 (EST)
+Received: by mail-it1-f199.google.com with SMTP id r127-v6so14289070itr.4
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 18:42:50 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id c13-v6si476694itc.46.2018.11.05.18.42.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Nov 2018 18:28:03 -0800 (PST)
-Date: Mon, 5 Nov 2018 18:27:47 -0800
+        Mon, 05 Nov 2018 18:42:49 -0800 (PST)
+Date: Mon, 5 Nov 2018 18:42:28 -0800
 From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: Re: [RFC PATCH v4 01/13] ktask: add documentation
-Message-ID: <20181106022747.dmtq24pvulcnv3lc@ca-dmjordan1.us.oracle.com>
+Subject: Re: [RFC PATCH v4 06/13] vfio: parallelize vfio_pin_map_dma
+Message-ID: <20181106024228.sxkn3s22mfkf7lcc@ca-dmjordan1.us.oracle.com>
 References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
- <20181105165558.11698-2-daniel.m.jordan@oracle.com>
- <7693f8a2-e180-520a-0d07-cc3090d2139f@infradead.org>
+ <20181105165558.11698-7-daniel.m.jordan@oracle.com>
+ <20181105145141.6f9937f6@w520.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <7693f8a2-e180-520a-0d07-cc3090d2139f@infradead.org>
+In-Reply-To: <20181105145141.6f9937f6@w520.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-mm@kvack.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, aaron.lu@intel.com, akpm@linux-foundation.org, alex.williamson@redhat.com, bsd@redhat.com, darrick.wong@oracle.com, dave.hansen@linux.intel.com, jgg@mellanox.com, jwadams@google.com, jiangshanlai@gmail.com, mhocko@kernel.org, mike.kravetz@oracle.com, Pavel.Tatashin@microsoft.com, prasad.singamsetty@oracle.com, steven.sistare@oracle.com, tim.c.chen@intel.com, tj@kernel.org, vbabka@suse.cz
+To: Alex Williamson <alex.williamson@redhat.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-mm@kvack.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, aaron.lu@intel.com, akpm@linux-foundation.org, bsd@redhat.com, darrick.wong@oracle.com, dave.hansen@linux.intel.com, jgg@mellanox.com, jwadams@google.com, jiangshanlai@gmail.com, mhocko@kernel.org, mike.kravetz@oracle.com, Pavel.Tatashin@microsoft.com, prasad.singamsetty@oracle.com, rdunlap@infradead.org, steven.sistare@oracle.com, tim.c.chen@intel.com, tj@kernel.org, vbabka@suse.cz
 
-On Mon, Nov 05, 2018 at 01:19:50PM -0800, Randy Dunlap wrote:
-> On 11/5/18 8:55 AM, Daniel Jordan wrote:
+On Mon, Nov 05, 2018 at 02:51:41PM -0700, Alex Williamson wrote:
+> On Mon,  5 Nov 2018 11:55:51 -0500
+> Daniel Jordan <daniel.m.jordan@oracle.com> wrote:
+> > +static int vfio_pin_map_dma_chunk(unsigned long start_vaddr,
+> > +				  unsigned long end_vaddr,
+> > +				  struct vfio_pin_args *args)
+> >  {
+> > -	dma_addr_t iova = dma->iova;
+> > -	unsigned long vaddr = dma->vaddr;
+> > -	size_t size = map_size;
+> > +	struct vfio_dma *dma = args->dma;
+> > +	dma_addr_t iova = dma->iova + (start_vaddr - dma->vaddr);
+> > +	unsigned long unmapped_size = end_vaddr - start_vaddr;
+> > +	unsigned long pfn, mapped_size = 0;
+> >  	long npage;
+> > -	unsigned long pfn, limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+> >  	int ret = 0;
+> >  
+> > -	while (size) {
+> > +	while (unmapped_size) {
+> >  		/* Pin a contiguous chunk of memory */
+> > -		npage = vfio_pin_pages_remote(dma, vaddr + dma->size,
+> > -					      size >> PAGE_SHIFT, &pfn, limit);
+> > +		npage = vfio_pin_pages_remote(dma, start_vaddr + mapped_size,
+> > +					      unmapped_size >> PAGE_SHIFT,
+> > +					      &pfn, args->limit, args->mm);
+> >  		if (npage <= 0) {
+> >  			WARN_ON(!npage);
+> >  			ret = (int)npage;
+> > @@ -1052,22 +1067,50 @@ static int vfio_pin_map_dma(struct vfio_iommu *iommu, struct vfio_dma *dma,
+> >  		}
+> >  
+> >  		/* Map it! */
+> > -		ret = vfio_iommu_map(iommu, iova + dma->size, pfn, npage,
+> > -				     dma->prot);
+> > +		ret = vfio_iommu_map(args->iommu, iova + mapped_size, pfn,
+> > +				     npage, dma->prot);
+> >  		if (ret) {
+> > -			vfio_unpin_pages_remote(dma, iova + dma->size, pfn,
+> > +			vfio_unpin_pages_remote(dma, iova + mapped_size, pfn,
+> >  						npage, true);
+> >  			break;
+> >  		}
+> >  
+> > -		size -= npage << PAGE_SHIFT;
+> > -		dma->size += npage << PAGE_SHIFT;
+> > +		unmapped_size -= npage << PAGE_SHIFT;
+> > +		mapped_size   += npage << PAGE_SHIFT;
+> >  	}
+> >  
+> > +	return (ret == 0) ? KTASK_RETURN_SUCCESS : ret;
 > 
-> Hi,
+> Overall I'm a big fan of this, but I think there's an undo problem
+> here.  Per 03/13, kc_undo_func is only called for successfully
+> completed chunks and each kc_thread_func should handle cleanup of any
+> intermediate work before failure.  That's not done here afaict.  Should
+> we be calling the vfio_pin_map_dma_undo() manually on the completed
+> range before returning error?
+
+Yes, we should be, thanks very much for catching this.
+
+At least I documented what I didn't do?  :)
+
 > 
-> > +Resource Limits
-> > +===============
+> > +}
 > > +
-> > +ktask has resource limits on the number of work items it sends to workqueue.
-> 
->                                                                   to a workqueue.
-> or:                                                               to workqueues.
-
-Ok, I'll do "to workqueues" since ktask uses two internally (NUMA-aware and
-non-NUMA-aware).
-
-> 
-> > +In ktask, a workqueue item is a thread that runs chunks of the task until the
-> > +task is finished.
+> > +static void vfio_pin_map_dma_undo(unsigned long start_vaddr,
+> > +				  unsigned long end_vaddr,
+> > +				  struct vfio_pin_args *args)
+> > +{
+> > +	struct vfio_dma *dma = args->dma;
+> > +	dma_addr_t iova = dma->iova + (start_vaddr - dma->vaddr);
+> > +	dma_addr_t end  = dma->iova + (end_vaddr   - dma->vaddr);
 > > +
-> > +These limits support the different ways ktask uses workqueues:
-> > + - ktask_run to run threads on the calling thread's node.
-> > + - ktask_run_numa to run threads on the node(s) specified.
-> > + - ktask_run_numa with nid=NUMA_NO_NODE to run threads on any node in the
-> > +   system.
+> > +	vfio_unmap_unpin(args->iommu, args->dma, iova, end, true);
+> > +}
 > > +
-> > +To support these different ways of queueing work while maintaining an efficient
-> > +concurrency level, we need both system-wide and per-node limits on the number
+> > +static int vfio_pin_map_dma(struct vfio_iommu *iommu, struct vfio_dma *dma,
+> > +			    size_t map_size)
+> > +{
+> > +	unsigned long limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+> > +	int ret = 0;
+> > +	struct vfio_pin_args args = { iommu, dma, limit, current->mm };
+> > +	/* Stay on PMD boundary in case THP is being used. */
+> > +	DEFINE_KTASK_CTL(ctl, vfio_pin_map_dma_chunk, &args, PMD_SIZE);
 > 
-> I would prefer to refer to ktask as ktask instead of "we", so
-> s/we need/ktask needs/
+> PMD_SIZE chunks almost seems too convenient, I wonder a) is that really
+> enough work per thread, and b) is this really successfully influencing
+> THP?  Thanks,
 
-Good idea, I'll change it.
+Yes, you're right on both counts.  I'd been using PUD_SIZE for a while in
+testing and meant to switch it back to KTASK_MEM_CHUNK (128M) but used PMD_SIZE
+by mistake.  PUD_SIZE chunks have made thread finishing times too spread out
+in some cases, so 128M seems to be a reasonable compromise.
 
-> > +of threads.  Without per-node limits, a node might become oversubscribed
-> > +despite ktask staying within the system-wide limit, and without a system-wide
-> > +limit, we can't properly account for work that can run on any node.
-> 
-> s/we/ktask/
+Thanks for the thorough and quick review.
 
-Ok.
-
-> > +
-> > +The system-wide limit is based on the total number of CPUs, and the per-node
-> > +limit on the CPU count for each node.  A per-node work item counts against the
-> > +system-wide limit.  Workqueue's max_active can't accommodate both types of
-> > +limit, no matter how many workqueues are used, so ktask implements its own.
-> > +
-> > +If a per-node limit is reached, the work item is allowed to run anywhere on the
-> > +machine to avoid overwhelming the node.  If the global limit is also reached,
-> > +ktask won't queue additional work items until we fall below the limit again.
-> 
-> s/we fall/ktask falls/
-> or s/we fall/it falls/
-
-'ktask.'  Will change.
-
-> > +
-> > +These limits apply only to workqueue items--that is, helper threads beyond the
-> > +one starting the task.  That way, one thread per task is always allowed to run.
-> 
-> 
-> thanks.
-
-Appreciate the feedback!
+Daniel
