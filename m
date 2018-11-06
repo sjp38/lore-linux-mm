@@ -1,82 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 787F36B02FE
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:55:35 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id g16-v6so5412865eds.20
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:55:35 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o58-v6sor27771723edc.21.2018.11.06.01.55.33
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BF1C6B0300
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:57:03 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id l200-v6so3498187ita.3
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:57:03 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id p127-v6si14625629iof.31.2018.11.06.01.57.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Nov 2018 01:55:33 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm, memory_hotplug: check zone_movable in has_unmovable_pages
-Date: Tue,  6 Nov 2018 10:55:24 +0100
-Message-Id: <20181106095524.14629-1-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Nov 2018 01:57:02 -0800 (PST)
+Subject: Re: [PATCH 3/3] lockdep: Use line-buffered printk() for lockdep
+ messages.
+References: <1541165517-3557-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <1541165517-3557-3-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20181102133629.GN3178@hirez.programming.kicks-ass.net>
+ <20181106083856.lhmibz6vrgtkqsj7@pathway.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <b725c54e-a5b7-12fe-8269-8beccc4c88ce@i-love.sakura.ne.jp>
+Date: Tue, 6 Nov 2018 18:56:03 +0900
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181106083856.lhmibz6vrgtkqsj7@pathway.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Baoquan He <bhe@redhat.com>, Oscar Salvador <OSalvador@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Petr Mladek <pmladek@suse.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dmitriy Vyukov <dvyukov@google.com>, Steven Rostedt <rostedt@goodmis.org>, Alexander Potapenko <glider@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>
 
-From: Michal Hocko <mhocko@suse.com>
+On 2018/11/06 17:38, Petr Mladek wrote:
+> If you would want to avoid buffering, you could set the number
+> of buffers to zero. Then it would always fallback to
+> the direct printk().
 
-Page state checks are racy. Under a heavy memory workload (e.g. stress
--m 200 -t 2h) it is quite easy to hit a race window when the page is
-allocated but its state is not fully populated yet. A debugging patch to
-dump the struct page state shows
-: [  476.575516] has_unmovable_pages: pfn:0x10dfec00, found:0x1, count:0x0
-: [  476.582103] page:ffffea0437fb0000 count:1 mapcount:1 mapping:ffff880e05239841 index:0x7f26e5000 compound_mapcount: 1
-: [  476.592645] flags: 0x5fffffc0090034(uptodate|lru|active|head|swapbacked)
+  1 lock held by swapper/1/0:
+   #0: 
+   (
+  rcu_read_lock
+  ){....}
+  , at: trace_call_bpf+0xf8/0x640 kernel/trace/bpf_trace.c:46
 
-Note that the state has been checked for both PageLRU and PageSwapBacked
-already. Closing this race completely would require some sort of retry
-logic. This can be tricky and error prone (think of potential endless
-or long taking loops).
+is not welcomed and
 
-Workaround this problem for movable zones at least. Such a zone should
-only contain movable pages. 15c30bc09085 ("mm, memory_hotplug: make
-has_unmovable_pages more robust") has told us that this is not strictly
-true though. Bootmem pages should be marked reserved though so we can
-move the original check after the PageReserved check. Pages from other
-zones are still prone to races but we even do not pretend that memory
-hotremove works for those so pre-mature failure doesn't hurt that much.
+  1 lock held by swapper/1/0:
+   #0:  (rcu_read_lock){....}, at: trace_call_bpf+0xf8/0x640 kernel/trace/bpf_trace.c:46
 
-Reported-and-tested-by: Baoquan He <bhe@redhat.com>
-Acked-by: Baoquan He <bhe@redhat.com>
-Fixes: "mm, memory_hotplug: make has_unmovable_pages more robust")
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
+is welcomed.
 
-Hi,
-this has been reported [1] and we have tried multiple things to address
-the issue. The only reliable way was to reintroduce the movable zone
-check into has_unmovable_pages. This time it should be safe also for
-the bug originally fixed by 15c30bc09085.
-
-[1] http://lkml.kernel.org/r/20181101091055.GA15166@MiWiFi-R3L-srv
- mm/page_alloc.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 863d46da6586..c6d900ee4982 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7788,6 +7788,14 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 		if (PageReserved(page))
- 			goto unmovable;
- 
-+		/*
-+		 * If the zone is movable and we have ruled out all reserved
-+		 * pages then it should be reasonably safe to assume the rest
-+		 * is movable.
-+		 */
-+		if (zone_idx(zone) == ZONE_MOVABLE)
-+			continue;
-+
- 		/*
- 		 * Hugepages are not in LRU lists, but they're movable.
- 		 * We need not scan over tail pages bacause we don't
--- 
-2.19.1
+If you want to avoid fallback to direct printk(), please allocate on-stack
+buffer with appropriate size. Since lockdep splat may happen when kernel
+stack is already tight, blindly allocating large buffer on the stack is
+not good.
