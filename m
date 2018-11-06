@@ -1,46 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 797096B029B
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 19:32:54 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id n22-v6so11143724pff.2
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 16:32:54 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q204sor12410469pgq.70.2018.11.05.16.32.53
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Nov 2018 16:32:53 -0800 (PST)
-Message-ID: <1541464370.196084.166.camel@acm.org>
-Subject: Re: [PATCH] slab.h: Avoid using & for logical and of booleans
-From: Bart Van Assche <bvanassche@acm.org>
-Date: Mon, 05 Nov 2018 16:32:50 -0800
-In-Reply-To: <CAKgT0Ue59US_f-cZtoA=yVbFJ03ca5OMce2opUdQcsvgd8LWMw@mail.gmail.com>
-References: <20181105204000.129023-1-bvanassche@acm.org>
-	 <20181105131305.574d85469f08a4b76592feb6@linux-foundation.org>
-	 <1541454489.196084.157.camel@acm.org>
-	 <ce6faf63-1661-abe5-16a6-8c19cc9f6689@rasmusvillemoes.dk>
-	 <1541457654.196084.159.camel@acm.org>
-	 <CAKgT0Udci4Ai4OD20NSRuDckE_G4RHma3Bg6H1Um6N9Se_zPew@mail.gmail.com>
-	 <1541462466.196084.163.camel@acm.org>
-	 <CAKgT0Ue59US_f-cZtoA=yVbFJ03ca5OMce2opUdQcsvgd8LWMw@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-7"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 67ED36B029D
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 19:35:16 -0500 (EST)
+Received: by mail-oi1-f197.google.com with SMTP id r68-v6so7699493oie.12
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 16:35:16 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id d36si10115556otd.53.2018.11.05.16.35.15
+        for <linux-mm@kvack.org>;
+        Mon, 05 Nov 2018 16:35:15 -0800 (PST)
+Date: Tue, 6 Nov 2018 00:35:10 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH] mm/thp: Correctly differentiate between mapped THP and
+ PMD migration entry
+Message-ID: <20181106003509.GA27283@brain-police>
+References: <1539057538-27446-1-git-send-email-anshuman.khandual@arm.com>
+ <7E8E6B14-D5C4-4A30-840D-A7AB046517FB@cs.rutgers.edu>
+ <84509db4-13ce-fd53-e924-cc4288d493f7@arm.com>
+ <1968F276-5D96-426B-823F-38F6A51FB465@cs.rutgers.edu>
+ <5e0e772c-7eef-e75c-2921-e80d4fbe8324@arm.com>
+ <2398C491-E1DA-4B3C-B60A-377A09A02F1A@cs.rutgers.edu>
+ <20181017020930.GN30832@redhat.com>
+ <9d9aaf03-617a-d383-7d59-8b98fdd3c1e7@arm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <9d9aaf03-617a-d383-7d59-8b98fdd3c1e7@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: linux@rasmusvillemoes.dk, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Christoph Lameter <cl@linux.com>, guro@fb.com, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm <linux-mm@kvack.org>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Mon, 2018-11-05 at 16:11 -0800, Alexander Duyck wrote:
-+AD4 If we really don't care then why even bother with the switch statement
-+AD4 anyway? It seems like you could just do one ternary operator and be
-+AD4 done with it. Basically all you need is:
-+AD4 return (defined(CONFIG+AF8-ZONE+AF8-DMA) +ACYAJg (flags +ACY +AF8AXw-GFP+AF8-DMA)) ? KMALLOC+AF8-DMA :
-+AD4         (flags +ACY +AF8AXw-GFP+AF8-RECLAIMABLE) ? KMALLOC+AF8-RECLAIM : 0+ADs
-+AD4 
-+AD4 Why bother with all the extra complexity of the switch statement?
+On Fri, Nov 02, 2018 at 11:45:00AM +0530, Anshuman Khandual wrote:
+> On 10/17/2018 07:39 AM, Andrea Arcangeli wrote:
+> > What we need to do during split is an invalidate of the huge TLB.
+> > There's no pmd_trans_splitting anymore, so we only clear the present
+> > bit in the PTE despite pmd_present still returns true (just like
+> > PROT_NONE, nothing new in this respect). pmd_present never meant the
+> 
+> On arm64, the problem is that pmd_present() is tied with pte_present() which
+> checks for PTE_VALID (also PTE_PROT_NONE) but which gets cleared during PTE
+> invalidation. pmd_present() returns false just after the first step of PMD
+> splitting. So pmd_present() needs to be decoupled from PTE_VALID which is
+> same as PMD_SECT_VALID and instead should depend upon a pte bit which sticks
+> around like PAGE_PSE as in case of x86. I am working towards a solution.
 
-I don't think that defined() can be used in a C expression. Hence the
-IS+AF8-ENABLED() macro. If you fix that, leave out four superfluous parentheses,
-test your patch, post that patch and cc me then I will add my Reviewed-by.
+Could we not just go via a PROT_NONE mapping during the split, instead of
+having to allocate a new software bit to treat these invalid ptes as
+present?
 
-Bart.
+Will
