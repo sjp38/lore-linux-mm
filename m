@@ -1,213 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 814836B02D2
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 03:31:34 -0500 (EST)
-Received: by mail-lf1-f70.google.com with SMTP id f16so1481439lfc.3
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 00:31:34 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g88-v6sor26839908lji.0.2018.11.06.00.31.32
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 12E676B02D4
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 03:37:06 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id q185-v6so3747202ljb.14
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 00:37:06 -0800 (PST)
+Received: from forwardcorp1g.cmail.yandex.net (forwardcorp1g.cmail.yandex.net. [2a02:6b8:0:1465::fd])
+        by mx.google.com with ESMTPS id u68-v6si13901063lja.150.2018.11.06.00.37.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Nov 2018 00:31:32 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Nov 2018 00:37:04 -0800 (PST)
+Subject: Re: [PATCH v1 0/4]mm: convert totalram_pages, totalhigh_pages and
+ managed pages to atomic
+References: <1540551662-26458-1-git-send-email-arunks@codeaurora.org>
+ <9b210d4cc9925caf291412d7d45f16d7@codeaurora.org>
+ <63d9f48c-e39f-d345-0fb6-2f04afe769a2@yandex-team.ru>
+ <08a61c003eed0280fd82f6200debcbca@codeaurora.org>
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Message-ID: <10c88df6-dbb1-7490-628c-055d59b5ad8e@yandex-team.ru>
+Date: Tue, 6 Nov 2018 11:37:02 +0300
 MIME-Version: 1.0
-References: <20181106074934.GA27620@jordon-HP-15-Notebook-PC> <20181106082611.GB28505@rapoport-lnx>
-In-Reply-To: <20181106082611.GB28505@rapoport-lnx>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Tue, 6 Nov 2018 14:04:54 +0530
-Message-ID: <CAFqt6zaKHXbWbBhK+bCeF-0s5uPH+6hGiU+Xp_6v_2A+xzHe2A@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: Create the new vm_fault_t type
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <08a61c003eed0280fd82f6200debcbca@codeaurora.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-CA
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rppt@linux.ibm.com
-Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, vbabka@suse.cz, riel@redhat.com, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Arun KS <arunks@codeaurora.org>
+Cc: keescook@chromium.org, minchan@kernel.org, getarunks@gmail.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, julia.lawall@lip6.fr
 
-On Tue, Nov 6, 2018 at 1:56 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
->
-> On Tue, Nov 06, 2018 at 01:19:34PM +0530, Souptick Joarder wrote:
-> > Page fault handlers are supposed to return VM_FAULT codes,
-> > but some drivers/file systems mistakenly return error
-> > numbers. Now that all drivers/file systems have been converted
-> > to use the vm_fault_t return type, change the type definition
-> > to no longer be compatible with 'int'. By making it an unsigned
-> > int, the function prototype becomes incompatible with a function
-> > which returns int. Sparse will detect any attempts to return a
-> > value which is not a VM_FAULT code.
-> >
-> > VM_FAULT_SET_HINDEX and VM_FAULT_GET_HINDEX values are changed
-> > to avoid conflict with other VM_FAULT codes.
-> >
-> > Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-> > ---
-> > v2: Updated the change log and corrected the document part.
-> >     name added to the enum that kernel-doc able to parse it.
-> >
-> >  include/linux/mm.h       | 46 ------------------------------
-> >  include/linux/mm_types.h | 73 +++++++++++++++++++++++++++++++++++++++++++++++-
-> >  2 files changed, 72 insertions(+), 47 deletions(-)
-> >
-> > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > index fcf9cc9..511a3ce 100644
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -1267,52 +1267,6 @@ static inline void clear_page_pfmemalloc(struct page *page)
-> >  }
-> >
-> >  /*
-> > - * Different kinds of faults, as returned by handle_mm_fault().
-> > - * Used to decide whether a process gets delivered SIGBUS or
-> > - * just gets major/minor fault counters bumped up.
-> > - */
-> > -
-> > -#define VM_FAULT_OOM 0x0001
-> > -#define VM_FAULT_SIGBUS      0x0002
-> > -#define VM_FAULT_MAJOR       0x0004
-> > -#define VM_FAULT_WRITE       0x0008  /* Special case for get_user_pages */
-> > -#define VM_FAULT_HWPOISON 0x0010     /* Hit poisoned small page */
-> > -#define VM_FAULT_HWPOISON_LARGE 0x0020  /* Hit poisoned large page. Index encoded in upper bits */
-> > -#define VM_FAULT_SIGSEGV 0x0040
-> > -
-> > -#define VM_FAULT_NOPAGE      0x0100  /* ->fault installed the pte, not return page */
-> > -#define VM_FAULT_LOCKED      0x0200  /* ->fault locked the returned page */
-> > -#define VM_FAULT_RETRY       0x0400  /* ->fault blocked, must retry */
-> > -#define VM_FAULT_FALLBACK 0x0800     /* huge page fault failed, fall back to small */
-> > -#define VM_FAULT_DONE_COW   0x1000   /* ->fault has fully handled COW */
-> > -#define VM_FAULT_NEEDDSYNC  0x2000   /* ->fault did not modify page tables
-> > -                                      * and needs fsync() to complete (for
-> > -                                      * synchronous page faults in DAX) */
-> > -
-> > -#define VM_FAULT_ERROR       (VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | \
-> > -                      VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE | \
-> > -                      VM_FAULT_FALLBACK)
-> > -
-> > -#define VM_FAULT_RESULT_TRACE \
-> > -     { VM_FAULT_OOM,                 "OOM" }, \
-> > -     { VM_FAULT_SIGBUS,              "SIGBUS" }, \
-> > -     { VM_FAULT_MAJOR,               "MAJOR" }, \
-> > -     { VM_FAULT_WRITE,               "WRITE" }, \
-> > -     { VM_FAULT_HWPOISON,            "HWPOISON" }, \
-> > -     { VM_FAULT_HWPOISON_LARGE,      "HWPOISON_LARGE" }, \
-> > -     { VM_FAULT_SIGSEGV,             "SIGSEGV" }, \
-> > -     { VM_FAULT_NOPAGE,              "NOPAGE" }, \
-> > -     { VM_FAULT_LOCKED,              "LOCKED" }, \
-> > -     { VM_FAULT_RETRY,               "RETRY" }, \
-> > -     { VM_FAULT_FALLBACK,            "FALLBACK" }, \
-> > -     { VM_FAULT_DONE_COW,            "DONE_COW" }, \
-> > -     { VM_FAULT_NEEDDSYNC,           "NEEDDSYNC" }
-> > -
-> > -/* Encode hstate index for a hwpoisoned large page */
-> > -#define VM_FAULT_SET_HINDEX(x) ((x) << 12)
-> > -#define VM_FAULT_GET_HINDEX(x) (((x) >> 12) & 0xf)
-> > -
-> > -/*
-> >   * Can be called by the pagefault handler when it gets a VM_FAULT_OOM.
-> >   */
-> >  extern void pagefault_out_of_memory(void);
-> > diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> > index 5ed8f62..beee607 100644
-> > --- a/include/linux/mm_types.h
-> > +++ b/include/linux/mm_types.h
-> > @@ -22,7 +22,6 @@
-> >  #endif
-> >  #define AT_VECTOR_SIZE (2*(AT_VECTOR_SIZE_ARCH + AT_VECTOR_SIZE_BASE + 1))
-> >
-> > -typedef int vm_fault_t;
-> >
-> >  struct address_space;
-> >  struct mem_cgroup;
-> > @@ -609,6 +608,78 @@ static inline bool mm_tlb_flush_nested(struct mm_struct *mm)
-> >
-> >  struct vm_fault;
-> >
-> > +/**
-> > + * typedef vm_fault_t - Return type for page fault handlers.
-> > + *
-> > + * Page fault handlers return a bitmask of %VM_FAULT values.
-> > + */
-> > +typedef __bitwise unsigned int vm_fault_t;
-> > +
-> > +/**
-> > + * enum - VM_FAULT code
->
-> It should be 'enum vm_fault_reason' here.
 
-Sorry, missed it.
 
-> A more elaborate brief description would also be nice.
+On 06.11.2018 11:30, Arun KS wrote:
+> On 2018-11-06 13:47, Konstantin Khlebnikov wrote:
+>> On 06.11.2018 8:38, Arun KS wrote:
+>>> Any comments?
+>>
+>> Looks good.
+>> Except unclear motivation behind this change.
+>> This should be in comment of one of patch.
+> 
+> totalram_pages, zone->managed_pages and totalhigh_pages are sometimes modified outside managed_page_count_lock. Hence convert these variable 
+> to atomic to avoid readers potentially seeing a store tear.
 
-This much description is not sufficient to explain the enum ?
->
-> > + *
-> > + * Page fault handlers return a bitmask of these values to tell
-> > + * the core VM what happened when handling the fault. Used to decide
-> > + * whether a process gets delivered SIGBUS or just gets major/minor
-> > + * fault counters bumped up.
-> > + *
-> > + * @VM_FAULT_OOM:            Out Of Memory
-> > + * @VM_FAULT_SIGBUS:         Bad access
-> > + * @VM_FAULT_MAJOR:          Page read from storage
-> > + * @VM_FAULT_WRITE:          Special case for get_user_pages
-> > + * @VM_FAULT_HWPOISON:               Hit poisoned small page
-> > + * @VM_FAULT_HWPOISON_LARGE: Hit poisoned large page. Index encoded
-> > + *                           in upper bits
-> > + * @VM_FAULT_SIGSEGV:                segmentation fault
-> > + * @VM_FAULT_NOPAGE:         ->fault installed the pte, not return page
-> > + * @VM_FAULT_LOCKED:         ->fault locked the returned page
-> > + * @VM_FAULT_RETRY:          ->fault blocked, must retry
-> > + * @VM_FAULT_FALLBACK:               huge page fault failed, fall back to small
-> > + * @VM_FAULT_DONE_COW:               ->fault has fully handled COW
-> > + * @VM_FAULT_NEEDDSYNC:              ->fault did not modify page tables and needs
-> > + *                           fsync() to complete (for synchronous page faults
-> > + *                           in DAX)
-> > + */
-> > +enum vm_fault_reason {
-> > +     VM_FAULT_OOM            = (__force vm_fault_t)0x000001,
-> > +     VM_FAULT_SIGBUS         = (__force vm_fault_t)0x000002,
-> > +     VM_FAULT_MAJOR          = (__force vm_fault_t)0x000004,
-> > +     VM_FAULT_WRITE          = (__force vm_fault_t)0x000008,
-> > +     VM_FAULT_HWPOISON       = (__force vm_fault_t)0x000010,
-> > +     VM_FAULT_HWPOISON_LARGE = (__force vm_fault_t)0x000020,
-> > +     VM_FAULT_SIGSEGV        = (__force vm_fault_t)0x000040,
-> > +     VM_FAULT_NOPAGE         = (__force vm_fault_t)0x000100,
-> > +     VM_FAULT_LOCKED         = (__force vm_fault_t)0x000200,
-> > +     VM_FAULT_RETRY          = (__force vm_fault_t)0x000400,
-> > +     VM_FAULT_FALLBACK       = (__force vm_fault_t)0x000800,
-> > +     VM_FAULT_DONE_COW       = (__force vm_fault_t)0x001000,
-> > +     VM_FAULT_NEEDDSYNC      = (__force vm_fault_t)0x002000,
-> > +     VM_FAULT_HINDEX_MASK    = (__force vm_fault_t)0x0f0000,
-> > +};
-> > +
-> > +/* Encode hstate index for a hwpoisoned large page */
-> > +#define VM_FAULT_SET_HINDEX(x) ((__force vm_fault_t)((x) << 16))
-> > +#define VM_FAULT_GET_HINDEX(x) (((x) >> 16) & 0xf)
-> > +
-> > +#define VM_FAULT_ERROR (VM_FAULT_OOM | VM_FAULT_SIGBUS |     \
-> > +                     VM_FAULT_SIGSEGV | VM_FAULT_HWPOISON |  \
-> > +                     VM_FAULT_HWPOISON_LARGE | VM_FAULT_FALLBACK)
-> > +
-> > +#define VM_FAULT_RESULT_TRACE \
-> > +     { VM_FAULT_OOM,                 "OOM" },        \
-> > +     { VM_FAULT_SIGBUS,              "SIGBUS" },     \
-> > +     { VM_FAULT_MAJOR,               "MAJOR" },      \
-> > +     { VM_FAULT_WRITE,               "WRITE" },      \
-> > +     { VM_FAULT_HWPOISON,            "HWPOISON" },   \
-> > +     { VM_FAULT_HWPOISON_LARGE,      "HWPOISON_LARGE" },     \
-> > +     { VM_FAULT_SIGSEGV,             "SIGSEGV" },    \
-> > +     { VM_FAULT_NOPAGE,              "NOPAGE" },     \
-> > +     { VM_FAULT_LOCKED,              "LOCKED" },     \
-> > +     { VM_FAULT_RETRY,               "RETRY" },      \
-> > +     { VM_FAULT_FALLBACK,            "FALLBACK" },   \
-> > +     { VM_FAULT_DONE_COW,            "DONE_COW" },   \
-> > +     { VM_FAULT_NEEDDSYNC,           "NEEDDSYNC" }
-> > +
-> >  struct vm_special_mapping {
-> >       const char *name;       /* The name, e.g. "[vdso]". */
-> >
-> > --
-> > 1.9.1
-> >
->
-> --
-> Sincerely yours,
-> Mike.
->
+So, this is just theoretical issue or splat from sanitizer.
+After boot memory online\offline are strictly serialized by rw-semaphore.
+
+> 
+> Will update the comment.
+> 
+> Regards,
+> Arun
+> 
+>>
+>> Reviewed-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+>>
+>>>
+>>> Regards,
+>>> Arun
+>>>
+>>> On 2018-10-26 16:30, Arun KS wrote:
+>>>> This series convert totalram_pages, totalhigh_pages and
+>>>> zone->managed_pages to atomic variables.
+>>>>
+>>>> The patch was comiple tested on x86(x86_64_defconfig & i386_defconfig)
+>>>> on tip of linux-mmotm. And memory hotplug tested on arm64, but on an
+>>>> older version of kernel.
+>>>>
+>>>> Arun KS (4):
+>>>> A  mm: Fix multiple evaluvations of totalram_pages and managed_pages
+>>>> A  mm: Convert zone->managed_pages to atomic variable
+>>>> A  mm: convert totalram_pages and totalhigh_pages variables to atomic
+>>>> A  mm: Remove managed_page_count spinlock
+>>>>
+>>>> A arch/csky/mm/init.cA A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>>> A arch/powerpc/platforms/pseries/cmm.cA A A A A A A A A  | 10 ++--
+>>>> A arch/s390/mm/init.cA A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A arch/um/kernel/mem.cA A A A A A A A A A A A A A A A A A A A A A A A A  |A  3 +-
+>>>> A arch/x86/kernel/cpu/microcode/core.cA A A A A A A A A  |A  5 +-
+>>>> A drivers/char/agp/backend.cA A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>>> A drivers/gpu/drm/amd/amdkfd/kfd_crat.cA A A A A A A A  |A  2 +-
+>>>> A drivers/gpu/drm/i915/i915_gem.cA A A A A A A A A A A A A A  |A  2 +-
+>>>> A drivers/gpu/drm/i915/selftests/i915_gem_gtt.c |A  4 +-
+>>>> A drivers/hv/hv_balloon.cA A A A A A A A A A A A A A A A A A A A A A  | 19 +++----
+>>>> A drivers/md/dm-bufio.cA A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A drivers/md/dm-crypt.cA A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A drivers/md/dm-integrity.cA A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A drivers/md/dm-stats.cA A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A drivers/media/platform/mtk-vpu/mtk_vpu.cA A A A A  |A  2 +-
+>>>> A drivers/misc/vmw_balloon.cA A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A drivers/parisc/ccio-dma.cA A A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>>> A drivers/parisc/sba_iommu.cA A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>>> A drivers/staging/android/ion/ion_system_heap.c |A  2 +-
+>>>> A drivers/xen/xen-selfballoon.cA A A A A A A A A A A A A A A A  |A  6 +--
+>>>> A fs/ceph/super.hA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A fs/file_table.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  7 +--
+>>>> A fs/fuse/inode.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A fs/nfs/write.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A fs/nfsd/nfscache.cA A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A fs/ntfs/malloc.hA A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A fs/proc/base.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A include/linux/highmem.hA A A A A A A A A A A A A A A A A A A A A A  | 28 ++++++++++-
+>>>> A include/linux/mm.hA A A A A A A A A A A A A A A A A A A A A A A A A A A  | 27 +++++++++-
+>>>> A include/linux/mmzone.hA A A A A A A A A A A A A A A A A A A A A A A  | 15 +++---
+>>>> A include/linux/swap.hA A A A A A A A A A A A A A A A A A A A A A A A A  |A  1 -
+>>>> A kernel/fork.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  5 +-
+>>>> A kernel/kexec_core.cA A A A A A A A A A A A A A A A A A A A A A A A A A  |A  5 +-
+>>>> A kernel/power/snapshot.cA A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A lib/show_mem.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A mm/highmem.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>>> A mm/huge_memory.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A mm/kasan/quarantine.cA A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A mm/memblock.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  6 +--
+>>>> A mm/memory_hotplug.cA A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>>> A mm/mm_init.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A mm/oom_kill.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A mm/page_alloc.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  | 71 +++++++++++++--------------
+>>>> A mm/shmem.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  7 +--
+>>>> A mm/slab.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A mm/swap.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A mm/util.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A mm/vmalloc.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>>> A mm/vmstat.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>>> A mm/workingset.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A mm/zswap.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>>> A net/dccp/proto.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  7 +--
+>>>> A net/decnet/dn_route.cA A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A net/ipv4/tcp_metrics.cA A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>>> A net/netfilter/nf_conntrack_core.cA A A A A A A A A A A A  |A  7 +--
+>>>> A net/netfilter/xt_hashlimit.cA A A A A A A A A A A A A A A A A  |A  5 +-
+>>>> A net/sctp/protocol.cA A A A A A A A A A A A A A A A A A A A A A A A A A  |A  7 +--
+>>>> A security/integrity/ima/ima_kexec.cA A A A A A A A A A A  |A  2 +-
+>>>> A 58 files changed, 195 insertions(+), 144 deletions(-)
