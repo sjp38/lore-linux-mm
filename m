@@ -1,59 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F4CC6B0392
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 15:08:27 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id g16-v6so6364988eds.20
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 12:08:27 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d30-v6si820295ejo.242.2018.11.06.12.08.25
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F0C26B0393
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 15:26:52 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id d6-v6so6102661pfn.19
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 12:26:52 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id f19-v6si46581496pgj.334.2018.11.06.12.26.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 12:08:25 -0800 (PST)
-Date: Tue, 6 Nov 2018 21:08:23 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v6 1/2] memory_hotplug: Free pages as higher order
-Message-ID: <20181106200823.GT27423@dhcp22.suse.cz>
-References: <1541484194-1493-1-git-send-email-arunks@codeaurora.org>
- <20181106140638.GN27423@dhcp22.suse.cz>
- <542cd3516b54d88d1bffede02c6045b8@codeaurora.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <542cd3516b54d88d1bffede02c6045b8@codeaurora.org>
+        Tue, 06 Nov 2018 12:26:50 -0800 (PST)
+Message-ID: <26c7e2dd72efe8168b296285985eb5f025881bb1.camel@intel.com>
+Subject: Re: [PATCH v5 21/27] x86/cet/shstk: Introduce WRUSS instruction
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Date: Tue, 06 Nov 2018 12:21:38 -0800
+In-Reply-To: <ee5a93f7-ed42-dcc5-0e55-e73ac2637e84@intel.com>
+References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
+	 <20181011151523.27101-22-yu-cheng.yu@intel.com>
+	 <ee5a93f7-ed42-dcc5-0e55-e73ac2637e84@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arun KS <arunks@codeaurora.org>
-Cc: arunks.linux@gmail.com, akpm@linux-foundation.org, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, getarunks@gmail.com
+To: Dave Hansen <dave.hansen@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-On Tue 06-11-18 21:01:29, Arun KS wrote:
-> On 2018-11-06 19:36, Michal Hocko wrote:
-> > On Tue 06-11-18 11:33:13, Arun KS wrote:
-> > > When free pages are done with higher order, time spend on
-> > > coalescing pages by buddy allocator can be reduced. With
-> > > section size of 256MB, hot add latency of a single section
-> > > shows improvement from 50-60 ms to less than 1 ms, hence
-> > > improving the hot add latency by 60%. Modify external
-> > > providers of online callback to align with the change.
-> > > 
-> > > This patch modifies totalram_pages, zone->managed_pages and
-> > > totalhigh_pages outside managed_page_count_lock. A follow up
-> > > series will be send to convert these variable to atomic to
-> > > avoid readers potentially seeing a store tear.
-> > 
-> > Is there any reason to rush this through rather than wait for counters
-> > conversion first?
+On Tue, 2018-11-06 at 10:43 -0800, Dave Hansen wrote:
+> On 10/11/18 8:15 AM, Yu-cheng Yu wrote:
+> > --- a/arch/x86/mm/fault.c
+> > +++ b/arch/x86/mm/fault.c
+> > @@ -1305,6 +1305,15 @@ __do_page_fault(struct pt_regs *regs, unsigned long
+> > error_code,
+> >  		error_code |= X86_PF_USER;
+> >  		flags |= FAULT_FLAG_USER;
+> >  	} else {
+> > +		/*
+> > +		 * WRUSS is a kernel instruction and but writes
+> > +		 * to user shadow stack.  When a fault occurs,
+> > +		 * both X86_PF_USER and X86_PF_SHSTK are set.
+> > +		 * Clear X86_PF_USER here.
+> > +		 */
+> > +		if ((error_code & (X86_PF_USER | X86_PF_SHSTK)) ==
+> > +		    (X86_PF_USER | X86_PF_SHSTK))
+> > +			error_code &= ~X86_PF_USER;
 > 
-> Sure Michal.
+> This hunk of code basically points out that the architecture of WRUSS is
+> broken for Linux.  The setting of X86_PF_USER for a ring-0 instruction
+> really is a mis-feature of the architecture for us and we *undo* it in
+> software which is unfortunate.  Wish I would have caught this earlier.
 > 
-> Conversion patch, https://patchwork.kernel.org/cover/10657217/ is currently
-> incremental to this patch.
+> Andy, note that this is another case where hw_error_code and
+> sw_error_code will diverge, unfortunately.
+> 
+> Anyway, this is going to necessitate some comment updates in the page
+> fault code.  Yu-cheng, you are going to collide with some recent changes
+> I made to the page fault code.  Please be careful with the context when
+> you do the merge and make sure that all the new comments stay correct.
 
-The ordering should be other way around. Because as things stand with
-this patch first it is possible to introduce a subtle race prone
-updates. As I've said I am skeptical the race would matter, really, but
-there is no real reason to risk for that. Especially when you have the
-other (first) half ready.
+Ok.  Thanks!
 
--- 
-Michal Hocko
-SUSE Labs
+Yu-cheng
