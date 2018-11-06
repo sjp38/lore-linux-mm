@@ -1,59 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DD2A16B02EA
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:19:27 -0500 (EST)
-Received: by mail-ot1-f72.google.com with SMTP id q23so8458100otl.1
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:19:27 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r132-v6sor7457018oih.58.2018.11.06.01.19.26
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B079B6B02EC
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:21:48 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id r20-v6so4219730eds.18
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:21:48 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v9-v6si1584485eje.240.2018.11.06.01.21.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Nov 2018 01:19:26 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Nov 2018 01:21:47 -0800 (PST)
+Date: Tue, 6 Nov 2018 10:21:45 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH v4 00/13] ktask: multithread CPU-intensive kernel work
+Message-ID: <20181106092145.GF27423@dhcp22.suse.cz>
+References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
+ <20181105172931.GP4361@dhcp22.suse.cz>
+ <20181106012955.br5swua3ykvolyjq@ca-dmjordan1.us.oracle.com>
 MIME-Version: 1.0
-References: <20181106090352.64114-1-vovoy@chromium.org> <20181106090839.GE27423@dhcp22.suse.cz>
-In-Reply-To: <20181106090839.GE27423@dhcp22.suse.cz>
-From: Kuo-Hsin Yang <vovoy@chromium.org>
-Date: Tue, 6 Nov 2018 17:19:15 +0800
-Message-ID: <CAEHM+4rdeGqryvJqTkV_ocEA8y7dOXS_Nx+O3ouFZ44j9wzm=g@mail.gmail.com>
-Subject: Re: [PATCH v5] mm, drm/i915: mark pinned shmemfs pages as unevictable
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181106012955.br5swua3ykvolyjq@ca-dmjordan1.us.oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: linux-mm@kvack.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, aaron.lu@intel.com, akpm@linux-foundation.org, alex.williamson@redhat.com, bsd@redhat.com, darrick.wong@oracle.com, dave.hansen@linux.intel.com, jgg@mellanox.com, jwadams@google.com, jiangshanlai@gmail.com, mike.kravetz@oracle.com, Pavel.Tatashin@microsoft.com, prasad.singamsetty@oracle.com, rdunlap@infradead.org, steven.sistare@oracle.com, tim.c.chen@intel.com, tj@kernel.org, vbabka@suse.cz
 
-On Tue, Nov 6, 2018 at 5:08 PM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Tue 06-11-18 17:03:51, Kuo-Hsin Yang wrote:
-> > The i915 driver uses shmemfs to allocate backing storage for gem
-> > objects. These shmemfs pages can be pinned (increased ref count) by
-> > shmem_read_mapping_page_gfp(). When a lot of pages are pinned, vmscan
-> > wastes a lot of time scanning these pinned pages. In some extreme case,
-> > all pages in the inactive anon lru are pinned, and only the inactive
-> > anon lru is scanned due to inactive_ratio, the system cannot swap and
-> > invokes the oom-killer. Mark these pinned pages as unevictable to speed
-> > up vmscan.
-> >
-> > Export pagevec API check_move_unevictable_pages().
-> >
-> > This patch was inspired by Chris Wilson's change [1].
-> >
-> > [1]: https://patchwork.kernel.org/patch/9768741/
-> >
-> > Cc: Chris Wilson <chris@chris-wilson.co.uk>
-> > Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-> > Cc: Peter Zijlstra <peterz@infradead.org>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: Dave Hansen <dave.hansen@intel.com>
-> > Signed-off-by: Kuo-Hsin Yang <vovoy@chromium.org>
-> > Acked-by: Michal Hocko <mhocko@suse.com>
->
-> please make it explicit that the ack applies to mm part as i've
-> mentioned when giving my ack to the previous version.
->
-> E.g.
-> Acked-by: Michal Hocko <mhocko@use.com> # mm part
->
-> because i am not familiar with the drm code to ack any changes there.
+On Mon 05-11-18 17:29:55, Daniel Jordan wrote:
+> On Mon, Nov 05, 2018 at 06:29:31PM +0100, Michal Hocko wrote:
+> > On Mon 05-11-18 11:55:45, Daniel Jordan wrote:
+> > > Michal, you mentioned that ktask should be sensitive to CPU utilization[1].
+> > > ktask threads now run at the lowest priority on the system to avoid disturbing
+> > > busy CPUs (more details in patches 4 and 5).  Does this address your concern?
+> > > The plan to address your other comments is explained below.
+> > 
+> > I have only glanced through the documentation patch and it looks like it
+> > will be much less disruptive than the previous attempts. Now the obvious
+> > question is how does this behave on a moderately or even busy system
+> > when you compare that to a single threaded execution. Some numbers about
+> > best/worst case execution would be really helpful.
+> 
+> Patches 4 and 5 have some numbers where a ktask and non-ktask workload compete
+> against each other.  Those show either 8 ktask threads on 8 CPUs (worst case) or no ktask threads (best case).
+> 
+> By single threaded execution, I guess you mean 1 ktask thread.  I'll run the
+> experiments that way too and post the numbers.
 
-Got it. Thanks.
+I mean a comparision of how much time it gets to accomplish the same
+amount of work if it was done singlethreaded to ktask based distribution
+on a idle system (best case for both) and fully contended system (the
+worst case). It would be also great to get some numbers on partially
+contended system to see how much the priority handover etc. acts under
+different CPU contention.
+-- 
+Michal Hocko
+SUSE Labs
