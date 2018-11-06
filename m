@@ -1,68 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 010E76B03BD
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 16:06:02 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id w10-v6so12866581plz.0
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 13:06:01 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id DB6956B0492
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 16:48:42 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id c18-v6so6038320plz.22
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 13:48:42 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id m6-v6si24601628pls.35.2018.11.06.13.06.00
+        by mx.google.com with ESMTPS id m16-v6si47547689pgd.48.2018.11.06.13.48.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 13:06:00 -0800 (PST)
-Date: Tue, 6 Nov 2018 13:05:57 -0800
+        Tue, 06 Nov 2018 13:48:40 -0800 (PST)
+Date: Tue, 6 Nov 2018 13:48:37 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v8 4/4] Kselftest for module text allocation
- benchmarking
-Message-Id: <20181106130557.11bfeddafe103bb609352aba@linux-foundation.org>
-In-Reply-To: <20181102192520.4522-5-rick.p.edgecombe@intel.com>
-References: <20181102192520.4522-1-rick.p.edgecombe@intel.com>
-	<20181102192520.4522-5-rick.p.edgecombe@intel.com>
+Subject: Re: [Bug 201603] New: NULL pointer dereference when using z3fold
+ and zswap
+Message-Id: <20181106134837.014c0bf61eb959e27f5edd0c@linux-foundation.org>
+In-Reply-To: <bug-201603-27@https.bugzilla.kernel.org/>
+References: <bug-201603-27@https.bugzilla.kernel.org/>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Cc: jeyu@kernel.org, willy@infradead.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, daniel@iogearbox.net, jannh@google.com, keescook@chromium.org, kristen@linux.intel.com, dave.hansen@intel.com, arjan@linux.intel.com
+To: Vitaly Wool <vitalywool@gmail.com>, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>
+Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, jagannathante@gmail.com
 
-On Fri,  2 Nov 2018 12:25:20 -0700 Rick Edgecombe <rick.p.edgecombe@intel.com> wrote:
 
-> This adds a test module in lib/, and a script in kselftest that does
-> benchmarking on the allocation of memory in the module space. Performance here
-> would have some small impact on kernel module insertions, BPF JIT insertions
-> and kprobes. In the case of KASLR features for the module space, this module
-> can be used to measure the allocation performance of different configurations.
-> This module needs to be compiled into the kernel because module_alloc is not
-> exported.
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
 
-Well, we could export module_alloc().  Would that be helpful at all?
+On Fri, 02 Nov 2018 10:41:46 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
 
-> With some modification to the code, as explained in the comments, it can be
-> enabled to measure TLB flushes as well.
+> https://bugzilla.kernel.org/show_bug.cgi?id=201603
 > 
-> There are two tests in the module. One allocates until failure in order to
-> test module capacity and the other times allocating space in the module area.
-> They both use module sizes that roughly approximate the distribution of in-tree
-> X86_64 modules.
+>             Bug ID: 201603
+>            Summary: NULL pointer dereference when using z3fold and zswap
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: 4.18.16
+>           Hardware: All
+>                 OS: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: high
+>           Priority: P1
+>          Component: Page Allocator
+>           Assignee: akpm@linux-foundation.org
+>           Reporter: jagannathante@gmail.com
+>         Regression: No
 > 
-> You can control the number of modules used in the tests like this:
-> echo m1000>/dev/mod_alloc_test
+> Created attachment 279297
+>   --> https://bugzilla.kernel.org/attachment.cgi?id=279297&action=edit
+> dmesg log of crash
 > 
-> Run the test for module capacity like:
-> echo t1>/dev/mod_alloc_test
+> This happens mostly during memory pressure but I am not sure how to trigger it
+> reliably. I am attaching the full log.
 > 
-> The other test will measure the allocation time, and for CONFG_X86_64 and
-> CONFIG_RANDOMIZE_BASE, also give data on how often the a??backup area" is used.
+> This is the kernel commandline
 > 
-> Run the test for allocation time and backup area usage like:
-> echo t2>/dev/mod_alloc_test
-> The output will be something like this:
-> num		all(ns)		last(ns)
-> 1000		1083		1099
-> Last module in backup count = 0
-> Total modules in backup     = 0
-> >1 module in backup count   = 0
-
-Are the above usage instructions captured in the kernel code somewhere?
-I can't see it, and expecting people to trawl git changelogs isn't
-very friendly.
+> >BOOT_IMAGE=../vmlinuz-linux root=UUID=57274b3a-92ab-468e-b03a-06026675c1af rw
+> >rd.luks.name=92b4aeb2-fb97-45c1-8a60-2816efe5d57e=home resume=/dev/mapper/home
+> >resume_offset=42772480 acpi_backlight=video zswap.enabled=1 zswap.zpool=z3fold
+> >zswap.max_pool_percent=5 transparent_hugepage=madvise scsi_mod.use_blk_mq=1
+> >vga=current initrd=../intel-ucode.img,../initramfs-linux.img
+> 
+> I found this bug https://bugzilla.kernel.org/show_bug.cgi?id=198585 to be very
+> similar but the proposed fix has not been merged so I can't be sure if it will
+> fix the issue I am having.
+> 
+> -- 
+> You are receiving this mail because:
+> You are the assignee for the bug.
