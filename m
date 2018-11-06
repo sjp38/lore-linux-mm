@@ -1,112 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 308AF6B02AC
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 21:49:00 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id f8-v6so1247443qth.16
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 18:49:00 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CFFEE6B02AF
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 23:36:04 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id g24-v6so11515276pfi.23
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 20:36:04 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t188-v6sor18685885qkf.126.2018.11.05.18.48.59
+        by mx.google.com with SMTPS id l189sor2121689pgd.51.2018.11.05.20.36.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 05 Nov 2018 18:48:59 -0800 (PST)
-From: "Zi Yan" <zi.yan@cs.rutgers.edu>
-Subject: Re: [RFC PATCH v4 00/13] ktask: multithread CPU-intensive kernel work
-Date: Mon, 05 Nov 2018 21:48:56 -0500
-Message-ID: <7E53DD63-4955-480D-8C0D-EB07E4FF011B@cs.rutgers.edu>
-In-Reply-To: <20181106022024.ndn377ze6xljsxkb@ca-dmjordan1.us.oracle.com>
-References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
- <FC2EB02D-3D05-4A13-A92E-4171B37B15BA@cs.rutgers.edu>
- <20181106022024.ndn377ze6xljsxkb@ca-dmjordan1.us.oracle.com>
+        Mon, 05 Nov 2018 20:36:03 -0800 (PST)
+Date: Mon, 5 Nov 2018 20:36:00 -0800
+From: Joel Fernandes <joel@joelfernandes.org>
+Subject: Re: [PATCH -next 0/3] Add support for fast mremap
+Message-ID: <20181106043600.GB139199@google.com>
+References: <20181103040041.7085-1-joelaf@google.com>
+ <6886607.O3ZT5bM3Cy@blindfold>
+ <e1d039a5-9c83-b9b9-98b5-d39bc48f04e0@kot-begemot.co.uk>
+ <20181103183208.GA56850@google.com>
+ <D6FB3C15-A8C1-4694-A434-A7489F590E05@oracle.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
- boundary="=_MailMate_281B8E86-991E-4CD5-A12E-8C9D4D81AEF5_=";
- micalg=pgp-sha512; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <D6FB3C15-A8C1-4694-A434-A7489F590E05@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: linux-mm@kvack.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, aaron.lu@intel.com, akpm@linux-foundation.org, alex.williamson@redhat.com, bsd@redhat.com, darrick.wong@oracle.com, dave.hansen@linux.intel.com, jgg@mellanox.com, jwadams@google.com, jiangshanlai@gmail.com, mhocko@kernel.org, mike.kravetz@oracle.com, Pavel.Tatashin@microsoft.com, prasad.singamsetty@oracle.com, rdunlap@infradead.org, steven.sistare@oracle.com, tim.c.chen@intel.com, tj@kernel.org, vbabka@suse.cz
+To: William Kucharski <william.kucharski@oracle.com>
+Cc: Anton Ivanov <anton.ivanov@kot-begemot.co.uk>, Richard Weinberger <richard@nod.at>, LKML <linux-kernel@vger.kernel.org>, kernel-team@android.com, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, dancol@google.com, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, elfring@users.sourceforge.net, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, hughd@google.com, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, Julia Lawall <Julia.Lawall@lip6.fr>, kasan-dev@googlegroups.com, "Kirill A. Shutemov" <kirill@shutemov.name>, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-hexagon@vger.kernel.org, linux-ia64@vge.kvack.org, r.kernel.org@lithops.sigma-star.at, linux-m68k@vger.kernel.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, lokeshgidra@google.com, Max Filippov <jcmvbkbc@gmail.com>, Michal Hocko <mhocko@kernel.org>, minchan@kernel.org, nios2-dev@lists.rocketboards.org, pantin@google.com, Peter Zijlstra <peterz@infradead.org>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>
 
-This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
+On Sun, Nov 04, 2018 at 12:56:48AM -0600, William Kucharski wrote:
+> 
+> 
+> > On Nov 3, 2018, at 12:32 PM, Joel Fernandes <joel@joelfernandes.org> wrote:
+> > 
+> > Looks like more architectures don't define set_pmd_at. I am thinking the
+> > easiest way forward is to just do the following, instead of defining
+> > set_pmd_at for every architecture that doesn't care about it. Thoughts?
+> > 
+> > diff --git a/mm/mremap.c b/mm/mremap.c
+> > index 7cf6b0943090..31ad64dcdae6 100644
+> > --- a/mm/mremap.c
+> > +++ b/mm/mremap.c
+> > @@ -281,7 +281,8 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
+> > 			split_huge_pmd(vma, old_pmd, old_addr);
+> > 			if (pmd_trans_unstable(old_pmd))
+> > 				continue;
+> > -		} else if (extent == PMD_SIZE && IS_ENABLED(CONFIG_HAVE_MOVE_PMD)) {
+> > +		} else if (extent == PMD_SIZE) {
+> > +#ifdef CONFIG_HAVE_MOVE_PMD
+> > 			/*
+> > 			 * If the extent is PMD-sized, try to speed the move by
+> > 			 * moving at the PMD level if possible.
+> > @@ -296,6 +297,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
+> > 				drop_rmap_locks(vma);
+> > 			if (moved)
+> > 				continue;
+> > +#endif
+> > 		}
+> > 
+> > 		if (pte_alloc(new_vma->vm_mm, new_pmd))
+> > 
+> 
+> That seems reasonable as there are going to be a lot of architectures that never have
+> mappings at the PMD level.
 
---=_MailMate_281B8E86-991E-4CD5-A12E-8C9D4D81AEF5_=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Ok, I will do it like this and resend.
 
-On 5 Nov 2018, at 21:20, Daniel Jordan wrote:
+> Have you thought about what might be needed to extend this paradigm to be able to
+> perform remaps at the PUD level, given many architectures already support PUD-mapped
+> pages?
+> 
 
-> Hi Zi,
->
-> On Mon, Nov 05, 2018 at 01:49:14PM -0500, Zi Yan wrote:
->> On 5 Nov 2018, at 11:55, Daniel Jordan wrote:
->>
->> Do you think if it makes sense to use ktask for huge page migration (t=
-he data
->> copy part)?
->
-> It certainly could.
->
->> I did some experiments back in 2016[1], which showed that migrating on=
-e 2MB page
->> with 8 threads could achieve 2.8x throughput of the existing single-th=
-readed method.
->> The problem with my parallel page migration patchset at that time was =
-that it
->> has no CPU-utilization awareness, which is solved by your patches now.=
+I have thought about this. I believe it is doable in the future. Off the top
+I don't see an issue doing it, and it will also reduce the number of flushes.
 
->
-> Did you run with fewer than 8 threads?  I'd want a bigger speedup than =
-2.8x for
-> 8, and a smaller thread count might improve thread utilization.
+thanks,
 
-Yes. When migrating one 2MB THP with migrate_pages() system call on a two=
--socket server
-with 2 E5-2650 v3 CPUs (10 cores per socket) across two sockets, here are=
- the page migration
-throughput numbers:
-
-             throughput       factor
-1 thread      2.15 GB/s         1x
-2 threads     3.05 GB/s         1.42x
-4 threads     4.50 GB/s         2.09x
-8 threads     5.98 GB/s         2.78x
-
->
-> It would be nice to multithread at a higher granularity than 2M, too: a=
- range
-> of THPs might also perform better than a single page.
-
-Sure. But the kernel currently does not copy multiple pages altogether ev=
-en if a range
-of THPs is migrated. Page copy function is interleaved with page table op=
-erations
-for every single page.
-
-I also did some study and modified the kernel to improve this, which I ca=
-lled
-concurrent page migration in https://lwn.net/Articles/714991/. It further=
-
-improves page migration throughput.
-
-
-=E2=80=94
-Best Regards,
-Yan Zi
-
---=_MailMate_281B8E86-991E-4CD5-A12E-8C9D4D81AEF5_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename=signature.asc
-Content-Type: application/pgp-signature; name=signature.asc
-
------BEGIN PGP SIGNATURE-----
-
-iQFKBAEBCgA0FiEEOXBxLIohamfZUwd5QYsvEZxOpswFAlvhARgWHHppLnlhbkBj
-cy5ydXRnZXJzLmVkdQAKCRBBiy8RnE6mzGuXB/0ZamMyImDvdSAnu6bnRamwxFic
-UnxPMANlgt8DoHj33w6YPGNPvTLOpYT/23z3PC+p+GSE//6OBGlh92xBYALyynHf
-MXdJ/VQPIC0HN8HrUyk5o9UzKDf4v6GJkJb29M0E2wA+XmOj8QOsQ0Hvxeyd7jA0
-PAusVkLka9cnSJnACY7qqS7ybirJWeFcPFZx7hOH9U+I7kpwUQMBczv4Mx3ZWX5U
-tOF2zTek/bglTVulJZwEm14d7iauZ4FqFQqMVobjSGnhvRvIDq4iJeAw4DaitBd4
-e4KUl42KBLZ0Itat+o1uMmKfu4NQF2sXvmhhj+VSIvgs+3HlW//qixG+yDOS
-=5hII
------END PGP SIGNATURE-----
-
---=_MailMate_281B8E86-991E-4CD5-A12E-8C9D4D81AEF5_=--
+- Joel
