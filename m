@@ -1,194 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 61E6D6B02C3
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 02:46:06 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id b8-v6so12567878pls.11
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 23:46:06 -0800 (PST)
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EA8186B02C5
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 02:48:53 -0500 (EST)
+Received: by mail-lj1-f200.google.com with SMTP id b25-v6so1559061ljj.8
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 23:48:53 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id bj10-v6sor9047193plb.25.2018.11.05.23.46.04
+        by mx.google.com with SMTPS id h14sor1639517lfc.14.2018.11.05.23.48.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 05 Nov 2018 23:46:04 -0800 (PST)
-Date: Tue, 6 Nov 2018 13:19:34 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v2] mm: Create the new vm_fault_t type
-Message-ID: <20181106074934.GA27620@jordon-HP-15-Notebook-PC>
+        Mon, 05 Nov 2018 23:48:52 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+References: <1530853846-30215-1-git-send-email-ks77sj@gmail.com>
+In-Reply-To: <1530853846-30215-1-git-send-email-ks77sj@gmail.com>
+From: Vitaly Wool <vitalywool@gmail.com>
+Date: Tue, 6 Nov 2018 08:48:39 +0100
+Message-ID: <CAMJBoFPGZ_pYFQTXb06U4QxM1ibUhmdxr6efwZigXdUo=4S=Vw@mail.gmail.com>
+Subject: Re: [PATCH] z3fold: fix wrong handling of headless pages
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: willy@infradead.org, akpm@linux-foundation.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, vbabka@suse.cz, riel@redhat.com, rppt@linux.ibm.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: =?UTF-8?B?6rmA7KKF7ISd?= <ks77sj@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Page fault handlers are supposed to return VM_FAULT codes,
-but some drivers/file systems mistakenly return error
-numbers. Now that all drivers/file systems have been converted
-to use the vm_fault_t return type, change the type definition
-to no longer be compatible with 'int'. By making it an unsigned
-int, the function prototype becomes incompatible with a function
-which returns int. Sparse will detect any attempts to return a
-value which is not a VM_FAULT code.
+Hi Jongseok,
 
-VM_FAULT_SET_HINDEX and VM_FAULT_GET_HINDEX values are changed
-to avoid conflict with other VM_FAULT codes.
+Den fre 6 juli 2018 kl 07:11 skrev Jongseok Kim <ks77sj@gmail.com>:
+>
+> During the processing of headless pages in z3fold_reclaim_page(),
+> there was a problem that the zhdr pointed to another page
+> or a page was already released in z3fold_free(). So, the wrong page
+> is encoded in headless, or test_bit does not work properly
+> in z3fold_reclaim_page(). This patch fixed these problems.
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
----
-v2: Updated the change log and corrected the document part.
-    name added to the enum that kernel-doc able to parse it.
+thank you for your work, we've now got a more comprehensive solution:
+https://lkml.org/lkml/2018/11/5/726
 
- include/linux/mm.h       | 46 ------------------------------
- include/linux/mm_types.h | 73 +++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 72 insertions(+), 47 deletions(-)
+Would you please confirm that it works for you? Also, would you be
+okay with dropping your patch in favor of the new one?
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index fcf9cc9..511a3ce 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1267,52 +1267,6 @@ static inline void clear_page_pfmemalloc(struct page *page)
- }
- 
- /*
-- * Different kinds of faults, as returned by handle_mm_fault().
-- * Used to decide whether a process gets delivered SIGBUS or
-- * just gets major/minor fault counters bumped up.
-- */
--
--#define VM_FAULT_OOM	0x0001
--#define VM_FAULT_SIGBUS	0x0002
--#define VM_FAULT_MAJOR	0x0004
--#define VM_FAULT_WRITE	0x0008	/* Special case for get_user_pages */
--#define VM_FAULT_HWPOISON 0x0010	/* Hit poisoned small page */
--#define VM_FAULT_HWPOISON_LARGE 0x0020  /* Hit poisoned large page. Index encoded in upper bits */
--#define VM_FAULT_SIGSEGV 0x0040
--
--#define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
--#define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
--#define VM_FAULT_RETRY	0x0400	/* ->fault blocked, must retry */
--#define VM_FAULT_FALLBACK 0x0800	/* huge page fault failed, fall back to small */
--#define VM_FAULT_DONE_COW   0x1000	/* ->fault has fully handled COW */
--#define VM_FAULT_NEEDDSYNC  0x2000	/* ->fault did not modify page tables
--					 * and needs fsync() to complete (for
--					 * synchronous page faults in DAX) */
--
--#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | \
--			 VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE | \
--			 VM_FAULT_FALLBACK)
--
--#define VM_FAULT_RESULT_TRACE \
--	{ VM_FAULT_OOM,			"OOM" }, \
--	{ VM_FAULT_SIGBUS,		"SIGBUS" }, \
--	{ VM_FAULT_MAJOR,		"MAJOR" }, \
--	{ VM_FAULT_WRITE,		"WRITE" }, \
--	{ VM_FAULT_HWPOISON,		"HWPOISON" }, \
--	{ VM_FAULT_HWPOISON_LARGE,	"HWPOISON_LARGE" }, \
--	{ VM_FAULT_SIGSEGV,		"SIGSEGV" }, \
--	{ VM_FAULT_NOPAGE,		"NOPAGE" }, \
--	{ VM_FAULT_LOCKED,		"LOCKED" }, \
--	{ VM_FAULT_RETRY,		"RETRY" }, \
--	{ VM_FAULT_FALLBACK,		"FALLBACK" }, \
--	{ VM_FAULT_DONE_COW,		"DONE_COW" }, \
--	{ VM_FAULT_NEEDDSYNC,		"NEEDDSYNC" }
--
--/* Encode hstate index for a hwpoisoned large page */
--#define VM_FAULT_SET_HINDEX(x) ((x) << 12)
--#define VM_FAULT_GET_HINDEX(x) (((x) >> 12) & 0xf)
--
--/*
-  * Can be called by the pagefault handler when it gets a VM_FAULT_OOM.
-  */
- extern void pagefault_out_of_memory(void);
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 5ed8f62..beee607 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -22,7 +22,6 @@
- #endif
- #define AT_VECTOR_SIZE (2*(AT_VECTOR_SIZE_ARCH + AT_VECTOR_SIZE_BASE + 1))
- 
--typedef int vm_fault_t;
- 
- struct address_space;
- struct mem_cgroup;
-@@ -609,6 +608,78 @@ static inline bool mm_tlb_flush_nested(struct mm_struct *mm)
- 
- struct vm_fault;
- 
-+/**
-+ * typedef vm_fault_t - Return type for page fault handlers.
-+ *
-+ * Page fault handlers return a bitmask of %VM_FAULT values.
-+ */
-+typedef __bitwise unsigned int vm_fault_t;
-+
-+/**
-+ * enum - VM_FAULT code
-+ *
-+ * Page fault handlers return a bitmask of these values to tell
-+ * the core VM what happened when handling the fault. Used to decide
-+ * whether a process gets delivered SIGBUS or just gets major/minor
-+ * fault counters bumped up.
-+ *
-+ * @VM_FAULT_OOM:		Out Of Memory
-+ * @VM_FAULT_SIGBUS:		Bad access
-+ * @VM_FAULT_MAJOR:		Page read from storage
-+ * @VM_FAULT_WRITE:		Special case for get_user_pages
-+ * @VM_FAULT_HWPOISON:		Hit poisoned small page
-+ * @VM_FAULT_HWPOISON_LARGE:	Hit poisoned large page. Index encoded
-+ *				in upper bits
-+ * @VM_FAULT_SIGSEGV:		segmentation fault
-+ * @VM_FAULT_NOPAGE:		->fault installed the pte, not return page
-+ * @VM_FAULT_LOCKED:		->fault locked the returned page
-+ * @VM_FAULT_RETRY:		->fault blocked, must retry
-+ * @VM_FAULT_FALLBACK:		huge page fault failed, fall back to small
-+ * @VM_FAULT_DONE_COW:		->fault has fully handled COW
-+ * @VM_FAULT_NEEDDSYNC:		->fault did not modify page tables and needs
-+ *				fsync() to complete (for synchronous page faults
-+ *				in DAX)
-+ */
-+enum vm_fault_reason {
-+	VM_FAULT_OOM            = (__force vm_fault_t)0x000001,
-+	VM_FAULT_SIGBUS         = (__force vm_fault_t)0x000002,
-+	VM_FAULT_MAJOR          = (__force vm_fault_t)0x000004,
-+	VM_FAULT_WRITE          = (__force vm_fault_t)0x000008,
-+	VM_FAULT_HWPOISON       = (__force vm_fault_t)0x000010,
-+	VM_FAULT_HWPOISON_LARGE = (__force vm_fault_t)0x000020,
-+	VM_FAULT_SIGSEGV        = (__force vm_fault_t)0x000040,
-+	VM_FAULT_NOPAGE         = (__force vm_fault_t)0x000100,
-+	VM_FAULT_LOCKED         = (__force vm_fault_t)0x000200,
-+	VM_FAULT_RETRY          = (__force vm_fault_t)0x000400,
-+	VM_FAULT_FALLBACK       = (__force vm_fault_t)0x000800,
-+	VM_FAULT_DONE_COW       = (__force vm_fault_t)0x001000,
-+	VM_FAULT_NEEDDSYNC      = (__force vm_fault_t)0x002000,
-+	VM_FAULT_HINDEX_MASK    = (__force vm_fault_t)0x0f0000,
-+};
-+
-+/* Encode hstate index for a hwpoisoned large page */
-+#define VM_FAULT_SET_HINDEX(x) ((__force vm_fault_t)((x) << 16))
-+#define VM_FAULT_GET_HINDEX(x) (((x) >> 16) & 0xf)
-+
-+#define VM_FAULT_ERROR (VM_FAULT_OOM | VM_FAULT_SIGBUS |	\
-+			VM_FAULT_SIGSEGV | VM_FAULT_HWPOISON |	\
-+			VM_FAULT_HWPOISON_LARGE | VM_FAULT_FALLBACK)
-+
-+#define VM_FAULT_RESULT_TRACE \
-+	{ VM_FAULT_OOM,                 "OOM" },	\
-+	{ VM_FAULT_SIGBUS,              "SIGBUS" },	\
-+	{ VM_FAULT_MAJOR,               "MAJOR" },	\
-+	{ VM_FAULT_WRITE,               "WRITE" },	\
-+	{ VM_FAULT_HWPOISON,            "HWPOISON" },	\
-+	{ VM_FAULT_HWPOISON_LARGE,      "HWPOISON_LARGE" },	\
-+	{ VM_FAULT_SIGSEGV,             "SIGSEGV" },	\
-+	{ VM_FAULT_NOPAGE,              "NOPAGE" },	\
-+	{ VM_FAULT_LOCKED,              "LOCKED" },	\
-+	{ VM_FAULT_RETRY,               "RETRY" },	\
-+	{ VM_FAULT_FALLBACK,            "FALLBACK" },	\
-+	{ VM_FAULT_DONE_COW,            "DONE_COW" },	\
-+	{ VM_FAULT_NEEDDSYNC,           "NEEDDSYNC" }
-+
- struct vm_special_mapping {
- 	const char *name;	/* The name, e.g. "[vdso]". */
- 
--- 
-1.9.1
+~Vitaly
+
+> Signed-off-by: Jongseok Kim <ks77sj@gmail.com>
+> ---
+>  mm/z3fold.c | 8 ++++++--
+>  1 file changed, 6 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/z3fold.c b/mm/z3fold.c
+> index 4b366d1..201a8ac 100644
+> --- a/mm/z3fold.c
+> +++ b/mm/z3fold.c
+> @@ -746,6 +746,9 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+>         }
+>
+>         if (bud == HEADLESS) {
+> +               if (test_bit(UNDER_RECLAIM, &page->private))
+> +                       return;
+> +
+>                 spin_lock(&pool->lock);
+>                 list_del(&page->lru);
+>                 spin_unlock(&pool->lock);
+> @@ -836,20 +839,20 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+>                 }
+>                 list_for_each_prev(pos, &pool->lru) {
+>                         page = list_entry(pos, struct page, lru);
+> +                       zhdr = page_address(page);
+>                         if (test_bit(PAGE_HEADLESS, &page->private))
+>                                 /* candidate found */
+>                                 break;
+>
+> -                       zhdr = page_address(page);
+>                         if (!z3fold_page_trylock(zhdr))
+>                                 continue; /* can't evict at this point */
+>                         kref_get(&zhdr->refcount);
+>                         list_del_init(&zhdr->buddy);
+>                         zhdr->cpu = -1;
+> -                       set_bit(UNDER_RECLAIM, &page->private);
+>                         break;
+>                 }
+>
+> +               set_bit(UNDER_RECLAIM, &page->private);
+>                 list_del_init(&page->lru);
+>                 spin_unlock(&pool->lock);
+>
+> @@ -898,6 +901,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+>                 if (test_bit(PAGE_HEADLESS, &page->private)) {
+>                         if (ret == 0) {
+>                                 free_z3fold_page(page);
+> +                               atomic64_dec(&pool->pages_nr);
+>                                 return 0;
+>                         }
+>                         spin_lock(&pool->lock);
+> --
+> 2.7.4
+>
