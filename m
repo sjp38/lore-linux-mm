@@ -1,70 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CB0766B0005
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 08:47:32 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id j9-v6so12464580pfn.20
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 05:47:32 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id g8-v6si49046849pli.338.2018.11.06.05.47.31
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D79D6B032E
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 09:06:41 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id m45-v6so7743791edc.2
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 06:06:41 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e19si3289019edv.104.2018.11.06.06.06.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 05:47:31 -0800 (PST)
-From: Sean Christopherson <sean.j.christopherson@intel.com>
-Subject: [PATCH v2] mm/mmu_notifier: remove mmu_notifier_synchronize()
-Date: Tue,  6 Nov 2018 05:47:05 -0800
-Message-Id: <20181106134705.14197-1-sean.j.christopherson@intel.com>
+        Tue, 06 Nov 2018 06:06:39 -0800 (PST)
+Date: Tue, 6 Nov 2018 15:06:38 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v6 1/2] memory_hotplug: Free pages as higher order
+Message-ID: <20181106140638.GN27423@dhcp22.suse.cz>
+References: <1541484194-1493-1-git-send-email-arunks@codeaurora.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1541484194-1493-1-git-send-email-arunks@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+To: Arun KS <arunks@codeaurora.org>
+Cc: arunks.linux@gmail.com, akpm@linux-foundation.org, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, getarunks@gmail.com
 
-Contrary to its name, mmu_notifier_synchronize() does not synchronize
-the notifier's SRCU instance, but rather waits for RCU callbacks to
-finished, i.e. it invokes rcu_barrier().  The RCU documentation is
-quite clear on this matter, explicitly calling out that rcu_barrier()
-does not imply synchronize_rcu().
+On Tue 06-11-18 11:33:13, Arun KS wrote:
+> When free pages are done with higher order, time spend on
+> coalescing pages by buddy allocator can be reduced. With
+> section size of 256MB, hot add latency of a single section
+> shows improvement from 50-60 ms to less than 1 ms, hence
+> improving the hot add latency by 60%. Modify external
+> providers of online callback to align with the change.
+> 
+> This patch modifies totalram_pages, zone->managed_pages and
+> totalhigh_pages outside managed_page_count_lock. A follow up
+> series will be send to convert these variable to atomic to
+> avoid readers potentially seeing a store tear.
 
-As there are no callers of mmu_notifier_synchronize() and it's unclear
-whether any user of mmu_notifier_call_srcu() will ever want to barrier
-on their callbacks, simply remove the function.
+Is there any reason to rush this through rather than wait for counters
+conversion first?
 
-Signed-off-by: Sean Christopherson <sean.j.christopherson@intel.com>
----
- include/linux/mmu_notifier.h | 1 -
- mm/mmu_notifier.c            | 7 -------
- 2 files changed, 8 deletions(-)
+The patch as is looks good to me - modulo atomic counters of course. I
+cannot really judge whether existing updaters do really race in practice
+to take this riskless.
 
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index 9893a6432adf..913c3c13e36e 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -420,7 +420,6 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
- 
- extern void mmu_notifier_call_srcu(struct rcu_head *rcu,
- 				   void (*func)(struct rcu_head *rcu));
--extern void mmu_notifier_synchronize(void);
- 
- #else /* CONFIG_MMU_NOTIFIER */
- 
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index 5119ff846769..755466cd289a 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -35,13 +35,6 @@ void mmu_notifier_call_srcu(struct rcu_head *rcu,
- }
- EXPORT_SYMBOL_GPL(mmu_notifier_call_srcu);
- 
--void mmu_notifier_synchronize(void)
--{
--	/* Wait for any running method to finish. */
--	srcu_barrier(&srcu);
--}
--EXPORT_SYMBOL_GPL(mmu_notifier_synchronize);
--
- /*
-  * This function can't run concurrently against mmu_notifier_register
-  * because mm->mm_users > 0 during mmu_notifier_register and exit_mmap
+The improvement is nice of course but this is a rare operation and 50ms
+vs 1ms is hardly noticeable. So I would rather wait for the preparatory
+work to settle. Btw. is there anything blocking that? It seems to be
+mostly automated.
+
 -- 
-2.19.1
+Michal Hocko
+SUSE Labs
