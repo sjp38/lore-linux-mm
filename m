@@ -1,82 +1,252 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 07E7E6B02DE
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 03:54:53 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id o42so5794370edc.13
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 00:54:52 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y24-v6si584563edv.448.2018.11.06.00.54.51
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 829C16B02E0
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:01:17 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id s141-v6so11068960pgs.23
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:01:17 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 1-v6si42624469plk.253.2018.11.06.01.01.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 00:54:51 -0800 (PST)
-Subject: Re: [PATCH] mm, slab: remove unnecessary unlikely()
-References: <20181104125028.3572-1-tiny.windzz@gmail.com>
- <2c42ba08-f78a-36f6-5a5d-21dd00861872@suse.cz>
- <CACT4Y+a+7gqs+gdfePuVGZ-bDGvb8ieE8ugA-pK1AZ8HwfecQg@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <a16bb44b-5231-97fe-920d-20cd92b5f3b2@suse.cz>
-Date: Tue, 6 Nov 2018 09:54:49 +0100
+        Tue, 06 Nov 2018 01:01:16 -0800 (PST)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wA68xFM7038847
+	for <linux-mm@kvack.org>; Tue, 6 Nov 2018 04:01:15 -0500
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2nk5a9e9f2-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 06 Nov 2018 04:01:09 -0500
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Tue, 6 Nov 2018 09:01:02 -0000
+Date: Tue, 6 Nov 2018 11:00:55 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: Re: [PATCH v2] mm: Create the new vm_fault_t type
+References: <20181106074934.GA27620@jordon-HP-15-Notebook-PC>
+ <20181106082611.GB28505@rapoport-lnx>
+ <CAFqt6zaKHXbWbBhK+bCeF-0s5uPH+6hGiU+Xp_6v_2A+xzHe2A@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+a+7gqs+gdfePuVGZ-bDGvb8ieE8ugA-pK1AZ8HwfecQg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFqt6zaKHXbWbBhK+bCeF-0s5uPH+6hGiU+Xp_6v_2A+xzHe2A@mail.gmail.com>
+Message-Id: <20181106090054.GC28505@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Yangtao Li <tiny.windzz@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, vbabka@suse.cz, riel@redhat.com, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On 11/6/18 6:38 AM, Dmitry Vyukov wrote:
-> On Mon, Nov 5, 2018 at 11:18 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
->> +CC Dmitry
->>
->> On 11/4/18 1:50 PM, Yangtao Li wrote:
->>> WARN_ON() already contains an unlikely(), so it's not necessary to use
->>> unlikely.
->>>
->>> Signed-off-by: Yangtao Li <tiny.windzz@gmail.com>
->>
->> Acked-by: Vlastimil Babka <vbabka@suse.cz>
->>
->> Maybe also change it back to WARN_ON_ONCE? I already considered it while
->> reviewing Dmitry's patch and wasn't sure. Now I think that what can
->> happen is that either a kernel bug is introduced that _ONCE is enough to
->> catch (two separate bugs introduced to both hit this would be rare, and
->> in that case the second one will be reported after the first one is
->> fixed), or this gets called with a user-supplied value, and then we want
->> to avoid spamming dmesg with multiple warnings that the user could
->> trigger at will.
+On Tue, Nov 06, 2018 at 02:04:54PM +0530, Souptick Joarder wrote:
+> On Tue, Nov 6, 2018 at 1:56 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
+> >
+> > On Tue, Nov 06, 2018 at 01:19:34PM +0530, Souptick Joarder wrote:
+> > > Page fault handlers are supposed to return VM_FAULT codes,
+> > > but some drivers/file systems mistakenly return error
+> > > numbers. Now that all drivers/file systems have been converted
+> > > to use the vm_fault_t return type, change the type definition
+> > > to no longer be compatible with 'int'. By making it an unsigned
+> > > int, the function prototype becomes incompatible with a function
+> > > which returns int. Sparse will detect any attempts to return a
+> > > value which is not a VM_FAULT code.
+> > >
+> > > VM_FAULT_SET_HINDEX and VM_FAULT_GET_HINDEX values are changed
+> > > to avoid conflict with other VM_FAULT codes.
+> > >
+> > > Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+> > > ---
+> > > v2: Updated the change log and corrected the document part.
+> > >     name added to the enum that kernel-doc able to parse it.
+> > >
+> > >  include/linux/mm.h       | 46 ------------------------------
+> > >  include/linux/mm_types.h | 73 +++++++++++++++++++++++++++++++++++++++++++++++-
+> > >  2 files changed, 72 insertions(+), 47 deletions(-)
+> > >
+> > > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > > index fcf9cc9..511a3ce 100644
+> > > --- a/include/linux/mm.h
+> > > +++ b/include/linux/mm.h
+> > > @@ -1267,52 +1267,6 @@ static inline void clear_page_pfmemalloc(struct page *page)
+> > >  }
+> > >
+> > >  /*
+> > > - * Different kinds of faults, as returned by handle_mm_fault().
+> > > - * Used to decide whether a process gets delivered SIGBUS or
+> > > - * just gets major/minor fault counters bumped up.
+> > > - */
+> > > -
+> > > -#define VM_FAULT_OOM 0x0001
+> > > -#define VM_FAULT_SIGBUS      0x0002
+> > > -#define VM_FAULT_MAJOR       0x0004
+> > > -#define VM_FAULT_WRITE       0x0008  /* Special case for get_user_pages */
+> > > -#define VM_FAULT_HWPOISON 0x0010     /* Hit poisoned small page */
+> > > -#define VM_FAULT_HWPOISON_LARGE 0x0020  /* Hit poisoned large page. Index encoded in upper bits */
+> > > -#define VM_FAULT_SIGSEGV 0x0040
+> > > -
+> > > -#define VM_FAULT_NOPAGE      0x0100  /* ->fault installed the pte, not return page */
+> > > -#define VM_FAULT_LOCKED      0x0200  /* ->fault locked the returned page */
+> > > -#define VM_FAULT_RETRY       0x0400  /* ->fault blocked, must retry */
+> > > -#define VM_FAULT_FALLBACK 0x0800     /* huge page fault failed, fall back to small */
+> > > -#define VM_FAULT_DONE_COW   0x1000   /* ->fault has fully handled COW */
+> > > -#define VM_FAULT_NEEDDSYNC  0x2000   /* ->fault did not modify page tables
+> > > -                                      * and needs fsync() to complete (for
+> > > -                                      * synchronous page faults in DAX) */
+> > > -
+> > > -#define VM_FAULT_ERROR       (VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | \
+> > > -                      VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE | \
+> > > -                      VM_FAULT_FALLBACK)
+> > > -
+> > > -#define VM_FAULT_RESULT_TRACE \
+> > > -     { VM_FAULT_OOM,                 "OOM" }, \
+> > > -     { VM_FAULT_SIGBUS,              "SIGBUS" }, \
+> > > -     { VM_FAULT_MAJOR,               "MAJOR" }, \
+> > > -     { VM_FAULT_WRITE,               "WRITE" }, \
+> > > -     { VM_FAULT_HWPOISON,            "HWPOISON" }, \
+> > > -     { VM_FAULT_HWPOISON_LARGE,      "HWPOISON_LARGE" }, \
+> > > -     { VM_FAULT_SIGSEGV,             "SIGSEGV" }, \
+> > > -     { VM_FAULT_NOPAGE,              "NOPAGE" }, \
+> > > -     { VM_FAULT_LOCKED,              "LOCKED" }, \
+> > > -     { VM_FAULT_RETRY,               "RETRY" }, \
+> > > -     { VM_FAULT_FALLBACK,            "FALLBACK" }, \
+> > > -     { VM_FAULT_DONE_COW,            "DONE_COW" }, \
+> > > -     { VM_FAULT_NEEDDSYNC,           "NEEDDSYNC" }
+> > > -
+> > > -/* Encode hstate index for a hwpoisoned large page */
+> > > -#define VM_FAULT_SET_HINDEX(x) ((x) << 12)
+> > > -#define VM_FAULT_GET_HINDEX(x) (((x) >> 12) & 0xf)
+> > > -
+> > > -/*
+> > >   * Can be called by the pagefault handler when it gets a VM_FAULT_OOM.
+> > >   */
+> > >  extern void pagefault_out_of_memory(void);
+> > > diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> > > index 5ed8f62..beee607 100644
+> > > --- a/include/linux/mm_types.h
+> > > +++ b/include/linux/mm_types.h
+> > > @@ -22,7 +22,6 @@
+> > >  #endif
+> > >  #define AT_VECTOR_SIZE (2*(AT_VECTOR_SIZE_ARCH + AT_VECTOR_SIZE_BASE + 1))
+> > >
+> > > -typedef int vm_fault_t;
+> > >
+> > >  struct address_space;
+> > >  struct mem_cgroup;
+> > > @@ -609,6 +608,78 @@ static inline bool mm_tlb_flush_nested(struct mm_struct *mm)
+> > >
+> > >  struct vm_fault;
+> > >
+> > > +/**
+> > > + * typedef vm_fault_t - Return type for page fault handlers.
+> > > + *
+> > > + * Page fault handlers return a bitmask of %VM_FAULT values.
+> > > + */
+> > > +typedef __bitwise unsigned int vm_fault_t;
+> > > +
+> > > +/**
+> > > + * enum - VM_FAULT code
+> >
+> > It should be 'enum vm_fault_reason' here.
 > 
+> Sorry, missed it.
 > 
-> If you asking me, I am fine both changes.
-> I was mainly interested in removing the bogus warnings that actually fire.
+> > A more elaborate brief description would also be nice.
+>
+> This much description is not sufficient to explain the enum ?
+> >
 
-OK thanks. Andrew can you update the patch to WARN_ON_ONCE?
+The description below is fine, but kernel-doc will use "VM_FAULT code" as
+the "short description" and the explanation will be used as "long
+description".
 
-Changelog addition:
-Also change WARN_ON() back to WARN_ON_ONCE() to avoid potentially
-spamming dmesg with user-triggerable large allocations.
+So either replace "VM_FAULT code" with something like "page fault handler
+return codes" or put the long explanation next to 'enum vm_fault_reason':
 
+/**
+ * enum vm_fault_reason - page fault handlers return a bitmask of these
+ * values ...
+ * ...
+ */
+
+Please take a look at "Structure, union, and enumeration documentation" in
+Documentation/doc-guide/kernel-doc.rst [1].
+
+[1] https://www.kernel.org/doc/html/latest/doc-guide/kernel-doc.html#structure-union-and-enumeration-documentation
+
+> > > + *
+> > > + * Page fault handlers return a bitmask of these values to tell
+> > > + * the core VM what happened when handling the fault. Used to decide
+> > > + * whether a process gets delivered SIGBUS or just gets major/minor
+> > > + * fault counters bumped up.
+> > > + *
+> > > + * @VM_FAULT_OOM:            Out Of Memory
+> > > + * @VM_FAULT_SIGBUS:         Bad access
+> > > + * @VM_FAULT_MAJOR:          Page read from storage
+> > > + * @VM_FAULT_WRITE:          Special case for get_user_pages
+> > > + * @VM_FAULT_HWPOISON:               Hit poisoned small page
+> > > + * @VM_FAULT_HWPOISON_LARGE: Hit poisoned large page. Index encoded
+> > > + *                           in upper bits
+> > > + * @VM_FAULT_SIGSEGV:                segmentation fault
+> > > + * @VM_FAULT_NOPAGE:         ->fault installed the pte, not return page
+> > > + * @VM_FAULT_LOCKED:         ->fault locked the returned page
+> > > + * @VM_FAULT_RETRY:          ->fault blocked, must retry
+> > > + * @VM_FAULT_FALLBACK:               huge page fault failed, fall back to small
+> > > + * @VM_FAULT_DONE_COW:               ->fault has fully handled COW
+> > > + * @VM_FAULT_NEEDDSYNC:              ->fault did not modify page tables and needs
+> > > + *                           fsync() to complete (for synchronous page faults
+> > > + *                           in DAX)
+> > > + */
+> > > +enum vm_fault_reason {
+> > > +     VM_FAULT_OOM            = (__force vm_fault_t)0x000001,
+> > > +     VM_FAULT_SIGBUS         = (__force vm_fault_t)0x000002,
+> > > +     VM_FAULT_MAJOR          = (__force vm_fault_t)0x000004,
+> > > +     VM_FAULT_WRITE          = (__force vm_fault_t)0x000008,
+> > > +     VM_FAULT_HWPOISON       = (__force vm_fault_t)0x000010,
+> > > +     VM_FAULT_HWPOISON_LARGE = (__force vm_fault_t)0x000020,
+> > > +     VM_FAULT_SIGSEGV        = (__force vm_fault_t)0x000040,
+> > > +     VM_FAULT_NOPAGE         = (__force vm_fault_t)0x000100,
+> > > +     VM_FAULT_LOCKED         = (__force vm_fault_t)0x000200,
+> > > +     VM_FAULT_RETRY          = (__force vm_fault_t)0x000400,
+> > > +     VM_FAULT_FALLBACK       = (__force vm_fault_t)0x000800,
+> > > +     VM_FAULT_DONE_COW       = (__force vm_fault_t)0x001000,
+> > > +     VM_FAULT_NEEDDSYNC      = (__force vm_fault_t)0x002000,
+> > > +     VM_FAULT_HINDEX_MASK    = (__force vm_fault_t)0x0f0000,
+> > > +};
+> > > +
+> > > +/* Encode hstate index for a hwpoisoned large page */
+> > > +#define VM_FAULT_SET_HINDEX(x) ((__force vm_fault_t)((x) << 16))
+> > > +#define VM_FAULT_GET_HINDEX(x) (((x) >> 16) & 0xf)
+> > > +
+> > > +#define VM_FAULT_ERROR (VM_FAULT_OOM | VM_FAULT_SIGBUS |     \
+> > > +                     VM_FAULT_SIGSEGV | VM_FAULT_HWPOISON |  \
+> > > +                     VM_FAULT_HWPOISON_LARGE | VM_FAULT_FALLBACK)
+> > > +
+> > > +#define VM_FAULT_RESULT_TRACE \
+> > > +     { VM_FAULT_OOM,                 "OOM" },        \
+> > > +     { VM_FAULT_SIGBUS,              "SIGBUS" },     \
+> > > +     { VM_FAULT_MAJOR,               "MAJOR" },      \
+> > > +     { VM_FAULT_WRITE,               "WRITE" },      \
+> > > +     { VM_FAULT_HWPOISON,            "HWPOISON" },   \
+> > > +     { VM_FAULT_HWPOISON_LARGE,      "HWPOISON_LARGE" },     \
+> > > +     { VM_FAULT_SIGSEGV,             "SIGSEGV" },    \
+> > > +     { VM_FAULT_NOPAGE,              "NOPAGE" },     \
+> > > +     { VM_FAULT_LOCKED,              "LOCKED" },     \
+> > > +     { VM_FAULT_RETRY,               "RETRY" },      \
+> > > +     { VM_FAULT_FALLBACK,            "FALLBACK" },   \
+> > > +     { VM_FAULT_DONE_COW,            "DONE_COW" },   \
+> > > +     { VM_FAULT_NEEDDSYNC,           "NEEDDSYNC" }
+> > > +
+> > >  struct vm_special_mapping {
+> > >       const char *name;       /* The name, e.g. "[vdso]". */
+> > >
+> > > --
+> > > 1.9.1
+> > >
+> >
+> > --
+> > Sincerely yours,
+> > Mike.
+> >
 > 
->>> ---
->>>  mm/slab_common.c | 4 +---
->>>  1 file changed, 1 insertion(+), 3 deletions(-)
->>>
->>> diff --git a/mm/slab_common.c b/mm/slab_common.c
->>> index 7eb8dc136c1c..4f54684f5435 100644
->>> --- a/mm/slab_common.c
->>> +++ b/mm/slab_common.c
->>> @@ -1029,10 +1029,8 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
->>>
->>>               index = size_index[size_index_elem(size)];
->>>       } else {
->>> -             if (unlikely(size > KMALLOC_MAX_CACHE_SIZE)) {
->>> -                     WARN_ON(1);
->>> +             if (WARN_ON(size > KMALLOC_MAX_CACHE_SIZE))
->>>                       return NULL;
->>> -             }
->>>               index = fls(size - 1);
->>>       }
->>>
->>>
->>
+
+-- 
+Sincerely yours,
+Mike.
