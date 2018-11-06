@@ -1,109 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D92F6B030E
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 06:31:54 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id j13-v6so12274073pff.0
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 03:31:54 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id b3-v6si47754312plc.103.2018.11.06.03.31.52
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C013A6B0311
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 06:49:58 -0500 (EST)
+Received: by mail-oi1-f198.google.com with SMTP id g138-v6so8642510oib.14
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 03:49:58 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 3-v6sor5469651oin.29.2018.11.06.03.49.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 03:31:52 -0800 (PST)
-Date: Tue, 6 Nov 2018 19:31:49 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: [PATCH v3 2/2] mm/page_alloc: use a single function to free page
-Message-ID: <20181106113149.GC24198@intel.com>
-References: <20181105085820.6341-1-aaron.lu@intel.com>
- <20181105085820.6341-2-aaron.lu@intel.com>
- <20181106053037.GD6203@intel.com>
+        (Google Transport Security);
+        Tue, 06 Nov 2018 03:49:57 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181106053037.GD6203@intel.com>
+References: <20181106093100.71829-1-vovoy@chromium.org> <154150241813.6179.68008798371252810@skylake-alporthouse-com>
+In-Reply-To: <154150241813.6179.68008798371252810@skylake-alporthouse-com>
+From: Kuo-Hsin Yang <vovoy@chromium.org>
+Date: Tue, 6 Nov 2018 19:49:46 +0800
+Message-ID: <CAEHM+4rEibRffjO0dDncqRpc++8cAOpk-E0PNMW-4E-cMjkNnQ@mail.gmail.com>
+Subject: Re: [PATCH v6] mm, drm/i915: mark pinned shmemfs pages as unevictable
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, =?utf-8?B?UGF3ZcWC?= Staszewski <pstaszewski@itcare.pl>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, Ilias Apalodimas <ilias.apalodimas@linaro.org>, Yoel Caspersen <yoel@kviknet.dk>, Mel Gorman <mgorman@techsingularity.net>, Saeed Mahameed <saeedm@mellanox.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: intel-gfx@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>
 
-We have multiple places of freeing a page, most of them doing similar
-things and a common function can be used to reduce code duplicate.
+On Tue, Nov 6, 2018 at 7:07 PM Chris Wilson <chris@chris-wilson.co.uk> wrote:
+> This gave disappointing syslatency results until I put a cond_resched()
+> here and moved the one in put_pages_gtt to before the page alloc, see
+> https://patchwork.freedesktop.org/patch/260332/
+>
+> The last really nasty wart for syslatency is the spin in
+> i915_gem_shrinker, for which I'm investigating
+> https://patchwork.freedesktop.org/patch/260365/
+>
+> All 3 patches together give very reasonable syslatency results! (So
+> good that it's time to find a new worst case scenario!)
+>
+> The challenge for the patch as it stands, is who lands it? We can take
+> it through drm-intel (for merging in 4.21) but need Andrew's ack on top
+> of all to agree with that path. Or we split the patch and only land the
+> i915 portion once we backmerge the mm tree. I think pushing the i915
+> portion through the mm tree is going to cause the most conflicts, so
+> would recommend against that.
 
-It also avoids bug fixed in one function but left in another.
-
-Signed-off-by: Aaron Lu <aaron.lu@intel.com>
----
-v3: Vlastimil mentioned the possible performance loss by using
-    page_ref_sub_and_test(page, 1) for put_page_testzero(page), since
-    we aren't sure so be safe by keeping page ref decreasing code as
-    is, only move freeing page part to a common function.
-
- mm/page_alloc.c | 37 ++++++++++++++-----------------------
- 1 file changed, 14 insertions(+), 23 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 91a9a6af41a2..431a03aa96f8 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4425,16 +4425,19 @@ unsigned long get_zeroed_page(gfp_t gfp_mask)
- }
- EXPORT_SYMBOL(get_zeroed_page);
- 
--void __free_pages(struct page *page, unsigned int order)
-+static inline void free_the_page(struct page *page, unsigned int order)
- {
--	if (put_page_testzero(page)) {
--		if (order == 0)
--			free_unref_page(page);
--		else
--			__free_pages_ok(page, order);
--	}
-+	if (order == 0)
-+		free_unref_page(page);
-+	else
-+		__free_pages_ok(page, order);
- }
- 
-+void __free_pages(struct page *page, unsigned int order)
-+{
-+	if (put_page_testzero(page))
-+		free_the_page(page, order);
-+}
- EXPORT_SYMBOL(__free_pages);
- 
- void free_pages(unsigned long addr, unsigned int order)
-@@ -4483,14 +4486,8 @@ void __page_frag_cache_drain(struct page *page, unsigned int count)
- {
- 	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
- 
--	if (page_ref_sub_and_test(page, count)) {
--		unsigned int order = compound_order(page);
--
--		if (order == 0)
--			free_unref_page(page);
--		else
--			__free_pages_ok(page, order);
--	}
-+	if (page_ref_sub_and_test(page, count))
-+		free_the_page(page, compound_order(page));
- }
- EXPORT_SYMBOL(__page_frag_cache_drain);
- 
-@@ -4555,14 +4552,8 @@ void page_frag_free(void *addr)
- {
- 	struct page *page = virt_to_head_page(addr);
- 
--	if (unlikely(put_page_testzero(page))) {
--		unsigned int order = compound_order(page);
--
--		if (order == 0)
--			free_unref_page(page);
--		else
--			__free_pages_ok(page, order);
--	}
-+	if (unlikely(put_page_testzero(page)))
-+		free_the_page(page, compound_order(page));
- }
- EXPORT_SYMBOL(page_frag_free);
- 
--- 
-2.17.2
+Splitting the patch and landing the mm part first sounds reasonable to me.
