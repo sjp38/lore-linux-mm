@@ -1,44 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0987A6B0336
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 10:03:13 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id f9so3848679pgs.13
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 07:03:12 -0800 (PST)
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 93C0C6B0337
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 10:19:25 -0500 (EST)
+Received: by mail-oi1-f199.google.com with SMTP id t194-v6so6175419oie.16
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 07:19:25 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n27-v6sor38081092pfb.48.2018.11.06.07.03.11
+        by mx.google.com with SMTPS id v2sor4242720otb.93.2018.11.06.07.19.24
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 06 Nov 2018 07:03:11 -0800 (PST)
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH] mm/slub: page is always non-NULL for node_match()
-Date: Tue,  6 Nov 2018 23:02:45 +0800
-Message-Id: <20181106150245.1668-1-richard.weiyang@gmail.com>
+        Tue, 06 Nov 2018 07:19:24 -0800 (PST)
+MIME-Version: 1.0
+References: <20181106093100.71829-1-vovoy@chromium.org> <20181106105406.GO21967@phenom.ffwll.local>
+In-Reply-To: <20181106105406.GO21967@phenom.ffwll.local>
+From: Kuo-Hsin Yang <vovoy@chromium.org>
+Date: Tue, 6 Nov 2018 23:19:12 +0800
+Message-ID: <CAEHM+4oLesko3TPGDm2+FTCJT=gYw4fy0YmCQGuT1CTHFZgmkg@mail.gmail.com>
+Subject: Re: [PATCH v6] mm, drm/i915: mark pinned shmemfs pages as unevictable
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
+To: linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>
 
-node_match() is a static function and only invoked in slub.c.
+On Tue, Nov 6, 2018 at 6:54 PM Daniel Vetter <daniel@ffwll.ch> wrote:
+> There was ages ago some planes to have our own i915fs, so that we could
+> overwrite the address_space hooks for page migration and eviction and tha=
+t
+> sort of thing, which would make all these pages evictable. Atm you have t=
+o
+> =C4=A5ope our shrinker drops them on the floor, which I think is fairly
+> confusing to core mm code (it's kinda like page eviction worked way back
+> before rmaps).
+>
 
-In all three places, page is ensured to be valid.
+Thanks for the explanation. Your blog posts helped a lot to get me
+started on hacking drm/i915 driver.
 
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
----
- mm/slub.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index 90d26063be68..af8bea511855 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2365,7 +2365,7 @@ static int slub_cpu_dead(unsigned int cpu)
- static inline int node_match(struct page *page, int node)
- {
- #ifdef CONFIG_NUMA
--	if (!page || (node != NUMA_NO_NODE && page_to_nid(page) != node))
-+	if (node != NUMA_NO_NODE && page_to_nid(page) != node)
- 		return 0;
- #endif
- 	return 1;
--- 
-2.15.1
+> Just an side really.
+> -Daniel
+>
+> --
+> Daniel Vetter
+> Software Engineer, Intel Corporation
+> http://blog.ffwll.ch
