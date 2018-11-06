@@ -1,93 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 02FAB6B02CE
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 03:28:30 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id l15-v6so11958484pff.5
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 00:28:29 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x33-v6si38851352plb.49.2018.11.06.00.28.28
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 02DDD6B02D0
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 03:30:17 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id 3-v6so12648237plc.18
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 00:30:16 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id c85-v6si16455964pfe.60.2018.11.06.00.30.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 00:28:28 -0800 (PST)
-Date: Tue, 6 Nov 2018 09:28:26 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, memory_hotplug: teach has_unmovable_pages about of
- LRU migrateable pages
-Message-ID: <20181106082826.GC27423@dhcp22.suse.cz>
-References: <20181101091055.GA15166@MiWiFi-R3L-srv>
- <20181102155528.20358-1-mhocko@kernel.org>
- <20181105002009.GF27491@MiWiFi-R3L-srv>
- <20181105091407.GB4361@dhcp22.suse.cz>
- <20181105092851.GD4361@dhcp22.suse.cz>
- <20181105102520.GB22011@MiWiFi-R3L-srv>
- <20181105123837.GH4361@dhcp22.suse.cz>
- <20181105142308.GJ27491@MiWiFi-R3L-srv>
- <20181105171002.GO4361@dhcp22.suse.cz>
- <20181106002216.GK27491@MiWiFi-R3L-srv>
+        Tue, 06 Nov 2018 00:30:15 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181106002216.GK27491@MiWiFi-R3L-srv>
+Content-Type: text/plain; charset=UTF-8;
+ format=flowed
+Content-Transfer-Encoding: 8bit
+Date: Tue, 06 Nov 2018 14:00:14 +0530
+From: Arun KS <arunks@codeaurora.org>
+Subject: Re: [PATCH v1 0/4]mm: convert totalram_pages, totalhigh_pages and
+ managed pages to atomic
+In-Reply-To: <63d9f48c-e39f-d345-0fb6-2f04afe769a2@yandex-team.ru>
+References: <1540551662-26458-1-git-send-email-arunks@codeaurora.org>
+ <9b210d4cc9925caf291412d7d45f16d7@codeaurora.org>
+ <63d9f48c-e39f-d345-0fb6-2f04afe769a2@yandex-team.ru>
+Message-ID: <08a61c003eed0280fd82f6200debcbca@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: keescook@chromium.org, minchan@kernel.org, getarunks@gmail.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, julia.lawall@lip6.fr
 
-On Tue 06-11-18 08:22:16, Baoquan He wrote:
-> On 11/05/18 at 06:10pm, Michal Hocko wrote:
-> > On Mon 05-11-18 22:23:08, Baoquan He wrote:
-> > > On 11/05/18 at 01:38pm, Michal Hocko wrote:
-> > > > On Mon 05-11-18 18:25:20, Baoquan He wrote:
-> > > > > Hi Michal,
-> > > > > 
-> > > > > On 11/05/18 at 10:28am, Michal Hocko wrote:
-> > > > > > 
-> > > > > > Or something like this. Ugly as hell, no question about that. I also
-> > > > > > have to think about this some more to convince myself this will not
-> > > > > > result in an endless loop under some situations.
-> > > > > 
-> > > > > It failed. Paste the log and patch diff here, please help check if I made
-> > > > > any mistake on manual code change. The log is at bottom.
-> > > > 
-> > > > The retry patch is obviously still racy, it just makes the race window
-> > > > slightly smaller and I hoped it would catch most of those races but this
-> > > > is obviously not the case.
-> > > > 
-> > > > I was thinking about your MIGRATE_MOVABLE check some more and I still do
-> > > > not like it much, we just change migrate type at many places and I have
-> > > > hard time to actually see this is always safe wrt. to what we need here.
-> > > > 
-> > > > We should be able to restore the zone type check though. The
-> > > > primary problem fixed by 15c30bc09085 ("mm, memory_hotplug: make
-> > > > has_unmovable_pages more robust") was that early allocations made it to
-> > > > the zone_movable range. If we add the check _after_ the PageReserved()
-> > > > check then we should be able to rule all bootmem allocation out.
-> > > > 
-> > > > So what about the following (on top of the previous patch which makes
-> > > > sense on its own I believe).
-> > > 
-> > > Yes, I think this looks very reasonable and should be robust.
-> > > 
-> > > Have tested it, hot removing 4 hotpluggable nodes continusously
-> > > succeeds, and then hot adding them back, still works well.
-> > > 
-> > > So please feel free to add my Tested-by or Acked-by.
-> > > 
-> > > Tested-by: Baoquan He <bhe@redhat.com>
-> > > or
-> > > Acked-by: Baoquan He <bhe@redhat.com>
-> > 
-> > Thanks for retesting! Does this apply to both patches?
+On 2018-11-06 13:47, Konstantin Khlebnikov wrote:
+> On 06.11.2018 8:38, Arun KS wrote:
+>> Any comments?
 > 
-> Sorry, don't get it. I just applied this on top of linus's tree and
-> tested. Do you mean applying it on top of previous code change?
+> Looks good.
+> Except unclear motivation behind this change.
+> This should be in comment of one of patch.
 
-Yes. While the first patch will obviously not help for movable zone
-because the movable check will override any later check it
-seems still useful to reduce false positives on normal zones.
+totalram_pages, zone->managed_pages and totalhigh_pages are sometimes 
+modified outside managed_page_count_lock. Hence convert these variable 
+to atomic to avoid readers potentially seeing a store tear.
 
-Or do you think this is not worth it?
+Will update the comment.
 
--- 
-Michal Hocko
-SUSE Labs
+Regards,
+Arun
+
+> 
+> Reviewed-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> 
+>> 
+>> Regards,
+>> Arun
+>> 
+>> On 2018-10-26 16:30, Arun KS wrote:
+>>> This series convert totalram_pages, totalhigh_pages and
+>>> zone->managed_pages to atomic variables.
+>>> 
+>>> The patch was comiple tested on x86(x86_64_defconfig & 
+>>> i386_defconfig)
+>>> on tip of linux-mmotm. And memory hotplug tested on arm64, but on an
+>>> older version of kernel.
+>>> 
+>>> Arun KS (4):
+>>> A  mm: Fix multiple evaluvations of totalram_pages and managed_pages
+>>> A  mm: Convert zone->managed_pages to atomic variable
+>>> A  mm: convert totalram_pages and totalhigh_pages variables to atomic
+>>> A  mm: Remove managed_page_count spinlock
+>>> 
+>>> A arch/csky/mm/init.cA A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>> A arch/powerpc/platforms/pseries/cmm.cA A A A A A A A A  | 10 ++--
+>>> A arch/s390/mm/init.cA A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A arch/um/kernel/mem.cA A A A A A A A A A A A A A A A A A A A A A A A A  |A  3 +-
+>>> A arch/x86/kernel/cpu/microcode/core.cA A A A A A A A A  |A  5 +-
+>>> A drivers/char/agp/backend.cA A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>> A drivers/gpu/drm/amd/amdkfd/kfd_crat.cA A A A A A A A  |A  2 +-
+>>> A drivers/gpu/drm/i915/i915_gem.cA A A A A A A A A A A A A A  |A  2 +-
+>>> A drivers/gpu/drm/i915/selftests/i915_gem_gtt.c |A  4 +-
+>>> A drivers/hv/hv_balloon.cA A A A A A A A A A A A A A A A A A A A A A  | 19 +++----
+>>> A drivers/md/dm-bufio.cA A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A drivers/md/dm-crypt.cA A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A drivers/md/dm-integrity.cA A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A drivers/md/dm-stats.cA A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A drivers/media/platform/mtk-vpu/mtk_vpu.cA A A A A  |A  2 +-
+>>> A drivers/misc/vmw_balloon.cA A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A drivers/parisc/ccio-dma.cA A A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>> A drivers/parisc/sba_iommu.cA A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>> A drivers/staging/android/ion/ion_system_heap.c |A  2 +-
+>>> A drivers/xen/xen-selfballoon.cA A A A A A A A A A A A A A A A  |A  6 +--
+>>> A fs/ceph/super.hA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A fs/file_table.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  7 +--
+>>> A fs/fuse/inode.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A fs/nfs/write.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A fs/nfsd/nfscache.cA A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A fs/ntfs/malloc.hA A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A fs/proc/base.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A include/linux/highmem.hA A A A A A A A A A A A A A A A A A A A A A  | 28 ++++++++++-
+>>> A include/linux/mm.hA A A A A A A A A A A A A A A A A A A A A A A A A A A  | 27 +++++++++-
+>>> A include/linux/mmzone.hA A A A A A A A A A A A A A A A A A A A A A A  | 15 +++---
+>>> A include/linux/swap.hA A A A A A A A A A A A A A A A A A A A A A A A A  |A  1 -
+>>> A kernel/fork.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  5 +-
+>>> A kernel/kexec_core.cA A A A A A A A A A A A A A A A A A A A A A A A A A  |A  5 +-
+>>> A kernel/power/snapshot.cA A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A lib/show_mem.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A mm/highmem.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>> A mm/huge_memory.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A mm/kasan/quarantine.cA A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A mm/memblock.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  6 +--
+>>> A mm/memory_hotplug.cA A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>> A mm/mm_init.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A mm/oom_kill.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A mm/page_alloc.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  | 71 
+>>> +++++++++++++--------------
+>>> A mm/shmem.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  7 +--
+>>> A mm/slab.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A mm/swap.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A mm/util.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A mm/vmalloc.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>> A mm/vmstat.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>> A mm/workingset.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A mm/zswap.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
+>>> A net/dccp/proto.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  7 +--
+>>> A net/decnet/dn_route.cA A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A net/ipv4/tcp_metrics.cA A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
+>>> A net/netfilter/nf_conntrack_core.cA A A A A A A A A A A A  |A  7 +--
+>>> A net/netfilter/xt_hashlimit.cA A A A A A A A A A A A A A A A A  |A  5 +-
+>>> A net/sctp/protocol.cA A A A A A A A A A A A A A A A A A A A A A A A A A  |A  7 +--
+>>> A security/integrity/ima/ima_kexec.cA A A A A A A A A A A  |A  2 +-
+>>> A 58 files changed, 195 insertions(+), 144 deletions(-)
