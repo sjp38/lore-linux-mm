@@ -1,72 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DB6956B0492
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 16:48:42 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id c18-v6so6038320plz.22
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 13:48:42 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E79B56B0493
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 16:51:26 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id l2-v6so12540247pgp.22
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 13:51:26 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id m16-v6si47547689pgd.48.2018.11.06.13.48.40
+        by mx.google.com with ESMTPS id d36-v6si34504588pla.384.2018.11.06.13.51.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 13:48:40 -0800 (PST)
-Date: Tue, 6 Nov 2018 13:48:37 -0800
+        Tue, 06 Nov 2018 13:51:25 -0800 (PST)
+Date: Tue, 6 Nov 2018 13:51:21 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 201603] New: NULL pointer dereference when using z3fold
- and zswap
-Message-Id: <20181106134837.014c0bf61eb959e27f5edd0c@linux-foundation.org>
-In-Reply-To: <bug-201603-27@https.bugzilla.kernel.org/>
-References: <bug-201603-27@https.bugzilla.kernel.org/>
+Subject: Re: [PATCH v4] mm/page_owner: clamp read count to PAGE_SIZE
+Message-Id: <20181106135121.dd015f188709c4ccb2bff52c@linux-foundation.org>
+In-Reply-To: <FD1082D9-916E-47A4-95D3-59F308AD6D55@oracle.com>
+References: <1541091607-27402-1-git-send-email-miles.chen@mediatek.com>
+	<20181101144723.3ddc1fa1ab7f81184bc2fdb8@linux-foundation.org>
+	<FD1082D9-916E-47A4-95D3-59F308AD6D55@oracle.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, jagannathante@gmail.com
+To: William Kucharski <william.kucharski@oracle.com>
+Cc: miles.chen@mediatek.com, Michal Hocko <mhocko@suse.com>, Joe Perches <joe@perches.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com, Michal Hocko <mhocko@kernel.org>
 
+On Thu, 1 Nov 2018 18:41:33 -0600 William Kucharski <william.kucharski@oracle.com> wrote:
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+> 
+> 
+> > On Nov 1, 2018, at 3:47 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> > 
+> > -	count = count > PAGE_SIZE ? PAGE_SIZE : count;
+> > +	count = min_t(size_t, count, PAGE_SIZE);
+> > 	kbuf = kmalloc(count, GFP_KERNEL);
+> > 	if (!kbuf)
+> > 		return -ENOMEM;
+> 
+> Is the use of min_t vs. the C conditional mostly to be more self-documenting?
 
-On Fri, 02 Nov 2018 10:41:46 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
-
-> https://bugzilla.kernel.org/show_bug.cgi?id=201603
-> 
->             Bug ID: 201603
->            Summary: NULL pointer dereference when using z3fold and zswap
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: 4.18.16
->           Hardware: All
->                 OS: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: high
->           Priority: P1
->          Component: Page Allocator
->           Assignee: akpm@linux-foundation.org
->           Reporter: jagannathante@gmail.com
->         Regression: No
-> 
-> Created attachment 279297
->   --> https://bugzilla.kernel.org/attachment.cgi?id=279297&action=edit
-> dmesg log of crash
-> 
-> This happens mostly during memory pressure but I am not sure how to trigger it
-> reliably. I am attaching the full log.
-> 
-> This is the kernel commandline
-> 
-> >BOOT_IMAGE=../vmlinuz-linux root=UUID=57274b3a-92ab-468e-b03a-06026675c1af rw
-> >rd.luks.name=92b4aeb2-fb97-45c1-8a60-2816efe5d57e=home resume=/dev/mapper/home
-> >resume_offset=42772480 acpi_backlight=video zswap.enabled=1 zswap.zpool=z3fold
-> >zswap.max_pool_percent=5 transparent_hugepage=madvise scsi_mod.use_blk_mq=1
-> >vga=current initrd=../intel-ucode.img,../initramfs-linux.img
-> 
-> I found this bug https://bugzilla.kernel.org/show_bug.cgi?id=198585 to be very
-> similar but the proposed fix has not been merged so I can't be sure if it will
-> fix the issue I am having.
-> 
-> -- 
-> You are receiving this mail because:
-> You are the assignee for the bug.
+Yup.  It saves the reader from having to parse the code to figure out
+"this is a min operation".
