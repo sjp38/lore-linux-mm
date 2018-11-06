@@ -1,54 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 555B56B02FA
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:51:12 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id h24-v6so3303404ede.9
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:51:12 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g23si2123462edy.160.2018.11.06.01.51.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 01:51:11 -0800 (PST)
-Date: Tue, 6 Nov 2018 10:51:09 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, memory_hotplug: teach has_unmovable_pages about of
- LRU migrateable pages
-Message-ID: <20181106095109.GJ27423@dhcp22.suse.cz>
-References: <20181105002009.GF27491@MiWiFi-R3L-srv>
- <20181105091407.GB4361@dhcp22.suse.cz>
- <20181105092851.GD4361@dhcp22.suse.cz>
- <20181105102520.GB22011@MiWiFi-R3L-srv>
- <20181105123837.GH4361@dhcp22.suse.cz>
- <20181105142308.GJ27491@MiWiFi-R3L-srv>
- <20181105171002.GO4361@dhcp22.suse.cz>
- <20181106002216.GK27491@MiWiFi-R3L-srv>
- <20181106082826.GC27423@dhcp22.suse.cz>
- <20181106091624.GL27491@MiWiFi-R3L-srv>
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 022AA6B02FC
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:51:59 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id f62-v6so8528666oia.2
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:51:58 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id v75-v6si9502472oia.127.2018.11.06.01.51.57
+        for <linux-mm@kvack.org>;
+        Tue, 06 Nov 2018 01:51:57 -0800 (PST)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: Re: [PATCH] mm/thp: Correctly differentiate between mapped THP and
+ PMD migration entry
+References: <1539057538-27446-1-git-send-email-anshuman.khandual@arm.com>
+ <7E8E6B14-D5C4-4A30-840D-A7AB046517FB@cs.rutgers.edu>
+ <84509db4-13ce-fd53-e924-cc4288d493f7@arm.com>
+ <1968F276-5D96-426B-823F-38F6A51FB465@cs.rutgers.edu>
+ <5e0e772c-7eef-e75c-2921-e80d4fbe8324@arm.com>
+ <2398C491-E1DA-4B3C-B60A-377A09A02F1A@cs.rutgers.edu>
+ <20181017020930.GN30832@redhat.com>
+ <9d9aaf03-617a-d383-7d59-8b98fdd3c1e7@arm.com>
+ <20181106003509.GA27283@brain-police>
+Message-ID: <9370f2b9-0fcd-6bbb-fa29-568bbd9aba59@arm.com>
+Date: Tue, 6 Nov 2018 15:21:46 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181106091624.GL27491@MiWiFi-R3L-srv>
+In-Reply-To: <20181106003509.GA27283@brain-police>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Tue 06-11-18 17:16:24, Baoquan He wrote:
-[...]
-> Not sure if there are any scenario or use cases to cover those newly added
-> checking other movable zone checking. Surely, I have no objection to
-> adding them. But the two patches are separate issues, they have no
-> dependency on each other.
 
-Yes that is correct. I will drop those additional checks for now. Let's
-see if we need them later.
 
-> I just tested the movable zone checking yesterday, will add your
-> previous check back, then test again. I believe the result will be
-> positive. Will udpate once done.
+On 11/06/2018 06:05 AM, Will Deacon wrote:
+> On Fri, Nov 02, 2018 at 11:45:00AM +0530, Anshuman Khandual wrote:
+>> On 10/17/2018 07:39 AM, Andrea Arcangeli wrote:
+>>> What we need to do during split is an invalidate of the huge TLB.
+>>> There's no pmd_trans_splitting anymore, so we only clear the present
+>>> bit in the PTE despite pmd_present still returns true (just like
+>>> PROT_NONE, nothing new in this respect). pmd_present never meant the
+>>
+>> On arm64, the problem is that pmd_present() is tied with pte_present() which
+>> checks for PTE_VALID (also PTE_PROT_NONE) but which gets cleared during PTE
+>> invalidation. pmd_present() returns false just after the first step of PMD
+>> splitting. So pmd_present() needs to be decoupled from PTE_VALID which is
+>> same as PMD_SECT_VALID and instead should depend upon a pte bit which sticks
+>> around like PAGE_PSE as in case of x86. I am working towards a solution.
+> 
+> Could we not just go via a PROT_NONE mapping during the split, instead of
+> having to allocate a new software bit to treat these invalid ptes as
+> present?
 
-THere is no need to retest with that patch for your movable node setup.
+The problem might occur during page fault (i.e __handle_mm_fault). As discussed
+previously on this thread any potential PTE sticky bit would be used for both
+pmd_trans_huge() and pmd_present() wrappers to maintain existing semantics. At
+present, PMD state analysis during page fault has conditional block like this.
 
--- 
-Michal Hocko
-SUSE Labs
+                if (pmd_trans_huge(orig_pmd) || pmd_devmap(orig_pmd)) {
+                        if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
+                                return do_huge_pmd_numa_page(&vmf, orig_pmd);
+
+Using PROT_NONE for pmd_trans_huge() might force PMD page fault to go through
+NUMA fault handling all the time as both pmd_trans_huge() and pmd_protnone()
+will return true in that situation.
