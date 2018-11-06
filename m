@@ -1,59 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EC4D06B02E6
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:08:41 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id b34-v6so7405025edb.3
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:08:41 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c17-v6si4791625ejp.175.2018.11.06.01.08.40
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B1FF26B02E8
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:16:30 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id k203so26098549qke.2
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:16:30 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q4si6374357qtb.265.2018.11.06.01.16.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 01:08:40 -0800 (PST)
-Date: Tue, 6 Nov 2018 10:08:39 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v5] mm, drm/i915: mark pinned shmemfs pages as unevictable
-Message-ID: <20181106090839.GE27423@dhcp22.suse.cz>
-References: <20181106090352.64114-1-vovoy@chromium.org>
+        Tue, 06 Nov 2018 01:16:29 -0800 (PST)
+Date: Tue, 6 Nov 2018 17:16:24 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: [PATCH] mm, memory_hotplug: teach has_unmovable_pages about of
+ LRU migrateable pages
+Message-ID: <20181106091624.GL27491@MiWiFi-R3L-srv>
+References: <20181102155528.20358-1-mhocko@kernel.org>
+ <20181105002009.GF27491@MiWiFi-R3L-srv>
+ <20181105091407.GB4361@dhcp22.suse.cz>
+ <20181105092851.GD4361@dhcp22.suse.cz>
+ <20181105102520.GB22011@MiWiFi-R3L-srv>
+ <20181105123837.GH4361@dhcp22.suse.cz>
+ <20181105142308.GJ27491@MiWiFi-R3L-srv>
+ <20181105171002.GO4361@dhcp22.suse.cz>
+ <20181106002216.GK27491@MiWiFi-R3L-srv>
+ <20181106082826.GC27423@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181106090352.64114-1-vovoy@chromium.org>
+In-Reply-To: <20181106082826.GC27423@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kuo-Hsin Yang <vovoy@chromium.org>
-Cc: linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
 
-On Tue 06-11-18 17:03:51, Kuo-Hsin Yang wrote:
-> The i915 driver uses shmemfs to allocate backing storage for gem
-> objects. These shmemfs pages can be pinned (increased ref count) by
-> shmem_read_mapping_page_gfp(). When a lot of pages are pinned, vmscan
-> wastes a lot of time scanning these pinned pages. In some extreme case,
-> all pages in the inactive anon lru are pinned, and only the inactive
-> anon lru is scanned due to inactive_ratio, the system cannot swap and
-> invokes the oom-killer. Mark these pinned pages as unevictable to speed
-> up vmscan.
+On 11/06/18 at 09:28am, Michal Hocko wrote:
+> > > > > > It failed. Paste the log and patch diff here, please help check if I made
+> > > > > > any mistake on manual code change. The log is at bottom.
+> > > > > 
+> > > > > The retry patch is obviously still racy, it just makes the race window
+> > > > > slightly smaller and I hoped it would catch most of those races but this
+> > > > > is obviously not the case.
+> > > > > 
+> > > > > I was thinking about your MIGRATE_MOVABLE check some more and I still do
+> > > > > not like it much, we just change migrate type at many places and I have
+> > > > > hard time to actually see this is always safe wrt. to what we need here.
+> > > > > 
+> > > > > We should be able to restore the zone type check though. The
+> > > > > primary problem fixed by 15c30bc09085 ("mm, memory_hotplug: make
+> > > > > has_unmovable_pages more robust") was that early allocations made it to
+> > > > > the zone_movable range. If we add the check _after_ the PageReserved()
+> > > > > check then we should be able to rule all bootmem allocation out.
+> > > > > 
+> > > > > So what about the following (on top of the previous patch which makes
+> > > > > sense on its own I believe).
+> > > > 
+> > > > Yes, I think this looks very reasonable and should be robust.
+> > > > 
+> > > > Have tested it, hot removing 4 hotpluggable nodes continusously
+> > > > succeeds, and then hot adding them back, still works well.
+> > > > 
+> > > > So please feel free to add my Tested-by or Acked-by.
+> > > > 
+> > > > Tested-by: Baoquan He <bhe@redhat.com>
+> > > > or
+> > > > Acked-by: Baoquan He <bhe@redhat.com>
+> > > 
+> > > Thanks for retesting! Does this apply to both patches?
+> > 
+> > Sorry, don't get it. I just applied this on top of linus's tree and
+> > tested. Do you mean applying it on top of previous code change?
 > 
-> Export pagevec API check_move_unevictable_pages().
-> 
-> This patch was inspired by Chris Wilson's change [1].
-> 
-> [1]: https://patchwork.kernel.org/patch/9768741/
-> 
-> Cc: Chris Wilson <chris@chris-wilson.co.uk>
-> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Signed-off-by: Kuo-Hsin Yang <vovoy@chromium.org>
-> Acked-by: Michal Hocko <mhocko@suse.com>
+> Yes. While the first patch will obviously not help for movable zone
+> because the movable check will override any later check it
+> seems still useful to reduce false positives on normal zones.
 
-please make it explicit that the ack applies to mm part as i've
-mentioned when giving my ack to the previous version.
+Hmm, I don't know if it will bring a little bit confusion on code
+understanding. Since we only recognize the movable zone issue, and I can
+only reproduce and verify it on the movable zone issue with the movable
+zone check adding.
 
-E.g.
-Acked-by: Michal Hocko <mhocko@use.com> # mm part
+Not sure if there are any scenario or use cases to cover those newly added
+checking other movable zone checking. Surely, I have no objection to
+adding them. But the two patches are separate issues, they have no
+dependency on each other.
 
-because i am not familiar with the drm code to ack any changes there.
--- 
-Michal Hocko
-SUSE Labs
+I just tested the movable zone checking yesterday, will add your
+previous check back, then test again. I believe the result will be
+positive. Will udpate once done.
+
+Thanks
+Baoquan
