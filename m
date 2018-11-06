@@ -1,149 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F14596B02F2
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:32:02 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id n32-v6so7242464edc.17
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:32:02 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v23-v6si458976edr.368.2018.11.06.01.32.01
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 473BD6B02F4
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:36:51 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id s123-v6so25522317qkf.12
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:36:51 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f23-v6si360876qkg.163.2018.11.06.01.36.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 01:32:01 -0800 (PST)
-Subject: Re: [PATCH v2 2/2] mm/page_alloc: use a single function to free page
-References: <20181105085820.6341-1-aaron.lu@intel.com>
- <20181105085820.6341-2-aaron.lu@intel.com> <20181106053037.GD6203@intel.com>
- <d6b4890c-0def-6114-2dcf-3ed120dea82c@suse.cz>
- <20181106084746.GA24198@intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <30aa9d1f-d619-c143-3de6-6876029538bc@suse.cz>
-Date: Tue, 6 Nov 2018 10:32:00 +0100
+        Tue, 06 Nov 2018 01:36:50 -0800 (PST)
+Date: Tue, 6 Nov 2018 17:36:45 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: [PATCH] mm, memory_hotplug: teach has_unmovable_pages about of
+ LRU migrateable pages
+Message-ID: <20181106093645.GM27491@MiWiFi-R3L-srv>
+References: <20181105002009.GF27491@MiWiFi-R3L-srv>
+ <20181105091407.GB4361@dhcp22.suse.cz>
+ <20181105092851.GD4361@dhcp22.suse.cz>
+ <20181105102520.GB22011@MiWiFi-R3L-srv>
+ <20181105123837.GH4361@dhcp22.suse.cz>
+ <20181105142308.GJ27491@MiWiFi-R3L-srv>
+ <20181105171002.GO4361@dhcp22.suse.cz>
+ <20181106002216.GK27491@MiWiFi-R3L-srv>
+ <20181106082826.GC27423@dhcp22.suse.cz>
+ <20181106091624.GL27491@MiWiFi-R3L-srv>
 MIME-Version: 1.0
-In-Reply-To: <20181106084746.GA24198@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181106091624.GL27491@MiWiFi-R3L-srv>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?Q?Pawe=c5=82_Staszewski?= <pstaszewski@itcare.pl>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, Ilias Apalodimas <ilias.apalodimas@linaro.org>, Yoel Caspersen <yoel@kviknet.dk>, Mel Gorman <mgorman@techsingularity.net>, Saeed Mahameed <saeedm@mellanox.com>, Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
 
-On 11/6/18 9:47 AM, Aaron Lu wrote:
-> On Tue, Nov 06, 2018 at 09:16:20AM +0100, Vlastimil Babka wrote:
->> On 11/6/18 6:30 AM, Aaron Lu wrote:
->>> We have multiple places of freeing a page, most of them doing similar
->>> things and a common function can be used to reduce code duplicate.
->>>
->>> It also avoids bug fixed in one function but left in another.
->>>
->>> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
->>
->> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+On 11/06/18 at 05:16pm, Baoquan He wrote:
+> On 11/06/18 at 09:28am, Michal Hocko wrote:
+> > > > > > > It failed. Paste the log and patch diff here, please help check if I made
+> > > > > > > any mistake on manual code change. The log is at bottom.
+> > > > > > 
+> > > > > > The retry patch is obviously still racy, it just makes the race window
+> > > > > > slightly smaller and I hoped it would catch most of those races but this
+> > > > > > is obviously not the case.
+> > > > > > 
+> > > > > > I was thinking about your MIGRATE_MOVABLE check some more and I still do
+> > > > > > not like it much, we just change migrate type at many places and I have
+> > > > > > hard time to actually see this is always safe wrt. to what we need here.
+> > > > > > 
+> > > > > > We should be able to restore the zone type check though. The
+> > > > > > primary problem fixed by 15c30bc09085 ("mm, memory_hotplug: make
+> > > > > > has_unmovable_pages more robust") was that early allocations made it to
+> > > > > > the zone_movable range. If we add the check _after_ the PageReserved()
+> > > > > > check then we should be able to rule all bootmem allocation out.
+> > > > > > 
+> > > > > > So what about the following (on top of the previous patch which makes
+> > > > > > sense on its own I believe).
+> > > > > 
+> > > > > Yes, I think this looks very reasonable and should be robust.
+> > > > > 
+> > > > > Have tested it, hot removing 4 hotpluggable nodes continusously
+> > > > > succeeds, and then hot adding them back, still works well.
+> > > > > 
+> > > > > So please feel free to add my Tested-by or Acked-by.
+> > > > > 
+> > > > > Tested-by: Baoquan He <bhe@redhat.com>
+> > > > > or
+> > > > > Acked-by: Baoquan He <bhe@redhat.com>
+> > > > 
+> > > > Thanks for retesting! Does this apply to both patches?
+> > > 
+> > > Sorry, don't get it. I just applied this on top of linus's tree and
+> > > tested. Do you mean applying it on top of previous code change?
+> > 
+> > Yes. While the first patch will obviously not help for movable zone
+> > because the movable check will override any later check it
+> > seems still useful to reduce false positives on normal zones.
 > 
-> Thanks.
+> Hmm, I don't know if it will bring a little bit confusion on code
+> understanding. Since we only recognize the movable zone issue, and I can
+> only reproduce and verify it on the movable zone issue with the movable
+> zone check adding.
 > 
->> I assume there's no arch that would run page_ref_sub_and_test(1) slower
->> than put_page_testzero(), for the critical __free_pages() case?
+> Not sure if there are any scenario or use cases to cover those newly added
+> checking other movable zone checking. Surely, I have no objection to
+		^ than
+> adding them. But the two patches are separate issues, they have no
+> dependency on each other.
 > 
-> Good question.
+> I just tested the movable zone checking yesterday, will add your
+> previous check back, then test again. I believe the result will be
+> positive. Will udpate once done.
 > 
-> I followed the non-arch specific calls and found that:
-> page_ref_sub_and_test() ends up calling atomic_sub_return(i, v) while
-> put_page_testzero() ends up calling atomic_sub_return(1, v). So they
-> should be same for archs that do not have their own implementations.
-
-x86 seems to distinguish between DECL and SUBL, see
-arch/x86/include/asm/atomic.h although I could not figure out where does
-e.g. arch_atomic_dec_and_test become atomic_dec_and_test to override the
-generic implementation.
-I don't know if the CPU e.g. executes DECL faster, but objectively it
-has one parameter less. Maybe it doesn't matter?
-
-> Back to your question: I don't know either.
-> If this is deemed unsafe, we can probably keep the ref modify part in
-> their original functions and only take the free part into a common
-> function.
-
-I guess you could also employ  if (__builtin_constant_p(nr)) in
-free_the_page(), but the result will be ugly I guess, and maybe not
-worth it :)
-
-> Regards,
-> Aaron
-> 
->>> ---
->>> v2: move comments close to code as suggested by Dave.
->>>
->>>  mm/page_alloc.c | 36 ++++++++++++++++--------------------
->>>  1 file changed, 16 insertions(+), 20 deletions(-)
->>>
->>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>> index 91a9a6af41a2..4faf6b7bf225 100644
->>> --- a/mm/page_alloc.c
->>> +++ b/mm/page_alloc.c
->>> @@ -4425,9 +4425,17 @@ unsigned long get_zeroed_page(gfp_t gfp_mask)
->>>  }
->>>  EXPORT_SYMBOL(get_zeroed_page);
->>>  
->>> -void __free_pages(struct page *page, unsigned int order)
->>> +static inline void free_the_page(struct page *page, unsigned int order, int nr)
->>>  {
->>> -	if (put_page_testzero(page)) {
->>> +	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
->>> +
->>> +	/*
->>> +	 * Free a page by reducing its ref count by @nr.
->>> +	 * If its refcount reaches 0, then according to its order:
->>> +	 * order0: send to PCP;
->>> +	 * high order: directly send to Buddy.
->>> +	 */
->>> +	if (page_ref_sub_and_test(page, nr)) {
->>>  		if (order == 0)
->>>  			free_unref_page(page);
->>>  		else
->>> @@ -4435,6 +4443,10 @@ void __free_pages(struct page *page, unsigned int order)
->>>  	}
->>>  }
->>>  
->>> +void __free_pages(struct page *page, unsigned int order)
->>> +{
->>> +	free_the_page(page, order, 1);
->>> +}
->>>  EXPORT_SYMBOL(__free_pages);
->>>  
->>>  void free_pages(unsigned long addr, unsigned int order)
->>> @@ -4481,16 +4493,7 @@ static struct page *__page_frag_cache_refill(struct page_frag_cache *nc,
->>>  
->>>  void __page_frag_cache_drain(struct page *page, unsigned int count)
->>>  {
->>> -	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
->>> -
->>> -	if (page_ref_sub_and_test(page, count)) {
->>> -		unsigned int order = compound_order(page);
->>> -
->>> -		if (order == 0)
->>> -			free_unref_page(page);
->>> -		else
->>> -			__free_pages_ok(page, order);
->>> -	}
->>> +	free_the_page(page, compound_order(page), count);
->>>  }
->>>  EXPORT_SYMBOL(__page_frag_cache_drain);
->>>  
->>> @@ -4555,14 +4558,7 @@ void page_frag_free(void *addr)
->>>  {
->>>  	struct page *page = virt_to_head_page(addr);
->>>  
->>> -	if (unlikely(put_page_testzero(page))) {
->>> -		unsigned int order = compound_order(page);
->>> -
->>> -		if (order == 0)
->>> -			free_unref_page(page);
->>> -		else
->>> -			__free_pages_ok(page, order);
->>> -	}
->>> +	free_the_page(page, compound_order(page), 1);
->>>  }
->>>  EXPORT_SYMBOL(page_frag_free);
->>>  
->>>
->>
+> Thanks
+> Baoquan
