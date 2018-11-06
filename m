@@ -1,120 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C92236B0396
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 15:34:33 -0500 (EST)
-Received: by mail-it1-f199.google.com with SMTP id o204-v6so7118976itg.0
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 12:34:33 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id m189-v6si2398713itb.89.2018.11.06.12.34.32
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AD93E6B0398
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 15:35:25 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id e97-v6so14226736plb.10
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 12:35:25 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x11-v6sor16724100pfm.44.2018.11.06.12.35.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 12:34:32 -0800 (PST)
-Date: Tue, 6 Nov 2018 12:34:11 -0800
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: Re: [RFC PATCH v4 01/13] ktask: add documentation
-Message-ID: <20181106203411.pdce6tgs7dncwflh@ca-dmjordan1.us.oracle.com>
-References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
- <20181105165558.11698-2-daniel.m.jordan@oracle.com>
- <20181106084911.GA22504@hirez.programming.kicks-ass.net>
+        (Google Transport Security);
+        Tue, 06 Nov 2018 12:35:24 -0800 (PST)
+Date: Wed, 7 Nov 2018 07:35:18 +1100
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [PATCH] mm, memory_hotplug: check zone_movable in
+ has_unmovable_pages
+Message-ID: <20181106203518.GC9042@350D>
+References: <20181106095524.14629-1-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181106084911.GA22504@hirez.programming.kicks-ass.net>
+In-Reply-To: <20181106095524.14629-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, rjw@rjwysocki.net, linux-pm@vger.kernel.org
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-mm@kvack.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, aaron.lu@intel.com, akpm@linux-foundation.org, alex.williamson@redhat.com, bsd@redhat.com, darrick.wong@oracle.com, dave.hansen@linux.intel.com, jgg@mellanox.com, jwadams@google.com, jiangshanlai@gmail.com, mhocko@kernel.org, mike.kravetz@oracle.com, Pavel.Tatashin@microsoft.com, prasad.singamsetty@oracle.com, rdunlap@infradead.org, steven.sistare@oracle.com, tim.c.chen@intel.com, tj@kernel.org, vbabka@suse.cz
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Oscar Salvador <OSalvador@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Tue, Nov 06, 2018 at 09:49:11AM +0100, Peter Zijlstra wrote:
-> On Mon, Nov 05, 2018 at 11:55:46AM -0500, Daniel Jordan wrote:
-> > +Concept
-> > +=======
-> > +
-> > +ktask is built on unbound workqueues to take advantage of the thread management
-> > +facilities it provides: creation, destruction, flushing, priority setting, and
-> > +NUMA affinity.
-> > +
-> > +A little terminology up front:  A 'task' is the total work there is to do and a
-> > +'chunk' is a unit of work given to a thread.
+On Tue, Nov 06, 2018 at 10:55:24AM +0100, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> So I hate on the task naming. We already have a task, lets not overload
-> that name.
-
-Ok, agreed, it's a crowded field with 'task', 'work', 'thread'...
-
-Maybe 'job', since nothing seems to have taken that in kernel/.
-
-> I see no mention of padata anywhere; I also don't see mention of the
-> async init stuff. Both appear to me to share, at least in part, the same
-> reason for existence.
-
-padata is news to me.  From reading its doc, it comes with some special
-requirements of its own, like softirqs disabled during the parallel callback,
-and some ktask users need to sleep.  I'll check whether it could be reworked to
-handle this.
-
-And yes, async shares the same basic infrastructure, but ktask callers need to
-wait, so the two seem fundamentally at odds.  I'll add this explanation in.
-
+> Page state checks are racy. Under a heavy memory workload (e.g. stress
+> -m 200 -t 2h) it is quite easy to hit a race window when the page is
+> allocated but its state is not fully populated yet. A debugging patch to
+> dump the struct page state shows
+> : [  476.575516] has_unmovable_pages: pfn:0x10dfec00, found:0x1, count:0x0
+> : [  476.582103] page:ffffea0437fb0000 count:1 mapcount:1 mapping:ffff880e05239841 index:0x7f26e5000 compound_mapcount: 1
+> : [  476.592645] flags: 0x5fffffc0090034(uptodate|lru|active|head|swapbacked)
 > 
-> > +Scheduler Interaction
-> > +=====================
-...
-> > +It is possible for a helper thread to start running and then be forced off-CPU
-> > +by a higher priority thread.  With the helper's CPU time curtailed by MAX_NICE,
-> > +the main thread may wait longer for the task to finish than it would have had
-> > +it not started any helpers, so to ensure forward progress at a single-threaded
-> > +pace, once the main thread is finished with all outstanding work in the task,
-> > +the main thread wills its priority to one helper thread at a time.  At least
-> > +one thread will then always be running at the priority of the calling thread.
+> Note that the state has been checked for both PageLRU and PageSwapBacked
+> already. Closing this race completely would require some sort of retry
+> logic. This can be tricky and error prone (think of potential endless
+> or long taking loops).
 > 
-> What isn't clear is if this calling thread is waiting or not. Only do
-> this inheritance trick if it is actually waiting on the work. If it is
-> not, nobody cares.
-
-The calling thread waits.  Even if it didn't though, the inheritance trick
-would still be desirable for timely completion of the job.
-
+> Workaround this problem for movable zones at least. Such a zone should
+> only contain movable pages. 15c30bc09085 ("mm, memory_hotplug: make
+> has_unmovable_pages more robust") has told us that this is not strictly
+> true though. Bootmem pages should be marked reserved though so we can
+> move the original check after the PageReserved check. Pages from other
+> zones are still prone to races but we even do not pretend that memory
+> hotremove works for those so pre-mature failure doesn't hurt that much.
 > 
-> > +Cgroup Awareness
-> > +================
-> > +
-> > +Given the potentially large amount of CPU time ktask threads may consume, they
-> > +should be aware of the cgroup of the task that called into ktask and
-> > +appropriately throttled.
-> > +
-> > +TODO: Implement cgroup-awareness in unbound workqueues.
-> 
-> Yes.. that needs done.
-
-Great.
-
-> 
-> > +Power Management
-> > +================
-> > +
-> > +Starting additional helper threads may cause the system to consume more energy,
-> > +which is undesirable on energy-conscious devices.  Therefore ktask needs to be
-> > +aware of cpufreq policies and scaling governors.
-> > +
-> > +If an energy-conscious policy is in use (e.g. powersave, conservative) on any
-> > +part of the system, that is a signal that the user has strong power management
-> > +preferences, in which case ktask is disabled.
-> > +
-> > +TODO: Implement this.
-> 
-> No, don't do that, its broken. Also, we're trying to move to a single
-> cpufreq governor for all.
+> Reported-and-tested-by: Baoquan He <bhe@redhat.com>
+> Acked-by: Baoquan He <bhe@redhat.com>
+> Fixes: "mm, memory_hotplug: make has_unmovable_pages more robust")
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
 >
-> Sure we'll retain 'performance', but powersave and conservative and all
-> that nonsense should go away eventually.
+> Hi,
+> this has been reported [1] and we have tried multiple things to address
+> the issue. The only reliable way was to reintroduce the movable zone
+> check into has_unmovable_pages. This time it should be safe also for
+> the bug originally fixed by 15c30bc09085.
+> 
+> [1] http://lkml.kernel.org/r/20181101091055.GA15166@MiWiFi-R3L-srv
+>  mm/page_alloc.c | 8 ++++++++
+>  1 file changed, 8 insertions(+)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 863d46da6586..c6d900ee4982 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7788,6 +7788,14 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+>  		if (PageReserved(page))
+>  			goto unmovable;
+>  
+> +		/*
+> +		 * If the zone is movable and we have ruled out all reserved
+> +		 * pages then it should be reasonably safe to assume the rest
+> +		 * is movable.
+> +		 */
+> +		if (zone_idx(zone) == ZONE_MOVABLE)
+> +			continue;
+> +
+>  		/*
 
-Ok, good to know.
 
-> That's not saying you don't need a knob for this; but don't look at
-> cpufreq for this.
+There is a WARN_ON() in case of failure at the end of the routine,
+is that triggered when we hit the bug? If we're adding this patch,
+the WARN_ON needs to go as well.
 
-Ok, I'll dig through power management to see what else is there.  Maybe there's
-some way to ask "is this machine energy conscious?"
+The check seems to be quite aggressive and in a loop that iterates
+pages, but has nothing to do with the page, did you mean to make
+the check
 
-Thanks for looking through this!
+zone_idx(page_zone(page)) == ZONE_MOVABLE
+
+it also skips all checks for pinned pages and other checks
+
+
+Balbir Singh. 
