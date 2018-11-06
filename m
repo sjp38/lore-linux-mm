@@ -1,164 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B65BA6B030C
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 06:20:38 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id s24-v6so12973027plp.12
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 03:20:38 -0800 (PST)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id m3-v6si39265635pld.435.2018.11.06.03.20.37
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D92F6B030E
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 06:31:54 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id j13-v6so12274073pff.0
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 03:31:54 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id b3-v6si47754312plc.103.2018.11.06.03.31.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 03:20:37 -0800 (PST)
-Date: Tue, 6 Nov 2018 19:20:33 +0800
+        Tue, 06 Nov 2018 03:31:52 -0800 (PST)
+Date: Tue, 6 Nov 2018 19:31:49 +0800
 From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [PATCH v2 2/2] mm/page_alloc: use a single function to free page
-Message-ID: <20181106112033.GB24198@intel.com>
+Subject: [PATCH v3 2/2] mm/page_alloc: use a single function to free page
+Message-ID: <20181106113149.GC24198@intel.com>
 References: <20181105085820.6341-1-aaron.lu@intel.com>
  <20181105085820.6341-2-aaron.lu@intel.com>
  <20181106053037.GD6203@intel.com>
- <d6b4890c-0def-6114-2dcf-3ed120dea82c@suse.cz>
- <20181106084746.GA24198@intel.com>
- <30aa9d1f-d619-c143-3de6-6876029538bc@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <30aa9d1f-d619-c143-3de6-6876029538bc@suse.cz>
+In-Reply-To: <20181106053037.GD6203@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, =?utf-8?B?UGF3ZcWC?= Staszewski <pstaszewski@itcare.pl>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, Ilias Apalodimas <ilias.apalodimas@linaro.org>, Yoel Caspersen <yoel@kviknet.dk>, Mel Gorman <mgorman@techsingularity.net>, Saeed Mahameed <saeedm@mellanox.com>, Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, =?utf-8?B?UGF3ZcWC?= Staszewski <pstaszewski@itcare.pl>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, Ilias Apalodimas <ilias.apalodimas@linaro.org>, Yoel Caspersen <yoel@kviknet.dk>, Mel Gorman <mgorman@techsingularity.net>, Saeed Mahameed <saeedm@mellanox.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>
 
-On Tue, Nov 06, 2018 at 10:32:00AM +0100, Vlastimil Babka wrote:
-> On 11/6/18 9:47 AM, Aaron Lu wrote:
-> > On Tue, Nov 06, 2018 at 09:16:20AM +0100, Vlastimil Babka wrote:
-> >> On 11/6/18 6:30 AM, Aaron Lu wrote:
-> >>> We have multiple places of freeing a page, most of them doing similar
-> >>> things and a common function can be used to reduce code duplicate.
-> >>>
-> >>> It also avoids bug fixed in one function but left in another.
-> >>>
-> >>> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
-> >>
-> >> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> > 
-> > Thanks.
-> > 
-> >> I assume there's no arch that would run page_ref_sub_and_test(1) slower
-> >> than put_page_testzero(), for the critical __free_pages() case?
-> > 
-> > Good question.
-> > 
-> > I followed the non-arch specific calls and found that:
-> > page_ref_sub_and_test() ends up calling atomic_sub_return(i, v) while
-> > put_page_testzero() ends up calling atomic_sub_return(1, v). So they
-> > should be same for archs that do not have their own implementations.
-> 
-> x86 seems to distinguish between DECL and SUBL, see
+We have multiple places of freeing a page, most of them doing similar
+things and a common function can be used to reduce code duplicate.
 
-Ah right.
+It also avoids bug fixed in one function but left in another.
 
-> arch/x86/include/asm/atomic.h although I could not figure out where does
-> e.g. arch_atomic_dec_and_test become atomic_dec_and_test to override the
-> generic implementation.
+Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+---
+v3: Vlastimil mentioned the possible performance loss by using
+    page_ref_sub_and_test(page, 1) for put_page_testzero(page), since
+    we aren't sure so be safe by keeping page ref decreasing code as
+    is, only move freeing page part to a common function.
 
-I didn't check that either but I think it will :-)
+ mm/page_alloc.c | 37 ++++++++++++++-----------------------
+ 1 file changed, 14 insertions(+), 23 deletions(-)
 
-> I don't know if the CPU e.g. executes DECL faster, but objectively it
-> has one parameter less. Maybe it doesn't matter?
-
-No immediate idea.
-
-> > Back to your question: I don't know either.
-> > If this is deemed unsafe, we can probably keep the ref modify part in
-> > their original functions and only take the free part into a common
-> > function.
-> 
-> I guess you could also employ  if (__builtin_constant_p(nr)) in
-> free_the_page(), but the result will be ugly I guess, and maybe not
-> worth it :)
-
-Right I can't make it clean.
-I think I'll just move the free part a common function and leave the ref
-decreasing part as is to be safe.
-
-Regards,
-Aaron
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 91a9a6af41a2..431a03aa96f8 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4425,16 +4425,19 @@ unsigned long get_zeroed_page(gfp_t gfp_mask)
+ }
+ EXPORT_SYMBOL(get_zeroed_page);
  
-> >>> ---
-> >>> v2: move comments close to code as suggested by Dave.
-> >>>
-> >>>  mm/page_alloc.c | 36 ++++++++++++++++--------------------
-> >>>  1 file changed, 16 insertions(+), 20 deletions(-)
-> >>>
-> >>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >>> index 91a9a6af41a2..4faf6b7bf225 100644
-> >>> --- a/mm/page_alloc.c
-> >>> +++ b/mm/page_alloc.c
-> >>> @@ -4425,9 +4425,17 @@ unsigned long get_zeroed_page(gfp_t gfp_mask)
-> >>>  }
-> >>>  EXPORT_SYMBOL(get_zeroed_page);
-> >>>  
-> >>> -void __free_pages(struct page *page, unsigned int order)
-> >>> +static inline void free_the_page(struct page *page, unsigned int order, int nr)
-> >>>  {
-> >>> -	if (put_page_testzero(page)) {
-> >>> +	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
-> >>> +
-> >>> +	/*
-> >>> +	 * Free a page by reducing its ref count by @nr.
-> >>> +	 * If its refcount reaches 0, then according to its order:
-> >>> +	 * order0: send to PCP;
-> >>> +	 * high order: directly send to Buddy.
-> >>> +	 */
-> >>> +	if (page_ref_sub_and_test(page, nr)) {
-> >>>  		if (order == 0)
-> >>>  			free_unref_page(page);
-> >>>  		else
-> >>> @@ -4435,6 +4443,10 @@ void __free_pages(struct page *page, unsigned int order)
-> >>>  	}
-> >>>  }
-> >>>  
-> >>> +void __free_pages(struct page *page, unsigned int order)
-> >>> +{
-> >>> +	free_the_page(page, order, 1);
-> >>> +}
-> >>>  EXPORT_SYMBOL(__free_pages);
-> >>>  
-> >>>  void free_pages(unsigned long addr, unsigned int order)
-> >>> @@ -4481,16 +4493,7 @@ static struct page *__page_frag_cache_refill(struct page_frag_cache *nc,
-> >>>  
-> >>>  void __page_frag_cache_drain(struct page *page, unsigned int count)
-> >>>  {
-> >>> -	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
-> >>> -
-> >>> -	if (page_ref_sub_and_test(page, count)) {
-> >>> -		unsigned int order = compound_order(page);
-> >>> -
-> >>> -		if (order == 0)
-> >>> -			free_unref_page(page);
-> >>> -		else
-> >>> -			__free_pages_ok(page, order);
-> >>> -	}
-> >>> +	free_the_page(page, compound_order(page), count);
-> >>>  }
-> >>>  EXPORT_SYMBOL(__page_frag_cache_drain);
-> >>>  
-> >>> @@ -4555,14 +4558,7 @@ void page_frag_free(void *addr)
-> >>>  {
-> >>>  	struct page *page = virt_to_head_page(addr);
-> >>>  
-> >>> -	if (unlikely(put_page_testzero(page))) {
-> >>> -		unsigned int order = compound_order(page);
-> >>> -
-> >>> -		if (order == 0)
-> >>> -			free_unref_page(page);
-> >>> -		else
-> >>> -			__free_pages_ok(page, order);
-> >>> -	}
-> >>> +	free_the_page(page, compound_order(page), 1);
-> >>>  }
-> >>>  EXPORT_SYMBOL(page_frag_free);
-> >>>  
-> >>>
-> >>
-> 
+-void __free_pages(struct page *page, unsigned int order)
++static inline void free_the_page(struct page *page, unsigned int order)
+ {
+-	if (put_page_testzero(page)) {
+-		if (order == 0)
+-			free_unref_page(page);
+-		else
+-			__free_pages_ok(page, order);
+-	}
++	if (order == 0)
++		free_unref_page(page);
++	else
++		__free_pages_ok(page, order);
+ }
+ 
++void __free_pages(struct page *page, unsigned int order)
++{
++	if (put_page_testzero(page))
++		free_the_page(page, order);
++}
+ EXPORT_SYMBOL(__free_pages);
+ 
+ void free_pages(unsigned long addr, unsigned int order)
+@@ -4483,14 +4486,8 @@ void __page_frag_cache_drain(struct page *page, unsigned int count)
+ {
+ 	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
+ 
+-	if (page_ref_sub_and_test(page, count)) {
+-		unsigned int order = compound_order(page);
+-
+-		if (order == 0)
+-			free_unref_page(page);
+-		else
+-			__free_pages_ok(page, order);
+-	}
++	if (page_ref_sub_and_test(page, count))
++		free_the_page(page, compound_order(page));
+ }
+ EXPORT_SYMBOL(__page_frag_cache_drain);
+ 
+@@ -4555,14 +4552,8 @@ void page_frag_free(void *addr)
+ {
+ 	struct page *page = virt_to_head_page(addr);
+ 
+-	if (unlikely(put_page_testzero(page))) {
+-		unsigned int order = compound_order(page);
+-
+-		if (order == 0)
+-			free_unref_page(page);
+-		else
+-			__free_pages_ok(page, order);
+-	}
++	if (unlikely(put_page_testzero(page)))
++		free_the_page(page, compound_order(page));
+ }
+ EXPORT_SYMBOL(page_frag_free);
+ 
+-- 
+2.17.2
