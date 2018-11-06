@@ -1,48 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DE4B6B02F8
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:45:41 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id m1-v6so12823497plb.13
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:45:41 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id a3-v6si16787233plp.323.2018.11.06.01.45.40
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 555B56B02FA
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:51:12 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id h24-v6so3303404ede.9
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:51:12 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g23si2123462edy.160.2018.11.06.01.51.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 01:45:40 -0800 (PST)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (1.0)
-Subject: Re: [PATCH] slab.h: Avoid using & for logical and of booleans
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <20181105131305.574d85469f08a4b76592feb6@linux-foundation.org>
-Date: Tue, 6 Nov 2018 02:45:28 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <210D9DA6-67F2-4CF3-94FC-883AA890F53A@oracle.com>
-References: <20181105204000.129023-1-bvanassche@acm.org> <20181105131305.574d85469f08a4b76592feb6@linux-foundation.org>
+        Tue, 06 Nov 2018 01:51:11 -0800 (PST)
+Date: Tue, 6 Nov 2018 10:51:09 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, memory_hotplug: teach has_unmovable_pages about of
+ LRU migrateable pages
+Message-ID: <20181106095109.GJ27423@dhcp22.suse.cz>
+References: <20181105002009.GF27491@MiWiFi-R3L-srv>
+ <20181105091407.GB4361@dhcp22.suse.cz>
+ <20181105092851.GD4361@dhcp22.suse.cz>
+ <20181105102520.GB22011@MiWiFi-R3L-srv>
+ <20181105123837.GH4361@dhcp22.suse.cz>
+ <20181105142308.GJ27491@MiWiFi-R3L-srv>
+ <20181105171002.GO4361@dhcp22.suse.cz>
+ <20181106002216.GK27491@MiWiFi-R3L-srv>
+ <20181106082826.GC27423@dhcp22.suse.cz>
+ <20181106091624.GL27491@MiWiFi-R3L-srv>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181106091624.GL27491@MiWiFi-R3L-srv>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Bart Van Assche <bvanassche@acm.org>, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Christoph Lameter <cl@linux.com>, Roman Gushchin <guro@fb.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org
+To: Baoquan He <bhe@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
 
+On Tue 06-11-18 17:16:24, Baoquan He wrote:
+[...]
+> Not sure if there are any scenario or use cases to cover those newly added
+> checking other movable zone checking. Surely, I have no objection to
+> adding them. But the two patches are separate issues, they have no
+> dependency on each other.
 
+Yes that is correct. I will drop those additional checks for now. Let's
+see if we need them later.
 
-> On Nov 5, 2018, at 14:13, Andrew Morton <akpm@linux-foundation.org> wrote:=
+> I just tested the movable zone checking yesterday, will add your
+> previous check back, then test again. I believe the result will be
+> positive. Will udpate once done.
 
->=20
->> On Mon,  5 Nov 2018 12:40:00 -0800 Bart Van Assche <bvanassche@acm.org> w=
-rote:
->> -    return type_dma + (is_reclaimable & !is_dma) * KMALLOC_RECLAIM;
->> +    return type_dma + is_reclaimable * !is_dma * KMALLOC_RECLAIM;
->> }
->>=20
->> /*
->=20
-> I suppose so.
->=20
-> That function seems too clever for its own good :(.  I wonder if these
-> branch-avoiding tricks are really worthwhile.
+THere is no need to retest with that patch for your movable node setup.
 
-At the very least I'd like to see some comments added as to why that approac=
-h was taken for the sake of future maintainers.
-
-William Kucharski
+-- 
+Michal Hocko
+SUSE Labs
