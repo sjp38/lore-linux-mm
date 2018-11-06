@@ -1,217 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F14606B02CC
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 03:26:24 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id c8-v6so6985439edt.23
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 00:26:24 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id d19-v6si10775997ejj.256.2018.11.06.00.26.23
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 02FAB6B02CE
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 03:28:30 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id l15-v6so11958484pff.5
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 00:28:29 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x33-v6si38851352plb.49.2018.11.06.00.28.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 00:26:23 -0800 (PST)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wA68OqVh099732
-	for <linux-mm@kvack.org>; Tue, 6 Nov 2018 03:26:22 -0500
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2nk573vujp-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 06 Nov 2018 03:26:21 -0500
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Tue, 6 Nov 2018 08:26:20 -0000
-Date: Tue, 6 Nov 2018 10:26:12 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: Re: [PATCH v2] mm: Create the new vm_fault_t type
-References: <20181106074934.GA27620@jordon-HP-15-Notebook-PC>
+        Tue, 06 Nov 2018 00:28:28 -0800 (PST)
+Date: Tue, 6 Nov 2018 09:28:26 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, memory_hotplug: teach has_unmovable_pages about of
+ LRU migrateable pages
+Message-ID: <20181106082826.GC27423@dhcp22.suse.cz>
+References: <20181101091055.GA15166@MiWiFi-R3L-srv>
+ <20181102155528.20358-1-mhocko@kernel.org>
+ <20181105002009.GF27491@MiWiFi-R3L-srv>
+ <20181105091407.GB4361@dhcp22.suse.cz>
+ <20181105092851.GD4361@dhcp22.suse.cz>
+ <20181105102520.GB22011@MiWiFi-R3L-srv>
+ <20181105123837.GH4361@dhcp22.suse.cz>
+ <20181105142308.GJ27491@MiWiFi-R3L-srv>
+ <20181105171002.GO4361@dhcp22.suse.cz>
+ <20181106002216.GK27491@MiWiFi-R3L-srv>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181106074934.GA27620@jordon-HP-15-Notebook-PC>
-Message-Id: <20181106082611.GB28505@rapoport-lnx>
+In-Reply-To: <20181106002216.GK27491@MiWiFi-R3L-srv>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: willy@infradead.org, akpm@linux-foundation.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, vbabka@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Baoquan He <bhe@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stable tree <stable@vger.kernel.org>
 
-On Tue, Nov 06, 2018 at 01:19:34PM +0530, Souptick Joarder wrote:
-> Page fault handlers are supposed to return VM_FAULT codes,
-> but some drivers/file systems mistakenly return error
-> numbers. Now that all drivers/file systems have been converted
-> to use the vm_fault_t return type, change the type definition
-> to no longer be compatible with 'int'. By making it an unsigned
-> int, the function prototype becomes incompatible with a function
-> which returns int. Sparse will detect any attempts to return a
-> value which is not a VM_FAULT code.
+On Tue 06-11-18 08:22:16, Baoquan He wrote:
+> On 11/05/18 at 06:10pm, Michal Hocko wrote:
+> > On Mon 05-11-18 22:23:08, Baoquan He wrote:
+> > > On 11/05/18 at 01:38pm, Michal Hocko wrote:
+> > > > On Mon 05-11-18 18:25:20, Baoquan He wrote:
+> > > > > Hi Michal,
+> > > > > 
+> > > > > On 11/05/18 at 10:28am, Michal Hocko wrote:
+> > > > > > 
+> > > > > > Or something like this. Ugly as hell, no question about that. I also
+> > > > > > have to think about this some more to convince myself this will not
+> > > > > > result in an endless loop under some situations.
+> > > > > 
+> > > > > It failed. Paste the log and patch diff here, please help check if I made
+> > > > > any mistake on manual code change. The log is at bottom.
+> > > > 
+> > > > The retry patch is obviously still racy, it just makes the race window
+> > > > slightly smaller and I hoped it would catch most of those races but this
+> > > > is obviously not the case.
+> > > > 
+> > > > I was thinking about your MIGRATE_MOVABLE check some more and I still do
+> > > > not like it much, we just change migrate type at many places and I have
+> > > > hard time to actually see this is always safe wrt. to what we need here.
+> > > > 
+> > > > We should be able to restore the zone type check though. The
+> > > > primary problem fixed by 15c30bc09085 ("mm, memory_hotplug: make
+> > > > has_unmovable_pages more robust") was that early allocations made it to
+> > > > the zone_movable range. If we add the check _after_ the PageReserved()
+> > > > check then we should be able to rule all bootmem allocation out.
+> > > > 
+> > > > So what about the following (on top of the previous patch which makes
+> > > > sense on its own I believe).
+> > > 
+> > > Yes, I think this looks very reasonable and should be robust.
+> > > 
+> > > Have tested it, hot removing 4 hotpluggable nodes continusously
+> > > succeeds, and then hot adding them back, still works well.
+> > > 
+> > > So please feel free to add my Tested-by or Acked-by.
+> > > 
+> > > Tested-by: Baoquan He <bhe@redhat.com>
+> > > or
+> > > Acked-by: Baoquan He <bhe@redhat.com>
+> > 
+> > Thanks for retesting! Does this apply to both patches?
 > 
-> VM_FAULT_SET_HINDEX and VM_FAULT_GET_HINDEX values are changed
-> to avoid conflict with other VM_FAULT codes.
-> 
-> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-> ---
-> v2: Updated the change log and corrected the document part.
->     name added to the enum that kernel-doc able to parse it.
-> 
->  include/linux/mm.h       | 46 ------------------------------
->  include/linux/mm_types.h | 73 +++++++++++++++++++++++++++++++++++++++++++++++-
->  2 files changed, 72 insertions(+), 47 deletions(-)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index fcf9cc9..511a3ce 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1267,52 +1267,6 @@ static inline void clear_page_pfmemalloc(struct page *page)
->  }
->  
->  /*
-> - * Different kinds of faults, as returned by handle_mm_fault().
-> - * Used to decide whether a process gets delivered SIGBUS or
-> - * just gets major/minor fault counters bumped up.
-> - */
-> -
-> -#define VM_FAULT_OOM	0x0001
-> -#define VM_FAULT_SIGBUS	0x0002
-> -#define VM_FAULT_MAJOR	0x0004
-> -#define VM_FAULT_WRITE	0x0008	/* Special case for get_user_pages */
-> -#define VM_FAULT_HWPOISON 0x0010	/* Hit poisoned small page */
-> -#define VM_FAULT_HWPOISON_LARGE 0x0020  /* Hit poisoned large page. Index encoded in upper bits */
-> -#define VM_FAULT_SIGSEGV 0x0040
-> -
-> -#define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
-> -#define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
-> -#define VM_FAULT_RETRY	0x0400	/* ->fault blocked, must retry */
-> -#define VM_FAULT_FALLBACK 0x0800	/* huge page fault failed, fall back to small */
-> -#define VM_FAULT_DONE_COW   0x1000	/* ->fault has fully handled COW */
-> -#define VM_FAULT_NEEDDSYNC  0x2000	/* ->fault did not modify page tables
-> -					 * and needs fsync() to complete (for
-> -					 * synchronous page faults in DAX) */
-> -
-> -#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | \
-> -			 VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE | \
-> -			 VM_FAULT_FALLBACK)
-> -
-> -#define VM_FAULT_RESULT_TRACE \
-> -	{ VM_FAULT_OOM,			"OOM" }, \
-> -	{ VM_FAULT_SIGBUS,		"SIGBUS" }, \
-> -	{ VM_FAULT_MAJOR,		"MAJOR" }, \
-> -	{ VM_FAULT_WRITE,		"WRITE" }, \
-> -	{ VM_FAULT_HWPOISON,		"HWPOISON" }, \
-> -	{ VM_FAULT_HWPOISON_LARGE,	"HWPOISON_LARGE" }, \
-> -	{ VM_FAULT_SIGSEGV,		"SIGSEGV" }, \
-> -	{ VM_FAULT_NOPAGE,		"NOPAGE" }, \
-> -	{ VM_FAULT_LOCKED,		"LOCKED" }, \
-> -	{ VM_FAULT_RETRY,		"RETRY" }, \
-> -	{ VM_FAULT_FALLBACK,		"FALLBACK" }, \
-> -	{ VM_FAULT_DONE_COW,		"DONE_COW" }, \
-> -	{ VM_FAULT_NEEDDSYNC,		"NEEDDSYNC" }
-> -
-> -/* Encode hstate index for a hwpoisoned large page */
-> -#define VM_FAULT_SET_HINDEX(x) ((x) << 12)
-> -#define VM_FAULT_GET_HINDEX(x) (((x) >> 12) & 0xf)
-> -
-> -/*
->   * Can be called by the pagefault handler when it gets a VM_FAULT_OOM.
->   */
->  extern void pagefault_out_of_memory(void);
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 5ed8f62..beee607 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -22,7 +22,6 @@
->  #endif
->  #define AT_VECTOR_SIZE (2*(AT_VECTOR_SIZE_ARCH + AT_VECTOR_SIZE_BASE + 1))
->  
-> -typedef int vm_fault_t;
->  
->  struct address_space;
->  struct mem_cgroup;
-> @@ -609,6 +608,78 @@ static inline bool mm_tlb_flush_nested(struct mm_struct *mm)
->  
->  struct vm_fault;
->  
-> +/**
-> + * typedef vm_fault_t - Return type for page fault handlers.
-> + *
-> + * Page fault handlers return a bitmask of %VM_FAULT values.
-> + */
-> +typedef __bitwise unsigned int vm_fault_t;
-> +
-> +/**
-> + * enum - VM_FAULT code
+> Sorry, don't get it. I just applied this on top of linus's tree and
+> tested. Do you mean applying it on top of previous code change?
 
-It should be 'enum vm_fault_reason' here.
-A more elaborate brief description would also be nice.
+Yes. While the first patch will obviously not help for movable zone
+because the movable check will override any later check it
+seems still useful to reduce false positives on normal zones.
 
-> + *
-> + * Page fault handlers return a bitmask of these values to tell
-> + * the core VM what happened when handling the fault. Used to decide
-> + * whether a process gets delivered SIGBUS or just gets major/minor
-> + * fault counters bumped up.
-> + *
-> + * @VM_FAULT_OOM:		Out Of Memory
-> + * @VM_FAULT_SIGBUS:		Bad access
-> + * @VM_FAULT_MAJOR:		Page read from storage
-> + * @VM_FAULT_WRITE:		Special case for get_user_pages
-> + * @VM_FAULT_HWPOISON:		Hit poisoned small page
-> + * @VM_FAULT_HWPOISON_LARGE:	Hit poisoned large page. Index encoded
-> + *				in upper bits
-> + * @VM_FAULT_SIGSEGV:		segmentation fault
-> + * @VM_FAULT_NOPAGE:		->fault installed the pte, not return page
-> + * @VM_FAULT_LOCKED:		->fault locked the returned page
-> + * @VM_FAULT_RETRY:		->fault blocked, must retry
-> + * @VM_FAULT_FALLBACK:		huge page fault failed, fall back to small
-> + * @VM_FAULT_DONE_COW:		->fault has fully handled COW
-> + * @VM_FAULT_NEEDDSYNC:		->fault did not modify page tables and needs
-> + *				fsync() to complete (for synchronous page faults
-> + *				in DAX)
-> + */
-> +enum vm_fault_reason {
-> +	VM_FAULT_OOM            = (__force vm_fault_t)0x000001,
-> +	VM_FAULT_SIGBUS         = (__force vm_fault_t)0x000002,
-> +	VM_FAULT_MAJOR          = (__force vm_fault_t)0x000004,
-> +	VM_FAULT_WRITE          = (__force vm_fault_t)0x000008,
-> +	VM_FAULT_HWPOISON       = (__force vm_fault_t)0x000010,
-> +	VM_FAULT_HWPOISON_LARGE = (__force vm_fault_t)0x000020,
-> +	VM_FAULT_SIGSEGV        = (__force vm_fault_t)0x000040,
-> +	VM_FAULT_NOPAGE         = (__force vm_fault_t)0x000100,
-> +	VM_FAULT_LOCKED         = (__force vm_fault_t)0x000200,
-> +	VM_FAULT_RETRY          = (__force vm_fault_t)0x000400,
-> +	VM_FAULT_FALLBACK       = (__force vm_fault_t)0x000800,
-> +	VM_FAULT_DONE_COW       = (__force vm_fault_t)0x001000,
-> +	VM_FAULT_NEEDDSYNC      = (__force vm_fault_t)0x002000,
-> +	VM_FAULT_HINDEX_MASK    = (__force vm_fault_t)0x0f0000,
-> +};
-> +
-> +/* Encode hstate index for a hwpoisoned large page */
-> +#define VM_FAULT_SET_HINDEX(x) ((__force vm_fault_t)((x) << 16))
-> +#define VM_FAULT_GET_HINDEX(x) (((x) >> 16) & 0xf)
-> +
-> +#define VM_FAULT_ERROR (VM_FAULT_OOM | VM_FAULT_SIGBUS |	\
-> +			VM_FAULT_SIGSEGV | VM_FAULT_HWPOISON |	\
-> +			VM_FAULT_HWPOISON_LARGE | VM_FAULT_FALLBACK)
-> +
-> +#define VM_FAULT_RESULT_TRACE \
-> +	{ VM_FAULT_OOM,                 "OOM" },	\
-> +	{ VM_FAULT_SIGBUS,              "SIGBUS" },	\
-> +	{ VM_FAULT_MAJOR,               "MAJOR" },	\
-> +	{ VM_FAULT_WRITE,               "WRITE" },	\
-> +	{ VM_FAULT_HWPOISON,            "HWPOISON" },	\
-> +	{ VM_FAULT_HWPOISON_LARGE,      "HWPOISON_LARGE" },	\
-> +	{ VM_FAULT_SIGSEGV,             "SIGSEGV" },	\
-> +	{ VM_FAULT_NOPAGE,              "NOPAGE" },	\
-> +	{ VM_FAULT_LOCKED,              "LOCKED" },	\
-> +	{ VM_FAULT_RETRY,               "RETRY" },	\
-> +	{ VM_FAULT_FALLBACK,            "FALLBACK" },	\
-> +	{ VM_FAULT_DONE_COW,            "DONE_COW" },	\
-> +	{ VM_FAULT_NEEDDSYNC,           "NEEDDSYNC" }
-> +
->  struct vm_special_mapping {
->  	const char *name;	/* The name, e.g. "[vdso]". */
->  
-> -- 
-> 1.9.1
-> 
+Or do you think this is not worth it?
 
 -- 
-Sincerely yours,
-Mike.
+Michal Hocko
+SUSE Labs
