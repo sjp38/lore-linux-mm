@@ -1,252 +1,263 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 829C16B02E0
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:01:17 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id s141-v6so11068960pgs.23
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:01:17 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 1-v6si42624469plk.253.2018.11.06.01.01.15
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3823B6B02E2
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:04:00 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id s17-v6so11119617pga.9
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:04:00 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g8-v6sor22198129pli.15.2018.11.06.01.03.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 01:01:16 -0800 (PST)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wA68xFM7038847
-	for <linux-mm@kvack.org>; Tue, 6 Nov 2018 04:01:15 -0500
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2nk5a9e9f2-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 06 Nov 2018 04:01:09 -0500
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Tue, 6 Nov 2018 09:01:02 -0000
-Date: Tue, 6 Nov 2018 11:00:55 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: Re: [PATCH v2] mm: Create the new vm_fault_t type
-References: <20181106074934.GA27620@jordon-HP-15-Notebook-PC>
- <20181106082611.GB28505@rapoport-lnx>
- <CAFqt6zaKHXbWbBhK+bCeF-0s5uPH+6hGiU+Xp_6v_2A+xzHe2A@mail.gmail.com>
+        (Google Transport Security);
+        Tue, 06 Nov 2018 01:03:58 -0800 (PST)
+From: Kuo-Hsin Yang <vovoy@chromium.org>
+Subject: [PATCH v5] mm, drm/i915: mark pinned shmemfs pages as unevictable
+Date: Tue,  6 Nov 2018 17:03:51 +0800
+Message-Id: <20181106090352.64114-1-vovoy@chromium.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAFqt6zaKHXbWbBhK+bCeF-0s5uPH+6hGiU+Xp_6v_2A+xzHe2A@mail.gmail.com>
-Message-Id: <20181106090054.GC28505@rapoport-lnx>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, vbabka@suse.cz, riel@redhat.com, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org
+Cc: Kuo-Hsin Yang <vovoy@chromium.org>, Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>
 
-On Tue, Nov 06, 2018 at 02:04:54PM +0530, Souptick Joarder wrote:
-> On Tue, Nov 6, 2018 at 1:56 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
-> >
-> > On Tue, Nov 06, 2018 at 01:19:34PM +0530, Souptick Joarder wrote:
-> > > Page fault handlers are supposed to return VM_FAULT codes,
-> > > but some drivers/file systems mistakenly return error
-> > > numbers. Now that all drivers/file systems have been converted
-> > > to use the vm_fault_t return type, change the type definition
-> > > to no longer be compatible with 'int'. By making it an unsigned
-> > > int, the function prototype becomes incompatible with a function
-> > > which returns int. Sparse will detect any attempts to return a
-> > > value which is not a VM_FAULT code.
-> > >
-> > > VM_FAULT_SET_HINDEX and VM_FAULT_GET_HINDEX values are changed
-> > > to avoid conflict with other VM_FAULT codes.
-> > >
-> > > Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-> > > ---
-> > > v2: Updated the change log and corrected the document part.
-> > >     name added to the enum that kernel-doc able to parse it.
-> > >
-> > >  include/linux/mm.h       | 46 ------------------------------
-> > >  include/linux/mm_types.h | 73 +++++++++++++++++++++++++++++++++++++++++++++++-
-> > >  2 files changed, 72 insertions(+), 47 deletions(-)
-> > >
-> > > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > > index fcf9cc9..511a3ce 100644
-> > > --- a/include/linux/mm.h
-> > > +++ b/include/linux/mm.h
-> > > @@ -1267,52 +1267,6 @@ static inline void clear_page_pfmemalloc(struct page *page)
-> > >  }
-> > >
-> > >  /*
-> > > - * Different kinds of faults, as returned by handle_mm_fault().
-> > > - * Used to decide whether a process gets delivered SIGBUS or
-> > > - * just gets major/minor fault counters bumped up.
-> > > - */
-> > > -
-> > > -#define VM_FAULT_OOM 0x0001
-> > > -#define VM_FAULT_SIGBUS      0x0002
-> > > -#define VM_FAULT_MAJOR       0x0004
-> > > -#define VM_FAULT_WRITE       0x0008  /* Special case for get_user_pages */
-> > > -#define VM_FAULT_HWPOISON 0x0010     /* Hit poisoned small page */
-> > > -#define VM_FAULT_HWPOISON_LARGE 0x0020  /* Hit poisoned large page. Index encoded in upper bits */
-> > > -#define VM_FAULT_SIGSEGV 0x0040
-> > > -
-> > > -#define VM_FAULT_NOPAGE      0x0100  /* ->fault installed the pte, not return page */
-> > > -#define VM_FAULT_LOCKED      0x0200  /* ->fault locked the returned page */
-> > > -#define VM_FAULT_RETRY       0x0400  /* ->fault blocked, must retry */
-> > > -#define VM_FAULT_FALLBACK 0x0800     /* huge page fault failed, fall back to small */
-> > > -#define VM_FAULT_DONE_COW   0x1000   /* ->fault has fully handled COW */
-> > > -#define VM_FAULT_NEEDDSYNC  0x2000   /* ->fault did not modify page tables
-> > > -                                      * and needs fsync() to complete (for
-> > > -                                      * synchronous page faults in DAX) */
-> > > -
-> > > -#define VM_FAULT_ERROR       (VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | \
-> > > -                      VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE | \
-> > > -                      VM_FAULT_FALLBACK)
-> > > -
-> > > -#define VM_FAULT_RESULT_TRACE \
-> > > -     { VM_FAULT_OOM,                 "OOM" }, \
-> > > -     { VM_FAULT_SIGBUS,              "SIGBUS" }, \
-> > > -     { VM_FAULT_MAJOR,               "MAJOR" }, \
-> > > -     { VM_FAULT_WRITE,               "WRITE" }, \
-> > > -     { VM_FAULT_HWPOISON,            "HWPOISON" }, \
-> > > -     { VM_FAULT_HWPOISON_LARGE,      "HWPOISON_LARGE" }, \
-> > > -     { VM_FAULT_SIGSEGV,             "SIGSEGV" }, \
-> > > -     { VM_FAULT_NOPAGE,              "NOPAGE" }, \
-> > > -     { VM_FAULT_LOCKED,              "LOCKED" }, \
-> > > -     { VM_FAULT_RETRY,               "RETRY" }, \
-> > > -     { VM_FAULT_FALLBACK,            "FALLBACK" }, \
-> > > -     { VM_FAULT_DONE_COW,            "DONE_COW" }, \
-> > > -     { VM_FAULT_NEEDDSYNC,           "NEEDDSYNC" }
-> > > -
-> > > -/* Encode hstate index for a hwpoisoned large page */
-> > > -#define VM_FAULT_SET_HINDEX(x) ((x) << 12)
-> > > -#define VM_FAULT_GET_HINDEX(x) (((x) >> 12) & 0xf)
-> > > -
-> > > -/*
-> > >   * Can be called by the pagefault handler when it gets a VM_FAULT_OOM.
-> > >   */
-> > >  extern void pagefault_out_of_memory(void);
-> > > diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> > > index 5ed8f62..beee607 100644
-> > > --- a/include/linux/mm_types.h
-> > > +++ b/include/linux/mm_types.h
-> > > @@ -22,7 +22,6 @@
-> > >  #endif
-> > >  #define AT_VECTOR_SIZE (2*(AT_VECTOR_SIZE_ARCH + AT_VECTOR_SIZE_BASE + 1))
-> > >
-> > > -typedef int vm_fault_t;
-> > >
-> > >  struct address_space;
-> > >  struct mem_cgroup;
-> > > @@ -609,6 +608,78 @@ static inline bool mm_tlb_flush_nested(struct mm_struct *mm)
-> > >
-> > >  struct vm_fault;
-> > >
-> > > +/**
-> > > + * typedef vm_fault_t - Return type for page fault handlers.
-> > > + *
-> > > + * Page fault handlers return a bitmask of %VM_FAULT values.
-> > > + */
-> > > +typedef __bitwise unsigned int vm_fault_t;
-> > > +
-> > > +/**
-> > > + * enum - VM_FAULT code
-> >
-> > It should be 'enum vm_fault_reason' here.
-> 
-> Sorry, missed it.
-> 
-> > A more elaborate brief description would also be nice.
->
-> This much description is not sufficient to explain the enum ?
-> >
+The i915 driver uses shmemfs to allocate backing storage for gem
+objects. These shmemfs pages can be pinned (increased ref count) by
+shmem_read_mapping_page_gfp(). When a lot of pages are pinned, vmscan
+wastes a lot of time scanning these pinned pages. In some extreme case,
+all pages in the inactive anon lru are pinned, and only the inactive
+anon lru is scanned due to inactive_ratio, the system cannot swap and
+invokes the oom-killer. Mark these pinned pages as unevictable to speed
+up vmscan.
 
-The description below is fine, but kernel-doc will use "VM_FAULT code" as
-the "short description" and the explanation will be used as "long
-description".
+Export pagevec API check_move_unevictable_pages().
 
-So either replace "VM_FAULT code" with something like "page fault handler
-return codes" or put the long explanation next to 'enum vm_fault_reason':
+This patch was inspired by Chris Wilson's change [1].
 
-/**
- * enum vm_fault_reason - page fault handlers return a bitmask of these
- * values ...
- * ...
- */
+[1]: https://patchwork.kernel.org/patch/9768741/
 
-Please take a look at "Structure, union, and enumeration documentation" in
-Documentation/doc-guide/kernel-doc.rst [1].
+Cc: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Signed-off-by: Kuo-Hsin Yang <vovoy@chromium.org>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+Changes for v5:
+ Modify doc and comments. Remove the ifdef surrounding
+ check_move_unevictable_pages.
 
-[1] https://www.kernel.org/doc/html/latest/doc-guide/kernel-doc.html#structure-union-and-enumeration-documentation
+Changes for v4:
+ Export pagevec API check_move_unevictable_pages().
 
-> > > + *
-> > > + * Page fault handlers return a bitmask of these values to tell
-> > > + * the core VM what happened when handling the fault. Used to decide
-> > > + * whether a process gets delivered SIGBUS or just gets major/minor
-> > > + * fault counters bumped up.
-> > > + *
-> > > + * @VM_FAULT_OOM:            Out Of Memory
-> > > + * @VM_FAULT_SIGBUS:         Bad access
-> > > + * @VM_FAULT_MAJOR:          Page read from storage
-> > > + * @VM_FAULT_WRITE:          Special case for get_user_pages
-> > > + * @VM_FAULT_HWPOISON:               Hit poisoned small page
-> > > + * @VM_FAULT_HWPOISON_LARGE: Hit poisoned large page. Index encoded
-> > > + *                           in upper bits
-> > > + * @VM_FAULT_SIGSEGV:                segmentation fault
-> > > + * @VM_FAULT_NOPAGE:         ->fault installed the pte, not return page
-> > > + * @VM_FAULT_LOCKED:         ->fault locked the returned page
-> > > + * @VM_FAULT_RETRY:          ->fault blocked, must retry
-> > > + * @VM_FAULT_FALLBACK:               huge page fault failed, fall back to small
-> > > + * @VM_FAULT_DONE_COW:               ->fault has fully handled COW
-> > > + * @VM_FAULT_NEEDDSYNC:              ->fault did not modify page tables and needs
-> > > + *                           fsync() to complete (for synchronous page faults
-> > > + *                           in DAX)
-> > > + */
-> > > +enum vm_fault_reason {
-> > > +     VM_FAULT_OOM            = (__force vm_fault_t)0x000001,
-> > > +     VM_FAULT_SIGBUS         = (__force vm_fault_t)0x000002,
-> > > +     VM_FAULT_MAJOR          = (__force vm_fault_t)0x000004,
-> > > +     VM_FAULT_WRITE          = (__force vm_fault_t)0x000008,
-> > > +     VM_FAULT_HWPOISON       = (__force vm_fault_t)0x000010,
-> > > +     VM_FAULT_HWPOISON_LARGE = (__force vm_fault_t)0x000020,
-> > > +     VM_FAULT_SIGSEGV        = (__force vm_fault_t)0x000040,
-> > > +     VM_FAULT_NOPAGE         = (__force vm_fault_t)0x000100,
-> > > +     VM_FAULT_LOCKED         = (__force vm_fault_t)0x000200,
-> > > +     VM_FAULT_RETRY          = (__force vm_fault_t)0x000400,
-> > > +     VM_FAULT_FALLBACK       = (__force vm_fault_t)0x000800,
-> > > +     VM_FAULT_DONE_COW       = (__force vm_fault_t)0x001000,
-> > > +     VM_FAULT_NEEDDSYNC      = (__force vm_fault_t)0x002000,
-> > > +     VM_FAULT_HINDEX_MASK    = (__force vm_fault_t)0x0f0000,
-> > > +};
-> > > +
-> > > +/* Encode hstate index for a hwpoisoned large page */
-> > > +#define VM_FAULT_SET_HINDEX(x) ((__force vm_fault_t)((x) << 16))
-> > > +#define VM_FAULT_GET_HINDEX(x) (((x) >> 16) & 0xf)
-> > > +
-> > > +#define VM_FAULT_ERROR (VM_FAULT_OOM | VM_FAULT_SIGBUS |     \
-> > > +                     VM_FAULT_SIGSEGV | VM_FAULT_HWPOISON |  \
-> > > +                     VM_FAULT_HWPOISON_LARGE | VM_FAULT_FALLBACK)
-> > > +
-> > > +#define VM_FAULT_RESULT_TRACE \
-> > > +     { VM_FAULT_OOM,                 "OOM" },        \
-> > > +     { VM_FAULT_SIGBUS,              "SIGBUS" },     \
-> > > +     { VM_FAULT_MAJOR,               "MAJOR" },      \
-> > > +     { VM_FAULT_WRITE,               "WRITE" },      \
-> > > +     { VM_FAULT_HWPOISON,            "HWPOISON" },   \
-> > > +     { VM_FAULT_HWPOISON_LARGE,      "HWPOISON_LARGE" },     \
-> > > +     { VM_FAULT_SIGSEGV,             "SIGSEGV" },    \
-> > > +     { VM_FAULT_NOPAGE,              "NOPAGE" },     \
-> > > +     { VM_FAULT_LOCKED,              "LOCKED" },     \
-> > > +     { VM_FAULT_RETRY,               "RETRY" },      \
-> > > +     { VM_FAULT_FALLBACK,            "FALLBACK" },   \
-> > > +     { VM_FAULT_DONE_COW,            "DONE_COW" },   \
-> > > +     { VM_FAULT_NEEDDSYNC,           "NEEDDSYNC" }
-> > > +
-> > >  struct vm_special_mapping {
-> > >       const char *name;       /* The name, e.g. "[vdso]". */
-> > >
-> > > --
-> > > 1.9.1
-> > >
-> >
-> > --
-> > Sincerely yours,
-> > Mike.
-> >
-> 
+Changes for v3:
+ Use check_move_lru_page instead of shmem_unlock_mapping to move pages
+ to appropriate lru lists.
 
+Changes for v2:
+ Squashed the two patches.
+
+ Documentation/vm/unevictable-lru.rst |  6 +++++-
+ drivers/gpu/drm/i915/i915_gem.c      | 28 ++++++++++++++++++++++++++--
+ include/linux/swap.h                 |  4 +++-
+ mm/shmem.c                           |  2 +-
+ mm/vmscan.c                          | 22 +++++++++++-----------
+ 5 files changed, 46 insertions(+), 16 deletions(-)
+
+diff --git a/Documentation/vm/unevictable-lru.rst b/Documentation/vm/unevictable-lru.rst
+index fdd84cb8d511..b8e29f977f2d 100644
+--- a/Documentation/vm/unevictable-lru.rst
++++ b/Documentation/vm/unevictable-lru.rst
+@@ -143,7 +143,7 @@ using a number of wrapper functions:
+ 	Query the address space, and return true if it is completely
+ 	unevictable.
+ 
+-These are currently used in two places in the kernel:
++These are currently used in three places in the kernel:
+ 
+  (1) By ramfs to mark the address spaces of its inodes when they are created,
+      and this mark remains for the life of the inode.
+@@ -154,6 +154,10 @@ These are currently used in two places in the kernel:
+      swapped out; the application must touch the pages manually if it wants to
+      ensure they're in memory.
+ 
++ (3) By the i915 driver to mark pinned address space until it's unpinned. The
++     amount of unevictable memory marked by i915 driver is roughly the bounded
++     object size in debugfs/dri/0/i915_gem_objects.
++
+ 
+ Detecting Unevictable Pages
+ ---------------------------
+diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
+index 0c8aa57ce83b..c620891e0d02 100644
+--- a/drivers/gpu/drm/i915/i915_gem.c
++++ b/drivers/gpu/drm/i915/i915_gem.c
+@@ -2381,12 +2381,25 @@ void __i915_gem_object_invalidate(struct drm_i915_gem_object *obj)
+ 	invalidate_mapping_pages(mapping, 0, (loff_t)-1);
+ }
+ 
++/**
++ * Move pages to appropriate lru and release the pagevec. Decrement the ref
++ * count of these pages.
++ */
++static inline void check_release_pagevec(struct pagevec *pvec)
++{
++	if (pagevec_count(pvec)) {
++		check_move_unevictable_pages(pvec);
++		__pagevec_release(pvec);
++	}
++}
++
+ static void
+ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
+ 			      struct sg_table *pages)
+ {
+ 	struct sgt_iter sgt_iter;
+ 	struct page *page;
++	struct pagevec pvec;
+ 
+ 	__i915_gem_object_release_shmem(obj, pages, true);
+ 
+@@ -2395,6 +2408,9 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
+ 	if (i915_gem_object_needs_bit17_swizzle(obj))
+ 		i915_gem_object_save_bit_17_swizzle(obj, pages);
+ 
++	mapping_clear_unevictable(file_inode(obj->base.filp)->i_mapping);
++
++	pagevec_init(&pvec);
+ 	for_each_sgt_page(page, sgt_iter, pages) {
+ 		if (obj->mm.dirty)
+ 			set_page_dirty(page);
+@@ -2402,8 +2418,10 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
+ 		if (obj->mm.madv == I915_MADV_WILLNEED)
+ 			mark_page_accessed(page);
+ 
+-		put_page(page);
++		if (!pagevec_add(&pvec, page))
++			check_release_pagevec(&pvec);
+ 	}
++	check_release_pagevec(&pvec);
+ 	obj->mm.dirty = false;
+ 
+ 	sg_free_table(pages);
+@@ -2526,6 +2544,7 @@ static int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
+ 	unsigned int sg_page_sizes;
+ 	gfp_t noreclaim;
+ 	int ret;
++	struct pagevec pvec;
+ 
+ 	/*
+ 	 * Assert that the object is not currently in any GPU domain. As it
+@@ -2559,6 +2578,7 @@ static int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
+ 	 * Fail silently without starting the shrinker
+ 	 */
+ 	mapping = obj->base.filp->f_mapping;
++	mapping_set_unevictable(mapping);
+ 	noreclaim = mapping_gfp_constraint(mapping, ~__GFP_RECLAIM);
+ 	noreclaim |= __GFP_NORETRY | __GFP_NOWARN;
+ 
+@@ -2673,8 +2693,12 @@ static int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
+ err_sg:
+ 	sg_mark_end(sg);
+ err_pages:
++	mapping_clear_unevictable(mapping);
++	pagevec_init(&pvec);
+ 	for_each_sgt_page(page, sgt_iter, st)
+-		put_page(page);
++		if (!pagevec_add(&pvec, page))
++			check_release_pagevec(&pvec);
++	check_release_pagevec(&pvec);
+ 	sg_free_table(st);
+ 	kfree(st);
+ 
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index d8a07a4f171d..a8f6d5d89524 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -18,6 +18,8 @@ struct notifier_block;
+ 
+ struct bio;
+ 
++struct pagevec;
++
+ #define SWAP_FLAG_PREFER	0x8000	/* set if swap priority specified */
+ #define SWAP_FLAG_PRIO_MASK	0x7fff
+ #define SWAP_FLAG_PRIO_SHIFT	0
+@@ -369,7 +371,7 @@ static inline int node_reclaim(struct pglist_data *pgdat, gfp_t mask,
+ #endif
+ 
+ extern int page_evictable(struct page *page);
+-extern void check_move_unevictable_pages(struct page **, int nr_pages);
++extern void check_move_unevictable_pages(struct pagevec *pvec);
+ 
+ extern int kswapd_run(int nid);
+ extern void kswapd_stop(int nid);
+diff --git a/mm/shmem.c b/mm/shmem.c
+index ea26d7a0342d..de4893c904a3 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -756,7 +756,7 @@ void shmem_unlock_mapping(struct address_space *mapping)
+ 			break;
+ 		index = indices[pvec.nr - 1] + 1;
+ 		pagevec_remove_exceptionals(&pvec);
+-		check_move_unevictable_pages(pvec.pages, pvec.nr);
++		check_move_unevictable_pages(&pvec);
+ 		pagevec_release(&pvec);
+ 		cond_resched();
+ 	}
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 62ac0c488624..d070f431ff19 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -50,6 +50,7 @@
+ #include <linux/printk.h>
+ #include <linux/dax.h>
+ #include <linux/psi.h>
++#include <linux/pagevec.h>
+ 
+ #include <asm/tlbflush.h>
+ #include <asm/div64.h>
+@@ -4182,17 +4183,16 @@ int page_evictable(struct page *page)
+ 	return ret;
+ }
+ 
+-#ifdef CONFIG_SHMEM
+ /**
+- * check_move_unevictable_pages - check pages for evictability and move to appropriate zone lru list
+- * @pages:	array of pages to check
+- * @nr_pages:	number of pages to check
++ * check_move_unevictable_pages - check pages for evictability and move to
++ * appropriate zone lru list
++ * @pvec: pagevec with lru pages to check
+  *
+- * Checks pages for evictability and moves them to the appropriate lru list.
+- *
+- * This function is only used for SysV IPC SHM_UNLOCK.
++ * Checks pages for evictability, if an evictable page is in the unevictable
++ * lru list, moves it to the appropriate evictable lru list. This function
++ * should be only used for lru pages.
+  */
+-void check_move_unevictable_pages(struct page **pages, int nr_pages)
++void check_move_unevictable_pages(struct pagevec *pvec)
+ {
+ 	struct lruvec *lruvec;
+ 	struct pglist_data *pgdat = NULL;
+@@ -4200,8 +4200,8 @@ void check_move_unevictable_pages(struct page **pages, int nr_pages)
+ 	int pgrescued = 0;
+ 	int i;
+ 
+-	for (i = 0; i < nr_pages; i++) {
+-		struct page *page = pages[i];
++	for (i = 0; i < pvec->nr; i++) {
++		struct page *page = pvec->pages[i];
+ 		struct pglist_data *pagepgdat = page_pgdat(page);
+ 
+ 		pgscanned++;
+@@ -4233,4 +4233,4 @@ void check_move_unevictable_pages(struct page **pages, int nr_pages)
+ 		spin_unlock_irq(&pgdat->lru_lock);
+ 	}
+ }
+-#endif /* CONFIG_SHMEM */
++EXPORT_SYMBOL_GPL(check_move_unevictable_pages);
 -- 
-Sincerely yours,
-Mike.
+2.19.1.930.g4563a0d9d0-goog
