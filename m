@@ -1,78 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CFFEE6B02AF
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2018 23:36:04 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id g24-v6so11515276pfi.23
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 20:36:04 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l189sor2121689pgd.51.2018.11.05.20.36.03
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F5276B02B1
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 00:28:40 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id s22so5280997pgv.8
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2018 21:28:40 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id w11-v6si16119561ply.404.2018.11.05.21.28.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Nov 2018 20:36:03 -0800 (PST)
-Date: Mon, 5 Nov 2018 20:36:00 -0800
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [PATCH -next 0/3] Add support for fast mremap
-Message-ID: <20181106043600.GB139199@google.com>
-References: <20181103040041.7085-1-joelaf@google.com>
- <6886607.O3ZT5bM3Cy@blindfold>
- <e1d039a5-9c83-b9b9-98b5-d39bc48f04e0@kot-begemot.co.uk>
- <20181103183208.GA56850@google.com>
- <D6FB3C15-A8C1-4694-A434-A7489F590E05@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Nov 2018 21:28:38 -0800 (PST)
+Date: Tue, 6 Nov 2018 13:28:33 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: [PATCH v2 1/2] mm/page_alloc: free order-0 pages through PCP in
+ page_frag_free()
+Message-ID: <20181106052833.GC6203@intel.com>
+References: <20181105085820.6341-1-aaron.lu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <D6FB3C15-A8C1-4694-A434-A7489F590E05@oracle.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181105085820.6341-1-aaron.lu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: William Kucharski <william.kucharski@oracle.com>
-Cc: Anton Ivanov <anton.ivanov@kot-begemot.co.uk>, Richard Weinberger <richard@nod.at>, LKML <linux-kernel@vger.kernel.org>, kernel-team@android.com, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, dancol@google.com, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, elfring@users.sourceforge.net, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, hughd@google.com, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, Julia Lawall <Julia.Lawall@lip6.fr>, kasan-dev@googlegroups.com, "Kirill A. Shutemov" <kirill@shutemov.name>, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-hexagon@vger.kernel.org, linux-ia64@vge.kvack.org, r.kernel.org@lithops.sigma-star.at, linux-m68k@vger.kernel.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, lokeshgidra@google.com, Max Filippov <jcmvbkbc@gmail.com>, Michal Hocko <mhocko@kernel.org>, minchan@kernel.org, nios2-dev@lists.rocketboards.org, pantin@google.com, Peter Zijlstra <peterz@infradead.org>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, =?utf-8?B?UGF3ZcWC?= Staszewski <pstaszewski@itcare.pl>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, Ilias Apalodimas <ilias.apalodimas@linaro.org>, Yoel Caspersen <yoel@kviknet.dk>, Mel Gorman <mgorman@techsingularity.net>, Saeed Mahameed <saeedm@mellanox.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>
 
-On Sun, Nov 04, 2018 at 12:56:48AM -0600, William Kucharski wrote:
-> 
-> 
-> > On Nov 3, 2018, at 12:32 PM, Joel Fernandes <joel@joelfernandes.org> wrote:
-> > 
-> > Looks like more architectures don't define set_pmd_at. I am thinking the
-> > easiest way forward is to just do the following, instead of defining
-> > set_pmd_at for every architecture that doesn't care about it. Thoughts?
-> > 
-> > diff --git a/mm/mremap.c b/mm/mremap.c
-> > index 7cf6b0943090..31ad64dcdae6 100644
-> > --- a/mm/mremap.c
-> > +++ b/mm/mremap.c
-> > @@ -281,7 +281,8 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
-> > 			split_huge_pmd(vma, old_pmd, old_addr);
-> > 			if (pmd_trans_unstable(old_pmd))
-> > 				continue;
-> > -		} else if (extent == PMD_SIZE && IS_ENABLED(CONFIG_HAVE_MOVE_PMD)) {
-> > +		} else if (extent == PMD_SIZE) {
-> > +#ifdef CONFIG_HAVE_MOVE_PMD
-> > 			/*
-> > 			 * If the extent is PMD-sized, try to speed the move by
-> > 			 * moving at the PMD level if possible.
-> > @@ -296,6 +297,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
-> > 				drop_rmap_locks(vma);
-> > 			if (moved)
-> > 				continue;
-> > +#endif
-> > 		}
-> > 
-> > 		if (pte_alloc(new_vma->vm_mm, new_pmd))
-> > 
-> 
-> That seems reasonable as there are going to be a lot of architectures that never have
-> mappings at the PMD level.
+page_frag_free() calls __free_pages_ok() to free the page back to
+Buddy. This is OK for high order page, but for order-0 pages, it
+misses the optimization opportunity of using Per-Cpu-Pages and can
+cause zone lock contention when called frequently.
 
-Ok, I will do it like this and resend.
+PaweA? Staszewski recently shared his result of 'how Linux kernel
+handles normal traffic'[1] and from perf data, Jesper Dangaard Brouer
+found the lock contention comes from page allocator:
 
-> Have you thought about what might be needed to extend this paradigm to be able to
-> perform remaps at the PUD level, given many architectures already support PUD-mapped
-> pages?
-> 
+  mlx5e_poll_tx_cq
+  |
+   --16.34%--napi_consume_skb
+             |
+             |--12.65%--__free_pages_ok
+             |          |
+             |           --11.86%--free_one_page
+             |                     |
+             |                     |--10.10%--queued_spin_lock_slowpath
+             |                     |
+             |                      --0.65%--_raw_spin_lock
+             |
+             |--1.55%--page_frag_free
+             |
+              --1.44%--skb_release_data
 
-I have thought about this. I believe it is doable in the future. Off the top
-I don't see an issue doing it, and it will also reduce the number of flushes.
+Jesper explained how it happened: mlx5 driver RX-page recycle
+mechanism is not effective in this workload and pages have to go
+through the page allocator. The lock contention happens during
+mlx5 DMA TX completion cycle. And the page allocator cannot keep
+up at these speeds.[2]
 
-thanks,
+I thought that __free_pages_ok() are mostly freeing high order
+pages and thought this is an lock contention for high order pages
+but Jesper explained in detail that __free_pages_ok() here are
+actually freeing order-0 pages because mlx5 is using order-0 pages
+to satisfy its page pool allocation request.[3]
 
-- Joel
+The free path as pointed out by Jesper is:
+skb_free_head()
+  -> skb_free_frag()
+    -> page_frag_free()
+And the pages being freed on this path are order-0 pages.
+
+Fix this by doing similar things as in __page_frag_cache_drain() -
+send the being freed page to PCP if it's an order-0 page, or
+directly to Buddy if it is a high order page.
+
+With this change, PaweA? hasn't noticed lock contention yet in
+his workload and Jesper has noticed a 7% performance improvement
+using a micro benchmark and lock contention is gone. Ilias' test
+on a 'low' speed 1Gbit interface on an cortex-a53 shows ~11%
+performance boost testing with 64byte packets and __free_pages_ok()
+disappeared from perf top.
+
+[1]: https://www.spinics.net/lists/netdev/msg531362.html
+[2]: https://www.spinics.net/lists/netdev/msg531421.html
+[3]: https://www.spinics.net/lists/netdev/msg531556.html
+Reported-by: PaweA? Staszewski <pstaszewski@itcare.pl>
+Analysed-by: Jesper Dangaard Brouer <brouer@redhat.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
+Acked-by: Jesper Dangaard Brouer <brouer@redhat.com>
+Acked-by: Ilias Apalodimas <ilias.apalodimas@linaro.org>
+Tested-by: Ilias Apalodimas <ilias.apalodimas@linaro.org>
+Acked-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+---
+v2: only changelog changes:
+    - remove the duplicated skb_free_frag() as pointed by Jesper;
+    - add Ilias' test result;
+    - add people's ack/test tag.
+
+ mm/page_alloc.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ae31839874b8..91a9a6af41a2 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4555,8 +4555,14 @@ void page_frag_free(void *addr)
+ {
+ 	struct page *page = virt_to_head_page(addr);
+ 
+-	if (unlikely(put_page_testzero(page)))
+-		__free_pages_ok(page, compound_order(page));
++	if (unlikely(put_page_testzero(page))) {
++		unsigned int order = compound_order(page);
++
++		if (order == 0)
++			free_unref_page(page);
++		else
++			__free_pages_ok(page, order);
++	}
+ }
+ EXPORT_SYMBOL(page_frag_free);
+ 
+-- 
+2.17.2
