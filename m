@@ -1,82 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AF786B0387
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 13:17:50 -0500 (EST)
-Received: by mail-io1-f71.google.com with SMTP id v23-v6so15393641ioh.16
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 10:17:50 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u5-v6sor3968140itd.6.2018.11.06.10.17.48
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 469BE6B038B
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 13:43:30 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id e97-v6so13973353plb.10
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 10:43:30 -0800 (PST)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id k135-v6si33520301pfd.239.2018.11.06.10.43.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Nov 2018 10:17:48 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Nov 2018 10:43:28 -0800 (PST)
+Subject: Re: [PATCH v5 21/27] x86/cet/shstk: Introduce WRUSS instruction
+References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
+ <20181011151523.27101-22-yu-cheng.yu@intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <ee5a93f7-ed42-dcc5-0e55-e73ac2637e84@intel.com>
+Date: Tue, 6 Nov 2018 10:43:27 -0800
 MIME-Version: 1.0
-References: <20181105204000.129023-1-bvanassche@acm.org> <20181105131305.574d85469f08a4b76592feb6@linux-foundation.org>
- <1541454489.196084.157.camel@acm.org> <ce6faf63-1661-abe5-16a6-8c19cc9f6689@rasmusvillemoes.dk>
- <1541457654.196084.159.camel@acm.org> <CAKgT0Udci4Ai4OD20NSRuDckE_G4RHma3Bg6H1Um6N9Se_zPew@mail.gmail.com>
- <1541462466.196084.163.camel@acm.org> <CAKgT0Ue59US_f-cZtoA=yVbFJ03ca5OMce2opUdQcsvgd8LWMw@mail.gmail.com>
- <1541464370.196084.166.camel@acm.org> <CAKgT0UekDV4euPHs-wrZixGN1ryhZBq_42XdK6BapYke_xomJg@mail.gmail.com>
- <1541526521.196084.184.camel@acm.org>
-In-Reply-To: <1541526521.196084.184.camel@acm.org>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Tue, 6 Nov 2018 10:17:36 -0800
-Message-ID: <CAKgT0UfbLH07Dqgk0HnhcoPbmQnoykbXLYzkdqTXkafh952Ceg@mail.gmail.com>
-Subject: Re: [PATCH] slab.h: Avoid using & for logical and of booleans
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20181011151523.27101-22-yu-cheng.yu@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bvanassche@acm.org
-Cc: linux@rasmusvillemoes.dk, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Christoph Lameter <cl@linux.com>, guro@fb.com, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm <linux-mm@kvack.org>
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-On Tue, Nov 6, 2018 at 9:48 AM Bart Van Assche <bvanassche@acm.org> wrote:
->
-> On Tue, 2018-11-06 at 09:20 -0800, Alexander Duyck wrote:
-> > On Mon, Nov 5, 2018 at 4:32 PM Bart Van Assche <bvanassche@acm.org> wrote:
-> > >
-> > > On Mon, 2018-11-05 at 16:11 -0800, Alexander Duyck wrote:
-> > > > If we really don't care then why even bother with the switch statement
-> > > > anyway? It seems like you could just do one ternary operator and be
-> > > > done with it. Basically all you need is:
-> > > > return (defined(CONFIG_ZONE_DMA) && (flags & __GFP_DMA)) ? KMALLOC_DMA :
-> > > >         (flags & __GFP_RECLAIMABLE) ? KMALLOC_RECLAIM : 0;
-> > > >
-> > > > Why bother with all the extra complexity of the switch statement?
-> > >
-> > > I don't think that defined() can be used in a C expression. Hence the
-> > > IS_ENABLED() macro. If you fix that, leave out four superfluous parentheses,
-> > > test your patch, post that patch and cc me then I will add my Reviewed-by.
-> >
-> > Actually the defined macro is used multiple spots in if statements
-> > throughout the kernel.
->
-> The only 'if (defined(' matches I found in the kernel tree that are not
-> preprocessor statements occur in Perl code. Maybe I overlooked something?
+On 10/11/18 8:15 AM, Yu-cheng Yu wrote:
+> --- a/arch/x86/mm/fault.c
+> +++ b/arch/x86/mm/fault.c
+> @@ -1305,6 +1305,15 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code,
+>  		error_code |= X86_PF_USER;
+>  		flags |= FAULT_FLAG_USER;
+>  	} else {
+> +		/*
+> +		 * WRUSS is a kernel instruction and but writes
+> +		 * to user shadow stack.  When a fault occurs,
+> +		 * both X86_PF_USER and X86_PF_SHSTK are set.
+> +		 * Clear X86_PF_USER here.
+> +		 */
+> +		if ((error_code & (X86_PF_USER | X86_PF_SHSTK)) ==
+> +		    (X86_PF_USER | X86_PF_SHSTK))
+> +			error_code &= ~X86_PF_USER;
+This hunk of code basically points out that the architecture of WRUSS is
+broken for Linux.  The setting of X86_PF_USER for a ring-0 instruction
+really is a mis-feature of the architecture for us and we *undo* it in
+software which is unfortunate.  Wish I would have caught this earlier.
 
-You may be right. I think I was thinking of "__is_defined", not "defined".
+Andy, note that this is another case where hw_error_code and
+sw_error_code will diverge, unfortunately.
 
-> > The reason for IS_ENABLED is to address the fact that we can be
-> > dealing with macros that indicate if they are built in or a module
-> > since those end up being two different defines depending on if you
-> > select 'y' or 'm'.
->
-> From Documentation/process/coding-style.rst:
->
-> Within code, where possible, use the IS_ENABLED macro to convert a Kconfig
-> symbol into a C boolean expression, and use it in a normal C conditional:
->
-> .. code-block:: c
->
->         if (IS_ENABLED(CONFIG_SOMETHING)) {
->                 ...
->         }
->
-> Bart.
-
-Right. Part of the reason for suggesting that is that depending on how
-you define "CONFIG_SOMETHING" it can actually be defined as
-"CONFIG_SOMETHING" or "CONFIG_SOMETHING_MODULE".  I was operating
-under the assumption that CONFIG_ZONE_DMA wasn't ever going to be
-built as a module.
-
-Thanks.
-
-- Alex
+Anyway, this is going to necessitate some comment updates in the page
+fault code.  Yu-cheng, you are going to collide with some recent changes
+I made to the page fault code.  Please be careful with the context when
+you do the merge and make sure that all the new comments stay correct.
