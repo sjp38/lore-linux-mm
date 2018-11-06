@@ -1,266 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F398A6B02F0
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:31:06 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id e97-v6so12826221plb.10
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:31:06 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e16-v6sor40523732pgh.17.2018.11.06.01.31.05
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F14596B02F2
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 04:32:02 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id n32-v6so7242464edc.17
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 01:32:02 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v23-v6si458976edr.368.2018.11.06.01.32.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Nov 2018 01:31:05 -0800 (PST)
-From: Kuo-Hsin Yang <vovoy@chromium.org>
-Subject: [PATCH v6] mm, drm/i915: mark pinned shmemfs pages as unevictable
-Date: Tue,  6 Nov 2018 17:30:59 +0800
-Message-Id: <20181106093100.71829-1-vovoy@chromium.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Nov 2018 01:32:01 -0800 (PST)
+Subject: Re: [PATCH v2 2/2] mm/page_alloc: use a single function to free page
+References: <20181105085820.6341-1-aaron.lu@intel.com>
+ <20181105085820.6341-2-aaron.lu@intel.com> <20181106053037.GD6203@intel.com>
+ <d6b4890c-0def-6114-2dcf-3ed120dea82c@suse.cz>
+ <20181106084746.GA24198@intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <30aa9d1f-d619-c143-3de6-6876029538bc@suse.cz>
+Date: Tue, 6 Nov 2018 10:32:00 +0100
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181106084746.GA24198@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org
-Cc: Kuo-Hsin Yang <vovoy@chromium.org>, Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?Q?Pawe=c5=82_Staszewski?= <pstaszewski@itcare.pl>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, Ilias Apalodimas <ilias.apalodimas@linaro.org>, Yoel Caspersen <yoel@kviknet.dk>, Mel Gorman <mgorman@techsingularity.net>, Saeed Mahameed <saeedm@mellanox.com>, Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>
 
-The i915 driver uses shmemfs to allocate backing storage for gem
-objects. These shmemfs pages can be pinned (increased ref count) by
-shmem_read_mapping_page_gfp(). When a lot of pages are pinned, vmscan
-wastes a lot of time scanning these pinned pages. In some extreme case,
-all pages in the inactive anon lru are pinned, and only the inactive
-anon lru is scanned due to inactive_ratio, the system cannot swap and
-invokes the oom-killer. Mark these pinned pages as unevictable to speed
-up vmscan.
+On 11/6/18 9:47 AM, Aaron Lu wrote:
+> On Tue, Nov 06, 2018 at 09:16:20AM +0100, Vlastimil Babka wrote:
+>> On 11/6/18 6:30 AM, Aaron Lu wrote:
+>>> We have multiple places of freeing a page, most of them doing similar
+>>> things and a common function can be used to reduce code duplicate.
+>>>
+>>> It also avoids bug fixed in one function but left in another.
+>>>
+>>> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+>>
+>> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> 
+> Thanks.
+> 
+>> I assume there's no arch that would run page_ref_sub_and_test(1) slower
+>> than put_page_testzero(), for the critical __free_pages() case?
+> 
+> Good question.
+> 
+> I followed the non-arch specific calls and found that:
+> page_ref_sub_and_test() ends up calling atomic_sub_return(i, v) while
+> put_page_testzero() ends up calling atomic_sub_return(1, v). So they
+> should be same for archs that do not have their own implementations.
 
-Export pagevec API check_move_unevictable_pages().
+x86 seems to distinguish between DECL and SUBL, see
+arch/x86/include/asm/atomic.h although I could not figure out where does
+e.g. arch_atomic_dec_and_test become atomic_dec_and_test to override the
+generic implementation.
+I don't know if the CPU e.g. executes DECL faster, but objectively it
+has one parameter less. Maybe it doesn't matter?
 
-This patch was inspired by Chris Wilson's change [1].
+> Back to your question: I don't know either.
+> If this is deemed unsafe, we can probably keep the ref modify part in
+> their original functions and only take the free part into a common
+> function.
 
-[1]: https://patchwork.kernel.org/patch/9768741/
+I guess you could also employ  if (__builtin_constant_p(nr)) in
+free_the_page(), but the result will be ugly I guess, and maybe not
+worth it :)
 
-Cc: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Signed-off-by: Kuo-Hsin Yang <vovoy@chromium.org>
-Acked-by: Michal Hocko <mhocko@suse.com> # mm part
----
-Changes for v6:
- Tweak the acked-by.
-
-Changes for v5:
- Modify doc and comments. Remove the ifdef surrounding
- check_move_unevictable_pages.
-
-Changes for v4:
- Export pagevec API check_move_unevictable_pages().
-
-Changes for v3:
- Use check_move_lru_page instead of shmem_unlock_mapping to move pages
- to appropriate lru lists.
-
-Changes for v2:
- Squashed the two patches.
-
- Documentation/vm/unevictable-lru.rst |  6 +++++-
- drivers/gpu/drm/i915/i915_gem.c      | 28 ++++++++++++++++++++++++++--
- include/linux/swap.h                 |  4 +++-
- mm/shmem.c                           |  2 +-
- mm/vmscan.c                          | 22 +++++++++++-----------
- 5 files changed, 46 insertions(+), 16 deletions(-)
-
-diff --git a/Documentation/vm/unevictable-lru.rst b/Documentation/vm/unevictable-lru.rst
-index fdd84cb8d511..b8e29f977f2d 100644
---- a/Documentation/vm/unevictable-lru.rst
-+++ b/Documentation/vm/unevictable-lru.rst
-@@ -143,7 +143,7 @@ using a number of wrapper functions:
- 	Query the address space, and return true if it is completely
- 	unevictable.
- 
--These are currently used in two places in the kernel:
-+These are currently used in three places in the kernel:
- 
-  (1) By ramfs to mark the address spaces of its inodes when they are created,
-      and this mark remains for the life of the inode.
-@@ -154,6 +154,10 @@ These are currently used in two places in the kernel:
-      swapped out; the application must touch the pages manually if it wants to
-      ensure they're in memory.
- 
-+ (3) By the i915 driver to mark pinned address space until it's unpinned. The
-+     amount of unevictable memory marked by i915 driver is roughly the bounded
-+     object size in debugfs/dri/0/i915_gem_objects.
-+
- 
- Detecting Unevictable Pages
- ---------------------------
-diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
-index 0c8aa57ce83b..c620891e0d02 100644
---- a/drivers/gpu/drm/i915/i915_gem.c
-+++ b/drivers/gpu/drm/i915/i915_gem.c
-@@ -2381,12 +2381,25 @@ void __i915_gem_object_invalidate(struct drm_i915_gem_object *obj)
- 	invalidate_mapping_pages(mapping, 0, (loff_t)-1);
- }
- 
-+/**
-+ * Move pages to appropriate lru and release the pagevec. Decrement the ref
-+ * count of these pages.
-+ */
-+static inline void check_release_pagevec(struct pagevec *pvec)
-+{
-+	if (pagevec_count(pvec)) {
-+		check_move_unevictable_pages(pvec);
-+		__pagevec_release(pvec);
-+	}
-+}
-+
- static void
- i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
- 			      struct sg_table *pages)
- {
- 	struct sgt_iter sgt_iter;
- 	struct page *page;
-+	struct pagevec pvec;
- 
- 	__i915_gem_object_release_shmem(obj, pages, true);
- 
-@@ -2395,6 +2408,9 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
- 	if (i915_gem_object_needs_bit17_swizzle(obj))
- 		i915_gem_object_save_bit_17_swizzle(obj, pages);
- 
-+	mapping_clear_unevictable(file_inode(obj->base.filp)->i_mapping);
-+
-+	pagevec_init(&pvec);
- 	for_each_sgt_page(page, sgt_iter, pages) {
- 		if (obj->mm.dirty)
- 			set_page_dirty(page);
-@@ -2402,8 +2418,10 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
- 		if (obj->mm.madv == I915_MADV_WILLNEED)
- 			mark_page_accessed(page);
- 
--		put_page(page);
-+		if (!pagevec_add(&pvec, page))
-+			check_release_pagevec(&pvec);
- 	}
-+	check_release_pagevec(&pvec);
- 	obj->mm.dirty = false;
- 
- 	sg_free_table(pages);
-@@ -2526,6 +2544,7 @@ static int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
- 	unsigned int sg_page_sizes;
- 	gfp_t noreclaim;
- 	int ret;
-+	struct pagevec pvec;
- 
- 	/*
- 	 * Assert that the object is not currently in any GPU domain. As it
-@@ -2559,6 +2578,7 @@ static int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
- 	 * Fail silently without starting the shrinker
- 	 */
- 	mapping = obj->base.filp->f_mapping;
-+	mapping_set_unevictable(mapping);
- 	noreclaim = mapping_gfp_constraint(mapping, ~__GFP_RECLAIM);
- 	noreclaim |= __GFP_NORETRY | __GFP_NOWARN;
- 
-@@ -2673,8 +2693,12 @@ static int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
- err_sg:
- 	sg_mark_end(sg);
- err_pages:
-+	mapping_clear_unevictable(mapping);
-+	pagevec_init(&pvec);
- 	for_each_sgt_page(page, sgt_iter, st)
--		put_page(page);
-+		if (!pagevec_add(&pvec, page))
-+			check_release_pagevec(&pvec);
-+	check_release_pagevec(&pvec);
- 	sg_free_table(st);
- 	kfree(st);
- 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index d8a07a4f171d..a8f6d5d89524 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -18,6 +18,8 @@ struct notifier_block;
- 
- struct bio;
- 
-+struct pagevec;
-+
- #define SWAP_FLAG_PREFER	0x8000	/* set if swap priority specified */
- #define SWAP_FLAG_PRIO_MASK	0x7fff
- #define SWAP_FLAG_PRIO_SHIFT	0
-@@ -369,7 +371,7 @@ static inline int node_reclaim(struct pglist_data *pgdat, gfp_t mask,
- #endif
- 
- extern int page_evictable(struct page *page);
--extern void check_move_unevictable_pages(struct page **, int nr_pages);
-+extern void check_move_unevictable_pages(struct pagevec *pvec);
- 
- extern int kswapd_run(int nid);
- extern void kswapd_stop(int nid);
-diff --git a/mm/shmem.c b/mm/shmem.c
-index ea26d7a0342d..de4893c904a3 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -756,7 +756,7 @@ void shmem_unlock_mapping(struct address_space *mapping)
- 			break;
- 		index = indices[pvec.nr - 1] + 1;
- 		pagevec_remove_exceptionals(&pvec);
--		check_move_unevictable_pages(pvec.pages, pvec.nr);
-+		check_move_unevictable_pages(&pvec);
- 		pagevec_release(&pvec);
- 		cond_resched();
- 	}
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 62ac0c488624..d070f431ff19 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -50,6 +50,7 @@
- #include <linux/printk.h>
- #include <linux/dax.h>
- #include <linux/psi.h>
-+#include <linux/pagevec.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -4182,17 +4183,16 @@ int page_evictable(struct page *page)
- 	return ret;
- }
- 
--#ifdef CONFIG_SHMEM
- /**
-- * check_move_unevictable_pages - check pages for evictability and move to appropriate zone lru list
-- * @pages:	array of pages to check
-- * @nr_pages:	number of pages to check
-+ * check_move_unevictable_pages - check pages for evictability and move to
-+ * appropriate zone lru list
-+ * @pvec: pagevec with lru pages to check
-  *
-- * Checks pages for evictability and moves them to the appropriate lru list.
-- *
-- * This function is only used for SysV IPC SHM_UNLOCK.
-+ * Checks pages for evictability, if an evictable page is in the unevictable
-+ * lru list, moves it to the appropriate evictable lru list. This function
-+ * should be only used for lru pages.
-  */
--void check_move_unevictable_pages(struct page **pages, int nr_pages)
-+void check_move_unevictable_pages(struct pagevec *pvec)
- {
- 	struct lruvec *lruvec;
- 	struct pglist_data *pgdat = NULL;
-@@ -4200,8 +4200,8 @@ void check_move_unevictable_pages(struct page **pages, int nr_pages)
- 	int pgrescued = 0;
- 	int i;
- 
--	for (i = 0; i < nr_pages; i++) {
--		struct page *page = pages[i];
-+	for (i = 0; i < pvec->nr; i++) {
-+		struct page *page = pvec->pages[i];
- 		struct pglist_data *pagepgdat = page_pgdat(page);
- 
- 		pgscanned++;
-@@ -4233,4 +4233,4 @@ void check_move_unevictable_pages(struct page **pages, int nr_pages)
- 		spin_unlock_irq(&pgdat->lru_lock);
- 	}
- }
--#endif /* CONFIG_SHMEM */
-+EXPORT_SYMBOL_GPL(check_move_unevictable_pages);
--- 
-2.19.1.930.g4563a0d9d0-goog
+> Regards,
+> Aaron
+> 
+>>> ---
+>>> v2: move comments close to code as suggested by Dave.
+>>>
+>>>  mm/page_alloc.c | 36 ++++++++++++++++--------------------
+>>>  1 file changed, 16 insertions(+), 20 deletions(-)
+>>>
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index 91a9a6af41a2..4faf6b7bf225 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -4425,9 +4425,17 @@ unsigned long get_zeroed_page(gfp_t gfp_mask)
+>>>  }
+>>>  EXPORT_SYMBOL(get_zeroed_page);
+>>>  
+>>> -void __free_pages(struct page *page, unsigned int order)
+>>> +static inline void free_the_page(struct page *page, unsigned int order, int nr)
+>>>  {
+>>> -	if (put_page_testzero(page)) {
+>>> +	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
+>>> +
+>>> +	/*
+>>> +	 * Free a page by reducing its ref count by @nr.
+>>> +	 * If its refcount reaches 0, then according to its order:
+>>> +	 * order0: send to PCP;
+>>> +	 * high order: directly send to Buddy.
+>>> +	 */
+>>> +	if (page_ref_sub_and_test(page, nr)) {
+>>>  		if (order == 0)
+>>>  			free_unref_page(page);
+>>>  		else
+>>> @@ -4435,6 +4443,10 @@ void __free_pages(struct page *page, unsigned int order)
+>>>  	}
+>>>  }
+>>>  
+>>> +void __free_pages(struct page *page, unsigned int order)
+>>> +{
+>>> +	free_the_page(page, order, 1);
+>>> +}
+>>>  EXPORT_SYMBOL(__free_pages);
+>>>  
+>>>  void free_pages(unsigned long addr, unsigned int order)
+>>> @@ -4481,16 +4493,7 @@ static struct page *__page_frag_cache_refill(struct page_frag_cache *nc,
+>>>  
+>>>  void __page_frag_cache_drain(struct page *page, unsigned int count)
+>>>  {
+>>> -	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
+>>> -
+>>> -	if (page_ref_sub_and_test(page, count)) {
+>>> -		unsigned int order = compound_order(page);
+>>> -
+>>> -		if (order == 0)
+>>> -			free_unref_page(page);
+>>> -		else
+>>> -			__free_pages_ok(page, order);
+>>> -	}
+>>> +	free_the_page(page, compound_order(page), count);
+>>>  }
+>>>  EXPORT_SYMBOL(__page_frag_cache_drain);
+>>>  
+>>> @@ -4555,14 +4558,7 @@ void page_frag_free(void *addr)
+>>>  {
+>>>  	struct page *page = virt_to_head_page(addr);
+>>>  
+>>> -	if (unlikely(put_page_testzero(page))) {
+>>> -		unsigned int order = compound_order(page);
+>>> -
+>>> -		if (order == 0)
+>>> -			free_unref_page(page);
+>>> -		else
+>>> -			__free_pages_ok(page, order);
+>>> -	}
+>>> +	free_the_page(page, compound_order(page), 1);
+>>>  }
+>>>  EXPORT_SYMBOL(page_frag_free);
+>>>  
+>>>
+>>
