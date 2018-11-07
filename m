@@ -1,169 +1,112 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9433F6B3CC2
-	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 10:30:06 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id p78-v6so19860450itb.1
-        for <linux-mm@kvack.org>; Sun, 25 Nov 2018 07:30:06 -0800 (PST)
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id 191-v6sor19394137itu.15.2018.11.25.07.30.04
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 25 Nov 2018 07:30:04 -0800 (PST)
-MIME-Version: 1.0
-Date: Sun, 25 Nov 2018 07:30:04 -0800
-Message-ID: <000000000000f7cb53057b7ee3cb@google.com>
-Subject: WARNING: bad usercopy in corrupted (2)
-From: syzbot <syzbot+d89b30c46434c433dbf8@syzkaller.appspotmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
-Content-Transfer-Encoding: base64
-Sender: owner-linux-mm@kvack.org
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH 2/5] mm: Move zone watermark accesses behind an accessor
+Date: Wed,  7 Nov 2018 18:38:19 +0000
+Message-Id: <20181107183822.15567-3-mgorman@techsingularity.net>
+In-Reply-To: <20181107183822.15567-1-mgorman@techsingularity.net>
+References: <20181107183822.15567-1-mgorman@techsingularity.net>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Linux-MM <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 List-ID: <linux-mm.kvack.org>
-To: crecklin@redhat.com, keescook@chromium.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
 
-SGVsbG8sDQoNCnN5emJvdCBmb3VuZCB0aGUgZm9sbG93aW5nIGNyYXNoIG9uOg0KDQpIRUFEIGNv
-bW1pdDogICAgYWVhMGE4OTdhZjllIHB0cDogRml4IHBhc3MgemVybyB0byBFUlJfUFRSKCkgaW4g
-cHRwX2Nsb2NrXy4uDQpnaXQgdHJlZTogICAgICAgbmV0LW5leHQNCmNvbnNvbGUgb3V0cHV0OiBo
-dHRwczovL3N5emthbGxlci5hcHBzcG90LmNvbS94L2xvZy50eHQ/eD0xMDFiOTFkNTQwMDAwMA0K
-a2VybmVsIGNvbmZpZzogIGh0dHBzOi8vc3l6a2FsbGVyLmFwcHNwb3QuY29tL3gvLmNvbmZpZz94
-PWMzNmE3MmFmMjEyM2U3OGENCmRhc2hib2FyZCBsaW5rOiBodHRwczovL3N5emthbGxlci5hcHBz
-cG90LmNvbS9idWc/ZXh0aWQ9ZDg5YjMwYzQ2NDM0YzQzM2RiZjgNCmNvbXBpbGVyOiAgICAgICBn
-Y2MgKEdDQykgOC4wLjEgMjAxODA0MTMgKGV4cGVyaW1lbnRhbCkNCnN5eiByZXBybzogICAgICBo
-dHRwczovL3N5emthbGxlci5hcHBzcG90LmNvbS94L3JlcHJvLnN5ej94PTE3MGY2YTQ3NDAwMDAw
-DQpDIHJlcHJvZHVjZXI6ICAgaHR0cHM6Ly9zeXprYWxsZXIuYXBwc3BvdC5jb20veC9yZXByby5j
-P3g9MTJlMWRmN2I0MDAwMDANCg0KSU1QT1JUQU5UOiBpZiB5b3UgZml4IHRoZSBidWcsIHBsZWFz
-ZSBhZGQgdGhlIGZvbGxvd2luZyB0YWcgdG8gdGhlIGNvbW1pdDoNClJlcG9ydGVkLWJ5OiBzeXpi
-b3QrZDg5YjMwYzQ2NDM0YzQzM2RiZjhAc3l6a2FsbGVyLmFwcHNwb3RtYWlsLmNvbQ0KDQotLS0t
-LS0tLS0tLS1bIGN1dCBoZXJlIF0tLS0tLS0tLS0tLS0NCkRFQlVHX0xPQ0tTX1dBUk5fT04oIWhs
-b2NrLT5uZXN0X2xvY2spDQotLS0tLS0tLS0tLS1bIGN1dCBoZXJlIF0tLS0tLS0tLS0tLS0NCkJh
-ZCBvciBtaXNzaW5nIHVzZXJjb3B5IHdoaXRlbGlzdD8gS2VybmVsIG1lbW9yeSBvdmVyd3JpdGUg
-YXR0ZW1wdCBkZXRlY3RlZCAgDQp0byBTTEFCIG9iamVjdCAndGFza19zdHJ1Y3QnIChvZmZzZXQg
-MTQzMiwgc2l6ZSAyKSENCldBUk5JTkc6IENQVTogMSBQSUQ6IDM4IGF0IG1tL3VzZXJjb3B5LmM6
-ODMgdXNlcmNvcHlfd2FybisweGVlLzB4MTEwICANCm1tL3VzZXJjb3B5LmM6NzgNCktlcm5lbCBw
-YW5pYyAtIG5vdCBzeW5jaW5nOiBwYW5pY19vbl93YXJuIHNldCAuLi4NCmxpc3RfYWRkIGNvcnJ1
-cHRpb24uIG5leHQtPnByZXYgc2hvdWxkIGJlIHByZXYgKGZmZmY4ODgxZGFmMmQ3OTgpLCBidXQg
-d2FzICANCjBiN2UwYzhlNDljYzA0MDAuIChuZXh0PWZmZmY4ODgxZDliNGE0ZjApLg0KQ1BVOiAx
-IFBJRDogMzggQ29tbTog77+977+977+92YHvv73vv73vv71kC++/ve+/ve+/ve+/ve+/ve+/vSBO
-b3QgdGFpbnRlZCA0LjIwLjAtcmMzKyAjMzEyDQotLS0tLS0tLS0tLS1bIGN1dCBoZXJlIF0tLS0t
-LS0tLS0tLS0NCkhhcmR3YXJlIG5hbWU6IEdvb2dsZSBHb29nbGUgQ29tcHV0ZSBFbmdpbmUvR29v
-Z2xlIENvbXB1dGUgRW5naW5lLCBCSU9TICANCkdvb2dsZSAwMS8wMS8yMDExDQprZXJuZWwgQlVH
-IGF0IGxpYi9saXN0X2RlYnVnLmM6MjUhDQotLS0tLS0tLS0tLS1bIGN1dCBoZXJlIF0tLS0tLS0t
-LS0tLS0NCmludmFsaWQgb3Bjb2RlOiAwMDAwIFsjMV0gUFJFRU1QVCBTTVAgS0FTQU4NCmtlcm5l
-bCBCVUcgYXQgbW0vc2xhYi5jOjQ0MjUhDQpDUFU6IDAgUElEOiA4NjUyIENvbW06IHN5ei1leGVj
-dXRvcjYwNyBOb3QgdGFpbnRlZCA0LjIwLjAtcmMzKyAjMzEyDQpXQVJOSU5HOiBDUFU6IDEgUElE
-OiAzOCBhdCBrZXJuZWwvcmN1L3RyZWVfcGx1Z2luLmg6NDM4ICANCl9fcmN1X3JlYWRfdW5sb2Nr
-KzB4MjY2LzB4MmUwIGtlcm5lbC9yY3UvdHJlZV9wbHVnaW4uaDo0MzINCkhhcmR3YXJlIG5hbWU6
-IEdvb2dsZSBHb29nbGUgQ29tcHV0ZSBFbmdpbmUvR29vZ2xlIENvbXB1dGUgRW5naW5lLCBCSU9T
-ICANCkdvb2dsZSAwMS8wMS8yMDExDQpNb2R1bGVzIGxpbmtlZCBpbjoNClJJUDogMDAxMDpfX2xp
-c3RfYWRkX3ZhbGlkLmNvbGQuMisweGYvMHgyYSBsaWIvbGlzdF9kZWJ1Zy5jOjIzDQpDUFU6IDEg
-UElEOiAzOCBDb21tOiDvv73vv73vv73Zge+/ve+/ve+/vWQL77+977+977+977+977+977+9IE5v
-dCB0YWludGVkIDQuMjAuMC1yYzMrICMzMTINCkNvZGU6IGQxIDYwIDg4IGU4IGExIDM3IGQyIGZk
-IDBmIDBiIDQ4IDg5IGRlIDQ4IGM3IGM3IDYwIGQxIDYwIDg4IGU4IDkwIDM3ICANCmQyIGZkIDBm
-IDBiIDQ4IDg5IGQ5IDQ4IGM3IGM3IDIwIGQyIDYwIDg4IGU4IDdmIDM3IGQyIGZkIDwwZj4gMGIg
-NDggODkgZjEgIA0KNDggYzcgYzcgYTAgZDIgNjAgODggNDggODkgZGUgZTggNmIgMzcgZDIgZmQg
-MGYgMGINCkhhcmR3YXJlIG5hbWU6IEdvb2dsZSBHb29nbGUgQ29tcHV0ZSBFbmdpbmUvR29vZ2xl
-IENvbXB1dGUgRW5naW5lLCBCSU9TICANCkdvb2dsZSAwMS8wMS8yMDExDQpSU1A6IDAwMDA6ZmZm
-Zjg4ODFkYWUwNzU4OCBFRkxBR1M6IDAwMDEwMDgyDQp1c2VyY29weTogS2VybmVsIG1lbW9yeSBv
-dmVyd3JpdGUgYXR0ZW1wdCBkZXRlY3RlZCB0byBTTEFCICANCm9iamVjdCAnc2lnbmFsX2NhY2hl
-JyAob2Zmc2V0IDEzMjgsIHNpemUgMjMpIQ0KUkFYOiAwMDAwMDAwMDAwMDAwMDc1IFJCWDogZmZm
-Zjg4ODFkOWI0YTRmMCBSQ1g6IDAwMDAwMDAwMDAwMDAwMDANCi0tLS0tLS0tLS0tLVsgY3V0IGhl
-cmUgXS0tLS0tLS0tLS0tLQ0KUkRYOiAwMDAwMDAwMDAwMDAwMDAwIFJTSTogZmZmZmZmZmY4MTY1
-ZWFmNSBSREk6IDAwMDAwMDAwMDAwMDAwMDUNCmtlcm5lbCBCVUcgYXQgbW0vdXNlcmNvcHkuYzox
-MDIhDQpSQlA6IGZmZmY4ODgxZGFlMDc1YTAgUjA4OiBmZmZmODg4MWQyNWNlMTAwIFIwOTogZmZm
-ZmVkMTAzYjVjNTAyMA0KUjEwOiBmZmZmZWQxMDNiNWM1MDIwIFIxMTogZmZmZjg4ODFkYWUyODEw
-NyBSMTI6IGZmZmY4ODgxYmQ4OTAyMzANClIxMzogZGZmZmZjMDAwMDAwMDAwMCBSMTQ6IGZmZmY4
-ODgxZGFlMDc5ODAgUjE1OiBmZmZmODg4MWRhZjJkNzk4DQpGUzogIDAwMDAwMDAwMDA4M2M4ODAo
-MDAwMCkgR1M6ZmZmZjg4ODFkYWUwMDAwMCgwMDAwKSBrbmxHUzowMDAwMDAwMDAwMDAwMDAwDQpD
-UzogIDAwMTAgRFM6IDAwMDAgRVM6IDAwMDAgQ1IwOiAwMDAwMDAwMDgwMDUwMDMzDQpDUjI6IDAw
-MDA3ZmZmMTQ0NzY2MDAgQ1IzOiAwMDAwMDAwMWQyYTU5MDAwIENSNDogMDAwMDAwMDAwMDE0MDZm
-MA0KRFIwOiAwMDAwMDAwMDAwMDAwMDAwIERSMTogMDAwMDAwMDAwMDAwMDAwMCBEUjI6IDAwMDAw
-MDAwMDAwMDAwMDANCkRSMzogMDAwMDAwMDAwMDAwMDAwMCBEUjY6IDAwMDAwMDAwZmZmZTBmZjAg
-RFI3OiAwMDAwMDAwMDAwMDAwNDAwDQpDYWxsIFRyYWNlOg0KICA8SVJRPg0KICBfX2xpc3RfYWRk
-IGluY2x1ZGUvbGludXgvbGlzdC5oOjYwIFtpbmxpbmVdDQogIGxpc3RfYWRkIGluY2x1ZGUvbGlu
-dXgvbGlzdC5oOjc5IFtpbmxpbmVdDQogIGxpc3RfbW92ZSBpbmNsdWRlL2xpbnV4L2xpc3QuaDox
-NzEgW2lubGluZV0NCiAgZGV0YWNoX3Rhc2tzIGtlcm5lbC9zY2hlZC9mYWlyLmM6NzI5OCBbaW5s
-aW5lXQ0KICBsb2FkX2JhbGFuY2UrMHgxYjhkLzB4MzlhMCBrZXJuZWwvc2NoZWQvZmFpci5jOjg3
-MzENCiAgcmViYWxhbmNlX2RvbWFpbnMrMHg4NDUvMHhkYzAga2VybmVsL3NjaGVkL2ZhaXIuYzo5
-MTA5DQogIHJ1bl9yZWJhbGFuY2VfZG9tYWlucysweDM4ZC8weDUwMCBrZXJuZWwvc2NoZWQvZmFp
-ci5jOjk3MzENCiAgX19kb19zb2Z0aXJxKzB4MzA4LzB4YjdlIGtlcm5lbC9zb2Z0aXJxLmM6Mjky
-DQogIGludm9rZV9zb2Z0aXJxIGtlcm5lbC9zb2Z0aXJxLmM6MzczIFtpbmxpbmVdDQogIGlycV9l
-eGl0KzB4MTdmLzB4MWMwIGtlcm5lbC9zb2Z0aXJxLmM6NDEzDQogIGV4aXRpbmdfaXJxIGFyY2gv
-eDg2L2luY2x1ZGUvYXNtL2FwaWMuaDo1MzYgW2lubGluZV0NCiAgc21wX2FwaWNfdGltZXJfaW50
-ZXJydXB0KzB4MWNiLzB4NzYwIGFyY2gveDg2L2tlcm5lbC9hcGljL2FwaWMuYzoxMDYxDQogIGFw
-aWNfdGltZXJfaW50ZXJydXB0KzB4Zi8weDIwIGFyY2gveDg2L2VudHJ5L2VudHJ5XzY0LlM6ODA0
-DQogIDwvSVJRPg0KUklQOiAwMDMzOjB4NDAwNWRkDQpDb2RlOiBjOSAwMCAwNCAwMCA2NiAwZiAx
-ZiA4NCAwMCAwMCAwMCAwMCAwMCA0OCA4YiAwNSBmMSAyZSAyZCAwMCA0OCA4NSBjMCAgDQo3NCAx
-MSBiZiAzYyBlOCA0YiAwMCBiOSAwZSAwMCAwMCAwMCA0OCA4OSBjNiBmMyBhNiA3NSAwMSA8YzM+
-IDQ4IDg5IGM3IGU5ICANCjlhIGVjIDAxIDAwIDY2IDJlIDBmIDFmIDg0IDAwIDAwIDAwIDAwIDAw
-IDhiIDA1IDRhDQpSU1A6IDAwMmI6MDAwMDdmZmYxNDQ3NjVhOCBFRkxBR1M6IDAwMDAwMjQ2IE9S
-SUdfUkFYOiBmZmZmZmZmZmZmZmZmZjEzDQpSQVg6IDAwMDAwMDAwMDAwMDAwMDAgUkJYOiAwMDAw
-MDAwMDAwMDAwMDAyIFJDWDogMDAwMDAwMDAwMDZkMjE5MA0KUkRYOiAwMDAwMDAwMDAwNDAyNDEw
-IFJTSTogMDAwMDAwMDAwMDAwMDAwMCBSREk6IDAwMDAwMDAwMDAwMDAwMDANClJCUDogMDAwMDAw
-MDAwMDZjYzBhOCBSMDg6IDAwMDAwMDAwMDAwMDAwMDAgUjA5OiAwMDAwMDAwMDAwMDAwMDAwDQpS
-MTA6IDAwMDAwMDAwMDAwMDAwMDAgUjExOiAwMDAwMDAwMDAwMDAwMjQ2IFIxMjogMDAwMDAwMDAw
-MDAwMDAwMQ0KUjEzOiAwMDAwMDAwMDAwNmQyMTgwIFIxNDogMDAwMDAwMDAwMDAwMDAwMCBSMTU6
-IDAwMDAwMDAwMDAwMDAwMDANCk1vZHVsZXMgbGlua2VkIGluOg0KLS0tWyBlbmQgdHJhY2UgZWVi
-NTczNGMxMzcwOWUxNyBdLS0tDQppbnZhbGlkIG9wY29kZTogMDAwMCBbIzJdIFBSRUVNUFQgU01Q
-IEtBU0FODQpDUFU6IDEgUElEOiAzOCBDb21tOiDvv73vv73vv73Zge+/ve+/ve+/vWQL77+977+9
-77+977+977+977+9IFRhaW50ZWQ6IEcgICAgICBEICAgICAgICAgICAgDQo0LjIwLjAtcmMzKyAj
-MzEyDQpSSVA6IDAwMTA6X19saXN0X2FkZF92YWxpZC5jb2xkLjIrMHhmLzB4MmEgbGliL2xpc3Rf
-ZGVidWcuYzoyMw0KSGFyZHdhcmUgbmFtZTogR29vZ2xlIEdvb2dsZSBDb21wdXRlIEVuZ2luZS9H
-b29nbGUgQ29tcHV0ZSBFbmdpbmUsIEJJT1MgIA0KR29vZ2xlIDAxLzAxLzIwMTENCkNvZGU6IGQx
-IDYwIDg4IGU4IGExIDM3IGQyIGZkIDBmIDBiIDQ4IDg5IGRlIDQ4IGM3IGM3IDYwIGQxIDYwIDg4
-IGU4IDkwIDM3ICANCmQyIGZkIDBmIDBiIDQ4IDg5IGQ5IDQ4IGM3IGM3IDIwIGQyIDYwIDg4IGU4
-IDdmIDM3IGQyIGZkIDwwZj4gMGIgNDggODkgZjEgIA0KNDggYzcgYzcgYTAgZDIgNjAgODggNDgg
-ODkgZGUgZTggNmIgMzcgZDIgZmQgMGYgMGINClJJUDogMDAxMDp1c2VyY29weV9hYm9ydCsweGJi
-LzB4YmQgbW0vdXNlcmNvcHkuYzo5MA0KUlNQOiAwMDAwOmZmZmY4ODgxZGFlMDc1ODggRUZMQUdT
-OiAwMDAxMDA4Mg0KQ29kZTogYzAgZTggZjcgZGMgYjEgZmYgNDggOGIgNTUgYzAgNDkgODkgZDkg
-NGQgODkgZjAgZmYgNzUgYzggNGMgODkgZTEgNGMgIA0KODkgZWUgNDggYzcgYzcgODAgZDUgMzQg
-ODggZmYgNzUgZDAgNDEgNTcgZTggZTcgMjggOTggZmYgPDBmPiAwYiBlOCBjYyBkYyAgDQpiMSBm
-ZiBlOCA5NyAxMyBmNSBmZiA4YiA5NSBlNCBmZSBmZiBmZiA0YyA4OSBlMSAzMQ0KUkFYOiAwMDAw
-MDAwMDAwMDAwMDc1IFJCWDogZmZmZjg4ODFkOWI0YTRmMCBSQ1g6IDAwMDAwMDAwMDAwMDAwMDAN
-ClJTUDogMDAxODpmZmZmODg4MWQ5YjQ5NDM4IEVGTEFHUzogMDAwMTAwODYNClJEWDogMDAwMDAw
-MDAwMDAwMDAwMCBSU0k6IGZmZmZmZmZmODE2NWVhZjUgUkRJOiAwMDAwMDAwMDAwMDAwMDA1DQpS
-QVg6IDAwMDAwMDAwMDAwMDAwNjggUkJYOiBmZmZmZmZmZjg4MjkxMDIwIFJDWDogMDAwMDAwMDAw
-MDAwMDAwMA0KUkJQOiBmZmZmODg4MWRhZTA3NWEwIFIwODogZmZmZjg4ODFkMjVjZTEwMCBSMDk6
-IGZmZmZlZDEwM2I1YzUwMjANClJEWDogMDAwMDAwMDAwMDAwMDAwMCBSU0k6IGZmZmZmZmZmODE2
-NWVhZjUgUkRJOiAwMDAwMDAwMDAwMDAwMDA1DQpSMTA6IGZmZmZlZDEwM2I1YzUwMjAgUjExOiBm
-ZmZmODg4MWRhZTI4MTA3IFIxMjogZmZmZjg4ODFiZDg5MDIzMA0KUkJQOiBmZmZmODg4MWQ5YjQ5
-NDkwIFIwODogZmZmZjg4ODFkOWI0YTQ0MCBSMDk6IGZmZmZlZDEwM2I1ZTNlZjgNClIxMzogZGZm
-ZmZjMDAwMDAwMDAwMCBSMTQ6IGZmZmY4ODgxZGFlMDc5ODAgUjE1OiBmZmZmODg4MWRhZjJkNzk4
-DQpSMTA6IGZmZmZlZDEwM2I1ZTNlZjggUjExOiBmZmZmODg4MWRhZjFmN2M3IFIxMjogZmZmZmZm
-ZmY4OTE0ZGExZA0KRlM6ICAwMDAwMDAwMDAwODNjODgwKDAwMDApIEdTOmZmZmY4ODgxZGFlMDAw
-MDAoMDAwMCkga25sR1M6MDAwMDAwMDAwMDAwMDAwMA0KUjEzOiBmZmZmZmZmZjg4MzRkM2UwIFIx
-NDogZmZmZmZmZmY4ODM0ZDMyMCBSMTU6IGZmZmZmZmZmODgzNGQyZTANCkNTOiAgMDAxMCBEUzog
-MDAwMCBFUzogMDAwMCBDUjA6IDAwMDAwMDAwODAwNTAwMzMNCkZTOiAgMDAwMDAwMDAwMDAwMDAw
-MCgwMDAwKSBHUzpmZmZmODg4MWRhZjAwMDAwKDAwMDApIGtubEdTOjAwMDAwMDAwMDAwMDAwMDAN
-CkNSMjogMDAwMDdmZmYxNDQ3NjYwMCBDUjM6IDAwMDAwMDAxZDJhNTkwMDAgQ1I0OiAwMDAwMDAw
-MDAwMTQwNmYwDQpDUzogIDAwMTAgRFM6IDAwMDAgRVM6IDAwMDAgQ1IwOiAwMDAwMDAwMDgwMDUw
-MDMzDQpEUjA6IDAwMDAwMDAwMDAwMDAwMDAgRFIxOiAwMDAwMDAwMDAwMDAwMDAwIERSMjogMDAw
-MDAwMDAwMDAwMDAwMA0KQ1IyOiAwMDAwMDAwMDAwMDAwMTMwIENSMzogMDAwMDAwMDFkNzg4MDAw
-MCBDUjQ6IDAwMDAwMDAwMDAxNDA2ZTANCkRSMzogMDAwMDAwMDAwMDAwMDAwMCBEUjY6IDAwMDAw
-MDAwZmZmZTBmZjAgRFI3OiAwMDAwMDAwMDAwMDAwNDAwDQpEUjA6IDAwMDAwMDAwMDAwMDAwMDAg
-RFIxOiAwMDAwMDAwMDAwMDAwMDAwIERSMjogMDAwMDAwMDAwMDAwMDAwMA0KRFIzOiAwMDAwMDAw
-MDAwMDAwMDAwIERSNjogMDAwMDAwMDBmZmZlMGZmMCBEUjc6IDAwMDAwMDAwMDAwMDA0MDANCkNh
-bGwgVHJhY2U6DQpNb2R1bGVzIGxpbmtlZCBpbjoNCi0tLVsgZW5kIHRyYWNlIGVlYjU3MzRjMTM3
-MDllMTggXS0tLQ0KUklQOiAwMDEwOl9fbGlzdF9hZGRfdmFsaWQuY29sZC4yKzB4Zi8weDJhIGxp
-Yi9saXN0X2RlYnVnLmM6MjMNCkNvZGU6IGQxIDYwIDg4IGU4IGExIDM3IGQyIGZkIDBmIDBiIDQ4
-IDg5IGRlIDQ4IGM3IGM3IDYwIGQxIDYwIDg4IGU4IDkwIDM3ICANCmQyIGZkIDBmIDBiIDQ4IDg5
-IGQ5IDQ4IGM3IGM3IDIwIGQyIDYwIDg4IGU4IDdmIDM3IGQyIGZkIDwwZj4gMGIgNDggODkgZjEg
-IA0KNDggYzcgYzcgYTAgZDIgNjAgODggNDggODkgZGUgZTggNmIgMzcgZDIgZmQgMGYgMGINClJT
-UDogMDAwMDpmZmZmODg4MWRhZTA3NTg4IEVGTEFHUzogMDAwMTAwODINClJBWDogMDAwMDAwMDAw
-MDAwMDA3NSBSQlg6IGZmZmY4ODgxZDliNGE0ZjAgUkNYOiAwMDAwMDAwMDAwMDAwMDAwDQpSRFg6
-IDAwMDAwMDAwMDAwMDAwMDAgUlNJOiBmZmZmZmZmZjgxNjVlYWY1IFJESTogMDAwMDAwMDAwMDAw
-MDAwNQ0KUkJQOiBmZmZmODg4MWRhZTA3NWEwIFIwODogZmZmZjg4ODFkMjVjZTEwMCBSMDk6IGZm
-ZmZlZDEwM2I1YzUwMjANClIxMDogZmZmZmVkMTAzYjVjNTAyMCBSMTE6IGZmZmY4ODgxZGFlMjgx
-MDcgUjEyOiBmZmZmODg4MWJkODkwMjMwDQpSMTM6IGRmZmZmYzAwMDAwMDAwMDAgUjE0OiBmZmZm
-ODg4MWRhZTA3OTgwIFIxNTogZmZmZjg4ODFkYWYyZDc5OA0KRlM6ICAwMDAwMDAwMDAwMDAwMDAw
-KDAwMDApIEdTOmZmZmY4ODgxZGFmMDAwMDAoMDAwMCkga25sR1M6MDAwMDAwMDAwMDAwMDAwMA0K
-Q1M6ICAwMDEwIERTOiAwMDAwIEVTOiAwMDAwIENSMDogMDAwMDAwMDA4MDA1MDAzMw0KQ1IyOiAw
-MDAwMDAwMDAwMDAwMTMwIENSMzogMDAwMDAwMDFkNzg4MDAwMCBDUjQ6IDAwMDAwMDAwMDAxNDA2
-ZTANCkRSMDogMDAwMDAwMDAwMDAwMDAwMCBEUjE6IDAwMDAwMDAwMDAwMDAwMDAgRFIyOiAwMDAw
-MDAwMDAwMDAwMDAwDQpEUjM6IDAwMDAwMDAwMDAwMDAwMDAgRFI2OiAwMDAwMDAwMGZmZmUwZmYw
-IERSNzogMDAwMDAwMDAwMDAwMDQwMA0KDQoNCi0tLQ0KVGhpcyBidWcgaXMgZ2VuZXJhdGVkIGJ5
-IGEgYm90LiBJdCBtYXkgY29udGFpbiBlcnJvcnMuDQpTZWUgaHR0cHM6Ly9nb28uZ2wvdHBzbUVK
-IGZvciBtb3JlIGluZm9ybWF0aW9uIGFib3V0IHN5emJvdC4NCnN5emJvdCBlbmdpbmVlcnMgY2Fu
-IGJlIHJlYWNoZWQgYXQgc3l6a2FsbGVyQGdvb2dsZWdyb3Vwcy5jb20uDQoNCnN5emJvdCB3aWxs
-IGtlZXAgdHJhY2sgb2YgdGhpcyBidWcgcmVwb3J0LiBTZWU6DQpodHRwczovL2dvby5nbC90cHNt
-RUojYnVnLXN0YXR1cy10cmFja2luZyBmb3IgaG93IHRvIGNvbW11bmljYXRlIHdpdGggIA0Kc3l6
-Ym90Lg0Kc3l6Ym90IGNhbiB0ZXN0IHBhdGNoZXMgZm9yIHRoaXMgYnVnLCBmb3IgZGV0YWlscyBz
-ZWU6DQpodHRwczovL2dvby5nbC90cHNtRUojdGVzdGluZy1wYXRjaGVzDQo=
+This is a preparation patch only, no functional change.
+
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+---
+ include/linux/mmzone.h |  9 +++++----
+ mm/compaction.c        |  2 +-
+ mm/page_alloc.c        | 12 ++++++------
+ 3 files changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 847705a6d0ec..e43e8e79db99 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -269,9 +269,10 @@ enum zone_watermarks {
+ 	NR_WMARK
+ };
+ 
+-#define min_wmark_pages(z) (z->watermark[WMARK_MIN])
+-#define low_wmark_pages(z) (z->watermark[WMARK_LOW])
+-#define high_wmark_pages(z) (z->watermark[WMARK_HIGH])
++#define min_wmark_pages(z) (z->_watermark[WMARK_MIN])
++#define low_wmark_pages(z) (z->_watermark[WMARK_LOW])
++#define high_wmark_pages(z) (z->_watermark[WMARK_HIGH])
++#define wmark_pages(z, i) (z->_watermark[i])
+ 
+ struct per_cpu_pages {
+ 	int count;		/* number of pages in the list */
+@@ -362,7 +363,7 @@ struct zone {
+ 	/* Read-mostly fields */
+ 
+ 	/* zone watermarks, access with *_wmark_pages(zone) macros */
+-	unsigned long watermark[NR_WMARK];
++	unsigned long _watermark[NR_WMARK];
+ 
+ 	unsigned long nr_reserved_highatomic;
+ 
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 7c607479de4a..ef29490b0f46 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1431,7 +1431,7 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+ 	if (is_via_compact_memory(order))
+ 		return COMPACT_CONTINUE;
+ 
+-	watermark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
++	watermark = wmark_pages(zone, alloc_flags & ALLOC_WMARK_MASK);
+ 	/*
+ 	 * If watermarks for high-order allocation are already met, there
+ 	 * should be no need for compaction at all.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5db746c642df..ad996a769bd5 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3370,7 +3370,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 			}
+ 		}
+ 
+-		mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
++		mark = wmark_pages(zone, alloc_flags & ALLOC_WMARK_MASK);
+ 		if (!zone_watermark_fast(zone, order, mark,
+ 				       ac_classzone_idx(ac), alloc_flags)) {
+ 			int ret;
+@@ -4792,7 +4792,7 @@ long si_mem_available(void)
+ 		pages[lru] = global_node_page_state(NR_LRU_BASE + lru);
+ 
+ 	for_each_zone(zone)
+-		wmark_low += zone->watermark[WMARK_LOW];
++		wmark_low += low_wmark_pages(zone);
+ 
+ 	/*
+ 	 * Estimate the amount of memory available for userspace allocations,
+@@ -7418,13 +7418,13 @@ static void __setup_per_zone_wmarks(void)
+ 
+ 			min_pages = zone->managed_pages / 1024;
+ 			min_pages = clamp(min_pages, SWAP_CLUSTER_MAX, 128UL);
+-			zone->watermark[WMARK_MIN] = min_pages;
++			zone->_watermark[WMARK_MIN] = min_pages;
+ 		} else {
+ 			/*
+ 			 * If it's a lowmem zone, reserve a number of pages
+ 			 * proportionate to the zone's size.
+ 			 */
+-			zone->watermark[WMARK_MIN] = tmp;
++			zone->_watermark[WMARK_MIN] = tmp;
+ 		}
+ 
+ 		/*
+@@ -7436,8 +7436,8 @@ static void __setup_per_zone_wmarks(void)
+ 			    mult_frac(zone->managed_pages,
+ 				      watermark_scale_factor, 10000));
+ 
+-		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
+-		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
++		zone->_watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
++		zone->_watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
+ 
+ 		spin_unlock_irqrestore(&zone->lock, flags);
+ 	}
+-- 
+2.16.4
