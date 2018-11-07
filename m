@@ -1,114 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CF7646B0531
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 12:39:06 -0500 (EST)
-Received: by mail-it1-f197.google.com with SMTP id r79-v6so11358970itc.4
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 09:39:06 -0800 (PST)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id c7-v6si924267jah.125.2018.11.07.09.39.03
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 07 Nov 2018 09:39:03 -0800 (PST)
-From: Logan Gunthorpe <logang@deltatee.com>
-Date: Wed,  7 Nov 2018 10:38:58 -0700
-Message-Id: <20181107173859.24096-2-logang@deltatee.com>
-In-Reply-To: <20181107173859.24096-1-logang@deltatee.com>
-References: <20181107173859.24096-1-logang@deltatee.com>
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 065E16B0533
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 13:11:05 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id n9so11272975otl.23
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 10:11:04 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id e52si533056otj.56.2018.11.07.10.11.03
+        for <linux-mm@kvack.org>;
+        Wed, 07 Nov 2018 10:11:03 -0800 (PST)
+Date: Wed, 7 Nov 2018 18:10:54 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v10 08/22] kasan, arm64: untag address in __kimg_to_phys
+ and _virt_addr_is_linear
+Message-ID: <20181107181054.GC255021@arrakis.emea.arm.com>
+References: <cover.1541525354.git.andreyknvl@google.com>
+ <b2aa056b65b8f1a410379bf2f6ef439d5d99e8eb.1541525354.git.andreyknvl@google.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Subject: [PATCH 1/2] mm: Introduce common STRUCT_PAGE_MAX_SHIFT define
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b2aa056b65b8f1a410379bf2f6ef439d5d99e8eb.1541525354.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-riscv@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Stephen Bates <sbates@raithlin.com>, Palmer Dabbelt <palmer@sifive.com>, Albert Ou <aou@eecs.berkeley.edu>, Christoph Hellwig <hch@lst.de>, Arnd Bergmann <arnd@arndb.de>, Logan Gunthorpe <logang@deltatee.com>, Catalin Marinas <catalin.marinas@arm.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Vishwath Mohan <vishwath@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Mark Brand <markbrand@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
 
-This define is used by arm64 to calculate the size of the vmemmap
-region. It is defined as the log2 of the upper bound on the size
-of a struct page.
+On Tue, Nov 06, 2018 at 06:30:23PM +0100, Andrey Konovalov wrote:
+> --- a/arch/arm64/include/asm/memory.h
+> +++ b/arch/arm64/include/asm/memory.h
+> @@ -92,6 +92,15 @@
+>  #define KASAN_THREAD_SHIFT	0
+>  #endif
+>  
+> +#ifdef CONFIG_KASAN_SW_TAGS
+> +#define KASAN_TAG_SHIFTED(tag)		((unsigned long)(tag) << 56)
+> +#define KASAN_SET_TAG(addr, tag)	(((addr) & ~KASAN_TAG_SHIFTED(0xff)) | \
+> +						KASAN_TAG_SHIFTED(tag))
+> +#define KASAN_RESET_TAG(addr)		KASAN_SET_TAG(addr, 0xff)
+> +#else
+> +#define KASAN_RESET_TAG(addr)		addr
+> +#endif
 
-We move it into mm_types.h so it can be defined properly instead of
-set and checked with a build bug. This also allows us to use the same
-define for riscv.
+I think we should reuse the untagged_addr() macro we have in uaccess.h
+(make it more general and move to another header file).
 
-Signed-off-by: Logan Gunthorpe <logang@deltatee.com>
-Acked-by: Will Deacon <will.deacon@arm.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Hellwig <hch@lst.de>
----
- arch/arm64/include/asm/memory.h | 9 ---------
- arch/arm64/mm/init.c            | 8 --------
- include/asm-generic/fixmap.h    | 1 +
- include/linux/mm_types.h        | 5 +++++
- 4 files changed, 6 insertions(+), 17 deletions(-)
-
-diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-index b96442960aea..f0a5c9531e8b 100644
---- a/arch/arm64/include/asm/memory.h
-+++ b/arch/arm64/include/asm/memory.h
-@@ -34,15 +34,6 @@
-  */
- #define PCI_IO_SIZE		SZ_16M
- 
--/*
-- * Log2 of the upper bound of the size of a struct page. Used for sizing
-- * the vmemmap region only, does not affect actual memory footprint.
-- * We don't use sizeof(struct page) directly since taking its size here
-- * requires its definition to be available at this point in the inclusion
-- * chain, and it may not be a power of 2 in the first place.
-- */
--#define STRUCT_PAGE_MAX_SHIFT	6
--
- /*
-  * VMEMMAP_SIZE - allows the whole linear region to be covered by
-  *                a struct page array
-diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index 9d9582cac6c4..1a3e411a1d08 100644
---- a/arch/arm64/mm/init.c
-+++ b/arch/arm64/mm/init.c
-@@ -612,14 +612,6 @@ void __init mem_init(void)
- 	BUILD_BUG_ON(TASK_SIZE_32			> TASK_SIZE_64);
- #endif
- 
--#ifdef CONFIG_SPARSEMEM_VMEMMAP
--	/*
--	 * Make sure we chose the upper bound of sizeof(struct page)
--	 * correctly when sizing the VMEMMAP array.
--	 */
--	BUILD_BUG_ON(sizeof(struct page) > (1 << STRUCT_PAGE_MAX_SHIFT));
--#endif
--
- 	if (PAGE_SIZE >= 16384 && get_num_physpages() <= 128) {
- 		extern int sysctl_overcommit_memory;
- 		/*
-diff --git a/include/asm-generic/fixmap.h b/include/asm-generic/fixmap.h
-index 827e4d3bbc7a..8cc7b09c1bc7 100644
---- a/include/asm-generic/fixmap.h
-+++ b/include/asm-generic/fixmap.h
-@@ -16,6 +16,7 @@
- #define __ASM_GENERIC_FIXMAP_H
- 
- #include <linux/bug.h>
-+#include <linux/mm_types.h>
- 
- #define __fix_to_virt(x)	(FIXADDR_TOP - ((x) << PAGE_SHIFT))
- #define __virt_to_fix(x)	((FIXADDR_TOP - ((x)&PAGE_MASK)) >> PAGE_SHIFT)
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 5ed8f6292a53..2c471a2c43fa 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -206,6 +206,11 @@ struct page {
- #endif
- } _struct_page_alignment;
- 
-+/*
-+ * Used for sizing the vmemmap region on some architectures
-+ */
-+#define STRUCT_PAGE_MAX_SHIFT	(order_base_2(sizeof(struct page)))
-+
- #define PAGE_FRAG_CACHE_MAX_SIZE	__ALIGN_MASK(32768, ~PAGE_MASK)
- #define PAGE_FRAG_CACHE_MAX_ORDER	get_order(PAGE_FRAG_CACHE_MAX_SIZE)
- 
 -- 
-2.19.0
+Catalin
