@@ -1,118 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 72B316B04F0
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 05:36:03 -0500 (EST)
-Received: by mail-io1-f72.google.com with SMTP id o8-v6so18997804iob.19
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 02:36:03 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id m127-v6si426604ith.104.2018.11.07.02.36.02
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EA1D6B04F2
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 05:36:44 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id z7-v6so9416565edh.19
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 02:36:44 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f16-v6si285891ejk.104.2018.11.07.02.36.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 07 Nov 2018 02:36:02 -0800 (PST)
-Date: Wed, 7 Nov 2018 11:35:54 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC PATCH v4 01/13] ktask: add documentation
-Message-ID: <20181107103554.GL9781@hirez.programming.kicks-ass.net>
-References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
- <20181105165558.11698-2-daniel.m.jordan@oracle.com>
- <20181106084911.GA22504@hirez.programming.kicks-ass.net>
- <20181106203411.pdce6tgs7dncwflh@ca-dmjordan1.us.oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Nov 2018 02:36:43 -0800 (PST)
+Date: Wed, 7 Nov 2018 11:36:30 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v1 4/4] mm: Remove managed_page_count spinlock
+Message-ID: <20181107103630.GF2453@dhcp22.suse.cz>
+References: <1540551662-26458-1-git-send-email-arunks@codeaurora.org>
+ <1540551662-26458-5-git-send-email-arunks@codeaurora.org>
+ <20181106141732.GR27423@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181106203411.pdce6tgs7dncwflh@ca-dmjordan1.us.oracle.com>
+In-Reply-To: <20181106141732.GR27423@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: rjw@rjwysocki.net, linux-pm@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, aaron.lu@intel.com, akpm@linux-foundation.org, alex.williamson@redhat.com, bsd@redhat.com, darrick.wong@oracle.com, dave.hansen@linux.intel.com, jgg@mellanox.com, jwadams@google.com, jiangshanlai@gmail.com, mhocko@kernel.org, mike.kravetz@oracle.com, Pavel.Tatashin@microsoft.com, prasad.singamsetty@oracle.com, rdunlap@infradead.org, steven.sistare@oracle.com, tim.c.chen@intel.com, tj@kernel.org, vbabka@suse.cz
+To: Arun KS <arunks@codeaurora.org>
+Cc: keescook@chromium.org, khlebnikov@yandex-team.ru, minchan@kernel.org, getarunks@gmail.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Nov 06, 2018 at 12:34:11PM -0800, Daniel Jordan wrote:
-> On Tue, Nov 06, 2018 at 09:49:11AM +0100, Peter Zijlstra wrote:
-> > On Mon, Nov 05, 2018 at 11:55:46AM -0500, Daniel Jordan wrote:
-> > > +Concept
-> > > +=======
-> > > +
-> > > +ktask is built on unbound workqueues to take advantage of the thread management
-> > > +facilities it provides: creation, destruction, flushing, priority setting, and
-> > > +NUMA affinity.
-> > > +
-> > > +A little terminology up front:  A 'task' is the total work there is to do and a
-> > > +'chunk' is a unit of work given to a thread.
+[for some reason I have dropped the rest of the cc list. Restored]
+
+On Tue 06-11-18 15:17:32, Michal Hocko wrote:
+> On Fri 26-10-18 16:31:02, Arun KS wrote:
+> > Now totalram_pages and managed_pages are atomic varibles. No need
+> > of managed_page_count spinlock.
+> 
+> Yes this is the real improvement. The lock had really a weak consistency
+> guarantee. It hasn't been used for anything but the update but no reader
+> actually cares about all the values being updated to be in sync. I
+> haven't really done an excavation work to see whether it used to be used
+> in other contexts in the past but it simply doesn't have any meaning
+> anymore.
+> 
+> > Signed-off-by: Arun KS <arunks@codeaurora.org>
+> 
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> 
+> Thanks for getting through all the hassles to reach to this end point.
+> 
+> > ---
+> >  include/linux/mmzone.h | 6 ------
+> >  mm/page_alloc.c        | 5 -----
+> >  2 files changed, 11 deletions(-)
 > > 
-> > So I hate on the task naming. We already have a task, lets not overload
-> > that name.
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index 597b0c7..aa960f6 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -428,12 +428,6 @@ struct zone {
+> >  	 * Write access to present_pages at runtime should be protected by
+> >  	 * mem_hotplug_begin/end(). Any reader who can't tolerant drift of
+> >  	 * present_pages should get_online_mems() to get a stable value.
+> > -	 *
+> > -	 * Read access to managed_pages should be safe because it's unsigned
+> > -	 * long. Write access to zone->managed_pages and totalram_pages are
+> > -	 * protected by managed_page_count_lock at runtime. Idealy only
+> > -	 * adjust_managed_page_count() should be used instead of directly
+> > -	 * touching zone->managed_pages and totalram_pages.
+> >  	 */
+> >  	atomic_long_t		managed_pages;
+> >  	unsigned long		spanned_pages;
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index af832de..e29e78f 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -122,9 +122,6 @@
+> >  };
+> >  EXPORT_SYMBOL(node_states);
+> >  
+> > -/* Protect totalram_pages and zone->managed_pages */
+> > -static DEFINE_SPINLOCK(managed_page_count_lock);
+> > -
+> >  atomic_long_t _totalram_pages __read_mostly;
+> >  unsigned long totalreserve_pages __read_mostly;
+> >  unsigned long totalcma_pages __read_mostly;
+> > @@ -7062,14 +7059,12 @@ static int __init cmdline_parse_movablecore(char *p)
+> >  
+> >  void adjust_managed_page_count(struct page *page, long count)
+> >  {
+> > -	spin_lock(&managed_page_count_lock);
+> >  	atomic_long_add(count, &page_zone(page)->managed_pages);
+> >  	totalram_pages_add(count);
+> >  #ifdef CONFIG_HIGHMEM
+> >  	if (PageHighMem(page))
+> >  		totalhigh_pages_add(count);
+> >  #endif
+> > -	spin_unlock(&managed_page_count_lock);
+> >  }
+> >  EXPORT_SYMBOL(adjust_managed_page_count);
+> >  
+> > -- 
+> > 1.9.1
 > 
-> Ok, agreed, it's a crowded field with 'task', 'work', 'thread'...
-> 
-> Maybe 'job', since nothing seems to have taken that in kernel/.
+> -- 
+> Michal Hocko
+> SUSE Labs
 
-Do we want to somehow convey the fundamentally parallel nature of the
-thing?
-
-> > I see no mention of padata anywhere; I also don't see mention of the
-> > async init stuff. Both appear to me to share, at least in part, the same
-> > reason for existence.
-> 
-> padata is news to me.  From reading its doc, it comes with some special
-> requirements of its own, like softirqs disabled during the parallel callback,
-> and some ktask users need to sleep.  I'll check whether it could be reworked to
-> handle this.
-
-Right, padata is something that came from the network stack I think.
-It's a bit of an odd thing, but it would be nice if we can fold it into
-something larger.
-
-> And yes, async shares the same basic infrastructure, but ktask callers need to
-> wait, so the two seem fundamentally at odds.  I'll add this explanation in.
-
-Why does ktask have to be fundamentally async?
-
-> > > +Scheduler Interaction
-> > > +=====================
-> ...
-> > > +It is possible for a helper thread to start running and then be forced off-CPU
-> > > +by a higher priority thread.  With the helper's CPU time curtailed by MAX_NICE,
-> > > +the main thread may wait longer for the task to finish than it would have had
-> > > +it not started any helpers, so to ensure forward progress at a single-threaded
-> > > +pace, once the main thread is finished with all outstanding work in the task,
-> > > +the main thread wills its priority to one helper thread at a time.  At least
-> > > +one thread will then always be running at the priority of the calling thread.
-> > 
-> > What isn't clear is if this calling thread is waiting or not. Only do
-> > this inheritance trick if it is actually waiting on the work. If it is
-> > not, nobody cares.
-> 
-> The calling thread waits.  Even if it didn't though, the inheritance trick
-> would still be desirable for timely completion of the job.
-
-No, if nobody is waiting on it, it really doesn't matter.
-
-> > > +Power Management
-> > > +================
-> > > +
-> > > +Starting additional helper threads may cause the system to consume more energy,
-> > > +which is undesirable on energy-conscious devices.  Therefore ktask needs to be
-> > > +aware of cpufreq policies and scaling governors.
-> > > +
-> > > +If an energy-conscious policy is in use (e.g. powersave, conservative) on any
-> > > +part of the system, that is a signal that the user has strong power management
-> > > +preferences, in which case ktask is disabled.
-> > > +
-> > > +TODO: Implement this.
-> > 
-> > No, don't do that, its broken. Also, we're trying to move to a single
-> > cpufreq governor for all.
-> >
-> > Sure we'll retain 'performance', but powersave and conservative and all
-> > that nonsense should go away eventually.
-> 
-> Ok, good to know.
-> 
-> > That's not saying you don't need a knob for this; but don't look at
-> > cpufreq for this.
-> 
-> Ok, I'll dig through power management to see what else is there.  Maybe there's
-> some way to ask "is this machine energy conscious?"
-
-IIRC you're presenting at LPC, drop by the Power Management and
-Energy-awareness MC.
+-- 
+Michal Hocko
+SUSE Labs
