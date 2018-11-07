@@ -1,136 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 17DF86B04AF
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2018 20:52:05 -0500 (EST)
-Received: by mail-it1-f197.google.com with SMTP id z195-v6so11773818itb.7
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 17:52:05 -0800 (PST)
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id u5-v6sor5365384itd.6.2018.11.06.17.52.03
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DA2C86B04B2
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 01:07:02 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id k203so29546978qke.2
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 22:07:02 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k15si2033618qke.86.2018.11.06.22.07.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Nov 2018 17:52:03 -0800 (PST)
-MIME-Version: 1.0
-Date: Tue, 06 Nov 2018 17:52:03 -0800
-Message-ID: <000000000000601367057a095de4@google.com>
-Subject: KASAN: use-after-free Read in get_mem_cgroup_from_mm
-From: syzbot <syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Nov 2018 22:07:01 -0800 (PST)
+From: Peter Xu <peterx@redhat.com>
+Subject: [PATCH RFC v2 0/4] mm: some enhancements to the page fault mechanism
+Date: Wed,  7 Nov 2018 14:06:39 +0800
+Message-Id: <20181107060643.10950-1-peterx@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, syzkaller-bugs@googlegroups.com, vdavydov.dev@gmail.com
+To: linux-kernel@vger.kernel.org
+Cc: Keith Busch <keith.busch@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, peterx@redhat.com, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Huang Ying <ying.huang@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Jerome Glisse <jglisse@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>
 
-SGVsbG8sDQoNCnN5emJvdCBmb3VuZCB0aGUgZm9sbG93aW5nIGNyYXNoIG9uOg0KDQpIRUFEIGNv
-bW1pdDogICAgODM2NTBmZDU4YTkzIE1lcmdlIHRhZyAnYXJtNjQtdXBzdHJlYW0nIG9mIGdpdDov
-L2dpdC5rZXJuZS4uDQpnaXQgdHJlZTogICAgICAgdXBzdHJlYW0NCmNvbnNvbGUgb3V0cHV0OiBo
-dHRwczovL3N5emthbGxlci5hcHBzcG90LmNvbS94L2xvZy50eHQ/eD0xMmNlNjgyYjQwMDAwMA0K
-a2VybmVsIGNvbmZpZzogIGh0dHBzOi8vc3l6a2FsbGVyLmFwcHNwb3QuY29tL3gvLmNvbmZpZz94
-PTkzODRlY2IxYzk3M2JhZWQNCmRhc2hib2FyZCBsaW5rOiBodHRwczovL3N5emthbGxlci5hcHBz
-cG90LmNvbS9idWc/ZXh0aWQ9Y2JiNTJlMzk2ZGYzZTU2NWFiMDINCmNvbXBpbGVyOiAgICAgICBn
-Y2MgKEdDQykgOC4wLjEgMjAxODA0MTMgKGV4cGVyaW1lbnRhbCkNCg0KVW5mb3J0dW5hdGVseSwg
-SSBkb24ndCBoYXZlIGFueSByZXByb2R1Y2VyIGZvciB0aGlzIGNyYXNoIHlldC4NCg0KSU1QT1JU
-QU5UOiBpZiB5b3UgZml4IHRoZSBidWcsIHBsZWFzZSBhZGQgdGhlIGZvbGxvd2luZyB0YWcgdG8g
-dGhlIGNvbW1pdDoNClJlcG9ydGVkLWJ5OiBzeXpib3QrY2JiNTJlMzk2ZGYzZTU2NWFiMDJAc3l6
-a2FsbGVyLmFwcHNwb3RtYWlsLmNvbQ0KDQpGQVQtZnMgKGxvb3AxKTogVW5yZWNvZ25pemVkIG1v
-dW50IG9wdGlvbiAiByIgb3IgbWlzc2luZyB2YWx1ZQ0KRjJGUy1mcyAobG9vcDUpOiBNYWdpYyBN
-aXNtYXRjaCwgdmFsaWQoMHhmMmY1MjAxMCkgLSByZWFkKDB4MCkNCj09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQ0KQlVHOiBL
-QVNBTjogdXNlLWFmdGVyLWZyZWUgaW4gX19yZWFkX29uY2Vfc2l6ZSBpbmNsdWRlL2xpbnV4L2Nv
-bXBpbGVyLmg6MTgyICANCltpbmxpbmVdDQpCVUc6IEtBU0FOOiB1c2UtYWZ0ZXItZnJlZSBpbiB0
-YXNrX2NzcyBpbmNsdWRlL2xpbnV4L2Nncm91cC5oOjQ3NyBbaW5saW5lXQ0KQlVHOiBLQVNBTjog
-dXNlLWFmdGVyLWZyZWUgaW4gbWVtX2Nncm91cF9mcm9tX3Rhc2sgbW0vbWVtY29udHJvbC5jOjgx
-NSAgDQpbaW5saW5lXQ0KQlVHOiBLQVNBTjogdXNlLWFmdGVyLWZyZWUgaW4gZ2V0X21lbV9jZ3Jv
-dXBfZnJvbV9tbS5wYXJ0LjYyKzB4NmQ3LzB4ODgwICANCm1tL21lbWNvbnRyb2wuYzo4NDQNClJl
-YWQgb2Ygc2l6ZSA4IGF0IGFkZHIgZmZmZjg4MDFjNjM1ZDIxMCBieSB0YXNrIHN5ei1leGVjdXRv
-cjAvMTQ4ODcNCg0KQ1BVOiAwIFBJRDogMTQ4ODcgQ29tbTogc3l6LWV4ZWN1dG9yMCBOb3QgdGFp
-bnRlZCA0LjE5LjArICMzMTgNCkhhcmR3YXJlIG5hbWU6IEdvb2dsZSBHb29nbGUgQ29tcHV0ZSBF
-bmdpbmUvR29vZ2xlIENvbXB1dGUgRW5naW5lLCBCSU9TICANCkdvb2dsZSAwMS8wMS8yMDExDQpD
-YWxsIFRyYWNlOg0KICBfX2R1bXBfc3RhY2sgbGliL2R1bXBfc3RhY2suYzo3NyBbaW5saW5lXQ0K
-ICBkdW1wX3N0YWNrKzB4MjQ0LzB4MzlkIGxpYi9kdW1wX3N0YWNrLmM6MTEzDQogIHByaW50X2Fk
-ZHJlc3NfZGVzY3JpcHRpb24uY29sZC43KzB4OS8weDFmZiBtbS9rYXNhbi9yZXBvcnQuYzoyNTYN
-CiAga2FzYW5fcmVwb3J0X2Vycm9yIG1tL2thc2FuL3JlcG9ydC5jOjM1NCBbaW5saW5lXQ0KICBr
-YXNhbl9yZXBvcnQuY29sZC44KzB4MjQyLzB4MzA5IG1tL2thc2FuL3JlcG9ydC5jOjQxMg0KICBf
-X2FzYW5fcmVwb3J0X2xvYWQ4X25vYWJvcnQrMHgxNC8weDIwIG1tL2thc2FuL3JlcG9ydC5jOjQz
-Mw0KICBfX3JlYWRfb25jZV9zaXplIGluY2x1ZGUvbGludXgvY29tcGlsZXIuaDoxODIgW2lubGlu
-ZV0NCiAgdGFza19jc3MgaW5jbHVkZS9saW51eC9jZ3JvdXAuaDo0NzcgW2lubGluZV0NCiAgbWVt
-X2Nncm91cF9mcm9tX3Rhc2sgbW0vbWVtY29udHJvbC5jOjgxNSBbaW5saW5lXQ0KICBnZXRfbWVt
-X2Nncm91cF9mcm9tX21tLnBhcnQuNjIrMHg2ZDcvMHg4ODAgbW0vbWVtY29udHJvbC5jOjg0NA0K
-ICBnZXRfbWVtX2Nncm91cF9mcm9tX21tIG1tL21lbWNvbnRyb2wuYzo4MzQgW2lubGluZV0NCiAg
-bWVtX2Nncm91cF90cnlfY2hhcmdlKzB4NjA4LzB4ZTIwIG1tL21lbWNvbnRyb2wuYzo1ODg4DQog
-IG1jb3B5X2F0b21pY19wdGUgbW0vdXNlcmZhdWx0ZmQuYzo2OSBbaW5saW5lXQ0KICBtZmlsbF9h
-dG9taWNfcHRlIG1tL3VzZXJmYXVsdGZkLmM6Mzg1IFtpbmxpbmVdDQogIF9fbWNvcHlfYXRvbWlj
-IG1tL3VzZXJmYXVsdGZkLmM6NTI5IFtpbmxpbmVdDQogIG1jb3B5X2F0b21pYysweGFlOS8weDJh
-YTAgbW0vdXNlcmZhdWx0ZmQuYzo1NzkNCiAgdXNlcmZhdWx0ZmRfY29weSBmcy91c2VyZmF1bHRm
-ZC5jOjE2OTAgW2lubGluZV0NCiAgdXNlcmZhdWx0ZmRfaW9jdGwrMHgyMTNkLzB4NTRhMCBmcy91
-c2VyZmF1bHRmZC5jOjE4MzYNCiAgdmZzX2lvY3RsIGZzL2lvY3RsLmM6NDYgW2lubGluZV0NCiAg
-ZmlsZV9pb2N0bCBmcy9pb2N0bC5jOjUwOSBbaW5saW5lXQ0KICBkb192ZnNfaW9jdGwrMHgxZGUv
-MHgxNzkwIGZzL2lvY3RsLmM6Njk2DQogIGtzeXNfaW9jdGwrMHhhOS8weGQwIGZzL2lvY3RsLmM6
-NzEzDQogIF9fZG9fc3lzX2lvY3RsIGZzL2lvY3RsLmM6NzIwIFtpbmxpbmVdDQogIF9fc2Vfc3lz
-X2lvY3RsIGZzL2lvY3RsLmM6NzE4IFtpbmxpbmVdDQogIF9feDY0X3N5c19pb2N0bCsweDczLzB4
-YjAgZnMvaW9jdGwuYzo3MTgNCiAgZG9fc3lzY2FsbF82NCsweDFiOS8weDgyMCBhcmNoL3g4Ni9l
-bnRyeS9jb21tb24uYzoyOTANCiAgZW50cnlfU1lTQ0FMTF82NF9hZnRlcl9od2ZyYW1lKzB4NDkv
-MHhiZQ0KUklQOiAwMDMzOjB4NDU3NTY5DQpDb2RlOiBmZCBiMyBmYiBmZiBjMyA2NiAyZSAwZiAx
-ZiA4NCAwMCAwMCAwMCAwMCAwMCA2NiA5MCA0OCA4OSBmOCA0OCA4OSBmNyAgDQo0OCA4OSBkNiA0
-OCA4OSBjYSA0ZCA4OSBjMiA0ZCA4OSBjOCA0YyA4YiA0YyAyNCAwOCAwZiAwNSA8NDg+IDNkIDAx
-IGYwIGZmICANCmZmIDBmIDgzIGNiIGIzIGZiIGZmIGMzIDY2IDJlIDBmIDFmIDg0IDAwIDAwIDAw
-IDAwDQpSU1A6IDAwMmI6MDAwMDdmNmRkMjJhY2M3OCBFRkxBR1M6IDAwMDAwMjQ2IE9SSUdfUkFY
-OiAwMDAwMDAwMDAwMDAwMDEwDQpSQVg6IGZmZmZmZmZmZmZmZmZmZGEgUkJYOiAwMDAwMDAwMDAw
-MDAwMDAzIFJDWDogMDAwMDAwMDAwMDQ1NzU2OQ0KUkRYOiAwMDAwMDAwMDIwMDAwMTAwIFJTSTog
-MDAwMDAwMDBjMDI4YWEwMyBSREk6IDAwMDAwMDAwMDAwMDAwMDQNClJCUDogMDAwMDAwMDAwMDcy
-YmZhMCBSMDg6IDAwMDAwMDAwMDAwMDAwMDAgUjA5OiAwMDAwMDAwMDAwMDAwMDAwDQpSMTA6IDAw
-MDAwMDAwMDAwMDAwMDAgUjExOiAwMDAwMDAwMDAwMDAwMjQ2IFIxMjogMDAwMDdmNmRkMjJhZDZk
-NA0KUjEzOiAwMDAwMDAwMDAwNGMxNDJiIFIxNDogMDAwMDAwMDAwMDRkMjJhOCBSMTU6IDAwMDAw
-MDAwZmZmZmZmZmYNCg0KQWxsb2NhdGVkIGJ5IHRhc2sgMTQ4ODE6DQogIHNhdmVfc3RhY2srMHg0
-My8weGQwIG1tL2thc2FuL2thc2FuLmM6NDQ4DQogIHNldF90cmFjayBtbS9rYXNhbi9rYXNhbi5j
-OjQ2MCBbaW5saW5lXQ0KICBrYXNhbl9rbWFsbG9jKzB4YzcvMHhlMCBtbS9rYXNhbi9rYXNhbi5j
-OjU1Mw0KICBrYXNhbl9zbGFiX2FsbG9jKzB4MTIvMHgyMCBtbS9rYXNhbi9rYXNhbi5jOjQ5MA0K
-ICBrbWVtX2NhY2hlX2FsbG9jX25vZGUrMHgxNDQvMHg3MzAgbW0vc2xhYi5jOjM2NDQNCiAgYWxs
-b2NfdGFza19zdHJ1Y3Rfbm9kZSBrZXJuZWwvZm9yay5jOjE1OCBbaW5saW5lXQ0KICBkdXBfdGFz
-a19zdHJ1Y3Qga2VybmVsL2ZvcmsuYzo4NDMgW2lubGluZV0NCiAgY29weV9wcm9jZXNzKzB4MjAy
-Ni8weDg3YTAga2VybmVsL2ZvcmsuYzoxNzUxDQogIF9kb19mb3JrKzB4MWNiLzB4MTFkMCBrZXJu
-ZWwvZm9yay5jOjIyMTYNCiAgX19kb19zeXNfY2xvbmUga2VybmVsL2ZvcmsuYzoyMzIzIFtpbmxp
-bmVdDQogIF9fc2Vfc3lzX2Nsb25lIGtlcm5lbC9mb3JrLmM6MjMxNyBbaW5saW5lXQ0KICBfX3g2
-NF9zeXNfY2xvbmUrMHhiZi8weDE1MCBrZXJuZWwvZm9yay5jOjIzMTcNCiAgZG9fc3lzY2FsbF82
-NCsweDFiOS8weDgyMCBhcmNoL3g4Ni9lbnRyeS9jb21tb24uYzoyOTANCiAgZW50cnlfU1lTQ0FM
-TF82NF9hZnRlcl9od2ZyYW1lKzB4NDkvMHhiZQ0KDQpGcmVlZCBieSB0YXNrIDE0ODgxOg0KICBz
-YXZlX3N0YWNrKzB4NDMvMHhkMCBtbS9rYXNhbi9rYXNhbi5jOjQ0OA0KICBzZXRfdHJhY2sgbW0v
-a2FzYW4va2FzYW4uYzo0NjAgW2lubGluZV0NCiAgX19rYXNhbl9zbGFiX2ZyZWUrMHgxMDIvMHgx
-NTAgbW0va2FzYW4va2FzYW4uYzo1MjENCiAga2FzYW5fc2xhYl9mcmVlKzB4ZS8weDEwIG1tL2th
-c2FuL2thc2FuLmM6NTI4DQogIF9fY2FjaGVfZnJlZSBtbS9zbGFiLmM6MzQ5OCBbaW5saW5lXQ0K
-ICBrbWVtX2NhY2hlX2ZyZWUrMHg4My8weDI5MCBtbS9zbGFiLmM6Mzc2MA0KICBmcmVlX3Rhc2tf
-c3RydWN0IGtlcm5lbC9mb3JrLmM6MTYzIFtpbmxpbmVdDQogIGZyZWVfdGFzaysweDE2ZS8weDFm
-MCBrZXJuZWwvZm9yay5jOjQ1Nw0KICBjb3B5X3Byb2Nlc3MrMHgxZGNjLzB4ODdhMCBrZXJuZWwv
-Zm9yay5jOjIxNDgNCiAgX2RvX2ZvcmsrMHgxY2IvMHgxMWQwIGtlcm5lbC9mb3JrLmM6MjIxNg0K
-ICBfX2RvX3N5c19jbG9uZSBrZXJuZWwvZm9yay5jOjIzMjMgW2lubGluZV0NCiAgX19zZV9zeXNf
-Y2xvbmUga2VybmVsL2ZvcmsuYzoyMzE3IFtpbmxpbmVdDQogIF9feDY0X3N5c19jbG9uZSsweGJm
-LzB4MTUwIGtlcm5lbC9mb3JrLmM6MjMxNw0KICBkb19zeXNjYWxsXzY0KzB4MWI5LzB4ODIwIGFy
-Y2gveDg2L2VudHJ5L2NvbW1vbi5jOjI5MA0KICBlbnRyeV9TWVNDQUxMXzY0X2FmdGVyX2h3ZnJh
-bWUrMHg0OS8weGJlDQoNClRoZSBidWdneSBhZGRyZXNzIGJlbG9uZ3MgdG8gdGhlIG9iamVjdCBh
-dCBmZmZmODgwMWM2MzVjMTQwDQogIHdoaWNoIGJlbG9uZ3MgdG8gdGhlIGNhY2hlIHRhc2tfc3Ry
-dWN0KDE3OnN5ejApIG9mIHNpemUgNjA4MA0KVGhlIGJ1Z2d5IGFkZHJlc3MgaXMgbG9jYXRlZCA0
-MzA0IGJ5dGVzIGluc2lkZSBvZg0KICA2MDgwLWJ5dGUgcmVnaW9uIFtmZmZmODgwMWM2MzVjMTQw
-LCBmZmZmODgwMWM2MzVkOTAwKQ0KVGhlIGJ1Z2d5IGFkZHJlc3MgYmVsb25ncyB0byB0aGUgcGFn
-ZToNCnBhZ2U6ZmZmZmVhMDAwNzE4ZDcwMCBjb3VudDoxIG1hcGNvdW50OjAgbWFwcGluZzpmZmZm
-ODgwMWNjZWY5ODAwIGluZGV4OjB4MCAgDQpjb21wb3VuZF9tYXBjb3VudDogMA0KZmxhZ3M6IDB4
-MmZmZmMwMDAwMDEwMjAwKHNsYWJ8aGVhZCkNCnJhdzogMDJmZmZjMDAwMDAxMDIwMCBmZmZmZWEw
-MDA1NzNkNTA4IGZmZmZlYTAwMDZmYzYwODggZmZmZjg4MDFjY2VmOTgwMA0KcmF3OiAwMDAwMDAw
-MDAwMDAwMDAwIGZmZmY4ODAxYzYzNWMxNDAgMDAwMDAwMDEwMDAwMDAwMSBmZmZmODgwMTg4MDA4
-ZWMwDQpwYWdlIGR1bXBlZCBiZWNhdXNlOiBrYXNhbjogYmFkIGFjY2VzcyBkZXRlY3RlZA0KcGFn
-ZS0+bWVtX2Nncm91cDpmZmZmODgwMTg4MDA4ZWMwDQoNCk1lbW9yeSBzdGF0ZSBhcm91bmQgdGhl
-IGJ1Z2d5IGFkZHJlc3M6DQogIGZmZmY4ODAxYzYzNWQxMDA6IGZiIGZiIGZiIGZiIGZiIGZiIGZi
-IGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiDQogIGZmZmY4ODAxYzYzNWQxODA6IGZiIGZiIGZi
-IGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiDQo+IGZmZmY4ODAxYzYzNWQy
-MDA6IGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiIGZiDQogICAg
-ICAgICAgICAgICAgICAgICAgICAgIF4NCiAgZmZmZjg4MDFjNjM1ZDI4MDogZmIgZmIgZmIgZmIg
-ZmIgZmIgZmIgZmIgZmIgZmIgZmIgZmIgZmIgZmIgZmIgZmINCiAgZmZmZjg4MDFjNjM1ZDMwMDog
-ZmIgZmIgZmIgZmIgZmIgZmIgZmIgZmIgZmIgZmIgZmIgZmIgZmIgZmIgZmIgZmINCj09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PQ0KRkFULWZzIChsb29wMik6IGJvZ3VzIG51bWJlciBvZiBGQVQgc3RydWN0dXJlDQpGQVQtZnMg
-KGxvb3AyKTogQ2FuJ3QgZmluZCBhIHZhbGlkIEZBVCBmaWxlc3lzdGVtDQpGMkZTLWZzIChsb29w
-NSk6IENhbid0IGZpbmQgdmFsaWQgRjJGUyBmaWxlc3lzdGVtIGluIDF0aCBzdXBlcmJsb2NrDQoN
-Cg0KLS0tDQpUaGlzIGJ1ZyBpcyBnZW5lcmF0ZWQgYnkgYSBib3QuIEl0IG1heSBjb250YWluIGVy
-cm9ycy4NClNlZSBodHRwczovL2dvby5nbC90cHNtRUogZm9yIG1vcmUgaW5mb3JtYXRpb24gYWJv
-dXQgc3l6Ym90Lg0Kc3l6Ym90IGVuZ2luZWVycyBjYW4gYmUgcmVhY2hlZCBhdCBzeXprYWxsZXJA
-Z29vZ2xlZ3JvdXBzLmNvbS4NCg0Kc3l6Ym90IHdpbGwga2VlcCB0cmFjayBvZiB0aGlzIGJ1ZyBy
-ZXBvcnQuIFNlZToNCmh0dHBzOi8vZ29vLmdsL3Rwc21FSiNidWctc3RhdHVzLXRyYWNraW5nIGZv
-ciBob3cgdG8gY29tbXVuaWNhdGUgd2l0aCAgDQpzeXpib3QuDQo=
+(sorry I got the cc list messed up; am sending another one with no
+ change but only to fix the cc list)
+
+This is an RFC series as cleanup and enhancements to current page
+fault logic.  The whole idea comes from the discussion between Andrea
+and Linus on the bug reported by syzbot here:
+
+  https://lkml.org/lkml/2017/11/2/833
+
+Basically it does two things:
+
+  (a) Allows the page fault logic to be more interactive on not only
+      SIGKILL, but also the rest of userspace signals, and,
+
+  (b) Allows the page fault retry (VM_FAULT_RETRY) to happen for more
+      than once.
+
+For (a): with the changes we should be able to react faster when page
+faults are working in parallel with userspace signals like SIGSTOP and
+SIGCONT (and more), and with that we can remove the buggy part in
+userfaultfd and benefit the whole page fault mechanism on faster
+signal processing to reach the userspace.
+
+For (b), we should be able to allow the page fault handler to loop for
+even more than twice.  Some context: for now since we have
+FAULT_FLAG_ALLOW_RETRY we can allow to retry the page fault once with
+the same interrupt context, however never more than twice.  This can
+be not only a potential cleanup to remove this assumption since AFAIU
+the code itself doesn't really have this twice-only limitation (though
+that should be a protective approach in the past), at the same time
+it'll greatly simplify future works like userfaultfd write-protect
+where it's possible to retry for more than twice (please have a look
+at [1] below for a possible user that might require the page fault to
+be handled for a third time; if we can remove the retry limitation we
+can simply drop that patch and those complexity).
+
+Some more details on each of the patch (even more in commit messages):
+
+Patch 1: A cleanup of existing GUP code to rename the confusing
+         "nonblocking" parameter to "locked" which seems suite more.
+
+Patch 2: Complete the page fault faster for non-sigkill signals
+
+Patch 3: Remove the limitation to only allow to retry page fault for
+         twice (page fault part)
+
+Patch 4: Similar work of patch 3, but for GUP.
+
+The series is only lightly tested.  Before more tests, I'd be really
+glad to see whether there's any feedbacks on these changes, on whether
+the changes make any sense, or anything important that I may have
+missed, or any suggestions on how to better test the work, etc...
+
+Looking forward to your comments.  Thanks,
+
+[1] https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=b245ecf6cf59156966f3da6e6b674f6695a5ffa5
+
+Peter Xu (4):
+  mm: gup: rename "nonblocking" to "locked" where proper
+  mm: userfault: return VM_FAULT_RETRY on signals
+  mm: allow VM_FAULT_RETRY for multiple times
+  mm: gup: allow VM_FAULT_RETRY for multiple times
+
+ arch/alpha/mm/fault.c      |  4 +--
+ arch/arc/mm/fault.c        | 12 ++++----
+ arch/arm/mm/fault.c        | 17 ++++++-----
+ arch/arm64/mm/fault.c      | 11 ++-----
+ arch/hexagon/mm/vm_fault.c |  3 +-
+ arch/ia64/mm/fault.c       |  3 +-
+ arch/m68k/mm/fault.c       |  5 +---
+ arch/microblaze/mm/fault.c |  3 +-
+ arch/mips/mm/fault.c       |  3 +-
+ arch/nds32/mm/fault.c      |  7 ++---
+ arch/nios2/mm/fault.c      |  5 +---
+ arch/openrisc/mm/fault.c   |  3 +-
+ arch/parisc/mm/fault.c     |  4 +--
+ arch/powerpc/mm/fault.c    |  9 ++----
+ arch/riscv/mm/fault.c      |  9 ++----
+ arch/s390/mm/fault.c       | 14 ++++-----
+ arch/sh/mm/fault.c         |  5 +++-
+ arch/sparc/mm/fault_32.c   |  4 ++-
+ arch/sparc/mm/fault_64.c   |  4 ++-
+ arch/um/kernel/trap.c      |  6 ++--
+ arch/unicore32/mm/fault.c  | 10 ++-----
+ arch/x86/mm/fault.c        | 13 ++++++--
+ arch/xtensa/mm/fault.c     |  4 ++-
+ fs/userfaultfd.c           | 24 ---------------
+ mm/gup.c                   | 61 +++++++++++++++++++++-----------------
+ mm/hugetlb.c               |  8 ++---
+ 26 files changed, 114 insertions(+), 137 deletions(-)
+
+-- 
+2.17.1
