@@ -1,62 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 895FB6B04FF
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 07:00:17 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id r20-v6so6239746eds.18
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 04:00:17 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d19si431757edx.427.2018.11.07.04.00.15
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 922D56B0502
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 07:53:38 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id y8so13965713pgq.12
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 04:53:38 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x22-v6sor566616plr.68.2018.11.07.04.53.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Nov 2018 04:00:15 -0800 (PST)
-Date: Wed, 7 Nov 2018 13:00:13 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH v6 1/3] printk: Add line-buffered printk() API.
-Message-ID: <20181107120012.b5qynrwikjtqp2zx@pathway.suse.cz>
-References: <1541165517-3557-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20181106143502.GA32748@tigerII.localdomain>
- <42f33aae-a1d1-197f-a1d5-8c5ec88e88d1@i-love.sakura.ne.jp>
- <8354d714f6b6489d9003d6e04ee10618@AcuMS.aculab.com>
+        (Google Transport Security);
+        Wed, 07 Nov 2018 04:53:37 -0800 (PST)
+Date: Wed, 7 Nov 2018 23:53:24 +1100
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [PATCH] mm, memory_hotplug: check zone_movable in
+ has_unmovable_pages
+Message-ID: <20181107125324.GD9042@350D>
+References: <20181106095524.14629-1-mhocko@kernel.org>
+ <20181106203518.GC9042@350D>
+ <20181107073548.GU27423@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <8354d714f6b6489d9003d6e04ee10618@AcuMS.aculab.com>
+In-Reply-To: <20181107073548.GU27423@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@ACULAB.COM>
-Cc: 'Tetsuo Handa' <penguin-kernel@i-love.sakura.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Dmitriy Vyukov <dvyukov@google.com>, Steven Rostedt <rostedt@goodmis.org>, Alexander Potapenko <glider@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Oscar Salvador <OSalvador@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 2018-11-07 11:01:05, David Laight wrote:
-> From: Tetsuo Handa
-> > Sent: 07 November 2018 10:53
-> A though:
+On Wed, Nov 07, 2018 at 08:35:48AM +0100, Michal Hocko wrote:
+> On Wed 07-11-18 07:35:18, Balbir Singh wrote:
+> > On Tue, Nov 06, 2018 at 10:55:24AM +0100, Michal Hocko wrote:
+> > > From: Michal Hocko <mhocko@suse.com>
+> > > 
+> > > Page state checks are racy. Under a heavy memory workload (e.g. stress
+> > > -m 200 -t 2h) it is quite easy to hit a race window when the page is
+> > > allocated but its state is not fully populated yet. A debugging patch to
+> > > dump the struct page state shows
+> > > : [  476.575516] has_unmovable_pages: pfn:0x10dfec00, found:0x1, count:0x0
+> > > : [  476.582103] page:ffffea0437fb0000 count:1 mapcount:1 mapping:ffff880e05239841 index:0x7f26e5000 compound_mapcount: 1
+> > > : [  476.592645] flags: 0x5fffffc0090034(uptodate|lru|active|head|swapbacked)
+> > > 
+> > > Note that the state has been checked for both PageLRU and PageSwapBacked
+> > > already. Closing this race completely would require some sort of retry
+> > > logic. This can be tricky and error prone (think of potential endless
+> > > or long taking loops).
+> > > 
+> > > Workaround this problem for movable zones at least. Such a zone should
+> > > only contain movable pages. 15c30bc09085 ("mm, memory_hotplug: make
+> > > has_unmovable_pages more robust") has told us that this is not strictly
+> > > true though. Bootmem pages should be marked reserved though so we can
+> > > move the original check after the PageReserved check. Pages from other
+> > > zones are still prone to races but we even do not pretend that memory
+> > > hotremove works for those so pre-mature failure doesn't hurt that much.
+> > > 
+> > > Reported-and-tested-by: Baoquan He <bhe@redhat.com>
+> > > Acked-by: Baoquan He <bhe@redhat.com>
+> > > Fixes: "mm, memory_hotplug: make has_unmovable_pages more robust")
+> > > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > > ---
+> > >
+> > > Hi,
+> > > this has been reported [1] and we have tried multiple things to address
+> > > the issue. The only reliable way was to reintroduce the movable zone
+> > > check into has_unmovable_pages. This time it should be safe also for
+> > > the bug originally fixed by 15c30bc09085.
+> > > 
+> > > [1] http://lkml.kernel.org/r/20181101091055.GA15166@MiWiFi-R3L-srv
+> > >  mm/page_alloc.c | 8 ++++++++
+> > >  1 file changed, 8 insertions(+)
+> > > 
+> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > index 863d46da6586..c6d900ee4982 100644
+> > > --- a/mm/page_alloc.c
+> > > +++ b/mm/page_alloc.c
+> > > @@ -7788,6 +7788,14 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+> > >  		if (PageReserved(page))
+> > >  			goto unmovable;
+> > >  
+> > > +		/*
+> > > +		 * If the zone is movable and we have ruled out all reserved
+> > > +		 * pages then it should be reasonably safe to assume the rest
+> > > +		 * is movable.
+> > > +		 */
+> > > +		if (zone_idx(zone) == ZONE_MOVABLE)
+> > > +			continue;
+> > > +
+> > >  		/*
+> > 
+> > 
+> > There is a WARN_ON() in case of failure at the end of the routine,
+> > is that triggered when we hit the bug? If we're adding this patch,
+> > the WARN_ON needs to go as well.
 > 
-> Why not make the printf lock slightly 'sticky'?
-> - If the output line is incomplete save the cpuid.
-> - If there is a saved cpuid that doesn't match the current cpu then spin for a bit.
+> No the warning should stay in case we encounter reserved pages in zone
+> movable.
+>
+
+Fair enough!
+ 
+> > The check seems to be quite aggressive and in a loop that iterates
+> > pages, but has nothing to do with the page, did you mean to make
+> > the check
+> > 
+> > zone_idx(page_zone(page)) == ZONE_MOVABLE
 > 
-> Any callers of printk() have to assume they will spin on the buffer for the
-> longest printk formatting (and symbol lookup might take a while) so a short
-> additional delay won't matter.
+> Does it make any difference? Can we actually encounter a page from a
+> different zone here?
+> 
 
-Disabling preemption for a single printk() is questionable. We have
-spent many years trying to find an acceptable solution to avoid
-softlockups and we did not fully succeeded.
+Just to avoid page state related issues, do we want to go ahead
+with the migration if zone_idx(page_zone(page)) != ZONE_MOVABLE.
 
-And this patchset is about continuous lines. Therefore we would need
-to disable preemption for all code intermixed with the related
-printks. This does not have much chances to get accepted.
+> > it also skips all checks for pinned pages and other checks
+> 
+> Yes, this is intentional and the comment tries to explain why. I wish we
+> could be add a more specific checks for movable pages - e.g. detect long
+> term pins that would prevent migration - but we do not have any facility
+> for that. Please note that the worst case of a false positive is a
+> repeated migration failure and user has a way to break out of migration
+> by a signal.
+>
 
+Basically isolate_pages() will fail as opposed to hotplug failing upfront.
+The basic assertion this patch makes is that all ZONE_MOVABLE pages that
+are not reserved are hotpluggable.
 
-> Then two calls to printk() for the same line won't (usually) get split and
-> none of the callers need any changes.
-
-It would require changes to disable the preemption around the related
-calls.
-
-We could not do this without a better API and inspecting all users.
-Note that we could not detect this by "\n" because it is too
-error-prone.
-
-Best Regards,
-Petr
+Balbir Singh.
