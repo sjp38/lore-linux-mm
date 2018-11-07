@@ -1,73 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3013D6B0503
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 07:54:50 -0500 (EST)
-Received: by mail-oi1-f197.google.com with SMTP id u188-v6so10529621oie.23
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 04:54:50 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id d54si219717otf.171.2018.11.07.04.54.48
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E9F4D6B0505
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 08:06:57 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id x1-v6so9169776edh.8
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 05:06:57 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j93-v6si537978edb.199.2018.11.07.05.06.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Nov 2018 04:54:49 -0800 (PST)
-Subject: Re: [PATCH v6 1/3] printk: Add line-buffered printk() API.
-References: <1541165517-3557-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20181106143502.GA32748@tigerII.localdomain>
- <20181107102154.pobr7yrl5il76be6@pathway.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <c4b4d3df-53c6-e938-122e-c172ba8b2500@i-love.sakura.ne.jp>
-Date: Wed, 7 Nov 2018 21:54:02 +0900
+        Wed, 07 Nov 2018 05:06:56 -0800 (PST)
+Date: Wed, 7 Nov 2018 14:06:55 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, memory_hotplug: check zone_movable in
+ has_unmovable_pages
+Message-ID: <20181107130655.GE27423@dhcp22.suse.cz>
+References: <20181106095524.14629-1-mhocko@kernel.org>
+ <20181106203518.GC9042@350D>
+ <20181107073548.GU27423@dhcp22.suse.cz>
+ <20181107125324.GD9042@350D>
 MIME-Version: 1.0
-In-Reply-To: <20181107102154.pobr7yrl5il76be6@pathway.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181107125324.GD9042@350D>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Dmitriy Vyukov <dvyukov@google.com>, Steven Rostedt <rostedt@goodmis.org>, Alexander Potapenko <glider@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Oscar Salvador <OSalvador@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 2018/11/07 19:21, Petr Mladek wrote:
-> On Tue 2018-11-06 23:35:02, Sergey Senozhatsky wrote:
->>> Since we want to remove "struct cont" eventually, we will try to remove
->>> both "implicit printk() users who are expecting KERN_CONT behavior" and
->>> "explicit pr_cont()/printk(KERN_CONT) users". Therefore, converting to
->>> this API is recommended.
->>
->> - The printk-fallback sounds like a hint that the existing 'cont' handling
->>   better stay in the kernel. I don't see how the existing 'cont' is
->>   significantly worse than
->> 		bpr_warn(NULL, ...)->printk() // no 'cont' support
->>   I don't see why would we want to do it, sorry. I don't see "it takes 16
->>   printk-buffers to make a thing go right" as a sure thing.
+On Wed 07-11-18 23:53:24, Balbir Singh wrote:
+> On Wed, Nov 07, 2018 at 08:35:48AM +0100, Michal Hocko wrote:
+> > On Wed 07-11-18 07:35:18, Balbir Singh wrote:
+[...]
+> > > The check seems to be quite aggressive and in a loop that iterates
+> > > pages, but has nothing to do with the page, did you mean to make
+> > > the check
+> > > 
+> > > zone_idx(page_zone(page)) == ZONE_MOVABLE
+> > 
+> > Does it make any difference? Can we actually encounter a page from a
+> > different zone here?
+> > 
 > 
-> I see it the following way:
-> 
->    + mixed cont lines are very rare but they happen
-> 
->    + 16 buffers are more than 1 so it could only be better [*]
-> 
->    + the printk_buffer() code is self-contained and does not
->      complicate the logic of the classic printk() code [**]
-> 
-> 
-> [*] A missing put_printk_buffer() might cause that we would get
->     out of buffers. But the same problem is with locks,
->     disabled preemption, disabled interrupts, seq_buffer,
->     alloc/free. Such problems happen but they are rare.
-> 
->     Also I do not expect that the same buffer would be shared
->     between many functions. Therefore it should be easy
->     to use it correctly.
+> Just to avoid page state related issues, do we want to go ahead
+> with the migration if zone_idx(page_zone(page)) != ZONE_MOVABLE.
 
-Since we can allocate printk() buffer upon dup_task_struct()
-and free it upon free_task_struct(), we can have enough printk()
-buffers for task context. Also, since total number of exceptional
-contexts (e.g. interrupts, oops) is finite, we can have enough
-printk() buffers for exceptional contexts.
+Could you be more specific what kind of state related issues you have in
+mind?
 
-Is it possible to identify all locations which should use their own
-printk() buffers (e.g. interrupt handlers, oops handlers) ? If yes,
-despite Linus's objection, automatically switching printk() buffers
-(like memalloc_nofs_save()/memalloc_nofs_restore() instead of
-https://lkml.kernel.org/r/201709021512.DJG00503.JHOSOFFMFtVLOQ@I-love.SAKURA.ne.jp )
-will be easiest and least error prone.
+> > > it also skips all checks for pinned pages and other checks
+> > 
+> > Yes, this is intentional and the comment tries to explain why. I wish we
+> > could be add a more specific checks for movable pages - e.g. detect long
+> > term pins that would prevent migration - but we do not have any facility
+> > for that. Please note that the worst case of a false positive is a
+> > repeated migration failure and user has a way to break out of migration
+> > by a signal.
+> >
+> 
+> Basically isolate_pages() will fail as opposed to hotplug failing upfront.
+> The basic assertion this patch makes is that all ZONE_MOVABLE pages that
+> are not reserved are hotpluggable.
+
+Yes, that is correct.
+
+-- 
+Michal Hocko
+SUSE Labs
