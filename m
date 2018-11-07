@@ -1,82 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FA9E6B04DB
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 05:08:15 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id h24-v6so5237126ede.9
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 02:08:15 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k3-v6si252950ejk.145.2018.11.07.02.08.13
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F086B6B04DD
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 05:18:44 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id 88-v6so14887528wrp.21
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 02:18:44 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z3-v6sor176996wru.7.2018.11.07.02.18.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Nov 2018 02:08:13 -0800 (PST)
-Date: Wed, 7 Nov 2018 11:08:10 +0100
+        (Google Transport Security);
+        Wed, 07 Nov 2018 02:18:43 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/2] memcg: do not report racy no-eligible OOM tasks
-Message-ID: <20181107100810.GA27423@dhcp22.suse.cz>
-References: <20181022071323.9550-1-mhocko@kernel.org>
- <20181022071323.9550-3-mhocko@kernel.org>
- <20181026142531.GA27370@cmpxchg.org>
- <20181026192551.GC18839@dhcp22.suse.cz>
- <20181026193304.GD18839@dhcp22.suse.cz>
- <dfafc626-2233-db9b-49fa-9d4bae16d4aa@i-love.sakura.ne.jp>
- <c38e352a-dd23-a5e4-ac50-75b557506479@i-love.sakura.ne.jp>
- <20181106124224.GM27423@dhcp22.suse.cz>
- <8725e3b3-3752-fa7f-a88f-5ff4f5b6eace@i-love.sakura.ne.jp>
+Subject: [RFC PATCH 0/5] mm, memory_hotplug: improve memory offlining failures debugging
+Date: Wed,  7 Nov 2018 11:18:25 +0100
+Message-Id: <20181107101830.17405-1-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8725e3b3-3752-fa7f-a88f-5ff4f5b6eace@i-love.sakura.ne.jp>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oscar Salvador <OSalvador@suse.com>, Baoquan He <bhe@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 07-11-18 18:45:27, Tetsuo Handa wrote:
-> On 2018/11/06 21:42, Michal Hocko wrote:
-> > On Tue 06-11-18 18:44:43, Tetsuo Handa wrote:
-> > [...]
-> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> >> index 6e1469b..a97648a 100644
-> >> --- a/mm/memcontrol.c
-> >> +++ b/mm/memcontrol.c
-> >> @@ -1382,8 +1382,13 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> >>  	};
-> >>  	bool ret;
-> >>  
-> >> -	mutex_lock(&oom_lock);
-> >> -	ret = out_of_memory(&oc);
-> >> +	if (mutex_lock_killable(&oom_lock))
-> >> +		return true;
-> >> +	/*
-> >> +	 * A few threads which were not waiting at mutex_lock_killable() can
-> >> +	 * fail to bail out. Therefore, check again after holding oom_lock.
-> >> +	 */
-> >> +	ret = fatal_signal_pending(current) || out_of_memory(&oc);
-> >>  	mutex_unlock(&oom_lock);
-> >>  	return ret;
-> >>  }
-> > 
-> > If we are goging with a memcg specific thingy then I really prefer
-> > tsk_is_oom_victim approach. Or is there any reason why this is not
-> > suitable?
-> > 
-> 
-> Why need to wait for mark_oom_victim() called after slow printk() messages?
-> 
-> If current thread got Ctrl-C and thus current thread can terminate, what is
-> nice with waiting for the OOM killer? If there are several OOM events in
-> multiple memcg domains waiting for completion of printk() messages? I don't
-> see points with waiting for oom_lock, for try_charge() already allows current
-> thread to terminate due to fatal_signal_pending() test.
+Hi,
+I have been promissing to improve memory offlining failures debugging
+for quite some time. As things stand now we get only very limited
+information in the kernel log when the offlining fails. It is usually
+only
+[ 1984.506184] rac1 kernel: memory offlining [mem 0x82600000000-0x8267fffffff] failed
+without no further details. We do not know what exactly fails and for
+what reason. Whenever I was forced to debug such a failure I've always
+had to do a debugging patch to tell me more. We can enable some
+tracepoints but it would be much better to get a better picture without
+using them.
 
-mutex_lock_killable would take care of exiting task already. I would
-then still prefer to check for mark_oom_victim because that is not racy
-with the exit path clearing signals. I can update my patch to use
-_killable lock variant if we are really going with the memcg specific
-fix.
+This patch series does 2 things. The first one is to make dump_page
+more usable by printing more information about the mapping patch 1.
+Then it reduces the log level from emerg to warning so that this
+function is usable from less critical context patch 2. Then I have
+added more detailed information about the offlining failure patch 4
+and finally add dump_page to isolation and offlining migration paths.
+Patch 3 is a trivial cleanup.
 
-Johaness?
+Does this look go to you?
 
--- 
-Michal Hocko
-SUSE Labs
+Shortlog
+Michal Hocko (5):
+      mm: print more information about mapping in __dump_page
+      mm: lower the printk loglevel for __dump_page messages
+      mm, memory_hotplug: drop pointless block alignment checks from __offline_pages
+      mm, memory_hotplug: print reason for the offlining failure
+      mm, memory_hotplug: be more verbose for memory offline failures
+
+Diffstat:
+ mm/debug.c          | 23 ++++++++++++++++++-----
+ mm/memory_hotplug.c | 52 +++++++++++++++++++++++++++++++---------------------
+ mm/page_alloc.c     |  1 +
+ 3 files changed, 50 insertions(+), 26 deletions(-)
