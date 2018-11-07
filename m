@@ -1,69 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 94D976B04D5
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 04:23:57 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id y72-v6so9105720ede.22
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 01:23:57 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o1-v6si250832edf.177.2018.11.07.01.23.56
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CC736B04D7
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 04:45:45 -0500 (EST)
+Received: by mail-oi1-f199.google.com with SMTP id g138-v6so10510295oib.14
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 01:45:45 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id z186-v6si43982oiz.154.2018.11.07.01.45.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Nov 2018 01:23:56 -0800 (PST)
-Date: Wed, 7 Nov 2018 10:23:54 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 1/4] mm: Fix multiple evaluvations of totalram_pages
- and managed_pages
-Message-ID: <20181107092354.GZ27423@dhcp22.suse.cz>
-References: <1541521310-28739-1-git-send-email-arunks@codeaurora.org>
- <1541521310-28739-2-git-send-email-arunks@codeaurora.org>
- <20181107082037.GX27423@dhcp22.suse.cz>
- <c2862bb0-ced1-add1-c816-21c0d4e76bbe@suse.cz>
+        Wed, 07 Nov 2018 01:45:44 -0800 (PST)
+Subject: Re: [RFC PATCH 2/2] memcg: do not report racy no-eligible OOM tasks
+References: <20181022071323.9550-1-mhocko@kernel.org>
+ <20181022071323.9550-3-mhocko@kernel.org>
+ <20181026142531.GA27370@cmpxchg.org> <20181026192551.GC18839@dhcp22.suse.cz>
+ <20181026193304.GD18839@dhcp22.suse.cz>
+ <dfafc626-2233-db9b-49fa-9d4bae16d4aa@i-love.sakura.ne.jp>
+ <c38e352a-dd23-a5e4-ac50-75b557506479@i-love.sakura.ne.jp>
+ <20181106124224.GM27423@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <8725e3b3-3752-fa7f-a88f-5ff4f5b6eace@i-love.sakura.ne.jp>
+Date: Wed, 7 Nov 2018 18:45:27 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <c2862bb0-ced1-add1-c816-21c0d4e76bbe@suse.cz>
+In-Reply-To: <20181106124224.GM27423@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Arun KS <arunks@codeaurora.org>, akpm@linux-foundation.org, keescook@chromium.org, khlebnikov@yandex-team.ru, minchan@kernel.org, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, getarunks@gmail.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 07-11-18 09:44:00, Vlastimil Babka wrote:
-> On 11/7/18 9:20 AM, Michal Hocko wrote:
-> > On Tue 06-11-18 21:51:47, Arun KS wrote:
+On 2018/11/06 21:42, Michal Hocko wrote:
+> On Tue 06-11-18 18:44:43, Tetsuo Handa wrote:
+> [...]
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 6e1469b..a97648a 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -1382,8 +1382,13 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>>  	};
+>>  	bool ret;
+>>  
+>> -	mutex_lock(&oom_lock);
+>> -	ret = out_of_memory(&oc);
+>> +	if (mutex_lock_killable(&oom_lock))
+>> +		return true;
+>> +	/*
+>> +	 * A few threads which were not waiting at mutex_lock_killable() can
+>> +	 * fail to bail out. Therefore, check again after holding oom_lock.
+>> +	 */
+>> +	ret = fatal_signal_pending(current) || out_of_memory(&oc);
+>>  	mutex_unlock(&oom_lock);
+>>  	return ret;
+>>  }
 > 
-> Hi,
+> If we are goging with a memcg specific thingy then I really prefer
+> tsk_is_oom_victim approach. Or is there any reason why this is not
+> suitable?
 > 
-> there's typo in subject: evaluvations -> evaluations.
-> 
-> However, "fix" is also misleading (more below), so I'd suggest something
-> like:
-> 
-> mm: reference totalram_pages and managed_pages once per function
-> 
-> >> This patch is in preparation to a later patch which converts totalram_pages
-> >> and zone->managed_pages to atomic variables. This patch does not introduce
-> >> any functional changes.
-> > 
-> > I forgot to comment on this one. The patch makes a lot of sense. But I
-> > would be little bit more conservative and won't claim "no functional
-> > changes". As things stand now multiple reads in the same function are
-> > racy (without holding the lock). I do not see any example of an
-> > obviously harmful case but claiming the above is too strong of a
-> > statement. I would simply go with something like "Please note that
-> > re-reading the value might lead to a different value and as such it
-> > could lead to unexpected behavior. There are no known bugs as a result
-> > of the current code but it is better to prevent from them in principle."
-> 
-> However, the new code doesn't use READ_ONCE(), so the compiler is free
-> to read the value multiple times, and before the patch it was free to
-> read it just once, as the variables are not volatile. So strictly
-> speaking this is indeed not a functional change (if compiler decides
-> differently based on the patch, it's an implementation detail).
 
-Yes, compiler is allowed to optimize this either way without READ_ONCE
-but it is allowed to do two reads so claiming no functional change is a
-bit problematic. Not that this would be a reason to discuss this in
-length...
--- 
-Michal Hocko
-SUSE Labs
+Why need to wait for mark_oom_victim() called after slow printk() messages?
+
+If current thread got Ctrl-C and thus current thread can terminate, what is
+nice with waiting for the OOM killer? If there are several OOM events in
+multiple memcg domains waiting for completion of printk() messages? I don't
+see points with waiting for oom_lock, for try_charge() already allows current
+thread to terminate due to fatal_signal_pending() test.
