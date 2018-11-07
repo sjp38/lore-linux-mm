@@ -1,164 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DA526B04C2
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 02:02:59 -0500 (EST)
-Received: by mail-lf1-f71.google.com with SMTP id w13-v6so1960253lfe.6
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 23:02:59 -0800 (PST)
-Received: from forwardcorp1j.cmail.yandex.net (forwardcorp1j.cmail.yandex.net. [5.255.227.105])
-        by mx.google.com with ESMTPS id d202si25855865lfe.126.2018.11.06.23.02.57
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 457C06B04C3
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 02:35:54 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id s17-v6so13515999pga.9
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 23:35:54 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 1-v6si45464240plp.114.2018.11.06.23.35.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 23:02:57 -0800 (PST)
-Subject: Re: [PATCH v1 0/4]mm: convert totalram_pages, totalhigh_pages and
- managed pages to atomic
-References: <1540551662-26458-1-git-send-email-arunks@codeaurora.org>
- <9b210d4cc9925caf291412d7d45f16d7@codeaurora.org>
- <63d9f48c-e39f-d345-0fb6-2f04afe769a2@yandex-team.ru>
- <08a61c003eed0280fd82f6200debcbca@codeaurora.org>
- <10c88df6-dbb1-7490-628c-055d59b5ad8e@yandex-team.ru>
- <22fa2222012341a54f6b0b6aea341aa2@codeaurora.org>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <c3b0edf9-e6a2-c1ab-8490-d94b9830c8ae@yandex-team.ru>
-Date: Wed, 7 Nov 2018 10:02:55 +0300
+        Tue, 06 Nov 2018 23:35:52 -0800 (PST)
+Date: Wed, 7 Nov 2018 08:35:48 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, memory_hotplug: check zone_movable in
+ has_unmovable_pages
+Message-ID: <20181107073548.GU27423@dhcp22.suse.cz>
+References: <20181106095524.14629-1-mhocko@kernel.org>
+ <20181106203518.GC9042@350D>
 MIME-Version: 1.0
-In-Reply-To: <22fa2222012341a54f6b0b6aea341aa2@codeaurora.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-CA
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181106203518.GC9042@350D>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arun KS <arunks@codeaurora.org>
-Cc: keescook@chromium.org, minchan@kernel.org, getarunks@gmail.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, julia.lawall@lip6.fr
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Oscar Salvador <OSalvador@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 06.11.2018 11:43, Arun KS wrote:
-> On 2018-11-06 14:07, Konstantin Khlebnikov wrote:
->> On 06.11.2018 11:30, Arun KS wrote:
->>> On 2018-11-06 13:47, Konstantin Khlebnikov wrote:
->>>> On 06.11.2018 8:38, Arun KS wrote:
->>>>> Any comments?
->>>>
->>>> Looks good.
->>>> Except unclear motivation behind this change.
->>>> This should be in comment of one of patch.
->>>
->>> totalram_pages, zone->managed_pages and totalhigh_pages are sometimes modified outside managed_page_count_lock. Hence convert these 
->>> variable to atomic to avoid readers potentially seeing a store tear.
->>
->> So, this is just theoretical issue or splat from sanitizer.
->> After boot memory online\offline are strictly serialized by rw-semaphore.
+On Wed 07-11-18 07:35:18, Balbir Singh wrote:
+> On Tue, Nov 06, 2018 at 10:55:24AM +0100, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > Page state checks are racy. Under a heavy memory workload (e.g. stress
+> > -m 200 -t 2h) it is quite easy to hit a race window when the page is
+> > allocated but its state is not fully populated yet. A debugging patch to
+> > dump the struct page state shows
+> > : [  476.575516] has_unmovable_pages: pfn:0x10dfec00, found:0x1, count:0x0
+> > : [  476.582103] page:ffffea0437fb0000 count:1 mapcount:1 mapping:ffff880e05239841 index:0x7f26e5000 compound_mapcount: 1
+> > : [  476.592645] flags: 0x5fffffc0090034(uptodate|lru|active|head|swapbacked)
+> > 
+> > Note that the state has been checked for both PageLRU and PageSwapBacked
+> > already. Closing this race completely would require some sort of retry
+> > logic. This can be tricky and error prone (think of potential endless
+> > or long taking loops).
+> > 
+> > Workaround this problem for movable zones at least. Such a zone should
+> > only contain movable pages. 15c30bc09085 ("mm, memory_hotplug: make
+> > has_unmovable_pages more robust") has told us that this is not strictly
+> > true though. Bootmem pages should be marked reserved though so we can
+> > move the original check after the PageReserved check. Pages from other
+> > zones are still prone to races but we even do not pretend that memory
+> > hotremove works for those so pre-mature failure doesn't hurt that much.
+> > 
+> > Reported-and-tested-by: Baoquan He <bhe@redhat.com>
+> > Acked-by: Baoquan He <bhe@redhat.com>
+> > Fixes: "mm, memory_hotplug: make has_unmovable_pages more robust")
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > ---
+> >
+> > Hi,
+> > this has been reported [1] and we have tried multiple things to address
+> > the issue. The only reliable way was to reintroduce the movable zone
+> > check into has_unmovable_pages. This time it should be safe also for
+> > the bug originally fixed by 15c30bc09085.
+> > 
+> > [1] http://lkml.kernel.org/r/20181101091055.GA15166@MiWiFi-R3L-srv
+> >  mm/page_alloc.c | 8 ++++++++
+> >  1 file changed, 8 insertions(+)
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 863d46da6586..c6d900ee4982 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -7788,6 +7788,14 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+> >  		if (PageReserved(page))
+> >  			goto unmovable;
+> >  
+> > +		/*
+> > +		 * If the zone is movable and we have ruled out all reserved
+> > +		 * pages then it should be reasonably safe to assume the rest
+> > +		 * is movable.
+> > +		 */
+> > +		if (zone_idx(zone) == ZONE_MOVABLE)
+> > +			continue;
+> > +
+> >  		/*
 > 
-> Few instances which can race with hot add. Please see below,
-> https://patchwork.kernel.org/patch/10627521/
-Could you point what exactly are you fixing with this set?
-
-from v2:
-
- > totalram_pages, zone->managed_pages and totalhigh_pages updates
- > are protected by managed_page_count_lock, but readers never care
- > about it. Convert these variables to atomic to avoid readers
- > potentially seeing a store tear.
-
-This?
-
-
-Aligned unsigned long almost always stored at once.
-
-To make it completely correct you could replace
-
-a += b;
-
-with
-
-WRITE_ONCE(a, a + b);
-
 > 
-> Regards,
-> Arun
+> There is a WARN_ON() in case of failure at the end of the routine,
+> is that triggered when we hit the bug? If we're adding this patch,
+> the WARN_ON needs to go as well.
+
+No the warning should stay in case we encounter reserved pages in zone
+movable.
+
+> The check seems to be quite aggressive and in a loop that iterates
+> pages, but has nothing to do with the page, did you mean to make
+> the check
 > 
->>
->>>
->>> Will update the comment.
->>>
->>> Regards,
->>> Arun
->>>
->>>>
->>>> Reviewed-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
->>>>
->>>>>
->>>>> Regards,
->>>>> Arun
->>>>>
->>>>> On 2018-10-26 16:30, Arun KS wrote:
->>>>>> This series convert totalram_pages, totalhigh_pages and
->>>>>> zone->managed_pages to atomic variables.
->>>>>>
->>>>>> The patch was comiple tested on x86(x86_64_defconfig & i386_defconfig)
->>>>>> on tip of linux-mmotm. And memory hotplug tested on arm64, but on an
->>>>>> older version of kernel.
->>>>>>
->>>>>> Arun KS (4):
->>>>>> A  mm: Fix multiple evaluvations of totalram_pages and managed_pages
->>>>>> A  mm: Convert zone->managed_pages to atomic variable
->>>>>> A  mm: convert totalram_pages and totalhigh_pages variables to atomic
->>>>>> A  mm: Remove managed_page_count spinlock
->>>>>>
->>>>>> A arch/csky/mm/init.cA A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
->>>>>> A arch/powerpc/platforms/pseries/cmm.cA A A A A A A A A  | 10 ++--
->>>>>> A arch/s390/mm/init.cA A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A arch/um/kernel/mem.cA A A A A A A A A A A A A A A A A A A A A A A A A  |A  3 +-
->>>>>> A arch/x86/kernel/cpu/microcode/core.cA A A A A A A A A  |A  5 +-
->>>>>> A drivers/char/agp/backend.cA A A A A A A A A A A A A A A A A A A  |A  4 +-
->>>>>> A drivers/gpu/drm/amd/amdkfd/kfd_crat.cA A A A A A A A  |A  2 +-
->>>>>> A drivers/gpu/drm/i915/i915_gem.cA A A A A A A A A A A A A A  |A  2 +-
->>>>>> A drivers/gpu/drm/i915/selftests/i915_gem_gtt.c |A  4 +-
->>>>>> A drivers/hv/hv_balloon.cA A A A A A A A A A A A A A A A A A A A A A  | 19 +++----
->>>>>> A drivers/md/dm-bufio.cA A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A drivers/md/dm-crypt.cA A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A drivers/md/dm-integrity.cA A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A drivers/md/dm-stats.cA A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A drivers/media/platform/mtk-vpu/mtk_vpu.cA A A A A  |A  2 +-
->>>>>> A drivers/misc/vmw_balloon.cA A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A drivers/parisc/ccio-dma.cA A A A A A A A A A A A A A A A A A A A  |A  4 +-
->>>>>> A drivers/parisc/sba_iommu.cA A A A A A A A A A A A A A A A A A A  |A  4 +-
->>>>>> A drivers/staging/android/ion/ion_system_heap.c |A  2 +-
->>>>>> A drivers/xen/xen-selfballoon.cA A A A A A A A A A A A A A A A  |A  6 +--
->>>>>> A fs/ceph/super.hA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A fs/file_table.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  7 +--
->>>>>> A fs/fuse/inode.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A fs/nfs/write.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A fs/nfsd/nfscache.cA A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A fs/ntfs/malloc.hA A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A fs/proc/base.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A include/linux/highmem.hA A A A A A A A A A A A A A A A A A A A A A  | 28 ++++++++++-
->>>>>> A include/linux/mm.hA A A A A A A A A A A A A A A A A A A A A A A A A A A  | 27 +++++++++-
->>>>>> A include/linux/mmzone.hA A A A A A A A A A A A A A A A A A A A A A A  | 15 +++---
->>>>>> A include/linux/swap.hA A A A A A A A A A A A A A A A A A A A A A A A A  |A  1 -
->>>>>> A kernel/fork.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  5 +-
->>>>>> A kernel/kexec_core.cA A A A A A A A A A A A A A A A A A A A A A A A A A  |A  5 +-
->>>>>> A kernel/power/snapshot.cA A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A lib/show_mem.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A mm/highmem.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
->>>>>> A mm/huge_memory.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A mm/kasan/quarantine.cA A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A mm/memblock.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  6 +--
->>>>>> A mm/memory_hotplug.cA A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
->>>>>> A mm/mm_init.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A mm/oom_kill.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A mm/page_alloc.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  | 71 +++++++++++++--------------
->>>>>> A mm/shmem.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  7 +--
->>>>>> A mm/slab.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A mm/swap.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A mm/util.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A mm/vmalloc.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
->>>>>> A mm/vmstat.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
->>>>>> A mm/workingset.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A mm/zswap.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  4 +-
->>>>>> A net/dccp/proto.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A  |A  7 +--
->>>>>> A net/decnet/dn_route.cA A A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A net/ipv4/tcp_metrics.cA A A A A A A A A A A A A A A A A A A A A A A  |A  2 +-
->>>>>> A net/netfilter/nf_conntrack_core.cA A A A A A A A A A A A  |A  7 +--
->>>>>> A net/netfilter/xt_hashlimit.cA A A A A A A A A A A A A A A A A  |A  5 +-
->>>>>> A net/sctp/protocol.cA A A A A A A A A A A A A A A A A A A A A A A A A A  |A  7 +--
->>>>>> A security/integrity/ima/ima_kexec.cA A A A A A A A A A A  |A  2 +-
->>>>>> A 58 files changed, 195 insertions(+), 144 deletions(-)
+> zone_idx(page_zone(page)) == ZONE_MOVABLE
+
+Does it make any difference? Can we actually encounter a page from a
+different zone here?
+
+> it also skips all checks for pinned pages and other checks
+
+Yes, this is intentional and the comment tries to explain why. I wish we
+could be add a more specific checks for movable pages - e.g. detect long
+term pins that would prevent migration - but we do not have any facility
+for that. Please note that the worst case of a false positive is a
+repeated migration failure and user has a way to break out of migration
+by a signal.
+
+-- 
+Michal Hocko
+SUSE Labs
