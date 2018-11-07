@@ -1,56 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 682E46B04EB
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 05:28:04 -0500 (EST)
-Received: by mail-it1-f197.google.com with SMTP id s195-v6so1715577itc.6
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 02:28:04 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id m25si403101itn.134.2018.11.07.02.28.03
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F3A96B04EE
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 05:28:41 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id x98-v6so9288361ede.0
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 02:28:41 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c6-v6si283331ejd.9.2018.11.07.02.28.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 07 Nov 2018 02:28:03 -0800 (PST)
-Date: Wed, 7 Nov 2018 11:27:52 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC PATCH v4 01/13] ktask: add documentation
-Message-ID: <20181107102752.GK9781@hirez.programming.kicks-ass.net>
-References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
- <20181105165558.11698-2-daniel.m.jordan@oracle.com>
- <20181106084911.GA22504@hirez.programming.kicks-ass.net>
- <20181106203411.pdce6tgs7dncwflh@ca-dmjordan1.us.oracle.com>
- <20181106205146.GB30490@mellanox.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Nov 2018 02:28:39 -0800 (PST)
+Date: Wed, 7 Nov 2018 11:28:37 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v1 0/4]mm: convert totalram_pages, totalhigh_pages and
+ managed pages to atomic
+Message-ID: <20181107102837.GC27423@dhcp22.suse.cz>
+References: <1540551662-26458-1-git-send-email-arunks@codeaurora.org>
+ <9b210d4cc9925caf291412d7d45f16d7@codeaurora.org>
+ <63d9f48c-e39f-d345-0fb6-2f04afe769a2@yandex-team.ru>
+ <08a61c003eed0280fd82f6200debcbca@codeaurora.org>
+ <10c88df6-dbb1-7490-628c-055d59b5ad8e@yandex-team.ru>
+ <22fa2222012341a54f6b0b6aea341aa2@codeaurora.org>
+ <c3b0edf9-e6a2-c1ab-8490-d94b9830c8ae@yandex-team.ru>
+ <89a259aa-156e-041c-b3bc-266824acb173@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181106205146.GB30490@mellanox.com>
+In-Reply-To: <89a259aa-156e-041c-b3bc-266824acb173@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Gunthorpe <jgg@mellanox.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, "rjw@rjwysocki.net" <rjw@rjwysocki.net>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "aarcange@redhat.com" <aarcange@redhat.com>, "aaron.lu@intel.com" <aaron.lu@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "bsd@redhat.com" <bsd@redhat.com>, "darrick.wong@oracle.com" <darrick.wong@oracle.com>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "jwadams@google.com" <jwadams@google.com>, "jiangshanlai@gmail.com" <jiangshanlai@gmail.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>, "Pavel.Tatashin@microsoft.com" <Pavel.Tatashin@microsoft.com>, "prasad.singamsetty@oracle.com" <prasad.singamsetty@oracle.com>, "rdunlap@infradead.org" <rdunlap@infradead.org>, "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "tim.c.chen@intel.com" <tim.c.chen@intel.com>, "tj@kernel.org" <tj@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Arun KS <arunks@codeaurora.org>, keescook@chromium.org, minchan@kernel.org, getarunks@gmail.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, julia.lawall@lip6.fr
 
-On Tue, Nov 06, 2018 at 08:51:54PM +0000, Jason Gunthorpe wrote:
-> On Tue, Nov 06, 2018 at 12:34:11PM -0800, Daniel Jordan wrote:
-> 
-> > > What isn't clear is if this calling thread is waiting or not. Only do
-> > > this inheritance trick if it is actually waiting on the work. If it is
-> > > not, nobody cares.
+On Wed 07-11-18 09:50:10, Vlastimil Babka wrote:
+> On 11/7/18 8:02 AM, Konstantin Khlebnikov wrote:
+[...]
+> > Could you point what exactly are you fixing with this set?
 > > 
-> > The calling thread waits.  Even if it didn't though, the inheritance trick
-> > would still be desirable for timely completion of the job.
+> > from v2:
+> > 
+> >  > totalram_pages, zone->managed_pages and totalhigh_pages updates
+> >  > are protected by managed_page_count_lock, but readers never care
+> >  > about it. Convert these variables to atomic to avoid readers
+> >  > potentially seeing a store tear.
+> > 
+> > This?
+> > 
+> > 
+> > Aligned unsigned long almost always stored at once.
 > 
-> Can you make lockdep aware that this is synchronous?
-> 
-> ie if I do
-> 
->   mutex_lock()
->   ktask_run()
->   mutex_lock()
-> 
-> Can lockdep know that all the workers are running under that lock?
-> 
-> I'm thinking particularly about rtnl_lock as a possible case, but
-> there could also make some sense to hold the read side of the mm_sem
-> or similar like the above.
+> The point is "almost always", so better not rely on it :) But the main
+> motivation was that managed_page_count_lock handling was complicating
+> Arun's "memory_hotplug: Free pages as higher order" patch and it seemed
+> a better idea to just remove and convert this to atomics, with
+> preventing potential store-to-read tearing as a bonus.
 
-Yes, the normal trick is adding a fake lock to ktask_run and holding
-that over the actual job. See lock_map* in flush_workqueue() vs
-process_one_work().
+And more importantly the lock itself seems bogus as mentioned here
+http://lkml.kernel.org/r/20181106141732.GR27423@dhcp22.suse.cz
+
+> It would be nice to mention it in the changelogs though.
+
+agreed
+-- 
+Michal Hocko
+SUSE Labs
