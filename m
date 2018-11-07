@@ -1,87 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C764E6B04FD
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 06:50:10 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id z72-v6so9358351ede.14
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 03:50:10 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 895FB6B04FF
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 07:00:17 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id r20-v6so6239746eds.18
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 04:00:17 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y37-v6si529596edc.192.2018.11.07.03.50.09
+        by mx.google.com with ESMTPS id d19si431757edx.427.2018.11.07.04.00.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Nov 2018 03:50:09 -0800 (PST)
-Subject: Re: [PATCH v1 4/4] mm: Remove managed_page_count spinlock
-References: <1540551662-26458-1-git-send-email-arunks@codeaurora.org>
- <1540551662-26458-5-git-send-email-arunks@codeaurora.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <9a5351cd-f253-f4e1-804e-aa1dfcc99bbf@suse.cz>
-Date: Wed, 7 Nov 2018 12:50:08 +0100
+        Wed, 07 Nov 2018 04:00:15 -0800 (PST)
+Date: Wed, 7 Nov 2018 13:00:13 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH v6 1/3] printk: Add line-buffered printk() API.
+Message-ID: <20181107120012.b5qynrwikjtqp2zx@pathway.suse.cz>
+References: <1541165517-3557-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20181106143502.GA32748@tigerII.localdomain>
+ <42f33aae-a1d1-197f-a1d5-8c5ec88e88d1@i-love.sakura.ne.jp>
+ <8354d714f6b6489d9003d6e04ee10618@AcuMS.aculab.com>
 MIME-Version: 1.0
-In-Reply-To: <1540551662-26458-5-git-send-email-arunks@codeaurora.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <8354d714f6b6489d9003d6e04ee10618@AcuMS.aculab.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arun KS <arunks@codeaurora.org>
-Cc: keescook@chromium.org, khlebnikov@yandex-team.ru, minchan@kernel.org, getarunks@gmail.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, mhocko@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Laight <David.Laight@ACULAB.COM>
+Cc: 'Tetsuo Handa' <penguin-kernel@i-love.sakura.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Dmitriy Vyukov <dvyukov@google.com>, Steven Rostedt <rostedt@goodmis.org>, Alexander Potapenko <glider@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>
 
-On 10/26/18 1:01 PM, Arun KS wrote:
-> Now totalram_pages and managed_pages are atomic varibles. No need
-> of managed_page_count spinlock.
+On Wed 2018-11-07 11:01:05, David Laight wrote:
+> From: Tetsuo Handa
+> > Sent: 07 November 2018 10:53
+> A though:
 > 
-> Signed-off-by: Arun KS <arunks@codeaurora.org>
+> Why not make the printf lock slightly 'sticky'?
+> - If the output line is incomplete save the cpuid.
+> - If there is a saved cpuid that doesn't match the current cpu then spin for a bit.
+> 
+> Any callers of printk() have to assume they will spin on the buffer for the
+> longest printk formatting (and symbol lookup might take a while) so a short
+> additional delay won't matter.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Disabling preemption for a single printk() is questionable. We have
+spent many years trying to find an acceptable solution to avoid
+softlockups and we did not fully succeeded.
 
-> ---
->  include/linux/mmzone.h | 6 ------
->  mm/page_alloc.c        | 5 -----
->  2 files changed, 11 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 597b0c7..aa960f6 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -428,12 +428,6 @@ struct zone {
->  	 * Write access to present_pages at runtime should be protected by
->  	 * mem_hotplug_begin/end(). Any reader who can't tolerant drift of
->  	 * present_pages should get_online_mems() to get a stable value.
-> -	 *
-> -	 * Read access to managed_pages should be safe because it's unsigned
-> -	 * long. Write access to zone->managed_pages and totalram_pages are
-> -	 * protected by managed_page_count_lock at runtime. Idealy only
-> -	 * adjust_managed_page_count() should be used instead of directly
-> -	 * touching zone->managed_pages and totalram_pages.
->  	 */
->  	atomic_long_t		managed_pages;
->  	unsigned long		spanned_pages;
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index af832de..e29e78f 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -122,9 +122,6 @@
->  };
->  EXPORT_SYMBOL(node_states);
->  
-> -/* Protect totalram_pages and zone->managed_pages */
-> -static DEFINE_SPINLOCK(managed_page_count_lock);
-> -
->  atomic_long_t _totalram_pages __read_mostly;
->  unsigned long totalreserve_pages __read_mostly;
->  unsigned long totalcma_pages __read_mostly;
-> @@ -7062,14 +7059,12 @@ static int __init cmdline_parse_movablecore(char *p)
->  
->  void adjust_managed_page_count(struct page *page, long count)
->  {
-> -	spin_lock(&managed_page_count_lock);
->  	atomic_long_add(count, &page_zone(page)->managed_pages);
->  	totalram_pages_add(count);
->  #ifdef CONFIG_HIGHMEM
->  	if (PageHighMem(page))
->  		totalhigh_pages_add(count);
->  #endif
-> -	spin_unlock(&managed_page_count_lock);
->  }
->  EXPORT_SYMBOL(adjust_managed_page_count);
->  
-> 
+And this patchset is about continuous lines. Therefore we would need
+to disable preemption for all code intermixed with the related
+printks. This does not have much chances to get accepted.
+
+
+> Then two calls to printk() for the same line won't (usually) get split and
+> none of the callers need any changes.
+
+It would require changes to disable the preemption around the related
+calls.
+
+We could not do this without a better API and inspecting all users.
+Note that we could not detect this by "\n" because it is too
+error-prone.
+
+Best Regards,
+Petr
