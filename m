@@ -1,66 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 452106B04F6
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 05:39:53 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id r21-v6so545396edp.5
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 02:39:53 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z10-v6si290422ejg.103.2018.11.07.02.39.51
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C73496B04F8
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 05:53:47 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id r127-v6so21246932itr.4
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 02:53:47 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id z26-v6si176446iob.9.2018.11.07.02.53.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Nov 2018 02:39:51 -0800 (PST)
-Date: Wed, 7 Nov 2018 11:39:50 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v1 0/4]mm: convert totalram_pages, totalhigh_pages and
- managed pages to atomic
-Message-ID: <20181107103950.GD27423@dhcp22.suse.cz>
-References: <1540551662-26458-1-git-send-email-arunks@codeaurora.org>
- <9b210d4cc9925caf291412d7d45f16d7@codeaurora.org>
- <63d9f48c-e39f-d345-0fb6-2f04afe769a2@yandex-team.ru>
- <08a61c003eed0280fd82f6200debcbca@codeaurora.org>
- <10c88df6-dbb1-7490-628c-055d59b5ad8e@yandex-team.ru>
- <22fa2222012341a54f6b0b6aea341aa2@codeaurora.org>
- <c3b0edf9-e6a2-c1ab-8490-d94b9830c8ae@yandex-team.ru>
- <89a259aa-156e-041c-b3bc-266824acb173@suse.cz>
- <20181107102837.GC27423@dhcp22.suse.cz>
+        Wed, 07 Nov 2018 02:53:46 -0800 (PST)
+Subject: Re: [PATCH v6 1/3] printk: Add line-buffered printk() API.
+References: <1541165517-3557-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20181106143502.GA32748@tigerII.localdomain>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <42f33aae-a1d1-197f-a1d5-8c5ec88e88d1@i-love.sakura.ne.jp>
+Date: Wed, 7 Nov 2018 19:52:53 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181107102837.GC27423@dhcp22.suse.cz>
+In-Reply-To: <20181106143502.GA32748@tigerII.localdomain>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Arun KS <arunks@codeaurora.org>, keescook@chromium.org, minchan@kernel.org, getarunks@gmail.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, julia.lawall@lip6.fr
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Dmitriy Vyukov <dvyukov@google.com>, Steven Rostedt <rostedt@goodmis.org>, Alexander Potapenko <glider@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>
 
-On Wed 07-11-18 11:28:37, Michal Hocko wrote:
-> On Wed 07-11-18 09:50:10, Vlastimil Babka wrote:
-> > On 11/7/18 8:02 AM, Konstantin Khlebnikov wrote:
-> [...]
-> > > Could you point what exactly are you fixing with this set?
-> > > 
-> > > from v2:
-> > > 
-> > >  > totalram_pages, zone->managed_pages and totalhigh_pages updates
-> > >  > are protected by managed_page_count_lock, but readers never care
-> > >  > about it. Convert these variables to atomic to avoid readers
-> > >  > potentially seeing a store tear.
-> > > 
-> > > This?
-> > > 
-> > > 
-> > > Aligned unsigned long almost always stored at once.
-> > 
-> > The point is "almost always", so better not rely on it :) But the main
-> > motivation was that managed_page_count_lock handling was complicating
-> > Arun's "memory_hotplug: Free pages as higher order" patch and it seemed
-> > a better idea to just remove and convert this to atomics, with
-> > preventing potential store-to-read tearing as a bonus.
+On 2018/11/06 23:35, Sergey Senozhatsky wrote:
+>> Since we want to remove "struct cont" eventually, we will try to remove
+>> both "implicit printk() users who are expecting KERN_CONT behavior" and
+>> "explicit pr_cont()/printk(KERN_CONT) users". Therefore, converting to
+>> this API is recommended.
 > 
-> And more importantly the lock itself seems bogus as mentioned here
-> http://lkml.kernel.org/r/20181106141732.GR27423@dhcp22.suse.cz
+> - The printk-fallback sounds like a hint that the existing 'cont' handling
+>   better stay in the kernel. I don't see how the existing 'cont' is
+>   significantly worse than
+> 		bpr_warn(NULL, ...)->printk() // no 'cont' support
+>   I don't see why would we want to do it, sorry. I don't see "it takes 16
+>   printk-buffers to make a thing go right" as a sure thing.
 
-Should be http://lkml.kernel.org/r/20181107103630.GF2453@dhcp22.suse.cz
+Existing 'cont' handling will stay for a while. After majority of
+pr_cont()/KERN_CONT users are converted, 'cont' support will be removed
+(e.g. KERN_CONT becomes "").
 
--- 
-Michal Hocko
-SUSE Labs
+> 
+> A question.
+> 
+> How bad would it actually be to:
+> 
+> - Allocate seq_buf 512-bytes buffer (GFP_ATOMIC) just-in-time, when we
+>   need it.
+>     // How often systems cannot allocate a 512-byte buffer? //
+
+It is a very bad thing to do GFP_ATOMIC without __GFP_NOWARN. See
+"[PATCH 2/3] mm: Use line-buffered printk() for show_free_areas()."
+which helps exactly when GFP_ATOMIC without __GFP_NOWARN failed.
+Without __GFP_NOWARN, GFP_ATOMIC for printk() can trigger infinite
+recursion and kernel stack overflow.
+
+Even without recursion, doing kmalloc(GFP_ATOMIC | __GFP_NOWARN) temporarily
+consumes some kernel stack. I don't know the exact amount needed for
+kmalloc(GFP_ATOMIC | __GFP_NOWARN), but it might still emit memory allocation
+fault injection messages. What GFP_ATOMIC can guarantee is nothing but
+"it does not sleep". Not suitable for printk() which might be called from
+critically dangerous situations.
+
+> 
+> - OK, assuming that systems around the world are so badly OOM like all the
+>   time and even kmalloc(512) is absolutely impossible, then have a fallback
+>   to the existing 'cont' handling; it just looks to me better than a plain
+>   printk()-fallback with removed 'cont' support.
+
+Since I want to eventually remove 'cont' support inside printk(),
+I dropped KERN_CONT in patch [2/3] and [3/3].
+
+> 
+> - Do not allocate seq_buf if we are in printk-safe or in printk-nmi mode.
+>   To avoid "buffering for the sake of buffering". IOW, when in printk-safe
+>   use printk-safe.
+
+Why? Since printk_safe_flush_buffer() forcibly flushes the partial line,
+calling printk_safe_log_store() after line buffering can reduce possibility of
+flushing partial lines, can't it?
