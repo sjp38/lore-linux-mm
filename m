@@ -1,60 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DB616B04D3
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 04:05:01 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id 6-v6so2686962edz.10
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 01:05:01 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 94D976B04D5
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 04:23:57 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id y72-v6so9105720ede.22
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 01:23:57 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e17-v6si194672eji.74.2018.11.07.01.05.00
+        by mx.google.com with ESMTPS id o1-v6si250832edf.177.2018.11.07.01.23.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Nov 2018 01:05:00 -0800 (PST)
-Subject: Re: [PATCH v2 3/4] mm: convert totalram_pages and totalhigh_pages
- variables to atomic
+        Wed, 07 Nov 2018 01:23:56 -0800 (PST)
+Date: Wed, 7 Nov 2018 10:23:54 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 1/4] mm: Fix multiple evaluvations of totalram_pages
+ and managed_pages
+Message-ID: <20181107092354.GZ27423@dhcp22.suse.cz>
 References: <1541521310-28739-1-git-send-email-arunks@codeaurora.org>
- <1541521310-28739-4-git-send-email-arunks@codeaurora.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5edc432c-b475-5d2e-6a87-700c32a8fad9@suse.cz>
-Date: Wed, 7 Nov 2018 10:04:59 +0100
+ <1541521310-28739-2-git-send-email-arunks@codeaurora.org>
+ <20181107082037.GX27423@dhcp22.suse.cz>
+ <c2862bb0-ced1-add1-c816-21c0d4e76bbe@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1541521310-28739-4-git-send-email-arunks@codeaurora.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c2862bb0-ced1-add1-c816-21c0d4e76bbe@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arun KS <arunks@codeaurora.org>, akpm@linux-foundation.org, keescook@chromium.org, khlebnikov@yandex-team.ru, minchan@kernel.org, mhocko@kernel.org, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: getarunks@gmail.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Arun KS <arunks@codeaurora.org>, akpm@linux-foundation.org, keescook@chromium.org, khlebnikov@yandex-team.ru, minchan@kernel.org, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, getarunks@gmail.com
 
-On 11/6/18 5:21 PM, Arun KS wrote:
-> totalram_pages and totalhigh_pages are made static inline function.
+On Wed 07-11-18 09:44:00, Vlastimil Babka wrote:
+> On 11/7/18 9:20 AM, Michal Hocko wrote:
+> > On Tue 06-11-18 21:51:47, Arun KS wrote:
 > 
-> Suggested-by: Michal Hocko <mhocko@suse.com>
-> Suggested-by: Vlastimil Babka <vbabka@suse.cz>
-> Signed-off-by: Arun KS <arunks@codeaurora.org>
-> Reviewed-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-> Acked-by: Michal Hocko <mhocko@suse.com>
+> Hi,
+> 
+> there's typo in subject: evaluvations -> evaluations.
+> 
+> However, "fix" is also misleading (more below), so I'd suggest something
+> like:
+> 
+> mm: reference totalram_pages and managed_pages once per function
+> 
+> >> This patch is in preparation to a later patch which converts totalram_pages
+> >> and zone->managed_pages to atomic variables. This patch does not introduce
+> >> any functional changes.
+> > 
+> > I forgot to comment on this one. The patch makes a lot of sense. But I
+> > would be little bit more conservative and won't claim "no functional
+> > changes". As things stand now multiple reads in the same function are
+> > racy (without holding the lock). I do not see any example of an
+> > obviously harmful case but claiming the above is too strong of a
+> > statement. I would simply go with something like "Please note that
+> > re-reading the value might lead to a different value and as such it
+> > could lead to unexpected behavior. There are no known bugs as a result
+> > of the current code but it is better to prevent from them in principle."
+> 
+> However, the new code doesn't use READ_ONCE(), so the compiler is free
+> to read the value multiple times, and before the patch it was free to
+> read it just once, as the variables are not volatile. So strictly
+> speaking this is indeed not a functional change (if compiler decides
+> differently based on the patch, it's an implementation detail).
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-One bug (probably) below:
-
-> diff --git a/mm/highmem.c b/mm/highmem.c
-> index 59db322..02a9a4b 100644
-> --- a/mm/highmem.c
-> +++ b/mm/highmem.c
-> @@ -105,9 +105,7 @@ static inline wait_queue_head_t *get_pkmap_wait_queue_head(unsigned int color)
->  }
->  #endif
->  
-> -unsigned long totalhigh_pages __read_mostly;
-> -EXPORT_SYMBOL(totalhigh_pages);
-
-I think you still need to export _totalhigh_pages so that modules can
-use the inline accessors.
-
-> -
-> +atomic_long_t _totalhigh_pages __read_mostly;
->  
->  EXPORT_PER_CPU_SYMBOL(__kmap_atomic_idx);
->  
+Yes, compiler is allowed to optimize this either way without READ_ONCE
+but it is allowed to do two reads so claiming no functional change is a
+bit problematic. Not that this would be a reason to discuss this in
+length...
+-- 
+Michal Hocko
+SUSE Labs
