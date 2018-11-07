@@ -1,75 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E52A6B04B9
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 01:07:45 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id h68so29544059qke.3
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 22:07:45 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m68si76428qkd.120.2018.11.06.22.07.44
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F2F66B04BB
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 01:19:46 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id e97-v6so15277242plb.10
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2018 22:19:46 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id d124-v6si50874756pfc.249.2018.11.06.22.19.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Nov 2018 22:07:44 -0800 (PST)
-From: Peter Xu <peterx@redhat.com>
-Subject: [PATCH RFC v2 4/4] mm: gup: allow VM_FAULT_RETRY for multiple times
-Date: Wed,  7 Nov 2018 14:06:43 +0800
-Message-Id: <20181107060643.10950-5-peterx@redhat.com>
-In-Reply-To: <20181107060643.10950-1-peterx@redhat.com>
-References: <20181107060643.10950-1-peterx@redhat.com>
+        Tue, 06 Nov 2018 22:19:45 -0800 (PST)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Wed, 07 Nov 2018 11:49:44 +0530
+From: Arun KS <arunks@codeaurora.org>
+Subject: Re: [PATCH v1 0/4]mm: convert totalram_pages, totalhigh_pages and
+ managed pages to atomic
+In-Reply-To: <20181106162206.0f43c1eb16c3dd812bdadbdd@linux-foundation.org>
+References: <1540551662-26458-1-git-send-email-arunks@codeaurora.org>
+ <20181106162206.0f43c1eb16c3dd812bdadbdd@linux-foundation.org>
+Message-ID: <33a9d26369468824e27de5a636e4e843@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Keith Busch <keith.busch@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, peterx@redhat.com, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Huang Ying <ying.huang@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Jerome Glisse <jglisse@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: keescook@chromium.org, khlebnikov@yandex-team.ru, minchan@kernel.org, getarunks@gmail.com, gregkh@linuxfoundation.org, mhocko@kernel.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-This is the gup counterpart of the change that allows the VM_FAULT_RETRY
-to happen for more than once.
+On 2018-11-07 05:52, Andrew Morton wrote:
+> On Fri, 26 Oct 2018 16:30:58 +0530 Arun KS <arunks@codeaurora.org> 
+> wrote:
+> 
+>> This series convert totalram_pages, totalhigh_pages and
+>> zone->managed_pages to atomic variables.
+> 
+> The whole point appears to be removal of managed_page_count_lock, yes?
+> 
+> Why?  What is the value of this patchset?  If "performance" then are 
+> any
+> measurements available?
 
-Signed-off-by: Peter Xu <peterx@redhat.com>
----
- mm/gup.c | 17 +++++++++++++----
- 1 file changed, 13 insertions(+), 4 deletions(-)
+Hello Andrew,
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 6faff46cd409..8a0e7f9bd29a 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -522,7 +522,10 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
- 	if (*flags & FOLL_NOWAIT)
- 		fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
- 	if (*flags & FOLL_TRIED) {
--		VM_WARN_ON_ONCE(fault_flags & FAULT_FLAG_ALLOW_RETRY);
-+		/*
-+		 * Note: FAULT_FLAG_ALLOW_RETRY and FAULT_FLAG_TRIED
-+		 * can co-exist
-+		 */
- 		fault_flags |= FAULT_FLAG_TRIED;
- 	}
- 
-@@ -938,17 +941,23 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
- 		/* VM_FAULT_RETRY triggered, so seek to the faulting offset */
- 		pages += ret;
- 		start += ret << PAGE_SHIFT;
-+		lock_dropped = true;
- 
-+retry:
- 		/*
- 		 * Repeat on the address that fired VM_FAULT_RETRY
--		 * without FAULT_FLAG_ALLOW_RETRY but with
-+		 * with both FAULT_FLAG_ALLOW_RETRY and
- 		 * FAULT_FLAG_TRIED.
- 		 */
- 		*locked = 1;
--		lock_dropped = true;
- 		down_read(&mm->mmap_sem);
- 		ret = __get_user_pages(tsk, mm, start, 1, flags | FOLL_TRIED,
--				       pages, NULL, NULL);
-+				       pages, NULL, locked);
-+		if (!*locked) {
-+			/* Continue to retry until we succeeded */
-+			BUG_ON(ret != 0);
-+			goto retry;
-+		}
- 		if (ret != 1) {
- 			BUG_ON(ret > 1);
- 			if (!pages_done)
--- 
-2.17.1
+https://patchwork.kernel.org/patch/10670787/
+In version 2, I have added motivation behind this conversion. Pasting 
+same here,
+
+totalram_pages, zone->managed_pages and totalhigh_pages updates are 
+protected by managed_page_count_lock, but readers never care about it. 
+Convert these variables to atomic to avoid readers potentially seeing a 
+store tear. I don't think we have a performance improvement here.
+
+Regards,
+Arun
