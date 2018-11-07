@@ -1,71 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 29CF86B0515
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 10:08:52 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id n22-v6so15541236pff.2
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 07:08:52 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id a23-v6si859679pls.322.2018.11.07.07.08.50
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 854976B0517
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 10:11:37 -0500 (EST)
+Received: by mail-io1-f72.google.com with SMTP id u5-v6so19073266iol.11
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 07:11:37 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y192-v6sor1616362itb.26.2018.11.07.07.11.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Nov 2018 07:08:50 -0800 (PST)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wA7F05dM141252
-	for <linux-mm@kvack.org>; Wed, 7 Nov 2018 10:08:50 -0500
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2nm0uwmjuu-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 07 Nov 2018 10:08:49 -0500
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 7 Nov 2018 15:08:43 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH] mm/gup: fix follow_page_mask kernel-doc comment
-Date: Wed,  7 Nov 2018 17:08:36 +0200
-Message-Id: <1541603316-27832-1-git-send-email-rppt@linux.ibm.com>
+        (Google Transport Security);
+        Wed, 07 Nov 2018 07:11:36 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20181107145922.GD2623@brain-police>
+References: <cover.1541525354.git.andreyknvl@google.com> <CAAeHK+yOsP7V0gPu7EpqCbJZqbGQMZbAp6q1+=0dNGC24reyWg@mail.gmail.com>
+ <20181107145922.GD2623@brain-police>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Wed, 7 Nov 2018 16:11:35 +0100
+Message-ID: <CAAeHK+zNgv9WxRpf7N3gmsLYGL6oUALAnyerMzeYZUz1LhoUuA@mail.gmail.com>
+Subject: Re: [PATCH v10 00/22] kasan: add software tag-based mode for arm64
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-doc@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>
 
-Commit df06b37ffe5a ("mm/gup: cache dev_pagemap while pinning pages")
-modified the signature of follow_page_mask() function but left the
-parameter description behind.
+On Wed, Nov 7, 2018 at 3:59 PM, Will Deacon <will.deacon@arm.com> wrote:
+> On Wed, Nov 07, 2018 at 03:56:03PM +0100, Andrey Konovalov wrote:
+>> On Tue, Nov 6, 2018 at 6:30 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
+>> > This patchset adds a new software tag-based mode to KASAN [1].
+>> > (Initially this mode was called KHWASAN, but it got renamed,
+>> >  see the naming rationale at the end of this section).
+>>
+>> [...]
+>>
+>> > Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+>> > Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+>> > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+>>
+>> Hi Andrew,
+>>
+>> This patchset has now been reviewed-by KASAN maintainers. Could you
+>> take a look and consider taking this into the -mm tree?
+>
+> I would much prefer to take the arm64 parts (which still need to be reviewed
+> by Catalin afaict) via the arm64 tree, so please can you split those out
+> separately?
 
-Update the description to make the code and comments agree again.
-
-While on it, update formatting of the return value description to match
-Documentation/doc-guide/kernel-doc.rst guidelines.
-
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
- mm/gup.c | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
-
-diff --git a/mm/gup.c b/mm/gup.c
-index f76e77a..aa43620 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -385,11 +385,17 @@ static struct page *follow_p4d_mask(struct vm_area_struct *vma,
-  * @vma: vm_area_struct mapping @address
-  * @address: virtual address to look up
-  * @flags: flags modifying lookup behaviour
-- * @page_mask: on output, *page_mask is set according to the size of the page
-+ * @ctx: contains dev_pagemap for %ZONE_DEVICE memory pinning and a
-+ *       pointer to output page_mask
-  *
-  * @flags can have FOLL_ flags set, defined in <linux/mm.h>
-  *
-- * Returns the mapped (struct page *), %NULL if no mapping exists, or
-+ * When getting pages from ZONE_DEVICE memory, the @ctx->pgmap caches
-+ * the device's dev_pagemap metadata to avoid repeating expensive lookups.
-+ *
-+ * On output, the @ctx->page_mask is set according to the size of the page.
-+ *
-+ * Return: the mapped (struct page *), %NULL if no mapping exists, or
-  * an error pointer if there is a mapping to something not represented
-  * by a page descriptor (see also vm_normal_page()).
-  */
--- 
-2.7.4
+Which parts do you mean exactly, which patches? I don't think it makes
+sense to split this patchset, as one part won't function without the
+other.
