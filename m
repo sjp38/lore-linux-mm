@@ -1,68 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CC736B04D7
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 04:45:45 -0500 (EST)
-Received: by mail-oi1-f199.google.com with SMTP id g138-v6so10510295oib.14
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 01:45:45 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id z186-v6si43982oiz.154.2018.11.07.01.45.43
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D905D6B04D9
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 04:59:05 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id a8-v6so14855869wrr.16
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 01:59:05 -0800 (PST)
+Received: from EUR04-DB3-obe.outbound.protection.outlook.com (mail-eopbgr60070.outbound.protection.outlook.com. [40.107.6.70])
+        by mx.google.com with ESMTPS id w14-v6si441707wme.133.2018.11.07.01.59.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Nov 2018 01:45:44 -0800 (PST)
-Subject: Re: [RFC PATCH 2/2] memcg: do not report racy no-eligible OOM tasks
-References: <20181022071323.9550-1-mhocko@kernel.org>
- <20181022071323.9550-3-mhocko@kernel.org>
- <20181026142531.GA27370@cmpxchg.org> <20181026192551.GC18839@dhcp22.suse.cz>
- <20181026193304.GD18839@dhcp22.suse.cz>
- <dfafc626-2233-db9b-49fa-9d4bae16d4aa@i-love.sakura.ne.jp>
- <c38e352a-dd23-a5e4-ac50-75b557506479@i-love.sakura.ne.jp>
- <20181106124224.GM27423@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <8725e3b3-3752-fa7f-a88f-5ff4f5b6eace@i-love.sakura.ne.jp>
-Date: Wed, 7 Nov 2018 18:45:27 +0900
-MIME-Version: 1.0
-In-Reply-To: <20181106124224.GM27423@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 07 Nov 2018 01:59:04 -0800 (PST)
+From: Tariq Toukan <tariqt@mellanox.com>
+Subject: Re: [PATCH v2 1/2] mm/page_alloc: free order-0 pages through PCP in
+ page_frag_free()
+Date: Wed, 7 Nov 2018 09:59:02 +0000
+Message-ID: <ec2e45bb-5c28-8f89-5bb5-041f68f79b51@mellanox.com>
+References: <20181105085820.6341-1-aaron.lu@intel.com>
+ <20181106052833.GC6203@intel.com>
+In-Reply-To: <20181106052833.GC6203@intel.com>
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <8E84CDD3EFD6BC4E914933E12F5749A7@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Aaron Lu <aaron.lu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, =?utf-8?B?UGF3ZcWCIFN0YXN6ZXdza2k=?= <pstaszewski@itcare.pl>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, Ilias Apalodimas <ilias.apalodimas@linaro.org>, Yoel Caspersen <yoel@kviknet.dk>, Mel Gorman <mgorman@techsingularity.net>, Saeed Mahameed <saeedm@mellanox.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>
 
-On 2018/11/06 21:42, Michal Hocko wrote:
-> On Tue 06-11-18 18:44:43, Tetsuo Handa wrote:
-> [...]
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 6e1469b..a97648a 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -1382,8 +1382,13 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
->>  	};
->>  	bool ret;
->>  
->> -	mutex_lock(&oom_lock);
->> -	ret = out_of_memory(&oc);
->> +	if (mutex_lock_killable(&oom_lock))
->> +		return true;
->> +	/*
->> +	 * A few threads which were not waiting at mutex_lock_killable() can
->> +	 * fail to bail out. Therefore, check again after holding oom_lock.
->> +	 */
->> +	ret = fatal_signal_pending(current) || out_of_memory(&oc);
->>  	mutex_unlock(&oom_lock);
->>  	return ret;
->>  }
-> 
-> If we are goging with a memcg specific thingy then I really prefer
-> tsk_is_oom_victim approach. Or is there any reason why this is not
-> suitable?
-> 
-
-Why need to wait for mark_oom_victim() called after slow printk() messages?
-
-If current thread got Ctrl-C and thus current thread can terminate, what is
-nice with waiting for the OOM killer? If there are several OOM events in
-multiple memcg domains waiting for completion of printk() messages? I don't
-see points with waiting for oom_lock, for try_charge() already allows current
-thread to terminate due to fatal_signal_pending() test.
+DQoNCk9uIDA2LzExLzIwMTggNzoyOCBBTSwgQWFyb24gTHUgd3JvdGU6DQo+IHBhZ2VfZnJhZ19m
+cmVlKCkgY2FsbHMgX19mcmVlX3BhZ2VzX29rKCkgdG8gZnJlZSB0aGUgcGFnZSBiYWNrIHRvDQo+
+IEJ1ZGR5LiBUaGlzIGlzIE9LIGZvciBoaWdoIG9yZGVyIHBhZ2UsIGJ1dCBmb3Igb3JkZXItMCBw
+YWdlcywgaXQNCj4gbWlzc2VzIHRoZSBvcHRpbWl6YXRpb24gb3Bwb3J0dW5pdHkgb2YgdXNpbmcg
+UGVyLUNwdS1QYWdlcyBhbmQgY2FuDQo+IGNhdXNlIHpvbmUgbG9jayBjb250ZW50aW9uIHdoZW4g
+Y2FsbGVkIGZyZXF1ZW50bHkuDQo+IA0KPiBQYXdlxYIgU3Rhc3pld3NraSByZWNlbnRseSBzaGFy
+ZWQgaGlzIHJlc3VsdCBvZiAnaG93IExpbnV4IGtlcm5lbA0KPiBoYW5kbGVzIG5vcm1hbCB0cmFm
+ZmljJ1sxXSBhbmQgZnJvbSBwZXJmIGRhdGEsIEplc3BlciBEYW5nYWFyZCBCcm91ZXINCj4gZm91
+bmQgdGhlIGxvY2sgY29udGVudGlvbiBjb21lcyBmcm9tIHBhZ2UgYWxsb2NhdG9yOg0KPiANCj4g
+ICAgbWx4NWVfcG9sbF90eF9jcQ0KPiAgICB8DQo+ICAgICAtLTE2LjM0JS0tbmFwaV9jb25zdW1l
+X3NrYg0KPiAgICAgICAgICAgICAgIHwNCj4gICAgICAgICAgICAgICB8LS0xMi42NSUtLV9fZnJl
+ZV9wYWdlc19vaw0KPiAgICAgICAgICAgICAgIHwgICAgICAgICAgfA0KPiAgICAgICAgICAgICAg
+IHwgICAgICAgICAgIC0tMTEuODYlLS1mcmVlX29uZV9wYWdlDQo+ICAgICAgICAgICAgICAgfCAg
+ICAgICAgICAgICAgICAgICAgIHwNCj4gICAgICAgICAgICAgICB8ICAgICAgICAgICAgICAgICAg
+ICAgfC0tMTAuMTAlLS1xdWV1ZWRfc3Bpbl9sb2NrX3Nsb3dwYXRoDQo+ICAgICAgICAgICAgICAg
+fCAgICAgICAgICAgICAgICAgICAgIHwNCj4gICAgICAgICAgICAgICB8ICAgICAgICAgICAgICAg
+ICAgICAgIC0tMC42NSUtLV9yYXdfc3Bpbl9sb2NrDQo+ICAgICAgICAgICAgICAgfA0KPiAgICAg
+ICAgICAgICAgIHwtLTEuNTUlLS1wYWdlX2ZyYWdfZnJlZQ0KPiAgICAgICAgICAgICAgIHwNCj4g
+ICAgICAgICAgICAgICAgLS0xLjQ0JS0tc2tiX3JlbGVhc2VfZGF0YQ0KPiANCj4gSmVzcGVyIGV4
+cGxhaW5lZCBob3cgaXQgaGFwcGVuZWQ6IG1seDUgZHJpdmVyIFJYLXBhZ2UgcmVjeWNsZQ0KPiBt
+ZWNoYW5pc20gaXMgbm90IGVmZmVjdGl2ZSBpbiB0aGlzIHdvcmtsb2FkIGFuZCBwYWdlcyBoYXZl
+IHRvIGdvDQo+IHRocm91Z2ggdGhlIHBhZ2UgYWxsb2NhdG9yLiBUaGUgbG9jayBjb250ZW50aW9u
+IGhhcHBlbnMgZHVyaW5nDQo+IG1seDUgRE1BIFRYIGNvbXBsZXRpb24gY3ljbGUuIEFuZCB0aGUg
+cGFnZSBhbGxvY2F0b3IgY2Fubm90IGtlZXANCj4gdXAgYXQgdGhlc2Ugc3BlZWRzLlsyXQ0KPiAN
+Cj4gSSB0aG91Z2h0IHRoYXQgX19mcmVlX3BhZ2VzX29rKCkgYXJlIG1vc3RseSBmcmVlaW5nIGhp
+Z2ggb3JkZXINCj4gcGFnZXMgYW5kIHRob3VnaHQgdGhpcyBpcyBhbiBsb2NrIGNvbnRlbnRpb24g
+Zm9yIGhpZ2ggb3JkZXIgcGFnZXMNCj4gYnV0IEplc3BlciBleHBsYWluZWQgaW4gZGV0YWlsIHRo
+YXQgX19mcmVlX3BhZ2VzX29rKCkgaGVyZSBhcmUNCj4gYWN0dWFsbHkgZnJlZWluZyBvcmRlci0w
+IHBhZ2VzIGJlY2F1c2UgbWx4NSBpcyB1c2luZyBvcmRlci0wIHBhZ2VzDQo+IHRvIHNhdGlzZnkg
+aXRzIHBhZ2UgcG9vbCBhbGxvY2F0aW9uIHJlcXVlc3QuWzNdDQo+IA0KDQpUaGFua3MgZm9yIHlv
+dXIgcGF0Y2ghDQpBY2tlZC1ieTogVGFyaXEgVG91a2FuIDx0YXJpcXRAbWVsbGFub3guY29tPg0K
+DQo+IFRoZSBmcmVlIHBhdGggYXMgcG9pbnRlZCBvdXQgYnkgSmVzcGVyIGlzOg0KPiBza2JfZnJl
+ZV9oZWFkKCkNCj4gICAgLT4gc2tiX2ZyZWVfZnJhZygpDQo+ICAgICAgLT4gcGFnZV9mcmFnX2Zy
+ZWUoKQ0KPiBBbmQgdGhlIHBhZ2VzIGJlaW5nIGZyZWVkIG9uIHRoaXMgcGF0aCBhcmUgb3JkZXIt
+MCBwYWdlcy4NCj4gDQo+IEZpeCB0aGlzIGJ5IGRvaW5nIHNpbWlsYXIgdGhpbmdzIGFzIGluIF9f
+cGFnZV9mcmFnX2NhY2hlX2RyYWluKCkgLQ0KPiBzZW5kIHRoZSBiZWluZyBmcmVlZCBwYWdlIHRv
+IFBDUCBpZiBpdCdzIGFuIG9yZGVyLTAgcGFnZSwgb3INCj4gZGlyZWN0bHkgdG8gQnVkZHkgaWYg
+aXQgaXMgYSBoaWdoIG9yZGVyIHBhZ2UuDQo+IA0KPiBXaXRoIHRoaXMgY2hhbmdlLCBQYXdlxYIg
+aGFzbid0IG5vdGljZWQgbG9jayBjb250ZW50aW9uIHlldCBpbg0KPiBoaXMgd29ya2xvYWQgYW5k
+IEplc3BlciBoYXMgbm90aWNlZCBhIDclIHBlcmZvcm1hbmNlIGltcHJvdmVtZW50DQo+IHVzaW5n
+IGEgbWljcm8gYmVuY2htYXJrIGFuZCBsb2NrIGNvbnRlbnRpb24gaXMgZ29uZS4gSWxpYXMnIHRl
+c3QNCj4gb24gYSAnbG93JyBzcGVlZCAxR2JpdCBpbnRlcmZhY2Ugb24gYW4gY29ydGV4LWE1MyBz
+aG93cyB+MTElDQo+IHBlcmZvcm1hbmNlIGJvb3N0IHRlc3Rpbmcgd2l0aCA2NGJ5dGUgcGFja2V0
+cyBhbmQgX19mcmVlX3BhZ2VzX29rKCkNCj4gZGlzYXBwZWFyZWQgZnJvbSBwZXJmIHRvcC4NCj4g
+DQo+IFsxXTogaHR0cHM6Ly93d3cuc3Bpbmljcy5uZXQvbGlzdHMvbmV0ZGV2L21zZzUzMTM2Mi5o
+dG1sDQo+IFsyXTogaHR0cHM6Ly93d3cuc3Bpbmljcy5uZXQvbGlzdHMvbmV0ZGV2L21zZzUzMTQy
+MS5odG1sDQo+IFszXTogaHR0cHM6Ly93d3cuc3Bpbmljcy5uZXQvbGlzdHMvbmV0ZGV2L21zZzUz
+MTU1Ni5odG1sDQo+IFJlcG9ydGVkLWJ5OiBQYXdlxYIgU3Rhc3pld3NraSA8cHN0YXN6ZXdza2lA
+aXRjYXJlLnBsPg0KPiBBbmFseXNlZC1ieTogSmVzcGVyIERhbmdhYXJkIEJyb3VlciA8YnJvdWVy
+QHJlZGhhdC5jb20+DQo+IEFja2VkLWJ5OiBWbGFzdGltaWwgQmFia2EgPHZiYWJrYUBzdXNlLmN6
+Pg0KPiBBY2tlZC1ieTogTWVsIEdvcm1hbiA8bWdvcm1hbkB0ZWNoc2luZ3VsYXJpdHkubmV0Pg0K
+PiBBY2tlZC1ieTogSmVzcGVyIERhbmdhYXJkIEJyb3VlciA8YnJvdWVyQHJlZGhhdC5jb20+DQo+
+IEFja2VkLWJ5OiBJbGlhcyBBcGFsb2RpbWFzIDxpbGlhcy5hcGFsb2RpbWFzQGxpbmFyby5vcmc+
+DQo+IFRlc3RlZC1ieTogSWxpYXMgQXBhbG9kaW1hcyA8aWxpYXMuYXBhbG9kaW1hc0BsaW5hcm8u
+b3JnPg0KPiBBY2tlZC1ieTogQWxleGFuZGVyIER1eWNrIDxhbGV4YW5kZXIuaC5kdXlja0BsaW51
+eC5pbnRlbC5jb20+DQo+IFNpZ25lZC1vZmYtYnk6IEFhcm9uIEx1IDxhYXJvbi5sdUBpbnRlbC5j
+b20+DQo+IC0tLQ0KPiB2Mjogb25seSBjaGFuZ2Vsb2cgY2hhbmdlczoNCj4gICAgICAtIHJlbW92
+ZSB0aGUgZHVwbGljYXRlZCBza2JfZnJlZV9mcmFnKCkgYXMgcG9pbnRlZCBieSBKZXNwZXI7DQo+
+ICAgICAgLSBhZGQgSWxpYXMnIHRlc3QgcmVzdWx0Ow0KPiAgICAgIC0gYWRkIHBlb3BsZSdzIGFj
+ay90ZXN0IHRhZy4NCj4gDQo+ICAgbW0vcGFnZV9hbGxvYy5jIHwgMTAgKysrKysrKystLQ0KPiAg
+IDEgZmlsZSBjaGFuZ2VkLCA4IGluc2VydGlvbnMoKyksIDIgZGVsZXRpb25zKC0pDQo+IA0KPiBk
+aWZmIC0tZ2l0IGEvbW0vcGFnZV9hbGxvYy5jIGIvbW0vcGFnZV9hbGxvYy5jDQo+IGluZGV4IGFl
+MzE4Mzk4NzRiOC4uOTFhOWE2YWY0MWEyIDEwMDY0NA0KPiAtLS0gYS9tbS9wYWdlX2FsbG9jLmMN
+Cj4gKysrIGIvbW0vcGFnZV9hbGxvYy5jDQo+IEBAIC00NTU1LDggKzQ1NTUsMTQgQEAgdm9pZCBw
+YWdlX2ZyYWdfZnJlZSh2b2lkICphZGRyKQ0KPiAgIHsNCj4gICAJc3RydWN0IHBhZ2UgKnBhZ2Ug
+PSB2aXJ0X3RvX2hlYWRfcGFnZShhZGRyKTsNCj4gICANCj4gLQlpZiAodW5saWtlbHkocHV0X3Bh
+Z2VfdGVzdHplcm8ocGFnZSkpKQ0KPiAtCQlfX2ZyZWVfcGFnZXNfb2socGFnZSwgY29tcG91bmRf
+b3JkZXIocGFnZSkpOw0KPiArCWlmICh1bmxpa2VseShwdXRfcGFnZV90ZXN0emVybyhwYWdlKSkp
+IHsNCj4gKwkJdW5zaWduZWQgaW50IG9yZGVyID0gY29tcG91bmRfb3JkZXIocGFnZSk7DQo+ICsN
+Cj4gKwkJaWYgKG9yZGVyID09IDApDQo+ICsJCQlmcmVlX3VucmVmX3BhZ2UocGFnZSk7DQo+ICsJ
+CWVsc2UNCj4gKwkJCV9fZnJlZV9wYWdlc19vayhwYWdlLCBvcmRlcik7DQo+ICsJfQ0KPiAgIH0N
+Cj4gICBFWFBPUlRfU1lNQk9MKHBhZ2VfZnJhZ19mcmVlKTsNCj4gICANCj4gDQo=
