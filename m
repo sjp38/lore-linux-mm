@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4241A6B053B
+	by kanga.kvack.org (Postfix) with ESMTP id 81A406B053C
 	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 13:38:27 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id x14-v6so7760537edr.7
+Received: by mail-ed1-f70.google.com with SMTP id x98-v6so9969462ede.0
         for <linux-mm@kvack.org>; Wed, 07 Nov 2018 10:38:27 -0800 (PST)
 Received: from outbound-smtp13.blacknight.com (outbound-smtp13.blacknight.com. [46.22.139.230])
-        by mx.google.com with ESMTPS id y30-v6si1022063edb.128.2018.11.07.10.38.24
+        by mx.google.com with ESMTPS id q17-v6si756857ejp.291.2018.11.07.10.38.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 07 Nov 2018 10:38:24 -0800 (PST)
 Received: from mail.blacknight.com (unknown [81.17.255.152])
-	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id 613971C23D4
+	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id 985851C26DF
 	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 18:38:24 +0000 (GMT)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 4/5] mm: Stall movable allocations until kswapd progresses during serious external fragmentation event
-Date: Wed,  7 Nov 2018 18:38:21 +0000
-Message-Id: <20181107183822.15567-5-mgorman@techsingularity.net>
+Subject: [PATCH 5/5] mm: Target compaction on pageblocks that were recently fragmented
+Date: Wed,  7 Nov 2018 18:38:22 +0000
+Message-Id: <20181107183822.15567-6-mgorman@techsingularity.net>
 In-Reply-To: <20181107183822.15567-1-mgorman@techsingularity.net>
 References: <20181107183822.15567-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,29 +23,30 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-An event that potentially causes external fragmentation problems has
-already been described but there are degrees of severity.  A "serious"
-event is defined as one that steals a contiguous range of pages of an order
-lower than fragment_stall_order (PAGE_ALLOC_COSTLY_ORDER by default). If a
-movable allocation request that is allowed to sleep needs to steal a small
-block then it schedules until kswapd makes progress or a timeout passes.
-The watermarks are also boosted slightly faster so that kswapd makes
-greater effort to reclaim enough pages to avoid the fragmentation event.
+Despite the earlier patches, external fragmentation events are still
+inevitable as not all callers can stall or are appropriate to stall.  In the
+event the result is a mixed pageblock, it is desirable to move all movable
+pages from that block so that unmovable/unreclaimable allocations do not
+further pollute the address space. This patch queues such pageblocks for
+early compaction and relies on kswapd to wake kcompactd when some pages
+are reclaimed. Waking kcompactd after kswapd makes progress is so that
+the compaction is more likely to have a suitable migration destination.
 
-This stall is not guaranteed to avoid serious fragmentation events.
-If memory pressure is high enough, the pages freed by kswapd may be
-reallocated or the free pages may not be in pageblocks that contain
-only movable pages. Furthermore an allocation request that cannot stall
-(e.g. atomic allocations) or unmovable/reclaimable allocations will still
-proceed without stalling.
+This patch may be controversial as there are multiple other design
+decisions that can be made. We could refuse to change pageblock ownership
+in some cases but great care would need to be taken to avoid premature
+OOMs or a livelock. Similarly, we could tag pageblocks as mixed and
+search for them but that would increase scanning costs. Finally, there
+is a corner case that a mixed pageblock that is after the point where a
+free scanner can operate may fail to clean the pageblock but addressing
+that would require a fundamental alteration to how compaction works.
 
-The worst-case scenario for stalling is a combination of both high memory
-pressure where kswapd is having trouble keeping free pages over the
-pfmemalloc_reserve and movable allocations are fragmenting memory. In this
-case, an allocation request may sleep for longer. There are both vmstats
-to identify stalls are happening and a tracepoint to quantify what the
-stall durations are. Note that the granularity of the stall detection is
-a jiffy so the delay accounting is not precise.
+Unlike the previous patches, the benefit here is harder to quantify as
+any work that is queued may or may not help an allocation request in the
+future.  The timing of the allocation stream is critical and detecting
+differences in latency may be within the noise.  Hence, the potential
+benefit of this patch is more conceptual than quantitive even though
+there are some positive results.
 
 1-socket Skylake machine
 config-global-dhp__workload_thpfioscale XFS (no special madvise)
@@ -56,22 +57,20 @@ config-global-dhp__workload_thpfioscale XFS (no special madvise)
 4.20-rc1+patch:                      358574 (65% reduction)
 4.20-rc1+patch1-3:                    19274 (98% reduction)
 4.20-rc1+patch1-4:                     1351 (99.9% reduction)
+4.20-rc1+patch1-5:                     2554 (99.8% reduction)
 
                                    4.20.0-rc1             4.20.0-rc1
-                                   boost-v2r4             stall-v2r6
-Amean     fault-base-1      659.85 (   0.00%)      648.66 *   1.70%*
-Amean     fault-huge-1      172.19 (   0.00%)      167.79 (   2.56%)
+                                   stall-v2r6         proactive-v2r6
+Amean     fault-base-1      648.66 (   0.00%)      655.18 *  -1.00%*
+Amean     fault-huge-1      167.79 (   0.00%)      163.00 (   2.85%)
 
-thpfioscale Percentage Faults Huge
                               4.20.0-rc1             4.20.0-rc1
-                              boost-v2r4             stall-v2r6
-Percentage huge-1        1.68 (   0.00%)        1.16 ( -30.69%)
+                              stall-v2r6         proactive-v2r6
+Percentage huge-1        1.16 (   0.00%)        0.03 ( -97.14%)
 
-Fragmentation events are now reduced to negligible levels.
-
-The latencies and allocation success rates are roughly similar.  Over the
-course of 16 minutes, there were 100 stalls due to fragmentation avoidance
-with a total stall time of 0.4 seconds.
+The performance is similar but not necessarily indicative that the patch
+had any effect. There was no reported compaction activity so essentially
+the patch was a no-op.
 
 1-socket Skylake machine
 global-dhp__workload_thpfioscale-madvhugepage-xfs (MADV_HUGEPAGE)
@@ -80,53 +79,19 @@ global-dhp__workload_thpfioscale-madvhugepage-xfs (MADV_HUGEPAGE)
 4.20-rc1 extfrag events < order 9:  342549
 4.20-rc1+patch:                     337890 ( 1% reduction)
 4.20-rc1+patch1-3:                   12801 (96% reduction)
-4.20-rc1+patch1-4:                    1117 (99.7% reduction)
+4.20-rc1+patch1-4:                    1511 (99.7% reduction)
 
                                    4.20.0-rc1             4.20.0-rc1
-                                   boost-v2r4             stall-v2r6
-Amean     fault-base-1     1578.91 (   0.00%)    43404.60 (-2649.02%)
-Amean     fault-huge-1     1090.23 (   0.00%)     1424.32 * -30.64%*
+                                   stall-v2r6         proactive-v2r6
+Amean     fault-base-1    43404.60 (   0.00%)        0.00 ( 100.00%)
+Amean     fault-huge-1     1424.32 (   0.00%)      540.99 *  62.02%*
 
                               4.20.0-rc1             4.20.0-rc1
-                              boost-v2r4             stall-v2r6
-Percentage huge-1       82.59 (   0.00%)       99.92 (  20.97%)
+                              stall-v2r6         proactive-v2r6
+Percentage huge-1       99.92 (   0.00%)      100.00 (   0.08%)
 
-The fragmentation events were reduced but the latencies went a bit crazy.
-The "problem" is that the allocation success rates were very high and
-forward progress was being made. This put the system under further pressure
-and while compactions were succeeding, the latencies were high in cases
-where compaction failed. The THP allocation vm stats are illustrative in this case
-
-                         4.20.0-rc1  4.20.0-rc1
-                         boost-v2r4  stall-v2r6
-THP fault alloc                4974        6016
-THP fault fallback             1048           5
-THP collapse alloc               65          56
-THP collapse fail                 4           4
-THP split                         0        3719
-THP split failed                  0         224
-
-Note the THP fault alloc stats where they almost all succeeded relative
-to the baseline. While the latencies are much higher, it is the case that
-the application specifically requested THP while the system was under
-heavy memory pressure.
-
-There were 314 stalls over the course of 16 minutes for a total stall
-time of roughly 11 seconds. The distribution of stalls is as follows
-
-    205 4000
-      1 8000
-      1 20000
-      1 32000
-      1 36000
-      6 40000
-      1 56000
-     98 100000
-
-This is showing that 98 of the stalls waited until the timeout expired
-at 25 jiffies which 100000 microseconds on this particular configuration.
-If this is considered problematic, the timeout can be reduced to tradeoff
-fault times against fragmentation avoidance.
+Slight increase in fragmentation events but the latency was improved
+and THP allocations had a 100% success rate.
 
 2-socket Haswell machine
 config-global-dhp__workload_thpfioscale XFS (no special madvise)
@@ -137,21 +102,21 @@ config-global-dhp__workload_thpfioscale XFS (no special madvise)
 4.20-rc1+patch:                     185923 (11% reduction)
 4.20-rc1+patch1-3:                   11240 (95% reduction)
 4.20-rc1+patch1-4:                   13241 (93% reduction)
+4.20-rc1+patch1-5:                   11916 (94% reduction)
 
+thpfioscale Fault Latencies
                                    4.20.0-rc1             4.20.0-rc1
-                                   boost-v2r4             stall-v2r6
-Amean     fault-base-5     1395.28 (   0.00%)     1508.94 *  -8.15%*
-Amean     fault-huge-5      539.69 (   0.00%)      614.88 * -13.93%*
+                                   stall-v2r6         proactive-v2r6
+Amean     fault-base-5     1508.94 (   0.00%)     1545.56 (  -2.43%)
+Amean     fault-huge-5      614.88 (   0.00%)      557.46 *   9.34%*
 
                               4.20.0-rc1             4.20.0-rc1
-                              boost-v2r4             stall-v2r6
-Percentage huge-5        0.53 (   0.00%)        3.38 ( 534.38%
+                              stall-v2r6         proactive-v2r6
+Percentage huge-5        3.38 (   0.00%)        4.53 (  33.99%)
 
-There is a slight increase in fragmentation events but given that it's
-already heavily reduced, there are elements of luck. There is a small
-increase in latencies which is partially offset by a slight increase in
-THP allocation success rates. There were 65 stalls over the course of 87
-minutes with stall time of a total of roughly 0.4 milliseconds.
+Fragmentation-causing events are slightly reduced and there is a slight
+improvement in THP allocation latencies and success rates. Remember that
+no special effort is being made to allocate THP in this workload.
 
 2-socket Haswell machine
 global-dhp__workload_thpfioscale-madvhugepage-xfs (MADV_HUGEPAGE)
@@ -161,430 +126,432 @@ global-dhp__workload_thpfioscale-madvhugepage-xfs (MADV_HUGEPAGE)
 4.20-rc1+patch:                    130081 (22% reduction)
 4.20-rc1+patch1-3:                  12057 (92% reduction)
 4.20-rc1+patch1-4:                  11060 (93% reduction)
+4.20-rc1+patch1-5:                   8903 (95% reduction)
 
-thpfioscale Fault Latencies
                                    4.20.0-rc1             4.20.0-rc1
-                                   boost-v2r4             stall-v2r6
-Amean     fault-base-5     8691.83 (   0.00%)     9363.89 (  -7.73%)
-Amean     fault-huge-5     2899.83 (   0.00%)     3638.29 * -25.47%*
+                                   stall-v2r6         proactive-v2r6
+Amean     fault-base-5     9363.89 (   0.00%)     9067.00 (   3.17%)
+Amean     fault-huge-5     3638.29 (   0.00%)     1509.51 *  58.51%*
 
+thpfioscale Percentage Faults Huge
                               4.20.0-rc1             4.20.0-rc1
-                              boost-v2r4             stall-v2r6
-Percentage huge-5       95.55 (   0.00%)       99.27 (   3.89%)
+                              stall-v2r6         proactive-v2r6
+Percentage huge-5       99.27 (   0.00%)       99.93 (   0.67%)
 
-The fragmentation events are reduced and while there is some hit on
-the latency, the success rate is near 100% while under heavy pressure.
-There were 2486 stalls over the course of 85 minutes with a total stall
-time of roughly 12 seconds.
+There is a small decrease in fragmentation events but the most notable
+part is the decrease in latency with a similarly high THP allocation
+success rate.
 
-This patch does reduce fragmentation rates overall but it's not free
-as some allocataions can stall for short periods of time and there
-are knock-on effects to latency when THP allocation success rates are
-higher. While it's within acceptable limits for the adverse test case,
-there may be other workloads that cannot tolerate the stalls. If this
-occurs, it can be tuned to disable the feature or more ideally, the test
-case is made available for analysis to see if the stall behaviour can be
-reduced while still limiting the fragmentation events. On the flip-side,
-it has been checked that setting the fragment_stall_order to 9 eliminated
-fragmentation events entirely.
+It is less obvious whether this is a universal win as fragmentation-causing
+events were already low and in the case of MADV_HUGEPAGE, the allocation
+success rates were already high. However, it's encouraging that the THP
+allocation latencies were improved.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- Documentation/sysctl/vm.txt   | 23 +++++++++++
- include/linux/mm.h            |  1 +
- include/linux/mmzone.h        |  2 +
- include/linux/vm_event_item.h |  1 +
- include/trace/events/kmem.h   | 21 ++++++++++
- kernel/sysctl.c               | 10 +++++
- mm/internal.h                 |  1 +
- mm/page_alloc.c               | 94 +++++++++++++++++++++++++++++++++++++------
- mm/vmstat.c                   |  1 +
- 9 files changed, 142 insertions(+), 12 deletions(-)
+ include/linux/compaction.h        |   4 ++
+ include/linux/migrate.h           |   7 +-
+ include/linux/mmzone.h            |   4 ++
+ include/trace/events/compaction.h |  62 ++++++++++++++++
+ mm/compaction.c                   | 145 +++++++++++++++++++++++++++++++++++---
+ mm/migrate.c                      |   6 +-
+ mm/page_alloc.c                   |   7 ++
+ 7 files changed, 224 insertions(+), 11 deletions(-)
 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index 2244520d7913..f7d3fcb9d4ce 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -31,6 +31,7 @@ files can be found in mm/swap.c.
- - dirty_writeback_centisecs
- - drop_caches
- - extfrag_threshold
-+- fragment_stall_order
- - hugetlb_shm_group
- - laptop_mode
- - legacy_va_layout
-@@ -275,6 +276,28 @@ any throttling.
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index 68250a57aace..1fc1ad055f66 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -177,6 +177,7 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
+ extern int kcompactd_run(int nid);
+ extern void kcompactd_stop(int nid);
+ extern void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx);
++extern void kcompactd_queue_migration(struct zone *zone, struct page *page);
  
- ==============================================================
+ #else
+ static inline void reset_isolation_suitable(pg_data_t *pgdat)
+@@ -225,6 +226,9 @@ static inline void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_i
+ {
+ }
  
-+fragment_stall_order
-+
-+External fragmentation control is managed on a pageblock level where the
-+page allocator tries to avoid mixing pages of different mobility within page
-+blocks (e.g. order 9 on 64-bit x86). If external fragmentation is perfectly
-+controlled then a THP allocation will often succeed up to the number of
-+movable pageblocks in the system as reported by /proc/pagetypeinfo.
-+
-+When memory is low, the system may have to mix pageblocks and will wake
-+kswapd to try control future fragmentation. fragment_stall_order controls if
-+the allocating task will stall if possible until kswapd makes some progress
-+in preference to fragmenting the system. This incurs a small stall penalty
-+in exchange for future success at allocating huge pages. If the stalls
-+are undesirable and high-order allocations are irrelevant then this can
-+be disabled by writing 0 to the tunable. Writing the pageblock order will
-+strongly (but not perfectly) control external fragmentation.
-+
-+The default will stall for fragmenting allocations smaller than the
-+PAGE_ALLOC_COSTLY_ORDER (defined as order-3 at the time of writing).
-+
-+==============================================================
-+
- hugetlb_shm_group
++static inline void kcompactd_queue_migration(struct zone *zone, struct page *page)
++{
++}
+ #endif /* CONFIG_COMPACTION */
  
- hugetlb_shm_group contains group id that is allowed to create SysV
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 81926daf6dfb..ef98eb3f8360 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2196,6 +2196,7 @@ extern void zone_pcp_reset(struct zone *zone);
- extern int min_free_kbytes;
- extern int watermark_boost_factor;
- extern int watermark_scale_factor;
-+extern int fragment_stall_order;
+ #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index f2b4abbca55e..f12cee38c0f0 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -61,7 +61,7 @@ static inline struct page *new_page_nodemask(struct page *page,
  
- /* nommu.c */
- extern atomic_long_t mmap_pages_allocated;
+ #ifdef CONFIG_MIGRATION
+ 
+-extern void putback_movable_pages(struct list_head *l);
++extern unsigned int putback_movable_pages(struct list_head *l);
+ extern int migrate_page(struct address_space *mapping,
+ 			struct page *newpage, struct page *page,
+ 			enum migrate_mode mode);
+@@ -82,7 +82,10 @@ extern int migrate_page_move_mapping(struct address_space *mapping,
+ 		int extra_count);
+ #else
+ 
+-static inline void putback_movable_pages(struct list_head *l) {}
++static inline unsigned int putback_movable_pages(struct list_head *l)
++{
++	return 0;
++}
+ static inline int migrate_pages(struct list_head *l, new_page_t new,
+ 		free_page_t free, unsigned long private, enum migrate_mode mode,
+ 		int reason)
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index d352c1dab486..cffec484ac8a 100644
+index cffec484ac8a..980fad03ae8e 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -890,6 +890,8 @@ int watermark_boost_factor_sysctl_handler(struct ctl_table *, int,
- 					void __user *, size_t *, loff_t *);
- int watermark_scale_factor_sysctl_handler(struct ctl_table *, int,
- 					void __user *, size_t *, loff_t *);
-+int fragment_stall_order_sysctl_handler(struct ctl_table *, int,
-+					void __user *, size_t *, loff_t *);
- extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES];
- int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int,
- 					void __user *, size_t *, loff_t *);
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 47a3441cf4c4..7661abe5236e 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -43,6 +43,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		PAGEOUTRUN, PGROTATED,
- 		DROP_PAGECACHE, DROP_SLAB,
- 		OOM_KILL,
-+		FRAGMENTSTALL,
- #ifdef CONFIG_NUMA_BALANCING
- 		NUMA_PTE_UPDATES,
- 		NUMA_HUGE_PTE_UPDATES,
-diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-index eb57e3037deb..caadd8681ac5 100644
---- a/include/trace/events/kmem.h
-+++ b/include/trace/events/kmem.h
-@@ -315,6 +315,27 @@ TRACE_EVENT(mm_page_alloc_extfrag,
- 		__entry->change_ownership)
+@@ -497,6 +497,10 @@ struct zone {
+ 	unsigned int		compact_considered;
+ 	unsigned int		compact_defer_shift;
+ 	int			compact_order_failed;
++
++#define COMPACT_QUEUE_LENGTH 16
++	unsigned long		compact_queue[COMPACT_QUEUE_LENGTH];
++	int			nr_compact;
+ #endif
+ 
+ #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
+index 6074eff3d766..6b5b61177d8c 100644
+--- a/include/trace/events/compaction.h
++++ b/include/trace/events/compaction.h
+@@ -353,6 +353,68 @@ DEFINE_EVENT(kcompactd_wake_template, mm_compaction_kcompactd_wake,
+ 	TP_ARGS(nid, order, classzone_idx)
  );
  
-+TRACE_EVENT(mm_fragmentation_stall,
++TRACE_EVENT(mm_compaction_wakeup_kcompactd_queue,
 +
-+	TP_PROTO(int nid, unsigned long duration),
++	TP_PROTO(
++		int nid,
++		enum zone_type zoneid,
++		unsigned long pfn,
++		int nr_queued),
 +
-+	TP_ARGS(nid, duration),
++	TP_ARGS(nid, pfn, zoneid, nr_queued),
 +
 +	TP_STRUCT__entry(
-+		__field(	int,		nid		)
-+		__field(	unsigned long,	duration	)
++		__field(int, nid)
++		__field(enum zone_type, zoneid)
++		__field(unsigned long, pfn)
++		__field(int, nr_queued)
 +	),
 +
 +	TP_fast_assign(
-+		__entry->nid		= nid;
-+		__entry->duration	= duration
++		__entry->nid = nid;
++		__entry->zoneid = zoneid;
++		__entry->pfn = pfn;
++		__entry->nr_queued = nr_queued;
 +	),
 +
-+	TP_printk("nid=%d duration=%lu",
++	TP_printk("nid=%d zoneid=%-8s pfn=%lu nr_queued=%d",
 +		__entry->nid,
-+		__entry->duration)
++		__print_symbolic(__entry->zoneid, ZONE_TYPE),
++		__entry->pfn,
++		__entry->nr_queued)
 +);
 +
- #endif /* _TRACE_KMEM_H */
++TRACE_EVENT(mm_compaction_kcompactd_migrated,
++
++	TP_PROTO(
++		int nid,
++		enum zone_type zoneid,
++		int nr_migrated,
++		int nr_failed),
++
++	TP_ARGS(nid, zoneid, nr_migrated, nr_failed),
++
++	TP_STRUCT__entry(
++		__field(int, nid)
++		__field(enum zone_type, zoneid)
++		__field(int, nr_migrated)
++		__field(int, nr_failed)
++	),
++
++	TP_fast_assign(
++		__entry->nid = nid;
++		__entry->zoneid = zoneid,
++		__entry->nr_migrated = nr_migrated;
++		__entry->nr_failed = nr_failed;
++	),
++
++	TP_printk("nid=%d zoneid=%-8s nr_migrated=%d nr_failed=%d",
++		__entry->nid,
++		__print_symbolic(__entry->zoneid, ZONE_TYPE),
++		__entry->nr_migrated,
++		__entry->nr_failed)
++);
++
+ #endif /* _TRACE_COMPACTION_H */
  
  /* This part must be outside protection */
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 1825f712e73b..eb09c79ddbef 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -126,6 +126,7 @@ static int zero;
- static int __maybe_unused one = 1;
- static int __maybe_unused two = 2;
- static int __maybe_unused four = 4;
-+static int __maybe_unused max_order = MAX_ORDER;
- static unsigned long one_ul = 1;
- static int one_hundred = 100;
- static int one_thousand = 1000;
-@@ -1479,6 +1480,15 @@ static struct ctl_table vm_table[] = {
- 		.extra1		= &one,
- 		.extra2		= &one_thousand,
- 	},
-+	{
-+		.procname	= "fragment_stall_order",
-+		.data		= &fragment_stall_order,
-+		.maxlen		= sizeof(fragment_stall_order),
-+		.mode		= 0644,
-+		.proc_handler	= fragment_stall_order_sysctl_handler,
-+		.extra1		= &zero,
-+		.extra2		= &max_order,
-+	},
- 	{
- 		.procname	= "percpu_pagelist_fraction",
- 		.data		= &percpu_pagelist_fraction,
-diff --git a/mm/internal.h b/mm/internal.h
-index 544355156c92..5506a4596d59 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -489,6 +489,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
- #else
- #define ALLOC_NOFRAGMENT	  0x0
- #endif
-+#define ALLOC_FRAGMENT_STALL	0x200 /* stall if fragmenting heavily */
+diff --git a/mm/compaction.c b/mm/compaction.c
+index ef29490b0f46..0fdeecd47a03 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1915,6 +1915,12 @@ void compaction_unregister_node(struct node *node)
  
- enum ttu_flags;
- struct tlbflush_unmap_batch;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4abac725a149..86a6e86c51bb 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -265,6 +265,7 @@ int min_free_kbytes = 1024;
- int user_min_free_kbytes = -1;
- int watermark_boost_factor __read_mostly = 15000;
- int watermark_scale_factor = 10;
-+int fragment_stall_order __read_mostly = (PAGE_ALLOC_COSTLY_ORDER + 1);
+ static inline bool kcompactd_work_requested(pg_data_t *pgdat)
+ {
++	int zoneid;
++
++	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++)
++		if (pgdat->node_zones[zoneid].nr_compact)
++			return true;
++
+ 	return pgdat->kcompactd_max_order > 0 || kthread_should_stop();
+ }
  
- static unsigned long nr_kernel_pages __meminitdata;
- static unsigned long nr_all_pages __meminitdata;
-@@ -2130,9 +2131,10 @@ static bool can_steal_fallback(unsigned int order, int start_mt)
+@@ -1938,6 +1944,92 @@ static bool kcompactd_node_suitable(pg_data_t *pgdat)
  	return false;
  }
  
--static inline void boost_watermark(struct zone *zone)
-+static inline void boost_watermark(struct zone *zone, bool fast_boost)
- {
- 	unsigned long max_boost;
-+	unsigned long nr;
- 
- 	if (!watermark_boost_factor)
- 		return;
-@@ -2140,9 +2142,36 @@ static inline void boost_watermark(struct zone *zone)
- 	max_boost = mult_frac(wmark_pages(zone, WMARK_HIGH),
- 			watermark_boost_factor, 10000);
- 	max_boost = max(pageblock_nr_pages, max_boost);
-+	nr = pageblock_nr_pages;
- 
--	zone->watermark_boost = min(zone->watermark_boost + pageblock_nr_pages,
--		max_boost);
-+	/* Scale relative to the MIGRATE_PCPTYPES similar to min_free_kbytes */
-+	if (fast_boost)
-+		nr += pageblock_nr_pages * (MIGRATE_PCPTYPES << 1);
++static void kcompactd_migrate_block(struct compact_control *cc,
++	unsigned long pfn)
++{
++	unsigned long end = min(pfn + pageblock_nr_pages, zone_end_pfn(cc->zone));
++	unsigned long total_migrated = 0, total_failed = 0;
 +
-+	zone->watermark_boost = min(zone->watermark_boost + nr, max_boost);
++	cc->migrate_pfn = pfn;
++	while (pfn && pfn < end) {
++		int err;
++		unsigned long nr_migrated, nr_failed = 0;
++
++		pfn = isolate_migratepages_range(cc, pfn, end);
++		if (!pfn)
++			break;
++
++		nr_migrated = cc->nr_migratepages;
++		err = migrate_pages(&cc->migratepages, compaction_alloc,
++				compaction_free, (unsigned long)cc,
++				cc->mode, MR_COMPACTION);
++		if (err) {
++			nr_failed = putback_movable_pages(&cc->migratepages);
++			nr_migrated -= nr_failed;
++		}
++		cc->nr_migratepages = 0;
++		total_migrated += nr_migrated;
++		total_failed += nr_failed;
++	}
++
++	trace_mm_compaction_kcompactd_migrated(zone_to_nid(cc->zone),
++		zone_idx(cc->zone), total_migrated, total_failed);
 +}
 +
-+static void stall_fragmentation(struct zone *pzone)
++static void kcompactd_init_cc(struct compact_control *cc, struct zone *zone)
 +{
-+	DEFINE_WAIT(wait);
-+	long remaining = 0;
-+	long timeout = HZ/10;
-+	pg_data_t *pgdat = pzone->zone_pgdat;
++	cc->nr_freepages = 0;
++	cc->nr_migratepages = 0;
++	cc->total_migrate_scanned = 0;
++	cc->total_free_scanned = 0;
++	cc->zone = zone;
++	INIT_LIST_HEAD(&cc->freepages);
++	INIT_LIST_HEAD(&cc->migratepages);
++}
 +
-+	if (current->flags & PF_MEMALLOC)
-+		return;
-+
-+	boost_watermark(pzone, true);
-+	prepare_to_wait(&pgdat->pfmemalloc_wait, &wait, TASK_INTERRUPTIBLE);
-+	if (waitqueue_active(&pgdat->kswapd_wait))
-+		wake_up_interruptible(&pgdat->kswapd_wait);
-+	remaining = schedule_timeout(timeout);
-+	finish_wait(&pgdat->pfmemalloc_wait, &wait);
-+	if (remaining != timeout) {
-+		trace_mm_fragmentation_stall(pgdat->node_id,
-+			jiffies_to_usecs(timeout - remaining));
-+		count_vm_event(FRAGMENTSTALL);
-+	}
- }
- 
- /*
-@@ -2153,8 +2182,9 @@ static inline void boost_watermark(struct zone *zone)
-  * of pages are free or compatible, we can change migratetype of the pageblock
-  * itself, so pages freed in the future will be put on the correct free list.
-  */
--static void steal_suitable_fallback(struct zone *zone, struct page *page,
--					int start_type, bool whole_block)
-+static bool steal_suitable_fallback(struct zone *zone, struct page *page,
-+					int start_type, bool whole_block,
-+					unsigned int alloc_flags)
- {
- 	unsigned int current_order = page_order(page);
- 	struct free_area *area;
-@@ -2181,9 +2211,14 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
- 	 * likelihood of future fallbacks. Wake kswapd now as the node
- 	 * may be balanced overall and kswapd will not wake naturally.
- 	 */
--	boost_watermark(zone);
-+	boost_watermark(zone, false);
- 	wakeup_kswapd(zone, 0, 0, zone_idx(zone));
- 
-+	if ((alloc_flags & ALLOC_FRAGMENT_STALL) &&
-+	    current_order < fragment_stall_order) {
-+		return false;
-+	}
-+
- 	/* We are not allowed to try stealing from the whole block */
- 	if (!whole_block)
- 		goto single_page;
-@@ -2224,11 +2259,12 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
- 			page_group_by_mobility_disabled)
- 		set_pageblock_migratetype(page, start_type);
- 
--	return;
-+	return true;
- 
- single_page:
- 	area = &zone->free_area[current_order];
- 	list_move(&page->lru, &area->free_list[start_type]);
-+	return true;
- }
- 
- /*
-@@ -2467,13 +2503,14 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype,
- 	page = list_first_entry(&area->free_list[fallback_mt],
- 							struct page, lru);
- 
--	steal_suitable_fallback(zone, page, start_migratetype, can_steal);
-+	if (!steal_suitable_fallback(zone, page, start_migratetype, can_steal,
-+								alloc_flags))
-+		return false;
- 
- 	trace_mm_page_alloc_extfrag(page, order, current_order,
- 		start_migratetype, fallback_mt);
- 
- 	return true;
--
- }
- 
- /*
-@@ -3340,9 +3377,12 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 						const struct alloc_context *ac)
- {
- 	struct zoneref *z = ac->preferred_zoneref;
-+	struct zone *pzone = z->zone;
- 	struct zone *zone;
- 	struct pglist_data *last_pgdat_dirty_limit = NULL;
- 	bool no_fallback;
-+	bool fragment_stall;
-+	int wmark_idx = alloc_flags & ALLOC_WMARK_MASK;
- 
- retry:
- 	/*
-@@ -3350,6 +3390,8 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 	 * See also __cpuset_node_allowed() comment in kernel/cpuset.c.
- 	 */
- 	no_fallback = alloc_flags & ALLOC_NOFRAGMENT;
-+	fragment_stall = alloc_flags & ALLOC_FRAGMENT_STALL;
-+
- 	for_next_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
- 								ac->nodemask) {
- 		struct page *page;
-@@ -3388,7 +3430,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 			}
- 		}
- 
--		if (no_fallback) {
-+		if (no_fallback || fragment_stall) {
- 			int local_nid;
- 
- 			/*
-@@ -3396,9 +3438,12 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 			 * fragmenting fallbacks. Locality is more important
- 			 * than fragmentation avoidance.
- 			 */
--			local_nid = zone_to_nid(ac->preferred_zoneref->zone);
-+			local_nid = zone_to_nid(pzone);
- 			if (zone_to_nid(zone) != local_nid) {
-+				if (fragment_stall)
-+					stall_fragmentation(pzone);
- 				alloc_flags &= ~ALLOC_NOFRAGMENT;
-+				alloc_flags &= ~ALLOC_FRAGMENT_STALL;
- 				goto retry;
- 			}
- 		}
-@@ -3474,8 +3519,12 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 	 * It's possible on a UMA machine to get through all zones that are
- 	 * fragmented. If avoiding fragmentation, reset and try again
- 	 */
--	if (no_fallback) {
-+	if (no_fallback || fragment_stall) {
-+		if (fragment_stall)
-+			stall_fragmentation(pzone);
-+
- 		alloc_flags &= ~ALLOC_NOFRAGMENT;
-+		alloc_flags &= ~ALLOC_FRAGMENT_STALL;
- 		goto retry;
- 	}
- 
-@@ -4197,6 +4246,14 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	 */
- 	alloc_flags = gfp_to_alloc_flags(gfp_mask);
- 
++static void kcompactd_do_queue(pg_data_t *pgdat)
++{
 +	/*
-+	 * Consider stalling on heavy for movable allocations in preference to
-+	 * fragmenting unmovable/reclaimable pageblocks.
++	 * With no special task, compact all zones so that a page of requested
++	 * order is allocatable.
 +	 */
-+	if ((gfp_mask & (__GFP_MOVABLE|__GFP_DIRECT_RECLAIM)) ==
-+			(__GFP_MOVABLE|__GFP_DIRECT_RECLAIM))
-+		alloc_flags |= ALLOC_FRAGMENT_STALL;
++	int zoneid;
++	struct zone *zone;
++	struct compact_control cc = {
++		.order = 0,
++		.total_migrate_scanned = 0,
++		.total_free_scanned = 0,
++		.classzone_idx = 0,
++		.mode = MIGRATE_SYNC,
++		.ignore_skip_hint = true,
++		.gfp_mask = GFP_KERNEL,
++	};
++	trace_mm_compaction_kcompactd_wake(pgdat->node_id, 0, -1);
 +
++	migrate_prep();
++	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
++		unsigned long pfn = ULONG_MAX;
++		int limit;
++
++		zone = &pgdat->node_zones[zoneid];
++		if (!populated_zone(zone))
++			continue;
++
++		kcompactd_init_cc(&cc, zone);
++		cc.free_pfn = pageblock_start_pfn(zone_end_pfn(zone) - 1);
++		limit = zone->nr_compact;
++		while (zone->nr_compact && limit--) {
++			unsigned long flags;
++
++			spin_lock_irqsave(&zone->lock, flags);
++			if (zone->nr_compact)
++				pfn = zone->compact_queue[--zone->nr_compact];
++			spin_unlock_irqrestore(&zone->lock, flags);
++			kcompactd_migrate_block(&cc, pfn);
++		}
++	}
++}
++
+ static void kcompactd_do_work(pg_data_t *pgdat)
+ {
  	/*
- 	 * We need to recalculate the starting point for the zonelist iterator
- 	 * because we might have used different nodemask in the fast path, or
-@@ -4218,6 +4275,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
- 	if (page)
- 		goto got_pg;
-+	alloc_flags &= ~ALLOC_FRAGMENT_STALL;
+@@ -1957,7 +2049,6 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+ 	};
+ 	trace_mm_compaction_kcompactd_wake(pgdat->node_id, cc.order,
+ 							cc.classzone_idx);
+-	count_compact_event(KCOMPACTD_WAKE);
  
- 	/*
- 	 * For costly allocations, try direct compaction first, as it's likely
-@@ -7585,6 +7643,18 @@ int watermark_boost_factor_sysctl_handler(struct ctl_table *table, int write,
+ 	for (zoneid = 0; zoneid <= cc.classzone_idx; zoneid++) {
+ 		int status;
+@@ -1973,13 +2064,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+ 							COMPACT_CONTINUE)
+ 			continue;
+ 
+-		cc.nr_freepages = 0;
+-		cc.nr_migratepages = 0;
+-		cc.total_migrate_scanned = 0;
+-		cc.total_free_scanned = 0;
+-		cc.zone = zone;
+-		INIT_LIST_HEAD(&cc.freepages);
+-		INIT_LIST_HEAD(&cc.migratepages);
++		kcompactd_init_cc(&cc, zone);
+ 
+ 		if (kthread_should_stop())
+ 			return;
+@@ -2025,6 +2110,19 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+ 
+ void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx)
+ {
++	int i;
++
++	/* Wake kcompact if there are compaction queue entries */
++	for (i = 0; i < MAX_NR_ZONES; i++) {
++		struct zone *zone = &pgdat->node_zones[i];
++
++		if (!managed_zone(zone))
++			continue;
++
++		if (zone->nr_compact)
++			goto wake;
++	}
++
+ 	if (!order)
+ 		return;
+ 
+@@ -2044,6 +2142,7 @@ void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx)
+ 	if (!kcompactd_node_suitable(pgdat))
+ 		return;
+ 
++wake:
+ 	trace_mm_compaction_wakeup_kcompactd(pgdat->node_id, order,
+ 							classzone_idx);
+ 	wake_up_interruptible(&pgdat->kcompactd_wait);
+@@ -2076,6 +2175,8 @@ static int kcompactd(void *p)
+ 				kcompactd_work_requested(pgdat));
+ 
+ 		psi_memstall_enter(&pflags);
++		count_compact_event(KCOMPACTD_WAKE);
++		kcompactd_do_queue(pgdat);
+ 		kcompactd_do_work(pgdat);
+ 		psi_memstall_leave(&pflags);
+ 	}
+@@ -2083,6 +2184,34 @@ static int kcompactd(void *p)
  	return 0;
  }
  
-+int fragment_stall_order_sysctl_handler(struct ctl_table *table, int write,
-+	void __user *buffer, size_t *length, loff_t *ppos)
++/*
++ * Queue a pageblock to have all movable pages migrated from. Note that
++ * kcompactd is not woken at this point. This assumes that kswapd has
++ * been woken to reclaim pages above the boosted watermark. kcompactd
++ * will be woken when kswapd has made progress.
++ */
++void kcompactd_queue_migration(struct zone *zone, struct page *page)
 +{
-+	int rc;
++	unsigned long pfn = page_to_pfn(page) & ~(pageblock_nr_pages - 1);
++	int nr_queued = -1;
 +
-+	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
-+	if (rc)
-+		return rc;
++	/* Do not overflow the queue */
++	if (zone->nr_compact == COMPACT_QUEUE_LENGTH)
++		goto trace;
 +
-+	return 0;
++	/* Only queue a pageblock once */
++	for (nr_queued = 0; nr_queued < zone->nr_compact; nr_queued++) {
++		if (zone->compact_queue[nr_queued] == pfn)
++			return;
++	}
++
++	zone->compact_queue[zone->nr_compact++] = pfn;
++
++trace:
++	trace_mm_compaction_wakeup_kcompactd_queue(zone_to_nid(zone),
++		zone_idx(zone), pfn, nr_queued);
 +}
 +
- int watermark_scale_factor_sysctl_handler(struct ctl_table *table, int write,
- 	void __user *buffer, size_t *length, loff_t *ppos)
+ /*
+  * This kcompactd start function will be called by init and node-hot-add.
+  * On node-hot-add, kcompactd will moved to proper cpus if cpus are hot-added.
+diff --git a/mm/migrate.c b/mm/migrate.c
+index f7e4bfdc13b7..2ee3c38d2269 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -164,12 +164,14 @@ void putback_movable_page(struct page *page)
+  * built from lru, balloon, hugetlbfs page. See isolate_migratepages_range()
+  * and isolate_huge_page().
+  */
+-void putback_movable_pages(struct list_head *l)
++unsigned int putback_movable_pages(struct list_head *l)
  {
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 6038ce593ce3..9bb78adf4445 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1211,6 +1211,7 @@ const char * const vmstat_text[] = {
- 	"drop_pagecache",
- 	"drop_slab",
- 	"oom_kill",
-+	"fragment_stall",
+ 	struct page *page;
+ 	struct page *page2;
++	unsigned int nr_putback = 0;
  
- #ifdef CONFIG_NUMA_BALANCING
- 	"numa_pte_updates",
+ 	list_for_each_entry_safe(page, page2, l, lru) {
++		nr_putback++;
+ 		if (unlikely(PageHuge(page))) {
+ 			putback_active_hugepage(page);
+ 			continue;
+@@ -195,6 +197,8 @@ void putback_movable_pages(struct list_head *l)
+ 			putback_lru_page(page);
+ 		}
+ 	}
++
++	return nr_putback;
+ }
+ 
+ /*
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 86a6e86c51bb..1e72f757253e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2214,6 +2214,9 @@ static bool steal_suitable_fallback(struct zone *zone, struct page *page,
+ 	boost_watermark(zone, false);
+ 	wakeup_kswapd(zone, 0, 0, zone_idx(zone));
+ 
++	if (start_type == MIGRATE_MOVABLE || old_block_type == MIGRATE_MOVABLE)
++		kcompactd_queue_migration(zone, page);
++
+ 	if ((alloc_flags & ALLOC_FRAGMENT_STALL) &&
+ 	    current_order < fragment_stall_order) {
+ 		return false;
+@@ -6457,7 +6460,11 @@ static void pgdat_init_split_queue(struct pglist_data *pgdat) {}
+ #ifdef CONFIG_COMPACTION
+ static void pgdat_init_kcompactd(struct pglist_data *pgdat)
+ {
++	int i;
++
+ 	init_waitqueue_head(&pgdat->kcompactd_wait);
++	for (i = 0; i < MAX_NR_ZONES; i++)
++		pgdat->node_zones[i].nr_compact = 0;
+ }
+ #else
+ static void pgdat_init_kcompactd(struct pglist_data *pgdat) {}
 -- 
 2.16.4
