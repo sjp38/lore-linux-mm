@@ -1,46 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AF536B0522
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 10:56:23 -0500 (EST)
-Received: by mail-io1-f71.google.com with SMTP id z17-v6so19717978iol.20
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 07:56:23 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g206-v6sor373891ioa.139.2018.11.07.07.56.22
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 07 Nov 2018 07:56:22 -0800 (PST)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F2606B0524
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 11:52:15 -0500 (EST)
+Received: by mail-oi1-f198.google.com with SMTP id x6-v6so11192411oig.6
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 08:52:15 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id r11si417221oti.216.2018.11.07.08.52.13
+        for <linux-mm@kvack.org>;
+        Wed, 07 Nov 2018 08:52:13 -0800 (PST)
+Date: Wed, 7 Nov 2018 16:52:00 +0000
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH v10 08/22] kasan, arm64: untag address in __kimg_to_phys
+ and _virt_addr_is_linear
+Message-ID: <20181107165200.oaou6cx2lmjzmjyl@lakrids.cambridge.arm.com>
+References: <cover.1541525354.git.andreyknvl@google.com>
+ <b2aa056b65b8f1a410379bf2f6ef439d5d99e8eb.1541525354.git.andreyknvl@google.com>
 MIME-Version: 1.0
-In-Reply-To: <20181107153456.GE2623@brain-police>
-References: <cover.1541525354.git.andreyknvl@google.com> <CAAeHK+yOsP7V0gPu7EpqCbJZqbGQMZbAp6q1+=0dNGC24reyWg@mail.gmail.com>
- <20181107145922.GD2623@brain-police> <CAAeHK+zNgv9WxRpf7N3gmsLYGL6oUALAnyerMzeYZUz1LhoUuA@mail.gmail.com>
- <20181107153456.GE2623@brain-police>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Wed, 7 Nov 2018 16:56:21 +0100
-Message-ID: <CAAeHK+yRAVo5S1Fb__uzK=drpXRBuB8-KvL8yQL8sfUG-Tr1Mw@mail.gmail.com>
-Subject: Re: [PATCH v10 00/22] kasan: add software tag-based mode for arm64
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b2aa056b65b8f1a410379bf2f6ef439d5d99e8eb.1541525354.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
 
-On Wed, Nov 7, 2018 at 4:34 PM, Will Deacon <will.deacon@arm.com> wrote:
->
-> I would like the patches that touch code under arch/arm64/ to be reviewed by
-> somebody from the arm64 community. Since the core parts have already been
-> reviewed, I was suggesting that you could split them out so that they are
-> not blocked by the architecture code. Is it not possible to preserve the
-> existing KASAN behaviour for arm64 with the core parts merged? I figured it
-> must be, since you're not touching any other architectures here and they
-> assumedly continue to function correctly.
+Hi Andrey,
 
-It's possible to split out the core mm part, but it doesn't make much
-sense to merge it separately from the arm64 changes.
+On Tue, Nov 06, 2018 at 06:30:23PM +0100, Andrey Konovalov wrote:
+> __kimg_to_phys (which is used by virt_to_phys) and _virt_addr_is_linear
+> (which is used by virt_addr_valid) assume that the top byte of the address
+> is 0xff, which isn't always the case with tag-based KASAN.
 
-> However, if you'd rather keep everything together, please can we give it a
-> couple of weeks so we can at least get the architecture bits reviewed? Most
-> people are out at LPC next week (and I'm at another conference this week).
+I'm confused by this. Why/when do kimg address have a non-default tag?
 
-OK, sounds good!
+Any kimg address is part of the static kernel image, so it's not obvious
+to me how a kimg address would gain a tag. Could you please explain how
+this happens in the commit message?
 
-Catalin, could you take a look at the arm64 specific changes?
+> This patch resets the tag in those macros.
+> 
+> Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> ---
+>  arch/arm64/include/asm/memory.h | 14 ++++++++++++--
+>  1 file changed, 12 insertions(+), 2 deletions(-)
+> 
+> diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
+> index 0f1e024a951f..3226a0218b0b 100644
+> --- a/arch/arm64/include/asm/memory.h
+> +++ b/arch/arm64/include/asm/memory.h
+> @@ -92,6 +92,15 @@
+>  #define KASAN_THREAD_SHIFT	0
+>  #endif
+>  
+> +#ifdef CONFIG_KASAN_SW_TAGS
+> +#define KASAN_TAG_SHIFTED(tag)		((unsigned long)(tag) << 56)
+> +#define KASAN_SET_TAG(addr, tag)	(((addr) & ~KASAN_TAG_SHIFTED(0xff)) | \
+> +						KASAN_TAG_SHIFTED(tag))
+> +#define KASAN_RESET_TAG(addr)		KASAN_SET_TAG(addr, 0xff)
+> +#else
+> +#define KASAN_RESET_TAG(addr)		addr
+> +#endif
+
+Nit: the rest of the helper macros in this file are lower-case, with
+specialised helpers prefixed with several underscores. Could we please
+stick with that convention?
+
+e.g. have __tag_set() and __tag_reset() helpers.
+
+> +
+>  #define MIN_THREAD_SHIFT	(14 + KASAN_THREAD_SHIFT)
+>  
+>  /*
+> @@ -232,7 +241,7 @@ static inline unsigned long kaslr_offset(void)
+>  #define __is_lm_address(addr)	(!!((addr) & BIT(VA_BITS - 1)))
+>  
+>  #define __lm_to_phys(addr)	(((addr) & ~PAGE_OFFSET) + PHYS_OFFSET)
+> -#define __kimg_to_phys(addr)	((addr) - kimage_voffset)
+> +#define __kimg_to_phys(addr)	(KASAN_RESET_TAG(addr) - kimage_voffset)
+
+IIUC You need to adjust __lm_to_phys() too, since that could be passed
+an address from SLAB.
+
+Maybe that's done in a later patch, but if so it's confusing to split it
+out that way. It would be nicer to fix all the *_to_*() helpers in one
+go.
+
+>  
+>  #define __virt_to_phys_nodebug(x) ({					\
+>  	phys_addr_t __x = (phys_addr_t)(x);				\
+> @@ -308,7 +317,8 @@ static inline void *phys_to_virt(phys_addr_t x)
+>  #endif
+>  #endif
+>  
+> -#define _virt_addr_is_linear(kaddr)	(((u64)(kaddr)) >= PAGE_OFFSET)
+> +#define _virt_addr_is_linear(kaddr)	(KASAN_RESET_TAG((u64)(kaddr)) >= \
+> +						PAGE_OFFSET)
+
+This is painful to read. Could you please split this like:
+
+#define _virt_addr_is_linear(kaddr) \
+	(__tag_reset((u64)(kaddr)) >= PAGE_OFFSET)
+
+... and we could reformat virt_addr_valid() in the same way while we're
+at it.
+
+Thanks,
+Mark.
