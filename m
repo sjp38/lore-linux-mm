@@ -1,62 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 66AF46B0559
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 15:19:25 -0500 (EST)
-Received: by mail-it1-f199.google.com with SMTP id o204-v6so26867itg.0
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 12:19:25 -0800 (PST)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id l36-v6si1175544jac.95.2018.11.07.12.19.23
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F1F946B055B
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 15:22:02 -0500 (EST)
+Received: by mail-yw1-f71.google.com with SMTP id i82-v6so13507191ywb.13
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 12:22:02 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id z133-v6si1023054ywb.239.2018.11.07.12.22.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 07 Nov 2018 12:19:24 -0800 (PST)
-References: <20181107173859.24096-1-logang@deltatee.com>
- <20181107173859.24096-3-logang@deltatee.com>
- <20181107121207.62cb37cf58484b7cc80a8fd8@linux-foundation.org>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <724be9bb-59b6-33f3-7b59-3ca644d59bf7@deltatee.com>
-Date: Wed, 7 Nov 2018 13:19:08 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Nov 2018 12:22:02 -0800 (PST)
+Date: Wed, 7 Nov 2018 12:21:45 -0800
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [RFC PATCH v4 01/13] ktask: add documentation
+Message-ID: <20181107202145.xvaq3pmqbzyekfan@ca-dmjordan1.us.oracle.com>
+References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
+ <20181105165558.11698-2-daniel.m.jordan@oracle.com>
+ <20181106084911.GA22504@hirez.programming.kicks-ass.net>
+ <20181106203411.pdce6tgs7dncwflh@ca-dmjordan1.us.oracle.com>
+ <20181106205146.GB30490@mellanox.com>
+ <20181107102752.GK9781@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <20181107121207.62cb37cf58484b7cc80a8fd8@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-CA
-Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH 2/2] mm/sparse: add common helper to mark all memblocks
- present
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181107102752.GK9781@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-riscv@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, Stephen Bates <sbates@raithlin.com>, Palmer Dabbelt <palmer@sifive.com>, Albert Ou <aou@eecs.berkeley.edu>, Christoph Hellwig <hch@lst.de>, Arnd Bergmann <arnd@arndb.de>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Oscar Salvador <osalvador@suse.de>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Jason Gunthorpe <jgg@mellanox.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, "rjw@rjwysocki.net" <rjw@rjwysocki.net>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "aarcange@redhat.com" <aarcange@redhat.com>, "aaron.lu@intel.com" <aaron.lu@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "bsd@redhat.com" <bsd@redhat.com>, "darrick.wong@oracle.com" <darrick.wong@oracle.com>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "jwadams@google.com" <jwadams@google.com>, "jiangshanlai@gmail.com" <jiangshanlai@gmail.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>, "Pavel.Tatashin@microsoft.com" <Pavel.Tatashin@microsoft.com>, "prasad.singamsetty@oracle.com" <prasad.singamsetty@oracle.com>, "rdunlap@infradead.org" <rdunlap@infradead.org>, "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "tim.c.chen@intel.com" <tim.c.chen@intel.com>, "tj@kernel.org" <tj@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>
 
-
-
-On 2018-11-07 1:12 p.m., Andrew Morton wrote:
->> +void __init memblocks_present(void)
->> +{
->> +	struct memblock_region *reg;
->> +
->> +	for_each_memblock(memory, reg) {
->> +		memory_present(memblock_get_region_node(reg),
->> +			       memblock_region_memory_base_pfn(reg),
->> +			       memblock_region_memory_end_pfn(reg));
->> +	}
->> +}
->> +
+On Wed, Nov 07, 2018 at 11:27:52AM +0100, Peter Zijlstra wrote:
+> On Tue, Nov 06, 2018 at 08:51:54PM +0000, Jason Gunthorpe wrote:
+> > On Tue, Nov 06, 2018 at 12:34:11PM -0800, Daniel Jordan wrote:
+> > 
+> > > > What isn't clear is if this calling thread is waiting or not. Only do
+> > > > this inheritance trick if it is actually waiting on the work. If it is
+> > > > not, nobody cares.
+> > > 
+> > > The calling thread waits.  Even if it didn't though, the inheritance trick
+> > > would still be desirable for timely completion of the job.
+> > 
+> > Can you make lockdep aware that this is synchronous?
+> > 
+> > ie if I do
+> > 
+> >   mutex_lock()
+> >   ktask_run()
+> >   mutex_lock()
+> > 
+> > Can lockdep know that all the workers are running under that lock?
+> > 
+> > I'm thinking particularly about rtnl_lock as a possible case, but
+> > there could also make some sense to hold the read side of the mm_sem
+> > or similar like the above.
 > 
-> I don't like the name much.  To me, memblocks_present means "are
-> memblocks present" whereas this actually means "memblocks are present".
-> But whatever.  A little covering comment which describes what this
-> does and why it does it would be nice.
+> Yes, the normal trick is adding a fake lock to ktask_run and holding
+> that over the actual job. See lock_map* in flush_workqueue() vs
+> process_one_work().
 
-The same argument can be made about the existing memory_present()
-function and I think it's worth keeping the naming consistent. I'll add
-a comment and resend shortly.
-
-> Acked-by: Andrew Morton <akpm@linux-foundation.org>
-> 
-> I can grab both patches and shall sneak them into 4.20-rcX, but feel
-> free to merge them into some git tree if you'd prefer.  If I see them
-> turn up in linux-next I shall drop my copy.
-
-Sounds good, thanks.
-
-Logan
+I'll add that for the next version.
