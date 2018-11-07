@@ -1,103 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 797406B051D
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 10:35:59 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id d16-v6so15243534wre.11
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 07:35:59 -0800 (PST)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
-        by mx.google.com with ESMTPS id y12-v6si800317wrs.372.2018.11.07.07.35.57
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A4D3A6B051F
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 10:54:08 -0500 (EST)
+Received: by mail-io1-f70.google.com with SMTP id c17-v6so19732674ioi.15
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 07:54:08 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c7-v6sor450430iog.57.2018.11.07.07.54.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Nov 2018 07:35:57 -0800 (PST)
-Content-Type: text/plain; charset="utf-8"
+        (Google Transport Security);
+        Wed, 07 Nov 2018 07:54:07 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-From: Chris Wilson <chris@chris-wilson.co.uk>
-In-Reply-To: <20181106101211.d2e4857aa36ea8ffbd870d2f@linux-foundation.org>
-References: <20181106093100.71829-1-vovoy@chromium.org>
- <20181106132324.17390-1-chris@chris-wilson.co.uk>
- <20181106101211.d2e4857aa36ea8ffbd870d2f@linux-foundation.org>
-Message-ID: <154160489128.4321.4951578054574913878@skylake-alporthouse-com>
-Subject: Re: [PATCH v7] mm, drm/i915: mark pinned shmemfs pages as unevictable
-Date: Wed, 07 Nov 2018 15:34:51 +0000
+In-Reply-To: <20181107153456.GE2623@brain-police>
+References: <cover.1541525354.git.andreyknvl@google.com> <CAAeHK+yOsP7V0gPu7EpqCbJZqbGQMZbAp6q1+=0dNGC24reyWg@mail.gmail.com>
+ <20181107145922.GD2623@brain-police> <CAAeHK+zNgv9WxRpf7N3gmsLYGL6oUALAnyerMzeYZUz1LhoUuA@mail.gmail.com>
+ <20181107153456.GE2623@brain-police>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Wed, 7 Nov 2018 16:54:05 +0100
+Message-ID: <CAAeHK+zupkT2s8o3p7GmxLn2N7idJihBG=asuEBF6v6TheGo_A@mail.gmail.com>
+Subject: Re: [PATCH v10 00/22] kasan: add software tag-based mode for arm64
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kuo-Hsin Yang <vovoy@chromium.org>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>
+To: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>
 
-Quoting Andrew Morton (2018-11-06 18:12:11)
-> On Tue,  6 Nov 2018 13:23:24 +0000 Chris Wilson <chris@chris-wilson.co.uk=
-> wrote:
-> =
-
-> > From: Kuo-Hsin Yang <vovoy@chromium.org>
-> > =
-
-> > The i915 driver uses shmemfs to allocate backing storage for gem
-> > objects. These shmemfs pages can be pinned (increased ref count) by
-> > shmem_read_mapping_page_gfp(). When a lot of pages are pinned, vmscan
-> > wastes a lot of time scanning these pinned pages. In some extreme case,
-> > all pages in the inactive anon lru are pinned, and only the inactive
-> > anon lru is scanned due to inactive_ratio, the system cannot swap and
-> > invokes the oom-killer. Mark these pinned pages as unevictable to speed
-> > up vmscan.
-> > =
-
-> > Export pagevec API check_move_unevictable_pages().
-> > =
-
-> > This patch was inspired by Chris Wilson's change [1].
-> > =
-
-> > [1]: https://patchwork.kernel.org/patch/9768741/
-> > =
-
-> > ...
-> >
-> > --- a/drivers/gpu/drm/i915/i915_gem.c
-> > +++ b/drivers/gpu/drm/i915/i915_gem.c
-> > @@ -2382,12 +2382,26 @@ void __i915_gem_object_invalidate(struct drm_i9=
-15_gem_object *obj)
-> >       invalidate_mapping_pages(mapping, 0, (loff_t)-1);
-> >  }
-> >  =
-
-> > +/**
-> =
-
-> This token is used to introduce a kerneldoc comment.
-> =
-
-> > + * Move pages to appropriate lru and release the pagevec. Decrement th=
-e ref
-> > + * count of these pages.
-> > + */
-> =
-
-> But this isn't a kerneldoc comment.
-> =
-
-> At least, I don't think it is.  Maybe the parser got smarter when I
-> wasn't looking.
-> =
-
-> > +static inline void check_release_pagevec(struct pagevec *pvec)
-> > +{
-> > +     if (pagevec_count(pvec)) {
-> > +             check_move_unevictable_pages(pvec);
-> > +             __pagevec_release(pvec);
-> > +             cond_resched();
-> > +     }
-> > +}
-> =
-
-> This looks too large to be inlined and the compiler will ignore the
-> `inline' anyway.
-
-Applied both corrections.
-
-> Otherwise, Acked-by: Andrew Morton <akpm@linux-foundation.org>.  Please
-> go ahead and merge via the appropriate drm tree.
-
-Thank you, pushed to drm-intel, expected to arrive around 4.21.
--Chris
+On Wed, Nov 7, 2018 at 4:34 PM, Will Deacon <will.deacon@arm.com> wrote:
+> On Wed, Nov 07, 2018 at 04:11:35PM +0100, Andrey Konovalov wrote:
+>> On Wed, Nov 7, 2018 at 3:59 PM, Will Deacon <will.deacon@arm.com> wrote:
+>> > On Wed, Nov 07, 2018 at 03:56:03PM +0100, Andrey Konovalov wrote:
+>> >> On Tue, Nov 6, 2018 at 6:30 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
+>> >> > This patchset adds a new software tag-based mode to KASAN [1].
+>> >> > (Initially this mode was called KHWASAN, but it got renamed,
+>> >> >  see the naming rationale at the end of this section).
+>> >>
+>> >> [...]
+>> >>
+>> >> > Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+>> >> > Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+>> >> > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+>> >>
+>> >> Hi Andrew,
+>> >>
+>> >> This patchset has now been reviewed-by KASAN maintainers. Could you
+>> >> take a look and consider taking this into the -mm tree?
+>> >
+>> > I would much prefer to take the arm64 parts (which still need to be reviewed
+>> > by Catalin afaict) via the arm64 tree, so please can you split those out
+>> > separately?
+>>
+>> Which parts do you mean exactly, which patches? I don't think it makes
+>> sense to split this patchset, as one part won't function without the
+>> other.
+>
+> I would like the patches that touch code under arch/arm64/ to be reviewed by
+> somebody from the arm64 community. Since the core parts have already been
+> reviewed, I was suggesting that you could split them out so that they are
+> not blocked by the architecture code. Is it not possible to preserve the
+> existing KASAN behaviour for arm64 with the core parts merged? I figured it
+> must be, since you're not touching any other architectures here and they
+> assumedly continue to function correctly.
+>
+> However, if you'd rather keep everything together, please can we give it a
+> couple of weeks so we can at least get the architecture bits reviewed? Most
+> people are out at LPC next week (and I'm at another conference this week).
+>
+> Will
