@@ -1,124 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C9EB16B0637
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 14:13:46 -0500 (EST)
-Received: by mail-it1-f197.google.com with SMTP id d1-v6so2741402itj.8
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 11:13:46 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a139-v6sor7975290ita.32.2018.11.08.11.13.45
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 54AA16B0638
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 14:18:54 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id w5-v6so24732234ioj.3
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 11:18:54 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id i84-v6si3266377iof.34.2018.11.08.11.18.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Nov 2018 11:13:45 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Nov 2018 11:18:52 -0800 (PST)
+Date: Thu, 8 Nov 2018 11:15:53 -0800
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [RFC PATCH v4 01/13] ktask: add documentation
+Message-ID: <20181108191553.nu7yn2akmcql2vje@ca-dmjordan1.us.oracle.com>
+References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
+ <20181105165558.11698-2-daniel.m.jordan@oracle.com>
+ <20181108102638.3415ae0b@lwn.net>
 MIME-Version: 1.0
-In-Reply-To: <20181107205433.3875-2-logang@deltatee.com>
-References: <20181107205433.3875-1-logang@deltatee.com> <20181107205433.3875-2-logang@deltatee.com>
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Date: Thu, 8 Nov 2018 20:13:44 +0100
-Message-ID: <CAKv+Gu9c+img+yqpmG9HD_bOihXLzQ70W+5Wki0FTmx7wYj37w@mail.gmail.com>
-Subject: Re: [PATCH v2 1/2] mm: Introduce common STRUCT_PAGE_MAX_SHIFT define
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181108102638.3415ae0b@lwn.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Logan Gunthorpe <logang@deltatee.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, linux-riscv@lists.infradead.org, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-sh@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Albert Ou <aou@eecs.berkeley.edu>, Arnd Bergmann <arnd@arndb.de>, Catalin Marinas <catalin.marinas@arm.com>, Palmer Dabbelt <palmer@sifive.com>, Stephen Bates <sbates@raithlin.com>, Christoph Hellwig <hch@lst.de>
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-mm@kvack.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, aaron.lu@intel.com, akpm@linux-foundation.org, alex.williamson@redhat.com, bsd@redhat.com, darrick.wong@oracle.com, dave.hansen@linux.intel.com, jgg@mellanox.com, jwadams@google.com, jiangshanlai@gmail.com, mhocko@kernel.org, mike.kravetz@oracle.com, Pavel.Tatashin@microsoft.com, prasad.singamsetty@oracle.com, rdunlap@infradead.org, steven.sistare@oracle.com, tim.c.chen@intel.com, tj@kernel.org, vbabka@suse.cz, peterz@infradead.org, dhaval.giani@oracle.com
 
-On 7 November 2018 at 21:54, Logan Gunthorpe <logang@deltatee.com> wrote:
-> This define is used by arm64 to calculate the size of the vmemmap
-> region. It is defined as the log2 of the upper bound on the size
-> of a struct page.
->
-> We move it into mm_types.h so it can be defined properly instead of
-> set and checked with a build bug. This also allows us to use the same
-> define for riscv.
->
-> Signed-off-by: Logan Gunthorpe <logang@deltatee.com>
-> Acked-by: Will Deacon <will.deacon@arm.com>
-> Acked-by: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Catalin Marinas <catalin.marinas@arm.com>
-> Cc: Arnd Bergmann <arnd@arndb.de>
-> Cc: Christoph Hellwig <hch@lst.de>
+On Thu, Nov 08, 2018 at 10:26:38AM -0700, Jonathan Corbet wrote:
+> On Mon,  5 Nov 2018 11:55:46 -0500
+> Daniel Jordan <daniel.m.jordan@oracle.com> wrote:
+> 
+> > Motivates and explains the ktask API for kernel clients.
+> 
+> A couple of quick thoughts:
+> 
+> - Agree with Peter on the use of "task"; something like "job" would be far
+>   less likely to create confusion.  Maybe you could even call it a "batch
+>   job" to give us old-timers warm fuzzies...:)
 
-Acked-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+smp_job?  Or smp_batch, for that retro flavor?  :)
 
-> ---
->  arch/arm64/include/asm/memory.h | 9 ---------
->  arch/arm64/mm/init.c            | 8 --------
->  include/asm-generic/fixmap.h    | 1 +
->  include/linux/mm_types.h        | 5 +++++
->  4 files changed, 6 insertions(+), 17 deletions(-)
->
-> diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-> index b96442960aea..f0a5c9531e8b 100644
-> --- a/arch/arm64/include/asm/memory.h
-> +++ b/arch/arm64/include/asm/memory.h
-> @@ -34,15 +34,6 @@
->   */
->  #define PCI_IO_SIZE            SZ_16M
->
-> -/*
-> - * Log2 of the upper bound of the size of a struct page. Used for sizing
-> - * the vmemmap region only, does not affect actual memory footprint.
-> - * We don't use sizeof(struct page) directly since taking its size here
-> - * requires its definition to be available at this point in the inclusion
-> - * chain, and it may not be a power of 2 in the first place.
-> - */
-> -#define STRUCT_PAGE_MAX_SHIFT  6
-> -
->  /*
->   * VMEMMAP_SIZE - allows the whole linear region to be covered by
->   *                a struct page array
-> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-> index 9d9582cac6c4..1a3e411a1d08 100644
-> --- a/arch/arm64/mm/init.c
-> +++ b/arch/arm64/mm/init.c
-> @@ -612,14 +612,6 @@ void __init mem_init(void)
->         BUILD_BUG_ON(TASK_SIZE_32                       > TASK_SIZE_64);
->  #endif
->
-> -#ifdef CONFIG_SPARSEMEM_VMEMMAP
-> -       /*
-> -        * Make sure we chose the upper bound of sizeof(struct page)
-> -        * correctly when sizing the VMEMMAP array.
-> -        */
-> -       BUILD_BUG_ON(sizeof(struct page) > (1 << STRUCT_PAGE_MAX_SHIFT));
-> -#endif
-> -
->         if (PAGE_SIZE >= 16384 && get_num_physpages() <= 128) {
->                 extern int sysctl_overcommit_memory;
->                 /*
-> diff --git a/include/asm-generic/fixmap.h b/include/asm-generic/fixmap.h
-> index 827e4d3bbc7a..8cc7b09c1bc7 100644
-> --- a/include/asm-generic/fixmap.h
-> +++ b/include/asm-generic/fixmap.h
-> @@ -16,6 +16,7 @@
->  #define __ASM_GENERIC_FIXMAP_H
->
->  #include <linux/bug.h>
-> +#include <linux/mm_types.h>
->
->  #define __fix_to_virt(x)       (FIXADDR_TOP - ((x) << PAGE_SHIFT))
->  #define __virt_to_fix(x)       ((FIXADDR_TOP - ((x)&PAGE_MASK)) >> PAGE_SHIFT)
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 5ed8f6292a53..2c471a2c43fa 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -206,6 +206,11 @@ struct page {
->  #endif
->  } _struct_page_alignment;
->
-> +/*
-> + * Used for sizing the vmemmap region on some architectures
-> + */
-> +#define STRUCT_PAGE_MAX_SHIFT  (order_base_2(sizeof(struct page)))
-> +
->  #define PAGE_FRAG_CACHE_MAX_SIZE       __ALIGN_MASK(32768, ~PAGE_MASK)
->  #define PAGE_FRAG_CACHE_MAX_ORDER      get_order(PAGE_FRAG_CACHE_MAX_SIZE)
->
-> --
-> 2.19.0
->
->
-> _______________________________________________
-> linux-arm-kernel mailing list
-> linux-arm-kernel@lists.infradead.org
-> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+> 
+> - You have kerneldoc comments for the API functions, but you don't pull
+>   those into the documentation itself.  Adding some kernel-doc directives
+>   could help to fill things out nicely with little effort.
+
+I thought this part of ktask.rst handled that, or am I not doing it right?
+
+    Interface
+    =========
+    
+    .. kernel-doc:: include/linux/ktask.h
+
+Thanks for the comments,
+Daniel
