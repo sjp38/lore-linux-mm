@@ -1,47 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 95E156B0618
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 12:14:56 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id 18-v6so16973168pgn.4
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 09:14:56 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id h188-v6si4945997pfg.129.2018.11.08.09.14.55
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B2106B061A
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 12:25:25 -0500 (EST)
+Received: by mail-io1-f72.google.com with SMTP id r14-v6so23539993ioc.7
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 09:25:25 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v195-v6sor2723643ita.7.2018.11.08.09.25.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Nov 2018 09:14:55 -0800 (PST)
-Subject: Re: pkeys: Reserve PKEY_DISABLE_READ
-References: <877ehnbwqy.fsf@oldenburg.str.redhat.com>
- <2d62c9e2-375b-2791-32ce-fdaa7e7664fd@intel.com>
- <87bm6zaa04.fsf@oldenburg.str.redhat.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <6f9c65fb-ea7e-8217-a4cc-f93e766ed9bb@intel.com>
-Date: Thu, 8 Nov 2018 09:14:54 -0800
+        (Google Transport Security);
+        Thu, 08 Nov 2018 09:25:23 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <87bm6zaa04.fsf@oldenburg.str.redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <trinity-73b7af5e-ab88-495b-932a-2ffd6dd81623-1541697732607@3c-app-mailcom-bs15>
+References: <trinity-7128b38b-7a1d-4584-aa34-174a2906ec88-1541694235634@3c-app-mailcom-bs15>
+ <trinity-73b7af5e-ab88-495b-932a-2ffd6dd81623-1541697732607@3c-app-mailcom-bs15>
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Date: Thu, 8 Nov 2018 18:25:22 +0100
+Message-ID: <CAKv+Gu_1ckSP_O6TdYRL=+dUbWDsogOaU3-nnWMKijtANw8t6Q@mail.gmail.com>
+Subject: Re: BUG: sleeping function called from invalid context at mm/slab.h:421
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: linux-api@vger.kernel.org, linux-mm@kvack.org, linuxram@us.ibm.com
+To: Qian Cai <cai@gmx.us>, Marc Zyngier <marc.zyngier@arm.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-efi <linux-efi@vger.kernel.org>
 
-On 11/8/18 7:01 AM, Florian Weimer wrote:
-> Ideally, PKEY_DISABLE_READ | PKEY_DISABLE_WRITE and PKEY_DISABLE_READ |
-> PKEY_DISABLE_ACCESS would be treated as PKEY_DISABLE_ACCESS both, and a
-> line PKEY_DISABLE_READ would result in an EINVAL failure.
+(+ Marc)
 
-Sounds reasonable to me.
+On 8 November 2018 at 18:22, Qian Cai <cai@gmx.us> wrote:
+> Looks like more of an EFI issue where it called efi_mem_reserve_persistent().
+>
+>> Sent: Thursday, November 08, 2018 at 11:23 AM
+>> From: "Qian Cai" <cai@gmx.us>
+>> To: linux-kernel@vger.kernel.org
+>> Cc: linux-mm@kvack.org
+>> Subject: BUG: sleeping function called from invalid context at mm/slab.h:421
+>>
+>> Just booting up the latest git master (b00d209) on an aarch64 server and saw this.
+>>
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: BUG: sleeping function called from invalid context at mm/slab.h:421
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: in_atomic(): 1, irqs_disabled(): 128, pid: 0, name: swapper/1
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: no locks held by swapper/1/0.
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: irq event stamp: 0
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: hardirqs last  enabled at (0): [<0000000000000000>]           (null)
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: hardirqs last disabled at (0): [<ffff2000080e24ec>] copy_process.isra.32.part.33+0x460/0x1534
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: softirqs last  enabled at (0): [<ffff2000080e24ec>] copy_process.isra.32.part.33+0x460/0x1534
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: softirqs last disabled at (0): [<0000000000000000>]           (null)
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: CPU: 1 PID: 0 Comm: swapper/1 Not tainted 4.20.0-rc1+ #3
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: Call trace:
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: dump_backtrace+0x0/0x190
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: show_stack+0x24/0x2c
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: dump_stack+0xa4/0xe0
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: ___might_sleep+0x208/0x234
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: __might_sleep+0x58/0x8c
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: kmem_cache_alloc_trace+0x29c/0x420
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: efi_mem_reserve_persistent+0x50/0xe8
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: its_cpu_init_lpis+0x298/0x2e0
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: its_cpu_init+0x7c/0x1a8
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: gic_starting_cpu+0x28/0x34
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: cpuhp_invoke_callback+0x104/0xd04
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: notify_cpu_starting+0x60/0xa0
+>> Nov  8 11:06:36 huawei-t2280-03 kernel: secondary_start_kernel+0xcc/0x178
+>>
+>> Any idea?
 
-I don't see any urgency to do this right now.  It could easily go in
-alongside the ppc patches when those get merged.  The only thing I'd
-suggest is that we make it something slightly higher than 0x4.  It'll
-make the code easier to deal with in the kernel if we have the ABI and
-the hardware mirror each other, and if we pick 0x4 in the ABI for
-PKEY_DISABLE_READ, it might get messy if the harware choose 0x4 for
-PKEY_DISABLE_EXECUTE or something.
+OK, so apparently, we are being invoked from atomic context
 
-So, let's make it 0x80 or something on x86 at least.
+Please try this
 
-Also, I'll be happy to review and ack the patch to do this, but I'd
-expect the ppc guys (hi Ram!) to actually put it together.
+diff --git a/drivers/firmware/efi/efi.c b/drivers/firmware/efi/efi.c
+index 249eb70691b0..44ed6792de7c 100644
+--- a/drivers/firmware/efi/efi.c
++++ b/drivers/firmware/efi/efi.c
+@@ -971,7 +971,7 @@ int efi_mem_reserve_persistent(phys_addr_t addr, u64 size)
+        if (efi.mem_reserve == EFI_INVALID_TABLE_ADDR)
+                return -ENODEV;
+
+-       rsv = kmalloc(sizeof(*rsv), GFP_KERNEL);
++       rsv = kmalloc(sizeof(*rsv), GFP_ATOMIC);
+        if (!rsv)
+                return -ENOMEM;
