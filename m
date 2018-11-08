@@ -1,45 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B92066B0672
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 17:18:08 -0500 (EST)
-Received: by mail-lj1-f198.google.com with SMTP id p65-v6so6463306ljb.16
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 14:18:08 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y206sor1586630lfa.42.2018.11.08.14.18.06
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8254D6B0674
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 17:23:16 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id j9-v6so19223122pfn.20
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 14:23:16 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id y15si4699687pgf.321.2018.11.08.14.23.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Nov 2018 14:18:06 -0800 (PST)
-Date: Fri, 9 Nov 2018 01:18:04 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH v5 04/27] x86/fpu/xstate: Add XSAVES system states for
- shadow stack
-Message-ID: <20181108221804.GE13195@uranus.lan>
-References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
- <20181011151523.27101-5-yu-cheng.yu@intel.com>
- <CALCETrVAe8R=crVHoD5QmbN-gAW+V-Rwkwe4kQP7V7zQm9TM=Q@mail.gmail.com>
- <4295b8f786c10c469870a6d9725749ce75dcdaa2.camel@intel.com>
- <CALCETrUKzXYzRrWRdi8Z7AdAF0uZW5Gs7J4s=55dszoyzc29rw@mail.gmail.com>
- <20181108213126.GD13195@uranus.lan>
- <CALCETrXNt6nEMu9bbK7GizoeC+rphi8ZK0dDsHiVgOCQj1eQEA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrXNt6nEMu9bbK7GizoeC+rphi8ZK0dDsHiVgOCQj1eQEA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Nov 2018 14:23:15 -0800 (PST)
+Date: Thu, 8 Nov 2018 14:23:12 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] z3fold: fix wrong handling of headless pages
+Message-Id: <20181108142312.f5efdc72ca0d64dc80046c92@linux-foundation.org>
+In-Reply-To: <20181108134540.12756-1-ks77sj@gmail.com>
+References: <CAMJBoFP3C5NffHf2bPaY-W2qXPLs6z+Ker+Z+Sq_3MHV5xekHQ@mail.gmail.com>
+	<20181108134540.12756-1-ks77sj@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>
+To: Jongseok Kim <ks77sj@gmail.com>
+Cc: Vitaly Wool <vitalywool@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Nov 08, 2018 at 02:01:42PM -0800, Andy Lutomirski wrote:
-> > >
-> > > They both seem like bugs, perhaps.  As I understand it, __packed
-> > > removes padding, but it also forces the compiler to expect the fields
-> > > to be unaligned even if they are actually aligned.
-> >
-> > How is that? Andy, mind to point where you get that this
-> > attribute forces compiler to make such assumption?
-> 
-> It's from memory.  But gcc seems to agree with me I compiled this:
-> 
+On Thu,  8 Nov 2018 22:45:40 +0900 Jongseok Kim <ks77sj@gmail.com> wrote:
 
-Indeed, thanks!
+> Yes, you are right.
+> I think that's the best way to deal it.
+> Thank you.
+
+
+I did this:
+
+Link: http://lkml.kernel.org/r/20181105162225.74e8837d03583a9b707cf559@gmail.com
+Signed-off-by: Vitaly Wool <vitaly.vul@sony.com>
+Signed-off-by: Jongseok Kim <ks77sj@gmail.com>
+Reported-by-by: Jongseok Kim <ks77sj@gmail.com>
+Reviewed-by: Snild Dolkow <snild@sony.com>
