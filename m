@@ -1,52 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 92BDA6B061B
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 12:26:04 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id 94-v6so18054765pla.5
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 09:26:04 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id i5-v6si3950201pgg.559.2018.11.08.09.26.03
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B48436B061D
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 12:26:41 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id g76-v6so4395683pfe.13
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 09:26:41 -0800 (PST)
+Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
+        by mx.google.com with ESMTPS id w187si4143631pgb.552.2018.11.08.09.26.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Nov 2018 09:26:03 -0800 (PST)
-Date: Thu, 8 Nov 2018 12:25:57 -0500
-From: Sasha Levin <sashal@kernel.org>
-Subject: Re: stable request: mm: mlock: avoid increase mm->locked_vm on
- mlock() when already mlock2(,MLOCK_ONFAULT)
-Message-ID: <20181108172557.GE8097@sasha-vm>
-References: <CABdQkv_qGi7x4mQjH_mwGGnJs9F85CETOv9HLv=xvQVSPL_N3Q@mail.gmail.com>
+        Thu, 08 Nov 2018 09:26:40 -0800 (PST)
+Date: Thu, 8 Nov 2018 10:26:38 -0700
+From: Jonathan Corbet <corbet@lwn.net>
+Subject: Re: [RFC PATCH v4 01/13] ktask: add documentation
+Message-ID: <20181108102638.3415ae0b@lwn.net>
+In-Reply-To: <20181105165558.11698-2-daniel.m.jordan@oracle.com>
+References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
+	<20181105165558.11698-2-daniel.m.jordan@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <CABdQkv_qGi7x4mQjH_mwGGnJs9F85CETOv9HLv=xvQVSPL_N3Q@mail.gmail.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael David Tinoco <rafael.tinoco@linaro.org>, linux-mm@kvack.org
-Cc: gregkh@linuxfoundation.org, stable@vger.kernel.org, kirill.shutemov@linux.intel.com, wei.guo.simon@gmail.com, akpm@linux-foundation.org
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: linux-mm@kvack.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, aaron.lu@intel.com, akpm@linux-foundation.org, alex.williamson@redhat.com, bsd@redhat.com, darrick.wong@oracle.com, dave.hansen@linux.intel.com, jgg@mellanox.com, jwadams@google.com, jiangshanlai@gmail.com, mhocko@kernel.org, mike.kravetz@oracle.com, Pavel.Tatashin@microsoft.com, prasad.singamsetty@oracle.com, rdunlap@infradead.org, steven.sistare@oracle.com, tim.c.chen@intel.com, tj@kernel.org, vbabka@suse.cz
 
-+ linux-mm@
+On Mon,  5 Nov 2018 11:55:46 -0500
+Daniel Jordan <daniel.m.jordan@oracle.com> wrote:
 
-This is actually upstream commit
-b155b4fde5bdde9fed439cd1f5ea07173df2ed31.
+> Motivates and explains the ktask API for kernel clients.
 
-On Thu, Nov 08, 2018 at 08:07:35AM -0200, Rafael David Tinoco wrote:
->Hello Greg,
->
->Could you please consider backporting to v4.4 the following commit:
->
->commit b5b5b6fe643391209b08528bef410e0cf299b826
->Author: Simon Guo <wei.guo.simon@gmail.com>
->Date:   Fri Oct 7 20:59:40 2016
->
->    mm: mlock: avoid increase mm->locked_vm on mlock() when already
->mlock2(,MLOCK_ONFAULT)
->
->It seems to be a trivial fix for:
->
->https://bugs.linaro.org/show_bug.cgi?id=4043
->(mlock203.c LTP test failing on v4.4)
->
->Thanks in advance,
->--
->Rafael D. Tinoco
->Linaro Kernel Validation Team
+A couple of quick thoughts:
+
+- Agree with Peter on the use of "task"; something like "job" would be far
+  less likely to create confusion.  Maybe you could even call it a "batch
+  job" to give us old-timers warm fuzzies...:)
+
+- You have kerneldoc comments for the API functions, but you don't pull
+  those into the documentation itself.  Adding some kernel-doc directives
+  could help to fill things out nicely with little effort.
+
+Thanks,
+
+jon
