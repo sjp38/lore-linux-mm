@@ -1,80 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B2106B061A
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 12:25:25 -0500 (EST)
-Received: by mail-io1-f72.google.com with SMTP id r14-v6so23539993ioc.7
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 09:25:25 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v195-v6sor2723643ita.7.2018.11.08.09.25.23
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 92BDA6B061B
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 12:26:04 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id 94-v6so18054765pla.5
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 09:26:04 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id i5-v6si3950201pgg.559.2018.11.08.09.26.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Nov 2018 09:25:23 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Nov 2018 09:26:03 -0800 (PST)
+Date: Thu, 8 Nov 2018 12:25:57 -0500
+From: Sasha Levin <sashal@kernel.org>
+Subject: Re: stable request: mm: mlock: avoid increase mm->locked_vm on
+ mlock() when already mlock2(,MLOCK_ONFAULT)
+Message-ID: <20181108172557.GE8097@sasha-vm>
+References: <CABdQkv_qGi7x4mQjH_mwGGnJs9F85CETOv9HLv=xvQVSPL_N3Q@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <trinity-73b7af5e-ab88-495b-932a-2ffd6dd81623-1541697732607@3c-app-mailcom-bs15>
-References: <trinity-7128b38b-7a1d-4584-aa34-174a2906ec88-1541694235634@3c-app-mailcom-bs15>
- <trinity-73b7af5e-ab88-495b-932a-2ffd6dd81623-1541697732607@3c-app-mailcom-bs15>
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Date: Thu, 8 Nov 2018 18:25:22 +0100
-Message-ID: <CAKv+Gu_1ckSP_O6TdYRL=+dUbWDsogOaU3-nnWMKijtANw8t6Q@mail.gmail.com>
-Subject: Re: BUG: sleeping function called from invalid context at mm/slab.h:421
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <CABdQkv_qGi7x4mQjH_mwGGnJs9F85CETOv9HLv=xvQVSPL_N3Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Qian Cai <cai@gmx.us>, Marc Zyngier <marc.zyngier@arm.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-efi <linux-efi@vger.kernel.org>
+To: Rafael David Tinoco <rafael.tinoco@linaro.org>, linux-mm@kvack.org
+Cc: gregkh@linuxfoundation.org, stable@vger.kernel.org, kirill.shutemov@linux.intel.com, wei.guo.simon@gmail.com, akpm@linux-foundation.org
 
-(+ Marc)
++ linux-mm@
 
-On 8 November 2018 at 18:22, Qian Cai <cai@gmx.us> wrote:
-> Looks like more of an EFI issue where it called efi_mem_reserve_persistent().
+This is actually upstream commit
+b155b4fde5bdde9fed439cd1f5ea07173df2ed31.
+
+On Thu, Nov 08, 2018 at 08:07:35AM -0200, Rafael David Tinoco wrote:
+>Hello Greg,
 >
->> Sent: Thursday, November 08, 2018 at 11:23 AM
->> From: "Qian Cai" <cai@gmx.us>
->> To: linux-kernel@vger.kernel.org
->> Cc: linux-mm@kvack.org
->> Subject: BUG: sleeping function called from invalid context at mm/slab.h:421
->>
->> Just booting up the latest git master (b00d209) on an aarch64 server and saw this.
->>
->> Nov  8 11:06:36 huawei-t2280-03 kernel: BUG: sleeping function called from invalid context at mm/slab.h:421
->> Nov  8 11:06:36 huawei-t2280-03 kernel: in_atomic(): 1, irqs_disabled(): 128, pid: 0, name: swapper/1
->> Nov  8 11:06:36 huawei-t2280-03 kernel: no locks held by swapper/1/0.
->> Nov  8 11:06:36 huawei-t2280-03 kernel: irq event stamp: 0
->> Nov  8 11:06:36 huawei-t2280-03 kernel: hardirqs last  enabled at (0): [<0000000000000000>]           (null)
->> Nov  8 11:06:36 huawei-t2280-03 kernel: hardirqs last disabled at (0): [<ffff2000080e24ec>] copy_process.isra.32.part.33+0x460/0x1534
->> Nov  8 11:06:36 huawei-t2280-03 kernel: softirqs last  enabled at (0): [<ffff2000080e24ec>] copy_process.isra.32.part.33+0x460/0x1534
->> Nov  8 11:06:36 huawei-t2280-03 kernel: softirqs last disabled at (0): [<0000000000000000>]           (null)
->> Nov  8 11:06:36 huawei-t2280-03 kernel: CPU: 1 PID: 0 Comm: swapper/1 Not tainted 4.20.0-rc1+ #3
->> Nov  8 11:06:36 huawei-t2280-03 kernel: Call trace:
->> Nov  8 11:06:36 huawei-t2280-03 kernel: dump_backtrace+0x0/0x190
->> Nov  8 11:06:36 huawei-t2280-03 kernel: show_stack+0x24/0x2c
->> Nov  8 11:06:36 huawei-t2280-03 kernel: dump_stack+0xa4/0xe0
->> Nov  8 11:06:36 huawei-t2280-03 kernel: ___might_sleep+0x208/0x234
->> Nov  8 11:06:36 huawei-t2280-03 kernel: __might_sleep+0x58/0x8c
->> Nov  8 11:06:36 huawei-t2280-03 kernel: kmem_cache_alloc_trace+0x29c/0x420
->> Nov  8 11:06:36 huawei-t2280-03 kernel: efi_mem_reserve_persistent+0x50/0xe8
->> Nov  8 11:06:36 huawei-t2280-03 kernel: its_cpu_init_lpis+0x298/0x2e0
->> Nov  8 11:06:36 huawei-t2280-03 kernel: its_cpu_init+0x7c/0x1a8
->> Nov  8 11:06:36 huawei-t2280-03 kernel: gic_starting_cpu+0x28/0x34
->> Nov  8 11:06:36 huawei-t2280-03 kernel: cpuhp_invoke_callback+0x104/0xd04
->> Nov  8 11:06:36 huawei-t2280-03 kernel: notify_cpu_starting+0x60/0xa0
->> Nov  8 11:06:36 huawei-t2280-03 kernel: secondary_start_kernel+0xcc/0x178
->>
->> Any idea?
-
-OK, so apparently, we are being invoked from atomic context
-
-Please try this
-
-diff --git a/drivers/firmware/efi/efi.c b/drivers/firmware/efi/efi.c
-index 249eb70691b0..44ed6792de7c 100644
---- a/drivers/firmware/efi/efi.c
-+++ b/drivers/firmware/efi/efi.c
-@@ -971,7 +971,7 @@ int efi_mem_reserve_persistent(phys_addr_t addr, u64 size)
-        if (efi.mem_reserve == EFI_INVALID_TABLE_ADDR)
-                return -ENODEV;
-
--       rsv = kmalloc(sizeof(*rsv), GFP_KERNEL);
-+       rsv = kmalloc(sizeof(*rsv), GFP_ATOMIC);
-        if (!rsv)
-                return -ENOMEM;
+>Could you please consider backporting to v4.4 the following commit:
+>
+>commit b5b5b6fe643391209b08528bef410e0cf299b826
+>Author: Simon Guo <wei.guo.simon@gmail.com>
+>Date:   Fri Oct 7 20:59:40 2016
+>
+>    mm: mlock: avoid increase mm->locked_vm on mlock() when already
+>mlock2(,MLOCK_ONFAULT)
+>
+>It seems to be a trivial fix for:
+>
+>https://bugs.linaro.org/show_bug.cgi?id=4043
+>(mlock203.c LTP test failing on v4.4)
+>
+>Thanks in advance,
+>--
+>Rafael D. Tinoco
+>Linaro Kernel Validation Team
