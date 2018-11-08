@@ -1,96 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D09956B05ED
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 07:22:39 -0500 (EST)
-Received: by mail-oi1-f197.google.com with SMTP id h135-v6so2836226oic.2
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 04:22:39 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 11-v6si1592890oiy.195.2018.11.08.04.22.37
-        for <linux-mm@kvack.org>;
-        Thu, 08 Nov 2018 04:22:38 -0800 (PST)
-Date: Thu, 8 Nov 2018 12:22:29 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH v10 12/22] kasan, arm64: fix up fault handling logic
-Message-ID: <20181108122228.xqwhpkjritrvqneq@lakrids.cambridge.arm.com>
-References: <cover.1541525354.git.andreyknvl@google.com>
- <4891a504adf61c0daf1e83642b6f7519328dfd5f.1541525354.git.andreyknvl@google.com>
+Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E5436B05EF
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 07:26:46 -0500 (EST)
+Received: by mail-lf1-f72.google.com with SMTP id z10so2523107lfe.21
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 04:26:45 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 96-v6sor2400270lja.27.2018.11.08.04.26.43
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 08 Nov 2018 04:26:43 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4891a504adf61c0daf1e83642b6f7519328dfd5f.1541525354.git.andreyknvl@google.com>
+References: <1530853846-30215-1-git-send-email-ks77sj@gmail.com> <CAMJBoFPGZ_pYFQTXb06U4QxM1ibUhmdxr6efwZigXdUo=4S=Vw@mail.gmail.com>
+In-Reply-To: <CAMJBoFPGZ_pYFQTXb06U4QxM1ibUhmdxr6efwZigXdUo=4S=Vw@mail.gmail.com>
+From: =?UTF-8?B?6rmA7KKF7ISd?= <ks77sj@gmail.com>
+Date: Thu, 8 Nov 2018 21:26:33 +0900
+Message-ID: <CALbL15baEnAXpsatY-LfA=V0_cHeiDHurke0DwpMUBmCedUQbA@mail.gmail.com>
+Subject: Re: [PATCH] z3fold: fix wrong handling of headless pages
+Content-Type: multipart/alternative; boundary="000000000000f1ffdf057a26581c"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Nov 06, 2018 at 06:30:27PM +0100, Andrey Konovalov wrote:
-> show_pte in arm64 fault handling relies on the fact that the top byte of
-> a kernel pointer is 0xff, which isn't always the case with tag-based
-> KASAN.
+--000000000000f1ffdf057a26581c
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-That's for the TTBR1 check, right?
+Hi Vitaly,
+thank you for the reply.
 
-i.e. for the following to work:
+I agree your a new solution is more comprehensive and drop my patch is
+simple way.
+But, I think it's not fair.
+If my previous patch was not wrong, is (my patch -> your patch) the right
+way?
 
-	if (addr >= VA_START)
+Best regards,
+Jongseok
 
-... we need the tag bits to be an extension of bit 55...
+> 2018=EB=85=84 11=EC=9B=94 6=EC=9D=BC (=ED=99=94) =EC=98=A4=ED=9B=84 4:48,=
+ Vitaly Wool <vitalywool@gmail.com>=EB=8B=98=EC=9D=B4 =EC=9E=91=EC=84=B1:
+> Hi Jongseok,
 
-> 
-> This patch resets the top byte in show_pte.
-> 
-> Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> ---
->  arch/arm64/mm/fault.c | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-> index 7d9571f4ae3d..d9a84d6f3343 100644
-> --- a/arch/arm64/mm/fault.c
-> +++ b/arch/arm64/mm/fault.c
-> @@ -32,6 +32,7 @@
->  #include <linux/perf_event.h>
->  #include <linux/preempt.h>
->  #include <linux/hugetlb.h>
-> +#include <linux/kasan.h>
->  
->  #include <asm/bug.h>
->  #include <asm/cmpxchg.h>
-> @@ -141,6 +142,8 @@ void show_pte(unsigned long addr)
->  	pgd_t *pgdp;
->  	pgd_t pgd;
->  
-> +	addr = (unsigned long)kasan_reset_tag((void *)addr);
+> thank you for your work, we've now got a more comprehensive solution:
+> https://lkml.org/lkml/2018/11/5/726
 
-... but this ORs in (0xffUL << 56), which is not correct for addresses
-which aren't TTBR1 addresses to begin with, where bit 55 is clear, and
-throws away useful information.
+> Would you please confirm that it works for you? Also, would you be
+>okay with dropping your patch in favor of the new one?
 
-We could use untagged_addr() here, but that wouldn't be right for
-kernels which don't use TBI1, and we'd erroneously report addresses
-under the TTBR1 range as being in the TTBR1 range.
+> ~Vitaly
 
-I also see that the entry assembly for el{1,0}_{da,ia} clears the tag
-for EL0 addresses.
+--000000000000f1ffdf057a26581c
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-So we could have:
+<div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div>Hi=
+ Vitaly,</div><div dir=3D"ltr">thank you for the reply.<br></div><div dir=
+=3D"ltr"><br></div>I agree your a new solution is more comprehensive and dr=
+op my patch is simple way.<div>But, I think it&#39;s not fair.</div><div>If=
+ my previous patch was not wrong, is (my patch -&gt; your patch) the right =
+way?</div><div><br></div><div>Best regards,</div><div>Jongseok</div><div><d=
+iv><br><div class=3D"gmail_quote"><div dir=3D"ltr">&gt; 2018=EB=85=84 11=EC=
+=9B=94 6=EC=9D=BC (=ED=99=94) =EC=98=A4=ED=9B=84 4:48, Vitaly Wool &lt;<a h=
+ref=3D"mailto:vitalywool@gmail.com">vitalywool@gmail.com</a>&gt;=EB=8B=98=
+=EC=9D=B4 =EC=9E=91=EC=84=B1:<br></div><div dir=3D"ltr">&gt; Hi Jongseok,<b=
+r><br>&gt; thank you for your work, we&#39;ve now got a more comprehensive =
+solution:<br>&gt;=C2=A0<a href=3D"https://lkml.org/lkml/2018/11/5/726" rel=
+=3D"noreferrer" target=3D"_blank">https://lkml.org/lkml/2018/11/5/726</a><b=
+r><br>&gt; Would you please confirm that it works for you? Also, would you =
+be<br>&gt;okay with dropping your patch in favor of the new one?<br><br>&gt=
+; ~Vitaly<br></div></div></div></div></div></div></div></div>
 
-static inline bool is_ttbr0_addr(unsigned long addr)
-{
-	/* entry assembly clears tags for TTBR0 addrs */
-	return addr < TASK_SIZE_64;
-}
-
-static inline bool is_ttbr1_addr(unsigned long addr)
-{
-	/* TTBR1 addresses may have a tag if HWKASAN is in use */
-	return arch_kasan_reset_tag(addr) >= VA_START;
-}
-
-... and use those in the conditionals, leaving the addr as-is for
-reporting purposes.
-
-Thanks,
-Mark.
+--000000000000f1ffdf057a26581c--
