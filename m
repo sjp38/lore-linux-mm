@@ -1,67 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0886F6B05BF
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 04:41:50 -0500 (EST)
-Received: by mail-yb1-f200.google.com with SMTP id w13-v6so12850133ybm.11
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 01:41:50 -0800 (PST)
-Received: from mx0a-00191d01.pphosted.com (mx0a-00191d01.pphosted.com. [67.231.149.140])
-        by mx.google.com with ESMTPS id e83-v6si2047489ywb.274.2018.11.08.01.41.48
+Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 394ED6B05C1
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 04:46:35 -0500 (EST)
+Received: by mail-vs1-f72.google.com with SMTP id x2so6223569vsc.6
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 01:46:35 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 88sor1931156uaw.67.2018.11.08.01.46.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Nov 2018 01:41:49 -0800 (PST)
-Reply-To: mmanning@vyatta.att-mail.com
-Subject: Re: stable request: mm, page_alloc: actually ignore mempolicies for
- high priority allocations
-References: <a66fb268-74fe-6f4e-a99f-3257b8a5ac3b@vyatta.att-mail.com>
- <08ae2e51-672a-37de-2aa6-4e49dbc9de02@suse.cz>
- <fa553398-f4bf-3d57-376b-94593fb2c127@vyatta.att-mail.com>
- <20181108090154.GJ2453@dhcp22.suse.cz>
- <4ad07955-05d5-80ea-ebf1-876b0dc6347a@suse.cz>
-From: Mike Manning <mmanning@vyatta.att-mail.com>
-Message-ID: <7300a8a8-588a-2182-f11f-280cbce36fca@vyatta.att-mail.com>
-Date: Thu, 8 Nov 2018 09:41:37 +0000
+        (Google Transport Security);
+        Thu, 08 Nov 2018 01:46:34 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <4ad07955-05d5-80ea-ebf1-876b0dc6347a@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+References: <CAOuPNLjuM5qq3go9ZFZcK0G5pQxTQb0DY36xu+8SL4vC4zJntw@mail.gmail.com>
+ <40880.1541434328@turing-police.cc.vt.edu>
+In-Reply-To: <40880.1541434328@turing-police.cc.vt.edu>
+From: Pintu Agarwal <pintu.ping@gmail.com>
+Date: Thu, 8 Nov 2018 15:16:22 +0530
+Message-ID: <CAOuPNLiHowVGDdLi=FwAVZRRsO=NnLk4=PnTqYAXF97G1QrkRQ@mail.gmail.com>
+Subject: Re: Creating compressed backing_store as swapfile
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
-Cc: stable@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
+To: Valdis Kletnieks <valdis.kletnieks@vt.edu>
+Cc: linux-mm@kvack.org, open list <linux-kernel@vger.kernel.org>, kernelnewbies@kernelnewbies.org
 
-On 08/11/2018 09:06, Vlastimil Babka wrote:
-> On 11/8/18 10:01 AM, Michal Hocko wrote:
->> On Thu 08-11-18 08:30:40, Mike Manning wrote:
->> [...]
->>> 1) The original commit was not suitable for backport to 4.14 and should
->>> be reverted.
->> Yes, the original patch hasn't been marked for the stable tree and as
->> such shouldn't have been backported. Even though it looks simple enough
->> it is not really trivial.
-> I think you confused the two patches.
+On Mon, Nov 5, 2018 at 9:42 PM <valdis.kletnieks@vt.edu> wrote:
 >
-> Original commit 1d26c112959f ("mm, page_alloc: do not break
-> __GFP_THISNODE by zonelist reset") was marked for stable, especially
-> pre-4.7 where SLAB could be potentially broken.
+> On Mon, 05 Nov 2018 20:31:46 +0530, Pintu Agarwal said:
+> > I wanted to have a swapfile (64MB to 256MB) on my system.
+> > But I wanted the data to be compressed and stored on the disk in my swapfile.
+> > [Similar to zram, but compressed data should be moved to disk, instead of RAM].
 >
-> Commit d6a24df00638 ("mm, page_alloc: actually ignore mempolicies for
-> high priority allocations") was not marked stable and is being requested
-> in this thread. But I'm reluctant to agree with this without properly
-> understanding what went wrong.
+> What platform are you on that you're both storage constrained enough to need
+> swap, and also so short on disk space that compressing it makes sense?
+> Understanding the hardware constraints here would help in advising you.
+>
 
-Apologies, the original commit was not a backport, but is a fix in 4.14
-for pre-4.7 kernels.
+Currently, I am using the minimal platform such as busybox for arm
+(kind of a ubuntu based debian platform).
+Also I am trying to do this on an arm based embedded board with 8 GB
+MMC card and 1 GB RAM.
+And I am using the ext4 filesystem with Linux Kernel version 4.9.x.
+So, with 8 GB SD card I have 2 GB left on the storage space. Out of
+which 64MB - 128MB would be used for swapfile.
+However, note that this is not the final end product requirement.
+I am just trying to demonstrate a prototype and use cases.
+Performance requirement is not that strict right now, as I don't know
+the end product. However, the system requirement is as minimal as
+this.
 
-All I can do from a user perspective is report the problem and the
-fortuitous follow-on commit that resolved the issue in our case. It has
-already taken quite some time to find that the problem was unexpectedly
-due to the kernel upgrade (this failure is a first, we have been running
-these tests for some years going back to the 4.1 kernel), then to go
-through the process of pinpointing the change that caused the issue in
-our case.
+The main requirement is, creating a RAM snapshot image, then
+compressing some of its data and moving to swapfile, so that snapshot
+image size can be reduced.
+I guess, ZRAM is not useful here, so I thought to explore some other
+option such as zswap, etc. ?
+BTRFS is not an option, though, as we use ext4 and vfat filesystem (only).
 
-Given that the problem is not manually reproducible, and given that it
-could take a very substantial period of time to understand how the
-change is impacting our scale & performance testing, it seems most
-expedient to backport the 1-line commit that resolves the issue.
+> > Note: I wanted to optimize RAM space, so performance is not important
+> > right now for our requirement.
+> >
+> > So, what are the options available, to perform this in 4.x kernel version.
+> > My Kernel: 4.9.x
+>
+> Given that this is a greenfield development, why are you picking a kernel
+> that's 2 years out of date?  You *do* realize that 4.9.135 does *not* contain
+> all the bugfixes since then, only that relatively small subset that qualify for
+> 'stable' (see Documentation/process/stable-kernel-rules.rst for the gory
+> details).
+>
+Yes, we want to stick to 4.9 right now, as the end product might be
+based on this version.
+However, if higher kernel version have some fixes or good features, we
+can back port it.
+
+> One possible total hack would be to simply use a file-based swap area,
+> but put the file on a filesystem that supports automatic inline compression.
+>
+I know, squashfs is a compressed filesystem, but it is read-only. So
+its ruled out.
+
+> Note that this will probably *totally* suck on performance, because there's
+> no good way to find where 4K block 11,493 starts inside the compressed
+> file, so it would have to read/decompress from the file beginning.  Also,
+> if you write data to a previously unused location (or even a previously used
+> spot that compressed the 4K page to a different length), you have a bad time
+> inserting it.  (Note that zram can avoid most of this because it can (a) keep
+> a table of pointers to where each page starts and (b) it isn't constrained to
+> writing to 4K blocks on disk, so if the current compression takes a 4K page down
+> to 1,283 bytes, it doesn't have to care *too* much if it stores that someplace
+> that crosses a page boundary.
+>
+> Another thing that you will need to worry about is what happens in low-memory
+> situations - the time you *most* need to do a swap operation, you may not have
+> enough memory to do the I/O.  zram basically makes sure it *has* the memory
+> needed beforehand, and swap directly to pre-allocated disk doesn't need much
+> additional memory.
+Swap storage requirement would be mostly between 64MB to 256MB (pre-configured).
+Yes it can be something similar on ZRAM line, may be zram + zswap ?
+Not sure if this right combination ?
