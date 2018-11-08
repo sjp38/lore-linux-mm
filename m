@@ -1,129 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E15016B058A
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 23:16:18 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id x5-v6so7393641pfn.22
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 20:16:18 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C53906B058C
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2018 23:45:16 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id d11-v6so254823plo.17
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 20:45:16 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v9-v6sor3198090pgr.13.2018.11.07.20.16.17
+        by mx.google.com with SMTPS id q14-v6sor3215710pgv.63.2018.11.07.20.45.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 07 Nov 2018 20:16:17 -0800 (PST)
-From: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-Subject: [PATCH v3 resend 2/2] selftests/memfd: Add tests for F_SEAL_FUTURE_WRITE seal
-Date: Wed,  7 Nov 2018 20:15:37 -0800
-Message-Id: <20181108041537.39694-2-joel@joelfernandes.org>
-In-Reply-To: <20181108041537.39694-1-joel@joelfernandes.org>
-References: <20181108041537.39694-1-joel@joelfernandes.org>
+        Wed, 07 Nov 2018 20:45:15 -0800 (PST)
+Date: Thu, 8 Nov 2018 13:45:10 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH 3/3] lockdep: Use line-buffered printk() for lockdep
+ messages.
+Message-ID: <20181108044510.GC2343@jagdpanzerIV>
+References: <1541165517-3557-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <1541165517-3557-3-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20181107151900.gxmdvx42qeanpoah@pathway.suse.cz>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181107151900.gxmdvx42qeanpoah@pathway.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: "Joel Fernandes (Google)" <joel@joelfernandes.org>, dancol@google.com, minchan@kernel.org, John Stultz <john.stultz@linaro.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, gregkh@linuxfoundation.org, hch@infradead.org, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@kernel.org>, jreck@google.com, Khalid Aziz <khalid.aziz@oracle.com>, Lei Yang <Lei.Yang@windriver.com>, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-mm@kvack.org, =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Shuah Khan <shuah@kernel.org>, tkjos@google.com, valdis.kletnieks@vt.edu
+To: Petr Mladek <pmladek@suse.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dmitriy Vyukov <dvyukov@google.com>, Steven Rostedt <rostedt@goodmis.org>, Alexander Potapenko <glider@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>
 
-Add tests to verify sealing memfds with the F_SEAL_FUTURE_WRITE works as
-expected.
+On (11/07/18 16:19), Petr Mladek wrote:
+> > syzbot is sometimes getting mixed output like below due to concurrent
+> > printk(). Mitigate such output by using line-buffered printk() API.
+> > 
+> > @@ -2421,18 +2458,20 @@ static void check_chain_key(struct task_struct *curr)
+> >  print_usage_bug_scenario(struct held_lock *lock)
+> >  {
+> >  	struct lock_class *class = hlock_class(lock);
+> > +	struct printk_buffer *buf = get_printk_buffer();
+> >  
+> >  	printk(" Possible unsafe locking scenario:\n\n");
+> >  	printk("       CPU0\n");
+> >  	printk("       ----\n");
+> > -	printk("  lock(");
+> > -	__print_lock_name(class);
+> > -	printk(KERN_CONT ");\n");
+> > +	printk_buffered(buf, "  lock(");
+> > +	__print_lock_name(class, buf);
+> > +	printk_buffered(buf, ");\n");
+> >  	printk("  <Interrupt>\n");
+> > -	printk("    lock(");
+> > -	__print_lock_name(class);
+> > -	printk(KERN_CONT ");\n");
+> > +	printk_buffered(buf, "    lock(");
+> > +	__print_lock_name(class, buf);
+> > +	printk_buffered(buf, ");\n");
+> >  	printk("\n *** DEADLOCK ***\n\n");
+> > +	put_printk_buffer(buf);
+> >  }
+> >  
+> >  static int
+> 
+> I really hope that the maze of pr_cont() calls in lockdep.c is the most
+> complicated one that we would meet.
 
-Cc: dancol@google.com
-Cc: minchan@kernel.org
-Reviewed-by: John Stultz <john.stultz@linaro.org>
-Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
----
- tools/testing/selftests/memfd/memfd_test.c | 74 ++++++++++++++++++++++
- 1 file changed, 74 insertions(+)
+Hmm... Yes, buffered/seq_buf printk looks like a hard-to-use API,
+when it comes to real world cases like this.
 
-diff --git a/tools/testing/selftests/memfd/memfd_test.c b/tools/testing/selftests/memfd/memfd_test.c
-index 10baa1652fc2..32b207ca7372 100644
---- a/tools/testing/selftests/memfd/memfd_test.c
-+++ b/tools/testing/selftests/memfd/memfd_test.c
-@@ -692,6 +692,79 @@ static void test_seal_write(void)
- 	close(fd);
- }
- 
-+/*
-+ * Test SEAL_FUTURE_WRITE
-+ * Test whether SEAL_FUTURE_WRITE actually prevents modifications.
-+ */
-+static void test_seal_future_write(void)
-+{
-+	int fd;
-+	void *p;
-+
-+	printf("%s SEAL-FUTURE-WRITE\n", memfd_str);
-+
-+	fd = mfd_assert_new("kern_memfd_seal_future_write",
-+			    mfd_def_size,
-+			    MFD_CLOEXEC | MFD_ALLOW_SEALING);
-+
-+	p = mfd_assert_mmap_shared(fd);
-+
-+	mfd_assert_has_seals(fd, 0);
-+	/* Not adding grow/shrink seals makes the future write
-+	 * seal fail to get added
-+	 */
-+	mfd_fail_add_seals(fd, F_SEAL_FUTURE_WRITE);
-+
-+	mfd_assert_add_seals(fd, F_SEAL_GROW);
-+	mfd_assert_has_seals(fd, F_SEAL_GROW);
-+
-+	/* Should still fail since shrink seal has
-+	 * not yet been added
-+	 */
-+	mfd_fail_add_seals(fd, F_SEAL_FUTURE_WRITE);
-+
-+	mfd_assert_add_seals(fd, F_SEAL_SHRINK);
-+	mfd_assert_has_seals(fd, F_SEAL_GROW |
-+				 F_SEAL_SHRINK);
-+
-+	/* Now should succeed, also verifies that the seal
-+	 * could be added with an existing writable mmap
-+	 */
-+	mfd_assert_add_seals(fd, F_SEAL_FUTURE_WRITE);
-+	mfd_assert_has_seals(fd, F_SEAL_SHRINK |
-+				 F_SEAL_GROW |
-+				 F_SEAL_FUTURE_WRITE);
-+
-+	/* read should pass, writes should fail */
-+	mfd_assert_read(fd);
-+	mfd_fail_write(fd);
-+
-+	munmap(p, mfd_def_size);
-+	close(fd);
-+
-+	/* Test adding all seals (grow, shrink, future write) at once */
-+	fd = mfd_assert_new("kern_memfd_seal_future_write2",
-+			    mfd_def_size,
-+			    MFD_CLOEXEC | MFD_ALLOW_SEALING);
-+
-+	p = mfd_assert_mmap_shared(fd);
-+
-+	mfd_assert_has_seals(fd, 0);
-+	mfd_assert_add_seals(fd, F_SEAL_SHRINK |
-+				 F_SEAL_GROW |
-+				 F_SEAL_FUTURE_WRITE);
-+	mfd_assert_has_seals(fd, F_SEAL_SHRINK |
-+				 F_SEAL_GROW |
-+				 F_SEAL_FUTURE_WRITE);
-+
-+	/* read should pass, writes should fail */
-+	mfd_assert_read(fd);
-+	mfd_fail_write(fd);
-+
-+	munmap(p, mfd_def_size);
-+	close(fd);
-+}
-+
- /*
-  * Test SEAL_SHRINK
-  * Test whether SEAL_SHRINK actually prevents shrinking
-@@ -945,6 +1018,7 @@ int main(int argc, char **argv)
- 	test_basic();
- 
- 	test_seal_write();
-+	test_seal_future_write();
- 	test_seal_shrink();
- 	test_seal_grow();
- 	test_seal_resize();
--- 
-2.19.1.930.g4563a0d9d0-goog
+So... here is a random and wild idea.
+
+We actually already have an easy-to-use buffered printk. And it's per-CPU.
+And it makes all printk-s on this CPU to behave like as if they were called
+on UP system. And it cures pr_cont(). And it doesn't require anyone to learn
+any new printk API names. And it doesn't require any additional maintenance
+work. And it doesn't require any printk->buffered_printk conversions. And
+it's already in the kernel. And we gave it a name. And it's printk_safe.
+
+a) lockdep reporting path should be atomic. And it's not a hot path,
+   so local_irq_save/local_irq_restore will not cause a lot of trouble
+   there probably.
+
+b) We already have some lockdep reports coming via printk_safe.
+   All those
+	printk->console_driver->scheduler->lockdep
+	printk->console_driver->timekeeping->lockdep
+	etc.
+
+   came via printk_safe path. So it's not a complete novelty.
+
+c) printk_safe sections can nest.
+
+d) No premature flushes. Everything looks the way it was supposed to
+   look.
+
+e) There are no out-of-line printk-s. We keep the actual order of events.
+
+f) We flush it on panic.
+
+g) Low maintenance costs.
+
+So, can we just do the following? /* a sketch */
+
+lockdep.c
+	printk_safe_enter_irqsave(flags);
+	lockdep_report();
+	printk_safe_exit_irqrestore(flags);
+
+	-ss
