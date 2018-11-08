@@ -1,50 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FC966B0630
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 13:12:20 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id g76-v6so4494575pfe.13
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 10:12:20 -0800 (PST)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 15FE26B0632
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 13:31:47 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id c84so40379729qkb.13
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 10:31:47 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g6-v6sor5804509plp.8.2018.11.08.10.12.19
+        by mx.google.com with SMTPS id m1-v6sor5532588qtp.34.2018.11.08.10.31.46
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 08 Nov 2018 10:12:19 -0800 (PST)
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: [PATCH -next-akpm 3/3] mm: select HAVE_MOVE_PMD in x86 for faster mremap
-Date: Thu,  8 Nov 2018 10:12:01 -0800
-Message-Id: <20181108181201.88826-4-joelaf@google.com>
-In-Reply-To: <20181108181201.88826-1-joelaf@google.com>
-References: <20181108181201.88826-1-joelaf@google.com>
+        Thu, 08 Nov 2018 10:31:46 -0800 (PST)
+Date: Thu, 8 Nov 2018 13:31:43 -0500
+From: Pavel Tatashin <pasha.tatashin@gmail.com>
+Subject: Re: [PATCH RESEND V8 1/2] xxHash: create arch dependent 32/64-bit
+ xxhash()
+Message-ID: <20181108183143.jtgzcapauqrynqxz@xakep.localdomain>
+References: <20181023182554.23464-1-nefelim4ag@gmail.com>
+ <20181023182554.23464-2-nefelim4ag@gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181023182554.23464-2-nefelim4ag@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: kernel-team@android.com, "Joel Fernandes (Google)" <joel@joelfernandes.org>, "Kirill A . Shutemov" <kirill@shutemov.name>, akpm@linux-foundation.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, anton.ivanov@kot-begemot.co.uk, Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Zankel <chris@zankel.net>, dancol@google.com, Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@pku.edu.cn>, Helge Deller <deller@gmx.de>, hughd@google.com, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jonas Bonn <jonas@southpole.se>, Julia Lawall <Julia.Lawall@lip6.fr>, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, Ley Foon Tan <lftan@altera.com>, linux-alpha@vger.kernel.org, linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-xtensa@linux-xtensa.org, lokeshgidra@google.com, Max Filippov <jcmvbkbc@gmail.com>, Michal Hocko <mhocko@kernel.org>, minchan@kernel.org, nios2-dev@lists.rocketboards.org, pantin@google.com, Peter Zijlstra <peterz@infradead.org>, Richard Weinberger <richard@nod.at>, Rich Felker <dalias@libc.org>, Sam Creasey <sammy@sammy.net>, sparclinux@vger.kernel.org, Stafford Horne <shorne@gmail.com>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE 32-BIT AND 64-BIT" <x86@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>
+To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+Cc: Timofey Titovets <nefelim4ag@gmail.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, leesioh <solee@os.korea.ac.kr>
 
-From: "Joel Fernandes (Google)" <joel@joelfernandes.org>
+Hi Andrew,
 
-Moving page-tables at the PMD-level on x86 is known to be safe. Enable
-this option so that we can do fast mremap when possible.
+Can you please accept these patches? They are simple yet provide a good
+performance improvement. Timofey has been resending them for a while.
 
-Suggested-by: Kirill A. Shutemov <kirill@shutemov.name>
-Acked-by: Kirill A. Shutemov <kirill@shutemov.name>
-Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
----
- arch/x86/Kconfig | 1 +
- 1 file changed, 1 insertion(+)
+Thank you,
+Pasha
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 605bec0c228f..05f3667de0d2 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -173,6 +173,7 @@ config X86
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_MIXED_BREAKPOINTS_REGS
- 	select HAVE_MOD_ARCH_SPECIFIC
-+	select HAVE_MOVE_PMD
- 	select HAVE_NMI
- 	select HAVE_OPROFILE
- 	select HAVE_OPTPROBES
--- 
-2.19.1.930.g4563a0d9d0-goog
+On 18-10-23 21:25:53, Timofey Titovets wrote:
+> xxh32() - fast on both 32/64-bit platforms
+> xxh64() - fast only on 64-bit platform
+> 
+> Create xxhash() which will pickup fastest version
+> on compile time.
+> 
+> As result depends on cpu word size,
+> the main proporse of that - in memory hashing.
+> 
+> Changes:
+>   v2:
+>     - Create that patch
+>   v3 -> v8:
+>     - Nothing, whole patchset version bump
+> 
+> Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
+> Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+> Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> 
+> CC: Andrea Arcangeli <aarcange@redhat.com>
+> CC: linux-mm@kvack.org
+> CC: kvm@vger.kernel.org
+> CC: leesioh <solee@os.korea.ac.kr>
+> ---
+>  include/linux/xxhash.h | 23 +++++++++++++++++++++++
+>  1 file changed, 23 insertions(+)
+> 
+> diff --git a/include/linux/xxhash.h b/include/linux/xxhash.h
+> index 9e1f42cb57e9..52b073fea17f 100644
+> --- a/include/linux/xxhash.h
+> +++ b/include/linux/xxhash.h
+> @@ -107,6 +107,29 @@ uint32_t xxh32(const void *input, size_t length, uint32_t seed);
+>   */
+>  uint64_t xxh64(const void *input, size_t length, uint64_t seed);
+>  
+> +/**
+> + * xxhash() - calculate wordsize hash of the input with a given seed
+> + * @input:  The data to hash.
+> + * @length: The length of the data to hash.
+> + * @seed:   The seed can be used to alter the result predictably.
+> + *
+> + * If the hash does not need to be comparable between machines with
+> + * different word sizes, this function will call whichever of xxh32()
+> + * or xxh64() is faster.
+> + *
+> + * Return:  wordsize hash of the data.
+> + */
+> +
+> +static inline unsigned long xxhash(const void *input, size_t length,
+> +				   uint64_t seed)
+> +{
+> +#if BITS_PER_LONG == 64
+> +       return xxh64(input, length, seed);
+> +#else
+> +       return xxh32(input, length, seed);
+> +#endif
+> +}
+> +
+>  /*-****************************
+>   * Streaming Hash Functions
+>   *****************************/
+> -- 
+> 2.19.0
+> 
