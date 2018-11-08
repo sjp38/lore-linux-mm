@@ -1,75 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DAD256B05A7
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 03:30:57 -0500 (EST)
-Received: by mail-lf1-f71.google.com with SMTP id y12-v6so2452584lfh.16
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 00:30:57 -0800 (PST)
-Received: from mx0a-00191d01.pphosted.com (mx0b-00191d01.pphosted.com. [67.231.157.136])
-        by mx.google.com with ESMTPS id 10-v6si3149816ljp.205.2018.11.08.00.30.54
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C5F376B05A9
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 03:33:00 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id f3-v6so6574130edt.11
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 00:33:00 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g22-v6si1520293ejt.296.2018.11.08.00.32.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Nov 2018 00:30:55 -0800 (PST)
-Reply-To: mmanning@vyatta.att-mail.com
-Subject: Re: stable request: mm, page_alloc: actually ignore mempolicies for
- high priority allocations
-References: <a66fb268-74fe-6f4e-a99f-3257b8a5ac3b@vyatta.att-mail.com>
- <08ae2e51-672a-37de-2aa6-4e49dbc9de02@suse.cz>
-From: Mike Manning <mmanning@vyatta.att-mail.com>
-Message-ID: <fa553398-f4bf-3d57-376b-94593fb2c127@vyatta.att-mail.com>
-Date: Thu, 8 Nov 2018 08:30:40 +0000
+        Thu, 08 Nov 2018 00:32:59 -0800 (PST)
+Date: Thu, 8 Nov 2018 09:32:58 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3 2/4] mm: convert zone->managed_pages to atomic variable
+Message-ID: <20181108083258.GP27423@dhcp22.suse.cz>
+References: <1541665398-29925-1-git-send-email-arunks@codeaurora.org>
+ <1541665398-29925-3-git-send-email-arunks@codeaurora.org>
 MIME-Version: 1.0
-In-Reply-To: <08ae2e51-672a-37de-2aa6-4e49dbc9de02@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1541665398-29925-3-git-send-email-arunks@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
+To: Arun KS <arunks@codeaurora.org>
+Cc: akpm@linux-foundation.org, keescook@chromium.org, khlebnikov@yandex-team.ru, minchan@kernel.org, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, getarunks@gmail.com
 
-On 08/11/2018 07:54, Vlastimil Babka wrote:
-> +CC linux-mm
->
-> On 11/7/18 6:33 PM, Mike Manning wrote:
->> Hello, Please consider backporting to 4.14.y the following commit from
->> kernel-net-next by Vlastimil Babka [CC'ed]:
->>
->> d6a24df00638 ("mm, page_alloc: actually ignore mempolicies for high
->> priority allocations") It cherry-picks cleanly and builds fine.
->>
->> The reason for the request is that the commit 1d26c112959f ("mm,
->> page_alloc:do not break __GFP_THISNODE by zonelist reset") that was
->> previously backported to 4.14.y broke some of our functionality after we
->> upgraded from an earlier 4.14 kernel without the fix.
-> Well, that's very surprising! Could you be more specific about what
-> exactly got broken?
+On Thu 08-11-18 13:53:16, Arun KS wrote:
+> totalram_pages, zone->managed_pages and totalhigh_pages updates
+> are protected by managed_page_count_lock, but readers never care
+> about it. Convert these variables to atomic to avoid readers
+> potentially seeing a store tear.
+> 
+> This patch converts zone->managed_pages. Subsequent patches will
+> convert totalram_panges, totalhigh_pages and eventually
+> managed_page_count_lock will be removed.
+> 
+> Suggested-by: Michal Hocko <mhocko@suse.com>
+> Suggested-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Arun KS <arunks@codeaurora.org>
+> Reviewed-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> 
+> ---
+> Main motivation was that managed_page_count_lock handling was
+> complicating things. It was discussed in lenght here,
+> https://lore.kernel.org/patchwork/patch/995739/#1181785
+> So it seemes better to remove the lock and convert variables
+> to atomic, with preventing poteintial store-to-read tearing as
+> a bonus.
 
-Thank you for your reply. I agree, we were also very surprised when
-bisecting our updated 4.14 kernel, as this change is apparently
-completely unrelated to our application running in userspace. But the
-problem was 100% reproducible on a baremetal setup running automated
-performance multi-stream testing, so only seen under load. With the fix
-reverted from the 4.14 kernel, the problem went away, and this is with
-many repeated runs (the load test is part of a suite that is
-automatically run quite a few times every day, and this test was failing
-since the upgrade).
+Do not be afraid to put this into the changelog. It is much better to
+have it there in case anybody wonders in future and use git blame rather
+than chase an email archive to find it in the foot note. The same
+applies to the meta patch.
 
->
->> The reason this is
->> happening is not clear, with this commit only found by bisect.
->> Fortunately the requested commit resolves the issue.
-> I would like to understand the problem first, because I currently can't
-> imagine how the first commit could break something and the second fix it.
-
-I agree, but from an empirical point of view, 2 options present:
-
-1) The original commit was not suitable for backport to 4.14 and should
-be reverted.
-
-2) For the same reason that the original commit was suitable for
-backport to 4.14, the requested commit should also be backported.
-
->> Best Regards,
->>
->> Mike Manning
->>
+> Most of the changes are done by below coccinelle script,
+> 
+> @@
+> struct zone *z;
+> expression e1;
+> @@
+> (
+> - z->managed_pages = e1
+> + atomic_long_set(&z->managed_pages, e1)
+> |
+> - e1->managed_pages++
+> + atomic_long_inc(&e1->managed_pages)
+> |
+> - z->managed_pages
+> + zone_managed_pages(z)
+> )
+> 
+> @@
+> expression e,e1;
+> @@
+> - e->managed_pages += e1
+> + atomic_long_add(e1, &e->managed_pages)
+> 
+> @@
+> expression z;
+> @@
+> - z.managed_pages
+> + zone_managed_pages(&z)
+> 
+> Then, manually apply following change,
+> include/linux/mmzone.h
+> 
+> - unsigned long managed_pages;
+> + atomic_long_t managed_pages;
+> 
+> +static inline unsigned long zone_managed_pages(struct zone *zone)
+> +{
+> +       return (unsigned long)atomic_long_read(&zone->managed_pages);
+> +}
+> 
+-- 
+Michal Hocko
+SUSE Labs
