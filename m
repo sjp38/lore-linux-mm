@@ -1,62 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 750566B061F
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 12:37:50 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id n68so39225525qkn.8
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 09:37:50 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x2si1100153qta.285.2018.11.08.09.37.48
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C8CD56B0621
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 12:49:04 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id c15-v6so19342806pls.15
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 09:49:04 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j12-v6sor5820328plk.37.2018.11.08.09.49.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Nov 2018 09:37:49 -0800 (PST)
-From: Florian Weimer <fweimer@redhat.com>
-Subject: Re: pkeys: Reserve PKEY_DISABLE_READ
-References: <877ehnbwqy.fsf@oldenburg.str.redhat.com>
-	<2d62c9e2-375b-2791-32ce-fdaa7e7664fd@intel.com>
-	<87bm6zaa04.fsf@oldenburg.str.redhat.com>
-	<6f9c65fb-ea7e-8217-a4cc-f93e766ed9bb@intel.com>
-Date: Thu, 08 Nov 2018 18:37:41 +0100
-In-Reply-To: <6f9c65fb-ea7e-8217-a4cc-f93e766ed9bb@intel.com> (Dave Hansen's
-	message of "Thu, 8 Nov 2018 09:14:54 -0800")
-Message-ID: <87k1ln8o7u.fsf@oldenburg.str.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (Google Transport Security);
+        Thu, 08 Nov 2018 09:49:03 -0800 (PST)
+From: Yangtao Li <tiny.windzz@gmail.com>
+Subject: [PATCH] mm: mmap: remove verify_mm_writelocked()
+Date: Thu,  8 Nov 2018 12:48:56 -0500
+Message-Id: <20181108174856.10811-1-tiny.windzz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-api@vger.kernel.org, linux-mm@kvack.org, linuxram@us.ibm.com
+To: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, dan.j.williams@intel.com, linux@dominikbrodowski.net, dave.hansen@linux.intel.com, dwmw@amazon.co.uk, mhocko@kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yangtao Li <tiny.windzz@gmail.com>
 
-* Dave Hansen:
+We should get rid of this function. It no longer serves its purpose.This
+is a historical artifact from 2005 where do_brk was called outside of
+the core mm.We do have a proper abstraction in vm_brk_flags and that one
+does the locking properly.So there is no need to use this function.
 
-> On 11/8/18 7:01 AM, Florian Weimer wrote:
->> Ideally, PKEY_DISABLE_READ | PKEY_DISABLE_WRITE and PKEY_DISABLE_READ |
->> PKEY_DISABLE_ACCESS would be treated as PKEY_DISABLE_ACCESS both, and a
->> line PKEY_DISABLE_READ would result in an EINVAL failure.
->
-> Sounds reasonable to me.
->
-> I don't see any urgency to do this right now.  It could easily go in
-> alongside the ppc patches when those get merged.
+Signed-off-by: Yangtao Li <tiny.windzz@gmail.com>
+---
+ mm/mmap.c | 16 ----------------
+ 1 file changed, 16 deletions(-)
 
-POWER support has already been merged, so we need to do something here
-now, before I can complete the userspace side.
-
-> The only thing I'd suggest is that we make it something slightly
-> higher than 0x4.  It'll make the code easier to deal with in the
-> kernel if we have the ABI and the hardware mirror each other, and if
-> we pick 0x4 in the ABI for PKEY_DISABLE_READ, it might get messy if
-> the harware choose 0x4 for PKEY_DISABLE_EXECUTE or something.
-> 
-> So, let's make it 0x80 or something on x86 at least.
-
-I don't have a problem with that if that's what it takes.
-
-> Also, I'll be happy to review and ack the patch to do this, but I'd
-> expect the ppc guys (hi Ram!) to actually put it together.
-
-Ram, do you want to write a patch?
-
-I'll promise I finish the glibc support for this. 8-)
-
-Thanks,
-Florian
+diff --git a/mm/mmap.c b/mm/mmap.c
+index f7cd9cb966c0..1cee506494d2 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2910,16 +2910,6 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
+ 	return ret;
+ }
+ 
+-static inline void verify_mm_writelocked(struct mm_struct *mm)
+-{
+-#ifdef CONFIG_DEBUG_VM
+-	if (unlikely(down_read_trylock(&mm->mmap_sem))) {
+-		WARN_ON(1);
+-		up_read(&mm->mmap_sem);
+-	}
+-#endif
+-}
+-
+ /*
+  *  this is really a simplified "do_mmap".  it only handles
+  *  anonymous maps.  eventually we may be able to do some
+@@ -2946,12 +2936,6 @@ static int do_brk_flags(unsigned long addr, unsigned long len, unsigned long fla
+ 	if (error)
+ 		return error;
+ 
+-	/*
+-	 * mm->mmap_sem is required to protect against another thread
+-	 * changing the mappings in case we sleep.
+-	 */
+-	verify_mm_writelocked(mm);
+-
+ 	/*
+ 	 * Clear old maps.  this also does some error checking for us
+ 	 */
+-- 
+2.17.0
