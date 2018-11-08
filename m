@@ -1,88 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E37256B0647
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 15:23:44 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id s123-v6so40516351qkf.12
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 12:23:44 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 830836B0648
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 15:35:29 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id 67so40526214qkj.18
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 12:35:29 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u22si4000420qvf.2.2018.11.08.12.23.43
+        by mx.google.com with ESMTPS id w7si3537342qte.36.2018.11.08.12.35.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Nov 2018 12:23:44 -0800 (PST)
-From: Florian Weimer <fweimer@redhat.com>
-Subject: Re: pkeys: Reserve PKEY_DISABLE_READ
-References: <877ehnbwqy.fsf@oldenburg.str.redhat.com>
-	<2d62c9e2-375b-2791-32ce-fdaa7e7664fd@intel.com>
-	<87bm6zaa04.fsf@oldenburg.str.redhat.com>
-	<6f9c65fb-ea7e-8217-a4cc-f93e766ed9bb@intel.com>
-	<87k1ln8o7u.fsf@oldenburg.str.redhat.com>
-	<20181108201231.GE5481@ram.oc3035372033.ibm.com>
-Date: Thu, 08 Nov 2018 21:23:35 +0100
-In-Reply-To: <20181108201231.GE5481@ram.oc3035372033.ibm.com> (Ram Pai's
-	message of "Thu, 8 Nov 2018 12:12:31 -0800")
-Message-ID: <87bm6z71yw.fsf@oldenburg.str.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Thu, 08 Nov 2018 12:35:28 -0800 (PST)
+From: Waiman Long <longman@redhat.com>
+Subject: [RFC PATCH 00/12] locking/lockdep: Add a new class of terminal locks
+Date: Thu,  8 Nov 2018 15:34:16 -0500
+Message-Id: <1541709268-3766-1-git-send-email-longman@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-api@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Waiman Long <longman@redhat.com>
 
-* Ram Pai:
+The purpose of this patchset is to add a new class of locks called
+terminal locks and converts some of the low level raw or regular
+spinlocks to terminal locks. A terminal lock does not have forward
+dependency and it won't allow a lock or unlock operation on another
+lock. Two level nesting of terminal locks is allowed, though.
 
-> Florian,
->
-> 	I can. But I am struggling to understand the requirement. Why is
-> 	this needed?  Are we proposing a enhancement to the sys_pkey_alloc(),
-> 	to be able to allocate keys that are initialied to disable-read
-> 	only?
+Only spinlocks that are acquired with the _irq/_irqsave variants or
+acquired in an IRQ disabled context should be classified as terminal
+locks.
 
-Yes, I think that would be a natural consequence.
+Because of the restrictions on terminal locks, we can do simple checks on
+them without using the lockdep lock validation machinery. The advantages
+of making these changes are as follows:
 
-However, my immediate need comes from the fact that the AMR register can
-contain a flag combination that is not possible to represent with the
-existing PKEY_DISABLE_WRITE and PKEY_DISABLE_ACCESS flags.  User code
-could write to AMR directly, so I cannot rule out that certain flag
-combinations exist there.
+ 1) The lockdep check will be faster for terminal locks without using
+    the lock validation code.
+ 2) It saves table entries used by the validation code and hence make
+    it harder to overflow those tables.
 
-So I came up with this:
+In fact, it is possible to overflow some of the tables by running
+a variety of different workloads on a debug kernel. I have seen bug
+reports about exhausting MAX_LOCKDEP_KEYS, MAX_LOCKDEP_ENTRIES and
+MAX_STACK_TRACE_ENTRIES. This patch will help to reduce the chance
+of overflowing some of the tables.
 
-int
-pkey_get (int key)
-{
-  if (key < 0 || key > PKEY_MAX)
-    {
-      __set_errno (EINVAL);
-      return -1;
-    }
-  unsigned int index = pkey_index (key);
-  unsigned long int amr = pkey_read ();
-  unsigned int bits = (amr >> index) & 3;
+Performance wise, there was no statistically significant difference in
+performanace when doing a parallel kernel build on a debug kernel.
 
-  /* Translate from AMR values.  PKEY_AMR_READ standing alone is not
-     currently representable.  */
-  if (bits & PKEY_AMR_READ)
-    return PKEY_DISABLE_ACCESS;
-  else if (bits == PKEY_AMR_WRITE)
-    return PKEY_DISABLE_WRITE;
-  return 0;
-}
+Below were selected output lines from the lockdep_stats files of the
+patched and unpatched kernels after bootup and running parallel kernel
+builds.
 
-And this is not ideal.  I would prefer something like this instead:
+  Item                     Unpatched kernel  Patched kernel  % Change
+  ----                     ----------------  --------------  --------
+  direct dependencies           9732             8994          -7.6%
+  dependency chains            18776            17033          -9.3%
+  dependency chain hlocks      76044            68419         -10.0%
+  stack-trace entries         110403           104341          -5.5%
 
-  switch (bits)
-    {
-      case PKEY_AMR_READ | PKEY_AMR_WRITE:
-        return PKEY_DISABLE_ACCESS;
-      case PKEY_AMR_READ:
-        return PKEY_DISABLE_READ;
-      case PKEY_AMR_WRITE:
-        return PKEY_DISABLE_WRITE;
-      case 0:
-        return 0;
-    }
+There were some reductions in the size of the lockdep tables. They were
+not significant, but it is still a good start to rein in the number of
+entries in those tables to make it harder to overflow them.
 
-By the way, is the AMR register 64-bit or 32-bit on 32-bit POWER?
+Waiman Long (12):
+  locking/lockdep: Rework lockdep_set_novalidate_class()
+  locking/lockdep: Add a new terminal lock type
+  locking/lockdep: Add DEFINE_TERMINAL_SPINLOCK() and related macros
+  printk: Make logbuf_lock a terminal lock
+  debugobjects: Mark pool_lock as a terminal lock
+  debugobjects: Move printk out of db lock critical sections
+  locking/lockdep: Add support for nested terminal locks
+  debugobjects: Make object hash locks nested terminal locks
+  lib/stackdepot: Make depot_lock a terminal spinlock
+  locking/rwsem: Mark rwsem.wait_lock as a terminal lock
+  cgroup: Mark the rstat percpu lock as terminal
+  mm/kasan: Make quarantine_lock a terminal lock
 
-Thanks,
-Florian
+ include/linux/lockdep.h            | 34 +++++++++++++++---
+ include/linux/rwsem.h              | 11 +++++-
+ include/linux/spinlock_types.h     | 34 ++++++++++++------
+ kernel/cgroup/rstat.c              |  9 +++--
+ kernel/locking/lockdep.c           | 67 ++++++++++++++++++++++++++++++------
+ kernel/locking/lockdep_internals.h |  5 +++
+ kernel/locking/lockdep_proc.c      | 11 ++++--
+ kernel/locking/rwsem-xadd.c        |  1 +
+ kernel/printk/printk.c             |  2 +-
+ kernel/printk/printk_safe.c        |  2 +-
+ lib/debugobjects.c                 | 70 ++++++++++++++++++++++++++------------
+ lib/stackdepot.c                   |  2 +-
+ mm/kasan/quarantine.c              |  2 +-
+ 13 files changed, 195 insertions(+), 55 deletions(-)
+
+-- 
+1.8.3.1
