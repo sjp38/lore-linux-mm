@@ -1,94 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D3C86B067A
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 18:07:08 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id 129-v6so19309750pfx.11
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 15:07:08 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id c6-v6si5468637pfi.110.2018.11.08.15.07.06
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D17F6B067C
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 18:35:07 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id m1-v6so20657plb.13
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 15:35:07 -0800 (PST)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id q33-v6si4932924pgk.2.2018.11.08.15.35.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Nov 2018 15:07:07 -0800 (PST)
-Date: Thu, 8 Nov 2018 15:07:00 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] tmpfs: let lseek return ENXIO with a negative offset
-Message-Id: <20181108150700.f9c321f8853053877d3f3fe6@linux-foundation.org>
-In-Reply-To: <EDFDF8C6-F164-4C5A-A5D3-010802D02DC2@oracle.com>
-References: <1540434176-14349-1-git-send-email-yuyufen@huawei.com>
-	<20181107151955.777fcbcf9a5932677e245287@linux-foundation.org>
-	<EDFDF8C6-F164-4C5A-A5D3-010802D02DC2@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 08 Nov 2018 15:35:05 -0800 (PST)
+Subject: Re: [PATCH v5 04/27] x86/fpu/xstate: Add XSAVES system states for
+ shadow stack
+References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
+ <20181011151523.27101-5-yu-cheng.yu@intel.com>
+ <CALCETrVAe8R=crVHoD5QmbN-gAW+V-Rwkwe4kQP7V7zQm9TM=Q@mail.gmail.com>
+ <4295b8f786c10c469870a6d9725749ce75dcdaa2.camel@intel.com>
+ <CALCETrUKzXYzRrWRdi8Z7AdAF0uZW5Gs7J4s=55dszoyzc29rw@mail.gmail.com>
+ <043a17ef-dc9f-56d2-5fba-1a58b7b0fd4d@intel.com>
+ <20181108220054.GP3074@bombadil.infradead.org>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <ead230ab-a904-50d6-c4cf-46d5804f6151@intel.com>
+Date: Thu, 8 Nov 2018 15:35:02 -0800
+MIME-Version: 1.0
+In-Reply-To: <20181108220054.GP3074@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: William Kucharski <william.kucharski@oracle.com>
-Cc: Yufen Yu <yuyufen@huawei.com>, viro@zeniv.linux.org.uk, hughd@google.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-unionfs@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andy Lutomirski <luto@amacapital.net>, Yu-cheng Yu <yu-cheng.yu@intel.com>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>
 
-On Thu, 8 Nov 2018 03:46:35 -0700 William Kucharski <william.kucharski@oracle.com> wrote:
+On 11/8/18 2:00 PM, Matthew Wilcox wrote:
+> struct a {
+> 	char c;
+> 	struct b b;
+> };
+> 
+> we want struct b to start at offset 8, but with __packed, it will start
+> at offset 1.
 
-> 
-> 
-> > On Nov 7, 2018, at 4:19 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > 
-> > man 2 lseek says
-> > 
-> > :      EINVAL whence  is  not  valid.   Or: the resulting file offset would be
-> > :             negative, or beyond the end of a seekable device.
-> > :
-> > :      ENXIO  whence is SEEK_DATA or SEEK_HOLE, and the file offset is  beyond
-> > :             the end of the file.
-> > 
-> > 
-> > Make tmpfs return ENXIO under these circumstances as well.  After this,
-> > tmpfs also passes xfstests's generic/448.
-> 
-> As I objected to last week, despite the fact that other file systems do this, is
-> this in fact the desired behavior?
-> 
-> I'll let you reread that message rather than repeat it in its entirety here, but
-> certainly a negative offset is not "beyond the end of the file," and the end
-> result is errno is set to ENXIO for a reason that does not match what the
-> lseek(2) man page describes.
-> 
-> I also mentioned if a negative offset is used with SEEK_CUR or SEEK_WHENCE,
-> arguably the negative offset should actually be treated as "0" given lseek(2)
-> also states:
-> 
->       SEEK_DATA
->              Adjust the file offset to the next location in the file
->              greater than or equal to offset containing data.  If offset
->              points to data, then the file offset is set to offset.
-> 
->       SEEK_HOLE
->              Adjust the file offset to the next hole in the file greater
->              than or equal to offset.  If offset points into the middle of
->              a hole, then the file offset is set to offset.  If there is no
->              hole past offset, then the file offset is adjusted to the end
->              of the file (i.e., there is an implicit hole at the end of any
->              file).
-> 
-> Since the "next location" or "next hole" will never be at a negative offset, the
-> "greater than" clause of both descriptions would mean the resulting offset should
-> be treated as if it were passed as zero.
-> 
-> However, if xfstest-compliant behavior is desired, the lseek(2) man page
-> description for ENXIO should be updated to something like:
-> 
->        ENXIO  whence is SEEK_DATA or SEEK_HOLE, and the file offset is negative or
->               beyond the end of the file.
-> 
-> I don't mean to be pedantic, but I also know how frustrating it can be when a system
-> call returns with errno set for a reason that doesn't correspond to the man page.
+You're talking about how we want the struct laid out in memory if we
+have control over the layout.  I'm talking about what happens if
+something *else* tells us the layout, like a hardware specification
+which is what is in play with the XSAVE instruction dictated layout
+that's in question here.
 
-I think that at this stage we should make tmpfs behaviour match the
-other filesystems.
+What I'm concerned about is a structure like this:
 
-If the manpage doesn't match the kernel's behaviour for this
-linux-specific feature(?) then we should fix the manpage.
+struct foo {
+        u32 i1;
+        u64 i2;
+};
 
-If we find that the behaviour should actually change (and there's a way
-of doing that in a reasonably back-compatible manner) then let's change
-all filesystems and the manpage.
+If we leave that to natural alignment, we end up with a 16-byte
+structure laid out like this:
 
-OK?
+	0-3	i1
+	3-8	alignment gap
+	8-15	i2
+
+Which isn't what we want.  We want a 12-byte structure, laid out like this:
+
+	0-3	i1
+	4-11	i2
+
+Which we get with:
+
+
+struct foo {
+        u32 i1;
+        u64 i2;
+} __packed;
+
+Now, looking at Yu-cheng's specific example, it doesn't matter.  We've
+got 64-bit types and natural 64-bit alignment.  Without __packed, we
+need to look out for natural alignment screwing us up.  With __packed,
+it just does what it *looks* like it does.
