@@ -1,104 +1,112 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C5456B4D70
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 09:45:56 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id t2so12480646edb.22
-        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 06:45:56 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id bp5-v6si2577727ejb.40.2018.11.28.06.45.53
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Nov 2018 06:45:54 -0800 (PST)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wASEcmJw084749
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 09:45:53 -0500
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2p1ucr5apy-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 09:45:52 -0500
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 28 Nov 2018 14:45:50 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH] docs/core-api: make mm-api.rst more structured
-Date: Wed, 28 Nov 2018 16:45:44 +0200
-Message-Id: <1543416344-25543-1-git-send-email-rppt@linux.ibm.com>
-Sender: owner-linux-mm@kvack.org
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH 2/4] mm: Move zone watermark accesses behind an accessor
+Date: Thu,  8 Nov 2018 09:12:16 +0000
+Message-Id: <20181108091218.32715-3-mgorman@techsingularity.net>
+In-Reply-To: <20181108091218.32715-1-mgorman@techsingularity.net>
+References: <20181108091218.32715-1-mgorman@techsingularity.net>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Linux-MM <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: linux-doc@vger.kernel.org, linux-mm@kvack.org, Mike Rapoport <rppt@linux.ibm.com>
 
-The mm-api.rst covers variety of memory management APIs under "More Memory
-Management Functions" section. The descriptions included there are in a
-random order there are quite a few of them which makes the section too
-long.
+This is a preparation patch only, no functional change.
 
-Regrouping the documentation by subject and splitting the long "More Memory
-Management Functions" section into several smaller sections makes the
-generated html more usable.
-
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- Documentation/core-api/mm-api.rst | 29 ++++++++++++++++++++---------
- 1 file changed, 20 insertions(+), 9 deletions(-)
+ include/linux/mmzone.h |  9 +++++----
+ mm/compaction.c        |  2 +-
+ mm/page_alloc.c        | 12 ++++++------
+ 3 files changed, 12 insertions(+), 11 deletions(-)
 
-diff --git a/Documentation/core-api/mm-api.rst b/Documentation/core-api/mm-api.rst
-index 5ce1ec1..c81e754 100644
---- a/Documentation/core-api/mm-api.rst
-+++ b/Documentation/core-api/mm-api.rst
-@@ -49,8 +49,14 @@ The Slab Cache
- .. kernel-doc:: mm/util.c
-    :functions: kfree_const kvmalloc_node kvfree
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 847705a6d0ec..e43e8e79db99 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -269,9 +269,10 @@ enum zone_watermarks {
+ 	NR_WMARK
+ };
  
--More Memory Management Functions
--================================
-+Virtually Contiguous Mappings
-+=============================
-+
-+.. kernel-doc:: mm/vmalloc.c
-+   :export:
-+
-+File Mapping and Page Cache
-+===========================
+-#define min_wmark_pages(z) (z->watermark[WMARK_MIN])
+-#define low_wmark_pages(z) (z->watermark[WMARK_LOW])
+-#define high_wmark_pages(z) (z->watermark[WMARK_HIGH])
++#define min_wmark_pages(z) (z->_watermark[WMARK_MIN])
++#define low_wmark_pages(z) (z->_watermark[WMARK_LOW])
++#define high_wmark_pages(z) (z->_watermark[WMARK_HIGH])
++#define wmark_pages(z, i) (z->_watermark[i])
  
- .. kernel-doc:: mm/readahead.c
-    :export:
-@@ -58,23 +64,28 @@ More Memory Management Functions
- .. kernel-doc:: mm/filemap.c
-    :export:
+ struct per_cpu_pages {
+ 	int count;		/* number of pages in the list */
+@@ -362,7 +363,7 @@ struct zone {
+ 	/* Read-mostly fields */
  
--.. kernel-doc:: mm/memory.c
-+.. kernel-doc:: mm/page-writeback.c
-    :export:
+ 	/* zone watermarks, access with *_wmark_pages(zone) macros */
+-	unsigned long watermark[NR_WMARK];
++	unsigned long _watermark[NR_WMARK];
  
--.. kernel-doc:: mm/vmalloc.c
-+.. kernel-doc:: mm/truncate.c
-    :export:
+ 	unsigned long nr_reserved_highatomic;
  
--.. kernel-doc:: mm/page_alloc.c
--   :internal:
-+Memory pools
-+============
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 7c607479de4a..ef29490b0f46 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1431,7 +1431,7 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+ 	if (is_via_compact_memory(order))
+ 		return COMPACT_CONTINUE;
  
- .. kernel-doc:: mm/mempool.c
-    :export:
+-	watermark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
++	watermark = wmark_pages(zone, alloc_flags & ALLOC_WMARK_MASK);
+ 	/*
+ 	 * If watermarks for high-order allocation are already met, there
+ 	 * should be no need for compaction at all.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5db746c642df..ad996a769bd5 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3370,7 +3370,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 			}
+ 		}
  
-+DMA pools
-+=========
-+
- .. kernel-doc:: mm/dmapool.c
-    :export:
+-		mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
++		mark = wmark_pages(zone, alloc_flags & ALLOC_WMARK_MASK);
+ 		if (!zone_watermark_fast(zone, order, mark,
+ 				       ac_classzone_idx(ac), alloc_flags)) {
+ 			int ret;
+@@ -4792,7 +4792,7 @@ long si_mem_available(void)
+ 		pages[lru] = global_node_page_state(NR_LRU_BASE + lru);
  
--.. kernel-doc:: mm/page-writeback.c
--   :export:
-+More Memory Management Functions
-+================================
+ 	for_each_zone(zone)
+-		wmark_low += zone->watermark[WMARK_LOW];
++		wmark_low += low_wmark_pages(zone);
  
--.. kernel-doc:: mm/truncate.c
-+.. kernel-doc:: mm/memory.c
-    :export:
-+
-+.. kernel-doc:: mm/page_alloc.c
+ 	/*
+ 	 * Estimate the amount of memory available for userspace allocations,
+@@ -7418,13 +7418,13 @@ static void __setup_per_zone_wmarks(void)
+ 
+ 			min_pages = zone->managed_pages / 1024;
+ 			min_pages = clamp(min_pages, SWAP_CLUSTER_MAX, 128UL);
+-			zone->watermark[WMARK_MIN] = min_pages;
++			zone->_watermark[WMARK_MIN] = min_pages;
+ 		} else {
+ 			/*
+ 			 * If it's a lowmem zone, reserve a number of pages
+ 			 * proportionate to the zone's size.
+ 			 */
+-			zone->watermark[WMARK_MIN] = tmp;
++			zone->_watermark[WMARK_MIN] = tmp;
+ 		}
+ 
+ 		/*
+@@ -7436,8 +7436,8 @@ static void __setup_per_zone_wmarks(void)
+ 			    mult_frac(zone->managed_pages,
+ 				      watermark_scale_factor, 10000));
+ 
+-		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
+-		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
++		zone->_watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
++		zone->_watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
+ 
+ 		spin_unlock_irqrestore(&zone->lock, flags);
+ 	}
 -- 
-2.7.4
+2.16.4
