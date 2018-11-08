@@ -1,70 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E7216B0591
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 02:23:36 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id f69-v6so11671798pfa.15
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 23:23:36 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id y17-v6si3656753pfb.196.2018.11.07.23.23.35
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 497F06B0594
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 02:54:12 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id x5-v6so7749315pfn.22
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 23:54:12 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y7-v6si3156102pgi.256.2018.11.07.23.54.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Nov 2018 23:23:35 -0800 (PST)
+        Wed, 07 Nov 2018 23:54:10 -0800 (PST)
+Subject: Re: stable request: mm, page_alloc: actually ignore mempolicies for
+ high priority allocations
+References: <a66fb268-74fe-6f4e-a99f-3257b8a5ac3b@vyatta.att-mail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <08ae2e51-672a-37de-2aa6-4e49dbc9de02@suse.cz>
+Date: Thu, 8 Nov 2018 08:54:07 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII;
- format=flowed
-Content-Transfer-Encoding: 7bit
-Date: Thu, 08 Nov 2018 12:53:33 +0530
-From: Arun KS <arunks@codeaurora.org>
-Subject: Re: [PATCH v2 3/4] mm: convert totalram_pages and totalhigh_pages
- variables to atomic
-In-Reply-To: <5edc432c-b475-5d2e-6a87-700c32a8fad9@suse.cz>
-References: <1541521310-28739-1-git-send-email-arunks@codeaurora.org>
- <1541521310-28739-4-git-send-email-arunks@codeaurora.org>
- <5edc432c-b475-5d2e-6a87-700c32a8fad9@suse.cz>
-Message-ID: <7376dee0b5a62fe847c347e615abf868@codeaurora.org>
+In-Reply-To: <a66fb268-74fe-6f4e-a99f-3257b8a5ac3b@vyatta.att-mail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: akpm@linux-foundation.org, keescook@chromium.org, khlebnikov@yandex-team.ru, minchan@kernel.org, mhocko@kernel.org, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, getarunks@gmail.com
+To: mmanning@vyatta.att-mail.com, stable@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
 
-On 2018-11-07 14:34, Vlastimil Babka wrote:
-> On 11/6/18 5:21 PM, Arun KS wrote:
->> totalram_pages and totalhigh_pages are made static inline function.
->> 
->> Suggested-by: Michal Hocko <mhocko@suse.com>
->> Suggested-by: Vlastimil Babka <vbabka@suse.cz>
->> Signed-off-by: Arun KS <arunks@codeaurora.org>
->> Reviewed-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
->> Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> 
-> One bug (probably) below:
-> 
->> diff --git a/mm/highmem.c b/mm/highmem.c
->> index 59db322..02a9a4b 100644
->> --- a/mm/highmem.c
->> +++ b/mm/highmem.c
->> @@ -105,9 +105,7 @@ static inline wait_queue_head_t 
->> *get_pkmap_wait_queue_head(unsigned int color)
->>  }
->>  #endif
->> 
->> -unsigned long totalhigh_pages __read_mostly;
->> -EXPORT_SYMBOL(totalhigh_pages);
-> 
-> I think you still need to export _totalhigh_pages so that modules can
-> use the inline accessors.
++CC linux-mm
 
-Thanks for pointing this. I missed that. Will do the same for 
-_totalram_pages.
-
-Regards,
-Arun
-
+On 11/7/18 6:33 PM, Mike Manning wrote:
+> Hello, Please consider backporting to 4.14.y the following commit from
+> kernel-net-next by Vlastimil Babka [CC'ed]:
 > 
->> -
->> +atomic_long_t _totalhigh_pages __read_mostly;
->> 
->>  EXPORT_PER_CPU_SYMBOL(__kmap_atomic_idx);
->> 
+> d6a24df00638 ("mm, page_alloc: actually ignore mempolicies for high
+> priority allocations") It cherry-picks cleanly and builds fine.
+> 
+> The reason for the request is that the commit 1d26c112959f
+> <http://stash.eng.vyatta.net:7990/projects/VC/repos/linux-vyatta/commits/1d26c112959f>A ("mm,
+> page_alloc:do not break __GFP_THISNODE by zonelist reset") that was
+> previously backported to 4.14.y broke some of our functionality after we
+> upgraded from an earlier 4.14 kernel without the fix.
+
+Well, that's very surprising! Could you be more specific about what
+exactly got broken?
+
+> The reason this is
+> happening is not clear, with this commit only found by bisect.
+> Fortunately the requested commit resolves the issue.
+
+I would like to understand the problem first, because I currently can't
+imagine how the first commit could break something and the second fix it.
+
+> Best Regards,
+> 
+> Mike Manning
+> 
