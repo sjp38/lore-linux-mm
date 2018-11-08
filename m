@@ -1,172 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2929F6B0634
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 13:40:48 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id h13-v6so19575980wrq.3
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 10:40:48 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTPS id i6-v6si4034921wmg.144.2018.11.08.10.40.46
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C9EB16B0637
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 14:13:46 -0500 (EST)
+Received: by mail-it1-f197.google.com with SMTP id d1-v6so2741402itj.8
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 11:13:46 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a139-v6sor7975290ita.32.2018.11.08.11.13.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Nov 2018 10:40:46 -0800 (PST)
-Date: Thu, 8 Nov 2018 19:40:38 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v5 04/27] x86/fpu/xstate: Add XSAVES system states for
- shadow stack
-Message-ID: <20181108184038.GJ7543@zn.tnic>
-References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
- <20181011151523.27101-5-yu-cheng.yu@intel.com>
+        (Google Transport Security);
+        Thu, 08 Nov 2018 11:13:45 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20181011151523.27101-5-yu-cheng.yu@intel.com>
+In-Reply-To: <20181107205433.3875-2-logang@deltatee.com>
+References: <20181107205433.3875-1-logang@deltatee.com> <20181107205433.3875-2-logang@deltatee.com>
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Date: Thu, 8 Nov 2018 20:13:44 +0100
+Message-ID: <CAKv+Gu9c+img+yqpmG9HD_bOihXLzQ70W+5Wki0FTmx7wYj37w@mail.gmail.com>
+Subject: Re: [PATCH v2 1/2] mm: Introduce common STRUCT_PAGE_MAX_SHIFT define
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Logan Gunthorpe <logang@deltatee.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, linux-riscv@lists.infradead.org, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-sh@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Albert Ou <aou@eecs.berkeley.edu>, Arnd Bergmann <arnd@arndb.de>, Catalin Marinas <catalin.marinas@arm.com>, Palmer Dabbelt <palmer@sifive.com>, Stephen Bates <sbates@raithlin.com>, Christoph Hellwig <hch@lst.de>
 
-On Thu, Oct 11, 2018 at 08:15:00AM -0700, Yu-cheng Yu wrote:
-> Intel Control-flow Enforcement Technology (CET) introduces the
-> following MSRs into the XSAVES system states.
-> 
->     IA32_U_CET (user-mode CET settings),
->     IA32_PL3_SSP (user-mode shadow stack),
->     IA32_PL0_SSP (kernel-mode shadow stack),
->     IA32_PL1_SSP (ring-1 shadow stack),
->     IA32_PL2_SSP (ring-2 shadow stack).
+On 7 November 2018 at 21:54, Logan Gunthorpe <logang@deltatee.com> wrote:
+> This define is used by arm64 to calculate the size of the vmemmap
+> region. It is defined as the log2 of the upper bound on the size
+> of a struct page.
+>
+> We move it into mm_types.h so it can be defined properly instead of
+> set and checked with a build bug. This also allows us to use the same
+> define for riscv.
+>
+> Signed-off-by: Logan Gunthorpe <logang@deltatee.com>
+> Acked-by: Will Deacon <will.deacon@arm.com>
+> Acked-by: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Arnd Bergmann <arnd@arndb.de>
+> Cc: Christoph Hellwig <hch@lst.de>
 
-And?
+Acked-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-That commit message got chopped off here, it seems.
-
-> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 > ---
->  arch/x86/include/asm/fpu/types.h            | 22 +++++++++++++++++++++
->  arch/x86/include/asm/fpu/xstate.h           |  4 +++-
->  arch/x86/include/uapi/asm/processor-flags.h |  2 ++
->  arch/x86/kernel/fpu/xstate.c                | 10 ++++++++++
->  4 files changed, 37 insertions(+), 1 deletion(-)
-> 
-> diff --git a/arch/x86/include/asm/fpu/types.h b/arch/x86/include/asm/fpu/types.h
-> index 202c53918ecf..e55d51d172f1 100644
-> --- a/arch/x86/include/asm/fpu/types.h
-> +++ b/arch/x86/include/asm/fpu/types.h
-> @@ -114,6 +114,9 @@ enum xfeature {
->  	XFEATURE_Hi16_ZMM,
->  	XFEATURE_PT_UNIMPLEMENTED_SO_FAR,
->  	XFEATURE_PKRU,
-> +	XFEATURE_RESERVED,
-> +	XFEATURE_SHSTK_USER,
-> +	XFEATURE_SHSTK_KERNEL,
->  
->  	XFEATURE_MAX,
->  };
-> @@ -128,6 +131,8 @@ enum xfeature {
->  #define XFEATURE_MASK_Hi16_ZMM		(1 << XFEATURE_Hi16_ZMM)
->  #define XFEATURE_MASK_PT		(1 << XFEATURE_PT_UNIMPLEMENTED_SO_FAR)
->  #define XFEATURE_MASK_PKRU		(1 << XFEATURE_PKRU)
-> +#define XFEATURE_MASK_SHSTK_USER	(1 << XFEATURE_SHSTK_USER)
-> +#define XFEATURE_MASK_SHSTK_KERNEL	(1 << XFEATURE_SHSTK_KERNEL)
->  
->  #define XFEATURE_MASK_FPSSE		(XFEATURE_MASK_FP | XFEATURE_MASK_SSE)
->  #define XFEATURE_MASK_AVX512		(XFEATURE_MASK_OPMASK \
-> @@ -229,6 +234,23 @@ struct pkru_state {
->  	u32				pad;
->  } __packed;
->  
-> +/*
-> + * State component 11 is Control flow Enforcement user states
-
-Why the Camel-cased naming?
-
-"Control" then "flow" then capitalized again "Enforcement".
-
-Fix all occurrences pls, especially the user-visible strings.
-
-> + */
-> +struct cet_user_state {
-> +	u64 u_cet;	/* user control flow settings */
-> +	u64 user_ssp;	/* user shadow stack pointer */
-
-Prefix both with "usr_" instead.
-
-> +} __packed;
-> +
-> +/*
-> + * State component 12 is Control flow Enforcement kernel states
-> + */
-> +struct cet_kernel_state {
-> +	u64 kernel_ssp;	/* kernel shadow stack */
-> +	u64 pl1_ssp;	/* ring-1 shadow stack */
-> +	u64 pl2_ssp;	/* ring-2 shadow stack */
-
-Just write "privilege level" everywhere - not "ring".
-
-Btw, do you see how the type and the name of all those other fields in
-that file are tabulated? Except yours...
-
-> +} __packed;
-> +
->  struct xstate_header {
->  	u64				xfeatures;
->  	u64				xcomp_bv;
-> diff --git a/arch/x86/include/asm/fpu/xstate.h b/arch/x86/include/asm/fpu/xstate.h
-> index d8e2ec99f635..18b60748a34d 100644
-> --- a/arch/x86/include/asm/fpu/xstate.h
-> +++ b/arch/x86/include/asm/fpu/xstate.h
-> @@ -28,7 +28,9 @@
->  				  XFEATURE_MASK_Hi16_ZMM | \
->  				  XFEATURE_MASK_PKRU | \
->  				  XFEATURE_MASK_BNDREGS | \
-> -				  XFEATURE_MASK_BNDCSR)
-> +				  XFEATURE_MASK_BNDCSR | \
-> +				  XFEATURE_MASK_SHSTK_USER | \
-> +				  XFEATURE_MASK_SHSTK_KERNEL)
->  
->  #ifdef CONFIG_X86_64
->  #define REX_PREFIX	"0x48, "
-> diff --git a/arch/x86/include/uapi/asm/processor-flags.h b/arch/x86/include/uapi/asm/processor-flags.h
-> index bcba3c643e63..25311ec4b731 100644
-> --- a/arch/x86/include/uapi/asm/processor-flags.h
-> +++ b/arch/x86/include/uapi/asm/processor-flags.h
-> @@ -130,6 +130,8 @@
->  #define X86_CR4_SMAP		_BITUL(X86_CR4_SMAP_BIT)
->  #define X86_CR4_PKE_BIT		22 /* enable Protection Keys support */
->  #define X86_CR4_PKE		_BITUL(X86_CR4_PKE_BIT)
-> +#define X86_CR4_CET_BIT		23 /* enable Control flow Enforcement */
-> +#define X86_CR4_CET		_BITUL(X86_CR4_CET_BIT)
->  
+>  arch/arm64/include/asm/memory.h | 9 ---------
+>  arch/arm64/mm/init.c            | 8 --------
+>  include/asm-generic/fixmap.h    | 1 +
+>  include/linux/mm_types.h        | 5 +++++
+>  4 files changed, 6 insertions(+), 17 deletions(-)
+>
+> diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
+> index b96442960aea..f0a5c9531e8b 100644
+> --- a/arch/arm64/include/asm/memory.h
+> +++ b/arch/arm64/include/asm/memory.h
+> @@ -34,15 +34,6 @@
+>   */
+>  #define PCI_IO_SIZE            SZ_16M
+>
+> -/*
+> - * Log2 of the upper bound of the size of a struct page. Used for sizing
+> - * the vmemmap region only, does not affect actual memory footprint.
+> - * We don't use sizeof(struct page) directly since taking its size here
+> - * requires its definition to be available at this point in the inclusion
+> - * chain, and it may not be a power of 2 in the first place.
+> - */
+> -#define STRUCT_PAGE_MAX_SHIFT  6
+> -
 >  /*
->   * x86-64 Task Priority Register, CR8
-> diff --git a/arch/x86/kernel/fpu/xstate.c b/arch/x86/kernel/fpu/xstate.c
-> index 605ec6decf3e..ad36ea28bfd1 100644
-> --- a/arch/x86/kernel/fpu/xstate.c
-> +++ b/arch/x86/kernel/fpu/xstate.c
-> @@ -35,6 +35,9 @@ static const char *xfeature_names[] =
->  	"Processor Trace (unused)"	,
->  	"Protection Keys User registers",
->  	"unknown xstate feature"	,
-> +	"Control flow User registers"	,
-> +	"Control flow Kernel registers"	,
-> +	"unknown xstate feature"	,
-
-So there are two "unknown xstate feature" array elems now...
-
->  static short xsave_cpuid_features[] __initdata = {
-> @@ -48,6 +51,9 @@ static short xsave_cpuid_features[] __initdata = {
->  	X86_FEATURE_AVX512F,
->  	X86_FEATURE_INTEL_PT,
->  	X86_FEATURE_PKU,
-> +	0,		   /* Unused */
-
-What's that for?
-
-> +	X86_FEATURE_SHSTK, /* XFEATURE_SHSTK_USER */
-> +	X86_FEATURE_SHSTK, /* XFEATURE_SHSTK_KERNEL */
->  };
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+>   * VMEMMAP_SIZE - allows the whole linear region to be covered by
+>   *                a struct page array
+> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+> index 9d9582cac6c4..1a3e411a1d08 100644
+> --- a/arch/arm64/mm/init.c
+> +++ b/arch/arm64/mm/init.c
+> @@ -612,14 +612,6 @@ void __init mem_init(void)
+>         BUILD_BUG_ON(TASK_SIZE_32                       > TASK_SIZE_64);
+>  #endif
+>
+> -#ifdef CONFIG_SPARSEMEM_VMEMMAP
+> -       /*
+> -        * Make sure we chose the upper bound of sizeof(struct page)
+> -        * correctly when sizing the VMEMMAP array.
+> -        */
+> -       BUILD_BUG_ON(sizeof(struct page) > (1 << STRUCT_PAGE_MAX_SHIFT));
+> -#endif
+> -
+>         if (PAGE_SIZE >= 16384 && get_num_physpages() <= 128) {
+>                 extern int sysctl_overcommit_memory;
+>                 /*
+> diff --git a/include/asm-generic/fixmap.h b/include/asm-generic/fixmap.h
+> index 827e4d3bbc7a..8cc7b09c1bc7 100644
+> --- a/include/asm-generic/fixmap.h
+> +++ b/include/asm-generic/fixmap.h
+> @@ -16,6 +16,7 @@
+>  #define __ASM_GENERIC_FIXMAP_H
+>
+>  #include <linux/bug.h>
+> +#include <linux/mm_types.h>
+>
+>  #define __fix_to_virt(x)       (FIXADDR_TOP - ((x) << PAGE_SHIFT))
+>  #define __virt_to_fix(x)       ((FIXADDR_TOP - ((x)&PAGE_MASK)) >> PAGE_SHIFT)
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 5ed8f6292a53..2c471a2c43fa 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -206,6 +206,11 @@ struct page {
+>  #endif
+>  } _struct_page_alignment;
+>
+> +/*
+> + * Used for sizing the vmemmap region on some architectures
+> + */
+> +#define STRUCT_PAGE_MAX_SHIFT  (order_base_2(sizeof(struct page)))
+> +
+>  #define PAGE_FRAG_CACHE_MAX_SIZE       __ALIGN_MASK(32768, ~PAGE_MASK)
+>  #define PAGE_FRAG_CACHE_MAX_ORDER      get_order(PAGE_FRAG_CACHE_MAX_SIZE)
+>
+> --
+> 2.19.0
+>
+>
+> _______________________________________________
+> linux-arm-kernel mailing list
+> linux-arm-kernel@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
