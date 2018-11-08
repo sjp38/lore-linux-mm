@@ -1,102 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B458D6B05DB
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 05:46:55 -0500 (EST)
-Received: by mail-it1-f197.google.com with SMTP id p78-v6so690366itb.1
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 02:46:55 -0800 (PST)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id s12-v6si2651544jad.65.2018.11.08.02.46.54
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 02A1E6B05DE
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 06:15:01 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id y8so16338763pgq.12
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 03:15:00 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 184-v6sor4011779pgi.55.2018.11.08.03.14.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Nov 2018 02:46:54 -0800 (PST)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
-Subject: Re: [PATCH] tmpfs: let lseek return ENXIO with a negative offset
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <20181107151955.777fcbcf9a5932677e245287@linux-foundation.org>
-Date: Thu, 8 Nov 2018 03:46:35 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <EDFDF8C6-F164-4C5A-A5D3-010802D02DC2@oracle.com>
-References: <1540434176-14349-1-git-send-email-yuyufen@huawei.com>
- <20181107151955.777fcbcf9a5932677e245287@linux-foundation.org>
+        (Google Transport Security);
+        Thu, 08 Nov 2018 03:14:59 -0800 (PST)
+From: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Subject: [PATCH] mm:vmalloc add vm_struct for vm_map_ram
+Date: Thu,  8 Nov 2018 19:14:49 +0800
+Message-Id: <1541675689-13363-1-git-send-email-huangzhaoyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Yufen Yu <yuyufen@huawei.com>, viro@zeniv.linux.org.uk, hughd@google.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-unionfs@vger.kernel.org
+To: Chintan Pandya <cpandya@codeaurora.org>, David Rientjes <rientjes@google.com>, Joe Perches <joe@perches.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+From: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
 
+There is no caller and pages information etc for the area which is
+created by vm_map_ram as well as the page count > VMAP_MAX_ALLOC.
+Add them on in this commit.
 
-> On Nov 7, 2018, at 4:19 PM, Andrew Morton <akpm@linux-foundation.org> =
-wrote:
->=20
-> man 2 lseek says
->=20
-> :      EINVAL whence  is  not  valid.   Or: the resulting file offset =
-would be
-> :             negative, or beyond the end of a seekable device.
-> :
-> :      ENXIO  whence is SEEK_DATA or SEEK_HOLE, and the file offset is =
- beyond
-> :             the end of the file.
->=20
->=20
-> Make tmpfs return ENXIO under these circumstances as well.  After =
-this,
-> tmpfs also passes xfstests's generic/448.
+Signed-off-by: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
+---
+ mm/vmalloc.c | 30 ++++++++++++++++++++----------
+ 1 file changed, 20 insertions(+), 10 deletions(-)
 
-As I objected to last week, despite the fact that other file systems do =
-this, is
-this in fact the desired behavior?
-
-I'll let you reread that message rather than repeat it in its entirety =
-here, but
-certainly a negative offset is not "beyond the end of the file," and the =
-end
-result is errno is set to ENXIO for a reason that does not match what =
-the
-lseek(2) man page describes.
-
-I also mentioned if a negative offset is used with SEEK_CUR or =
-SEEK_WHENCE,
-arguably the negative offset should actually be treated as "0" given =
-lseek(2)
-also states:
-
-      SEEK_DATA
-             Adjust the file offset to the next location in the file
-             greater than or equal to offset containing data.  If offset
-             points to data, then the file offset is set to offset.
-
-      SEEK_HOLE
-             Adjust the file offset to the next hole in the file greater
-             than or equal to offset.  If offset points into the middle =
-of
-             a hole, then the file offset is set to offset.  If there is =
-no
-             hole past offset, then the file offset is adjusted to the =
-end
-             of the file (i.e., there is an implicit hole at the end of =
-any
-             file).
-
-Since the "next location" or "next hole" will never be at a negative =
-offset, the
-"greater than" clause of both descriptions would mean the resulting =
-offset should
-be treated as if it were passed as zero.
-
-However, if xfstest-compliant behavior is desired, the lseek(2) man page
-description for ENXIO should be updated to something like:
-
-       ENXIO  whence is SEEK_DATA or SEEK_HOLE, and the file offset is =
-negative or
-              beyond the end of the file.
-
-I don't mean to be pedantic, but I also know how frustrating it can be =
-when a system
-call returns with errno set for a reason that doesn't correspond to the =
-man page.
-
-    Thanks,
-         William Kucharski=
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index cfea25b..819b690 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -45,7 +45,8 @@ struct vfree_deferred {
+ static DEFINE_PER_CPU(struct vfree_deferred, vfree_deferred);
+ 
+ static void __vunmap(const void *, int);
+-
++static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
++			      unsigned long flags, const void *caller);
+ static void free_work(struct work_struct *w)
+ {
+ 	struct vfree_deferred *p = container_of(w, struct vfree_deferred, wq);
+@@ -1138,6 +1139,7 @@ void vm_unmap_ram(const void *mem, unsigned int count)
+ 	BUG_ON(!va);
+ 	debug_check_no_locks_freed((void *)va->va_start,
+ 				    (va->va_end - va->va_start));
++	kfree(va->vm);
+ 	free_unmap_vmap_area(va);
+ }
+ EXPORT_SYMBOL(vm_unmap_ram);
+@@ -1170,6 +1172,8 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t pro
+ 		addr = (unsigned long)mem;
+ 	} else {
+ 		struct vmap_area *va;
++		struct vm_struct *area;
++
+ 		va = alloc_vmap_area(size, PAGE_SIZE,
+ 				VMALLOC_START, VMALLOC_END, node, GFP_KERNEL);
+ 		if (IS_ERR(va))
+@@ -1177,11 +1181,17 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t pro
+ 
+ 		addr = va->va_start;
+ 		mem = (void *)addr;
++		area = kzalloc_node(sizeof(*area), GFP_KERNEL, node);
++		if (likely(area)) {
++			setup_vmalloc_vm(area, va, 0, __builtin_return_address(0));
++			va->flags &= ~VM_VM_AREA;
++		}
+ 	}
+ 	if (vmap_page_range(addr, addr + size, prot, pages) < 0) {
+ 		vm_unmap_ram(mem, count);
+ 		return NULL;
+ 	}
++
+ 	return mem;
+ }
+ EXPORT_SYMBOL(vm_map_ram);
+@@ -2688,19 +2698,19 @@ static int s_show(struct seq_file *m, void *p)
+ 	 * s_show can encounter race with remove_vm_area, !VM_VM_AREA on
+ 	 * behalf of vmap area is being tear down or vm_map_ram allocation.
+ 	 */
+-	if (!(va->flags & VM_VM_AREA)) {
+-		seq_printf(m, "0x%pK-0x%pK %7ld %s\n",
+-			(void *)va->va_start, (void *)va->va_end,
+-			va->va_end - va->va_start,
+-			va->flags & VM_LAZY_FREE ? "unpurged vm_area" : "vm_map_ram");
+-
++	if (!(va->flags & VM_VM_AREA) && !va->vm)
+ 		return 0;
+-	}
+ 
+ 	v = va->vm;
+ 
+-	seq_printf(m, "0x%pK-0x%pK %7ld",
+-		v->addr, v->addr + v->size, v->size);
++	if (!(va->flags & VM_VM_AREA))
++		seq_printf(m, "0x%pK-0x%pK %7ld %s\n",
++				(void *)va->va_start, (void *)va->va_end,
++				va->va_end - va->va_start,
++				va->flags & VM_LAZY_FREE ? "unpurged vm_area" : "vm_map_ram");
++	else
++		seq_printf(m, "0x%pK-0x%pK %7ld",
++				v->addr, v->addr + v->size, v->size);
+ 
+ 	if (v->caller)
+ 		seq_printf(m, " %pS", v->caller);
+-- 
+1.9.1
