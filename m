@@ -1,56 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 497F06B0594
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 02:54:12 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id x5-v6so7749315pfn.22
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 23:54:12 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BC4296B0595
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 02:59:38 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id r16-v6so16067384pgv.17
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2018 23:59:38 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y7-v6si3156102pgi.256.2018.11.07.23.54.10
+        by mx.google.com with ESMTPS id k9-v6si3205626pgc.79.2018.11.07.23.59.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Nov 2018 23:54:10 -0800 (PST)
-Subject: Re: stable request: mm, page_alloc: actually ignore mempolicies for
- high priority allocations
-References: <a66fb268-74fe-6f4e-a99f-3257b8a5ac3b@vyatta.att-mail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <08ae2e51-672a-37de-2aa6-4e49dbc9de02@suse.cz>
-Date: Thu, 8 Nov 2018 08:54:07 +0100
+        Wed, 07 Nov 2018 23:59:37 -0800 (PST)
+Date: Thu, 8 Nov 2018 08:59:34 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 4/5] mm, memory_hotplug: print reason for the
+ offlining failure
+Message-ID: <20181108075934.GL27423@dhcp22.suse.cz>
+References: <20181107101830.17405-1-mhocko@kernel.org>
+ <20181107101830.17405-5-mhocko@kernel.org>
+ <18bd20ff-7b3c-bcf2-042d-5ab59fdd42e1@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <a66fb268-74fe-6f4e-a99f-3257b8a5ac3b@vyatta.att-mail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <18bd20ff-7b3c-bcf2-042d-5ab59fdd42e1@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mmanning@vyatta.att-mail.com, stable@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Oscar Salvador <OSalvador@suse.com>, Baoquan He <bhe@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-+CC linux-mm
-
-On 11/7/18 6:33 PM, Mike Manning wrote:
-> Hello, Please consider backporting to 4.14.y the following commit from
-> kernel-net-next by Vlastimil Babka [CC'ed]:
+On Thu 08-11-18 11:53:21, Anshuman Khandual wrote:
 > 
-> d6a24df00638 ("mm, page_alloc: actually ignore mempolicies for high
-> priority allocations") It cherry-picks cleanly and builds fine.
 > 
-> The reason for the request is that the commit 1d26c112959f
-> <http://stash.eng.vyatta.net:7990/projects/VC/repos/linux-vyatta/commits/1d26c112959f>A ("mm,
-> page_alloc:do not break __GFP_THISNODE by zonelist reset") that was
-> previously backported to 4.14.y broke some of our functionality after we
-> upgraded from an earlier 4.14 kernel without the fix.
-
-Well, that's very surprising! Could you be more specific about what
-exactly got broken?
-
-> The reason this is
-> happening is not clear, with this commit only found by bisect.
-> Fortunately the requested commit resolves the issue.
-
-I would like to understand the problem first, because I currently can't
-imagine how the first commit could break something and the second fix it.
-
-> Best Regards,
+> On 11/07/2018 03:48 PM, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > The memory offlining failure reporting is inconsistent and insufficient.
+> > Some error paths simply do not report the failure to the log at all.
+> > When we do report there are no details about the reason of the failure
+> > and there are several of them which makes memory offlining failures
+> > hard to debug.
+> > 
+> > Make sure that the
+> > 	memory offlining [mem %#010llx-%#010llx] failed
+> > message is printed for all failures and also provide a short textual
+> > reason for the failure e.g.
+> > 
+> > [ 1984.506184] rac1 kernel: memory offlining [mem 0x82600000000-0x8267fffffff] failed due to signal backoff
+> > 
+> > this tells us that the offlining has failed because of a signal pending
+> > aka user intervention.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
-> Mike Manning
-> 
+> It might help to enumerate these failure reason strings and use macros.
+
+Does it really make sense when all of them are on-off things? I would
+agree if they were reused somewhere.
+
+-- 
+Michal Hocko
+SUSE Labs
