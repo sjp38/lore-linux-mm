@@ -1,100 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 15FE26B0632
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 13:31:47 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id c84so40379729qkb.13
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 10:31:47 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m1-v6sor5532588qtp.34.2018.11.08.10.31.46
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2929F6B0634
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 13:40:48 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id h13-v6so19575980wrq.3
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 10:40:48 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTPS id i6-v6si4034921wmg.144.2018.11.08.10.40.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Nov 2018 10:31:46 -0800 (PST)
-Date: Thu, 8 Nov 2018 13:31:43 -0500
-From: Pavel Tatashin <pasha.tatashin@gmail.com>
-Subject: Re: [PATCH RESEND V8 1/2] xxHash: create arch dependent 32/64-bit
- xxhash()
-Message-ID: <20181108183143.jtgzcapauqrynqxz@xakep.localdomain>
-References: <20181023182554.23464-1-nefelim4ag@gmail.com>
- <20181023182554.23464-2-nefelim4ag@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Nov 2018 10:40:46 -0800 (PST)
+Date: Thu, 8 Nov 2018 19:40:38 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v5 04/27] x86/fpu/xstate: Add XSAVES system states for
+ shadow stack
+Message-ID: <20181108184038.GJ7543@zn.tnic>
+References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
+ <20181011151523.27101-5-yu-cheng.yu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20181023182554.23464-2-nefelim4ag@gmail.com>
+In-Reply-To: <20181011151523.27101-5-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
-Cc: Timofey Titovets <nefelim4ag@gmail.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, leesioh <solee@os.korea.ac.kr>
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-Hi Andrew,
+On Thu, Oct 11, 2018 at 08:15:00AM -0700, Yu-cheng Yu wrote:
+> Intel Control-flow Enforcement Technology (CET) introduces the
+> following MSRs into the XSAVES system states.
+> 
+>     IA32_U_CET (user-mode CET settings),
+>     IA32_PL3_SSP (user-mode shadow stack),
+>     IA32_PL0_SSP (kernel-mode shadow stack),
+>     IA32_PL1_SSP (ring-1 shadow stack),
+>     IA32_PL2_SSP (ring-2 shadow stack).
 
-Can you please accept these patches? They are simple yet provide a good
-performance improvement. Timofey has been resending them for a while.
+And?
 
-Thank you,
-Pasha
+That commit message got chopped off here, it seems.
 
-On 18-10-23 21:25:53, Timofey Titovets wrote:
-> xxh32() - fast on both 32/64-bit platforms
-> xxh64() - fast only on 64-bit platform
-> 
-> Create xxhash() which will pickup fastest version
-> on compile time.
-> 
-> As result depends on cpu word size,
-> the main proporse of that - in memory hashing.
-> 
-> Changes:
->   v2:
->     - Create that patch
->   v3 -> v8:
->     - Nothing, whole patchset version bump
-> 
-> Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
-> Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
-> Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> 
-> CC: Andrea Arcangeli <aarcange@redhat.com>
-> CC: linux-mm@kvack.org
-> CC: kvm@vger.kernel.org
-> CC: leesioh <solee@os.korea.ac.kr>
+> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 > ---
->  include/linux/xxhash.h | 23 +++++++++++++++++++++++
->  1 file changed, 23 insertions(+)
+>  arch/x86/include/asm/fpu/types.h            | 22 +++++++++++++++++++++
+>  arch/x86/include/asm/fpu/xstate.h           |  4 +++-
+>  arch/x86/include/uapi/asm/processor-flags.h |  2 ++
+>  arch/x86/kernel/fpu/xstate.c                | 10 ++++++++++
+>  4 files changed, 37 insertions(+), 1 deletion(-)
 > 
-> diff --git a/include/linux/xxhash.h b/include/linux/xxhash.h
-> index 9e1f42cb57e9..52b073fea17f 100644
-> --- a/include/linux/xxhash.h
-> +++ b/include/linux/xxhash.h
-> @@ -107,6 +107,29 @@ uint32_t xxh32(const void *input, size_t length, uint32_t seed);
->   */
->  uint64_t xxh64(const void *input, size_t length, uint64_t seed);
+> diff --git a/arch/x86/include/asm/fpu/types.h b/arch/x86/include/asm/fpu/types.h
+> index 202c53918ecf..e55d51d172f1 100644
+> --- a/arch/x86/include/asm/fpu/types.h
+> +++ b/arch/x86/include/asm/fpu/types.h
+> @@ -114,6 +114,9 @@ enum xfeature {
+>  	XFEATURE_Hi16_ZMM,
+>  	XFEATURE_PT_UNIMPLEMENTED_SO_FAR,
+>  	XFEATURE_PKRU,
+> +	XFEATURE_RESERVED,
+> +	XFEATURE_SHSTK_USER,
+> +	XFEATURE_SHSTK_KERNEL,
 >  
-> +/**
-> + * xxhash() - calculate wordsize hash of the input with a given seed
-> + * @input:  The data to hash.
-> + * @length: The length of the data to hash.
-> + * @seed:   The seed can be used to alter the result predictably.
-> + *
-> + * If the hash does not need to be comparable between machines with
-> + * different word sizes, this function will call whichever of xxh32()
-> + * or xxh64() is faster.
-> + *
-> + * Return:  wordsize hash of the data.
+>  	XFEATURE_MAX,
+>  };
+> @@ -128,6 +131,8 @@ enum xfeature {
+>  #define XFEATURE_MASK_Hi16_ZMM		(1 << XFEATURE_Hi16_ZMM)
+>  #define XFEATURE_MASK_PT		(1 << XFEATURE_PT_UNIMPLEMENTED_SO_FAR)
+>  #define XFEATURE_MASK_PKRU		(1 << XFEATURE_PKRU)
+> +#define XFEATURE_MASK_SHSTK_USER	(1 << XFEATURE_SHSTK_USER)
+> +#define XFEATURE_MASK_SHSTK_KERNEL	(1 << XFEATURE_SHSTK_KERNEL)
+>  
+>  #define XFEATURE_MASK_FPSSE		(XFEATURE_MASK_FP | XFEATURE_MASK_SSE)
+>  #define XFEATURE_MASK_AVX512		(XFEATURE_MASK_OPMASK \
+> @@ -229,6 +234,23 @@ struct pkru_state {
+>  	u32				pad;
+>  } __packed;
+>  
+> +/*
+> + * State component 11 is Control flow Enforcement user states
+
+Why the Camel-cased naming?
+
+"Control" then "flow" then capitalized again "Enforcement".
+
+Fix all occurrences pls, especially the user-visible strings.
+
 > + */
+> +struct cet_user_state {
+> +	u64 u_cet;	/* user control flow settings */
+> +	u64 user_ssp;	/* user shadow stack pointer */
+
+Prefix both with "usr_" instead.
+
+> +} __packed;
 > +
-> +static inline unsigned long xxhash(const void *input, size_t length,
-> +				   uint64_t seed)
-> +{
-> +#if BITS_PER_LONG == 64
-> +       return xxh64(input, length, seed);
-> +#else
-> +       return xxh32(input, length, seed);
-> +#endif
-> +}
+> +/*
+> + * State component 12 is Control flow Enforcement kernel states
+> + */
+> +struct cet_kernel_state {
+> +	u64 kernel_ssp;	/* kernel shadow stack */
+> +	u64 pl1_ssp;	/* ring-1 shadow stack */
+> +	u64 pl2_ssp;	/* ring-2 shadow stack */
+
+Just write "privilege level" everywhere - not "ring".
+
+Btw, do you see how the type and the name of all those other fields in
+that file are tabulated? Except yours...
+
+> +} __packed;
 > +
->  /*-****************************
->   * Streaming Hash Functions
->   *****************************/
-> -- 
-> 2.19.0
-> 
+>  struct xstate_header {
+>  	u64				xfeatures;
+>  	u64				xcomp_bv;
+> diff --git a/arch/x86/include/asm/fpu/xstate.h b/arch/x86/include/asm/fpu/xstate.h
+> index d8e2ec99f635..18b60748a34d 100644
+> --- a/arch/x86/include/asm/fpu/xstate.h
+> +++ b/arch/x86/include/asm/fpu/xstate.h
+> @@ -28,7 +28,9 @@
+>  				  XFEATURE_MASK_Hi16_ZMM | \
+>  				  XFEATURE_MASK_PKRU | \
+>  				  XFEATURE_MASK_BNDREGS | \
+> -				  XFEATURE_MASK_BNDCSR)
+> +				  XFEATURE_MASK_BNDCSR | \
+> +				  XFEATURE_MASK_SHSTK_USER | \
+> +				  XFEATURE_MASK_SHSTK_KERNEL)
+>  
+>  #ifdef CONFIG_X86_64
+>  #define REX_PREFIX	"0x48, "
+> diff --git a/arch/x86/include/uapi/asm/processor-flags.h b/arch/x86/include/uapi/asm/processor-flags.h
+> index bcba3c643e63..25311ec4b731 100644
+> --- a/arch/x86/include/uapi/asm/processor-flags.h
+> +++ b/arch/x86/include/uapi/asm/processor-flags.h
+> @@ -130,6 +130,8 @@
+>  #define X86_CR4_SMAP		_BITUL(X86_CR4_SMAP_BIT)
+>  #define X86_CR4_PKE_BIT		22 /* enable Protection Keys support */
+>  #define X86_CR4_PKE		_BITUL(X86_CR4_PKE_BIT)
+> +#define X86_CR4_CET_BIT		23 /* enable Control flow Enforcement */
+> +#define X86_CR4_CET		_BITUL(X86_CR4_CET_BIT)
+>  
+>  /*
+>   * x86-64 Task Priority Register, CR8
+> diff --git a/arch/x86/kernel/fpu/xstate.c b/arch/x86/kernel/fpu/xstate.c
+> index 605ec6decf3e..ad36ea28bfd1 100644
+> --- a/arch/x86/kernel/fpu/xstate.c
+> +++ b/arch/x86/kernel/fpu/xstate.c
+> @@ -35,6 +35,9 @@ static const char *xfeature_names[] =
+>  	"Processor Trace (unused)"	,
+>  	"Protection Keys User registers",
+>  	"unknown xstate feature"	,
+> +	"Control flow User registers"	,
+> +	"Control flow Kernel registers"	,
+> +	"unknown xstate feature"	,
+
+So there are two "unknown xstate feature" array elems now...
+
+>  static short xsave_cpuid_features[] __initdata = {
+> @@ -48,6 +51,9 @@ static short xsave_cpuid_features[] __initdata = {
+>  	X86_FEATURE_AVX512F,
+>  	X86_FEATURE_INTEL_PT,
+>  	X86_FEATURE_PKU,
+> +	0,		   /* Unused */
+
+What's that for?
+
+> +	X86_FEATURE_SHSTK, /* XFEATURE_SHSTK_USER */
+> +	X86_FEATURE_SHSTK, /* XFEATURE_SHSTK_KERNEL */
+>  };
+
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
