@@ -1,54 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D3E16B0615
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 10:02:04 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id w96so12795460ota.10
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 07:02:04 -0800 (PST)
-Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id o81-v6si1671265oif.252.2018.11.08.07.02.01
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 95E156B0618
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 12:14:56 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id 18-v6so16973168pgn.4
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 09:14:56 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id h188-v6si4945997pfg.129.2018.11.08.09.14.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Nov 2018 07:02:02 -0800 (PST)
-Message-ID: <5BE44FDB.6040303@huawei.com>
-Date: Thu, 8 Nov 2018 23:01:47 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        Thu, 08 Nov 2018 09:14:55 -0800 (PST)
+Subject: Re: pkeys: Reserve PKEY_DISABLE_READ
+References: <877ehnbwqy.fsf@oldenburg.str.redhat.com>
+ <2d62c9e2-375b-2791-32ce-fdaa7e7664fd@intel.com>
+ <87bm6zaa04.fsf@oldenburg.str.redhat.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <6f9c65fb-ea7e-8217-a4cc-f93e766ed9bb@intel.com>
+Date: Thu, 8 Nov 2018 09:14:54 -0800
 MIME-Version: 1.0
-Subject: [Question] There is a thp count left when the process exits
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <87bm6zaa04.fsf@oldenburg.str.redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Matthew Wilcox <willy@infradead.org>, Andrea
- Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: Florian Weimer <fweimer@redhat.com>
+Cc: linux-api@vger.kernel.org, linux-mm@kvack.org, linuxram@us.ibm.com
 
-Hi, 
+On 11/8/18 7:01 AM, Florian Weimer wrote:
+> Ideally, PKEY_DISABLE_READ | PKEY_DISABLE_WRITE and PKEY_DISABLE_READ |
+> PKEY_DISABLE_ACCESS would be treated as PKEY_DISABLE_ACCESS both, and a
+> line PKEY_DISABLE_READ would result in an EINVAL failure.
 
-Recently,  I hit  the following issue in linux 3.10 stable.  and hard to recur.
+Sounds reasonable to me.
 
-bad pmd ffff880c13ecea80(80000017b16000e7)
+I don't see any urgency to do this right now.  It could easily go in
+alongside the ppc patches when those get merged.  The only thing I'd
+suggest is that we make it something slightly higher than 0x4.  It'll
+make the code easier to deal with in the kernel if we have the ABI and
+the hardware mirror each other, and if we pick 0x4 in the ABI for
+PKEY_DISABLE_READ, it might get messy if the harware choose 0x4 for
+PKEY_DISABLE_EXECUTE or something.
 
-Call Trace:
-  [<ffffffff8164195f>] dump_stack+0x19/0x1b
-  [<ffffffff8107b230>] warn_slowpath_common+0x70/0xb0
-  [<ffffffff8107b37a>] warn_slowpath_null+0x1a/0x20
-  [<ffffffff811a2b86>] exit_mmap+0x196/0x1a0
-  [<ffffffff810782e7>] mmput+0x67/0xf0
-  [<ffffffff81081b2c>] do_exit+0x28c/0xa60
-  [<ffffffff810a9dc0>] ? hrtimer_get_res+0x50/0x50
-  [<ffffffff8108237f>] do_group_exit+0x3f/0xa0
-  [<ffffffff81093240>] get_signal_to_deliver+0x1d0/0x6d0
-  [<ffffffff81014427>] do_signal+0x57/0x6b0
-  [<ffffffff810e4f92>] ? futex_wait_queue_me+0xa2/0x120
-  [<ffffffff8164d323>] ? __do_page_fault+0x183/0x470
-  [<ffffffff81014adf>] do_notify_resume+0x5f/0xb0
-  [<ffffffff816520bd>] int_signal+0x12/0x17
+So, let's make it 0x80 or something on x86 at least.
 
-BUG: Bad rss-counter state mm:ffff8820136b5dc0 idx:1 val:512
-
-The pmd entry show that it is still a thp. but It fails to check and clear the pmd.
-hence,   page fault will produce a new page for pmd when accessing the page,
-which thp count will reduplicative increase.
-
-Thanks,
-zhong jiang
+Also, I'll be happy to review and ack the patch to do this, but I'd
+expect the ppc guys (hi Ram!) to actually put it together.
