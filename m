@@ -1,111 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B46706B073C
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 18:42:55 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id x5-v6so2635464pfn.22
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 15:42:55 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 2-v6si10209977pla.223.2018.11.09.15.42.54
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CD3C26B073E
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 18:46:40 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id a26-v6so2653553pfo.17
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 15:46:40 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z10-v6sor10900995pln.16.2018.11.09.15.46.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Nov 2018 15:42:54 -0800 (PST)
-Date: Fri, 9 Nov 2018 15:42:51 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: don't break integrity writeback on ->writepage()
- error
-Message-Id: <20181109154251.d35772bb1cdc314a70aa90a1@linux-foundation.org>
-In-Reply-To: <20181105163613.7542-1-bfoster@redhat.com>
-References: <20181105163613.7542-1-bfoster@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Fri, 09 Nov 2018 15:46:39 -0800 (PST)
+Date: Fri, 9 Nov 2018 15:46:36 -0800
+From: Joel Fernandes <joel@joelfernandes.org>
+Subject: Re: [PATCH v3 resend 1/2] mm: Add an F_SEAL_FUTURE_WRITE seal to
+ memfd
+Message-ID: <20181109234636.GA136491@google.com>
+References: <20181108041537.39694-1-joel@joelfernandes.org>
+ <CAG48ez1h=v-JYnDw81HaYJzOfrNhwYksxmc2r=cJvdQVgYM+NA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAG48ez1h=v-JYnDw81HaYJzOfrNhwYksxmc2r=cJvdQVgYM+NA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brian Foster <bfoster@redhat.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, Dave Chinner <david@fromorbit.com>
+To: Jann Horn <jannh@google.com>
+Cc: kernel list <linux-kernel@vger.kernel.org>, jreck@google.com, John Stultz <john.stultz@linaro.org>, Todd Kjos <tkjos@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Christoph Hellwig <hch@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Daniel Colascione <dancol@google.com>, Bruce Fields <bfields@fieldses.org>, jlayton@kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Lei.Yang@windriver.com, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, marcandre.lureau@redhat.com, Mike Kravetz <mike.kravetz@oracle.com>, minchan@kernel.org, shuah@kernel.org, valdis.kletnieks@vt.edu, Hugh Dickins <hughd@google.com>, Linux API <linux-api@vger.kernel.org>
 
-On Mon,  5 Nov 2018 11:36:13 -0500 Brian Foster <bfoster@redhat.com> wrote:
-
-> write_cache_pages() currently breaks out of the writepage loop in
-> the event of a ->writepage() error. This causes problems for
-> integrity writeback on XFS
-
-For the uninitiated, please define the term "integrity writeback". 
-Quite carefully ;) I'm not sure what it actually means.  grepping
-fs/xfs for "integrity" doesn't reveal anything.
-
-<reads the code>
-
-OK, it appears the term means "to sync data to disk" as opposed to
-"periodic dirty memory cleaning".  I guess we don't have particularly
-well-established terms for the two concepts.
-
-> in the event of a persistent error as XFS
-> expects to process every dirty+delalloc page such that it can
-> discard delalloc blocks when real block allocation fails.  Failure
-> to handle all delalloc pages leaves the filesystem in an
-> inconsistent state if the integrity writeback happens to be due to
-> an unmount, for example.
+On Fri, Nov 09, 2018 at 10:06:31PM +0100, Jann Horn wrote:
+> +linux-api for API addition
+> +hughd as FYI since this is somewhat related to mm/shmem
 > 
-> Update write_cache_pages() to continue processing pages for
-> integrity writeback regardless of ->writepage() errors. Save the
-> first encountered error and return it once complete. This
-> facilitates XFS or any other fs that expects integrity writeback to
-> process the entire set of dirty pages regardless of errors.
-> Background writeback continues to exit on the first error
-> encountered.
+> On Fri, Nov 9, 2018 at 9:46 PM Joel Fernandes (Google)
+> <joel@joelfernandes.org> wrote:
+> > Android uses ashmem for sharing memory regions. We are looking forward
+> > to migrating all usecases of ashmem to memfd so that we can possibly
+> > remove the ashmem driver in the future from staging while also
+> > benefiting from using memfd and contributing to it. Note staging drivers
+> > are also not ABI and generally can be removed at anytime.
+> >
+> > One of the main usecases Android has is the ability to create a region
+> > and mmap it as writeable, then add protection against making any
+> > "future" writes while keeping the existing already mmap'ed
+> > writeable-region active.  This allows us to implement a usecase where
+> > receivers of the shared memory buffer can get a read-only view, while
+> > the sender continues to write to the buffer.
+> > See CursorWindow documentation in Android for more details:
+> > https://developer.android.com/reference/android/database/CursorWindow
+> >
+> > This usecase cannot be implemented with the existing F_SEAL_WRITE seal.
+> > To support the usecase, this patch adds a new F_SEAL_FUTURE_WRITE seal
+> > which prevents any future mmap and write syscalls from succeeding while
+> > keeping the existing mmap active.
 > 
-> ...
->
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -2156,6 +2156,7 @@ int write_cache_pages(struct address_space *mapping,
->  {
->  	int ret = 0;
->  	int done = 0;
-> +	int error;
->  	struct pagevec pvec;
->  	int nr_pages;
->  	pgoff_t uninitialized_var(writeback_index);
-> @@ -2236,25 +2237,29 @@ int write_cache_pages(struct address_space *mapping,
->  				goto continue_unlock;
->  
->  			trace_wbc_writepage(wbc, inode_to_bdi(mapping->host));
-> -			ret = (*writepage)(page, wbc, data);
-> -			if (unlikely(ret)) {
-> -				if (ret == AOP_WRITEPAGE_ACTIVATE) {
-> +			error = (*writepage)(page, wbc, data);
-> +			if (unlikely(error)) {
-> +				if (error == AOP_WRITEPAGE_ACTIVATE) {
->  					unlock_page(page);
-> -					ret = 0;
-> -				} else {
-> +					error = 0;
-> +				} else if (wbc->sync_mode != WB_SYNC_ALL &&
-> +					   !wbc->for_sync) {
+> Please CC linux-api@ on patches like this. If you had done that, I
+> might have criticized your v1 patch instead of your v3 patch...
 
-And here we're determining that it is not a sync-data-to-disk
-operation, hence it must be a clean-dirty-pages operation.
+Ok, will do from next time.
 
-This isn't very well-controlled, is it?  It's an inference which was
-put together by examining current callers, I assume?
+> > The following program shows the seal
+> > working in action:
+> [...]
+> > Cc: jreck@google.com
+> > Cc: john.stultz@linaro.org
+> > Cc: tkjos@google.com
+> > Cc: gregkh@linuxfoundation.org
+> > Cc: hch@infradead.org
+> > Reviewed-by: John Stultz <john.stultz@linaro.org>
+> > Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
+> > ---
+> [...]
+> > diff --git a/mm/memfd.c b/mm/memfd.c
+> > index 2bb5e257080e..5ba9804e9515 100644
+> > --- a/mm/memfd.c
+> > +++ b/mm/memfd.c
+> [...]
+> > @@ -219,6 +220,25 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
+> >                 }
+> >         }
+> >
+> > +       if ((seals & F_SEAL_FUTURE_WRITE) &&
+> > +           !(*file_seals & F_SEAL_FUTURE_WRITE)) {
+> > +               /*
+> > +                * The FUTURE_WRITE seal also prevents growing and shrinking
+> > +                * so we need them to be already set, or requested now.
+> > +                */
+> > +               int test_seals = (seals | *file_seals) &
+> > +                                (F_SEAL_GROW | F_SEAL_SHRINK);
+> > +
+> > +               if (test_seals != (F_SEAL_GROW | F_SEAL_SHRINK)) {
+> > +                       error = -EINVAL;
+> > +                       goto unlock;
+> > +               }
+> > +
+> > +               spin_lock(&file->f_lock);
+> > +               file->f_mode &= ~(FMODE_WRITE | FMODE_PWRITE);
+> > +               spin_unlock(&file->f_lock);
+> > +       }
+> 
+> So you're fiddling around with the file, but not the inode? How are
+> you preventing code like the following from re-opening the file as
+> writable?
+> 
+> $ cat memfd.c
+> #define _GNU_SOURCE
+> #include <unistd.h>
+> #include <sys/syscall.h>
+> #include <printf.h>
+> #include <fcntl.h>
+> #include <err.h>
+> #include <stdio.h>
+> 
+> int main(void) {
+>   int fd = syscall(__NR_memfd_create, "testfd", 0);
+>   if (fd == -1) err(1, "memfd");
+>   char path[100];
+>   sprintf(path, "/proc/self/fd/%d", fd);
+>   int fd2 = open(path, O_RDWR);
+>   if (fd2 == -1) err(1, "reopen");
+>   printf("reopen successful: %d\n", fd2);
+> }
+> $ gcc -o memfd memfd.c
+> $ ./memfd
+> reopen successful: 4
 
-It would be good if we could force callers to be explicit about their
-intent here.  But I'm not sure that adding a new writeback_sync_mode is
-the way to do this.
+Great catch and this is indeed an issue :-(. I verified it too.
 
-At a minimum it would be good to have careful comments in here
-explaining what is going on, justifying the above inference, explaining
-the xfs requirement (hopefully in a way which isn't xfs-specific).
+> That aside: I wonder whether a better API would be something that
+> allows you to create a new readonly file descriptor, instead of
+> fiddling with the writability of an existing fd.
 
->  					/*
-> -					 * done_index is set past this page,
-> -					 * so media errors will not choke
-> +					 * done_index is set past this page, so
-> +					 * media errors will not choke
->  					 * background writeout for the entire
->  					 * file. This has consequences for
->  					 * range_cyclic semantics (ie. it may
->  					 * not be suitable for data integrity
->  					 * writeout).
->  					 */
+Android usecases cannot deal with a new fd number because it breaks the
+continuity of having the same old fd, as Dan also pointed out.
+
+Also such API will have the same issues you brought up?
+
+thanks,
+
+ - Joel
