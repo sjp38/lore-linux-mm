@@ -1,97 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 48C2A6B0700
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 10:34:12 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id 67so3513601qkj.18
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 07:34:12 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a24-v6sor8531800qtj.43.2018.11.09.07.34.10
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 82A4D6B0702
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 10:42:22 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id c15-v6so1589442pls.15
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 07:42:22 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id x5-v6si7665494plv.256.2018.11.09.07.42.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 09 Nov 2018 07:34:11 -0800 (PST)
-From: "Zi Yan" <zi.yan@cs.rutgers.edu>
-Subject: Re: [RFC PATCH] mm: thp: implement THP reservations for anonymous
- memory
-Date: Fri, 09 Nov 2018 10:34:07 -0500
-Message-ID: <EEBCAF4D-138C-4CF7-B4B7-C55F1192A026@cs.rutgers.edu>
-In-Reply-To: <20181109131128.GE23260@techsingularity.net>
-References: <1541746138-6706-1-git-send-email-anthony.yznaga@oracle.com>
- <20181109121318.3f3ou56ceegrqhcp@kshutemo-mobl1>
- <20181109131128.GE23260@techsingularity.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Nov 2018 07:42:21 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: multipart/signed;
- boundary="=_MailMate_16C263ED-FC1F-46C8-ADD9-BAA932760252_=";
- micalg=pgp-sha512; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Fri, 09 Nov 2018 21:12:20 +0530
+From: Arun KS <arunks@codeaurora.org>
+Subject: Re: [PATCH v3 4/4] mm: Remove managed_page_count spinlock
+In-Reply-To: <20181108101400.GU27423@dhcp22.suse.cz>
+References: <1541665398-29925-1-git-send-email-arunks@codeaurora.org>
+ <1541665398-29925-5-git-send-email-arunks@codeaurora.org>
+ <20181108083400.GQ27423@dhcp22.suse.cz>
+ <4e5e2923a424ab2e2c50e56b2e538a3c@codeaurora.org>
+ <20181108101400.GU27423@dhcp22.suse.cz>
+Message-ID: <4eded31079a6bc3b275ef619204c3509@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Anthony Yznaga <anthony.yznaga@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, aneesh.kumar@linux.ibm.com, akpm@linux-foundation.org, jglisse@redhat.com, khandual@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, mhocko@kernel.org, minchan@kernel.org, peterz@infradead.org, rientjes@google.com, vbabka@suse.cz, willy@infradead.org, ying.huang@intel.com, nitingupta910@gmail.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, keescook@chromium.org, khlebnikov@yandex-team.ru, minchan@kernel.org, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, getarunks@gmail.com
 
-This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
+On 2018-11-08 15:44, Michal Hocko wrote:
+> On Thu 08-11-18 15:33:06, Arun KS wrote:
+>> On 2018-11-08 14:04, Michal Hocko wrote:
+>> > On Thu 08-11-18 13:53:18, Arun KS wrote:
+>> > > Now totalram_pages and managed_pages are atomic varibles. No need
+>> > > of managed_page_count spinlock.
+>> >
+>> > As explained earlier. Please add a motivation here. Feel free to reuse
+>> > wording from
+>> > http://lkml.kernel.org/r/20181107103630.GF2453@dhcp22.suse.cz
+>> 
+>> Sure. Will add in next spin.
+> 
+> Andrew usually updates changelogs if you give him the full wording.
+> I would wait few days before resubmitting, if that is needed at all.
+> 0day will throw a lot of random configs which can reveal some 
+> leftovers.
 
---=_MailMate_16C263ED-FC1F-46C8-ADD9-BAA932760252_=
-Content-Type: text/plain
+0day sent one more failure. Will fix that and resend one more version.
 
-On 9 Nov 2018, at 8:11, Mel Gorman wrote:
-
-> On Fri, Nov 09, 2018 at 03:13:18PM +0300, Kirill A. Shutemov wrote:
->> On Thu, Nov 08, 2018 at 10:48:58PM -0800, Anthony Yznaga wrote:
->>> The basic idea as outlined by Mel Gorman in [2] is:
->>>
->>> 1) On first fault in a sufficiently sized range, allocate a huge page
->>>    sized and aligned block of base pages.  Map the base page
->>>    corresponding to the fault address and hold the rest of the pages in
->>>    reserve.
->>> 2) On subsequent faults in the range, map the pages from the reservation.
->>> 3) When enough pages have been mapped, promote the mapped pages and
->>>    remaining pages in the reservation to a huge page.
->>> 4) When there is memory pressure, release the unused pages from their
->>>    reservations.
->>
->> I haven't yet read the patch in details, but I'm skeptical about the
->> approach in general for few reasons:
->>
->> - PTE page table retracting to replace it with huge PMD entry requires
->>   down_write(mmap_sem). It makes the approach not practical for many
->>   multi-threaded workloads.
->>
->>   I don't see a way to avoid exclusive lock here. I will be glad to
->>   be proved otherwise.
->>
->
-> That problem is somewhat fundamental to the mmap_sem itself and
-> conceivably it could be alleviated by range-locking (if that gets
-> completed). The other thing to bear in mind is the timing. If the
-> promotion is in-place due to reservations, there isn't the allocation
-> overhead and the hold times *should* be short.
->
-
-Is it possible to convert all these PTEs to migration entries during
-the promotion and replace them with a huge PMD entry afterwards?
-AFAIK, migrating pages does not require holding a mmap_sem.
-Basically, it will act like migrating 512 base pages to a THP without
-actually doing the page copy.
-
---
-Best Regards
-Yan Zi
-
---=_MailMate_16C263ED-FC1F-46C8-ADD9-BAA932760252_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename=signature.asc
-Content-Type: application/pgp-signature; name=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - https://gpgtools.org
-
-iQFKBAEBCgA0FiEEOXBxLIohamfZUwd5QYsvEZxOpswFAlvlqO8WHHppLnlhbkBj
-cy5ydXRnZXJzLmVkdQAKCRBBiy8RnE6mzOsMCACj3xPbOIFF7BqEziJHcPZ1C6vI
-vTSqfLtiihNb8cPqNbZa9tds6lYuGVW5dVopevbhcNbi5pQ39ZYKbPGFOTMCzcQ/
-8k5wuMR8kJkA2RYrD8dN+3UrEChxEB0r35GH92X9kvwbS9Aqtp/G3ECqBBIInLq3
-QeV+XpqQHydQvLhAN33dzxC7ounHlYTKaEEl5Ca6aD6/6A5YtYKEuGeNwZeP7aHk
-jzts84ic+pNFXfodgp+pTLwwG37Kne/NB3QwuFmC5Oe5Y9lnjywYk9TlUjdZjVuk
-98VW/c3EKRiIKkbabm61ZgtWdzCdpbEzj+GkvTIISluChzsg3WsrgywgBCXI
-=9Ao+
------END PGP SIGNATURE-----
-
---=_MailMate_16C263ED-FC1F-46C8-ADD9-BAA932760252_=--
+Regards,
+Arun
