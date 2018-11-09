@@ -1,113 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B2AC6B0704
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 10:43:31 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id r21-v6so1376500edp.5
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 07:43:31 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c14-v6si218943edm.380.2018.11.09.07.43.29
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DB8AB6B0706
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 10:48:43 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id a199so3639660qkb.23
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 07:48:43 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r32si307260qvj.117.2018.11.09.07.48.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Nov 2018 07:43:29 -0800 (PST)
-Date: Fri, 9 Nov 2018 16:43:26 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH 3/3] lockdep: Use line-buffered printk() for lockdep
- messages.
-Message-ID: <20181109154326.apqkbsojmbg26o3b@pathway.suse.cz>
-References: <1541165517-3557-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <1541165517-3557-3-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20181107151900.gxmdvx42qeanpoah@pathway.suse.cz>
- <20181108044510.GC2343@jagdpanzerIV>
- <9648a384-853c-942e-6a8d-80432d943aae@i-love.sakura.ne.jp>
- <20181109061204.GC599@jagdpanzerIV>
- <07dcbcb8-c5a7-8188-b641-c110ade1c5da@i-love.sakura.ne.jp>
+        Fri, 09 Nov 2018 07:48:42 -0800 (PST)
+Subject: Re: [RFC PATCH 00/12] locking/lockdep: Add a new class of terminal
+ locks
+References: <1541709268-3766-1-git-send-email-longman@redhat.com>
+ <20181109080412.GC86700@gmail.com>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <1fcaa330-a4be-0f8a-7974-7b17f0ce01ad@redhat.com>
+Date: Fri, 9 Nov 2018 10:48:39 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <07dcbcb8-c5a7-8188-b641-c110ade1c5da@i-love.sakura.ne.jp>
+In-Reply-To: <20181109080412.GC86700@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dmitriy Vyukov <dvyukov@google.com>, Steven Rostedt <rostedt@goodmis.org>, Alexander Potapenko <glider@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>
+To: Ingo Molnar <mingo@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Fri 2018-11-09 18:55:26, Tetsuo Handa wrote:
-> On 2018/11/09 15:12, Sergey Senozhatsky wrote:
-> > On (11/08/18 20:37), Tetsuo Handa wrote:
-> > > On 2018/11/08 13:45, Sergey Senozhatsky wrote:
-> How early_printk requirement affects line buffered printk() API?
-> 
-> I don't think it is impossible to convert from
-> 
->      printk("Testing feature XYZ..");
->      this_may_blow_up_because_of_hw_bugs();
->      printk(KERN_CONT " ... ok\n");
-> 
-> to
-> 
->      printk("Testing feature XYZ:\n");
->      this_may_blow_up_because_of_hw_bugs();
->      printk("Testing feature XYZ.. ... ok\n");
-> 
-> in https://lore.kernel.org/lkml/CA+55aFwmwdY_mMqdEyFPpRhCKRyeqj=+aCqe5nN108v8ELFvPw@mail.gmail.com/ .
+On 11/09/2018 03:04 AM, Ingo Molnar wrote:
+> * Waiman Long <longman@redhat.com> wrote:
+>
+>> The purpose of this patchset is to add a new class of locks called
+>> terminal locks and converts some of the low level raw or regular
+>> spinlocks to terminal locks. A terminal lock does not have forward
+>> dependency and it won't allow a lock or unlock operation on another
+>> lock. Two level nesting of terminal locks is allowed, though.
+>>
+>> Only spinlocks that are acquired with the _irq/_irqsave variants or
+>> acquired in an IRQ disabled context should be classified as terminal
+>> locks.
+>>
+>> Because of the restrictions on terminal locks, we can do simple checks=
+ on
+>> them without using the lockdep lock validation machinery. The advantag=
+es
+>> of making these changes are as follows:
+>>
+>>  1) The lockdep check will be faster for terminal locks without using
+>>     the lock validation code.
+>>  2) It saves table entries used by the validation code and hence make
+>>     it harder to overflow those tables.
+>>
+>> In fact, it is possible to overflow some of the tables by running
+>> a variety of different workloads on a debug kernel. I have seen bug
+>> reports about exhausting MAX_LOCKDEP_KEYS, MAX_LOCKDEP_ENTRIES and
+>> MAX_STACK_TRACE_ENTRIES. This patch will help to reduce the chance
+>> of overflowing some of the tables.
+>>
+>> Performance wise, there was no statistically significant difference in=
 
-I just wonder how this pattern is common. I have tried but I failed
-to find any instance.
+>> performanace when doing a parallel kernel build on a debug kernel.
+> Could you please measure a locking intense workload instead, such as:
+>
+>    $ perf stat --null --sync --repeat 10 perf bench sched messaging
+>
+> and profile which locks used there could be marked terminal, and measur=
+e=20
+> the before/after performance impact?
 
-This problem looks like a big argument against explicit buffers.
-But I wonder if it is real.
+I will run the test. It will probably be done after the LPC next week.
 
-> > 
-> > So in my email I was not advertising printk_safe as a "buffered printk for
-> > everyone", I was just talking about lockdep. It's a bit doubtful that Peter
-> > will ACK lockdep transition to buffered printk.
-> 
-> What Linus is suggesting is "helper functions with no printk()", which is
-> more difficult than my "helper functions with printk()" because we need to
-> calculate enough buffer size (which may traverse many functions) because
-> we can't printk() from helper functions when buffer size is too small.
-> 
-> I'm wondering if Linus still insists scattering "a data structure which
-> Linus suggested" around. Rather, I'd like to propose below one. This is not
-> perfect but modification is much smaller.
-> 
-> + * Line buffered printk() tries to assign a buffer when printk() from a new
-> + * context identifier comes in. And it automatically releases that buffer when
-> + * one of three conditions listed below became true.
-> + *
-> + *   (1) printk() from that context identifier emitted '\n' as the last
-> + *       character of output.
-> + *   (2) printk() from that context identifier tried to print a too long line
-> + *       which cannot be stored into a buffer.
-> + *   (3) printk() from a new context identifier noticed that some context
-> + *       identifier is reserving a buffer for more than 10 seconds without
-> + *       emitting '\n'.
-> + *
-> + * Since (3) is based on a heuristic that somebody forgot to emit '\n' as the
-> + * last character of output(), pr_cont()/KERN_CONT users are expected to emit
-> + * '\n' within 10 seconds even if they reserved a buffer.
+>> Below were selected output lines from the lockdep_stats files of the
+>> patched and unpatched kernels after bootup and running parallel kernel=
 
-This is my main concern about this approach. It is so easy to omit
-the final '\n'.
+>> builds.
+>>
+>>   Item                     Unpatched kernel  Patched kernel  % Change
+>>   ----                     ----------------  --------------  --------
+>>   direct dependencies           9732             8994          -7.6%
+>>   dependency chains            18776            17033          -9.3%
+>>   dependency chain hlocks      76044            68419         -10.0%
+>>   stack-trace entries         110403           104341          -5.5%
+> That's pretty impressive!
+>
+>> There were some reductions in the size of the lockdep tables. They wer=
+e
+>> not significant, but it is still a good start to rein in the number of=
 
-They are currently delayed until another printk(). Even this is bad.
-Unfortunately we could not setup timer from printk() because it
-would add more locks into the game.
+>> entries in those tables to make it harder to overflow them.
+> Agreed.
+>
+> BTW., if you are interested in more radical approaches to optimize=20
+> lockdep, we could also add a static checker via objtool driven call gra=
+ph=20
+> analysis, and mark those locks terminal that we can prove are terminal.=
 
-This patch will make it worse. They might get delayed by 10s or even
-more. Many other lines might appear in between. Also the code is
-more tricky[*].
+>
+> This would require the unified call graph of the kernel image and of al=
+l=20
+> modules to be examined in a final pass, but that's within the principal=
+=20
+> scope of objtool. (This 'final pass' could also be done during bootup, =
+at=20
+> least in initial versions.)
+>
+> Note that beyond marking it 'terminal' such a static analysis pass woul=
+d=20
+> also allow the detection of obvious locking bugs at the build (or boot)=
+=20
+> stage already - plus it would allow the disabling of lockdep for=20
+> self-contained locks that don't interact with anything else.
+>
+> I.e. the static analysis pass would 'augment' lockdep and leave only=20
+> those locks active for runtime lockdep tracking whose dependencies it=20
+> cannot prove to be correct yet.
 
+It is a pretty interesting idea to use objtool to scan for locks. The
+list of locks that I marked as terminal in this patch was found by
+looking at /proc/lockdep for those that only have backward dependencies,
+but no forward dependency. I focused on those with a large number of BDs
+and check the code to see if they could marked as terminal. This is a
+rather labor intensive process and is subject to error. It would be nice
+if it can be done by an automated tool. So I am going to look into that,
+but it won't be part of this initial patchset, though.
 
-Sign, I am really unhappy how the buffered_printk() conversion
-looks in lockdep.c. But I still think that the approach is more
-reliable. I am going to investigate much more pr_cont() users.
-I wonder how many would be that complicated. I do not want
-to give up just because one use-case that was complicated
-even before.
+I sent this patchset out to see if anyone has any objection to it. It
+seems you don't have any objection to that. So I am going to move ahead
+to do more testing and performance analysis.
 
-
-[*] The buffer can get written and flushed by different processes.
-    It is not trivial to do it correctly a lockless way.
-
-    The proposed locking looks right on the first glance. But
-    the code is a bit scary ;-)
+Thanks,
+Longman
