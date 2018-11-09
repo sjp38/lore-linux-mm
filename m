@@ -1,122 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DCBF6B0720
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 16:07:01 -0500 (EST)
-Received: by mail-ot1-f72.google.com with SMTP id c43so1834517otd.20
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 13:07:01 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c125-v6sor4597505oia.151.2018.11.09.13.06.59
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 250B46B0722
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 16:09:02 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id a2so1994898pgt.11
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 13:09:02 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id x3-v6si7545938pgj.425.2018.11.09.13.09.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 09 Nov 2018 13:06:59 -0800 (PST)
-MIME-Version: 1.0
-References: <20181108041537.39694-1-joel@joelfernandes.org>
-In-Reply-To: <20181108041537.39694-1-joel@joelfernandes.org>
-From: Jann Horn <jannh@google.com>
-Date: Fri, 9 Nov 2018 22:06:31 +0100
-Message-ID: <CAG48ez1h=v-JYnDw81HaYJzOfrNhwYksxmc2r=cJvdQVgYM+NA@mail.gmail.com>
-Subject: Re: [PATCH v3 resend 1/2] mm: Add an F_SEAL_FUTURE_WRITE seal to memfd
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Nov 2018 13:09:00 -0800 (PST)
+Date: Fri, 9 Nov 2018 13:08:57 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3] ksm: Assist buddy allocator to assemble 1-order
+ pages
+Message-Id: <20181109130857.54a1f383629e771b4f3888c4@linux-foundation.org>
+In-Reply-To: <153995241537.4096.15189862239521235797.stgit@localhost.localdomain>
+References: <153995241537.4096.15189862239521235797.stgit@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: joel@joelfernandes.org
-Cc: kernel list <linux-kernel@vger.kernel.org>, jreck@google.com, John Stultz <john.stultz@linaro.org>, Todd Kjos <tkjos@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Christoph Hellwig <hch@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Daniel Colascione <dancol@google.com>, Bruce Fields <bfields@fieldses.org>, jlayton@kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Lei.Yang@windriver.com, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, marcandre.lureau@redhat.com, Mike Kravetz <mike.kravetz@oracle.com>, minchan@kernel.org, shuah@kernel.org, valdis.kletnieks@vt.edu, Hugh Dickins <hughd@google.com>, Linux API <linux-api@vger.kernel.org>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: hughd@google.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com, andriy.shevchenko@linux.intel.com, mhocko@suse.com, rppt@linux.vnet.ibm.com, imbrenda@linux.vnet.ibm.com, corbet@lwn.net, ndesaulniers@google.com, dave.jiang@intel.com, jglisse@redhat.com, jia.he@hxt-semitech.com, paulmck@linux.vnet.ibm.com, colin.king@canonical.com, jiang.biao2@zte.com.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-+linux-api for API addition
-+hughd as FYI since this is somewhat related to mm/shmem
+On Fri, 19 Oct 2018 15:33:39 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
 
-On Fri, Nov 9, 2018 at 9:46 PM Joel Fernandes (Google)
-<joel@joelfernandes.org> wrote:
-> Android uses ashmem for sharing memory regions. We are looking forward
-> to migrating all usecases of ashmem to memfd so that we can possibly
-> remove the ashmem driver in the future from staging while also
-> benefiting from using memfd and contributing to it. Note staging drivers
-> are also not ABI and generally can be removed at anytime.
+> v3: Comment improvements.
+> v2: Style improvements.
+> 
+> try_to_merge_two_pages() merges two pages, one of them
+> is a page of currently scanned mm, the second is a page
+> with identical hash from unstable tree. Currently, we
+> merge the page from unstable tree into the first one,
+> and then free it.
+> 
+> The idea of this patch is to prefer freeing that page
+> of them, which has a free neighbour (i.e., neighbour
+> with zero page_count()). This allows buddy allocator
+> to assemble at least 1-order set from the freed page
+> and its neighbour; this is a kind of cheep passive
+> compaction.
+> 
+> AFAIK, 1-order pages set consists of pages with PFNs
+> [2n, 2n+1] (odd, even), so the neighbour's pfn is
+> calculated via XOR with 1. We check the result pfn
+> is valid and its page_count(), and prefer merging
+> into @tree_page if neighbour's usage count is zero.
+> 
+> There a is small difference with current behavior
+> in case of error path. In case of the second
+> try_to_merge_with_ksm_page() is failed, we return
+> from try_to_merge_two_pages() with @tree_page
+> removed from unstable tree. It does not seem to matter,
+> but if we do not want a change at all, it's not
+> a problem to move remove_rmap_item_from_tree() from
+> try_to_merge_with_ksm_page() to its callers.
 >
-> One of the main usecases Android has is the ability to create a region
-> and mmap it as writeable, then add protection against making any
-> "future" writes while keeping the existing already mmap'ed
-> writeable-region active.  This allows us to implement a usecase where
-> receivers of the shared memory buffer can get a read-only view, while
-> the sender continues to write to the buffer.
-> See CursorWindow documentation in Android for more details:
-> https://developer.android.com/reference/android/database/CursorWindow
->
-> This usecase cannot be implemented with the existing F_SEAL_WRITE seal.
-> To support the usecase, this patch adds a new F_SEAL_FUTURE_WRITE seal
-> which prevents any future mmap and write syscalls from succeeding while
-> keeping the existing mmap active.
 
-Please CC linux-api@ on patches like this. If you had done that, I
-might have criticized your v1 patch instead of your v3 patch...
+Seems sensible.
 
-> The following program shows the seal
-> working in action:
-[...]
-> Cc: jreck@google.com
-> Cc: john.stultz@linaro.org
-> Cc: tkjos@google.com
-> Cc: gregkh@linuxfoundation.org
-> Cc: hch@infradead.org
-> Reviewed-by: John Stultz <john.stultz@linaro.org>
-> Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
-> ---
-[...]
-> diff --git a/mm/memfd.c b/mm/memfd.c
-> index 2bb5e257080e..5ba9804e9515 100644
-> --- a/mm/memfd.c
-> +++ b/mm/memfd.c
-[...]
-> @@ -219,6 +220,25 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
->                 }
->         }
+> 
+> ...
 >
-> +       if ((seals & F_SEAL_FUTURE_WRITE) &&
-> +           !(*file_seals & F_SEAL_FUTURE_WRITE)) {
-> +               /*
-> +                * The FUTURE_WRITE seal also prevents growing and shrinking
-> +                * so we need them to be already set, or requested now.
-> +                */
-> +               int test_seals = (seals | *file_seals) &
-> +                                (F_SEAL_GROW | F_SEAL_SHRINK);
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -1321,6 +1321,23 @@ static struct page *try_to_merge_two_pages(struct rmap_item *rmap_item,
+>  {
+>  	int err;
+>  
+> +	if (IS_ENABLED(CONFIG_COMPACTION)) {
+> +		unsigned long pfn;
 > +
-> +               if (test_seals != (F_SEAL_GROW | F_SEAL_SHRINK)) {
-> +                       error = -EINVAL;
-> +                       goto unlock;
-> +               }
+> +		/*
+> +		 * Find neighbour of @page containing 1-order pair in buddy
+> +		 * allocator and check whether its count is 0. If so, we
+> +		 * consider the neighbour as a free page (this is more
+> +		 * probable than it's freezed via page_ref_freeze()), and
+> +		 * we try to use @tree_page as ksm page and to free @page.
+> +		 */
+> +		pfn = page_to_pfn(page) ^ 1;
+> +		if (pfn_valid(pfn) && page_count(pfn_to_page(pfn)) == 0) {
+> +			swap(rmap_item, tree_rmap_item);
+> +			swap(page, tree_page);
+> +		}
+> +	}
 > +
-> +               spin_lock(&file->f_lock);
-> +               file->f_mode &= ~(FMODE_WRITE | FMODE_PWRITE);
-> +               spin_unlock(&file->f_lock);
-> +       }
 
-So you're fiddling around with the file, but not the inode? How are
-you preventing code like the following from re-opening the file as
-writable?
+A few thoughts
 
-$ cat memfd.c
-#define _GNU_SOURCE
-#include <unistd.h>
-#include <sys/syscall.h>
-#include <printf.h>
-#include <fcntl.h>
-#include <err.h>
-#include <stdio.h>
+- if tree_page's neighbor is unused, there was no point in doing this
+  swapping?
 
-int main(void) {
-  int fd = syscall(__NR_memfd_create, "testfd", 0);
-  if (fd == -1) err(1, "memfd");
-  char path[100];
-  sprintf(path, "/proc/self/fd/%d", fd);
-  int fd2 = open(path, O_RDWR);
-  if (fd2 == -1) err(1, "reopen");
-  printf("reopen successful: %d\n", fd2);
-}
-$ gcc -o memfd memfd.c
-$ ./memfd
-reopen successful: 4
-$
+- if both *page and *tree_page have unused neighbors we could go
+  further and look for an opportunity to create an order-2 page. 
+  etcetera.  This may b excessive ;)
 
-That aside: I wonder whether a better API would be something that
-allows you to create a new readonly file descriptor, instead of
-fiddling with the writability of an existing fd.
+- are we really sure that this optimization causes desirable results?
+  If we always merge from one tree into the other, we maximise the
+  opportunities for page coalescing in the long term.  But if we
+  sometimes merge one way and sometimes merge the other way, we might
+  end up with less higher-order page coalescing?  Or am I confusing
+  myself?
