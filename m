@@ -1,117 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BC81F6B0712
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 12:31:41 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id t1-v6so1784497ply.23
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 09:31:41 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j19-v6si7974452pfh.63.2018.11.09.09.31.39
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A80F16B0714
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 12:59:35 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id f69-v6so2004075pfa.15
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 09:59:35 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id v14-v6si7330675pgi.5.2018.11.09.09.59.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Nov 2018 09:31:40 -0800 (PST)
-Subject: Re: [bug report] mm, slab/slub: introduce kmalloc-reclaimable caches
-References: <20181109171701.GB8323@unbuntlaptop>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <a6c8eeff-801c-3773-6b96-533f519ef9f4@suse.cz>
-Date: Fri, 9 Nov 2018 18:28:44 +0100
+        Fri, 09 Nov 2018 09:59:34 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20181109171701.GB8323@unbuntlaptop>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Fri, 09 Nov 2018 09:59:33 -0800
+From: isaacm@codeaurora.org
+Subject: Potentially Incorrect Wraparound Check in mm/usercopy.c
+Message-ID: <1ec2adea9665ea1a7e2fcbad029bc678@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Carpenter <dan.carpenter@oracle.com>
-Cc: linux-mm@kvack.org
+To: keescook@chromium.org
+Cc: linux-mm@kvack.org, psodagud@codeaurora.org, tsoni@codeaurora.org
 
-On 11/9/18 6:17 PM, Dan Carpenter wrote:
-> Hello Vlastimil Babka,
+Hi Kees,
 
-Hi,
+We are seeing the following message and kernel BUG on the 4.14.76 
+kernel:
+[   16.094139] usercopy: kernel memory overwrite attempt detected to 
+fffffffffffff000 (<wrapped address>) (4096 bytes)
+[   16.140498] kernel BUG at 
+/local/mnt/workspace/isaacm/hana_workspace/kdev/kernel/mm/usercopy.c:72!
 
-> The patch 1291523f2c1d: "mm, slab/slub: introduce kmalloc-reclaimable
-> caches" from Oct 26, 2018, leads to the following static checker
-> warning:
-> 
-> 	./include/linux/slab.h:585 kmalloc_node()
-> 	warn: array off by one? 'kmalloc_caches[kmalloc_type(flags)]' '0-3 == 3'
+This occurs when a thread tries to write 4 KB to one page, and the 
+virtual address for that page--which was acquired via a call to 
+kmap_atomic()--is 0xfffffffffffff000. Before doing the write, we call 
+check_copy_size(0xfffffffffffff000, SZ_4K, false). It seems like we are 
+seeing this issue because of the first check in check_bogus_address(), 
+which checks to see if reading the 4 KB will cause wraparound. With the 
+following change, we no longer see this issue:
 
-I believe that's a false positive.
+diff --git a/mm/usercopy.c b/mm/usercopy.c
+index 852eb4e..0293645 100644
+--- a/mm/usercopy.c
++++ b/mm/usercopy.c
+@@ -151,7 +151,7 @@ static inline void check_bogus_address(const 
+unsigned long ptr, unsigned long n,
+                                        bool to_user)
+  {
+         /* Reject if object wraps past end of memory. */
+-       if (ptr + n < ptr)
++       if (ptr + (n - 1) < ptr)
+                 usercopy_abort("wrapped address", NULL, to_user, 0, ptr 
++ n);
 
-> ./include/linux/slab.h
->    298  /*
->    299   * Whenever changing this, take care of that kmalloc_type() and
->    300   * create_kmalloc_caches() still work as intended.
->    301   */
->    302  enum kmalloc_cache_type {
->    303          KMALLOC_NORMAL = 0,
->    304          KMALLOC_RECLAIM,
->    305  #ifdef CONFIG_ZONE_DMA
->    306          KMALLOC_DMA,
->    307  #endif
->    308          NR_KMALLOC_TYPES
-> 
-> 
-> The kmalloc_caches[] array has NR_KMALLOC_TYPES elements.
+         /* Reject if NULL or ZERO-allocation. */
 
-Yes.
+Is there a reason why this change to that check would not be valid? If 
+we are checking to see if reading n bytes, starting at ptr, will cause a 
+wraparound, then shouldn't we be checking to ensure that the range of 
+memory that will actually be read from won't cause a wraparound, since 
+we would only be accessing [ptr, ptr + (n - 1)], and not ptr + n?
 
->    309  };
->    310  
->    311  #ifndef CONFIG_SLOB
->    312  extern struct kmem_cache *
->    313  kmalloc_caches[NR_KMALLOC_TYPES][KMALLOC_SHIFT_HIGH + 1];
->    314  
->    315  static __always_inline enum kmalloc_cache_type kmalloc_type(gfp_t flags)
->    316  {
->    317          int is_dma = 0;
->    318          int type_dma = 0;
->    319          int is_reclaimable;
->    320  
->    321  #ifdef CONFIG_ZONE_DMA
->    322          is_dma = !!(flags & __GFP_DMA);
->    323          type_dma = is_dma * KMALLOC_DMA;
->                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> 
-> KMALLOC_DMA is the last possible valid index.
-
-Yes, but type_dma gains the value of KMALLOC_DMA only when is_dma is 1.
-
->    324  #endif
->    325  
->    326          is_reclaimable = !!(flags & __GFP_RECLAIMABLE);
->    327  
->    328          /*
->    329           * If an allocation is both __GFP_DMA and __GFP_RECLAIMABLE, return
->    330           * KMALLOC_DMA and effectively ignore __GFP_RECLAIMABLE
->    331           */
->    332          return type_dma + (is_reclaimable & !is_dma) * KMALLOC_RECLAIM;
->                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> 
-> We're adding one to it.
-
-Only when !is_dma is 1, which means then that type_dma is 0. So it's safe.
-
-> This is mm/ so I assume this works,
-
-I'll... take that as a compliment :D
-
-> but it's
-> pretty confusing.
-
-Indeed. Static checkers seem to hate my too clever code, so it's already
-going away [1]. Maybe your static checker can be improved to evaluate
-this better? There's already a gcc bug [2] inspired by the whole thing.
-
-Thanks!
-Vlastimil
-
-[1]
-https://lore.kernel.org/lkml/cbc1fc52-dc8c-aa38-8f29-22da8bcd91c1@suse.cz/T/#u
-[2] https://gcc.gnu.org/bugzilla/show_bug.cgi?id=87954
-
->    333  }
-> 
-> regards,
-> dan carpenter
-> 
+Thanks,
+Isaac Manjarres
