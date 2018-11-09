@@ -1,104 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 250B46B0722
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 16:09:02 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id a2so1994898pgt.11
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 13:09:02 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id x3-v6si7545938pgj.425.2018.11.09.13.09.00
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 798196B0724
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 16:15:25 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id y83so6060885qka.7
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 13:15:25 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g5sor9739868qtp.68.2018.11.09.13.15.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Nov 2018 13:09:00 -0800 (PST)
-Date: Fri, 9 Nov 2018 13:08:57 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3] ksm: Assist buddy allocator to assemble 1-order
- pages
-Message-Id: <20181109130857.54a1f383629e771b4f3888c4@linux-foundation.org>
-In-Reply-To: <153995241537.4096.15189862239521235797.stgit@localhost.localdomain>
-References: <153995241537.4096.15189862239521235797.stgit@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Fri, 09 Nov 2018 13:15:24 -0800 (PST)
+Date: Fri, 9 Nov 2018 16:15:21 -0500
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+Subject: Re: [mm PATCH v5 0/7] Deferred page init improvements
+Message-ID: <20181109211521.5ospn33pp552k2xv@xakep.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <154145268025.30046.11742652345962594283.stgit@ahduyck-desk1.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: hughd@google.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com, andriy.shevchenko@linux.intel.com, mhocko@suse.com, rppt@linux.vnet.ibm.com, imbrenda@linux.vnet.ibm.com, corbet@lwn.net, ndesaulniers@google.com, dave.jiang@intel.com, jglisse@redhat.com, jia.he@hxt-semitech.com, paulmck@linux.vnet.ibm.com, colin.king@canonical.com, jiang.biao2@zte.com.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Alexander Duyck <alexander.h.duyck@linux.intel.com>, daniel.m.jordan@oracle.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mhocko@suse.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.com
 
-On Fri, 19 Oct 2018 15:33:39 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
-
-> v3: Comment improvements.
-> v2: Style improvements.
+On 18-11-05 13:19:25, Alexander Duyck wrote:
+> This patchset is essentially a refactor of the page initialization logic
+> that is meant to provide for better code reuse while providing a
+> significant improvement in deferred page initialization performance.
 > 
-> try_to_merge_two_pages() merges two pages, one of them
-> is a page of currently scanned mm, the second is a page
-> with identical hash from unstable tree. Currently, we
-> merge the page from unstable tree into the first one,
-> and then free it.
-> 
-> The idea of this patch is to prefer freeing that page
-> of them, which has a free neighbour (i.e., neighbour
-> with zero page_count()). This allows buddy allocator
-> to assemble at least 1-order set from the freed page
-> and its neighbour; this is a kind of cheep passive
-> compaction.
-> 
-> AFAIK, 1-order pages set consists of pages with PFNs
-> [2n, 2n+1] (odd, even), so the neighbour's pfn is
-> calculated via XOR with 1. We check the result pfn
-> is valid and its page_count(), and prefer merging
-> into @tree_page if neighbour's usage count is zero.
-> 
-> There a is small difference with current behavior
-> in case of error path. In case of the second
-> try_to_merge_with_ksm_page() is failed, we return
-> from try_to_merge_two_pages() with @tree_page
-> removed from unstable tree. It does not seem to matter,
-> but if we do not want a change at all, it's not
-> a problem to move remove_rmap_item_from_tree() from
-> try_to_merge_with_ksm_page() to its callers.
->
+> In my testing on an x86_64 system with 384GB of RAM and 3TB of persistent
+> memory per node I have seen the following. In the case of regular memory
+> initialization the deferred init time was decreased from 3.75s to 1.06s on
+> average. For the persistent memory the initialization time dropped from
+> 24.17s to 19.12s on average. This amounts to a 253% improvement for the
+> deferred memory initialization performance, and a 26% improvement in the
+> persistent memory initialization performance.
 
-Seems sensible.
+Hi Alex,
 
-> 
-> ...
->
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -1321,6 +1321,23 @@ static struct page *try_to_merge_two_pages(struct rmap_item *rmap_item,
->  {
->  	int err;
->  
-> +	if (IS_ENABLED(CONFIG_COMPACTION)) {
-> +		unsigned long pfn;
-> +
-> +		/*
-> +		 * Find neighbour of @page containing 1-order pair in buddy
-> +		 * allocator and check whether its count is 0. If so, we
-> +		 * consider the neighbour as a free page (this is more
-> +		 * probable than it's freezed via page_ref_freeze()), and
-> +		 * we try to use @tree_page as ksm page and to free @page.
-> +		 */
-> +		pfn = page_to_pfn(page) ^ 1;
-> +		if (pfn_valid(pfn) && page_count(pfn_to_page(pfn)) == 0) {
-> +			swap(rmap_item, tree_rmap_item);
-> +			swap(page, tree_page);
-> +		}
-> +	}
-> +
+Please try to run your persistent memory init experiment with Daniel's
+patches:
 
-A few thoughts
+https://lore.kernel.org/lkml/20181105165558.11698-1-daniel.m.jordan@oracle.com/
 
-- if tree_page's neighbor is unused, there was no point in doing this
-  swapping?
+The performance should improve by much more than 26%.
 
-- if both *page and *tree_page have unused neighbors we could go
-  further and look for an opportunity to create an order-2 page. 
-  etcetera.  This may b excessive ;)
+Overall, your works looks good, but it needs to be considered how easy it will be
+to merge with ktask. I will try to complete the review today.
 
-- are we really sure that this optimization causes desirable results?
-  If we always merge from one tree into the other, we maximise the
-  opportunities for page coalescing in the long term.  But if we
-  sometimes merge one way and sometimes merge the other way, we might
-  end up with less higher-order page coalescing?  Or am I confusing
-  myself?
+Thank you,
+Pasha
