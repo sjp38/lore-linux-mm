@@ -1,53 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 776DE6B06FE
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 10:12:42 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id 134-v6so1361068pga.1
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 07:12:42 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id w15-v6si8879223plk.269.2018.11.09.07.12.40
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 48C2A6B0700
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 10:34:12 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id 67so3513601qkj.18
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 07:34:12 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a24-v6sor8531800qtj.43.2018.11.09.07.34.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 09 Nov 2018 07:12:41 -0800 (PST)
-Date: Fri, 9 Nov 2018 07:12:39 -0800
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 01/16] xfs: drop ->writepage completely
-Message-ID: <20181109151239.GD9153@infradead.org>
-References: <20181107063127.3902-1-david@fromorbit.com>
- <20181107063127.3902-2-david@fromorbit.com>
+        (Google Transport Security);
+        Fri, 09 Nov 2018 07:34:11 -0800 (PST)
+From: "Zi Yan" <zi.yan@cs.rutgers.edu>
+Subject: Re: [RFC PATCH] mm: thp: implement THP reservations for anonymous
+ memory
+Date: Fri, 09 Nov 2018 10:34:07 -0500
+Message-ID: <EEBCAF4D-138C-4CF7-B4B7-C55F1192A026@cs.rutgers.edu>
+In-Reply-To: <20181109131128.GE23260@techsingularity.net>
+References: <1541746138-6706-1-git-send-email-anthony.yznaga@oracle.com>
+ <20181109121318.3f3ou56ceegrqhcp@kshutemo-mobl1>
+ <20181109131128.GE23260@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181107063127.3902-2-david@fromorbit.com>
+Content-Type: multipart/signed;
+ boundary="=_MailMate_16C263ED-FC1F-46C8-ADD9-BAA932760252_=";
+ micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Anthony Yznaga <anthony.yznaga@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, aneesh.kumar@linux.ibm.com, akpm@linux-foundation.org, jglisse@redhat.com, khandual@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, mhocko@kernel.org, minchan@kernel.org, peterz@infradead.org, rientjes@google.com, vbabka@suse.cz, willy@infradead.org, ying.huang@intel.com, nitingupta910@gmail.com
 
-[adding linux-mm to the CC list]
+This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
 
-On Wed, Nov 07, 2018 at 05:31:12PM +1100, Dave Chinner wrote:
-> From: Dave Chinner <dchinner@redhat.com>
-> 
-> ->writepage is only used in one place - single page writeback from
-> memory reclaim. We only allow such writeback from kswapd, not from
-> direct memory reclaim, and so it is rarely used. When it comes from
-> kswapd, it is effectively random dirty page shoot-down, which is
-> horrible for IO patterns. We will already have background writeback
-> trying to clean all the dirty pages in memory as efficiently as
-> possible, so having kswapd interrupt our well formed IO stream only
-> slows things down. So get rid of xfs_vm_writepage() completely.
+--=_MailMate_16C263ED-FC1F-46C8-ADD9-BAA932760252_=
+Content-Type: text/plain
 
-Interesting.  IFF we can pull this off it would simplify a lot of
-things, so I'm generally in favor of it.
+On 9 Nov 2018, at 8:11, Mel Gorman wrote:
 
-->writepage callers in generic code are:
+> On Fri, Nov 09, 2018 at 03:13:18PM +0300, Kirill A. Shutemov wrote:
+>> On Thu, Nov 08, 2018 at 10:48:58PM -0800, Anthony Yznaga wrote:
+>>> The basic idea as outlined by Mel Gorman in [2] is:
+>>>
+>>> 1) On first fault in a sufficiently sized range, allocate a huge page
+>>>    sized and aligned block of base pages.  Map the base page
+>>>    corresponding to the fault address and hold the rest of the pages in
+>>>    reserve.
+>>> 2) On subsequent faults in the range, map the pages from the reservation.
+>>> 3) When enough pages have been mapped, promote the mapped pages and
+>>>    remaining pages in the reservation to a huge page.
+>>> 4) When there is memory pressure, release the unused pages from their
+>>>    reservations.
+>>
+>> I haven't yet read the patch in details, but I'm skeptical about the
+>> approach in general for few reasons:
+>>
+>> - PTE page table retracting to replace it with huge PMD entry requires
+>>   down_write(mmap_sem). It makes the approach not practical for many
+>>   multi-threaded workloads.
+>>
+>>   I don't see a way to avoid exclusive lock here. I will be glad to
+>>   be proved otherwise.
+>>
+>
+> That problem is somewhat fundamental to the mmap_sem itself and
+> conceivably it could be alleviated by range-locking (if that gets
+> completed). The other thing to bear in mind is the timing. If the
+> promotion is in-place due to reservations, there isn't the allocation
+> overhead and the hold times *should* be short.
+>
 
- (1) mm/vmscan.c:pageout() - this is the kswaped (or direct reclaim) you
-     mention above.  It basically does nothing in this case which isn't
-     great, but the whole point of this patch..
- (2) mm/migrate.c:writeout() - this is only called if no ->migratepage
-     method is presend, but we have one in XFS, so we should be ok.
+Is it possible to convert all these PTEs to migration entries during
+the promotion and replace them with a huge PMD entry afterwards?
+AFAIK, migrating pages does not require holding a mmap_sem.
+Basically, it will act like migrating 512 base pages to a THP without
+actually doing the page copy.
 
-Plus a few pieces of code that are just library functions like
-generic_writepages and mpage_writepages.
+--
+Best Regards
+Yan Zi
+
+--=_MailMate_16C263ED-FC1F-46C8-ADD9-BAA932760252_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename=signature.asc
+Content-Type: application/pgp-signature; name=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - https://gpgtools.org
+
+iQFKBAEBCgA0FiEEOXBxLIohamfZUwd5QYsvEZxOpswFAlvlqO8WHHppLnlhbkBj
+cy5ydXRnZXJzLmVkdQAKCRBBiy8RnE6mzOsMCACj3xPbOIFF7BqEziJHcPZ1C6vI
+vTSqfLtiihNb8cPqNbZa9tds6lYuGVW5dVopevbhcNbi5pQ39ZYKbPGFOTMCzcQ/
+8k5wuMR8kJkA2RYrD8dN+3UrEChxEB0r35GH92X9kvwbS9Aqtp/G3ECqBBIInLq3
+QeV+XpqQHydQvLhAN33dzxC7ounHlYTKaEEl5Ca6aD6/6A5YtYKEuGeNwZeP7aHk
+jzts84ic+pNFXfodgp+pTLwwG37Kne/NB3QwuFmC5Oe5Y9lnjywYk9TlUjdZjVuk
+98VW/c3EKRiIKkbabm61ZgtWdzCdpbEzj+GkvTIISluChzsg3WsrgywgBCXI
+=9Ao+
+-----END PGP SIGNATURE-----
+
+--=_MailMate_16C263ED-FC1F-46C8-ADD9-BAA932760252_=--
