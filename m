@@ -1,49 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7978E6B0710
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 12:28:42 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id 202so1006065pgb.6
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 09:28:42 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id d17si7536758pgl.484.2018.11.09.09.28.41
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BC81F6B0712
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 12:31:41 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id t1-v6so1784497ply.23
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 09:31:41 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j19-v6si7974452pfh.63.2018.11.09.09.31.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Nov 2018 09:28:41 -0800 (PST)
-Subject: Re: [PATCH v5 04/27] x86/fpu/xstate: Add XSAVES system states for
- shadow stack
-From: Dave Hansen <dave.hansen@intel.com>
-References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
- <20181011151523.27101-5-yu-cheng.yu@intel.com>
- <CALCETrVAe8R=crVHoD5QmbN-gAW+V-Rwkwe4kQP7V7zQm9TM=Q@mail.gmail.com>
- <4295b8f786c10c469870a6d9725749ce75dcdaa2.camel@intel.com>
- <CALCETrUKzXYzRrWRdi8Z7AdAF0uZW5Gs7J4s=55dszoyzc29rw@mail.gmail.com>
- <043a17ef-dc9f-56d2-5fba-1a58b7b0fd4d@intel.com>
- <20181108220054.GP3074@bombadil.infradead.org>
- <ead230ab-a904-50d6-c4cf-46d5804f6151@intel.com>
- <20181109003225.GQ3074@bombadil.infradead.org>
- <6cd2ae51-2d2a-9c68-df7c-45b49e0a813f@intel.com>
- <20181109171740.GT3074@bombadil.infradead.org>
- <ded6f43a-11d1-89bf-e00c-66c281786cff@intel.com>
-Message-ID: <1851ca3a-6470-7a9c-1aeb-930527458e16@intel.com>
-Date: Fri, 9 Nov 2018 09:28:40 -0800
+        Fri, 09 Nov 2018 09:31:40 -0800 (PST)
+Subject: Re: [bug report] mm, slab/slub: introduce kmalloc-reclaimable caches
+References: <20181109171701.GB8323@unbuntlaptop>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a6c8eeff-801c-3773-6b96-533f519ef9f4@suse.cz>
+Date: Fri, 9 Nov 2018 18:28:44 +0100
 MIME-Version: 1.0
-In-Reply-To: <ded6f43a-11d1-89bf-e00c-66c281786cff@intel.com>
+In-Reply-To: <20181109171701.GB8323@unbuntlaptop>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Andy Lutomirski <luto@amacapital.net>, Yu-cheng Yu <yu-cheng.yu@intel.com>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>
+To: Dan Carpenter <dan.carpenter@oracle.com>
+Cc: linux-mm@kvack.org
 
-On 11/9/18 9:20 AM, Dave Hansen wrote:
-> On 11/9/18 9:17 AM, Matthew Wilcox wrote:
->>> But, later versions of the hardware have instructions that don't have
->>> static offsets for the state components (when the XSAVES/XSAVEC
->>> instructions are used).  So, for those, the structure embedding isn't
->>> used at *all* since some state might not be present.
->> But *when present*, this structure is always aligned on an 8-byte
->> boundary, right?
+On 11/9/18 6:17 PM, Dan Carpenter wrote:
+> Hello Vlastimil Babka,
 
-Practically, though, I think it ends up always being aligned on an
-8-byte boundary.
+Hi,
+
+> The patch 1291523f2c1d: "mm, slab/slub: introduce kmalloc-reclaimable
+> caches" from Oct 26, 2018, leads to the following static checker
+> warning:
+> 
+> 	./include/linux/slab.h:585 kmalloc_node()
+> 	warn: array off by one? 'kmalloc_caches[kmalloc_type(flags)]' '0-3 == 3'
+
+I believe that's a false positive.
+
+> ./include/linux/slab.h
+>    298  /*
+>    299   * Whenever changing this, take care of that kmalloc_type() and
+>    300   * create_kmalloc_caches() still work as intended.
+>    301   */
+>    302  enum kmalloc_cache_type {
+>    303          KMALLOC_NORMAL = 0,
+>    304          KMALLOC_RECLAIM,
+>    305  #ifdef CONFIG_ZONE_DMA
+>    306          KMALLOC_DMA,
+>    307  #endif
+>    308          NR_KMALLOC_TYPES
+> 
+> 
+> The kmalloc_caches[] array has NR_KMALLOC_TYPES elements.
+
+Yes.
+
+>    309  };
+>    310  
+>    311  #ifndef CONFIG_SLOB
+>    312  extern struct kmem_cache *
+>    313  kmalloc_caches[NR_KMALLOC_TYPES][KMALLOC_SHIFT_HIGH + 1];
+>    314  
+>    315  static __always_inline enum kmalloc_cache_type kmalloc_type(gfp_t flags)
+>    316  {
+>    317          int is_dma = 0;
+>    318          int type_dma = 0;
+>    319          int is_reclaimable;
+>    320  
+>    321  #ifdef CONFIG_ZONE_DMA
+>    322          is_dma = !!(flags & __GFP_DMA);
+>    323          type_dma = is_dma * KMALLOC_DMA;
+>                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+> KMALLOC_DMA is the last possible valid index.
+
+Yes, but type_dma gains the value of KMALLOC_DMA only when is_dma is 1.
+
+>    324  #endif
+>    325  
+>    326          is_reclaimable = !!(flags & __GFP_RECLAIMABLE);
+>    327  
+>    328          /*
+>    329           * If an allocation is both __GFP_DMA and __GFP_RECLAIMABLE, return
+>    330           * KMALLOC_DMA and effectively ignore __GFP_RECLAIMABLE
+>    331           */
+>    332          return type_dma + (is_reclaimable & !is_dma) * KMALLOC_RECLAIM;
+>                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+> We're adding one to it.
+
+Only when !is_dma is 1, which means then that type_dma is 0. So it's safe.
+
+> This is mm/ so I assume this works,
+
+I'll... take that as a compliment :D
+
+> but it's
+> pretty confusing.
+
+Indeed. Static checkers seem to hate my too clever code, so it's already
+going away [1]. Maybe your static checker can be improved to evaluate
+this better? There's already a gcc bug [2] inspired by the whole thing.
+
+Thanks!
+Vlastimil
+
+[1]
+https://lore.kernel.org/lkml/cbc1fc52-dc8c-aa38-8f29-22da8bcd91c1@suse.cz/T/#u
+[2] https://gcc.gnu.org/bugzilla/show_bug.cgi?id=87954
+
+>    333  }
+> 
+> regards,
+> dan carpenter
+> 
