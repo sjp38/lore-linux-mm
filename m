@@ -1,111 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 897486B069E
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 01:47:44 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id b88-v6so789332pfj.4
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 22:47:44 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 06A166B06A0
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 01:47:47 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id x5-v6so747802pfn.22
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 22:47:46 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q73-v6sor6655314pfi.33.2018.11.08.22.47.42
+        by mx.google.com with SMTPS id w10-v6sor7682518plp.31.2018.11.08.22.47.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 08 Nov 2018 22:47:43 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [RFC][PATCH v1 06/11] mm: hwpoison: remove MF_COUNT_INCREASED
-Date: Fri,  9 Nov 2018 15:47:10 +0900
-Message-Id: <1541746035-13408-7-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1541746035-13408-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1541746035-13408-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+        Thu, 08 Nov 2018 22:47:46 -0800 (PST)
+Date: Fri, 9 Nov 2018 15:47:40 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: 4.14 backport request for dbdda842fe96f: "printk: Add console
+ owner and waiter logic to load balance console writes"
+Message-ID: <20181109064740.GE599@jagdpanzerIV>
+References: <20181003091400.rgdjpjeaoinnrysx@pathway.suse.cz>
+ <CAJmjG2_4JFA=qL-d2Pb9umUEcPt9h13w-g40JQMbdKsZTRSZww@mail.gmail.com>
+ <20181003133704.43a58cf5@gandalf.local.home>
+ <CAJmjG291w2ZPRiAevSzxGNcuR6vTuqyk6z4SG3xRsbaQh5U3zQ@mail.gmail.com>
+ <20181004074442.GA12879@jagdpanzerIV>
+ <20181004083609.kcziz2ynwi2w7lcm@pathway.suse.cz>
+ <20181004085515.GC12879@jagdpanzerIV>
+ <CAJmjG2-e6f6p=pE5uDECMc=W=81SYyGCmoabrC1ePXwL5DFdSw@mail.gmail.com>
+ <20181022100952.GA1147@jagdpanzerIV>
+ <CAJmjG2-c4e_1999n0OV5B9ABG9rF6n=myThjgX+Ms1R-vc3z+A@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJmjG2-c4e_1999n0OV5B9ABG9rF6n=myThjgX+Ms1R-vc3z+A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, xishi.qiuxishi@alibaba-inc.com, Laurent Dufour <ldufour@linux.vnet.ibm.com>
+To: Daniel Wang <wonderfly@google.com>
+Cc: sergey.senozhatsky.work@gmail.com, Petr Mladek <pmladek@suse.com>, rostedt@goodmis.org, stable@vger.kernel.org, Alexander.Levin@microsoft.com, akpm@linux-foundation.org, byungchul.park@lge.com, dave.hansen@intel.com, hannes@cmpxchg.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Mel Gorman <mgorman@suse.de>, mhocko@kernel.org, pavel@ucw.cz, penguin-kernel@i-love.sakura.ne.jp, peterz@infradead.org, tj@kernel.org, torvalds@linux-foundation.org, vbabka@suse.cz, Cong Wang <xiyou.wangcong@gmail.com>, Peter Feiner <pfeiner@google.com>
 
-Now there's no user of MF_COUNT_INCREASED, so we can safely remove
-all calling points.
+On (11/01/18 09:05), Daniel Wang wrote:
+> > Another deadlock scenario could be the following one:
+> >
+> >         printk()
+> >          console_trylock()
+> >           down_trylock()
+> >            raw_spin_lock_irqsave(&sem->lock, flags)
+> >             <NMI>
+> >              panic()
+> >               console_flush_on_panic()
+> >                console_trylock()
+> >                 raw_spin_lock_irqsave(&sem->lock, flags)        // deadlock
+> >
+> > There are no patches addressing this one at the moment. And it's
+> > unclear if you are hitting this scenario.
+> 
+> I am not sure, but Steven's patches did make the deadlock I saw go away...
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- include/linux/mm.h  |  7 +++----
- mm/memory-failure.c | 16 +++-------------
- 2 files changed, 6 insertions(+), 17 deletions(-)
+You certainly can find cases when "busy spin on console_sem owner" logic
+can reduce some possibilities.
 
-diff --git v4.19-mmotm-2018-10-30-16-08/include/linux/mm.h v4.19-mmotm-2018-10-30-16-08_patched/include/linux/mm.h
-index 22623ba..f85b450 100644
---- v4.19-mmotm-2018-10-30-16-08/include/linux/mm.h
-+++ v4.19-mmotm-2018-10-30-16-08_patched/include/linux/mm.h
-@@ -2725,10 +2725,9 @@ void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
- 				  unsigned long nr_pages);
- 
- enum mf_flags {
--	MF_COUNT_INCREASED = 1 << 0,
--	MF_ACTION_REQUIRED = 1 << 1,
--	MF_MUST_KILL = 1 << 2,
--	MF_SOFT_OFFLINE = 1 << 3,
-+	MF_ACTION_REQUIRED = 1 << 0,
-+	MF_MUST_KILL = 1 << 1,
-+	MF_SOFT_OFFLINE = 1 << 2,
- };
- extern int memory_failure(unsigned long pfn, int flags);
- extern void memory_failure_queue(unsigned long pfn, int flags);
-diff --git v4.19-mmotm-2018-10-30-16-08/mm/memory-failure.c v4.19-mmotm-2018-10-30-16-08_patched/mm/memory-failure.c
-index 11e283e..ed347f8 100644
---- v4.19-mmotm-2018-10-30-16-08/mm/memory-failure.c
-+++ v4.19-mmotm-2018-10-30-16-08_patched/mm/memory-failure.c
-@@ -1094,7 +1094,7 @@ static int memory_failure_hugetlb(unsigned long pfn, int flags)
- 
- 	num_poisoned_pages_inc();
- 
--	if (!(flags & MF_COUNT_INCREASED) && !get_hwpoison_page(p)) {
-+	if (!get_hwpoison_page(p)) {
- 		/*
- 		 * Check "filter hit" and "race with other subpage."
- 		 */
-@@ -1290,7 +1290,7 @@ int memory_failure(unsigned long pfn, int flags)
- 	 * In fact it's dangerous to directly bump up page count from 0,
- 	 * that may make page_ref_freeze()/page_ref_unfreeze() mismatch.
- 	 */
--	if (!(flags & MF_COUNT_INCREASED) && !get_hwpoison_page(p)) {
-+	if (!get_hwpoison_page(p)) {
- 		if (is_free_buddy_page(p)) {
- 			action_result(pfn, MF_MSG_BUDDY, MF_DELAYED);
- 			return 0;
-@@ -1331,10 +1331,7 @@ int memory_failure(unsigned long pfn, int flags)
- 	shake_page(p, 0);
- 	/* shake_page could have turned it free. */
- 	if (!PageLRU(p) && is_free_buddy_page(p)) {
--		if (flags & MF_COUNT_INCREASED)
--			action_result(pfn, MF_MSG_BUDDY, MF_DELAYED);
--		else
--			action_result(pfn, MF_MSG_BUDDY_2ND, MF_DELAYED);
-+		action_result(pfn, MF_MSG_BUDDY_2ND, MF_DELAYED);
- 		return 0;
- 	}
- 
-@@ -1622,9 +1619,6 @@ static int __get_any_page(struct page *p, unsigned long pfn, int flags)
- {
- 	int ret;
- 
--	if (flags & MF_COUNT_INCREASED)
--		return 1;
--
- 	/*
- 	 * When the target page is a free hugepage, just remove it
- 	 * from free hugepage list.
-@@ -1906,15 +1900,11 @@ int soft_offline_page(struct page *page, int flags)
- 	if (is_zone_device_page(page)) {
- 		pr_debug_ratelimited("soft_offline: %#lx page is device page\n",
- 				pfn);
--		if (flags & MF_COUNT_INCREASED)
--			put_page(page);
- 		return -EIO;
- 	}
- 
- 	if (PageHWPoison(page)) {
- 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
--		if (flags & MF_COUNT_INCREASED)
--			put_hwpoison_page(page);
- 		return -EBUSY;
- 	}
- 
--- 
-2.7.0
+But spin_lock(&lock); NMI; spin_lock(&lock); code is still in the kernel.
+
+> A little swamped by other things lately but I'll run a test with it.
+> If it works, would you recommend taking your patch alone
+
+Let's first figure out if it works.
+
+	-ss
