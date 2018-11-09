@@ -1,81 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E10326B068F
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2018 23:09:36 -0500 (EST)
-Received: by mail-io1-f72.google.com with SMTP id n12-v6so731793ioh.2
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 20:09:36 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 057406B0691
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 01:12:12 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id z13-v6so570883pgv.18
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2018 22:12:11 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v3-v6sor1349917iob.40.2018.11.08.20.09.35
+        by mx.google.com with SMTPS id y2sor6766083pgp.16.2018.11.08.22.12.10
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 08 Nov 2018 20:09:35 -0800 (PST)
+        Thu, 08 Nov 2018 22:12:10 -0800 (PST)
+Date: Fri, 9 Nov 2018 15:12:04 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH 3/3] lockdep: Use line-buffered printk() for lockdep
+ messages.
+Message-ID: <20181109061204.GC599@jagdpanzerIV>
+References: <1541165517-3557-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <1541165517-3557-3-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20181107151900.gxmdvx42qeanpoah@pathway.suse.cz>
+ <20181108044510.GC2343@jagdpanzerIV>
+ <9648a384-853c-942e-6a8d-80432d943aae@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-From: Kyungtae Kim <kt0755@gmail.com>
-Date: Thu, 8 Nov 2018 23:09:23 -0500
-Message-ID: <CAEAjamseRRHu+TaTkd1TwpLNm8mtDGP=2K0WKLF0wH-3iLcW_w@mail.gmail.com>
-Subject: UBSAN: Undefined behaviour in mm/page_alloc.c
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <9648a384-853c-942e-6a8d-80432d943aae@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com, pavel.tatashin@microsoft.com, vbabka@suse.cz, osalvador@suse.de, rppt@linux.vnet.ibm.com, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, alexander.h.duyck@linux.intel.com, mgorman@techsingularity.net
-Cc: lifeasageek@gmail.com, threeearcat@gmail.com, syzkaller@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dmitriy Vyukov <dvyukov@google.com>, Steven Rostedt <rostedt@goodmis.org>, Alexander Potapenko <glider@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>
 
-We report a bug in v4.19-rc2 (4.20-rc1 as well, I guess):
+On (11/08/18 20:37), Tetsuo Handa wrote:
+> On 2018/11/08 13:45, Sergey Senozhatsky wrote:
+> > So, can we just do the following? /* a sketch */
+> > 
+> > lockdep.c
+> > 	printk_safe_enter_irqsave(flags);
+> > 	lockdep_report();
+> > 	printk_safe_exit_irqrestore(flags);
+> 
+> If buffer size were large enough to hold messages from out_of_memory(),
+> I would like to use it for out_of_memory() because delaying SIGKILL
+> due to waiting for printk() to complete is not good. Surely we can't
+> hold all messages because amount from dump_tasks() is unpredictable.
+> Maybe we can hold all messages from dump_header() except dump_tasks().
+> 
+> But isn't it essentially same with
+> http://lkml.kernel.org/r/1493560477-3016-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
+> which Linus does not want?
 
-kernel config: https://kt0755.github.io/etc/config_v2-4.19
-repro: https://kt0755.github.io/etc/repro.c4074.c
+Dunno. I guess we still haven't heard from Linus because he did quite a good
+job setting up his 'email filters' ;)
 
-In the middle of page request, this arose because order is too large to handle
- (mm/page_alloc.c:3119). It actually comes from that order is
-controllable by user input
-via raw_cmd_ioctl without its sanity check, thereby causing memory problem.
-To stop it, we can use like MAX_ORDER for bounds check before using it.
+Converting the existing users to buffered printk is not so simple.
+Apparently there are different paths; some can afford buffered printk, some
+cannot. Some of 'cont' users tend to get advantage of transparent 'cont'
+context: start 'cont' output in function A: A()->pr_cont(), continue it in
+B: A()->B()->pr_cont(), and then in C: A()->B()->C()->pr_cont(), and
+finally flush in A: A()->pr_cont(\n). And then some paths have the
+early_printk requirement. We can break the 'transparent cont' by passing
+buffer pointers around [it can get a bit hairy; looking at lockdep patch],
+but early_printk requirement is a different beast.
 
-=========================================
-UBSAN: Undefined behaviour in mm/page_alloc.c:3117:19
-shift exponent 51 is too large for 32-bit type 'int'
-CPU: 0 PID: 6520 Comm: syz-executor1 Not tainted 4.19.0-rc2 #1
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-Call Trace:
- __dump_stack lib/dump_stack.c:77 [inline]
- dump_stack+0xd2/0x148 lib/dump_stack.c:113
- ubsan_epilogue+0x12/0x94 lib/ubsan.c:159
- __ubsan_handle_shift_out_of_bounds+0x2b6/0x30b lib/ubsan.c:425
- __zone_watermark_ok+0x2c7/0x400 mm/page_alloc.c:3117
- zone_watermark_fast mm/page_alloc.c:3216 [inline]
- get_page_from_freelist+0xc49/0x44c0 mm/page_alloc.c:3300
- __alloc_pages_nodemask+0x21e/0x640 mm/page_alloc.c:4370
- alloc_pages_current+0xcc/0x210 mm/mempolicy.c:2093
- alloc_pages include/linux/gfp.h:509 [inline]
- __get_free_pages+0x12/0x60 mm/page_alloc.c:4414
- dma_mem_alloc+0x36/0x50 arch/x86/include/asm/floppy.h:156
- raw_cmd_copyin drivers/block/floppy.c:3159 [inline]
- raw_cmd_ioctl drivers/block/floppy.c:3206 [inline]
- fd_locked_ioctl+0xa00/0x2c10 drivers/block/floppy.c:3544
- fd_ioctl+0x40/0x60 drivers/block/floppy.c:3571
- __blkdev_driver_ioctl block/ioctl.c:303 [inline]
- blkdev_ioctl+0xb3c/0x1a30 block/ioctl.c:601
- block_ioctl+0x105/0x150 fs/block_dev.c:1883
- vfs_ioctl fs/ioctl.c:46 [inline]
- do_vfs_ioctl+0x1c0/0x1150 fs/ioctl.c:687
- ksys_ioctl+0x9e/0xb0 fs/ioctl.c:702
- __do_sys_ioctl fs/ioctl.c:709 [inline]
- __se_sys_ioctl fs/ioctl.c:707 [inline]
- __x64_sys_ioctl+0x7e/0xc0 fs/ioctl.c:707
- do_syscall_64+0xc4/0x510 arch/x86/entry/common.c:290
- entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x4497b9
-Code: e8 8c 9f 02 00 48 83 c4 18 c3 0f 1f 80 00 00 00 00 48 89 f8 48
-89 f7 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d
-01 f0 ff ff 0f 83 9b 6b fc ff c3 66 2e 0f 1f 84 00 00 00 00
-RSP: 002b:00007fb5ef0e2c68 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
-RAX: ffffffffffffffda RBX: 00007fb5ef0e36cc RCX: 00000000004497b9
-RDX: 0000000020000040 RSI: 0000000000000258 RDI: 0000000000000014
-RBP: 000000000071bea0 R08: 0000000000000000 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000246 R12: 00000000ffffffff
-R13: 0000000000005490 R14: 00000000006ed530 R15: 00007fb5ef0e3700
-=========================================================
+So in my email I was not advertising printk_safe as a "buffered printk for
+everyone", I was just talking about lockdep. It's a bit doubtful that Peter
+will ACK lockdep transition to buffered printk.
 
-
-Thanks,
-Kyungtae Kim
+	-ss
