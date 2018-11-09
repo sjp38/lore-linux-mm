@@ -1,138 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CD3C26B073E
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 18:46:40 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id a26-v6so2653553pfo.17
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 15:46:40 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A5396B0740
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 18:47:08 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id v4so186210edm.18
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 15:47:07 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z10-v6sor10900995pln.16.2018.11.09.15.46.39
+        by mx.google.com with SMTPS id c58-v6sor5294147edc.24.2018.11.09.15.47.06
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 09 Nov 2018 15:46:39 -0800 (PST)
-Date: Fri, 9 Nov 2018 15:46:36 -0800
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [PATCH v3 resend 1/2] mm: Add an F_SEAL_FUTURE_WRITE seal to
- memfd
-Message-ID: <20181109234636.GA136491@google.com>
-References: <20181108041537.39694-1-joel@joelfernandes.org>
- <CAG48ez1h=v-JYnDw81HaYJzOfrNhwYksxmc2r=cJvdQVgYM+NA@mail.gmail.com>
+        Fri, 09 Nov 2018 15:47:06 -0800 (PST)
+Date: Fri, 9 Nov 2018 23:47:04 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH] mm/slub: skip node in case there is no slab to acquire
+Message-ID: <20181109234704.xtabixem2ynbxlsc@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181108011204.9491-1-richard.weiyang@gmail.com>
+ <20181109124806.f4f1b85c09b7cd977b5fbe8c@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAG48ez1h=v-JYnDw81HaYJzOfrNhwYksxmc2r=cJvdQVgYM+NA@mail.gmail.com>
+In-Reply-To: <20181109124806.f4f1b85c09b7cd977b5fbe8c@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jannh@google.com>
-Cc: kernel list <linux-kernel@vger.kernel.org>, jreck@google.com, John Stultz <john.stultz@linaro.org>, Todd Kjos <tkjos@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Christoph Hellwig <hch@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Daniel Colascione <dancol@google.com>, Bruce Fields <bfields@fieldses.org>, jlayton@kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Lei.Yang@windriver.com, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, marcandre.lureau@redhat.com, Mike Kravetz <mike.kravetz@oracle.com>, minchan@kernel.org, shuah@kernel.org, valdis.kletnieks@vt.edu, Hugh Dickins <hughd@google.com>, Linux API <linux-api@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Wei Yang <richard.weiyang@gmail.com>, cl@linux.com, penberg@kernel.org, linux-mm@kvack.org
 
-On Fri, Nov 09, 2018 at 10:06:31PM +0100, Jann Horn wrote:
-> +linux-api for API addition
-> +hughd as FYI since this is somewhat related to mm/shmem
-> 
-> On Fri, Nov 9, 2018 at 9:46 PM Joel Fernandes (Google)
-> <joel@joelfernandes.org> wrote:
-> > Android uses ashmem for sharing memory regions. We are looking forward
-> > to migrating all usecases of ashmem to memfd so that we can possibly
-> > remove the ashmem driver in the future from staging while also
-> > benefiting from using memfd and contributing to it. Note staging drivers
-> > are also not ABI and generally can be removed at anytime.
-> >
-> > One of the main usecases Android has is the ability to create a region
-> > and mmap it as writeable, then add protection against making any
-> > "future" writes while keeping the existing already mmap'ed
-> > writeable-region active.  This allows us to implement a usecase where
-> > receivers of the shared memory buffer can get a read-only view, while
-> > the sender continues to write to the buffer.
-> > See CursorWindow documentation in Android for more details:
-> > https://developer.android.com/reference/android/database/CursorWindow
-> >
-> > This usecase cannot be implemented with the existing F_SEAL_WRITE seal.
-> > To support the usecase, this patch adds a new F_SEAL_FUTURE_WRITE seal
-> > which prevents any future mmap and write syscalls from succeeding while
-> > keeping the existing mmap active.
-> 
-> Please CC linux-api@ on patches like this. If you had done that, I
-> might have criticized your v1 patch instead of your v3 patch...
+On Fri, Nov 09, 2018 at 12:48:06PM -0800, Andrew Morton wrote:
+>On Thu,  8 Nov 2018 09:12:04 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
+>
+>> for_each_zone_zonelist() iterates the zonelist one by one, which means
+>> it will iterate on zones on the same node. While get_partial_node()
+>> checks available slab on node base instead of zone.
+>> 
+>> This patch skip a node in case get_partial_node() fails to acquire slab
+>> on that node.
+>
+>This is rather hard to follow.
+>
+>I *think* the patch is a performance optimization: prevent
+>get_any_partial() from checking a node which get_partial_node() has
+>already looked at?
 
-Ok, will do from next time.
+You are right :-)
 
-> > The following program shows the seal
-> > working in action:
-> [...]
-> > Cc: jreck@google.com
-> > Cc: john.stultz@linaro.org
-> > Cc: tkjos@google.com
-> > Cc: gregkh@linuxfoundation.org
-> > Cc: hch@infradead.org
-> > Reviewed-by: John Stultz <john.stultz@linaro.org>
-> > Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
-> > ---
-> [...]
-> > diff --git a/mm/memfd.c b/mm/memfd.c
-> > index 2bb5e257080e..5ba9804e9515 100644
-> > --- a/mm/memfd.c
-> > +++ b/mm/memfd.c
-> [...]
-> > @@ -219,6 +220,25 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
-> >                 }
-> >         }
-> >
-> > +       if ((seals & F_SEAL_FUTURE_WRITE) &&
-> > +           !(*file_seals & F_SEAL_FUTURE_WRITE)) {
-> > +               /*
-> > +                * The FUTURE_WRITE seal also prevents growing and shrinking
-> > +                * so we need them to be already set, or requested now.
-> > +                */
-> > +               int test_seals = (seals | *file_seals) &
-> > +                                (F_SEAL_GROW | F_SEAL_SHRINK);
-> > +
-> > +               if (test_seals != (F_SEAL_GROW | F_SEAL_SHRINK)) {
-> > +                       error = -EINVAL;
-> > +                       goto unlock;
-> > +               }
-> > +
-> > +               spin_lock(&file->f_lock);
-> > +               file->f_mode &= ~(FMODE_WRITE | FMODE_PWRITE);
-> > +               spin_unlock(&file->f_lock);
-> > +       }
-> 
-> So you're fiddling around with the file, but not the inode? How are
-> you preventing code like the following from re-opening the file as
-> writable?
-> 
-> $ cat memfd.c
-> #define _GNU_SOURCE
-> #include <unistd.h>
-> #include <sys/syscall.h>
-> #include <printf.h>
-> #include <fcntl.h>
-> #include <err.h>
-> #include <stdio.h>
-> 
-> int main(void) {
->   int fd = syscall(__NR_memfd_create, "testfd", 0);
->   if (fd == -1) err(1, "memfd");
->   char path[100];
->   sprintf(path, "/proc/self/fd/%d", fd);
->   int fd2 = open(path, O_RDWR);
->   if (fd2 == -1) err(1, "reopen");
->   printf("reopen successful: %d\n", fd2);
-> }
-> $ gcc -o memfd memfd.c
-> $ ./memfd
-> reopen successful: 4
+>
+>Could we please have a more complete changelog?
 
-Great catch and this is indeed an issue :-(. I verified it too.
+Hmm... I would like to.
 
-> That aside: I wonder whether a better API would be something that
-> allows you to create a new readonly file descriptor, instead of
-> fiddling with the writability of an existing fd.
+But I am not sure which part makes you hard to follow. If you would like
+to tell me the pain point, I am glad to think about how to make it more
+obvious.
 
-Android usecases cannot deal with a new fd number because it breaks the
-continuity of having the same old fd, as Dan also pointed out.
+>
+>> --- a/mm/slub.c
+>> +++ b/mm/slub.c
+>> @@ -1873,7 +1873,7 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
+>>   * Get a page from somewhere. Search in increasing NUMA distances.
+>>   */
+>>  static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
+>> -		struct kmem_cache_cpu *c)
+>> +		struct kmem_cache_cpu *c, int except)
+>>  {
+>>  #ifdef CONFIG_NUMA
+>>  	struct zonelist *zonelist;
+>> @@ -1882,6 +1882,9 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
+>>  	enum zone_type high_zoneidx = gfp_zone(flags);
+>>  	void *object;
+>>  	unsigned int cpuset_mems_cookie;
+>> +	nodemask_t nmask = node_states[N_MEMORY];
+>> +
+>> +	node_clear(except, nmask);
+>
+>And please add a comment describing what's happening here and why it is
+>done.  Adding a sentence to the block comment over get_any_partial()
+>would be suitable.
+>
 
-Also such API will have the same issues you brought up?
+Sure, I would address this in next spin.
 
-thanks,
-
- - Joel
+-- 
+Wei Yang
+Help you, Help me
