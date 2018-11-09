@@ -1,30 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 53A8D6B06BB
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 03:42:46 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id f69-v6so959863pfa.15
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 00:42:46 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AC6CE6B06BC
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 03:43:57 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id o42so823109edc.13
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 00:43:57 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m1-v6si5381987plb.303.2018.11.09.00.42.44
+        by mx.google.com with ESMTPS id c21-v6si174094edn.441.2018.11.09.00.43.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Nov 2018 00:42:44 -0800 (PST)
+        Fri, 09 Nov 2018 00:43:55 -0800 (PST)
+Date: Fri, 9 Nov 2018 09:43:53 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: UBSAN: Undefined behaviour in mm/page_alloc.c
+Message-ID: <20181109084353.GA5321@dhcp22.suse.cz>
 References: <CAEAjamseRRHu+TaTkd1TwpLNm8mtDGP=2K0WKLF0wH-3iLcW_w@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <074309b9-ada4-ce39-5332-d64a1263e9f8@suse.cz>
-Date: Fri, 9 Nov 2018 09:42:41 +0100
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <CAEAjamseRRHu+TaTkd1TwpLNm8mtDGP=2K0WKLF0wH-3iLcW_w@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kyungtae Kim <kt0755@gmail.com>, akpm@linux-foundation.org, mhocko@suse.com, pavel.tatashin@microsoft.com, osalvador@suse.de, rppt@linux.vnet.ibm.com, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, alexander.h.duyck@linux.intel.com, mgorman@techsingularity.net
-Cc: lifeasageek@gmail.com, threeearcat@gmail.com, syzkaller@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+To: Kyungtae Kim <kt0755@gmail.com>
+Cc: akpm@linux-foundation.org, pavel.tatashin@microsoft.com, vbabka@suse.cz, osalvador@suse.de, rppt@linux.vnet.ibm.com, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, alexander.h.duyck@linux.intel.com, mgorman@techsingularity.net, lifeasageek@gmail.com, threeearcat@gmail.com, syzkaller@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
-On 11/9/18 5:09 AM, Kyungtae Kim wrote:
+On Thu 08-11-18 23:09:23, Kyungtae Kim wrote:
 > We report a bug in v4.19-rc2 (4.20-rc1 as well, I guess):
 > 
 > kernel config: https://kt0755.github.io/etc/config_v2-4.19
@@ -36,14 +35,21 @@ On 11/9/18 5:09 AM, Kyungtae Kim wrote:
 > via raw_cmd_ioctl without its sanity check, thereby causing memory problem.
 > To stop it, we can use like MAX_ORDER for bounds check before using it.
 
-This together with [1] makes me rather convinced that we should really
-move the check back from __alloc_pages_slowpath to
-__alloc_pages_nodemask. It should be a single predictable branch with an
-unlikely()?
+Yes, we do only check the max order in the slow path. We have already
+discussed something similar with Konstantin [1][2]. Basically kvmalloc
+for a large size might get to the page allocator with an out of bound
+order and warn during direct reclaim.
 
-[1]
-https://lore.kernel.org/lkml/154109387197.925352.10499549042420271600.stgit@buzz/T/#u
+I am wondering whether really want to check for the order in the fast
+path instead. I have hard time to imagine this could cause a measurable
+impact.
 
+The full patch is below
+
+[1] http://lkml.kernel.org/r/154109387197.925352.10499549042420271600.stgit@buzz
+[2] http://lkml.kernel.org/r/154106356066.887821.4649178319705436373.stgit@buzz
+
+> 
 > =========================================
 > UBSAN: Undefined behaviour in mm/page_alloc.c:3117:19
 > shift exponent 51 is too large for 32-bit type 'int'
@@ -92,4 +98,3 @@ https://lore.kernel.org/lkml/154109387197.925352.10499549042420271600.stgit@buzz
 > 
 > Thanks,
 > Kyungtae Kim
-> 
