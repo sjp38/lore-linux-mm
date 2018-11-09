@@ -1,128 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DC6D6B0716
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 13:10:03 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id k125so1686132pga.5
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 10:10:03 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id gn20si3974910plb.273.2018.11.09.10.10.01
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C462E6B0719
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 14:51:54 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id h68so5533494qke.3
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 11:51:54 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f67-v6si3925756qtb.199.2018.11.09.11.51.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Nov 2018 10:10:01 -0800 (PST)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wA9I8vXO143847
-	for <linux-mm@kvack.org>; Fri, 9 Nov 2018 13:10:01 -0500
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2nnby30xhp-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 09 Nov 2018 13:10:00 -0500
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Fri, 9 Nov 2018 18:09:58 -0000
-Date: Fri, 9 Nov 2018 10:09:47 -0800
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: pkeys: Reserve PKEY_DISABLE_READ
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <877ehnbwqy.fsf@oldenburg.str.redhat.com>
- <2d62c9e2-375b-2791-32ce-fdaa7e7664fd@intel.com>
- <87bm6zaa04.fsf@oldenburg.str.redhat.com>
- <6f9c65fb-ea7e-8217-a4cc-f93e766ed9bb@intel.com>
- <87k1ln8o7u.fsf@oldenburg.str.redhat.com>
- <20181108201231.GE5481@ram.oc3035372033.ibm.com>
- <87bm6z71yw.fsf@oldenburg.str.redhat.com>
+        Fri, 09 Nov 2018 11:51:53 -0800 (PST)
+Date: Fri, 9 Nov 2018 14:51:50 -0500
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC PATCH] mm: thp: implement THP reservations for anonymous
+ memory
+Message-ID: <20181109195150.GA24747@redhat.com>
+References: <1541746138-6706-1-git-send-email-anthony.yznaga@oracle.com>
+ <20181109121318.3f3ou56ceegrqhcp@kshutemo-mobl1>
 MIME-Version: 1.0
-In-Reply-To: <87bm6z71yw.fsf@oldenburg.str.redhat.com>
-Message-Id: <20181109180947.GF5481@ram.oc3035372033.ibm.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 8bit
 Content-Disposition: inline
+In-Reply-To: <20181109121318.3f3ou56ceegrqhcp@kshutemo-mobl1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-api@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Anthony Yznaga <anthony.yznaga@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, aneesh.kumar@linux.ibm.com, akpm@linux-foundation.org, jglisse@redhat.com, khandual@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, mgorman@techsingularity.net, mhocko@kernel.org, minchan@kernel.org, peterz@infradead.org, rientjes@google.com, vbabka@suse.cz, willy@infradead.org, ying.huang@intel.com, nitingupta910@gmail.com
 
-On Thu, Nov 08, 2018 at 09:23:35PM +0100, Florian Weimer wrote:
-> * Ram Pai:
+Hello,
+
+On Fri, Nov 09, 2018 at 03:13:18PM +0300, Kirill A. Shutemov wrote:
+> On Thu, Nov 08, 2018 at 10:48:58PM -0800, Anthony Yznaga wrote:
+> > The basic idea as outlined by Mel Gorman in [2] is:
+> > 
+> > 1) On first fault in a sufficiently sized range, allocate a huge page
+> >    sized and aligned block of base pages.  Map the base page
+> >    corresponding to the fault address and hold the rest of the pages in
+> >    reserve.
+> > 2) On subsequent faults in the range, map the pages from the reservation.
+> > 3) When enough pages have been mapped, promote the mapped pages and
+> >    remaining pages in the reservation to a huge page.
+> > 4) When there is memory pressure, release the unused pages from their
+> >    reservations.
 > 
-> > Florian,
-> >
-> > 	I can. But I am struggling to understand the requirement. Why is
-> > 	this needed?  Are we proposing a enhancement to the sys_pkey_alloc(),
-> > 	to be able to allocate keys that are initialied to disable-read
-> > 	only?
+> I haven't yet read the patch in details, but I'm skeptical about the
+> approach in general for few reasons:
 > 
-> Yes, I think that would be a natural consequence.
+> - PTE page table retracting to replace it with huge PMD entry requires
+>   down_write(mmap_sem). It makes the approach not practical for many
+>   multi-threaded workloads.
 > 
-> However, my immediate need comes from the fact that the AMR register can
-> contain a flag combination that is not possible to represent with the
-> existing PKEY_DISABLE_WRITE and PKEY_DISABLE_ACCESS flags.  User code
-> could write to AMR directly, so I cannot rule out that certain flag
-> combinations exist there.
+>   I don't see a way to avoid exclusive lock here. I will be glad to
+>   be proved otherwise.
 > 
-> So I came up with this:
+> - The promotion will also require TLB flush which might be prohibitively
+>   slow on big machines.
 > 
-> int
-> pkey_get (int key)
-> {
->   if (key < 0 || key > PKEY_MAX)
->     {
->       __set_errno (EINVAL);
->       return -1;
->     }
->   unsigned int index = pkey_index (key);
->   unsigned long int amr = pkey_read ();
->   unsigned int bits = (amr >> index) & 3;
+> - Short living processes will fail to benefit from THP with the policy,
+>   even with plenty of free memory in the system: no time to promote to THP
+>   or, with synchronous promotion, cost will overweight the benefit.
 > 
->   /* Translate from AMR values.  PKEY_AMR_READ standing alone is not
->      currently representable.  */
->   if (bits & PKEY_AMR_READ)
-
-this should be
-   if (bits & (PKEY_AMR_READ|PKEY_AMR_WRITE))
-
-
->     return PKEY_DISABLE_ACCESS;
-
-
->   else if (bits == PKEY_AMR_WRITE)
->     return PKEY_DISABLE_WRITE;
->   return 0;
-> }
+> The goal to reduce memory overhead of THP is admirable, but we need to be
+> careful not to kill THP benefit itself. The approach will reduce number of
+> THP mapped in the system and/or shift their allocation to later stage of
+> process lifetime.
 > 
-> And this is not ideal.  I would prefer something like this instead:
-> 
->   switch (bits)
->     {
->       case PKEY_AMR_READ | PKEY_AMR_WRITE:
->         return PKEY_DISABLE_ACCESS;
->       case PKEY_AMR_READ:
->         return PKEY_DISABLE_READ;
->       case PKEY_AMR_WRITE:
->         return PKEY_DISABLE_WRITE;
->       case 0:
->         return 0;
->     }
+> The only way I see it can be useful is if it will be possible to apply the
+> policy on per-VMA basis. It will be very useful for malloc()
+> implementations, for instance. But as a global policy it's no-go to me.
 
-yes.
- and on x86 it will be something like:
-   switch (bits)
-     {
-       case PKEY_PKRU_ACCESS :
-         return PKEY_DISABLE_ACCESS;
-       case PKEY_AMR_WRITE:
-         return PKEY_DISABLE_WRITE;
-       case 0:
-         return 0;
-     }
+I'm also skeptical about this: the current design is quite
+intentional. It's not a bug but a feature that we're not doing the
+promotion.
 
-But for this to work, why do you need to enhance the sys_pkey_alloc()
-interface?  Not that I am against it. Trying to understand if the
-enhancement is really needed.
+Part of the tradeoff with THP is to use more RAM to save CPU, when you
+use less RAM you're inherently already wasting some CPU just for the
+reservation management and you don't get the immediate TLB benefit
+anymore either.
 
-> 
-> By the way, is the AMR register 64-bit or 32-bit on 32-bit POWER?
+And if you're in the camp that is concerned about the use of more RAM
+or/and about the higher latency of COW faults, I'm afraid the
+intermediate solution will be still slower than the already available
+MADV_NOHUGEPAGE or enabled=madvise.
 
-It is 64-bit.
+Apps like redis that will use more RAM during snapshot and that are
+slowed down with THP needs to simply use MADV_NOHUGEPAGE which already
+exists as an madvise from the very first kernel that supported
+THP-anon. Same thing for other apps that use more RAM with THP and
+that are on the losing end of the tradeoff.
 
-RP
+Now about the implementation: the whole point of the reservation
+complexity is to skip the khugepaged copy, so it can collapse in
+place. Is skipping the copy worth it? Isn't the big cost the IPI
+anyway to avoid leaving two simultaneous TLB mappings of different
+granularity?
+
+khugepaged is already tunable to specify a ratio of memory in use to
+avoid wasting memory
+/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none.
+
+If you set max_ptes_none to half the default value, it'll only promote
+pages that are half mapped, reducing the memory waste to 50% of what
+it is by default.
+
+So if you are ok to copy the memory that you promote to THP, you'd
+just need a global THP mode to avoid allocating THP even when they're
+available during the page fault (while still allowing khugepaged to
+collapse hugepages in the background), and then reduce max_ptes_none
+to get the desired promotion ratio.
+
+Doing the copy will avoid the reservation there will be also more THP
+available to use for those khugepaged users without losing them in
+reservations. You won't have to worry about what to do when there's
+memory pressure because you won't have to undo the reservation because
+there was no reservation in the first place. That problem also goes
+away with the copy.
+
+So it sounds like you could achieve a similar runtime behavior with
+much less complexity by reducing max_ptes_none and by doing the copy
+and dropping all reservation code.
+
+> Prove me wrong with performance data. :)
+
+Same here.
+
+Thanks,
+Andrea
