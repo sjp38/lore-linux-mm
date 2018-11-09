@@ -1,53 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 44F476B06D4
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 05:25:02 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id 18-v6so923292pgn.4
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 02:25:02 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id k15si5719283pgi.99.2018.11.09.02.25.00
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 706236B06D6
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 05:25:38 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id r21-v6so952143edp.5
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 02:25:38 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z30-v6si337065edb.342.2018.11.09.02.25.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Nov 2018 02:25:01 -0800 (PST)
+        Fri, 09 Nov 2018 02:25:37 -0800 (PST)
+Date: Fri, 9 Nov 2018 11:25:36 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: UBSAN: Undefined behaviour in mm/page_alloc.c
+Message-ID: <20181109102536.GE5321@dhcp22.suse.cz>
 References: <CAEAjamseRRHu+TaTkd1TwpLNm8mtDGP=2K0WKLF0wH-3iLcW_w@mail.gmail.com>
  <20181109084353.GA5321@dhcp22.suse.cz>
  <b51aae15-eb5d-47f0-1222-bfc1ef21e06c@I-love.SAKURA.ne.jp>
  <20181109095604.GC5321@dhcp22.suse.cz>
- <d8757554-45f4-1240-dc8a-0f918ae0e5f3@suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <9e17d033-b2ab-3edb-ae0b-90d4f713e55b@i-love.sakura.ne.jp>
-Date: Fri, 9 Nov 2018 19:24:48 +0900
+ <a74e6a5d-d4c1-9006-60af-de52afafebb2@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <d8757554-45f4-1240-dc8a-0f918ae0e5f3@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <a74e6a5d-d4c1-9006-60af-de52afafebb2@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
-Cc: Kyungtae Kim <kt0755@gmail.com>, akpm@linux-foundation.org, pavel.tatashin@microsoft.com, osalvador@suse.de, rppt@linux.vnet.ibm.com, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, alexander.h.duyck@linux.intel.com, mgorman@techsingularity.net, lifeasageek@gmail.com, threeearcat@gmail.com, syzkaller@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Kyungtae Kim <kt0755@gmail.com>, akpm@linux-foundation.org, pavel.tatashin@microsoft.com, vbabka@suse.cz, osalvador@suse.de, rppt@linux.vnet.ibm.com, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, alexander.h.duyck@linux.intel.com, mgorman@techsingularity.net, lifeasageek@gmail.com, threeearcat@gmail.com, syzkaller@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
-On 2018/11/09 19:10, Vlastimil Babka wrote:>>>> +	 * reclaim >= MAX_ORDER areas which will never succeed. Callers may
->>>> +	 * be using allocators in order of preference for an area that is
->>>> +	 * too large.
->>>> +	 */
->>>> +	if (order >= MAX_ORDER) {
->>>
->>> Also, why not to add BUG_ON(gfp_mask & __GFP_NOFAIL); here?
->>
->> Because we do not want to blow up the kernel just because of a stupid
->> usage of the allocator. Can you think of an example where it would
->> actually make any sense?
->>
->> I would argue that such a theoretical abuse would blow up on an
->> unchecked NULL ptr access. Isn't that enough?
+On Fri 09-11-18 19:07:49, Tetsuo Handa wrote:
+> On 2018/11/09 18:56, Michal Hocko wrote:
+> > Does this following look better?
 > 
-> Agreed.
+> Yes.
 > 
+> >> Also, why not to add BUG_ON(gfp_mask & __GFP_NOFAIL); here?
+> > 
+> > Because we do not want to blow up the kernel just because of a stupid
+> > usage of the allocator. Can you think of an example where it would
+> > actually make any sense?
+> > 
+> > I would argue that such a theoretical abuse would blow up on an
+> > unchecked NULL ptr access. Isn't that enough?
+> 
+> We after all can't avoid blowing up the kernel even if we don't add BUG_ON().
+> Stopping with BUG_ON() is saner than NULL pointer dereference messages.
 
-If someone has written a module with __GFP_NOFAIL for an architecture
-where PAGE_SIZE == 2048KB, and someone else tried to use that module on
-another architecture where PAGE_SIZE == 4KB. You are saying that
-triggering NULL pointer dereference is a fault of that user's ignorance
-about MM. You are saying that everyone knows internal of MM. Sad...
+I disagree (strongly to be more explicit). You never know the context
+the allocator is called from. We do not want to oops with a random state
+(locks heled etc). If the access blows up in the user then be it, the
+bug will be clear and to be fixed but BUG_ON on an invalid core kernel
+function is just a bad idea. I believe Linus was quite explicit about it
+and I fully agree with him.
+
+Besides that this is really off-topic to the issue at hands. Don't you
+think?
+-- 
+Michal Hocko
+SUSE Labs
