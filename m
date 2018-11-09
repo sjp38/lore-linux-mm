@@ -1,51 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 798196B0724
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 16:15:25 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id y83so6060885qka.7
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 13:15:25 -0800 (PST)
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 348B96B0726
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 16:19:32 -0500 (EST)
+Received: by mail-oi1-f199.google.com with SMTP id h135-v6so1677962oic.2
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 13:19:32 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g5sor9739868qtp.68.2018.11.09.13.15.24
+        by mx.google.com with SMTPS id a23sor5846277otl.0.2018.11.09.13.19.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 09 Nov 2018 13:15:24 -0800 (PST)
-Date: Fri, 9 Nov 2018 16:15:21 -0500
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Subject: Re: [mm PATCH v5 0/7] Deferred page init improvements
-Message-ID: <20181109211521.5ospn33pp552k2xv@xakep.localdomain>
+        Fri, 09 Nov 2018 13:19:31 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <154145268025.30046.11742652345962594283.stgit@ahduyck-desk1.jf.intel.com>
+References: <20181108041537.39694-1-joel@joelfernandes.org> <CAG48ez1h=v-JYnDw81HaYJzOfrNhwYksxmc2r=cJvdQVgYM+NA@mail.gmail.com>
+In-Reply-To: <CAG48ez1h=v-JYnDw81HaYJzOfrNhwYksxmc2r=cJvdQVgYM+NA@mail.gmail.com>
+From: Jann Horn <jannh@google.com>
+Date: Fri, 9 Nov 2018 22:19:03 +0100
+Message-ID: <CAG48ez0kQ4d566bXTFOYANDgii-stL-Qj-oyaBzvfxdV=PU-7g@mail.gmail.com>
+Subject: Re: [PATCH v3 resend 1/2] mm: Add an F_SEAL_FUTURE_WRITE seal to memfd
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@linux.intel.com>, daniel.m.jordan@oracle.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mhocko@suse.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.com
+To: joel@joelfernandes.org
+Cc: kernel list <linux-kernel@vger.kernel.org>, jreck@google.com, John Stultz <john.stultz@linaro.org>, Todd Kjos <tkjos@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Christoph Hellwig <hch@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Daniel Colascione <dancol@google.com>, Bruce Fields <bfields@fieldses.org>, jlayton@kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Lei.Yang@windriver.com, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, marcandre.lureau@redhat.com, Mike Kravetz <mike.kravetz@oracle.com>, minchan@kernel.org, shuah@kernel.org, valdis.kletnieks@vt.edu, Hugh Dickins <hughd@google.com>, Linux API <linux-api@vger.kernel.org>
 
-On 18-11-05 13:19:25, Alexander Duyck wrote:
-> This patchset is essentially a refactor of the page initialization logic
-> that is meant to provide for better code reuse while providing a
-> significant improvement in deferred page initialization performance.
-> 
-> In my testing on an x86_64 system with 384GB of RAM and 3TB of persistent
-> memory per node I have seen the following. In the case of regular memory
-> initialization the deferred init time was decreased from 3.75s to 1.06s on
-> average. For the persistent memory the initialization time dropped from
-> 24.17s to 19.12s on average. This amounts to a 253% improvement for the
-> deferred memory initialization performance, and a 26% improvement in the
-> persistent memory initialization performance.
+On Fri, Nov 9, 2018 at 10:06 PM Jann Horn <jannh@google.com> wrote:
+> On Fri, Nov 9, 2018 at 9:46 PM Joel Fernandes (Google)
+> <joel@joelfernandes.org> wrote:
+> > Android uses ashmem for sharing memory regions. We are looking forward
+> > to migrating all usecases of ashmem to memfd so that we can possibly
+> > remove the ashmem driver in the future from staging while also
+> > benefiting from using memfd and contributing to it. Note staging drivers
+> > are also not ABI and generally can be removed at anytime.
+> >
+> > One of the main usecases Android has is the ability to create a region
+> > and mmap it as writeable, then add protection against making any
+> > "future" writes while keeping the existing already mmap'ed
+> > writeable-region active.  This allows us to implement a usecase where
+> > receivers of the shared memory buffer can get a read-only view, while
+> > the sender continues to write to the buffer.
+> > See CursorWindow documentation in Android for more details:
+> > https://developer.android.com/reference/android/database/CursorWindow
+> >
+> > This usecase cannot be implemented with the existing F_SEAL_WRITE seal.
+> > To support the usecase, this patch adds a new F_SEAL_FUTURE_WRITE seal
+> > which prevents any future mmap and write syscalls from succeeding while
+> > keeping the existing mmap active.
+>
+> Please CC linux-api@ on patches like this. If you had done that, I
+> might have criticized your v1 patch instead of your v3 patch...
+>
+> > The following program shows the seal
+> > working in action:
+> [...]
+> > Cc: jreck@google.com
+> > Cc: john.stultz@linaro.org
+> > Cc: tkjos@google.com
+> > Cc: gregkh@linuxfoundation.org
+> > Cc: hch@infradead.org
+> > Reviewed-by: John Stultz <john.stultz@linaro.org>
+> > Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
+> > ---
+> [...]
+> > diff --git a/mm/memfd.c b/mm/memfd.c
+> > index 2bb5e257080e..5ba9804e9515 100644
+> > --- a/mm/memfd.c
+> > +++ b/mm/memfd.c
+> [...]
+> > @@ -219,6 +220,25 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
+> >                 }
+> >         }
+> >
+> > +       if ((seals & F_SEAL_FUTURE_WRITE) &&
+> > +           !(*file_seals & F_SEAL_FUTURE_WRITE)) {
+> > +               /*
+> > +                * The FUTURE_WRITE seal also prevents growing and shrinking
+> > +                * so we need them to be already set, or requested now.
+> > +                */
+> > +               int test_seals = (seals | *file_seals) &
+> > +                                (F_SEAL_GROW | F_SEAL_SHRINK);
+> > +
+> > +               if (test_seals != (F_SEAL_GROW | F_SEAL_SHRINK)) {
+> > +                       error = -EINVAL;
+> > +                       goto unlock;
+> > +               }
+> > +
+> > +               spin_lock(&file->f_lock);
+> > +               file->f_mode &= ~(FMODE_WRITE | FMODE_PWRITE);
+> > +               spin_unlock(&file->f_lock);
+> > +       }
+>
+> So you're fiddling around with the file, but not the inode? How are
+> you preventing code like the following from re-opening the file as
+> writable?
+>
+> $ cat memfd.c
+> #define _GNU_SOURCE
+> #include <unistd.h>
+> #include <sys/syscall.h>
+> #include <printf.h>
+> #include <fcntl.h>
+> #include <err.h>
+> #include <stdio.h>
+>
+> int main(void) {
+>   int fd = syscall(__NR_memfd_create, "testfd", 0);
+>   if (fd == -1) err(1, "memfd");
+>   char path[100];
+>   sprintf(path, "/proc/self/fd/%d", fd);
+>   int fd2 = open(path, O_RDWR);
+>   if (fd2 == -1) err(1, "reopen");
+>   printf("reopen successful: %d\n", fd2);
+> }
+> $ gcc -o memfd memfd.c
+> $ ./memfd
+> reopen successful: 4
+> $
+>
+> That aside: I wonder whether a better API would be something that
+> allows you to create a new readonly file descriptor, instead of
+> fiddling with the writability of an existing fd.
 
-Hi Alex,
-
-Please try to run your persistent memory init experiment with Daniel's
-patches:
-
-https://lore.kernel.org/lkml/20181105165558.11698-1-daniel.m.jordan@oracle.com/
-
-The performance should improve by much more than 26%.
-
-Overall, your works looks good, but it needs to be considered how easy it will be
-to merge with ktask. I will try to complete the review today.
-
-Thank you,
-Pasha
+My favorite approach would be to forbid open() on memfds, hope that
+nobody notices the tiny API break, and then add an ioctl for "reopen
+this memfd with reduced permissions" - but that's just my personal
+opinion.
