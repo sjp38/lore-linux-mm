@@ -1,72 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B41666B0732
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 18:14:06 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id 87-v6so2619118pfq.8
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 15:14:06 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u16-v6sor11059049plq.14.2018.11.09.15.14.05
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C09966B0734
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 18:14:37 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id f9so2193853pgs.13
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 15:14:37 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id c22-v6si8711394pgb.472.2018.11.09.15.14.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 09 Nov 2018 15:14:05 -0800 (PST)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (1.0)
-Subject: Re: [PATCH v3 resend 1/2] mm: Add an F_SEAL_FUTURE_WRITE seal to memfd
-From: Andy Lutomirski <luto@amacapital.net>
-In-Reply-To: <CAKOZuetZrL10zWwn4Jzzg0QL2nd3Fm0JxGtzC79SZAfOK525Ag@mail.gmail.com>
-Date: Fri, 9 Nov 2018 15:14:02 -0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <F8A6A5DC-3BA0-43BD-B7EC-EDE199B33A02@amacapital.net>
-References: <20181108041537.39694-1-joel@joelfernandes.org> <CAG48ez1h=v-JYnDw81HaYJzOfrNhwYksxmc2r=cJvdQVgYM+NA@mail.gmail.com> <CAKOZuesw1wG-YynWL7bVb+4BWtYp0Ei62vweWF+mqF1Ln-_2Tg@mail.gmail.com> <BB64C995-F374-49EB-8469-4820231D8152@amacapital.net> <CAKOZuetZrL10zWwn4Jzzg0QL2nd3Fm0JxGtzC79SZAfOK525Ag@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Nov 2018 15:14:36 -0800 (PST)
+Message-ID: <18b6634b912af7b4ec01396a2b0f3b31737c9ea2.camel@linux.intel.com>
+Subject: Re: [mm PATCH v5 0/7] Deferred page init improvements
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Date: Fri, 09 Nov 2018 15:14:35 -0800
+In-Reply-To: <20181109211521.5ospn33pp552k2xv@xakep.localdomain>
+References: <20181109211521.5ospn33pp552k2xv@xakep.localdomain>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Colascione <dancol@google.com>
-Cc: Jann Horn <jannh@google.com>, Joel Fernandes <joel@joelfernandes.org>, kernel list <linux-kernel@vger.kernel.org>, John Reck <jreck@google.com>, John Stultz <john.stultz@linaro.org>, Todd Kjos <tkjos@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Christoph Hellwig <hch@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Bruce Fields <bfields@fieldses.org>, Jeff Layton <jlayton@kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Lei.Yang@windriver.com, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, marcandre.lureau@redhat.com, Mike Kravetz <mike.kravetz@oracle.com>, Minchan Kim <minchan@kernel.org>, Shuah Khan <shuah@kernel.org>, valdis.kletnieks@vt.edu, Hugh Dickins <hughd@google.com>, Linux API <linux-api@vger.kernel.org>
+To: Pavel Tatashin <pasha.tatashin@soleen.com>, daniel.m.jordan@oracle.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mhocko@suse.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.com
 
+On Fri, 2018-11-09 at 16:15 -0500, Pavel Tatashin wrote:
+> On 18-11-05 13:19:25, Alexander Duyck wrote:
+> > This patchset is essentially a refactor of the page initialization logic
+> > that is meant to provide for better code reuse while providing a
+> > significant improvement in deferred page initialization performance.
+> > 
+> > In my testing on an x86_64 system with 384GB of RAM and 3TB of persistent
+> > memory per node I have seen the following. In the case of regular memory
+> > initialization the deferred init time was decreased from 3.75s to 1.06s on
+> > average. For the persistent memory the initialization time dropped from
+> > 24.17s to 19.12s on average. This amounts to a 253% improvement for the
+> > deferred memory initialization performance, and a 26% improvement in the
+> > persistent memory initialization performance.
+> 
+> Hi Alex,
+> 
+> Please try to run your persistent memory init experiment with Daniel's
+> patches:
+> 
+> https://lore.kernel.org/lkml/20181105165558.11698-1-daniel.m.jordan@oracle.com/
 
+I've taken a quick look at it. It seems like a bit of a brute force way
+to try and speed things up. I would be worried about it potentially
+introducing performance issues if the number of CPUs thrown at it end
+up exceeding the maximum throughput of the memory.
 
-> On Nov 9, 2018, at 2:42 PM, Daniel Colascione <dancol@google.com> wrote:
->=20
-> On Fri, Nov 9, 2018 at 2:37 PM, Andy Lutomirski <luto@amacapital.net> wrot=
-e:
->>> Another, more general fix might be to prevent /proc/pid/fd/N opens
->>> from "upgrading" access modes. But that'd be a bigger ABI break.
->>=20
->> I think we should fix that, too.  I consider it a bug fix, not an ABI bre=
-ak, personally.
->=20
-> Someone, somewhere is probably relying on it though, and that means
-> that we probably can't change it unless it's actually causing
-> problems.
->=20
-> <mumble>spacebar heating</mumble>
+The data provided with patch 11 seems to point to issues such as that.
+In the case of the E7-8895 example cited it is increasing the numbers
+of CPUs used from memory initialization from 8 to 72, a 9x increase in
+the number of CPUs but it is yeilding only a 3.88x speedup.
 
-I think it has caused problems in the past. It=E2=80=99s certainly extremely=
- surprising behavior.  I=E2=80=99d say it should be fixed and, if needed, a s=
-ysctl to unfix it might be okay.
+> The performance should improve by much more than 26%.
 
->=20
->>>> That aside: I wonder whether a better API would be something that
->>>> allows you to create a new readonly file descriptor, instead of
->>>> fiddling with the writability of an existing fd.
->>>=20
->>> That doesn't work, unfortunately. The ashmem API we're replacing with
->>> memfd requires file descriptor continuity. I also looked into opening
->>> a new FD and dup2(2)ing atop the old one, but this approach doesn't
->>> work in the case that the old FD has already leaked to some other
->>> context (e.g., another dup, SCM_RIGHTS). See
->>> https://developer.android.com/ndk/reference/group/memory. We can't
->>> break ASharedMemory_setProt.
->>=20
->>=20
->> Hmm.  If we fix the general reopen bug, a way to drop write access from a=
-n existing struct file would do what Android needs, right?  I don=E2=80=99t k=
-now if there are general VFS issues with that.
->=20
-> I also proposed that. :-) Maybe it'd work best as a special case of
-> the perennial revoke(2) that people keep proposing. You'd be able to
-> selectively revoke all access or just write access.
+The 26% improvement, or speedup of 1.26x using the ktask approach, was
+for persistent memory, not deferred memory init. The ktask patch
+doesn't do anything for persistent memory since it is takes the hot-
+plug path and isn't handled via the deferred memory init.
 
-Sounds good to me, modulo possible races, but that shouldn=E2=80=99t be too h=
-ard to deal with.=
+I had increased deferred memory init to about 3.53x the original speed
+(3.75s to 1.06s) on the system which I was testing. I do agree the two
+patches should be able to synergistically boost each other though as
+this patch set was meant to make the init much more cache friendly so
+as a result it should scale better as you add additional cores. I know
+I had done some playing around with fake numa to split up a single node
+into 8 logical nodes and I had seen a similar speedup of about 3.85x
+with my test memory initializing in about 275ms.
+
+> Overall, your works looks good, but it needs to be considered how easy it will be
+> to merge with ktask. I will try to complete the review today.
+> 
+> Thank you,
+> Pasha
+
+Looking over the patches they are still in the RFC stage and the data
+is in need of updates since it is referencing 4.15-rc kernels as its
+baseline. If anything I really think the ktask patch 11 would be easier
+to rebase around my patch set then the other way around. Also, this
+series is in Andrew's mmots as of a few days ago, so I think it will be
+in the next mmotm that comes out.
+
+The integration with the ktask code should be pretty straight forward.
+If anything I think my code would probably make it easier since it gets
+rid of the need to do all this in two passes. The only new limitation
+it would add is that you would probably want to split up the work along
+either max order or section aligned boundaries. What it would
+essentially do is make things so that each of the ktask threads would
+probably look more like deferred_grow_zone which after my patch set is
+actually a fairly simple function.
+
+Thanks.
+
+- Alex
