@@ -1,99 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 947196B0752
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 20:03:07 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id y83so7393690qka.7
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 17:03:07 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 4D1126B0754
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 20:17:08 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id n68so7487239qkn.8
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 17:17:08 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p32sor9648250qvf.2.2018.11.09.17.02.40
+        by mx.google.com with SMTPS id h25-v6sor10217922qta.49.2018.11.09.17.16.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 09 Nov 2018 17:02:40 -0800 (PST)
-Date: Fri, 9 Nov 2018 20:02:38 -0500
+        Fri, 09 Nov 2018 17:16:55 -0800 (PST)
+Date: Fri, 9 Nov 2018 20:16:52 -0500
 From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Subject: Re: [mm PATCH v5 4/7] mm: Initialize MAX_ORDER_NR_PAGES at a time
- instead of doing larger sections
-Message-ID: <20181110010238.jnabddtfpr5kjhdz@xakep.localdomain>
-References: <154145268025.30046.11742652345962594283.stgit@ahduyck-desk1.jf.intel.com>
- <154145278583.30046.4918131143612801028.stgit@ahduyck-desk1.jf.intel.com>
+Subject: Re: [mm PATCH v5 0/7] Deferred page init improvements
+Message-ID: <20181110011652.2wozbvfimcnhogfj@xakep.localdomain>
+References: <20181109211521.5ospn33pp552k2xv@xakep.localdomain>
+ <18b6634b912af7b4ec01396a2b0f3b31737c9ea2.camel@linux.intel.com>
+ <20181110000006.tmcfnzynelaznn7u@xakep.localdomain>
+ <0d8782742d016565870c578848138aaedf873a7c.camel@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <154145278583.30046.4918131143612801028.stgit@ahduyck-desk1.jf.intel.com>
+In-Reply-To: <0d8782742d016565870c578848138aaedf873a7c.camel@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mhocko@suse.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.com
+Cc: daniel.m.jordan@oracle.com, akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mhocko@suse.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.com
 
-On 18-11-05 13:19:45, Alexander Duyck wrote:
->  	}
-> -	first_init_pfn = max(zone->zone_start_pfn, first_init_pfn);
-> +
-> +	/* If the zone is empty somebody else may have cleared out the zone */
-> +	if (!deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn,
-> +						 first_init_pfn)) {
-> +		pgdat_resize_unlock(pgdat, &flags);
-> +		pgdat_init_report_one_done();
-> +		return 0;
+On 18-11-09 16:46:02, Alexander Duyck wrote:
+> On Fri, 2018-11-09 at 19:00 -0500, Pavel Tatashin wrote:
+> > On 18-11-09 15:14:35, Alexander Duyck wrote:
+> > > On Fri, 2018-11-09 at 16:15 -0500, Pavel Tatashin wrote:
+> > > > On 18-11-05 13:19:25, Alexander Duyck wrote:
+> > > > > This patchset is essentially a refactor of the page initialization logic
+> > > > > that is meant to provide for better code reuse while providing a
+> > > > > significant improvement in deferred page initialization performance.
+> > > > > 
+> > > > > In my testing on an x86_64 system with 384GB of RAM and 3TB of persistent
+> > > > > memory per node I have seen the following. In the case of regular memory
+> > > > > initialization the deferred init time was decreased from 3.75s to 1.06s on
+> > > > > average. For the persistent memory the initialization time dropped from
+> > > > > 24.17s to 19.12s on average. This amounts to a 253% improvement for the
+> > > > > deferred memory initialization performance, and a 26% improvement in the
+> > > > > persistent memory initialization performance.
+> > > > 
+> > > > Hi Alex,
+> > > > 
+> > > > Please try to run your persistent memory init experiment with Daniel's
+> > > > patches:
+> > > > 
+> > > > https://lore.kernel.org/lkml/20181105165558.11698-1-daniel.m.jordan@oracle.com/
+> > > 
+> > > I've taken a quick look at it. It seems like a bit of a brute force way
+> > > to try and speed things up. I would be worried about it potentially
+> > 
+> > There is a limit to max number of threads that ktasks start. The memory
+> > throughput is *much* higher than what one CPU can maxout in a node, so
+> > there is no reason to leave the other CPUs sit idle during boot when
+> > they can help to initialize.
+> 
+> Right, but right now that limit can still be pretty big when it is
+> something like 25% of all the CPUs on a 288 CPU system.
 
-It would make more sense to add goto to the end of this function and report
-that in Node X had 0 pages initialized. Otherwise, it will be confusing
-why some nodes are not initialized during boot. It is simply because
-they do not have deferred pages left to be initialized.
+It is still OK. About 9 threads per node.
 
+That machine has 1T of memory, which means 8 nodes need to initialize 2G
+of memory each. With 46G/s throughout it should take 0.043s Which is 10
+times higher than what Daniel sees with 0.325s, so there is still room
+to saturate the memory throughput.
 
-> +	}
->  
->  	/*
-> -	 * Initialize and free pages. We do it in two loops: first we initialize
-> -	 * struct page, than free to buddy allocator, because while we are
-> -	 * freeing pages we can access pages that are ahead (computing buddy
-> -	 * page in __free_one_page()).
-> +	 * Initialize and free pages in MAX_ORDER sized increments so
-> +	 * that we can avoid introducing any issues with the buddy
-> +	 * allocator.
->  	 */
-> -	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
-> -		spfn = max_t(unsigned long, first_init_pfn, spfn);
-> -		nr_pages += deferred_init_pages(zone, spfn, epfn);
-> -	}
-> -	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
-> -		spfn = max_t(unsigned long, first_init_pfn, spfn);
-> -		deferred_free_pages(spfn, epfn);
-> -	}
-> +	while (spfn < epfn)
-> +		nr_pages += deferred_init_maxorder(&i, zone, &spfn, &epfn);
-> +
->  	pgdat_resize_unlock(pgdat, &flags);
->  
->  	/* Sanity check that the next zone really is unpopulated */
-> @@ -1602,9 +1689,9 @@ deferred_grow_zone(struct zone *zone, unsigned int order)
->  {
+Now, if the multi-threadding efficiency is good, it should take
+1.261s / 9 threads =  0.14s
 
-How about order = max(order, max_order)?
+> 
+> One issue is the way the code was ends up essentially blowing out the
+> cache over and over again. Doing things in two passes made it really
+> expensive as you took one cache miss to initialize it, and another to
+> free it. I think getting rid of that is one of the biggest gains with
+> my patch set.
 
->  	unsigned long nr_pages_needed = ALIGN(1 << order, PAGES_PER_SECTION);
+I am not arguing that your patches make sense, all I am saying that
+ktasks improve time order of magnitude better on machines with large
+amount of memory.
 
-
-> -	first_init_pfn = max(zone->zone_start_pfn, first_deferred_pfn);
-> -
-> -	if (first_init_pfn >= pgdat_end_pfn(pgdat)) {
-> +	/* If the zone is empty somebody else may have cleared out the zone */
-> +	if (!deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn,
-> +						 first_deferred_pfn)) {
->  		pgdat_resize_unlock(pgdat, &flags);
-> -		return false;
-> +		return true;
-
-I am OK to change to true here, please also set
-pgdat->first_deferred_pfn to ULONG_MAX to indicate that there are no
-more deferred pages in this node.
-
-
-Overall, I like this patch, makes things a lot easier, assuming the
-above is addressed:
-
-Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
-
-Thank you,
 Pasha
