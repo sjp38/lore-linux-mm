@@ -1,131 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A53C96B0744
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 19:00:11 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id n68so7041279qkn.8
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 16:00:11 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u190-v6sor5149679qkf.82.2018.11.09.16.00.10
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FFEB6B0746
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 19:05:25 -0500 (EST)
+Received: by mail-it1-f197.google.com with SMTP id m8-v6so5348473iti.2
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 16:05:25 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id h201-v6si2346731ita.92.2018.11.09.16.05.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 09 Nov 2018 16:00:10 -0800 (PST)
-Date: Fri, 9 Nov 2018 19:00:06 -0500
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Subject: Re: [mm PATCH v5 0/7] Deferred page init improvements
-Message-ID: <20181110000006.tmcfnzynelaznn7u@xakep.localdomain>
-References: <20181109211521.5ospn33pp552k2xv@xakep.localdomain>
- <18b6634b912af7b4ec01396a2b0f3b31737c9ea2.camel@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Nov 2018 16:05:24 -0800 (PST)
+Subject: Re: [RFC PATCH] mm: thp: implement THP reservations for anonymous
+ memory
+References: <1541746138-6706-1-git-send-email-anthony.yznaga@oracle.com>
+ <20181109121318.3f3ou56ceegrqhcp@kshutemo-mobl1>
+From: anthony.yznaga@oracle.com
+Message-ID: <e5873a6e-db77-d654-6df6-9b5017c31f70@oracle.com>
+Date: Fri, 9 Nov 2018 16:04:56 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <18b6634b912af7b4ec01396a2b0f3b31737c9ea2.camel@linux.intel.com>
+In-Reply-To: <20181109121318.3f3ou56ceegrqhcp@kshutemo-mobl1>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@linux.intel.com>, daniel.m.jordan@oracle.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mhocko@suse.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, aneesh.kumar@linux.ibm.com, akpm@linux-foundation.org, jglisse@redhat.com, khandual@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, mgorman@techsingularity.net, mhocko@kernel.org, minchan@kernel.org, peterz@infradead.org, rientjes@google.com, vbabka@suse.cz, willy@infradead.org, ying.huang@intel.com, nitingupta910@gmail.com
 
-On 18-11-09 15:14:35, Alexander Duyck wrote:
-> On Fri, 2018-11-09 at 16:15 -0500, Pavel Tatashin wrote:
-> > On 18-11-05 13:19:25, Alexander Duyck wrote:
-> > > This patchset is essentially a refactor of the page initialization logic
-> > > that is meant to provide for better code reuse while providing a
-> > > significant improvement in deferred page initialization performance.
-> > > 
-> > > In my testing on an x86_64 system with 384GB of RAM and 3TB of persistent
-> > > memory per node I have seen the following. In the case of regular memory
-> > > initialization the deferred init time was decreased from 3.75s to 1.06s on
-> > > average. For the persistent memory the initialization time dropped from
-> > > 24.17s to 19.12s on average. This amounts to a 253% improvement for the
-> > > deferred memory initialization performance, and a 26% improvement in the
-> > > persistent memory initialization performance.
-> > 
-> > Hi Alex,
-> > 
-> > Please try to run your persistent memory init experiment with Daniel's
-> > patches:
-> > 
-> > https://lore.kernel.org/lkml/20181105165558.11698-1-daniel.m.jordan@oracle.com/
-> 
-> I've taken a quick look at it. It seems like a bit of a brute force way
-> to try and speed things up. I would be worried about it potentially
 
-There is a limit to max number of threads that ktasks start. The memory
-throughput is *much* higher than what one CPU can maxout in a node, so
-there is no reason to leave the other CPUs sit idle during boot when
-they can help to initialize.
 
-> introducing performance issues if the number of CPUs thrown at it end
-> up exceeding the maximum throughput of the memory.
-> 
-> The data provided with patch 11 seems to point to issues such as that.
-> In the case of the E7-8895 example cited it is increasing the numbers
-> of CPUs used from memory initialization from 8 to 72, a 9x increase in
-> the number of CPUs but it is yeilding only a 3.88x speedup.
+On 11/09/2018 04:13 AM, Kirill A. Shutemov wrote:
+> On Thu, Nov 08, 2018 at 10:48:58PM -0800, Anthony Yznaga wrote:
+>> The basic idea as outlined by Mel Gorman in [2] is:
+>>
+>> 1) On first fault in a sufficiently sized range, allocate a huge page
+>>    sized and aligned block of base pages.  Map the base page
+>>    corresponding to the fault address and hold the rest of the pages in
+>>    reserve.
+>> 2) On subsequent faults in the range, map the pages from the reservation.
+>> 3) When enough pages have been mapped, promote the mapped pages and
+>>    remaining pages in the reservation to a huge page.
+>> 4) When there is memory pressure, release the unused pages from their
+>>    reservations.
+> I haven't yet read the patch in details, but I'm skeptical about the
+> approach in general for few reasons:
+>
+> - PTE page table retracting to replace it with huge PMD entry requires
+>   down_write(mmap_sem). It makes the approach not practical for many
+>   multi-threaded workloads.
+>
+>   I don't see a way to avoid exclusive lock here. I will be glad to
+>   be proved otherwise.
+>
+> - The promotion will also require TLB flush which might be prohibitively
+>   slow on big machines.
+>
+> - Short living processes will fail to benefit from THP with the policy,
+>   even with plenty of free memory in the system: no time to promote to THP
+>   or, with synchronous promotion, cost will overweight the benefit.
+>
+> The goal to reduce memory overhead of THP is admirable, but we need to be
+> careful not to kill THP benefit itself. The approach will reduce number of
+> THP mapped in the system and/or shift their allocation to later stage of
+> process lifetime.
+>
+> The only way I see it can be useful is if it will be possible to apply the
+> policy on per-VMA basis. It will be very useful for malloc()
+> implementations, for instance. But as a global policy it's no-go to me.
+I agree that this should not be a global policy.A  For example, it seems to me
+that a VMA where MADV_HUGEPAGE has been applied should get huge
+pages on first faults (I need to fix that in my implementation).
+>
+> Prove me wrong with performance data. :)
+I'll try.A  :-)
 
-Yes, but in both cases we are far from maxing out the memory throughput.
-The 3.88x is indeed low, and I do not know what slows it down.
+Thanks for the comments!
 
-Daniel,
-
-Could you please check why multi-threading efficiency is so low here?
-
-I bet, there is some atomic operation introduces a contention within a
-node. It should be possible to resolve.
-
-> 
-> > The performance should improve by much more than 26%.
-> 
-> The 26% improvement, or speedup of 1.26x using the ktask approach, was
-> for persistent memory, not deferred memory init. The ktask patch
-> doesn't do anything for persistent memory since it is takes the hot-
-> plug path and isn't handled via the deferred memory init.
-
-Ah, I thought in your experiment persistent memory takes deferred init
-path. So, what exactly in your patches make this 1.26x speedup?
-
-> 
-> I had increased deferred memory init to about 3.53x the original speed
-> (3.75s to 1.06s) on the system which I was testing. I do agree the two
-> patches should be able to synergistically boost each other though as
-> this patch set was meant to make the init much more cache friendly so
-> as a result it should scale better as you add additional cores. I know
-> I had done some playing around with fake numa to split up a single node
-> into 8 logical nodes and I had seen a similar speedup of about 3.85x
-> with my test memory initializing in about 275ms.
-> 
-> > Overall, your works looks good, but it needs to be considered how easy it will be
-> > to merge with ktask. I will try to complete the review today.
-> > 
-> > Thank you,
-> > Pasha
-> 
-> Looking over the patches they are still in the RFC stage and the data
-> is in need of updates since it is referencing 4.15-rc kernels as its
-> baseline. If anything I really think the ktask patch 11 would be easier
-> to rebase around my patch set then the other way around. Also, this
-> series is in Andrew's mmots as of a few days ago, so I think it will be
-> in the next mmotm that comes out.
-
-I do not disagree, I think these two patch series should complement each
-other. But, if your changes make it impossible for ktask, I would strongly argue
-against it, as the potential improvements with ktasks are much higher.
-But, so far I do not see anything, so I think they can work together. I
-am still reviewing your work.
-
-> 
-> The integration with the ktask code should be pretty straight forward.
-> If anything I think my code would probably make it easier since it gets
-> rid of the need to do all this in two passes. The only new limitation
-> it would add is that you would probably want to split up the work along
-> either max order or section aligned boundaries. What it would
-
-Which is totally OK, it should make ktasks scale even better.
-
-> essentially do is make things so that each of the ktask threads would
-> probably look more like deferred_grow_zone which after my patch set is
-> actually a fairly simple function.
-> 
-> Thanks.
-
-Thank you,
-Pasha
+Anthony
