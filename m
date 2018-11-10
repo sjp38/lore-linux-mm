@@ -1,65 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A35106B076F
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 22:48:22 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id j6-v6so3414232wre.1
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 19:48:22 -0800 (PST)
-Received: from g2t2352.austin.hpe.com (g2t2352.austin.hpe.com. [15.233.44.25])
-        by mx.google.com with ESMTPS id z2-v6si7670725wrv.437.2018.11.09.19.48.20
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 387586B0770
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 22:54:48 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id l15-v6so2968684pff.5
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 19:54:48 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e193-v6sor2092705pfc.67.2018.11.09.19.54.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Nov 2018 19:48:21 -0800 (PST)
-From: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
-Subject: RE: [RFC PATCH v4 11/13] mm: parallelize deferred struct page
- initialization within each node
-Date: Sat, 10 Nov 2018 03:48:14 +0000
-Message-ID: <AT5PR8401MB1169798EBEF1EE5EBA3ABFFFABC70@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
-References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
- <20181105165558.11698-12-daniel.m.jordan@oracle.com>
-In-Reply-To: <20181105165558.11698-12-daniel.m.jordan@oracle.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Fri, 09 Nov 2018 19:54:46 -0800 (PST)
+Date: Fri, 9 Nov 2018 19:54:43 -0800
+From: Joel Fernandes <joel@joelfernandes.org>
+Subject: Re: [PATCH v3 resend 1/2] mm: Add an F_SEAL_FUTURE_WRITE seal to
+ memfd
+Message-ID: <20181110035443.GA26579@google.com>
+References: <20181108041537.39694-1-joel@joelfernandes.org>
+ <20181109123634.6fe7467bb9237851250c9c56@linux-foundation.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181109123634.6fe7467bb9237851250c9c56@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: "aarcange@redhat.com" <aarcange@redhat.com>, "aaron.lu@intel.com" <aaron.lu@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "bsd@redhat.com" <bsd@redhat.com>, "darrick.wong@oracle.com" <darrick.wong@oracle.com>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "jgg@mellanox.com" <jgg@mellanox.com>, "jwadams@google.com" <jwadams@google.com>, "jiangshanlai@gmail.com" <jiangshanlai@gmail.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>, "Pavel.Tatashin@microsoft.com" <Pavel.Tatashin@microsoft.com>, "prasad.singamsetty@oracle.com" <prasad.singamsetty@oracle.com>, "rdunlap@infradead.org" <rdunlap@infradead.org>, "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "tim.c.chen@intel.com" <tim.c.chen@intel.com>, "tj@kernel.org" <tj@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, jreck@google.com, john.stultz@linaro.org, tkjos@google.com, gregkh@linuxfoundation.org, hch@infradead.org, Al Viro <viro@zeniv.linux.org.uk>, dancol@google.com, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Lei Yang <Lei.Yang@windriver.com>, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-mm@kvack.org, =?iso-8859-1?Q?Marc-Andr=E9?= Lureau <marcandre.lureau@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, minchan@kernel.org, Shuah Khan <shuah@kernel.org>, valdis.kletnieks@vt.edu
 
-> -----Original Message-----
-> From: linux-kernel-owner@vger.kernel.org <linux-kernel-
-> owner@vger.kernel.org> On Behalf Of Daniel Jordan
-> Sent: Monday, November 05, 2018 10:56 AM
-> Subject: [RFC PATCH v4 11/13] mm: parallelize deferred struct page
-> initialization within each node
->=20
-> ...  The kernel doesn't
-> know the memory bandwidth of a given system to get the most efficient
-> number of threads, so there's some guesswork involved. =20
+On Fri, Nov 09, 2018 at 12:36:34PM -0800, Andrew Morton wrote:
+> On Wed,  7 Nov 2018 20:15:36 -0800 "Joel Fernandes (Google)" <joel@joelfernandes.org> wrote:
+> 
+> > Android uses ashmem for sharing memory regions. We are looking forward
+> > to migrating all usecases of ashmem to memfd so that we can possibly
+> > remove the ashmem driver in the future from staging while also
+> > benefiting from using memfd and contributing to it. Note staging drivers
+> > are also not ABI and generally can be removed at anytime.
+> > 
+> > One of the main usecases Android has is the ability to create a region
+> > and mmap it as writeable, then add protection against making any
+> > "future" writes while keeping the existing already mmap'ed
+> > writeable-region active.  This allows us to implement a usecase where
+> > receivers of the shared memory buffer can get a read-only view, while
+> > the sender continues to write to the buffer.
+> > See CursorWindow documentation in Android for more details:
+> > https://developer.android.com/reference/android/database/CursorWindow
+> 
+> It appears that the memfd_create and fcntl manpages will require
+> updating.  Please attend to this at the appropriate time?
 
-The ACPI HMAT (Heterogeneous Memory Attribute Table) is designed to report
-that kind of information, and could facilitate automatic tuning.
+Yes, I am planning to send those out shortly. I finished working on them.
 
-There was discussion last year about kernel support for it:
-https://lore.kernel.org/lkml/20171214021019.13579-1-ross.zwisler@linux.inte=
-l.com/
+Also just to let you know, I posted a fix for the security issue Jann Horn
+reported and requested him to test it:
+https://lore.kernel.org/lkml/20181109234636.GA136491@google.com/T/#m8d9d185e6480d095f0ab8f84bcb103892181f77d
 
+This fix along with the 2 other patches I posted in v3 are all that's needed. thanks!
 
-> In testing, a reasonable value turned out to be about a quarter of the
-> CPUs on the node.
-...
-> +	/*
-> +	 * We'd like to know the memory bandwidth of the chip to
->         calculate the
-> +	 * most efficient number of threads to start, but we can't.
-> +	 * In testing, a good value for a variety of systems was a
->         quarter of the CPUs on the node.
-> +	 */
-> +	nr_node_cpus =3D DIV_ROUND_UP(cpumask_weight(cpumask), 4);
-
-
-You might want to base that calculation on and limit the threads to
-physical cores, not hyperthreaded cores.
-
----
-Robert Elliott, HPE Persistent Memory
+- Joel
