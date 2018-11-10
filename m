@@ -1,226 +1,248 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A2FCF6B0777
-	for <linux-mm@kvack.org>; Sat, 10 Nov 2018 01:05:20 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id h10so199032pgv.20
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 22:05:20 -0800 (PST)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 142756B0779
+	for <linux-mm@kvack.org>; Sat, 10 Nov 2018 03:50:57 -0500 (EST)
+Received: by mail-ot1-f69.google.com with SMTP id c33so2728558otb.18
+        for <linux-mm@kvack.org>; Sat, 10 Nov 2018 00:50:57 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t62-v6sor11961661pfk.5.2018.11.09.22.05.18
+        by mx.google.com with SMTPS id 129-v6sor5257439oib.173.2018.11.10.00.50.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 09 Nov 2018 22:05:18 -0800 (PST)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (1.0)
-Subject: Re: [PATCH v3 resend 1/2] mm: Add an F_SEAL_FUTURE_WRITE seal to memfd
-From: Andy Lutomirski <luto@amacapital.net>
-In-Reply-To: <20181110032005.GA22238@google.com>
-Date: Fri, 9 Nov 2018 22:05:14 -0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <69CE06CC-E47C-4992-848A-66EB23EE6C74@amacapital.net>
-References: <20181108041537.39694-1-joel@joelfernandes.org> <CAG48ez1h=v-JYnDw81HaYJzOfrNhwYksxmc2r=cJvdQVgYM+NA@mail.gmail.com> <CAG48ez0kQ4d566bXTFOYANDgii-stL-Qj-oyaBzvfxdV=PU-7g@mail.gmail.com> <20181110032005.GA22238@google.com>
+        Sat, 10 Nov 2018 00:50:55 -0800 (PST)
+From: john.hubbard@gmail.com
+Subject: [PATCH v2 0/6] RFC: gup+dma: tracking dma-pinned pages
+Date: Sat, 10 Nov 2018 00:50:35 -0800
+Message-Id: <20181110085041.10071-1-jhubbard@nvidia.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joel Fernandes <joel@joelfernandes.org>
-Cc: Jann Horn <jannh@google.com>, kernel list <linux-kernel@vger.kernel.org>, jreck@google.com, John Stultz <john.stultz@linaro.org>, Todd Kjos <tkjos@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Christoph Hellwig <hch@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Daniel Colascione <dancol@google.com>, Bruce Fields <bfields@fieldses.org>, jlayton@kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Lei.Yang@windriver.com, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, marcandre.lureau@redhat.com, Mike Kravetz <mike.kravetz@oracle.com>, minchan@kernel.org, shuah@kernel.org, valdis.kletnieks@vt.edu, Hugh Dickins <hughd@google.com>, Linux API <linux-api@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>
+
+From: John Hubbard <jhubbard@nvidia.com>
+
+Hi, here is fodder for conversation during LPC.
+
+Changes since v1:
+
+a) Uses a simpler set/clear/test bit approach in the page flags.
+
+b) Added some initial performance results in the cover letter here, below.
+
+c) Rebased to latest linux.git
+
+d) Puts pages back on the LRU when its done with them.
+
+Here is an updated proposal for tracking pages that have had
+get_user_pages*() called on them. This is in support of fixing the problem
+discussed in [1]. This RFC only shows how to set up a reliable
+PageDmaPinned flag. What to *do* with that flag is left for a later
+discussion.
+
+The sequence would be:
+
+    -- apply patches 1-2,
+
+    -- convert the rest of the subsystems to call put_user_page*(). Patch #3
+       is an example of that. It converts infiniband.
+
+    -- apply patches 4-6,
+
+    -- apply more patches, to actually use the new PageDmaPinned flag.
+
+One question up front was, "how do we ensure that either put_user_page()
+or put_page() are called, depending on whether the page came from
+get_user_pages() or not?". From this series, you can see that:
+
+    -- It's possible to assert within put_page(), that we are probably in the
+       right place. In practice this assertion definitely helps.
+
+    -- In the other direction, if put_user_page() is called when put_page()
+       should have been used instead, then a "clear" report of LRU list
+       corruption shows up reliably, because the first thing put_user_page()
+       attempts is to decrement the lru's list.prev pointer, and so you'll
+       see pointer values that are one less than an aligned pointer value.
+       This is not great, but it's usable. So I think that the conversion
+       will turn into an exercise of trying to get code coverage, and that
+       should work out.
+
+I have lots of other patches, not shown here, in various stages of polish, to
+convert enough of the kernel in order to run fio [2]. I did that, and got some
+rather noisy performance results.
+
+Here they are again:
+
+Performance notes:
+
+1. These fio results are noisy. The std deviation is large enough
+that some of this could be noise. In order to highlight that, I did 5 runs
+each of with, and without the patch, and while there is definitely a
+performance drop on average, it's also true that there is overlap in the
+results. In other words, the best "with patch" run is about the same as
+the worst "without patch" run.
+
+2. Initial profiling shows that we're adding about 1% total to the this
+particular test run...I think. I may have to narrow this down some more,
+but I don't seem to see any real lock contention. Hints or ideas on
+measurement methods are welcome, btw.
+
+    -- 0.59% in put_user_page
+    -- 0.2% (or 0.54%, depending on how you read the perf out below) in
+       get_user_pages_fast:
 
 
+          1.36%--iov_iter_get_pages
+                    |
+                     --1.27%--get_user_pages_fast
+                               |
+                                --0.54%--pin_page_for_dma
 
-> On Nov 9, 2018, at 7:20 PM, Joel Fernandes <joel@joelfernandes.org> wrote:=
+          0.59%--put_user_page
 
->=20
->> On Fri, Nov 09, 2018 at 10:19:03PM +0100, Jann Horn wrote:
->>> On Fri, Nov 9, 2018 at 10:06 PM Jann Horn <jannh@google.com> wrote:
->>> On Fri, Nov 9, 2018 at 9:46 PM Joel Fernandes (Google)
->>> <joel@joelfernandes.org> wrote:
->>>> Android uses ashmem for sharing memory regions. We are looking forward
->>>> to migrating all usecases of ashmem to memfd so that we can possibly
->>>> remove the ashmem driver in the future from staging while also
->>>> benefiting from using memfd and contributing to it. Note staging driver=
-s
->>>> are also not ABI and generally can be removed at anytime.
->>>>=20
->>>> One of the main usecases Android has is the ability to create a region
->>>> and mmap it as writeable, then add protection against making any
->>>> "future" writes while keeping the existing already mmap'ed
->>>> writeable-region active.  This allows us to implement a usecase where
->>>> receivers of the shared memory buffer can get a read-only view, while
->>>> the sender continues to write to the buffer.
->>>> See CursorWindow documentation in Android for more details:
->>>> https://developer.android.com/reference/android/database/CursorWindow
->>>>=20
->>>> This usecase cannot be implemented with the existing F_SEAL_WRITE seal.=
+          1.34%     0.03%  fio   [kernel.vmlinux]     [k] _raw_spin_lock
+          0.95%     0.55%  fio   [kernel.vmlinux]     [k] do_raw_spin_lock
+          0.17%     0.03%  fio   [kernel.vmlinux]     [k] isolate_lru_page
+          0.06%     0.00%  fio   [kernel.vmlinux]     [k] putback_lru_page
 
->>>> To support the usecase, this patch adds a new F_SEAL_FUTURE_WRITE seal
->>>> which prevents any future mmap and write syscalls from succeeding while=
+4. Here's some raw fio data: one run without the patch, and two with the patch:
 
->>>> keeping the existing mmap active.
->>>=20
->>> Please CC linux-api@ on patches like this. If you had done that, I
->>> might have criticized your v1 patch instead of your v3 patch...
->>>=20
->>>> The following program shows the seal
->>>> working in action:
->>> [...]
->>>> Cc: jreck@google.com
->>>> Cc: john.stultz@linaro.org
->>>> Cc: tkjos@google.com
->>>> Cc: gregkh@linuxfoundation.org
->>>> Cc: hch@infradead.org
->>>> Reviewed-by: John Stultz <john.stultz@linaro.org>
->>>> Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
->>>> ---
->>> [...]
->>>> diff --git a/mm/memfd.c b/mm/memfd.c
->>>> index 2bb5e257080e..5ba9804e9515 100644
->>>> --- a/mm/memfd.c
->>>> +++ b/mm/memfd.c
->>> [...]
->>>> @@ -219,6 +220,25 @@ static int memfd_add_seals(struct file *file, unsi=
-gned int seals)
->>>>                }
->>>>        }
->>>>=20
->>>> +       if ((seals & F_SEAL_FUTURE_WRITE) &&
->>>> +           !(*file_seals & F_SEAL_FUTURE_WRITE)) {
->>>> +               /*
->>>> +                * The FUTURE_WRITE seal also prevents growing and shri=
-nking
->>>> +                * so we need them to be already set, or requested now.=
+------------------------------------------------------
+WITHOUT the patch:
+------------------------------------------------------
+reader: (g=0): rw=read, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.3
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=55.5MiB/s,w=0KiB/s][r=14.2k,w=0 IOPS][eta 00m:00s]
+reader: (groupid=0, jobs=1): err= 0: pid=1750: Tue Nov  6 20:18:06 2018
+   read: IOPS=13.9k, BW=54.4MiB/s (57.0MB/s)(1024MiB/18826msec)
+    slat (usec): min=25, max=4870, avg=68.19, stdev=85.21
+    clat (usec): min=74, max=19814, avg=4525.40, stdev=1844.03
+     lat (usec): min=183, max=19927, avg=4593.69, stdev=1866.65
+    clat percentiles (usec):
+     |  1.00th=[ 3687],  5.00th=[ 3720], 10.00th=[ 3720], 20.00th=[ 3752],
+     | 30.00th=[ 3752], 40.00th=[ 3752], 50.00th=[ 3752], 60.00th=[ 3785],
+     | 70.00th=[ 4178], 80.00th=[ 4490], 90.00th=[ 6652], 95.00th=[ 8225],
+     | 99.00th=[13173], 99.50th=[14353], 99.90th=[16581], 99.95th=[17171],
+     | 99.99th=[18220]
+   bw (  KiB/s): min=49920, max=59320, per=100.00%, avg=55742.24, stdev=2224.20, samples=37
+   iops        : min=12480, max=14830, avg=13935.35, stdev=556.05, samples=37
+  lat (usec)   : 100=0.01%, 250=0.01%, 500=0.01%, 750=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=68.78%, 10=28.14%, 20=3.08%
+  cpu          : usr=2.39%, sys=95.30%, ctx=669, majf=0, minf=72
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=262144,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
 
->>>> +                */
->>>> +               int test_seals =3D (seals | *file_seals) &
->>>> +                                (F_SEAL_GROW | F_SEAL_SHRINK);
->>>> +
->>>> +               if (test_seals !=3D (F_SEAL_GROW | F_SEAL_SHRINK)) {
->>>> +                       error =3D -EINVAL;
->>>> +                       goto unlock;
->>>> +               }
->>>> +
->>>> +               spin_lock(&file->f_lock);
->>>> +               file->f_mode &=3D ~(FMODE_WRITE | FMODE_PWRITE);
->>>> +               spin_unlock(&file->f_lock);
->>>> +       }
->>>=20
->>> So you're fiddling around with the file, but not the inode? How are
->>> you preventing code like the following from re-opening the file as
->>> writable?
->>>=20
->>> $ cat memfd.c
->>> #define _GNU_SOURCE
->>> #include <unistd.h>
->>> #include <sys/syscall.h>
->>> #include <printf.h>
->>> #include <fcntl.h>
->>> #include <err.h>
->>> #include <stdio.h>
->>>=20
->>> int main(void) {
->>>  int fd =3D syscall(__NR_memfd_create, "testfd", 0);
->>>  if (fd =3D=3D -1) err(1, "memfd");
->>>  char path[100];
->>>  sprintf(path, "/proc/self/fd/%d", fd);
->>>  int fd2 =3D open(path, O_RDWR);
->>>  if (fd2 =3D=3D -1) err(1, "reopen");
->>>  printf("reopen successful: %d\n", fd2);
->>> }
->>> $ gcc -o memfd memfd.c
->>> $ ./memfd
->>> reopen successful: 4
->>> $
->>>=20
->>> That aside: I wonder whether a better API would be something that
->>> allows you to create a new readonly file descriptor, instead of
->>> fiddling with the writability of an existing fd.
->>=20
->> My favorite approach would be to forbid open() on memfds, hope that
->> nobody notices the tiny API break, and then add an ioctl for "reopen
->> this memfd with reduced permissions" - but that's just my personal
->> opinion.
->=20
-> I did something along these lines and it fixes the issue, but I forbid ope=
-n
-> of memfd only when the F_SEAL_FUTURE_WRITE seal is in place. So then its n=
-ot
-> an ABI break because this is a brand new seal. That seems the least intrus=
-ive
-> solution and it works. Do you mind testing it and I'll add your and Tested=
--by
-> to the new fix? The patch is based on top of this series.
->=20
-> ---8<-----------
-> From: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-> Subject: [PATCH] mm/memfd: Fix possible promotion to writeable of sealed m=
-emfd
->=20
-> Jann Horn found that reopening an F_SEAL_FUTURE_WRITE sealed memfd
-> through /proc/self/fd/N symlink as writeable succeeds. The simplest fix
-> without causing ABI breakages and ugly VFS hacks is to simply deny all
-> opens on F_SEAL_FUTURE_WRITE sealed fds.
->=20
-> Reported-by: Jann Horn <jannh@google.com>
-> Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
-> ---
-> mm/shmem.c | 18 ++++++++++++++++++
-> 1 file changed, 18 insertions(+)
->=20
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 446942677cd4..5b378c486b8f 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -3611,7 +3611,25 @@ static const struct address_space_operations shmem_=
-aops =3D {
->    .error_remove_page =3D generic_error_remove_page,
-> };
->=20
-> +/* Could arrive here for memfds opened through /proc/ */
-> +int shmem_open(struct inode *inode, struct file *file)
-> +{
-> +    struct shmem_inode_info *info =3D SHMEM_I(inode);
-> +
-> +    /*
-> +     * memfds for which future writes have been prevented
-> +     * should not be reopened, say, through /proc/pid/fd/N
-> +     * symlinks otherwise it can cause a sealed memfd to be
-> +     * promoted to writable.
-> +     */
-> +    if (info->seals & F_SEAL_FUTURE_WRITE)
-> +        return -EACCES;
-> +
-> +    return 0;
-> +}
+Run status group 0 (all jobs):
+   READ: bw=54.4MiB/s (57.0MB/s), 54.4MiB/s-54.4MiB/s (57.0MB/s-57.0MB/s), io=1024MiB (1074MB), run=18826-18826msec
 
-The result of this series is very warty. We have a concept of seals, and the=
-y all work similarly, except the new future write seal. That one:
+Disk stats (read/write):
+  nvme0n1: ios=259490/1, merge=0/0, ticks=14822/0, in_queue=19241, util=100.00%
 
-- causes a probably-observable effect in the file mode in F_GETFL.
+------------------------------------------------------
+With the patch applied:
+------------------------------------------------------
+reader: (g=0): rw=read, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.3
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=51.2MiB/s,w=0KiB/s][r=13.1k,w=0 IOPS][eta 00m:00s]
+reader: (groupid=0, jobs=1): err= 0: pid=2568: Tue Nov  6 20:03:50 2018
+   read: IOPS=12.8k, BW=50.1MiB/s (52.5MB/s)(1024MiB/20453msec)
+    slat (usec): min=33, max=4365, avg=74.05, stdev=85.79
+    clat (usec): min=39, max=19818, avg=4916.61, stdev=1961.79
+     lat (usec): min=100, max=20002, avg=4990.78, stdev=1985.23
+    clat percentiles (usec):
+     |  1.00th=[ 4047],  5.00th=[ 4080], 10.00th=[ 4080], 20.00th=[ 4080],
+     | 30.00th=[ 4113], 40.00th=[ 4113], 50.00th=[ 4113], 60.00th=[ 4146],
+     | 70.00th=[ 4178], 80.00th=[ 4817], 90.00th=[ 7308], 95.00th=[ 8717],
+     | 99.00th=[14091], 99.50th=[15270], 99.90th=[17433], 99.95th=[18220],
+     | 99.99th=[19006]
+   bw (  KiB/s): min=45370, max=55784, per=100.00%, avg=51332.33, stdev=1843.77, samples=40
+   iops        : min=11342, max=13946, avg=12832.83, stdev=460.92, samples=40
+  lat (usec)   : 50=0.01%, 250=0.01%, 500=0.01%, 750=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=96.44%, 20=3.53%
+  cpu          : usr=2.91%, sys=95.18%, ctx=398, majf=0, minf=73
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=262144,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
 
-- causes reopen to fail.
+Run status group 0 (all jobs):
+   READ: bw=50.1MiB/s (52.5MB/s), 50.1MiB/s-50.1MiB/s (52.5MB/s-52.5MB/s), io=1024MiB (1074MB), run=20453-20453msec
 
-- does *not* affect other struct files that may already exist on the same in=
-ode.
+Disk stats (read/write):
+  nvme0n1: ios=261399/0, merge=0/0, ticks=16019/0, in_queue=20910, util=100.00%
 
-- mysteriously malfunctions if you try to set it again on another struct fil=
-e that already exists
+------------------------------------------------------
+OR, here's a better run WITH the patch applied, and you can see that this is nearly as good
+as the "without" case:
+------------------------------------------------------
 
-- probably is insecure when used on hugetlbfs.
+reader: (g=0): rw=read, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.3
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=53.2MiB/s,w=0KiB/s][r=13.6k,w=0 IOPS][eta 00m:00s]
+reader: (groupid=0, jobs=1): err= 0: pid=2521: Tue Nov  6 20:01:33 2018
+   read: IOPS=13.4k, BW=52.5MiB/s (55.1MB/s)(1024MiB/19499msec)
+    slat (usec): min=30, max=12458, avg=69.71, stdev=88.01
+    clat (usec): min=39, max=25590, avg=4687.42, stdev=1925.29
+     lat (usec): min=97, max=25704, avg=4757.25, stdev=1946.06
+    clat percentiles (usec):
+     |  1.00th=[ 3884],  5.00th=[ 3884], 10.00th=[ 3916], 20.00th=[ 3916],
+     | 30.00th=[ 3916], 40.00th=[ 3916], 50.00th=[ 3949], 60.00th=[ 3949],
+     | 70.00th=[ 3982], 80.00th=[ 4555], 90.00th=[ 6915], 95.00th=[ 8848],
+     | 99.00th=[13566], 99.50th=[14877], 99.90th=[16909], 99.95th=[17695],
+     | 99.99th=[24249]
+   bw (  KiB/s): min=48905, max=58016, per=100.00%, avg=53855.79, stdev=2115.03, samples=38
+   iops        : min=12226, max=14504, avg=13463.79, stdev=528.76, samples=38
+  lat (usec)   : 50=0.01%, 250=0.01%, 500=0.01%, 750=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=71.80%, 10=24.66%, 20=3.51%, 50=0.02%
+  cpu          : usr=3.47%, sys=94.61%, ctx=370, majf=0, minf=73
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=262144,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
 
-I see two reasonable solutions:
+Run status group 0 (all jobs):
+   READ: bw=52.5MiB/s (55.1MB/s), 52.5MiB/s-52.5MiB/s (55.1MB/s-55.1MB/s), io=1024MiB (1074MB), run=19499-19499msec
 
-1. Don=E2=80=99t fiddle with the struct file at all. Instead make the inode f=
-lag work by itself.
+Disk stats (read/write):
+  nvme0n1: ios=260720/0, merge=0/0, ticks=15036/0, in_queue=19876, util=100.00%
 
-2. Don=E2=80=99t call it a =E2=80=9Cseal=E2=80=9D.  Instead fix the /proc ho=
-le and add an API to drop write access on an existing struct file.
 
-I personally prefer #2.
+[1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
 
-> +
-> static const struct file_operations shmem_file_operations =3D {
-> +    .open        =3D shmem_open,
->    .mmap        =3D shmem_mmap,
->    .get_unmapped_area =3D shmem_get_unmapped_area,
-> #ifdef CONFIG_TMPFS
-> --=20
-> 2.19.1.930.g4563a0d9d0-goog
->=20
+[2] fio: https://github.com/axboe/fio
+
+John Hubbard (6):
+  mm/gup: finish consolidating error handling
+  mm: introduce put_user_page*(), placeholder versions
+  infiniband/mm: convert put_page() to put_user_page*()
+  mm: introduce page->dma_pinned_flags, _count
+  mm: introduce zone_gup_lock, for dma-pinned pages
+  mm: track gup pages with page->dma_pinned_* fields
+
+ drivers/infiniband/core/umem.c              |   7 +-
+ drivers/infiniband/core/umem_odp.c          |   2 +-
+ drivers/infiniband/hw/hfi1/user_pages.c     |  11 +-
+ drivers/infiniband/hw/mthca/mthca_memfree.c |   6 +-
+ drivers/infiniband/hw/qib/qib_user_pages.c  |  11 +-
+ drivers/infiniband/hw/qib/qib_user_sdma.c   |   6 +-
+ drivers/infiniband/hw/usnic/usnic_uiom.c    |   7 +-
+ include/linux/mm.h                          |  13 ++
+ include/linux/mm_types.h                    |  22 +++-
+ include/linux/mmzone.h                      |   6 +
+ include/linux/page-flags.h                  |  61 +++++++++
+ mm/gup.c                                    |  58 +++++++-
+ mm/memcontrol.c                             |   8 ++
+ mm/page_alloc.c                             |   1 +
+ mm/swap.c                                   | 138 ++++++++++++++++++++
+ 15 files changed, 320 insertions(+), 37 deletions(-)
+
+-- 
+2.19.1
