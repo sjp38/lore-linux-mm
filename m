@@ -1,184 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 042816B076C
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 22:20:11 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id z22-v6so2144396pfi.0
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 19:20:10 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v88-v6sor11859338pfk.72.2018.11.09.19.20.08
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A35106B076F
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2018 22:48:22 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id j6-v6so3414232wre.1
+        for <linux-mm@kvack.org>; Fri, 09 Nov 2018 19:48:22 -0800 (PST)
+Received: from g2t2352.austin.hpe.com (g2t2352.austin.hpe.com. [15.233.44.25])
+        by mx.google.com with ESMTPS id z2-v6si7670725wrv.437.2018.11.09.19.48.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 09 Nov 2018 19:20:08 -0800 (PST)
-Date: Fri, 9 Nov 2018 19:20:05 -0800
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [PATCH v3 resend 1/2] mm: Add an F_SEAL_FUTURE_WRITE seal to
- memfd
-Message-ID: <20181110032005.GA22238@google.com>
-References: <20181108041537.39694-1-joel@joelfernandes.org>
- <CAG48ez1h=v-JYnDw81HaYJzOfrNhwYksxmc2r=cJvdQVgYM+NA@mail.gmail.com>
- <CAG48ez0kQ4d566bXTFOYANDgii-stL-Qj-oyaBzvfxdV=PU-7g@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Nov 2018 19:48:21 -0800 (PST)
+From: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
+Subject: RE: [RFC PATCH v4 11/13] mm: parallelize deferred struct page
+ initialization within each node
+Date: Sat, 10 Nov 2018 03:48:14 +0000
+Message-ID: <AT5PR8401MB1169798EBEF1EE5EBA3ABFFFABC70@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
+References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
+ <20181105165558.11698-12-daniel.m.jordan@oracle.com>
+In-Reply-To: <20181105165558.11698-12-daniel.m.jordan@oracle.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAG48ez0kQ4d566bXTFOYANDgii-stL-Qj-oyaBzvfxdV=PU-7g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jannh@google.com>
-Cc: kernel list <linux-kernel@vger.kernel.org>, jreck@google.com, John Stultz <john.stultz@linaro.org>, Todd Kjos <tkjos@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Christoph Hellwig <hch@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Daniel Colascione <dancol@google.com>, Bruce Fields <bfields@fieldses.org>, jlayton@kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Lei.Yang@windriver.com, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, marcandre.lureau@redhat.com, Mike Kravetz <mike.kravetz@oracle.com>, minchan@kernel.org, shuah@kernel.org, valdis.kletnieks@vt.edu, Hugh Dickins <hughd@google.com>, Linux API <linux-api@vger.kernel.org>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: "aarcange@redhat.com" <aarcange@redhat.com>, "aaron.lu@intel.com" <aaron.lu@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "bsd@redhat.com" <bsd@redhat.com>, "darrick.wong@oracle.com" <darrick.wong@oracle.com>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "jgg@mellanox.com" <jgg@mellanox.com>, "jwadams@google.com" <jwadams@google.com>, "jiangshanlai@gmail.com" <jiangshanlai@gmail.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>, "Pavel.Tatashin@microsoft.com" <Pavel.Tatashin@microsoft.com>, "prasad.singamsetty@oracle.com" <prasad.singamsetty@oracle.com>, "rdunlap@infradead.org" <rdunlap@infradead.org>, "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "tim.c.chen@intel.com" <tim.c.chen@intel.com>, "tj@kernel.org" <tj@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>
 
-On Fri, Nov 09, 2018 at 10:19:03PM +0100, Jann Horn wrote:
-> On Fri, Nov 9, 2018 at 10:06 PM Jann Horn <jannh@google.com> wrote:
-> > On Fri, Nov 9, 2018 at 9:46 PM Joel Fernandes (Google)
-> > <joel@joelfernandes.org> wrote:
-> > > Android uses ashmem for sharing memory regions. We are looking forward
-> > > to migrating all usecases of ashmem to memfd so that we can possibly
-> > > remove the ashmem driver in the future from staging while also
-> > > benefiting from using memfd and contributing to it. Note staging drivers
-> > > are also not ABI and generally can be removed at anytime.
-> > >
-> > > One of the main usecases Android has is the ability to create a region
-> > > and mmap it as writeable, then add protection against making any
-> > > "future" writes while keeping the existing already mmap'ed
-> > > writeable-region active.  This allows us to implement a usecase where
-> > > receivers of the shared memory buffer can get a read-only view, while
-> > > the sender continues to write to the buffer.
-> > > See CursorWindow documentation in Android for more details:
-> > > https://developer.android.com/reference/android/database/CursorWindow
-> > >
-> > > This usecase cannot be implemented with the existing F_SEAL_WRITE seal.
-> > > To support the usecase, this patch adds a new F_SEAL_FUTURE_WRITE seal
-> > > which prevents any future mmap and write syscalls from succeeding while
-> > > keeping the existing mmap active.
-> >
-> > Please CC linux-api@ on patches like this. If you had done that, I
-> > might have criticized your v1 patch instead of your v3 patch...
-> >
-> > > The following program shows the seal
-> > > working in action:
-> > [...]
-> > > Cc: jreck@google.com
-> > > Cc: john.stultz@linaro.org
-> > > Cc: tkjos@google.com
-> > > Cc: gregkh@linuxfoundation.org
-> > > Cc: hch@infradead.org
-> > > Reviewed-by: John Stultz <john.stultz@linaro.org>
-> > > Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
-> > > ---
-> > [...]
-> > > diff --git a/mm/memfd.c b/mm/memfd.c
-> > > index 2bb5e257080e..5ba9804e9515 100644
-> > > --- a/mm/memfd.c
-> > > +++ b/mm/memfd.c
-> > [...]
-> > > @@ -219,6 +220,25 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
-> > >                 }
-> > >         }
-> > >
-> > > +       if ((seals & F_SEAL_FUTURE_WRITE) &&
-> > > +           !(*file_seals & F_SEAL_FUTURE_WRITE)) {
-> > > +               /*
-> > > +                * The FUTURE_WRITE seal also prevents growing and shrinking
-> > > +                * so we need them to be already set, or requested now.
-> > > +                */
-> > > +               int test_seals = (seals | *file_seals) &
-> > > +                                (F_SEAL_GROW | F_SEAL_SHRINK);
-> > > +
-> > > +               if (test_seals != (F_SEAL_GROW | F_SEAL_SHRINK)) {
-> > > +                       error = -EINVAL;
-> > > +                       goto unlock;
-> > > +               }
-> > > +
-> > > +               spin_lock(&file->f_lock);
-> > > +               file->f_mode &= ~(FMODE_WRITE | FMODE_PWRITE);
-> > > +               spin_unlock(&file->f_lock);
-> > > +       }
-> >
-> > So you're fiddling around with the file, but not the inode? How are
-> > you preventing code like the following from re-opening the file as
-> > writable?
-> >
-> > $ cat memfd.c
-> > #define _GNU_SOURCE
-> > #include <unistd.h>
-> > #include <sys/syscall.h>
-> > #include <printf.h>
-> > #include <fcntl.h>
-> > #include <err.h>
-> > #include <stdio.h>
-> >
-> > int main(void) {
-> >   int fd = syscall(__NR_memfd_create, "testfd", 0);
-> >   if (fd == -1) err(1, "memfd");
-> >   char path[100];
-> >   sprintf(path, "/proc/self/fd/%d", fd);
-> >   int fd2 = open(path, O_RDWR);
-> >   if (fd2 == -1) err(1, "reopen");
-> >   printf("reopen successful: %d\n", fd2);
-> > }
-> > $ gcc -o memfd memfd.c
-> > $ ./memfd
-> > reopen successful: 4
-> > $
-> >
-> > That aside: I wonder whether a better API would be something that
-> > allows you to create a new readonly file descriptor, instead of
-> > fiddling with the writability of an existing fd.
-> 
-> My favorite approach would be to forbid open() on memfds, hope that
-> nobody notices the tiny API break, and then add an ioctl for "reopen
-> this memfd with reduced permissions" - but that's just my personal
-> opinion.
+> -----Original Message-----
+> From: linux-kernel-owner@vger.kernel.org <linux-kernel-
+> owner@vger.kernel.org> On Behalf Of Daniel Jordan
+> Sent: Monday, November 05, 2018 10:56 AM
+> Subject: [RFC PATCH v4 11/13] mm: parallelize deferred struct page
+> initialization within each node
+>=20
+> ...  The kernel doesn't
+> know the memory bandwidth of a given system to get the most efficient
+> number of threads, so there's some guesswork involved. =20
 
-I did something along these lines and it fixes the issue, but I forbid open
-of memfd only when the F_SEAL_FUTURE_WRITE seal is in place. So then its not
-an ABI break because this is a brand new seal. That seems the least intrusive
-solution and it works. Do you mind testing it and I'll add your and Tested-by
-to the new fix? The patch is based on top of this series.
+The ACPI HMAT (Heterogeneous Memory Attribute Table) is designed to report
+that kind of information, and could facilitate automatic tuning.
 
----8<-----------
-From: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-Subject: [PATCH] mm/memfd: Fix possible promotion to writeable of sealed memfd
+There was discussion last year about kernel support for it:
+https://lore.kernel.org/lkml/20171214021019.13579-1-ross.zwisler@linux.inte=
+l.com/
 
-Jann Horn found that reopening an F_SEAL_FUTURE_WRITE sealed memfd
-through /proc/self/fd/N symlink as writeable succeeds. The simplest fix
-without causing ABI breakages and ugly VFS hacks is to simply deny all
-opens on F_SEAL_FUTURE_WRITE sealed fds.
 
-Reported-by: Jann Horn <jannh@google.com>
-Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
+> In testing, a reasonable value turned out to be about a quarter of the
+> CPUs on the node.
+...
+> +	/*
+> +	 * We'd like to know the memory bandwidth of the chip to
+>         calculate the
+> +	 * most efficient number of threads to start, but we can't.
+> +	 * In testing, a good value for a variety of systems was a
+>         quarter of the CPUs on the node.
+> +	 */
+> +	nr_node_cpus =3D DIV_ROUND_UP(cpumask_weight(cpumask), 4);
+
+
+You might want to base that calculation on and limit the threads to
+physical cores, not hyperthreaded cores.
+
 ---
- mm/shmem.c | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
-
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 446942677cd4..5b378c486b8f 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -3611,7 +3611,25 @@ static const struct address_space_operations shmem_aops = {
- 	.error_remove_page = generic_error_remove_page,
- };
- 
-+/* Could arrive here for memfds opened through /proc/ */
-+int shmem_open(struct inode *inode, struct file *file)
-+{
-+	struct shmem_inode_info *info = SHMEM_I(inode);
-+
-+	/*
-+	 * memfds for which future writes have been prevented
-+	 * should not be reopened, say, through /proc/pid/fd/N
-+	 * symlinks otherwise it can cause a sealed memfd to be
-+	 * promoted to writable.
-+	 */
-+	if (info->seals & F_SEAL_FUTURE_WRITE)
-+		return -EACCES;
-+
-+	return 0;
-+}
-+
- static const struct file_operations shmem_file_operations = {
-+	.open		= shmem_open,
- 	.mmap		= shmem_mmap,
- 	.get_unmapped_area = shmem_get_unmapped_area,
- #ifdef CONFIG_TMPFS
--- 
-2.19.1.930.g4563a0d9d0-goog
+Robert Elliott, HPE Persistent Memory
