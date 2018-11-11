@@ -1,47 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DF65E6B0006
-	for <linux-mm@kvack.org>; Sat, 10 Nov 2018 20:30:21 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id c15-v6so4211342pls.15
-        for <linux-mm@kvack.org>; Sat, 10 Nov 2018 17:30:21 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e1-v6si9705637pfe.44.2018.11.10.17.30.20
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 055316B0008
+	for <linux-mm@kvack.org>; Sat, 10 Nov 2018 20:38:46 -0500 (EST)
+Received: by mail-wm1-f72.google.com with SMTP id b204-v6so5517632wme.6
+        for <linux-mm@kvack.org>; Sat, 10 Nov 2018 17:38:45 -0800 (PST)
+Received: from shadbolt.e.decadent.org.uk (shadbolt.e.decadent.org.uk. [88.96.1.126])
+        by mx.google.com with ESMTPS id x11-v6si9763526wrp.16.2018.11.10.17.38.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 10 Nov 2018 17:30:20 -0800 (PST)
-Date: Sun, 11 Nov 2018 02:30:17 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC PATCH 07/12] locking/lockdep: Add support for nested
- terminal locks
-Message-ID: <20181111013017.GC12766@worktop.psav.com>
-References: <1541709268-3766-1-git-send-email-longman@redhat.com>
- <1541709268-3766-8-git-send-email-longman@redhat.com>
- <20181110142023.GG3339@worktop.programming.kicks-ass.net>
- <f3fc6819-175b-6452-4705-942a82d7e06f@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f3fc6819-175b-6452-4705-942a82d7e06f@redhat.com>
+        Sat, 10 Nov 2018 17:38:44 -0800 (PST)
+Message-ID: <6f5448ebd339cd1dc7ffa8fdbe3a2fd813593260.camel@decadent.org.uk>
+Subject: Re: [linux-stable-rc:linux-3.16.y 2872/3488] head64.c:undefined
+ reference to `__gcov_exit'
+From: Ben Hutchings <ben@decadent.org.uk>
+Date: Sun, 11 Nov 2018 01:38:29 +0000
+In-Reply-To: <CAK8P3a1E4=NJaZKM0z8b62ahSoBjR1K2oLsHhbY9C03Kkeeu8g@mail.gmail.com>
+References: <201802170216.gfRZgPtX%fengguang.wu@intel.com>
+	 <CAK8P3a1E4=NJaZKM0z8b62ahSoBjR1K2oLsHhbY9C03Kkeeu8g@mail.gmail.com>
+Content-Type: multipart/signed; micalg="pgp-sha512";
+	protocol="application/pgp-signature"; boundary="=-/vmpg2gsZH75s4vuTeSi"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Arnd Bergmann <arnd@arndb.de>, kbuild test robot <fengguang.wu@intel.com>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, kbuild-all@01.org, Ben Hutchings <bwh@kernel.org>, Andrey Konovalov <adech.fo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable <stable@vger.kernel.org>
 
-On Sat, Nov 10, 2018 at 07:30:54PM -0500, Waiman Long wrote:
-> On 11/10/2018 09:20 AM, Peter Zijlstra wrote:
-> > On Thu, Nov 08, 2018 at 03:34:23PM -0500, Waiman Long wrote:
-> >> There are use cases where we want to allow 2-level nesting of one
-> >> terminal lock underneath another one. So the terminal lock type is now
-> >> extended to support a new nested terminal lock where it can allow the
-> >> acquisition of another regular terminal lock underneath it.
-> > You're stretching things here... If you're allowing things under it, it
-> > is no longer a terminal lock.
-> >
-> > Why would you want to do such a thing?
-> 
-> A majority of the gain in debugobjects is to make the hash lock a kind
-> of terminal lock. Yes, I may be stretching it a bit here. I will take
-> back the nesting patch and consider doing that in a future patch.
 
-Maybe try and write a better changelog? I'm not following, but that
-could also be because I've been awake for almost 20 hours :/
+--=-/vmpg2gsZH75s4vuTeSi
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+On Fri, 2018-02-16 at 21:28 +0100, Arnd Bergmann wrote:
+> On Fri, Feb 16, 2018 at 7:21 PM, kbuild test robot
+> <fengguang.wu@intel.com> wrote:
+[...]
+> > All errors (new ones prefixed by >>):
+> >=20
+> >    arch/x86/kernel/head64.o: In function `_GLOBAL__sub_D_00100_1_early_=
+pmd_flags':
+> > > > head64.c:(.text.exit+0x5): undefined reference to `__gcov_exit'
+> >    arch/x86/kernel/head.o: In function `_GLOBAL__sub_D_00100_1_reserve_=
+ebda_region':
+> >    head.c:(.text.exit+0x5): undefined reference to `__gcov_exit'
+> >    init/built-in.o: In function `_GLOBAL__sub_D_00100_1___ksymtab_syste=
+m_state':
+> >    main.c:(.text.exit+0x5): undefined reference to `__gcov_exit'
+> >    init/built-in.o: In function `_GLOBAL__sub_D_00100_1_root_mountflags=
+':
+> >    do_mounts.c:(.text.exit+0x10): undefined reference to `__gcov_exit'
+> >    init/built-in.o: In function `_GLOBAL__sub_D_00100_1_initrd_load':
+> >    do_mounts_initrd.c:(.text.exit+0x1b): undefined reference to `__gcov=
+_exit'
+> >    init/built-in.o:initramfs.c:(.text.exit+0x26): more undefined refere=
+nces to `__gcov_exit' follow
+>=20
+> I think this is a result of using a too new compiler with the old 3.16
+> kernel. In order
+> to build with gcc-7.3, you need to backport
+>=20
+> 05384213436a ("gcov: support GCC 7.1")
+>=20
+> It's already part of stable-3.18 and later, but not 3.2 and 3.16.
+
+Thanks.  I've queued up the following for 3.16:
+
+3e44c471a2da gcov: add support for GCC 5.1
+d02038f97253 gcov: add support for gcc version >=3D 6
+05384213436a gcov: support GCC 7.1
+
+Ben.
+
+--=20
+Ben Hutchings
+Reality is just a crutch for people who can't handle science fiction.
+
+
+
+--=-/vmpg2gsZH75s4vuTeSi
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAABCgAdFiEErCspvTSmr92z9o8157/I7JWGEQkFAlvniBUACgkQ57/I7JWG
+EQmu0A//barvpTwZjirJl9xlswHWSd+py5x/ajnJUWfpeDu3eFatjwqamXdE3aBu
+x8nt2xzyqru0Fpn8x8Hhv7S3tY5HuKKfJ6rkj8SCdiW06jJMICoJI6zPobS1od0y
+oJQ0P5xLCy0Ms67W40gCb6adVc6MnANqMeHdSdbakL/y1y/l9FvBlo2d6/QetKVP
+x1dOCql4zkUnRWyqCFAsogUAvp1P/XRIJSfGi5cfge3bzsC2wRUzWNrUq7V4bfds
+ZmUtPNUqwvOZiJyDGqQyHkvBGwP/Fk0Zy9q0FA3kvG8b0iIVnJD/WR7PLR9hHX9B
+dC1P2fYft/Gvr7M6gdxIaMb2dNrwZZ3yJ7xc0O2Fb6VocV9V7GM1Ins5adcftHGD
+1VGdAWpmIAdmX/rrrBHY62+LmPPy8dQcH/xVyjkwEqL8+vMcO2oBiSlSKAMI8E4A
+10XF3yZJ8dvsUyJ6gG+4aqA+gsTgB3zkLSZGuVh7HPzanDAt7VcPYwkbalQLK+y4
+wbMEt9r8RZ2LWZgmnEW2ZmPXx0qL7DGbRaZinteobe+XCtcANcq1+/DNdTzCEoTJ
+fkE0yZ8BJNiEJepCmLuBh3d9m8r6e0vw+nWjjm7RY+607r4InEMIRmIA9wc8P7Ex
+YM8c5ZUwie6LuPQqdf1ApPMv2LjI3jt07v8Mt/DR5IOlp+nSIqU=
+=N+5O
+-----END PGP SIGNATURE-----
+
+--=-/vmpg2gsZH75s4vuTeSi--
