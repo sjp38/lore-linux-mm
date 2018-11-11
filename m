@@ -1,187 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C0D16B0008
-	for <linux-mm@kvack.org>; Sat, 10 Nov 2018 23:01:08 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id d6-v6so4826044pfn.19
-        for <linux-mm@kvack.org>; Sat, 10 Nov 2018 20:01:08 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q129-v6sor13563076pga.31.2018.11.10.20.01.06
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E876D6B0003
+	for <linux-mm@kvack.org>; Sat, 10 Nov 2018 23:41:40 -0500 (EST)
+Received: by mail-wm1-f70.google.com with SMTP id h184-v6so5188865wmf.1
+        for <linux-mm@kvack.org>; Sat, 10 Nov 2018 20:41:40 -0800 (PST)
+Received: from mout.gmx.net (mout.gmx.net. [212.227.17.21])
+        by mx.google.com with ESMTPS id 4-v6si5206036wmk.174.2018.11.10.20.41.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 10 Nov 2018 20:01:06 -0800 (PST)
-Date: Sat, 10 Nov 2018 20:01:02 -0800
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [PATCH v3 resend 1/2] mm: Add an F_SEAL_FUTURE_WRITE seal to
- memfd
-Message-ID: <20181111040102.GA204245@google.com>
-References: <CAG48ez0kQ4d566bXTFOYANDgii-stL-Qj-oyaBzvfxdV=PU-7g@mail.gmail.com>
- <20181110032005.GA22238@google.com>
- <69CE06CC-E47C-4992-848A-66EB23EE6C74@amacapital.net>
- <20181110182405.GB242356@google.com>
- <CAKOZuesQXRtthJTEr86LByH3gPpAdT-PQM0d1jqr131=zZNRKw@mail.gmail.com>
- <CAKOZueum8MtNvJ5P=W7_pRw62TdQdCgyjCwwbG1wezNboC1cxQ@mail.gmail.com>
- <20181110220933.GB96924@google.com>
- <907D942E-E321-4BD7-BED7-ACD1D96A3643@amacapital.net>
- <20181111023808.GA174670@google.com>
- <543A5181-3A16-438E-B372-97BEC48A74F8@amacapital.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <543A5181-3A16-438E-B372-97BEC48A74F8@amacapital.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 10 Nov 2018 20:41:38 -0800 (PST)
+From: Qian Cai <cai@gmx.us>
+Content-Type: text/plain;
+	charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0 (Mac OS X Mail 12.0 \(3445.100.39\))
+Subject: crashkernel=512M is no longer working on this aarch64 server
+Message-Id: <1A7E2E89-34DB-41A0-BBA2-323073A7E298@gmx.us>
+Date: Sat, 10 Nov 2018 23:41:34 -0500
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Daniel Colascione <dancol@google.com>, Jann Horn <jannh@google.com>, kernel list <linux-kernel@vger.kernel.org>, John Reck <jreck@google.com>, John Stultz <john.stultz@linaro.org>, Todd Kjos <tkjos@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Christoph Hellwig <hch@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Bruce Fields <bfields@fieldses.org>, Jeff Layton <jlayton@kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Lei.Yang@windriver.com, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, marcandre.lureau@redhat.com, Mike Kravetz <mike.kravetz@oracle.com>, Minchan Kim <minchan@kernel.org>, Shuah Khan <shuah@kernel.org>, Valdis Kletnieks <valdis.kletnieks@vt.edu>, Hugh Dickins <hughd@google.com>, Linux API <linux-api@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On Sat, Nov 10, 2018 at 07:40:10PM -0800, Andy Lutomirski wrote:
-> 
-> 
-> > On Nov 10, 2018, at 6:38 PM, Joel Fernandes <joel@joelfernandes.org> wrote:
-> > 
-> >> On Sat, Nov 10, 2018 at 02:18:23PM -0800, Andy Lutomirski wrote:
-> >> 
-> >>>> On Nov 10, 2018, at 2:09 PM, Joel Fernandes <joel@joelfernandes.org> wrote:
-> >>>> 
-> >>>>> On Sat, Nov 10, 2018 at 11:11:27AM -0800, Daniel Colascione wrote:
-> >>>>>> On Sat, Nov 10, 2018 at 10:45 AM, Daniel Colascione <dancol@google.com> wrote:
-> >>>>>> On Sat, Nov 10, 2018 at 10:24 AM, Joel Fernandes <joel@joelfernandes.org> wrote:
-> >>>>>> Thanks Andy for your thoughts, my comments below:
-> >>>> [snip]
-> >>>>>> I don't see it as warty, different seals will work differently. It works
-> >>>>>> quite well for our usecase, and since Linux is all about solving real
-> >>>>>> problems in the real work, it would be useful to have it.
-> >>>>>> 
-> >>>>>>> - causes a probably-observable effect in the file mode in F_GETFL.
-> >>>>>> 
-> >>>>>> Wouldn't that be the right thing to observe anyway?
-> >>>>>> 
-> >>>>>>> - causes reopen to fail.
-> >>>>>> 
-> >>>>>> So this concern isn't true anymore if we make reopen fail only for WRITE
-> >>>>>> opens as Daniel suggested. I will make this change so that the security fix
-> >>>>>> is a clean one.
-> >>>>>> 
-> >>>>>>> - does *not* affect other struct files that may already exist on the same inode.
-> >>>>>> 
-> >>>>>> TBH if you really want to block all writes to the file, then you want
-> >>>>>> F_SEAL_WRITE, not this seal. The usecase we have is the fd is sent over IPC
-> >>>>>> to another process and we want to prevent any new writes in the receiver
-> >>>>>> side. There is no way this other receiving process can have an existing fd
-> >>>>>> unless it was already sent one without the seal applied.  The proposed seal
-> >>>>>> could be renamed to F_SEAL_FD_WRITE if that is preferred.
-> >>>>>> 
-> >>>>>>> - mysteriously malfunctions if you try to set it again on another struct
-> >>>>>>> file that already exists
-> >>>>>>> 
-> >>>>>> 
-> >>>>>> I didn't follow this, could you explain more?
-> >>>>>> 
-> >>>>>>> - probably is insecure when used on hugetlbfs.
-> >>>>>> 
-> >>>>>> The usecase is not expected to prevent all writes, indeed the usecase
-> >>>>>> requires existing mmaps to continue to be able to write into the memory map.
-> >>>>>> So would you call that a security issue too? The use of the seal wants to
-> >>>>>> allow existing mmap regions to be continue to be written into (I mentioned
-> >>>>>> more details in the cover letter).
-> >>>>>> 
-> >>>>>>> I see two reasonable solutions:
-> >>>>>>> 
-> >>>>>>> 1. Dona??t fiddle with the struct file at all. Instead make the inode flag
-> >>>>>>> work by itself.
-> >>>>>> 
-> >>>>>> Currently, the various VFS paths check only the struct file's f_mode to deny
-> >>>>>> writes of already opened files. This would mean more checking in all those
-> >>>>>> paths (and modification of all those paths).
-> >>>>>> 
-> >>>>>> Anyway going with that idea, we could
-> >>>>>> 1. call deny_write_access(file) from the memfd's seal path which decrements
-> >>>>>> the inode::i_writecount.
-> >>>>>> 2. call get_write_access(inode) in the various VFS paths in addition to
-> >>>>>> checking for FMODE_*WRITE and deny the write (incase i_writecount is negative)
-> >>>>>> 
-> >>>>>> That will prevent both reopens, and writes from succeeding. However I worry a
-> >>>>>> bit about 2 not being too familiar with VFS internals, about what the
-> >>>>>> consequences of doing that may be.
-> >>>>> 
-> >>>>> IMHO, modifying both the inode and the struct file separately is fine,
-> >>>>> since they mean different things. In regular filesystems, it's fine to
-> >>>>> have a read-write open file description for a file whose inode grants
-> >>>>> write permission to nobody. Speaking of which: is fchmod enough to
-> >>>>> prevent this attack?
-> >>>> 
-> >>>> Well, yes and no. fchmod does prevent reopening the file RW, but
-> >>>> anyone with permissions (owner, CAP_FOWNER) can just fchmod it back. A
-> >>>> seal is supposed to be irrevocable, so fchmod-as-inode-seal probably
-> >>>> isn't sufficient by itself. While it might be good enough for Android
-> >>>> (in the sense that it'll prevent RW-reopens from other security
-> >>>> contexts to which we send an open memfd file), it's still conceptually
-> >>>> ugly, IMHO. Let's go with the original approach of just tweaking the
-> >>>> inode so that open-for-write is permanently blocked.
-> >>> 
-> >>> Agreed with the idea of modifying both file and inode flags. I was thinking
-> >>> modifying i_mode may do the trick but as you pointed it probably could be
-> >>> reverted by chmod or some other attribute setting calls.
-> >>> 
-> >>> OTOH, I don't think deny_write_access(file) can be reverted from any
-> >>> user-facing path so we could do that from the seal to prevent the future
-> >>> opens in write mode. I'll double check and test that out tomorrow.
-> >>> 
-> >>> 
-> >> 
-> >> This seems considerably more complicated and more fragile than needed. Just
-> >> add a new F_SEAL_WRITE_FUTURE.  Grep for F_SEAL_WRITE and make the _FUTURE
-> >> variant work exactly like it with two exceptions:
-> >> 
-> >> - shmem_mmap and maybe its hugetlbfs equivalent should check for it and act
-> >> accordingly.
-> > 
-> > There's more to it than that, we also need to block future writes through
-> > write syscall, so we have to hook into the write path too once the seal is
-> > set, not just the mmap. That means we have to add code in mm/shmem.c to do
-> > that in all those handlers, to check for the seal (and hope we didn't miss a
-> > file_operations handler). Is that what you are proposing?
-> 
-> The existing code already does this. Thata??s why I suggested grepping :)
+It was broken somewhere between b00d209241ff and 3541833fd1f2.
 
-Ahh sorry I see your point now. Ok let me try this approach. Thank you!
-Probably we can make this work this way and it is sufficient.
+[    0.000000] cannot allocate crashkernel (size:0x20000000)
 
-> > 
-> > Also, it means we have to keep CONFIG_TMPFS enabled so that the
-> > shmem_file_operations write handlers like write_iter are hooked up. Currently
-> > memfd works even with !CONFIG_TMPFS.
-> 
-> If so, that sounds like it may already be a bug.
+Where a good one looks like this,
 
-Actually, its not a bug. If CONFIG_TMPFS is disabled, then IIRC write syscall
-will be prevented anyway and then the mmap is the only way. I'll double check
-that once I work on this idea.
+[    0.000000] crashkernel reserved: 0x0000000008600000 - =
+0x0000000028600000 (512 MB)
 
-> > 
-> >> - add_seals wona??t need the wait_for_pins and mapping_deny_write logic.
-> >> 
-> >> That really should be all thata??s needed.
-> > 
-> > It seems a fair idea what you're saying. But I don't see how its less
-> > complex.. IMO its far more simple to have VFS do the denial of the operations
-> > based on the flags of its datastructures.. and if it works (which I will test
-> > to be sure it will), then we should be good.
-> 
-> I agree ita??s complicated, but the code is already written.  You should just
-> need to adjust some masks.
-> 
+Some commits look more suspicious than others.
 
-Right.
+      mm: add mm_pxd_folded checks to pgtable_bytes accounting functions
+      mm: introduce mm_[p4d|pud|pmd]_folded
+      mm: make the __PAGETABLE_PxD_FOLDED defines non-empty
 
-> > 
-> > Btw by any chance, are you also coming by LPC conference next week?
-> > 
-> 
-> No.  Ia??d like to, but I cana??t make the trip this year.
+# diff -u ../iomem.good.txt ../iomem.bad.txt=20
+--- ../iomem.good.txt	2018-11-10 22:28:20.092614398 -0500
++++ ../iomem.bad.txt	2018-11-10 20:39:54.930294479 -0500
+@@ -1,9 +1,8 @@
+ 00000000-3965ffff : System RAM
+   00080000-018cffff : Kernel code
+-  018d0000-020affff : reserved
+-  020b0000-045affff : Kernel data
+-  08600000-285fffff : Crash kernel
+-  28730000-2d5affff : reserved
++  018d0000-0762ffff : reserved
++  07630000-09b2ffff : Kernel data
++  231b0000-2802ffff : reserved
+   30ec0000-30ecffff : reserved
+   35660000-3965ffff : reserved
+ 39660000-396fffff : reserved
+@@ -127,7 +126,7 @@
+   7c5200000-7c520ffff : 0004:48:00.0
+ 1040000000-17fbffffff : System RAM
+   13fbfd0000-13fdfdffff : reserved
+-  16fba80000-17fbfdffff : reserved
++  16fafd0000-17fbfdffff : reserved
+   17fbfe0000-17fbffffff : reserved
+ 1800000000-1ffbffffff : System RAM
+   1bfbff0000-1bfdfeffff : reserved
 
-Ok, no worries.
+The memory map looks like this,
 
-thanks,
-
-- Joel
+[    0.000000] ACPI: Early table checksum verification disabled
+[    0.000000] ACPI: RSDP 0x00000000398D0014 000024 (v02 HISI  )
+[    0.000000] ACPI: XSDT 0x00000000398C00E8 000064 (v01 HISI   HIP07    =
+00000000      01000013)
+[    0.000000] ACPI: FACP 0x0000000039770000 000114 (v06 HISI   HIP07    =
+00000000 INTL 20151124)
+[    0.000000] ACPI: DSDT 0x0000000039730000 00691A (v02 HISI   HIP07    =
+00000000 INTL 20170728)
+[    0.000000] ACPI: MCFG 0x00000000397C0000 0000AC (v01 HISI   HIP07    =
+00000000 INTL 20151124)
+[    0.000000] ACPI: SLIT 0x00000000397B0000 00003C (v01 HISI   HIP07    =
+00000000 INTL 20151124)
+[    0.000000] ACPI: SRAT 0x00000000397A0000 000578 (v03 HISI   HIP07    =
+00000000 INTL 20151124)
+[    0.000000] ACPI: DBG2 0x0000000039790000 00005A (v00 HISI   HIP07    =
+00000000 INTL 20151124)
+[    0.000000] ACPI: GTDT 0x0000000039760000 00007C (v02 HISI   HIP07    =
+00000000 INTL 20151124)
+[    0.000000] ACPI: APIC 0x0000000039750000 0014E4 (v04 HISI   HIP07    =
+00000000 INTL 20151124)
+[    0.000000] ACPI: IORT 0x0000000039740000 000554 (v00 HISI   HIP07    =
+00000000 INTL 20170728)
+[    0.000000] ACPI: SRAT: Node 0 PXM 0 [mem 0x00000000-0x3fffffff]
+[    0.000000] ACPI: SRAT: Node 1 PXM 1 [mem 0x1800000000-0x1fffffffff]
+[    0.000000] ACPI: SRAT: Node 0 PXM 0 [mem 0x1000000000-0x17ffffffff]
+[    0.000000] ACPI: SRAT: Node 3 PXM 3 [mem 0x9000000000-0x97ffffffff]
+[    0.000000] ACPI: SRAT: Node 2 PXM 2 [mem 0x8800000000-0x8fffffffff]
+[    0.000000] NUMA: NODE_DATA [mem 0x17fbffe5c0-0x17fbffffff]
+[    0.000000] NUMA: NODE_DATA [mem 0x1ffbffe5c0-0x1ffbffffff]
+[    0.000000] NUMA: NODE_DATA [mem 0x8ffbffe5c0-0x8ffbffffff]
+[    0.000000] NUMA: NODE_DATA [mem 0x97fadce5c0-0x97fadcffff]
+[    0.000000] Zone ranges:
+[    0.000000]   DMA32    [mem 0x0000000000000000-0x00000000ffffffff]
+[    0.000000]   Normal   [mem 0x0000000100000000-0x00000097fbffffff]
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000000000000-0x000000003965ffff]
+[    0.000000]   node   0: [mem 0x0000000039660000-0x00000000396fffff]
+[    0.000000]   node   0: [mem 0x0000000039700000-0x000000003977ffff]
+[    0.000000]   node   0: [mem 0x0000000039780000-0x000000003978ffff]
+[    0.000000]   node   0: [mem 0x0000000039790000-0x00000000397cffff]
+[    0.000000]   node   0: [mem 0x00000000397d0000-0x00000000398bffff]
+[    0.000000]   node   0: [mem 0x00000000398c0000-0x00000000398dffff]
+[    0.000000]   node   0: [mem 0x00000000398e0000-0x0000000039d5ffff]
+[    0.000000]   node   0: [mem 0x0000000039d60000-0x000000003ed4ffff]
+[    0.000000]   node   0: [mem 0x000000003ed50000-0x000000003ed7ffff]
+[    0.000000]   node   0: [mem 0x000000003ed80000-0x000000003fbfffff]
+[    0.000000]   node   0: [mem 0x0000001040000000-0x00000017fbffffff]
+[    0.000000]   node   1: [mem 0x0000001800000000-0x0000001ffbffffff]
+[    0.000000]   node   2: [mem 0x0000008800000000-0x0000008ffbffffff]
+[    0.000000]   node   3: [mem 0x0000009000000000-0x00000097fbffffff]
