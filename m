@@ -1,96 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CD1286B0007
-	for <linux-mm@kvack.org>; Sun, 11 Nov 2018 04:04:15 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id g63-v6so5174423pfc.9
-        for <linux-mm@kvack.org>; Sun, 11 Nov 2018 01:04:15 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p18sor14026140pgl.33.2018.11.11.01.04.14
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EF396B0003
+	for <linux-mm@kvack.org>; Sun, 11 Nov 2018 06:18:27 -0500 (EST)
+Received: by mail-io1-f69.google.com with SMTP id q127-v6so7116254iod.17
+        for <linux-mm@kvack.org>; Sun, 11 Nov 2018 03:18:27 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id d13-v6sor4697535iob.48.2018.11.11.03.18.26
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 11 Nov 2018 01:04:14 -0800 (PST)
-From: Nicolas Boichat <drinkcat@chromium.org>
-Subject: [PATCH v2 3/3] iommu/io-pgtable-arm-v7s: Request DMA32 memory, and improve debugging
-Date: Sun, 11 Nov 2018 17:03:41 +0800
-Message-Id: <20181111090341.120786-4-drinkcat@chromium.org>
-In-Reply-To: <20181111090341.120786-1-drinkcat@chromium.org>
-References: <20181111090341.120786-1-drinkcat@chromium.org>
+        Sun, 11 Nov 2018 03:18:26 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Date: Sun, 11 Nov 2018 16:18:14 +0500
+Message-ID: <CABXGCsP_s8gwNsufESD_X8cdhECcMymMGVjbKdcDLgDX8-LGuQ@mail.gmail.com>
+Subject: [4.20 rc1] WARNING: CPU: 0 PID: 1 at lib/debugobjects.c:369 __debug_object_init.cold.11+0x18/0x10a
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Murphy <robin.murphy@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>, Joerg Roedel <joro@8bytes.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Matthias Brugger <matthias.bgg@gmail.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com
+To: linux-mm@kvack.org
 
-For level 1/2 pages, ensure GFP_DMA32 is used if CONFIG_ZONE_DMA32
-is defined (e.g. on arm64 platforms).
+Since 4.20 kernels I has this warning every boot time.
 
-For level 2 pages, allocate a slab cache in SLAB_CACHE_DMA32.
+[    1.495601] ODEBUG: object 0000000057e62f35 is NOT on stack
+00000000bf9c4413, but annotated.
+[    1.495601] WARNING: CPU: 0 PID: 1 at lib/debugobjects.c:369
+__debug_object_init.cold.11+0x18/0x10a
+[    1.495601] Modules linked in:
+[    1.495601] CPU: 0 PID: 1 Comm: swapper/0 Not tainted
+4.20.0-0.rc1.git4.1.fc30.x86_64 #1
+[    1.495601] Hardware name: System manufacturer System Product
+Name/ROG STRIX X470-I GAMING, BIOS 0901 07/23/2018
+[    1.495601] RIP: 0010:__debug_object_init.cold.11+0x18/0x10a
+[    1.495601] Code: 8b 35 ba d3 3d 01 48 c7 c7 e0 57 91 a6 e9 fa cb
+fe ff 83 c0 01 48 89 de 48 c7 c7 08 fe 34 a6 89 05 e3 71 b0 02 e8 c0
+67 c0 ff <0f> 0b e9 b9 f4 ff ff 83 c0 01 48 89 de 48 c7 c7 d0 fd 34 a6
+89 05
+[    1.495601] RSP: 0018:ffffa02ac0053cb0 EFLAGS: 00010046
+[    1.495601] RAX: 0000000000000050 RBX: ffffffffa81f4e10 RCX: 0000000000000000
+[    1.495601] RDX: 0000000000000000 RSI: 0000000000000000 RDI: ffffffffa513d460
+[    1.495601] RBP: ffffffffa665eb20 R08: 0000000000000001 R09: 00000000001e1f40
+[    1.495601] R10: 00000020e26fb280 R11: ffffffffa7be8a68 R12: ffffffffa80ad948
+[    1.495601] R13: 000000000006dc40 R14: ffffffffa80ad940 R15: ffff9160f51d1488
+[    1.495601] FS:  0000000000000000(0000) GS:ffff9160f9000000(0000)
+knlGS:0000000000000000
+[    1.495601] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[    1.495601] CR2: ffff915c9f401000 CR3: 000000039d612000 CR4: 00000000003406f0
+[    1.495601] Call Trace:
+[    1.495601]  virt_efi_get_next_variable+0xa2/0x160
+[    1.495601]  efivar_init+0xb6/0x365
+[    1.495601]  ? efivar_ssdt_setup+0x3f/0x3f
+[    1.495601]  ? lockdep_hardirqs_on+0xed/0x180
+[    1.495601]  ? do_early_param+0x8e/0x8e
+[    1.495601]  ? efivar_ssdt_iter+0xdb/0xdb
+[    1.495601]  efisubsys_init+0x15a/0x313
+[    1.495601]  ? efivar_ssdt_iter+0xdb/0xdb
+[    1.495601]  ? do_early_param+0x8e/0x8e
+[    1.495601]  do_one_initcall+0x5d/0x2be
+[    1.495601]  ? do_early_param+0x8e/0x8e
+[    1.495601]  ? rcu_read_lock_sched_held+0x79/0x80
+[    1.495601]  ? do_early_param+0x8e/0x8e
+[    1.495601]  kernel_init_freeable+0x21a/0x2c8
+[    1.495601]  ? rest_init+0x257/0x257
+[    1.495601]  kernel_init+0xa/0x109
+[    1.495601]  ret_from_fork+0x27/0x50
+[    1.495601] irq event stamp: 711024
+[    1.495601] hardirqs last  enabled at (711023):
+[<ffffffffa5a7260b>] _raw_spin_unlock_irqrestore+0x4b/0x60
+[    1.495601] hardirqs last disabled at (711024):
+[<ffffffffa5a723a2>] _raw_spin_lock_irqsave+0x22/0x90
+[    1.495601] softirqs last  enabled at (709710):
+[<ffffffffa590e3fc>] netlink_insert+0x6c/0x5f0
+[    1.495601] softirqs last disabled at (709708):
+[<ffffffffa5892ad9>] release_sock+0x19/0xb0
+[    1.495601] ---[ end trace eaee508abfebccda ]---
 
-Also, print an error when the physical address does not fit in
-32-bit, to make debugging easier in the future.
 
-Fixes: ad67f5a6545f ("arm64: replace ZONE_DMA with ZONE_DMA32")
-Signed-off-by: Nicolas Boichat <drinkcat@chromium.org>
----
 
-Changes since v1:
- - Changed approach to use SLAB_CACHE_DMA32 added by the previous
-   commit.
- - Use DMA or DMA32 depending on the architecture (DMA for arm,
-   DMA32 for arm64).
-
-drivers/iommu/io-pgtable-arm-v7s.c | 20 ++++++++++++++++----
- 1 file changed, 16 insertions(+), 4 deletions(-)
-
-diff --git a/drivers/iommu/io-pgtable-arm-v7s.c b/drivers/iommu/io-pgtable-arm-v7s.c
-index 445c3bde04800c..996f7b6d00b44a 100644
---- a/drivers/iommu/io-pgtable-arm-v7s.c
-+++ b/drivers/iommu/io-pgtable-arm-v7s.c
-@@ -161,6 +161,14 @@
- 
- #define ARM_V7S_TCR_PD1			BIT(5)
- 
-+#ifdef CONFIG_ZONE_DMA32
-+#define ARM_V7S_TABLE_GFP_DMA GFP_DMA32
-+#define ARM_V7S_TABLE_SLAB_CACHE SLAB_CACHE_DMA32
-+#else
-+#define ARM_V7S_TABLE_GFP_DMA GFP_DMA
-+#define ARM_V7S_TABLE_SLAB_CACHE SLAB_CACHE_DMA
-+#endif
-+
- typedef u32 arm_v7s_iopte;
- 
- static bool selftest_running;
-@@ -198,13 +206,17 @@ static void *__arm_v7s_alloc_table(int lvl, gfp_t gfp,
- 	void *table = NULL;
- 
- 	if (lvl == 1)
--		table = (void *)__get_dma_pages(__GFP_ZERO, get_order(size));
-+		table = (void *)__get_free_pages(
-+			__GFP_ZERO | ARM_V7S_TABLE_GFP_DMA, get_order(size));
- 	else if (lvl == 2)
--		table = kmem_cache_zalloc(data->l2_tables, gfp | GFP_DMA);
-+		table = kmem_cache_zalloc(data->l2_tables,
-+					  gfp | ARM_V7S_TABLE_GFP_DMA);
- 	phys = virt_to_phys(table);
--	if (phys != (arm_v7s_iopte)phys)
-+	if (phys != (arm_v7s_iopte)phys) {
- 		/* Doesn't fit in PTE */
-+		dev_err(dev, "Page table does not fit in PTE: %pa", &phys);
- 		goto out_free;
-+	}
- 	if (table && !(cfg->quirks & IO_PGTABLE_QUIRK_NO_DMA)) {
- 		dma = dma_map_single(dev, table, size, DMA_TO_DEVICE);
- 		if (dma_mapping_error(dev, dma))
-@@ -737,7 +749,7 @@ static struct io_pgtable *arm_v7s_alloc_pgtable(struct io_pgtable_cfg *cfg,
- 	data->l2_tables = kmem_cache_create("io-pgtable_armv7s_l2",
- 					    ARM_V7S_TABLE_SIZE(2),
- 					    ARM_V7S_TABLE_SIZE(2),
--					    SLAB_CACHE_DMA, NULL);
-+					    ARM_V7S_TABLE_SLAB_CACHE, NULL);
- 	if (!data->l2_tables)
- 		goto out_free_data;
- 
--- 
-2.19.1.930.g4563a0d9d0-goog
+--
+Best Regards,
+Mike Gavrilov.
