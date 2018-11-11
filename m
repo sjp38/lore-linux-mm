@@ -1,46 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 66F5D6B0768
-	for <linux-mm@kvack.org>; Sat, 10 Nov 2018 19:30:58 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id 98so14276789qkp.22
-        for <linux-mm@kvack.org>; Sat, 10 Nov 2018 16:30:58 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m2si9134095qvi.187.2018.11.10.16.30.57
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BF01F6B0003
+	for <linux-mm@kvack.org>; Sat, 10 Nov 2018 20:28:33 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id j1-v6so4201360pll.8
+        for <linux-mm@kvack.org>; Sat, 10 Nov 2018 17:28:33 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id a93-v6si14593513pla.226.2018.11.10.17.28.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 10 Nov 2018 16:30:57 -0800 (PST)
-Subject: Re: [RFC PATCH 07/12] locking/lockdep: Add support for nested
- terminal locks
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sat, 10 Nov 2018 17:28:32 -0800 (PST)
+Date: Sun, 11 Nov 2018 02:28:23 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC PATCH 01/12] locking/lockdep: Rework
+ lockdep_set_novalidate_class()
+Message-ID: <20181111012823.GB12766@worktop.psav.com>
 References: <1541709268-3766-1-git-send-email-longman@redhat.com>
- <1541709268-3766-8-git-send-email-longman@redhat.com>
- <20181110142023.GG3339@worktop.programming.kicks-ass.net>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <f3fc6819-175b-6452-4705-942a82d7e06f@redhat.com>
-Date: Sat, 10 Nov 2018 19:30:54 -0500
+ <1541709268-3766-2-git-send-email-longman@redhat.com>
+ <20181110141458.GE3339@worktop.programming.kicks-ass.net>
+ <bc8ef8ae-c673-f4ae-fab1-3fe1bc884087@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20181110142023.GG3339@worktop.programming.kicks-ass.net>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <bc8ef8ae-c673-f4ae-fab1-3fe1bc884087@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
+To: Waiman Long <longman@redhat.com>
 Cc: Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 11/10/2018 09:20 AM, Peter Zijlstra wrote:
-> On Thu, Nov 08, 2018 at 03:34:23PM -0500, Waiman Long wrote:
->> There are use cases where we want to allow 2-level nesting of one
->> terminal lock underneath another one. So the terminal lock type is now
->> extended to support a new nested terminal lock where it can allow the
->> acquisition of another regular terminal lock underneath it.
-> You're stretching things here... If you're allowing things under it, it
-> is no longer a terminal lock.
->
-> Why would you want to do such a thing?
+On Sat, Nov 10, 2018 at 07:26:51PM -0500, Waiman Long wrote:
+> On 11/10/2018 09:14 AM, Peter Zijlstra wrote:
+> > On Thu, Nov 08, 2018 at 03:34:17PM -0500, Waiman Long wrote:
+> >> The current lockdep_set_novalidate_class() implementation is like
+> >> a hack. It assigns a special class key for that lock and calls
+> >> lockdep_init_map() twice.
+> > Ideally it would go away.. it is not thing that should be used.
+> 
+> Yes, I agree. Right now, lockdep_set_novalidate_class() is used in
+> 
+> drivers/base/core.c:    lockdep_set_novalidate_class(&dev->mutex);
+> drivers/md/bcache/btree.c:      lockdep_set_novalidate_class(&b->lock);
+> drivers/md/bcache/btree.c:     
+> lockdep_set_novalidate_class(&b->write_lock);
+> 
+> Do you know the history behind making them novalidate?
 
-A majority of the gain in debugobjects is to make the hash lock a kind
-of terminal lock. Yes, I may be stretching it a bit here. I will take
-back the nesting patch and consider doing that in a future patch.
+Only of the driver/base/core.c one; there the locking order depends on
+the hardware and we never quite found a way to annotate that sanely. I
+forgot most details though.
 
-Cheers,
-Longman
+The other stuff I only 'recently' found out about :-( And ideally would
+have never made it into the tree, but alas.
