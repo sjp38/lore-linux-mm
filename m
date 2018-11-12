@@ -1,105 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E52426B000C
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 14:27:42 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id k66so26043591qkf.1
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 11:27:42 -0800 (PST)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DD4A56B0003
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 15:37:43 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id z68so1789501qkb.14
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 12:37:43 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m50sor18688417qtb.61.2018.11.12.11.27.42
+        by mx.google.com with SMTPS id d3sor14361231qvm.61.2018.11.12.12.37.42
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 12 Nov 2018 11:27:42 -0800 (PST)
-Date: Mon, 12 Nov 2018 19:27:38 +0000
+        Mon, 12 Nov 2018 12:37:42 -0800 (PST)
+Date: Mon, 12 Nov 2018 20:37:37 +0000
 From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Subject: Re: [PATCH 3/5] mm/memory_hotplug: Check for IORESOURCE_SYSRAM in
- release_mem_region_adjustable
-Message-ID: <20181112192738.n3cbsgtbjokikvco@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
-References: <20181015153034.32203-1-osalvador@techadventures.net>
- <20181015153034.32203-4-osalvador@techadventures.net>
+Subject: Re: [mm PATCH v5 0/7] Deferred page init improvements
+Message-ID: <20181112203737.e4jnsp4rxpie4trr@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
+References: <20181109211521.5ospn33pp552k2xv@xakep.localdomain>
+ <18b6634b912af7b4ec01396a2b0f3b31737c9ea2.camel@linux.intel.com>
+ <20181110000006.tmcfnzynelaznn7u@xakep.localdomain>
+ <0d8782742d016565870c578848138aaedf873a7c.camel@linux.intel.com>
+ <20181110011652.2wozbvfimcnhogfj@xakep.localdomain>
+ <CAKgT0UdDYC5RvZ1XgLTamFpBe3foPMs+SV_kSUVNDWLvxSC_1Q@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181015153034.32203-4-osalvador@techadventures.net>
+In-Reply-To: <CAKgT0UdDYC5RvZ1XgLTamFpBe3foPMs+SV_kSUVNDWLvxSC_1Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com, yasu.isimatu@gmail.com, rppt@linux.vnet.ibm.com, malat@debian.org, linux-kernel@vger.kernel.org, pavel.tatashin@microsoft.com, jglisse@redhat.com, Jonathan.Cameron@huawei.com, rafael@kernel.org, david@redhat.com, dave.jiang@intel.com, linux-mm@kvack.org, alexander.h.duyck@linux.intel.com, Oscar Salvador <osalvador@suse.de>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, alexander.h.duyck@linux.intel.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-mm <linux-mm@kvack.org>, sparclinux@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-nvdimm@lists.01.org, David Miller <davem@davemloft.net>, pavel.tatashin@microsoft.com, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, dan.j.williams@intel.com, dave.jiang@intel.com, rppt@linux.vnet.ibm.com, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, Mel Gorman <mgorman@techsingularity.net>, yi.z.zhang@linux.intel.com
 
-On 18-10-15 17:30:32, Oscar Salvador wrote:
-> From: Oscar Salvador <osalvador@suse.de>
+On 18-11-12 11:10:35, Alexander Duyck wrote:
 > 
-> This is a preparation for the next patch.
-> 
-> Currently, we only call release_mem_region_adjustable() in __remove_pages
-> if the zone is not ZONE_DEVICE, because resources that belong to
-> HMM/devm are being released by themselves with devm_release_mem_region.
-> 
-> Since we do not want to touch any zone/page stuff during the removing
-> of the memory (but during the offlining), we do not want to check for
-> the zone here.
-> So we need another way to tell release_mem_region_adjustable() to not
-> realease the resource in case it belongs to HMM/devm.
-> 
-> HMM/devm acquires/releases a resource through
-> devm_request_mem_region/devm_release_mem_region.
-> 
-> These resources have the flag IORESOURCE_MEM, while resources acquired by
-> hot-add memory path (register_memory_resource()) contain
-> IORESOURCE_SYSTEM_RAM.
-> 
-> So, we can check for this flag in release_mem_region_adjustable, and if
-> the resource does not contain such flag, we know that we are dealing with
-> a HMM/devm resource, so we can back off.
-> 
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> ---
->  kernel/resource.c | 16 ++++++++++++++++
->  1 file changed, 16 insertions(+)
-> 
-> diff --git a/kernel/resource.c b/kernel/resource.c
-> index 81937830a42f..c45decd7d6af 100644
-> --- a/kernel/resource.c
-> +++ b/kernel/resource.c
-> @@ -1272,6 +1272,22 @@ int release_mem_region_adjustable(struct resource *parent,
->  			continue;
->  		}
->  
-> +		/*
-> +		 * All memory regions added from memory-hotplug path
-> +		 * have the flag IORESOURCE_SYSTEM_RAM.
-> +		 * If the resource does not have this flag, we know that
-> +		 * we are dealing with a resource coming from HMM/devm.
-> +		 * HMM/devm use another mechanism to add/release a resource.
-> +		 * This goes via devm_request_mem_region and
-> +		 * devm_release_mem_region.
-> +		 * HMM/devm take care to release their resources when they want,
-> +		 * so if we are dealing with them, let us just back off here.
-> +		 */
-> +		if (!(res->flags & IORESOURCE_SYSRAM)) {
-> +			ret = 0;
-> +			break;
-> +		}
-> +
->  		if (!(res->flags & IORESOURCE_MEM))
->  			break;
+> The point I was trying to make is that it doesn't. You say it is an
+> order of magnitude better but it is essentially 3.5x vs 3.8x and to
+> achieve the 3.8x you are using a ton of system resources. My approach
+> is meant to do more with less, while this approach will throw a
+> quarter of the system at  page initialization.
 
-Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+3.8x is a bug, that is going to be fixed before ktasks are accepted. The
+final results will be close to time/nthreads.
+Using more resources to initialize pages is fine, because other CPUs are
+idling during this time in boot.
 
-A couple nits, re-format above comment block to fill 80-char limit:
-      /*
-       * All memory regions added from memory-hotplug path have the
-       * flag IORESOURCE_SYSTEM_RAM.  If the resource does not have
-       * this flag, we know that we are dealing with a resource coming
-       * from HMM/devm.  HMM/devm use another mechanism to add/release
-       * a resource.  This goes via devm_request_mem_region and
-       * devm_release_mem_region.  HMM/devm take care to release their
-       * resources when they want, so if we are dealing with them, let
-       * us just back off here.
-       */
+Lets wait for what Daniel finds out after Linux Plumber. And we can
+continue this discussion in ktask thread.
 
-I would set ret = 0, at the beginning instead of -EINVAL, and change
-returns accordingly.
+> 
+> An added advantage to my approach is that it speeds up things
+> regardless of the number of cores used, whereas the scaling approach
 
+Yes, I agree, I like your approach. It is clean, simplifies, and
+improves the performance. I have tested it on both ARM and x86, and
+verified the performance improvements. So:
+
+Tested-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+
+
+> requires that there be more cores available to use. So for example on
+> some of the new AMD Zen stuff I am not sure the benefit would be all
+> that great since if I am not mistaken each tile is only 8 processors
+> so at most you are only doubling the processing power applied to the
+> initialization. In such a case it is likely that my approach would
+> fare much better then this approach since I don't require additional
+> cores to achieve the same results.
+> 
+> Anyway there are tradeoffs we have to take into account.
+> 
+> I will go over the changes you suggested after Plumbers. I just need
+> to figure out if I am doing incremental changes, or if Andrew wants me
+> to just resubmit the whole set. I can probably deal with these changes
+> either way since most of them are pretty small.
+
+Send the full series again, Andrew is very good at taking only
+incremental  changes once a new version is posted of something
+that is already in mm-tree.
 
 Thank you,
 Pasha
