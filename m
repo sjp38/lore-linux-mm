@@ -1,51 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4296F6B027A
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 06:47:26 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id g28so6535202otd.19
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 03:47:26 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id u67si7251359ota.194.2018.11.12.03.47.25
-        for <linux-mm@kvack.org>;
-        Mon, 12 Nov 2018 03:47:25 -0800 (PST)
-Subject: Re: [RFC] mm: Replace all open encodings for NUMA_NO_NODE
-References: <1541990515-11670-1-git-send-email-anshuman.khandual@arm.com>
- <de754de5-cdf9-87d2-7ab2-a3630c034121@xs4all.nl>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <d947edec-8c5a-78d7-4069-687ac4ad7cb8@arm.com>
-Date: Mon, 12 Nov 2018 17:17:19 +0530
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CC3E6B027C
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 06:54:03 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id x98-v6so4648719ede.0
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 03:54:03 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j15-v6si3024218edl.319.2018.11.12.03.54.01
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Nov 2018 03:54:01 -0800 (PST)
+Date: Mon, 12 Nov 2018 12:54:00 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm: cleancache: fix corruption on missed inode
+ invalidation
+Message-ID: <20181112115400.GE7175@quack2.suse.cz>
+References: <20181112095734.17979-1-ptikhomirov@virtuozzo.com>
+ <20181112113153.GC7175@quack2.suse.cz>
+ <2abdb97e-0fed-0fb5-6941-e7afcc9e0209@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <de754de5-cdf9-87d2-7ab2-a3630c034121@xs4all.nl>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2abdb97e-0fed-0fb5-6941-e7afcc9e0209@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hans Verkuil <hverkuil@xs4all.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: ocfs2-devel@oss.oracle.com, linux-fbdev@vger.kernel.org, dri-devel@lists.freedesktop.org, netdev@vger.kernel.org, intel-wired-lan@lists.osuosl.org, linux-media@vger.kernel.org, iommu@lists.linux-foundation.org, linux-rdma@vger.kernel.org, dmaengine@vger.kernel.org, linux-block@vger.kernel.org, sparclinux@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-ia64@vger.kernel.org, linux-alpha@vger.kernel.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Jan Kara <jack@suse.cz>, Pavel Tikhomirov <ptikhomirov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Vasily Averin <vvs@virtuozzo.com>, Konstantin Khorenko <khorenko@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Mon 12-11-18 14:40:06, Andrey Ryabinin wrote:
+> 
+> 
+> On 11/12/18 2:31 PM, Jan Kara wrote:
+> > On Mon 12-11-18 12:57:34, Pavel Tikhomirov wrote:
+> >> If all pages are deleted from the mapping by memory reclaim and also
+> >> moved to the cleancache:
+> >>
+> >> __delete_from_page_cache
+> >>   (no shadow case)
+> >>   unaccount_page_cache_page
+> >>     cleancache_put_page
+> >>   page_cache_delete
+> >>     mapping->nrpages -= nr
+> >>     (nrpages becomes 0)
+> >>
+> >> We don't clean the cleancache for an inode after final file truncation
+> >> (removal).
+> >>
+> >> truncate_inode_pages_final
+> >>   check (nrpages || nrexceptional) is false
+> >>     no truncate_inode_pages
+> >>       no cleancache_invalidate_inode(mapping)
+> >>
+> >> These way when reading the new file created with same inode we may get
+> >> these trash leftover pages from cleancache and see wrong data instead of
+> >> the contents of the new file.
+> >>
+> >> Fix it by always doing truncate_inode_pages which is already ready for
+> >> nrpages == 0 && nrexceptional == 0 case and just invalidates inode.
+> >>
+> >> Fixes: commit 91b0abe36a7b ("mm + fs: store shadow entries in page cache")
+> >> To: Andrew Morton <akpm@linux-foundation.org>
+> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> >> Cc: Mel Gorman <mgorman@techsingularity.net>
+> >> Cc: Jan Kara <jack@suse.cz>
+> >> Cc: Matthew Wilcox <willy@infradead.org>
+> >> Cc: Andi Kleen <ak@linux.intel.com>
+> >> Cc: linux-mm@kvack.org
+> >> Cc: linux-kernel@vger.kernel.org
+> >> Reviewed-by: Vasily Averin <vvs@virtuozzo.com>
+> >> Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> >> Signed-off-by: Pavel Tikhomirov <ptikhomirov@virtuozzo.com>
+> >> ---
+> >>  mm/truncate.c | 4 ++--
+> >>  1 file changed, 2 insertions(+), 2 deletions(-)
+> > 
+> > The patch looks good but can you add a short comment before the
+> > truncate_inode_pages() call explaining why it needs to be called always?
+> > Something like:
+> > 
+> > 	 /*
+> > 	  * Cleancache needs notification even if there are no pages or
+> > 	  * shadow entries...
+> > 	  */
+> 
+> Or we can just call cleancache_invalidate_inode(mapping) on else branch,
+> so the code would be more self-explanatory, and also avoid
+> function call in no-cleancache setups, which should the most of setups.
 
+That is workable for me as well although I'd be somewhat worried that if we
+have calls to inform cleancache about final inode teardown in two different
+places, they can get out of sync easily. So I somewhat prefer the current
+solution + comment.
 
-On 11/12/2018 02:13 PM, Hans Verkuil wrote:
-> On 11/12/2018 03:41 AM, Anshuman Khandual wrote:
->> At present there are multiple places where invalid node number is encoded
->> as -1. Even though implicitly understood it is always better to have macros
->> in there. Replace these open encodings for an invalid node number with the
->> global macro NUMA_NO_NODE. This helps remove NUMA related assumptions like
->> 'invalid node' from various places redirecting them to a common definition.
->>
->> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
->> ---
->> Build tested this with multiple cross compiler options like alpha, sparc,
->> arm64, x86, powerpc64le etc with their default config which might not have
->> compiled tested all driver related changes. I will appreciate folks giving
->> this a test in their respective build environment.
->>
->> All these places for replacement were found by running the following grep
->> patterns on the entire kernel code. Please let me know if this might have
->> missed some instances. This might also have replaced some false positives.
->> I will appreciate suggestions, inputs and review.
-> The 'node' in the drivers/media and the drivers/video sources has nothing to
-> do with numa. It's an index for a framebuffer instead (i.e. the X in /dev/fbX).
-
-Thanks for the input. Will drop the changes there.
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
