@@ -1,125 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A7616B0280
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 07:00:28 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id 98so23155678qkp.22
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 04:00:28 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q45si362583qte.344.2018.11.12.04.00.27
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7114B6B0282
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 07:29:10 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id k195so2350040wmd.0
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 04:29:10 -0800 (PST)
+Received: from mout.gmx.net (mout.gmx.net. [212.227.15.19])
+        by mx.google.com with ESMTPS id l3si13607101wrx.95.2018.11.12.04.29.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Nov 2018 04:00:27 -0800 (PST)
-From: Florian Weimer <fweimer@redhat.com>
-Subject: Re: pkeys: Reserve PKEY_DISABLE_READ
-References: <877ehnbwqy.fsf@oldenburg.str.redhat.com>
-	<2d62c9e2-375b-2791-32ce-fdaa7e7664fd@intel.com>
-	<87bm6zaa04.fsf@oldenburg.str.redhat.com>
-	<6f9c65fb-ea7e-8217-a4cc-f93e766ed9bb@intel.com>
-	<87k1ln8o7u.fsf@oldenburg.str.redhat.com>
-	<20181108201231.GE5481@ram.oc3035372033.ibm.com>
-	<87bm6z71yw.fsf@oldenburg.str.redhat.com>
-	<20181109180947.GF5481@ram.oc3035372033.ibm.com>
-Date: Mon, 12 Nov 2018 13:00:19 +0100
-In-Reply-To: <20181109180947.GF5481@ram.oc3035372033.ibm.com> (Ram Pai's
-	message of "Fri, 9 Nov 2018 10:09:47 -0800")
-Message-ID: <87efbqqze4.fsf@oldenburg.str.redhat.com>
+        Mon, 12 Nov 2018 04:29:08 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+Message-ID: <trinity-8a113065-6ab9-43cb-b48b-d55f8aee1751-1542025747660@msvc-mesg-gmx021>
+From: "Qian Cai" <cai@gmx.us>
+Subject: Re: crashkernel=512M is no longer working on this aarch64 server
+Content-Type: text/plain; charset=UTF-8
+Date: Mon, 12 Nov 2018 13:29:07 +0100
+In-Reply-To: <20181112070151.51ea5caf@mschwideX1>
+References: <1A7E2E89-34DB-41A0-BBA2-323073A7E298@gmx.us>
+ <20181111123553.3a35a15c@mschwideX1>
+ <77E3BE32-F509-43B3-8C5F-252416C04B7C@gmx.us>
+ <20181112070151.51ea5caf@mschwideX1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, linuxppc-dev@lists.ozlabs.org, linux-api@vger.kernel.org
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: linux-mm@kvack.org, Catalin Marinas <catalin.marinas@arm.com>, linux
+ kernel <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-* Ram Pai:
+On 11/12/18 at 1:01 AM, Martin Schwidefsky wrote:
 
-> On Thu, Nov 08, 2018 at 09:23:35PM +0100, Florian Weimer wrote:
->> * Ram Pai:
->> 
->> > Florian,
->> >
->> > 	I can. But I am struggling to understand the requirement. Why is
->> > 	this needed?  Are we proposing a enhancement to the sys_pkey_alloc(),
->> > 	to be able to allocate keys that are initialied to disable-read
->> > 	only?
->> 
->> Yes, I think that would be a natural consequence.
->> 
->> However, my immediate need comes from the fact that the AMR register can
->> contain a flag combination that is not possible to represent with the
->> existing PKEY_DISABLE_WRITE and PKEY_DISABLE_ACCESS flags.  User code
->> could write to AMR directly, so I cannot rule out that certain flag
->> combinations exist there.
->> 
->> So I came up with this:
->> 
->> int
->> pkey_get (int key)
->> {
->>   if (key < 0 || key > PKEY_MAX)
->>     {
->>       __set_errno (EINVAL);
->>       return -1;
->>     }
->>   unsigned int index = pkey_index (key);
->>   unsigned long int amr = pkey_read ();
->>   unsigned int bits = (amr >> index) & 3;
->> 
->>   /* Translate from AMR values.  PKEY_AMR_READ standing alone is not
->>      currently representable.  */
->>   if (bits & PKEY_AMR_READ)
->
-> this should be
->    if (bits & (PKEY_AMR_READ|PKEY_AMR_WRITE))
+> On Sun, 11 Nov 2018 08:36:09 -0500
+> Qian Cai <cai@gmx.us> wrote:
+> 
+> > > On Nov 11, 2018, at 6:35 AM, Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
+> > > 
+> > > On Sat, 10 Nov 2018 23:41:34 -0500
+> > > Qian Cai <cai@gmx.us> wrote:
+> > >   
+> > >> It was broken somewhere between b00d209241ff and 3541833fd1f2.
+> > >> 
+> > >> [    0.000000] cannot allocate crashkernel (size:0x20000000)
+> > >> 
+> > >> Where a good one looks like this,
+> > >> 
+> > >> [    0.000000] crashkernel reserved: 0x0000000008600000 - 0x0000000028600000 (512 MB)
+> > >> 
+> > >> Some commits look more suspicious than others.
+> > >> 
+> > >>      mm: add mm_pxd_folded checks to pgtable_bytes accounting functions
+> > >>      mm: introduce mm_[p4d|pud|pmd]_folded
+> > >>      mm: make the __PAGETABLE_PxD_FOLDED defines non-empty  
+> > > 
+> > > The intent of these three patches is to add extra checks to the
+> > > pgtable_bytes accounting function. If applied incorrectly the expected
+> > > result would be warnings like this:
+> > >  BUG: non-zero pgtables_bytes on freeing mm: 16384
+> > > 
+> > > The change Linus worried about affects the __PAGETABLE_PxD_FOLDED defines.
+> > > These defines are used with #ifdef, #ifndef, and __is_defined() for the
+> > > new mm_p?d_folded() macros. I can not see how this would make a difference
+> > > for your iomem setup.
+> > >   
+> > >> # diff -u ../iomem.good.txt ../iomem.bad.txt 
+> > >> --- ../iomem.good.txt	2018-11-10 22:28:20.092614398 -0500
+> > >> +++ ../iomem.bad.txt	2018-11-10 20:39:54.930294479 -0500
+> > >> @@ -1,9 +1,8 @@
+> > >> 00000000-3965ffff : System RAM
+> > >>   00080000-018cffff : Kernel code
+> > >> -  018d0000-020affff : reserved
+> > >> -  020b0000-045affff : Kernel data
+> > >> -  08600000-285fffff : Crash kernel
+> > >> -  28730000-2d5affff : reserved
+> > >> +  018d0000-0762ffff : reserved
+> > >> +  07630000-09b2ffff : Kernel data
+> > >> +  231b0000-2802ffff : reserved
+> > >>   30ec0000-30ecffff : reserved
+> > >>   35660000-3965ffff : reserved
+> > >> 39660000-396fffff : reserved
+> > >> @@ -127,7 +126,7 @@
+> > >>   7c5200000-7c520ffff : 0004:48:00.0
+> > >> 1040000000-17fbffffff : System RAM
+> > >>   13fbfd0000-13fdfdffff : reserved
+> > >> -  16fba80000-17fbfdffff : reserved
+> > >> +  16fafd0000-17fbfdffff : reserved
+> > >>   17fbfe0000-17fbffffff : reserved
+> > >> 1800000000-1ffbffffff : System RAM
+> > >>   1bfbff0000-1bfdfeffff : reserved  
+> > > 
+> > > The easiest way to verify if the three commits have something to do with your
+> > > problem is to revert them and run your test. Can you do that please ?  
+> > Yes, you are right. Those commits have nothing to do with the problem. I should
+> > realized it earlier as those are virtual memory vs physical memory. Sorry for the
+> > nosie.
+> > 
+> > It turned out I made a wrong assumption that if kmemleak is disabled by default,
+> > there should be no memory reserved for kmemleak at all which is not the case.
+> > 
+> > CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE=600000
+> > CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF=y
+> > 
+> > Even without kmemleak=on in the kernel cmdline, it still reserve early log memory
+> > which causes not enough memory for crashkernel.
+> > 
+> > Since there seems no way to turn kmemleak on later after boot, is there any
+> > reasons for the current behavior? 
+> 
+> Well seems like you do have CONFIG_DEBUG_KMEMLEAK=y in your config. The code
+> contains data structures for the case that you want to use the kmemleak checker.
+> The presence of these structures will change the sizes. The last commit in regard
+> to the 'early_log' buffer has been from 2009 with this change:
+> 
+> @@ -232,8 +232,9 @@ struct early_log {
+>  };
+>  
+>  /* early logging buffer and current position */
+> -static struct early_log early_log[CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE];
+> -static int crt_early_log;
+> +static struct early_log
+> +       early_log[CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE] __initdata;
+> +static int crt_early_log __initdata;
+>  
+>  static void kmemleak_disable(void);
+>  
+> The current behavior is imho nothing new.
+> 
+> Would it be possible to disable CONFIG_DEBUG_KMEMLEAK for your kdump kernel?
+> That seems like the simplest solution.
+Ah, okay. Those are static memory allocations 
+regardless of the kmemleak runtime setting.
 
-This would return zero for PKEY_AMR_READ alone.
+The problem is that it has to disable kmemleak entirely 
+and re-compile the kernel for the first-kernel as well, 
+as crashkernel reservation happens in the first-kernel.
 
->>     return PKEY_DISABLE_ACCESS;
->
->
->>   else if (bits == PKEY_AMR_WRITE)
->>     return PKEY_DISABLE_WRITE;
->>   return 0;
->> }
-
-It's hard to tell whether PKEY_DISABLE_ACCESS is better in this case.
-Which is why I want PKEY_DISABLE_READ.
-
->> And this is not ideal.  I would prefer something like this instead:
->> 
->>   switch (bits)
->>     {
->>       case PKEY_AMR_READ | PKEY_AMR_WRITE:
->>         return PKEY_DISABLE_ACCESS;
->>       case PKEY_AMR_READ:
->>         return PKEY_DISABLE_READ;
->>       case PKEY_AMR_WRITE:
->>         return PKEY_DISABLE_WRITE;
->>       case 0:
->>         return 0;
->>     }
->
-> yes.
->  and on x86 it will be something like:
->    switch (bits)
->      {
->        case PKEY_PKRU_ACCESS :
->          return PKEY_DISABLE_ACCESS;
->        case PKEY_AMR_WRITE:
->          return PKEY_DISABLE_WRITE;
->        case 0:
->          return 0;
->      }
-
-x86 returns the PKRU bits directly, including the nonsensical case
-(PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE).
-
-> But for this to work, why do you need to enhance the sys_pkey_alloc()
-> interface?  Not that I am against it. Trying to understand if the
-> enhancement is really needed.
-
-sys_pkey_alloc performs an implicit pkey_set for the newly allocated key
-(that is, it updates the PKRU/AMR register).  It makes sense to match
-the behavior of the userspace implementation.
-
-Thanks,
-Florian
+Hence, it loses flexibility to enable kmemleak during
+boot time as well. I can live with it, although it does
+not seem ideal.
