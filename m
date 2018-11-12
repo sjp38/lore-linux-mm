@@ -1,262 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CE3A86B028F
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 10:31:14 -0500 (EST)
-Received: by mail-io1-f70.google.com with SMTP id w5-v6so10365084ioj.3
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 07:31:14 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m62-v6sor16409899itm.33.2018.11.12.07.31.12
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D1B16B0290
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 10:41:01 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id n68so24280483qkn.8
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 07:41:01 -0800 (PST)
+Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
+        by mx.google.com with ESMTPS id 3si3005205qtp.70.2018.11.12.07.41.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 12 Nov 2018 07:31:12 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Nov 2018 07:41:00 -0800 (PST)
+From: Tony Battersby <tonyb@cybernetics.com>
+Subject: [PATCH v4 0/9] mpt3sas and dmapool scalability
+Message-ID: <88395080-efc1-4e7b-f813-bb90c86d0745@cybernetics.com>
+Date: Mon, 12 Nov 2018 10:40:57 -0500
 MIME-Version: 1.0
-References: <20181105085820.6341-1-aaron.lu@intel.com> <CAKgT0UdvYVTA8OjgLhXo9tRUOGikrCi3zJXSrqM0ZmeHb5P2mA@mail.gmail.com>
- <b8b1fbb7-9139-9455-69b8-8c1bed4f7c74@itcare.pl> <CAKgT0UdhcXF-ohPHPbg8onRjFabEMnbpXGmLm-27skCNzGKOgw@mail.gmail.com>
- <bd33633b-2f6c-0034-a130-38a8468531db@itcare.pl>
-In-Reply-To: <bd33633b-2f6c-0034-a130-38a8468531db@itcare.pl>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Mon, 12 Nov 2018 07:30:59 -0800
-Message-ID: <CAKgT0UeOBF0yPJLOTBBb3m7nTkmSDxzkCur+iGzJ++Y-jWaw9g@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm/page_alloc: free order-0 pages through PCP in page_frag_free()
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?Pawe=C5=82_Staszewski?= <pstaszewski@itcare.pl>
-Cc: aaron.lu@intel.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Netdev <netdev@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, ilias.apalodimas@linaro.org, yoel@kviknet.dk, Mel Gorman <mgorman@techsingularity.net>, Saeed Mahameed <saeedm@mellanox.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, dave.hansen@linux.intel.com
+To: Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, linux-mm@kvack.org
+Cc: "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>
 
-On Sun, Nov 11, 2018 at 4:39 PM Pawe=C5=82 Staszewski <pstaszewski@itcare.p=
-l> wrote:
->
->
-> W dniu 12.11.2018 o 00:05, Alexander Duyck pisze:
-> > On Sat, Nov 10, 2018 at 3:54 PM Pawe=C5=82 Staszewski <pstaszewski@itca=
-re.pl> wrote:
-> >>
-> >>
-> >> W dniu 05.11.2018 o 16:44, Alexander Duyck pisze:
-> >>> On Mon, Nov 5, 2018 at 12:58 AM Aaron Lu <aaron.lu@intel.com> wrote:
-> >>>> page_frag_free() calls __free_pages_ok() to free the page back to
-> >>>> Buddy. This is OK for high order page, but for order-0 pages, it
-> >>>> misses the optimization opportunity of using Per-Cpu-Pages and can
-> >>>> cause zone lock contention when called frequently.
-> >>>>
-> >>>> Pawe=C5=82 Staszewski recently shared his result of 'how Linux kerne=
-l
-> >>>> handles normal traffic'[1] and from perf data, Jesper Dangaard Broue=
-r
-> >>>> found the lock contention comes from page allocator:
-> >>>>
-> >>>>     mlx5e_poll_tx_cq
-> >>>>     |
-> >>>>      --16.34%--napi_consume_skb
-> >>>>                |
-> >>>>                |--12.65%--__free_pages_ok
-> >>>>                |          |
-> >>>>                |           --11.86%--free_one_page
-> >>>>                |                     |
-> >>>>                |                     |--10.10%--queued_spin_lock_slo=
-wpath
-> >>>>                |                     |
-> >>>>                |                      --0.65%--_raw_spin_lock
-> >>>>                |
-> >>>>                |--1.55%--page_frag_free
-> >>>>                |
-> >>>>                 --1.44%--skb_release_data
-> >>>>
-> >>>> Jesper explained how it happened: mlx5 driver RX-page recycle
-> >>>> mechanism is not effective in this workload and pages have to go
-> >>>> through the page allocator. The lock contention happens during
-> >>>> mlx5 DMA TX completion cycle. And the page allocator cannot keep
-> >>>> up at these speeds.[2]
-> >>>>
-> >>>> I thought that __free_pages_ok() are mostly freeing high order
-> >>>> pages and thought this is an lock contention for high order pages
-> >>>> but Jesper explained in detail that __free_pages_ok() here are
-> >>>> actually freeing order-0 pages because mlx5 is using order-0 pages
-> >>>> to satisfy its page pool allocation request.[3]
-> >>>>
-> >>>> The free path as pointed out by Jesper is:
-> >>>> skb_free_head()
-> >>>>     -> skb_free_frag()
-> >>>>       -> skb_free_frag()
-> >>>>         -> page_frag_free()
-> >>>> And the pages being freed on this path are order-0 pages.
-> >>>>
-> >>>> Fix this by doing similar things as in __page_frag_cache_drain() -
-> >>>> send the being freed page to PCP if it's an order-0 page, or
-> >>>> directly to Buddy if it is a high order page.
-> >>>>
-> >>>> With this change, Pawe=C5=82 hasn't noticed lock contention yet in
-> >>>> his workload and Jesper has noticed a 7% performance improvement
-> >>>> using a micro benchmark and lock contention is gone.
-> >>>>
-> >>>> [1]: https://www.spinics.net/lists/netdev/msg531362.html
-> >>>> [2]: https://www.spinics.net/lists/netdev/msg531421.html
-> >>>> [3]: https://www.spinics.net/lists/netdev/msg531556.html
-> >>>> Reported-by: Pawe=C5=82 Staszewski <pstaszewski@itcare.pl>
-> >>>> Analysed-by: Jesper Dangaard Brouer <brouer@redhat.com>
-> >>>> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
-> >>>> ---
-> >>>>    mm/page_alloc.c | 10 ++++++++--
-> >>>>    1 file changed, 8 insertions(+), 2 deletions(-)
-> >>>>
-> >>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >>>> index ae31839874b8..91a9a6af41a2 100644
-> >>>> --- a/mm/page_alloc.c
-> >>>> +++ b/mm/page_alloc.c
-> >>>> @@ -4555,8 +4555,14 @@ void page_frag_free(void *addr)
-> >>>>    {
-> >>>>           struct page *page =3D virt_to_head_page(addr);
-> >>>>
-> >>>> -       if (unlikely(put_page_testzero(page)))
-> >>>> -               __free_pages_ok(page, compound_order(page));
-> >>>> +       if (unlikely(put_page_testzero(page))) {
-> >>>> +               unsigned int order =3D compound_order(page);
-> >>>> +
-> >>>> +               if (order =3D=3D 0)
-> >>>> +                       free_unref_page(page);
-> >>>> +               else
-> >>>> +                       __free_pages_ok(page, order);
-> >>>> +       }
-> >>>>    }
-> >>>>    EXPORT_SYMBOL(page_frag_free);
-> >>>>
-> >>> One thing I would suggest for Pawel to try would be to reduce the Tx
-> >>> qdisc size on his transmitting interfaces, Reduce the Tx ring size,
-> >>> and possibly increase the Tx interrupt rate. Ideally we shouldn't hav=
-e
-> >>> too many packets in-flight and I suspect that is the issue that Pawel
-> >>> is seeing that is leading to the page pool allocator freeing up the
-> >>> memory. I know we like to try to batch things but the issue is
-> >>> processing too many Tx buffers in one batch leads to us eating up too
-> >>> much memory and causing evictions from the cache. Ideally the Rx and
-> >>> Tx rings and queues should be sized as small as possible while still
-> >>> allowing us to process up to our NAPI budget. Usually I run things
-> >>> with a 128 Rx / 128 Tx setup and then reduce the Tx queue length so w=
-e
-> >>> don't have more buffers stored there than we can place in the Tx ring=
-.
-> >>> Then we can avoid the extra thrash of having to pull/push memory into
-> >>> and out of the freelists. Essentially the issue here ends up being
-> >>> another form of buffer bloat.
-> >> Thanks Aleksandar - yes it can be - but in my scenario setting RX buff=
-er
-> >> <4096 producing more interface rx drops - and no_rx_buffer on network
-> >> controller that is receiving more packets
-> >> So i need to stick with 3000-4000 on RX - and yes i was trying to lowe=
-r
-> >> the TX buff on connectx4 - but that changed nothing before Aaron patch
-> >>
-> >> After Aaron patch - decreasing TX buffer influencing total bandwidth
-> >> that can be handled by the router/server
-> >> Dono why before this patch there was no difference there no matter wha=
-t
-> >> i set there there was always page_alloc/slowpath on top in perf
-> >>
-> >>
-> >> Currently testing RX4096/TX256 - this helps with bandwidth like +10%
-> >> more bandwidth with less interrupts...
-> > The problem is if you are going for less interrupts you are setting
-> > yourself up for buffer bloat. Basically you are going to use much more
-> > cache and much more memory then you actually need and if things are
-> > properly configured NAPI should take care of the interrupts anyway
-> > since under maximum load you shouldn't stop polling normally.
->
-> Im trying to balance here - there is problem cause server is forwarding
-> all kingd of protocols packets/different size etc
->
-> The problem is im trying to go in high interrupt rate - but
->
-> Setting coalescence to adaptative for rx killing cpu's at 22Gbit/s RX
-> and 22Gbit with rly high interrupt rate
+I posted v3 on August 7.  Nobody acked or merged the patches, and then
+I got too busy with other stuff to repost until now.
 
-I wouldn't recommend adaptive just because the behavior would be hard
-to predict.
+The only change since v3:
+*) Dropped patch #10 (the mpt3sas patch) since the mpt3sas maintainers
+didn't show any interest.
 
-> So adding a little more latency i can turn off adaptative rx and setup
-> rx-usecs from range 16-64 - and this gives me more or less interrupts -
-> but the problem is - always same bandwidth as maximum
+I believe these patches are ready for merging.
 
-What about the tx-usecs, is that a functional thing for the adapter
-you are using?
+---
 
-The Rx side logic should be pretty easy to figure out. Essentially you
-want to keep the Rx ring size as small as possible while at the same
-time avoiding storming the system with interrupts. I know for 10Gb/s I
-have used a value of 25us in the past. What you want to watch for is
-if you are dropping packets on the Rx side or not. Ideally you want
-enough buffers that you can capture any burst while you wait for the
-interrupt routine to catch up.
+drivers/scsi/mpt3sas is running into a scalability problem with the
+kernel's DMA pool implementation.  With a LSI/Broadcom SAS 9300-8i
+12Gb/s HBA and max_sgl_entries=256, during modprobe, mpt3sas does the
+equivalent of:
 
-> >
-> > One issue I have seen is people delay interrupts for as long as
-> > possible which isn't really a good thing since most network
-> > controllers will use NAPI which will disable the interrupts and leave
-> > them disabled whenever the system is under heavy stress so you should
-> > be able to get the maximum performance by configuring an adapter with
-> > small ring sizes and for high interrupt rates.
->
-> Sure this is bad to setup rx-usec for high values - cause at some point
-> this will add high latency for packet traversing both sides - and start
-> to hurt buffers
->
-> But my problem is a little different now i have no problems with RX side
-> - cause i can setup anything like:
->
-> coalescence from 16 to 64
->
-> rx ring from 3000 to max 8192
->
-> And it does not change my max bw - only produces less or more interrupts.
+chain_dma_pool = dma_pool_create(size = 128);
+for (i = 0; i < 373959; i++)
+    {
+    dma_addr[i] = dma_pool_alloc(chain_dma_pool);
+    }
 
-Right so the issue itself isn't Rx, you aren't throttled there. We are
-probably looking at an issue of PCIe bandwidth or Tx slowing things
-down. The fact that you are still filing interrupts is a bit
-surprising though. Are the Tx and Rx interrupts linked for the device
-you are using or are they firing them seperately? Normally Rx traffic
-won't generate many interrupts under a stress test as NAPI will leave
-the interrupts disabled unless it can keep up. Anyway, my suggestion
-would be to look at tuning things for as small a ring size as
-possible.
+And at rmmod, system shutdown, or system reboot, mpt3sas does the
+equivalent of:
 
-> So I start to change params for TX side - and for now i know that the
-> best for me is
->
-> coalescence adaptative on
->
-> TX buffer 128
->
-> This helps with max BW that for now is close to 70Gbit/s RX and 70Gbit
-> TX but after this change i have increasing DROPS on TX side for vlan
-> interfaces.
+for (i = 0; i < 373959; i++)
+    {
+    dma_pool_free(chain_dma_pool, dma_addr[i]);
+    }
+dma_pool_destroy(chain_dma_pool);
 
-So this sounds like you are likely bottlenecked due to either PCIe
-bandwidth or latency. When you start putting back-pressure on the Tx
-like you have described it starts pushing packets onto the Qdisc
-layer. One thing that happens when packets are on the qdisc layer is
-that they can start to perform a bulk dequeue. The side effect of this
-is that you write multiple packets to the descriptor ring and then
-update the hardware doorbell only once for the entire group of packets
-instead of once per packet.
+With this usage, both dma_pool_alloc() and dma_pool_free() exhibit
+O(n^2) complexity, although dma_pool_free() is much worse due to
+implementation details.  On my system, the dma_pool_free() loop above
+takes about 9 seconds to run.  Note that the problem was even worse
+before commit 74522a92bbf0 ("scsi: mpt3sas: Optimize I/O memory
+consumption in driver."), where the dma_pool_free() loop could take ~30
+seconds.
 
-> And only 50% cpu (max was 50% for 70Gbit/s)
->
->
-> > It is easiest to think of it this way. Your total packet rate is equal
-> > to your interrupt rate times the number of buffers you will store in
-> > the ring. So if you have some fixed rate "X" for packets and an
-> > interrupt rate of "i" then your optimal ring size should be "X/i". So
-> > if you lower the interrupt rate you end up hurting the throughput
-> > unless you increase the buffer size. However at a certain point the
-> > buffer size starts becoming an issue. For example with UDP flows I
-> > often see massive packet drops if you tune the interrupt rate too low
-> > and then put the system under heavy stress.
->
-> Yes - in normal life traffic - most of ddos'es are like this many pps
-> with small frames.
+mpt3sas also has some other DMA pools, but chain_dma_pool is the only
+one with so many allocations:
 
-It sounds to me like XDP would probably be your best bet. With that
-you could probably get away with smaller ring sizes, higher interrupt
-rates, and get the advantage of it batching the Tx without having to
-drop packets.
+cat /sys/devices/pci0000:80/0000:80:07.0/0000:85:00.0/pools
+(manually cleaned up column alignment)
+poolinfo - 0.1
+reply_post_free_array pool  1      21     192     1
+reply_free pool             1      1      41728   1
+reply pool                  1      1      1335296 1
+sense pool                  1      1      970272  1
+chain pool                  373959 386048 128     12064
+reply_post_free pool        12     12     166528  12
+
+The patches in this series improve the scalability of the DMA pool
+implementation, which significantly reduces the running time of the
+DMA alloc/free loops.  With the patches applied, "modprobe mpt3sas",
+"rmmod mpt3sas", and system shutdown/reboot with mpt3sas loaded are
+significantly faster.  Here are some benchmarks (of DMA alloc/free
+only, not the entire modprobe/rmmod):
+
+dma_pool_create() + dma_pool_alloc() loop, size = 128, count = 373959
+  original:        350 ms ( 1x)
+  dmapool patches:  17 ms (21x)
+
+dma_pool_free() loop + dma_pool_destroy(), size = 128, count = 373959
+  original:        8901 ms (   1x)
+  dmapool patches:   15 ms ( 618x)
