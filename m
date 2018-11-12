@@ -1,80 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A01F6B02A6
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 10:46:40 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id g22so24594514qke.15
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 07:46:40 -0800 (PST)
-Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
-        by mx.google.com with ESMTPS id k17si8097660qkh.130.2018.11.12.07.46.39
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3ECF86B02A8
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 11:15:00 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id w96so6904354ota.10
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 08:15:00 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n60sor9650001ota.162.2018.11.12.08.14.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Nov 2018 07:46:39 -0800 (PST)
-From: Tony Battersby <tonyb@cybernetics.com>
-Subject: [PATCH v4 9/9] dmapool: debug: prevent endless loop in case of
- corruption
-Message-ID: <9e65ec2e-5e22-4f65-7b92-ca2af0c555f3@cybernetics.com>
-Date: Mon, 12 Nov 2018 10:46:35 -0500
+        (Google Transport Security);
+        Mon, 12 Nov 2018 08:14:58 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+References: <20181110085041.10071-1-jhubbard@nvidia.com> <20181110085041.10071-2-jhubbard@nvidia.com>
+ <20181112154127.GA8247@localhost.localdomain>
+In-Reply-To: <20181112154127.GA8247@localhost.localdomain>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 12 Nov 2018 08:14:46 -0800
+Message-ID: <CAPcyv4j7nqLOFD5dZEe_nBysHDL2pQ-tRO9Crp9oyTUP7RoDHw@mail.gmail.com>
+Subject: Re: [PATCH v2 1/6] mm/gup: finish consolidating error handling
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, iommu@lists.linux-foundation.org, linux-mm@kvack.org
-Cc: "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>
+To: Keith Busch <keith.busch@intel.com>
+Cc: John Hubbard <john.hubbard@gmail.com>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>
 
-Prevent a possible endless loop with DMAPOOL_DEBUG enabled if a buggy
-driver corrupts DMA pool memory.
+On Mon, Nov 12, 2018 at 7:45 AM Keith Busch <keith.busch@intel.com> wrote:
+>
+> On Sat, Nov 10, 2018 at 12:50:36AM -0800, john.hubbard@gmail.com wrote:
+> > From: John Hubbard <jhubbard@nvidia.com>
+> >
+> > An upcoming patch wants to be able to operate on each page that
+> > get_user_pages has retrieved. In order to do that, it's best to
+> > have a common exit point from the routine. Most of this has been
+> > taken care of by commit df06b37ffe5a4 ("mm/gup: cache dev_pagemap while
+> > pinning pages"), but there was one case remaining.
+> >
+> > Also, there was still an unnecessary shadow declaration (with a
+> > different type) of the "ret" variable, which this commit removes.
+> >
+> > Cc: Keith Busch <keith.busch@intel.com>
+> > Cc: Dan Williams <dan.j.williams@intel.com>
+> > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Cc: Dave Hansen <dave.hansen@intel.com>
+> > Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> > ---
+> >  mm/gup.c | 3 +--
+> >  1 file changed, 1 insertion(+), 2 deletions(-)
+> >
+> > diff --git a/mm/gup.c b/mm/gup.c
+> > index f76e77a2d34b..55a41dee0340 100644
+> > --- a/mm/gup.c
+> > +++ b/mm/gup.c
+> > @@ -696,12 +696,11 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+> >               if (!vma || start >= vma->vm_end) {
+> >                       vma = find_extend_vma(mm, start);
+> >                       if (!vma && in_gate_area(mm, start)) {
+> > -                             int ret;
+> >                               ret = get_gate_page(mm, start & PAGE_MASK,
+> >                                               gup_flags, &vma,
+> >                                               pages ? &pages[i] : NULL);
+> >                               if (ret)
+> > -                                     return i ? : ret;
+> > +                                     goto out;
+> >                               ctx.page_mask = 0;
+> >                               goto next_page;
+> >                       }
+>
+> This also fixes a potentially leaked dev_pagemap reference count if a
+> failure occurs when an iteration crosses a vma boundary. I don't think
+> it's normal to have different vma's on a users mapped zone device memory,
+> but good to fix anyway.
 
-Signed-off-by: Tony Battersby <tonyb@cybernetics.com>
----
---- linux/mm/dmapool.c.orig	2018-08-06 17:52:53.000000000 -0400
-+++ linux/mm/dmapool.c	2018-08-06 17:53:31.000000000 -0400
-@@ -454,17 +454,39 @@ void dma_pool_free(struct dma_pool *pool
- 	{
- 		void *page_vaddr = vaddr - offset;
- 		unsigned int chain = page->dma_free_off;
-+		unsigned int free_blks = 0;
-+
- 		while (chain < pool->allocation) {
--			if (chain != offset) {
--				chain = *(int *)(page_vaddr + chain);
--				continue;
-+			if (unlikely(chain == offset)) {
-+				spin_unlock_irqrestore(&pool->lock, flags);
-+				dev_err(pool->dev,
-+					"dma_pool_free %s, dma %pad already free\n",
-+					pool->name, &dma);
-+				return;
-+			}
-+
-+			/*
-+			 * A buggy driver could corrupt the freelist by
-+			 * use-after-free, buffer overflow, etc.  Besides
-+			 * checking for corruption, this also prevents an
-+			 * endless loop in case corruption causes a circular
-+			 * loop in the freelist.
-+			 */
-+			if (unlikely(++free_blks + page->dma_in_use >
-+				     pool->blks_per_alloc)) {
-+ freelist_corrupt:
-+				spin_unlock_irqrestore(&pool->lock, flags);
-+				dev_err(pool->dev,
-+					"dma_pool_free %s, freelist corrupted\n",
-+					pool->name);
-+				return;
- 			}
--			spin_unlock_irqrestore(&pool->lock, flags);
--			dev_err(pool->dev,
--				"dma_pool_free %s, dma %pad already free\n",
--				pool->name, &dma);
--			return;
-+
-+			chain = *(int *)(page_vaddr + chain);
- 		}
-+		if (unlikely(free_blks + page->dma_in_use !=
-+			     pool->blks_per_alloc))
-+			goto freelist_corrupt;
- 	}
- 	memset(vaddr, POOL_POISON_FREED, pool->size);
- #endif
+Does not sound abnormal to me, we should promote this as a fix for the
+current cycle with an updated changelog.
