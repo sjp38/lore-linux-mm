@@ -1,140 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id ADA196B02AE
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 11:32:14 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id l2-v6so6064014pgp.22
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 08:32:14 -0800 (PST)
-Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id k184si16065527pgd.342.2018.11.12.08.32.13
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7135B6B02B0
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 11:54:33 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id e73-v6so8504020ybb.16
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 08:54:33 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id i132-v6si9932032ywg.284.2018.11.12.08.54.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Nov 2018 08:32:13 -0800 (PST)
-Subject: Re: [PATCH v4 2/9] dmapool: remove checks for dev == NULL
-References: <df529b6e-6744-b1af-01ce-a1b691fbcf0d@cybernetics.com>
-From: John Garry <john.garry@huawei.com>
-Message-ID: <5a32095b-4626-9967-784b-9becac303994@huawei.com>
-Date: Mon, 12 Nov 2018 16:32:02 +0000
+        Mon, 12 Nov 2018 08:54:32 -0800 (PST)
+Date: Mon, 12 Nov 2018 08:54:12 -0800
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [RFC PATCH v4 11/13] mm: parallelize deferred struct page
+ initialization within each node
+Message-ID: <20181112165412.vizeiv6oimsuxkbk@ca-dmjordan1.us.oracle.com>
+References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
+ <20181105165558.11698-12-daniel.m.jordan@oracle.com>
+ <AT5PR8401MB1169798EBEF1EE5EBA3ABFFFABC70@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
 MIME-Version: 1.0
-In-Reply-To: <df529b6e-6744-b1af-01ce-a1b691fbcf0d@cybernetics.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AT5PR8401MB1169798EBEF1EE5EBA3ABFFFABC70@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Battersby <tonyb@cybernetics.com>, Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, iommu@lists.linux-foundation.org, linux-mm@kvack.org
-Cc: "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>
+To: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "aarcange@redhat.com" <aarcange@redhat.com>, "aaron.lu@intel.com" <aaron.lu@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "bsd@redhat.com" <bsd@redhat.com>, "darrick.wong@oracle.com" <darrick.wong@oracle.com>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "jgg@mellanox.com" <jgg@mellanox.com>, "jwadams@google.com" <jwadams@google.com>, "jiangshanlai@gmail.com" <jiangshanlai@gmail.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>, "Pavel.Tatashin@microsoft.com" <Pavel.Tatashin@microsoft.com>, "prasad.singamsetty@oracle.com" <prasad.singamsetty@oracle.com>, "rdunlap@infradead.org" <rdunlap@infradead.org>, "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "tim.c.chen@intel.com" <tim.c.chen@intel.com>, "tj@kernel.org" <tj@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>
 
-On 12/11/2018 15:42, Tony Battersby wrote:
-> dmapool originally tried to support pools without a device because
-> dma_alloc_coherent() supports allocations without a device.  But nobody
-> ended up using dma pools without a device, so the current checks in
-> dmapool.c for pool->dev == NULL are both insufficient and causing bloat.
-> Remove them.
->
+On Sat, Nov 10, 2018 at 03:48:14AM +0000, Elliott, Robert (Persistent Memory) wrote:
+> > -----Original Message-----
+> > From: linux-kernel-owner@vger.kernel.org <linux-kernel-
+> > owner@vger.kernel.org> On Behalf Of Daniel Jordan
+> > Sent: Monday, November 05, 2018 10:56 AM
+> > Subject: [RFC PATCH v4 11/13] mm: parallelize deferred struct page
+> > initialization within each node
+> > 
+> > ...  The kernel doesn't
+> > know the memory bandwidth of a given system to get the most efficient
+> > number of threads, so there's some guesswork involved.  
+> 
+> The ACPI HMAT (Heterogeneous Memory Attribute Table) is designed to report
+> that kind of information, and could facilitate automatic tuning.
+> 
+> There was discussion last year about kernel support for it:
+> https://lore.kernel.org/lkml/20171214021019.13579-1-ross.zwisler@linux.intel.com/
 
-As an aside, is it right that dma_pool_create() does not actually reject 
-dev==NULL and would crash from a NULL-pointer dereference?
+Thanks for bringing this up.  I'm traveling but will take a closer look when I
+get back.
 
-Thanks,
-John
+> > In testing, a reasonable value turned out to be about a quarter of the
+> > CPUs on the node.
+> ...
+> > +	/*
+> > +	 * We'd like to know the memory bandwidth of the chip to
+> >         calculate the
+> > +	 * most efficient number of threads to start, but we can't.
+> > +	 * In testing, a good value for a variety of systems was a
+> >         quarter of the CPUs on the node.
+> > +	 */
+> > +	nr_node_cpus = DIV_ROUND_UP(cpumask_weight(cpumask), 4);
+> 
+> 
+> You might want to base that calculation on and limit the threads to
+> physical cores, not hyperthreaded cores.
 
-> Signed-off-by: Tony Battersby <tonyb@cybernetics.com>
-> ---
-> --- linux/mm/dmapool.c.orig	2018-08-03 16:12:23.000000000 -0400
-> +++ linux/mm/dmapool.c	2018-08-03 16:13:44.000000000 -0400
-> @@ -277,7 +277,7 @@ void dma_pool_destroy(struct dma_pool *p
->  	mutex_lock(&pools_reg_lock);
->  	mutex_lock(&pools_lock);
->  	list_del(&pool->pools);
-> -	if (pool->dev && list_empty(&pool->dev->dma_pools))
-> +	if (list_empty(&pool->dev->dma_pools))
->  		empty = true;
->  	mutex_unlock(&pools_lock);
->  	if (empty)
-> @@ -289,13 +289,9 @@ void dma_pool_destroy(struct dma_pool *p
->  		page = list_entry(pool->page_list.next,
->  				  struct dma_page, page_list);
->  		if (is_page_busy(page)) {
-> -			if (pool->dev)
-> -				dev_err(pool->dev,
-> -					"dma_pool_destroy %s, %p busy\n",
-> -					pool->name, page->vaddr);
-> -			else
-> -				pr_err("dma_pool_destroy %s, %p busy\n",
-> -				       pool->name, page->vaddr);
-> +			dev_err(pool->dev,
-> +				"dma_pool_destroy %s, %p busy\n",
-> +				pool->name, page->vaddr);
->  			/* leak the still-in-use consistent memory */
->  			list_del(&page->page_list);
->  			kfree(page);
-> @@ -357,13 +353,9 @@ void *dma_pool_alloc(struct dma_pool *po
->  		for (i = sizeof(page->offset); i < pool->size; i++) {
->  			if (data[i] == POOL_POISON_FREED)
->  				continue;
-> -			if (pool->dev)
-> -				dev_err(pool->dev,
-> -					"dma_pool_alloc %s, %p (corrupted)\n",
-> -					pool->name, retval);
-> -			else
-> -				pr_err("dma_pool_alloc %s, %p (corrupted)\n",
-> -					pool->name, retval);
-> +			dev_err(pool->dev,
-> +				"dma_pool_alloc %s, %p (corrupted)\n",
-> +				pool->name, retval);
->
->  			/*
->  			 * Dump the first 4 bytes even if they are not
-> @@ -418,13 +410,9 @@ void dma_pool_free(struct dma_pool *pool
->  	page = pool_find_page(pool, dma);
->  	if (!page) {
->  		spin_unlock_irqrestore(&pool->lock, flags);
-> -		if (pool->dev)
-> -			dev_err(pool->dev,
-> -				"dma_pool_free %s, %p/%lx (bad dma)\n",
-> -				pool->name, vaddr, (unsigned long)dma);
-> -		else
-> -			pr_err("dma_pool_free %s, %p/%lx (bad dma)\n",
-> -			       pool->name, vaddr, (unsigned long)dma);
-> +		dev_err(pool->dev,
-> +			"dma_pool_free %s, %p/%lx (bad dma)\n",
-> +			pool->name, vaddr, (unsigned long)dma);
->  		return;
->  	}
->
-> @@ -432,13 +420,9 @@ void dma_pool_free(struct dma_pool *pool
->  #ifdef	DMAPOOL_DEBUG
->  	if ((dma - page->dma) != offset) {
->  		spin_unlock_irqrestore(&pool->lock, flags);
-> -		if (pool->dev)
-> -			dev_err(pool->dev,
-> -				"dma_pool_free %s, %p (bad vaddr)/%pad\n",
-> -				pool->name, vaddr, &dma);
-> -		else
-> -			pr_err("dma_pool_free %s, %p (bad vaddr)/%pad\n",
-> -			       pool->name, vaddr, &dma);
-> +		dev_err(pool->dev,
-> +			"dma_pool_free %s, %p (bad vaddr)/%pad\n",
-> +			pool->name, vaddr, &dma);
->  		return;
->  	}
->  	{
-> @@ -449,12 +433,9 @@ void dma_pool_free(struct dma_pool *pool
->  				continue;
->  			}
->  			spin_unlock_irqrestore(&pool->lock, flags);
-> -			if (pool->dev)
-> -				dev_err(pool->dev, "dma_pool_free %s, dma %pad already free\n",
-> -					pool->name, &dma);
-> -			else
-> -				pr_err("dma_pool_free %s, dma %pad already free\n",
-> -				       pool->name, &dma);
-> +			dev_err(pool->dev,
-> +				"dma_pool_free %s, dma %pad already free\n",
-> +				pool->name, &dma);
->  			return;
->  		}
->  	}
->
->
-> .
->
+Why?  Hyperthreads can be beneficial when waiting on memory.  That said, I
+don't have data that shows that in this case.
