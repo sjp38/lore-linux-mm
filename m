@@ -1,79 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F3D456B0003
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 00:53:33 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id k66so21862918qkf.1
-        for <linux-mm@kvack.org>; Sun, 11 Nov 2018 21:53:33 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k34si2673648qtf.286.2018.11.11.21.53.32
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 264AD6B0003
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 01:02:02 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id v4so2379583edm.18
+        for <linux-mm@kvack.org>; Sun, 11 Nov 2018 22:02:02 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id j5-v6si4315124edb.79.2018.11.11.22.02.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 11 Nov 2018 21:53:32 -0800 (PST)
-Date: Sun, 11 Nov 2018 23:53:24 -0600
-From: Josh Poimboeuf <jpoimboe@redhat.com>
-Subject: Re: [RFC PATCH 00/12] locking/lockdep: Add a new class of terminal
- locks
-Message-ID: <20181112055324.f7div2ahx5emkbbe@treble>
-References: <1541709268-3766-1-git-send-email-longman@redhat.com>
- <20181109080412.GC86700@gmail.com>
- <20181110141045.GD3339@worktop.programming.kicks-ass.net>
- <dfa0a2fa-0094-3ae0-4f27-2930233132a3@redhat.com>
- <20181112051033.GA123204@gmail.com>
+        Sun, 11 Nov 2018 22:02:00 -0800 (PST)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAC5xA8T072368
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 01:01:59 -0500
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2npxq4jvpy-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 01:01:58 -0500
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Mon, 12 Nov 2018 06:01:56 -0000
+Date: Mon, 12 Nov 2018 07:01:51 +0100
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: crashkernel=512M is no longer working on this aarch64 server
+In-Reply-To: <77E3BE32-F509-43B3-8C5F-252416C04B7C@gmx.us>
+References: <1A7E2E89-34DB-41A0-BBA2-323073A7E298@gmx.us>
+	<20181111123553.3a35a15c@mschwideX1>
+	<77E3BE32-F509-43B3-8C5F-252416C04B7C@gmx.us>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20181112051033.GA123204@gmail.com>
+Message-Id: <20181112070151.51ea5caf@mschwideX1>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Waiman Long <longman@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Qian Cai <cai@gmx.us>
+Cc: linux kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Kirill
+ A. Shutemov" <kirill.shutemov@linux.intel.com>, Catalin Marinas <catalin.marinas@arm.com>
 
-On Mon, Nov 12, 2018 at 06:10:33AM +0100, Ingo Molnar wrote:
-> 
-> * Waiman Long <longman@redhat.com> wrote:
-> 
-> > On 11/10/2018 09:10 AM, Peter Zijlstra wrote:
-> > > On Fri, Nov 09, 2018 at 09:04:12AM +0100, Ingo Molnar wrote:
-> > >> BTW., if you are interested in more radical approaches to optimize 
-> > >> lockdep, we could also add a static checker via objtool driven call graph 
-> > >> analysis, and mark those locks terminal that we can prove are terminal.
-> > >>
-> > >> This would require the unified call graph of the kernel image and of all 
-> > >> modules to be examined in a final pass, but that's within the principal 
-> > >> scope of objtool. (This 'final pass' could also be done during bootup, at 
-> > >> least in initial versions.)
-> > >
-> > > Something like this is needed for objtool LTO support as well. I just
-> > > dread the build time 'regressions' this will introduce :/
-> > >
-> > > The final link pass is already by far the most expensive part (as
-> > > measured in wall-time) of building a kernel, adding more work there
-> > > would really suck :/
+On Sun, 11 Nov 2018 08:36:09 -0500
+Qian Cai <cai@gmx.us> wrote:
+
+> > On Nov 11, 2018, at 6:35 AM, Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
 > > 
-> > I think the idea is to make objtool have the capability to do that. It
-> > doesn't mean we need to turn it on by default in every build.
+> > On Sat, 10 Nov 2018 23:41:34 -0500
+> > Qian Cai <cai@gmx.us> wrote:
+> >   
+> >> It was broken somewhere between b00d209241ff and 3541833fd1f2.
+> >> 
+> >> [    0.000000] cannot allocate crashkernel (size:0x20000000)
+> >> 
+> >> Where a good one looks like this,
+> >> 
+> >> [    0.000000] crashkernel reserved: 0x0000000008600000 - 0x0000000028600000 (512 MB)
+> >> 
+> >> Some commits look more suspicious than others.
+> >> 
+> >>      mm: add mm_pxd_folded checks to pgtable_bytes accounting functions
+> >>      mm: introduce mm_[p4d|pud|pmd]_folded
+> >>      mm: make the __PAGETABLE_PxD_FOLDED defines non-empty  
+> > 
+> > The intent of these three patches is to add extra checks to the
+> > pgtable_bytes accounting function. If applied incorrectly the expected
+> > result would be warnings like this:
+> >  BUG: non-zero pgtables_bytes on freeing mm: 16384
+> > 
+> > The change Linus worried about affects the __PAGETABLE_PxD_FOLDED defines.
+> > These defines are used with #ifdef, #ifndef, and __is_defined() for the
+> > new mm_p?d_folded() macros. I can not see how this would make a difference
+> > for your iomem setup.
+> >   
+> >> # diff -u ../iomem.good.txt ../iomem.bad.txt 
+> >> --- ../iomem.good.txt	2018-11-10 22:28:20.092614398 -0500
+> >> +++ ../iomem.bad.txt	2018-11-10 20:39:54.930294479 -0500
+> >> @@ -1,9 +1,8 @@
+> >> 00000000-3965ffff : System RAM
+> >>   00080000-018cffff : Kernel code
+> >> -  018d0000-020affff : reserved
+> >> -  020b0000-045affff : Kernel data
+> >> -  08600000-285fffff : Crash kernel
+> >> -  28730000-2d5affff : reserved
+> >> +  018d0000-0762ffff : reserved
+> >> +  07630000-09b2ffff : Kernel data
+> >> +  231b0000-2802ffff : reserved
+> >>   30ec0000-30ecffff : reserved
+> >>   35660000-3965ffff : reserved
+> >> 39660000-396fffff : reserved
+> >> @@ -127,7 +126,7 @@
+> >>   7c5200000-7c520ffff : 0004:48:00.0
+> >> 1040000000-17fbffffff : System RAM
+> >>   13fbfd0000-13fdfdffff : reserved
+> >> -  16fba80000-17fbfdffff : reserved
+> >> +  16fafd0000-17fbfdffff : reserved
+> >>   17fbfe0000-17fbffffff : reserved
+> >> 1800000000-1ffbffffff : System RAM
+> >>   1bfbff0000-1bfdfeffff : reserved  
+> > 
+> > The easiest way to verify if the three commits have something to do with your
+> > problem is to revert them and run your test. Can you do that please ?  
+> Yes, you are right. Those commits have nothing to do with the problem. I should
+> realized it earlier as those are virtual memory vs physical memory. Sorry for the
+> nosie.
 > 
-> Yeah.
+> It turned out I made a wrong assumption that if kmemleak is disabled by default,
+> there should be no memory reserved for kmemleak at all which is not the case.
 > 
-> Also note that much of the objtool legwork would be on a per file basis 
-> which is reasonably parallelized already. On x86 it's also already done 
-> for every ORC build i.e. every distro build and the incremental overhead 
-> from also extracting locking dependencies should be reasonably small.
+> CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE=600000
+> CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF=y
 > 
-> The final search of the global graph would be serialized but still 
-> reasonably fast as these are all 'class' level dependencies which are 
-> much less numerous than runtime dependencies.
+> Even without kmemleak=on in the kernel cmdline, it still reserve early log memory
+> which causes not enough memory for crashkernel.
 > 
-> I.e. I think we are talking about tens of thousands of dependencies, not 
-> tens of millions.
-> 
-> At least in theory. ;-)
+> Since there seems no way to turn kmemleak on later after boot, is there any
+> reasons for the current behavior? 
 
-Generating a unified call graph sounds very expensive (and very far
-beyond what objtool can do today).  Also, what about function pointers?
+Well seems like you do have CONFIG_DEBUG_KMEMLEAK=y in your config. The code
+contains data structures for the case that you want to use the kmemleak checker.
+The presence of these structures will change the sizes. The last commit in regard
+to the 'early_log' buffer has been from 2009 with this change:
 
-BTW there's another kernel static analysis tool which attempts to create
-such a call graph already: smatch.
+@@ -232,8 +232,9 @@ struct early_log {
+ };
+ 
+ /* early logging buffer and current position */
+-static struct early_log early_log[CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE];
+-static int crt_early_log;
++static struct early_log
++       early_log[CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE] __initdata;
++static int crt_early_log __initdata;
+ 
+ static void kmemleak_disable(void);
+ 
+The current behavior is imho nothing new.
+
+Would it be possible to disable CONFIG_DEBUG_KMEMLEAK for your kdump kernel?
+That seems like the simplest solution.
 
 -- 
-Josh
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
