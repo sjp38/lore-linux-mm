@@ -1,70 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E76186B028A
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 09:40:24 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id 3-v6so7316818plc.18
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 06:40:24 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 19si15590256pgq.215.2018.11.12.06.40.23
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C5B06B028D
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 10:12:52 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id w19-v6so7437791plq.1
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 07:12:52 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id 9si15202459pgm.112.2018.11.12.07.12.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Nov 2018 06:40:23 -0800 (PST)
-Date: Mon, 12 Nov 2018 15:40:20 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm, page_alloc: skip zone who has no managed_pages in
- calculate_totalreserve_pages()
-Message-ID: <20181112144020.GC14987@dhcp22.suse.cz>
-References: <20181112071404.13620-1-richard.weiyang@gmail.com>
- <20181112080926.GA14987@dhcp22.suse.cz>
- <20181112142641.6oxn4fv4pocm7fmt@master>
+        Mon, 12 Nov 2018 07:12:22 -0800 (PST)
+Subject: Re: [mm PATCH v5 7/7] mm: Use common iterator for deferred_init_pages
+ and deferred_free_pages
+References: <154145268025.30046.11742652345962594283.stgit@ahduyck-desk1.jf.intel.com>
+ <154145280115.30046.13334106887516645119.stgit@ahduyck-desk1.jf.intel.com>
+ <20181110041338.7ttram7po7a2ssz7@xakep.localdomain>
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Message-ID: <ce8504f0-5963-7415-8e8d-7454b0e68fe5@linux.intel.com>
+Date: Mon, 12 Nov 2018 07:12:13 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181112142641.6oxn4fv4pocm7fmt@master>
+In-Reply-To: <20181110041338.7ttram7po7a2ssz7@xakep.localdomain>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org
+To: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mhocko@suse.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.com
 
-On Mon 12-11-18 14:26:41, Wei Yang wrote:
-> On Mon, Nov 12, 2018 at 09:09:26AM +0100, Michal Hocko wrote:
-> >On Mon 12-11-18 15:14:04, Wei Yang wrote:
-> >> Zone with no managed_pages doesn't contribute totalreserv_pages. And the
-> >> more nodes we have, the more empty zones there are.
-> >> 
-> >> This patch skip the zones to save some cycles.
-> >
-> >What is the motivation for the patch? Does it really cause any
-> >measurable difference in performance?
-> >
+On 11/9/2018 8:13 PM, Pavel Tatashin wrote:
+> On 18-11-05 13:20:01, Alexander Duyck wrote:
+>> +static unsigned long __next_pfn_valid_range(unsigned long *i,
+>> +					    unsigned long end_pfn)
+>>   {
+>> -	if (!pfn_valid_within(pfn))
+>> -		return false;
+>> -	if (!(pfn & (pageblock_nr_pages - 1)) && !pfn_valid(pfn))
+>> -		return false;
+>> -	return true;
+>> +	unsigned long pfn = *i;
+>> +	unsigned long count;
+>> +
+>> +	while (pfn < end_pfn) {
+>> +		unsigned long t = ALIGN(pfn + 1, pageblock_nr_pages);
+>> +		unsigned long pageblock_pfn = min(t, end_pfn);
+>> +
+>> +#ifndef CONFIG_HOLES_IN_ZONE
+>> +		count = pageblock_pfn - pfn;
+>> +		pfn = pageblock_pfn;
+>> +		if (!pfn_valid(pfn))
+>> +			continue;
+>> +#else
+>> +		for (count = 0; pfn < pageblock_pfn; pfn++) {
+>> +			if (pfn_valid_within(pfn)) {
+>> +				count++;
+>> +				continue;
+>> +			}
+>> +
+>> +			if (count)
+>> +				break;
+>> +		}
+>> +
+>> +		if (!count)
+>> +			continue;
+>> +#endif
+>> +		*i = pfn;
+>> +		return count;
+>> +	}
+>> +
+>> +	return 0;
+>>   }
+>>   
+>> +#define for_each_deferred_pfn_valid_range(i, start_pfn, end_pfn, pfn, count) \
+>> +	for (i = (start_pfn),						     \
+>> +	     count = __next_pfn_valid_range(&i, (end_pfn));		     \
+>> +	     count && ({ pfn = i - count; 1; });			     \
+>> +	     count = __next_pfn_valid_range(&i, (end_pfn)))
 > 
-> The motivation here is to reduce some unnecessary work.
+> Can this be improved somehow? It took me a while to understand this
+> piece of code. i is actually end of block, and not an index by PFN, ({pfn = i - count; 1;}) is
+> simply hard to parse. Why can't we make __next_pfn_valid_range() to
+> return both end and a start of a block?
 
-I have guessed so even though the changelog was quite modest on the
-motivation.
+One thing I could do is flip the direction and work from the end to the 
+start. If I did that then 'i' and 'pfn' would be the same value and I 
+wouldn't have to do the subtraction. If that works for you I could 
+probably do that and it may actually be more efficient.
 
-> Based on my understanding, almost every node has empty zones, since
-> zones within a node are ordered in monotonic increasing memory address.
+Otherwise I could probably pass pfn as a reference, and compute it in 
+the case where count is non-zero.
 
-Yes, this is likely the case. Btw. a check for populated_zone or
-for_each_populated_zone would suite much better.
-
-> The worst case is all zones has managed_pages. For example, there is
-> only one node, or configured to have only ZONE_NORMAL and
-> ZONE_MOVABLE. Otherwise, the more node/zone we have, the more empty
-> zones there are.
+> The rest is good:
 > 
-> I didn't have detail tests on this patch, since I don't have machine
-> with large numa nodes. While compared with the following ten lines of
-> code, this check to skip them is worthwhile to me.
-
-Well, the main question is whether the optimization is really worth it.
-There is not much work done for each zone.
-
-I haven't looked closer whether the patch is actually correct, it seems
-to be though, but optimizations without measurable effect tend to be not
-that attractive.
-
--- 
-Michal Hocko
-SUSE Labs
+> Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+> 
+> Thank you,
+> Pasha
+> 
