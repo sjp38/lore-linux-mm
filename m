@@ -1,67 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A52F6B0003
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 16:08:44 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id e89so619743pfb.17
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 13:08:44 -0800 (PST)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id h20-v6si19612095plr.343.2018.11.12.13.08.41
-        for <linux-mm@kvack.org>;
-        Mon, 12 Nov 2018 13:08:42 -0800 (PST)
-Date: Tue, 13 Nov 2018 08:08:39 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 01/16] xfs: drop ->writepage completely
-Message-ID: <20181112210839.GM19305@dastard>
-References: <20181107063127.3902-1-david@fromorbit.com>
- <20181107063127.3902-2-david@fromorbit.com>
- <20181109151239.GD9153@infradead.org>
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 604106B0006
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 16:28:44 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id f22so26078648qkm.11
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 13:28:44 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i35sor8872314qtb.21.2018.11.12.13.28.42
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 12 Nov 2018 13:28:42 -0800 (PST)
+Date: Mon, 12 Nov 2018 21:28:39 +0000
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+Subject: Re: [PATCH 2/5] mm/memory_hotplug: Create add/del_device_memory
+ functions
+Message-ID: <20181112212839.ut4owdqfuibzuhvz@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
+References: <20181015153034.32203-1-osalvador@techadventures.net>
+ <20181015153034.32203-3-osalvador@techadventures.net>
+ <CAPcyv4jM-EJCmOwFkPqXhtgR54UueNtHjfCUbnnJqFLmgj7Jvw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181109151239.GD9153@infradead.org>
+In-Reply-To: <CAPcyv4jM-EJCmOwFkPqXhtgR54UueNtHjfCUbnnJqFLmgj7Jvw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: osalvador@techadventures.net, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, rppt@linux.vnet.ibm.com, malat@debian.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Jonathan.Cameron@huawei.com, "Rafael J. Wysocki" <rafael@kernel.org>, David Hildenbrand <david@redhat.com>, Dave Jiang <dave.jiang@intel.com>, Linux MM <linux-mm@kvack.org>, alexander.h.duyck@linux.intel.com, osalvador@suse.de
 
-On Fri, Nov 09, 2018 at 07:12:39AM -0800, Christoph Hellwig wrote:
-> [adding linux-mm to the CC list]
 > 
-> On Wed, Nov 07, 2018 at 05:31:12PM +1100, Dave Chinner wrote:
-> > From: Dave Chinner <dchinner@redhat.com>
-> > 
-> > ->writepage is only used in one place - single page writeback from
-> > memory reclaim. We only allow such writeback from kswapd, not from
-> > direct memory reclaim, and so it is rarely used. When it comes from
-> > kswapd, it is effectively random dirty page shoot-down, which is
-> > horrible for IO patterns. We will already have background writeback
-> > trying to clean all the dirty pages in memory as efficiently as
-> > possible, so having kswapd interrupt our well formed IO stream only
-> > slows things down. So get rid of xfs_vm_writepage() completely.
+> This collides with the refactoring of hmm, to be done in terms of
+> devm_memremap_pages(). I'd rather not introduce another common
+> function *beneath* hmm and devm_memremap_pages() and rather make
+> devm_memremap_pages() the common function.
 > 
-> Interesting.  IFF we can pull this off it would simplify a lot of
-> things, so I'm generally in favor of it.
+> I plan to resubmit that cleanup after Plumbers. So, unless I'm
+> misunderstanding some other benefit a nak from me on this patch as it
+> stands currently.
+> 
 
-Over the past few days of hammeringon this, the only thing I've
-noticed is that page reclaim hangs up less, but it's also putting a
-bit more pressure on the shrinkers. Filesystem intensive workloads
-that drive the machine into reclaim via the page cache seem to hit
-breakdown conditions slightly earlier and the impact is that the
-shrinkers are run harder. Mostly I see this as the XFS buffer cache
-having a much harder time keeping a working set active.
+Ok, Dan, I will wait for your new refactoring series before continuing
+reviewing this series.
 
-However, while the workloads hit the working set cache, writeback
-performance does seem to be slightly higher. It is, however, being
-offset by the deeper lows that come from the cache being turned
-over.
-
-So there's a bit of rebalancing to be done here as a followup, but
-I've been unable to drive the system into unexepected OOM kills or
-other bad behaviour as a result of removing ->writepage.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thank you,
+Pasha
