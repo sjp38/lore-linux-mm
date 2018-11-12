@@ -1,79 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D12EF6B0288
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 09:29:25 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id w185so24476407qka.9
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 06:29:25 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q45si621256qte.344.2018.11.12.06.29.24
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E76186B028A
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 09:40:24 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id 3-v6so7316818plc.18
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 06:40:24 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 19si15590256pgq.215.2018.11.12.06.40.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Nov 2018 06:29:25 -0800 (PST)
-Date: Mon, 12 Nov 2018 09:29:20 -0500 (EST)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [LKP] d50d82faa0 [ 33.671845] WARNING: possible circular locking
- dependency detected
-In-Reply-To: <20181107190558.812375161de4b5df413ea31b@linux-foundation.org>
-Message-ID: <alpine.LRH.2.02.1811120926240.3272@file01.intranet.prod.int.rdu2.redhat.com>
-References: <20181023003004.GH24195@shao2-debian> <20181107154336.21e1f815226facdffd4a6c54@linux-foundation.org> <20181107190558.812375161de4b5df413ea31b@linux-foundation.org>
+        Mon, 12 Nov 2018 06:40:23 -0800 (PST)
+Date: Mon, 12 Nov 2018 15:40:20 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm, page_alloc: skip zone who has no managed_pages in
+ calculate_totalreserve_pages()
+Message-ID: <20181112144020.GC14987@dhcp22.suse.cz>
+References: <20181112071404.13620-1-richard.weiyang@gmail.com>
+ <20181112080926.GA14987@dhcp22.suse.cz>
+ <20181112142641.6oxn4fv4pocm7fmt@master>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181112142641.6oxn4fv4pocm7fmt@master>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kernel test robot <rong.a.chen@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, LKP <lkp@01.org>, Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org
 
-
-
-On Wed, 7 Nov 2018, Andrew Morton wrote:
-
-> On Wed, 7 Nov 2018 15:43:36 -0800 Andrew Morton <akpm@linux-foundation.org> wrote:
+On Mon 12-11-18 14:26:41, Wei Yang wrote:
+> On Mon, Nov 12, 2018 at 09:09:26AM +0100, Michal Hocko wrote:
+> >On Mon 12-11-18 15:14:04, Wei Yang wrote:
+> >> Zone with no managed_pages doesn't contribute totalreserv_pages. And the
+> >> more nodes we have, the more empty zones there are.
+> >> 
+> >> This patch skip the zones to save some cycles.
+> >
+> >What is the motivation for the patch? Does it really cause any
+> >measurable difference in performance?
+> >
 > 
-> > On Tue, 23 Oct 2018 08:30:04 +0800 kernel test robot <rong.a.chen@intel.com> wrote:
-> > 
-> > > Greetings,
-> > > 
-> > > 0day kernel testing robot got the below dmesg and the first bad commit is
-> > > 
-> > > https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-> > > 
-> > > commit d50d82faa0c964e31f7a946ba8aba7c715ca7ab0
-> > > Author:     Mikulas Patocka <mpatocka@redhat.com>
-> > > AuthorDate: Wed Jun 27 23:26:09 2018 -0700
-> > > Commit:     Linus Torvalds <torvalds@linux-foundation.org>
-> > > CommitDate: Thu Jun 28 11:16:44 2018 -0700
-> > > 
-> > >     slub: fix failure when we delete and create a slab cache
-> > 
-> > This is ugly.  Is there an alternative way of fixing the race which
-> > Mikulas attempted to address?  Possibly cancel the work and reuse the
-> > existing sysfs file, or is that too stupid to live?
-> > 
-> > 3b7b314053d021 ("slub: make sysfs file removal asynchronous") was
-> > pretty lame, really.  As mentioned,
-> > 
-> > : It'd be the cleanest to deal with the issue by removing sysfs files
-> > : without holding slab_mutex before the rest of shutdown; however, given
-> > : the current code structure, it is pretty difficult to do so.
-> > 
-> > Would be a preferable approach.
-> > 
-> > >     
-> > >     This uncovered a bug in the slub subsystem - if we delete a cache and
-> > >     immediatelly create another cache with the same attributes, it fails
-> > >     because of duplicate filename in /sys/kernel/slab/.  The slub subsystem
-> > >     offloads freeing the cache to a workqueue - and if we create the new
-> > >     cache before the workqueue runs, it complains because of duplicate
-> > >     filename in sysfs.
+> The motivation here is to reduce some unnecessary work.
+
+I have guessed so even though the changelog was quite modest on the
+motivation.
+
+> Based on my understanding, almost every node has empty zones, since
+> zones within a node are ordered in monotonic increasing memory address.
+
+Yes, this is likely the case. Btw. a check for populated_zone or
+for_each_populated_zone would suite much better.
+
+> The worst case is all zones has managed_pages. For example, there is
+> only one node, or configured to have only ZONE_NORMAL and
+> ZONE_MOVABLE. Otherwise, the more node/zone we have, the more empty
+> zones there are.
 > 
-> Alternatively, could we flush the workqueue before attempting to
-> (re)create the sysfs file?
+> I didn't have detail tests on this patch, since I don't have machine
+> with large numa nodes. While compared with the following ten lines of
+> code, this check to skip them is worthwhile to me.
 
-What if someone creates the slab cache from the workqueue?
+Well, the main question is whether the optimization is really worth it.
+There is not much work done for each zone.
 
-> Extra points for only doing this if the
-> first (re)creation attempt returned -EEXIST?
+I haven't looked closer whether the patch is actually correct, it seems
+to be though, but optimizations without measurable effect tend to be not
+that attractive.
 
-If it returns -EEXIST, it has already written the warning to the log.
-
-Mikulas
+-- 
+Michal Hocko
+SUSE Labs
