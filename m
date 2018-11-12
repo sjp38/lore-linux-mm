@@ -1,176 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 29C006B0285
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 08:58:15 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id p25-v6so4768736eds.15
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 05:58:15 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p22-v6si1484416edr.419.2018.11.12.05.58.13
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EA7ED6B0287
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 09:26:45 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id y23-v6so4678732eds.12
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 06:26:45 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k6sor7155117edx.21.2018.11.12.06.26.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Nov 2018 05:58:13 -0800 (PST)
-Date: Mon, 12 Nov 2018 14:58:11 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v2 6/6] mm: track gup pages with page->dma_pinned_* fields
-Message-ID: <20181112135811.GF7175@quack2.suse.cz>
-References: <20181110085041.10071-1-jhubbard@nvidia.com>
- <20181110085041.10071-7-jhubbard@nvidia.com>
+        (Google Transport Security);
+        Mon, 12 Nov 2018 06:26:44 -0800 (PST)
+Date: Mon, 12 Nov 2018 14:26:41 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH] mm, page_alloc: skip zone who has no managed_pages in
+ calculate_totalreserve_pages()
+Message-ID: <20181112142641.6oxn4fv4pocm7fmt@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181112071404.13620-1-richard.weiyang@gmail.com>
+ <20181112080926.GA14987@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181110085041.10071-7-jhubbard@nvidia.com>
+In-Reply-To: <20181112080926.GA14987@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john.hubbard@gmail.com
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org
+
+On Mon, Nov 12, 2018 at 09:09:26AM +0100, Michal Hocko wrote:
+>On Mon 12-11-18 15:14:04, Wei Yang wrote:
+>> Zone with no managed_pages doesn't contribute totalreserv_pages. And the
+>> more nodes we have, the more empty zones there are.
+>> 
+>> This patch skip the zones to save some cycles.
+>
+>What is the motivation for the patch? Does it really cause any
+>measurable difference in performance?
+>
+
+The motivation here is to reduce some unnecessary work.
+
+Based on my understanding, almost every node has empty zones, since
+zones within a node are ordered in monotonic increasing memory address.
+
+The worst case is all zones has managed_pages. For example, there is
+only one node, or configured to have only ZONE_NORMAL and
+ZONE_MOVABLE. Otherwise, the more node/zone we have, the more empty
+zones there are.
+
+I didn't have detail tests on this patch, since I don't have machine
+with large numa nodes. While compared with the following ten lines of
+code, this check to skip them is worthwhile to me.
 
 
-Just as a side note, can you please CC me on the whole series next time?
-Because this time I had to look up e.g. the introductory email in the
-mailing list... Thanks!
+>> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+>> ---
+>>  mm/page_alloc.c | 3 +++
+>>  1 file changed, 3 insertions(+)
+>> 
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index a919ba5cb3c8..567de15e1106 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -7246,6 +7246,9 @@ static void calculate_totalreserve_pages(void)
+>>  			struct zone *zone = pgdat->node_zones + i;
+>>  			long max = 0;
+>>  
+>> +			if (!managed_zone(zone))
+>> +				continue;
+>> +
+>>  			/* Find valid and maximum lowmem_reserve in the zone */
+>>  			for (j = i; j < MAX_NR_ZONES; j++) {
+>>  				if (zone->lowmem_reserve[j] > max)
+>> -- 
+>> 2.15.1
+>> 
+>
+>-- 
+>Michal Hocko
+>SUSE Labs
 
-On Sat 10-11-18 00:50:41, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
-> 
-> This patch sets and restores the new page->dma_pinned_flags and
-> page->dma_pinned_count fields, but does not actually use them for
-> anything yet.
-> 
-> In order to use these fields at all, the page must be removed from
-> any LRU list that it's on. The patch also adds some precautions that
-> prevent the page from getting moved back onto an LRU, once it is
-> in this state.
-> 
-> This is in preparation to fix some problems that came up when using
-> devices (NICs, GPUs, for example) that set up direct access to a chunk
-> of system (CPU) memory, so that they can DMA to/from that memory.
-> 
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Christopher Lameter <cl@linux.com>
-> Cc: Jason Gunthorpe <jgg@ziepe.ca>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-> ---
->  include/linux/mm.h | 19 +++++----------
->  mm/gup.c           | 55 +++++++++++++++++++++++++++++++++++++++++--
->  mm/memcontrol.c    |  8 +++++++
->  mm/swap.c          | 58 ++++++++++++++++++++++++++++++++++++++++++++++
->  4 files changed, 125 insertions(+), 15 deletions(-)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 09fbb2c81aba..6c64b1e0b777 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -950,6 +950,10 @@ static inline void put_page(struct page *page)
->  {
->  	page = compound_head(page);
->  
-> +	VM_BUG_ON_PAGE(PageDmaPinned(page) &&
-> +		       page_ref_count(page) <
-> +				atomic_read(&page->dma_pinned_count),
-> +		       page);
->  	/*
->  	 * For devmap managed pages we need to catch refcount transition from
->  	 * 2 to 1, when refcount reach one it means the page is free and we
-> @@ -964,21 +968,10 @@ static inline void put_page(struct page *page)
->  }
->  
->  /*
-> - * put_user_page() - release a page that had previously been acquired via
-> - * a call to one of the get_user_pages*() functions.
-> - *
->   * Pages that were pinned via get_user_pages*() must be released via
-> - * either put_user_page(), or one of the put_user_pages*() routines
-> - * below. This is so that eventually, pages that are pinned via
-> - * get_user_pages*() can be separately tracked and uniquely handled. In
-> - * particular, interactions with RDMA and filesystems need special
-> - * handling.
-> + * one of these put_user_pages*() routines:
->   */
-> -static inline void put_user_page(struct page *page)
-> -{
-> -	put_page(page);
-> -}
-> -
-> +void put_user_page(struct page *page);
->  void put_user_pages_dirty(struct page **pages, unsigned long npages);
->  void put_user_pages_dirty_lock(struct page **pages, unsigned long npages);
->  void put_user_pages(struct page **pages, unsigned long npages);
-> diff --git a/mm/gup.c b/mm/gup.c
-> index 55a41dee0340..ec1b26591532 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -25,6 +25,50 @@ struct follow_page_context {
->  	unsigned int page_mask;
->  };
->  
-> +static void pin_page_for_dma(struct page *page)
-> +{
-> +	int ret = 0;
-> +	struct zone *zone;
-> +
-> +	page = compound_head(page);
-> +	zone = page_zone(page);
-> +
-> +	spin_lock(zone_gup_lock(zone));
-
-A think you'll need irqsafe lock here as get_user_pages_fast() can get
-called from interrupt context in some cases. And so can put_user_page()...
-
-<snip>
-
-> +/*
-> + * put_user_page() - release a page that had previously been acquired via
-> + * a call to one of the get_user_pages*() functions.
-> + *
-> + * Usage: Pages that were pinned via get_user_pages*() must be released via
-> + * either put_user_page(), or one of the put_user_pages*() routines
-> + * below. This is so that eventually, pages that are pinned via
-> + * get_user_pages*() can be separately tracked and uniquely handled. In
-> + * particular, interactions with RDMA and filesystems need special
-> + * handling.
-> + */
-> +void put_user_page(struct page *page)
-> +{
-> +	struct zone *zone = page_zone(page);
-> +
-> +	page = compound_head(page);
-> +
-> +	if (atomic_dec_and_test(&page->dma_pinned_count)) {
-> +		spin_lock(zone_gup_lock(zone));
-> +		/* Re-check while holding the lock, because
-> +		 * pin_page_for_dma() or get_page() may have snuck in right
-> +		 * after the atomic_dec_and_test, and raised the count
-> +		 * above zero again. If so, just leave the flag set. And
-> +		 * because the atomic_dec_and_test above already got the
-> +		 * accounting correct, no other action is required.
-> +		 */
-> +		VM_BUG_ON_PAGE(PageLRU(page), page);
-> +		VM_BUG_ON_PAGE(!PageDmaPinned(page), page);
-> +
-> +		if (atomic_read(&page->dma_pinned_count) == 0) {
-
-We have atomic_dec_and_lock[_irqsave]() exactly for constructs like this.
-
-> +			ClearPageDmaPinned(page);
-> +
-> +			if (PageDmaPinnedWasLru(page)) {
-> +				ClearPageDmaPinnedWasLru(page);
-> +				putback_lru_page(page);
-> +			}
-> +		}
-> +
-> +		spin_unlock(zone_gup_lock(zone));
-> +	}
-> +
-> +	put_page(page);
-> +}
-> +EXPORT_SYMBOL(put_user_page);
-> +
-
-								Honza
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Wei Yang
+Help you, Help me
