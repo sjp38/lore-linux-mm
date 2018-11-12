@@ -1,90 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C7B396B027E
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 07:00:13 -0500 (EST)
-Received: by mail-lj1-f197.google.com with SMTP id e8-v6so2646870ljg.22
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 04:00:13 -0800 (PST)
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id q5-v6si16548373lji.207.2018.11.12.04.00.11
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A7616B0280
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 07:00:28 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id 98so23155678qkp.22
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 04:00:28 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q45si362583qte.344.2018.11.12.04.00.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Nov 2018 04:00:12 -0800 (PST)
-From: Pavel Tikhomirov <ptikhomirov@virtuozzo.com>
-Subject: [PATCH v2] mm: cleancache: fix corruption on missed inode invalidation
-Date: Mon, 12 Nov 2018 15:00:03 +0300
-Message-Id: <20181112120003.23245-1-ptikhomirov@virtuozzo.com>
-In-Reply-To: <20181112113153.GC7175@quack2.suse.cz>
-References: <20181112113153.GC7175@quack2.suse.cz>
+        Mon, 12 Nov 2018 04:00:27 -0800 (PST)
+From: Florian Weimer <fweimer@redhat.com>
+Subject: Re: pkeys: Reserve PKEY_DISABLE_READ
+References: <877ehnbwqy.fsf@oldenburg.str.redhat.com>
+	<2d62c9e2-375b-2791-32ce-fdaa7e7664fd@intel.com>
+	<87bm6zaa04.fsf@oldenburg.str.redhat.com>
+	<6f9c65fb-ea7e-8217-a4cc-f93e766ed9bb@intel.com>
+	<87k1ln8o7u.fsf@oldenburg.str.redhat.com>
+	<20181108201231.GE5481@ram.oc3035372033.ibm.com>
+	<87bm6z71yw.fsf@oldenburg.str.redhat.com>
+	<20181109180947.GF5481@ram.oc3035372033.ibm.com>
+Date: Mon, 12 Nov 2018 13:00:19 +0100
+In-Reply-To: <20181109180947.GF5481@ram.oc3035372033.ibm.com> (Ram Pai's
+	message of "Fri, 9 Nov 2018 10:09:47 -0800")
+Message-ID: <87efbqqze4.fsf@oldenburg.str.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Vasily Averin <vvs@virtuozzo.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Konstantin Khorenko <khorenko@virtuozzo.com>, Pavel Tikhomirov <ptikhomirov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, linuxppc-dev@lists.ozlabs.org, linux-api@vger.kernel.org
 
-If all pages are deleted from the mapping by memory reclaim and also
-moved to the cleancache:
+* Ram Pai:
 
-__delete_from_page_cache
-  (no shadow case)
-  unaccount_page_cache_page
-    cleancache_put_page
-  page_cache_delete
-    mapping->nrpages -= nr
-    (nrpages becomes 0)
+> On Thu, Nov 08, 2018 at 09:23:35PM +0100, Florian Weimer wrote:
+>> * Ram Pai:
+>> 
+>> > Florian,
+>> >
+>> > 	I can. But I am struggling to understand the requirement. Why is
+>> > 	this needed?  Are we proposing a enhancement to the sys_pkey_alloc(),
+>> > 	to be able to allocate keys that are initialied to disable-read
+>> > 	only?
+>> 
+>> Yes, I think that would be a natural consequence.
+>> 
+>> However, my immediate need comes from the fact that the AMR register can
+>> contain a flag combination that is not possible to represent with the
+>> existing PKEY_DISABLE_WRITE and PKEY_DISABLE_ACCESS flags.  User code
+>> could write to AMR directly, so I cannot rule out that certain flag
+>> combinations exist there.
+>> 
+>> So I came up with this:
+>> 
+>> int
+>> pkey_get (int key)
+>> {
+>>   if (key < 0 || key > PKEY_MAX)
+>>     {
+>>       __set_errno (EINVAL);
+>>       return -1;
+>>     }
+>>   unsigned int index = pkey_index (key);
+>>   unsigned long int amr = pkey_read ();
+>>   unsigned int bits = (amr >> index) & 3;
+>> 
+>>   /* Translate from AMR values.  PKEY_AMR_READ standing alone is not
+>>      currently representable.  */
+>>   if (bits & PKEY_AMR_READ)
+>
+> this should be
+>    if (bits & (PKEY_AMR_READ|PKEY_AMR_WRITE))
 
-We don't clean the cleancache for an inode after final file truncation
-(removal).
+This would return zero for PKEY_AMR_READ alone.
 
-truncate_inode_pages_final
-  check (nrpages || nrexceptional) is false
-    no truncate_inode_pages
-      no cleancache_invalidate_inode(mapping)
+>>     return PKEY_DISABLE_ACCESS;
+>
+>
+>>   else if (bits == PKEY_AMR_WRITE)
+>>     return PKEY_DISABLE_WRITE;
+>>   return 0;
+>> }
 
-These way when reading the new file created with same inode we may get
-these trash leftover pages from cleancache and see wrong data instead of
-the contents of the new file.
+It's hard to tell whether PKEY_DISABLE_ACCESS is better in this case.
+Which is why I want PKEY_DISABLE_READ.
 
-Fix it by always doing truncate_inode_pages which is already ready for
-nrpages == 0 && nrexceptional == 0 case and just invalidates inode.
+>> And this is not ideal.  I would prefer something like this instead:
+>> 
+>>   switch (bits)
+>>     {
+>>       case PKEY_AMR_READ | PKEY_AMR_WRITE:
+>>         return PKEY_DISABLE_ACCESS;
+>>       case PKEY_AMR_READ:
+>>         return PKEY_DISABLE_READ;
+>>       case PKEY_AMR_WRITE:
+>>         return PKEY_DISABLE_WRITE;
+>>       case 0:
+>>         return 0;
+>>     }
+>
+> yes.
+>  and on x86 it will be something like:
+>    switch (bits)
+>      {
+>        case PKEY_PKRU_ACCESS :
+>          return PKEY_DISABLE_ACCESS;
+>        case PKEY_AMR_WRITE:
+>          return PKEY_DISABLE_WRITE;
+>        case 0:
+>          return 0;
+>      }
 
-v2: add comment
+x86 returns the PKRU bits directly, including the nonsensical case
+(PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE).
 
-Fixes: commit 91b0abe36a7b ("mm + fs: store shadow entries in page cache")
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Andi Kleen <ak@linux.intel.com>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
-Reviewed-by: Vasily Averin <vvs@virtuozzo.com>
-Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
-Signed-off-by: Pavel Tikhomirov <ptikhomirov@virtuozzo.com>
----
- mm/truncate.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+> But for this to work, why do you need to enhance the sys_pkey_alloc()
+> interface?  Not that I am against it. Trying to understand if the
+> enhancement is really needed.
 
-diff --git a/mm/truncate.c b/mm/truncate.c
-index 45d68e90b703..2c5285767ce5 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -517,9 +517,14 @@ void truncate_inode_pages_final(struct address_space *mapping)
- 		 */
- 		xa_lock_irq(&mapping->i_pages);
- 		xa_unlock_irq(&mapping->i_pages);
--
--		truncate_inode_pages(mapping, 0);
- 	}
-+
-+	/*
-+	 * Cleancache needs notification even if there are no pages or shadow
-+	 * entries, else we will leave leftover pages in the cleancache for
-+	 * a deleted inode.
-+	 */
-+	truncate_inode_pages(mapping, 0);
- }
- EXPORT_SYMBOL(truncate_inode_pages_final);
- 
--- 
-2.17.1
+sys_pkey_alloc performs an implicit pkey_set for the newly allocated key
+(that is, it updates the PKRU/AMR register).  It makes sense to match
+the behavior of the userspace implementation.
+
+Thanks,
+Florian
