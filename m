@@ -1,106 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 596D76B0008
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 14:21:53 -0500 (EST)
-Received: by mail-ot1-f71.google.com with SMTP id p29so7272846ote.3
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 11:21:53 -0800 (PST)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E52426B000C
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 14:27:42 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id k66so26043591qkf.1
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 11:27:42 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b20sor8974953otb.35.2018.11.12.11.21.52
+        by mx.google.com with SMTPS id m50sor18688417qtb.61.2018.11.12.11.27.42
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 12 Nov 2018 11:21:52 -0800 (PST)
+        Mon, 12 Nov 2018 11:27:42 -0800 (PST)
+Date: Mon, 12 Nov 2018 19:27:38 +0000
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+Subject: Re: [PATCH 3/5] mm/memory_hotplug: Check for IORESOURCE_SYSRAM in
+ release_mem_region_adjustable
+Message-ID: <20181112192738.n3cbsgtbjokikvco@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
+References: <20181015153034.32203-1-osalvador@techadventures.net>
+ <20181015153034.32203-4-osalvador@techadventures.net>
 MIME-Version: 1.0
-References: <20181015153034.32203-1-osalvador@techadventures.net> <20181015153034.32203-3-osalvador@techadventures.net>
-In-Reply-To: <20181015153034.32203-3-osalvador@techadventures.net>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 12 Nov 2018 11:21:39 -0800
-Message-ID: <CAPcyv4jM-EJCmOwFkPqXhtgR54UueNtHjfCUbnnJqFLmgj7Jvw@mail.gmail.com>
-Subject: Re: [PATCH 2/5] mm/memory_hotplug: Create add/del_device_memory functions
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181015153034.32203-4-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: osalvador@techadventures.net
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, rppt@linux.vnet.ibm.com, malat@debian.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Jonathan.Cameron@huawei.com, "Rafael J. Wysocki" <rafael@kernel.org>, David Hildenbrand <david@redhat.com>, Dave Jiang <dave.jiang@intel.com>, Linux MM <linux-mm@kvack.org>, alexander.h.duyck@linux.intel.com, osalvador@suse.de
+To: Oscar Salvador <osalvador@techadventures.net>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com, yasu.isimatu@gmail.com, rppt@linux.vnet.ibm.com, malat@debian.org, linux-kernel@vger.kernel.org, pavel.tatashin@microsoft.com, jglisse@redhat.com, Jonathan.Cameron@huawei.com, rafael@kernel.org, david@redhat.com, dave.jiang@intel.com, linux-mm@kvack.org, alexander.h.duyck@linux.intel.com, Oscar Salvador <osalvador@suse.de>
 
-On Mon, Oct 15, 2018 at 8:31 AM Oscar Salvador
-<osalvador@techadventures.net> wrote:
->
+On 18-10-15 17:30:32, Oscar Salvador wrote:
 > From: Oscar Salvador <osalvador@suse.de>
->
-> HMM/devm have a particular handling of memory-hotplug.
-> They do not go through the common path, and so, they do not
-> call either offline_pages() or online_pages().
->
-> The operations they perform are the following ones:
->
-> 1) Create the linear mapping in case the memory is not private
-> 2) Initialize the pages and add the sections
-> 3) Move the pages to ZONE_DEVICE
->
-> Due to this particular handling of hot-add/remove memory from HMM/devm,
-> I think it would be nice to provide a helper function in order to
-> make this cleaner, and not populate other regions with code
-> that should belong to memory-hotplug.
->
-> The helpers are named:
->
-> del_device_memory
-> add_device_memory
->
-> The idea is that add_device_memory will be in charge of:
->
-> a) call either arch_add_memory() or add_pages(), depending on whether
->    we want a linear mapping
-> b) online the memory sections that correspond to the pfn range
-> c) call move_pfn_range_to_zone() being zone ZONE_DEVICE to
->    expand zone/pgdat spanned pages and initialize its pages
->
-> del_device_memory, on the other hand, will be in charge of:
->
-> a) offline the memory sections that correspond to the pfn range
-> b) call shrink_zone_pgdat_pages(), which shrinks node/zone spanned pages.
-> c) call either arch_remove_memory() or __remove_pages(), depending on
->    whether we need to tear down the linear mapping or not
->
-> The reason behind step b) from add_device_memory() and step a)
-> from del_device_memory is that now find_smallest/biggest_section_pfn
-> will have to check for online sections, and not for valid sections as
-> they used to do, because we call offline_mem_sections() in
-> offline_pages().
->
-> In order to split up better the patches and ease the review,
-> this patch will only make a) case work for add_device_memory(),
-> and case c) for del_device_memory.
->
-> The other cases will be added in the next patch.
->
-> These two functions have to be called from devm/HMM code:
->
-> dd_device_memory:
->         - devm_memremap_pages()
->         - hmm_devmem_pages_create()
->
-> del_device_memory:
->         - hmm_devmem_release
->         - devm_memremap_pages_release
->
-> One thing I do not know is whether we can move kasan calls out of the
-> hotplug lock or not.
-> If we can, we could move the hotplug lock within add/del_device_memory().
->
+> 
+> This is a preparation for the next patch.
+> 
+> Currently, we only call release_mem_region_adjustable() in __remove_pages
+> if the zone is not ZONE_DEVICE, because resources that belong to
+> HMM/devm are being released by themselves with devm_release_mem_region.
+> 
+> Since we do not want to touch any zone/page stuff during the removing
+> of the memory (but during the offlining), we do not want to check for
+> the zone here.
+> So we need another way to tell release_mem_region_adjustable() to not
+> realease the resource in case it belongs to HMM/devm.
+> 
+> HMM/devm acquires/releases a resource through
+> devm_request_mem_region/devm_release_mem_region.
+> 
+> These resources have the flag IORESOURCE_MEM, while resources acquired by
+> hot-add memory path (register_memory_resource()) contain
+> IORESOURCE_SYSTEM_RAM.
+> 
+> So, we can check for this flag in release_mem_region_adjustable, and if
+> the resource does not contain such flag, we know that we are dealing with
+> a HMM/devm resource, so we can back off.
+> 
 > Signed-off-by: Oscar Salvador <osalvador@suse.de>
 > ---
->  include/linux/memory_hotplug.h | 11 +++++++++++
->  kernel/memremap.c              | 11 ++++-------
->  mm/hmm.c                       | 33 +++++++++++++++++----------------
->  mm/memory_hotplug.c            | 41 +++++++++++++++++++++++++++++++++++++++++
->  4 files changed, 73 insertions(+), 23 deletions(-)
+>  kernel/resource.c | 16 ++++++++++++++++
+>  1 file changed, 16 insertions(+)
+> 
+> diff --git a/kernel/resource.c b/kernel/resource.c
+> index 81937830a42f..c45decd7d6af 100644
+> --- a/kernel/resource.c
+> +++ b/kernel/resource.c
+> @@ -1272,6 +1272,22 @@ int release_mem_region_adjustable(struct resource *parent,
+>  			continue;
+>  		}
+>  
+> +		/*
+> +		 * All memory regions added from memory-hotplug path
+> +		 * have the flag IORESOURCE_SYSTEM_RAM.
+> +		 * If the resource does not have this flag, we know that
+> +		 * we are dealing with a resource coming from HMM/devm.
+> +		 * HMM/devm use another mechanism to add/release a resource.
+> +		 * This goes via devm_request_mem_region and
+> +		 * devm_release_mem_region.
+> +		 * HMM/devm take care to release their resources when they want,
+> +		 * so if we are dealing with them, let us just back off here.
+> +		 */
+> +		if (!(res->flags & IORESOURCE_SYSRAM)) {
+> +			ret = 0;
+> +			break;
+> +		}
+> +
+>  		if (!(res->flags & IORESOURCE_MEM))
+>  			break;
 
-This collides with the refactoring of hmm, to be done in terms of
-devm_memremap_pages(). I'd rather not introduce another common
-function *beneath* hmm and devm_memremap_pages() and rather make
-devm_memremap_pages() the common function.
+Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
 
-I plan to resubmit that cleanup after Plumbers. So, unless I'm
-misunderstanding some other benefit a nak from me on this patch as it
-stands currently.
+A couple nits, re-format above comment block to fill 80-char limit:
+      /*
+       * All memory regions added from memory-hotplug path have the
+       * flag IORESOURCE_SYSTEM_RAM.  If the resource does not have
+       * this flag, we know that we are dealing with a resource coming
+       * from HMM/devm.  HMM/devm use another mechanism to add/release
+       * a resource.  This goes via devm_request_mem_region and
+       * devm_release_mem_region.  HMM/devm take care to release their
+       * resources when they want, so if we are dealing with them, let
+       * us just back off here.
+       */
+
+I would set ret = 0, at the beginning instead of -EINVAL, and change
+returns accordingly.
+
+
+Thank you,
+Pasha
