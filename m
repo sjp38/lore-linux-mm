@@ -1,99 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 433546B000D
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 10:01:30 -0500 (EST)
-Received: by mail-it1-f198.google.com with SMTP id p78-v6so17244183itb.1
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 07:01:30 -0800 (PST)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5878B6B0010
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 10:12:38 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id a14-v6so5779349ybk.23
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 07:12:38 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c188-v6sor20368679itc.35.2018.11.13.07.01.28
+        by mx.google.com with SMTPS id u78-v6sor8447299ybi.79.2018.11.13.07.12.36
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 13 Nov 2018 07:01:28 -0800 (PST)
+        Tue, 13 Nov 2018 07:12:36 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20181108122228.xqwhpkjritrvqneq@lakrids.cambridge.arm.com>
-References: <cover.1541525354.git.andreyknvl@google.com> <4891a504adf61c0daf1e83642b6f7519328dfd5f.1541525354.git.andreyknvl@google.com>
- <20181108122228.xqwhpkjritrvqneq@lakrids.cambridge.arm.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Tue, 13 Nov 2018 16:01:27 +0100
-Message-ID: <CAAeHK+xPkbg_9P9oCkS-iB8S81vTxD3p5SbyWHy-vrp2ybkKmg@mail.gmail.com>
-Subject: Re: [PATCH v10 12/22] kasan, arm64: fix up fault handling logic
-Content-Type: text/plain; charset="UTF-8"
+References: <CAJtqMcZp5AVva2yOM4gJET8Gd_j_BGJDLTkcqRdJynVCiRRFxQ@mail.gmail.com>
+ <20181113130433.GB16182@dhcp22.suse.cz>
+In-Reply-To: <20181113130433.GB16182@dhcp22.suse.cz>
+From: Yongkai Wu <nic.wuyk@gmail.com>
+Date: Tue, 13 Nov 2018 23:12:24 +0800
+Message-ID: <CAJtqMcY98hARD-_FmGYt875Tr6qmMP+42O7OWXNny6rD8ag91A@mail.gmail.com>
+Subject: Re: [PATCH] mm/hugetl.c: keep the page mapping info when
+ free_huge_page() hit the VM_BUG_ON_PAGE
+Content-Type: multipart/alternative; boundary="0000000000006e041d057a8d3fdc"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: mhocko@kernel.org
+Cc: mike.kravetz@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Nov 8, 2018 at 1:22 PM, Mark Rutland <mark.rutland@arm.com> wrote:
-> On Tue, Nov 06, 2018 at 06:30:27PM +0100, Andrey Konovalov wrote:
->> show_pte in arm64 fault handling relies on the fact that the top byte of
->> a kernel pointer is 0xff, which isn't always the case with tag-based
->> KASAN.
->
-> That's for the TTBR1 check, right?
->
-> i.e. for the following to work:
->
->         if (addr >= VA_START)
->
-> ... we need the tag bits to be an extension of bit 55...
->
->>
->> This patch resets the top byte in show_pte.
->>
->> Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
->> Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
->> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
->> ---
->>  arch/arm64/mm/fault.c | 3 +++
->>  1 file changed, 3 insertions(+)
->>
->> diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
->> index 7d9571f4ae3d..d9a84d6f3343 100644
->> --- a/arch/arm64/mm/fault.c
->> +++ b/arch/arm64/mm/fault.c
->> @@ -32,6 +32,7 @@
->>  #include <linux/perf_event.h>
->>  #include <linux/preempt.h>
->>  #include <linux/hugetlb.h>
->> +#include <linux/kasan.h>
->>
->>  #include <asm/bug.h>
->>  #include <asm/cmpxchg.h>
->> @@ -141,6 +142,8 @@ void show_pte(unsigned long addr)
->>       pgd_t *pgdp;
->>       pgd_t pgd;
->>
->> +     addr = (unsigned long)kasan_reset_tag((void *)addr);
->
-> ... but this ORs in (0xffUL << 56), which is not correct for addresses
-> which aren't TTBR1 addresses to begin with, where bit 55 is clear, and
-> throws away useful information.
->
-> We could use untagged_addr() here, but that wouldn't be right for
-> kernels which don't use TBI1, and we'd erroneously report addresses
-> under the TTBR1 range as being in the TTBR1 range.
->
-> I also see that the entry assembly for el{1,0}_{da,ia} clears the tag
-> for EL0 addresses.
->
-> So we could have:
->
-> static inline bool is_ttbr0_addr(unsigned long addr)
-> {
->         /* entry assembly clears tags for TTBR0 addrs */
->         return addr < TASK_SIZE_64;
-> }
->
-> static inline bool is_ttbr1_addr(unsigned long addr)
-> {
->         /* TTBR1 addresses may have a tag if HWKASAN is in use */
->         return arch_kasan_reset_tag(addr) >= VA_START;
-> }
->
-> ... and use those in the conditionals, leaving the addr as-is for
-> reporting purposes.
+--0000000000006e041d057a8d3fdc
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Actually it looks like 276e9327 ("arm64: entry: improve data abort
-handling of tagged pointers") already takes care of both user and
-kernel fault addresses and correctly removes tags from them. So I
-think we need to drop this patch.
+Dear Maintainer,
+Actually i met a VM_BUG_ON_PAGE issue in centos7.4 some days ago.When the
+issue first happen,
+i just can know that it happen in free_huge_page() when doing soft offline
+huge page.
+But because page->mapping is set to null,i can not get any further
+information how the issue happen.
+
+So i modified the code as the patch show,and apply the new code to our
+produce line and wait some time,
+then the issue come again.And this time i can know the whole file path
+which trigger the issue by using
+crash tool to get the inode=E3=80=81dentry and so on,that help me to find a=
+ way to
+reproduce the issue quite easily
+and finally found the root cause and solve it.
+
+I think if keep the page->mapping,we can even do the rmap to check more
+detail info too by using the crash tool to analyse the coredump.
+So i think preservning the page state would more or less help to debug.
+But if it is not so meaningful,just let it go. ^_^
+
+Thank you for your time.
+
+Best Regards
+
+On Tue, Nov 13, 2018 at 9:04 PM Michal Hocko <mhocko@kernel.org> wrote:
+
+> On Tue 13-11-18 20:38:16, Yongkai Wu wrote:
+> > It is better to keep page mapping info when free_huge_page() hit the
+> > VM_BUG_ON_PAGE,
+> > so we can get more infomation from the coredump for further analysis.
+>
+> The patch seems to be whitespace damaged. Put that aside, have you
+> actually seen a case where preservning the page state would help to nail
+> down any bug.
+>
+> I am not objecting to the patch, it actually makes some sense to me, I
+> am just curious about a background motivation.
+>
+> > Signed-off-by: Yongkai Wu <nic_w@163.com>
+> > ---
+> >  mm/hugetlb.c | 5 +++--
+> >  1 file changed, 3 insertions(+), 2 deletions(-)
+> >
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index c007fb5..ba693bb 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -1248,10 +1248,11 @@ void free_huge_page(struct page *page)
+> >   (struct hugepage_subpool *)page_private(page);
+> >   bool restore_reserve;
+> >
+> > +        VM_BUG_ON_PAGE(page_count(page), page);
+> > +        VM_BUG_ON_PAGE(page_mapcount(page), page);
+> > +
+> >   set_page_private(page, 0);
+> >   page->mapping =3D NULL;
+> > - VM_BUG_ON_PAGE(page_count(page), page);
+> > - VM_BUG_ON_PAGE(page_mapcount(page), page);
+> >   restore_reserve =3D PagePrivate(page);
+> >   ClearPagePrivate(page);
+> >
+> > --
+> > 1.8.3.1
+>
+> --
+> Michal Hocko
+> SUSE Labs
+>
+
+--0000000000006e041d057a8d3fdc
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div dir=3D"ltr"><div>Dear Maintainer,</div><div>Actually =
+i met a VM_BUG_ON_PAGE issue in centos7.4 some days ago.When the issue firs=
+t happen,</div><div>i just can know that it happen in free_huge_page() when=
+ doing soft offline huge page.</div><div>But because page-&gt;mapping is se=
+t to null,i can not get any further information how the issue happen.</div>=
+<div><br></div><div>So i modified the code as the patch show,and apply the =
+new code to our produce line and wait some time,</div><div>then the issue c=
+ome again.And this time i can know the whole file path which trigger the is=
+sue by using=C2=A0</div><div>crash tool to get the inode=E3=80=81dentry and=
+ so on,that help me to find a way to reproduce the issue quite easily</div>=
+<div>and finally found the root cause and solve it.</div><div><br></div><di=
+v>I think if keep the page-&gt;mapping,we can even do the rmap to check mor=
+e detail info too by using the crash tool to analyse the coredump.</div><di=
+v>So i think preservning the page state would more or less help to debug.</=
+div><div>But if it is not so meaningful,just let it go. ^_^</div><div><br><=
+/div><div>Thank you for your time.</div><div><br></div><div>Best Regards</d=
+iv></div></div><br><div class=3D"gmail_quote"><div dir=3D"ltr">On Tue, Nov =
+13, 2018 at 9:04 PM Michal Hocko &lt;<a href=3D"mailto:mhocko@kernel.org">m=
+hocko@kernel.org</a>&gt; wrote:<br></div><blockquote class=3D"gmail_quote" =
+style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">On =
+Tue 13-11-18 20:38:16, Yongkai Wu wrote:<br>
+&gt; It is better to keep page mapping info when free_huge_page() hit the<b=
+r>
+&gt; VM_BUG_ON_PAGE,<br>
+&gt; so we can get more infomation from the coredump for further analysis.<=
+br>
+<br>
+The patch seems to be whitespace damaged. Put that aside, have you<br>
+actually seen a case where preservning the page state would help to nail<br=
+>
+down any bug.<br>
+<br>
+I am not objecting to the patch, it actually makes some sense to me, I<br>
+am just curious about a background motivation.<br>
+<br>
+&gt; Signed-off-by: Yongkai Wu &lt;<a href=3D"mailto:nic_w@163.com" target=
+=3D"_blank">nic_w@163.com</a>&gt;<br>
+&gt; ---<br>
+&gt;=C2=A0 mm/hugetlb.c | 5 +++--<br>
+&gt;=C2=A0 1 file changed, 3 insertions(+), 2 deletions(-)<br>
+&gt; <br>
+&gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c<br>
+&gt; index c007fb5..ba693bb 100644<br>
+&gt; --- a/mm/hugetlb.c<br>
+&gt; +++ b/mm/hugetlb.c<br>
+&gt; @@ -1248,10 +1248,11 @@ void free_huge_page(struct page *page)<br>
+&gt;=C2=A0 =C2=A0(struct hugepage_subpool *)page_private(page);<br>
+&gt;=C2=A0 =C2=A0bool restore_reserve;<br>
+&gt; <br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON_PAGE(page_count(page), page);<b=
+r>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON_PAGE(page_mapcount(page), page)=
+;<br>
+&gt; +<br>
+&gt;=C2=A0 =C2=A0set_page_private(page, 0);<br>
+&gt;=C2=A0 =C2=A0page-&gt;mapping =3D NULL;<br>
+&gt; - VM_BUG_ON_PAGE(page_count(page), page);<br>
+&gt; - VM_BUG_ON_PAGE(page_mapcount(page), page);<br>
+&gt;=C2=A0 =C2=A0restore_reserve =3D PagePrivate(page);<br>
+&gt;=C2=A0 =C2=A0ClearPagePrivate(page);<br>
+&gt; <br>
+&gt; -- <br>
+&gt; 1.8.3.1<br>
+<br>
+-- <br>
+Michal Hocko<br>
+SUSE Labs<br>
+</blockquote></div>
+
+--0000000000006e041d057a8d3fdc--
