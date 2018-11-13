@@ -1,82 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 56CE76B026A
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 03:04:53 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id z22-v6so9009084pfi.0
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 00:04:53 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b23-v6sor14393473pls.11.2018.11.13.00.04.52
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0616A6B0008
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 03:08:38 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id d41so20269eda.12
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 00:08:37 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c19-v6si7087105ejb.322.2018.11.13.00.08.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 13 Nov 2018 00:04:52 -0800 (PST)
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH v2] vmscan: return NODE_RECLAIM_NOSCAN in node_reclaim() when CONFIG_NUMA is n
-Date: Tue, 13 Nov 2018 16:04:36 +0800
-Message-Id: <20181113080436.22078-1-richard.weiyang@gmail.com>
-In-Reply-To: <20181113041750.20784-1-richard.weiyang@gmail.com>
-References: <20181113041750.20784-1-richard.weiyang@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Nov 2018 00:08:36 -0800 (PST)
+Date: Tue, 13 Nov 2018 09:08:34 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm, page_alloc: skip zone who has no managed_pages in
+ calculate_totalreserve_pages()
+Message-ID: <20181113080834.GK15120@dhcp22.suse.cz>
+References: <20181112071404.13620-1-richard.weiyang@gmail.com>
+ <20181112080926.GA14987@dhcp22.suse.cz>
+ <20181112142641.6oxn4fv4pocm7fmt@master>
+ <20181112144020.GC14987@dhcp22.suse.cz>
+ <20181113013942.zgixlky4ojbzikbd@master>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181113013942.zgixlky4ojbzikbd@master>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mgorman@techsingularity.net
-Cc: willy@infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org
 
-Commit fa5e084e43eb ("vmscan: do not unconditionally treat zones that
-fail zone_reclaim() as full") changed the return value of node_reclaim().
-The original return value 0 means NODE_RECLAIM_SOME after this commit.
+On Tue 13-11-18 01:39:42, Wei Yang wrote:
+> On Mon, Nov 12, 2018 at 03:40:20PM +0100, Michal Hocko wrote:
+> >On Mon 12-11-18 14:26:41, Wei Yang wrote:
+> >> On Mon, Nov 12, 2018 at 09:09:26AM +0100, Michal Hocko wrote:
+> >> >On Mon 12-11-18 15:14:04, Wei Yang wrote:
+> >> >> Zone with no managed_pages doesn't contribute totalreserv_pages. And the
+> >> >> more nodes we have, the more empty zones there are.
+> >> >> 
+> >> >> This patch skip the zones to save some cycles.
+> >> >
+> >> >What is the motivation for the patch? Does it really cause any
+> >> >measurable difference in performance?
+> >> >
+> >> 
+> >> The motivation here is to reduce some unnecessary work.
+> >
+> >I have guessed so even though the changelog was quite modest on the
+> >motivation.
+> >
+> >> Based on my understanding, almost every node has empty zones, since
+> >> zones within a node are ordered in monotonic increasing memory address.
+> >
+> >Yes, this is likely the case. Btw. a check for populated_zone or
+> >for_each_populated_zone would suite much better.
+> >
+> 
+> Hmm... maybe not exact.
+> 
+>     populated_zone checks zone->present_pages
+>     managed_zone checks zone->managed_pages
+> 
+> As the comment of managed_zone says, this one records the pages managed
+> by buddy system. And when we look at the usage of totalreserve_pages, it
+> is only used in page allocation. And finally, *max* is checked with
+> managed_pages instead of present_pages.
+> 
+> Because of this, managed_zone is more accurate at this place. Is my
+> understanding correct?
 
-While the return value of node_reclaim() when CONFIG_NUMA is n is not
-changed. This will leads to call zone_watermark_ok() again.
+OK, fair enough. There is a certain discrepancy here. You are right that
+we do not care about pages out of the page allocator scope (e.g. early
+bootmem allocations, struct pages) but this is likely what other callers
+of populated_zone are looking for as well. It seems that managed pages
+counter which only came in later was not considered in other places.
 
-This patch fix the return value by adjusting to NODE_RECLAIM_NOSCAN. Since
-node_reclaim() is only called in page_alloc.c, move it to mm/internal.h.
-
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
----
-v2:  move node_reclaim() to mm/internal.h
----
- include/linux/swap.h |  6 ------
- mm/internal.h        | 10 ++++++++++
- 2 files changed, 10 insertions(+), 6 deletions(-)
-
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index d8a07a4f171d..065988c27373 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -358,14 +358,8 @@ extern unsigned long vm_total_pages;
- extern int node_reclaim_mode;
- extern int sysctl_min_unmapped_ratio;
- extern int sysctl_min_slab_ratio;
--extern int node_reclaim(struct pglist_data *, gfp_t, unsigned int);
- #else
- #define node_reclaim_mode 0
--static inline int node_reclaim(struct pglist_data *pgdat, gfp_t mask,
--				unsigned int order)
--{
--	return 0;
--}
- #endif
- 
- extern int page_evictable(struct page *page);
-diff --git a/mm/internal.h b/mm/internal.h
-index 291eb2b6d1d8..6a57811ae47d 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -444,6 +444,16 @@ static inline void mminit_validate_memmodel_limits(unsigned long *start_pfn,
- #define NODE_RECLAIM_SOME	0
- #define NODE_RECLAIM_SUCCESS	1
- 
-+#ifdef CONFIG_NUMA
-+extern int node_reclaim(struct pglist_data *, gfp_t, unsigned int);
-+#else
-+static inline int node_reclaim(struct pglist_data *pgdat, gfp_t mask,
-+				unsigned int order)
-+{
-+	return NODE_RECLAIM_NOSCAN;
-+}
-+#endif
-+
- extern int hwpoison_filter(struct page *p);
- 
- extern u32 hwpoison_filter_dev_major;
+That being said this asks for a cleanup of some sort. And I think such a
+cleanup wold be appreciated much more than an optimization of an unknown
+effect and wonder why this check is used here and not at other places.
 -- 
-2.15.1
+Michal Hocko
+SUSE Labs
