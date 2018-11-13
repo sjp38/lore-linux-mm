@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id ECE496B0296
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 00:52:52 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id d3so2093892pgv.23
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 21:52:52 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 06C0B6B0298
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 00:53:04 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id s22so7362940pgv.8
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 21:53:03 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id b72-v6si20985872pfm.100.2018.11.12.21.52.51
+        by mx.google.com with ESMTPS id d12-v6si19483428plr.92.2018.11.12.21.53.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Nov 2018 21:52:52 -0800 (PST)
+        Mon, 12 Nov 2018 21:53:03 -0800 (PST)
 From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.4 10/11] mm/vmstat.c: assert that vmstat_text is in sync with stat_items_size
-Date: Tue, 13 Nov 2018 00:52:41 -0500
-Message-Id: <20181113055242.79261-10-sashal@kernel.org>
-In-Reply-To: <20181113055242.79261-1-sashal@kernel.org>
-References: <20181113055242.79261-1-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 3.18 8/9] mm/vmstat.c: assert that vmstat_text is in sync with stat_items_size
+Date: Tue, 13 Nov 2018 00:52:51 -0500
+Message-Id: <20181113055252.79406-8-sashal@kernel.org>
+In-Reply-To: <20181113055252.79406-1-sashal@kernel.org>
+References: <20181113055252.79406-1-sashal@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: stable@vger.kernel.org, linux-kernel@vger.kernel.org
@@ -48,10 +48,10 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  1 file changed, 2 insertions(+)
 
 diff --git a/mm/vmstat.c b/mm/vmstat.c
-index a2d70ef74db7..a32a92c0f218 100644
+index 4590aa42b6cd..792374f7088f 100644
 --- a/mm/vmstat.c
 +++ b/mm/vmstat.c
-@@ -1320,6 +1320,8 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
+@@ -1189,6 +1189,8 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
  	stat_items_size += sizeof(struct vm_event_state);
  #endif
  
