@@ -1,66 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 395046B000D
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 08:04:36 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id h24-v6so6520412ede.9
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 05:04:36 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 11E416B0003
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 08:17:54 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id h25-v6so6433234eds.21
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 05:17:54 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cu1-v6si1688469ejb.5.2018.11.13.05.04.34
+        by mx.google.com with ESMTPS id v15-v6si130706ejh.87.2018.11.13.05.17.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Nov 2018 05:04:34 -0800 (PST)
-Date: Tue, 13 Nov 2018 14:04:33 +0100
+        Tue, 13 Nov 2018 05:17:52 -0800 (PST)
+Date: Tue, 13 Nov 2018 14:17:51 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/hugetl.c: keep the page mapping info when
- free_huge_page() hit the VM_BUG_ON_PAGE
-Message-ID: <20181113130433.GB16182@dhcp22.suse.cz>
-References: <CAJtqMcZp5AVva2yOM4gJET8Gd_j_BGJDLTkcqRdJynVCiRRFxQ@mail.gmail.com>
+Subject: Re: [PATCH] mm/slub: skip node in case there is no slab to acquire
+Message-ID: <20181113131751.GC16182@dhcp22.suse.cz>
+References: <20181108011204.9491-1-richard.weiyang@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJtqMcZp5AVva2yOM4gJET8Gd_j_BGJDLTkcqRdJynVCiRRFxQ@mail.gmail.com>
+In-Reply-To: <20181108011204.9491-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yongkai Wu <nic.wuyk@gmail.com>
-Cc: mike.kravetz@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: cl@linux.com, penberg@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org
 
-On Tue 13-11-18 20:38:16, Yongkai Wu wrote:
-> It is better to keep page mapping info when free_huge_page() hit the
-> VM_BUG_ON_PAGE,
-> so we can get more infomation from the coredump for further analysis.
+On Thu 08-11-18 09:12:04, Wei Yang wrote:
+> for_each_zone_zonelist() iterates the zonelist one by one, which means
+> it will iterate on zones on the same node. While get_partial_node()
+> checks available slab on node base instead of zone.
+> 
+> This patch skip a node in case get_partial_node() fails to acquire slab
+> on that node.
 
-The patch seems to be whitespace damaged. Put that aside, have you
-actually seen a case where preservning the page state would help to nail
-down any bug.
+If this is an optimization then it should be accompanied by some
+numbers.
 
-I am not objecting to the patch, it actually makes some sense to me, I
-am just curious about a background motivation.
- 
-> Signed-off-by: Yongkai Wu <nic_w@163.com>
-> ---
->  mm/hugetlb.c | 5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index c007fb5..ba693bb 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1248,10 +1248,11 @@ void free_huge_page(struct page *page)
->   (struct hugepage_subpool *)page_private(page);
->   bool restore_reserve;
-> 
-> +        VM_BUG_ON_PAGE(page_count(page), page);
-> +        VM_BUG_ON_PAGE(page_mapcount(page), page);
-> +
->   set_page_private(page, 0);
->   page->mapping = NULL;
-> - VM_BUG_ON_PAGE(page_count(page), page);
-> - VM_BUG_ON_PAGE(page_mapcount(page), page);
->   restore_reserve = PagePrivate(page);
->   ClearPagePrivate(page);
-> 
-> -- 
-> 1.8.3.1
+> @@ -1882,6 +1882,9 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
+>  	enum zone_type high_zoneidx = gfp_zone(flags);
+>  	void *object;
+>  	unsigned int cpuset_mems_cookie;
+> +	nodemask_t nmask = node_states[N_MEMORY];
+
+This will allocate a large bitmask on the stack and that is no-go for
+something that might be called from a potentially deep call stack
+already. Also are you sure that the micro-optimization offsets the
+copying overhead?
 
 -- 
 Michal Hocko
