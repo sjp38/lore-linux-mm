@@ -1,83 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 135916B0007
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 13:35:15 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id c7so32169606qkg.16
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 10:35:15 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AB4B66B0003
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 13:43:01 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id h24-v6so7029010ede.9
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 10:43:01 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r93sor11153602qkr.27.2018.11.13.10.35.13
+        by mx.google.com with SMTPS id n19-v6sor3437874ejr.12.2018.11.13.10.43.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 13 Nov 2018 10:35:13 -0800 (PST)
-Date: Tue, 13 Nov 2018 18:35:10 +0000
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Subject: Re: [PATCH V3] KSM: allow dedup all tasks memory
-Message-ID: <20181113183510.5y2hzruoi23e7o2t@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
-References: <CAG48ez0ZprqUYGZFxcrY6U3Dnwt77q1NJXzzpsn1XNkRuXVppw@mail.gmail.com>
- <d43da6ad1a3c164aa03e0f22f065591a@natalenko.name>
- <20181113175930.3g65rlhbaimstq7g@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
- <CAGqmi74gpvJv8=B-3pVSMrDssu-aYMxW9xM7mt1WNQjGLjMZqA@mail.gmail.com>
+        Tue, 13 Nov 2018 10:43:00 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAGqmi74gpvJv8=B-3pVSMrDssu-aYMxW9xM7mt1WNQjGLjMZqA@mail.gmail.com>
+References: <20181112231344.7161-1-timofey.titovets@synesis.ru>
+ <20181113022516.45u6b536vtdjgvrf@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
+ <CAGqmi744_8NA30V0aWCpFi_=WSaA+18h3njOTQG0SFUVdXi8bg@mail.gmail.com>
+In-Reply-To: <CAGqmi744_8NA30V0aWCpFi_=WSaA+18h3njOTQG0SFUVdXi8bg@mail.gmail.com>
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+Date: Tue, 13 Nov 2018 10:42:47 -0800
+Message-ID: <CA+CK2bB0C-PCdaHS7YiLf5iZWn1bATg2y32ogL1FSw7LY9E7SQ@mail.gmail.com>
+Subject: Re: [PATCH V3] KSM: allow dedup all tasks memory
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Timofey Titovets <timofey.titovets@synesis.ru>
-Cc: oleksandr@natalenko.name, Jann Horn <jannh@google.com>, linux-doc@vger.kernel.org, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>, linux-doc@vger.kernel.org
 
-On 18-11-13 21:17:42, Timofey Titovets wrote:
-> D2N?, 13 D 1/2 D 3/4 N?D+-. 2018 D3. D2 20:59, Pavel Tatashin <pasha.tatashin@soleen.com>:
+> > Is it really necessary to have an extra thread in ksm just to add vma's
+> > for scanning? Can we do it right from the scanner thread? Also, may be
+> > it is better to add vma's at their creation time when KSM_MODE_ALWAYS is
+> > enabled?
 > >
-> > On 18-11-13 15:23:50, Oleksandr Natalenko wrote:
-> > > Hi.
-> > >
-> > > > Yep. However, so far, it requires an application to explicitly opt in
-> > > > to this behavior, so it's not all that bad. Your patch would remove
-> > > > the requirement for application opt-in, which, in my opinion, makes
-> > > > this way worse and reduces the number of applications for which this
-> > > > is acceptable.
-> > >
-> > > The default is to maintain the old behaviour, so unless the explicit
-> > > decision is made by the administrator, no extra risk is imposed.
-> >
-> > The new interface would be more tolerable if it honored MADV_UNMERGEABLE:
-> >
-> > KSM default on: merge everything except when MADV_UNMERGEABLE is
-> > excplicitly set.
-> >
-> > KSM default off: merge only when MADV_MERGEABLE is set.
-> >
-> > The proposed change won't honor MADV_UNMERGEABLE, meaning that
-> > application programmers won't have a way to prevent sensitive data to be
-> > every merged. So, I think, we should keep allow an explicit opt-out
-> > option for applications.
-> >
-> 
-> We just did not have VM/Madvise flag for that currently.
-> Same as THP.
-> Because all logic written with assumption, what we have exactly 2 states.
-> Allow/Disallow (More like not allow).
-> 
-> And if we try to add, that must be something like:
-> MADV_FORBID_* to disallow something completely.
+> > Thank you,
+> > Pasha
+>
+> Oh, thats a long story, and my english to bad for describe all things,
+> even that hard to find linux-mm conversation several years ago about that.
+>
+> Anyway, so:
+> In V2 - i use scanner thread to add VMA, but i think scanner do that
+> with too high rate.
+> i.e. walk on task list, and get new task every 20ms, to wait write semaphore,
+> to get VMA...
+> To high rate for task list scanner, i think it's overkill.
+>
+> About add VMA from creation time,
+> UKSM add ksm_enter() hooks to mm subsystem, i port that to KSM.
+> But some mm people say what they not like add KSM hooks to other subsystems.
+> And want ksm do that internally by some way.
+>
+> Frankly speaking i didn't have enough knowledge and skills to do that
+> another way in past time.
+> They also suggest me look to THP for that logic, but i can't find how
+> THP do that without hooks, and
+> where THP truly scan memory.
+>
+> So, after all of that i implemented this in that way.
+> In first iteration as part of ksm scan thread, and in second, by
+> separate thread.
+> Because that allow to add VMA in fully independent way.
 
-No need to add new user flag MADV_FORBID, we should keep MADV_MERGEABLE
-and MADV_UNMERGEABLE, but make them work so when MADV_UNMERGEABLE is
-set, memory is indeed becomes always unmergeable regardless of ksm mode
-of operation.
+It still feels as a wrong direction. A new thread that adds random
+VMA's to scan, and no way to optimize the queue fairness for example.
+It should really be done at creation time, when VMA is created it
+should be added to KSM scanning queue, or KSM main scanner thread
+should go through VMA list in a coherent order.
 
-To do the above in ksm_madvise(), a new state should be added, for example
-instead of: 
+The design of having a separate thread is bad. I plan in the future to
+add thread per node support to KSM, and this one odd thread won't
+break things, to which queue should this thread add VMA if there are
+multiple queues?
 
-case MADV_UNMERGEABLE:
-	*vm_flags &= ~VM_MERGEABLE;
-
-A new flag should be used:
-	*vm_flags |= VM_UNMERGEABLE;
-
-I think, without honoring MADV_UNMERGEABLE correctly, this patch won't
-be accepted.
-
+Thank you,
 Pasha
