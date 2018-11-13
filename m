@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F9916B02A2
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 00:56:54 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id 3-v6so8728742plc.18
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 21:56:54 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 50BD26B02A4
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 00:57:05 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id a72-v6so9573021pfj.14
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 21:57:05 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id z16-v6si17497770pgu.525.2018.11.12.21.52.52
+        by mx.google.com with ESMTPS id x16si18382845pga.407.2018.11.12.21.53.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Nov 2018 21:52:52 -0800 (PST)
+        Mon, 12 Nov 2018 21:53:03 -0800 (PST)
 From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.4 11/11] mm: don't warn about large allocations for slab
-Date: Tue, 13 Nov 2018 00:52:42 -0500
-Message-Id: <20181113055242.79261-11-sashal@kernel.org>
-In-Reply-To: <20181113055242.79261-1-sashal@kernel.org>
-References: <20181113055242.79261-1-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 3.18 9/9] mm: don't warn about large allocations for slab
+Date: Tue, 13 Nov 2018 00:52:52 -0500
+Message-Id: <20181113055252.79406-9-sashal@kernel.org>
+In-Reply-To: <20181113055252.79406-1-sashal@kernel.org>
+References: <20181113055252.79406-1-sashal@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: stable@vger.kernel.org, linux-kernel@vger.kernel.org
@@ -75,10 +75,10 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  2 files changed, 10 insertions(+), 6 deletions(-)
 
 diff --git a/mm/slab.c b/mm/slab.c
-index fa49c01225a7..49a64b8c3606 100644
+index b7f9f6456a61..0b8ff2152f60 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -3488,6 +3488,8 @@ __do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
+@@ -3465,6 +3465,8 @@ __do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
  {
  	struct kmem_cache *cachep;
  
@@ -87,7 +87,7 @@ index fa49c01225a7..49a64b8c3606 100644
  	cachep = kmalloc_slab(size, flags);
  	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
  		return cachep;
-@@ -3520,6 +3522,8 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
+@@ -3497,6 +3499,8 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
  	struct kmem_cache *cachep;
  	void *ret;
  
@@ -97,10 +97,10 @@ index fa49c01225a7..49a64b8c3606 100644
  	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
  		return cachep;
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 01e7246de8df..2e7c960d6a06 100644
+index dcdab81bd240..d8489833d423 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
-@@ -852,18 +852,18 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
+@@ -653,18 +653,18 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
  {
  	int index;
  
