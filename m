@@ -1,50 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C70A16B000C
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 02:49:17 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id h24-v6so6150246ede.9
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 23:49:17 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t21-v6sor4528527ejr.32.2018.11.12.23.49.16
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 24DFA6B000E
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 03:02:39 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id y2so1388018plr.8
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 00:02:39 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k13-v6si20205608pgp.145.2018.11.13.00.02.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 12 Nov 2018 23:49:16 -0800 (PST)
-Date: Tue, 13 Nov 2018 07:49:14 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH] vmscan: return NODE_RECLAIM_NOSCAN in node_reclaim()
- when CONFIG_NUMA is n
-Message-ID: <20181113074914.5kgiww44gpqit45y@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20181113041750.20784-1-richard.weiyang@gmail.com>
- <20181113053615.GJ21824@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Nov 2018 00:02:37 -0800 (PST)
+Date: Tue, 13 Nov 2018 09:02:34 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 4/5] mm, memory_hotplug: print reason for the
+ offlining failure
+Message-ID: <20181113080234.GI15120@dhcp22.suse.cz>
+References: <20181107101830.17405-1-mhocko@kernel.org>
+ <20181107101830.17405-5-mhocko@kernel.org>
+ <20181107140413.2c0061e440123be76bf419bf@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181113053615.GJ21824@bombadil.infradead.org>
+In-Reply-To: <20181107140413.2c0061e440123be76bf419bf@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Oscar Salvador <OSalvador@suse.com>, Baoquan He <bhe@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Nov 12, 2018 at 09:36:15PM -0800, Matthew Wilcox wrote:
->On Tue, Nov 13, 2018 at 12:17:50PM +0800, Wei Yang wrote:
->> Commit fa5e084e43eb ("vmscan: do not unconditionally treat zones that
->> fail zone_reclaim() as full") changed the return value of node_reclaim().
->> The original return value 0 means NODE_RECLAIM_SOME after this commit.
->> 
->> While the return value of node_reclaim() when CONFIG_NUMA is n is not
->> changed. This will leads to call zone_watermark_ok() again.
->> 
->> This patch fix the return value by adjusting to NODE_RECLAIM_NOSCAN. Since
->> it is not proper to include "mm/internal.h", just hard coded it.
->
->Since the return value is defined in mm/internal.h that means no code
->outside mm/ can call node_reclaim (nor should it).  So let's move both
->of node_reclaim's declarations to mm/internal.h instead of keeping them
->in linux/swap.h.
+On Wed 07-11-18 14:04:13, Andrew Morton wrote:
+> On Wed,  7 Nov 2018 11:18:29 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > The memory offlining failure reporting is inconsistent and insufficient.
+> > Some error paths simply do not report the failure to the log at all.
+> > When we do report there are no details about the reason of the failure
+> > and there are several of them which makes memory offlining failures
+> > hard to debug.
+> > 
+> > Make sure that the
+> > 	memory offlining [mem %#010llx-%#010llx] failed
+> > message is printed for all failures and also provide a short textual
+> > reason for the failure e.g.
+> > 
+> > [ 1984.506184] rac1 kernel: memory offlining [mem 0x82600000000-0x8267fffffff] failed due to signal backoff
+> > 
+> > this tells us that the offlining has failed because of a signal pending
+> > aka user intervention.
+> > 
+> > ...
+> 
+> Some of these messages will come out looking a bit odd.
+> 
+> > @@ -1573,7 +1576,8 @@ static int __ref __offline_pages(unsigned long start_pfn,
+> >  				       MIGRATE_MOVABLE, true);
+> >  	if (ret) {
+> >  		mem_hotplug_done();
+> > -		return ret;
+> > +		reason = "failed to isolate range";
+> 
+> "memory offlining [mem ...] failed due to failed to isolate range"
+> 
+> > +		goto failed_removal
+> >  	}
+> >  
+> >  	arg.start_pfn = start_pfn;
+> > @@ -1582,15 +1586,19 @@ static int __ref __offline_pages(unsigned long start_pfn,
+> >  
+> >  	ret = memory_notify(MEM_GOING_OFFLINE, &arg);
+> >  	ret = notifier_to_errno(ret);
+> > -	if (ret)
+> > -		goto failed_removal;
+> > +	if (ret) {
+> > +		reason = "notifiers failure";
+> 
+> "memory offlining [mem ...] failed due to notifiers failure"
+> 
+> > @@ -1607,8 +1615,10 @@ static int __ref __offline_pages(unsigned long start_pfn,
+> >  	 * actually in order to make hugetlbfs's object counting consistent.
+> >  	 */
+> >  	ret = dissolve_free_huge_pages(start_pfn, end_pfn);
+> > -	if (ret)
+> > -		goto failed_removal;
+> > +	if (ret) {
+> > +		reason = "fails to disolve hugetlb pages";
+> 
+> "memory offlining [mem ...] failed due to fails to disolve hugetlb pages"
+> 
+> 
+> Fix:
+> 
+> --- a/mm/memory_hotplug.c~mm-memory_hotplug-print-reason-for-the-offlining-failure-fix
+> +++ a/mm/memory_hotplug.c
+> @@ -1576,7 +1576,7 @@ static int __ref __offline_pages(unsigne
+>  				       MIGRATE_MOVABLE, true);
+>  	if (ret) {
+>  		mem_hotplug_done();
+> -		reason = "failed to isolate range";
+> +		reason = "failure to isolate range";
+>  		goto failed_removal
+>  	}
 
-That's reasonable, thanks.
+0day has noticed the missing ; here.
 
+Andrew, could you pick up the follow up fix please?
+
+
+commit 614212af5c20126aea1edaceb78aa586e19802cf
+Author: Michal Hocko <mhocko@suse.com>
+Date:   Tue Nov 13 09:01:50 2018 +0100
+
+    fold me "mm, memory_hotplug: print reason for the offlining failure"
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index f5f1b2a27cb3..c82193db4be6 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1581,7 +1581,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 	if (ret) {
+ 		mem_hotplug_done();
+ 		reason = "failure to isolate range";
+-		goto failed_removal
++		goto failed_removal;
+ 	}
+ 
+ 	arg.start_pfn = start_pfn;
 -- 
-Wei Yang
-Help you, Help me
+Michal Hocko
+SUSE Labs
