@@ -1,103 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E3AE6B000A
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 07:59:01 -0500 (EST)
-Received: by mail-oi1-f199.google.com with SMTP id v78-v6so4794904oia.8
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 04:59:01 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y110sor7439050otb.121.2018.11.13.04.59.00
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 482426B000A
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 08:04:24 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id r65-v6so5371287pfa.8
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 05:04:24 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id r36-v6si19190627pgl.257.2018.11.13.05.04.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 13 Nov 2018 04:59:00 -0800 (PST)
-Received: from mail-oi1-f174.google.com (mail-oi1-f174.google.com. [209.85.167.174])
-        by smtp.gmail.com with ESMTPSA id c58sm14255543otd.34.2018.11.13.04.58.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Nov 2018 04:58:57 -0800 (PST)
-Received: by mail-oi1-f174.google.com with SMTP id r127-v6so10190985oie.3
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 04:58:57 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 13 Nov 2018 05:04:23 -0800 (PST)
+Date: Tue, 13 Nov 2018 05:04:20 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v2] vmscan: return NODE_RECLAIM_NOSCAN in node_reclaim()
+ when CONFIG_NUMA is n
+Message-ID: <20181113130420.GV21824@bombadil.infradead.org>
+References: <20181113041750.20784-1-richard.weiyang@gmail.com>
+ <20181113080436.22078-1-richard.weiyang@gmail.com>
 MIME-Version: 1.0
-References: <20181112231344.7161-1-timofey.titovets@synesis.ru> <CAG48ez0VRmRQckOjQhOeaf6bLYkfi45ksdnzuCKPwBYTM+As1g@mail.gmail.com>
-In-Reply-To: <CAG48ez0VRmRQckOjQhOeaf6bLYkfi45ksdnzuCKPwBYTM+As1g@mail.gmail.com>
-From: Timofey Titovets <timofey.titovets@synesis.ru>
-Date: Tue, 13 Nov 2018 15:58:20 +0300
-Message-ID: <CAGqmi75MShkwHTiSLPiOoQuYORmYTBJVqMKXm7pKhoNg9PT3yw@mail.gmail.com>
-Subject: Re: [PATCH V3] KSM: allow dedup all tasks memory
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181113080436.22078-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jannh@google.com
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-doc@vger.kernel.org
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-=D0=B2=D1=82, 13 =D0=BD=D0=BE=D1=8F=D0=B1. 2018 =D0=B3. =D0=B2 14:57, Jann =
-Horn <jannh@google.com>:
->
-> On Tue, Nov 13, 2018 at 12:40 PM Timofey Titovets
-> <timofey.titovets@synesis.ru> wrote:
-> > ksm by default working only on memory that added by
-> > madvise().
-> >
-> > And only way get that work on other applications:
-> >   * Use LD_PRELOAD and libraries
-> >   * Patch kernel
-> >
-> > Lets use kernel task list and add logic to import VMAs from tasks.
-> >
-> > That behaviour controlled by new attributes:
-> >   * mode:
-> >     I try mimic hugepages attribute, so mode have two states:
-> >       * madvise      - old default behaviour
-> >       * always [new] - allow ksm to get tasks vma and
-> >                        try working on that.
->
-> Please don't. And if you really have to for some reason, put some big
-> warnings on this, advising people that it's a security risk.
->
-> KSM is one of the favorite punching bags of side-channel and hardware
-> security researchers:
->
-> As a gigantic, problematic side channel:
-> http://staff.aist.go.jp/k.suzaki/EuroSec2011-suzaki.pdf
-> https://www.usenix.org/system/files/conference/woot15/woot15-paper-barres=
-i.pdf
-> https://access.redhat.com/blogs/766093/posts/1976303
-> https://gruss.cc/files/dedup.pdf
->
-> In particular https://gruss.cc/files/dedup.pdf ("Practical Memory
-> Deduplication Attacks in Sandboxed JavaScript") shows that KSM makes
-> it possible to use malicious JavaScript to determine whether a given
-> page of memory exists elsewhere on your system.
->
-> And also as a way to target rowhammer-based faults:
-> https://www.usenix.org/system/files/conference/usenixsecurity16/sec16_pap=
-er_razavi.pdf
-> https://thisissecurity.stormshield.com/2017/10/19/attacking-co-hosted-vm-=
-hacker-hammer-two-memory-modules/
+On Tue, Nov 13, 2018 at 04:04:36PM +0800, Wei Yang wrote:
+> Commit fa5e084e43eb ("vmscan: do not unconditionally treat zones that
+> fail zone_reclaim() as full") changed the return value of node_reclaim().
+> The original return value 0 means NODE_RECLAIM_SOME after this commit.
+> 
+> While the return value of node_reclaim() when CONFIG_NUMA is n is not
+> changed. This will leads to call zone_watermark_ok() again.
+> 
+> This patch fix the return value by adjusting to NODE_RECLAIM_NOSCAN. Since
+> node_reclaim() is only called in page_alloc.c, move it to mm/internal.h.
+> 
+> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 
-I'm very sorry, i'm not a security specialist.
-But if i understood correctly, ksm have that security issues _without_
-my patch set.
-Even more, not only KSM have that type of issue, any memory
-deduplication have that problems.
-Any guy who care about security must decide on it self. Which things
-him use and how he will
-defend from others.
-Even more on it self he must learn tools, what he use and make some
-decision right?
-
-So, if you really care about that problem in general, or only on KSM side,
-that your initiative and your duty to warn people about that.
-
-KSM already exists for 10+ years. You know about security implication
-of use memory deduplication.
-That your duty to send a patches to documentation, and add appropriate warn=
-ings.
-
-Sorry for my passive aggressive,
-i don't try hurt someone, or humiliate.
-
-That's just my IMHO and i'm just to restricted in my english knowledge,
-to write that more gentle.
-
-Thanks!
+Reviewed-by: Matthew Wilcox <willy@infradead.org>
