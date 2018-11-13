@@ -1,53 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F7746B0005
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 22:11:45 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id z22-v6so8543771pfi.0
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 19:11:45 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B9516B0005
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 23:18:00 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id i22-v6so8519365pfj.1
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 20:18:00 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y10-v6sor21459604plp.27.2018.11.12.19.11.43
+        by mx.google.com with SMTPS id s17-v6sor23003789pfi.2.2018.11.12.20.17.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 12 Nov 2018 19:11:43 -0800 (PST)
+        Mon, 12 Nov 2018 20:17:58 -0800 (PST)
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH] mm, page_alloc: skip to set lowmem_reserve[] for empty zones
-Date: Tue, 13 Nov 2018 11:11:15 +0800
-Message-Id: <20181113031115.18050-1-richard.weiyang@gmail.com>
-In-Reply-To: <20181112071404.13620-1-richard.weiyang@gmail.com>
-References: <20181112071404.13620-1-richard.weiyang@gmail.com>
+Subject: [PATCH] vmscan: return NODE_RECLAIM_NOSCAN in node_reclaim() when CONFIG_NUMA is n
+Date: Tue, 13 Nov 2018 12:17:50 +0800
+Message-Id: <20181113041750.20784-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com
-Cc: linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
+To: akpm@linux-foundation.org, mgorman@techsingularity.net
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>
 
-lowmem_reserve[] is used to make sure to keep some memory when
-allocating memory for a higher zone. In case one zone is empty, no
-managed_pages, this zone will never picked up by page allocator. Which
-means its lowmem_reserve[] is never used.
+Commit fa5e084e43eb ("vmscan: do not unconditionally treat zones that
+fail zone_reclaim() as full") changed the return value of node_reclaim().
+The original return value 0 means NODE_RECLAIM_SOME after this commit.
 
-Also, since its managed_pages is 0, it will not contribute to lower
-zone's lowmem_reserve[] in case there is non empty lower zone.
+While the return value of node_reclaim() when CONFIG_NUMA is n is not
+changed. This will leads to call zone_watermark_ok() again.
 
-This patch skip the zones to save some cycles.
+This patch fix the return value by adjusting to NODE_RECLAIM_NOSCAN. Since
+it is not proper to include "mm/internal.h", just hard coded it.
 
 Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 ---
- mm/page_alloc.c | 3 +++
- 1 file changed, 3 insertions(+)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a919ba5cb3c8..495feff1e5e4 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7291,6 +7291,9 @@ static void setup_per_zone_lowmem_reserve(void)
- 				idx--;
- 				lower_zone = pgdat->node_zones + idx;
+This doesn't effect the system functionally. I am not sure we need to cc to
+stable tree?
+
+---
+ include/linux/swap.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index d8a07a4f171d..2bd993280470 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -364,7 +364,7 @@ extern int node_reclaim(struct pglist_data *, gfp_t, unsigned int);
+ static inline int node_reclaim(struct pglist_data *pgdat, gfp_t mask,
+ 				unsigned int order)
+ {
+-	return 0;
++	return -2;	/* NODE_RECLAIM_NOSCAN */
+ }
+ #endif
  
-+				if (!lower_zone->managed_pages)
-+					continue;
-+
- 				if (sysctl_lowmem_reserve_ratio[idx] < 1) {
- 					sysctl_lowmem_reserve_ratio[idx] = 0;
- 					lower_zone->lowmem_reserve[j] = 0;
 -- 
 2.15.1
