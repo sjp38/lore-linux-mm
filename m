@@ -1,98 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E6DE46B0005
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 04:08:01 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id c3so2247465eda.3
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 01:08:01 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l9-v6si780227ejf.91.2018.11.13.01.08.00
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 541626B0007
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 04:12:50 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id e89so1867093pfb.17
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 01:12:50 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y23sor7542595pga.35.2018.11.13.01.12.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Nov 2018 01:08:00 -0800 (PST)
-Date: Tue, 13 Nov 2018 10:07:58 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm, page_alloc: skip zone who has no managed_pages in
- calculate_totalreserve_pages()
-Message-ID: <20181113090758.GL15120@dhcp22.suse.cz>
-References: <20181112071404.13620-1-richard.weiyang@gmail.com>
- <20181112080926.GA14987@dhcp22.suse.cz>
- <20181112142641.6oxn4fv4pocm7fmt@master>
- <20181112144020.GC14987@dhcp22.suse.cz>
- <20181113013942.zgixlky4ojbzikbd@master>
- <20181113080834.GK15120@dhcp22.suse.cz>
- <20181113081644.giu5vxhsfqjqlexh@master>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181113081644.giu5vxhsfqjqlexh@master>
+        (Google Transport Security);
+        Tue, 13 Nov 2018 01:12:49 -0800 (PST)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH v2] mm/slub: skip node in case there is no slab to acquire
+Date: Tue, 13 Nov 2018 17:12:40 +0800
+Message-Id: <20181113091240.23308-1-richard.weiyang@gmail.com>
+In-Reply-To: <20181108011204.9491-1-richard.weiyang@gmail.com>
+References: <20181108011204.9491-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org
+To: cl@linux.com, penberg@kernel.org, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-On Tue 13-11-18 08:16:44, Wei Yang wrote:
-> On Tue, Nov 13, 2018 at 09:08:34AM +0100, Michal Hocko wrote:
-> >On Tue 13-11-18 01:39:42, Wei Yang wrote:
-> >> On Mon, Nov 12, 2018 at 03:40:20PM +0100, Michal Hocko wrote:
-> >> >On Mon 12-11-18 14:26:41, Wei Yang wrote:
-> >> >> On Mon, Nov 12, 2018 at 09:09:26AM +0100, Michal Hocko wrote:
-> >> >> >On Mon 12-11-18 15:14:04, Wei Yang wrote:
-> >> >> >> Zone with no managed_pages doesn't contribute totalreserv_pages. And the
-> >> >> >> more nodes we have, the more empty zones there are.
-> >> >> >> 
-> >> >> >> This patch skip the zones to save some cycles.
-> >> >> >
-> >> >> >What is the motivation for the patch? Does it really cause any
-> >> >> >measurable difference in performance?
-> >> >> >
-> >> >> 
-> >> >> The motivation here is to reduce some unnecessary work.
-> >> >
-> >> >I have guessed so even though the changelog was quite modest on the
-> >> >motivation.
-> >> >
-> >> >> Based on my understanding, almost every node has empty zones, since
-> >> >> zones within a node are ordered in monotonic increasing memory address.
-> >> >
-> >> >Yes, this is likely the case. Btw. a check for populated_zone or
-> >> >for_each_populated_zone would suite much better.
-> >> >
-> >> 
-> >> Hmm... maybe not exact.
-> >> 
-> >>     populated_zone checks zone->present_pages
-> >>     managed_zone checks zone->managed_pages
-> >> 
-> >> As the comment of managed_zone says, this one records the pages managed
-> >> by buddy system. And when we look at the usage of totalreserve_pages, it
-> >> is only used in page allocation. And finally, *max* is checked with
-> >> managed_pages instead of present_pages.
-> >> 
-> >> Because of this, managed_zone is more accurate at this place. Is my
-> >> understanding correct?
-> >
-> >OK, fair enough. There is a certain discrepancy here. You are right that
-> >we do not care about pages out of the page allocator scope (e.g. early
-> >bootmem allocations, struct pages) but this is likely what other callers
-> >of populated_zone are looking for as well. It seems that managed pages
-> >counter which only came in later was not considered in other places.
-> >
-> >That being said this asks for a cleanup of some sort. And I think such a
-> >cleanup wold be appreciated much more than an optimization of an unknown
-> >effect and wonder why this check is used here and not at other places.
-> 
-> You are right. There are three pages(spanned, managed, present) in a
-> zone, which is a little confusing.
-> 
-> So you are willing to get rid of present_pages, if I am right?
+Current slub has three layers:
 
-No, I believe we want all three of them. But reviewing
-for_each_populated_zone users and explicit checks for present/managed
-pages and unify them would be a step forward both a more optimal code
-and more maintainable code. I haven't checked but
-for_each_populated_zone would seem like a proper user for managed page
-counter. But that really requires to review all current users.
+  * cpu_slab
+  * percpu_partial
+  * per node partial list
 
+Slub allocator tries to get an object from top to bottom. When it can't
+get an object from the upper two layers, it will search the per node
+partial list. The is done in get_partial().
+
+The abstraction of get_partial() may looks like this:
+
+    get_partial()
+        get_partial_node()
+        get_any_partial()
+            for_each_zone_zonelist()
+
+The idea behind this is: it first try a local node, then try other nodes
+if caller doesn't specify a node.
+
+When we look one step deeper in get_any_partial(), it tries to get a
+proper node by for_each_zone_zonelist(), which iterates on the
+node_zonelists.
+
+This behavior would introduce some redundant check on the same node.
+Because:
+
+  * the local node is already checked in get_partial_node()
+  * one node may have several zones on node_zonelists
+
+We could reduce these redundant check by providing a nodemask during
+node_zonelists iteration.
+
+  * clear the local node which is already checked in get_partial_node()
+  * clear a node if we can't get an object from it.
+
+This patch replaces for_each_zone_zonelist() with
+for_each_zone_zonelist_nodemask() to skip the node which fails to acquire
+an object.
+
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+---
+v2: rewrite the changelog and add a comment based on Andrew's comment
+---
+ mm/slub.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index e3629cd7aff1..e3db5cd52507 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1873,7 +1873,7 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
+  * Get a page from somewhere. Search in increasing NUMA distances.
+  */
+ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
+-		struct kmem_cache_cpu *c)
++		struct kmem_cache_cpu *c, int except)
+ {
+ #ifdef CONFIG_NUMA
+ 	struct zonelist *zonelist;
+@@ -1882,6 +1882,9 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
+ 	enum zone_type high_zoneidx = gfp_zone(flags);
+ 	void *object;
+ 	unsigned int cpuset_mems_cookie;
++	nodemask_t nmask = node_states[N_MEMORY];
++
++	node_clear(except, nmask);
+ 
+ 	/*
+ 	 * The defrag ratio allows a configuration of the tradeoffs between
+@@ -1908,7 +1911,8 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
+ 	do {
+ 		cpuset_mems_cookie = read_mems_allowed_begin();
+ 		zonelist = node_zonelist(mempolicy_slab_node(), flags);
+-		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
++		for_each_zone_zonelist_nodemask(zone, z, zonelist,
++						high_zoneidx, &nmask) {
+ 			struct kmem_cache_node *n;
+ 
+ 			n = get_node(s, zone_to_nid(zone));
+@@ -1926,6 +1930,11 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
+ 					 */
+ 					return object;
+ 				}
++				/*
++				 * Fail to get object from this node,
++				 * clear this to skip this node
++				 */
++				node_clear(zone_to_nid(zone), nmask);
+ 			}
+ 		}
+ 	} while (read_mems_allowed_retry(cpuset_mems_cookie));
+@@ -1951,7 +1960,7 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
+ 	if (object || node != NUMA_NO_NODE)
+ 		return object;
+ 
+-	return get_any_partial(s, flags, c);
++	return get_any_partial(s, flags, c, searchnode);
+ }
+ 
+ #ifdef CONFIG_PREEMPT
 -- 
-Michal Hocko
-SUSE Labs
+2.15.1
