@@ -1,168 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 855316B000A
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 04:13:54 -0500 (EST)
-Received: by mail-io1-f69.google.com with SMTP id k9-v6so12026786ioj.18
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 01:13:54 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 229926B000D
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 04:14:13 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id z72-v6so6164951ede.14
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 01:14:13 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j79sor15074175jad.11.2018.11.13.01.13.53
+        by mx.google.com with SMTPS id e10-v6sor4592230ejf.10.2018.11.13.01.14.11
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 13 Nov 2018 01:13:53 -0800 (PST)
+        Tue, 13 Nov 2018 01:14:11 -0800 (PST)
+Date: Tue, 13 Nov 2018 09:14:09 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH] mm, page_alloc: skip zone who has no managed_pages in
+ calculate_totalreserve_pages()
+Message-ID: <20181113091409.gz6roa7qngz3eoyi@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181112071404.13620-1-richard.weiyang@gmail.com>
+ <20181112080926.GA14987@dhcp22.suse.cz>
+ <20181112142641.6oxn4fv4pocm7fmt@master>
+ <20181112144020.GC14987@dhcp22.suse.cz>
+ <20181113013942.zgixlky4ojbzikbd@master>
+ <20181113080834.GK15120@dhcp22.suse.cz>
+ <20181113081644.giu5vxhsfqjqlexh@master>
+ <20181113090758.GL15120@dhcp22.suse.cz>
 MIME-Version: 1.0
-References: <CAJtqMcZVQFp8U0aFqrMDD2-UGuLkWYvg3rytcCswnOT_ZMSzjQ@mail.gmail.com>
- <20181113074641.GA7645@hori1.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20181113074641.GA7645@hori1.linux.bs1.fc.nec.co.jp>
-From: Yongkai Wu <nic.wuyk@gmail.com>
-Date: Tue, 13 Nov 2018 17:13:42 +0800
-Message-ID: <CAJtqMcYwcKcEsZSRw4iN3Tn3yRNFSiy4xPibratVhhEhfjXhjg@mail.gmail.com>
-Subject: Re: [PATCH] mm/hwpoison: fix incorrect call put_hwpoison_page() when
- isolate_huge_page() return false
-Content-Type: multipart/alternative; boundary="000000000000857ecf057a883cc9"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181113090758.GL15120@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: n-horiguchi@ah.jp.nec.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org
 
---000000000000857ecf057a883cc9
-Content-Type: text/plain; charset="UTF-8"
-
-Dear Naoya,
-Thank you for your kind reply.
-You are right.The current code is ok and I am sorry for wasting your time.
-
-Best Regards.
-
-
-On Tue, Nov 13, 2018 at 3:47 PM Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-wrote:
-
-> On Tue, Nov 13, 2018 at 03:00:09PM +0800, Yongkai Wu wrote:
-> > when isolate_huge_page() return false,it won't takes a refcount of page,
-> > if we call put_hwpoison_page() in that case,we may hit the
-> VM_BUG_ON_PAGE!
-> >
-> > Signed-off-by: Yongkai Wu <nic_w@163.com>
-> > ---
-> >  mm/memory-failure.c | 13 +++++++------
-> >  1 file changed, 7 insertions(+), 6 deletions(-)
-> >
-> > diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> > index 0cd3de3..ed09f56 100644
-> > --- a/mm/memory-failure.c
-> > +++ b/mm/memory-failure.c
-> > @@ -1699,12 +1699,13 @@ static int soft_offline_huge_page(struct page
-> *page,
-> > int flags)
-> >   unlock_page(hpage);
-> >
-> >   ret = isolate_huge_page(hpage, &pagelist);
-> > - /*
-> > - * get_any_page() and isolate_huge_page() takes a refcount each,
-> > - * so need to drop one here.
-> > - */
-> > - put_hwpoison_page(hpage);
-> > - if (!ret) {
-> > + if (ret) {
-> > +        /*
-> > +          * get_any_page() and isolate_huge_page() takes a refcount
-> each,
-> > +          * so need to drop one here.
-> > +        */
-> > + put_hwpoison_page(hpage);
-> > + } else {
+On Tue, Nov 13, 2018 at 10:07:58AM +0100, Michal Hocko wrote:
+>On Tue 13-11-18 08:16:44, Wei Yang wrote:
+>> On Tue, Nov 13, 2018 at 09:08:34AM +0100, Michal Hocko wrote:
+>> >On Tue 13-11-18 01:39:42, Wei Yang wrote:
+>> >> On Mon, Nov 12, 2018 at 03:40:20PM +0100, Michal Hocko wrote:
+>> >> >On Mon 12-11-18 14:26:41, Wei Yang wrote:
+>> >> >> On Mon, Nov 12, 2018 at 09:09:26AM +0100, Michal Hocko wrote:
+>> >> >> >On Mon 12-11-18 15:14:04, Wei Yang wrote:
+>> >> >> >> Zone with no managed_pages doesn't contribute totalreserv_pages. And the
+>> >> >> >> more nodes we have, the more empty zones there are.
+>> >> >> >> 
+>> >> >> >> This patch skip the zones to save some cycles.
+>> >> >> >
+>> >> >> >What is the motivation for the patch? Does it really cause any
+>> >> >> >measurable difference in performance?
+>> >> >> >
+>> >> >> 
+>> >> >> The motivation here is to reduce some unnecessary work.
+>> >> >
+>> >> >I have guessed so even though the changelog was quite modest on the
+>> >> >motivation.
+>> >> >
+>> >> >> Based on my understanding, almost every node has empty zones, since
+>> >> >> zones within a node are ordered in monotonic increasing memory address.
+>> >> >
+>> >> >Yes, this is likely the case. Btw. a check for populated_zone or
+>> >> >for_each_populated_zone would suite much better.
+>> >> >
+>> >> 
+>> >> Hmm... maybe not exact.
+>> >> 
+>> >>     populated_zone checks zone->present_pages
+>> >>     managed_zone checks zone->managed_pages
+>> >> 
+>> >> As the comment of managed_zone says, this one records the pages managed
+>> >> by buddy system. And when we look at the usage of totalreserve_pages, it
+>> >> is only used in page allocation. And finally, *max* is checked with
+>> >> managed_pages instead of present_pages.
+>> >> 
+>> >> Because of this, managed_zone is more accurate at this place. Is my
+>> >> understanding correct?
+>> >
+>> >OK, fair enough. There is a certain discrepancy here. You are right that
+>> >we do not care about pages out of the page allocator scope (e.g. early
+>> >bootmem allocations, struct pages) but this is likely what other callers
+>> >of populated_zone are looking for as well. It seems that managed pages
+>> >counter which only came in later was not considered in other places.
+>> >
+>> >That being said this asks for a cleanup of some sort. And I think such a
+>> >cleanup wold be appreciated much more than an optimization of an unknown
+>> >effect and wonder why this check is used here and not at other places.
+>> 
+>> You are right. There are three pages(spanned, managed, present) in a
+>> zone, which is a little confusing.
+>> 
+>> So you are willing to get rid of present_pages, if I am right?
 >
-> Hi Yongkai,
->
-> Although the current code might look odd, it's OK. We have to release
-> one refcount whether this isolate_huge_page() succeeds or not, because
-> the put_hwpoison_page() is cancelling the refcount from get_any_page()
-> which always succeeds when we enter soft_offline_huge_page().
->
-> Let's consider that the isolate_huge_page() fails with your patch applied,
-> then the refcount taken by get_any_page() is never released after returning
-> from soft_offline_page(). That will lead to memory leak.
->
-> I think that current code comment doesn't explaing it well, so if you
-> like, you can fix the comment.  (If you do that, please check coding style.
-> scripts/checkpatch.pl will help you.)
->
-> Thanks,
-> Naoya Horiguchi
->
+>No, I believe we want all three of them. But reviewing
+>for_each_populated_zone users and explicit checks for present/managed
+>pages and unify them would be a step forward both a more optimal code
+>and more maintainable code. I haven't checked but
+>for_each_populated_zone would seem like a proper user for managed page
+>counter. But that really requires to review all current users.
 
---000000000000857ecf057a883cc9
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Got your point. Let me take a look to see if I could make a cleanup.
 
-<div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr">Dear Naoya,<div>Thank yo=
-u for your kind reply.</div><div>You are right.The current code is ok and I=
- am sorry for wasting your time.</div><div><br></div><div>Best Regards.</di=
-v><div>=C2=A0</div></div></div></div><br><div class=3D"gmail_quote"><div di=
-r=3D"ltr">On Tue, Nov 13, 2018 at 3:47 PM Naoya Horiguchi &lt;<a href=3D"ma=
-ilto:n-horiguchi@ah.jp.nec.com" target=3D"_blank">n-horiguchi@ah.jp.nec.com=
-</a>&gt; wrote:<br></div><blockquote class=3D"gmail_quote" style=3D"margin:=
-0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">On Tue, Nov 13, 201=
-8 at 03:00:09PM +0800, Yongkai Wu wrote:<br>
-&gt; when isolate_huge_page() return false,it won&#39;t takes a refcount of=
- page,<br>
-&gt; if we call put_hwpoison_page() in that case,we may hit the VM_BUG_ON_P=
-AGE!<br>
-&gt; <br>
-&gt; Signed-off-by: Yongkai Wu &lt;<a href=3D"mailto:nic_w@163.com" target=
-=3D"_blank">nic_w@163.com</a>&gt;<br>
-&gt; ---<br>
-&gt;=C2=A0 mm/memory-failure.c | 13 +++++++------<br>
-&gt;=C2=A0 1 file changed, 7 insertions(+), 6 deletions(-)<br>
-&gt; <br>
-&gt; diff --git a/mm/memory-failure.c b/mm/memory-failure.c<br>
-&gt; index 0cd3de3..ed09f56 100644<br>
-&gt; --- a/mm/memory-failure.c<br>
-&gt; +++ b/mm/memory-failure.c<br>
-&gt; @@ -1699,12 +1699,13 @@ static int soft_offline_huge_page(struct page =
-*page,<br>
-&gt; int flags)<br>
-&gt;=C2=A0 =C2=A0unlock_page(hpage);<br>
-&gt;=C2=A0 <br>
-&gt;=C2=A0 =C2=A0ret =3D isolate_huge_page(hpage, &amp;pagelist);<br>
-&gt; - /*<br>
-&gt; - * get_any_page() and isolate_huge_page() takes a refcount each,<br>
-&gt; - * so need to drop one here.<br>
-&gt; - */<br>
-&gt; - put_hwpoison_page(hpage);<br>
-&gt; - if (!ret) {<br>
-&gt; + if (ret) {<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 /*<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * get_any_page() and isolate_huge_=
-page() takes a refcount each,<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * so need to drop one here.<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 */<br>
-&gt; + put_hwpoison_page(hpage);<br>
-&gt; + } else {<br>
-<br>
-Hi Yongkai,<br>
-<br>
-Although the current code might look odd, it&#39;s OK. We have to release<b=
-r>
-one refcount whether this isolate_huge_page() succeeds or not, because<br>
-the put_hwpoison_page() is cancelling the refcount from get_any_page()<br>
-which always succeeds when we enter soft_offline_huge_page().<br>
-<br>
-Let&#39;s consider that the isolate_huge_page() fails with your patch appli=
-ed,<br>
-then the refcount taken by get_any_page() is never released after returning=
-<br>
-from soft_offline_page(). That will lead to memory leak.<br>
-<br>
-I think that current code comment doesn&#39;t explaing it well, so if you<b=
-r>
-like, you can fix the comment.=C2=A0 (If you do that, please check coding s=
-tyle.<br>
-scripts/<a href=3D"http://checkpatch.pl" rel=3D"noreferrer" target=3D"_blan=
-k">checkpatch.pl</a> will help you.)<br>
-<br>
-Thanks,<br>
-Naoya Horiguchi<br>
-</blockquote></div>
+>
+>-- 
+>Michal Hocko
+>SUSE Labs
 
---000000000000857ecf057a883cc9--
+-- 
+Wei Yang
+Help you, Help me
