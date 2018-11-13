@@ -1,94 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id ADD006B0007
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 00:50:12 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id s22so7359668pgv.8
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 21:50:12 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C6B1E6B000A
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 00:50:17 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id r16-v6so7354273pgv.17
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 21:50:17 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id k11si19315938pgf.213.2018.11.12.21.50.11
+        by mx.google.com with ESMTPS id g10si4845082pll.428.2018.11.12.21.50.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Nov 2018 21:50:11 -0800 (PST)
+        Mon, 12 Nov 2018 21:50:16 -0800 (PST)
 From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.19 13/44] mm: Fix warning in insert_pfn()
-Date: Tue, 13 Nov 2018 00:49:19 -0500
-Message-Id: <20181113054950.77898-13-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.19 14/44] mm/memory_hotplug: make add_memory() take the device_hotplug_lock
+Date: Tue, 13 Nov 2018 00:49:20 -0500
+Message-Id: <20181113054950.77898-14-sashal@kernel.org>
 In-Reply-To: <20181113054950.77898-1-sashal@kernel.org>
 References: <20181113054950.77898-1-sashal@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: stable@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sashal@kernel.org>, linux-mm@kvack.org
+Cc: David Hildenbrand <david@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, John Allen <jallen@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Mathieu Malaterre <malat@debian.org>, Pavel Tatashin <pavel.tatashin@microsoft.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Balbir Singh <bsingharora@gmail.com>, Haiyang Zhang <haiyangz@microsoft.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Kate Stewart <kstewart@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Neuling <mikey@neuling.org>, Philippe Ombredanne <pombredanne@nexb.com>, Stephen Hemminger <sthemmin@microsoft.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sashal@kernel.org>, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
 
-From: Jan Kara <jack@suse.cz>
+From: David Hildenbrand <david@redhat.com>
 
-[ Upstream commit f2c57d91b0d96aa13ccff4e3b178038f17b00658 ]
+[ Upstream commit 8df1d0e4a265f25dc1e7e7624ccdbcb4a6630c89 ]
 
-In DAX mode a write pagefault can race with write(2) in the following
-way:
+add_memory() currently does not take the device_hotplug_lock, however
+is aleady called under the lock from
+	arch/powerpc/platforms/pseries/hotplug-memory.c
+	drivers/acpi/acpi_memhotplug.c
+to synchronize against CPU hot-remove and similar.
 
-CPU0                            CPU1
-                                write fault for mapped zero page (hole)
-dax_iomap_rw()
-  iomap_apply()
-    xfs_file_iomap_begin()
-      - allocates blocks
-    dax_iomap_actor()
-      invalidate_inode_pages2_range()
-        - invalidates radix tree entries in given range
-                                dax_iomap_pte_fault()
-                                  grab_mapping_entry()
-                                    - no entry found, creates empty
-                                  ...
-                                  xfs_file_iomap_begin()
-                                    - finds already allocated block
-                                  ...
-                                  vmf_insert_mixed_mkwrite()
-                                    - WARNs and does nothing because there
-                                      is still zero page mapped in PTE
-        unmap_mapping_pages()
+In general, we should hold the device_hotplug_lock when adding memory to
+synchronize against online/offline request (e.g.  from user space) - which
+already resulted in lock inversions due to device_lock() and
+mem_hotplug_lock - see 30467e0b3be ("mm, hotplug: fix concurrent memory
+hot-add deadlock").  add_memory()/add_memory_resource() will create memory
+block devices, so this really feels like the right thing to do.
 
-This race results in WARN_ON from insert_pfn() and is occasionally
-triggered by fstest generic/344. Note that the race is otherwise
-harmless as before write(2) on CPU0 is finished, we will invalidate page
-tables properly and thus user of mmap will see modified data from
-write(2) from that point on. So just restrict the warning only to the
-case when the PFN in PTE is not zero page.
+Holding the device_hotplug_lock makes sure that a memory block device
+can really only be accessed (e.g. via .online/.state) from user space,
+once the memory has been fully added to the system.
 
-Link: http://lkml.kernel.org/r/20180824154542.26872-1-jack@suse.cz
-Signed-off-by: Jan Kara <jack@suse.cz>
-Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+The lock is not held yet in
+	drivers/xen/balloon.c
+	arch/powerpc/platforms/powernv/memtrace.c
+	drivers/s390/char/sclp_cmd.c
+	drivers/hv/hv_balloon.c
+So, let's either use the locked variants or take the lock.
+
+Don't export add_memory_resource(), as it once was exported to be used by
+XEN, which is never built as a module.  If somebody requires it, we also
+have to export a locked variant (as device_hotplug_lock is never
+exported).
+
+Link: http://lkml.kernel.org/r/20180925091457.28651-3-david@redhat.com
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+Reviewed-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Reviewed-by: Rashmica Gupta <rashmica.g@gmail.com>
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>
+Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: Len Brown <lenb@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Juergen Gross <jgross@suse.com>
+Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>
+Cc: John Allen <jallen@linux.vnet.ibm.com>
+Cc: Michal Hocko <mhocko@suse.com>
 Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Dave Jiang <dave.jiang@intel.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mathieu Malaterre <malat@debian.org>
+Cc: Pavel Tatashin <pavel.tatashin@microsoft.com>
+Cc: YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
+Cc: Balbir Singh <bsingharora@gmail.com>
+Cc: Haiyang Zhang <haiyangz@microsoft.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Jonathan Corbet <corbet@lwn.net>
+Cc: Kate Stewart <kstewart@linuxfoundation.org>
+Cc: "K. Y. Srinivasan" <kys@microsoft.com>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Michael Neuling <mikey@neuling.org>
+Cc: Philippe Ombredanne <pombredanne@nexb.com>
+Cc: Stephen Hemminger <sthemmin@microsoft.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/memory.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ .../platforms/pseries/hotplug-memory.c        |  2 +-
+ drivers/acpi/acpi_memhotplug.c                |  2 +-
+ drivers/base/memory.c                         |  9 ++++++--
+ drivers/xen/balloon.c                         |  3 +++
+ include/linux/memory_hotplug.h                |  1 +
+ mm/memory_hotplug.c                           | 22 ++++++++++++++++---
+ 6 files changed, 32 insertions(+), 7 deletions(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index c467102a5cbc..d988bae46479 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1787,10 +1787,15 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 			 * in may not match the PFN we have mapped if the
- 			 * mapped PFN is a writeable COW page.  In the mkwrite
- 			 * case we are creating a writable PTE for a shared
--			 * mapping and we expect the PFNs to match.
-+			 * mapping and we expect the PFNs to match. If they
-+			 * don't match, we are likely racing with block
-+			 * allocation and mapping invalidation so just skip the
-+			 * update.
- 			 */
--			if (WARN_ON_ONCE(pte_pfn(*pte) != pfn_t_to_pfn(pfn)))
-+			if (pte_pfn(*pte) != pfn_t_to_pfn(pfn)) {
-+				WARN_ON_ONCE(!is_zero_pfn(pte_pfn(*pte)));
- 				goto out_unlock;
-+			}
- 			entry = *pte;
- 			goto out_mkwrite;
- 		} else
+diff --git a/arch/powerpc/platforms/pseries/hotplug-memory.c b/arch/powerpc/platforms/pseries/hotplug-memory.c
+index c1578f54c626..79e074eac486 100644
+--- a/arch/powerpc/platforms/pseries/hotplug-memory.c
++++ b/arch/powerpc/platforms/pseries/hotplug-memory.c
+@@ -702,7 +702,7 @@ static int dlpar_add_lmb(struct drmem_lmb *lmb)
+ 	nid = memory_add_physaddr_to_nid(lmb->base_addr);
+ 
+ 	/* Add the memory */
+-	rc = add_memory(nid, lmb->base_addr, block_sz);
++	rc = __add_memory(nid, lmb->base_addr, block_sz);
+ 	if (rc) {
+ 		dlpar_remove_device_tree_lmb(lmb);
+ 		return rc;
+diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+index 6b0d3ef7309c..2ccfbb61ca89 100644
+--- a/drivers/acpi/acpi_memhotplug.c
++++ b/drivers/acpi/acpi_memhotplug.c
+@@ -228,7 +228,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
+ 		if (node < 0)
+ 			node = memory_add_physaddr_to_nid(info->start_addr);
+ 
+-		result = add_memory(node, info->start_addr, info->length);
++		result = __add_memory(node, info->start_addr, info->length);
+ 
+ 		/*
+ 		 * If the memory block has been used by the kernel, add_memory()
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 817320c7c4c1..40cac122ec73 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -519,15 +519,20 @@ memory_probe_store(struct device *dev, struct device_attribute *attr,
+ 	if (phys_addr & ((pages_per_block << PAGE_SHIFT) - 1))
+ 		return -EINVAL;
+ 
++	ret = lock_device_hotplug_sysfs();
++	if (ret)
++		goto out;
++
+ 	nid = memory_add_physaddr_to_nid(phys_addr);
+-	ret = add_memory(nid, phys_addr,
+-			 MIN_MEMORY_BLOCK_SIZE * sections_per_block);
++	ret = __add_memory(nid, phys_addr,
++			   MIN_MEMORY_BLOCK_SIZE * sections_per_block);
+ 
+ 	if (ret)
+ 		goto out;
+ 
+ 	ret = count;
+ out:
++	unlock_device_hotplug();
+ 	return ret;
+ }
+ 
+diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+index e12bb256036f..6bab019a82b1 100644
+--- a/drivers/xen/balloon.c
++++ b/drivers/xen/balloon.c
+@@ -395,7 +395,10 @@ static enum bp_state reserve_additional_memory(void)
+ 	 * callers drop the mutex before trying again.
+ 	 */
+ 	mutex_unlock(&balloon_mutex);
++	/* add_memory_resource() requires the device_hotplug lock */
++	lock_device_hotplug();
+ 	rc = add_memory_resource(nid, resource, memhp_auto_online);
++	unlock_device_hotplug();
+ 	mutex_lock(&balloon_mutex);
+ 
+ 	if (rc) {
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 34a28227068d..16487052017d 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -322,6 +322,7 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
+ extern void __ref free_area_init_core_hotplug(int nid);
+ extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
+ 		void *arg, int (*func)(struct memory_block *, void *));
++extern int __add_memory(int nid, u64 start, u64 size);
+ extern int add_memory(int nid, u64 start, u64 size);
+ extern int add_memory_resource(int nid, struct resource *resource, bool online);
+ extern int arch_add_memory(int nid, u64 start, u64 size,
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 38d94b703e9d..3e42226407c7 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1111,7 +1111,12 @@ static int online_memory_block(struct memory_block *mem, void *arg)
+ 	return device_online(&mem->dev);
+ }
+ 
+-/* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
++/*
++ * NOTE: The caller must call lock_device_hotplug() to serialize hotplug
++ * and online/offline operations (triggered e.g. by sysfs).
++ *
++ * we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG
++ */
+ int __ref add_memory_resource(int nid, struct resource *res, bool online)
+ {
+ 	u64 start, size;
+@@ -1180,9 +1185,9 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
+ 	mem_hotplug_done();
+ 	return ret;
+ }
+-EXPORT_SYMBOL_GPL(add_memory_resource);
+ 
+-int __ref add_memory(int nid, u64 start, u64 size)
++/* requires device_hotplug_lock, see add_memory_resource() */
++int __ref __add_memory(int nid, u64 start, u64 size)
+ {
+ 	struct resource *res;
+ 	int ret;
+@@ -1196,6 +1201,17 @@ int __ref add_memory(int nid, u64 start, u64 size)
+ 		release_memory_resource(res);
+ 	return ret;
+ }
++
++int add_memory(int nid, u64 start, u64 size)
++{
++	int rc;
++
++	lock_device_hotplug();
++	rc = __add_memory(nid, start, size);
++	unlock_device_hotplug();
++
++	return rc;
++}
+ EXPORT_SYMBOL_GPL(add_memory);
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
 -- 
 2.17.1
