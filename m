@@ -1,41 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 482426B000A
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 08:04:24 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id r65-v6so5371287pfa.8
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 05:04:24 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id r36-v6si19190627pgl.257.2018.11.13.05.04.22
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 395046B000D
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 08:04:36 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id h24-v6so6520412ede.9
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 05:04:36 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cu1-v6si1688469ejb.5.2018.11.13.05.04.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 13 Nov 2018 05:04:23 -0800 (PST)
-Date: Tue, 13 Nov 2018 05:04:20 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2] vmscan: return NODE_RECLAIM_NOSCAN in node_reclaim()
- when CONFIG_NUMA is n
-Message-ID: <20181113130420.GV21824@bombadil.infradead.org>
-References: <20181113041750.20784-1-richard.weiyang@gmail.com>
- <20181113080436.22078-1-richard.weiyang@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Nov 2018 05:04:34 -0800 (PST)
+Date: Tue, 13 Nov 2018 14:04:33 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/hugetl.c: keep the page mapping info when
+ free_huge_page() hit the VM_BUG_ON_PAGE
+Message-ID: <20181113130433.GB16182@dhcp22.suse.cz>
+References: <CAJtqMcZp5AVva2yOM4gJET8Gd_j_BGJDLTkcqRdJynVCiRRFxQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181113080436.22078-1-richard.weiyang@gmail.com>
+In-Reply-To: <CAJtqMcZp5AVva2yOM4gJET8Gd_j_BGJDLTkcqRdJynVCiRRFxQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Yongkai Wu <nic.wuyk@gmail.com>
+Cc: mike.kravetz@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Nov 13, 2018 at 04:04:36PM +0800, Wei Yang wrote:
-> Commit fa5e084e43eb ("vmscan: do not unconditionally treat zones that
-> fail zone_reclaim() as full") changed the return value of node_reclaim().
-> The original return value 0 means NODE_RECLAIM_SOME after this commit.
-> 
-> While the return value of node_reclaim() when CONFIG_NUMA is n is not
-> changed. This will leads to call zone_watermark_ok() again.
-> 
-> This patch fix the return value by adjusting to NODE_RECLAIM_NOSCAN. Since
-> node_reclaim() is only called in page_alloc.c, move it to mm/internal.h.
-> 
-> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+On Tue 13-11-18 20:38:16, Yongkai Wu wrote:
+> It is better to keep page mapping info when free_huge_page() hit the
+> VM_BUG_ON_PAGE,
+> so we can get more infomation from the coredump for further analysis.
 
-Reviewed-by: Matthew Wilcox <willy@infradead.org>
+The patch seems to be whitespace damaged. Put that aside, have you
+actually seen a case where preservning the page state would help to nail
+down any bug.
+
+I am not objecting to the patch, it actually makes some sense to me, I
+am just curious about a background motivation.
+ 
+> Signed-off-by: Yongkai Wu <nic_w@163.com>
+> ---
+>  mm/hugetlb.c | 5 +++--
+>  1 file changed, 3 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index c007fb5..ba693bb 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1248,10 +1248,11 @@ void free_huge_page(struct page *page)
+>   (struct hugepage_subpool *)page_private(page);
+>   bool restore_reserve;
+> 
+> +        VM_BUG_ON_PAGE(page_count(page), page);
+> +        VM_BUG_ON_PAGE(page_mapcount(page), page);
+> +
+>   set_page_private(page, 0);
+>   page->mapping = NULL;
+> - VM_BUG_ON_PAGE(page_count(page), page);
+> - VM_BUG_ON_PAGE(page_mapcount(page), page);
+>   restore_reserve = PagePrivate(page);
+>   ClearPagePrivate(page);
+> 
+> -- 
+> 1.8.3.1
+
+-- 
+Michal Hocko
+SUSE Labs
