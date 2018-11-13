@@ -1,172 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 87A846B0003
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 16:08:07 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id d3so3764026pgv.23
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 13:08:07 -0800 (PST)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id d31-v6si23537907pla.27.2018.11.13.13.08.05
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Nov 2018 13:08:05 -0800 (PST)
-Message-ID: <43979cffef0a4b5ea90b3fc41b6f9edd2a4324db.camel@intel.com>
-Subject: Re: [PATCH v5 05/27] Documentation/x86: Add CET description
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Date: Tue, 13 Nov 2018 13:02:24 -0800
-In-Reply-To: <20181113184337.GM10502@zn.tnic>
-References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
-	 <20181011151523.27101-6-yu-cheng.yu@intel.com>
-	 <20181113184337.GM10502@zn.tnic>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 706EE6B0003
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 17:07:42 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id s12so9567037otc.12
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 14:07:42 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id b186-v6si8575209oia.116.2018.11.13.14.07.40
+        for <linux-mm@kvack.org>;
+        Tue, 13 Nov 2018 14:07:41 -0800 (PST)
+Date: Tue, 13 Nov 2018 22:07:29 +0000
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH v10 12/22] kasan, arm64: fix up fault handling logic
+Message-ID: <20181113220728.2h3kz67b2bz36wty@blommer>
+References: <cover.1541525354.git.andreyknvl@google.com>
+ <4891a504adf61c0daf1e83642b6f7519328dfd5f.1541525354.git.andreyknvl@google.com>
+ <20181108122228.xqwhpkjritrvqneq@lakrids.cambridge.arm.com>
+ <CAAeHK+xPkbg_9P9oCkS-iB8S81vTxD3p5SbyWHy-vrp2ybkKmg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAAeHK+xPkbg_9P9oCkS-iB8S81vTxD3p5SbyWHy-vrp2ybkKmg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V.
- Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
 
-On Tue, 2018-11-13 at 19:43 +0100, Borislav Petkov wrote:
-> On Thu, Oct 11, 2018 at 08:15:01AM -0700, Yu-cheng Yu wrote:
-> > Explain how CET works and the no_cet_shstk/no_cet_ibt kernel
-> > parameters.
-> > 
-> > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> > ---
-> >  .../admin-guide/kernel-parameters.txt         |   6 +
-> >  Documentation/index.rst                       |   1 +
-> >  Documentation/x86/index.rst                   |  11 +
-> >  Documentation/x86/intel_cet.rst               | 266 ++++++++++++++++++
-> >  4 files changed, 284 insertions(+)
-> >  create mode 100644 Documentation/x86/index.rst
-> >  create mode 100644 Documentation/x86/intel_cet.rst
+On Tue, Nov 13, 2018 at 04:01:27PM +0100, Andrey Konovalov wrote:
+> On Thu, Nov 8, 2018 at 1:22 PM, Mark Rutland <mark.rutland@arm.com> wrote:
+> > On Tue, Nov 06, 2018 at 06:30:27PM +0100, Andrey Konovalov wrote:
+> >> show_pte in arm64 fault handling relies on the fact that the top byte of
+> >> a kernel pointer is 0xff, which isn't always the case with tag-based
+> >> KASAN.
+> >
+> > That's for the TTBR1 check, right?
+> >
+> > i.e. for the following to work:
+> >
+> >         if (addr >= VA_START)
+> >
+> > ... we need the tag bits to be an extension of bit 55...
+> >
+> >>
+> >> This patch resets the top byte in show_pte.
+> >>
+> >> Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> >> Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+> >> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> >> ---
+> >>  arch/arm64/mm/fault.c | 3 +++
+> >>  1 file changed, 3 insertions(+)
+> >>
+> >> diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
+> >> index 7d9571f4ae3d..d9a84d6f3343 100644
+> >> --- a/arch/arm64/mm/fault.c
+> >> +++ b/arch/arm64/mm/fault.c
+> >> @@ -32,6 +32,7 @@
+> >>  #include <linux/perf_event.h>
+> >>  #include <linux/preempt.h>
+> >>  #include <linux/hugetlb.h>
+> >> +#include <linux/kasan.h>
+> >>
+> >>  #include <asm/bug.h>
+> >>  #include <asm/cmpxchg.h>
+> >> @@ -141,6 +142,8 @@ void show_pte(unsigned long addr)
+> >>       pgd_t *pgdp;
+> >>       pgd_t pgd;
+> >>
+> >> +     addr = (unsigned long)kasan_reset_tag((void *)addr);
+> >
+> > ... but this ORs in (0xffUL << 56), which is not correct for addresses
+> > which aren't TTBR1 addresses to begin with, where bit 55 is clear, and
+> > throws away useful information.
+> >
+> > We could use untagged_addr() here, but that wouldn't be right for
+> > kernels which don't use TBI1, and we'd erroneously report addresses
+> > under the TTBR1 range as being in the TTBR1 range.
+> >
+> > I also see that the entry assembly for el{1,0}_{da,ia} clears the tag
+> > for EL0 addresses.
+> >
+> > So we could have:
+> >
+> > static inline bool is_ttbr0_addr(unsigned long addr)
+> > {
+> >         /* entry assembly clears tags for TTBR0 addrs */
+> >         return addr < TASK_SIZE_64;
+> > }
+> >
+> > static inline bool is_ttbr1_addr(unsigned long addr)
+> > {
+> >         /* TTBR1 addresses may have a tag if HWKASAN is in use */
+> >         return arch_kasan_reset_tag(addr) >= VA_START;
+> > }
+> >
+> > ... and use those in the conditionals, leaving the addr as-is for
+> > reporting purposes.
 > 
-> So this patch should probably come first in the series so that a reader
-> can know what to expect...
-> 
-> > diff --git a/Documentation/admin-guide/kernel-parameters.txt
-> > b/Documentation/admin-guide/kernel-parameters.txt
-> > index 92eb1f42240d..3854423f7c86 100644
-> > --- a/Documentation/admin-guide/kernel-parameters.txt
-> > +++ b/Documentation/admin-guide/kernel-parameters.txt
-> > @@ -2764,6 +2764,12 @@
-> >  			noexec=on: enable non-executable mappings (default)
-> >  			noexec=off: disable non-executable mappings
-> >  
-> > +	no_cet_ibt	[X86-64] Disable indirect branch tracking for
-> > user-mode
-> > +			applications
-> > +
-> > +	no_cet_shstk	[X86-64] Disable shadow stack support for user-
-> > mode
-> > +			applications
-> > +
-> >  	nosmap		[X86]
-> >  			Disable SMAP (Supervisor Mode Access Prevention)
-> >  			even if it is supported by processor.
-> > diff --git a/Documentation/index.rst b/Documentation/index.rst
-> > index 5db7e87c7cb1..1cdc139adb40 100644
-> > --- a/Documentation/index.rst
-> > +++ b/Documentation/index.rst
-> 
-> Please integrate scripts/checkpatch.pl into your patch creation
-> workflow. Some of the warnings/errors *actually* make sense:
-> 
-> WARNING: Missing or malformed SPDX-License-Identifier tag in line 1
-> #76: FILE: Documentation/x86/index.rst:1:
-> +=======================
-> 
-> WARNING: Missing or malformed SPDX-License-Identifier tag in line 1
-> #93: FILE: Documentation/x86/intel_cet.rst:1:
-> +=========================================
-> 
-> > @@ -104,6 +104,7 @@ implementation.
-> >     :maxdepth: 2
-> >  
-> >     sh/index
-> > +   x86/index
-> >  
-> >  Filesystem Documentation
-> >  ------------------------
-> > diff --git a/Documentation/x86/index.rst b/Documentation/x86/index.rst
-> > new file mode 100644
-> > index 000000000000..9c34d8cbc8f0
-> > --- /dev/null
-> > +++ b/Documentation/x86/index.rst
-> > @@ -0,0 +1,11 @@
-> > +=======================
-> > +X86 Documentation
-> > +=======================
-> > +
-> > +Control Flow Enforcement
-> > +========================
-> > +
-> > +.. toctree::
-> > +   :maxdepth: 1
-> > +
-> > +   intel_cet
-> > diff --git a/Documentation/x86/intel_cet.rst
-> > b/Documentation/x86/intel_cet.rst
-> > new file mode 100644
-> > index 000000000000..946f4802a51f
-> > --- /dev/null
-> > +++ b/Documentation/x86/intel_cet.rst
-> > @@ -0,0 +1,266 @@
-> > +=========================================
-> > +Control Flow Enforcement Technology (CET)
-> > +=========================================
-> > +
-> > +[1] Overview
-> > +============
-> > +
-> > +Control Flow Enforcement Technology (CET) provides protection against
-> > +return/jump-oriented programming (ROP) attacks.  It can be implemented
-> > +to protect both the kernel and applications.  In the first phase,
-> > +only the user-mode protection is implemented on the 64-bit kernel.
-> 
-> s/the//			         is implemented in 64-bit mode.
-> 
-> > +However, 32-bit applications are supported under the compatibility
-> > +mode.
-> 
-> Drop "However":
-> 
-> "32-bit applications are, of course, supported in compatibility mode."
-> 
-> > +
-> > +CET includes shadow stack (SHSTK) and indirect branch tracking (IBT).
-> 
-> "CET introduces two a shadow stack and an indirect branch tracking mechanism."
-> 
-> > +The SHSTK is a secondary stack allocated from memory.  The processor
-> 
-> s/The//
-> 
-> > +automatically pushes/pops a secure copy to the SHSTK every return
-> > +address and,
-> 
-> that reads funny - pls reorganize. Also, what is a "secure copy"?
-> 
-> You mean a copy of every return address which software cannot access?
-> 
-> > by comparing the secure copy to the program stack copy,
-> > +verifies function returns are as intended. 
-> 
-> 			 ... have not been corrupted/modified."
-> 
-> > The IBT verifies all
-> > +indirect CALL/JMP targets are intended and marked by the compiler with
-> > +'ENDBR' op codes.
-> 
-> "opcode" - one word. And before you use "ENDBR" you need to explain it
-> above what it is.
-> 
-> /me reads further... encounters ENDBR's definition...
-> 
-> ah, ok, so you should say something like
-> 
-> "... and marked by the compiler with the ENDBR opcode (see below)."
+> Actually it looks like 276e9327 ("arm64: entry: improve data abort
+> handling of tagged pointers") already takes care of both user and
+> kernel fault addresses and correctly removes tags from them. So I
+> think we need to drop this patch.
 
-I will work on it.  Thanks!
+The clear_address_tag macro added in that commit only removes tags from TTBR0
+addresses, so that's not sufficient if the kernel is used tagged addresses
+(which will be in the TTBR1 range).
 
-Yu-cheng
+Thanks,
+Mark.
+That commit only removes tags from TTBR0 addresses, 
