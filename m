@@ -1,110 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 30F9B6B000D
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 13:49:21 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id y74so1467931wmc.0
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 10:49:21 -0800 (PST)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3105A6B0010
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 13:54:54 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id s53so9230154ota.16
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 10:54:54 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e2-v6sor13525194wru.38.2018.11.13.10.49.19
+        by mx.google.com with SMTPS id i7-v6sor9399736oia.24.2018.11.13.10.54.52
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 13 Nov 2018 10:49:19 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] l1tf: drop the swap storage limit restriction when l1tf=off
-Date: Tue, 13 Nov 2018 19:49:10 +0100
-Message-Id: <20181113184910.26697-1-mhocko@kernel.org>
+        Tue, 13 Nov 2018 10:54:52 -0800 (PST)
+Received: from mail-ot1-f54.google.com (mail-ot1-f54.google.com. [209.85.210.54])
+        by smtp.gmail.com with ESMTPSA id o15sm5965942otb.3.2018.11.13.10.54.50
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Nov 2018 10:54:51 -0800 (PST)
+Received: by mail-ot1-f54.google.com with SMTP id g27so12341660oth.6
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 10:54:50 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+References: <CAG48ez0ZprqUYGZFxcrY6U3Dnwt77q1NJXzzpsn1XNkRuXVppw@mail.gmail.com>
+ <d43da6ad1a3c164aa03e0f22f065591a@natalenko.name> <20181113175930.3g65rlhbaimstq7g@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
+ <CAGqmi74gpvJv8=B-3pVSMrDssu-aYMxW9xM7mt1WNQjGLjMZqA@mail.gmail.com> <20181113183510.5y2hzruoi23e7o2t@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
+In-Reply-To: <20181113183510.5y2hzruoi23e7o2t@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
+From: Timofey Titovets <timofey.titovets@synesis.ru>
+Date: Tue, 13 Nov 2018 21:54:13 +0300
+Message-ID: <CAGqmi763e4sZj1NHAk2fAjtPtb-kAZfcPq=KTH8B3sE-oDVvGw@mail.gmail.com>
+Subject: Re: [PATCH V3] KSM: allow dedup all tasks memory
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Jiri Kosina <jkosina@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <ak@linux.intel.com>, Borislav Petkov <bp@suse.de>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
+To: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: Oleksandr Natalenko <oleksandr@natalenko.name>, Jann Horn <jannh@google.com>, linux-doc@vger.kernel.org, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>
 
-From: Michal Hocko <mhocko@suse.com>
+=D0=B2=D1=82, 13 =D0=BD=D0=BE=D1=8F=D0=B1. 2018 =D0=B3. =D0=B2 21:35, Pavel=
+ Tatashin <pasha.tatashin@soleen.com>:
+>
+> On 18-11-13 21:17:42, Timofey Titovets wrote:
+> > =D0=B2=D1=82, 13 =D0=BD=D0=BE=D1=8F=D0=B1. 2018 =D0=B3. =D0=B2 20:59, P=
+avel Tatashin <pasha.tatashin@soleen.com>:
+> > >
+> > > On 18-11-13 15:23:50, Oleksandr Natalenko wrote:
+> > > > Hi.
+> > > >
+> > > > > Yep. However, so far, it requires an application to explicitly op=
+t in
+> > > > > to this behavior, so it's not all that bad. Your patch would remo=
+ve
+> > > > > the requirement for application opt-in, which, in my opinion, mak=
+es
+> > > > > this way worse and reduces the number of applications for which t=
+his
+> > > > > is acceptable.
+> > > >
+> > > > The default is to maintain the old behaviour, so unless the explici=
+t
+> > > > decision is made by the administrator, no extra risk is imposed.
+> > >
+> > > The new interface would be more tolerable if it honored MADV_UNMERGEA=
+BLE:
+> > >
+> > > KSM default on: merge everything except when MADV_UNMERGEABLE is
+> > > excplicitly set.
+> > >
+> > > KSM default off: merge only when MADV_MERGEABLE is set.
+> > >
+> > > The proposed change won't honor MADV_UNMERGEABLE, meaning that
+> > > application programmers won't have a way to prevent sensitive data to=
+ be
+> > > every merged. So, I think, we should keep allow an explicit opt-out
+> > > option for applications.
+> > >
+> >
+> > We just did not have VM/Madvise flag for that currently.
+> > Same as THP.
+> > Because all logic written with assumption, what we have exactly 2 state=
+s.
+> > Allow/Disallow (More like not allow).
+> >
+> > And if we try to add, that must be something like:
+> > MADV_FORBID_* to disallow something completely.
+>
+> No need to add new user flag MADV_FORBID, we should keep MADV_MERGEABLE
+> and MADV_UNMERGEABLE, but make them work so when MADV_UNMERGEABLE is
+> set, memory is indeed becomes always unmergeable regardless of ksm mode
+> of operation.
+>
+> To do the above in ksm_madvise(), a new state should be added, for exampl=
+e
+> instead of:
+>
+> case MADV_UNMERGEABLE:
+>         *vm_flags &=3D ~VM_MERGEABLE;
+>
+> A new flag should be used:
+>         *vm_flags |=3D VM_UNMERGEABLE;
+>
+> I think, without honoring MADV_UNMERGEABLE correctly, this patch won't
+> be accepted.
+>
+> Pasha
+>
 
-Swap storage is restricted to max_swapfile_size (~16TB on x86_64)
-whenever the system is deemed affected by L1TF vulnerability. Even
-though the limit is quite high for most deployments it seems to be
-too restrictive for deployments which are willing to live with the
-mitigation disabled.
+That must work, but we out of bit space in vm_flags [1].
+i.e. first 32 bits already defined, and other only accessible only on
+64-bit machines.
 
-We have a customer to deploy 8x 6,4TB PCIe/NVMe SSD swap devices
-which is clearly out of the limit.
-
-Drop the swap restriction when l1tf=off is specified. It also doesn't
-make much sense to warn about too much memory for the l1tf mitigation
-when it is forcefully disabled by the administrator.
-
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- Documentation/admin-guide/kernel-parameters.txt | 2 ++
- Documentation/admin-guide/l1tf.rst              | 5 ++++-
- arch/x86/kernel/cpu/bugs.c                      | 3 ++-
- arch/x86/mm/init.c                              | 2 +-
- 4 files changed, 9 insertions(+), 3 deletions(-)
-
-diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index 81d1d5a74728..a54f2bd39e77 100644
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -2095,6 +2095,8 @@
- 			off
- 				Disables hypervisor mitigations and doesn't
- 				emit any warnings.
-+				It also drops the swap size and available
-+				RAM limit restriction.
- 
- 			Default is 'flush'.
- 
-diff --git a/Documentation/admin-guide/l1tf.rst b/Documentation/admin-guide/l1tf.rst
-index b85dd80510b0..b00464a9c09c 100644
---- a/Documentation/admin-guide/l1tf.rst
-+++ b/Documentation/admin-guide/l1tf.rst
-@@ -405,6 +405,8 @@ The kernel command line allows to control the L1TF mitigations at boot
- 
-   off		Disables hypervisor mitigations and doesn't emit any
- 		warnings.
-+		It also drops the swap size and available RAM limit restrictions.
-+
-   ============  =============================================================
- 
- The default is 'flush'. For details about L1D flushing see :ref:`l1d_flush`.
-@@ -576,7 +578,8 @@ Default mitigations
-   The kernel default mitigations for vulnerable processors are:
- 
-   - PTE inversion to protect against malicious user space. This is done
--    unconditionally and cannot be controlled.
-+    unconditionally and cannot be controlled. The swap storage is limited
-+    to ~16TB.
- 
-   - L1D conditional flushing on VMENTER when EPT is enabled for
-     a guest.
-diff --git a/arch/x86/kernel/cpu/bugs.c b/arch/x86/kernel/cpu/bugs.c
-index c37e66e493bf..761100cd3eab 100644
---- a/arch/x86/kernel/cpu/bugs.c
-+++ b/arch/x86/kernel/cpu/bugs.c
-@@ -779,7 +779,8 @@ static void __init l1tf_select_mitigation(void)
- #endif
- 
- 	half_pa = (u64)l1tf_pfn_limit() << PAGE_SHIFT;
--	if (e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
-+	if (l1tf_mitigation != L1TF_MITIGATION_OFF &&
-+			e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
- 		pr_warn("System has more than MAX_PA/2 memory. L1TF mitigation not effective.\n");
- 		pr_info("You may make it effective by booting the kernel with mem=%llu parameter.\n",
- 				half_pa);
-diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-index ef99f3892e1f..427a955a2cf2 100644
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -931,7 +931,7 @@ unsigned long max_swapfile_size(void)
- 
- 	pages = generic_max_swapfile_size();
- 
--	if (boot_cpu_has_bug(X86_BUG_L1TF)) {
-+	if (boot_cpu_has_bug(X86_BUG_L1TF) && l1tf_mitigation != L1TF_MITIGATION_OFF) {
- 		/* Limit the swap file size to MAX_PA/2 for L1TF workaround */
- 		unsigned long long l1tf_limit = l1tf_pfn_limit();
- 		/*
--- 
-2.19.1
+1. https://elixir.bootlin.com/linux/latest/source/include/linux/mm.h#L219
