@@ -1,56 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B72F16B0006
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 17:53:38 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id h68so34173339qke.3
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 14:53:38 -0800 (PST)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BA35E6B0006
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 17:55:43 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id e10so9812759oth.21
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 14:55:43 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p6sor23216790qtc.0.2018.11.13.14.53.37
+        by mx.google.com with SMTPS id m62-v6sor4923417oif.52.2018.11.13.14.55.42
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 13 Nov 2018 14:53:37 -0800 (PST)
-Date: Tue, 13 Nov 2018 22:53:34 +0000
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Subject: Re: [PATCH V3] KSM: allow dedup all tasks memory
-Message-ID: <20181113225334.hnz7pqoldvvg6j3w@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
-References: <CAG48ez0ZprqUYGZFxcrY6U3Dnwt77q1NJXzzpsn1XNkRuXVppw@mail.gmail.com>
- <d43da6ad1a3c164aa03e0f22f065591a@natalenko.name>
- <20181113175930.3g65rlhbaimstq7g@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
- <CAGqmi74gpvJv8=B-3pVSMrDssu-aYMxW9xM7mt1WNQjGLjMZqA@mail.gmail.com>
- <20181113183510.5y2hzruoi23e7o2t@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
- <CAGqmi763e4sZj1NHAk2fAjtPtb-kAZfcPq=KTH8B3sE-oDVvGw@mail.gmail.com>
- <20181113191653.btbzobquxtwt47z4@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
- <CAGqmi77JMyxU9L4bZHPv4Nt=tyQsEZDQcMVMRfQ7de_LjZg+-Q@mail.gmail.com>
+        Tue, 13 Nov 2018 14:55:42 -0800 (PST)
+Received: from mail-oi1-f180.google.com (mail-oi1-f180.google.com. [209.85.167.180])
+        by smtp.gmail.com with ESMTPSA id q65-v6sm7019730oif.6.2018.11.13.14.55.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Nov 2018 14:55:40 -0800 (PST)
+Received: by mail-oi1-f180.google.com with SMTP id c206so6375311oib.0
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 14:55:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGqmi77JMyxU9L4bZHPv4Nt=tyQsEZDQcMVMRfQ7de_LjZg+-Q@mail.gmail.com>
+References: <20181112231344.7161-1-timofey.titovets@synesis.ru>
+ <20181113022516.45u6b536vtdjgvrf@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
+ <CAGqmi744_8NA30V0aWCpFi_=WSaA+18h3njOTQG0SFUVdXi8bg@mail.gmail.com> <CA+CK2bB0C-PCdaHS7YiLf5iZWn1bATg2y32ogL1FSw7LY9E7SQ@mail.gmail.com>
+In-Reply-To: <CA+CK2bB0C-PCdaHS7YiLf5iZWn1bATg2y32ogL1FSw7LY9E7SQ@mail.gmail.com>
+From: Timofey Titovets <timofey.titovets@synesis.ru>
+Date: Wed, 14 Nov 2018 01:55:04 +0300
+Message-ID: <CAGqmi74uqeqxD4n=pb=3v48sSfk-pQhk7eTHkuTLxegFAq-D9A@mail.gmail.com>
+Subject: Re: [PATCH V3] KSM: allow dedup all tasks memory
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Timofey Titovets <timofey.titovets@synesis.ru>
-Cc: Oleksandr Natalenko <oleksandr@natalenko.name>, Jann Horn <jannh@google.com>, linux-doc@vger.kernel.org, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>
+To: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
-> > > That must work, but we out of bit space in vm_flags [1].
-> > > i.e. first 32 bits already defined, and other only accessible only on
-> > > 64-bit machines.
+=D0=B2=D1=82, 13 =D0=BD=D0=BE=D1=8F=D0=B1. 2018 =D0=B3. =D0=B2 21:43, Pavel=
+ Tatashin <pasha.tatashin@soleen.com>:
+>
+> > > Is it really necessary to have an extra thread in ksm just to add vma=
+'s
+> > > for scanning? Can we do it right from the scanner thread? Also, may b=
+e
+> > > it is better to add vma's at their creation time when KSM_MODE_ALWAYS=
+ is
+> > > enabled?
+> > >
+> > > Thank you,
+> > > Pasha
 > >
-> > So, grow vm_flags_t to 64-bit, or enable this feature on 64-bit only.
-> 
-> With all due respect to you, for that type of things we need
-> mm maintainer opinion.
+> > Oh, thats a long story, and my english to bad for describe all things,
+> > even that hard to find linux-mm conversation several years ago about th=
+at.
+> >
+> > Anyway, so:
+> > In V2 - i use scanner thread to add VMA, but i think scanner do that
+> > with too high rate.
+> > i.e. walk on task list, and get new task every 20ms, to wait write sema=
+phore,
+> > to get VMA...
+> > To high rate for task list scanner, i think it's overkill.
+> >
+> > About add VMA from creation time,
+> > UKSM add ksm_enter() hooks to mm subsystem, i port that to KSM.
+> > But some mm people say what they not like add KSM hooks to other subsys=
+tems.
+> > And want ksm do that internally by some way.
+> >
+> > Frankly speaking i didn't have enough knowledge and skills to do that
+> > another way in past time.
+> > They also suggest me look to THP for that logic, but i can't find how
+> > THP do that without hooks, and
+> > where THP truly scan memory.
+> >
+> > So, after all of that i implemented this in that way.
+> > In first iteration as part of ksm scan thread, and in second, by
+> > separate thread.
+> > Because that allow to add VMA in fully independent way.
+>
+> It still feels as a wrong direction. A new thread that adds random
+> VMA's to scan, and no way to optimize the queue fairness for example.
+> It should really be done at creation time, when VMA is created it
+> should be added to KSM scanning queue, or KSM main scanner thread
+> should go through VMA list in a coherent order.
 
-As far as I understood, you already got directions from the maintainers
-to do similar to the way THP is implemented, and THP uses two flags:
+How you see queue fairness in that case?
+i.e. if you talk about moving from old VMA to new VMA,
+IIRC i can't find any whole kernel list of VMAs.
 
-VM_HUGEPAGE VM_NOHUGEPAGE, the same as I am thinking ksm should do if we
-honor MADV_UNMERGEABLE.
+i.e. i really understood what you don't like exactly,
+but for that we need add hooks as i already mentioned above.
+(And i already try get that to kernel [1]).
 
-When VM_NOHUGEPAGE is set khugepaged ignores those VMAs.
+So, as i wrote you below, i need some maintainer opinion
+in which way that responsible person of mm see 'right' implementation.
 
-There may be a way to add VM_UNMERGEABLE without extending the size of
-vm_flags, but that would be a good start point in looking how to add a
-new flag.
+> The design of having a separate thread is bad. I plan in the future to
+> add thread per node support to KSM, and this one odd thread won't
+> break things, to which queue should this thread add VMA if there are
+> multiple queues?
 
-Again, you could simply enable this feature on 64-bit only.
+That will be interesting to look :)
+But IMHO:
+I think you will need to add some code to ksm_enter().
+Because madvise() internally call ksm_enter().
 
-Pasha
+So ksm_enter() will decide which tread must process that.
+That not depends on caller.
+
+Thanks.
+
+> Thank you,
+> Pasha
+>
+- - -
+1. https://lkml.org/lkml/2014/11/8/206
