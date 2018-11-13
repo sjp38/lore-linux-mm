@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 67EC56B029A
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 00:54:54 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id r13so7359652pgb.7
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 21:54:54 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AF296B029C
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 00:55:51 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id 129-v6so9545305pfx.11
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 21:55:51 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id g13si18325824pgk.165.2018.11.12.21.50.53
+        by mx.google.com with ESMTPS id j7-v6si18831404plt.349.2018.11.12.21.51.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Nov 2018 21:50:53 -0800 (PST)
+        Mon, 12 Nov 2018 21:51:50 -0800 (PST)
 From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.19 44/44] mm: don't warn about large allocations for slab
-Date: Tue, 13 Nov 2018 00:49:50 -0500
-Message-Id: <20181113054950.77898-44-sashal@kernel.org>
-In-Reply-To: <20181113054950.77898-1-sashal@kernel.org>
-References: <20181113054950.77898-1-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.18 39/39] mm: don't warn about large allocations for slab
+Date: Tue, 13 Nov 2018 00:50:53 -0500
+Message-Id: <20181113055053.78352-39-sashal@kernel.org>
+In-Reply-To: <20181113055053.78352-1-sashal@kernel.org>
+References: <20181113055053.78352-1-sashal@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: stable@vger.kernel.org, linux-kernel@vger.kernel.org
@@ -97,7 +97,7 @@ index aa76a70e087e..d73c7a4820a4 100644
  	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
  		return cachep;
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index fea3376f9816..3a7ac4f15194 100644
+index 2296caf87bfb..8a0fba22c910 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
 @@ -1027,18 +1027,18 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
