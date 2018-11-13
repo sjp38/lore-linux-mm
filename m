@@ -1,98 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D8EE66B0005
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 06:06:06 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id y40-v6so12254472wrd.21
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 03:06:06 -0800 (PST)
-Received: from vulcan.natalenko.name (vulcan.natalenko.name. [2001:19f0:6c00:8846:5400:ff:fe0c:dfa0])
-        by mx.google.com with ESMTPS id o16-v6si15794051wrs.141.2018.11.13.03.06.04
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C09F56B0007
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 06:26:25 -0500 (EST)
+Received: by mail-oi1-f199.google.com with SMTP id n3-v6so2802173oia.3
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 03:26:25 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q125-v6sor8626279oia.48.2018.11.13.03.26.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 13 Nov 2018 03:06:04 -0800 (PST)
+        (Google Transport Security);
+        Tue, 13 Nov 2018 03:26:24 -0800 (PST)
+Received: from mail-ot1-f43.google.com (mail-ot1-f43.google.com. [209.85.210.43])
+        by smtp.gmail.com with ESMTPSA id k7-v6sm3931659oib.44.2018.11.13.03.26.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Nov 2018 03:26:22 -0800 (PST)
+Received: by mail-ot1-f43.google.com with SMTP id t5so10999054otk.1
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 03:26:22 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII;
- format=flowed
-Content-Transfer-Encoding: 7bit
-Date: Tue, 13 Nov 2018 12:06:03 +0100
-From: Oleksandr Natalenko <oleksandr@natalenko.name>
+References: <20181112231344.7161-1-timofey.titovets@synesis.ru> <20181113014928.GH21824@bombadil.infradead.org>
+In-Reply-To: <20181113014928.GH21824@bombadil.infradead.org>
+From: Timofey Titovets <timofey.titovets@synesis.ru>
+Date: Tue, 13 Nov 2018 14:25:45 +0300
+Message-ID: <CAGqmi76_ftDGtyowNRz7CCxRoJ6U3L747M=dWbRjh357w3=ZKA@mail.gmail.com>
 Subject: Re: [PATCH V3] KSM: allow dedup all tasks memory
-In-Reply-To: <<20181112231344.7161-1-timofey.titovets@synesis.ru>>
-Message-ID: <b4c41073d763dc5798562233de8eaa6d@natalenko.name>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: timofey.titovets@synesis.ru
-Cc: linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nefelim4ag@gmail.com, willy@infradead.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
-Hi.
+=D0=B2=D1=82, 13 =D0=BD=D0=BE=D1=8F=D0=B1. 2018 =D0=B3. =D0=B2 04:49, Matth=
+ew Wilcox <willy@infradead.org>:
+>
+> On Tue, Nov 13, 2018 at 02:13:44AM +0300, Timofey Titovets wrote:
+> > Some numbers from different not madvised workloads.
+> > Formulas:
+> >   Percentage ratio =3D (pages_sharing - pages_shared)/pages_unshared
+> >   Memory saved =3D (pages_sharing - pages_shared)*4/1024 MiB
+> >   Memory used =3D free -h
+> >
+> >   * Name: My working laptop
+> >     Description: Many different chrome/electron apps + KDE
+> >     Ratio: 5%
+> >     Saved: ~100  MiB
+> >     Used:  ~2000 MiB
+>
+> Your _laptop_ saves 100MB of RAM?  That's extraordinary.  Essentially
+> that's like getting an extra 100MB of page cache for free.  Is there
+> any observable slowdown?  I could even see there being a speedup (due
+> to your working set being allowed to be 5% larger)
+>
+> I am now a big fan of this patch and shall try to give it the review
+> that it deserves.
 
-> ksm by default working only on memory that added by
-> madvise().
-> 
-> And only way get that work on other applications:
->   * Use LD_PRELOAD and libraries
->   * Patch kernel
-> 
-> Lets use kernel task list and add logic to import VMAs from tasks.
-> 
-> That behaviour controlled by new attributes:
->   * mode:
->     I try mimic hugepages attribute, so mode have two states:
->       * madvise      - old default behaviour
->       * always [new] - allow ksm to get tasks vma and
->                        try working on that.
->   * seeker_sleep_millisecs:
->     Add pauses between imports tasks VMA
-> 
-> For rate limiting proporses and tasklist locking time,
-> ksm seeker thread only import VMAs from one task per loop.
-> 
-> Some numbers from different not madvised workloads.
-> Formulas:
->   Percentage ratio = (pages_sharing - pages_shared)/pages_unshared
->   Memory saved = (pages_sharing - pages_shared)*4/1024 MiB
->   Memory used = free -h
-> 
->   * Name: My working laptop
->     Description: Many different chrome/electron apps + KDE
->     Ratio: 5%
->     Saved: ~100  MiB
->     Used:  ~2000 MiB
-> 
->   * Name: K8s test VM
->     Description: Some small random running docker images
->     Ratio: 40%
->     Saved: ~160 MiB
->     Used:  ~920 MiB
-> 
->   * Name: Ceph test VM
->     Description: Ceph Mon/OSD, some containers
->     Ratio: 20%
->     Saved: ~60 MiB
->     Used:  ~600 MiB
-> 
->   * Name: BareMetal K8s backend server
->     Description: Different server apps in containers C, Java, GO & etc
->     Ratio: 72%
->     Saved: ~5800 MiB
->     Used:  ~35.7 GiB
-> 
->   * Name: BareMetal K8s processing server
->     Description: Many instance of one CPU intensive application
->     Ratio: 55%
->     Saved: ~2600 MiB
->     Used:  ~28.0 GiB
-> 
->   * Name: BareMetal Ceph node
->     Description: Only OSD storage daemons running
->     Raio: 2%
->     Saved: ~190 MiB
->     Used:  ~11.7 GiB
+I'm not sure if this is sarcasm,
+anyway i try do my best to get that working.
 
-Out of curiosity, have you compared these results with UKSM [1]?
+On any x86 desktop with mixed load (browser, docs, games & etc)
+You will always see something like 40-200 MiB of deduped pages,
+based on type of load of course.
 
-Thanks.
+I'm just don't try use that numbers as reason to get general KSM
+deduplication in kernel.
+Because in current generation with several gigabytes of memory,
+several saved MiB not looks serious for most of people.
 
--- 
-   Oleksandr Natalenko (post-factum)
-
-[1] https://github.com/dolohow/uksm
+Thanks!
