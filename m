@@ -1,93 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 258626B0003
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 20:33:30 -0500 (EST)
-Received: by mail-io1-f70.google.com with SMTP id w22-v6so11430372ioc.5
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 17:33:30 -0800 (PST)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id b12si3223008ita.118.2018.11.12.17.33.27
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 76A416B0006
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2018 20:39:46 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id c3so1809375eda.3
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 17:39:46 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z2-v6sor9439769edp.6.2018.11.12.17.39.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Nov 2018 17:33:28 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [RFC][PATCH v1 10/11] mm: clear PageHWPoison in memory hotremove
-Date: Tue, 13 Nov 2018 01:32:15 +0000
-Message-ID: <20181113013214.GA14528@hori1.linux.bs1.fc.nec.co.jp>
-References: <1541746035-13408-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1541746035-13408-11-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1541746035-13408-11-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <DA34DA41D102784C949AFD4B4E0EBFD8@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Mon, 12 Nov 2018 17:39:44 -0800 (PST)
+Date: Tue, 13 Nov 2018 01:39:42 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH] mm, page_alloc: skip zone who has no managed_pages in
+ calculate_totalreserve_pages()
+Message-ID: <20181113013942.zgixlky4ojbzikbd@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181112071404.13620-1-richard.weiyang@gmail.com>
+ <20181112080926.GA14987@dhcp22.suse.cz>
+ <20181112142641.6oxn4fv4pocm7fmt@master>
+ <20181112144020.GC14987@dhcp22.suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181112144020.GC14987@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, "xishi.qiuxishi@alibaba-inc.com" <xishi.qiuxishi@alibaba-inc.com>, Laurent Dufour <ldufour@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org
 
-On Fri, Nov 09, 2018 at 03:47:14PM +0900, Naoya Horiguchi wrote:
-> One hopeful usecase of memory hotplug is to replace half-broken DIMMs
-> with new ones, so it makes sense to clear hwpoison info at the time of
-> memory hotremove.
->=20
-> I hope that this patch covers the topic discussed in
-> https://lkml.org/lkml/2018/1/17/1228
->=20
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
->  mm/page_alloc.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
->=20
-> diff --git v4.19-mmotm-2018-10-30-16-08/mm/page_alloc.c v4.19-mmotm-2018-=
-10-30-16-08_patched/mm/page_alloc.c
-> index 970d6ff..27826b3 100644
-> --- v4.19-mmotm-2018-10-30-16-08/mm/page_alloc.c
-> +++ v4.19-mmotm-2018-10-30-16-08_patched/mm/page_alloc.c
-> @@ -8139,8 +8139,9 @@ __offline_isolated_pages(unsigned long start_pfn, u=
-nsigned long end_pfn)
->  		 * The HWPoisoned page may be not in buddy system, and
->  		 * page_count() is not 0.
->  		 */
-> -		if (unlikely(!PageBuddy(page) && PageHWPoison(page))) {
-> +		if (unlikely(!PageBuddy(page) && TestClearPageHWPoison(page))) {
->  			pfn++;
-> +			num_poisoned_pages_dec();
->  			SetPageReserved(page);
->  			continue;
->  		}
+On Mon, Nov 12, 2018 at 03:40:20PM +0100, Michal Hocko wrote:
+>On Mon 12-11-18 14:26:41, Wei Yang wrote:
+>> On Mon, Nov 12, 2018 at 09:09:26AM +0100, Michal Hocko wrote:
+>> >On Mon 12-11-18 15:14:04, Wei Yang wrote:
+>> >> Zone with no managed_pages doesn't contribute totalreserv_pages. And the
+>> >> more nodes we have, the more empty zones there are.
+>> >> 
+>> >> This patch skip the zones to save some cycles.
+>> >
+>> >What is the motivation for the patch? Does it really cause any
+>> >measurable difference in performance?
+>> >
+>> 
+>> The motivation here is to reduce some unnecessary work.
+>
+>I have guessed so even though the changelog was quite modest on the
+>motivation.
+>
+>> Based on my understanding, almost every node has empty zones, since
+>> zones within a node are ordered in monotonic increasing memory address.
+>
+>Yes, this is likely the case. Btw. a check for populated_zone or
+>for_each_populated_zone would suite much better.
+>
 
-Kbuild test robot shows that this patch causes build errors on
-!CONFIG_MEMORY_FAILURE, which should be fixed by the following changes.
+Hmm... maybe not exact.
 
-Thanks,
-Naoya Horiguchi
----
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 6c496dab246d..559092915fe6 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2785,6 +2785,10 @@ static inline void num_poisoned_pages_dec(void)
- {
- 	atomic_long_dec(&num_poisoned_pages);
- }
-+#else
-+static inline void num_poisoned_pages_dec(void)
-+{
-+}
- #endif
-=20
- #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index ab0bde073050..1461384aa1a3 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -385,6 +385,7 @@ extern bool set_hwpoison_free_buddy_page(struct page *p=
-age);
- extern bool clear_hwpoison_free_buddy_page(struct page *page);
- #else
- PAGEFLAG_FALSE(HWPoison)
-+TESTCLEARFLAG_FALSE(HWPoison)
- static inline bool set_hwpoison_free_buddy_page(struct page *page)
- {
- 	return false;=
+    populated_zone checks zone->present_pages
+    managed_zone checks zone->managed_pages
+
+As the comment of managed_zone says, this one records the pages managed
+by buddy system. And when we look at the usage of totalreserve_pages, it
+is only used in page allocation. And finally, *max* is checked with
+managed_pages instead of present_pages.
+
+Because of this, managed_zone is more accurate at this place. Is my
+understanding correct?
+
+>> The worst case is all zones has managed_pages. For example, there is
+>> only one node, or configured to have only ZONE_NORMAL and
+>> ZONE_MOVABLE. Otherwise, the more node/zone we have, the more empty
+>> zones there are.
+>> 
+>> I didn't have detail tests on this patch, since I don't have machine
+>> with large numa nodes. While compared with the following ten lines of
+>> code, this check to skip them is worthwhile to me.
+>
+>Well, the main question is whether the optimization is really worth it.
+>There is not much work done for each zone.
+>
+>I haven't looked closer whether the patch is actually correct, it seems
+>to be though, but optimizations without measurable effect tend to be not
+>that attractive.
+>
+
+I believe you are right to some extend, this tiny invisible change is
+far away from attractive. While I have another opinion about
+optimization.
+
+That would be great to have a strong optimizatioin which improve the
+system more than 10%. And there are another kind of optimization that
+improves the system a little. We may call it polish.
+
+One polish may not obvious, while cumulative polish make a system
+outstanding.
+
+Why German products are famous all around the world? Why people is
+willing to pay much more to get a ZWILLING knife than others? Because we
+trust German manufactures will polish their product day after day, year
+after year with any efforts they can.
+
+So as I am to linux kernel.
+
+BTW, I am also thinking about to reduce some unnecessary work of
+lowmem_reserve[] calculation. Because those empty zone's lowmem_reserve
+is never used. Even cumulative effect of these two optimization is
+trivial, I still think it is worth.
+
+>-- 
+>Michal Hocko
+>SUSE Labs
+
+-- 
+Wei Yang
+Help you, Help me
