@@ -1,174 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4428F6B026A
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 00:50:46 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id b8-v6so8725266pls.11
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 21:50:46 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 01CAB6B026C
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 00:50:48 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id h10so4954102pgv.20
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 21:50:47 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id l19si19711091pgm.432.2018.11.12.21.50.44
+        by mx.google.com with ESMTPS id p188-v6si22201860pfp.119.2018.11.12.21.50.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Nov 2018 21:50:44 -0800 (PST)
+        Mon, 12 Nov 2018 21:50:46 -0800 (PST)
 From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.19 39/44] mm: calculate deferred pages after skipping mirrored memory
-Date: Tue, 13 Nov 2018 00:49:45 -0500
-Message-Id: <20181113054950.77898-39-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.19 40/44] mm: don't raise MEMCG_OOM event due to failed high-order allocation
+Date: Tue, 13 Nov 2018 00:49:46 -0500
+Message-Id: <20181113054950.77898-40-sashal@kernel.org>
 In-Reply-To: <20181113054950.77898-1-sashal@kernel.org>
 References: <20181113054950.77898-1-sashal@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: stable@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Baoquan He <bhe@redhat.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ingo Molnar <mingo@kernel.org>, Jan Kara <jack@suse.cz>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Souptick Joarder <jrdr.linux@gmail.com>, Steven Sistare <steven.sistare@oracle.com>, Vlastimil Babka <vbabka@suse.cz>, Wei Yang <richard.weiyang@gmail.com>, Pasha Tatashin <Pavel.Tatashin@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sashal@kernel.org>, linux-mm@kvack.org
+Cc: Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sashal@kernel.org>, linux-doc@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
+From: Roman Gushchin <guro@fb.com>
 
-[ Upstream commit d3035be4ce2345d98633a45f93a74e526e94b802 ]
+[ Upstream commit 7a1adfddaf0d11a39fdcaf6e82a88e9c0586e08b ]
 
-update_defer_init() should be called only when struct page is about to be
-initialized. Because it counts number of initialized struct pages, but
-there we may skip struct pages if there is some mirrored memory.
+It was reported that on some of our machines containers were restarted
+with OOM symptoms without an obvious reason.  Despite there were almost no
+memory pressure and plenty of page cache, MEMCG_OOM event was raised
+occasionally, causing the container management software to think, that OOM
+has happened.  However, no tasks have been killed.
 
-So move, update_defer_init() after checking for mirrored memory.
+The following investigation showed that the problem is caused by a failing
+attempt to charge a high-order page.  In such case, the OOM killer is
+never invoked.  As shown below, it can happen under conditions, which are
+very far from a real OOM: e.g.  there is plenty of clean page cache and no
+memory pressure.
 
-Also, rename update_defer_init() to defer_init() and reverse the return
-boolean to emphasize that this is a boolean function, that tells that the
-reset of memmap initialization should be deferred.
+There is no sense in raising an OOM event in this case, as it might
+confuse a user and lead to wrong and excessive actions (e.g.  restart the
+workload, as in my case).
 
-Make this function self-contained: do not pass number of already
-initialized pages in this zone by using static counters.
+Let's look at the charging path in try_charge().  If the memory usage is
+about memory.max, which is absolutely natural for most memory cgroups, we
+try to reclaim some pages.  Even if we were able to reclaim enough memory
+for the allocation, the following check can fail due to a race with
+another concurrent allocation:
 
-I found this bug by reading the code.  The effect is that fewer than
-expected struct pages are initialized early in boot, and it is possible
-that in some corner cases we may fail to boot when mirrored pages are
-used.  The deferred on demand code should somewhat mitigate this.  But
-this still brings some inconsistencies compared to when booting without
-mirrored pages, so it is better to fix.
+    if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
+        goto retry;
 
-[pasha.tatashin@oracle.com: add comment about defer_init's lack of locking]
-  Link: http://lkml.kernel.org/r/20180726193509.3326-3-pasha.tatashin@oracle.com
-[akpm@linux-foundation.org: make defer_init non-inline, __meminit]
-Link: http://lkml.kernel.org/r/20180724235520.10200-3-pasha.tatashin@oracle.com
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
-Cc: Abdul Haleem <abdhalee@linux.vnet.ibm.com>
-Cc: Baoquan He <bhe@redhat.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Jan Kara <jack@suse.cz>
-Cc: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Steven Sistare <steven.sistare@oracle.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Wei Yang <richard.weiyang@gmail.com>
-Cc: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+For regular pages the following condition will save us from triggering
+the OOM:
+
+   if (nr_reclaimed && nr_pages <= (1 << PAGE_ALLOC_COSTLY_ORDER))
+       goto retry;
+
+But for high-order allocation this condition will intentionally fail.  The
+reason behind is that we'll likely fall to regular pages anyway, so it's
+ok and even preferred to return ENOMEM.
+
+In this case the idea of raising MEMCG_OOM looks dubious.
+
+Fix this by moving MEMCG_OOM raising to mem_cgroup_oom() after allocation
+order check, so that the event won't be raised for high order allocations.
+This change doesn't affect regular pages allocation and charging.
+
+Link: http://lkml.kernel.org/r/20181004214050.7417-1-guro@fb.com
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Michal Hocko <mhocko@kernel.org>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/page_alloc.c | 45 +++++++++++++++++++++++++--------------------
- 1 file changed, 25 insertions(+), 20 deletions(-)
+ Documentation/admin-guide/cgroup-v2.rst | 4 ++++
+ mm/memcontrol.c                         | 4 ++--
+ 2 files changed, 6 insertions(+), 2 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e2ef1c17942f..63f990b73750 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -306,24 +306,33 @@ static inline bool __meminit early_page_uninitialised(unsigned long pfn)
- }
+diff --git a/Documentation/admin-guide/cgroup-v2.rst b/Documentation/admin-guide/cgroup-v2.rst
+index 184193bcb262..5d9939388a78 100644
+--- a/Documentation/admin-guide/cgroup-v2.rst
++++ b/Documentation/admin-guide/cgroup-v2.rst
+@@ -1127,6 +1127,10 @@ PAGE_SIZE multiple when read back.
+ 		disk readahead.  For now OOM in memory cgroup kills
+ 		tasks iff shortage has happened inside page fault.
  
- /*
-- * Returns false when the remaining initialisation should be deferred until
-+ * Returns true when the remaining initialisation should be deferred until
-  * later in the boot cycle when it can be parallelised.
-  */
--static inline bool update_defer_init(pg_data_t *pgdat,
--				unsigned long pfn, unsigned long zone_end,
--				unsigned long *nr_initialised)
-+static bool __meminit
-+defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
- {
-+	static unsigned long prev_end_pfn, nr_initialised;
++		This event is not raised if the OOM killer is not
++		considered as an option, e.g. for failed high-order
++		allocations.
 +
-+	/*
-+	 * prev_end_pfn static that contains the end of previous zone
-+	 * No need to protect because called very early in boot before smp_init.
-+	 */
-+	if (prev_end_pfn != end_pfn) {
-+		prev_end_pfn = end_pfn;
-+		nr_initialised = 0;
-+	}
+ 	  oom_kill
+ 		The number of processes belonging to this cgroup
+ 		killed by any kind of OOM killer.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index e79cb59552d9..07c7af6f5e59 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1669,6 +1669,8 @@ static enum oom_status mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int
+ 	if (order > PAGE_ALLOC_COSTLY_ORDER)
+ 		return OOM_SKIPPED;
+ 
++	memcg_memory_event(memcg, MEMCG_OOM);
 +
- 	/* Always populate low zones for address-constrained allocations */
--	if (zone_end < pgdat_end_pfn(pgdat))
--		return true;
--	(*nr_initialised)++;
--	if ((*nr_initialised > pgdat->static_init_pgcnt) &&
--	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
--		pgdat->first_deferred_pfn = pfn;
-+	if (end_pfn < pgdat_end_pfn(NODE_DATA(nid)))
- 		return false;
-+	nr_initialised++;
-+	if ((nr_initialised > NODE_DATA(nid)->static_init_pgcnt) &&
-+	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
-+		NODE_DATA(nid)->first_deferred_pfn = pfn;
-+		return true;
- 	}
+ 	/*
+ 	 * We are in the middle of the charge context here, so we
+ 	 * don't want to block when potentially sitting on a callstack
+@@ -2250,8 +2252,6 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	if (fatal_signal_pending(current))
+ 		goto force;
+ 
+-	memcg_memory_event(mem_over_limit, MEMCG_OOM);
 -
--	return true;
-+	return false;
- }
- #else
- static inline bool early_page_uninitialised(unsigned long pfn)
-@@ -331,11 +340,9 @@ static inline bool early_page_uninitialised(unsigned long pfn)
- 	return false;
- }
- 
--static inline bool update_defer_init(pg_data_t *pgdat,
--				unsigned long pfn, unsigned long zone_end,
--				unsigned long *nr_initialised)
-+static inline bool defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
- {
--	return true;
-+	return false;
- }
- #endif
- 
-@@ -5459,9 +5466,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		struct vmem_altmap *altmap)
- {
- 	unsigned long end_pfn = start_pfn + size;
--	pg_data_t *pgdat = NODE_DATA(nid);
- 	unsigned long pfn;
--	unsigned long nr_initialised = 0;
- 	struct page *page;
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 	struct memblock_region *r = NULL, *tmp;
-@@ -5489,8 +5494,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 			continue;
- 		if (!early_pfn_in_nid(pfn, nid))
- 			continue;
--		if (!update_defer_init(pgdat, pfn, end_pfn, &nr_initialised))
--			break;
- 
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 		/*
-@@ -5513,6 +5516,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 			}
- 		}
- #endif
-+		if (defer_init(nid, pfn, end_pfn))
-+			break;
- 
- not_early:
- 		page = pfn_to_page(pfn);
+ 	/*
+ 	 * keep retrying as long as the memcg oom killer is able to make
+ 	 * a forward progress or bypass the charge if the oom killer
 -- 
 2.17.1
