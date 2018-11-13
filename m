@@ -1,208 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D56E06B027D
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 00:51:41 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id 34-v6so8775761plf.6
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 21:51:41 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A43906B027E
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 00:51:43 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id h9so2250192pgm.1
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 21:51:43 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id h80-v6si17091133pfj.112.2018.11.12.21.51.40
+        by mx.google.com with ESMTPS id 91-v6si20304449plc.409.2018.11.12.21.51.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Nov 2018 21:51:40 -0800 (PST)
+        Mon, 12 Nov 2018 21:51:42 -0800 (PST)
 From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.18 34/39] mm: thp: fix mmu_notifier in migrate_misplaced_transhuge_page()
-Date: Tue, 13 Nov 2018 00:50:48 -0500
-Message-Id: <20181113055053.78352-34-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.18 35/39] mm: calculate deferred pages after skipping mirrored memory
+Date: Tue, 13 Nov 2018 00:50:49 -0500
+Message-Id: <20181113055053.78352-35-sashal@kernel.org>
 In-Reply-To: <20181113055053.78352-1-sashal@kernel.org>
 References: <20181113055053.78352-1-sashal@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: stable@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sashal@kernel.org>, linux-mm@kvack.org
+Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Baoquan He <bhe@redhat.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ingo Molnar <mingo@kernel.org>, Jan Kara <jack@suse.cz>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Souptick Joarder <jrdr.linux@gmail.com>, Steven Sistare <steven.sistare@oracle.com>, Vlastimil Babka <vbabka@suse.cz>, Wei Yang <richard.weiyang@gmail.com>, Pasha Tatashin <Pavel.Tatashin@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sashal@kernel.org>, linux-mm@kvack.org
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
 
-[ Upstream commit 7066f0f933a1fd707bb38781866657769cff7efc ]
+[ Upstream commit d3035be4ce2345d98633a45f93a74e526e94b802 ]
 
-change_huge_pmd() after arming the numa/protnone pmd doesn't flush the TLB
-right away.  do_huge_pmd_numa_page() flushes the TLB before calling
-migrate_misplaced_transhuge_page().  By the time do_huge_pmd_numa_page()
-runs some CPU could still access the page through the TLB.
+update_defer_init() should be called only when struct page is about to be
+initialized. Because it counts number of initialized struct pages, but
+there we may skip struct pages if there is some mirrored memory.
 
-change_huge_pmd() before arming the numa/protnone transhuge pmd calls
-mmu_notifier_invalidate_range_start().  So there's no need of
-mmu_notifier_invalidate_range_start()/mmu_notifier_invalidate_range_only_end()
-sequence in migrate_misplaced_transhuge_page() too, because by the time
-migrate_misplaced_transhuge_page() runs, the pmd mapping has already been
-invalidated in the secondary MMUs.  It has to or if a secondary MMU can
-still write to the page, the migrate_page_copy() would lose data.
+So move, update_defer_init() after checking for mirrored memory.
 
-However an explicit mmu_notifier_invalidate_range() is needed before
-migrate_misplaced_transhuge_page() starts copying the data of the
-transhuge page or the below can happen for MMU notifier users sharing the
-primary MMU pagetables and only implementing ->invalidate_range:
+Also, rename update_defer_init() to defer_init() and reverse the return
+boolean to emphasize that this is a boolean function, that tells that the
+reset of memmap initialization should be deferred.
 
-CPU0		CPU1		GPU sharing linux pagetables using
-                                only ->invalidate_range
------------	------------	---------
-				GPU secondary MMU writes to the page
-				mapped by the transhuge pmd
-change_pmd_range()
-mmu..._range_start()
-->invalidate_range_start() noop
-change_huge_pmd()
-set_pmd_at(numa/protnone)
-pmd_unlock()
-		do_huge_pmd_numa_page()
-		CPU TLB flush globally (1)
-		CPU cannot write to page
-		migrate_misplaced_transhuge_page()
-				GPU writes to the page...
-		migrate_page_copy()
-				...GPU stops writing to the page
-CPU TLB flush (2)
-mmu..._range_end() (3)
-->invalidate_range_stop() noop
-->invalidate_range()
-				GPU secondary MMU is invalidated
-				and cannot write to the page anymore
-				(too late)
+Make this function self-contained: do not pass number of already
+initialized pages in this zone by using static counters.
 
-Just like we need a CPU TLB flush (1) because the TLB flush (2) arrives
-too late, we also need a mmu_notifier_invalidate_range() before calling
-migrate_misplaced_transhuge_page(), because the ->invalidate_range() in
-(3) also arrives too late.
+I found this bug by reading the code.  The effect is that fewer than
+expected struct pages are initialized early in boot, and it is possible
+that in some corner cases we may fail to boot when mirrored pages are
+used.  The deferred on demand code should somewhat mitigate this.  But
+this still brings some inconsistencies compared to when booting without
+mirrored pages, so it is better to fix.
 
-This requirement is the result of the lazy optimization in
-change_huge_pmd() that releases the pmd_lock without first flushing the
-TLB and without first calling mmu_notifier_invalidate_range().
-
-Even converting the removed mmu_notifier_invalidate_range_only_end() into
-a mmu_notifier_invalidate_range_end() would not have been enough to fix
-this, because it run after migrate_page_copy().
-
-After the hugepage data copy is done migrate_misplaced_transhuge_page()
-can proceed and call set_pmd_at without having to flush the TLB nor any
-secondary MMUs because the secondary MMU invalidate, just like the CPU TLB
-flush, has to happen before the migrate_page_copy() is called or it would
-be a bug in the first place (and it was for drivers using
-->invalidate_range()).
-
-KVM is unaffected because it doesn't implement ->invalidate_range().
-
-The standard PAGE_SIZEd migrate_misplaced_page is less accelerated and
-uses the generic migrate_pages which transitions the pte from
-numa/protnone to a migration entry in try_to_unmap_one() and flushes TLBs
-and all mmu notifiers there before copying the page.
-
-Link: http://lkml.kernel.org/r/20181013002430.698-3-aarcange@redhat.com
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reviewed-by: Aaron Tomlin <atomlin@redhat.com>
-Cc: Jerome Glisse <jglisse@redhat.com>
+[pasha.tatashin@oracle.com: add comment about defer_init's lack of locking]
+  Link: http://lkml.kernel.org/r/20180726193509.3326-3-pasha.tatashin@oracle.com
+[akpm@linux-foundation.org: make defer_init non-inline, __meminit]
+Link: http://lkml.kernel.org/r/20180724235520.10200-3-pasha.tatashin@oracle.com
+Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
+Cc: Abdul Haleem <abdhalee@linux.vnet.ibm.com>
+Cc: Baoquan He <bhe@redhat.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Jan Kara <jack@suse.cz>
+Cc: JA(C)rA'me Glisse <jglisse@redhat.com>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Steven Sistare <steven.sistare@oracle.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Wei Yang <richard.weiyang@gmail.com>
+Cc: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/huge_memory.c | 14 +++++++++++++-
- mm/migrate.c     | 19 ++++++-------------
- 2 files changed, 19 insertions(+), 14 deletions(-)
+ mm/page_alloc.c | 45 +++++++++++++++++++++++++--------------------
+ 1 file changed, 25 insertions(+), 20 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 3238bb2d0c93..d8d46936e39e 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1560,8 +1560,20 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
- 	 * We are not sure a pending tlb flush here is for a huge page
- 	 * mapping or not. Hence use the tlb range variant
- 	 */
--	if (mm_tlb_flush_pending(vma->vm_mm))
-+	if (mm_tlb_flush_pending(vma->vm_mm)) {
- 		flush_tlb_range(vma, haddr, haddr + HPAGE_PMD_SIZE);
-+		/*
-+		 * change_huge_pmd() released the pmd lock before
-+		 * invalidating the secondary MMUs sharing the primary
-+		 * MMU pagetables (with ->invalidate_range()). The
-+		 * mmu_notifier_invalidate_range_end() (which
-+		 * internally calls ->invalidate_range()) in
-+		 * change_pmd_range() will run after us, so we can't
-+		 * rely on it here and we need an explicit invalidate.
-+		 */
-+		mmu_notifier_invalidate_range(vma->vm_mm, haddr,
-+					      haddr + HPAGE_PMD_SIZE);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 65f2e6481c99..eb3b250c7c9a 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -306,24 +306,33 @@ static inline bool __meminit early_page_uninitialised(unsigned long pfn)
+ }
+ 
+ /*
+- * Returns false when the remaining initialisation should be deferred until
++ * Returns true when the remaining initialisation should be deferred until
+  * later in the boot cycle when it can be parallelised.
+  */
+-static inline bool update_defer_init(pg_data_t *pgdat,
+-				unsigned long pfn, unsigned long zone_end,
+-				unsigned long *nr_initialised)
++static bool __meminit
++defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
+ {
++	static unsigned long prev_end_pfn, nr_initialised;
++
++	/*
++	 * prev_end_pfn static that contains the end of previous zone
++	 * No need to protect because called very early in boot before smp_init.
++	 */
++	if (prev_end_pfn != end_pfn) {
++		prev_end_pfn = end_pfn;
++		nr_initialised = 0;
 +	}
- 
- 	/*
- 	 * Migrate the THP to the requested node, returns with page unlocked
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 38ad6365ed10..1d189fc0d206 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -2022,8 +2022,8 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	int isolated = 0;
- 	struct page *new_page = NULL;
- 	int page_lru = page_is_file_cache(page);
--	unsigned long mmun_start = address & HPAGE_PMD_MASK;
--	unsigned long mmun_end = mmun_start + HPAGE_PMD_SIZE;
-+	unsigned long start = address & HPAGE_PMD_MASK;
-+	unsigned long end = start + HPAGE_PMD_SIZE;
- 
- 	/*
- 	 * Rate-limit the amount of data that is being migrated to a node.
-@@ -2058,11 +2058,9 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	WARN_ON(PageLRU(new_page));
- 
- 	/* Recheck the target PMD */
--	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
- 	ptl = pmd_lock(mm, pmd);
- 	if (unlikely(!pmd_same(*pmd, entry) || !page_ref_freeze(page, 2))) {
- 		spin_unlock(ptl);
--		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- 
- 		/* Reverse changes made by migrate_page_copy() */
- 		if (TestClearPageActive(new_page))
-@@ -2093,8 +2091,8 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	 * new page and page_add_new_anon_rmap guarantee the copy is
- 	 * visible before the pagetable update.
- 	 */
--	flush_cache_range(vma, mmun_start, mmun_end);
--	page_add_anon_rmap(new_page, vma, mmun_start, true);
-+	flush_cache_range(vma, start, end);
-+	page_add_anon_rmap(new_page, vma, start, true);
- 	/*
- 	 * At this point the pmd is numa/protnone (i.e. non present) and the TLB
- 	 * has already been flushed globally.  So no TLB can be currently
-@@ -2106,7 +2104,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	 * MADV_DONTNEED won't wait on the pmd lock and it'll skip clearing this
- 	 * pmd.
- 	 */
--	set_pmd_at(mm, mmun_start, pmd, entry);
-+	set_pmd_at(mm, start, pmd, entry);
- 	update_mmu_cache_pmd(vma, address, &entry);
- 
- 	page_ref_unfreeze(page, 2);
-@@ -2115,11 +2113,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	set_page_owner_migrate_reason(new_page, MR_NUMA_MISPLACED);
- 
- 	spin_unlock(ptl);
--	/*
--	 * No need to double call mmu_notifier->invalidate_range() callback as
--	 * the above pmdp_huge_clear_flush_notify() did already call it.
--	 */
--	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- 
- 	/* Take an "isolate" reference and put new page on the LRU. */
- 	get_page(new_page);
-@@ -2144,7 +2137,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	ptl = pmd_lock(mm, pmd);
- 	if (pmd_same(*pmd, entry)) {
- 		entry = pmd_modify(entry, vma->vm_page_prot);
--		set_pmd_at(mm, mmun_start, pmd, entry);
-+		set_pmd_at(mm, start, pmd, entry);
- 		update_mmu_cache_pmd(vma, address, &entry);
++
+ 	/* Always populate low zones for address-constrained allocations */
+-	if (zone_end < pgdat_end_pfn(pgdat))
+-		return true;
+-	(*nr_initialised)++;
+-	if ((*nr_initialised > pgdat->static_init_pgcnt) &&
+-	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
+-		pgdat->first_deferred_pfn = pfn;
++	if (end_pfn < pgdat_end_pfn(NODE_DATA(nid)))
+ 		return false;
++	nr_initialised++;
++	if ((nr_initialised > NODE_DATA(nid)->static_init_pgcnt) &&
++	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
++		NODE_DATA(nid)->first_deferred_pfn = pfn;
++		return true;
  	}
- 	spin_unlock(ptl);
+-
+-	return true;
++	return false;
+ }
+ #else
+ static inline bool early_page_uninitialised(unsigned long pfn)
+@@ -331,11 +340,9 @@ static inline bool early_page_uninitialised(unsigned long pfn)
+ 	return false;
+ }
+ 
+-static inline bool update_defer_init(pg_data_t *pgdat,
+-				unsigned long pfn, unsigned long zone_end,
+-				unsigned long *nr_initialised)
++static inline bool defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
+ {
+-	return true;
++	return false;
+ }
+ #endif
+ 
+@@ -5462,9 +5469,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 		struct vmem_altmap *altmap)
+ {
+ 	unsigned long end_pfn = start_pfn + size;
+-	pg_data_t *pgdat = NODE_DATA(nid);
+ 	unsigned long pfn;
+-	unsigned long nr_initialised = 0;
+ 	struct page *page;
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ 	struct memblock_region *r = NULL, *tmp;
+@@ -5492,8 +5497,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 			continue;
+ 		if (!early_pfn_in_nid(pfn, nid))
+ 			continue;
+-		if (!update_defer_init(pgdat, pfn, end_pfn, &nr_initialised))
+-			break;
+ 
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ 		/*
+@@ -5516,6 +5519,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 			}
+ 		}
+ #endif
++		if (defer_init(nid, pfn, end_pfn))
++			break;
+ 
+ not_early:
+ 		page = pfn_to_page(pfn);
 -- 
 2.17.1
