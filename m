@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 454BD6B000D
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 13:20:10 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id c12-v6so6905013ede.6
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 10:20:10 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AAF1E6B0010
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 13:20:45 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id g16-v6so6882820eds.20
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 10:20:45 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n25sor5417618edd.1.2018.11.13.10.20.08
+        by mx.google.com with SMTPS id w19-v6sor3461865ejv.42.2018.11.13.10.20.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 13 Nov 2018 10:20:08 -0800 (PST)
+        Tue, 13 Nov 2018 10:20:43 -0800 (PST)
 From: Timofey Titovets <nefelim4ag@gmail.com>
-Subject: [PATCH V3] KSM: allow dedup all tasks memory
-Date: Tue, 13 Nov 2018 21:20:00 +0300
-Message-Id: <20181113182000.20055-1-nefelim4ag@gmail.com>
+Subject: [PATCH V4] KSM: allow dedup all tasks memory
+Date: Tue, 13 Nov 2018 21:20:36 +0300
+Message-Id: <20181113182036.21524-1-nefelim4ag@gmail.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Timofey Titovets <nefelim4ag@gmail.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-doc@vger.kernel.org
+Cc: Timofey Titovets <nefelim4ag@gmail.com>, Matthew Wilcox <willy@infradead.org>, Oleksandr Natalenko <oleksandr@natalenko.name>, Pavel Tatashin <pasha.tatashin@soleen.com>, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
 ksm by default working only on memory that added by
 madvise().
@@ -90,19 +90,24 @@ Changes:
     * Reformat patch description
     * Rename mode normal to madvise
     * Add some memory numbers
-    * Fix checkpatch.pl warnings
     * Separate ksm vma seeker to another kthread
     * Fix: "BUG: scheduling while atomic: ksmd"
       by move seeker to another thread
+  v3 -> v4:
+    * Fix again "BUG: scheduling while atomic"
+      by get()/put() task API
+    * Remove unused variable "error"
 
 Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
 CC: Matthew Wilcox <willy@infradead.org>
+CC: Oleksandr Natalenko <oleksandr@natalenko.name>
+CC: Pavel Tatashin <pasha.tatashin@soleen.com>
 CC: linux-mm@kvack.org
 CC: linux-doc@vger.kernel.org
 ---
  Documentation/admin-guide/mm/ksm.rst |  15 ++
- mm/ksm.c                             | 215 +++++++++++++++++++++++----
- 2 files changed, 198 insertions(+), 32 deletions(-)
+ mm/ksm.c                             | 217 +++++++++++++++++++++++----
+ 2 files changed, 200 insertions(+), 32 deletions(-)
 
 diff --git a/Documentation/admin-guide/mm/ksm.rst b/Documentation/admin-guide/mm/ksm.rst
 index 9303786632d1..7cffd47f9b38 100644
@@ -131,7 +136,7 @@ index 9303786632d1..7cffd47f9b38 100644
          specifies whether empty pages (i.e. allocated pages that only
          contain zeroes) should be treated specially.  When set to 1,
 diff --git a/mm/ksm.c b/mm/ksm.c
-index 5b0894b45ee5..1a03b28b6288 100644
+index 5b0894b45ee5..f087eefda8b2 100644
 --- a/mm/ksm.c
 +++ b/mm/ksm.c
 @@ -273,6 +273,9 @@ static unsigned int ksm_thread_pages_to_scan = 100;
@@ -169,7 +174,7 @@ index 5b0894b45ee5..1a03b28b6288 100644
  static int __init ksm_slab_init(void)
  {
  	rmap_item_cache = KSM_KMEM_CACHE(rmap_item, 0);
-@@ -2389,6 +2402,106 @@ static int ksmd_should_run(void)
+@@ -2389,6 +2402,108 @@ static int ksmd_should_run(void)
  	return (ksm_run & KSM_RUN_MERGE) && !list_empty(&ksm_mm_head.mm_list);
  }
  
@@ -211,7 +216,6 @@ index 5b0894b45ee5..1a03b28b6288 100644
 +{
 +	struct vm_area_struct *vma;
 +	struct mm_struct *mm;
-+	int error;
 +
 +	mm = get_task_mm(task);
 +	if (!mm)
@@ -219,7 +223,7 @@ index 5b0894b45ee5..1a03b28b6288 100644
 +	down_write(&mm->mmap_sem);
 +	vma = mm->mmap;
 +	while (vma) {
-+		error = ksm_enter(vma->vm_mm, &vma->vm_flags);
++		ksm_enter(vma->vm_mm, &vma->vm_flags);
 +		vma = vma->vm_next;
 +	}
 +	up_write(&mm->mmap_sem);
@@ -263,9 +267,12 @@ index 5b0894b45ee5..1a03b28b6288 100644
 +				break;
 +		}
 +
++		get_task_struct(task);
++		read_unlock(&tasklist_lock);
++
 +		last_pid = task_pid_nr(task);
 +		ksm_import_task_vma(task);
-+		read_unlock(&tasklist_lock);
++		put_task_struct(task);
 +
 +		schedule_timeout_interruptible(
 +			msecs_to_jiffies(ksm_thread_seeker_sleep_millisecs));
@@ -276,7 +283,7 @@ index 5b0894b45ee5..1a03b28b6288 100644
  static int ksm_scan_thread(void *nothing)
  {
  	set_freezable();
-@@ -2422,33 +2535,9 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
+@@ -2422,33 +2537,9 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
  
  	switch (advice) {
  	case MADV_MERGEABLE:
@@ -313,7 +320,7 @@ index 5b0894b45ee5..1a03b28b6288 100644
  		break;
  
  	case MADV_UNMERGEABLE:
-@@ -2829,6 +2918,29 @@ static ssize_t sleep_millisecs_store(struct kobject *kobj,
+@@ -2829,6 +2920,29 @@ static ssize_t sleep_millisecs_store(struct kobject *kobj,
  }
  KSM_ATTR(sleep_millisecs);
  
@@ -343,7 +350,7 @@ index 5b0894b45ee5..1a03b28b6288 100644
  static ssize_t pages_to_scan_show(struct kobject *kobj,
  				  struct kobj_attribute *attr, char *buf)
  {
-@@ -2852,6 +2964,34 @@ static ssize_t pages_to_scan_store(struct kobject *kobj,
+@@ -2852,6 +2966,34 @@ static ssize_t pages_to_scan_store(struct kobject *kobj,
  }
  KSM_ATTR(pages_to_scan);
  
@@ -378,7 +385,7 @@ index 5b0894b45ee5..1a03b28b6288 100644
  static ssize_t run_show(struct kobject *kobj, struct kobj_attribute *attr,
  			char *buf)
  {
-@@ -3108,7 +3248,9 @@ KSM_ATTR_RO(full_scans);
+@@ -3108,7 +3250,9 @@ KSM_ATTR_RO(full_scans);
  
  static struct attribute *ksm_attrs[] = {
  	&sleep_millisecs_attr.attr,
@@ -388,7 +395,7 @@ index 5b0894b45ee5..1a03b28b6288 100644
  	&run_attr.attr,
  	&pages_shared_attr.attr,
  	&pages_sharing_attr.attr,
-@@ -3134,7 +3276,7 @@ static const struct attribute_group ksm_attr_group = {
+@@ -3134,7 +3278,7 @@ static const struct attribute_group ksm_attr_group = {
  
  static int __init ksm_init(void)
  {
@@ -397,7 +404,7 @@ index 5b0894b45ee5..1a03b28b6288 100644
  	int err;
  
  	/* The correct value depends on page size and endianness */
-@@ -3146,10 +3288,18 @@ static int __init ksm_init(void)
+@@ -3146,10 +3290,18 @@ static int __init ksm_init(void)
  	if (err)
  		goto out;
  
@@ -419,7 +426,7 @@ index 5b0894b45ee5..1a03b28b6288 100644
  		goto out_free;
  	}
  
-@@ -3157,7 +3307,8 @@ static int __init ksm_init(void)
+@@ -3157,7 +3309,8 @@ static int __init ksm_init(void)
  	err = sysfs_create_group(mm_kobj, &ksm_attr_group);
  	if (err) {
  		pr_err("ksm: register sysfs failed\n");
