@@ -1,34 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EECAC6B000A
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 01:14:10 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id i22-v6so8697706pfj.1
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 22:14:10 -0800 (PST)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 85DB46B000A
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 01:15:59 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id s24-v6so8784053plp.12
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2018 22:15:59 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id f5si19675083pgr.411.2018.11.12.22.14.09
+        by mx.google.com with ESMTPS id c17si12937204pgl.385.2018.11.12.22.15.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 12 Nov 2018 22:14:09 -0800 (PST)
-Date: Mon, 12 Nov 2018 22:14:07 -0800
+        Mon, 12 Nov 2018 22:15:58 -0800 (PST)
+Date: Mon, 12 Nov 2018 22:15:55 -0800
 From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v4 2/9] dmapool: remove checks for dev == NULL
-Message-ID: <20181113061407.GM21824@bombadil.infradead.org>
-References: <df529b6e-6744-b1af-01ce-a1b691fbcf0d@cybernetics.com>
+Subject: Re: [PATCH v4 3/9] dmapool: cleanup dma_pool_destroy
+Message-ID: <20181113061555.GN21824@bombadil.infradead.org>
+References: <2ff327bb-59f7-5105-0bba-72329cb73154@cybernetics.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <df529b6e-6744-b1af-01ce-a1b691fbcf0d@cybernetics.com>
+In-Reply-To: <2ff327bb-59f7-5105-0bba-72329cb73154@cybernetics.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tony Battersby <tonyb@cybernetics.com>
-Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, iommu@lists.linux-foundation.org, linux-mm@kvack.org, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>
+Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org
 
-On Mon, Nov 12, 2018 at 10:42:12AM -0500, Tony Battersby wrote:
-> dmapool originally tried to support pools without a device because
-> dma_alloc_coherent() supports allocations without a device.  But nobody
-> ended up using dma pools without a device, so the current checks in
-> dmapool.c for pool->dev == NULL are both insufficient and causing bloat.
-> Remove them.
+On Mon, Nov 12, 2018 at 10:42:48AM -0500, Tony Battersby wrote:
+> Remove a small amount of code duplication between dma_pool_destroy() and
+> pool_free_page() in preparation for adding more code without having to
+> duplicate it.  No functional changes.
 > 
 > Signed-off-by: Tony Battersby <tonyb@cybernetics.com>
 
