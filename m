@@ -1,108 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 229926B000D
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 04:14:13 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id z72-v6so6164951ede.14
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 01:14:13 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e10-v6sor4592230ejf.10.2018.11.13.01.14.11
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 942436B000D
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 04:29:03 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id v74so7731163qkb.21
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 01:29:03 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e13si4878977qth.59.2018.11.13.01.29.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 13 Nov 2018 01:14:11 -0800 (PST)
-Date: Tue, 13 Nov 2018 09:14:09 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH] mm, page_alloc: skip zone who has no managed_pages in
- calculate_totalreserve_pages()
-Message-ID: <20181113091409.gz6roa7qngz3eoyi@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20181112071404.13620-1-richard.weiyang@gmail.com>
- <20181112080926.GA14987@dhcp22.suse.cz>
- <20181112142641.6oxn4fv4pocm7fmt@master>
- <20181112144020.GC14987@dhcp22.suse.cz>
- <20181113013942.zgixlky4ojbzikbd@master>
- <20181113080834.GK15120@dhcp22.suse.cz>
- <20181113081644.giu5vxhsfqjqlexh@master>
- <20181113090758.GL15120@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Nov 2018 01:29:02 -0800 (PST)
+Subject: Re: [PATCH 1/2] mm: make dev_pagemap_mapping_shift() externally
+ visible
+References: <20181109203921.178363-1-brho@google.com>
+ <20181109203921.178363-2-brho@google.com>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <55978932-90ee-c327-b445-990849250eb1@redhat.com>
+Date: Tue, 13 Nov 2018 10:28:56 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181113090758.GL15120@dhcp22.suse.cz>
+In-Reply-To: <20181109203921.178363-2-brho@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org
+To: Barret Rhoden <brho@google.com>, Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>, Ross Zwisler <zwisler@kernel.org>, Vishal Verma <vishal.l.verma@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, kvm@vger.kernel.org, yu.c.zhang@intel.com, yi.z.zhang@intel.com, linux-mm@kvack.org
 
-On Tue, Nov 13, 2018 at 10:07:58AM +0100, Michal Hocko wrote:
->On Tue 13-11-18 08:16:44, Wei Yang wrote:
->> On Tue, Nov 13, 2018 at 09:08:34AM +0100, Michal Hocko wrote:
->> >On Tue 13-11-18 01:39:42, Wei Yang wrote:
->> >> On Mon, Nov 12, 2018 at 03:40:20PM +0100, Michal Hocko wrote:
->> >> >On Mon 12-11-18 14:26:41, Wei Yang wrote:
->> >> >> On Mon, Nov 12, 2018 at 09:09:26AM +0100, Michal Hocko wrote:
->> >> >> >On Mon 12-11-18 15:14:04, Wei Yang wrote:
->> >> >> >> Zone with no managed_pages doesn't contribute totalreserv_pages. And the
->> >> >> >> more nodes we have, the more empty zones there are.
->> >> >> >> 
->> >> >> >> This patch skip the zones to save some cycles.
->> >> >> >
->> >> >> >What is the motivation for the patch? Does it really cause any
->> >> >> >measurable difference in performance?
->> >> >> >
->> >> >> 
->> >> >> The motivation here is to reduce some unnecessary work.
->> >> >
->> >> >I have guessed so even though the changelog was quite modest on the
->> >> >motivation.
->> >> >
->> >> >> Based on my understanding, almost every node has empty zones, since
->> >> >> zones within a node are ordered in monotonic increasing memory address.
->> >> >
->> >> >Yes, this is likely the case. Btw. a check for populated_zone or
->> >> >for_each_populated_zone would suite much better.
->> >> >
->> >> 
->> >> Hmm... maybe not exact.
->> >> 
->> >>     populated_zone checks zone->present_pages
->> >>     managed_zone checks zone->managed_pages
->> >> 
->> >> As the comment of managed_zone says, this one records the pages managed
->> >> by buddy system. And when we look at the usage of totalreserve_pages, it
->> >> is only used in page allocation. And finally, *max* is checked with
->> >> managed_pages instead of present_pages.
->> >> 
->> >> Because of this, managed_zone is more accurate at this place. Is my
->> >> understanding correct?
->> >
->> >OK, fair enough. There is a certain discrepancy here. You are right that
->> >we do not care about pages out of the page allocator scope (e.g. early
->> >bootmem allocations, struct pages) but this is likely what other callers
->> >of populated_zone are looking for as well. It seems that managed pages
->> >counter which only came in later was not considered in other places.
->> >
->> >That being said this asks for a cleanup of some sort. And I think such a
->> >cleanup wold be appreciated much more than an optimization of an unknown
->> >effect and wonder why this check is used here and not at other places.
->> 
->> You are right. There are three pages(spanned, managed, present) in a
->> zone, which is a little confusing.
->> 
->> So you are willing to get rid of present_pages, if I am right?
->
->No, I believe we want all three of them. But reviewing
->for_each_populated_zone users and explicit checks for present/managed
->pages and unify them would be a step forward both a more optimal code
->and more maintainable code. I haven't checked but
->for_each_populated_zone would seem like a proper user for managed page
->counter. But that really requires to review all current users.
+On 09.11.18 21:39, Barret Rhoden wrote:
+> KVM has a use case for determining the size of a dax mapping.  The KVM
+> code has easy access to the address and the mm; hence the change in
+> parameters.
+> 
+> Signed-off-by: Barret Rhoden <brho@google.com>
+> ---
+>  include/linux/mm.h  |  3 +++
+>  mm/memory-failure.c | 38 +++-----------------------------------
+>  mm/util.c           | 34 ++++++++++++++++++++++++++++++++++
+>  3 files changed, 40 insertions(+), 35 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 5411de93a363..51215d695753 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -935,6 +935,9 @@ static inline bool is_pci_p2pdma_page(const struct page *page)
+>  }
+>  #endif /* CONFIG_DEV_PAGEMAP_OPS */
+>  
+> +unsigned long dev_pagemap_mapping_shift(unsigned long address,
+> +					struct mm_struct *mm);
+> +
+>  static inline void get_page(struct page *page)
+>  {
+>  	page = compound_head(page);
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index 0cd3de3550f0..c3f2c6a8607e 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -265,40 +265,6 @@ void shake_page(struct page *p, int access)
+>  }
+>  EXPORT_SYMBOL_GPL(shake_page);
+>  
+> -static unsigned long dev_pagemap_mapping_shift(struct page *page,
+> -		struct vm_area_struct *vma)
+> -{
+> -	unsigned long address = vma_address(page, vma);
+> -	pgd_t *pgd;
+> -	p4d_t *p4d;
+> -	pud_t *pud;
+> -	pmd_t *pmd;
+> -	pte_t *pte;
+> -
+> -	pgd = pgd_offset(vma->vm_mm, address);
+> -	if (!pgd_present(*pgd))
+> -		return 0;
+> -	p4d = p4d_offset(pgd, address);
+> -	if (!p4d_present(*p4d))
+> -		return 0;
+> -	pud = pud_offset(p4d, address);
+> -	if (!pud_present(*pud))
+> -		return 0;
+> -	if (pud_devmap(*pud))
+> -		return PUD_SHIFT;
+> -	pmd = pmd_offset(pud, address);
+> -	if (!pmd_present(*pmd))
+> -		return 0;
+> -	if (pmd_devmap(*pmd))
+> -		return PMD_SHIFT;
+> -	pte = pte_offset_map(pmd, address);
+> -	if (!pte_present(*pte))
+> -		return 0;
+> -	if (pte_devmap(*pte))
+> -		return PAGE_SHIFT;
+> -	return 0;
+> -}
+> -
+>  /*
+>   * Failure handling: if we can't find or can't kill a process there's
+>   * not much we can do.	We just print a message and ignore otherwise.
+> @@ -329,7 +295,9 @@ static void add_to_kill(struct task_struct *tsk, struct page *p,
+>  	tk->addr = page_address_in_vma(p, vma);
+>  	tk->addr_valid = 1;
+>  	if (is_zone_device_page(p))
+> -		tk->size_shift = dev_pagemap_mapping_shift(p, vma);
+> +		tk->size_shift =
+> +			dev_pagemap_mapping_shift(vma_address(page, vma),
+> +						  vma->vm_mm);
+>  	else
+>  		tk->size_shift = compound_order(compound_head(p)) + PAGE_SHIFT;
+>  
+> diff --git a/mm/util.c b/mm/util.c
+> index 8bf08b5b5760..61bc9bab931d 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -780,3 +780,37 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
+>  out:
+>  	return res;
+>  }
+> +
+> +unsigned long dev_pagemap_mapping_shift(unsigned long address,
+> +					struct mm_struct *mm)
+> +{
+> +	pgd_t *pgd;
+> +	p4d_t *p4d;
+> +	pud_t *pud;
+> +	pmd_t *pmd;
+> +	pte_t *pte;
+> +
+> +	pgd = pgd_offset(mm, address);
+> +	if (!pgd_present(*pgd))
+> +		return 0;
+> +	p4d = p4d_offset(pgd, address);
+> +	if (!p4d_present(*p4d))
+> +		return 0;
+> +	pud = pud_offset(p4d, address);
+> +	if (!pud_present(*pud))
+> +		return 0;
+> +	if (pud_devmap(*pud))
+> +		return PUD_SHIFT;
+> +	pmd = pmd_offset(pud, address);
+> +	if (!pmd_present(*pmd))
+> +		return 0;
+> +	if (pmd_devmap(*pmd))
+> +		return PMD_SHIFT;
+> +	pte = pte_offset_map(pmd, address);
+> +	if (!pte_present(*pte))
+> +		return 0;
+> +	if (pte_devmap(*pte))
+> +		return PAGE_SHIFT;
+> +	return 0;
+> +}
+> +EXPORT_SYMBOL_GPL(dev_pagemap_mapping_shift);
+> 
 
-Got your point. Let me take a look to see if I could make a cleanup.
+Looks good to me
 
->
->-- 
->Michal Hocko
->SUSE Labs
+Reviewed-by: David Hildenbrand <david@redhat.com>
 
 -- 
-Wei Yang
-Help you, Help me
+
+Thanks,
+
+David / dhildenb
