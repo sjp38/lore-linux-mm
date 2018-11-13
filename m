@@ -1,73 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AB4B66B0003
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 13:43:01 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id h24-v6so7029010ede.9
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 10:43:01 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n19-v6sor3437874ejr.12.2018.11.13.10.43.00
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 895EF6B000A
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 13:43:50 -0500 (EST)
+Received: by mail-wm1-f71.google.com with SMTP id 143-v6so11860640wmv.0
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 10:43:50 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTPS id c5-v6si12457362wmc.168.2018.11.13.10.43.48
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 13 Nov 2018 10:43:00 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Nov 2018 10:43:49 -0800 (PST)
+Date: Tue, 13 Nov 2018 19:43:37 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v5 05/27] Documentation/x86: Add CET description
+Message-ID: <20181113184337.GM10502@zn.tnic>
+References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
+ <20181011151523.27101-6-yu-cheng.yu@intel.com>
 MIME-Version: 1.0
-References: <20181112231344.7161-1-timofey.titovets@synesis.ru>
- <20181113022516.45u6b536vtdjgvrf@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
- <CAGqmi744_8NA30V0aWCpFi_=WSaA+18h3njOTQG0SFUVdXi8bg@mail.gmail.com>
-In-Reply-To: <CAGqmi744_8NA30V0aWCpFi_=WSaA+18h3njOTQG0SFUVdXi8bg@mail.gmail.com>
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Tue, 13 Nov 2018 10:42:47 -0800
-Message-ID: <CA+CK2bB0C-PCdaHS7YiLf5iZWn1bATg2y32ogL1FSw7LY9E7SQ@mail.gmail.com>
-Subject: Re: [PATCH V3] KSM: allow dedup all tasks memory
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20181011151523.27101-6-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Timofey Titovets <timofey.titovets@synesis.ru>
-Cc: LKML <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>, linux-doc@vger.kernel.org
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-> > Is it really necessary to have an extra thread in ksm just to add vma's
-> > for scanning? Can we do it right from the scanner thread? Also, may be
-> > it is better to add vma's at their creation time when KSM_MODE_ALWAYS is
-> > enabled?
-> >
-> > Thank you,
-> > Pasha
->
-> Oh, thats a long story, and my english to bad for describe all things,
-> even that hard to find linux-mm conversation several years ago about that.
->
-> Anyway, so:
-> In V2 - i use scanner thread to add VMA, but i think scanner do that
-> with too high rate.
-> i.e. walk on task list, and get new task every 20ms, to wait write semaphore,
-> to get VMA...
-> To high rate for task list scanner, i think it's overkill.
->
-> About add VMA from creation time,
-> UKSM add ksm_enter() hooks to mm subsystem, i port that to KSM.
-> But some mm people say what they not like add KSM hooks to other subsystems.
-> And want ksm do that internally by some way.
->
-> Frankly speaking i didn't have enough knowledge and skills to do that
-> another way in past time.
-> They also suggest me look to THP for that logic, but i can't find how
-> THP do that without hooks, and
-> where THP truly scan memory.
->
-> So, after all of that i implemented this in that way.
-> In first iteration as part of ksm scan thread, and in second, by
-> separate thread.
-> Because that allow to add VMA in fully independent way.
+On Thu, Oct 11, 2018 at 08:15:01AM -0700, Yu-cheng Yu wrote:
+> Explain how CET works and the no_cet_shstk/no_cet_ibt kernel
+> parameters.
+> 
+> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+> ---
+>  .../admin-guide/kernel-parameters.txt         |   6 +
+>  Documentation/index.rst                       |   1 +
+>  Documentation/x86/index.rst                   |  11 +
+>  Documentation/x86/intel_cet.rst               | 266 ++++++++++++++++++
+>  4 files changed, 284 insertions(+)
+>  create mode 100644 Documentation/x86/index.rst
+>  create mode 100644 Documentation/x86/intel_cet.rst
 
-It still feels as a wrong direction. A new thread that adds random
-VMA's to scan, and no way to optimize the queue fairness for example.
-It should really be done at creation time, when VMA is created it
-should be added to KSM scanning queue, or KSM main scanner thread
-should go through VMA list in a coherent order.
+So this patch should probably come first in the series so that a reader
+can know what to expect...
 
-The design of having a separate thread is bad. I plan in the future to
-add thread per node support to KSM, and this one odd thread won't
-break things, to which queue should this thread add VMA if there are
-multiple queues?
+> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+> index 92eb1f42240d..3854423f7c86 100644
+> --- a/Documentation/admin-guide/kernel-parameters.txt
+> +++ b/Documentation/admin-guide/kernel-parameters.txt
+> @@ -2764,6 +2764,12 @@
+>  			noexec=on: enable non-executable mappings (default)
+>  			noexec=off: disable non-executable mappings
+>  
+> +	no_cet_ibt	[X86-64] Disable indirect branch tracking for user-mode
+> +			applications
+> +
+> +	no_cet_shstk	[X86-64] Disable shadow stack support for user-mode
+> +			applications
+> +
+>  	nosmap		[X86]
+>  			Disable SMAP (Supervisor Mode Access Prevention)
+>  			even if it is supported by processor.
+> diff --git a/Documentation/index.rst b/Documentation/index.rst
+> index 5db7e87c7cb1..1cdc139adb40 100644
+> --- a/Documentation/index.rst
+> +++ b/Documentation/index.rst
 
-Thank you,
-Pasha
+Please integrate scripts/checkpatch.pl into your patch creation
+workflow. Some of the warnings/errors *actually* make sense:
+
+WARNING: Missing or malformed SPDX-License-Identifier tag in line 1
+#76: FILE: Documentation/x86/index.rst:1:
++=======================
+
+WARNING: Missing or malformed SPDX-License-Identifier tag in line 1
+#93: FILE: Documentation/x86/intel_cet.rst:1:
++=========================================
+
+> @@ -104,6 +104,7 @@ implementation.
+>     :maxdepth: 2
+>  
+>     sh/index
+> +   x86/index
+>  
+>  Filesystem Documentation
+>  ------------------------
+> diff --git a/Documentation/x86/index.rst b/Documentation/x86/index.rst
+> new file mode 100644
+> index 000000000000..9c34d8cbc8f0
+> --- /dev/null
+> +++ b/Documentation/x86/index.rst
+> @@ -0,0 +1,11 @@
+> +=======================
+> +X86 Documentation
+> +=======================
+> +
+> +Control Flow Enforcement
+> +========================
+> +
+> +.. toctree::
+> +   :maxdepth: 1
+> +
+> +   intel_cet
+> diff --git a/Documentation/x86/intel_cet.rst b/Documentation/x86/intel_cet.rst
+> new file mode 100644
+> index 000000000000..946f4802a51f
+> --- /dev/null
+> +++ b/Documentation/x86/intel_cet.rst
+> @@ -0,0 +1,266 @@
+> +=========================================
+> +Control Flow Enforcement Technology (CET)
+> +=========================================
+> +
+> +[1] Overview
+> +============
+> +
+> +Control Flow Enforcement Technology (CET) provides protection against
+> +return/jump-oriented programming (ROP) attacks.  It can be implemented
+> +to protect both the kernel and applications.  In the first phase,
+> +only the user-mode protection is implemented on the 64-bit kernel.
+
+s/the//			         is implemented in 64-bit mode.
+
+> +However, 32-bit applications are supported under the compatibility
+> +mode.
+
+Drop "However":
+
+"32-bit applications are, of course, supported in compatibility mode."
+
+> +
+> +CET includes shadow stack (SHSTK) and indirect branch tracking (IBT).
+
+"CET introduces two a shadow stack and an indirect branch tracking mechanism."
+
+> +The SHSTK is a secondary stack allocated from memory.  The processor
+
+s/The//
+
+> +automatically pushes/pops a secure copy to the SHSTK every return
+> +address and,
+
+that reads funny - pls reorganize. Also, what is a "secure copy"?
+
+You mean a copy of every return address which software cannot access?
+
+> by comparing the secure copy to the program stack copy,
+> +verifies function returns are as intended. 
+
+			 ... have not been corrupted/modified."
+
+> The IBT verifies all
+> +indirect CALL/JMP targets are intended and marked by the compiler with
+> +'ENDBR' op codes.
+
+"opcode" - one word. And before you use "ENDBR" you need to explain it
+above what it is.
+
+/me reads further... encounters ENDBR's definition...
+
+ah, ok, so you should say something like
+
+"... and marked by the compiler with the ENDBR opcode (see below)."
+
+> +
+> +There are two kernel configuration options:
+> +
+> +    INTEL_X86_SHADOW_STACK_USER, and
+> +    INTEL_X86_BRANCH_TRACKING_USER.
+> +
+> +To build a CET-enabled kernel, Binutils v2.31 and GCC v8.1 or later
+> +are required.  To build a CET-enabled application, GLIBC v2.28 or
+> +later is also required.
+> +
+> +There are two command-line options for disabling CET features:
+> +
+> +    no_cet_shstk - disables SHSTK, and
+> +    no_cet_ibt - disables IBT.
+> +
+> +At run time, /proc/cpuinfo shows the availability of SHSTK and IBT.
+
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
