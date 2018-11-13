@@ -1,74 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AE736B0003
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 14:57:01 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id 18-v6so8912213pgn.4
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 11:57:01 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 31-v6si22627124plk.397.2018.11.13.11.56.59
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 98A166B0003
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 15:27:20 -0500 (EST)
+Received: by mail-ot1-f71.google.com with SMTP id w6so5191608otb.6
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 12:27:20 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 101sor12274505otl.44.2018.11.13.12.27.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Nov 2018 11:56:59 -0800 (PST)
-Date: Tue, 13 Nov 2018 20:56:54 +0100 (CET)
-From: Jiri Kosina <jikos@kernel.org>
-Subject: Re: [PATCH] l1tf: drop the swap storage limit restriction when
- l1tf=off
-In-Reply-To: <20181113184910.26697-1-mhocko@kernel.org>
-Message-ID: <nycvar.YFH.7.76.1811132054521.19754@cbobk.fhfr.pm>
-References: <20181113184910.26697-1-mhocko@kernel.org>
+        (Google Transport Security);
+        Tue, 13 Nov 2018 12:27:19 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <CAG48ez0ZprqUYGZFxcrY6U3Dnwt77q1NJXzzpsn1XNkRuXVppw@mail.gmail.com>
+ <d43da6ad1a3c164aa03e0f22f065591a@natalenko.name> <20181113175930.3g65rlhbaimstq7g@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
+In-Reply-To: <20181113175930.3g65rlhbaimstq7g@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
+From: Jann Horn <jannh@google.com>
+Date: Tue, 13 Nov 2018 21:26:51 +0100
+Message-ID: <CAG48ez29kArZTU=MgsVxWbuTZZ+sCrxeQ3FkDKpmQnj_MZ5hTg@mail.gmail.com>
+Subject: Re: [PATCH V3] KSM: allow dedup all tasks memory
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <ak@linux.intel.com>, Borislav Petkov <bp@suse.de>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
+To: pasha.tatashin@soleen.com
+Cc: oleksandr@natalenko.name, linux-doc@vger.kernel.org, kernel list <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, timofey.titovets@synesis.ru, Matthew Wilcox <willy@infradead.org>, Daniel Gruss <daniel@gruss.cc>
 
-On Tue, 13 Nov 2018, Michal Hocko wrote:
++cc Daniel Gruss
 
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> Swap storage is restricted to max_swapfile_size (~16TB on x86_64)
-> whenever the system is deemed affected by L1TF vulnerability. Even
-> though the limit is quite high for most deployments it seems to be
-> too restrictive for deployments which are willing to live with the
-> mitigation disabled.
-> 
-> We have a customer to deploy 8x 6,4TB PCIe/NVMe SSD swap devices
-> which is clearly out of the limit.
-> 
-> Drop the swap restriction when l1tf=off is specified. It also doesn't
-> make much sense to warn about too much memory for the l1tf mitigation
-> when it is forcefully disabled by the administrator.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  Documentation/admin-guide/kernel-parameters.txt | 2 ++
->  Documentation/admin-guide/l1tf.rst              | 5 ++++-
->  arch/x86/kernel/cpu/bugs.c                      | 3 ++-
->  arch/x86/mm/init.c                              | 2 +-
->  4 files changed, 9 insertions(+), 3 deletions(-)
-> 
-> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-> index 81d1d5a74728..a54f2bd39e77 100644
-> --- a/Documentation/admin-guide/kernel-parameters.txt
-> +++ b/Documentation/admin-guide/kernel-parameters.txt
-> @@ -2095,6 +2095,8 @@
->  			off
->  				Disables hypervisor mitigations and doesn't
->  				emit any warnings.
-> +				It also drops the swap size and available
-> +				RAM limit restriction.
+On Tue, Nov 13, 2018 at 6:59 PM Pavel Tatashin
+<pasha.tatashin@soleen.com> wrote:
+> On 18-11-13 15:23:50, Oleksandr Natalenko wrote:
+> > Hi.
+> >
+> > > Yep. However, so far, it requires an application to explicitly opt in
+> > > to this behavior, so it's not all that bad. Your patch would remove
+> > > the requirement for application opt-in, which, in my opinion, makes
+> > > this way worse and reduces the number of applications for which this
+> > > is acceptable.
+> >
+> > The default is to maintain the old behaviour, so unless the explicit
+> > decision is made by the administrator, no extra risk is imposed.
+>
+> The new interface would be more tolerable if it honored MADV_UNMERGEABLE:
+>
+> KSM default on: merge everything except when MADV_UNMERGEABLE is
+> excplicitly set.
+>
+> KSM default off: merge only when MADV_MERGEABLE is set.
+>
+> The proposed change won't honor MADV_UNMERGEABLE, meaning that
+> application programmers won't have a way to prevent sensitive data to be
+> every merged. So, I think, we should keep allow an explicit opt-out
+> option for applications.
+>
+> >
+> > > As far as I know, basically nobody is using KSM at this point. There
+> > > are blog posts from several cloud providers about these security risks
+> > > that explicitly state that they're not using memory deduplication.
+> >
+> > I tend to disagree here. Based on both what my company does and what UKSM
+> > users do, memory dedup is a desired option (note "option" word here, not the
+> > default choice).
+>
+> Lightweight containers is a use case for KSM: when many VMs share the
+> same small kernel. KSM is used in production by large cloud vendors.
 
-Minor nit: I think this should explicitly mention that those two things 
-are related to bare metal mitigation, to avoid any confusion (as otherwise 
-the l1tf cmdline parameter is purely about hypervisor mitigations).
+Wait, what? Can you name specific ones? Nowadays, enabling KSM for
+untrusted VMs seems like a terrible idea to me, security-wise.
 
-With that
+Google says at <https://cloud.google.com/blog/products/gcp/7-ways-we-harden-our-kvm-hypervisor-at-google-cloud-security-in-plaintext>:
+"Compute Engine and Container Engine are not vulnerable to this kind
+of attack, since they do not use KSM."
 
-	Acked-by: Jiri Kosina <jkosina@suse.cz>
+An AWS employee says at
+<https://forums.aws.amazon.com/thread.jspa?threadID=238519&tstart=0&messageID=739485#739485>:
+"memory de-duplication is not enabled by Amazon EC2's hypervisor"
 
-Thanks,
-
--- 
-Jiri Kosina
-SUSE Labs
+In my opinion, KSM is fundamentally insecure for systems hosting
+multiple VMs that don't trust each other. I don't think anyone writes
+cryptographic software under the assumption that an attacker will be
+given the ability to query whether a given page of data exists
+anywhere else on the system.
