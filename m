@@ -1,110 +1,292 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 706EE6B0003
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 17:07:42 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id s12so9567037otc.12
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 14:07:42 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id b186-v6si8575209oia.116.2018.11.13.14.07.40
-        for <linux-mm@kvack.org>;
-        Tue, 13 Nov 2018 14:07:41 -0800 (PST)
-Date: Tue, 13 Nov 2018 22:07:29 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH v10 12/22] kasan, arm64: fix up fault handling logic
-Message-ID: <20181113220728.2h3kz67b2bz36wty@blommer>
-References: <cover.1541525354.git.andreyknvl@google.com>
- <4891a504adf61c0daf1e83642b6f7519328dfd5f.1541525354.git.andreyknvl@google.com>
- <20181108122228.xqwhpkjritrvqneq@lakrids.cambridge.arm.com>
- <CAAeHK+xPkbg_9P9oCkS-iB8S81vTxD3p5SbyWHy-vrp2ybkKmg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAAeHK+xPkbg_9P9oCkS-iB8S81vTxD3p5SbyWHy-vrp2ybkKmg@mail.gmail.com>
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EA546B0003
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2018 17:10:52 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id t3-v6so9193951pgp.0
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 14:10:52 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o1-v6si23215045pld.229.2018.11.13.14.10.49
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Nov 2018 14:10:50 -0800 (PST)
+Date: Tue, 13 Nov 2018 14:10:46 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH 1/1] vmalloc: add test driver to analyse vmalloc
+ allocator
+Message-Id: <20181113141046.f62f5bd88d4ebc663b0ac100@linux-foundation.org>
+In-Reply-To: <20181113151629.14826-2-urezki@gmail.com>
+References: <20181113151629.14826-1-urezki@gmail.com>
+	<20181113151629.14826-2-urezki@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
+Cc: Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, Shuah Khan <shuah@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue, Nov 13, 2018 at 04:01:27PM +0100, Andrey Konovalov wrote:
-> On Thu, Nov 8, 2018 at 1:22 PM, Mark Rutland <mark.rutland@arm.com> wrote:
-> > On Tue, Nov 06, 2018 at 06:30:27PM +0100, Andrey Konovalov wrote:
-> >> show_pte in arm64 fault handling relies on the fact that the top byte of
-> >> a kernel pointer is 0xff, which isn't always the case with tag-based
-> >> KASAN.
-> >
-> > That's for the TTBR1 check, right?
-> >
-> > i.e. for the following to work:
-> >
-> >         if (addr >= VA_START)
-> >
-> > ... we need the tag bits to be an extension of bit 55...
-> >
-> >>
-> >> This patch resets the top byte in show_pte.
-> >>
-> >> Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> >> Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-> >> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> >> ---
-> >>  arch/arm64/mm/fault.c | 3 +++
-> >>  1 file changed, 3 insertions(+)
-> >>
-> >> diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-> >> index 7d9571f4ae3d..d9a84d6f3343 100644
-> >> --- a/arch/arm64/mm/fault.c
-> >> +++ b/arch/arm64/mm/fault.c
-> >> @@ -32,6 +32,7 @@
-> >>  #include <linux/perf_event.h>
-> >>  #include <linux/preempt.h>
-> >>  #include <linux/hugetlb.h>
-> >> +#include <linux/kasan.h>
-> >>
-> >>  #include <asm/bug.h>
-> >>  #include <asm/cmpxchg.h>
-> >> @@ -141,6 +142,8 @@ void show_pte(unsigned long addr)
-> >>       pgd_t *pgdp;
-> >>       pgd_t pgd;
-> >>
-> >> +     addr = (unsigned long)kasan_reset_tag((void *)addr);
-> >
-> > ... but this ORs in (0xffUL << 56), which is not correct for addresses
-> > which aren't TTBR1 addresses to begin with, where bit 55 is clear, and
-> > throws away useful information.
-> >
-> > We could use untagged_addr() here, but that wouldn't be right for
-> > kernels which don't use TBI1, and we'd erroneously report addresses
-> > under the TTBR1 range as being in the TTBR1 range.
-> >
-> > I also see that the entry assembly for el{1,0}_{da,ia} clears the tag
-> > for EL0 addresses.
-> >
-> > So we could have:
-> >
-> > static inline bool is_ttbr0_addr(unsigned long addr)
-> > {
-> >         /* entry assembly clears tags for TTBR0 addrs */
-> >         return addr < TASK_SIZE_64;
-> > }
-> >
-> > static inline bool is_ttbr1_addr(unsigned long addr)
-> > {
-> >         /* TTBR1 addresses may have a tag if HWKASAN is in use */
-> >         return arch_kasan_reset_tag(addr) >= VA_START;
-> > }
-> >
-> > ... and use those in the conditionals, leaving the addr as-is for
-> > reporting purposes.
+On Tue, 13 Nov 2018 16:16:29 +0100 "Uladzislau Rezki (Sony)" <urezki@gmail.com> wrote:
+
+> This adds a new kernel module for analysis of vmalloc allocator. It is
+> only enabled as a module. There are two main reasons this module should
+> be used for. Those are performance evaluation and stressing of vmalloc
+> subsystem.
 > 
-> Actually it looks like 276e9327 ("arm64: entry: improve data abort
-> handling of tagged pointers") already takes care of both user and
-> kernel fault addresses and correctly removes tags from them. So I
-> think we need to drop this patch.
+> It consists of several test cases. As of now there are 8. The module
+> has four parameters we can specify, therefore change the behaviour.
+> 
+> 1) run_test_mask - set of tests to be run
+> 
+> 0 fix_size_alloc_test
+> 1 full_fit_alloc_test
+> 2 long_busy_list_alloc_test
+> 3 random_size_alloc_test
+> 4 fix_align_alloc_test
+> 5 random_size_align_alloc_test
+> 6 align_shift_alloc_test
+> 7 pcpu_alloc_test
+> 
+> By default all tests are in run test mask. If you want to select some
+> specific tests it is possible to pass the mask. For example for first,
+> second and fourth tests we go with (1 << 0 | 1 << 1 | 1 << 3) that is
+> 11 value.
+> 
+> 2) test_repeat_count - how many times each test should be repeated
+> By default it is one time per test. It is possible to pass any number.
+> As high the value is the test duration gets increased.
+> 
+> 3) single_cpu_test - use one CPU to run the tests
+> By default this parameter is set to false. It means that all online
+> CPUs execute tests. By setting it to 1, the tests are executed by
+> first online CPU only.
+> 
+> 4) sequential_test_order - run tests in sequential order
+> By default this parameter is set to false. It means that before running
+> tests the order is shuffled. It is possible to make it sequential, just
+> set it to 1.
+> 
+> Performance analysis:
+> In order to evaluate performance of vmalloc allocations, usually it
+> makes sense to use only one CPU that runs tests, use sequential order,
+> number of repeat tests can be different as well as set of test mask.
+> 
+> For example if we want to run all tests, to use one CPU and repeat each
+> test 3 times. Insert the module passing following parameters:
+> 
+> single_cpu_test=1 sequential_test_order=1 test_repeat_count=3
+> 
+> with following output:
+> 
+> <snip>
+> Summary: fix_size_alloc_test 3 passed, 0 failed, test_count: 3, average: 918249 usec
+> Summary: full_fit_alloc_test 3 passed, 0 failed, test_count: 3, average: 1046232 usec
+> Summary: long_busy_list_alloc_test 3 passed, 0 failed, test_count: 3, average: 12000280 usec
+> Summary: random_size_alloc_test 3 passed, 0 failed, test_count: 3, average: 6184357 usec
+> Summary: fix_align_alloc_test 3 passed, 0 failed, test_count: 3, average: 2319067 usec
+> Summary: random_size_align_alloc_test 3 passed, 0 failed, test_count: 3, average: 2858425 usec
+> Summary: align_shift_alloc_test 0 passed, 3 failed, test_count: 3, average: 373 usec
+> Summary: pcpu_alloc_test 3 passed, 0 failed, test_count: 3, average: 93407 usec
+> All test took CPU0=197829986888 cycles
+> <snip>
+> 
+> The align_shift_alloc_test is expected to be failed.
+> 
+> Stressing:
+> In order to stress the vmalloc subsystem we run all available test cases
+> on all available CPUs simultaneously. In order to prevent constant behaviour
+> pattern, the test cases array is shuffled by default to randomize the order
+> of test execution.
+> 
+> For example if we want to run all tests(default), use all online CPUs(default)
+> with shuffled order(default) and to repeat each test 30 times. The command
+> would be like:
+> 
+> modprobe vmalloc_test test_repeat_count=30
+> 
+> Expected results are the system is alive, there are no any BUG_ONs or Kernel
+> Panics the tests are completed, no memory leaks.
+> 
 
-The clear_address_tag macro added in that commit only removes tags from TTBR0
-addresses, so that's not sufficient if the kernel is used tagged addresses
-(which will be in the TTBR1 range).
+Seems useful.
 
-Thanks,
-Mark.
-That commit only removes tags from TTBR0 addresses, 
+Yes, there are plenty of scripts in tools/testing/selftests which load
+a kernel module for the testing so a vmalloc test under
+tools/testing/selftests/vm would be appropriate.
+
+Generally the tests under tools/testing/selftests are for testing
+userspace-visible interfaces, and generally linux-specific ones.  But
+that doesn't mean that we shouldn't add tests for internal
+functionality.
+
+>
+> ...
+>
+> +static int test_func(void *private)
+> +{
+> +	struct test_driver *t = private;
+> +	cpumask_t newmask = CPU_MASK_NONE;
+> +	int random_array[ARRAY_SIZE(test_case_array)];
+> +	int index, repeat, i, j, ret;
+> +	ktime_t kt;
+> +
+> +	cpumask_set_cpu(t->cpu, &newmask);
+> +	set_cpus_allowed_ptr(current, &newmask);
+> +
+> +	atomic_inc(&tests_running);
+> +	wait_for_completion(&completion1);
+> +
+> +	for (i = 0; i < ARRAY_SIZE(test_case_array); i++)
+> +		random_array[i] = i;
+> +
+> +	if (!sequential_test_order)
+> +		shuffle_array(random_array, ARRAY_SIZE(test_case_array));
+> +
+> +	t->start = get_cycles();
+> +	for (i = 0; i < ARRAY_SIZE(test_case_array); i++) {
+> +		index = random_array[i];
+> +
+> +		/*
+> +		 * Skip tests if run_test_mask has been specified.
+> +		 */
+> +		if (!((run_test_mask & (1 << index)) >> index))
+> +			continue;
+> +
+> +		repeat = per_cpu_test_data[t->cpu][index].test_count;
+> +
+> +		kt = ktime_get();
+> +		for (j = 0; j < repeat; j++) {
+> +			ret = test_case_array[index].test_func();
+> +			if (!ret)
+> +				per_cpu_test_data[t->cpu][index].test_passed++;
+> +			else
+> +				per_cpu_test_data[t->cpu][index].test_failed++;
+> +		}
+> +
+> +		/*
+> +		 * Take an average time that test took.
+> +		 */
+> +		per_cpu_test_data[t->cpu][index].time =
+> +			ktime_us_delta(ktime_get(), kt) / repeat;
+> +	}
+> +	t->stop = get_cycles();
+> +
+> +	atomic_inc(&phase1_complete);
+> +	wait_for_completion(&completion2);
+> +
+> +	atomic_dec(&tests_running);
+> +	set_current_state(TASK_UNINTERRUPTIBLE);
+> +	schedule();
+
+This looks odd.  What causes this thread to wake up again?
+
+> +	return 0;
+> +}
+> +
+>
+> ...
+>
+> +	if (single_cpu_test) {
+> +		cpumask_clear(&cpus_run_test_mask);
+> +
+> +		cpumask_set_cpu(cpumask_first(cpu_online_mask),
+> +			&cpus_run_test_mask);
+> +	}
+> +
+> +	for_each_cpu(cpu, &cpus_run_test_mask) {
+> +		struct test_driver *t = &per_cpu_test_driver[cpu];
+> +
+> +		t->cpu = cpu;
+> +		t->task = kthread_run(test_func, t, "test%d", cpu);
+> +		if (IS_ERR(t->task)) {
+> +			pr_err("Failed to start test func\n");
+> +			return;
+> +		}
+> +	}
+> +
+> +	/* Wait till all processes are running */
+> +	while (atomic_read(&tests_running) <
+> +			cpumask_weight(&cpus_run_test_mask)) {
+> +		set_current_state(TASK_UNINTERRUPTIBLE);
+> +		schedule_timeout(10);
+
+schedule_timeout_interruptible().  Or, better, plain old msleep().
+
+> +	}
+> +	complete_all(&completion1);
+> +
+> +	/* Wait till all processes have completed phase 1 */
+> +	while (atomic_read(&phase1_complete) <
+> +			cpumask_weight(&cpus_run_test_mask)) {
+> +		set_current_state(TASK_UNINTERRUPTIBLE);
+> +		schedule_timeout(10);
+
+Ditto.
+
+> +	}
+> +	complete_all(&completion2);
+> +
+> +	while (atomic_read(&tests_running)) {
+> +		set_current_state(TASK_UNINTERRUPTIBLE);
+> +		schedule_timeout(10);
+> +	}
+> +
+> +	for_each_cpu(cpu, &cpus_run_test_mask) {
+> +		struct test_driver *t = &per_cpu_test_driver[cpu];
+> +		int i;
+> +
+> +		kthread_stop(t->task);
+> +
+> +		for (i = 0; i < ARRAY_SIZE(test_case_array); i++) {
+> +			if (!((run_test_mask & (1 << i)) >> i))
+> +				continue;
+> +
+> +			pr_info(
+> +				"Summary: %s %d passed, %d failed, test_count: %d, average: %llu usec\n",
+> +				test_case_array[i].test_name,
+> +				per_cpu_test_data[cpu][i].test_passed,
+> +				per_cpu_test_data[cpu][i].test_failed,
+> +				per_cpu_test_data[cpu][i].test_count,
+> +				per_cpu_test_data[cpu][i].time);
+> +		}
+> +
+> +		pr_info("All test took CPU%d=%lu cycles\n",
+> +			cpu, t->stop - t->start);
+> +	}
+> +
+> +	schedule_timeout(200);
+
+This doesn't actually do anything when we're in state TASK_RUNNING.
+
+> +}
+> +
+> +static int vmalloc_test_init(void)
+> +{
+> +	__my_vmalloc_node_range =
+> +		(void *) kallsyms_lookup_name("__vmalloc_node_range");
+> +
+> +	if (__my_vmalloc_node_range)
+> +		do_concurrent_test();
+> +
+> +	return -EAGAIN; /* Fail will directly unload the module */
+> +}
+
+It's unclear why this module needs access to the internal
+__vmalloc_node_range().  Please fully explain this in the changelog.
+
+Then, let's just export the thing.  (I expect this module needs a
+Kconfig dependency on CONFIG_KALLSYMS, btw).  A suitable way of doing
+that would be
+
+/* Exported for lib/test_vmalloc.c.  Please do not use elsewhere */
+EXPORT_SYMBOL_GPL(__vmalloc_node_range);
+
+>
+> ...
+>
+
+Generally speaking, I hope this code can use existing kernel
+infrastructure more completely.  All that fiddling with atomic
+counters, completions and open-coded schedule() calls can perhaps be
+replaced with refcounts, counting semapores (rswems), mutexes, etc?  I
+mean, from a quick glance, a lot of that code appears to be doing just
+what rwsems and mutexes do?
