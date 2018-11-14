@@ -1,76 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B0106B0006
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 03:20:51 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id h24-v6so8006114ede.9
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 00:20:51 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z15-v6sor5221963eju.2.2018.11.14.00.20.49
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 14 Nov 2018 00:20:49 -0800 (PST)
-Date: Wed, 14 Nov 2018 08:20:47 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH] mm, page_alloc: skip zone who has no managed_pages in
- calculate_totalreserve_pages()
-Message-ID: <20181114082047.tenvzvorifd56emd@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20181112071404.13620-1-richard.weiyang@gmail.com>
- <20181112080926.GA14987@dhcp22.suse.cz>
- <20181112142641.6oxn4fv4pocm7fmt@master>
- <20181112144020.GC14987@dhcp22.suse.cz>
- <20181113013942.zgixlky4ojbzikbd@master>
- <20181113080834.GK15120@dhcp22.suse.cz>
- <20181113081644.giu5vxhsfqjqlexh@master>
- <20181113090758.GL15120@dhcp22.suse.cz>
- <20181114074341.r53rukmj25ydvaqi@master>
- <20181114074821.GE23419@dhcp22.suse.cz>
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E2DC96B0006
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 03:23:11 -0500 (EST)
+Received: by mail-oi1-f199.google.com with SMTP id h135-v6so8806600oic.2
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 00:23:11 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id y206-v6si9668741oiy.213.2018.11.14.00.23.10
+        for <linux-mm@kvack.org>;
+        Wed, 14 Nov 2018 00:23:10 -0800 (PST)
+Subject: Re: [RFC][PATCH v1 11/11] mm: hwpoison: introduce
+ clear_hwpoison_free_buddy_page()
+References: <1541746035-13408-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1541746035-13408-12-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <d37c1be2-2069-a147-9ba8-4749cd386d0b@arm.com>
+ <20181113001907.GD5945@hori1.linux.bs1.fc.nec.co.jp>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <b5fb36d0-487c-cf6d-3aa0-a5b43c51b2d6@arm.com>
+Date: Wed, 14 Nov 2018 13:53:04 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181114074821.GE23419@dhcp22.suse.cz>
+In-Reply-To: <20181113001907.GD5945@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, "xishi.qiuxishi@alibaba-inc.com" <xishi.qiuxishi@alibaba-inc.com>, Laurent Dufour <ldufour@linux.vnet.ibm.com>
 
-On Wed, Nov 14, 2018 at 08:48:21AM +0100, Michal Hocko wrote:
->On Wed 14-11-18 07:43:41, Wei Yang wrote:
->> On Tue, Nov 13, 2018 at 10:07:58AM +0100, Michal Hocko wrote:
->> >On Tue 13-11-18 08:16:44, Wei Yang wrote:
->> >
->> >No, I believe we want all three of them. But reviewing
->> >for_each_populated_zone users and explicit checks for present/managed
->> >pages and unify them would be a step forward both a more optimal code
->> >and more maintainable code. I haven't checked but
->> >for_each_populated_zone would seem like a proper user for managed page
->> >counter. But that really requires to review all current users.
->> >
->> 
->> To sync with your purpose, I searched the user of
->> for_each_populated_zone() and replace it with a new loop
->> for_each_managed_zone().
->
->I do not think we really want a new iterator. Is there any users of
->for_each_populated_zone which would be interested in something else than
->managed pages?
 
-Your purpose is replace the populated_zone() in
-for_each_populated_zone() with managed_zone()?
 
-If this is the case, most of them is possible. Some places I am not sure
-is:
+On 11/13/2018 05:49 AM, Naoya Horiguchi wrote:
+> On Fri, Nov 09, 2018 at 05:03:06PM +0530, Anshuman Khandual wrote:
+>>
+>>
+>> On 11/09/2018 12:17 PM, Naoya Horiguchi wrote:
+>>> The new function is a reverse operation of set_hwpoison_free_buddy_page()
+>>> to adjust unpoison_memory() to the new semantics.
+>>>
+>>> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>>
+>> snip
+>>
+>>> +
+>>> +/*
+>>> + * Reverse operation of set_hwpoison_free_buddy_page(), which is expected
+>>> + * to work only on error pages isolated from buddy allocator.
+>>> + */
+>>> +bool clear_hwpoison_free_buddy_page(struct page *page)
+>>> +{
+>>> +	struct zone *zone = page_zone(page);
+>>> +	bool unpoisoned = false;
+>>> +
+>>> +	spin_lock(&zone->lock);
+>>> +	if (TestClearPageHWPoison(page)) {
+>>> +		unsigned long pfn = page_to_pfn(page);
+>>> +		int migratetype = get_pfnblock_migratetype(page, pfn);
+>>> +
+>>> +		__free_one_page(page, pfn, zone, 0, migratetype);
+>>> +		unpoisoned = true;
+>>> +	}
+>>> +	spin_unlock(&zone->lock);
+>>> +	return unpoisoned;
+>>> +}
+>>>  #endif
+>>>
+>>
+>> Though there are multiple page state checks in unpoison_memory() leading
+>> upto clearing HWPoison flag, the page must not be in buddy already if
+>> __free_one_page() would be called on it.
+> 
+> Yes, you're right.
+> clear_hwpoison_free_buddy_page() is intended to cancel the isolation by
+> set_hwpoison_free_buddy_page() which removes the target page from buddy allocator,
+> so the page clear_hwpoison_free_buddy_page() tries to handle is not a buddy page
+> actually (not linked to any freelist).
 
-    kernel/power/snapshot.c
-    mm/huge_memory.c
-    mm/khugepaged.c
-
-For other places, I thinks it is ok to replace it.
-
->-- 
->Michal Hocko
->SUSE Labs
-
--- 
-Wei Yang
-Help you, Help me
+Got it. Thanks for the explanation.
