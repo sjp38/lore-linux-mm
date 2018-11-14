@@ -1,77 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3723D6B0274
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 18:00:58 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id 202so11091054pgb.6
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 15:00:58 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d2-v6si25814233plh.168.2018.11.14.15.00.56
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D0876B0274
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 18:06:00 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id s123-v6so40710949qkf.12
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 15:06:00 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v9si9003812qkv.68.2018.11.14.15.05.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Nov 2018 15:00:57 -0800 (PST)
-Date: Wed, 14 Nov 2018 15:00:53 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH 1/1] vmalloc: add test driver to analyse vmalloc
- allocator
-Message-Id: <20181114150053.c3fe42507923322a0a10ae1c@linux-foundation.org>
-In-Reply-To: <20181114151737.GA23419@dhcp22.suse.cz>
-References: <20181113151629.14826-1-urezki@gmail.com>
-	<20181113151629.14826-2-urezki@gmail.com>
-	<20181113141046.f62f5bd88d4ebc663b0ac100@linux-foundation.org>
-	<20181114151737.GA23419@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 14 Nov 2018 15:05:59 -0800 (PST)
+Subject: Re: [PATCH RFC 0/6] mm/kdump: allow to exclude pages that are
+ logically offline
+References: <20181114211704.6381-1-david@redhat.com>
+ <8932E1F4-A5A9-4462-9800-CAC1EF85AC5D@vmware.com>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <63c5f4b6-828a-764e-f64d-e603dc4b104e@redhat.com>
+Date: Thu, 15 Nov 2018 00:05:38 +0100
+MIME-Version: 1.0
+In-Reply-To: <8932E1F4-A5A9-4462-9800-CAC1EF85AC5D@vmware.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>, Kees Cook <keescook@chromium.org>, Shuah Khan <shuah@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Nadav Amit <namit@vmware.com>, linux-mm <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, xen-devel <xen-devel@lists.xenproject.org>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Alexey Dobriyan <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Baoquan He <bhe@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Christian Hansen <chansen3@cisco.com>, Dave Young <dyoung@redhat.com>, David Rientjes <rientjes@google.com>, Haiyang Zhang <haiyangz@microsoft.com>, Jonathan Corbet <corbet@lwn.net>, Juergen Gross <jgross@suse.com>, Kairui Song <kasong@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "K. Y. Srinivasan" <kys@microsoft.com>, Len Brown <len.brown@intel.com>, Matthew Wilcox <willy@infradead.org>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Miles Chen <miles.chen@mediatek.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Omar Sandoval <osandov@fb.com>, Pavel Machek <pavel@ucw.cz>, Pavel Tatashin <pasha.tatashin@oracle.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Stefano Stabellini <sstabellini@kernel.org>, Stephen Hemminger <sthemmin@microsoft.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Vitaly Kuznetsov <vkuznets@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Julien Freche <jfreche@vmware.com>
 
-On Wed, 14 Nov 2018 16:17:37 +0100 Michal Hocko <mhocko@kernel.org> wrote:
-
-> On Tue 13-11-18 14:10:46, Andrew Morton wrote:
-> [...]
-> > > +static int vmalloc_test_init(void)
-> > > +{
-> > > +	__my_vmalloc_node_range =
-> > > +		(void *) kallsyms_lookup_name("__vmalloc_node_range");
-> > > +
-> > > +	if (__my_vmalloc_node_range)
-> > > +		do_concurrent_test();
-> > > +
-> > > +	return -EAGAIN; /* Fail will directly unload the module */
-> > > +}
-> > 
-> > It's unclear why this module needs access to the internal
-> > __vmalloc_node_range().  Please fully explain this in the changelog.
-> > 
-> > Then, let's just export the thing.  (I expect this module needs a
-> > Kconfig dependency on CONFIG_KALLSYMS, btw).  A suitable way of doing
-> > that would be
-> > 
-> > /* Exported for lib/test_vmalloc.c.  Please do not use elsewhere */
-> > EXPORT_SYMBOL_GPL(__vmalloc_node_range);
+On 14.11.18 23:57, Nadav Amit wrote:
+> From: David Hildenbrand
+> Sent: November 14, 2018 at 9:16:58 PM GMT
+>> Subject: [PATCH RFC 0/6] mm/kdump: allow to exclude pages that are logically offline
+>>
+>>
+>> Right now, pages inflated as part of a balloon driver will be dumped
+>> by dump tools like makedumpfile. While XEN is able to check in the
+>> crash kernel whether a certain pfn is actuall backed by memory in the
+>> hypervisor (see xen_oldmem_pfn_is_ram) and optimize this case, dumps of
+>> virtio-balloon and hv-balloon inflated memory will essentially result in
+>> zero pages getting allocated by the hypervisor and the dump getting
+>> filled with this data.
 > 
-> There was a previous discussion that testing for internal infrastructure
-> is useful quite often and such a testing module needs an access to such
-> an internal infrastructure. Exporting those symbols via standard
-> EXPORT_SYMBOL_GPL is far from optimal because we can be pretty much sure
-> an abuse will arise sooner than later. I was proposing
-> EXPORT_SYMBOL_SELFTEST that would link only against testing modules.
+> Is there any reason that VMware balloon driver is not mentioned?
 
-That's rather overdoing things, I think.  If someone uses a
-dont-use-this symbol then they get to own both pieces when it breaks.
+Definitely ...
 
-We could simply do
+... not ;) . I haven't looked at vmware's balloon driver yet (I only saw
+that there was quite some activity recently). I guess it should have
+similar problems. (I mean reading and dumping data nobody cares about is
+certainly not desired)
 
-#define EXPORT_SYMBOL_SELFTEST EXPORT_SYMBOL_GPL
+Can you share if something like this is also desired for vmware's
+implementation? (I tagged this as RFC to get some more feedback)
 
-then write a script which checks the tree for usages of the
-thus-tagged symbols outside tools/testing and lib/ (?)
+It should in theory be as simple as adding a handful of
+_SetPageOffline()/_ClearPageOffline() at the right spots.
 
-> If that is not viable for some reason then kallsyms_lookup_name is a
-> dirty-but-usable workaround.
+-- 
 
-Well yes.  It adds a dependency on CONFIG_KALLSYMS and will cause
-silent breakage if __vmalloc_node_range gets renamed, has its arguments
-changed, etc.
+Thanks,
+
+David / dhildenb
