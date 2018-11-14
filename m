@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A6616B0291
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 03:24:43 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id w7-v6so11549792plp.9
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 00:24:43 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 94D566B0293
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 03:24:44 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id z22-v6so11848334pfi.0
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 00:24:44 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 1-v6si26874695pls.0.2018.11.14.00.24.42
+        by mx.google.com with ESMTPS id m1si18282173pgm.194.2018.11.14.00.24.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 14 Nov 2018 00:24:42 -0800 (PST)
+        Wed, 14 Nov 2018 00:24:43 -0800 (PST)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 27/34] powerpc/fsl_pci: simplify fsl_pci_dma_set_mask
-Date: Wed, 14 Nov 2018 09:23:07 +0100
-Message-Id: <20181114082314.8965-28-hch@lst.de>
+Subject: [PATCH 23/34] powerpc/dma: remove get_pci_dma_ops
+Date: Wed, 14 Nov 2018 09:23:03 +0100
+Message-Id: <20181114082314.8965-24-hch@lst.de>
 In-Reply-To: <20181114082314.8965-1-hch@lst.de>
 References: <20181114082314.8965-1-hch@lst.de>
 MIME-Version: 1.0
@@ -22,39 +22,103 @@ List-ID: <linux-mm.kvack.org>
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
 Cc: linuxppc-dev@lists.ozlabs.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-swiotlb will only bounce buffer the effectice dma address for the device
-is smaller than the actual DMA range.  Instead of flipping between the
-swiotlb and nommu ops for FSL SOCs that have the second outbound window
-just don't set the bus dma_mask in this case.
+This function is only used by the Cell iommu code, which can keep track
+if it is using the iommu internally just as good.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/powerpc/sysdev/fsl_pci.c | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ arch/powerpc/include/asm/pci.h      |  2 --
+ arch/powerpc/kernel/pci-common.c    |  6 ------
+ arch/powerpc/platforms/cell/iommu.c | 17 ++++++++---------
+ 3 files changed, 8 insertions(+), 17 deletions(-)
 
-diff --git a/arch/powerpc/sysdev/fsl_pci.c b/arch/powerpc/sysdev/fsl_pci.c
-index f136567a5ed5..296ffabc9386 100644
---- a/arch/powerpc/sysdev/fsl_pci.c
-+++ b/arch/powerpc/sysdev/fsl_pci.c
-@@ -143,7 +143,7 @@ static int fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
- 	 * mapping that allows addressing any RAM address from across PCI.
- 	 */
- 	if (dev_is_pci(dev) && dma_mask >= pci64_dma_offset * 2 - 1) {
--		set_dma_ops(dev, &dma_nommu_ops);
-+		dev->bus_dma_mask = 0;
- 		set_dma_offset(dev, pci64_dma_offset);
+diff --git a/arch/powerpc/include/asm/pci.h b/arch/powerpc/include/asm/pci.h
+index 2af9ded80540..04c44c4b0acf 100644
+--- a/arch/powerpc/include/asm/pci.h
++++ b/arch/powerpc/include/asm/pci.h
+@@ -52,10 +52,8 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
+ 
+ #ifdef CONFIG_PCI
+ extern void set_pci_dma_ops(const struct dma_map_ops *dma_ops);
+-extern const struct dma_map_ops *get_pci_dma_ops(void);
+ #else	/* CONFIG_PCI */
+ #define set_pci_dma_ops(d)
+-#define get_pci_dma_ops()	NULL
+ #endif
+ 
+ #ifdef CONFIG_PPC64
+diff --git a/arch/powerpc/kernel/pci-common.c b/arch/powerpc/kernel/pci-common.c
+index 88e4f69a09e5..a84707680525 100644
+--- a/arch/powerpc/kernel/pci-common.c
++++ b/arch/powerpc/kernel/pci-common.c
+@@ -69,12 +69,6 @@ void set_pci_dma_ops(const struct dma_map_ops *dma_ops)
+ 	pci_dma_ops = dma_ops;
+ }
+ 
+-const struct dma_map_ops *get_pci_dma_ops(void)
+-{
+-	return pci_dma_ops;
+-}
+-EXPORT_SYMBOL(get_pci_dma_ops);
+-
+ /*
+  * This function should run under locking protection, specifically
+  * hose_spinlock.
+diff --git a/arch/powerpc/platforms/cell/iommu.c b/arch/powerpc/platforms/cell/iommu.c
+index fb51f78035ce..93c7e4aef571 100644
+--- a/arch/powerpc/platforms/cell/iommu.c
++++ b/arch/powerpc/platforms/cell/iommu.c
+@@ -544,6 +544,7 @@ static struct cbe_iommu *cell_iommu_for_node(int nid)
+ static unsigned long cell_dma_nommu_offset;
+ 
+ static unsigned long dma_iommu_fixed_base;
++static bool cell_iommu_enabled;
+ 
+ /* iommu_fixed_is_weak is set if booted with iommu_fixed=weak */
+ bool iommu_fixed_is_weak;
+@@ -572,16 +573,14 @@ static u64 cell_iommu_get_fixed_address(struct device *dev);
+ 
+ static void cell_dma_dev_setup(struct device *dev)
+ {
+-	if (get_pci_dma_ops() == &dma_iommu_ops) {
++	if (cell_iommu_enabled) {
+ 		u64 addr = cell_iommu_get_fixed_address(dev);
+ 
+ 		if (addr != OF_BAD_ADDR)
+ 			set_dma_offset(dev, addr + dma_iommu_fixed_base);
+ 		set_iommu_table_base(dev, cell_get_iommu_table(dev));
+-	} else if (get_pci_dma_ops() == &dma_nommu_ops) {
+-		set_dma_offset(dev, cell_dma_nommu_offset);
+ 	} else {
+-		BUG();
++		set_dma_offset(dev, cell_dma_nommu_offset);
  	}
+ }
  
-@@ -403,10 +403,6 @@ static void setup_pci_atmu(struct pci_controller *hose)
- 				out_be32(&pci->piw[win_idx].piwar,  piwar);
- 			}
+@@ -599,11 +598,11 @@ static int cell_of_bus_notify(struct notifier_block *nb, unsigned long action,
+ 	if (action != BUS_NOTIFY_ADD_DEVICE)
+ 		return 0;
  
--			/*
--			 * install our own dma_set_mask handler to fixup dma_ops
--			 * and dma_offset
--			 */
- 			ppc_md.dma_set_mask = fsl_pci_dma_set_mask;
+-	/* We use the PCI DMA ops */
+-	dev->dma_ops = get_pci_dma_ops();
+-
++	if (cell_iommu_enabled)
++		dev->dma_ops = &dma_iommu_ops;
++	else
++		dev->dma_ops = &dma_nommu_ops;
+ 	cell_dma_dev_setup(dev);
+-
+ 	return 0;
+ }
  
- 			pr_info("%pOF: Setup 64-bit PCI DMA window\n", hose->dn);
+@@ -1091,7 +1090,7 @@ static int __init cell_iommu_init(void)
+ 				cell_pci_iommu_bypass_supported;
+ 	}
+ 	set_pci_dma_ops(&dma_iommu_ops);
+-
++	cell_iommu_enabled = true;
+  bail:
+ 	/* Register callbacks on OF platform device addition/removal
+ 	 * to handle linking them to the right DMA operations
 -- 
 2.19.1
