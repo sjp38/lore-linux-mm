@@ -1,88 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E31D76B0006
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 06:46:27 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id b4-v6so9018299plb.3
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 03:46:27 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id g20-v6si23658980plq.192.2018.11.14.03.46.26
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AAF06B0003
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 08:23:10 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id z72-v6so8273019ede.14
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 05:23:10 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n10-v6si8190452edf.156.2018.11.14.05.23.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Nov 2018 03:46:26 -0800 (PST)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
-Subject: Re: [PATCH] mm/usercopy: Use memory range to be accessed for
- wraparound check
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <5dcd06a0f84a4824bb9bab2b437e190d@AcuMS.aculab.com>
-Date: Wed, 14 Nov 2018 04:46:18 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <7C54170F-DE66-47E0-9C0D-7D1A97DCD339@oracle.com>
-References: <1542156686-12253-1-git-send-email-isaacm@codeaurora.org>
- <FFE931C2-DE41-4AD8-866B-FD37C1493590@oracle.com>
- <5dcd06a0f84a4824bb9bab2b437e190d@AcuMS.aculab.com>
+        Wed, 14 Nov 2018 05:23:08 -0800 (PST)
+Date: Wed, 14 Nov 2018 14:23:06 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm, proc: report PR_SET_THP_DISABLE in proc
+Message-ID: <20181114132306.GX23419@dhcp22.suse.cz>
+References: <20181004094637.GG22173@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810041130380.12951@chino.kir.corp.google.com>
+ <20181009083326.GG8528@dhcp22.suse.cz>
+ <20181015150325.GN18839@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810151519250.247641@chino.kir.corp.google.com>
+ <20181016104855.GQ18839@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810161416540.83080@chino.kir.corp.google.com>
+ <20181017070531.GC18839@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810171256330.60837@chino.kir.corp.google.com>
+ <20181018070031.GW18839@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181018070031.GW18839@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@ACULAB.COM>
-Cc: "Isaac J. Manjarres" <isaacm@codeaurora.org>, Kees Cook <keescook@chromium.org>, "crecklin@redhat.com" <crecklin@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "psodagud@codeaurora.org" <psodagud@codeaurora.org>, "tsoni@codeaurora.org" <tsoni@codeaurora.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
+On Thu 18-10-18 09:00:31, Michal Hocko wrote:
+> On Wed 17-10-18 12:59:18, David Rientjes wrote:
+> > On Wed, 17 Oct 2018, Michal Hocko wrote:
+> > 
+> > > Do you know of any other userspace except your usecase? Is there
+> > > anything fundamental that would prevent a proper API adoption for you?
+> > > 
+> > 
+> > Yes, it would require us to go back in time and build patched binaries. 
+> 
+> I read that as there is a fundamental problem to update existing
+> binaries. If that is the case then there surely is no way around it
+> and another sad page in the screwed up APIs book we provide.
+> 
+> But I was under impression that the SW stack which actually does the
+> monitoring is under your controll. Moreover I was under impression that
+> you do not use the current vanilla kernel so there is no need for an
+> immediate change on your end. It is trivial to come up with a backward
+> compatible way to check for the new flag (if it is not present then
+> fallback to vma flags).
+> 
+> I am sorry for pushing here but if this is just a matter of a _single_
+> user which _can_ be fixed with a reasonable effort then I would love to
+> see the future api unscrewed.
 
-
-> On Nov 14, 2018, at 4:09 AM, David Laight <David.Laight@ACULAB.COM> =
-wrote:
->=20
-> From: William Kucharski
->> Sent: 14 November 2018 10:35
->>=20
->>> On Nov 13, 2018, at 5:51 PM, Isaac J. Manjarres =
-<isaacm@codeaurora.org> wrote:
->>>=20
->>> diff --git a/mm/usercopy.c b/mm/usercopy.c
->>> index 852eb4e..0293645 100644
->>> --- a/mm/usercopy.c
->>> +++ b/mm/usercopy.c
->>> @@ -151,7 +151,7 @@ static inline void check_bogus_address(const =
-unsigned long ptr, unsigned long n,
->>> 				       bool to_user)
->>> {
->>> 	/* Reject if object wraps past end of memory. */
->>> -	if (ptr + n < ptr)
->>> +	if (ptr + (n - 1) < ptr)
->>> 		usercopy_abort("wrapped address", NULL, to_user, 0, ptr =
-+ n);
->>=20
->> I'm being paranoid, but is it possible this routine could ever be =
-passed "n" set to zero?
->>=20
->> If so, it will erroneously abort indicating a wrapped address as (n - =
-1) wraps to ULONG_MAX.
->>=20
->> Easily fixed via:
->>=20
->> 	if ((n !=3D 0) && (ptr + (n - 1) < ptr))
->=20
-> Ugg... you don't want a double test.
->=20
-> I'd guess that a length of zero is likely, but a usercopy that =
-includes
-> the highest address is going to be invalid because it is a kernel =
-address
-> (on most archs, and probably illegal on others).
-> What you really want to do is add 'ptr + len' and check the carry =
-flag.
-
-The extra test is only a few extra instructions, but I understand the =
-concern. (Though I don't
-know how you'd access the carry flag from C in a machine-independent =
-way. Also, for the
-calculation to be correct you still need to check 'ptr + (len - 1)' for =
-the wrap.)
-
-You could also theoretically call gcc's __builtin_uadd_overflow() if you =
-want to get carried away.
-
-As I mentioned, I was just being paranoid, but the passed zero length =
-issue stood out to me.
-
-    William Kucharski=
+ping
+-- 
+Michal Hocko
+SUSE Labs
