@@ -1,83 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CB866B0003
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 17:49:27 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id k203so41307079qke.2
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 14:49:27 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w39si1578786qtc.168.2018.11.14.14.49.25
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EE8E6B0006
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 17:50:14 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id c84so41435611qkb.13
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 14:50:14 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id h13si12283607qtb.233.2018.11.14.14.50.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Nov 2018 14:49:25 -0800 (PST)
-Subject: Re: [PATCH RFC 2/6] mm: convert PG_balloon to PG_offline
-References: <20181114211704.6381-1-david@redhat.com>
- <20181114211704.6381-3-david@redhat.com>
- <20181114222321.GB1784@bombadil.infradead.org>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <b4668081-5aa3-d7f5-6880-d01c75cfc6ae@redhat.com>
-Date: Wed, 14 Nov 2018 23:49:15 +0100
-MIME-Version: 1.0
-In-Reply-To: <20181114222321.GB1784@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+        Wed, 14 Nov 2018 14:50:13 -0800 (PST)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.1 \(3445.101.1\))
+Subject: Re: [PATCH] mm/usercopy: Use memory range to be accessed for
+ wraparound check
+From: William Kucharski <william.kucharski@oracle.com>
+In-Reply-To: <50baa4900e55b523f18eea2759f8efae@codeaurora.org>
+Date: Wed, 14 Nov 2018 15:50:05 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <816A9750-D2A3-4BC8-88A6-41BFAA6A1540@oracle.com>
+References: <1542156686-12253-1-git-send-email-isaacm@codeaurora.org>
+ <FFE931C2-DE41-4AD8-866B-FD37C1493590@oracle.com>
+ <5dcd06a0f84a4824bb9bab2b437e190d@AcuMS.aculab.com>
+ <7C54170F-DE66-47E0-9C0D-7D1A97DCD339@oracle.com>
+ <50baa4900e55b523f18eea2759f8efae@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, Jonathan Corbet <corbet@lwn.net>, Alexey Dobriyan <adobriyan@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Christian Hansen <chansen3@cisco.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Miles Chen <miles.chen@mediatek.com>, David Rientjes <rientjes@google.com>
+To: "Isaac J. Manjarres" <isaacm@codeaurora.org>
+Cc: David Laight <David.Laight@aculab.com>, Kees Cook <keescook@chromium.org>, crecklin@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, psodagud@codeaurora.org, tsoni@codeaurora.org, stable@vger.kernel.org
 
-On 14.11.18 23:23, Matthew Wilcox wrote:
-> On Wed, Nov 14, 2018 at 10:17:00PM +0100, David Hildenbrand wrote:
->> Rename PG_balloon to PG_offline. This is an indicator that the page is
->> logically offline, the content stale and that it should not be touched
->> (e.g. a hypervisor would have to allocate backing storage in order for the
->> guest to dump an unused page).  We can then e.g. exclude such pages from
->> dumps.
->>
->> In following patches, we will make use of this bit also in other balloon
->> drivers.  While at it, document PGTABLE.
-> 
-> Thank you for documenting PGTABLE.  I didn't realise I also had this
-> document to update when I added PGTABLE.
 
-Thank you for looking into this :)
 
-> 
->> +++ b/Documentation/admin-guide/mm/pagemap.rst
->> @@ -78,6 +78,8 @@ number of times a page is mapped.
->>      23. BALLOON
->>      24. ZERO_PAGE
->>      25. IDLE
->> +    26. PGTABLE
->> +    27. OFFLINE
-> 
-> So the offline *user* bit is new ... even though the *kernel* bit
-> just renames the balloon bit.  I'm not sure how I feel about this.
-> I'm going to think about it some more.  Could you share your decision
-> process with us?
+> On Nov 14, 2018, at 10:32 AM, isaacm@codeaurora.org wrote:
+>=20
+> Thank you and David for your feedback. The check_bogus_address() =
+routine is only invoked from one place in the kernel, which is =
+__check_object_size(). Before invoking check_bogus_address, =
+__check_object_size ensures that n is non-zero, so it is not possible to =
+call this routine with n being 0. Therefore, we shouldn't run into the =
+scenario you described. Also, in the case where we are copying a page's =
+contents into a kernel space buffer and will not have that buffer =
+interacting with userspace at all, this change to that check should =
+still be valid, correct?
 
-BALLOON was/is documented as
+Having fixed more than one bug resulting from a "only called in one =
+place" routine later being called elsewhere,
+I am wary, but ultimately it's likely not worth the performance hit of a =
+check or BUG_ON().
 
-"23 - BALLOON
-    balloon compaction page
-"
+It's a generic math check for overflow, so it should work with any =
+address.
 
-and only includes all virtio-ballon pages after the non-lru migration
-feature has been implemented for ballooned pages. Since then, this flag
-does basically no longer stands for what it actually was supposed to do.
-
-To not break uapi I decided to not rename it but instead to add a new flag.
-
-> 
-> I have no objection to renaming the balloon bit inside the kernel; I
-> think that's a wise idea.  I'm just not sure whether we should rename
-> the user balloon bit rather than adding a new bit.
-> 
-
-Can we rename without breaking uapi?
-
--- 
-
-Thanks,
-
-David / dhildenb
+Reviewed-by: William Kucharski <william.kucharski@oracle.com>=
