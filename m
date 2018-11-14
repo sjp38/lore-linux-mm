@@ -1,46 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AB9696B000A
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 15:28:08 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id h184-v6so15694995wmf.1
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 12:28:08 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTPS id 92-v6si19007875wrq.155.2018.11.14.12.28.07
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BE24D6B0003
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 16:17:24 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id l7-v6so40754687qkd.5
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 13:17:24 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y6si1045343qvh.109.2018.11.14.13.17.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Nov 2018 12:28:07 -0800 (PST)
-Date: Wed, 14 Nov 2018 21:28:02 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v5 06/27] x86/cet: Control protection exception handler
-Message-ID: <20181114202802.GN13926@zn.tnic>
-References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
- <20181011151523.27101-7-yu-cheng.yu@intel.com>
- <20181114184436.GK13926@zn.tnic>
- <307b6162b0270871e664ca88a96b4ea0d1b3f65b.camel@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <307b6162b0270871e664ca88a96b4ea0d1b3f65b.camel@intel.com>
+        Wed, 14 Nov 2018 13:17:23 -0800 (PST)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH RFC 0/6] mm/kdump: allow to exclude pages that are logically offline
+Date: Wed, 14 Nov 2018 22:16:58 +0100
+Message-Id: <20181114211704.6381-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, David Hildenbrand <david@redhat.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Alexey Dobriyan <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Baoquan He <bhe@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Christian Hansen <chansen3@cisco.com>, Dave Young <dyoung@redhat.com>, David Rientjes <rientjes@google.com>, Haiyang Zhang <haiyangz@microsoft.com>, Jonathan Corbet <corbet@lwn.net>, Juergen Gross <jgross@suse.com>, Kairui Song <kasong@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "K. Y. Srinivasan" <kys@microsoft.com>, Len Brown <len.brown@intel.com>, Matthew Wilcox <willy@infradead.org>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Miles Chen <miles.chen@mediatek.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Omar Sandoval <osandov@fb.com>, Pavel Machek <pavel@ucw.cz>, Pavel Tatashin <pasha.tatashin@oracle.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Stefano Stabellini <sstabellini@kernel.org>, Stephen Hemminger <sthemmin@microsoft.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Vitaly Kuznetsov <vkuznets@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Wed, Nov 14, 2018 at 12:19:42PM -0800, Yu-cheng Yu wrote:
-> Yes, I was not sure if the addition should follow the existing style (which does
-> not have identifier names).  What do you think is right?
+Right now, pages inflated as part of a balloon driver will be dumped
+by dump tools like makedumpfile. While XEN is able to check in the
+crash kernel whether a certain pfn is actuall backed by memory in the
+hypervisor (see xen_oldmem_pfn_is_ram) and optimize this case, dumps of
+virtio-balloon and hv-balloon inflated memory will essentially result in
+zero pages getting allocated by the hypervisor and the dump getting
+filled with this data.
 
-Yeah, we've converted them all now to named params:
+The allocation and reading of zero pages can directly be avoided if a
+dumping tool could know which pages only contain stale information not to
+be dumped.
 
-https://git.kernel.org/tip/8e1599fcac2efda8b7d433ef69d2492f0b351e3f
+Also for XEN, calling into the kernel and asking the hypervisor if a
+pfn is backed can be avoided if the duming tool would skip such pages
+right from the beginning.
 
-It probably would be easier if you redo your patchset ontop of current
-tip/master.
+Dumping tools have no idea whether a given page is part of a balloon driver
+and shall not be dumped. Esp. PG_reserved cannot be used for that purpose
+as all memory allocated during early boot is also PG_reserved, see
+discussion at [1]. So some other way of indication is required and a new
+page flag is frowned upon.
 
-Thx.
+We have PG_balloon (MAPCOUNT value), which is essentially unused now. I
+suggest renaming it to something more generic (PG_offline) to mark pages as
+logically offline. This flag can than e.g. also be used by virtio-mem in
+the future to mark subsections as offline. Or by other code that wants to
+put pages logically offline (e.g. later maybe poisoned pages that shall
+no longer be used).
+
+This series converts PG_balloon to PG_offline, allows dumping tools to
+query the value to detect such pages and marks pages in the hv-balloon
+and XEN balloon properly as PG_offline. Note that virtio-balloon already
+set pages to PG_balloon (and now PG_offline).
+
+Please note that this is also helpful for a problem we were seeing under
+Hyper-V: Dumping logically offline memory (pages kept fake offline while
+onlining a section via online_page_callback) would under some condicions
+result in a kernel panic when dumping them.
+
+As I don't have access to neither XEN nor Hyper-V installation, this was
+not tested yet (and a makedumpfile change will be required to skip
+dumping these pages).
+
+[1] https://lkml.org/lkml/2018/7/20/566
+
+David Hildenbrand (6):
+  mm: balloon: update comment about isolation/migration/compaction
+  mm: convert PG_balloon to PG_offline
+  kexec: export PG_offline to VMCOREINFO
+  xen/balloon: mark inflated pages PG_offline
+  hv_balloon: mark inflated pages PG_offline
+  PM / Hibernate: exclude all PageOffline() pages
+
+ Documentation/admin-guide/mm/pagemap.rst |  6 +++++
+ drivers/hv/hv_balloon.c                  | 14 ++++++++--
+ drivers/xen/balloon.c                    |  3 +++
+ fs/proc/page.c                           |  4 +--
+ include/linux/balloon_compaction.h       | 34 +++++++++---------------
+ include/linux/page-flags.h               | 11 +++++---
+ include/uapi/linux/kernel-page-flags.h   |  1 +
+ kernel/crash_core.c                      |  2 ++
+ kernel/power/snapshot.c                  |  5 +++-
+ tools/vm/page-types.c                    |  1 +
+ 10 files changed, 51 insertions(+), 30 deletions(-)
 
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+2.17.2
