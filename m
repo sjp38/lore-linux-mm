@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D91586B026A
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 17:53:05 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id r16-v6so11632526pgv.17
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 14:53:05 -0800 (PST)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 099706B0266
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 17:53:06 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id t5-v6so13128425plo.2
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 14:53:06 -0800 (PST)
 Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id l13-v6si29485562pls.222.2018.11.14.14.53.04
+        by mx.google.com with ESMTPS id d10-v6si26779897pla.207.2018.11.14.14.53.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 14 Nov 2018 14:53:04 -0800 (PST)
 From: Keith Busch <keith.busch@intel.com>
-Subject: [PATCH 4/7] node: Add memory caching attributes
-Date: Wed, 14 Nov 2018 15:49:17 -0700
-Message-Id: <20181114224921.12123-5-keith.busch@intel.com>
+Subject: [PATCH 5/7] doc/vm: New documentation for memory cache
+Date: Wed, 14 Nov 2018 15:49:18 -0700
+Message-Id: <20181114224921.12123-6-keith.busch@intel.com>
 In-Reply-To: <20181114224921.12123-2-keith.busch@intel.com>
 References: <20181114224921.12123-2-keith.busch@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,219 +20,100 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
 
-System memory may have side caches to help improve access speed. While
-the system provided cache is transparent to the software accessing
-these memory ranges, applications can optimize their own access based
-on cache attributes.
+Platforms may provide system memory that contains side caches to help
+spped up access. These memory caches are part of a memory node and
+the cache attributes are exported by the kernel.
 
-In preparation for such systems, provide a new API for the kernel to
-register these memory side caches under the memory node that provides it.
-
-The kernel's sysfs representation is modeled from the cpu cacheinfo
-attributes, as seen from /sys/devices/system/cpu/cpuX/cache/. Unlike CPU
-cacheinfo, though, a higher node's memory cache level is nearer to the
-CPU, while lower levels are closer to the backing memory. Also unlike
-CPU cache, the system handles flushing any dirty cached memory to the
-last level the memory on a power failure if the range is persistent.
-
-The exported attributes are the cache size, the line size, associativity,
-and write back policy.
+Add new documentation providing a brief overview of system memory side
+caches and the kernel provided attributes for application optimization.
 
 Signed-off-by: Keith Busch <keith.busch@intel.com>
 ---
- drivers/base/node.c  | 117 +++++++++++++++++++++++++++++++++++++++++++++++++++
- include/linux/node.h |  23 ++++++++++
- 2 files changed, 140 insertions(+)
+ Documentation/vm/numacache.rst | 76 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 76 insertions(+)
+ create mode 100644 Documentation/vm/numacache.rst
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 232535761998..bb94f1d18115 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -60,6 +60,12 @@ static DEVICE_ATTR(cpumap,  S_IRUGO, node_read_cpumask, NULL);
- static DEVICE_ATTR(cpulist, S_IRUGO, node_read_cpulist, NULL);
- 
- #ifdef CONFIG_HMEM
-+struct node_cache_obj {
-+	struct kobject kobj;
-+	struct list_head node;
-+	struct node_cache_attrs cache_attrs;
-+};
+diff --git a/Documentation/vm/numacache.rst b/Documentation/vm/numacache.rst
+new file mode 100644
+index 000000000000..e79c801b7e3b
+--- /dev/null
++++ b/Documentation/vm/numacache.rst
+@@ -0,0 +1,76 @@
++.. _numacache:
 +
- const struct attribute_group node_access_attrs_group;
- 
- #define ACCESS_ATTR(name) 						\
-@@ -101,6 +107,115 @@ void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs)
- 		pr_info("failed to add performance attribute group to node %d\n",
- 			nid);
- }
++==========
++NUMA Cache
++==========
 +
-+struct cache_attribute_entry {
-+	struct attribute attr;
-+	ssize_t (*show)(struct node_cache_attrs *, char *);
-+};
++System memory may be constructed in a hierarchy of various performing
++characteristics in order to provide large address space of slower
++performing memory cached by a smaller size of higher performing
++memory. The system physical addresses that software is aware of see
++is provided by the last memory level in the hierarchy, while higher
++performing memory transparently provides caching to slower levels.
 +
-+#define CACHE_ATTR(name, fmt) 						\
-+static ssize_t name##_show(struct node_cache_attrs *cache,		\
-+			   char *buf)					\
-+{									\
-+	return sprintf(buf, fmt "\n", cache->name);			\
-+}									\
-+static struct cache_attribute_entry cache_attr_##name = __ATTR_RO(name);
++The term "far memory" is used to denote the last level memory in the
++hierarchy. Each increasing cache level provides higher performing CPU
++access, and the term "near memory" represents the highest level cache
++provided by the system. This number is different than CPU caches where
++the cache level (ex: L1, L2, L3) uses a CPU centric view with each level
++being lower performing and closer to system memory. The memory cache
++level is centric to the last level memory, so the higher numbered cache
++level denotes memory nearer to the CPU, and further from far memory.
 +
-+CACHE_ATTR(size, "%lld")
-+CACHE_ATTR(level, "%d")
-+CACHE_ATTR(line_size, "%d")
-+CACHE_ATTR(associativity, "%d")
-+CACHE_ATTR(write_policy, "%d")
++The memory side caches are not directly addressable by software. When
++software accesses a system address, the system will return it from the
++near memory cache if it is present. If it is not present, the system
++accesses the next level of memory until there is either a hit in that
++cache level, or it reaches far memory.
 +
-+static struct attribute *cache_attrs[] = {
-+	&cache_attr_level.attr,
-+	&cache_attr_associativity.attr,
-+	&cache_attr_size.attr,
-+	&cache_attr_line_size.attr,
-+	&cache_attr_write_policy.attr,
-+	NULL,
-+};
++In order to maximize the performance out of such a setup, software may
++wish to query the memory cache attributes. If the system provides a way
++to query this information, for example with ACPI HMAT (Heterogeneous
++Memory Attribute Table)[1], the kernel will append these attributes to
++the NUMA node that provides the memory.
 +
-+static ssize_t cache_attr_show(struct kobject *kobj, struct attribute *attr,
-+			       char *page)
-+{
-+	struct cache_attribute_entry *entry =
-+			container_of(attr, struct cache_attribute_entry, attr);
-+	struct node_cache_obj *cache_obj =
-+			container_of(kobj, struct node_cache_obj, kobj);
-+	return entry->show(&cache_obj->cache_attrs, page);
-+}
++When the kernel first registers a memory cache with a node, the kernel
++will create the following directory::
 +
-+static const struct sysfs_ops cache_ops = {
-+	.show	= &cache_attr_show,
-+};
++	/sys/devices/system/node/nodeX/cache/
 +
-+static struct kobj_type cache_ktype = {
-+	.default_attrs	= cache_attrs,
-+	.sysfs_ops	= &cache_ops,
-+};
++If that directory is not present, then either the memory does not have
++a side cache, or that information is not provided to the kernel.
 +
-+void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs)
-+{
-+	struct node_cache_obj *cache_obj;
-+	struct node *node;
++The attributes for each level of cache is provided under its cache
++level index::
 +
-+	if (!node_online(nid) || !node_devices[nid])
-+		return;
++	/sys/devices/system/node/nodeX/cache/indexA/
++	/sys/devices/system/node/nodeX/cache/indexB/
++	/sys/devices/system/node/nodeX/cache/indexC/
 +
-+	node = node_devices[nid];
-+	list_for_each_entry(cache_obj, &node->cache_attrs, node) {
-+		if (cache_obj->cache_attrs.level == cache_attrs->level) {
-+			dev_warn(&node->dev,
-+				"attempt to add duplicate cache level:%d\n",
-+				cache_attrs->level);
-+			return;
-+		}
-+	}
++Each cache level's directory provides its attributes. For example,
++the following is a single cache level and the attributes available for
++software to query::
 +
-+	if (!node->cache_kobj)
-+		node->cache_kobj = kobject_create_and_add("cache",
-+							  &node->dev.kobj);
-+	if (!node->cache_kobj)
-+		return;
++	# tree sys/devices/system/node/node0/cache/
++	/sys/devices/system/node/node0/cache/
++	|-- index1
++	|   |-- associativity
++	|   |-- level
++	|   |-- line_size
++	|   |-- size
++	|   `-- write_policy
 +
-+	cache_obj = kzalloc(sizeof(*cache_obj), GFP_KERNEL);
-+	if (!cache_obj)
-+		return;
++The cache "associativity" will be 0 if it is a direct-mapped cache, and
++non-zero for any other indexed based, multi-way associativity.
 +
-+	cache_obj->cache_attrs = *cache_attrs;
-+	if (kobject_init_and_add(&cache_obj->kobj, &cache_ktype, node->cache_kobj,
-+				 "index%d", cache_attrs->level)) {
-+		dev_warn(&node->dev, "failed to add cache level:%d\n",
-+			 cache_attrs->level);
-+		kfree(cache_obj);
-+		return;
-+	}
-+	list_add_tail(&cache_obj->node, &node->cache_attrs);
-+}
++The "level" is the distance from the far memory, and matches the number
++appended to its "index" directory.
 +
-+static void node_remove_caches(struct node *node)
-+{
-+	struct node_cache_obj *obj, *next;
++The "line_size" is the number of bytes accessed on a cache miss.
 +
-+	if (!node->cache_kobj)
-+		return;
++The "size" is the number of bytes provided by this cache level.
 +
-+	list_for_each_entry_safe(obj, next, &node->cache_attrs, node) {
-+		list_del(&obj->node);
-+		kobject_put(&obj->kobj);
-+		kfree(obj);
-+	}
-+	kobject_put(node->cache_kobj);
-+}
++The "write_policy" will be 0 for write-back, and non-zero for
++write-through caching.
 +
-+static void node_init_caches(unsigned int nid)
-+{
-+	INIT_LIST_HEAD(&node_devices[nid]->cache_attrs);
-+}
-+#else
-+static void node_init_caches(unsigned int nid) { }
-+static void node_remove_caches(struct node *node) { }
- #endif
- 
- #define K(x) ((x) << (PAGE_SHIFT - 10))
-@@ -345,6 +460,7 @@ static void node_device_release(struct device *dev)
- 	 */
- 	flush_work(&node->node_work);
- #endif
-+	node_remove_caches(node);
- 	kfree(node);
- }
- 
-@@ -658,6 +774,7 @@ int __register_one_node(int nid)
- 
- 	/* initialize work queue for memory hot plug */
- 	init_node_hugetlb_work(nid);
-+	node_init_caches(nid);
- 
- 	return error;
- }
-diff --git a/include/linux/node.h b/include/linux/node.h
-index 6a1aa6a153f8..f499a17f84bc 100644
---- a/include/linux/node.h
-+++ b/include/linux/node.h
-@@ -36,6 +36,27 @@ struct node_hmem_attrs {
- 	unsigned int write_latency;
- };
- void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs);
-+
-+enum cache_associativity {
-+	NODE_CACHE_DIRECT_MAP,
-+	NODE_CACHE_INDEXED,
-+	NODE_CACHE_OTHER,
-+};
-+
-+enum cache_write_policy {
-+	NODE_CACHE_WRITE_BACK,
-+	NODE_CACHE_WRITE_THROUGH,
-+	NODE_CACHE_WRITE_OTHER,
-+};
-+
-+struct node_cache_attrs {
-+	enum cache_associativity associativity;
-+	enum cache_write_policy write_policy;
-+	u64 size;
-+	u16 line_size;
-+	u8  level;
-+};
-+void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs);
- #endif
- 
- struct node {
-@@ -46,6 +67,8 @@ struct node {
- #endif
- #ifdef CONFIG_HMEM
- 	struct node_hmem_attrs hmem_attrs;
-+	struct list_head cache_attrs;
-+	struct kobject *cache_kobj;
- #endif
- };
- 
++[1] https://www.uefi.org/sites/default/files/resources/ACPI_6_2.pdf
 -- 
 2.14.4
