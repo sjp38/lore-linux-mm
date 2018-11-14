@@ -1,102 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BC806B0003
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 12:32:53 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id y8so11036415pgq.12
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 09:32:53 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id 132si24113171pge.141.2018.11.14.09.32.51
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FBC86B0003
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 13:04:54 -0500 (EST)
+Received: by mail-yw1-f69.google.com with SMTP id 194-v6so5620356ywp.12
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 10:04:54 -0800 (PST)
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id q202-v6si14309962ywg.119.2018.11.14.10.04.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Nov 2018 09:32:51 -0800 (PST)
+        Wed, 14 Nov 2018 10:04:52 -0800 (PST)
+Subject: Re: [PATCH] Fix do_move_pages_to_node() error handling
+References: <20181114004059.1287439-1-pjaroszynski@nvidia.com>
+ <20181114073415.GD23419@dhcp22.suse.cz>
+ <20181114112945.GQ23419@dhcp22.suse.cz>
+From: Piotr Jaroszynski <pjaroszynski@nvidia.com>
+Message-ID: <ddf79812-7702-d513-3f83-70bba1b258db@nvidia.com>
+Date: Wed, 14 Nov 2018 10:04:45 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII;
- format=flowed
+In-Reply-To: <20181114112945.GQ23419@dhcp22.suse.cz>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Date: Wed, 14 Nov 2018 09:32:50 -0800
-From: isaacm@codeaurora.org
-Subject: Re: [PATCH] mm/usercopy: Use memory range to be accessed for
- wraparound check
-In-Reply-To: <7C54170F-DE66-47E0-9C0D-7D1A97DCD339@oracle.com>
-References: <1542156686-12253-1-git-send-email-isaacm@codeaurora.org>
- <FFE931C2-DE41-4AD8-866B-FD37C1493590@oracle.com>
- <5dcd06a0f84a4824bb9bab2b437e190d@AcuMS.aculab.com>
- <7C54170F-DE66-47E0-9C0D-7D1A97DCD339@oracle.com>
-Message-ID: <50baa4900e55b523f18eea2759f8efae@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: William Kucharski <william.kucharski@oracle.com>
-Cc: David Laight <David.Laight@aculab.com>, Kees Cook <keescook@chromium.org>, crecklin@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, psodagud@codeaurora.org, tsoni@codeaurora.org, stable@vger.kernel.org
+To: Michal Hocko <mhocko@suse.com>, p.jaroszynski@gmail.com
+Cc: linux-mm@kvack.org, Jan Stancek <jstancek@redhat.com>
 
-On 2018-11-14 03:46, William Kucharski wrote:
->> On Nov 14, 2018, at 4:09 AM, David Laight <David.Laight@ACULAB.COM> 
->> wrote:
->> 
->> From: William Kucharski
->>> Sent: 14 November 2018 10:35
->>> 
->>>> On Nov 13, 2018, at 5:51 PM, Isaac J. Manjarres 
->>>> <isaacm@codeaurora.org> wrote:
->>>> 
->>>> diff --git a/mm/usercopy.c b/mm/usercopy.c
->>>> index 852eb4e..0293645 100644
->>>> --- a/mm/usercopy.c
->>>> +++ b/mm/usercopy.c
->>>> @@ -151,7 +151,7 @@ static inline void check_bogus_address(const 
->>>> unsigned long ptr, unsigned long n,
->>>> 				       bool to_user)
->>>> {
->>>> 	/* Reject if object wraps past end of memory. */
->>>> -	if (ptr + n < ptr)
->>>> +	if (ptr + (n - 1) < ptr)
->>>> 		usercopy_abort("wrapped address", NULL, to_user, 0, ptr + n);
->>> 
->>> I'm being paranoid, but is it possible this routine could ever be 
->>> passed "n" set to zero?
->>> 
->>> If so, it will erroneously abort indicating a wrapped address as (n - 
->>> 1) wraps to ULONG_MAX.
->>> 
->>> Easily fixed via:
->>> 
->>> 	if ((n != 0) && (ptr + (n - 1) < ptr))
->> 
->> Ugg... you don't want a double test.
->> 
->> I'd guess that a length of zero is likely, but a usercopy that 
->> includes
->> the highest address is going to be invalid because it is a kernel 
->> address
->> (on most archs, and probably illegal on others).
->> What you really want to do is add 'ptr + len' and check the carry 
->> flag.
-> 
-> The extra test is only a few extra instructions, but I understand the
-> concern. (Though I don't
-> know how you'd access the carry flag from C in a machine-independent
-> way. Also, for the
-> calculation to be correct you still need to check 'ptr + (len - 1)'
-> for the wrap.)
-> 
-> You could also theoretically call gcc's __builtin_uadd_overflow() if
-> you want to get carried away.
-> 
-> As I mentioned, I was just being paranoid, but the passed zero length
-> issue stood out to me.
-> 
->     William Kucharski
+On 11/14/18 3:29 AM, Michal Hocko wrote:
+> On Wed 14-11-18 08:34:15, Michal Hocko wrote:
+>> On Tue 13-11-18 16:40:59, p.jaroszynski@gmail.com wrote:
+>>> From: Piotr Jaroszynski <pjaroszynski@nvidia.com>
+>>>
+>>> migrate_pages() can return the number of pages that failed to migrate
+>>> instead of 0 or an error code. If that happens, the positive return is
+>>> treated as an error all the way up through the stack leading to the
+>>> move_pages() syscall returning a positive number. I believe this
+>>> regressed with commit a49bd4d71637 ("mm, numa: rework do_pages_move")
+>>> that refactored a lot of this code.
+>>
+>> Yes this is correct.
+>>
+>>> Fix this by treating positive returns as success in
+>>> do_move_pages_to_node() as that seems to most closely follow the
+>>> previous code. This still leaves the question whether silently
+>>> considering this case a success is the right thing to do as even the
+>>> status of the pages will be set as if they were successfully migrated,
+>>> but that seems to have been the case before as well.
+>>
+>> Yes, I believe the previous semantic was just wrong and we want to fix
+>> it. Jan has already brought this up [1]. I believe we want to update the
+>> documentation rather than restore the previous hazy semantic.
 
-Hi William,
+That's probably fair although at least some code we have will have to be
+updated as it just checks for non-zero returns from move_pages() and
+assumes errno is set when that happens.
 
-Thank you and David for your feedback. The check_bogus_address() routine 
-is only invoked from one place in the kernel, which is 
-__check_object_size(). Before invoking check_bogus_address, 
-__check_object_size ensures that n is non-zero, so it is not possible to 
-call this routine with n being 0. Therefore, we shouldn't run into the 
-scenario you described. Also, in the case where we are copying a page's 
-contents into a kernel space buffer and will not have that buffer 
-interacting with userspace at all, this change to that check should 
-still be valid, correct?
+>>
+>> Just wondering, how have you found out? Is there any real application
+>> failing because of the change or this is a result of some test?
 
-Thanks,
-Isaac Manjarres
+I have a test that creates a tmp file, mmaps it as shared, memsets the
+memory and then attempts to move it to a different node. It used to
+work, but now fails. I suspect the filesystem's migratepage() callback
+regressed and will look into it next. So far I have only tested this on
+powerpc with the xfs filesystem.
+
+>>
+>> [1] http://lkml.kernel.org/r/0329efa0984b9b0252ef166abb4498c0795fab36.1535113317.git.jstancek@redhat.com
+> 
+> Btw. this is what I was suggesting back then (along with the man page
+> update suggested by Jan)
+> 
+> From cfb88c266b645197135cde2905c2bfc82f6d82a9 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Wed, 14 Nov 2018 12:19:09 +0100
+> Subject: [PATCH] mm: fix do_pages_move error reporting
+> 
+> a49bd4d71637 ("mm, numa: rework do_pages_move") has changed the way how
+> we report error to layers above. As the changelog mentioned the semantic
+> was quite unclear previously because the return 0 could mean both
+> success and failure.
+> 
+> The above mentioned commit didn't get all the way down to fix this
+> completely because it doesn't report pages that we even haven't
+> attempted to migrate and therefore we cannot simply say that the
+> semantic is:
+> - err < 0 - errno
+> - err >= 0 number of non-migrated pages.
+> 
+> Fixes: a49bd4d71637 ("mm, numa: rework do_pages_move")
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/migrate.c | 10 +++++++++-
+>  1 file changed, 9 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index f7e4bfdc13b7..aa53ebc523eb 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -1615,8 +1615,16 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
+>  			goto out_flush;
+>  
+>  		err = do_move_pages_to_node(mm, &pagelist, current_node);
+> -		if (err)
+> +		if (err) {
+> +			/*
+> +			 * Possitive err means the number of failed pages to
+> +			 * migrate. Make sure to report the rest of the
+> +			 * nr_pages is not migrated as well.
+> +			 */
+> +			if (err > 0)
+> +				err += nr_pages - i - 1;
+>  			goto out;
+
+Ok, so we give up after the first failure to migrate everything. That
+probably makes sense although I don't have a good idea about how
+frequent it is for the migration to give up in such a manner (short of
+the issue I'm seeing that I suspect is a separate bug). In this case,
+should the status of each page be updated to something instead of being
+left undefined? Or should it be specified that page status is only valid
+for the first N - not migrated pages?
+
+> +		}
+>  		if (i > start) {
+>  			err = store_status(status, start, current_node, i - start);
+>  			if (err)
+> 
