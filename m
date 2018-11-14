@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BBF66B0003
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 04:00:52 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id c84so36738094qkb.13
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 01:00:52 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y5si5613888qvk.5.2018.11.14.01.00.50
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 92C4F6B0284
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 04:01:37 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id x1-v6so7748546edh.8
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 01:01:37 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i59-v6si24500edc.292.2018.11.14.01.01.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Nov 2018 01:00:51 -0800 (PST)
-Date: Wed, 14 Nov 2018 17:00:42 +0800
-From: Baoquan He <bhe@redhat.com>
+        Wed, 14 Nov 2018 01:01:35 -0800 (PST)
+Date: Wed, 14 Nov 2018 10:01:34 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: Memory hotplug softlock issue
-Message-ID: <20181114090042.GD2653@MiWiFi-R3L-srv>
+Message-ID: <20181114090134.GG23419@dhcp22.suse.cz>
 References: <20181114070909.GB2653@MiWiFi-R3L-srv>
  <5a6c6d6b-ebcd-8bfa-d6e0-4312bfe86586@redhat.com>
 MIME-Version: 1.0
@@ -22,11 +22,23 @@ In-Reply-To: <5a6c6d6b-ebcd-8bfa-d6e0-4312bfe86586@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com, akpm@linux-foundation.org, aarcange@redhat.com
+Cc: Baoquan He <bhe@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com
 
-Hi David,
-
-On 11/14/18 at 09:18am, David Hildenbrand wrote:
+On Wed 14-11-18 09:18:09, David Hildenbrand wrote:
+> On 14.11.18 08:09, Baoquan He wrote:
+> > Hi,
+> > 
+> > Tested memory hotplug on a bare metal system, hot removing always
+> > trigger a lock. Usually need hot plug/unplug several times, then the hot
+> > removing will hang there at the last block. Surely with memory pressure
+> > added by executing "stress -m 200".
+> > 
+> > Will attach the log partly. Any idea or suggestion, appreciated. 
+> > 
+> > Thanks
+> > Baoquan
+> > 
+> 
 > Code seems to be waiting for the mem_hotplug_lock in read.
 > We hold mem_hotplug_lock in write whenever we online/offline/add/remove
 > memory. There are two ways to trigger offlining of memory:
@@ -38,43 +50,12 @@ On 11/14/18 at 09:18am, David Hildenbrand wrote:
 > 2. Offlining via "cat 0 > /sys/devices/system/memory/memory0/online"
 > 
 > This didn't take the mem_hotplug_lock and I fixed that for this release.
-> 
+
+This discrepancy should go.
+
 > So if you were testing with 1., you should have seen the same error
 > before this release (unless there is something else now broken in this
 > release).
-
-Thanks a lot for looking into this.
-
-I triggered sysrq+t to check threads' state. You can see that we use
-firmware to trigger ACPI event to go to acpi_bus_offline(), it truly
-didn't take mem_hotplug_lock() and has taken it with your fix in
-commit 381eab4a6ee mm/memory_hotplug: fix online/offline_pages called w.o. mem_hotplug_lock
-
-[  +0.007062] Workqueue: kacpi_hotplug acpi_hotplug_work_fn
-[  +0.005398] Call Trace:
-[  +0.002476]  ? page_vma_mapped_walk+0x307/0x710
-[  +0.004538]  ? page_remove_rmap+0xa2/0x340
-[  +0.004104]  ? ptep_clear_flush+0x54/0x60
-[  +0.004027]  ? enqueue_entity+0x11c/0x620
-[  +0.005904]  ? schedule+0x28/0x80
-[  +0.003336]  ? rmap_walk_file+0xf9/0x270
-[  +0.003940]  ? try_to_unmap+0x9c/0xf0
-[  +0.003695]  ? migrate_pages+0x2b0/0xb90
-[  +0.003959]  ? try_offline_node+0x160/0x160
-[  +0.004214]  ? __offline_pages+0x6ce/0x8e0
-[  +0.004134]  ? memory_subsys_offline+0x40/0x60
-[  +0.004474]  ? device_offline+0x81/0xb0
-[  +0.003867]  ? acpi_bus_offline+0xdb/0x140
-[  +0.004117]  ? acpi_device_hotplug+0x21c/0x460
-[  +0.004458]  ? acpi_hotplug_work_fn+0x1a/0x30
-[  +0.004372]  ? process_one_work+0x1a1/0x3a0
-[  +0.004195]  ? worker_thread+0x30/0x380
-[  +0.003851]  ? drain_workqueue+0x120/0x120
-[  +0.004117]  ? kthread+0x112/0x130
-[  +0.003411]  ? kthread_park+0x80/0x80
-[  +0.005325]  ? ret_from_fork+0x35/0x40
-
-
 > 
 > 
 > The real question is, however, why offlining of the last block doesn't
@@ -85,13 +66,19 @@ commit 381eab4a6ee mm/memory_hotplug: fix online/offline_pages called w.o. mem_h
 > other BUGs whereby we would run into an endless loop here (e.g. related
 > to hugepages I guess).
 
-Hmm, even though memory hotplug stalled there, there are still much
-memory. E.g in this system, it has 8 nodes and each node has 64 GB
-memory, it's 512 GB in all. Now I run "stress -m 200" to trigger 200
-processes to malloc then free 256 MB contiously, and it's eating 50 GB
-in all. In theory, it still has much memory for migrating to.
+We used to have number of retries previous and it was too fragile. If
+you need a timeout then you can easily do that from userspace. Just do
+timeout $TIME echo 0 > $MEM_PATH/online
 
-> 
+I have seen an issue when the migration cannot make a forward progress
+because of a glibc page with a reference count bumping up and down. Most
+probable explanation is the faultaround code. I am working on this and
+will post a patch soon. In any case the migration should converge and if
+it doesn't do then there is a bug lurking somewhere.
+
+Failing on ENOMEM is a questionable thing. I haven't seen that happening
+wildly but if it is a case then I wouldn't be opposed.
+
 > You mentioned memory pressure, if our host is under memory pressure we
 > can easily trigger running into an endless loop there, because we
 > basically ignore -ENOMEM e.g. when we cannot get a page to migrate some
@@ -99,14 +86,9 @@ in all. In theory, it still has much memory for migrating to.
 > do_migrate_range() could be the bad boy if it keeps failing forever and
 > we keep retrying.
 
-Not sure what other people think about this. If failed the memory removing
-when still much free memory left, I worry customer will complain.
+My hotplug debugging patches [1] should help to tell us.
 
-Yeah, it stoped at do_migrate_range() when try to migrate the last
-memory block. And each time it's the last memory block which can't be
-offlined and hang.
-
-If any message or information needed, I can provide.
-
-Thanks
-Baoquan
+[1] http://lkml.kernel.org/r/20181107101830.17405-1-mhocko@kernel.org
+-- 
+Michal Hocko
+SUSE Labs
