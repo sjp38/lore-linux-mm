@@ -1,94 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EE9D06B0269
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 02:34:18 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id l45so7274822edb.1
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 23:34:18 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s12-v6si128010ejd.277.2018.11.13.23.34.16
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 712CE6B0003
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 02:43:44 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id n32-v6so7761830edc.17
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 23:43:44 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g18-v6sor11413411edu.15.2018.11.13.23.43.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Nov 2018 23:34:17 -0800 (PST)
-Date: Wed, 14 Nov 2018 08:34:15 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] Fix do_move_pages_to_node() error handling
-Message-ID: <20181114073415.GD23419@dhcp22.suse.cz>
-References: <20181114004059.1287439-1-pjaroszynski@nvidia.com>
+        (Google Transport Security);
+        Tue, 13 Nov 2018 23:43:42 -0800 (PST)
+Date: Wed, 14 Nov 2018 07:43:41 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH] mm, page_alloc: skip zone who has no managed_pages in
+ calculate_totalreserve_pages()
+Message-ID: <20181114074341.r53rukmj25ydvaqi@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181112071404.13620-1-richard.weiyang@gmail.com>
+ <20181112080926.GA14987@dhcp22.suse.cz>
+ <20181112142641.6oxn4fv4pocm7fmt@master>
+ <20181112144020.GC14987@dhcp22.suse.cz>
+ <20181113013942.zgixlky4ojbzikbd@master>
+ <20181113080834.GK15120@dhcp22.suse.cz>
+ <20181113081644.giu5vxhsfqjqlexh@master>
+ <20181113090758.GL15120@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181114004059.1287439-1-pjaroszynski@nvidia.com>
+In-Reply-To: <20181113090758.GL15120@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: p.jaroszynski@gmail.com
-Cc: linux-mm@kvack.org, Piotr Jaroszynski <pjaroszynski@nvidia.com>, Jan Stancek <jstancek@redhat.com>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org
 
-On Tue 13-11-18 16:40:59, p.jaroszynski@gmail.com wrote:
-> From: Piotr Jaroszynski <pjaroszynski@nvidia.com>
-> 
-> migrate_pages() can return the number of pages that failed to migrate
-> instead of 0 or an error code. If that happens, the positive return is
-> treated as an error all the way up through the stack leading to the
-> move_pages() syscall returning a positive number. I believe this
-> regressed with commit a49bd4d71637 ("mm, numa: rework do_pages_move")
-> that refactored a lot of this code.
+On Tue, Nov 13, 2018 at 10:07:58AM +0100, Michal Hocko wrote:
+>On Tue 13-11-18 08:16:44, Wei Yang wrote:
+>
+>No, I believe we want all three of them. But reviewing
+>for_each_populated_zone users and explicit checks for present/managed
+>pages and unify them would be a step forward both a more optimal code
+>and more maintainable code. I haven't checked but
+>for_each_populated_zone would seem like a proper user for managed page
+>counter. But that really requires to review all current users.
+>
 
-Yes this is correct.
+To sync with your purpose, I searched the user of
+for_each_populated_zone() and replace it with a new loop
+for_each_managed_zone().
 
-> Fix this by treating positive returns as success in
-> do_move_pages_to_node() as that seems to most closely follow the
-> previous code. This still leaves the question whether silently
-> considering this case a success is the right thing to do as even the
-> status of the pages will be set as if they were successfully migrated,
-> but that seems to have been the case before as well.
+Here is a summary of what I have done.
 
-Yes, I believe the previous semantic was just wrong and we want to fix
-it. Jan has already brought this up [1]. I believe we want to update the
-documentation rather than restore the previous hazy semantic.
+file                          used     changed
+----------------------------------------------
+arch/s390/mm/page-states.c    1        1
+kernel/power/snapshot.c       7        3
+mm/highmem.c                  1        1
+mm/huge_memory.c              1        0
+mm/khugepaged.c               1        1
+mm/madvise.c                  1        1
+mm/page_alloc.c               8        8
+mm/vmstat.c                   5        5
 
-Just wondering, how have you found out? Is there any real application
-failing because of the change or this is a result of some test?
+The general idea to replace for_each_populated_zone() with
+for_each_populated_zone() is:
 
-[1] http://lkml.kernel.org/r/0329efa0984b9b0252ef166abb4498c0795fab36.1535113317.git.jstancek@redhat.com
-> 
-> Fixes: a49bd4d71637 ("mm, numa: rework do_pages_move")
-> Signed-off-by: Piotr Jaroszynski <pjaroszynski@nvidia.com>
-> ---
->  mm/migrate.c | 10 ++++++++++
->  1 file changed, 10 insertions(+)
-> 
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 8baeb7ff2f6d..b42efef780d6 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -1461,6 +1461,7 @@ static int store_status(int __user *status, int start, int value, int nr)
->  	return 0;
->  }
->  
-> +/* Returns 0 or an error code. */
->  static int do_move_pages_to_node(struct mm_struct *mm,
->  		struct list_head *pagelist, int node)
->  {
-> @@ -1473,6 +1474,15 @@ static int do_move_pages_to_node(struct mm_struct *mm,
->  			MIGRATE_SYNC, MR_SYSCALL);
->  	if (err)
->  		putback_movable_pages(pagelist);
-> +
-> +	/*
-> +	 * migrate_pages() can return the number of not migrated pages, but the
-> +	 * callers of do_move_pages_to_node() only care about and handle hard
-> +	 * failures.
-> +	 */
-> +	if (err > 0)
-> +		err = 0;
-> +
->  	return err;
->  }
->  
-> -- 
-> 2.11.0.262.g4b0a5b2.dirty
-> 
+   * access zone->freelist
+   * access zone pcp
+   * access zone_page_state
+
+Is my understanding comply with what you want? 
+
+>-- 
+>Michal Hocko
+>SUSE Labs
 
 -- 
-Michal Hocko
-SUSE Labs
+Wei Yang
+Help you, Help me
