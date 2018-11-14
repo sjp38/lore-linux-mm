@@ -1,63 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AAF06B0003
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 08:23:10 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id z72-v6so8273019ede.14
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 05:23:10 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n10-v6si8190452edf.156.2018.11.14.05.23.08
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Nov 2018 05:23:08 -0800 (PST)
-Date: Wed, 14 Nov 2018 14:23:06 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, proc: report PR_SET_THP_DISABLE in proc
-Message-ID: <20181114132306.GX23419@dhcp22.suse.cz>
-References: <20181004094637.GG22173@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810041130380.12951@chino.kir.corp.google.com>
- <20181009083326.GG8528@dhcp22.suse.cz>
- <20181015150325.GN18839@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810151519250.247641@chino.kir.corp.google.com>
- <20181016104855.GQ18839@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810161416540.83080@chino.kir.corp.google.com>
- <20181017070531.GC18839@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810171256330.60837@chino.kir.corp.google.com>
- <20181018070031.GW18839@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181018070031.GW18839@dhcp22.suse.cz>
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DA21A6B0006
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 08:39:41 -0500 (EST)
+Received: by mail-ot1-f69.google.com with SMTP id p29so11271305ote.3
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 05:39:41 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id n125si2503216oig.113.2018.11.14.05.39.40
+        for <linux-mm@kvack.org>;
+        Wed, 14 Nov 2018 05:39:40 -0800 (PST)
+From: Steve Capper <steve.capper@arm.com>
+Subject: [PATCH V3 0/5] 52-bit userspace VAs
+Date: Wed, 14 Nov 2018 13:39:15 +0000
+Message-Id: <20181114133920.7134-1-steve.capper@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@linaro.org, jcm@redhat.com, Steve Capper <steve.capper@arm.com>
 
-On Thu 18-10-18 09:00:31, Michal Hocko wrote:
-> On Wed 17-10-18 12:59:18, David Rientjes wrote:
-> > On Wed, 17 Oct 2018, Michal Hocko wrote:
-> > 
-> > > Do you know of any other userspace except your usecase? Is there
-> > > anything fundamental that would prevent a proper API adoption for you?
-> > > 
-> > 
-> > Yes, it would require us to go back in time and build patched binaries. 
-> 
-> I read that as there is a fundamental problem to update existing
-> binaries. If that is the case then there surely is no way around it
-> and another sad page in the screwed up APIs book we provide.
-> 
-> But I was under impression that the SW stack which actually does the
-> monitoring is under your controll. Moreover I was under impression that
-> you do not use the current vanilla kernel so there is no need for an
-> immediate change on your end. It is trivial to come up with a backward
-> compatible way to check for the new flag (if it is not present then
-> fallback to vma flags).
-> 
-> I am sorry for pushing here but if this is just a matter of a _single_
-> user which _can_ be fixed with a reasonable effort then I would love to
-> see the future api unscrewed.
+This patch series brings support for 52-bit userspace VAs to systems that
+have ARMv8.2-LVA and are running with a 48-bit VA_BITS and a 64KB
+PAGE_SIZE.
 
-ping
+If no hardware support is present, the kernel runs with a 48-bit VA space
+for userspace.
+
+Userspace can exploit this feature by providing an address hint to mmap
+where addr[51:48] != 0. Otherwise all the VA mappings will behave in the
+same way as a 48-bit VA system (this is to maintain compatibility with
+software that assumes the maximum VA size on arm64 is 48-bit).
+
+This patch series applies to 4.20-rc1.
+
+Testing was in a model with Trusted Firmware and UEFI for boot.
+
+Changed in V3, COMPAT fixes added (and tested with 32-bit userspace code).
+Extra patch added to allow forcing all userspace allocations to come from
+52-bits (to allow for debugging and testing).
+
+The major change to V2 of the series is that mm/mmap.c is altered in the
+first patch of the series (rather than copied over to arch/arm64).
+
+
+Steve Capper (5):
+  mm: mmap: Allow for "high" userspace addresses
+  arm64: mm: Introduce DEFAULT_MAP_WINDOW
+  arm64: mm: Define arch_get_mmap_end, arch_get_mmap_base
+  arm64: mm: introduce 52-bit userspace support
+  arm64: mm: Allow forcing all userspace addresses to 52-bit
+
+ arch/arm64/Kconfig                      | 18 ++++++++++++++++++
+ arch/arm64/include/asm/assembler.h      |  7 +++----
+ arch/arm64/include/asm/elf.h            |  4 ++++
+ arch/arm64/include/asm/mmu_context.h    |  3 +++
+ arch/arm64/include/asm/pgalloc.h        |  4 ++++
+ arch/arm64/include/asm/pgtable.h        | 16 +++++++++++++---
+ arch/arm64/include/asm/processor.h      | 33 ++++++++++++++++++++++++++++-----
+ arch/arm64/kernel/head.S                | 13 +++++++++++++
+ arch/arm64/mm/fault.c                   |  2 +-
+ arch/arm64/mm/init.c                    |  2 +-
+ arch/arm64/mm/mmu.c                     |  1 +
+ arch/arm64/mm/proc.S                    | 10 +++++++++-
+ drivers/firmware/efi/arm-runtime.c      |  2 +-
+ drivers/firmware/efi/libstub/arm-stub.c |  2 +-
+ mm/mmap.c                               | 25 ++++++++++++++++++-------
+ 15 files changed, 118 insertions(+), 24 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.11.0
