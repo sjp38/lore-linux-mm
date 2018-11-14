@@ -1,57 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 736106B000A
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 10:07:45 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id y35so4963273edb.5
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 07:07:45 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 29F1B6B0003
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 10:17:40 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id y35so4976386edb.5
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 07:17:40 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n14-v6si1587110edt.57.2018.11.14.07.07.43
+        by mx.google.com with ESMTPS id c5si4536054edw.204.2018.11.14.07.17.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Nov 2018 07:07:44 -0800 (PST)
-Date: Wed, 14 Nov 2018 16:07:42 +0100
+        Wed, 14 Nov 2018 07:17:38 -0800 (PST)
+Date: Wed, 14 Nov 2018 16:17:37 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [mm PATCH v5 0/7] Deferred page init improvements
-Message-ID: <20181114150742.GZ23419@dhcp22.suse.cz>
-References: <154145268025.30046.11742652345962594283.stgit@ahduyck-desk1.jf.intel.com>
+Subject: Re: [RFC PATCH 1/1] vmalloc: add test driver to analyse vmalloc
+ allocator
+Message-ID: <20181114151737.GA23419@dhcp22.suse.cz>
+References: <20181113151629.14826-1-urezki@gmail.com>
+ <20181113151629.14826-2-urezki@gmail.com>
+ <20181113141046.f62f5bd88d4ebc663b0ac100@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <154145268025.30046.11742652345962594283.stgit@ahduyck-desk1.jf.intel.com>
+In-Reply-To: <20181113141046.f62f5bd88d4ebc663b0ac100@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>, Kees Cook <keescook@chromium.org>, Shuah Khan <shuah@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Mon 05-11-18 13:19:25, Alexander Duyck wrote:
-> This patchset is essentially a refactor of the page initialization logic
-> that is meant to provide for better code reuse while providing a
-> significant improvement in deferred page initialization performance.
+On Tue 13-11-18 14:10:46, Andrew Morton wrote:
+[...]
+> > +static int vmalloc_test_init(void)
+> > +{
+> > +	__my_vmalloc_node_range =
+> > +		(void *) kallsyms_lookup_name("__vmalloc_node_range");
+> > +
+> > +	if (__my_vmalloc_node_range)
+> > +		do_concurrent_test();
+> > +
+> > +	return -EAGAIN; /* Fail will directly unload the module */
+> > +}
 > 
-> In my testing on an x86_64 system with 384GB of RAM and 3TB of persistent
-> memory per node I have seen the following. In the case of regular memory
-> initialization the deferred init time was decreased from 3.75s to 1.06s on
-> average. For the persistent memory the initialization time dropped from
-> 24.17s to 19.12s on average. This amounts to a 253% improvement for the
-> deferred memory initialization performance, and a 26% improvement in the
-> persistent memory initialization performance.
+> It's unclear why this module needs access to the internal
+> __vmalloc_node_range().  Please fully explain this in the changelog.
 > 
-> I have called out the improvement observed with each patch.
+> Then, let's just export the thing.  (I expect this module needs a
+> Kconfig dependency on CONFIG_KALLSYMS, btw).  A suitable way of doing
+> that would be
+> 
+> /* Exported for lib/test_vmalloc.c.  Please do not use elsewhere */
+> EXPORT_SYMBOL_GPL(__vmalloc_node_range);
 
-I have only glanced through the code (there is a lot of the code to look
-at here). And I do not like the code duplication and the way how you
-make the hotplug special. There shouldn't be any real reason for that
-IMHO (e.g. why do we init pfn-at-a-time in early init while we do
-pageblock-at-a-time for hotplug). I might be wrong here and the code
-reuse might be really hard to achieve though.
+There was a previous discussion that testing for internal infrastructure
+is useful quite often and such a testing module needs an access to such
+an internal infrastructure. Exporting those symbols via standard
+EXPORT_SYMBOL_GPL is far from optimal because we can be pretty much sure
+an abuse will arise sooner than later. I was proposing
+EXPORT_SYMBOL_SELFTEST that would link only against testing modules.
 
-I am also not impressed by new iterators because this api is quite
-complex already. But this is mostly a detail.
-
-Thing I do not like is that you keep microptimizing PageReserved part
-while there shouldn't be anything fundamental about it. We should just
-remove it rather than make the code more complex. I fell more and more
-guilty to add there actually.
+If that is not viable for some reason then kallsyms_lookup_name is a
+dirty-but-usable workaround.
 -- 
 Michal Hocko
 SUSE Labs
