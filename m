@@ -1,129 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EED666B0003
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 13:44:42 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id r200-v6so16617965wmg.1
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 10:44:42 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTPS id n130-v6si8545373wma.76.2018.11.14.10.44.40
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AE2296B0003
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 14:13:00 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id s123-v6so39323874qkf.12
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 11:13:00 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s9sor9192889qvc.39.2018.11.14.11.12.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Nov 2018 10:44:41 -0800 (PST)
-Date: Wed, 14 Nov 2018 19:44:36 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v5 06/27] x86/cet: Control protection exception handler
-Message-ID: <20181114184436.GK13926@zn.tnic>
-References: <20181011151523.27101-1-yu-cheng.yu@intel.com>
- <20181011151523.27101-7-yu-cheng.yu@intel.com>
+        (Google Transport Security);
+        Wed, 14 Nov 2018 11:12:59 -0800 (PST)
+Date: Wed, 14 Nov 2018 19:12:53 +0000
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+Subject: Re: [mm PATCH v5 0/7] Deferred page init improvements
+Message-ID: <20181114191253.rpwm4d23yeahnavw@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
+References: <154145268025.30046.11742652345962594283.stgit@ahduyck-desk1.jf.intel.com>
+ <20181114150742.GZ23419@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20181011151523.27101-7-yu-cheng.yu@intel.com>
+In-Reply-To: <20181114150742.GZ23419@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>, akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.com
 
-That subject needs a verb:
-
-Subject: [PATCH v5 06/27] x86/cet: Add control protection exception handler
-
-On Thu, Oct 11, 2018 at 08:15:02AM -0700, Yu-cheng Yu wrote:
-> A control protection exception is triggered when a control flow transfer
-> attempt violated shadow stack or indirect branch tracking constraints.
-> For example, the return address for a RET instruction differs from the
-> safe copy on the shadow stack; or a JMP instruction arrives at a non-
-> ENDBR instruction.
+On 18-11-14 16:07:42, Michal Hocko wrote:
+> On Mon 05-11-18 13:19:25, Alexander Duyck wrote:
+> > This patchset is essentially a refactor of the page initialization logic
+> > that is meant to provide for better code reuse while providing a
+> > significant improvement in deferred page initialization performance.
+> > 
+> > In my testing on an x86_64 system with 384GB of RAM and 3TB of persistent
+> > memory per node I have seen the following. In the case of regular memory
+> > initialization the deferred init time was decreased from 3.75s to 1.06s on
+> > average. For the persistent memory the initialization time dropped from
+> > 24.17s to 19.12s on average. This amounts to a 253% improvement for the
+> > deferred memory initialization performance, and a 26% improvement in the
+> > persistent memory initialization performance.
+> > 
+> > I have called out the improvement observed with each patch.
 > 
-> The control protection exception handler works in a similar way as the
-> general protection fault handler.
+> I have only glanced through the code (there is a lot of the code to look
+> at here). And I do not like the code duplication and the way how you
+> make the hotplug special. There shouldn't be any real reason for that
+> IMHO (e.g. why do we init pfn-at-a-time in early init while we do
+> pageblock-at-a-time for hotplug). I might be wrong here and the code
+> reuse might be really hard to achieve though.
+
+I do not like having __init_single_page() to be done differently for
+hotplug. I think, if that is fixed, there is almost no more code
+duplication, the rest looks alright to me.
+
 > 
-> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> ---
->  arch/x86/entry/entry_64.S          |  2 +-
->  arch/x86/include/asm/traps.h       |  3 ++
->  arch/x86/kernel/idt.c              |  4 ++
->  arch/x86/kernel/signal_compat.c    |  2 +-
->  arch/x86/kernel/traps.c            | 64 ++++++++++++++++++++++++++++++
->  include/uapi/asm-generic/siginfo.h |  3 +-
->  6 files changed, 75 insertions(+), 3 deletions(-)
+> I am also not impressed by new iterators because this api is quite
+> complex already. But this is mostly a detail.
 
-A *lot* of style problems here. Please use checkpatch and then common
-sense to check your patches before sending. All those below are valid,
-AFAICT:
+I have reviewed all the patches in this series, and at first was also
+worried about the new iterators. But, after diving deeper, they actually
+make sense, and new memblock iterators look alright to me. The only
+iterator, that I would like to see improved is
+for_each_deferred_pfn_valid_range(), because it is very hard to
+understand it.
 
-WARNING: function definition argument 'struct pt_regs *' should also have an identifier name
-#76: FILE: arch/x86/include/asm/traps.h:81:
-+dotraplinkage void do_control_protection(struct pt_regs *, long);
+This series is an impressive performance improvement, and I have
+confirmed it on both arm, and x86. It is also should be compatible with
+ktasks.
 
-WARNING: function definition argument 'long' should also have an identifier name
-#76: FILE: arch/x86/include/asm/traps.h:81:
-+dotraplinkage void do_control_protection(struct pt_regs *, long);
+> 
+> Thing I do not like is that you keep microptimizing PageReserved part
+> while there shouldn't be anything fundamental about it. We should just
 
-WARNING: static const char * array should probably be static const char * const
-#124: FILE: arch/x86/kernel/traps.c:581:
-+static const char *control_protection_err[] =
+Agree.
 
-ERROR: that open brace { should be on the previous line
-#125: FILE: arch/x86/kernel/traps.c:582:
-+static const char *control_protection_err[] =
-+{
-
-WARNING: quoted string split across lines
-#158: FILE: arch/x86/kernel/traps.c:615:
-+		WARN_ONCE(1, "CET is disabled but got control "
-+			  "protection fault\n");
-
-WARNING: Prefer printk_ratelimited or pr_<level>_ratelimited to printk_ratelimit
-#165: FILE: arch/x86/kernel/traps.c:622:
-+	    printk_ratelimit()) {
-
-WARNING: Avoid logging continuation uses where feasible
-#176: FILE: arch/x86/kernel/traps.c:633:
-+		pr_cont("\n");
-
-ERROR: "(foo*)" should be "(foo *)"
-#183: FILE: arch/x86/kernel/traps.c:640:
-+	info.si_addr	= (void __user*)uprobe_get_trap_addr(regs);
-
-
-And now that patch doesn't even build anymore because of the siginfo
-changes which came in during the merge window. I guess I'll wait for
-your v6 patchset.
-
----
-arch/x86/kernel/traps.c: In function a??do_control_protectiona??:
-arch/x86/kernel/traps.c:627:16: error: passing argument 1 of a??clear_siginfoa?? from incompatible pointer type [-Werror=incompatible-pointer-types]
-  clear_siginfo(&info);
-                ^~~~~
-In file included from ./include/linux/sched/signal.h:6,
-                 from ./include/linux/ptrace.h:7,
-                 from ./include/linux/ftrace.h:14,
-                 from ./include/linux/kprobes.h:42,
-                 from arch/x86/kernel/traps.c:19:
-./include/linux/signal.h:20:52: note: expected a??kernel_siginfo_t *a?? {aka a??struct kernel_siginfo *a??} but argument is of type a??siginfo_t *a?? {aka a??struct siginfo *a??}
- static inline void clear_siginfo(kernel_siginfo_t *info)
-                                  ~~~~~~~~~~~~~~~~~~^~~~
-arch/x86/kernel/traps.c:632:26: error: passing argument 2 of a??force_sig_infoa?? from incompatible pointer type [-Werror=incompatible-pointer-types]
-  force_sig_info(SIGSEGV, &info, tsk);
-                          ^~~~~
-In file included from ./include/linux/ptrace.h:7,
-                 from ./include/linux/ftrace.h:14,
-                 from ./include/linux/kprobes.h:42,
-                 from arch/x86/kernel/traps.c:19:
-./include/linux/sched/signal.h:327:32: note: expected a??struct kernel_siginfo *a?? but argument is of type a??siginfo_t *a?? {aka a??struct siginfo *a??}
- extern int force_sig_info(int, struct kernel_siginfo *, struct task_struct *);
-                                ^~~~~~~~~~~~~~~~~~~~~~~
-cc1: some warnings being treated as errors
-make[2]: *** [scripts/Makefile.build:291: arch/x86/kernel/traps.o] Error 1
-make[1]: *** [scripts/Makefile.build:516: arch/x86/kernel] Error 2
-make[1]: *** Waiting for unfinished jobs....
-make: *** [Makefile:1060: arch/x86] Error 2
-make: *** Waiting for unfinished jobs....
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+> remove it rather than make the code more complex. I fell more and more
+> guilty to add there actually.
