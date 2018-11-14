@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 099706B0266
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 68CB06B026B
 	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 17:53:06 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id t5-v6so13128425plo.2
+Received: by mail-pf1-f200.google.com with SMTP id a72-v6so14397793pfj.14
         for <linux-mm@kvack.org>; Wed, 14 Nov 2018 14:53:06 -0800 (PST)
 Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id d10-v6si26779897pla.207.2018.11.14.14.53.04
+        by mx.google.com with ESMTPS id h18-v6si21592604pgv.47.2018.11.14.14.53.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Nov 2018 14:53:04 -0800 (PST)
+        Wed, 14 Nov 2018 14:53:05 -0800 (PST)
 From: Keith Busch <keith.busch@intel.com>
-Subject: [PATCH 5/7] doc/vm: New documentation for memory cache
-Date: Wed, 14 Nov 2018 15:49:18 -0700
-Message-Id: <20181114224921.12123-6-keith.busch@intel.com>
+Subject: [PATCH 6/7] acpi: Create subtable parsing infrastructure
+Date: Wed, 14 Nov 2018 15:49:19 -0700
+Message-Id: <20181114224921.12123-7-keith.busch@intel.com>
 In-Reply-To: <20181114224921.12123-2-keith.busch@intel.com>
 References: <20181114224921.12123-2-keith.busch@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,100 +20,144 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
 
-Platforms may provide system memory that contains side caches to help
-spped up access. These memory caches are part of a memory node and
-the cache attributes are exported by the kernel.
+Parsing entries in an ACPI table had assumed a generic header structure
+that is most common. There is no standard ACPI header, though, so less
+common types would need custom parsers if they want go walk their
+subtable entry list.
 
-Add new documentation providing a brief overview of system memory side
-caches and the kernel provided attributes for application optimization.
+Create the infrastructure for adding different table types so parsing
+the entries array may be more reused for all ACPI system tables.
 
 Signed-off-by: Keith Busch <keith.busch@intel.com>
 ---
- Documentation/vm/numacache.rst | 76 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 76 insertions(+)
- create mode 100644 Documentation/vm/numacache.rst
+ drivers/acpi/tables.c | 75 ++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 65 insertions(+), 10 deletions(-)
 
-diff --git a/Documentation/vm/numacache.rst b/Documentation/vm/numacache.rst
-new file mode 100644
-index 000000000000..e79c801b7e3b
---- /dev/null
-+++ b/Documentation/vm/numacache.rst
-@@ -0,0 +1,76 @@
-+.. _numacache:
+diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
+index 61203eebf3a1..15ee77780f68 100644
+--- a/drivers/acpi/tables.c
++++ b/drivers/acpi/tables.c
+@@ -49,6 +49,19 @@ static struct acpi_table_desc initial_tables[ACPI_MAX_TABLES] __initdata;
+ 
+ static int acpi_apic_instance __initdata;
+ 
++enum acpi_subtable_type {
++	ACPI_SUBTABLE_COMMON,
++};
 +
-+==========
-+NUMA Cache
-+==========
++union acpi_subtable_headers {
++	struct acpi_subtable_header common;
++};
 +
-+System memory may be constructed in a hierarchy of various performing
-+characteristics in order to provide large address space of slower
-+performing memory cached by a smaller size of higher performing
-+memory. The system physical addresses that software is aware of see
-+is provided by the last memory level in the hierarchy, while higher
-+performing memory transparently provides caching to slower levels.
++struct acpi_subtable_entry {
++	union acpi_subtable_headers *hdr;
++	enum acpi_subtable_type type;
++};
 +
-+The term "far memory" is used to denote the last level memory in the
-+hierarchy. Each increasing cache level provides higher performing CPU
-+access, and the term "near memory" represents the highest level cache
-+provided by the system. This number is different than CPU caches where
-+the cache level (ex: L1, L2, L3) uses a CPU centric view with each level
-+being lower performing and closer to system memory. The memory cache
-+level is centric to the last level memory, so the higher numbered cache
-+level denotes memory nearer to the CPU, and further from far memory.
+ /*
+  * Disable table checksum verification for the early stage due to the size
+  * limitation of the current x86 early mapping implementation.
+@@ -217,6 +230,45 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
+ 	}
+ }
+ 
++static unsigned long __init
++acpi_get_entry_type(struct acpi_subtable_entry *entry)
++{
++	switch (entry->type) {
++	case ACPI_SUBTABLE_COMMON:
++		return entry->hdr->common.type;
++	}
++	WARN_ONCE(1, "invalid acpi type\n");
++	return 0;
++}
 +
-+The memory side caches are not directly addressable by software. When
-+software accesses a system address, the system will return it from the
-+near memory cache if it is present. If it is not present, the system
-+accesses the next level of memory until there is either a hit in that
-+cache level, or it reaches far memory.
++static unsigned long __init
++acpi_get_entry_length(struct acpi_subtable_entry *entry)
++{
++	switch (entry->type) {
++	case ACPI_SUBTABLE_COMMON:
++		return entry->hdr->common.length;
++	}
++	WARN_ONCE(1, "invalid acpi type\n");
++	return 0;
++}
 +
-+In order to maximize the performance out of such a setup, software may
-+wish to query the memory cache attributes. If the system provides a way
-+to query this information, for example with ACPI HMAT (Heterogeneous
-+Memory Attribute Table)[1], the kernel will append these attributes to
-+the NUMA node that provides the memory.
++static unsigned long __init
++acpi_get_subtable_header_length(struct acpi_subtable_entry *entry)
++{
++	switch (entry->type) {
++	case ACPI_SUBTABLE_COMMON:
++		return sizeof(entry->hdr->common);
++	}
++	WARN_ONCE(1, "invalid acpi type\n");
++	return 0;
++}
 +
-+When the kernel first registers a memory cache with a node, the kernel
-+will create the following directory::
++static enum acpi_subtable_type __init
++acpi_get_subtable_type(char *id)
++{
++	return ACPI_SUBTABLE_COMMON;
++}
 +
-+	/sys/devices/system/node/nodeX/cache/
-+
-+If that directory is not present, then either the memory does not have
-+a side cache, or that information is not provided to the kernel.
-+
-+The attributes for each level of cache is provided under its cache
-+level index::
-+
-+	/sys/devices/system/node/nodeX/cache/indexA/
-+	/sys/devices/system/node/nodeX/cache/indexB/
-+	/sys/devices/system/node/nodeX/cache/indexC/
-+
-+Each cache level's directory provides its attributes. For example,
-+the following is a single cache level and the attributes available for
-+software to query::
-+
-+	# tree sys/devices/system/node/node0/cache/
-+	/sys/devices/system/node/node0/cache/
-+	|-- index1
-+	|   |-- associativity
-+	|   |-- level
-+	|   |-- line_size
-+	|   |-- size
-+	|   `-- write_policy
-+
-+The cache "associativity" will be 0 if it is a direct-mapped cache, and
-+non-zero for any other indexed based, multi-way associativity.
-+
-+The "level" is the distance from the far memory, and matches the number
-+appended to its "index" directory.
-+
-+The "line_size" is the number of bytes accessed on a cache miss.
-+
-+The "size" is the number of bytes provided by this cache level.
-+
-+The "write_policy" will be 0 for write-back, and non-zero for
-+write-through caching.
-+
-+[1] https://www.uefi.org/sites/default/files/resources/ACPI_6_2.pdf
+ /**
+  * acpi_parse_entries_array - for each proc_num find a suitable subtable
+  *
+@@ -246,8 +298,8 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
+ 		struct acpi_subtable_proc *proc, int proc_num,
+ 		unsigned int max_entries)
+ {
+-	struct acpi_subtable_header *entry;
+-	unsigned long table_end;
++	struct acpi_subtable_entry entry;
++	unsigned long table_end, subtable_len, entry_len;
+ 	int count = 0;
+ 	int errs = 0;
+ 	int i;
+@@ -270,19 +322,21 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
+ 
+ 	/* Parse all entries looking for a match. */
+ 
+-	entry = (struct acpi_subtable_header *)
++	entry.type = acpi_get_subtable_type(id);
++	entry.hdr = (union acpi_subtable_headers *)
+ 	    ((unsigned long)table_header + table_size);
++	subtable_len = acpi_get_subtable_header_length(&entry);
+ 
+-	while (((unsigned long)entry) + sizeof(struct acpi_subtable_header) <
+-	       table_end) {
++	while (((unsigned long)entry.hdr) + subtable_len  < table_end) {
+ 		if (max_entries && count >= max_entries)
+ 			break;
+ 
+ 		for (i = 0; i < proc_num; i++) {
+-			if (entry->type != proc[i].id)
++			if (acpi_get_entry_type(&entry) != proc[i].id)
+ 				continue;
+ 			if (!proc[i].handler ||
+-			     (!errs && proc[i].handler(entry, table_end))) {
++			     (!errs && proc[i].handler(&entry.hdr->common,
++						       table_end))) {
+ 				errs++;
+ 				continue;
+ 			}
+@@ -297,13 +351,14 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
+ 		 * If entry->length is 0, break from this loop to avoid
+ 		 * infinite loop.
+ 		 */
+-		if (entry->length == 0) {
++		entry_len = acpi_get_entry_length(&entry);
++		if (entry_len == 0) {
+ 			pr_err("[%4.4s:0x%02x] Invalid zero length\n", id, proc->id);
+ 			return -EINVAL;
+ 		}
+ 
+-		entry = (struct acpi_subtable_header *)
+-		    ((unsigned long)entry + entry->length);
++		entry.hdr = (union acpi_subtable_headers *)
++		    ((unsigned long)entry.hdr + entry_len);
+ 	}
+ 
+ 	if (max_entries && count > max_entries) {
 -- 
 2.14.4
