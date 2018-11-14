@@ -1,55 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 98F486B0006
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 17:23:25 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id a72-v6so14337208pfj.14
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 14:23:25 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id f15si116956plr.144.2018.11.14.14.23.24
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E99B66B000A
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 17:24:10 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id o28-v6so11121782pfk.10
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 14:24:10 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id u13si4037880plq.268.2018.11.14.14.24.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 14 Nov 2018 14:23:24 -0800 (PST)
-Date: Wed, 14 Nov 2018 14:23:21 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH RFC 2/6] mm: convert PG_balloon to PG_offline
-Message-ID: <20181114222321.GB1784@bombadil.infradead.org>
-References: <20181114211704.6381-1-david@redhat.com>
- <20181114211704.6381-3-david@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181114211704.6381-3-david@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Nov 2018 14:24:05 -0800 (PST)
+From: Sasha Levin <sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.18 08/59] s390/mm: fix mis-accounting of pgtable_bytes
+Date: Wed, 14 Nov 2018 17:22:40 -0500
+Message-Id: <20181114222335.99339-8-sashal@kernel.org>
+In-Reply-To: <20181114222335.99339-1-sashal@kernel.org>
+References: <20181114222335.99339-1-sashal@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, Jonathan Corbet <corbet@lwn.net>, Alexey Dobriyan <adobriyan@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Christian Hansen <chansen3@cisco.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Miles Chen <miles.chen@mediatek.com>, David Rientjes <rientjes@google.com>
+To: stable@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, Sasha Levin <sashal@kernel.org>, linux-s390@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Nov 14, 2018 at 10:17:00PM +0100, David Hildenbrand wrote:
-> Rename PG_balloon to PG_offline. This is an indicator that the page is
-> logically offline, the content stale and that it should not be touched
-> (e.g. a hypervisor would have to allocate backing storage in order for the
-> guest to dump an unused page).  We can then e.g. exclude such pages from
-> dumps.
-> 
-> In following patches, we will make use of this bit also in other balloon
-> drivers.  While at it, document PGTABLE.
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-Thank you for documenting PGTABLE.  I didn't realise I also had this
-document to update when I added PGTABLE.
+[ Upstream commit e12e4044aede97974f2222eb7f0ed726a5179a32 ]
 
-> +++ b/Documentation/admin-guide/mm/pagemap.rst
-> @@ -78,6 +78,8 @@ number of times a page is mapped.
->      23. BALLOON
->      24. ZERO_PAGE
->      25. IDLE
-> +    26. PGTABLE
-> +    27. OFFLINE
+In case a fork or a clone system fails in copy_process and the error
+handling does the mmput() at the bad_fork_cleanup_mm label, the
+following warning messages will appear on the console:
 
-So the offline *user* bit is new ... even though the *kernel* bit
-just renames the balloon bit.  I'm not sure how I feel about this.
-I'm going to think about it some more.  Could you share your decision
-process with us?
+  BUG: non-zero pgtables_bytes on freeing mm: 16384
 
-I have no objection to renaming the balloon bit inside the kernel; I
-think that's a wise idea.  I'm just not sure whether we should rename
-the user balloon bit rather than adding a new bit.
+The reason for that is the tricks we play with mm_inc_nr_puds() and
+mm_inc_nr_pmds() in init_new_context().
+
+A normal 64-bit process has 3 levels of page table, the p4d level and
+the pud level are folded. On process termination the free_pud_range()
+function in mm/memory.c will subtract 16KB from pgtable_bytes with a
+mm_dec_nr_puds() call, but there actually is not really a pud table.
+
+One issue with this is the fact that pgtable_bytes is usually off
+by a few kilobytes, but the more severe problem is that for a failed
+fork or clone the free_pgtables() function is not called. In this case
+there is no mm_dec_nr_puds() or mm_dec_nr_pmds() that go together with
+the mm_inc_nr_puds() and mm_inc_nr_pmds in init_new_context().
+The pgtable_bytes will be off by 16384 or 32768 bytes and we get the
+BUG message. The message itself is purely cosmetic, but annoying.
+
+To fix this override the mm_pmd_folded, mm_pud_folded and mm_p4d_folded
+function to check for the true size of the address space.
+
+Reported-by: Li Wang <liwang@redhat.com>
+Tested-by: Li Wang <liwang@redhat.com>
+Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Signed-off-by: Sasha Levin <sashal@kernel.org>
+---
+ arch/s390/include/asm/mmu_context.h |  5 -----
+ arch/s390/include/asm/pgalloc.h     |  6 +++---
+ arch/s390/include/asm/pgtable.h     | 18 ++++++++++++++++++
+ arch/s390/include/asm/tlb.h         |  6 +++---
+ arch/s390/mm/pgalloc.c              |  1 +
+ 5 files changed, 25 insertions(+), 11 deletions(-)
+
+diff --git a/arch/s390/include/asm/mmu_context.h b/arch/s390/include/asm/mmu_context.h
+index d16bc79c30bb..02331ce22bf4 100644
+--- a/arch/s390/include/asm/mmu_context.h
++++ b/arch/s390/include/asm/mmu_context.h
+@@ -44,8 +44,6 @@ static inline int init_new_context(struct task_struct *tsk,
+ 		mm->context.asce_limit = STACK_TOP_MAX;
+ 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+ 				   _ASCE_USER_BITS | _ASCE_TYPE_REGION3;
+-		/* pgd_alloc() did not account this pud */
+-		mm_inc_nr_puds(mm);
+ 		break;
+ 	case -PAGE_SIZE:
+ 		/* forked 5-level task, set new asce with new_mm->pgd */
+@@ -61,9 +59,6 @@ static inline int init_new_context(struct task_struct *tsk,
+ 		/* forked 2-level compat task, set new asce with new mm->pgd */
+ 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+ 				   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;
+-		/* pgd_alloc() did not account this pmd */
+-		mm_inc_nr_pmds(mm);
+-		mm_inc_nr_puds(mm);
+ 	}
+ 	crst_table_init((unsigned long *) mm->pgd, pgd_entry_type(mm));
+ 	return 0;
+diff --git a/arch/s390/include/asm/pgalloc.h b/arch/s390/include/asm/pgalloc.h
+index f0f9bcf94c03..5ee733720a57 100644
+--- a/arch/s390/include/asm/pgalloc.h
++++ b/arch/s390/include/asm/pgalloc.h
+@@ -36,11 +36,11 @@ static inline void crst_table_init(unsigned long *crst, unsigned long entry)
+ 
+ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
+ {
+-	if (mm->context.asce_limit <= _REGION3_SIZE)
++	if (mm_pmd_folded(mm))
+ 		return _SEGMENT_ENTRY_EMPTY;
+-	if (mm->context.asce_limit <= _REGION2_SIZE)
++	if (mm_pud_folded(mm))
+ 		return _REGION3_ENTRY_EMPTY;
+-	if (mm->context.asce_limit <= _REGION1_SIZE)
++	if (mm_p4d_folded(mm))
+ 		return _REGION2_ENTRY_EMPTY;
+ 	return _REGION1_ENTRY_EMPTY;
+ }
+diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
+index 5ab636089c60..960cf51e9d43 100644
+--- a/arch/s390/include/asm/pgtable.h
++++ b/arch/s390/include/asm/pgtable.h
+@@ -483,6 +483,24 @@ static inline int is_module_addr(void *addr)
+ 				   _REGION_ENTRY_PROTECT | \
+ 				   _REGION_ENTRY_NOEXEC)
+ 
++static inline bool mm_p4d_folded(struct mm_struct *mm)
++{
++	return mm->context.asce_limit <= _REGION1_SIZE;
++}
++#define mm_p4d_folded(mm) mm_p4d_folded(mm)
++
++static inline bool mm_pud_folded(struct mm_struct *mm)
++{
++	return mm->context.asce_limit <= _REGION2_SIZE;
++}
++#define mm_pud_folded(mm) mm_pud_folded(mm)
++
++static inline bool mm_pmd_folded(struct mm_struct *mm)
++{
++	return mm->context.asce_limit <= _REGION3_SIZE;
++}
++#define mm_pmd_folded(mm) mm_pmd_folded(mm)
++
+ static inline int mm_has_pgste(struct mm_struct *mm)
+ {
+ #ifdef CONFIG_PGSTE
+diff --git a/arch/s390/include/asm/tlb.h b/arch/s390/include/asm/tlb.h
+index 457b7ba0fbb6..b31c779cf581 100644
+--- a/arch/s390/include/asm/tlb.h
++++ b/arch/s390/include/asm/tlb.h
+@@ -136,7 +136,7 @@ static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
+ static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
+ 				unsigned long address)
+ {
+-	if (tlb->mm->context.asce_limit <= _REGION3_SIZE)
++	if (mm_pmd_folded(tlb->mm))
+ 		return;
+ 	pgtable_pmd_page_dtor(virt_to_page(pmd));
+ 	tlb_remove_table(tlb, pmd);
+@@ -152,7 +152,7 @@ static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
+ static inline void p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d,
+ 				unsigned long address)
+ {
+-	if (tlb->mm->context.asce_limit <= _REGION1_SIZE)
++	if (mm_p4d_folded(tlb->mm))
+ 		return;
+ 	tlb_remove_table(tlb, p4d);
+ }
+@@ -167,7 +167,7 @@ static inline void p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d,
+ static inline void pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
+ 				unsigned long address)
+ {
+-	if (tlb->mm->context.asce_limit <= _REGION2_SIZE)
++	if (mm_pud_folded(tlb->mm))
+ 		return;
+ 	tlb_remove_table(tlb, pud);
+ }
+diff --git a/arch/s390/mm/pgalloc.c b/arch/s390/mm/pgalloc.c
+index 76d89ee8b428..814f26520aa2 100644
+--- a/arch/s390/mm/pgalloc.c
++++ b/arch/s390/mm/pgalloc.c
+@@ -101,6 +101,7 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
+ 			mm->context.asce_limit = _REGION1_SIZE;
+ 			mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+ 				_ASCE_USER_BITS | _ASCE_TYPE_REGION2;
++			mm_inc_nr_puds(mm);
+ 		} else {
+ 			crst_table_init(table, _REGION1_ENTRY_EMPTY);
+ 			pgd_populate(mm, (pgd_t *) table, (p4d_t *) pgd);
+-- 
+2.17.1
