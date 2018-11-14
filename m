@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 364BD6B0281
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 03:24:24 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id p4so10111301pgj.21
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 00:24:24 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 6872F6B0282
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 03:24:25 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id y8so10098237pgq.12
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 00:24:25 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id p3-v6si23807837pld.119.2018.11.14.00.24.22
+        by mx.google.com with ESMTPS id u5si9202900pgr.316.2018.11.14.00.24.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 14 Nov 2018 00:24:22 -0800 (PST)
+        Wed, 14 Nov 2018 00:24:24 -0800 (PST)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 15/34] powerpc/dart: use the generic iommu bypass code
-Date: Wed, 14 Nov 2018 09:22:55 +0100
-Message-Id: <20181114082314.8965-16-hch@lst.de>
+Subject: [PATCH 16/34] powerpc/powernv: remove pnv_pci_ioda_pe_single_vendor
+Date: Wed, 14 Nov 2018 09:22:56 +0100
+Message-Id: <20181114082314.8965-17-hch@lst.de>
 In-Reply-To: <20181114082314.8965-1-hch@lst.de>
 References: <20181114082314.8965-1-hch@lst.de>
 MIME-Version: 1.0
@@ -22,86 +22,60 @@ List-ID: <linux-mm.kvack.org>
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
 Cc: linuxppc-dev@lists.ozlabs.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Use the generic iommu bypass code instead of overriding set_dma_mask.
+This function is completely bogus - the fact that two PCIe devices come
+from the same vendor has absolutely nothing to say about the DMA
+capabilities and characteristics.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/powerpc/sysdev/dart_iommu.c | 45 +++++++++++---------------------
- 1 file changed, 15 insertions(+), 30 deletions(-)
+ arch/powerpc/platforms/powernv/pci-ioda.c | 28 ++---------------------
+ 1 file changed, 2 insertions(+), 26 deletions(-)
 
-diff --git a/arch/powerpc/sysdev/dart_iommu.c b/arch/powerpc/sysdev/dart_iommu.c
-index 283ce04c5844..2681a19347ba 100644
---- a/arch/powerpc/sysdev/dart_iommu.c
-+++ b/arch/powerpc/sysdev/dart_iommu.c
-@@ -360,13 +360,6 @@ static void iommu_table_dart_setup(void)
- 	set_bit(iommu_table_dart.it_size - 1, iommu_table_dart.it_map);
+diff --git a/arch/powerpc/platforms/powernv/pci-ioda.c b/arch/powerpc/platforms/powernv/pci-ioda.c
+index dd807446801e..afbb73cd3c5b 100644
+--- a/arch/powerpc/platforms/powernv/pci-ioda.c
++++ b/arch/powerpc/platforms/powernv/pci-ioda.c
+@@ -1745,31 +1745,6 @@ static void pnv_pci_ioda_dma_dev_setup(struct pnv_phb *phb, struct pci_dev *pdev
+ 	 */
  }
  
--static void pci_dma_dev_setup_dart(struct pci_dev *dev)
+-static bool pnv_pci_ioda_pe_single_vendor(struct pnv_ioda_pe *pe)
 -{
--	if (dart_is_u4)
--		set_dma_offset(&dev->dev, DART_U4_BYPASS_BASE);
--	set_iommu_table_base(&dev->dev, &iommu_table_dart);
+-	unsigned short vendor = 0;
+-	struct pci_dev *pdev;
+-
+-	if (pe->device_count == 1)
+-		return true;
+-
+-	/* pe->pdev should be set if it's a single device, pe->pbus if not */
+-	if (!pe->pbus)
+-		return true;
+-
+-	list_for_each_entry(pdev, &pe->pbus->devices, bus_list) {
+-		if (!vendor) {
+-			vendor = pdev->vendor;
+-			continue;
+-		}
+-
+-		if (pdev->vendor != vendor)
+-			return false;
+-	}
+-
+-	return true;
 -}
 -
- static void pci_dma_bus_setup_dart(struct pci_bus *bus)
- {
- 	if (!iommu_table_dart_inited) {
-@@ -390,27 +383,16 @@ static bool dart_device_on_pcie(struct device *dev)
- 	return false;
- }
- 
--static int dart_dma_set_mask(struct device *dev, u64 dma_mask)
-+static void pci_dma_dev_setup_dart(struct pci_dev *dev)
- {
--	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
--		return -EIO;
--
--	/* U4 supports a DART bypass, we use it for 64-bit capable
--	 * devices to improve performances. However, that only works
--	 * for devices connected to U4 own PCIe interface, not bridged
--	 * through hypertransport. We need the device to support at
--	 * least 40 bits of addresses.
--	 */
--	if (dart_device_on_pcie(dev) && dma_mask >= DMA_BIT_MASK(40)) {
--		dev_info(dev, "Using 64-bit DMA iommu bypass\n");
--		set_dma_ops(dev, &dma_nommu_ops);
--	} else {
--		dev_info(dev, "Using 32-bit DMA via iommu\n");
--		set_dma_ops(dev, &dma_iommu_ops);
--	}
-+	if (dart_is_u4 && dart_device_on_pcie(&dev->dev))
-+		set_dma_offset(&dev->dev, DART_U4_BYPASS_BASE);
-+	set_iommu_table_base(&dev->dev, &iommu_table_dart);
-+}
- 
--	*dev->dma_mask = dma_mask;
--	return 0;
-+static bool iommu_bypass_supported_dart(struct pci_dev *dev, u64 mask)
-+{
-+	return dart_is_u4 && dart_device_on_pcie(&dev->dev);
- }
- 
- void __init iommu_init_early_dart(struct pci_controller_ops *controller_ops)
-@@ -430,12 +412,15 @@ void __init iommu_init_early_dart(struct pci_controller_ops *controller_ops)
- 	if (dart_init(dn) != 0)
- 		return;
- 
--	/* Setup bypass if supported */
--	if (dart_is_u4)
--		ppc_md.dma_set_mask = dart_dma_set_mask;
--
-+	/*
-+	 * U4 supports a DART bypass, we use it for 64-bit capable devices to
-+	 * improve performance.  However, that only works for devices connected
-+	 * to the U4 own PCIe interface, not bridged through hypertransport.
-+	 * We need the device to support at least 40 bits of addresses.
-+	 */
- 	controller_ops->dma_dev_setup = pci_dma_dev_setup_dart;
- 	controller_ops->dma_bus_setup = pci_dma_bus_setup_dart;
-+	controller_ops->iommu_bypass_supported = iommu_bypass_supported_dart;
- 
- 	/* Setup pci_dma ops */
- 	set_pci_dma_ops(&dma_iommu_ops);
+ /*
+  * Reconfigure TVE#0 to be usable as 64-bit DMA space.
+  *
+@@ -1870,7 +1845,8 @@ static int pnv_pci_ioda_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
+ 		 */
+ 		if (dma_mask >> 32 &&
+ 		    dma_mask > (memory_hotplug_max() + (1ULL << 32)) &&
+-		    pnv_pci_ioda_pe_single_vendor(pe) &&
++		    /* pe->pdev should be set if it's a single device, pe->pbus if not */
++		    (pe->device_count == 1 || !pe->pbus) &&
+ 		    phb->model == PNV_PHB_MODEL_PHB3) {
+ 			/* Configure the bypass mode */
+ 			rc = pnv_pci_ioda_dma_64bit_bypass(pe);
 -- 
 2.19.1
