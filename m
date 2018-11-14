@@ -1,48 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EF11D6B0006
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 02:10:56 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id h25-v6so7789049eds.21
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 23:10:56 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D6C356B000A
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 02:14:45 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id y35so4352409edb.5
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2018 23:14:45 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b5-v6si9190382edd.21.2018.11.13.23.10.55
+        by mx.google.com with ESMTPS id g23-v6si689154edh.357.2018.11.13.23.14.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Nov 2018 23:10:55 -0800 (PST)
-Date: Wed, 14 Nov 2018 08:10:52 +0100
+        Tue, 13 Nov 2018 23:14:44 -0800 (PST)
+Date: Wed, 14 Nov 2018 08:14:42 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: UBSAN: Undefined behaviour in mm/page_alloc.c
-Message-ID: <20181114071052.GA23419@dhcp22.suse.cz>
-References: <CAEAjamseRRHu+TaTkd1TwpLNm8mtDGP=2K0WKLF0wH-3iLcW_w@mail.gmail.com>
- <20181109084353.GA5321@dhcp22.suse.cz>
- <20181113094305.GM15120@dhcp22.suse.cz>
- <20181113152941.cc328e48d5c0c2f366f5db83@linux-foundation.org>
+Subject: Re: [RFC PATCH] mm, memory_hotplug: do not clear numa_node
+ association after hot_remove
+Message-ID: <20181114071442.GB23419@dhcp22.suse.cz>
+References: <20181108100413.966-1-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181113152941.cc328e48d5c0c2f366f5db83@linux-foundation.org>
+In-Reply-To: <20181108100413.966-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Kyungtae Kim <kt0755@gmail.com>, pavel.tatashin@microsoft.com, vbabka@suse.cz, osalvador@suse.de, rppt@linux.vnet.ibm.com, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, alexander.h.duyck@linux.intel.com, mgorman@techsingularity.net, lifeasageek@gmail.com, threeearcat@gmail.com, syzkaller@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Oscar Salvador <OSalvador@suse.com>, LKML <linux-kernel@vger.kernel.org>, Wen Congyang <tangchen@cn.fujitsu.com>, Tang Chen <wency@cn.fujitsu.com>, Miroslav Benes <mbenes@suse.cz>, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue 13-11-18 15:29:41, Andrew Morton wrote:
-[...]
-> But do we really need to do this?  Are there any other known potential
-> callsites?
+It seems there were no objections here. So can we have it in linux-next
+for a wider testing a possibly target the next merge window?
 
-The main point is that the code as it stands is quite fragile, isn't it?
-Fixing up all the callers is possible but can you actually think of a
-reason why this would cause any measurable effect in the fast path?
-The order argument is usually in a register and comparing it to a number
-with unlikely branch should be hardly something visible.
-
-Besides that we are talking few cycles at best compared to a fragile
-code that got broken by accident without anybody noticing for quite some
-time.
-
-I vote for the maintainability over few cycles here. Should anybody find
-this measurable we can rework the code by other means.
+On Thu 08-11-18 11:04:13, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> Per-cpu numa_node provides a default node for each possible cpu. The
+> association gets initialized during the boot when the architecture
+> specific code explores cpu->NUMA affinity. When the whole NUMA node is
+> removed though we are clearing this association
+> 
+> try_offline_node
+>   check_and_unmap_cpu_on_node
+>     unmap_cpu_on_node
+>       numa_clear_node
+>         numa_set_node(cpu, NUMA_NO_NODE)
+> 
+> This means that whoever calls cpu_to_node for a cpu associated with such
+> a node will get NUMA_NO_NODE. This is problematic for two reasons. First
+> it is fragile because __alloc_pages_node would simply blow up on an
+> out-of-bound access. We have encountered this when loading kvm module
+> BUG: unable to handle kernel paging request at 00000000000021c0
+> IP: [<ffffffff8119ccb3>] __alloc_pages_nodemask+0x93/0xb70
+> PGD 800000ffe853e067 PUD 7336bbc067 PMD 0
+> Oops: 0000 [#1] SMP
+> [...]
+> CPU: 88 PID: 1223749 Comm: modprobe Tainted: G        W          4.4.156-94.64-default #1
+> task: ffff88727eff1880 ti: ffff887354490000 task.ti: ffff887354490000
+> RIP: 0010:[<ffffffff8119ccb3>]  [<ffffffff8119ccb3>] __alloc_pages_nodemask+0x93/0xb70
+> RSP: 0018:ffff887354493b40  EFLAGS: 00010202
+> RAX: 00000000000021c0 RBX: 0000000000000000 RCX: 0000000000000000
+> RDX: 0000000000000000 RSI: 0000000000000002 RDI: 00000000014000c0
+> RBP: 00000000014000c0 R08: ffffffffffffffff R09: 0000000000000000
+> R10: ffff88fffc89e790 R11: 0000000000014000 R12: 0000000000000101
+> R13: ffffffffa0772cd4 R14: ffffffffa0769ac0 R15: 0000000000000000
+> FS:  00007fdf2f2f1700(0000) GS:ffff88fffc880000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00000000000021c0 CR3: 00000077205ee000 CR4: 0000000000360670
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> Stack:
+>  0000000000000086 014000c014d20400 ffff887354493bb8 ffff882614d20f4c
+>  0000000000000000 0000000000000046 0000000000000046 ffffffff810ac0c9
+>  ffff88ffe78c0000 ffffffff0000009f ffffe8ffe82d3500 ffff88ff8ac55000
+> Call Trace:
+>  [<ffffffffa07476cd>] alloc_vmcs_cpu+0x3d/0x90 [kvm_intel]
+>  [<ffffffffa0772c0c>] hardware_setup+0x781/0x849 [kvm_intel]
+>  [<ffffffffa04a1c58>] kvm_arch_hardware_setup+0x28/0x190 [kvm]
+>  [<ffffffffa04856fc>] kvm_init+0x7c/0x2d0 [kvm]
+>  [<ffffffffa0772cf2>] vmx_init+0x1e/0x32c [kvm_intel]
+>  [<ffffffff8100213a>] do_one_initcall+0xca/0x1f0
+>  [<ffffffff81193886>] do_init_module+0x5a/0x1d7
+>  [<ffffffff81112083>] load_module+0x1393/0x1c90
+>  [<ffffffff81112b30>] SYSC_finit_module+0x70/0xa0
+>  [<ffffffff8161cbc3>] entry_SYSCALL_64_fastpath+0x1e/0xb7
+> DWARF2 unwinder stuck at entry_SYSCALL_64_fastpath+0x1e/0xb7
+> 
+> on an older kernel but the code is basically the same in the current
+> Linus tree as well. alloc_vmcs_cpu could use alloc_pages_nodemask which
+> would recognize NUMA_NO_NODE and use alloc_pages_node which would translate
+> it to numa_mem_id but that is wrong as well because it would use a cpu
+> affinity of the local CPU which might be quite far from the original node.
+> It is also reasonable to expect that cpu_to_node will provide a sane value
+> and there might be many more callers like that.
+> 
+> The second problem is that __register_one_node relies on cpu_to_node
+> to properly associate cpus back to the node when it is onlined. We do
+> not want to lose that link as there is no arch independent way to get it
+> from the early boot time AFAICS.
+> 
+> Drop the whole check_and_unmap_cpu_on_node machinery and keep the
+> association to fix both issues. The NODE_DATA(nid) is not deallocated
+> so it will stay in place and if anybody wants to allocate from that node
+> then a fallback node will be used.
+> 
+> Thanks to Vlastimil Babka for his live system debugging skills that
+> helped debugging the issue.
+> 
+> Debugged-by: Vlastimil Babka <vbabka@suse.cz>
+> Reported-by: Miroslav Benes <mbenes@suse.cz>
+> Fixes: e13fe8695c57 ("cpu-hotplug,memory-hotplug: clear cpu_to_node() when offlining the node")
+> Cc: Wen Congyang <tangchen@cn.fujitsu.com>
+> Cc: Tang Chen <wency@cn.fujitsu.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+> 
+> Hi,
+> please note that I am sending this as an RFC even though this has been
+> confirmed to fix the oops in kvm_intel module because I cannot simply
+> tell that there are no other side effect that I do not see from the code
+> reading. I would appreciate some background from people who have
+> introduced this code e13fe8695c57 ("cpu-hotplug,memory-hotplug: clear
+> cpu_to_node() when offlining the node") because the changelog doesn't
+> really explain the motivation much.
+> 
+>  mm/memory_hotplug.c | 30 +-----------------------------
+>  1 file changed, 1 insertion(+), 29 deletions(-)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 2b2b3ccbbfb5..87aeafac54ee 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1753,34 +1753,6 @@ static int check_cpu_on_node(pg_data_t *pgdat)
+>  	return 0;
+>  }
+>  
+> -static void unmap_cpu_on_node(pg_data_t *pgdat)
+> -{
+> -#ifdef CONFIG_ACPI_NUMA
+> -	int cpu;
+> -
+> -	for_each_possible_cpu(cpu)
+> -		if (cpu_to_node(cpu) == pgdat->node_id)
+> -			numa_clear_node(cpu);
+> -#endif
+> -}
+> -
+> -static int check_and_unmap_cpu_on_node(pg_data_t *pgdat)
+> -{
+> -	int ret;
+> -
+> -	ret = check_cpu_on_node(pgdat);
+> -	if (ret)
+> -		return ret;
+> -
+> -	/*
+> -	 * the node will be offlined when we come here, so we can clear
+> -	 * the cpu_to_node() now.
+> -	 */
+> -
+> -	unmap_cpu_on_node(pgdat);
+> -	return 0;
+> -}
+> -
+>  /**
+>   * try_offline_node
+>   * @nid: the node ID
+> @@ -1813,7 +1785,7 @@ void try_offline_node(int nid)
+>  		return;
+>  	}
+>  
+> -	if (check_and_unmap_cpu_on_node(pgdat))
+> +	if (check_cpu_on_node(pgdat))
+>  		return;
+>  
+>  	/*
+> -- 
+> 2.19.1
 
 -- 
 Michal Hocko
