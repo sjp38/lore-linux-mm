@@ -1,70 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BFAE26B05D7
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 16:07:21 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id v11so10516204ply.4
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 13:07:21 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id x32si27751835pgk.309.2018.11.15.13.07.20
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 764DE6B05F0
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 16:37:40 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id m1-v6so15385554plb.13
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 13:37:40 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id w3-v6si18921430plb.154.2018.11.15.13.37.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 13:07:20 -0800 (PST)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
-Subject: Re: [PATCH v2] iomap: get/put the page in iomap_page_create/release()
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <20181115184140.1388751-1-pjaroszynski@nvidia.com>
-Date: Thu, 15 Nov 2018 14:07:11 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <96C997D3-DE5F-4553-9D35-C517EC4AF510@oracle.com>
-References: <20181115184140.1388751-1-pjaroszynski@nvidia.com>
+        Thu, 15 Nov 2018 13:37:38 -0800 (PST)
+Date: Thu, 15 Nov 2018 13:37:35 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: use managed_zone() for more exact check in zone
+ iteration
+Message-Id: <20181115133735.bb0313ec9293c415d08be550@linux-foundation.org>
+In-Reply-To: <20181114235040.36180-1-richard.weiyang@gmail.com>
+References: <20181114235040.36180-1-richard.weiyang@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: p.jaroszynski@gmail.com
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@lst.de>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Piotr Jaroszynski <pjaroszynski@nvidia.com>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The V2 fixes look good to me.
+On Thu, 15 Nov 2018 07:50:40 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
 
-    William Kucharski
-
-> On Nov 15, 2018, at 11:41 AM, p.jaroszynski@gmail.com wrote:
->=20
-> Fixes: 82cb14175e7d ("xfs: add support for sub-pagesize writeback =
-without buffer_heads")
-> Signed-off-by: Piotr Jaroszynski <pjaroszynski@nvidia.com>
-> Reviewed-by: Christoph Hellwig <hch@lst.de>
+> For one zone, there are three digits to describe its space range:
+> 
+>     spanned_pages
+>     present_pages
+>     managed_pages
+> 
+> The detailed meaning is written in include/linux/mmzone.h. This patch
+> concerns about the last two.
+> 
+>     present_pages is physical pages existing within the zone
+>     managed_pages is present pages managed by the buddy system
+> 
+> >From the definition, managed_pages is a more strict condition than
+> present_pages.
+> 
+> There are two functions using zone's present_pages as a boundary:
+> 
+>     populated_zone()
+>     for_each_populated_zone()
+> 
+> By going through the kernel tree, most of their users are willing to
+> access pages managed by the buddy system, which means it is more exact
+> to check zone's managed_pages for a validation.
+> 
+> This patch replaces those checks on present_pages to managed_pages by:
+> 
+>     * change for_each_populated_zone() to for_each_managed_zone()
+>     * convert for_each_populated_zone() to for_each_zone() and check
+>       populated_zone() where is necessary
+>     * change populated_zone() to managed_zone() at proper places
+> 
+> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+> 
 > ---
-> fs/iomap.c | 7 +++++++
-> 1 file changed, 7 insertions(+)
->=20
-> diff --git a/fs/iomap.c b/fs/iomap.c
-> index 90c2febc93ac..7c369faea1dc 100644
-> --- a/fs/iomap.c
-> +++ b/fs/iomap.c
-> @@ -117,6 +117,12 @@ iomap_page_create(struct inode *inode, struct =
-page *page)
-> 	atomic_set(&iop->read_count, 0);
-> 	atomic_set(&iop->write_count, 0);
-> 	bitmap_zero(iop->uptodate, PAGE_SIZE / SECTOR_SIZE);
-> +
-> +	/*
-> +	 * migrate_page_move_mapping() assumes that pages with private =
-data have
-> +	 * their count elevated by 1.
-> +	 */
-> +	get_page(page);
-> 	set_page_private(page, (unsigned long)iop);
-> 	SetPagePrivate(page);
-> 	return iop;
-> @@ -133,6 +139,7 @@ iomap_page_release(struct page *page)
-> 	WARN_ON_ONCE(atomic_read(&iop->write_count));
-> 	ClearPagePrivate(page);
-> 	set_page_private(page, 0);
-> +	put_page(page);
-> 	kfree(iop);
-> }
->=20
-> --=20
-> 2.11.0.262.g4b0a5b2.dirty
->=20
+> 
+> Michal, after last mail, I did one more thing to replace
+> populated_zone() with managed_zone() at proper places.
+> 
+> One thing I am not sure is those places in mm/compaction.c. I have
+> chaged them. If not, please let me know.
+> 
+> BTW, I did a boot up test with the patched kernel and looks smooth.
+
+Seems sensible, but a bit scary.  A basic boot test is unlikely to
+expose subtle gremlins.
+
+Worse, the situations in which managed_zone() != populated_zone() are
+rare(?), so it will take a long time for problems to be discovered, I
+expect.
+
+I'll toss it in there for now, let's see who breaks :(
