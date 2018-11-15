@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 26C406B0277
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 03:55:00 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id n68so43129068qkn.8
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 00:55:00 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F2C2C6B0279
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 03:55:18 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id k203so43875480qke.2
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 00:55:18 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f70si4753493qke.10.2018.11.15.00.54.59
+        by mx.google.com with ESMTPS id t57si291084qtj.158.2018.11.15.00.55.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 00:54:59 -0800 (PST)
+        Thu, 15 Nov 2018 00:55:18 -0800 (PST)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V10 06/19] fs/buffer.c: use bvec iterator to truncate the bio
-Date: Thu, 15 Nov 2018 16:52:53 +0800
-Message-Id: <20181115085306.9910-7-ming.lei@redhat.com>
+Subject: [PATCH V10 07/19] btrfs: use bvec_last_segment to get bio's last page
+Date: Thu, 15 Nov 2018 16:52:54 +0800
+Message-Id: <20181115085306.9910-8-ming.lei@redhat.com>
 In-Reply-To: <20181115085306.9910-1-ming.lei@redhat.com>
 References: <20181115085306.9910-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,8 +20,7 @@ List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@kernel.dk>
 Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-Once multi-page bvec is enabled, the last bvec may include more than one
-page, this patch use bvec_last_segment() to truncate the bio.
+Preparing for supporting multi-page bvec.
 
 Cc: Dave Chinner <dchinner@redhat.com>
 Cc: Kent Overstreet <kent.overstreet@gmail.com>
@@ -47,24 +46,45 @@ Cc: Bob Peterson <rpeterso@redhat.com>
 Cc: cluster-devel@redhat.com
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- fs/buffer.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ fs/btrfs/compression.c | 5 ++++-
+ fs/btrfs/extent_io.c   | 5 +++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 1286c2b95498..fa37ad52e962 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -3032,7 +3032,10 @@ void guard_bio_eod(int op, struct bio *bio)
+diff --git a/fs/btrfs/compression.c b/fs/btrfs/compression.c
+index 2955a4ea2fa8..161e14b8b180 100644
+--- a/fs/btrfs/compression.c
++++ b/fs/btrfs/compression.c
+@@ -400,8 +400,11 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
+ static u64 bio_end_offset(struct bio *bio)
+ {
+ 	struct bio_vec *last = bio_last_bvec_all(bio);
++	struct bio_vec bv;
  
- 	/* ..and clear the end of the buffer for reads */
- 	if (op == REQ_OP_READ) {
--		zero_user(bvec->bv_page, bvec->bv_offset + bvec->bv_len,
-+		struct bio_vec bv;
+-	return page_offset(last->bv_page) + last->bv_len + last->bv_offset;
++	bvec_last_segment(last, &bv);
 +
-+		bvec_last_segment(bvec, &bv);
-+		zero_user(bv.bv_page, bv.bv_offset + bv.bv_len,
- 				truncated_bytes);
- 	}
++	return page_offset(bv.bv_page) + bv.bv_len + bv.bv_offset;
  }
+ 
+ static noinline int add_ra_bio_pages(struct inode *inode,
+diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
+index d228f706ff3e..5d5965297e7e 100644
+--- a/fs/btrfs/extent_io.c
++++ b/fs/btrfs/extent_io.c
+@@ -2720,11 +2720,12 @@ static int __must_check submit_one_bio(struct bio *bio, int mirror_num,
+ {
+ 	blk_status_t ret = 0;
+ 	struct bio_vec *bvec = bio_last_bvec_all(bio);
+-	struct page *page = bvec->bv_page;
++	struct bio_vec bv;
+ 	struct extent_io_tree *tree = bio->bi_private;
+ 	u64 start;
+ 
+-	start = page_offset(page) + bvec->bv_offset;
++	bvec_last_segment(bvec, &bv);
++	start = page_offset(bv.bv_page) + bv.bv_offset;
+ 
+ 	bio->bi_private = NULL;
+ 
 -- 
 2.9.5
