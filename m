@@ -1,45 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F32016B0003
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 19:27:46 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id t2so5709254pfj.15
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 16:27:46 -0800 (PST)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id c11si25116463pgj.255.2018.11.14.16.27.45
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 38FCF6B0006
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 19:30:20 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id p9so2783200pfj.3
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 16:30:20 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n11-v6sor30185990plg.0.2018.11.14.16.30.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Nov 2018 16:27:45 -0800 (PST)
-Date: Wed, 14 Nov 2018 16:27:44 -0800
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [PATCH] l1tf: drop the swap storage limit restriction when
- l1tf=off
-Message-ID: <20181115002744.GM6218@tassilo.jf.intel.com>
-References: <20181113184910.26697-1-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181113184910.26697-1-mhocko@kernel.org>
+        (Google Transport Security);
+        Wed, 14 Nov 2018 16:30:18 -0800 (PST)
+From: p.jaroszynski@gmail.com
+Subject: [PATCH] iomap: get/put the page in iomap_page_create/release()
+Date: Wed, 14 Nov 2018 16:30:00 -0800
+Message-Id: <20181115003000.1358007-1-pjaroszynski@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Jiri Kosina <jkosina@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bp@suse.de>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
+To: Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Piotr Jaroszynski <pjaroszynski@nvidia.com>
 
-On Tue, Nov 13, 2018 at 07:49:10PM +0100, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> Swap storage is restricted to max_swapfile_size (~16TB on x86_64)
-> whenever the system is deemed affected by L1TF vulnerability. Even
-> though the limit is quite high for most deployments it seems to be
-> too restrictive for deployments which are willing to live with the
-> mitigation disabled.
-> 
-> We have a customer to deploy 8x 6,4TB PCIe/NVMe SSD swap devices
-> which is clearly out of the limit.
-> 
-> Drop the swap restriction when l1tf=off is specified. It also doesn't
-> make much sense to warn about too much memory for the l1tf mitigation
-> when it is forcefully disabled by the administrator.
+From: Piotr Jaroszynski <pjaroszynski@nvidia.com>
 
-Reviewed-by: Andi Kleen <ak@linux.intel.com>
+migrate_page_move_mapping() expects pages with private data set to have
+a page_count elevated by 1. This is what used to happen for xfs through
+the buffer_heads code before the switch to iomap in 82cb14175e7d ("xfs:
+add support for sub-pagesize writeback without buffer_heads"). Not
+having the count elevated causes move_pages() to fail on memory mapped
+files coming from xfs.
 
--Andi
+Make iomap compatible with the migrate_page_move_mapping() assumption
+by elevating the page count as part of iomap_page_create() and lowering
+it in iomap_page_release().
+
+Fixes: 82cb14175e7d ("xfs: add support for sub-pagesize writeback
+                      without buffer_heads")
+Signed-off-by: Piotr Jaroszynski <pjaroszynski@nvidia.com>
+---
+ fs/iomap.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/fs/iomap.c b/fs/iomap.c
+index 90c2febc93ac..23977f9f23a2 100644
+--- a/fs/iomap.c
++++ b/fs/iomap.c
+@@ -117,6 +117,12 @@ iomap_page_create(struct inode *inode, struct page *page)
+ 	atomic_set(&iop->read_count, 0);
+ 	atomic_set(&iop->write_count, 0);
+ 	bitmap_zero(iop->uptodate, PAGE_SIZE / SECTOR_SIZE);
++
++	/*
++	 * At least migrate_page_move_mapping() assumes that pages with private
++	 * data have their count elevated by 1.
++	 */
++	get_page(page);
+ 	set_page_private(page, (unsigned long)iop);
+ 	SetPagePrivate(page);
+ 	return iop;
+@@ -133,6 +139,7 @@ iomap_page_release(struct page *page)
+ 	WARN_ON_ONCE(atomic_read(&iop->write_count));
+ 	ClearPagePrivate(page);
+ 	set_page_private(page, 0);
++	put_page(page);
+ 	kfree(iop);
+ }
+ 
+-- 
+2.11.0.262.g4b0a5b2.dirty
