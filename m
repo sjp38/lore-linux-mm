@@ -1,188 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E3976B02E8
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 08:12:20 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id 80so44968297qkd.0
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 05:12:20 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r27si3267724qkr.70.2018.11.15.05.12.18
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2656A6B0309
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 08:17:35 -0500 (EST)
+Received: by mail-io1-f70.google.com with SMTP id c25-v6so1135686ioi.18
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 05:17:35 -0800 (PST)
+Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
+        by mx.google.com with ESMTPS id m19si7116003itn.20.2018.11.15.05.17.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 05:12:18 -0800 (PST)
-Date: Thu, 15 Nov 2018 21:12:11 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: Memory hotplug softlock issue
-Message-ID: <20181115131211.GP2653@MiWiFi-R3L-srv>
-References: <20181114070909.GB2653@MiWiFi-R3L-srv>
- <5a6c6d6b-ebcd-8bfa-d6e0-4312bfe86586@redhat.com>
- <20181114090134.GG23419@dhcp22.suse.cz>
- <20181114145250.GE2653@MiWiFi-R3L-srv>
- <20181114150029.GY23419@dhcp22.suse.cz>
- <20181115051034.GK2653@MiWiFi-R3L-srv>
- <20181115073052.GA23831@dhcp22.suse.cz>
- <20181115075349.GL2653@MiWiFi-R3L-srv>
- <20181115083055.GD23831@dhcp22.suse.cz>
+        Thu, 15 Nov 2018 05:17:33 -0800 (PST)
+Date: Thu, 15 Nov 2018 13:16:43 +0000
+From: Jonathan Cameron <jonathan.cameron@huawei.com>
+Subject: Re: [PATCH 5/7] doc/vm: New documentation for memory cache
+Message-ID: <20181115131643.00003c0d@huawei.com>
+In-Reply-To: <20181114224921.12123-6-keith.busch@intel.com>
+References: <20181114224921.12123-2-keith.busch@intel.com>
+	<20181114224921.12123-6-keith.busch@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181115083055.GD23831@dhcp22.suse.cz>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com
+To: Keith Busch <keith.busch@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On 11/15/18 at 09:30am, Michal Hocko wrote:
-> On Thu 15-11-18 15:53:56, Baoquan He wrote:
-> > On 11/15/18 at 08:30am, Michal Hocko wrote:
-> > > On Thu 15-11-18 13:10:34, Baoquan He wrote:
-> > > > On 11/14/18 at 04:00pm, Michal Hocko wrote:
-> > > > > On Wed 14-11-18 22:52:50, Baoquan He wrote:
-> > > > > > On 11/14/18 at 10:01am, Michal Hocko wrote:
-> > > > > > > I have seen an issue when the migration cannot make a forward progress
-> > > > > > > because of a glibc page with a reference count bumping up and down. Most
-> > > > > > > probable explanation is the faultaround code. I am working on this and
-> > > > > > > will post a patch soon. In any case the migration should converge and if
-> > > > > > > it doesn't do then there is a bug lurking somewhere.
-> > > > > > > 
-> > > > > > > Failing on ENOMEM is a questionable thing. I haven't seen that happening
-> > > > > > > wildly but if it is a case then I wouldn't be opposed.
-> > > > > > 
-> > > > > > Applied your debugging patches, it helps a lot to printing message.
-> > > > > > 
-> > > > > > Below is the dmesg log about the migrating failure. It can't pass
-> > > > > > migrate_pages() and loop forever.
-> > > > > > 
-> > > > > > [  +0.083841] migrating pfn 10fff7d0 failed 
-> > > > > > [  +0.000005] page:ffffea043ffdf400 count:208 mapcount:201 mapping:ffff888dff4bdda8 index:0x2
-> > > > > > [  +0.012689] xfs_address_space_operations [xfs] 
-> > > > > > [  +0.000030] name:"stress" 
-> > > > > > [  +0.004556] flags: 0x5fffffc0000004(uptodate)
-> > > > > > [  +0.007339] raw: 005fffffc0000004 ffffc900000e3d80 ffffc900000e3d80 ffff888dff4bdda8
-> > > > > > [  +0.009488] raw: 0000000000000002 0000000000000000 000000cb000000c8 ffff888e7353d000
-> > > > > > [  +0.007726] page->mem_cgroup:ffff888e7353d000
-> > > > > > [  +0.084538] migrating pfn 10fff7d0 failed 
-> > > > > > [  +0.000006] page:ffffea043ffdf400 count:210 mapcount:201 mapping:ffff888dff4bdda8 index:0x2
-> > > > > > [  +0.012798] xfs_address_space_operations [xfs] 
-> > > > > > [  +0.000034] name:"stress" 
-> > > > > > [  +0.004524] flags: 0x5fffffc0000004(uptodate)
-> > > > > > [  +0.007068] raw: 005fffffc0000004 ffffc900000e3d80 ffffc900000e3d80 ffff888dff4bdda8
-> > > > > > [  +0.009359] raw: 0000000000000002 0000000000000000 000000cb000000c8 ffff888e7353d000
-> > > > > > [  +0.007728] page->mem_cgroup:ffff888e7353d000
-> > > > > 
-> > > > > I wouldn't be surprised if this was a similar/same issue I've been
-> > > > > chasing recently. Could you try to disable faultaround to see if that
-> > > > > helps. It seems that it helped in my particular case but I am still
-> > > > > waiting for the final good-to-go to post the patch as I do not own the
-> > > > > workload which triggered that issue.
-> > > > 
-> > > > Tried, still stuck in last block sometime. Usually after several times
-> > > > of hotplug/unplug. If stop stress program, the last block will be
-> > > > offlined immediately.
-> > > 
-> > > Is the pattern still the same? I mean failing over few pages with
-> > > reference count jumping up and down between attempts?
-> > 
-> > ->count jumping up and down, mapcount stays the same value.
-> > 
-> > > 
-> > > > [root@ ~]# cat /sys/kernel/debug/fault_around_bytes 
-> > > > 4096
-> > > 
-> > > Can you make it 0?
-> > 
-> > I executed 'echo 0 > fault_around_bytes', value less than one page size
-> > will round up to one page.
+On Wed, 14 Nov 2018 15:49:18 -0700
+Keith Busch <keith.busch@intel.com> wrote:
+
+> Platforms may provide system memory that contains side caches to help
+
+If we can call them "memory-side caches" that would avoid a persistent
+confusion on what they actually are.  It took me ages to get to the
+bottom of why they were always drawn to the side of the memory
+path ;)
+
+> spped up access. These memory caches are part of a memory node and
+
+speed
+
+> the cache attributes are exported by the kernel.
 > 
-> OK, I have missed that. So then there must be a different source of the
-> page count volatility. Is it always the same file?
+> Add new documentation providing a brief overview of system memory side
+> caches and the kernel provided attributes for application optimization.
+A few few nits in line, but mostly looks good to me.
+
+Thanks,
+
+Jonathan
+
 > 
-> I think we can rule out memory reclaim because that depends on the page
-> lock. Is the stress test hitting on memory compaction? In other words,
-> are
-> grep compact /proc/vmstat
-> counters changing during the offline test heavily? I am asking because I
-> do not see compaction pfn walkers skipping over MIGRATE_ISOLATE
-> pageblocks. But I might be missing something easily.
+> Signed-off-by: Keith Busch <keith.busch@intel.com>
+> ---
+>  Documentation/vm/numacache.rst | 76 ++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 76 insertions(+)
+>  create mode 100644 Documentation/vm/numacache.rst
 > 
-> It would be also good to find out whether this is fs specific. E.g. does
-> it make any difference if you use a different one for your stress
-> testing?
+> diff --git a/Documentation/vm/numacache.rst b/Documentation/vm/numacache.rst
+> new file mode 100644
+> index 000000000000..e79c801b7e3b
+> --- /dev/null
+> +++ b/Documentation/vm/numacache.rst
+> @@ -0,0 +1,76 @@
+> +.. _numacache:
+> +
+> +==========
+> +NUMA Cache
+> +==========
+> +
+> +System memory may be constructed in a hierarchy of various performing
 
-Created a ramdisk and put stress bin there, then run stress -m 200, now
-seems it's stuck in libc-2.28.so migrating. And it's still xfs. So now xfs
-is a big suspect. At bottom I paste numactl printing, you can see that it's
-the last 4G.
+of elements with various performance
 
-Seems it's trying to migrate libc-2.28.so, but stress program keeps trying to
-access and activate it.
+> +characteristics in order to provide large address space of slower
+> +performing memory cached by a smaller size of higher performing
 
-[ 5055.461652] migrating pfn 190f4fb3e failed 
-[ 5055.461671] page:ffffea643d3ecf80 count:257 mapcount:251 mapping:ffff888e7a6ac528 index:0x85
-[ 5055.474734] xfs_address_space_operations [xfs] 
-[ 5055.474742] name:"libc-2.28.so" 
-[ 5055.481070] flags: 0x1dfffffc0000026(referenced|uptodate|active)
-[ 5055.490329] raw: 01dfffffc0000026 ffffc900000e3d80 ffffc900000e3d80 ffff888e7a6ac528
-[ 5055.498080] raw: 0000000000000085 0000000000000000 000000fc000000f9 ffff88810a8f2000
-[ 5055.505823] page->mem_cgroup:ffff88810a8f2000
-[ 5056.335970] migrating pfn 190f4fb3e failed 
-[ 5056.335990] page:ffffea643d3ecf80 count:255 mapcount:250 mapping:ffff888e7a6ac528 index:0x85
-[ 5056.348994] xfs_address_space_operations [xfs] 
-[ 5056.348998] name:"libc-2.28.so" 
-[ 5056.353555] flags: 0x1dfffffc0000026(referenced|uptodate|active)
-[ 5056.364680] raw: 01dfffffc0000026 ffffc900000e3d80 ffffc900000e3d80 ffff888e7a6ac528
-[ 5056.372428] raw: 0000000000000085 0000000000000000 000000fc000000f9 ffff88810a8f2000
-[ 5056.380172] page->mem_cgroup:ffff88810a8f2000
-[ 5057.332806] migrating pfn 190f4fb3e failed 
-[ 5057.332821] page:ffffea643d3ecf80 count:261 mapcount:250 mapping:ffff888e7a6ac528 index:0x85
-[ 5057.345889] xfs_address_space_operations [xfs] 
-[ 5057.345900] name:"libc-2.28.so" 
-[ 5057.350451] flags: 0x1dfffffc0000026(referenced|uptodate|active)
-[ 5057.359707] raw: 01dfffffc0000026 ffffc900000e3d80 ffffc900000e3d80 ffff888e7a6ac528
-[ 5057.369285] raw: 0000000000000085 0000000000000000 000000fc000000f9 ffff88810a8f2000
-[ 5057.377030] page->mem_cgroup:ffff88810a8f2000
-[ 5058.285457] migrating pfn 190f4fb3e failed 
-[ 5058.285489] page:ffffea643d3ecf80 count:257 mapcount:250 mapping:ffff888e7a6ac528 index:0x85
-[ 5058.298544] xfs_address_space_operations [xfs] 
-[ 5058.298556] name:"libc-2.28.so" 
-[ 5058.303092] flags: 0x1dfffffc0000026(referenced|uptodate|active)
-[ 5058.314358] raw: 01dfffffc0000026 ffffc900000e3d80 ffffc900000e3d80 ffff888e7a6ac528
-[ 5058.322109] raw: 0000000000000085 0000000000000000 000000fc000000f9 ffff88810a8f2000
-[ 5058.329848] page->mem_cgroup:ffff88810a8f2000
+cached by smaller higher performing memory.
 
+> +memory. The system physical addresses that software is aware of see
 
-[root@~]# numactl -H
-available: 8 nodes (0-7)
-node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 144 145 146 147 148 149 150 151 152 153 154 155 156 157 158 159 160 161
-node 0 size: 59817 MB
-node 0 free: 54253 MB
-node 1 cpus: 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 162 163 164 165 166 167 168 169 170 171 172 173 174 175 176 177 178 179
-node 1 size: 65536 MB
-node 1 free: 61158 MB
-node 2 cpus: 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 180 181 182 183 184 185 186 187 188 189 190 191 192 193 194 195 196 197
-node 2 size: 65536 MB
-node 2 free: 62752 MB
-node 3 cpus: 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 198 199 200 201 202 203 204 205 206 207 208 209 210 211 212 213 214 215
-node 3 size: 65536 MB
-node 3 free: 62708 MB
-node 4 cpus: 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 216 217 218 219 220 221 222 223 224 225 226 227 228 229 230 231 232 233
-node 4 size: 34816 MB
-node 4 free: 24141 MB
-node 5 cpus: 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 234 235 236 237 238 239 240 241 242 243 244 245 246 247 248 249 250 251
-node 5 size: 0 MB
-node 5 free: 0 MB
-node 6 cpus: 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 252 253 254 255 256 257 258 259 260 261 262 263 264 265 266 267 268 269
-node 6 size: 0 MB
-node 6 free: 0 MB
-node 7 cpus: 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 270 271 272 273 274 275 276 277 278 279 280 281 282 283 284 285 286 287
-node 7 size: 4096 MB
-node 7 free: 6 MB
-node distances:
-node   0   1   2   3   4   5   6   7 
-  0:  10  21  31  21  41  41  51  51 
-  1:  21  10  21  31  41  41  51  51 
-  2:  31  21  10  21  51  51  41  41 
-  3:  21  31  21  10  51  51  41  41 
-  4:  41  41  51  51  10  21  31  21 
-  5:  41  41  51  51  21  10  21  31 
-  6:  51  51  41  41  31  21  10  21 
-  7:  51  51  41  41  21  31  21  10
+is aware of is provided (no 'see')
+
+> +is provided by the last memory level in the hierarchy, while higher
+> +performing memory transparently provides caching to slower levels.
+> +
+> +The term "far memory" is used to denote the last level memory in the
+> +hierarchy. Each increasing cache level provides higher performing CPU
+
+initiator rather than CPU?
+
+> +access, and the term "near memory" represents the highest level cache
+> +provided by the system. This number is different than CPU caches where
+> +the cache level (ex: L1, L2, L3) uses a CPU centric view with each level
+> +being lower performing and closer to system memory. The memory cache
+> +level is centric to the last level memory, so the higher numbered cache
+
+from the last level memory?
+
+> +level denotes memory nearer to the CPU, and further from far memory.
+> +
+> +The memory side caches are not directly addressable by software. When
+> +software accesses a system address, the system will return it from the
+> +near memory cache if it is present. If it is not present, the system
+> +accesses the next level of memory until there is either a hit in that
+> +cache level, or it reaches far memory.
+> +
+> +In order to maximize the performance out of such a setup, software may
+> +wish to query the memory cache attributes. If the system provides a way
+> +to query this information, for example with ACPI HMAT (Heterogeneous
+> +Memory Attribute Table)[1], the kernel will append these attributes to
+> +the NUMA node that provides the memory.
+> +
+> +When the kernel first registers a memory cache with a node, the kernel
+> +will create the following directory::
+> +
+> +	/sys/devices/system/node/nodeX/cache/
+
+Given we have other things with caches in a numa node, should we make
+this name more specific?
+
+> +
+> +If that directory is not present, then either the memory does not have
+> +a side cache, or that information is not provided to the kernel.
+> +
+> +The attributes for each level of cache is provided under its cache
+> +level index::
+> +
+> +	/sys/devices/system/node/nodeX/cache/indexA/
+> +	/sys/devices/system/node/nodeX/cache/indexB/
+> +	/sys/devices/system/node/nodeX/cache/indexC/
+> +
+> +Each cache level's directory provides its attributes. For example,
+> +the following is a single cache level and the attributes available for
+> +software to query::
+> +
+> +	# tree sys/devices/system/node/node0/cache/
+> +	/sys/devices/system/node/node0/cache/
+> +	|-- index1
+> +	|   |-- associativity
+> +	|   |-- level
+> +	|   |-- line_size
+> +	|   |-- size
+> +	|   `-- write_policy
+> +
+> +The cache "associativity" will be 0 if it is a direct-mapped cache, and
+> +non-zero for any other indexed based, multi-way associativity.
+This description is a little vague.  Right now I think we have 3 options
+from HMAT,
+1) no associativity (which I suppose could also be called fully associative?)
+2) direct mapped (0 in your case)
+3) Complex (who knows!)
+
+So how do you map 1 and 3?
+
+> +
+> +The "level" is the distance from the far memory, and matches the number
+> +appended to its "index" directory.
+> +
+> +The "line_size" is the number of bytes accessed on a cache miss.
+> +
+> +The "size" is the number of bytes provided by this cache level.
+> +
+> +The "write_policy" will be 0 for write-back, and non-zero for
+> +write-through caching.
+
+Do these not appear if the write_policy provided by acpi is "none".
+
+> +
+> +[1] https://www.uefi.org/sites/default/files/resources/ACPI_6_2.pdf
