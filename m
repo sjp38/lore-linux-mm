@@ -1,61 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3598E6B0493
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 10:44:04 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id 202so12602197pgb.6
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 07:44:04 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D9B96B0495
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 10:44:52 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id h10so10772444pgv.20
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 07:44:52 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id cb11-v6sor32699958plb.57.2018.11.15.07.44.02
+        by mx.google.com with SMTPS id k3-v6sor33497753pfb.7.2018.11.15.07.44.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 15 Nov 2018 07:44:02 -0800 (PST)
-Date: Thu, 15 Nov 2018 21:17:38 +0530
+        Thu, 15 Nov 2018 07:44:51 -0800 (PST)
+Date: Thu, 15 Nov 2018 21:18:26 +0530
 From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH 3/9] drivers/firewire/core-iso.c: Convert to use
+Subject: [PATCH 4/9] drm/rockchip/rockchip_drm_gem.c: Convert to use
  vm_insert_range
-Message-ID: <20181115154738.GA27932@jordon-HP-15-Notebook-PC>
+Message-ID: <20181115154826.GA27948@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, stefanr@s5r6.in-berlin.de
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net
+To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org
 
-Convert to use vm_insert_range to map range of kernel memory
-to user vma.
+Convert to use vm_insert_range() to map range of kernel
+memory to user vma.
 
 Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Reviewed-by: Matthew Wilcox <willy@infradead.org>
 ---
- drivers/firewire/core-iso.c | 15 ++-------------
- 1 file changed, 2 insertions(+), 13 deletions(-)
+ drivers/gpu/drm/rockchip/rockchip_drm_gem.c | 20 ++------------------
+ 1 file changed, 2 insertions(+), 18 deletions(-)
 
-diff --git a/drivers/firewire/core-iso.c b/drivers/firewire/core-iso.c
-index 35e784c..7bf28bb 100644
---- a/drivers/firewire/core-iso.c
-+++ b/drivers/firewire/core-iso.c
-@@ -107,19 +107,8 @@ int fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
- int fw_iso_buffer_map_vma(struct fw_iso_buffer *buffer,
- 			  struct vm_area_struct *vma)
+diff --git a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
+index a8db758..2cb83bb 100644
+--- a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
++++ b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
+@@ -221,26 +221,10 @@ static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
+ 					      struct vm_area_struct *vma)
  {
--	unsigned long uaddr;
--	int i, err;
+ 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
+-	unsigned int i, count = obj->size >> PAGE_SHIFT;
+ 	unsigned long user_count = vma_pages(vma);
+-	unsigned long uaddr = vma->vm_start;
+-	unsigned long offset = vma->vm_pgoff;
+-	unsigned long end = user_count + offset;
+-	int ret;
 -
--	uaddr = vma->vm_start;
--	for (i = 0; i < buffer->page_count; i++) {
--		err = vm_insert_page(vma, uaddr, buffer->pages[i]);
--		if (err)
--			return err;
--
+-	if (user_count == 0)
+-		return -ENXIO;
+-	if (end > count)
+-		return -ENXIO;
+ 
+-	for (i = offset; i < end; i++) {
+-		ret = vm_insert_page(vma, uaddr, rk_obj->pages[i]);
+-		if (ret)
+-			return ret;
 -		uaddr += PAGE_SIZE;
 -	}
 -
 -	return 0;
-+	return vm_insert_range(vma, vma->vm_start, buffer->pages,
-+				buffer->page_count);
++	return vm_insert_range(vma, vma->vm_start, rk_obj->pages,
++				user_count);
  }
  
- void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer,
+ static int rockchip_drm_gem_object_mmap_dma(struct drm_gem_object *obj,
 -- 
 1.9.1
