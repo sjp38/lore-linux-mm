@@ -1,67 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D9B96B0495
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 10:44:52 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id h10so10772444pgv.20
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 07:44:52 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 66E576B0498
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 10:45:38 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id d3so7893136pgv.23
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 07:45:38 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k3-v6sor33497753pfb.7.2018.11.15.07.44.51
+        by mx.google.com with SMTPS id f21sor29162044pgm.40.2018.11.15.07.45.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 15 Nov 2018 07:44:51 -0800 (PST)
-Date: Thu, 15 Nov 2018 21:18:26 +0530
+        Thu, 15 Nov 2018 07:45:37 -0800 (PST)
+Date: Thu, 15 Nov 2018 21:19:13 +0530
 From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH 4/9] drm/rockchip/rockchip_drm_gem.c: Convert to use
+Subject: [PATCH 5/9] drm/xen/xen_drm_front_gem.c: Convert to use
  vm_insert_range
-Message-ID: <20181115154826.GA27948@jordon-HP-15-Notebook-PC>
+Message-ID: <20181115154912.GA27969@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org
+To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, oleksandr_andrushchenko@epam.com, airlied@linux.ie
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, xen-devel@lists.xen.org
 
 Convert to use vm_insert_range() to map range of kernel
 memory to user vma.
 
 Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+Reviewed-by: Matthew Wilcox <willy@infradead.org>
 ---
- drivers/gpu/drm/rockchip/rockchip_drm_gem.c | 20 ++------------------
- 1 file changed, 2 insertions(+), 18 deletions(-)
+ drivers/gpu/drm/xen/xen_drm_front_gem.c | 20 ++++++--------------
+ 1 file changed, 6 insertions(+), 14 deletions(-)
 
-diff --git a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
-index a8db758..2cb83bb 100644
---- a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
-+++ b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
-@@ -221,26 +221,10 @@ static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
- 					      struct vm_area_struct *vma)
+diff --git a/drivers/gpu/drm/xen/xen_drm_front_gem.c b/drivers/gpu/drm/xen/xen_drm_front_gem.c
+index 47ff019..a3eade6 100644
+--- a/drivers/gpu/drm/xen/xen_drm_front_gem.c
++++ b/drivers/gpu/drm/xen/xen_drm_front_gem.c
+@@ -225,8 +225,7 @@ struct drm_gem_object *
+ static int gem_mmap_obj(struct xen_gem_object *xen_obj,
+ 			struct vm_area_struct *vma)
  {
- 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
--	unsigned int i, count = obj->size >> PAGE_SHIFT;
- 	unsigned long user_count = vma_pages(vma);
--	unsigned long uaddr = vma->vm_start;
--	unsigned long offset = vma->vm_pgoff;
--	unsigned long end = user_count + offset;
--	int ret;
--
--	if (user_count == 0)
--		return -ENXIO;
--	if (end > count)
--		return -ENXIO;
+-	unsigned long addr = vma->vm_start;
+-	int i;
++	int err;
  
--	for (i = offset; i < end; i++) {
--		ret = vm_insert_page(vma, uaddr, rk_obj->pages[i]);
--		if (ret)
--			return ret;
--		uaddr += PAGE_SIZE;
--	}
+ 	/*
+ 	 * clear the VM_PFNMAP flag that was set by drm_gem_mmap(), and set the
+@@ -247,18 +246,11 @@ static int gem_mmap_obj(struct xen_gem_object *xen_obj,
+ 	 * FIXME: as we insert all the pages now then no .fault handler must
+ 	 * be called, so don't provide one
+ 	 */
+-	for (i = 0; i < xen_obj->num_pages; i++) {
+-		int ret;
 -
+-		ret = vm_insert_page(vma, addr, xen_obj->pages[i]);
+-		if (ret < 0) {
+-			DRM_ERROR("Failed to insert pages into vma: %d\n", ret);
+-			return ret;
+-		}
+-
+-		addr += PAGE_SIZE;
+-	}
 -	return 0;
-+	return vm_insert_range(vma, vma->vm_start, rk_obj->pages,
-+				user_count);
++	err = vm_insert_range(vma, vma->vm_start, xen_obj->pages,
++				xen_obj->num_pages);
++	if (err < 0)
++		DRM_ERROR("Failed to insert pages into vma: %d\n", err);
++	return err;
  }
  
- static int rockchip_drm_gem_object_mmap_dma(struct drm_gem_object *obj,
+ int xen_drm_front_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 -- 
 1.9.1
