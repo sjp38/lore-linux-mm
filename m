@@ -1,65 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 901A76B060F
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 17:08:15 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id l9so9093226plt.7
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 14:08:15 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id c10si29366675pgj.416.2018.11.15.14.08.13
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 69E8E6B061B
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 17:18:52 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id z13-v6so13933703pgv.18
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 14:18:52 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q3-v6sor33344754plb.60.2018.11.15.14.18.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 14:08:14 -0800 (PST)
-Date: Thu, 15 Nov 2018 14:08:10 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH AUTOSEL 3.18 8/9] mm/vmstat.c: assert that vmstat_text
- is in sync with stat_items_size
-Message-Id: <20181115140810.e3292c83467544f6a1d82686@linux-foundation.org>
-In-Reply-To: <20181113055252.79406-8-sashal@kernel.org>
-References: <20181113055252.79406-1-sashal@kernel.org>
-	<20181113055252.79406-8-sashal@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Thu, 15 Nov 2018 14:18:50 -0800 (PST)
+Date: Thu, 15 Nov 2018 14:18:47 -0800
+From: Omar Sandoval <osandov@osandov.com>
+Subject: Re: [PATCH V10 03/19] block: use bio_for_each_bvec() to compute
+ multi-page bvec count
+Message-ID: <20181115221847.GD9348@vader>
+References: <20181115085306.9910-1-ming.lei@redhat.com>
+ <20181115085306.9910-4-ming.lei@redhat.com>
+ <20181115202028.GC9348@vader>
+ <20181115210510.GA24908@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181115210510.GA24908@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sashal@kernel.org>
-Cc: stable@vger.kernel.org, linux-kernel@vger.kernel.org, Jann Horn <jannh@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Christoph Lameter <clameter@sgi.com>, Kemi Wang <kemi.wang@intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
+To: Mike Snitzer <snitzer@redhat.com>
+Cc: Ming Lei <ming.lei@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On Tue, 13 Nov 2018 00:52:51 -0500 Sasha Levin <sashal@kernel.org> wrote:
-
-> From: Jann Horn <jannh@google.com>
+On Thu, Nov 15, 2018 at 04:05:10PM -0500, Mike Snitzer wrote:
+> On Thu, Nov 15 2018 at  3:20pm -0500,
+> Omar Sandoval <osandov@osandov.com> wrote:
 > 
-> [ Upstream commit f0ecf25a093fc0589f0a6bc4c1ea068bbb67d220 ]
+> > On Thu, Nov 15, 2018 at 04:52:50PM +0800, Ming Lei wrote:
+> > > First it is more efficient to use bio_for_each_bvec() in both
+> > > blk_bio_segment_split() and __blk_recalc_rq_segments() to compute how
+> > > many multi-page bvecs there are in the bio.
+> > > 
+> > > Secondly once bio_for_each_bvec() is used, the bvec may need to be
+> > > splitted because its length can be very longer than max segment size,
+> > > so we have to split the big bvec into several segments.
+> > > 
+> > > Thirdly when splitting multi-page bvec into segments, the max segment
+> > > limit may be reached, so the bio split need to be considered under
+> > > this situation too.
+> > > 
+> > > Cc: Dave Chinner <dchinner@redhat.com>
+> > > Cc: Kent Overstreet <kent.overstreet@gmail.com>
+> > > Cc: Mike Snitzer <snitzer@redhat.com>
+> > > Cc: dm-devel@redhat.com
+> > > Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> > > Cc: linux-fsdevel@vger.kernel.org
+> > > Cc: Shaohua Li <shli@kernel.org>
+> > > Cc: linux-raid@vger.kernel.org
+> > > Cc: linux-erofs@lists.ozlabs.org
+> > > Cc: David Sterba <dsterba@suse.com>
+> > > Cc: linux-btrfs@vger.kernel.org
+> > > Cc: Darrick J. Wong <darrick.wong@oracle.com>
+> > > Cc: linux-xfs@vger.kernel.org
+> > > Cc: Gao Xiang <gaoxiang25@huawei.com>
+> > > Cc: Christoph Hellwig <hch@lst.de>
+> > > Cc: Theodore Ts'o <tytso@mit.edu>
+> > > Cc: linux-ext4@vger.kernel.org
+> > > Cc: Coly Li <colyli@suse.de>
+> > > Cc: linux-bcache@vger.kernel.org
+> > > Cc: Boaz Harrosh <ooo@electrozaur.com>
+> > > Cc: Bob Peterson <rpeterso@redhat.com>
+> > > Cc: cluster-devel@redhat.com
+> > > Signed-off-by: Ming Lei <ming.lei@redhat.com>
+> > > ---
+> > >  block/blk-merge.c | 90 ++++++++++++++++++++++++++++++++++++++++++++++---------
+> > >  1 file changed, 76 insertions(+), 14 deletions(-)
+> > > 
+> > > diff --git a/block/blk-merge.c b/block/blk-merge.c
+> > > index 91b2af332a84..6f7deb94a23f 100644
+> > > --- a/block/blk-merge.c
+> > > +++ b/block/blk-merge.c
+> > > @@ -160,6 +160,62 @@ static inline unsigned get_max_io_size(struct request_queue *q,
+> > >  	return sectors;
+> > >  }
+> > >  
+> > > +/*
+> > > + * Split the bvec @bv into segments, and update all kinds of
+> > > + * variables.
+> > > + */
+> > > +static bool bvec_split_segs(struct request_queue *q, struct bio_vec *bv,
+> > > +		unsigned *nsegs, unsigned *last_seg_size,
+> > > +		unsigned *front_seg_size, unsigned *sectors)
+> > > +{
+> > > +	bool need_split = false;
+> > > +	unsigned len = bv->bv_len;
+> > > +	unsigned total_len = 0;
+> > > +	unsigned new_nsegs = 0, seg_size = 0;
+> > 
+> > "unsigned int" here and everywhere else.
 > 
-> Having two gigantic arrays that must manually be kept in sync, including
-> ifdefs, isn't exactly robust.  To make it easier to catch such issues in
-> the future, add a BUILD_BUG_ON().
->
-> ...
->
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -1189,6 +1189,8 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
->  	stat_items_size += sizeof(struct vm_event_state);
->  #endif
->  
-> +	BUILD_BUG_ON(stat_items_size !=
-> +		     ARRAY_SIZE(vmstat_text) * sizeof(unsigned long));
->  	v = kmalloc(stat_items_size, GFP_KERNEL);
->  	m->private = v;
->  	if (!v)
+> Curious why?  I've wondered what govens use of "unsigned" vs "unsigned
+> int" recently and haven't found _the_ reason to pick one over the other.
 
-I don't think there's any way in which this can make a -stable kernel
-more stable!
+My only reason to prefer unsigned int is consistency. unsigned int is
+much more common in the kernel:
 
+$ ag --cc -s 'unsigned\s+int' | wc -l
+129632
+$ ag --cc -s 'unsigned\s+(?!char|short|int|long)' | wc -l
+22435
 
-Generally, I consider -stable in every patch I merge, so for each patch
-which doesn't have cc:stable, that tag is missing for a reason.
-
-In other words, your criteria for -stable addition are different from
-mine.
-
-And I think your criteria differ from those described in
-Documentation/process/stable-kernel-rules.rst.
-
-So... what is your overall thinking on patch selection?
+checkpatch also warns on plain unsigned.
