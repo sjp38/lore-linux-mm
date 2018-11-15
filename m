@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FC876B000A
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 19:39:17 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id k14-v6so13248848pls.21
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 16:39:17 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E5F416B000D
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 19:39:46 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id o23so2002431pll.0
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 16:39:46 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id r26-v6si25654608pgb.372.2018.11.14.16.39.15
+        by mx.google.com with ESMTPS id i69si2727968pgd.71.2018.11.14.16.39.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Nov 2018 16:39:15 -0800 (PST)
+        Wed, 14 Nov 2018 16:39:45 -0800 (PST)
 From: Eric Biggers <ebiggers@kernel.org>
 Subject: [PATCH] userfaultfd: convert userfaultfd_ctx::refcount to refcount_t
-Date: Wed, 14 Nov 2018 16:36:41 -0800
-Message-Id: <20181115003641.62828-1-ebiggers@kernel.org>
+Date: Wed, 14 Nov 2018 16:39:16 -0800
+Message-Id: <20181115003916.63381-1-ebiggers@kernel.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
@@ -28,9 +28,9 @@ exploitability of reference leak bugs.  userfaultfd_ctx::refcount is a
 reference counter with the usual semantics, so convert it to refcount_t.
 
 Note: I replaced the BUG() on incrementing a 0 refcount with just
-refcount_inc(), since already part of the semantics of refcount_t is
-that that incrementing a 0 refcount is not allowed; with
-CONFIG_REFCOUNT_FULL, refcount_inc() checks for it and warns.
+refcount_inc(), since part of the semantics of refcount_t is that that
+incrementing a 0 refcount is not allowed; with CONFIG_REFCOUNT_FULL,
+refcount_inc() already checks for it and warns.
 
 Signed-off-by: Eric Biggers <ebiggers@google.com>
 ---
