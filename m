@@ -1,67 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 38FCF6B0006
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 19:30:20 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id p9so2783200pfj.3
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 16:30:20 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n11-v6sor30185990plg.0.2018.11.14.16.30.18
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FC876B000A
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2018 19:39:17 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id k14-v6so13248848pls.21
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2018 16:39:17 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id r26-v6si25654608pgb.372.2018.11.14.16.39.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 14 Nov 2018 16:30:18 -0800 (PST)
-From: p.jaroszynski@gmail.com
-Subject: [PATCH] iomap: get/put the page in iomap_page_create/release()
-Date: Wed, 14 Nov 2018 16:30:00 -0800
-Message-Id: <20181115003000.1358007-1-pjaroszynski@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Nov 2018 16:39:15 -0800 (PST)
+From: Eric Biggers <ebiggers@kernel.org>
+Subject: [PATCH] userfaultfd: convert userfaultfd_ctx::refcount to refcount_t
+Date: Wed, 14 Nov 2018 16:36:41 -0800
+Message-Id: <20181115003641.62828-1-ebiggers@kernel.org>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Piotr Jaroszynski <pjaroszynski@nvidia.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
 
-From: Piotr Jaroszynski <pjaroszynski@nvidia.com>
+From: Eric Biggers <ebiggers@google.com>
 
-migrate_page_move_mapping() expects pages with private data set to have
-a page_count elevated by 1. This is what used to happen for xfs through
-the buffer_heads code before the switch to iomap in 82cb14175e7d ("xfs:
-add support for sub-pagesize writeback without buffer_heads"). Not
-having the count elevated causes move_pages() to fail on memory mapped
-files coming from xfs.
+Reference counters should use refcount_t rather than atomic_t, since the
+refcount_t implementation can prevent overflows, reducing the
+exploitability of reference leak bugs.  userfaultfd_ctx::refcount is a
+reference counter with the usual semantics, so convert it to refcount_t.
 
-Make iomap compatible with the migrate_page_move_mapping() assumption
-by elevating the page count as part of iomap_page_create() and lowering
-it in iomap_page_release().
+Note: I replaced the BUG() on incrementing a 0 refcount with just
+refcount_inc(), since already part of the semantics of refcount_t is
+that that incrementing a 0 refcount is not allowed; with
+CONFIG_REFCOUNT_FULL, refcount_inc() checks for it and warns.
 
-Fixes: 82cb14175e7d ("xfs: add support for sub-pagesize writeback
-                      without buffer_heads")
-Signed-off-by: Piotr Jaroszynski <pjaroszynski@nvidia.com>
+Signed-off-by: Eric Biggers <ebiggers@google.com>
 ---
- fs/iomap.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+ fs/userfaultfd.c | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
 
-diff --git a/fs/iomap.c b/fs/iomap.c
-index 90c2febc93ac..23977f9f23a2 100644
---- a/fs/iomap.c
-+++ b/fs/iomap.c
-@@ -117,6 +117,12 @@ iomap_page_create(struct inode *inode, struct page *page)
- 	atomic_set(&iop->read_count, 0);
- 	atomic_set(&iop->write_count, 0);
- 	bitmap_zero(iop->uptodate, PAGE_SIZE / SECTOR_SIZE);
-+
-+	/*
-+	 * At least migrate_page_move_mapping() assumes that pages with private
-+	 * data have their count elevated by 1.
-+	 */
-+	get_page(page);
- 	set_page_private(page, (unsigned long)iop);
- 	SetPagePrivate(page);
- 	return iop;
-@@ -133,6 +139,7 @@ iomap_page_release(struct page *page)
- 	WARN_ON_ONCE(atomic_read(&iop->write_count));
- 	ClearPagePrivate(page);
- 	set_page_private(page, 0);
-+	put_page(page);
- 	kfree(iop);
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index 356d2b8568c14..8375faac2790d 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -53,7 +53,7 @@ struct userfaultfd_ctx {
+ 	/* a refile sequence protected by fault_pending_wqh lock */
+ 	struct seqcount refile_seq;
+ 	/* pseudo fd refcounting */
+-	atomic_t refcount;
++	refcount_t refcount;
+ 	/* userfaultfd syscall flags */
+ 	unsigned int flags;
+ 	/* features requested from the userspace */
+@@ -140,8 +140,7 @@ static int userfaultfd_wake_function(wait_queue_entry_t *wq, unsigned mode,
+  */
+ static void userfaultfd_ctx_get(struct userfaultfd_ctx *ctx)
+ {
+-	if (!atomic_inc_not_zero(&ctx->refcount))
+-		BUG();
++	refcount_inc(&ctx->refcount);
  }
  
+ /**
+@@ -154,7 +153,7 @@ static void userfaultfd_ctx_get(struct userfaultfd_ctx *ctx)
+  */
+ static void userfaultfd_ctx_put(struct userfaultfd_ctx *ctx)
+ {
+-	if (atomic_dec_and_test(&ctx->refcount)) {
++	if (refcount_dec_and_test(&ctx->refcount)) {
+ 		VM_BUG_ON(spin_is_locked(&ctx->fault_pending_wqh.lock));
+ 		VM_BUG_ON(waitqueue_active(&ctx->fault_pending_wqh));
+ 		VM_BUG_ON(spin_is_locked(&ctx->fault_wqh.lock));
+@@ -686,7 +685,7 @@ int dup_userfaultfd(struct vm_area_struct *vma, struct list_head *fcs)
+ 			return -ENOMEM;
+ 		}
+ 
+-		atomic_set(&ctx->refcount, 1);
++		refcount_set(&ctx->refcount, 1);
+ 		ctx->flags = octx->flags;
+ 		ctx->state = UFFD_STATE_RUNNING;
+ 		ctx->features = octx->features;
+@@ -1911,7 +1910,7 @@ SYSCALL_DEFINE1(userfaultfd, int, flags)
+ 	if (!ctx)
+ 		return -ENOMEM;
+ 
+-	atomic_set(&ctx->refcount, 1);
++	refcount_set(&ctx->refcount, 1);
+ 	ctx->flags = flags;
+ 	ctx->features = 0;
+ 	ctx->state = UFFD_STATE_WAIT_API;
 -- 
-2.11.0.262.g4b0a5b2.dirty
+2.19.1.930.g4563a0d9d0-goog
