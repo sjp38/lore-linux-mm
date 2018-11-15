@@ -1,79 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 764DE6B05F0
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 16:37:40 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id m1-v6so15385554plb.13
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 13:37:40 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 901A76B060F
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 17:08:15 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id l9so9093226plt.7
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 14:08:15 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id w3-v6si18921430plb.154.2018.11.15.13.37.38
+        by mx.google.com with ESMTPS id c10si29366675pgj.416.2018.11.15.14.08.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 13:37:38 -0800 (PST)
-Date: Thu, 15 Nov 2018 13:37:35 -0800
+        Thu, 15 Nov 2018 14:08:14 -0800 (PST)
+Date: Thu, 15 Nov 2018 14:08:10 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: use managed_zone() for more exact check in zone
- iteration
-Message-Id: <20181115133735.bb0313ec9293c415d08be550@linux-foundation.org>
-In-Reply-To: <20181114235040.36180-1-richard.weiyang@gmail.com>
-References: <20181114235040.36180-1-richard.weiyang@gmail.com>
+Subject: Re: [PATCH AUTOSEL 3.18 8/9] mm/vmstat.c: assert that vmstat_text
+ is in sync with stat_items_size
+Message-Id: <20181115140810.e3292c83467544f6a1d82686@linux-foundation.org>
+In-Reply-To: <20181113055252.79406-8-sashal@kernel.org>
+References: <20181113055252.79406-1-sashal@kernel.org>
+	<20181113055252.79406-8-sashal@kernel.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sasha Levin <sashal@kernel.org>
+Cc: stable@vger.kernel.org, linux-kernel@vger.kernel.org, Jann Horn <jannh@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Christoph Lameter <clameter@sgi.com>, Kemi Wang <kemi.wang@intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
 
-On Thu, 15 Nov 2018 07:50:40 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
+On Tue, 13 Nov 2018 00:52:51 -0500 Sasha Levin <sashal@kernel.org> wrote:
 
-> For one zone, there are three digits to describe its space range:
+> From: Jann Horn <jannh@google.com>
 > 
->     spanned_pages
->     present_pages
->     managed_pages
+> [ Upstream commit f0ecf25a093fc0589f0a6bc4c1ea068bbb67d220 ]
 > 
-> The detailed meaning is written in include/linux/mmzone.h. This patch
-> concerns about the last two.
-> 
->     present_pages is physical pages existing within the zone
->     managed_pages is present pages managed by the buddy system
-> 
-> >From the definition, managed_pages is a more strict condition than
-> present_pages.
-> 
-> There are two functions using zone's present_pages as a boundary:
-> 
->     populated_zone()
->     for_each_populated_zone()
-> 
-> By going through the kernel tree, most of their users are willing to
-> access pages managed by the buddy system, which means it is more exact
-> to check zone's managed_pages for a validation.
-> 
-> This patch replaces those checks on present_pages to managed_pages by:
-> 
->     * change for_each_populated_zone() to for_each_managed_zone()
->     * convert for_each_populated_zone() to for_each_zone() and check
->       populated_zone() where is necessary
->     * change populated_zone() to managed_zone() at proper places
-> 
-> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-> 
-> ---
-> 
-> Michal, after last mail, I did one more thing to replace
-> populated_zone() with managed_zone() at proper places.
-> 
-> One thing I am not sure is those places in mm/compaction.c. I have
-> chaged them. If not, please let me know.
-> 
-> BTW, I did a boot up test with the patched kernel and looks smooth.
+> Having two gigantic arrays that must manually be kept in sync, including
+> ifdefs, isn't exactly robust.  To make it easier to catch such issues in
+> the future, add a BUILD_BUG_ON().
+>
+> ...
+>
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -1189,6 +1189,8 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
+>  	stat_items_size += sizeof(struct vm_event_state);
+>  #endif
+>  
+> +	BUILD_BUG_ON(stat_items_size !=
+> +		     ARRAY_SIZE(vmstat_text) * sizeof(unsigned long));
+>  	v = kmalloc(stat_items_size, GFP_KERNEL);
+>  	m->private = v;
+>  	if (!v)
 
-Seems sensible, but a bit scary.  A basic boot test is unlikely to
-expose subtle gremlins.
+I don't think there's any way in which this can make a -stable kernel
+more stable!
 
-Worse, the situations in which managed_zone() != populated_zone() are
-rare(?), so it will take a long time for problems to be discovered, I
-expect.
 
-I'll toss it in there for now, let's see who breaks :(
+Generally, I consider -stable in every patch I merge, so for each patch
+which doesn't have cc:stable, that tag is missing for a reason.
+
+In other words, your criteria for -stable addition are different from
+mine.
+
+And I think your criteria differ from those described in
+Documentation/process/stable-kernel-rules.rst.
+
+So... what is your overall thinking on patch selection?
