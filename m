@@ -1,91 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F7EA6B000A
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 04:22:57 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id z10so4089890edz.15
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 01:22:57 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m25-v6si1064555ejq.24.2018.11.15.01.22.55
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A46A16B0008
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 04:23:28 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id z68so19356808qkb.14
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 01:23:28 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f26si427098qtc.65.2018.11.15.01.23.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 01:22:55 -0800 (PST)
-Date: Thu, 15 Nov 2018 10:22:54 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, proc: report PR_SET_THP_DISABLE in proc
-Message-ID: <20181115092254.GJ23831@dhcp22.suse.cz>
-References: <20181015150325.GN18839@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810151519250.247641@chino.kir.corp.google.com>
- <20181016104855.GQ18839@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810161416540.83080@chino.kir.corp.google.com>
- <20181017070531.GC18839@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810171256330.60837@chino.kir.corp.google.com>
- <20181018070031.GW18839@dhcp22.suse.cz>
- <20181114132306.GX23419@dhcp22.suse.cz>
- <alpine.DEB.2.21.1811141336010.200345@chino.kir.corp.google.com>
- <20181115090242.GH23831@dhcp22.suse.cz>
+        Thu, 15 Nov 2018 01:23:27 -0800 (PST)
+Subject: Re: [PATCH RFC 3/6] kexec: export PG_offline to VMCOREINFO
+References: <20181114211704.6381-1-david@redhat.com>
+ <20181114211704.6381-4-david@redhat.com>
+ <20181115061923.GA3971@dhcp-128-65.nay.redhat.com>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <685892a9-3a56-8e8c-dbe7-8b1159067a6b@redhat.com>
+Date: Thu, 15 Nov 2018 10:23:13 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181115090242.GH23831@dhcp22.suse.cz>
+In-Reply-To: <20181115061923.GA3971@dhcp-128-65.nay.redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Dave Young <dyoung@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Baoquan He <bhe@redhat.com>, Omar Sandoval <osandov@fb.com>, Arnd Bergmann <arnd@arndb.de>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, Lianbo Jiang <lijiang@redhat.com>, Borislav Petkov <bp@alien8.de>, "Michael S. Tsirkin" <mst@redhat.com>
 
-On Thu 15-11-18 10:02:42, Michal Hocko wrote:
-> On Wed 14-11-18 13:41:12, David Rientjes wrote:
-> > On Wed, 14 Nov 2018, Michal Hocko wrote:
-> > 
-> > > > > > Do you know of any other userspace except your usecase? Is there
-> > > > > > anything fundamental that would prevent a proper API adoption for you?
-> > > > > > 
-> > > > > 
-> > > > > Yes, it would require us to go back in time and build patched binaries. 
-> > > > 
-> > > > I read that as there is a fundamental problem to update existing
-> > > > binaries. If that is the case then there surely is no way around it
-> > > > and another sad page in the screwed up APIs book we provide.
-> > > > 
-> > > > But I was under impression that the SW stack which actually does the
-> > > > monitoring is under your controll. Moreover I was under impression that
-> > > > you do not use the current vanilla kernel so there is no need for an
-> > > > immediate change on your end. It is trivial to come up with a backward
-> > > > compatible way to check for the new flag (if it is not present then
-> > > > fallback to vma flags).
-> > > > 
-> > 
-> > The userspace had a single way to determine if thp had been disabled for a 
-> > specific vma and that was broken with your commit.  We have since fixed 
-> > it.  Modifying our software stack to start looking for some field 
-> > somewhere else will not help anybody else that this has affected or will 
-> > affect.  I'm interested in not breaking userspace, not trying a wait and 
-> > see approach to see if anybody else complains once we start looking for 
-> > some other field.  The risk outweighs the reward, it already broke us, and 
-> > I'd prefer not to even open the possibility of breaking anybody else.
+On 15.11.18 07:19, Dave Young wrote:
+> Hi David,
 > 
-> I very much agree on "do not break userspace" part but this is kind of
-> gray area. VMA flags are a deep internal implementation detail and
-> nobody should really depend on it for anything important. The original
-> motivation for introducing it was CRIU where it is kind of
-> understandable. I would argue they should find a different way but it is
-> just too late for them.
+> On 11/14/18 at 10:17pm, David Hildenbrand wrote:
+>> Let's export PG_offline via PAGE_OFFLINE_MAPCOUNT_VALUE, so
+>> makedumpfile can directly skip pages that are logically offline and the
+>> content therefore stale.
 > 
-> For this particular case there was no other bug report except for yours
-> and if it is possible to fix it on your end then I would really love to
-> make the a sensible user interface to query the status. If we are going
-> to change the semantic of the exported flag again then we risk yet
-> another breakage.
-> 
-> Therefore I am asking whether changing your particular usecase to a new
-> interface is possible because that would allow to have a longerm
-> sensible user interface rather than another kludge which still doesn't
-> cover all the usecases (e.g. there is no way to reliably query the
-> madvise status after your patch).
+> It would be good to copy some background info from cover letter to the
+> patch description so that we can get better understanding why this is
+> needed now.
 
-Btw. this is essentially the same kind of problem as
-http://lkml.kernel.org/r/20181002100531.GC4135@quack2.suse.cz
-where the conclusion was to come up with a saner interface rather than
-mimic the previous one.
+Yes, will add more detail!
+
+> 
+> BTW, Lianbo is working on a documentation of the vmcoreinfo exported
+> fields. Ccing him so that he is aware of this.
+> 
+> Also cc Boris,  although I do not want the doc changes blocks this
+> he might have different opinion :)
+
+I'll be happy to help updating documentation (or updating it myself if
+the doc updates go in first).
+
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
