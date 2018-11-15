@@ -1,73 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CDE96B05B6
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 15:57:58 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id f9so13812780pgs.13
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 12:57:58 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id bc7si3546524plb.120.2018.11.15.12.57.56
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0166C6B05D2
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 16:05:23 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id f22so46580471qkm.11
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 13:05:22 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v18si5784879qtp.194.2018.11.15.13.05.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 12:57:56 -0800 (PST)
-Date: Thu, 15 Nov 2018 12:57:53 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH 1/1] vmalloc: add test driver to analyse vmalloc
- allocator
-Message-Id: <20181115125753.278720db11306755265c42ae@linux-foundation.org>
-In-Reply-To: <20181115134706.GC19286@bombadil.infradead.org>
-References: <20181113151629.14826-1-urezki@gmail.com>
-	<20181113151629.14826-2-urezki@gmail.com>
-	<20181113141046.f62f5bd88d4ebc663b0ac100@linux-foundation.org>
-	<20181114151737.GA23419@dhcp22.suse.cz>
-	<20181114150053.c3fe42507923322a0a10ae1c@linux-foundation.org>
-	<20181115083957.GE23831@dhcp22.suse.cz>
-	<20181115084642.GB19286@bombadil.infradead.org>
-	<20181115125750.GS23831@dhcp22.suse.cz>
-	<20181115134706.GC19286@bombadil.infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 15 Nov 2018 13:05:22 -0800 (PST)
+Date: Thu, 15 Nov 2018 16:05:10 -0500
+From: Mike Snitzer <snitzer@redhat.com>
+Subject: Re: [PATCH V10 03/19] block: use bio_for_each_bvec() to compute
+ multi-page bvec count
+Message-ID: <20181115210510.GA24908@redhat.com>
+References: <20181115085306.9910-1-ming.lei@redhat.com>
+ <20181115085306.9910-4-ming.lei@redhat.com>
+ <20181115202028.GC9348@vader>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181115202028.GC9348@vader>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Michal Hocko <mhocko@kernel.org>, "Uladzislau Rezki (Sony)" <urezki@gmail.com>, Kees Cook <keescook@chromium.org>, Shuah Khan <shuah@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Omar Sandoval <osandov@osandov.com>
+Cc: Ming Lei <ming.lei@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On Thu, 15 Nov 2018 05:47:06 -0800 Matthew Wilcox <willy@infradead.org> wrote:
+On Thu, Nov 15 2018 at  3:20pm -0500,
+Omar Sandoval <osandov@osandov.com> wrote:
 
-> On Thu, Nov 15, 2018 at 01:57:50PM +0100, Michal Hocko wrote:
-> > On Thu 15-11-18 00:46:42, Matthew Wilcox wrote:
-> > > How about adding
-> > > 
-> > > #ifdef CONFIG_VMALLOC_TEST
-> > > int run_internal_vmalloc_tests(void)
-> > > {
-> > > ...
-> > > }
-> > > EXPORT_SYMBOL_GPL(run_internal_vmalloc_tests);
-> > > #endif
-> > > 
-> > > to vmalloc.c?  That would also allow calling functions which are marked
-> > > as static, not just functions which aren't exported to modules.
+> On Thu, Nov 15, 2018 at 04:52:50PM +0800, Ming Lei wrote:
+> > First it is more efficient to use bio_for_each_bvec() in both
+> > blk_bio_segment_split() and __blk_recalc_rq_segments() to compute how
+> > many multi-page bvecs there are in the bio.
 > > 
-> > Yes that would be easier but do we want to pollute the normal code with
-> > testing? This looks messy to me.
+> > Secondly once bio_for_each_bvec() is used, the bvec may need to be
+> > splitted because its length can be very longer than max segment size,
+> > so we have to split the big bvec into several segments.
+> > 
+> > Thirdly when splitting multi-page bvec into segments, the max segment
+> > limit may be reached, so the bio split need to be considered under
+> > this situation too.
+> > 
+> > Cc: Dave Chinner <dchinner@redhat.com>
+> > Cc: Kent Overstreet <kent.overstreet@gmail.com>
+> > Cc: Mike Snitzer <snitzer@redhat.com>
+> > Cc: dm-devel@redhat.com
+> > Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> > Cc: linux-fsdevel@vger.kernel.org
+> > Cc: Shaohua Li <shli@kernel.org>
+> > Cc: linux-raid@vger.kernel.org
+> > Cc: linux-erofs@lists.ozlabs.org
+> > Cc: David Sterba <dsterba@suse.com>
+> > Cc: linux-btrfs@vger.kernel.org
+> > Cc: Darrick J. Wong <darrick.wong@oracle.com>
+> > Cc: linux-xfs@vger.kernel.org
+> > Cc: Gao Xiang <gaoxiang25@huawei.com>
+> > Cc: Christoph Hellwig <hch@lst.de>
+> > Cc: Theodore Ts'o <tytso@mit.edu>
+> > Cc: linux-ext4@vger.kernel.org
+> > Cc: Coly Li <colyli@suse.de>
+> > Cc: linux-bcache@vger.kernel.org
+> > Cc: Boaz Harrosh <ooo@electrozaur.com>
+> > Cc: Bob Peterson <rpeterso@redhat.com>
+> > Cc: cluster-devel@redhat.com
+> > Signed-off-by: Ming Lei <ming.lei@redhat.com>
+> > ---
+> >  block/blk-merge.c | 90 ++++++++++++++++++++++++++++++++++++++++++++++---------
+> >  1 file changed, 76 insertions(+), 14 deletions(-)
+> > 
+> > diff --git a/block/blk-merge.c b/block/blk-merge.c
+> > index 91b2af332a84..6f7deb94a23f 100644
+> > --- a/block/blk-merge.c
+> > +++ b/block/blk-merge.c
+> > @@ -160,6 +160,62 @@ static inline unsigned get_max_io_size(struct request_queue *q,
+> >  	return sectors;
+> >  }
+> >  
+> > +/*
+> > + * Split the bvec @bv into segments, and update all kinds of
+> > + * variables.
+> > + */
+> > +static bool bvec_split_segs(struct request_queue *q, struct bio_vec *bv,
+> > +		unsigned *nsegs, unsigned *last_seg_size,
+> > +		unsigned *front_seg_size, unsigned *sectors)
+> > +{
+> > +	bool need_split = false;
+> > +	unsigned len = bv->bv_len;
+> > +	unsigned total_len = 0;
+> > +	unsigned new_nsegs = 0, seg_size = 0;
 > 
-> I don't think it's necessarily the worst thing in the world if random
-> people browsing the file are forced to read test-cases ;-)
-> 
-> There's certainly a spectrum of possibilities here, one end being to
-> basically just re-export static functions,
+> "unsigned int" here and everywhere else.
 
-Yes, if we're to it this way then a basic
+Curious why?  I've wondered what govens use of "unsigned" vs "unsigned
+int" recently and haven't found _the_ reason to pick one over the other.
 
-#ifdef CONFIG_VMALLOC_TEST
-EXPORT_SYMBOL_GPL(__vmalloc_node_range);
-#endif
-
-should suffice.  If the desired symbol was a static one, a little
-non-static wrapper would be needed as well.
-
-> and the other end putting
-> every vmalloc test into vmalloc.c.  vmalloc.c is pretty big at 70kB, but
-> on the other hand, it's the 18th largest file in mm/ (can you believe
-> page_alloc.c is 230kB?!)
+Thanks,
+Mike
