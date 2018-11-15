@@ -1,71 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 278356B02C3
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 07:11:07 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id x1-v6so9674135edh.8
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 04:11:07 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 14A816B02CD
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 07:20:00 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id l45so9385580edb.1
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 04:20:00 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e2-v6si5437922edk.240.2018.11.15.04.11.05
+        by mx.google.com with ESMTPS id x52si1056683edx.285.2018.11.15.04.19.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 04:11:05 -0800 (PST)
-Date: Thu, 15 Nov 2018 13:11:02 +0100
+        Thu, 15 Nov 2018 04:19:58 -0800 (PST)
+Date: Thu, 15 Nov 2018 13:19:50 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH RFC 3/6] kexec: export PG_offline to VMCOREINFO
-Message-ID: <20181115121102.GP23831@dhcp22.suse.cz>
+Subject: Re: [PATCH RFC 2/6] mm: convert PG_balloon to PG_offline
+Message-ID: <20181115121950.GQ23831@dhcp22.suse.cz>
 References: <20181114211704.6381-1-david@redhat.com>
- <20181114211704.6381-4-david@redhat.com>
- <20181115061923.GA3971@dhcp-128-65.nay.redhat.com>
- <20181115111023.GC26448@zn.tnic>
- <4aa5d39d-a923-87de-d646-70b9cbfe62f0@redhat.com>
- <20181115115213.GE26448@zn.tnic>
+ <20181114211704.6381-3-david@redhat.com>
+ <20181114222321.GB1784@bombadil.infradead.org>
+ <b4668081-5aa3-d7f5-6880-d01c75cfc6ae@redhat.com>
+ <20181115020725.GC2353@rapoport-lnx>
+ <5730ee16-9b18-ad3d-0fb3-e9edb55e2298@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181115115213.GE26448@zn.tnic>
+In-Reply-To: <5730ee16-9b18-ad3d-0fb3-e9edb55e2298@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: David Hildenbrand <david@redhat.com>, Dave Young <dyoung@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Baoquan He <bhe@redhat.com>, Omar Sandoval <osandov@fb.com>, Arnd Bergmann <arnd@arndb.de>, Matthew Wilcox <willy@infradead.org>, Lianbo Jiang <lijiang@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: Mike Rapoport <rppt@linux.ibm.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, Jonathan Corbet <corbet@lwn.net>, Alexey Dobriyan <adobriyan@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Christian Hansen <chansen3@cisco.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, "Michael S. Tsirkin" <mst@redhat.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Miles Chen <miles.chen@mediatek.com>, David Rientjes <rientjes@google.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-On Thu 15-11-18 12:52:13, Borislav Petkov wrote:
-> On Thu, Nov 15, 2018 at 12:20:40PM +0100, David Hildenbrand wrote:
-> > Sorry to say, but that is the current practice without which
-> > makedumpfile would not be able to work at all. (exclude user pages,
-> > exclude page cache, exclude buddy pages). Let's not reinvent the wheel
-> > here. This is how dumping works forever.
-> 
-> Sorry, but "we've always done this in the past" doesn't make it better.
-> 
-> > I don't see how there should be "set of pages which do not have
-> > PG_offline".
-> 
-> It doesn't have to be a set of pages. Think a (mmconfig perhaps) region
-> which the kdump kernel should completely skip because poking in it in
-> the kdump kernel, causes all kinds of havoc like machine checks. etc.
-> We've had and still have one issue like that.
-> 
-> But let me clarify my note: I don't want to be discussing with you the
-> design of makedumpfile and how it should or should not work - that ship
-> has already sailed. Apparently there are valid reasons to do it this
-> way.
-> 
-> I was *simply* stating that it feels wrong to export mm flags like that.
-> 
-> But as I said already, that is mm guys' call and looking at how we're
-> already exporting a bunch of stuff in the vmcoreinfo - including other
-> mm flags - I guess one more flag doesn't matter anymore.
+[Cc Konstantin - the patch is http://lkml.kernel.org/r/20181114211704.6381-3-david@redhat.com]
 
-I am not familiar with kexec to judge this particular patch but we
-cannot simply define any range for these pages (same as for hwpoison
-ones) because they can be almost anywhere in the available memory range.
-Then there can be countless of them. There is no other way to rule them
-out but to check the page state.
+On Thu 15-11-18 10:21:13, David Hildenbrand wrote:
+> On 15.11.18 03:07, Mike Rapoport wrote:
+> > On Wed, Nov 14, 2018 at 11:49:15PM +0100, David Hildenbrand wrote:
+> >> On 14.11.18 23:23, Matthew Wilcox wrote:
+> >>> On Wed, Nov 14, 2018 at 10:17:00PM +0100, David Hildenbrand wrote:
+> >>>> Rename PG_balloon to PG_offline. This is an indicator that the page is
+> >>>> logically offline, the content stale and that it should not be touched
+> >>>> (e.g. a hypervisor would have to allocate backing storage in order for the
+> >>>> guest to dump an unused page).  We can then e.g. exclude such pages from
+> >>>> dumps.
+> >>>>
+> >>>> In following patches, we will make use of this bit also in other balloon
+> >>>> drivers.  While at it, document PGTABLE.
+> >>>
+> >>> Thank you for documenting PGTABLE.  I didn't realise I also had this
+> >>> document to update when I added PGTABLE.
+> >>
+> >> Thank you for looking into this :)
+> >>
+> >>>
+> >>>> +++ b/Documentation/admin-guide/mm/pagemap.rst
+> >>>> @@ -78,6 +78,8 @@ number of times a page is mapped.
+> >>>>      23. BALLOON
+> >>>>      24. ZERO_PAGE
+> >>>>      25. IDLE
+> >>>> +    26. PGTABLE
+> >>>> +    27. OFFLINE
+> >>>
+> >>> So the offline *user* bit is new ... even though the *kernel* bit
+> >>> just renames the balloon bit.  I'm not sure how I feel about this.
+> >>> I'm going to think about it some more.  Could you share your decision
+> >>> process with us?
+> >>
+> >> BALLOON was/is documented as
+> >>
+> >> "23 - BALLOON
+> >>     balloon compaction page
+> >> "
+> >>
+> >> and only includes all virtio-ballon pages after the non-lru migration
+> >> feature has been implemented for ballooned pages. Since then, this flag
+> >> does basically no longer stands for what it actually was supposed to do.
+> > 
+> > Perhaps I missing something, but how the user should interpret "23" when he
+> > reads /proc/kpageflags?
+> 
+> Looking at the history in more detail:
+> 
+> commit 09316c09dde33aae14f34489d9e3d243ec0d5938
+> Author: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
+> Date:   Thu Oct 9 15:29:32 2014 -0700
+> 
+>     mm/balloon_compaction: add vmstat counters and kpageflags bit
+> 
+>     Always mark pages with PageBalloon even if balloon compaction is
+> disabled
+>     and expose this mark in /proc/kpageflags as KPF_BALLOON.
+> 
+> 
+> So KPF_BALLOON was exposed when virtio-balloon pages were always marked
+> with PG_balloon. So the documentation is actually wrong ("balloon page"
+> vs. "balloon compaction page").
+> 
+> I have no idea who actually used that information. I suspect this was
+> just some debugging aid.
+> 
+> > 
+> >> To not break uapi I decided to not rename it but instead to add a new flag.
+> > 
+> > I've got a feeling that uapi was anyway changed for the BALLON flag
+> > meaning.
+> 
+> Yes. If we *replace* KPF_BALLOON by KPF_OFFLINE
+> 
+> a) Some applications might no longer compile (I guess that's ok)
+> b) Some old applications will treat KPF_OFFLINE like KPF_BALLOON (which
+> should at least for virtio-balloon usage until now be fine - it is just
+> more generic)
 
-I am not really sure what is the concern here exactly. Kdump is so
-closly tight to the specific kernel version that the api exported
-specifically for its purpose cannot be seriously considered an ABI.
-Kdump has to adopt all the time.
+I do not think any compilation could break. If the semantic of the flag
+is preserved then everything should work as expected.
 -- 
 Michal Hocko
 SUSE Labs
