@@ -1,169 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2656A6B0309
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 08:17:35 -0500 (EST)
-Received: by mail-io1-f70.google.com with SMTP id c25-v6so1135686ioi.18
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 05:17:35 -0800 (PST)
-Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
-        by mx.google.com with ESMTPS id m19si7116003itn.20.2018.11.15.05.17.33
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 42CEA6B030D
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 08:19:31 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id s50so1286025edd.11
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 05:19:31 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k10-v6si8418505ejq.34.2018.11.15.05.19.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 05:17:33 -0800 (PST)
-Date: Thu, 15 Nov 2018 13:16:43 +0000
-From: Jonathan Cameron <jonathan.cameron@huawei.com>
-Subject: Re: [PATCH 5/7] doc/vm: New documentation for memory cache
-Message-ID: <20181115131643.00003c0d@huawei.com>
-In-Reply-To: <20181114224921.12123-6-keith.busch@intel.com>
-References: <20181114224921.12123-2-keith.busch@intel.com>
-	<20181114224921.12123-6-keith.busch@intel.com>
+        Thu, 15 Nov 2018 05:19:29 -0800 (PST)
+Date: Thu, 15 Nov 2018 14:19:27 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Memory hotplug softlock issue
+Message-ID: <20181115131927.GT23831@dhcp22.suse.cz>
+References: <20181114070909.GB2653@MiWiFi-R3L-srv>
+ <5a6c6d6b-ebcd-8bfa-d6e0-4312bfe86586@redhat.com>
+ <20181114090134.GG23419@dhcp22.suse.cz>
+ <20181114145250.GE2653@MiWiFi-R3L-srv>
+ <20181114150029.GY23419@dhcp22.suse.cz>
+ <20181115051034.GK2653@MiWiFi-R3L-srv>
+ <20181115073052.GA23831@dhcp22.suse.cz>
+ <20181115075349.GL2653@MiWiFi-R3L-srv>
+ <20181115083055.GD23831@dhcp22.suse.cz>
+ <20181115131211.GP2653@MiWiFi-R3L-srv>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181115131211.GP2653@MiWiFi-R3L-srv>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Keith Busch <keith.busch@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: Baoquan He <bhe@redhat.com>
+Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com
 
-On Wed, 14 Nov 2018 15:49:18 -0700
-Keith Busch <keith.busch@intel.com> wrote:
-
-> Platforms may provide system memory that contains side caches to help
-
-If we can call them "memory-side caches" that would avoid a persistent
-confusion on what they actually are.  It took me ages to get to the
-bottom of why they were always drawn to the side of the memory
-path ;)
-
-> spped up access. These memory caches are part of a memory node and
-
-speed
-
-> the cache attributes are exported by the kernel.
+On Thu 15-11-18 21:12:11, Baoquan He wrote:
+> On 11/15/18 at 09:30am, Michal Hocko wrote:
+[...]
+> > It would be also good to find out whether this is fs specific. E.g. does
+> > it make any difference if you use a different one for your stress
+> > testing?
 > 
-> Add new documentation providing a brief overview of system memory side
-> caches and the kernel provided attributes for application optimization.
-A few few nits in line, but mostly looks good to me.
-
-Thanks,
-
-Jonathan
-
+> Created a ramdisk and put stress bin there, then run stress -m 200, now
+> seems it's stuck in libc-2.28.so migrating. And it's still xfs. So now xfs
+> is a big suspect. At bottom I paste numactl printing, you can see that it's
+> the last 4G.
 > 
-> Signed-off-by: Keith Busch <keith.busch@intel.com>
-> ---
->  Documentation/vm/numacache.rst | 76 ++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 76 insertions(+)
->  create mode 100644 Documentation/vm/numacache.rst
-> 
-> diff --git a/Documentation/vm/numacache.rst b/Documentation/vm/numacache.rst
-> new file mode 100644
-> index 000000000000..e79c801b7e3b
-> --- /dev/null
-> +++ b/Documentation/vm/numacache.rst
-> @@ -0,0 +1,76 @@
-> +.. _numacache:
-> +
-> +==========
-> +NUMA Cache
-> +==========
-> +
-> +System memory may be constructed in a hierarchy of various performing
+> Seems it's trying to migrate libc-2.28.so, but stress program keeps trying to
+> access and activate it.
 
-of elements with various performance
+Is this still with faultaround disabled? I have seen exactly same
+pattern in the bug I am working on. It was ext4 though.
 
-> +characteristics in order to provide large address space of slower
-> +performing memory cached by a smaller size of higher performing
-
-cached by smaller higher performing memory.
-
-> +memory. The system physical addresses that software is aware of see
-
-is aware of is provided (no 'see')
-
-> +is provided by the last memory level in the hierarchy, while higher
-> +performing memory transparently provides caching to slower levels.
-> +
-> +The term "far memory" is used to denote the last level memory in the
-> +hierarchy. Each increasing cache level provides higher performing CPU
-
-initiator rather than CPU?
-
-> +access, and the term "near memory" represents the highest level cache
-> +provided by the system. This number is different than CPU caches where
-> +the cache level (ex: L1, L2, L3) uses a CPU centric view with each level
-> +being lower performing and closer to system memory. The memory cache
-> +level is centric to the last level memory, so the higher numbered cache
-
-from the last level memory?
-
-> +level denotes memory nearer to the CPU, and further from far memory.
-> +
-> +The memory side caches are not directly addressable by software. When
-> +software accesses a system address, the system will return it from the
-> +near memory cache if it is present. If it is not present, the system
-> +accesses the next level of memory until there is either a hit in that
-> +cache level, or it reaches far memory.
-> +
-> +In order to maximize the performance out of such a setup, software may
-> +wish to query the memory cache attributes. If the system provides a way
-> +to query this information, for example with ACPI HMAT (Heterogeneous
-> +Memory Attribute Table)[1], the kernel will append these attributes to
-> +the NUMA node that provides the memory.
-> +
-> +When the kernel first registers a memory cache with a node, the kernel
-> +will create the following directory::
-> +
-> +	/sys/devices/system/node/nodeX/cache/
-
-Given we have other things with caches in a numa node, should we make
-this name more specific?
-
-> +
-> +If that directory is not present, then either the memory does not have
-> +a side cache, or that information is not provided to the kernel.
-> +
-> +The attributes for each level of cache is provided under its cache
-> +level index::
-> +
-> +	/sys/devices/system/node/nodeX/cache/indexA/
-> +	/sys/devices/system/node/nodeX/cache/indexB/
-> +	/sys/devices/system/node/nodeX/cache/indexC/
-> +
-> +Each cache level's directory provides its attributes. For example,
-> +the following is a single cache level and the attributes available for
-> +software to query::
-> +
-> +	# tree sys/devices/system/node/node0/cache/
-> +	/sys/devices/system/node/node0/cache/
-> +	|-- index1
-> +	|   |-- associativity
-> +	|   |-- level
-> +	|   |-- line_size
-> +	|   |-- size
-> +	|   `-- write_policy
-> +
-> +The cache "associativity" will be 0 if it is a direct-mapped cache, and
-> +non-zero for any other indexed based, multi-way associativity.
-This description is a little vague.  Right now I think we have 3 options
-from HMAT,
-1) no associativity (which I suppose could also be called fully associative?)
-2) direct mapped (0 in your case)
-3) Complex (who knows!)
-
-So how do you map 1 and 3?
-
-> +
-> +The "level" is the distance from the far memory, and matches the number
-> +appended to its "index" directory.
-> +
-> +The "line_size" is the number of bytes accessed on a cache miss.
-> +
-> +The "size" is the number of bytes provided by this cache level.
-> +
-> +The "write_policy" will be 0 for write-back, and non-zero for
-> +write-through caching.
-
-Do these not appear if the write_policy provided by acpi is "none".
-
-> +
-> +[1] https://www.uefi.org/sites/default/files/resources/ACPI_6_2.pdf
+> [ 5055.461652] migrating pfn 190f4fb3e failed 
+> [ 5055.461671] page:ffffea643d3ecf80 count:257 mapcount:251 mapping:ffff888e7a6ac528 index:0x85
+> [ 5055.474734] xfs_address_space_operations [xfs] 
+> [ 5055.474742] name:"libc-2.28.so" 
+> [ 5055.481070] flags: 0x1dfffffc0000026(referenced|uptodate|active)
+> [ 5055.490329] raw: 01dfffffc0000026 ffffc900000e3d80 ffffc900000e3d80 ffff888e7a6ac528
+> [ 5055.498080] raw: 0000000000000085 0000000000000000 000000fc000000f9 ffff88810a8f2000
+> [ 5055.505823] page->mem_cgroup:ffff88810a8f2000
+> [ 5056.335970] migrating pfn 190f4fb3e failed 
+> [ 5056.335990] page:ffffea643d3ecf80 count:255 mapcount:250 mapping:ffff888e7a6ac528 index:0x85
+> [ 5056.348994] xfs_address_space_operations [xfs] 
+> [ 5056.348998] name:"libc-2.28.so" 
+> [ 5056.353555] flags: 0x1dfffffc0000026(referenced|uptodate|active)
+> [ 5056.364680] raw: 01dfffffc0000026 ffffc900000e3d80 ffffc900000e3d80 ffff888e7a6ac528
+> [ 5056.372428] raw: 0000000000000085 0000000000000000 000000fc000000f9 ffff88810a8f2000
+> [ 5056.380172] page->mem_cgroup:ffff88810a8f2000
+> [ 5057.332806] migrating pfn 190f4fb3e failed 
+> [ 5057.332821] page:ffffea643d3ecf80 count:261 mapcount:250 mapping:ffff888e7a6ac528 index:0x85
+> [ 5057.345889] xfs_address_space_operations [xfs] 
+> [ 5057.345900] name:"libc-2.28.so" 
+> [ 5057.350451] flags: 0x1dfffffc0000026(referenced|uptodate|active)
+> [ 5057.359707] raw: 01dfffffc0000026 ffffc900000e3d80 ffffc900000e3d80 ffff888e7a6ac528
+> [ 5057.369285] raw: 0000000000000085 0000000000000000 000000fc000000f9 ffff88810a8f2000
+> [ 5057.377030] page->mem_cgroup:ffff88810a8f2000
+> [ 5058.285457] migrating pfn 190f4fb3e failed 
+> [ 5058.285489] page:ffffea643d3ecf80 count:257 mapcount:250 mapping:ffff888e7a6ac528 index:0x85
+> [ 5058.298544] xfs_address_space_operations [xfs] 
+> [ 5058.298556] name:"libc-2.28.so" 
+> [ 5058.303092] flags: 0x1dfffffc0000026(referenced|uptodate|active)
+> [ 5058.314358] raw: 01dfffffc0000026 ffffc900000e3d80 ffffc900000e3d80 ffff888e7a6ac528
+> [ 5058.322109] raw: 0000000000000085 0000000000000000 000000fc000000f9 ffff88810a8f2000
+> [ 5058.329848] page->mem_cgroup:ffff88810a8f2000
+-- 
+Michal Hocko
+SUSE Labs
