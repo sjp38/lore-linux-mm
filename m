@@ -1,43 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D1F96B054E
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 13:49:30 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id i55so1301757ede.14
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 10:49:30 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u2-v6si2817765ejo.76.2018.11.15.10.49.28
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 13F016B0559
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 13:58:36 -0500 (EST)
+Received: by mail-yb1-f198.google.com with SMTP id h141-v6so4079418ybg.17
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 10:58:36 -0800 (PST)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id 74-v6si14701600ywo.384.2018.11.15.10.58.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 10:49:28 -0800 (PST)
-Date: Thu, 15 Nov 2018 10:49:17 -0800
-From: Davidlohr Bueso <dave@stgolabs.net>
-Subject: Re: [PATCH tip/core/rcu 6/7] mm: Replace spin_is_locked() with
- lockdep
-Message-ID: <20181115184917.6goqg67hpojfhk42@linux-r8p5>
-References: <20181111200421.GA10551@linux.ibm.com>
- <20181111200443.10772-6-paulmck@linux.ibm.com>
+        Thu, 15 Nov 2018 10:58:34 -0800 (PST)
+Subject: Re: [PATCH] Fix do_move_pages_to_node() error handling
+References: <20181114004059.1287439-1-pjaroszynski@nvidia.com>
+ <20181114073415.GD23419@dhcp22.suse.cz>
+ <20181114112945.GQ23419@dhcp22.suse.cz>
+ <ddf79812-7702-d513-3f83-70bba1b258db@nvidia.com>
+ <20181114212224.GE23419@dhcp22.suse.cz>
+ <33626151-aeea-004a-36f5-27ddf6ff9008@nvidia.com>
+ <20181115084752.GF23831@dhcp22.suse.cz>
+From: Piotr Jaroszynski <pjaroszynski@nvidia.com>
+Message-ID: <22b8c91d-1c65-eba2-214e-0696d0e771fb@nvidia.com>
+Date: Thu, 15 Nov 2018 10:58:33 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20181111200443.10772-6-paulmck@linux.ibm.com>
+In-Reply-To: <20181115084752.GF23831@dhcp22.suse.cz>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.ibm.com>
-Cc: linux-kernel@vger.kernel.org, mingo@kernel.org, jiangshanlai@gmail.com, dipankar@in.ibm.com, akpm@linux-foundation.org, mathieu.desnoyers@efficios.com, josh@joshtriplett.org, tglx@linutronix.de, peterz@infradead.org, rostedt@goodmis.org, dhowells@redhat.com, edumazet@google.com, fweisbec@gmail.com, oleg@redhat.com, joel@joelfernandes.org, Lance Roy <ldr709@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Yang Shi <yang.shi@linux.alibaba.com>, Matthew Wilcox <mawilcox@microsoft.com>, Mel Gorman <mgorman@techsingularity.net>, Jan Kara <jack@suse.cz>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.com>
+Cc: p.jaroszynski@gmail.com, linux-mm@kvack.org, Jan Stancek <jstancek@redhat.com>, Christoph Hellwig <hch@lst.de>
 
-On Sun, 11 Nov 2018, Paul E. McKenney wrote:
+On 11/15/18 12:47 AM, Michal Hocko wrote:
+> On Wed 14-11-18 17:04:37, Piotr Jaroszynski wrote:
+>> On 11/14/18 1:22 PM, Michal Hocko wrote:
+>>> On Wed 14-11-18 10:04:45, Piotr Jaroszynski wrote:
+>>>> On 11/14/18 3:29 AM, Michal Hocko wrote:
+>>>>> On Wed 14-11-18 08:34:15, Michal Hocko wrote:
+>>>>>> On Tue 13-11-18 16:40:59, p.jaroszynski@gmail.com wrote:
+>>>>>>> From: Piotr Jaroszynski <pjaroszynski@nvidia.com>
+>>>>>>>
+>>>>>>> migrate_pages() can return the number of pages that failed to migrate
+>>>>>>> instead of 0 or an error code. If that happens, the positive return is
+>>>>>>> treated as an error all the way up through the stack leading to the
+>>>>>>> move_pages() syscall returning a positive number. I believe this
+>>>>>>> regressed with commit a49bd4d71637 ("mm, numa: rework do_pages_move")
+>>>>>>> that refactored a lot of this code.
+>>>>>>
+>>>>>> Yes this is correct.
+>>>>>>
+>>>>>>> Fix this by treating positive returns as success in
+>>>>>>> do_move_pages_to_node() as that seems to most closely follow the
+>>>>>>> previous code. This still leaves the question whether silently
+>>>>>>> considering this case a success is the right thing to do as even the
+>>>>>>> status of the pages will be set as if they were successfully migrated,
+>>>>>>> but that seems to have been the case before as well.
+>>>>>>
+>>>>>> Yes, I believe the previous semantic was just wrong and we want to fix
+>>>>>> it. Jan has already brought this up [1]. I believe we want to update the
+>>>>>> documentation rather than restore the previous hazy semantic.
+>>>>
+>>>> That's probably fair although at least some code we have will have to be
+>>>> updated as it just checks for non-zero returns from move_pages() and
+>>>> assumes errno is set when that happens.
+>>>
+>>> Can you tell me more about your usecase plase? I definitely do not want
+>>> to break any existing userspace. Making the syscall return code more
+>>> reasonable is still attractive. So if this new semantic can work better
+>>> for you it would be one argument more to keep it this way.
+>>>  
+>>
+>> One of our APIs exposes a way to move a VA range to a GPU NUMA node or one of
+>> the CPU NUMA nodes. The code keeps retrying move_pages() and relies on
+>> the reported page status to decide whether each page is done, needs a
+>> retry (EAGAIN or EBUSY) or possibly needs a fallback (EMEM).
+>>
+>> With the previous behaviour we would get a success, but the page status
+>> would be reported incorrectly. That's bad as we skip the migration
+>> without knowing about it.
+> 
+> Exactly.
+> 
+>> With the current code we get what we interpret as success as errno is 0,
+>> but the page status is gargabe/untouched. That's also bad.
+> 
+> Agreed.
+> 
+>> The proposed solution adds a new case to handle, but it will just tell
+>> us the page status is unusable and all we can do is just retry blindly.
+>> If it was possible to plumb through the migration status for each page
+>> accurately that would allow us to save redoing the call for pages that
+>> actually worked. Perhaps we would need a special status for pages
+>> skipped due to errors.
+> 
+> This would be possible but with this patch applied you should know how
+> many pages to skip from the tail of the array.
 
->From: Lance Roy <ldr709@gmail.com>
->
->lockdep_assert_held() is better suited to checking locking requirements,
->since it only checks if the current thread holds the lock regardless of
->whether someone else does. This is also a step towards possibly removing
->spin_is_locked().
+At least in our case the node target is the same for all the pages so we
+would just learn that all the pages failed to migrate as they would be
+all batched together to the do_move_pages_to_node() call.
 
-So fyi I'm not crazy about these kind of patches simply because lockdep
-is a lot less used out of anything that's not a lab, and we can be missing
-potential offenders. There's obviously nothing wrong about what you describe
-above perse, just my two cents.
+> 
+>> But maybe this is all a tiny corner case short of the bug I hit (see
+>> more below) and it's not worth thinking too much about.
+>>
+>>>>>> Just wondering, how have you found out? Is there any real application
+>>>>>> failing because of the change or this is a result of some test?
+>>>>
+>>>> I have a test that creates a tmp file, mmaps it as shared, memsets the
+>>>> memory and then attempts to move it to a different node. It used to
+>>>> work, but now fails. I suspect the filesystem's migratepage() callback
+>>>> regressed and will look into it next. So far I have only tested this on
+>>>> powerpc with the xfs filesystem.
+>>>
+>>> I would be surprise if the rewor changed the migration behavior.
+>>
+>> It didn't, I tracked it down to the new fs/iomap.c code used by xfs not
+>> being compatible with migrate_page_move_mapping() and prepared a perhaps
+>> naive fix in [1].
+> 
+> I am not familiar with iomap code much TBH so I cannot really judge your
+> fix.
+> 
 
-Thansk,
-Davidlohr
+Christoph reviewed it already (thanks!) so it should be good after all.
+But in its context, I wanted to ask about migrate_page_move_mapping()
+page count checks that it was hitting. Is it true that the count checks
+are to handle the case when a page might be temporarily pinned and hence
+have the count too high temporarily? That would explain why it returns
+EAGAIN in this case. But should having the count too low (what the bug
+was hitting) be a fatal error with a WARN maybe? Or are there expected
+cases where the count is too low temporarily too? I could send a patch
+for that, but also just wanted to understand the expectations.
