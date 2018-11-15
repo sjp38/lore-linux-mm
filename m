@@ -1,113 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C03E06B0518
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 12:59:05 -0500 (EST)
-Received: by mail-wm1-f71.google.com with SMTP id r200-v6so20677209wmg.1
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 09:59:05 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTPS id k131si3397448wmf.170.2018.11.15.09.59.04
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5138D6B0526
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 13:13:58 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id g24-v6so16519835pfi.23
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 10:13:58 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id l62-v6si29055020pfc.114.2018.11.15.10.13.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 09:59:04 -0800 (PST)
-Date: Thu, 15 Nov 2018 18:58:58 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH RFC 3/6] kexec: export PG_offline to VMCOREINFO
-Message-ID: <20181115175858.GC25056@zn.tnic>
-References: <20181114211704.6381-1-david@redhat.com>
- <20181114211704.6381-4-david@redhat.com>
- <20181115061923.GA3971@dhcp-128-65.nay.redhat.com>
- <20181115111023.GC26448@zn.tnic>
- <4aa5d39d-a923-87de-d646-70b9cbfe62f0@redhat.com>
- <20181115115213.GE26448@zn.tnic>
- <9d19a844-9ae0-9520-c32a-0a4491f8de43@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 15 Nov 2018 10:13:56 -0800 (PST)
+Subject: Re: [PATCH 1/9] mm: Introduce new vm_insert_range API
+References: <20181115154530.GA27872@jordon-HP-15-Notebook-PC>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <9655a12e-bd3d-aca2-6155-38924028eb5d@infradead.org>
+Date: Thu, 15 Nov 2018 10:13:36 -0800
 MIME-Version: 1.0
+In-Reply-To: <20181115154530.GA27872@jordon-HP-15-Notebook-PC>
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <9d19a844-9ae0-9520-c32a-0a4491f8de43@redhat.com>
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: Dave Young <dyoung@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Baoquan He <bhe@redhat.com>, Omar Sandoval <osandov@fb.com>, Arnd Bergmann <arnd@arndb.de>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, Lianbo Jiang <lijiang@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>
+To: Souptick Joarder <jrdr.linux@gmail.com>, akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, riel@surriel.com, sfr@canb.auug.org.au, rppt@linux.vnet.ibm.com, peterz@infradead.org, linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, kyungmin.park@samsung.com, mchehab@kernel.org, boris.ostrovsky@oracle.com, jgross@suse.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
 
-On Thu, Nov 15, 2018 at 01:01:17PM +0100, David Hildenbrand wrote:
-> Just saying that "I'm not the first to do it, don't hit me with a stick" :)
-
-:-)
-
-> Indeed. And we still have without makedumpfile. I think you are aware of
-> this, but I'll explain it just for consistency: PG_hwpoison
-
-No, I appreciate an explanation very much! So thanks for that. :)
-
-> At some point we detect a HW error and mask a page as PG_hwpoison.
+On 11/15/18 7:45 AM, Souptick Joarder wrote:
+> Previouly drivers have their own way of mapping range of
+> kernel pages/memory into user vma and this was done by
+> invoking vm_insert_page() within a loop.
 > 
-> makedumpfile knows how to treat that flag and can exclude it from the
-> dump (== not access it). No crash.
+> As this pattern is common across different drivers, it can
+> be generalized by creating a new function and use it across
+> the drivers.
 > 
-> kdump itself has no clue about old "struct pages". Especially:
-> a) Where they are located in memory (e.g. SPARSE)
-> b) What their format is ("where are the flags")
-> c) What the meaning of flags is ("what does bit X mean")
+> vm_insert_range is the new API which will be used to map a
+> range of kernel memory/pages to user vma.
 > 
-> In order to know such information, we would have to do parsing of quite
-> some information inside the kernel in kdump. Basically what makedumpfile
-> does just now. Is this feasible? I don't think so.
-> 
-> So we would need another approach to communicate such information as you
-> said. I can't think of any, but if anybody reading this has an idea,
-> please speak up. I am interested.
+> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+> Reviewed-by: Matthew Wilcox <willy@infradead.org>
+> ---
+>  include/linux/mm_types.h |  3 +++
+>  mm/memory.c              | 28 ++++++++++++++++++++++++++++
+>  mm/nommu.c               |  7 +++++++
+>  3 files changed, 38 insertions(+)
 
-Yeah but that ship has sailed. And even if we had a great idea, we'd
-have to support kdump before and after the idea. And that would be a
-serious mess.
+Hi,
 
-And if you have a huge box with gazillion piles of memory and an alpha
-particle passes through a bunch of them on its way down to the earth's
-core, and while doing so, flips a bunch of bits, you need to go and
-collect all those regions and update some list which you then need to
-shove into the second kernel.
+What is the opposite of vm_insert_range() or even of vm_insert_page()?
+or is there no need for that?
 
-And you probably need to do all that through perhaps a piece of memory
-which is used for communication between first and second kernel and that
-list better fit in there, or you need to realloc. And that piece of
-memory's layout needs to be properly defined so that the second kernel
-can parse it correctly.
 
-And so on...
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 15c417e..da904ed 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1478,6 +1478,34 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
+>  }
+>  
+>  /**
+> + * vm_insert_range - insert range of kernel pages into user vma
+> + * @vma: user vma to map to
+> + * @addr: target user address of this page
+> + * @pages: pointer to array of source kernel pages
+> + * @page_count: no. of pages need to insert into user vma
 
-> The *only* way right now we would have to handle such scenarios:
-> 
-> 1. While dumping memory and we get a machine check, fake reading a zero
-> page instead of crashing.
-> 2. While dumping memory and we get a fault, fake reading a zero page
-> instead of crashing.
+s/no./number/
 
-Yap.
+> + *
+> + * This allows drivers to insert range of kernel pages they've allocated
+> + * into a user vma. This is a generic function which drivers can use
+> + * rather than using their own way of mapping range of kernel pages into
+> + * user vma.
+> + */
+> +int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
+> +			struct page **pages, unsigned long page_count)
+> +{
+> +	unsigned long uaddr = addr;
+> +	int ret = 0, i;
+> +
+> +	for (i = 0; i < page_count; i++) {
+> +		ret = vm_insert_page(vma, uaddr, pages[i]);
+> +		if (ret < 0)
+> +			return ret;
 
-> Indeed, and the basic design is to export these flags. (let's say
-> "unfortunately", being able to handle such stuff in kdump directly would
-> be the dream).
+For a non-trivial value of page_count:
+Is it a problem if vm_insert_page() succeeds for several pages
+and then fails?
 
-Well, AFAICT, the minimum work you need to always do before starting the
-dumping is somehow generate that list of pages or ranges to not dump.
-And that work needs to be done by the first or the second kernel, I'd
-say.
+> +		uaddr += PAGE_SIZE;
+> +	}
+> +
+> +	return ret;
+> +}
+> +
+> +/**
+>   * vm_insert_page - insert single page into user vma
+>   * @vma: user vma to map to
+>   * @addr: target user address of this page
 
-If the first kernel would do it, then you'd have to probably have
-callbacks to certain operations which go and add ranges or pages to
-exclude, to a list which is then readily accessible to the second
-kernel. Which means, when you reserve memory for the second kernel,
-you'd have to reserve memory also for such a list.
 
-But then what do you do when that memory gets filled up...?
-
-So I guess exporting those things in vmcoreinfo is probably the only
-thing we *can* do in the end.
-
-Oh well, enough rambling... :)
-
+thanks.
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+~Randy
