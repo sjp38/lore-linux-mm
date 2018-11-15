@@ -1,65 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BDF06B05B5
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 15:36:57 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id b4-v6so12479378plb.3
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 12:36:57 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id h31si3922429pgl.482.2018.11.15.12.36.55
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CDE96B05B6
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 15:57:58 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id f9so13812780pgs.13
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 12:57:58 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id bc7si3546524plb.120.2018.11.15.12.57.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 15 Nov 2018 12:36:55 -0800 (PST)
-Date: Thu, 15 Nov 2018 12:36:54 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 1/7] node: Link memory nodes to their compute nodes
-Message-ID: <20181115203654.GA28246@bombadil.infradead.org>
-References: <20181114224921.12123-2-keith.busch@intel.com>
- <20181115135710.GD19286@bombadil.infradead.org>
- <20181115145920.GG11416@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181115145920.GG11416@localhost.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Nov 2018 12:57:56 -0800 (PST)
+Date: Thu, 15 Nov 2018 12:57:53 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH 1/1] vmalloc: add test driver to analyse vmalloc
+ allocator
+Message-Id: <20181115125753.278720db11306755265c42ae@linux-foundation.org>
+In-Reply-To: <20181115134706.GC19286@bombadil.infradead.org>
+References: <20181113151629.14826-1-urezki@gmail.com>
+	<20181113151629.14826-2-urezki@gmail.com>
+	<20181113141046.f62f5bd88d4ebc663b0ac100@linux-foundation.org>
+	<20181114151737.GA23419@dhcp22.suse.cz>
+	<20181114150053.c3fe42507923322a0a10ae1c@linux-foundation.org>
+	<20181115083957.GE23831@dhcp22.suse.cz>
+	<20181115084642.GB19286@bombadil.infradead.org>
+	<20181115125750.GS23831@dhcp22.suse.cz>
+	<20181115134706.GC19286@bombadil.infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Keith Busch <keith.busch@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, "Uladzislau Rezki (Sony)" <urezki@gmail.com>, Kees Cook <keescook@chromium.org>, Shuah Khan <shuah@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Thu, Nov 15, 2018 at 07:59:20AM -0700, Keith Busch wrote:
-> On Thu, Nov 15, 2018 at 05:57:10AM -0800, Matthew Wilcox wrote:
-> > On Wed, Nov 14, 2018 at 03:49:14PM -0700, Keith Busch wrote:
-> > > Memory-only nodes will often have affinity to a compute node, and
-> > > platforms have ways to express that locality relationship.
+On Thu, 15 Nov 2018 05:47:06 -0800 Matthew Wilcox <willy@infradead.org> wrote:
+
+> On Thu, Nov 15, 2018 at 01:57:50PM +0100, Michal Hocko wrote:
+> > On Thu 15-11-18 00:46:42, Matthew Wilcox wrote:
+> > > How about adding
 > > > 
-> > > A node containing CPUs or other DMA devices that can initiate memory
-> > > access are referred to as "memory iniators". A "memory target" is a
-> > > node that provides at least one phyiscal address range accessible to a
-> > > memory initiator.
+> > > #ifdef CONFIG_VMALLOC_TEST
+> > > int run_internal_vmalloc_tests(void)
+> > > {
+> > > ...
+> > > }
+> > > EXPORT_SYMBOL_GPL(run_internal_vmalloc_tests);
+> > > #endif
+> > > 
+> > > to vmalloc.c?  That would also allow calling functions which are marked
+> > > as static, not just functions which aren't exported to modules.
 > > 
-> > I think I may be confused here.  If there is _no_ link from node X to
-> > node Y, does that mean that node X's CPUs cannot access the memory on
-> > node Y?  In my mind, all nodes can access all memory in the system,
-> > just not with uniform bandwidth/latency.
+> > Yes that would be easier but do we want to pollute the normal code with
+> > testing? This looks messy to me.
 > 
-> The link is just about which nodes are "local". It's like how nodes have
-> a cpulist. Other CPUs not in the node's list can acces that node's memory,
-> but the ones in the mask are local, and provide useful optimization hints.
+> I don't think it's necessarily the worst thing in the world if random
+> people browsing the file are forced to read test-cases ;-)
+> 
+> There's certainly a spectrum of possibilities here, one end being to
+> basically just re-export static functions,
 
-So ... let's imagine a hypothetical system (I've never seen one built like
-this, but it doesn't seem too implausible).  Connect four CPU sockets in
-a square, each of which has some regular DIMMs attached to it.  CPU A is
-0 hops to Memory A, one hop to Memory B and Memory C, and two hops from
-Memory D (each CPU only has two "QPI" links).  Then maybe there's some
-special memory extender device attached on the PCIe bus.  Now there's
-Memory B1 and B2 that's attached to CPU B and it's local to CPU B, but
-not as local as Memory B is ... and we'd probably _prefer_ to allocate
-memory for CPU A from Memory B1 than from Memory D.  But ... *mumble*,
-this seems hard.
+Yes, if we're to it this way then a basic
 
-I understand you're trying to reflect what the HMAT table is telling you,
-I'm just really fuzzy on who's ultimately consuming this information
-and what decisions they're trying to drive from it.
+#ifdef CONFIG_VMALLOC_TEST
+EXPORT_SYMBOL_GPL(__vmalloc_node_range);
+#endif
 
-> Would a node mask would be prefered to symlinks?
+should suffice.  If the desired symbol was a static one, a little
+non-static wrapper would be needed as well.
 
-I don't have a strong opinion here, but what Dan says makes sense.
+> and the other end putting
+> every vmalloc test into vmalloc.c.  vmalloc.c is pretty big at 70kB, but
+> on the other hand, it's the 18th largest file in mm/ (can you believe
+> page_alloc.c is 230kB?!)
