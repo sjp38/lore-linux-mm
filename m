@@ -1,121 +1,261 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 570256B0564
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 14:09:56 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id h10so11141153pgv.20
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 11:09:56 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id p20si24793727pgm.455.2018.11.15.11.09.54
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 605696B05A3
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 15:20:33 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id 190-v6so16908437pfd.7
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 12:20:33 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a17-v6sor34651642pff.8.2018.11.15.12.20.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 11:09:54 -0800 (PST)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAFJ9dNW083550
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 14:09:54 -0500
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2nsbe628ej-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 14:09:53 -0500
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Thu, 15 Nov 2018 19:09:50 -0000
-Date: Thu, 15 Nov 2018 11:09:32 -0800
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: Re: [mm PATCH v5 0/7] Deferred page init improvements
-References: <154145268025.30046.11742652345962594283.stgit@ahduyck-desk1.jf.intel.com>
- <20181114150742.GZ23419@dhcp22.suse.cz>
- <9e8218eb-80bf-fc02-ae56-42ccfddb572e@linux.intel.com>
- <20181115015511.GB2353@rapoport-lnx>
+        (Google Transport Security);
+        Thu, 15 Nov 2018 12:20:31 -0800 (PST)
+Date: Thu, 15 Nov 2018 12:20:28 -0800
+From: Omar Sandoval <osandov@osandov.com>
+Subject: Re: [PATCH V10 03/19] block: use bio_for_each_bvec() to compute
+ multi-page bvec count
+Message-ID: <20181115202028.GC9348@vader>
+References: <20181115085306.9910-1-ming.lei@redhat.com>
+ <20181115085306.9910-4-ming.lei@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181115015511.GB2353@rapoport-lnx>
-Message-Id: <20181115190931.GB14023@rapoport-lnx>
+In-Reply-To: <20181115085306.9910-4-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.com
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On Wed, Nov 14, 2018 at 05:55:12PM -0800, Mike Rapoport wrote:
-> On Wed, Nov 14, 2018 at 04:50:23PM -0800, Alexander Duyck wrote:
-> > 
-> > 
-> > On 11/14/2018 7:07 AM, Michal Hocko wrote:
-> > >On Mon 05-11-18 13:19:25, Alexander Duyck wrote:
-> > >>This patchset is essentially a refactor of the page initialization logic
-> > >>that is meant to provide for better code reuse while providing a
-> > >>significant improvement in deferred page initialization performance.
-> > >>
-> > >>In my testing on an x86_64 system with 384GB of RAM and 3TB of persistent
-> > >>memory per node I have seen the following. In the case of regular memory
-> > >>initialization the deferred init time was decreased from 3.75s to 1.06s on
-> > >>average. For the persistent memory the initialization time dropped from
-> > >>24.17s to 19.12s on average. This amounts to a 253% improvement for the
-> > >>deferred memory initialization performance, and a 26% improvement in the
-> > >>persistent memory initialization performance.
-> > >>
-> > >>I have called out the improvement observed with each patch.
-> > >
-> > >I have only glanced through the code (there is a lot of the code to look
-> > >at here). And I do not like the code duplication and the way how you
-> > >make the hotplug special. There shouldn't be any real reason for that
-> > >IMHO (e.g. why do we init pfn-at-a-time in early init while we do
-> > >pageblock-at-a-time for hotplug). I might be wrong here and the code
-> > >reuse might be really hard to achieve though.
-> > 
-> > Actually it isn't so much that hotplug is special. The issue is more that
-> > the non-hotplug case is special in that you have to perform a number of
-> > extra checks for things that just aren't necessary for the hotplug case.
-> > 
-> > If anything I would probably need a new iterator that would be able to take
-> > into account all the checks for the non-hotplug case and then provide ranges
-> > of PFNs to initialize.
-> > 
-> > >I am also not impressed by new iterators because this api is quite
-> > >complex already. But this is mostly a detail.
-> > 
-> > Yeah, the iterators were mostly an attempt at hiding some of the complexity.
-> > Being able to break a loop down to just an iterator provding the start of
-> > the range and the number of elements to initialize is pretty easy to
-> > visualize, or at least I thought so.
+On Thu, Nov 15, 2018 at 04:52:50PM +0800, Ming Lei wrote:
+> First it is more efficient to use bio_for_each_bvec() in both
+> blk_bio_segment_split() and __blk_recalc_rq_segments() to compute how
+> many multi-page bvecs there are in the bio.
 > 
-> Just recently we had a discussion about overlapping for_each_mem_range()
-> and for_each_mem_pfn_range(), but unfortunately it appears that no mailing
-> list was cc'ed by the original patch author :(
-> In short, there was a spelling fix in one of them and Michal pointed out
-> that their functionality overlaps.
+> Secondly once bio_for_each_bvec() is used, the bvec may need to be
+> splitted because its length can be very longer than max segment size,
+> so we have to split the big bvec into several segments.
 > 
-> I have no objection for for_each_free_mem_pfn_range_in_zone() and
-> __next_mem_pfn_range_in_zone(), but probably we should consider unifying
-> the older iterators before we introduce a new one? 
+> Thirdly when splitting multi-page bvec into segments, the max segment
+> limit may be reached, so the bio split need to be considered under
+> this situation too.
+> 
+> Cc: Dave Chinner <dchinner@redhat.com>
+> Cc: Kent Overstreet <kent.overstreet@gmail.com>
+> Cc: Mike Snitzer <snitzer@redhat.com>
+> Cc: dm-devel@redhat.com
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: linux-fsdevel@vger.kernel.org
+> Cc: Shaohua Li <shli@kernel.org>
+> Cc: linux-raid@vger.kernel.org
+> Cc: linux-erofs@lists.ozlabs.org
+> Cc: David Sterba <dsterba@suse.com>
+> Cc: linux-btrfs@vger.kernel.org
+> Cc: Darrick J. Wong <darrick.wong@oracle.com>
+> Cc: linux-xfs@vger.kernel.org
+> Cc: Gao Xiang <gaoxiang25@huawei.com>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Theodore Ts'o <tytso@mit.edu>
+> Cc: linux-ext4@vger.kernel.org
+> Cc: Coly Li <colyli@suse.de>
+> Cc: linux-bcache@vger.kernel.org
+> Cc: Boaz Harrosh <ooo@electrozaur.com>
+> Cc: Bob Peterson <rpeterso@redhat.com>
+> Cc: cluster-devel@redhat.com
+> Signed-off-by: Ming Lei <ming.lei@redhat.com>
+> ---
+>  block/blk-merge.c | 90 ++++++++++++++++++++++++++++++++++++++++++++++---------
+>  1 file changed, 76 insertions(+), 14 deletions(-)
+> 
+> diff --git a/block/blk-merge.c b/block/blk-merge.c
+> index 91b2af332a84..6f7deb94a23f 100644
+> --- a/block/blk-merge.c
+> +++ b/block/blk-merge.c
+> @@ -160,6 +160,62 @@ static inline unsigned get_max_io_size(struct request_queue *q,
+>  	return sectors;
+>  }
+>  
+> +/*
+> + * Split the bvec @bv into segments, and update all kinds of
+> + * variables.
+> + */
+> +static bool bvec_split_segs(struct request_queue *q, struct bio_vec *bv,
+> +		unsigned *nsegs, unsigned *last_seg_size,
+> +		unsigned *front_seg_size, unsigned *sectors)
+> +{
+> +	bool need_split = false;
+> +	unsigned len = bv->bv_len;
+> +	unsigned total_len = 0;
+> +	unsigned new_nsegs = 0, seg_size = 0;
 
-Another thing I realized only now is that
-for_each_free_mem_pfn_range_in_zone() can be used only relatively late in
-the memblock life-span because zones are initialized far later than
-setup_arch() in many cases.
+"unsigned int" here and everywhere else.
 
-At the very least this should be documented.
- 
-> > >Thing I do not like is that you keep microptimizing PageReserved part
-> > >while there shouldn't be anything fundamental about it. We should just
-> > >remove it rather than make the code more complex. I fell more and more
-> > >guilty to add there actually.
-> > 
-> > I plan to remove it, but don't think I can get to it in this patch set.
-> > 
-> > I was planning to submit one more iteration of this patch set early next
-> > week, and then start focusing more on the removal of the PageReserved bit
-> > for hotplug. I figure it is probably going to be a full patch set onto
-> > itself and as you pointed out at the start of this email there is already
-> > enough code to review without adding that.
-> > 
-> > 
-> 
+> +	if ((*nsegs >= queue_max_segments(q)) || !len)
+> +		return need_split;
+> +
+> +	/*
+> +	 * Multipage bvec may be too big to hold in one segment,
+> +	 * so the current bvec has to be splitted as multiple
+> +	 * segments.
+> +	 */
+> +	while (new_nsegs + *nsegs < queue_max_segments(q)) {
+> +		seg_size = min(queue_max_segment_size(q), len);
+> +
+> +		new_nsegs++;
+> +		total_len += seg_size;
+> +		len -= seg_size;
+> +
+> +		if ((queue_virt_boundary(q) && ((bv->bv_offset +
+> +		    total_len) & queue_virt_boundary(q))) || !len)
+> +			break;
+
+Checking queue_virt_boundary(q) != 0 is superfluous, and the len check
+could just control the loop, i.e.,
+
+	while (len && new_nsegs + *nsegs < queue_max_segments(q)) {
+		seg_size = min(queue_max_segment_size(q), len);
+
+		new_nsegs++;
+		total_len += seg_size;
+		len -= seg_size;
+
+		if ((bv->bv_offset + total_len) & queue_virt_boundary(q))
+			break;
+	}
+
+And if you rewrite it this way, I _think_ you can get rid of this
+special case:
+
+	if ((*nsegs >= queue_max_segments(q)) || !len)
+		return need_split;
+
+above.
+
+> +	}
+> +
+> +	/* split in the middle of the bvec */
+> +	if (len)
+> +		need_split = true;
+
+need_split is unnecessary, just return len != 0.
+
+> +
+> +	/* update front segment size */
+> +	if (!*nsegs) {
+> +		unsigned first_seg_size = seg_size;
+> +
+> +		if (new_nsegs > 1)
+> +			first_seg_size = queue_max_segment_size(q);
+> +		if (*front_seg_size < first_seg_size)
+> +			*front_seg_size = first_seg_size;
+> +	}
+> +
+> +	/* update other varibles */
+> +	*last_seg_size = seg_size;
+> +	*nsegs += new_nsegs;
+> +	if (sectors)
+> +		*sectors += total_len >> 9;
+> +
+> +	return need_split;
+> +}
+> +
+>  static struct bio *blk_bio_segment_split(struct request_queue *q,
+>  					 struct bio *bio,
+>  					 struct bio_set *bs,
+> @@ -173,7 +229,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+>  	struct bio *new = NULL;
+>  	const unsigned max_sectors = get_max_io_size(q, bio);
+>  
+> -	bio_for_each_segment(bv, bio, iter) {
+> +	bio_for_each_bvec(bv, bio, iter) {
+>  		/*
+>  		 * If the queue doesn't support SG gaps and adding this
+>  		 * offset would create a gap, disallow it.
+> @@ -188,8 +244,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+>  			 */
+>  			if (nsegs < queue_max_segments(q) &&
+>  			    sectors < max_sectors) {
+> -				nsegs++;
+> -				sectors = max_sectors;
+> +				/* split in the middle of bvec */
+> +				bv.bv_len = (max_sectors - sectors) << 9;
+> +				bvec_split_segs(q, &bv, &nsegs,
+> +						&seg_size,
+> +						&front_seg_size,
+> +						&sectors);
+>  			}
+>  			goto split;
+>  		}
+> @@ -214,11 +274,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+>  		if (nsegs == 1 && seg_size > front_seg_size)
+>  			front_seg_size = seg_size;
+
+Hm, do we still need to check this here now that we're updating
+front_seg_size inside of bvec_split_segs()?
+
+>  
+> -		nsegs++;
+>  		bvprv = bv;
+>  		bvprvp = &bvprv;
+> -		seg_size = bv.bv_len;
+> -		sectors += bv.bv_len >> 9;
+> +
+> +		if (bvec_split_segs(q, &bv, &nsegs, &seg_size,
+> +					&front_seg_size, &sectors))
+
+What happened to the indent alignment here?
+
+> +			goto split;
+>  
+>  	}
+>  
+> @@ -296,6 +357,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+>  	struct bio_vec bv, bvprv = { NULL };
+>  	int cluster, prev = 0;
+>  	unsigned int seg_size, nr_phys_segs;
+> +	unsigned front_seg_size = bio->bi_seg_front_size;
+>  	struct bio *fbio, *bbio;
+>  	struct bvec_iter iter;
+>  
+> @@ -316,7 +378,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+>  	seg_size = 0;
+>  	nr_phys_segs = 0;
+>  	for_each_bio(bio) {
+> -		bio_for_each_segment(bv, bio, iter) {
+> +		bio_for_each_bvec(bv, bio, iter) {
+>  			/*
+>  			 * If SG merging is disabled, each bio vector is
+>  			 * a segment
+> @@ -336,20 +398,20 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+>  				continue;
+>  			}
+>  new_segment:
+> -			if (nr_phys_segs == 1 && seg_size >
+> -			    fbio->bi_seg_front_size)
+> -				fbio->bi_seg_front_size = seg_size;
+> +			if (nr_phys_segs == 1 && seg_size > front_seg_size)
+> +				front_seg_size = seg_size;
+
+Same comment as in blk_bio_segment_split(), do we still need to check
+this if we're updating front_seg_size in bvec_split_segs()?
+
+>  
+> -			nr_phys_segs++;
+>  			bvprv = bv;
+>  			prev = 1;
+> -			seg_size = bv.bv_len;
+> +			bvec_split_segs(q, &bv, &nr_phys_segs, &seg_size,
+> +					&front_seg_size, NULL);
+>  		}
+>  		bbio = bio;
+>  	}
+>  
+> -	if (nr_phys_segs == 1 && seg_size > fbio->bi_seg_front_size)
+> -		fbio->bi_seg_front_size = seg_size;
+> +	if (nr_phys_segs == 1 && seg_size > front_seg_size)
+> +		front_seg_size = seg_size;
+> +	fbio->bi_seg_front_size = front_seg_size;
+>  	if (seg_size > bbio->bi_seg_back_size)
+>  		bbio->bi_seg_back_size = seg_size;
+>  
 > -- 
-> Sincerely yours,
-> Mike.
-
--- 
-Sincerely yours,
-Mike.
+> 2.9.5
+> 
