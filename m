@@ -1,86 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AAF86B0003
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 04:02:45 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id o42so9846294edc.13
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 01:02:45 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c6-v6si905195ejd.9.2018.11.15.01.02.43
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F5586B0008
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 04:21:29 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id 67so43149407qkj.18
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 01:21:29 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x65-v6si1214157qke.54.2018.11.15.01.21.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 01:02:43 -0800 (PST)
-Date: Thu, 15 Nov 2018 10:02:42 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, proc: report PR_SET_THP_DISABLE in proc
-Message-ID: <20181115090242.GH23831@dhcp22.suse.cz>
-References: <20181009083326.GG8528@dhcp22.suse.cz>
- <20181015150325.GN18839@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810151519250.247641@chino.kir.corp.google.com>
- <20181016104855.GQ18839@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810161416540.83080@chino.kir.corp.google.com>
- <20181017070531.GC18839@dhcp22.suse.cz>
- <alpine.DEB.2.21.1810171256330.60837@chino.kir.corp.google.com>
- <20181018070031.GW18839@dhcp22.suse.cz>
- <20181114132306.GX23419@dhcp22.suse.cz>
- <alpine.DEB.2.21.1811141336010.200345@chino.kir.corp.google.com>
+        Thu, 15 Nov 2018 01:21:28 -0800 (PST)
+Subject: Re: [PATCH RFC 2/6] mm: convert PG_balloon to PG_offline
+References: <20181114211704.6381-1-david@redhat.com>
+ <20181114211704.6381-3-david@redhat.com>
+ <20181114222321.GB1784@bombadil.infradead.org>
+ <b4668081-5aa3-d7f5-6880-d01c75cfc6ae@redhat.com>
+ <20181115020725.GC2353@rapoport-lnx>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <5730ee16-9b18-ad3d-0fb3-e9edb55e2298@redhat.com>
+Date: Thu, 15 Nov 2018 10:21:13 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1811141336010.200345@chino.kir.corp.google.com>
+In-Reply-To: <20181115020725.GC2353@rapoport-lnx>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, Jonathan Corbet <corbet@lwn.net>, Alexey Dobriyan <adobriyan@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Christian Hansen <chansen3@cisco.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Miles Chen <miles.chen@mediatek.com>, David Rientjes <rientjes@google.com>
 
-On Wed 14-11-18 13:41:12, David Rientjes wrote:
-> On Wed, 14 Nov 2018, Michal Hocko wrote:
+On 15.11.18 03:07, Mike Rapoport wrote:
+> On Wed, Nov 14, 2018 at 11:49:15PM +0100, David Hildenbrand wrote:
+>> On 14.11.18 23:23, Matthew Wilcox wrote:
+>>> On Wed, Nov 14, 2018 at 10:17:00PM +0100, David Hildenbrand wrote:
+>>>> Rename PG_balloon to PG_offline. This is an indicator that the page is
+>>>> logically offline, the content stale and that it should not be touched
+>>>> (e.g. a hypervisor would have to allocate backing storage in order for the
+>>>> guest to dump an unused page).  We can then e.g. exclude such pages from
+>>>> dumps.
+>>>>
+>>>> In following patches, we will make use of this bit also in other balloon
+>>>> drivers.  While at it, document PGTABLE.
+>>>
+>>> Thank you for documenting PGTABLE.  I didn't realise I also had this
+>>> document to update when I added PGTABLE.
+>>
+>> Thank you for looking into this :)
+>>
+>>>
+>>>> +++ b/Documentation/admin-guide/mm/pagemap.rst
+>>>> @@ -78,6 +78,8 @@ number of times a page is mapped.
+>>>>      23. BALLOON
+>>>>      24. ZERO_PAGE
+>>>>      25. IDLE
+>>>> +    26. PGTABLE
+>>>> +    27. OFFLINE
+>>>
+>>> So the offline *user* bit is new ... even though the *kernel* bit
+>>> just renames the balloon bit.  I'm not sure how I feel about this.
+>>> I'm going to think about it some more.  Could you share your decision
+>>> process with us?
+>>
+>> BALLOON was/is documented as
+>>
+>> "23 - BALLOON
+>>     balloon compaction page
+>> "
+>>
+>> and only includes all virtio-ballon pages after the non-lru migration
+>> feature has been implemented for ballooned pages. Since then, this flag
+>> does basically no longer stands for what it actually was supposed to do.
 > 
-> > > > > Do you know of any other userspace except your usecase? Is there
-> > > > > anything fundamental that would prevent a proper API adoption for you?
-> > > > > 
-> > > > 
-> > > > Yes, it would require us to go back in time and build patched binaries. 
-> > > 
-> > > I read that as there is a fundamental problem to update existing
-> > > binaries. If that is the case then there surely is no way around it
-> > > and another sad page in the screwed up APIs book we provide.
-> > > 
-> > > But I was under impression that the SW stack which actually does the
-> > > monitoring is under your controll. Moreover I was under impression that
-> > > you do not use the current vanilla kernel so there is no need for an
-> > > immediate change on your end. It is trivial to come up with a backward
-> > > compatible way to check for the new flag (if it is not present then
-> > > fallback to vma flags).
-> > > 
+> Perhaps I missing something, but how the user should interpret "23" when he
+> reads /proc/kpageflags?
+
+Looking at the history in more detail:
+
+commit 09316c09dde33aae14f34489d9e3d243ec0d5938
+Author: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
+Date:   Thu Oct 9 15:29:32 2014 -0700
+
+    mm/balloon_compaction: add vmstat counters and kpageflags bit
+
+    Always mark pages with PageBalloon even if balloon compaction is
+disabled
+    and expose this mark in /proc/kpageflags as KPF_BALLOON.
+
+
+So KPF_BALLOON was exposed when virtio-balloon pages were always marked
+with PG_balloon. So the documentation is actually wrong ("balloon page"
+vs. "balloon compaction page").
+
+I have no idea who actually used that information. I suspect this was
+just some debugging aid.
+
 > 
-> The userspace had a single way to determine if thp had been disabled for a 
-> specific vma and that was broken with your commit.  We have since fixed 
-> it.  Modifying our software stack to start looking for some field 
-> somewhere else will not help anybody else that this has affected or will 
-> affect.  I'm interested in not breaking userspace, not trying a wait and 
-> see approach to see if anybody else complains once we start looking for 
-> some other field.  The risk outweighs the reward, it already broke us, and 
-> I'd prefer not to even open the possibility of breaking anybody else.
+>> To not break uapi I decided to not rename it but instead to add a new flag.
+> 
+> I've got a feeling that uapi was anyway changed for the BALLON flag
+> meaning.
 
-I very much agree on "do not break userspace" part but this is kind of
-gray area. VMA flags are a deep internal implementation detail and
-nobody should really depend on it for anything important. The original
-motivation for introducing it was CRIU where it is kind of
-understandable. I would argue they should find a different way but it is
-just too late for them.
+Yes. If we *replace* KPF_BALLOON by KPF_OFFLINE
 
-For this particular case there was no other bug report except for yours
-and if it is possible to fix it on your end then I would really love to
-make the a sensible user interface to query the status. If we are going
-to change the semantic of the exported flag again then we risk yet
-another breakage.
+a) Some applications might no longer compile (I guess that's ok)
+b) Some old applications will treat KPF_OFFLINE like KPF_BALLOON (which
+should at least for virtio-balloon usage until now be fine - it is just
+more generic)
 
-Therefore I am asking whether changing your particular usecase to a new
-interface is possible because that would allow to have a longerm
-sensible user interface rather than another kludge which still doesn't
-cover all the usecases (e.g. there is no way to reliably query the
-madvise status after your patch).
+So I guess it's up to Maintainers/Matthew to decide :)
 
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
