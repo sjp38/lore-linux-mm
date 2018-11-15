@@ -1,46 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F8D36B0379
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 10:02:53 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id 143so10451600pgc.3
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 07:02:53 -0800 (PST)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id h80-v6si26066235pfj.112.2018.11.15.07.02.52
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 52A346B039F
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 10:39:42 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id a2so13131346pgt.11
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 07:39:42 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d2sor4761641pgc.58.2018.11.15.07.39.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 07:02:52 -0800 (PST)
-Date: Thu, 15 Nov 2018 07:59:20 -0700
-From: Keith Busch <keith.busch@intel.com>
-Subject: Re: [PATCH 1/7] node: Link memory nodes to their compute nodes
-Message-ID: <20181115145920.GG11416@localhost.localdomain>
-References: <20181114224921.12123-2-keith.busch@intel.com>
- <20181115135710.GD19286@bombadil.infradead.org>
+        (Google Transport Security);
+        Thu, 15 Nov 2018 07:39:40 -0800 (PST)
+Date: Thu, 15 Nov 2018 21:13:14 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH 0/9] Use vm_insert_range
+Message-ID: <20181115154314.GA27850@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181115135710.GD19286@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, riel@surriel.com, sfr@canb.auug.org.au, rppt@linux.vnet.ibm.com, peterz@infradead.org, linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, kyungmin.park@samsung.com, mchehab@kernel.org, boris.ostrovsky@oracle.com, jgross@suse.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
 
-On Thu, Nov 15, 2018 at 05:57:10AM -0800, Matthew Wilcox wrote:
-> On Wed, Nov 14, 2018 at 03:49:14PM -0700, Keith Busch wrote:
-> > Memory-only nodes will often have affinity to a compute node, and
-> > platforms have ways to express that locality relationship.
-> > 
-> > A node containing CPUs or other DMA devices that can initiate memory
-> > access are referred to as "memory iniators". A "memory target" is a
-> > node that provides at least one phyiscal address range accessible to a
-> > memory initiator.
-> 
-> I think I may be confused here.  If there is _no_ link from node X to
-> node Y, does that mean that node X's CPUs cannot access the memory on
-> node Y?  In my mind, all nodes can access all memory in the system,
-> just not with uniform bandwidth/latency.
+Previouly drivers have their own way of mapping range of
+kernel pages/memory into user vma and this was done by
+invoking vm_insert_page() within a loop.
 
-The link is just about which nodes are "local". It's like how nodes have
-a cpulist. Other CPUs not in the node's list can acces that node's memory,
-but the ones in the mask are local, and provide useful optimization hints.
+As this pattern is common across different drivers, it can
+be generalized by creating a new function and use it across
+the drivers.
 
-Would a node mask would be prefered to symlinks?
+vm_insert_range is the new API which will be used to map a
+range of kernel memory/pages to user vma.
+
+All the applicable places are converted to use new vm_insert_range
+in this patch series.
+
+Souptick Joarder (9):
+  mm: Introduce new vm_insert_range API
+  arch/arm/mm/dma-mapping.c: Convert to use vm_insert_range
+  drivers/firewire/core-iso.c: Convert to use vm_insert_range
+  drm/rockchip/rockchip_drm_gem.c: Convert to use vm_insert_range
+  drm/xen/xen_drm_front_gem.c: Convert to use vm_insert_range
+  iommu/dma-iommu.c: Convert to use vm_insert_range
+  videobuf2/videobuf2-dma-sg.c: Convert to use vm_insert_range
+  xen/gntdev.c: Convert to use vm_insert_range
+  xen/privcmd-buf.c: Convert to use vm_insert_range
+
+ arch/arm/mm/dma-mapping.c                         | 21 ++++++-----------
+ drivers/firewire/core-iso.c                       | 15 ++----------
+ drivers/gpu/drm/rockchip/rockchip_drm_gem.c       | 20 ++--------------
+ drivers/gpu/drm/xen/xen_drm_front_gem.c           | 20 +++++-----------
+ drivers/iommu/dma-iommu.c                         | 12 ++--------
+ drivers/media/common/videobuf2/videobuf2-dma-sg.c | 23 ++++++-------------
+ drivers/xen/gntdev.c                              | 11 ++++-----
+ drivers/xen/privcmd-buf.c                         |  8 ++-----
+ include/linux/mm_types.h                          |  3 +++
+ mm/memory.c                                       | 28 +++++++++++++++++++++++
+ mm/nommu.c                                        |  7 ++++++
+ 11 files changed, 70 insertions(+), 98 deletions(-)
+
+-- 
+1.9.1
