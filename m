@@ -1,110 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 209FB6B000A
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 03:31:00 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id g63-v6so15409624pfc.9
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 00:31:00 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i6si10717612pgq.207.2018.11.15.00.30.58
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4712D6B000D
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 03:38:55 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id y2so6396214plr.8
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 00:38:55 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id n15-v6si26885651pgc.143.2018.11.15.00.38.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 00:30:58 -0800 (PST)
-Date: Thu, 15 Nov 2018 09:30:55 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Memory hotplug softlock issue
-Message-ID: <20181115083055.GD23831@dhcp22.suse.cz>
-References: <20181114070909.GB2653@MiWiFi-R3L-srv>
- <5a6c6d6b-ebcd-8bfa-d6e0-4312bfe86586@redhat.com>
- <20181114090134.GG23419@dhcp22.suse.cz>
- <20181114145250.GE2653@MiWiFi-R3L-srv>
- <20181114150029.GY23419@dhcp22.suse.cz>
- <20181115051034.GK2653@MiWiFi-R3L-srv>
- <20181115073052.GA23831@dhcp22.suse.cz>
- <20181115075349.GL2653@MiWiFi-R3L-srv>
+        Thu, 15 Nov 2018 00:38:54 -0800 (PST)
+Date: Thu, 15 Nov 2018 16:38:47 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: [PATCH] mm/swap: use nr_node_ids for avail_lists in swap_info_struct
+Message-ID: <20181115083847.GA11129@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181115075349.GL2653@MiWiFi-R3L-srv>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com
+To: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+Cc: Vasily Averin <vvs@virtuozzo.com>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu 15-11-18 15:53:56, Baoquan He wrote:
-> On 11/15/18 at 08:30am, Michal Hocko wrote:
-> > On Thu 15-11-18 13:10:34, Baoquan He wrote:
-> > > On 11/14/18 at 04:00pm, Michal Hocko wrote:
-> > > > On Wed 14-11-18 22:52:50, Baoquan He wrote:
-> > > > > On 11/14/18 at 10:01am, Michal Hocko wrote:
-> > > > > > I have seen an issue when the migration cannot make a forward progress
-> > > > > > because of a glibc page with a reference count bumping up and down. Most
-> > > > > > probable explanation is the faultaround code. I am working on this and
-> > > > > > will post a patch soon. In any case the migration should converge and if
-> > > > > > it doesn't do then there is a bug lurking somewhere.
-> > > > > > 
-> > > > > > Failing on ENOMEM is a questionable thing. I haven't seen that happening
-> > > > > > wildly but if it is a case then I wouldn't be opposed.
-> > > > > 
-> > > > > Applied your debugging patches, it helps a lot to printing message.
-> > > > > 
-> > > > > Below is the dmesg log about the migrating failure. It can't pass
-> > > > > migrate_pages() and loop forever.
-> > > > > 
-> > > > > [  +0.083841] migrating pfn 10fff7d0 failed 
-> > > > > [  +0.000005] page:ffffea043ffdf400 count:208 mapcount:201 mapping:ffff888dff4bdda8 index:0x2
-> > > > > [  +0.012689] xfs_address_space_operations [xfs] 
-> > > > > [  +0.000030] name:"stress" 
-> > > > > [  +0.004556] flags: 0x5fffffc0000004(uptodate)
-> > > > > [  +0.007339] raw: 005fffffc0000004 ffffc900000e3d80 ffffc900000e3d80 ffff888dff4bdda8
-> > > > > [  +0.009488] raw: 0000000000000002 0000000000000000 000000cb000000c8 ffff888e7353d000
-> > > > > [  +0.007726] page->mem_cgroup:ffff888e7353d000
-> > > > > [  +0.084538] migrating pfn 10fff7d0 failed 
-> > > > > [  +0.000006] page:ffffea043ffdf400 count:210 mapcount:201 mapping:ffff888dff4bdda8 index:0x2
-> > > > > [  +0.012798] xfs_address_space_operations [xfs] 
-> > > > > [  +0.000034] name:"stress" 
-> > > > > [  +0.004524] flags: 0x5fffffc0000004(uptodate)
-> > > > > [  +0.007068] raw: 005fffffc0000004 ffffc900000e3d80 ffffc900000e3d80 ffff888dff4bdda8
-> > > > > [  +0.009359] raw: 0000000000000002 0000000000000000 000000cb000000c8 ffff888e7353d000
-> > > > > [  +0.007728] page->mem_cgroup:ffff888e7353d000
-> > > > 
-> > > > I wouldn't be surprised if this was a similar/same issue I've been
-> > > > chasing recently. Could you try to disable faultaround to see if that
-> > > > helps. It seems that it helped in my particular case but I am still
-> > > > waiting for the final good-to-go to post the patch as I do not own the
-> > > > workload which triggered that issue.
-> > > 
-> > > Tried, still stuck in last block sometime. Usually after several times
-> > > of hotplug/unplug. If stop stress program, the last block will be
-> > > offlined immediately.
-> > 
-> > Is the pattern still the same? I mean failing over few pages with
-> > reference count jumping up and down between attempts?
-> 
-> ->count jumping up and down, mapcount stays the same value.
-> 
-> > 
-> > > [root@ ~]# cat /sys/kernel/debug/fault_around_bytes 
-> > > 4096
-> > 
-> > Can you make it 0?
-> 
-> I executed 'echo 0 > fault_around_bytes', value less than one page size
-> will round up to one page.
+Since commit a2468cc9bfdf ("swap: choose swap device according to
+numa node"), avail_lists field of swap_info_struct is changed to
+an array with MAX_NUMNODES elements. This made swap_info_struct
+size increased to 40KiB and needs an order-4 page to hold it.
 
-OK, I have missed that. So then there must be a different source of the
-page count volatility. Is it always the same file?
+This is not optimal in that:
+1 Most systems have way less than MAX_NUMNODES(1024) nodes so it
+  is a waste of memory;
+2 It could cause swapon failure if the swap device is swapped on
+  after system has been running for a while, due to no order-4
+  page is available as pointed out by Vasily Averin.
 
-I think we can rule out memory reclaim because that depends on the page
-lock. Is the stress test hitting on memory compaction? In other words,
-are
-grep compact /proc/vmstat
-counters changing during the offline test heavily? I am asking because I
-do not see compaction pfn walkers skipping over MIGRATE_ISOLATE
-pageblocks. But I might be missing something easily.
+Solve the above two issues by using nr_node_ids(which is the actual
+possible node number the running system has) for avail_lists instead
+of MAX_NUMNODES.
 
-It would be also good to find out whether this is fs specific. E.g. does
-it make any difference if you use a different one for your stress
-testing?
+nr_node_ids is unknown at compile time so can't be directly used
+when declaring this array. What I did here is to declare avail_lists
+as zero element array and allocate space for it when allocating
+space for swap_info_struct. The reason why keep using array but
+not pointer is plist_for_each_entry needs the field to be part
+of the struct, so pointer will not work.
+
+This patch is on top of Vasily Averin's fix commit. I think the
+use of kvzalloc for swap_info_struct is still needed in case
+nr_node_ids is really big on some systems.
+
+Cc: Vasily Averin <vvs@virtuozzo.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Huang Ying <ying.huang@intel.com>
+Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+---
+ include/linux/swap.h | 11 ++++++++++-
+ mm/swapfile.c        |  3 ++-
+ 2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index d8a07a4f171d..3d3630b3f63d 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -233,7 +233,6 @@ struct swap_info_struct {
+ 	unsigned long	flags;		/* SWP_USED etc: see above */
+ 	signed short	prio;		/* swap priority of this type */
+ 	struct plist_node list;		/* entry in swap_active_head */
+-	struct plist_node avail_lists[MAX_NUMNODES];/* entry in swap_avail_heads */
+ 	signed char	type;		/* strange name for an index */
+ 	unsigned int	max;		/* extent of the swap_map */
+ 	unsigned char *swap_map;	/* vmalloc'ed array of usage counts */
+@@ -274,6 +273,16 @@ struct swap_info_struct {
+ 					 */
+ 	struct work_struct discard_work; /* discard worker */
+ 	struct swap_cluster_list discard_clusters; /* discard clusters list */
++	struct plist_node avail_lists[0]; /*
++					   * entries in swap_avail_heads, one
++					   * entry per node.
++					   * Must be last as the number of the
++					   * array is nr_node_ids, which is not
++					   * a fixed value so have to allocate
++					   * dynamically.
++					   * And it has to be an array so that
++					   * plist_for_each_* can work.
++					   */
+ };
+ 
+ #ifdef CONFIG_64BIT
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 8688ae65ef58..6e06821623f6 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -2812,8 +2812,9 @@ static struct swap_info_struct *alloc_swap_info(void)
+ 	struct swap_info_struct *p;
+ 	unsigned int type;
+ 	int i;
++	int size = sizeof(*p) + nr_node_ids * sizeof(struct plist_node);
+ 
+-	p = kvzalloc(sizeof(*p), GFP_KERNEL);
++	p = kvzalloc(size, GFP_KERNEL);
+ 	if (!p)
+ 		return ERR_PTR(-ENOMEM);
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.17.2
