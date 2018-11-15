@@ -1,80 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F03366B028E
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 06:20:52 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id 80so44454082qkd.0
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 03:20:52 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b3si991255qkd.129.2018.11.15.03.20.51
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F3806B02A0
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 06:36:57 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id m45-v6so9912377edc.2
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 03:36:57 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s28-v6si5932735edd.159.2018.11.15.03.36.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 03:20:52 -0800 (PST)
-Subject: Re: [PATCH RFC 3/6] kexec: export PG_offline to VMCOREINFO
-References: <20181114211704.6381-1-david@redhat.com>
- <20181114211704.6381-4-david@redhat.com>
- <20181115061923.GA3971@dhcp-128-65.nay.redhat.com>
- <20181115111023.GC26448@zn.tnic>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <4aa5d39d-a923-87de-d646-70b9cbfe62f0@redhat.com>
-Date: Thu, 15 Nov 2018 12:20:40 +0100
+        Thu, 15 Nov 2018 03:36:55 -0800 (PST)
+Date: Thu, 15 Nov 2018 12:36:53 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH v2 0/3] oom: rework oom_reaper vs. exit_mmap handoff
+Message-ID: <20181115113653.GO23831@dhcp22.suse.cz>
+References: <20181025082403.3806-1-mhocko@kernel.org>
+ <20181108093224.GS27423@dhcp22.suse.cz>
+ <9dfd5c87-ae48-8ffb-fbc6-706d627658ff@i-love.sakura.ne.jp>
+ <20181114101604.GM23419@dhcp22.suse.cz>
+ <0648083a-3112-97ff-edd7-1444c1be529a@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20181115111023.GC26448@zn.tnic>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0648083a-3112-97ff-edd7-1444c1be529a@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>, Dave Young <dyoung@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Baoquan He <bhe@redhat.com>, Omar Sandoval <osandov@fb.com>, Arnd Bergmann <arnd@arndb.de>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, Lianbo Jiang <lijiang@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: David Rientjes <rientjes@google.com>, Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On 15.11.18 12:10, Borislav Petkov wrote:
-> On Thu, Nov 15, 2018 at 02:19:23PM +0800, Dave Young wrote:
->> It would be good to copy some background info from cover letter to the
->> patch description so that we can get better understanding why this is
->> needed now.
->>
->> BTW, Lianbo is working on a documentation of the vmcoreinfo exported
->> fields. Ccing him so that he is aware of this.
->>
->> Also cc Boris,  although I do not want the doc changes blocks this
->> he might have different opinion :)
+On Thu 15-11-18 18:54:15, Tetsuo Handa wrote:
+> On 2018/11/14 19:16, Michal Hocko wrote:
+> > On Wed 14-11-18 18:46:13, Tetsuo Handa wrote:
+> > [...]
+> > > There is always an invisible lock called "scheduling priority". You can't
+> > > leave the MMF_OOM_SKIP to the exit path. Your approach is not ready for
+> > > handling the worst case.
+> > 
+> > And that problem is all over the memory reclaim. You can get starved
+> > to death and block other resources. And the memory reclaim is not the
+> > only one.
 > 
-> Yeah, my initial reaction is that exporting an mm-internal flag to
-> userspace is a no-no.
-
-Sorry to say, but that is the current practice without which
-makedumpfile would not be able to work at all. (exclude user pages,
-exclude page cache, exclude buddy pages). Let's not reinvent the wheel
-here. This is how dumping works forever.
-
-Also see how hwpoisoned pages are handled.
-
-(please note that most distributions only support dumping via
-makedumpfile, for said reasons)
-
+> I think that it is a manner for kernel developers that no thread keeps
+> consuming CPU resources forever. In the kernel world, doing
 > 
-> What would be better, IMHO, is having a general method of telling the
-> kdump kernel - maybe ranges of physical addresses - which to skip.
-
-And that has to be updated whenever we change a page flag. But then the
-dump kernel would have to be aware about "struct page" location and
-format of some old kernel to be dump. Let's just not even discuss going
-down that path.
-
+>   while (1);
 > 
-> Because the moment there's a set of pages which do not have PG_offline
-> set but kdump would still like to skip, this breaks.
+> is not permitted. Likewise, doing
+> 
+>   for (i = 0; i < very_large_value; i++)
+>       do_something_which_does_not_yield_CPU_to_others();
 
-I don't understand your concern. PG_offline is only an optimization for
-sections that are online. Offline sections can already be completely
-ignored when dumping.
+There is nothing like that proposed in this series.
 
-I don't see how there should be "set of pages which do not have
-PG_offline". I mean if they don't have PG_offline they will simply be
-dumped like before. Which worked forever. Sorry, I don't get your point.
+> has to be avoided, in order to avoid lockup problems. We are required to
+> yield CPU to others when we are waiting for somebody else to make progress.
+> It is the page allocator who is refusing to yield CPU to those who need CPU.
 
+And we do that in the reclaim path.
+
+> Since the OOM reaper kernel thread "has normal priority" and "can run on any
+> CPU", the possibility of failing to run is lower than an OOM victim thread
+> which "has idle priority" and "can run on only limited CPU". You are trying
+> to add a dependency on such thread, and I'm saying that adding a dependency
+> on such thread increases possibility of lockup.
+
+Sigh. No, this is not the case. All this patch series does is that we
+hand over to the exiting task once it doesn't block on any locks
+anymore. If the thread is low priority then it is quite likely that the
+oom reaper is done by the time the victim even reaches the exit path.
+
+> Yes, even the OOM reaper kernel thread might fail to run if all CPUs were
+> busy with realtime threads waiting for the OOM reaper kernel thread to make
+> progress. In that case, we had better stop relying on asynchronous memory
+> reclaim, and switch to direct OOM reaping by allocating threads.
+> 
+> But what I demonstrated is that
+> 
+>         /*
+>          * the exit path is guaranteed to finish the memory tear down
+>          * without any unbound blocking at this stage so make it clear
+>          * to the oom_reaper
+>          */
+> 
+> becomes a lie even when only one CPU was busy with realtime threads waiting
+> for an idle thread to make progress. If the page allocator stops telling a
+> lie that "an OOM victim is making progress on behalf of me", we can avoid
+> the lockup.
+
+OK, I stopped reading right here. This discussion is pointless. Once you
+busy loop all CPUs you are screwed. Are you going to blame a filesystem
+that no progress can be made if a code path holding an important lock
+is preemempted by high priority stuff a no further progress can be
+made? This is just ridiculous. What you are arguing here is not fixable
+with the current upstream kernel. Even your so beloved timeout based
+solution doesn't cope with that because oom reaper can be preempted for
+unbound amount of time. Your argument just doens't make much sense in
+the context of the current kernel. Full stop.
 -- 
-
-Thanks,
-
-David / dhildenb
+Michal Hocko
+SUSE Labs
