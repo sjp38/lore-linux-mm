@@ -1,75 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C4B66B049E
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 10:47:05 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id g21-v6so16185344pfg.18
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 07:47:05 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B7A96B04A0
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 10:47:51 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id v11so9835116ply.4
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 07:47:51 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i5sor16122465pgq.34.2018.11.15.07.47.03
+        by mx.google.com with SMTPS id m28-v6sor26021478pfg.39.2018.11.15.07.47.49
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 15 Nov 2018 07:47:03 -0800 (PST)
-Date: Thu, 15 Nov 2018 21:20:38 +0530
+        Thu, 15 Nov 2018 07:47:49 -0800 (PST)
+Date: Thu, 15 Nov 2018 21:21:13 +0530
 From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH 7/9] videobuf2/videobuf2-dma-sg.c: Convert to use
- vm_insert_range
-Message-ID: <20181115155037.GA28004@jordon-HP-15-Notebook-PC>
+Subject: [PATCH 8/9] xen/gntdev.c: Convert to use vm_insert_range
+Message-ID: <20181115155113.GA28021@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, pawel@osciak.com, m.szyprowski@samsung.com, kyungmin.park@samsung.com, mchehab@kernel.org
-Cc: linux-media@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, boris.ostrovsky@oracle.com, jgross@suse.com
+Cc: xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Convert to use vm_insert_range to map range of kernel memory
-to user vma.
+Convert to use vm_insert_range() to map range of kernel
+memory to user vma.
 
 Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
 Reviewed-by: Matthew Wilcox <willy@infradead.org>
 ---
- drivers/media/common/videobuf2/videobuf2-dma-sg.c | 23 +++++++----------------
- 1 file changed, 7 insertions(+), 16 deletions(-)
+ drivers/xen/gntdev.c | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)
 
-diff --git a/drivers/media/common/videobuf2/videobuf2-dma-sg.c b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-index 015e737..898adef 100644
---- a/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-+++ b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-@@ -328,28 +328,19 @@ static unsigned int vb2_dma_sg_num_users(void *buf_priv)
- static int vb2_dma_sg_mmap(void *buf_priv, struct vm_area_struct *vma)
- {
- 	struct vb2_dma_sg_buf *buf = buf_priv;
--	unsigned long uaddr = vma->vm_start;
--	unsigned long usize = vma->vm_end - vma->vm_start;
--	int i = 0;
-+	unsigned long page_count = vma_pages(vma);
-+	int err;
+diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
+index b0b02a5..430d4cb 100644
+--- a/drivers/xen/gntdev.c
++++ b/drivers/xen/gntdev.c
+@@ -1084,7 +1084,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
+ 	int index = vma->vm_pgoff;
+ 	int count = vma_pages(vma);
+ 	struct gntdev_grant_map *map;
+-	int i, err = -EINVAL;
++	int err = -EINVAL;
  
- 	if (!buf) {
- 		printk(KERN_ERR "No memory to map\n");
+ 	if ((vma->vm_flags & VM_WRITE) && !(vma->vm_flags & VM_SHARED))
  		return -EINVAL;
- 	}
+@@ -1145,12 +1145,9 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
+ 		goto out_put_map;
  
--	do {
--		int ret;
--
--		ret = vm_insert_page(vma, uaddr, buf->pages[i++]);
--		if (ret) {
--			printk(KERN_ERR "Remapping memory, error: %d\n", ret);
--			return ret;
+ 	if (!use_ptemod) {
+-		for (i = 0; i < count; i++) {
+-			err = vm_insert_page(vma, vma->vm_start + i*PAGE_SIZE,
+-				map->pages[i]);
+-			if (err)
+-				goto out_put_map;
 -		}
--
--		uaddr += PAGE_SIZE;
--		usize -= PAGE_SIZE;
--	} while (usize > 0);
--
-+	err = vm_insert_range(vma, vma->vm_start, buf->pages, page_count);
-+	if (err) {
-+		printk(KERN_ERR "Remapping memory, error: %d\n", err);
-+		return err;
-+	}
- 
- 	/*
- 	 * Use common vm_area operations to track buffer refcount.
++		err = vm_insert_range(vma, vma->vm_start, map->pages, count);
++		if (err)
++			goto out_put_map;
+ 	} else {
+ #ifdef CONFIG_X86
+ 		/*
 -- 
 1.9.1
