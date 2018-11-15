@@ -1,104 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5138D6B0526
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 13:13:58 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id g24-v6so16519835pfi.23
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 10:13:58 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id l62-v6si29055020pfc.114.2018.11.15.10.13.56
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E3AA6B0533
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 13:26:04 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id az10so5215354plb.11
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 10:26:04 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p79-v6sor34986727pfa.42.2018.11.15.10.26.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 15 Nov 2018 10:13:56 -0800 (PST)
-Subject: Re: [PATCH 1/9] mm: Introduce new vm_insert_range API
-References: <20181115154530.GA27872@jordon-HP-15-Notebook-PC>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <9655a12e-bd3d-aca2-6155-38924028eb5d@infradead.org>
-Date: Thu, 15 Nov 2018 10:13:36 -0800
+        (Google Transport Security);
+        Thu, 15 Nov 2018 10:26:03 -0800 (PST)
+Date: Thu, 15 Nov 2018 10:25:59 -0800
+From: Omar Sandoval <osandov@osandov.com>
+Subject: Re: [PATCH V10 01/19] block: introduce multi-page page bvec helpers
+Message-ID: <20181115182559.GA9348@vader>
+References: <20181115085306.9910-1-ming.lei@redhat.com>
+ <20181115085306.9910-2-ming.lei@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20181115154530.GA27872@jordon-HP-15-Notebook-PC>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181115085306.9910-2-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>, akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, riel@surriel.com, sfr@canb.auug.org.au, rppt@linux.vnet.ibm.com, peterz@infradead.org, linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, kyungmin.park@samsung.com, mchehab@kernel.org, boris.ostrovsky@oracle.com, jgross@suse.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On 11/15/18 7:45 AM, Souptick Joarder wrote:
-> Previouly drivers have their own way of mapping range of
-> kernel pages/memory into user vma and this was done by
-> invoking vm_insert_page() within a loop.
+On Thu, Nov 15, 2018 at 04:52:48PM +0800, Ming Lei wrote:
+> This patch introduces helpers of 'mp_bvec_iter_*' for multipage
+> bvec support.
 > 
-> As this pattern is common across different drivers, it can
-> be generalized by creating a new function and use it across
-> the drivers.
+> The introduced helpers treate one bvec as real multi-page segment,
+> which may include more than one pages.
 > 
-> vm_insert_range is the new API which will be used to map a
-> range of kernel memory/pages to user vma.
+> The existed helpers of bvec_iter_* are interfaces for supporting current
+> bvec iterator which is thought as single-page by drivers, fs, dm and
+> etc. These introduced helpers will build single-page bvec in flight, so
+> this way won't break current bio/bvec users, which needn't any change.
 > 
-> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-> Reviewed-by: Matthew Wilcox <willy@infradead.org>
+> Cc: Dave Chinner <dchinner@redhat.com>
+> Cc: Kent Overstreet <kent.overstreet@gmail.com>
+> Cc: Mike Snitzer <snitzer@redhat.com>
+> Cc: dm-devel@redhat.com
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: linux-fsdevel@vger.kernel.org
+> Cc: Shaohua Li <shli@kernel.org>
+> Cc: linux-raid@vger.kernel.org
+> Cc: linux-erofs@lists.ozlabs.org
+> Cc: David Sterba <dsterba@suse.com>
+> Cc: linux-btrfs@vger.kernel.org
+> Cc: Darrick J. Wong <darrick.wong@oracle.com>
+> Cc: linux-xfs@vger.kernel.org
+> Cc: Gao Xiang <gaoxiang25@huawei.com>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Theodore Ts'o <tytso@mit.edu>
+> Cc: linux-ext4@vger.kernel.org
+> Cc: Coly Li <colyli@suse.de>
+> Cc: linux-bcache@vger.kernel.org
+> Cc: Boaz Harrosh <ooo@electrozaur.com>
+> Cc: Bob Peterson <rpeterso@redhat.com>
+> Cc: cluster-devel@redhat.com
+
+Reviewed-by: Omar Sandoval <osandov@fb.com>
+
+But a couple of comments below.
+
+> Signed-off-by: Ming Lei <ming.lei@redhat.com>
 > ---
->  include/linux/mm_types.h |  3 +++
->  mm/memory.c              | 28 ++++++++++++++++++++++++++++
->  mm/nommu.c               |  7 +++++++
->  3 files changed, 38 insertions(+)
-
-Hi,
-
-What is the opposite of vm_insert_range() or even of vm_insert_page()?
-or is there no need for that?
-
-
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 15c417e..da904ed 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1478,6 +1478,34 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
->  }
->  
->  /**
-> + * vm_insert_range - insert range of kernel pages into user vma
-> + * @vma: user vma to map to
-> + * @addr: target user address of this page
-> + * @pages: pointer to array of source kernel pages
-> + * @page_count: no. of pages need to insert into user vma
-
-s/no./number/
-
+>  include/linux/bvec.h | 63 +++++++++++++++++++++++++++++++++++++++++++++++++---
+>  1 file changed, 60 insertions(+), 3 deletions(-)
+> 
+> diff --git a/include/linux/bvec.h b/include/linux/bvec.h
+> index 02c73c6aa805..8ef904a50577 100644
+> --- a/include/linux/bvec.h
+> +++ b/include/linux/bvec.h
+> @@ -23,6 +23,44 @@
+>  #include <linux/kernel.h>
+>  #include <linux/bug.h>
+>  #include <linux/errno.h>
+> +#include <linux/mm.h>
+> +
+> +/*
+> + * What is multi-page bvecs?
 > + *
-> + * This allows drivers to insert range of kernel pages they've allocated
-> + * into a user vma. This is a generic function which drivers can use
-> + * rather than using their own way of mapping range of kernel pages into
-> + * user vma.
+> + * - bvecs stored in bio->bi_io_vec is always multi-page(mp) style
+> + *
+> + * - bvec(struct bio_vec) represents one physically contiguous I/O
+> + *   buffer, now the buffer may include more than one pages after
+> + *   multi-page(mp) bvec is supported, and all these pages represented
+> + *   by one bvec is physically contiguous. Before mp support, at most
+> + *   one page is included in one bvec, we call it single-page(sp)
+> + *   bvec.
+> + *
+> + * - .bv_page of the bvec represents the 1st page in the mp bvec
+> + *
+> + * - .bv_offset of the bvec represents offset of the buffer in the bvec
+> + *
+> + * The effect on the current drivers/filesystem/dm/bcache/...:
+> + *
+> + * - almost everyone supposes that one bvec only includes one single
+> + *   page, so we keep the sp interface not changed, for example,
+> + *   bio_for_each_segment() still returns bvec with single page
+> + *
+> + * - bio_for_each_segment*() will be changed to return single-page
+> + *   bvec too
+> + *
+> + * - during iterating, iterator variable(struct bvec_iter) is always
+> + *   updated in multipage bvec style and that means bvec_iter_advance()
+> + *   is kept not changed
+> + *
+> + * - returned(copied) single-page bvec is built in flight by bvec
+> + *   helpers from the stored multipage bvec
+> + *
+> + * - In case that some components(such as iov_iter) need to support
+> + *   multi-page bvec, we introduce new helpers(mp_bvec_iter_*) for
+> + *   them.
 > + */
-> +int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
-> +			struct page **pages, unsigned long page_count)
-> +{
-> +	unsigned long uaddr = addr;
-> +	int ret = 0, i;
+
+This comment sounds more like a commit message (i.e., how were things
+before, and how are we changing them). In a couple of years when I read
+this code, I probably won't care how it was changed, just how it works.
+So I think a comment explaining the concepts of multi-page and
+single-page bvecs is very useful, but please move all of the "foo was
+changed" and "before mp support" type stuff to the commit message.
+
+>  /*
+>   * was unsigned short, but we might as well be ready for > 64kB I/O pages
+> @@ -50,16 +88,35 @@ struct bvec_iter {
+>   */
+>  #define __bvec_iter_bvec(bvec, iter)	(&(bvec)[(iter).bi_idx])
+>  
+> -#define bvec_iter_page(bvec, iter)				\
+> +#define mp_bvec_iter_page(bvec, iter)				\
+>  	(__bvec_iter_bvec((bvec), (iter))->bv_page)
+>  
+> -#define bvec_iter_len(bvec, iter)				\
+> +#define mp_bvec_iter_len(bvec, iter)				\
+>  	min((iter).bi_size,					\
+>  	    __bvec_iter_bvec((bvec), (iter))->bv_len - (iter).bi_bvec_done)
+>  
+> -#define bvec_iter_offset(bvec, iter)				\
+> +#define mp_bvec_iter_offset(bvec, iter)				\
+>  	(__bvec_iter_bvec((bvec), (iter))->bv_offset + (iter).bi_bvec_done)
+>  
+> +#define mp_bvec_iter_page_idx(bvec, iter)			\
+> +	(mp_bvec_iter_offset((bvec), (iter)) / PAGE_SIZE)
 > +
-> +	for (i = 0; i < page_count; i++) {
-> +		ret = vm_insert_page(vma, uaddr, pages[i]);
-> +		if (ret < 0)
-> +			return ret;
-
-For a non-trivial value of page_count:
-Is it a problem if vm_insert_page() succeeds for several pages
-and then fails?
-
-> +		uaddr += PAGE_SIZE;
-> +	}
+> +/*
+> + * <page, offset,length> of single-page(sp) segment.
+> + *
+> + * This helpers are for building sp bvec in flight.
+> + */
+> +#define bvec_iter_offset(bvec, iter)					\
+> +	(mp_bvec_iter_offset((bvec), (iter)) % PAGE_SIZE)
 > +
-> +	return ret;
-> +}
+> +#define bvec_iter_len(bvec, iter)					\
+> +	min_t(unsigned, mp_bvec_iter_len((bvec), (iter)),		\
+> +	    (PAGE_SIZE - (bvec_iter_offset((bvec), (iter)))))
+
+The parentheses around (bvec_iter_offset((bvec), (iter))) and
+(PAGE_SIZE - (bvec_iter_offset((bvec), (iter)))) are unnecessary
+clutter. This looks easier to read to me:
+
+#define bvec_iter_len(bvec, iter)					\
+	min_t(unsigned, mp_bvec_iter_len((bvec), (iter)),		\
+	      PAGE_SIZE - bvec_iter_offset((bvec), (iter)))
+
 > +
-> +/**
->   * vm_insert_page - insert single page into user vma
->   * @vma: user vma to map to
->   * @addr: target user address of this page
-
-
-thanks.
--- 
-~Randy
+> +#define bvec_iter_page(bvec, iter)					\
+> +	nth_page(mp_bvec_iter_page((bvec), (iter)),		\
+> +		 mp_bvec_iter_page_idx((bvec), (iter)))
+> +
+>  #define bvec_iter_bvec(bvec, iter)				\
+>  ((struct bio_vec) {						\
+>  	.bv_page	= bvec_iter_page((bvec), (iter)),	\
+> -- 
+> 2.9.5
+> 
