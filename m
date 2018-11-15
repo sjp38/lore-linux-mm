@@ -1,116 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EEE26B0649
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 18:01:20 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id 143so11381914pgc.3
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 15:01:20 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id x11-v6si29096584pln.425.2018.11.15.15.01.19
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 798656B065E
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 18:24:02 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id l2-v6so14014030pgp.22
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 15:24:02 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v13sor32648844pgn.66.2018.11.15.15.24.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 15:01:19 -0800 (PST)
-Date: Thu, 15 Nov 2018 18:01:18 -0500
-From: Sasha Levin <sashal@kernel.org>
-Subject: Re: [PATCH AUTOSEL 3.18 8/9] mm/vmstat.c: assert that vmstat_text is
- in sync with stat_items_size
-Message-ID: <20181115230118.GC1706@sasha-vm>
-References: <20181113055252.79406-1-sashal@kernel.org>
- <20181113055252.79406-8-sashal@kernel.org>
- <20181115140810.e3292c83467544f6a1d82686@linux-foundation.org>
- <20181115223718.GB1706@sasha-vm>
- <20181115144719.d26dc7a2d47fade8d41a83d5@linux-foundation.org>
+        (Google Transport Security);
+        Thu, 15 Nov 2018 15:24:00 -0800 (PST)
+Date: Thu, 15 Nov 2018 15:23:56 -0800
+From: Omar Sandoval <osandov@osandov.com>
+Subject: Re: [PATCH V10 05/19] block: introduce bvec_last_segment()
+Message-ID: <20181115232356.GA23238@vader>
+References: <20181115085306.9910-1-ming.lei@redhat.com>
+ <20181115085306.9910-6-ming.lei@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181115144719.d26dc7a2d47fade8d41a83d5@linux-foundation.org>
+In-Reply-To: <20181115085306.9910-6-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: stable@vger.kernel.org, linux-kernel@vger.kernel.org, Jann Horn <jannh@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Christoph Lameter <clameter@sgi.com>, Kemi Wang <kemi.wang@intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On Thu, Nov 15, 2018 at 02:47:19PM -0800, Andrew Morton wrote:
->On Thu, 15 Nov 2018 17:37:18 -0500 Sasha Levin <sashal@kernel.org> wrote:
->
->> On Thu, Nov 15, 2018 at 02:08:10PM -0800, Andrew Morton wrote:
->> >On Tue, 13 Nov 2018 00:52:51 -0500 Sasha Levin <sashal@kernel.org> wrote:
->> >
->> >> From: Jann Horn <jannh@google.com>
->> >>
->> >> [ Upstream commit f0ecf25a093fc0589f0a6bc4c1ea068bbb67d220 ]
->> >>
->> >> Having two gigantic arrays that must manually be kept in sync, including
->> >> ifdefs, isn't exactly robust.  To make it easier to catch such issues in
->> >> the future, add a BUILD_BUG_ON().
->> >>
->> >> ...
->> >>
->> >> --- a/mm/vmstat.c
->> >> +++ b/mm/vmstat.c
->> >> @@ -1189,6 +1189,8 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
->> >>  	stat_items_size += sizeof(struct vm_event_state);
->> >>  #endif
->> >>
->> >> +	BUILD_BUG_ON(stat_items_size !=
->> >> +		     ARRAY_SIZE(vmstat_text) * sizeof(unsigned long));
->> >>  	v = kmalloc(stat_items_size, GFP_KERNEL);
->> >>  	m->private = v;
->> >>  	if (!v)
->> >
->> >I don't think there's any way in which this can make a -stable kernel
->> >more stable!
->> >
->> >
->> >Generally, I consider -stable in every patch I merge, so for each patch
->> >which doesn't have cc:stable, that tag is missing for a reason.
->> >
->> >In other words, your criteria for -stable addition are different from
->> >mine.
->> >
->> >And I think your criteria differ from those described in
->> >Documentation/process/stable-kernel-rules.rst.
->> >
->> >So... what is your overall thinking on patch selection?
->>
->> Indeed, this doesn't fix anything.
->>
->> My concern is that in the future, we will pull a patch that will cause
->> the issue described here, and that issue will only be relevant on
->> stable. It is very hard to debug this, and I suspect that stable kernels
->> will still pass all their tests with flying colors.
->>
->> As an example, consider the case where commit 28e2c4bb99aa ("mm/vmstat.c:
->> fix outdated vmstat_text") is backported to a kernel that doesn't have
->> commit 7a9cdebdcc17 ("mm: get rid of vmacache_flush_all() entirely").
->>
->> I also felt safe with this patch since it adds a single BUILD_BUG_ON()
->> which does nothing during runtime, so the chances it introduces anything
->> beyond a build regression seemed to be slim to none.
->
->Well OK.  But my question was general and covers basically every
->autosel patch which originated in -mm.
+On Thu, Nov 15, 2018 at 04:52:52PM +0800, Ming Lei wrote:
+> BTRFS and guard_bio_eod() need to get the last singlepage segment
+> from one multipage bvec, so introduce this helper to make them happy.
+> 
+> Cc: Dave Chinner <dchinner@redhat.com>
+> Cc: Kent Overstreet <kent.overstreet@gmail.com>
+> Cc: Mike Snitzer <snitzer@redhat.com>
+> Cc: dm-devel@redhat.com
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: linux-fsdevel@vger.kernel.org
+> Cc: Shaohua Li <shli@kernel.org>
+> Cc: linux-raid@vger.kernel.org
+> Cc: linux-erofs@lists.ozlabs.org
+> Cc: David Sterba <dsterba@suse.com>
+> Cc: linux-btrfs@vger.kernel.org
+> Cc: Darrick J. Wong <darrick.wong@oracle.com>
+> Cc: linux-xfs@vger.kernel.org
+> Cc: Gao Xiang <gaoxiang25@huawei.com>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Theodore Ts'o <tytso@mit.edu>
+> Cc: linux-ext4@vger.kernel.org
+> Cc: Coly Li <colyli@suse.de>
+> Cc: linux-bcache@vger.kernel.org
+> Cc: Boaz Harrosh <ooo@electrozaur.com>
+> Cc: Bob Peterson <rpeterso@redhat.com>
+> Cc: cluster-devel@redhat.com
 
-Sure. I picked 3 patches that show up on top when I google for AUTOSEL
-in linux-mm, maybe they'll be a good example to help me understand why
-they were not selected.
+Reviewed-by: Omar Sandoval <osandov@fb.com>
 
-This one fixes a case where too few struct pages are allocated when
-using mirrorred memory:
+Minor comments below.
 
-	https://marc.info/?l=linux-mm&m=154211933211147&w=2
+> Signed-off-by: Ming Lei <ming.lei@redhat.com>
+> ---
+>  include/linux/bvec.h | 25 +++++++++++++++++++++++++
+>  1 file changed, 25 insertions(+)
+> 
+> diff --git a/include/linux/bvec.h b/include/linux/bvec.h
+> index 3d61352cd8cf..01616a0b6220 100644
+> --- a/include/linux/bvec.h
+> +++ b/include/linux/bvec.h
+> @@ -216,4 +216,29 @@ static inline bool mp_bvec_iter_advance(const struct bio_vec *bv,
+>  	.bi_bvec_done	= 0,						\
+>  }
+>  
+> +/*
+> + * Get the last singlepage segment from the multipage bvec and store it
+> + * in @seg
+> + */
+> +static inline void bvec_last_segment(const struct bio_vec *bvec,
+> +		struct bio_vec *seg)
 
-Race condition with memory hotplug due to missing locks:
+Indentation is all messed up here.
 
-	https://marc.info/?l=linux-mm&m=154211934011188&w=2
+> +{
+> +	unsigned total = bvec->bv_offset + bvec->bv_len;
+> +	unsigned last_page = total / PAGE_SIZE;
+> +
+> +	if (last_page * PAGE_SIZE == total)
+> +		last_page--;
 
-Raising an OOM event that causes issues in userspace when no OOM has
-actually occured:
+I think this could just be
 
-	https://marc.info/?l=linux-mm&m=154211939811582&w=2
+	unsigned int last_page = (total - 1) / PAGE_SIZE;
 
-
-I think that all 3 cases represent a "real" bug users can hit, and I
-honestly don't know why they were not tagged for stable.
-
---
-Thanks,
-Sasha
+> +	seg->bv_page = nth_page(bvec->bv_page, last_page);
+> +
+> +	/* the whole segment is inside the last page */
+> +	if (bvec->bv_offset >= last_page * PAGE_SIZE) {
+> +		seg->bv_offset = bvec->bv_offset % PAGE_SIZE;
+> +		seg->bv_len = bvec->bv_len;
+> +	} else {
+> +		seg->bv_offset = 0;
+> +		seg->bv_len = total - last_page * PAGE_SIZE;
+> +	}
+> +}
+> +
+>  #endif /* __LINUX_BVEC_ITER_H */
+> -- 
+> 2.9.5
+> 
