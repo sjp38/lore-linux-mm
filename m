@@ -1,54 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 92DEF6B032C
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 08:43:04 -0500 (EST)
-Received: by mail-io1-f69.google.com with SMTP id q26-v6so19087892ioi.21
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 05:43:04 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i7sor30383339iti.27.2018.11.15.05.43.03
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AC3D6B0309
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 08:47:09 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id h10so10569509pgv.20
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 05:47:09 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 33-v6si8072411ply.121.2018.11.15.05.47.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 15 Nov 2018 05:43:03 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 15 Nov 2018 05:47:08 -0800 (PST)
+Date: Thu, 15 Nov 2018 05:47:06 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC PATCH 1/1] vmalloc: add test driver to analyse vmalloc
+ allocator
+Message-ID: <20181115134706.GC19286@bombadil.infradead.org>
+References: <20181113151629.14826-1-urezki@gmail.com>
+ <20181113151629.14826-2-urezki@gmail.com>
+ <20181113141046.f62f5bd88d4ebc663b0ac100@linux-foundation.org>
+ <20181114151737.GA23419@dhcp22.suse.cz>
+ <20181114150053.c3fe42507923322a0a10ae1c@linux-foundation.org>
+ <20181115083957.GE23831@dhcp22.suse.cz>
+ <20181115084642.GB19286@bombadil.infradead.org>
+ <20181115125750.GS23831@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAAeHK+yAve4fBg_UZQsNdVJ5W-7v8tQnRa=amQMyBeE_yHcq5g@mail.gmail.com>
-References: <cover.1541525354.git.andreyknvl@google.com> <b2aa056b65b8f1a410379bf2f6ef439d5d99e8eb.1541525354.git.andreyknvl@google.com>
- <20181107165200.oaou6cx2lmjzmjyl@lakrids.cambridge.arm.com> <CAAeHK+yAve4fBg_UZQsNdVJ5W-7v8tQnRa=amQMyBeE_yHcq5g@mail.gmail.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Thu, 15 Nov 2018 14:43:02 +0100
-Message-ID: <CAAeHK+yaYc4gOxWdvJALwUffAFDVwQe7+4Rwx=Ux936c_LtBFw@mail.gmail.com>
-Subject: Re: [PATCH v10 08/22] kasan, arm64: untag address in __kimg_to_phys
- and _virt_addr_is_linear
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181115125750.GS23831@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Uladzislau Rezki (Sony)" <urezki@gmail.com>, Kees Cook <keescook@chromium.org>, Shuah Khan <shuah@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Wed, Nov 14, 2018 at 8:23 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> On Wed, Nov 7, 2018 at 5:52 PM, Mark Rutland <mark.rutland@arm.com> wrote:
->>>  /*
->>> @@ -232,7 +241,7 @@ static inline unsigned long kaslr_offset(void)
->>>  #define __is_lm_address(addr)        (!!((addr) & BIT(VA_BITS - 1)))
->>>
->>>  #define __lm_to_phys(addr)   (((addr) & ~PAGE_OFFSET) + PHYS_OFFSET)
->>> -#define __kimg_to_phys(addr) ((addr) - kimage_voffset)
->>> +#define __kimg_to_phys(addr) (KASAN_RESET_TAG(addr) - kimage_voffset)
->>
->> IIUC You need to adjust __lm_to_phys() too, since that could be passed
->> an address from SLAB.
->>
->> Maybe that's done in a later patch, but if so it's confusing to split it
->> out that way. It would be nicer to fix all the *_to_*() helpers in one
->> go.
->
-> __lm_to_phys() does & ~PAGE_OFFSET, so it resets the tag by itself. I
-> can add an explicit __tag_reset() if you think it makes sense.
+On Thu, Nov 15, 2018 at 01:57:50PM +0100, Michal Hocko wrote:
+> On Thu 15-11-18 00:46:42, Matthew Wilcox wrote:
+> > How about adding
+> > 
+> > #ifdef CONFIG_VMALLOC_TEST
+> > int run_internal_vmalloc_tests(void)
+> > {
+> > ...
+> > }
+> > EXPORT_SYMBOL_GPL(run_internal_vmalloc_tests);
+> > #endif
+> > 
+> > to vmalloc.c?  That would also allow calling functions which are marked
+> > as static, not just functions which aren't exported to modules.
+> 
+> Yes that would be easier but do we want to pollute the normal code with
+> testing? This looks messy to me.
 
-Hi Mark,
+I don't think it's necessarily the worst thing in the world if random
+people browsing the file are forced to read test-cases ;-)
 
-I think I've addressed all of your comments except for this one. Do
-you think it makes sense to add explicit __tag_reset() calls to
-__lm_to_phys() and a few other macros, that already set the tag to 0
-by doing & ~PAGE_OFFSET?
-
-Thanks!
+There's certainly a spectrum of possibilities here, one end being to
+basically just re-export static functions, and the other end putting
+every vmalloc test into vmalloc.c.  vmalloc.c is pretty big at 70kB, but
+on the other hand, it's the 18th largest file in mm/ (can you believe
+page_alloc.c is 230kB?!)
