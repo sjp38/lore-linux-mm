@@ -1,69 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 323E06B0A6A
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 11:40:55 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id l15-v6so19540525pff.5
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 08:40:55 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id v19-v6sor37388697plo.32.2018.11.16.08.40.54
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CA5BF6B0A7B
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 11:55:22 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id k14-v6so17556072pls.21
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 08:55:22 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id x10si30052805pgl.209.2018.11.16.08.55.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 16 Nov 2018 08:40:54 -0800 (PST)
-Date: Fri, 16 Nov 2018 08:40:51 -0800
-From: Omar Sandoval <osandov@osandov.com>
-Subject: Re: [PATCH V10 19/19] block: kill BLK_MQ_F_SG_MERGE
-Message-ID: <20181116164051.GX23828@vader>
-References: <20181115085306.9910-1-ming.lei@redhat.com>
- <20181115085306.9910-20-ming.lei@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Nov 2018 08:55:21 -0800 (PST)
+Subject: Re: [PATCH 0/7] ACPI HMAT memory sysfs representation
+References: <20181114224902.12082-1-keith.busch@intel.com>
+ <1ed406b2-b85f-8e02-1df0-7c39aa21eca9@arm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <4ea6e80f-80ba-6992-8aa0-5c2d88996af7@intel.com>
+Date: Fri, 16 Nov 2018 08:55:20 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181115085306.9910-20-ming.lei@redhat.com>
+In-Reply-To: <1ed406b2-b85f-8e02-1df0-7c39aa21eca9@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@redhat.com>
-Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: Anshuman Khandual <anshuman.khandual@arm.com>, Keith Busch <keith.busch@intel.com>, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dan Williams <dan.j.williams@intel.com>
 
-On Thu, Nov 15, 2018 at 04:53:06PM +0800, Ming Lei wrote:
-> QUEUE_FLAG_NO_SG_MERGE has been killed, so kill BLK_MQ_F_SG_MERGE too.
-> 
-> Cc: Dave Chinner <dchinner@redhat.com>
-> Cc: Kent Overstreet <kent.overstreet@gmail.com>
-> Cc: Mike Snitzer <snitzer@redhat.com>
-> Cc: dm-devel@redhat.com
-> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> Cc: linux-fsdevel@vger.kernel.org
-> Cc: Shaohua Li <shli@kernel.org>
-> Cc: linux-raid@vger.kernel.org
-> Cc: linux-erofs@lists.ozlabs.org
-> Cc: David Sterba <dsterba@suse.com>
-> Cc: linux-btrfs@vger.kernel.org
-> Cc: Darrick J. Wong <darrick.wong@oracle.com>
-> Cc: linux-xfs@vger.kernel.org
-> Cc: Gao Xiang <gaoxiang25@huawei.com>
-> Cc: Christoph Hellwig <hch@lst.de>
-> Cc: Theodore Ts'o <tytso@mit.edu>
-> Cc: linux-ext4@vger.kernel.org
-> Cc: Coly Li <colyli@suse.de>
-> Cc: linux-bcache@vger.kernel.org
-> Cc: Boaz Harrosh <ooo@electrozaur.com>
-> Cc: Bob Peterson <rpeterso@redhat.com>
-> Cc: cluster-devel@redhat.com
+On 11/15/18 10:27 PM, Anshuman Khandual wrote:
+> Not able to see the patches from this series either on the list or on the
+> archive (https://lkml.org/lkml/2018/11/15/331). IIRC last time we discussed
+> about this and the concern which I raised was in absence of a broader NUMA
+> rework for multi attribute memory it might not a good idea to settle down
+> and freeze sysfs interface for the user space. 
 
-Reviewed-by: Omar Sandoval <osandov@fb.com>
+This *is* the broader NUMA rework.  I think it's just a bit more
+incremental that what you originally had in mind.
 
-> Signed-off-by: Ming Lei <ming.lei@redhat.com>
-> ---
->  block/blk-mq-debugfs.c       | 1 -
->  drivers/block/loop.c         | 2 +-
->  drivers/block/nbd.c          | 2 +-
->  drivers/block/rbd.c          | 2 +-
->  drivers/block/skd_main.c     | 1 -
->  drivers/block/xen-blkfront.c | 2 +-
->  drivers/md/dm-rq.c           | 2 +-
->  drivers/mmc/core/queue.c     | 3 +--
->  drivers/scsi/scsi_lib.c      | 2 +-
->  include/linux/blk-mq.h       | 1 -
->  10 files changed, 7 insertions(+), 11 deletions(-)
-
-[snip]
+Did you have an alternative for how you wanted this to look?
