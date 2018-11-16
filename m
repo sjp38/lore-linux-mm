@@ -1,96 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 403666B0883
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 03:30:40 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id c53so2675309edc.9
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 00:30:40 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c13-v6sor15937661edi.3.2018.11.16.00.30.38
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 24E866B0887
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 03:39:48 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id s24-v6so16418721plp.12
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 00:39:48 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 32-v6si32788874plc.370.2018.11.16.00.39.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 16 Nov 2018 00:30:38 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Nov 2018 00:39:46 -0800 (PST)
+Date: Fri, 16 Nov 2018 09:39:42 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 5/5] mm, memory_hotplug: be more verbose for memory offline failures
-Date: Fri, 16 Nov 2018 09:30:20 +0100
-Message-Id: <20181116083020.20260-6-mhocko@kernel.org>
-In-Reply-To: <20181116083020.20260-1-mhocko@kernel.org>
-References: <20181116083020.20260-1-mhocko@kernel.org>
+Subject: Re: [PATCH] slab: fix 'dubious: x & !y' warning from Sparse
+Message-ID: <20181116083942.GA14767@dhcp22.suse.cz>
+References: <1542346829-31063-1-git-send-email-yamada.masahiro@socionext.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1542346829-31063-1-git-send-email-yamada.masahiro@socionext.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Oscar Salvador <OSalvador@suse.com>, Baoquan He <bhe@redhat.com>, Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Masahiro Yamada <yamada.masahiro@socionext.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Fri 16-11-18 14:40:29, Masahiro Yamada wrote:
+> Sparse reports:
+> ./include/linux/slab.h:332:43: warning: dubious: x & !y
 
-There is only very limited information printed when the memory offlining
-fails:
-[ 1984.506184] rac1 kernel: memory offlining [mem 0x82600000000-0x8267fffffff] failed due to signal backoff
+JFYI this has been discussed here http://lkml.kernel.org/r/20181105204000.129023-1-bvanassche@acm.org
 
-This tells us that the failure is triggered by the userspace
-intervention but it doesn't tell us much more about the underlying
-reason. It might be that the page migration failes repeatedly and the
-userspace timeout expires and send a signal or it might be some of the
-earlier steps (isolation, memory notifier) takes too long.
+> Signed-off-by: Masahiro Yamada <yamada.masahiro@socionext.com>
+> ---
+> 
+>  include/linux/slab.h | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 918f374..d395c73 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -329,7 +329,7 @@ static __always_inline enum kmalloc_cache_type kmalloc_type(gfp_t flags)
+>  	 * If an allocation is both __GFP_DMA and __GFP_RECLAIMABLE, return
+>  	 * KMALLOC_DMA and effectively ignore __GFP_RECLAIMABLE
+>  	 */
+> -	return type_dma + (is_reclaimable & !is_dma) * KMALLOC_RECLAIM;
+> +	return type_dma + (is_reclaimable && !is_dma) * KMALLOC_RECLAIM;
+>  }
+>  
+>  /*
+> -- 
+> 2.7.4
 
-If the migration failes then it would be really helpful to see which
-page that and its state. The same applies to the isolation phase. If we
-fail to isolate a page from the allocator then knowing the state of the
-page would be helpful as well.
-
-Dump the page state that fails to get isolated or migrated. This will
-tell us more about the failure and what to focus on during debugging.
-
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/memory_hotplug.c | 12 ++++++++----
- mm/page_alloc.c     |  1 +
- 2 files changed, 9 insertions(+), 4 deletions(-)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 88d50e74e3fe..c82193db4be6 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1388,10 +1388,8 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 						    page_is_file_cache(page));
- 
- 		} else {
--#ifdef CONFIG_DEBUG_VM
--			pr_alert("failed to isolate pfn %lx\n", pfn);
-+			pr_warn("failed to isolate pfn %lx\n", pfn);
- 			dump_page(page, "isolation failed");
--#endif
- 			put_page(page);
- 			/* Because we don't have big zone->lock. we should
- 			   check this again here. */
-@@ -1411,8 +1409,14 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 		/* Allocate a new page from the nearest neighbor node */
- 		ret = migrate_pages(&source, new_node_page, NULL, 0,
- 					MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
--		if (ret)
-+		if (ret) {
-+			list_for_each_entry(page, &source, lru) {
-+				pr_warn("migrating pfn %lx failed ret:%d ",
-+				       page_to_pfn(page), ret);
-+				dump_page(page, "migration failure");
-+			}
- 			putback_movable_pages(&source);
-+		}
- 	}
- out:
- 	return ret;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a919ba5cb3c8..ec2c7916dc2d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7845,6 +7845,7 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 	return false;
- unmovable:
- 	WARN_ON_ONCE(zone_idx(zone) == ZONE_MOVABLE);
-+	dump_page(pfn_to_page(pfn+iter), "unmovable page");
- 	return true;
- }
- 
 -- 
-2.19.1
+Michal Hocko
+SUSE Labs
