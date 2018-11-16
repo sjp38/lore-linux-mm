@@ -1,83 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AA976B0AAE
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 12:50:10 -0500 (EST)
-Received: by mail-lj1-f198.google.com with SMTP id m13-v6so10317473lji.15
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 09:50:10 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u5-v6sor17282848lja.17.2018.11.16.09.50.07
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 819E26B0AB5
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 12:55:25 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id a9so772029pla.2
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 09:55:25 -0800 (PST)
+Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-eopbgr760083.outbound.protection.outlook.com. [40.107.76.83])
+        by mx.google.com with ESMTPS id k5si30314358pgr.69.2018.11.16.09.55.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 16 Nov 2018 09:50:08 -0800 (PST)
-Date: Fri, 16 Nov 2018 20:50:05 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [Bug 201699] New: kmemleak in memcg_create_kmem_cache
-Message-ID: <20181116175005.3dcfpyhuj57oaszm@esperanza>
-References: <bug-201699-27@https.bugzilla.kernel.org/>
- <20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 16 Nov 2018 09:55:24 -0800 (PST)
+From: Slavomir Kaslev <kaslevs@vmware.com>
+Subject: Re: [PATCH 1/9] mm: Introduce new vm_insert_range API
+Date: Fri, 16 Nov 2018 17:55:22 +0000
+Message-ID: 
+ <CAE0o1NuTR1x2u9aJVo3-u9yPAESQqLRZNrjxDJSugTF6qo+pbA@mail.gmail.com>
+References: <20181115154530.GA27872@jordon-HP-15-Notebook-PC>
+In-Reply-To: <20181115154530.GA27872@jordon-HP-15-Notebook-PC>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <243495D8FC4F0848823B570DD3CCEA8B@namprd05.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bauers@126.com
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: "jrdr.linux@gmail.com" <jrdr.linux@gmail.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "willy@infradead.org" <willy@infradead.org>, "mhocko@suse.com" <mhocko@suse.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "riel@surriel.com" <riel@surriel.com>, "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>, "rppt@linux.vnet.ibm.com" <rppt@linux.vnet.ibm.com>, "peterz@infradead.org" <peterz@infradead.org>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "treding@nvidia.com" <treding@nvidia.com>, "keescook@chromium.org" <keescook@chromium.org>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "stefanr@s5r6.in-berlin.de" <stefanr@s5r6.in-berlin.de>, "hjc@rock-chips.com" <hjc@rock-chips.com>, "heiko@sntech.de" <heiko@sntech.de>, "airlied@linux.ie" <airlied@linux.ie>, "oleksandr_andrushchenko@epam.com" <oleksandr_andrushchenko@epam.com>, "joro@8bytes.org" <joro@8bytes.org>, "pawel@osciak.com" <pawel@osciak.com>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "mchehab@kernel.org" <mchehab@kernel.org>, "boris.ostrovsky@oracle.com" <boris.ostrovsky@oracle.com>, "jgross@suse.com" <jgross@suse.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux1394-devel@lists.sourceforge.net" <linux1394-devel@lists.sourceforge.net>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, "linux-rockchip@lists.infradead.org" <linux-rockchip@lists.infradead.org>, "xen-devel@lists.xen.org" <xen-devel@lists.xen.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
 
-On Thu, Nov 15, 2018 at 01:06:46PM -0800, Andrew Morton wrote:
-> > On debian OS, when systemd restart a failed service periodically. It will cause
-> > memory leak. When I enable kmemleak, the message comes up.
-
-What made you think there was a memory leak in the first place?
-
-> > 
-> > 
-> > [ 4658.065578] kmemleak: Found object by alias at 0xffff9d84ba868808
-> > [ 4658.065581] CPU: 8 PID: 5194 Comm: kworker/8:3 Not tainted 4.20.0-rc2.bm.1+
-> > #1
-> > [ 4658.065582] Hardware name: Dell Inc. PowerEdge C6320/082F9M, BIOS 2.1.5
-> > 04/12/2016
-> > [ 4658.065586] Workqueue: memcg_kmem_cache memcg_kmem_cache_create_func
-> > [ 4658.065587] Call Trace:
-> > [ 4658.065590]  dump_stack+0x5c/0x7b
-> > [ 4658.065594]  lookup_object+0x5e/0x80
-> > [ 4658.065596]  find_and_get_object+0x29/0x80
-> > [ 4658.065598]  kmemleak_no_scan+0x31/0xc0
-> > [ 4658.065600]  setup_kmem_cache_node+0x271/0x350
-> > [ 4658.065602]  __do_tune_cpucache+0x18c/0x220
-> > [ 4658.065603]  do_tune_cpucache+0x27/0xb0
-> > [ 4658.065605]  enable_cpucache+0x80/0x110
-> > [ 4658.065606]  __kmem_cache_create+0x217/0x3a0
-> > [ 4658.065609]  ? kmem_cache_alloc+0x1aa/0x280
-> > [ 4658.065612]  create_cache+0xd9/0x200
-> > [ 4658.065614]  memcg_create_kmem_cache+0xef/0x120
-> > [ 4658.065616]  memcg_kmem_cache_create_func+0x1b/0x60
-> > [ 4658.065619]  process_one_work+0x1d1/0x3d0
-> > [ 4658.065621]  worker_thread+0x4f/0x3b0
-> > [ 4658.065623]  ? rescuer_thread+0x360/0x360
-> > [ 4658.065625]  kthread+0xf8/0x130
-> > [ 4658.065627]  ? kthread_create_worker_on_cpu+0x70/0x70
-> > [ 4658.065628]  ret_from_fork+0x35/0x40
-> > [ 4658.065630] kmemleak: Object 0xffff9d84ba868800 (size 128):
-> > [ 4658.065631] kmemleak:   comm "kworker/8:3", pid 5194, jiffies 4296056196
-> > [ 4658.065631] kmemleak:   min_count = 1
-> > [ 4658.065632] kmemleak:   count = 0
-> > [ 4658.065632] kmemleak:   flags = 0x1
-> > [ 4658.065633] kmemleak:   checksum = 0
-> > [ 4658.065633] kmemleak:   backtrace:
-> > [ 4658.065635]      __do_tune_cpucache+0x18c/0x220
-> > [ 4658.065636]      do_tune_cpucache+0x27/0xb0
-> > [ 4658.065637]      enable_cpucache+0x80/0x110
-> > [ 4658.065638]      __kmem_cache_create+0x217/0x3a0
-> > [ 4658.065640]      create_cache+0xd9/0x200
-> > [ 4658.065641]      memcg_create_kmem_cache+0xef/0x120
-> > [ 4658.065642]      memcg_kmem_cache_create_func+0x1b/0x60
-> > [ 4658.065644]      process_one_work+0x1d1/0x3d0
-> > [ 4658.065646]      worker_thread+0x4f/0x3b0
-> > [ 4658.065647]      kthread+0xf8/0x130
-> > [ 4658.065648]      ret_from_fork+0x35/0x40
-> > [ 4658.065649]      0xffffffffffffffff
-> > [ 4658.065650] kmemleak: Not scanning unknown object at 0xffff9d84ba868808
-
-This doesn't look like kmemleak reporting a leak to me, although this
-does look weird. What does /sys/kernel/debug/kmemleak show?
+T24gVGh1LCBOb3YgMTUsIDIwMTggYXQgNTo0MiBQTSBTb3VwdGljayBKb2FyZGVyIDxqcmRyLmxp
+bnV4QGdtYWlsLmNvbT4gd3JvdGU6DQo+DQo+IFByZXZpb3VseSBkcml2ZXJzIGhhdmUgdGhlaXIg
+b3duIHdheSBvZiBtYXBwaW5nIHJhbmdlIG9mDQo+IGtlcm5lbCBwYWdlcy9tZW1vcnkgaW50byB1
+c2VyIHZtYSBhbmQgdGhpcyB3YXMgZG9uZSBieQ0KPiBpbnZva2luZyB2bV9pbnNlcnRfcGFnZSgp
+IHdpdGhpbiBhIGxvb3AuDQo+DQo+IEFzIHRoaXMgcGF0dGVybiBpcyBjb21tb24gYWNyb3NzIGRp
+ZmZlcmVudCBkcml2ZXJzLCBpdCBjYW4NCj4gYmUgZ2VuZXJhbGl6ZWQgYnkgY3JlYXRpbmcgYSBu
+ZXcgZnVuY3Rpb24gYW5kIHVzZSBpdCBhY3Jvc3MNCj4gdGhlIGRyaXZlcnMuDQo+DQo+IHZtX2lu
+c2VydF9yYW5nZSBpcyB0aGUgbmV3IEFQSSB3aGljaCB3aWxsIGJlIHVzZWQgdG8gbWFwIGENCj4g
+cmFuZ2Ugb2Yga2VybmVsIG1lbW9yeS9wYWdlcyB0byB1c2VyIHZtYS4NCj4NCj4gU2lnbmVkLW9m
+Zi1ieTogU291cHRpY2sgSm9hcmRlciA8anJkci5saW51eEBnbWFpbC5jb20+DQo+IFJldmlld2Vk
+LWJ5OiBNYXR0aGV3IFdpbGNveCA8d2lsbHlAaW5mcmFkZWFkLm9yZz4NCj4gLS0tDQo+ICBpbmNs
+dWRlL2xpbnV4L21tX3R5cGVzLmggfCAgMyArKysNCj4gIG1tL21lbW9yeS5jICAgICAgICAgICAg
+ICB8IDI4ICsrKysrKysrKysrKysrKysrKysrKysrKysrKysNCj4gIG1tL25vbW11LmMgICAgICAg
+ICAgICAgICB8ICA3ICsrKysrKysNCj4gIDMgZmlsZXMgY2hhbmdlZCwgMzggaW5zZXJ0aW9ucygr
+KQ0KPg0KPiBkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC9tbV90eXBlcy5oIGIvaW5jbHVkZS9s
+aW51eC9tbV90eXBlcy5oDQo+IGluZGV4IDVlZDhmNjIuLjE1YWUyNGYgMTAwNjQ0DQo+IC0tLSBh
+L2luY2x1ZGUvbGludXgvbW1fdHlwZXMuaA0KPiArKysgYi9pbmNsdWRlL2xpbnV4L21tX3R5cGVz
+LmgNCj4gQEAgLTUyMyw2ICs1MjMsOSBAQCBleHRlcm4gdm9pZCB0bGJfZ2F0aGVyX21tdShzdHJ1
+Y3QgbW11X2dhdGhlciAqdGxiLCBzdHJ1Y3QgbW1fc3RydWN0ICptbSwNCj4gIGV4dGVybiB2b2lk
+IHRsYl9maW5pc2hfbW11KHN0cnVjdCBtbXVfZ2F0aGVyICp0bGIsDQo+ICAgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgICAgdW5zaWduZWQgbG9uZyBzdGFydCwgdW5zaWduZWQgbG9uZyBlbmQp
+Ow0KPg0KPiAraW50IHZtX2luc2VydF9yYW5nZShzdHJ1Y3Qgdm1fYXJlYV9zdHJ1Y3QgKnZtYSwg
+dW5zaWduZWQgbG9uZyBhZGRyLA0KPiArICAgICAgICAgICAgICAgICAgICAgICBzdHJ1Y3QgcGFn
+ZSAqKnBhZ2VzLCB1bnNpZ25lZCBsb25nIHBhZ2VfY291bnQpOw0KPiArDQo+ICBzdGF0aWMgaW5s
+aW5lIHZvaWQgaW5pdF90bGJfZmx1c2hfcGVuZGluZyhzdHJ1Y3QgbW1fc3RydWN0ICptbSkNCj4g
+IHsNCj4gICAgICAgICBhdG9taWNfc2V0KCZtbS0+dGxiX2ZsdXNoX3BlbmRpbmcsIDApOw0KPiBk
+aWZmIC0tZ2l0IGEvbW0vbWVtb3J5LmMgYi9tbS9tZW1vcnkuYw0KPiBpbmRleCAxNWM0MTdlLi5k
+YTkwNGVkIDEwMDY0NA0KPiAtLS0gYS9tbS9tZW1vcnkuYw0KPiArKysgYi9tbS9tZW1vcnkuYw0K
+PiBAQCAtMTQ3OCw2ICsxNDc4LDM0IEBAIHN0YXRpYyBpbnQgaW5zZXJ0X3BhZ2Uoc3RydWN0IHZt
+X2FyZWFfc3RydWN0ICp2bWEsIHVuc2lnbmVkIGxvbmcgYWRkciwNCj4gIH0NCj4NCj4gIC8qKg0K
+PiArICogdm1faW5zZXJ0X3JhbmdlIC0gaW5zZXJ0IHJhbmdlIG9mIGtlcm5lbCBwYWdlcyBpbnRv
+IHVzZXIgdm1hDQo+ICsgKiBAdm1hOiB1c2VyIHZtYSB0byBtYXAgdG8NCj4gKyAqIEBhZGRyOiB0
+YXJnZXQgdXNlciBhZGRyZXNzIG9mIHRoaXMgcGFnZQ0KPiArICogQHBhZ2VzOiBwb2ludGVyIHRv
+IGFycmF5IG9mIHNvdXJjZSBrZXJuZWwgcGFnZXMNCj4gKyAqIEBwYWdlX2NvdW50OiBuby4gb2Yg
+cGFnZXMgbmVlZCB0byBpbnNlcnQgaW50byB1c2VyIHZtYQ0KPiArICoNCj4gKyAqIFRoaXMgYWxs
+b3dzIGRyaXZlcnMgdG8gaW5zZXJ0IHJhbmdlIG9mIGtlcm5lbCBwYWdlcyB0aGV5J3ZlIGFsbG9j
+YXRlZA0KPiArICogaW50byBhIHVzZXIgdm1hLiBUaGlzIGlzIGEgZ2VuZXJpYyBmdW5jdGlvbiB3
+aGljaCBkcml2ZXJzIGNhbiB1c2UNCj4gKyAqIHJhdGhlciB0aGFuIHVzaW5nIHRoZWlyIG93biB3
+YXkgb2YgbWFwcGluZyByYW5nZSBvZiBrZXJuZWwgcGFnZXMgaW50bw0KPiArICogdXNlciB2bWEu
+DQo+ICsgKi8NCj4gK2ludCB2bV9pbnNlcnRfcmFuZ2Uoc3RydWN0IHZtX2FyZWFfc3RydWN0ICp2
+bWEsIHVuc2lnbmVkIGxvbmcgYWRkciwNCj4gKyAgICAgICAgICAgICAgICAgICAgICAgc3RydWN0
+IHBhZ2UgKipwYWdlcywgdW5zaWduZWQgbG9uZyBwYWdlX2NvdW50KQ0KPiArew0KPiArICAgICAg
+IHVuc2lnbmVkIGxvbmcgdWFkZHIgPSBhZGRyOw0KPiArICAgICAgIGludCByZXQgPSAwLCBpOw0K
+PiArDQo+ICsgICAgICAgZm9yIChpID0gMDsgaSA8IHBhZ2VfY291bnQ7IGkrKykgew0KPiArICAg
+ICAgICAgICAgICAgcmV0ID0gdm1faW5zZXJ0X3BhZ2Uodm1hLCB1YWRkciwgcGFnZXNbaV0pOw0K
+PiArICAgICAgICAgICAgICAgaWYgKHJldCA8IDApDQo+ICsgICAgICAgICAgICAgICAgICAgICAg
+IHJldHVybiByZXQ7DQo+ICsgICAgICAgICAgICAgICB1YWRkciArPSBQQUdFX1NJWkU7DQo+ICsg
+ICAgICAgfQ0KPiArDQo+ICsgICAgICAgcmV0dXJuIHJldDsNCj4gK30NCg0KKyBFWFBPUlRfU1lN
+Qk9MKHZtX2luc2VydF9yYW5nZSk7DQoNCj4gKw0KPiArLyoqDQo+ICAgKiB2bV9pbnNlcnRfcGFn
+ZSAtIGluc2VydCBzaW5nbGUgcGFnZSBpbnRvIHVzZXIgdm1hDQo+ICAgKiBAdm1hOiB1c2VyIHZt
+YSB0byBtYXAgdG8NCj4gICAqIEBhZGRyOiB0YXJnZXQgdXNlciBhZGRyZXNzIG9mIHRoaXMgcGFn
+ZQ0KPiBkaWZmIC0tZ2l0IGEvbW0vbm9tbXUuYyBiL21tL25vbW11LmMNCj4gaW5kZXggNzQ5Mjc2
+Yi4uZDZlZjVjNyAxMDA2NDQNCj4gLS0tIGEvbW0vbm9tbXUuYw0KPiArKysgYi9tbS9ub21tdS5j
+DQo+IEBAIC00NzMsNiArNDczLDEzIEBAIGludCB2bV9pbnNlcnRfcGFnZShzdHJ1Y3Qgdm1fYXJl
+YV9zdHJ1Y3QgKnZtYSwgdW5zaWduZWQgbG9uZyBhZGRyLA0KPiAgfQ0KPiAgRVhQT1JUX1NZTUJP
+TCh2bV9pbnNlcnRfcGFnZSk7DQo+DQo+ICtpbnQgdm1faW5zZXJ0X3JhbmdlKHN0cnVjdCB2bV9h
+cmVhX3N0cnVjdCAqdm1hLCB1bnNpZ25lZCBsb25nIGFkZHIsDQo+ICsgICAgICAgICAgICAgICAg
+ICAgICAgIHN0cnVjdCBwYWdlICoqcGFnZXMsIHVuc2lnbmVkIGxvbmcgcGFnZV9jb3VudCkNCj4g
+K3sNCj4gKyAgICAgICByZXR1cm4gLUVJTlZBTDsNCj4gK30NCj4gK0VYUE9SVF9TWU1CT0wodm1f
+aW5zZXJ0X3JhbmdlKTsNCj4gKw0KPiAgLyoNCj4gICAqICBzeXNfYnJrKCkgZm9yIHRoZSBtb3N0
+IHBhcnQgZG9lc24ndCBuZWVkIHRoZSBnbG9iYWwga2VybmVsDQo+ICAgKiAgbG9jaywgZXhjZXB0
+IHdoZW4gYW4gYXBwbGljYXRpb24gaXMgZG9pbmcgc29tZXRoaW5nIG5hc3R5DQo+IC0tDQo+IDEu
+OS4xDQo+DQo=
