@@ -1,76 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 98E7E6B0A8D
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 12:07:57 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id w15so546675edl.21
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 09:07:57 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 6-v6si4769614edo.127.2018.11.16.09.07.56
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AA976B0AAE
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 12:50:10 -0500 (EST)
+Received: by mail-lj1-f198.google.com with SMTP id m13-v6so10317473lji.15
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 09:50:10 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u5-v6sor17282848lja.17.2018.11.16.09.50.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Nov 2018 09:07:56 -0800 (PST)
-Date: Fri, 16 Nov 2018 18:07:55 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: use managed_zone() for more exact check in zone
- iteration
-Message-ID: <20181116170755.GN14706@dhcp22.suse.cz>
-References: <20181114235040.36180-1-richard.weiyang@gmail.com>
- <20181115133735.bb0313ec9293c415d08be550@linux-foundation.org>
- <20181116095720.GE14706@dhcp22.suse.cz>
- <1542366304.3020.15.camel@suse.de>
- <20181116112603.GI14706@dhcp22.suse.cz>
- <20181116155828.strdglxqgqe4jqkr@master>
+        (Google Transport Security);
+        Fri, 16 Nov 2018 09:50:08 -0800 (PST)
+Date: Fri, 16 Nov 2018 20:50:05 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [Bug 201699] New: kmemleak in memcg_create_kmem_cache
+Message-ID: <20181116175005.3dcfpyhuj57oaszm@esperanza>
+References: <bug-201699-27@https.bugzilla.kernel.org/>
+ <20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181116155828.strdglxqgqe4jqkr@master>
+In-Reply-To: <20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: osalvador <osalvador@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: bauers@126.com
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri 16-11-18 15:58:28, Wei Yang wrote:
-> On Fri, Nov 16, 2018 at 12:26:03PM +0100, Michal Hocko wrote:
-> >On Fri 16-11-18 12:05:04, osalvador wrote:
-> >> On Fri, 2018-11-16 at 10:57 +0100, Michal Hocko wrote:
-> >[...]
-> >> > E.g. memory hotplug decreases both managed and present counters. I
-> >> > am actually not sure that is 100% correct (put on my TODO list to
-> >> > check). There is no consistency in that regards.
-> >> 
-> >> We can only offline non-reserved pages (so, managed pages).
-> >
-> >Yes
-> >
-> >> Since present pages holds reserved_pages + managed_pages, decreasing
-> >> both should be fine unless I am mistaken.
-> >
-> >Well, present_pages is defined as "physical pages existing within the zone"
-> >and those pages are still existing but they are offline. But as I've
-> >said I have to think about it some more
-> 
-> I may not catch up with your discussions, while I'd like to share what I
-> learnt.
-> 
-> online_pages()
->     online_pages_range()
->     zone->present_pages += onlined_pages;
-> 
-> __offline_pages()
->     adjust_managed_page_count()
->     zone->present_pages -= offlined_pages;
-> 
-> The two counters: present_pages & managed_pages would be adjusted during
-> online/offline.
-> 
-> While I am not sure when *reserved_pages* would be adjusted. Will we add
-> this hot-added memory into memblock.reserved? and allocate memory by
-> memblock_alloc() after system bootup?
+On Thu, Nov 15, 2018 at 01:06:46PM -0800, Andrew Morton wrote:
+> > On debian OS, when systemd restart a failed service periodically. It will cause
+> > memory leak. When I enable kmemleak, the message comes up.
 
-This is not really related to this patch. I have only mentioned the
-memory hotplug as an example. I would rather focus on the change itself
-so let's not get too off topic here.
+What made you think there was a memory leak in the first place?
 
--- 
-Michal Hocko
-SUSE Labs
+> > 
+> > 
+> > [ 4658.065578] kmemleak: Found object by alias at 0xffff9d84ba868808
+> > [ 4658.065581] CPU: 8 PID: 5194 Comm: kworker/8:3 Not tainted 4.20.0-rc2.bm.1+
+> > #1
+> > [ 4658.065582] Hardware name: Dell Inc. PowerEdge C6320/082F9M, BIOS 2.1.5
+> > 04/12/2016
+> > [ 4658.065586] Workqueue: memcg_kmem_cache memcg_kmem_cache_create_func
+> > [ 4658.065587] Call Trace:
+> > [ 4658.065590]  dump_stack+0x5c/0x7b
+> > [ 4658.065594]  lookup_object+0x5e/0x80
+> > [ 4658.065596]  find_and_get_object+0x29/0x80
+> > [ 4658.065598]  kmemleak_no_scan+0x31/0xc0
+> > [ 4658.065600]  setup_kmem_cache_node+0x271/0x350
+> > [ 4658.065602]  __do_tune_cpucache+0x18c/0x220
+> > [ 4658.065603]  do_tune_cpucache+0x27/0xb0
+> > [ 4658.065605]  enable_cpucache+0x80/0x110
+> > [ 4658.065606]  __kmem_cache_create+0x217/0x3a0
+> > [ 4658.065609]  ? kmem_cache_alloc+0x1aa/0x280
+> > [ 4658.065612]  create_cache+0xd9/0x200
+> > [ 4658.065614]  memcg_create_kmem_cache+0xef/0x120
+> > [ 4658.065616]  memcg_kmem_cache_create_func+0x1b/0x60
+> > [ 4658.065619]  process_one_work+0x1d1/0x3d0
+> > [ 4658.065621]  worker_thread+0x4f/0x3b0
+> > [ 4658.065623]  ? rescuer_thread+0x360/0x360
+> > [ 4658.065625]  kthread+0xf8/0x130
+> > [ 4658.065627]  ? kthread_create_worker_on_cpu+0x70/0x70
+> > [ 4658.065628]  ret_from_fork+0x35/0x40
+> > [ 4658.065630] kmemleak: Object 0xffff9d84ba868800 (size 128):
+> > [ 4658.065631] kmemleak:   comm "kworker/8:3", pid 5194, jiffies 4296056196
+> > [ 4658.065631] kmemleak:   min_count = 1
+> > [ 4658.065632] kmemleak:   count = 0
+> > [ 4658.065632] kmemleak:   flags = 0x1
+> > [ 4658.065633] kmemleak:   checksum = 0
+> > [ 4658.065633] kmemleak:   backtrace:
+> > [ 4658.065635]      __do_tune_cpucache+0x18c/0x220
+> > [ 4658.065636]      do_tune_cpucache+0x27/0xb0
+> > [ 4658.065637]      enable_cpucache+0x80/0x110
+> > [ 4658.065638]      __kmem_cache_create+0x217/0x3a0
+> > [ 4658.065640]      create_cache+0xd9/0x200
+> > [ 4658.065641]      memcg_create_kmem_cache+0xef/0x120
+> > [ 4658.065642]      memcg_kmem_cache_create_func+0x1b/0x60
+> > [ 4658.065644]      process_one_work+0x1d1/0x3d0
+> > [ 4658.065646]      worker_thread+0x4f/0x3b0
+> > [ 4658.065647]      kthread+0xf8/0x130
+> > [ 4658.065648]      ret_from_fork+0x35/0x40
+> > [ 4658.065649]      0xffffffffffffffff
+> > [ 4658.065650] kmemleak: Not scanning unknown object at 0xffff9d84ba868808
+
+This doesn't look like kmemleak reporting a leak to me, although this
+does look weird. What does /sys/kernel/debug/kmemleak show?
