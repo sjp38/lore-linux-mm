@@ -1,69 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EDE6A6B0872
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 03:16:04 -0500 (EST)
-Received: by mail-lj1-f199.google.com with SMTP id 6-v6so9677563ljv.21
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 00:16:04 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p10-v6sor16979977ljh.6.2018.11.16.00.16.02
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AEEE6B087E
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 03:30:33 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id s50so2669810edd.11
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 00:30:33 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id w15-v6sor15286100edb.5.2018.11.16.00.30.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 16 Nov 2018 00:16:03 -0800 (PST)
+        Fri, 16 Nov 2018 00:30:31 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/5] mm, memory_hotplug: improve memory offlining failures debugging
+Date: Fri, 16 Nov 2018 09:30:15 +0100
+Message-Id: <20181116083020.20260-1-mhocko@kernel.org>
 MIME-Version: 1.0
-References: <20181115154530.GA27872@jordon-HP-15-Notebook-PC>
- <9655a12e-bd3d-aca2-6155-38924028eb5d@infradead.org> <CAFqt6zbLjtDab3Bz67trbnQRQdutvgA=YvAFhoW4bxsg657mGQ@mail.gmail.com>
- <20181116064049.GA5320@bombadil.infradead.org>
-In-Reply-To: <20181116064049.GA5320@bombadil.infradead.org>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Fri, 16 Nov 2018 13:45:48 +0530
-Message-ID: <CAFqt6zbL1tu4VWtZ5Wz-BgbOS+M2GJziMj958_h_ri4Th3n9bQ@mail.gmail.com>
-Subject: Re: [PATCH 1/9] mm: Introduce new vm_insert_range API
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Randy Dunlap <rdunlap@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz, Rik van Riel <riel@surriel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, rppt@linux.vnet.ibm.com, Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, Kees Cook <keescook@chromium.org>, Marek Szyprowski <m.szyprowski@samsung.com>, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, Kyungmin Park <kyungmin.park@samsung.com>, mchehab@kernel.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Oscar Salvador <OSalvador@suse.com>, Baoquan He <bhe@redhat.com>, Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Nov 16, 2018 at 12:11 PM Matthew Wilcox <willy@infradead.org> wrote:
->
-> On Fri, Nov 16, 2018 at 11:00:30AM +0530, Souptick Joarder wrote:
-> > On Thu, Nov 15, 2018 at 11:44 PM Randy Dunlap <rdunlap@infradead.org> wrote:
-> > > On 11/15/18 7:45 AM, Souptick Joarder wrote:
-> > > What is the opposite of vm_insert_range() or even of vm_insert_page()?
-> > > or is there no need for that?
-> >
-> > There is no opposite function of vm_insert_range() / vm_insert_page().
-> > My understanding is, in case of any error, mmap handlers will return the
-> > err to user process and user space will decide the next action. So next
-> > time when mmap handler is getting invoked it will map from the beginning.
-> > Correct me if I am wrong.
->
-> The opposite function, I suppose, is unmap_region().
->
-> > > s/no./number/
-> >
-> > I didn't get it ??
->
-> This is a 'sed' expression.  's' is the 'substitute' command; the /
-> is a separator, 'no.' is what you wrote, and 'number' is what Randy
-> is recommending instead.
+Hi,
+this has been posted as an RFC [1]. I have screwed during rebasing so
+there were few compilation issues in the previous version. I have also
+integrated review feedback from Andrew and Anshuman.
 
-Ok. Will change it in v2.
->
-> > > > +     for (i = 0; i < page_count; i++) {
-> > > > +             ret = vm_insert_page(vma, uaddr, pages[i]);
-> > > > +             if (ret < 0)
-> > > > +                     return ret;
-> > >
-> > > For a non-trivial value of page_count:
-> > > Is it a problem if vm_insert_page() succeeds for several pages
-> > > and then fails?
-> >
-> > No, it will be considered as total failure and mmap handler will return
-> > the err to user space.
->
-> I think what Randy means is "What happens to the inserted pages?" and
-> the answer is that mmap_region() jumps to the 'unmap_and_free_vma'
-> label, which is an accurate name.
+I have been promissing to improve memory offlining failures debugging
+for quite some time. As things stand now we get only very limited
+information in the kernel log when the offlining fails. It is usually
+only
+[ 1984.506184] rac1 kernel: memory offlining [mem 0x82600000000-0x8267fffffff] failed
+without no further details. We do not know what exactly fails and for
+what reason. Whenever I was forced to debug such a failure I've always
+had to do a debugging patch to tell me more. We can enable some
+tracepoints but it would be much better to get a better picture without
+using them.
 
-Sorry for incorrect understanding of the question.
+This patch series does 2 things. The first one is to make dump_page
+more usable by printing more information about the mapping patch 1.
+Then it reduces the log level from emerg to warning so that this
+function is usable from less critical context patch 2. Then I have
+added more detailed information about the offlining failure patch 4
+and finally add dump_page to isolation and offlining migration paths.
+Patch 3 is a trivial cleanup.
+
+Does this look go to you?
+
+[1] http://lkml.kernel.org/r/20181107101830.17405-1-mhocko@kernel.org
+
+Shortlog
+Michal Hocko (5):
+      mm: print more information about mapping in __dump_page
+      mm: lower the printk loglevel for __dump_page messages
+      mm, memory_hotplug: drop pointless block alignment checks from __offline_pages
+      mm, memory_hotplug: print reason for the offlining failure
+      mm, memory_hotplug: be more verbose for memory offline failures
+
+Diffstat
+ mm/debug.c          | 23 ++++++++++++++++++-----
+ mm/memory_hotplug.c | 52 +++++++++++++++++++++++++++++++---------------------
+ mm/page_alloc.c     |  1 +
+ 3 files changed, 50 insertions(+), 26 deletions(-)
