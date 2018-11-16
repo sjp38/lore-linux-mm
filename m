@@ -1,180 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F7196B0ACF
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 13:19:07 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id b4-v6so14934361plb.3
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 10:19:07 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id u131si9802792pgc.287.2018.11.16.10.19.05
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 062786B0AB6
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 13:23:37 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id d196so53132390qkb.6
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 10:23:36 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w90si1517650qvw.209.2018.11.16.10.23.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Nov 2018 10:19:05 -0800 (PST)
-Date: Fri, 16 Nov 2018 13:19:04 -0500
-From: Sasha Levin <sashal@kernel.org>
-Subject: Re: [PATCH AUTOSEL 3.18 8/9] mm/vmstat.c: assert that vmstat_text is
- in sync with stat_items_size
-Message-ID: <20181116181904.GH1706@sasha-vm>
-References: <20181113055252.79406-1-sashal@kernel.org>
- <20181113055252.79406-8-sashal@kernel.org>
- <20181115140810.e3292c83467544f6a1d82686@linux-foundation.org>
- <20181115223718.GB1706@sasha-vm>
- <20181115144719.d26dc7a2d47fade8d41a83d5@linux-foundation.org>
- <20181115230118.GC1706@sasha-vm>
- <20181116085525.GC14706@dhcp22.suse.cz>
+        Fri, 16 Nov 2018 10:23:36 -0800 (PST)
+Subject: Re: [PATCH RFC 0/6] mm/kdump: allow to exclude pages that are
+ logically offline
+References: <20181114211704.6381-1-david@redhat.com>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <a0b995a2-d78e-8413-f232-9a82b4d4f5b5@redhat.com>
+Date: Fri, 16 Nov 2018 19:23:20 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20181116085525.GC14706@dhcp22.suse.cz>
+In-Reply-To: <20181114211704.6381-1-david@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-kernel@vger.kernel.org, Jann Horn <jannh@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Christoph Lameter <clameter@sgi.com>, Kemi Wang <kemi.wang@intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Alexey Dobriyan <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Baoquan He <bhe@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Christian Hansen <chansen3@cisco.com>, Dave Young <dyoung@redhat.com>, David Rientjes <rientjes@google.com>, Haiyang Zhang <haiyangz@microsoft.com>, Jonathan Corbet <corbet@lwn.net>, Juergen Gross <jgross@suse.com>, Kairui Song <kasong@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "K. Y. Srinivasan" <kys@microsoft.com>, Len Brown <len.brown@intel.com>, Matthew Wilcox <willy@infradead.org>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Miles Chen <miles.chen@mediatek.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Omar Sandoval <osandov@fb.com>, Pavel Machek <pavel@ucw.cz>, Pavel Tatashin <pasha.tatashin@oracle.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Stefano Stabellini <sstabellini@kernel.org>, Stephen Hemminger <sthemmin@microsoft.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Vitaly Kuznetsov <vkuznets@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Fri, Nov 16, 2018 at 09:55:25AM +0100, Michal Hocko wrote:
->On Thu 15-11-18 18:01:18, Sasha Levin wrote:
->> On Thu, Nov 15, 2018 at 02:47:19PM -0800, Andrew Morton wrote:
->> > On Thu, 15 Nov 2018 17:37:18 -0500 Sasha Levin <sashal@kernel.org> wrote:
->> >
->> > > On Thu, Nov 15, 2018 at 02:08:10PM -0800, Andrew Morton wrote:
->> > > >On Tue, 13 Nov 2018 00:52:51 -0500 Sasha Levin <sashal@kernel.org> wrote:
->> > > >
->> > > >> From: Jann Horn <jannh@google.com>
->> > > >>
->> > > >> [ Upstream commit f0ecf25a093fc0589f0a6bc4c1ea068bbb67d220 ]
->> > > >>
->> > > >> Having two gigantic arrays that must manually be kept in sync, including
->> > > >> ifdefs, isn't exactly robust.  To make it easier to catch such issues in
->> > > >> the future, add a BUILD_BUG_ON().
->> > > >>
->> > > >> ...
->> > > >>
->> > > >> --- a/mm/vmstat.c
->> > > >> +++ b/mm/vmstat.c
->> > > >> @@ -1189,6 +1189,8 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
->> > > >>  	stat_items_size += sizeof(struct vm_event_state);
->> > > >>  #endif
->> > > >>
->> > > >> +	BUILD_BUG_ON(stat_items_size !=
->> > > >> +		     ARRAY_SIZE(vmstat_text) * sizeof(unsigned long));
->> > > >>  	v = kmalloc(stat_items_size, GFP_KERNEL);
->> > > >>  	m->private = v;
->> > > >>  	if (!v)
->> > > >
->> > > >I don't think there's any way in which this can make a -stable kernel
->> > > >more stable!
->> > > >
->> > > >
->> > > >Generally, I consider -stable in every patch I merge, so for each patch
->> > > >which doesn't have cc:stable, that tag is missing for a reason.
->> > > >
->> > > >In other words, your criteria for -stable addition are different from
->> > > >mine.
->> > > >
->> > > >And I think your criteria differ from those described in
->> > > >Documentation/process/stable-kernel-rules.rst.
->> > > >
->> > > >So... what is your overall thinking on patch selection?
->> > >
->> > > Indeed, this doesn't fix anything.
->> > >
->> > > My concern is that in the future, we will pull a patch that will cause
->> > > the issue described here, and that issue will only be relevant on
->> > > stable. It is very hard to debug this, and I suspect that stable kernels
->> > > will still pass all their tests with flying colors.
->> > >
->> > > As an example, consider the case where commit 28e2c4bb99aa ("mm/vmstat.c:
->> > > fix outdated vmstat_text") is backported to a kernel that doesn't have
->> > > commit 7a9cdebdcc17 ("mm: get rid of vmacache_flush_all() entirely").
->> > >
->> > > I also felt safe with this patch since it adds a single BUILD_BUG_ON()
->> > > which does nothing during runtime, so the chances it introduces anything
->> > > beyond a build regression seemed to be slim to none.
->> >
->> > Well OK.  But my question was general and covers basically every
->> > autosel patch which originated in -mm.
->>
->> Sure. I picked 3 patches that show up on top when I google for AUTOSEL
->> in linux-mm, maybe they'll be a good example to help me understand why
->> they were not selected.
->>
->> This one fixes a case where too few struct pages are allocated when
->> using mirrorred memory:
->>
->> 	https://marc.info/?l=linux-mm&m=154211933211147&w=2
->
->Let me quote "I found this bug by reading the code." I do not think
->anybody has ever seen this in practice.
->
->> Race condition with memory hotplug due to missing locks:
->>
->> 	https://marc.info/?l=linux-mm&m=154211934011188&w=2
->
->Memory hotplug locking is dubious at best and this patch doesn't really
->fix it. It fixes a theoretical problem. I am not aware anybody would be
->hitting in practice. We need to rework the locking quite extensively.
+On 14.11.18 22:16, David Hildenbrand wrote:
+> Right now, pages inflated as part of a balloon driver will be dumped
+> by dump tools like makedumpfile. While XEN is able to check in the
+> crash kernel whether a certain pfn is actuall backed by memory in the
+> hypervisor (see xen_oldmem_pfn_is_ram) and optimize this case, dumps of
+> virtio-balloon and hv-balloon inflated memory will essentially result in
+> zero pages getting allocated by the hypervisor and the dump getting
+> filled with this data.
+> 
+> The allocation and reading of zero pages can directly be avoided if a
+> dumping tool could know which pages only contain stale information not to
+> be dumped.
+> 
+> Also for XEN, calling into the kernel and asking the hypervisor if a
+> pfn is backed can be avoided if the duming tool would skip such pages
+> right from the beginning.
+> 
+> Dumping tools have no idea whether a given page is part of a balloon driver
+> and shall not be dumped. Esp. PG_reserved cannot be used for that purpose
+> as all memory allocated during early boot is also PG_reserved, see
+> discussion at [1]. So some other way of indication is required and a new
+> page flag is frowned upon.
+> 
+> We have PG_balloon (MAPCOUNT value), which is essentially unused now. I
+> suggest renaming it to something more generic (PG_offline) to mark pages as
+> logically offline. This flag can than e.g. also be used by virtio-mem in
+> the future to mark subsections as offline. Or by other code that wants to
+> put pages logically offline (e.g. later maybe poisoned pages that shall
+> no longer be used).
+> 
+> This series converts PG_balloon to PG_offline, allows dumping tools to
+> query the value to detect such pages and marks pages in the hv-balloon
+> and XEN balloon properly as PG_offline. Note that virtio-balloon already
+> set pages to PG_balloon (and now PG_offline).
+> 
+> Please note that this is also helpful for a problem we were seeing under
+> Hyper-V: Dumping logically offline memory (pages kept fake offline while
+> onlining a section via online_page_callback) would under some condicions
+> result in a kernel panic when dumping them.
+> 
+> As I don't have access to neither XEN nor Hyper-V installation, this was
+> not tested yet (and a makedumpfile change will be required to skip
+> dumping these pages).
+> 
+> [1] https://lkml.org/lkml/2018/7/20/566
+> 
+> David Hildenbrand (6):
+>   mm: balloon: update comment about isolation/migration/compaction
+>   mm: convert PG_balloon to PG_offline
+>   kexec: export PG_offline to VMCOREINFO
+>   xen/balloon: mark inflated pages PG_offline
+>   hv_balloon: mark inflated pages PG_offline
+>   PM / Hibernate: exclude all PageOffline() pages
+> 
+>  Documentation/admin-guide/mm/pagemap.rst |  6 +++++
+>  drivers/hv/hv_balloon.c                  | 14 ++++++++--
+>  drivers/xen/balloon.c                    |  3 +++
+>  fs/proc/page.c                           |  4 +--
+>  include/linux/balloon_compaction.h       | 34 +++++++++---------------
+>  include/linux/page-flags.h               | 11 +++++---
+>  include/uapi/linux/kernel-page-flags.h   |  1 +
+>  kernel/crash_core.c                      |  2 ++
+>  kernel/power/snapshot.c                  |  5 +++-
+>  tools/vm/page-types.c                    |  1 +
+>  10 files changed, 51 insertions(+), 30 deletions(-)
+> 
 
-The word "theoretical" used in the stable rules file does not mean
-that we need to have actual reports of users hitting bugs before we
-start backporting the relevant patch, it simply suggests that there
-needs to be a reasonable explanation of how this issue can be hit.
+I just did a test with virtio-balloon (and a very simple makedumpfile
+patch which I can supply on demand).
 
-For this memory hotplug patch in particular, I use the hv_balloon driver
-at this very moment (running a linux guest on windows, with "dynamic
-memory" enabled). Should I wait for it to crash before I can fix it?
+1. Guest with 8GB. Inflate balloon to 4GB via
+ sudo virsh setmem f29 --size 4096M --live
 
-Is the upstream code perfect? No, but that doesn't mean that it's not
-working at all, and if there are users they expect to see fixes going in
-and not just sitting idly waiting for a big rewrite that will come in a
-few years.
+2. Trigger a kernel panic in the guest
+    echo 1 > /proc/sys/kernel/sysrq
+    echo c > /proc/sysrq-trigger
 
-Memory hotplug fixes are not something you think should go to stable?
-Andrew sent a few of them to stable, so that can't be the case.
+Original pages  : 0x00000000001e1da8
+  Excluded pages   : 0x00000000001c9221
+    Pages filled with zero  : 0x00000000000050b0
+    Non-private cache pages : 0x0000000000046547
+    Private cache pages     : 0x0000000000002165
+    User process data pages : 0x00000000000048cf
+    Free pages              : 0x00000000000771f6
+    Hwpoison pages          : 0x0000000000000000
+    Offline pages           : 0x0000000000100000
+  Remaining pages  : 0x0000000000018b87
+  (The number of pages is reduced to 5%.)
+Memory Hole     : 0x000000000009e258
+--------------------------------------------------
+Total pages     : 0x0000000000280000
 
->> Raising an OOM event that causes issues in userspace when no OOM has
->> actually occured:
->>
->> 	https://marc.info/?l=linux-mm&m=154211939811582&w=2
->
->The patch makes sense I just do not think this is a stable material. The
->semantic of the event was and still is suboptimal.
+(Offline patches matches the 4GB)
 
-I really fail to understand your reasoning about -stable here. This
-patch is something people actually hit in the field, spent time on
-triaging and analysing it, and submitting a fix which looks reasonably
-straightforward.
+-- 
 
-That fix was acked by quite a few folks (including yourself) and merged
-in. And as far as we can tell, it actually fixed the problem.
-
-Why is it not stable material?
-
-My understanding is that you're concerned with the patch itself being
-"suboptimal", but in that case - why did you ack it?
-
->> I think that all 3 cases represent a "real" bug users can hit, and I
->> honestly don't know why they were not tagged for stable.
->
->It would be much better to ask in the respective email thread rather
->than spamming mailing with AUTOSEL patches which rarely get any
->attention.
-
-I actually tried it, but the comments I got is that it gets in the way
-and people preferred something they can filter.
-
->We have been through this discussion several times already and I thought
->we have agreed that those subsystems which are seriously considering stable
->are opted out from the AUTOSEL automagic. Has anything changed in that
->regards.
-
-I checked in with Andrew to get his input on this, he suggested that
-these patches should be sent to linux-mm and he'll give it a close look.
-
-Ultimately this is the subsystem's decision, yes, but I was under the
-impression that this decision wasn't made yet.
-
-I guess that I'm really failing to understand why patches like the third
-one here (the OOM one) are being kept out.
-
---
 Thanks,
-Sasha
+
+David / dhildenb
