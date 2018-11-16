@@ -1,135 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 99DE46B089B
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 03:55:29 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id s50so2699285edd.11
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 00:55:29 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 365C06B08AC
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 04:14:12 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id e12so10926640edd.16
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 01:14:12 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h22-v6si2580154ejl.15.2018.11.16.00.55.28
+        by mx.google.com with ESMTPS id i15-v6si2090942ejr.254.2018.11.16.01.14.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Nov 2018 00:55:28 -0800 (PST)
-Date: Fri, 16 Nov 2018 09:55:25 +0100
+        Fri, 16 Nov 2018 01:14:10 -0800 (PST)
+Date: Fri, 16 Nov 2018 10:14:09 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH AUTOSEL 3.18 8/9] mm/vmstat.c: assert that vmstat_text is
- in sync with stat_items_size
-Message-ID: <20181116085525.GC14706@dhcp22.suse.cz>
-References: <20181113055252.79406-1-sashal@kernel.org>
- <20181113055252.79406-8-sashal@kernel.org>
- <20181115140810.e3292c83467544f6a1d82686@linux-foundation.org>
- <20181115223718.GB1706@sasha-vm>
- <20181115144719.d26dc7a2d47fade8d41a83d5@linux-foundation.org>
- <20181115230118.GC1706@sasha-vm>
+Subject: Re: Memory hotplug softlock issue
+Message-ID: <20181116091409.GD14706@dhcp22.suse.cz>
+References: <20181114150029.GY23419@dhcp22.suse.cz>
+ <20181115051034.GK2653@MiWiFi-R3L-srv>
+ <20181115073052.GA23831@dhcp22.suse.cz>
+ <20181115075349.GL2653@MiWiFi-R3L-srv>
+ <20181115083055.GD23831@dhcp22.suse.cz>
+ <20181115131211.GP2653@MiWiFi-R3L-srv>
+ <20181115131927.GT23831@dhcp22.suse.cz>
+ <20181115133840.GR2653@MiWiFi-R3L-srv>
+ <20181115143204.GV23831@dhcp22.suse.cz>
+ <20181116012433.GU2653@MiWiFi-R3L-srv>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181115230118.GC1706@sasha-vm>
+In-Reply-To: <20181116012433.GU2653@MiWiFi-R3L-srv>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sashal@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-kernel@vger.kernel.org, Jann Horn <jannh@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Christoph Lameter <clameter@sgi.com>, Kemi Wang <kemi.wang@intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
+To: Baoquan He <bhe@redhat.com>
+Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, pifang@redhat.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com
 
-On Thu 15-11-18 18:01:18, Sasha Levin wrote:
-> On Thu, Nov 15, 2018 at 02:47:19PM -0800, Andrew Morton wrote:
-> > On Thu, 15 Nov 2018 17:37:18 -0500 Sasha Levin <sashal@kernel.org> wrote:
+On Fri 16-11-18 09:24:33, Baoquan He wrote:
+> On 11/15/18 at 03:32pm, Michal Hocko wrote:
+> > On Thu 15-11-18 21:38:40, Baoquan He wrote:
+> > > On 11/15/18 at 02:19pm, Michal Hocko wrote:
+> > > > On Thu 15-11-18 21:12:11, Baoquan He wrote:
+> > > > > On 11/15/18 at 09:30am, Michal Hocko wrote:
+> > > > [...]
+> > > > > > It would be also good to find out whether this is fs specific. E.g. does
+> > > > > > it make any difference if you use a different one for your stress
+> > > > > > testing?
+> > > > > 
+> > > > > Created a ramdisk and put stress bin there, then run stress -m 200, now
+> > > > > seems it's stuck in libc-2.28.so migrating. And it's still xfs. So now xfs
+> > > > > is a big suspect. At bottom I paste numactl printing, you can see that it's
+> > > > > the last 4G.
+> > > > > 
+> > > > > Seems it's trying to migrate libc-2.28.so, but stress program keeps trying to
+> > > > > access and activate it.
+> > > > 
+> > > > Is this still with faultaround disabled? I have seen exactly same
+> > > > pattern in the bug I am working on. It was ext4 though.
+> > > 
+> > > After a long time struggling, the last 2nd block where libc-2.28.so is
+> > > located is reclaimed, now it comes to the last memory block, still
+> > > stress program itself. swap migration entry has been made and trying to
+> > > unmap, now it's looping there.
+> > > 
+> > > [  +0.004445] migrating pfn 190ff2bb0 failed 
+> > > [  +0.000013] page:ffffea643fcaec00 count:203 mapcount:201 mapping:ffff888dfb268f48 index:0x0
+> > > [  +0.012809] shmem_aops 
+> > > [  +0.000011] name:"stress" 
+> > > [  +0.002550] flags: 0x1dfffffc008004e(referenced|uptodate|dirty|workingset|swapbacked)
+> > > [  +0.010715] raw: 01dfffffc008004e ffffea643fcaec48 ffffea643fc714c8 ffff888dfb268f48
+> > > [  +0.007828] raw: 0000000000000000 0000000000000000 000000cb000000c8 ffff888e72e92000
+> > > [  +0.007810] page->mem_cgroup:ffff888e72e92000
+> > [...]
+> > > [  +0.004455] migrating pfn 190ff2bb0 failed 
+> > > [  +0.000018] page:ffffea643fcaec00 count:203 mapcount:201 mapping:ffff888dfb268f48 index:0x0
+> > > [  +0.014392] shmem_aops 
+> > > [  +0.000010] name:"stress" 
+> > > [  +0.002565] flags: 0x1dfffffc008004e(referenced|uptodate|dirty|workingset|swapbacked)
+> > > [  +0.010675] raw: 01dfffffc008004e ffffea643fcaec48 ffffea643fc714c8 ffff888dfb268f48
+> > > [  +0.007819] raw: 0000000000000000 0000000000000000 000000cb000000c8 ffff888e72e92000
+> > > [  +0.007808] page->mem_cgroup:ffff888e72e92000
 > > 
-> > > On Thu, Nov 15, 2018 at 02:08:10PM -0800, Andrew Morton wrote:
-> > > >On Tue, 13 Nov 2018 00:52:51 -0500 Sasha Levin <sashal@kernel.org> wrote:
-> > > >
-> > > >> From: Jann Horn <jannh@google.com>
-> > > >>
-> > > >> [ Upstream commit f0ecf25a093fc0589f0a6bc4c1ea068bbb67d220 ]
-> > > >>
-> > > >> Having two gigantic arrays that must manually be kept in sync, including
-> > > >> ifdefs, isn't exactly robust.  To make it easier to catch such issues in
-> > > >> the future, add a BUILD_BUG_ON().
-> > > >>
-> > > >> ...
-> > > >>
-> > > >> --- a/mm/vmstat.c
-> > > >> +++ b/mm/vmstat.c
-> > > >> @@ -1189,6 +1189,8 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
-> > > >>  	stat_items_size += sizeof(struct vm_event_state);
-> > > >>  #endif
-> > > >>
-> > > >> +	BUILD_BUG_ON(stat_items_size !=
-> > > >> +		     ARRAY_SIZE(vmstat_text) * sizeof(unsigned long));
-> > > >>  	v = kmalloc(stat_items_size, GFP_KERNEL);
-> > > >>  	m->private = v;
-> > > >>  	if (!v)
-> > > >
-> > > >I don't think there's any way in which this can make a -stable kernel
-> > > >more stable!
-> > > >
-> > > >
-> > > >Generally, I consider -stable in every patch I merge, so for each patch
-> > > >which doesn't have cc:stable, that tag is missing for a reason.
-> > > >
-> > > >In other words, your criteria for -stable addition are different from
-> > > >mine.
-> > > >
-> > > >And I think your criteria differ from those described in
-> > > >Documentation/process/stable-kernel-rules.rst.
-> > > >
-> > > >So... what is your overall thinking on patch selection?
-> > > 
-> > > Indeed, this doesn't fix anything.
-> > > 
-> > > My concern is that in the future, we will pull a patch that will cause
-> > > the issue described here, and that issue will only be relevant on
-> > > stable. It is very hard to debug this, and I suspect that stable kernels
-> > > will still pass all their tests with flying colors.
-> > > 
-> > > As an example, consider the case where commit 28e2c4bb99aa ("mm/vmstat.c:
-> > > fix outdated vmstat_text") is backported to a kernel that doesn't have
-> > > commit 7a9cdebdcc17 ("mm: get rid of vmacache_flush_all() entirely").
-> > > 
-> > > I also felt safe with this patch since it adds a single BUILD_BUG_ON()
-> > > which does nothing during runtime, so the chances it introduces anything
-> > > beyond a build regression seemed to be slim to none.
-> > 
-> > Well OK.  But my question was general and covers basically every
-> > autosel patch which originated in -mm.
+> > OK, so this is tmpfs backed code of your stree test. This just tells us
+> > that this is not fs specific. Reference count is 2 more than the map
+> > count which is the expected state. So the reference count must have been
+> > elevated at the time when the migration was attempted. Shmem supports
+> > fault around so this might be still possible (assuming it is enabled).
+> > If not we really need to dig deeper. I will think of a debugging patch.
 > 
-> Sure. I picked 3 patches that show up on top when I google for AUTOSEL
-> in linux-mm, maybe they'll be a good example to help me understand why
-> they were not selected.
-> 
-> This one fixes a case where too few struct pages are allocated when
-> using mirrorred memory:
-> 
-> 	https://marc.info/?l=linux-mm&m=154211933211147&w=2
+> Disabled faultaround and reboot, test again, it's looping forever in the
+> last block again, on node2, stress progam itself again. The weird is
+> refcount seems to have been crazy, a random number now. There must be
+> something going wrong.
 
-Let me quote "I found this bug by reading the code." I do not think
-anybody has ever seen this in practice.
+Could you try to apply this debugging patch on top please? It will dump
+stack trace for each reference count elevation for one page that fails
+to migrate after multiple passes.
 
-> Race condition with memory hotplug due to missing locks:
-> 
-> 	https://marc.info/?l=linux-mm&m=154211934011188&w=2
-
-Memory hotplug locking is dubious at best and this patch doesn't really
-fix it. It fixes a theoretical problem. I am not aware anybody would be
-hitting in practice. We need to rework the locking quite extensively.
-
-> Raising an OOM event that causes issues in userspace when no OOM has
-> actually occured:
-> 
-> 	https://marc.info/?l=linux-mm&m=154211939811582&w=2
-
-The patch makes sense I just do not think this is a stable material. The
-semantic of the event was and still is suboptimal.
-
-> I think that all 3 cases represent a "real" bug users can hit, and I
-> honestly don't know why they were not tagged for stable.
-
-It would be much better to ask in the respective email thread rather
-than spamming mailing with AUTOSEL patches which rarely get any
-attention.
-
-We have been through this discussion several times already and I thought
-we have agreed that those subsystems which are seriously considering stable
-are opted out from the AUTOSEL automagic. Has anything changed in that
-regards.
+diff --git a/include/linux/page_ref.h b/include/linux/page_ref.h
+index 14d14beb1f7f..b64ebf253381 100644
+--- a/include/linux/page_ref.h
++++ b/include/linux/page_ref.h
+@@ -72,9 +72,12 @@ static inline int page_count(struct page *page)
+ 	return atomic_read(&compound_head(page)->_refcount);
+ }
+ 
++struct page *page_to_track;
+ static inline void set_page_count(struct page *page, int v)
+ {
+ 	atomic_set(&page->_refcount, v);
++	if (page == page_to_track)
++		dump_stack();
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_set))
+ 		__page_ref_set(page, v);
+ }
+@@ -91,6 +94,8 @@ static inline void init_page_count(struct page *page)
+ static inline void page_ref_add(struct page *page, int nr)
+ {
+ 	atomic_add(nr, &page->_refcount);
++	if (page == page_to_track)
++		dump_stack();
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_mod))
+ 		__page_ref_mod(page, nr);
+ }
+@@ -105,6 +110,8 @@ static inline void page_ref_sub(struct page *page, int nr)
+ static inline void page_ref_inc(struct page *page)
+ {
+ 	atomic_inc(&page->_refcount);
++	if (page == page_to_track)
++		dump_stack();
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_mod))
+ 		__page_ref_mod(page, 1);
+ }
+@@ -129,6 +136,8 @@ static inline int page_ref_inc_return(struct page *page)
+ {
+ 	int ret = atomic_inc_return(&page->_refcount);
+ 
++	if (page == page_to_track)
++		dump_stack();
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_mod_and_return))
+ 		__page_ref_mod_and_return(page, 1, ret);
+ 	return ret;
+@@ -156,6 +165,8 @@ static inline int page_ref_add_unless(struct page *page, int nr, int u)
+ {
+ 	int ret = atomic_add_unless(&page->_refcount, nr, u);
+ 
++	if (page == page_to_track)
++		dump_stack();
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_mod_unless))
+ 		__page_ref_mod_unless(page, nr, ret);
+ 	return ret;
+diff --git a/mm/migrate.c b/mm/migrate.c
+index f7e4bfdc13b7..9b2e395a3d68 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1338,6 +1338,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+ 	return rc;
+ }
+ 
++struct page *page_to_track;
++
+ /*
+  * migrate_pages - migrate the pages specified in a list, to the free pages
+  *		   supplied as the target for the page migration
+@@ -1375,6 +1377,7 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+ 	if (!swapwrite)
+ 		current->flags |= PF_SWAPWRITE;
+ 
++	page_to_track = NULL;
+ 	for(pass = 0; pass < 10 && retry; pass++) {
+ 		retry = 0;
+ 
+@@ -1417,6 +1420,8 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+ 				goto out;
+ 			case -EAGAIN:
+ 				retry++;
++				if (pass > 1 && !page_to_track)
++					page_to_track = page;
+ 				break;
+ 			case MIGRATEPAGE_SUCCESS:
+ 				nr_succeeded++;
 -- 
 Michal Hocko
 SUSE Labs
