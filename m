@@ -1,382 +1,228 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D5D376B0BD1
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 17:41:29 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id y2so10658630plr.8
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 14:41:29 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id q9si5924967pgh.92.2018.11.16.14.41.27
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A41016B0BDD
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 17:53:23 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id o28-v6so17073389pfk.10
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 14:53:23 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 31-v6si33337562plc.140.2018.11.16.14.53.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Nov 2018 14:41:27 -0800 (PST)
-Subject: Re: [RFC PATCH 3/4] mm, memory_hotplug: allocate memmap from the
- added memory range for sparse-vmemmap
-References: <20181116101222.16581-1-osalvador@suse.com>
- <20181116101222.16581-4-osalvador@suse.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <87e29d18-c1f7-05b6-edda-1848fb2a1a03@intel.com>
-Date: Fri, 16 Nov 2018 14:41:26 -0800
-MIME-Version: 1.0
-In-Reply-To: <20181116101222.16581-4-osalvador@suse.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+        Fri, 16 Nov 2018 14:53:22 -0800 (PST)
+Date: Fri, 16 Nov 2018 14:53:17 -0800
+From: akpm@linux-foundation.org
+Subject: mmotm 2018-11-16-14-52 uploaded
+Message-ID: <20181116225317.CcsXrZ5MG%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@suse.com>, linux-mm@kvack.org
-Cc: mhocko@suse.com, david@redhat.com, rppt@linux.vnet.ibm.com, akpm@linux-foundation.org, arunks@codeaurora.org, bhe@redhat.com, dan.j.williams@intel.com, Pavel.Tatashin@microsoft.com, Jonathan.Cameron@huawei.com, jglisse@redhat.com, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: broonie@kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org, sfr@canb.auug.org.au
 
-On 11/16/18 2:12 AM, Oscar Salvador wrote:
-> Physical memory hotadd has to allocate a memmap (struct page array) for
-> the newly added memory section. Currently, kmalloc is used for those
-> allocations.
+The mm-of-the-moment snapshot 2018-11-16-14-52 has been uploaded to
 
-Did you literally mean kmalloc?  I thought we had a bunch of ways of
-allocating memmaps, but I didn't think kmalloc() was actually used.
+   http://www.ozlabs.org/~akpm/mmotm/
 
-Like vmemmap_alloc_block(), for instance, uses alloc_pages_node().
+mmotm-readme.txt says
 
-So, can the ZONE_DEVICE altmaps move over to this infrastructure?
-Doesn't this effectively duplicate that code?
+README for mm-of-the-moment:
 
-...
-> diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-> index 7a9886f98b0c..03f014abd4eb 100644
-> --- a/arch/powerpc/mm/init_64.c
-> +++ b/arch/powerpc/mm/init_64.c
-> @@ -278,6 +278,8 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
->  			continue;
->  
->  		page = pfn_to_page(addr >> PAGE_SHIFT);
-> +		if (PageVmemmap(page))
-> +			continue;
->  		section_base = pfn_to_page(vmemmap_section_start(start));
->  		nr_pages = 1 << page_order;
+http://www.ozlabs.org/~akpm/mmotm/
 
-Reading this, I'm wondering if PageVmemmap() could be named better.
->From this is reads like "skip PageVmemmap() pages if freeing vmemmap",
-which does not make much sense.
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
 
-This probably at _least_ needs a comment to explain why the pages are
-being skipped.
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
 
-> diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
-> index 4139affd6157..bc1523bcb09d 100644
-> --- a/arch/s390/mm/init.c
-> +++ b/arch/s390/mm/init.c
-> @@ -231,6 +231,12 @@ int arch_add_memory(int nid, u64 start, u64 size,
->  	unsigned long size_pages = PFN_DOWN(size);
->  	int rc;
->  
-> +	/*
-> +	 * Physical memory is added only later during the memory online so we
-> +	 * cannot use the added range at this stage unfortunatelly.
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
 
-					unfortunately ^
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
 
-> +	 */
-> +	restrictions->flags &= ~MHP_MEMMAP_FROM_RANGE;
-
-Could you also add to the  comment about this being specific to s390?
-
->  	rc = vmem_add_mapping(start, size);
->  	if (rc)
->  		return rc;
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index fd06bcbd9535..d5234ca5c483 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -815,6 +815,13 @@ static void __meminit free_pagetable(struct page *page, int order)
->  	unsigned long magic;
->  	unsigned int nr_pages = 1 << order;
->  
-> +	/*
-> +	 * runtime vmemmap pages are residing inside the memory section so
-> +	 * they do not have to be freed anywhere.
-> +	 */
-> +	if (PageVmemmap(page))
-> +		return;
-
-Thanks for the comment on this one, this one is right on.
-
-> @@ -16,13 +18,18 @@ struct device;
->   * @free: free pages set aside in the mapping for memmap storage
->   * @align: pages reserved to meet allocation alignments
->   * @alloc: track pages consumed, private to vmemmap_populate()
-> + * @flush_alloc_pfns: callback to be called on the allocated range after it
-> + * @nr_sects: nr of sects filled with memmap allocations
-> + * is mapped to the vmemmap - see mark_vmemmap_pages
->   */
-
-I think you split up the "@flush_alloc_pfns" comment accidentally.
-
->  struct vmem_altmap {
-> -	const unsigned long base_pfn;
-> +	unsigned long base_pfn;
->  	const unsigned long reserve;
->  	unsigned long free;
->  	unsigned long align;
->  	unsigned long alloc;
-> +	int nr_sects;
-> +	void (*flush_alloc_pfns)(struct vmem_altmap *self);
->  };
->  
->  /*
-> @@ -133,8 +140,62 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap);
->  struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
->  		struct dev_pagemap *pgmap);
->  
-> -unsigned long vmem_altmap_offset(struct vmem_altmap *altmap);
-> +static inline unsigned long vmem_altmap_offset(struct vmem_altmap *altmap)
-> +{
-> +	/* number of pfns from base where pfn_to_page() is valid */
-> +	return altmap->reserve + altmap->free;
-> +}
->  void vmem_altmap_free(struct vmem_altmap *altmap, unsigned long nr_pfns);
-> +
-> +static inline void mark_vmemmap_pages(struct vmem_altmap *self)
-> +{
-> +	unsigned long pfn = self->base_pfn + self->reserve;
-> +	unsigned long nr_pages = self->alloc;
-> +	unsigned long align = PAGES_PER_SECTION * sizeof(struct page);
-> +	struct page *head;
-> +	unsigned long i;
-> +
-> +	pr_debug("%s: marking %px - %px as Vmemmap\n", __func__,
-> +						pfn_to_page(pfn),
-> +						pfn_to_page(pfn + nr_pages - 1));
-> +	/*
-> +	 * We keep track of the sections using this altmap by means
-> +	 * of a refcount, so we know how much do we have to defer
-> +	 * the call to vmemmap_free for this memory range.
-> +	 * The refcount is kept in the first vmemmap page.
-> +	 * For example:
-> +	 * We add 10GB: (ffffea0004000000 - ffffea000427ffc0)
-> +	 * ffffea0004000000 will have a refcount of 80.
-> +	 */
-
-The example is good, but it took me a minute to realize that 80 is
-because 10GB is roughly 80 sections.
-
-> +	head = (struct page *)ALIGN_DOWN((unsigned long)pfn_to_page(pfn), align);
-
-Is this ALIGN_DOWN() OK?  It seems like it might be aligning 'pfn' down
-into the reserved are that lies before it.
-
-> +	head = (struct page *)((unsigned long)head - (align * self->nr_sects));
-> +	page_ref_inc(head);
-> +
-> +	/*
-> +	 * We have used a/another section only with memmap allocations.
-> +	 * We need to keep track of it in order to get the first head page
-> +	 * to increase its refcount.
-> +	 * This makes it easier to compute.
-> +	 */
-> +	if (!((page_ref_count(head) * PAGES_PER_SECTION) % align))
-> +		self->nr_sects++;
-> +
-> +	/*
-> +	 * All allocations for the memory hotplug are the same sized so align
-> +	 * should be 0
-> +	 */
-> +	WARN_ON(self->align);
-> +        for (i = 0; i < nr_pages; i++, pfn++) {
-> +                struct page *page = pfn_to_page(pfn);
-> +                __SetPageVmemmap(page);
-> +		init_page_count(page);
-> +        }
-
-Looks like some tabs vs. space problems.
-
-> +	self->alloc = 0;
-> +	self->base_pfn += nr_pages + self->reserve;
-> +	self->free -= nr_pages;
-> +}
->  #else
->  static inline void *devm_memremap_pages(struct device *dev,
->  		struct dev_pagemap *pgmap)
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 50ce1bddaf56..e79054fcc96e 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -437,6 +437,24 @@ static __always_inline int __PageMovable(struct page *page)
->  				PAGE_MAPPING_MOVABLE;
->  }
->  
-> +#define VMEMMAP_PAGE ~PAGE_MAPPING_FLAGS
-> +static __always_inline int PageVmemmap(struct page *page)
-> +{
-> +	return PageReserved(page) && (unsigned long)page->mapping == VMEMMAP_PAGE;
-> +}
-> +
-> +static __always_inline void __ClearPageVmemmap(struct page *page)
-> +{
-> +	ClearPageReserved(page);
-> +	page->mapping = NULL;
-> +}
-> +
-> +static __always_inline void __SetPageVmemmap(struct page *page)
-> +{
-> +	SetPageReserved(page);
-> +	page->mapping = (void *)VMEMMAP_PAGE;
-> +}
-
-Just curious, but why are these __ versions?  I thought we used that for
-non-atomic bit operations, but this uses the atomic SetPageReserved().
-
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 7c607479de4a..c94a480e01b5 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -768,6 +768,9 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
->  
->  		page = pfn_to_page(low_pfn);
->  
-> +		if (PageVmemmap(page))
-> +			goto isolate_fail;
-
-Comments, please.
-
-...
-> +static int __online_pages_range(unsigned long start_pfn, unsigned long nr_pages)
-> +{
-> +	if (PageReserved(pfn_to_page(start_pfn)))
-> +		return online_pages_blocks(start_pfn, nr_pages);
-> +
-> +	return 0;
-> +}
-
-Why is it important that 'start_pfn' is PageReserved()?
-
->  static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
-> -			void *arg)
-> +								void *arg)
->  {
->  	unsigned long onlined_pages = *(unsigned long *)arg;
-> +	unsigned long pfn = start_pfn;
-> +	unsigned long end_pfn = start_pfn + nr_pages;
-> +	bool vmemmap_page = false;
->  
-> -	if (PageReserved(pfn_to_page(start_pfn)))
-> -		onlined_pages = online_pages_blocks(start_pfn, nr_pages);
-> +	for (; pfn < end_pfn; pfn++) {
-> +		struct page *p = pfn_to_page(pfn);
-> +
-> +		/*
-> +		 * Let us check if we got vmemmap pages.
-> +		 */
-> +		if (PageVmemmap(p)) {
-> +			vmemmap_page = true;
-> +			break;
-> +		}
-> +	}
-
-OK, so we did the hot-add, and allocated some of the memmap[] inside the
-area being hot-added.  Now, we're onlining the page.  We search every
-page in the *entire* area being onlined to try to find a PageVmemmap()?
- That seems a bit inefficient, especially for sections where we don't
-have a PageVmemmap().
-
-> +	if (!vmemmap_page) {
-> +		/*
-> +		 * We can send the whole range to __online_pages_range,
-> +		 * as we know for sure that there are not vmemmap pages.
-> +		 */
-> +		onlined_pages += __online_pages_range(start_pfn, nr_pages);
-> +	} else {
-> +		/*
-> +		 * We need to strip the vmemmap pages here,
-> +		 * as we do not want to send them to the buddy allocator.
-> +		 */
-> +		unsigned long sections = nr_pages / PAGES_PER_SECTION;
-> +		unsigned long sect_nr = 0;
-> +
-> +		for (; sect_nr < sections; sect_nr++) {
-> +			unsigned pfn_end_section;
-> +			unsigned long memmap_pages = 0;
-> +
-> +			pfn = start_pfn + (PAGES_PER_SECTION * sect_nr);
-> +			pfn_end_section = pfn + PAGES_PER_SECTION;
-> +
-> +			while (pfn < pfn_end_section) {
-> +				struct page *p = pfn_to_page(pfn);
-> +
-> +				if (PageVmemmap(p))
-> +					memmap_pages++;
-> +				pfn++;
-> +			}
-
-... and another lienar search through the entire area being added.
-
-> +			pfn = start_pfn + (PAGES_PER_SECTION * sect_nr);
-> +			if (!memmap_pages) {
-> +				onlined_pages += __online_pages_range(pfn, PAGES_PER_SECTION);
-
-If I read this right, this if() and the first block are unneeded.  The
-second block is funcationally identical if memmap_pages==0.  Seems like
-we can simplify the code.  Also, is this _really_ under 80 columns?
-Seems kinda long.
-
-> +		if (PageVmemmap(page))
-> +			continue;
-
-FWIW, all these random-looking PageVmemmap() calls are a little
-worrying.  What happens when we get one wrong?  Seems like we're kinda
-bringing back all the PageReserved() checks we used to have scattered
-all over.
-
-> @@ -8138,6 +8146,16 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
->  			continue;
->  		}
->  		page = pfn_to_page(pfn);
-> +
-> +		/*
-> +		 * vmemmap pages are residing inside the memory section so
-> +		 * they do not have to be freed anywhere.
-> +		 */
-> +		if (PageVmemmap(page)) {
-> +			pfn++;
-> +			continue;
-> +		}
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
 
 
-> +static struct page *current_vmemmap_page = NULL;
-> +static bool vmemmap_dec_and_test(void)
-> +{
-> +	bool ret = false;
-> +
-> +	if (page_ref_dec_and_test(current_vmemmap_page))
-> +			ret = true;
-> +	return ret;
-> +}
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
 
-That's a bit of an obfuscated way to do:
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
 
-	return page_ref_dec_and_test(current_vmemmap_page));
+To develop on top of mmotm git:
 
-:)
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
 
-But, I also see a global variable, and this immediately makes me think
-about locking and who "owns" this.  Comments would help.
+To rebase a branch with older patches to a new mmotm release:
 
-> +static void free_vmemmap_range(unsigned long limit, unsigned long start, unsigned long end)
-> +{
-> +	unsigned long range_start;
-> +	unsigned long range_end;
-> +	unsigned long align = sizeof(struct page) * PAGES_PER_SECTION;
-> +
-> +	range_end = end;
-> +	range_start = end - align;
-> +	while (range_start >= limit) {
-> +		vmemmap_free(range_start, range_end, NULL);
-> +		range_end = range_start;
-> +		range_start -= align;
-> +	}
-> +}
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
 
-This loop looks like it's working from the end of the range back to the
-beginning.  I guess that it works, but it's a bit unconventional to go
-backwards.  Was there a reason?
 
-Overall, there's a lot of complexity here.  This certainly doesn't make
-the memory hotplug code simpler.
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 4.20-rc2:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+* z3fold-fix-possible-reclaim-races.patch
+* psi-simplify-cgroup_move_task.patch
+* hugetlbfs-fix-kernel-bug-at-fs-hugetlbfs-inodec-444.patch
+* maintainers-update-omap-mmc-entry.patch
+* mm-use-kvzalloc-for-swap_info_struct-allocation.patch
+* sh-provide-prototypes-for-pci-i-o-mapping-in-asm-ioh.patch
+* mm-memory_hotplug-check-zone_movable-in-has_unmovable_pages.patch
+* mm-dont-reclaim-inodes-with-many-attached-pages.patch
+* scripts-faddr2line-fix-location-of-start_kernel-in-comment.patch
+* mm-thp-always-specify-disabled-vmas-as-nh-in-smaps.patch
+* ocfs2-free-up-write-context-when-direct-io-failed.patch
+* ocfs2-fix-dead-lock-caused-by-ocfs2_defrag_extent.patch
+* mm-gup-fix-follow_page_mask-kernel-doc-comment.patch
+* mm-fix-numa-statistics-updates.patch
+* ubsan-dont-mark-__ubsan_handle_builtin_unreachable-as-noreturn.patch
+* mm-fix-a-typo-in-__next_mem_pfn_range-comments.patch
+* tmpfs-let-lseek-return-enxio-with-a-negative-offset.patch
+* scripts-spdxcheck-make-python3-compliant.patch
+* compiler-gcc-hide-compiler_has_generic_builtin_overflow-from-sparse.patch
+* kernelh-hide-__is_constexpr-from-sparse.patch
+* mm-page_alloc-check-for-max-order-in-hot-path.patch
+* mm-cleancache-fix-corruption-on-missed-inode-invalidation.patch
+* mm-cleancache-fix-corruption-on-missed-inode-invalidation-fix.patch
+* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
+* bloat-o-meter-ignore-__addressable_-symbols.patch
+* arch-sh-mach-kfr2r09-fix-struct-mtd_oob_ops-build-warning.patch
+* ocfs2-optimize-the-reading-of-heartbeat-data.patch
+* ocfs2-dlmfs-remove-set-but-not-used-variable-status.patch
+* ocfs2-remove-set-but-not-used-variable-lastzero.patch
+* ocfs2-improve-ocfs2-makefile.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+  mm.patch
+* mm-slab-remove-unnecessary-unlikely.patch
+* mm-slab-remove-unnecessary-unlikely-fix.patch
+* mm-slub-remove-validation-on-cpu_slab-in-__flush_cpu_slab.patch
+* mm-slub-page-is-always-non-null-for-node_match.patch
+* mm-slub-record-final-state-of-slub-action-in-deactivate_slab.patch
+* mm-slub-record-final-state-of-slub-action-in-deactivate_slab-fix.patch
+* mm-page_owner-clamp-read-count-to-page_size.patch
+* mm-page_owner-clamp-read-count-to-page_size-fix.patch
+* mm-hotplug-optimize-clear_hwpoisoned_pages.patch
+* mm-hotplug-optimize-clear_hwpoisoned_pages-fix.patch
+* mm-mmu_notifier-remove-mmu_notifier_synchronize.patch
+* mm-use-mm_zero_struct_page-from-sparc-on-all-64b-architectures.patch
+* mm-drop-meminit_pfn_in_nid-as-it-is-redundant.patch
+* mm-implement-new-zone-specific-memblock-iterator.patch
+* mm-initialize-max_order_nr_pages-at-a-time-instead-of-doing-larger-sections.patch
+* mm-move-hot-plug-specific-memory-init-into-separate-functions-and-optimize.patch
+* mm-add-reserved-flag-setting-to-set_page_links.patch
+* mm-use-common-iterator-for-deferred_init_pages-and-deferred_free_pages.patch
+* writeback-dont-decrement-wb-refcnt-if-wb-bdi.patch
+* mm-simplify-get_next_ra_size.patch
+* mm-vmscan-skip-ksm-page-in-direct-reclaim-if-priority-is-low.patch
+* mm-ksm-do-not-block-on-page-lock-when-searching-stable-tree.patch
+* mm-ksm-do-not-block-on-page-lock-when-searching-stable-tree-fix.patch
+* mm-print-more-information-about-mapping-in-__dump_page.patch
+* mm-lower-the-printk-loglevel-for-__dump_page-messages.patch
+* mm-memory_hotplug-drop-pointless-block-alignment-checks-from-__offline_pages.patch
+* mm-memory_hotplug-print-reason-for-the-offlining-failure.patch
+* mm-memory_hotplug-print-reason-for-the-offlining-failure-fix.patch
+* mm-memory_hotplug-be-more-verbose-for-memory-offline-failures.patch
+* mm-memory_hotplug-be-more-verbose-for-memory-offline-failures-fix.patch
+* xxhash-create-arch-dependent-32-64-bit-xxhash.patch
+* ksm-replace-jhash2-with-xxhash.patch
+* mm-treewide-remove-unused-address-argument-from-pte_alloc-functions-v2.patch
+* mm-speed-up-mremap-by-20x-on-large-regions-v5.patch
+* mm-speed-up-mremap-by-20x-on-large-regions-v5-fix.patch
+* mm-select-have_move_pmd-in-x86-for-faster-mremap.patch
+* mm-mmap-remove-verify_mm_writelocked.patch
+* mm-memory_hotplug-do-not-clear-numa_node-association-after-hot_remove.patch
+* mm-add-an-f_seal_future_write-seal-to-memfd.patch
+* selftests-memfd-add-tests-for-f_seal_future_write-seal.patch
+* mm-remove-reset-of-pcp-counter-in-pageset_init.patch
+* ksm-assist-buddy-allocator-to-assemble-1-order-pages.patch
+* mm-reference-totalram_pages-and-managed_pages-once-per-function.patch
+* mm-convert-zone-managed_pages-to-atomic-variable.patch
+* mm-convert-totalram_pages-and-totalhigh_pages-variables-to-atomic.patch
+* mm-convert-totalram_pages-and-totalhigh_pages-variables-to-atomic-checkpatch-fixes.patch
+* mm-remove-managed_page_count-spinlock.patch
+* vmscan-return-node_reclaim_noscan-in-node_reclaim-when-config_numa-is-n.patch
+* mm-swap-use-nr_node_ids-for-avail_lists-in-swap_info_struct.patch
+* userfaultfd-convert-userfaultfd_ctx-refcount-to-refcount_t.patch
+* memory_hotplug-free-pages-as-higher-order.patch
+* memory_hotplug-free-pages-as-higher-order-fix.patch
+* memory_hotplug-free-pages-as-higher-order-fix-fix.patch
+* mm-page_alloc-remove-software-prefetching-in-__free_pages_core.patch
+* mm-swap-fix-race-between-swapoff-and-some-swap-operations.patch
+* mm-swap-fix-race-between-swapoff-and-some-swap-operations-v6.patch
+* mm-fix-race-between-swapoff-and-mincore.patch
+* mm-dont-expose-page-to-fast-gup-before-its-ready.patch
+* mm-page_owner-align-with-pageblock_nr_pages.patch
+* mm-page_owner-align-with-pageblock_nr-pages.patch
+* info-task-hung-in-generic_file_write_iter.patch
+* proc-use-ns_capable-instead-of-capable-for-timerslack_ns.patch
+* fs-proc-utilc-include-fs-proc-internalh-for-name_to_int.patch
+* coding-style-dont-use-extern-with-function-prototypes.patch
+* udmabuf-convert-to-use-vm_fault_t.patch
+* fls-change-parameter-to-unsigned-int.patch
+* lib-genaloc-fix-allocation-of-aligned-buffer-from-non-aligned-chunk.patch
+* checkpatch-warn-on-const-char-foo-=-bar-declarations.patch
+* fs-epoll-remove-max_nests-argument-from-ep_call_nested.patch
+* fs-epoll-simplify-ep_send_events_proc-ready-list-loop.patch
+* fs-epoll-drop-ovflist-branch-prediction.patch
+* fs-epoll-robustify-ep-mtx-held-checks.patch
+* fs-epoll-reduce-the-scope-of-wq-lock-in-epoll_wait.patch
+* fs-epoll-reduce-the-scope-of-wq-lock-in-epoll_wait-fix.patch
+* fs-epoll-avoid-barrier-after-an-epoll_wait2-timeout.patch
+* fs-epoll-avoid-barrier-after-an-epoll_wait2-timeout-fix.patch
+* fs-epoll-rename-check_events-label-to-send_events.patch
+* fs-epoll-deal-with-wait_queue-only-once.patch
+* fs-epoll-deal-with-wait_queue-only-once-fix.patch
+* hfsplus-return-file-attributes-on-statx.patch
+* fork-fix-some-wmissing-prototypes-warnings.patch
+* exec-load_script-dont-blindly-truncate-shebang-string.patch
+* exec-increase-binprm_buf_size-to-256.patch
+* exec-separate-mm_anonpages-and-rlimit_stack-accounting.patch
+* exec-separate-mm_anonpages-and-rlimit_stack-accounting-checkpatch-fixes.patch
+* bfs-extra-sanity-checking-and-static-inode-bitmap.patch
+* initramfs-cleanup-incomplete-rootfs.patch
+* ipc-allow-boot-time-extension-of-ipcmni-from-32k-to-8m.patch
+* ipc-allow-boot-time-extension-of-ipcmni-from-32k-to-8m-checkpatch-fixes.patch
+* ipc-conserve-sequence-numbers-in-extended-ipcmni-mode.patch
+  linux-next.patch
+  linux-next-git-rejects.patch
+* scripts-atomic-check-atomicssh-dont-assume-that-scripts-are-executable.patch
+* drivers-net-ethernet-qlogic-qed-qed_rdmah-fix-typo.patch
+* mm-introduce-common-struct_page_max_shift-define.patch
+* mm-sparse-add-common-helper-to-mark-all-memblocks-present.patch
+* vfs-replace-current_kernel_time64-with-ktime-equivalent.patch
+* fix-read-buffer-overflow-in-delta-ipc.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  mutex-subsystem-synchro-test-module.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  slab-leaks3-default-y.patch
+  workaround-for-a-pci-restoring-bug.patch
