@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F0E36B0961
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 06:56:01 -0500 (EST)
-Received: by mail-oi1-f197.google.com with SMTP id g204-v6so13240135oia.21
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 03:56:01 -0800 (PST)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 31B266B0902
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 06:56:47 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id j18so15543575oth.11
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 03:56:47 -0800 (PST)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 9si15221622oti.99.2018.11.16.03.56.00
+        by mx.google.com with ESMTP id w72si2271455oiw.1.2018.11.16.03.56.46
         for <linux-mm@kvack.org>;
-        Fri, 16 Nov 2018 03:56:00 -0800 (PST)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Subject: Re: [PATCH 1/5] mm: print more information about mapping in
- __dump_page
+        Fri, 16 Nov 2018 03:56:46 -0800 (PST)
+Subject: Re: [PATCH 3/5] mm, memory_hotplug: drop pointless block alignment
+ checks from __offline_pages
 References: <20181116083020.20260-1-mhocko@kernel.org>
- <20181116083020.20260-2-mhocko@kernel.org>
-Message-ID: <36711b50-6f5d-deaa-ec6f-c6a6d66cd94b@arm.com>
-Date: Fri, 16 Nov 2018 17:25:56 +0530
+ <20181116083020.20260-4-mhocko@kernel.org>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <50a2cbeb-9d1b-d629-6390-c0b3d26f2d72@arm.com>
+Date: Fri, 16 Nov 2018 17:26:41 +0530
 MIME-Version: 1.0
-In-Reply-To: <20181116083020.20260-2-mhocko@kernel.org>
+In-Reply-To: <20181116083020.20260-4-mhocko@kernel.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -30,52 +30,31 @@ Cc: Oscar Salvador <OSalvador@suse.com>, Baoquan He <bhe@redhat.com>, linux-mm@k
 On 11/16/2018 02:00 PM, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.com>
 > 
-> __dump_page prints the mapping pointer but that is quite unhelpful
-> for many reports because the pointer itself only helps to distinguish
-> anon/ksm mappings from other ones (because of lowest bits
-> set). Sometimes it would be much more helpful to know what kind of
-> mapping that is actually and if we know this is a file mapping then also
-> try to resolve the dentry name.
+> This function is never called from a context which would provide
+> misaligned pfn range so drop the pointless check.
 > 
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > ---
->  mm/debug.c | 13 +++++++++++++
->  1 file changed, 13 insertions(+)
+>  mm/memory_hotplug.c | 6 ------
+>  1 file changed, 6 deletions(-)
 > 
-> diff --git a/mm/debug.c b/mm/debug.c
-> index cdacba12e09a..a33177bfc856 100644
-> --- a/mm/debug.c
-> +++ b/mm/debug.c
-> @@ -44,6 +44,7 @@ const struct trace_print_flags vmaflag_names[] = {
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 2b2b3ccbbfb5..a92b1b8f6218 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1554,12 +1554,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
+>  	struct zone *zone;
+>  	struct memory_notify arg;
 >  
->  void __dump_page(struct page *page, const char *reason)
->  {
-> +	struct address_space *mapping = page_mapping(page);
->  	bool page_poisoned = PagePoisoned(page);
->  	int mapcount;
+> -	/* at least, alignment against pageblock is necessary */
+> -	if (!IS_ALIGNED(start_pfn, pageblock_nr_pages))
+> -		return -EINVAL;
+> -	if (!IS_ALIGNED(end_pfn, pageblock_nr_pages))
+> -		return -EINVAL;
+> -
+>  	mem_hotplug_begin();
 >  
-> @@ -70,6 +71,18 @@ void __dump_page(struct page *page, const char *reason)
->  	if (PageCompound(page))
->  		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
->  	pr_cont("\n");
-> +	if (PageAnon(page))
-> +		pr_emerg("anon ");
-> +	else if (PageKsm(page))
-> +		pr_emerg("ksm ");
-> +	else if (mapping) {
-> +		pr_emerg("%ps ", mapping->a_ops);
-> +		if (mapping->host->i_dentry.first) {
-> +			struct dentry *dentry;
-> +			dentry = container_of(mapping->host->i_dentry.first, struct dentry, d_u.d_alias);
-> +			pr_emerg("name:\"%*s\" ", dentry->d_name.len, dentry->d_name.name);
-> +		}
-> +	}
->  	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
->  
->  	pr_emerg("flags: %#lx(%pGp)\n", page->flags, &page->flags);
+>  	/* This makes hotplug much easier...and readable.
 > 
-
-Differentiating between anon, ksm mapping and going till dentry information
-for file mappings is surely an improvement. 
 
 Reviewed-by: Anshuman Khandual <anshuman.khandual@arm.com>
