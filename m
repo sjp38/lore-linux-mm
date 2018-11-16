@@ -1,63 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E45FC6B085B
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 02:55:52 -0500 (EST)
-Received: by mail-lj1-f199.google.com with SMTP id s64-v6so8224860lje.19
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 23:55:52 -0800 (PST)
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id r19-v6si27580868ljj.162.2018.11.15.23.55.51
+	by kanga.kvack.org (Postfix) with ESMTP id EDE6A6B0872
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 03:16:04 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id 6-v6so9677563ljv.21
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 00:16:04 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p10-v6sor16979977ljh.6.2018.11.16.00.16.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 23:55:51 -0800 (PST)
-Subject: Re: [PATCH] mm: cleancache: fix corruption on missed inode
- invalidation
-References: <20181112095734.17979-1-ptikhomirov@virtuozzo.com>
- <20181115143103.c6fa8fec343bb706b91f6c6c@linux-foundation.org>
-From: Vasily Averin <vvs@virtuozzo.com>
-Message-ID: <d2a7e3fe-67ca-12f3-d16b-c9de0646c063@virtuozzo.com>
-Date: Fri, 16 Nov 2018 10:55:45 +0300
+        (Google Transport Security);
+        Fri, 16 Nov 2018 00:16:03 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20181115143103.c6fa8fec343bb706b91f6c6c@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <20181115154530.GA27872@jordon-HP-15-Notebook-PC>
+ <9655a12e-bd3d-aca2-6155-38924028eb5d@infradead.org> <CAFqt6zbLjtDab3Bz67trbnQRQdutvgA=YvAFhoW4bxsg657mGQ@mail.gmail.com>
+ <20181116064049.GA5320@bombadil.infradead.org>
+In-Reply-To: <20181116064049.GA5320@bombadil.infradead.org>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Fri, 16 Nov 2018 13:45:48 +0530
+Message-ID: <CAFqt6zbL1tu4VWtZ5Wz-BgbOS+M2GJziMj958_h_ri4Th3n9bQ@mail.gmail.com>
+Subject: Re: [PATCH 1/9] mm: Introduce new vm_insert_range API
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Pavel Tikhomirov <ptikhomirov@virtuozzo.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Konstantin Khorenko <khorenko@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Randy Dunlap <rdunlap@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz, Rik van Riel <riel@surriel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, rppt@linux.vnet.ibm.com, Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, Kees Cook <keescook@chromium.org>, Marek Szyprowski <m.szyprowski@samsung.com>, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, Kyungmin Park <kyungmin.park@samsung.com>, mchehab@kernel.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
 
-On 11/16/18 1:31 AM, Andrew Morton wrote:
-> On Mon, 12 Nov 2018 12:57:34 +0300 Pavel Tikhomirov <ptikhomirov@virtuozzo.com> wrote:
-> 
->> If all pages are deleted from the mapping by memory reclaim and also
->> moved to the cleancache:
->>
->> __delete_from_page_cache
->>   (no shadow case)
->>   unaccount_page_cache_page
->>     cleancache_put_page
->>   page_cache_delete
->>     mapping->nrpages -= nr
->>     (nrpages becomes 0)
->>
->> We don't clean the cleancache for an inode after final file truncation
->> (removal).
->>
->> truncate_inode_pages_final
->>   check (nrpages || nrexceptional) is false
->>     no truncate_inode_pages
->>       no cleancache_invalidate_inode(mapping)
->>
->> These way when reading the new file created with same inode we may get
->> these trash leftover pages from cleancache and see wrong data instead of
->> the contents of the new file.
->>
->> Fix it by always doing truncate_inode_pages which is already ready for
->> nrpages == 0 && nrexceptional == 0 case and just invalidates inode.
->>
-> 
-> Data corruption sounds serious.  Shouldn't we backport this into
-> -stable kernels?
+On Fri, Nov 16, 2018 at 12:11 PM Matthew Wilcox <willy@infradead.org> wrote:
+>
+> On Fri, Nov 16, 2018 at 11:00:30AM +0530, Souptick Joarder wrote:
+> > On Thu, Nov 15, 2018 at 11:44 PM Randy Dunlap <rdunlap@infradead.org> wrote:
+> > > On 11/15/18 7:45 AM, Souptick Joarder wrote:
+> > > What is the opposite of vm_insert_range() or even of vm_insert_page()?
+> > > or is there no need for that?
+> >
+> > There is no opposite function of vm_insert_range() / vm_insert_page().
+> > My understanding is, in case of any error, mmap handlers will return the
+> > err to user process and user space will decide the next action. So next
+> > time when mmap handler is getting invoked it will map from the beginning.
+> > Correct me if I am wrong.
+>
+> The opposite function, I suppose, is unmap_region().
+>
+> > > s/no./number/
+> >
+> > I didn't get it ??
+>
+> This is a 'sed' expression.  's' is the 'substitute' command; the /
+> is a separator, 'no.' is what you wrote, and 'number' is what Randy
+> is recommending instead.
 
-Yes, it was broken in 4.14 kernel and it should affect all who uses cleancache
-Fixes: commit 91b0abe36a7b ("mm + fs: store shadow entries in page cache")
+Ok. Will change it in v2.
+>
+> > > > +     for (i = 0; i < page_count; i++) {
+> > > > +             ret = vm_insert_page(vma, uaddr, pages[i]);
+> > > > +             if (ret < 0)
+> > > > +                     return ret;
+> > >
+> > > For a non-trivial value of page_count:
+> > > Is it a problem if vm_insert_page() succeeds for several pages
+> > > and then fails?
+> >
+> > No, it will be considered as total failure and mmap handler will return
+> > the err to user space.
+>
+> I think what Randy means is "What happens to the inserted pages?" and
+> the answer is that mmap_region() jumps to the 'unmap_and_free_vma'
+> label, which is an accurate name.
+
+Sorry for incorrect understanding of the question.
