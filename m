@@ -1,61 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CA9086B082B
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 02:05:12 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id n32-v6so11195923edc.17
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 23:05:12 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id y102-v6si5123530ede.115.2018.11.15.23.05.10
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 40C0A6B083B
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 02:21:26 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id k58so4127076eda.20
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 23:21:26 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y24si462971edo.347.2018.11.15.23.21.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 23:05:11 -0800 (PST)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAG74Cpw114231
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 02:05:09 -0500
-Received: from e16.ny.us.ibm.com (e16.ny.us.ibm.com [129.33.205.206])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2nsr0etr5t-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 02:05:09 -0500
-Received: from localhost
-	by e16.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Fri, 16 Nov 2018 07:05:09 -0000
-Date: Thu, 15 Nov 2018 23:05:00 -0800
-From: "Paul E. McKenney" <paulmck@linux.ibm.com>
-Subject: Re: [PATCH tip/core/rcu 6/7] mm: Replace spin_is_locked() with
- lockdep
-Reply-To: paulmck@linux.ibm.com
-References: <20181111200421.GA10551@linux.ibm.com>
- <20181111200443.10772-6-paulmck@linux.ibm.com>
- <20181115184917.6goqg67hpojfhk42@linux-r8p5>
+        Thu, 15 Nov 2018 23:21:24 -0800 (PST)
+Date: Fri, 16 Nov 2018 08:21:23 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 5/5] mm, memory_hotplug: be more verbose for memory
+ offline failures
+Message-ID: <20181116072123.GA14706@dhcp22.suse.cz>
+References: <20181107101830.17405-1-mhocko@kernel.org>
+ <20181107101830.17405-6-mhocko@kernel.org>
+ <20181115160716.18b9956ee64932abe9428ef1@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20181115184917.6goqg67hpojfhk42@linux-r8p5>
-Message-Id: <20181116070500.GV4170@linux.ibm.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181115160716.18b9956ee64932abe9428ef1@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, mingo@kernel.org, jiangshanlai@gmail.com, dipankar@in.ibm.com, akpm@linux-foundation.org, mathieu.desnoyers@efficios.com, josh@joshtriplett.org, tglx@linutronix.de, peterz@infradead.org, rostedt@goodmis.org, dhowells@redhat.com, edumazet@google.com, fweisbec@gmail.com, oleg@redhat.com, joel@joelfernandes.org, Lance Roy <ldr709@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Yang Shi <yang.shi@linux.alibaba.com>, Matthew Wilcox <mawilcox@microsoft.com>, Mel Gorman <mgorman@techsingularity.net>, Jan Kara <jack@suse.cz>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Oscar Salvador <OSalvador@suse.com>, Baoquan He <bhe@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Nov 15, 2018 at 10:49:17AM -0800, Davidlohr Bueso wrote:
-> On Sun, 11 Nov 2018, Paul E. McKenney wrote:
+On Thu 15-11-18 16:07:16, Andrew Morton wrote:
+> On Wed,  7 Nov 2018 11:18:30 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> >From: Lance Roy <ldr709@gmail.com>
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > There is only very limited information printed when the memory offlining
+> > fails:
+> > [ 1984.506184] rac1 kernel: memory offlining [mem 0x82600000000-0x8267fffffff] failed due to signal backoff
+> > 
+> > This tells us that the failure is triggered by the userspace
+> > intervention but it doesn't tell us much more about the underlying
+> > reason. It might be that the page migration failes repeatedly and the
+> > userspace timeout expires and send a signal or it might be some of the
+> > earlier steps (isolation, memory notifier) takes too long.
+> > 
+> > If the migration failes then it would be really helpful to see which
+> > page that and its state. The same applies to the isolation phase. If we
+> > fail to isolate a page from the allocator then knowing the state of the
+> > page would be helpful as well.
+> > 
+> > Dump the page state that fails to get isolated or migrated. This will
+> > tell us more about the failure and what to focus on during debugging.
+> > 
+> > ...
 > >
-> >lockdep_assert_held() is better suited to checking locking requirements,
-> >since it only checks if the current thread holds the lock regardless of
-> >whether someone else does. This is also a step towards possibly removing
-> >spin_is_locked().
+> > --- a/mm/memory_hotplug.c
+> > +++ b/mm/memory_hotplug.c
+> > @@ -1388,10 +1388,8 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+> >  						    page_is_file_cache(page));
+> >  
+> >  		} else {
+> > -#ifdef CONFIG_DEBUG_VM
+> > -			pr_alert("failed to isolate pfn %lx\n", pfn);
+> > +			pr_warn("failed to isolate pfn %lx\n", pfn);
+> >  			dump_page(page, "isolation failed");
+> > -#endif
+> >  			put_page(page);
+> >  			/* Because we don't have big zone->lock. we should
+> >  			   check this again here. */
+> > @@ -1411,8 +1409,14 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+> >  		/* Allocate a new page from the nearest neighbor node */
+> >  		ret = migrate_pages(&source, new_node_page, NULL, 0,
+> >  					MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
+> > -		if (ret)
+> > +		if (ret) {
+> > +			list_for_each_entry(page, &source, lru) {
+> > +				pr_warn("migrating pfn %lx failed ",
+> > +				       page_to_pfn(page), ret);
+> > +				dump_page(page, NULL);
+> > +			}
 > 
-> So fyi I'm not crazy about these kind of patches simply because lockdep
-> is a lot less used out of anything that's not a lab, and we can be missing
-> potential offenders. There's obviously nothing wrong about what you describe
-> above perse, just my two cents.
+> ./include/linux/kern_levels.h:5:18: warning: too many arguments for format [-Wformat-extra-args]
+>  #define KERN_SOH "\001"  /* ASCII Start Of Header */
+>                   ^
+> ./include/linux/kern_levels.h:12:22: note: in expansion of macro a??KERN_SOHa??
+>  #define KERN_WARNING KERN_SOH "4" /* warning conditions */
+>                       ^~~~~~~~
+> ./include/linux/printk.h:310:9: note: in expansion of macro a??KERN_WARNINGa??
+>   printk(KERN_WARNING pr_fmt(fmt), ##__VA_ARGS__)
+>          ^~~~~~~~~~~~
+> ./include/linux/printk.h:311:17: note: in expansion of macro a??pr_warninga??
+>  #define pr_warn pr_warning
+>                  ^~~~~~~~~~
+> mm/memory_hotplug.c:1414:5: note: in expansion of macro a??pr_warna??
+>      pr_warn("migrating pfn %lx failed ",
+>      ^~~~~~~
 
-Fair point!
+yeah, 0day already complained and I've posted a follow up fix
+http://lkml.kernel.org/r/20181108081231.GN27423@dhcp22.suse.cz
 
-One countervailing advantage of lockdep is that it is not subject to the
-false negatives that can happen if someone else happens to be currently
-holding the lock.  But what would you suggest instead?
+Let me post a version 2 with all the fixups.
+ 
+Thanks!
 
-							Thanx, Paul
+> --- a/mm/memory_hotplug.c~mm-memory_hotplug-be-more-verbose-for-memory-offline-failures-fix
+> +++ a/mm/memory_hotplug.c
+> @@ -1411,7 +1411,7 @@ do_migrate_range(unsigned long start_pfn
+>  					MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
+>  		if (ret) {
+>  			list_for_each_entry(page, &source, lru) {
+> -				pr_warn("migrating pfn %lx failed ",
+> +				pr_warn("migrating pfn %lx failed: %d",
+>  				       page_to_pfn(page), ret);
+>  				dump_page(page, NULL);
+>  			}
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
