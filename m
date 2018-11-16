@@ -1,179 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A9E9A6B06D4
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 20:22:49 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id i19-v6so17570177pfi.21
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 17:22:49 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x5sor32939plv.9.2018.11.15.17.22.47
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B3BF6B06BB
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 20:24:41 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id n68so48041574qkn.8
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 17:24:41 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o2si1554013qkg.259.2018.11.15.17.24.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 15 Nov 2018 17:22:48 -0800 (PST)
-Date: Thu, 15 Nov 2018 17:22:45 -0800
-From: Omar Sandoval <osandov@osandov.com>
-Subject: Re: [PATCH V10 12/19] block: allow bio_for_each_segment_all() to
- iterate over multi-page bvec
-Message-ID: <20181116012245.GG23828@vader>
-References: <20181115085306.9910-1-ming.lei@redhat.com>
- <20181115085306.9910-13-ming.lei@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Nov 2018 17:24:39 -0800 (PST)
+Date: Fri, 16 Nov 2018 09:24:33 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: Memory hotplug softlock issue
+Message-ID: <20181116012433.GU2653@MiWiFi-R3L-srv>
+References: <20181114145250.GE2653@MiWiFi-R3L-srv>
+ <20181114150029.GY23419@dhcp22.suse.cz>
+ <20181115051034.GK2653@MiWiFi-R3L-srv>
+ <20181115073052.GA23831@dhcp22.suse.cz>
+ <20181115075349.GL2653@MiWiFi-R3L-srv>
+ <20181115083055.GD23831@dhcp22.suse.cz>
+ <20181115131211.GP2653@MiWiFi-R3L-srv>
+ <20181115131927.GT23831@dhcp22.suse.cz>
+ <20181115133840.GR2653@MiWiFi-R3L-srv>
+ <20181115143204.GV23831@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181115085306.9910-13-ming.lei@redhat.com>
+In-Reply-To: <20181115143204.GV23831@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@redhat.com>
-Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, linux-fsdevel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, linux-btrfs@vger.kernel.org, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, pifang@redhat.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com
 
-On Thu, Nov 15, 2018 at 04:52:59PM +0800, Ming Lei wrote:
-> This patch introduces one extra iterator variable to bio_for_each_segment_all(),
-> then we can allow bio_for_each_segment_all() to iterate over multi-page bvec.
+On 11/15/18 at 03:32pm, Michal Hocko wrote:
+> On Thu 15-11-18 21:38:40, Baoquan He wrote:
+> > On 11/15/18 at 02:19pm, Michal Hocko wrote:
+> > > On Thu 15-11-18 21:12:11, Baoquan He wrote:
+> > > > On 11/15/18 at 09:30am, Michal Hocko wrote:
+> > > [...]
+> > > > > It would be also good to find out whether this is fs specific. E.g. does
+> > > > > it make any difference if you use a different one for your stress
+> > > > > testing?
+> > > > 
+> > > > Created a ramdisk and put stress bin there, then run stress -m 200, now
+> > > > seems it's stuck in libc-2.28.so migrating. And it's still xfs. So now xfs
+> > > > is a big suspect. At bottom I paste numactl printing, you can see that it's
+> > > > the last 4G.
+> > > > 
+> > > > Seems it's trying to migrate libc-2.28.so, but stress program keeps trying to
+> > > > access and activate it.
+> > > 
+> > > Is this still with faultaround disabled? I have seen exactly same
+> > > pattern in the bug I am working on. It was ext4 though.
+> > 
+> > After a long time struggling, the last 2nd block where libc-2.28.so is
+> > located is reclaimed, now it comes to the last memory block, still
+> > stress program itself. swap migration entry has been made and trying to
+> > unmap, now it's looping there.
+> > 
+> > [  +0.004445] migrating pfn 190ff2bb0 failed 
+> > [  +0.000013] page:ffffea643fcaec00 count:203 mapcount:201 mapping:ffff888dfb268f48 index:0x0
+> > [  +0.012809] shmem_aops 
+> > [  +0.000011] name:"stress" 
+> > [  +0.002550] flags: 0x1dfffffc008004e(referenced|uptodate|dirty|workingset|swapbacked)
+> > [  +0.010715] raw: 01dfffffc008004e ffffea643fcaec48 ffffea643fc714c8 ffff888dfb268f48
+> > [  +0.007828] raw: 0000000000000000 0000000000000000 000000cb000000c8 ffff888e72e92000
+> > [  +0.007810] page->mem_cgroup:ffff888e72e92000
+> [...]
+> > [  +0.004455] migrating pfn 190ff2bb0 failed 
+> > [  +0.000018] page:ffffea643fcaec00 count:203 mapcount:201 mapping:ffff888dfb268f48 index:0x0
+> > [  +0.014392] shmem_aops 
+> > [  +0.000010] name:"stress" 
+> > [  +0.002565] flags: 0x1dfffffc008004e(referenced|uptodate|dirty|workingset|swapbacked)
+> > [  +0.010675] raw: 01dfffffc008004e ffffea643fcaec48 ffffea643fc714c8 ffff888dfb268f48
+> > [  +0.007819] raw: 0000000000000000 0000000000000000 000000cb000000c8 ffff888e72e92000
+> > [  +0.007808] page->mem_cgroup:ffff888e72e92000
 > 
-> Given it is just one mechannical & simple change on all bio_for_each_segment_all()
-> users, this patch does tree-wide change in one single patch, so that we can
-> avoid to use a temporary helper for this conversion.
-> 
-> Cc: Dave Chinner <dchinner@redhat.com>
-> Cc: Kent Overstreet <kent.overstreet@gmail.com>
-> Cc: linux-fsdevel@vger.kernel.org
-> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> Cc: Shaohua Li <shli@kernel.org>
-> Cc: linux-raid@vger.kernel.org
-> Cc: linux-erofs@lists.ozlabs.org
-> Cc: linux-btrfs@vger.kernel.org
-> Cc: David Sterba <dsterba@suse.com>
-> Cc: Darrick J. Wong <darrick.wong@oracle.com>
-> Cc: Gao Xiang <gaoxiang25@huawei.com>
-> Cc: Christoph Hellwig <hch@lst.de>
-> Cc: Theodore Ts'o <tytso@mit.edu>
-> Cc: linux-ext4@vger.kernel.org
-> Cc: Coly Li <colyli@suse.de>
-> Cc: linux-bcache@vger.kernel.org
-> Cc: Boaz Harrosh <ooo@electrozaur.com>
-> Cc: Bob Peterson <rpeterso@redhat.com>
-> Cc: cluster-devel@redhat.com
-> Signed-off-by: Ming Lei <ming.lei@redhat.com>
-> ---
->  block/bio.c                       | 27 ++++++++++++++++++---------
->  block/blk-zoned.c                 |  1 +
->  block/bounce.c                    |  6 ++++--
->  drivers/md/bcache/btree.c         |  3 ++-
->  drivers/md/dm-crypt.c             |  3 ++-
->  drivers/md/raid1.c                |  3 ++-
->  drivers/staging/erofs/data.c      |  3 ++-
->  drivers/staging/erofs/unzip_vle.c |  3 ++-
->  fs/block_dev.c                    |  6 ++++--
->  fs/btrfs/compression.c            |  3 ++-
->  fs/btrfs/disk-io.c                |  3 ++-
->  fs/btrfs/extent_io.c              | 12 ++++++++----
->  fs/btrfs/inode.c                  |  6 ++++--
->  fs/btrfs/raid56.c                 |  3 ++-
->  fs/crypto/bio.c                   |  3 ++-
->  fs/direct-io.c                    |  4 +++-
->  fs/exofs/ore.c                    |  3 ++-
->  fs/exofs/ore_raid.c               |  3 ++-
->  fs/ext4/page-io.c                 |  3 ++-
->  fs/ext4/readpage.c                |  3 ++-
->  fs/f2fs/data.c                    |  9 ++++++---
->  fs/gfs2/lops.c                    |  6 ++++--
->  fs/gfs2/meta_io.c                 |  3 ++-
->  fs/iomap.c                        |  6 ++++--
->  fs/mpage.c                        |  3 ++-
->  fs/xfs/xfs_aops.c                 |  5 +++--
->  include/linux/bio.h               | 11 +++++++++--
->  include/linux/bvec.h              | 31 +++++++++++++++++++++++++++++++
->  28 files changed, 129 insertions(+), 46 deletions(-)
-> 
+> OK, so this is tmpfs backed code of your stree test. This just tells us
+> that this is not fs specific. Reference count is 2 more than the map
+> count which is the expected state. So the reference count must have been
+> elevated at the time when the migration was attempted. Shmem supports
+> fault around so this might be still possible (assuming it is enabled).
+> If not we really need to dig deeper. I will think of a debugging patch.
 
-[snip]
+Disabled faultaround and reboot, test again, it's looping forever in the
+last block again, on node2, stress progam itself again. The weird is
+refcount seems to have been crazy, a random number now. There must be
+something going wrong.
 
-> diff --git a/include/linux/bio.h b/include/linux/bio.h
-> index 3496c816946e..1a2430a8b89d 100644
-> --- a/include/linux/bio.h
-> +++ b/include/linux/bio.h
-> @@ -131,12 +131,19 @@ static inline bool bio_full(struct bio *bio)
->  	return bio->bi_vcnt >= bio->bi_max_vecs;
->  }
->  
-> +#define bvec_for_each_segment(bv, bvl, i, iter_all)			\
-> +	for (bv = bvec_init_iter_all(&iter_all);			\
-> +		(iter_all.done < (bvl)->bv_len) &&			\
-> +		((bvec_next_segment((bvl), &iter_all)), 1);		\
-
-The parentheses around (bvec_next_segment((bvl), &iter_all)) are
-unnecessary.
-
-> +		iter_all.done += bv->bv_len, i += 1)
-> +
->  /*
->   * drivers should _never_ use the all version - the bio may have been split
->   * before it got to the driver and the driver won't own all of it
->   */
-> -#define bio_for_each_segment_all(bvl, bio, i)				\
-> -	for (i = 0, bvl = (bio)->bi_io_vec; i < (bio)->bi_vcnt; i++, bvl++)
-> +#define bio_for_each_segment_all(bvl, bio, i, iter_all)		\
-> +	for (i = 0, iter_all.idx = 0; iter_all.idx < (bio)->bi_vcnt; iter_all.idx++)	\
-> +		bvec_for_each_segment(bvl, &((bio)->bi_io_vec[iter_all.idx]), i, iter_all)
-
-Would it be possible to move i into iter_all to streamline this a bit?
-
->  static inline void __bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
->  				      unsigned bytes, bool mp)
-> diff --git a/include/linux/bvec.h b/include/linux/bvec.h
-> index 01616a0b6220..02f26d2b59ad 100644
-> --- a/include/linux/bvec.h
-> +++ b/include/linux/bvec.h
-> @@ -82,6 +82,12 @@ struct bvec_iter {
->  						   current bvec */
->  };
->  
-> +struct bvec_iter_all {
-> +	struct bio_vec	bv;
-> +	int		idx;
-> +	unsigned	done;
-> +};
-> +
->  /*
->   * various member access, note that bio_data should of course not be used
->   * on highmem page vectors
-> @@ -216,6 +222,31 @@ static inline bool mp_bvec_iter_advance(const struct bio_vec *bv,
->  	.bi_bvec_done	= 0,						\
->  }
->  
-> +static inline struct bio_vec *bvec_init_iter_all(struct bvec_iter_all *iter_all)
-> +{
-> +	iter_all->bv.bv_page = NULL;
-> +	iter_all->done = 0;
-> +
-> +	return &iter_all->bv;
-> +}
-> +
-> +/* used for chunk_for_each_segment */
-> +static inline void bvec_next_segment(const struct bio_vec *bvec,
-> +		struct bvec_iter_all *iter_all)
-
-Indentation.
-
-> +{
-> +	struct bio_vec *bv = &iter_all->bv;
-> +
-> +	if (bv->bv_page) {
-> +		bv->bv_page += 1;
-> +		bv->bv_offset = 0;
-> +	} else {
-> +		bv->bv_page = bvec->bv_page;
-> +		bv->bv_offset = bvec->bv_offset;
-> +	}
-> +	bv->bv_len = min_t(unsigned int, PAGE_SIZE - bv->bv_offset,
-> +			bvec->bv_len - iter_all->done);
-
-Indentation.
-
-> +}
-> +
->  /*
->   * Get the last singlepage segment from the multipage bvec and store it
->   * in @seg
-> -- 
-> 2.9.5
-> 
+[  +0.058624] migrating pfn 80fd6fbe failed 
+[  +0.000003] page:ffffea203f5bef80 count:336 mapcount:201 mapping:ffff888e1c9357d8 index:0x2
+[  +0.014122] shmem_aops 
+[  +0.000000] name:"stress" 
+[  +0.002467] flags: 0x9fffffc008000e(referenced|uptodate|dirty|swapbacked)
+[  +0.009511] raw: 009fffffc008000e ffffc900000e3d80 ffffc900000e3d80 ffff888e1c9357d8
+[  +0.007743] raw: 0000000000000002 0000000000000000 000000cb000000c8 ffff888e2233d000
+[  +0.007740] page->mem_cgroup:ffff888e2233d000
+[  +0.038916] migrating pfn 80fd6fbe failed 
+[  +0.000003] page:ffffea203f5bef80 count:349 mapcount:201 mapping:ffff888e1c9357d8 index:0x2
+[  +0.012453] shmem_aops 
+[  +0.000001] name:"stress" 
+[  +0.002641] flags: 0x9fffffc008000e(referenced|uptodate|dirty|swapbacked)
+[  +0.009501] raw: 009fffffc008000e ffffc900000e3d80 ffffc900000e3d80 ffff888e1c9357d8
+[  +0.007746] raw: 0000000000000002 0000000000000000 000000cb000000c8 ffff888e2233d000
+[  +0.007740] page->mem_cgroup:ffff888e2233d000
+[  +0.061226] migrating pfn 80fd6fbe failed 
+[  +0.000004] page:ffffea203f5bef80 count:276 mapcount:201 mapping:ffff888e1c9357d8 index:0x2
+[  +0.014129] shmem_aops 
+[  +0.000002] name:"stress" 
+[  +0.003246] flags: 0x9fffffc008008e(waiters|referenced|uptodate|dirty|swapbacked)
+[  +0.010183] raw: 009fffffc008008e ffffc900000e3d80 ffffc900000e3d80 ffff888e1c9357d8
+[  +0.007742] raw: 0000000000000002 0000000000000000 000000cb000000c8 ffff888e2233d000
+[  +0.007733] page->mem_cgroup:ffff888e2233d000
+[  +0.037305] migrating pfn 80fd6fbe failed 
+[  +0.000003] page:ffffea203f5bef80 count:304 mapcount:201 mapping:ffff888e1c9357d8 index:0x2
+[  +0.012449] shmem_aops 
+[  +0.000002] name:"stress" 
+[  +0.002469] flags: 0x9fffffc008000e(referenced|uptodate|dirty|swapbacked)
+[  +0.009495] raw: 009fffffc008000e ffffc900000e3d80 ffffc900000e3d80 ffff888e1c9357d8
+[  +0.007743] raw: 0000000000000002 0000000000000000 000000cb000000c8 ffff888e2233d000
+[  +0.007736] page->mem_cgroup:ffff888e2233d000
