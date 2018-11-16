@@ -1,122 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B3BF6B06BB
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 20:24:41 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id n68so48041574qkn.8
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 17:24:41 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o2si1554013qkg.259.2018.11.15.17.24.39
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D9EC66B06EF
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2018 20:47:02 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id d6-v6so17599055pfn.19
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2018 17:47:02 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v62sor25042241pgd.23.2018.11.15.17.47.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Nov 2018 17:24:39 -0800 (PST)
-Date: Fri, 16 Nov 2018 09:24:33 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: Memory hotplug softlock issue
-Message-ID: <20181116012433.GU2653@MiWiFi-R3L-srv>
-References: <20181114145250.GE2653@MiWiFi-R3L-srv>
- <20181114150029.GY23419@dhcp22.suse.cz>
- <20181115051034.GK2653@MiWiFi-R3L-srv>
- <20181115073052.GA23831@dhcp22.suse.cz>
- <20181115075349.GL2653@MiWiFi-R3L-srv>
- <20181115083055.GD23831@dhcp22.suse.cz>
- <20181115131211.GP2653@MiWiFi-R3L-srv>
- <20181115131927.GT23831@dhcp22.suse.cz>
- <20181115133840.GR2653@MiWiFi-R3L-srv>
- <20181115143204.GV23831@dhcp22.suse.cz>
+        (Google Transport Security);
+        Thu, 15 Nov 2018 17:47:01 -0800 (PST)
+Date: Thu, 15 Nov 2018 17:46:58 -0800
+From: Omar Sandoval <osandov@osandov.com>
+Subject: Re: [PATCH V10 13/19] iomap & xfs: only account for new added page
+Message-ID: <20181116014658.GH23828@vader>
+References: <20181115085306.9910-1-ming.lei@redhat.com>
+ <20181115085306.9910-14-ming.lei@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181115143204.GV23831@dhcp22.suse.cz>
+In-Reply-To: <20181115085306.9910-14-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, pifang@redhat.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On 11/15/18 at 03:32pm, Michal Hocko wrote:
-> On Thu 15-11-18 21:38:40, Baoquan He wrote:
-> > On 11/15/18 at 02:19pm, Michal Hocko wrote:
-> > > On Thu 15-11-18 21:12:11, Baoquan He wrote:
-> > > > On 11/15/18 at 09:30am, Michal Hocko wrote:
-> > > [...]
-> > > > > It would be also good to find out whether this is fs specific. E.g. does
-> > > > > it make any difference if you use a different one for your stress
-> > > > > testing?
-> > > > 
-> > > > Created a ramdisk and put stress bin there, then run stress -m 200, now
-> > > > seems it's stuck in libc-2.28.so migrating. And it's still xfs. So now xfs
-> > > > is a big suspect. At bottom I paste numactl printing, you can see that it's
-> > > > the last 4G.
-> > > > 
-> > > > Seems it's trying to migrate libc-2.28.so, but stress program keeps trying to
-> > > > access and activate it.
-> > > 
-> > > Is this still with faultaround disabled? I have seen exactly same
-> > > pattern in the bug I am working on. It was ext4 though.
-> > 
-> > After a long time struggling, the last 2nd block where libc-2.28.so is
-> > located is reclaimed, now it comes to the last memory block, still
-> > stress program itself. swap migration entry has been made and trying to
-> > unmap, now it's looping there.
-> > 
-> > [  +0.004445] migrating pfn 190ff2bb0 failed 
-> > [  +0.000013] page:ffffea643fcaec00 count:203 mapcount:201 mapping:ffff888dfb268f48 index:0x0
-> > [  +0.012809] shmem_aops 
-> > [  +0.000011] name:"stress" 
-> > [  +0.002550] flags: 0x1dfffffc008004e(referenced|uptodate|dirty|workingset|swapbacked)
-> > [  +0.010715] raw: 01dfffffc008004e ffffea643fcaec48 ffffea643fc714c8 ffff888dfb268f48
-> > [  +0.007828] raw: 0000000000000000 0000000000000000 000000cb000000c8 ffff888e72e92000
-> > [  +0.007810] page->mem_cgroup:ffff888e72e92000
-> [...]
-> > [  +0.004455] migrating pfn 190ff2bb0 failed 
-> > [  +0.000018] page:ffffea643fcaec00 count:203 mapcount:201 mapping:ffff888dfb268f48 index:0x0
-> > [  +0.014392] shmem_aops 
-> > [  +0.000010] name:"stress" 
-> > [  +0.002565] flags: 0x1dfffffc008004e(referenced|uptodate|dirty|workingset|swapbacked)
-> > [  +0.010675] raw: 01dfffffc008004e ffffea643fcaec48 ffffea643fc714c8 ffff888dfb268f48
-> > [  +0.007819] raw: 0000000000000000 0000000000000000 000000cb000000c8 ffff888e72e92000
-> > [  +0.007808] page->mem_cgroup:ffff888e72e92000
+On Thu, Nov 15, 2018 at 04:53:00PM +0800, Ming Lei wrote:
+> After multi-page is enabled, one new page may be merged to a segment
+> even though it is a new added page.
 > 
-> OK, so this is tmpfs backed code of your stree test. This just tells us
-> that this is not fs specific. Reference count is 2 more than the map
-> count which is the expected state. So the reference count must have been
-> elevated at the time when the migration was attempted. Shmem supports
-> fault around so this might be still possible (assuming it is enabled).
-> If not we really need to dig deeper. I will think of a debugging patch.
+> This patch deals with this issue by post-check in case of merge, and
+> only a freshly new added page need to be dealt with for iomap & xfs.
+> 
+> Cc: Dave Chinner <dchinner@redhat.com>
+> Cc: Kent Overstreet <kent.overstreet@gmail.com>
+> Cc: Mike Snitzer <snitzer@redhat.com>
+> Cc: dm-devel@redhat.com
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: linux-fsdevel@vger.kernel.org
+> Cc: Shaohua Li <shli@kernel.org>
+> Cc: linux-raid@vger.kernel.org
+> Cc: linux-erofs@lists.ozlabs.org
+> Cc: David Sterba <dsterba@suse.com>
+> Cc: linux-btrfs@vger.kernel.org
+> Cc: Darrick J. Wong <darrick.wong@oracle.com>
+> Cc: linux-xfs@vger.kernel.org
+> Cc: Gao Xiang <gaoxiang25@huawei.com>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Theodore Ts'o <tytso@mit.edu>
+> Cc: linux-ext4@vger.kernel.org
+> Cc: Coly Li <colyli@suse.de>
+> Cc: linux-bcache@vger.kernel.org
+> Cc: Boaz Harrosh <ooo@electrozaur.com>
+> Cc: Bob Peterson <rpeterso@redhat.com>
+> Cc: cluster-devel@redhat.com
+> Signed-off-by: Ming Lei <ming.lei@redhat.com>
+> ---
+>  fs/iomap.c          | 22 ++++++++++++++--------
+>  fs/xfs/xfs_aops.c   | 10 ++++++++--
+>  include/linux/bio.h | 11 +++++++++++
+>  3 files changed, 33 insertions(+), 10 deletions(-)
+> 
+> diff --git a/fs/iomap.c b/fs/iomap.c
+> index df0212560b36..a1b97a5c726a 100644
+> --- a/fs/iomap.c
+> +++ b/fs/iomap.c
+> @@ -288,6 +288,7 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+>  	loff_t orig_pos = pos;
+>  	unsigned poff, plen;
+>  	sector_t sector;
+> +	bool need_account = false;
+>  
+>  	if (iomap->type == IOMAP_INLINE) {
+>  		WARN_ON_ONCE(pos);
+> @@ -313,18 +314,15 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+>  	 */
+>  	sector = iomap_sector(iomap, pos);
+>  	if (ctx->bio && bio_end_sector(ctx->bio) == sector) {
+> -		if (__bio_try_merge_page(ctx->bio, page, plen, poff))
+> +		if (__bio_try_merge_page(ctx->bio, page, plen, poff)) {
+> +			need_account = iop && bio_is_last_segment(ctx->bio,
+> +					page, plen, poff);
 
-Disabled faultaround and reboot, test again, it's looping forever in the
-last block again, on node2, stress progam itself again. The weird is
-refcount seems to have been crazy, a random number now. There must be
-something going wrong.
+It's redundant to make this iop && ... since you already check
+iop && need_account below. Maybe rename it to added_page? Also, this
+indentation is wack.
 
-[  +0.058624] migrating pfn 80fd6fbe failed 
-[  +0.000003] page:ffffea203f5bef80 count:336 mapcount:201 mapping:ffff888e1c9357d8 index:0x2
-[  +0.014122] shmem_aops 
-[  +0.000000] name:"stress" 
-[  +0.002467] flags: 0x9fffffc008000e(referenced|uptodate|dirty|swapbacked)
-[  +0.009511] raw: 009fffffc008000e ffffc900000e3d80 ffffc900000e3d80 ffff888e1c9357d8
-[  +0.007743] raw: 0000000000000002 0000000000000000 000000cb000000c8 ffff888e2233d000
-[  +0.007740] page->mem_cgroup:ffff888e2233d000
-[  +0.038916] migrating pfn 80fd6fbe failed 
-[  +0.000003] page:ffffea203f5bef80 count:349 mapcount:201 mapping:ffff888e1c9357d8 index:0x2
-[  +0.012453] shmem_aops 
-[  +0.000001] name:"stress" 
-[  +0.002641] flags: 0x9fffffc008000e(referenced|uptodate|dirty|swapbacked)
-[  +0.009501] raw: 009fffffc008000e ffffc900000e3d80 ffffc900000e3d80 ffff888e1c9357d8
-[  +0.007746] raw: 0000000000000002 0000000000000000 000000cb000000c8 ffff888e2233d000
-[  +0.007740] page->mem_cgroup:ffff888e2233d000
-[  +0.061226] migrating pfn 80fd6fbe failed 
-[  +0.000004] page:ffffea203f5bef80 count:276 mapcount:201 mapping:ffff888e1c9357d8 index:0x2
-[  +0.014129] shmem_aops 
-[  +0.000002] name:"stress" 
-[  +0.003246] flags: 0x9fffffc008008e(waiters|referenced|uptodate|dirty|swapbacked)
-[  +0.010183] raw: 009fffffc008008e ffffc900000e3d80 ffffc900000e3d80 ffff888e1c9357d8
-[  +0.007742] raw: 0000000000000002 0000000000000000 000000cb000000c8 ffff888e2233d000
-[  +0.007733] page->mem_cgroup:ffff888e2233d000
-[  +0.037305] migrating pfn 80fd6fbe failed 
-[  +0.000003] page:ffffea203f5bef80 count:304 mapcount:201 mapping:ffff888e1c9357d8 index:0x2
-[  +0.012449] shmem_aops 
-[  +0.000002] name:"stress" 
-[  +0.002469] flags: 0x9fffffc008000e(referenced|uptodate|dirty|swapbacked)
-[  +0.009495] raw: 009fffffc008000e ffffc900000e3d80 ffffc900000e3d80 ffff888e1c9357d8
-[  +0.007743] raw: 0000000000000002 0000000000000000 000000cb000000c8 ffff888e2233d000
-[  +0.007736] page->mem_cgroup:ffff888e2233d000
+>  			goto done;
+> +		}
+>  		is_contig = true;
+>  	}
+>  
+> -	/*
+> -	 * If we start a new segment we need to increase the read count, and we
+> -	 * need to do so before submitting any previous full bio to make sure
+> -	 * that we don't prematurely unlock the page.
+> -	 */
+> -	if (iop)
+> -		atomic_inc(&iop->read_count);
+> +	need_account = true;
+>  
+>  	if (!ctx->bio || !is_contig || bio_full(ctx->bio)) {
+>  		gfp_t gfp = mapping_gfp_constraint(page->mapping, GFP_KERNEL);
+> @@ -347,6 +345,14 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+>  	__bio_add_page(ctx->bio, page, plen, poff);
+>  done:
+>  	/*
+> +	 * If we add a new page we need to increase the read count, and we
+> +	 * need to do so before submitting any previous full bio to make sure
+> +	 * that we don't prematurely unlock the page.
+> +	 */
+> +	if (iop && need_account)
+> +		atomic_inc(&iop->read_count);
+> +
+> +	/*
+>  	 * Move the caller beyond our range so that it keeps making progress.
+>  	 * For that we have to include any leading non-uptodate ranges, but
+>  	 * we can skip trailing ones as they will be handled in the next
+> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+> index 1f1829e506e8..d8e9cc9f751a 100644
+> --- a/fs/xfs/xfs_aops.c
+> +++ b/fs/xfs/xfs_aops.c
+> @@ -603,6 +603,7 @@ xfs_add_to_ioend(
+>  	unsigned		len = i_blocksize(inode);
+>  	unsigned		poff = offset & (PAGE_SIZE - 1);
+>  	sector_t		sector;
+> +	bool			need_account;
+>  
+>  	sector = xfs_fsb_to_db(ip, wpc->imap.br_startblock) +
+>  		((offset - XFS_FSB_TO_B(mp, wpc->imap.br_startoff)) >> 9);
+> @@ -617,13 +618,18 @@ xfs_add_to_ioend(
+>  	}
+>  
+>  	if (!__bio_try_merge_page(wpc->ioend->io_bio, page, len, poff)) {
+> -		if (iop)
+> -			atomic_inc(&iop->write_count);
+> +		need_account = true;
+>  		if (bio_full(wpc->ioend->io_bio))
+>  			xfs_chain_bio(wpc->ioend, wbc, bdev, sector);
+>  		__bio_add_page(wpc->ioend->io_bio, page, len, poff);
+> +	} else {
+> +		need_account = iop && bio_is_last_segment(wpc->ioend->io_bio,
+> +				page, len, poff);
+
+Same here, no need for iop &&, rename it added_page, indentation is off.
+
+>  	}
+>  
+> +	if (iop && need_account)
+> +		atomic_inc(&iop->write_count);
+> +
+>  	wpc->ioend->io_size += len;
+>  }
+>  
+> diff --git a/include/linux/bio.h b/include/linux/bio.h
+> index 1a2430a8b89d..5040e9a2eb09 100644
+> --- a/include/linux/bio.h
+> +++ b/include/linux/bio.h
+> @@ -341,6 +341,17 @@ static inline struct bio_vec *bio_last_bvec_all(struct bio *bio)
+>  	return &bio->bi_io_vec[bio->bi_vcnt - 1];
+>  }
+>  
+> +/* iomap needs this helper to deal with sub-pagesize bvec */
+> +static inline bool bio_is_last_segment(struct bio *bio, struct page *page,
+> +		unsigned int len, unsigned int off)
+
+Indentation.
+
+> +{
+> +	struct bio_vec bv;
+> +
+> +	bvec_last_segment(bio_last_bvec_all(bio), &bv);
+> +
+> +	return bv.bv_page == page && bv.bv_len == len && bv.bv_offset == off;
+> +}
+> +
+>  enum bip_flags {
+>  	BIP_BLOCK_INTEGRITY	= 1 << 0, /* block layer owns integrity data */
+>  	BIP_MAPPED_INTEGRITY	= 1 << 1, /* ref tag has been remapped */
+> -- 
+> 2.9.5
+> 
