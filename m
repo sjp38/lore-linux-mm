@@ -1,96 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E1E736B0957
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 06:49:57 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id b7so9491180eda.10
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 03:49:57 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s24-v6si2141327ejo.122.2018.11.16.03.49.56
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Nov 2018 03:49:56 -0800 (PST)
-Date: Fri, 16 Nov 2018 12:49:55 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] Fix do_move_pages_to_node() error handling
-Message-ID: <20181116114955.GJ14706@dhcp22.suse.cz>
-References: <20181114004059.1287439-1-pjaroszynski@nvidia.com>
- <20181114073415.GD23419@dhcp22.suse.cz>
- <20181114112945.GQ23419@dhcp22.suse.cz>
- <ddf79812-7702-d513-3f83-70bba1b258db@nvidia.com>
- <20181114212224.GE23419@dhcp22.suse.cz>
- <33626151-aeea-004a-36f5-27ddf6ff9008@nvidia.com>
- <20181115084752.GF23831@dhcp22.suse.cz>
- <22b8c91d-1c65-eba2-214e-0696d0e771fb@nvidia.com>
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D4746B095F
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 06:55:41 -0500 (EST)
+Received: by mail-oi1-f197.google.com with SMTP id n10-v6so13224161oib.5
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 03:55:41 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id x7si11989310otk.273.2018.11.16.03.55.40
+        for <linux-mm@kvack.org>;
+        Fri, 16 Nov 2018 03:55:40 -0800 (PST)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: Re: [PATCH 0/5] mm, memory_hotplug: improve memory offlining failures
+ debugging
+References: <20181116083020.20260-1-mhocko@kernel.org>
+Message-ID: <8a91e93d-386d-f0bc-d639-a696bb37a34e@arm.com>
+Date: Fri, 16 Nov 2018 17:25:35 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <22b8c91d-1c65-eba2-214e-0696d0e771fb@nvidia.com>
+In-Reply-To: <20181116083020.20260-1-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Piotr Jaroszynski <pjaroszynski@nvidia.com>
-Cc: p.jaroszynski@gmail.com, linux-mm@kvack.org, Jan Stancek <jstancek@redhat.com>, Christoph Hellwig <hch@lst.de>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Oscar Salvador <OSalvador@suse.com>, Baoquan He <bhe@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 15-11-18 10:58:33, Piotr Jaroszynski wrote:
-> On 11/15/18 12:47 AM, Michal Hocko wrote:
-> > On Wed 14-11-18 17:04:37, Piotr Jaroszynski wrote:
-[...]
-> >> The proposed solution adds a new case to handle, but it will just tell
-> >> us the page status is unusable and all we can do is just retry blindly.
-> >> If it was possible to plumb through the migration status for each page
-> >> accurately that would allow us to save redoing the call for pages that
-> >> actually worked. Perhaps we would need a special status for pages
-> >> skipped due to errors.
-> > 
-> > This would be possible but with this patch applied you should know how
-> > many pages to skip from the tail of the array.
+
+On 11/16/2018 02:00 PM, Michal Hocko wrote:
+> Hi,
+> this has been posted as an RFC [1]. I have screwed during rebasing so
+> there were few compilation issues in the previous version. I have also
+> integrated review feedback from Andrew and Anshuman.
 > 
-> At least in our case the node target is the same for all the pages so we
-> would just learn that all the pages failed to migrate as they would be
-> all batched together to the do_move_pages_to_node() call.
-
-Anyway, could you give this patch a try please? I would appreciate some
-Tested-bys to push this forward ;)
-
-> >> But maybe this is all a tiny corner case short of the bug I hit (see
-> >> more below) and it's not worth thinking too much about.
-> >>
-> >>>>>> Just wondering, how have you found out? Is there any real application
-> >>>>>> failing because of the change or this is a result of some test?
-> >>>>
-> >>>> I have a test that creates a tmp file, mmaps it as shared, memsets the
-> >>>> memory and then attempts to move it to a different node. It used to
-> >>>> work, but now fails. I suspect the filesystem's migratepage() callback
-> >>>> regressed and will look into it next. So far I have only tested this on
-> >>>> powerpc with the xfs filesystem.
-> >>>
-> >>> I would be surprise if the rewor changed the migration behavior.
-> >>
-> >> It didn't, I tracked it down to the new fs/iomap.c code used by xfs not
-> >> being compatible with migrate_page_move_mapping() and prepared a perhaps
-> >> naive fix in [1].
-> > 
-> > I am not familiar with iomap code much TBH so I cannot really judge your
-> > fix.
-> > 
+> I have been promissing to improve memory offlining failures debugging
+> for quite some time. As things stand now we get only very limited
+> information in the kernel log when the offlining fails. It is usually
+> only
+> [ 1984.506184] rac1 kernel: memory offlining [mem 0x82600000000-0x8267fffffff] failed
+> without no further details. We do not know what exactly fails and for
+> what reason. Whenever I was forced to debug such a failure I've always
+> had to do a debugging patch to tell me more. We can enable some
+> tracepoints but it would be much better to get a better picture without
+> using them.
 > 
-> Christoph reviewed it already (thanks!) so it should be good after all.
-> But in its context, I wanted to ask about migrate_page_move_mapping()
-> page count checks that it was hitting. Is it true that the count checks
-> are to handle the case when a page might be temporarily pinned and hence
-> have the count too high temporarily?
+> This patch series does 2 things. The first one is to make dump_page
+> more usable by printing more information about the mapping patch 1.
+> Then it reduces the log level from emerg to warning so that this
+> function is usable from less critical context patch 2. Then I have
+> added more detailed information about the offlining failure patch 4
+> and finally add dump_page to isolation and offlining migration paths.
+> Patch 3 is a trivial cleanup.
+> 
+> Does this look go to you?
+> 
+> [1] http://lkml.kernel.org/r/20181107101830.17405-1-mhocko@kernel.org
+> 
 
-Yes. We cannot really migrate pinned pages.
-
-> That would explain why it returns
-> EAGAIN in this case. But should having the count too low (what the bug
-> was hitting) be a fatal error with a WARN maybe? Or are there expected
-> cases where the count is too low temporarily too?
-
-Nope, page reference count too low is a bug.
-
-> I could send a patch
-> for that, but also just wanted to understand the expectations.
-
--- 
-Michal Hocko
-SUSE Labs
+Agreed. It has been always difficult to debug memory hot plug problems
+without a debug patch particularly to understand the unmovable pages
+and their isolation failures in the range to be removed. This series
+is definitely going to help improve the situation.
