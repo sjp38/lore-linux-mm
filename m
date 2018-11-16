@@ -1,75 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 471786B0AE2
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 13:36:25 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id i22-v6so18936482pfj.1
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 10:36:25 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id u128si7964271pfc.133.2018.11.16.10.36.23
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C645E6B0AED
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 13:45:01 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id z10so6581465edz.15
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 10:45:01 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s2si33906eds.341.2018.11.16.10.45.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Nov 2018 10:36:24 -0800 (PST)
-Date: Fri, 16 Nov 2018 11:32:54 -0700
-From: Keith Busch <keith.busch@intel.com>
-Subject: Re: [PATCH 1/7] node: Link memory nodes to their compute nodes
-Message-ID: <20181116183254.GD14630@localhost.localdomain>
-References: <20181114224921.12123-2-keith.busch@intel.com>
- <20181115135710.GD19286@bombadil.infradead.org>
- <20181115145920.GG11416@localhost.localdomain>
- <20181115203654.GA28246@bombadil.infradead.org>
+        Fri, 16 Nov 2018 10:45:00 -0800 (PST)
+Date: Fri, 16 Nov 2018 19:44:57 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH AUTOSEL 3.18 8/9] mm/vmstat.c: assert that vmstat_text is
+ in sync with stat_items_size
+Message-ID: <20181116184457.GA11906@dhcp22.suse.cz>
+References: <20181113055252.79406-1-sashal@kernel.org>
+ <20181113055252.79406-8-sashal@kernel.org>
+ <20181115140810.e3292c83467544f6a1d82686@linux-foundation.org>
+ <20181115223718.GB1706@sasha-vm>
+ <20181115144719.d26dc7a2d47fade8d41a83d5@linux-foundation.org>
+ <20181115230118.GC1706@sasha-vm>
+ <20181116085525.GC14706@dhcp22.suse.cz>
+ <20181116181904.GH1706@sasha-vm>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181115203654.GA28246@bombadil.infradead.org>
+In-Reply-To: <20181116181904.GH1706@sasha-vm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: Sasha Levin <sashal@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-kernel@vger.kernel.org, Jann Horn <jannh@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Christoph Lameter <clameter@sgi.com>, Kemi Wang <kemi.wang@intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
 
-On Thu, Nov 15, 2018 at 12:36:54PM -0800, Matthew Wilcox wrote:
-> On Thu, Nov 15, 2018 at 07:59:20AM -0700, Keith Busch wrote:
-> > On Thu, Nov 15, 2018 at 05:57:10AM -0800, Matthew Wilcox wrote:
-> > > On Wed, Nov 14, 2018 at 03:49:14PM -0700, Keith Busch wrote:
-> > > > Memory-only nodes will often have affinity to a compute node, and
-> > > > platforms have ways to express that locality relationship.
-> > > > 
-> > > > A node containing CPUs or other DMA devices that can initiate memory
-> > > > access are referred to as "memory iniators". A "memory target" is a
-> > > > node that provides at least one phyiscal address range accessible to a
-> > > > memory initiator.
+On Fri 16-11-18 13:19:04, Sasha Levin wrote:
+> On Fri, Nov 16, 2018 at 09:55:25AM +0100, Michal Hocko wrote:
+[...]
+> > > Race condition with memory hotplug due to missing locks:
 > > > 
-> > > I think I may be confused here.  If there is _no_ link from node X to
-> > > node Y, does that mean that node X's CPUs cannot access the memory on
-> > > node Y?  In my mind, all nodes can access all memory in the system,
-> > > just not with uniform bandwidth/latency.
+> > > 	https://marc.info/?l=linux-mm&m=154211934011188&w=2
 > > 
-> > The link is just about which nodes are "local". It's like how nodes have
-> > a cpulist. Other CPUs not in the node's list can acces that node's memory,
-> > but the ones in the mask are local, and provide useful optimization hints.
+> > Memory hotplug locking is dubious at best and this patch doesn't really
+> > fix it. It fixes a theoretical problem. I am not aware anybody would be
+> > hitting in practice. We need to rework the locking quite extensively.
 > 
-> So ... let's imagine a hypothetical system (I've never seen one built like
-> this, but it doesn't seem too implausible).  Connect four CPU sockets in
-> a square, each of which has some regular DIMMs attached to it.  CPU A is
-> 0 hops to Memory A, one hop to Memory B and Memory C, and two hops from
-> Memory D (each CPU only has two "QPI" links).  Then maybe there's some
-> special memory extender device attached on the PCIe bus.  Now there's
-> Memory B1 and B2 that's attached to CPU B and it's local to CPU B, but
-> not as local as Memory B is ... and we'd probably _prefer_ to allocate
-> memory for CPU A from Memory B1 than from Memory D.  But ... *mumble*,
-> this seems hard.
+> The word "theoretical" used in the stable rules file does not mean
+> that we need to have actual reports of users hitting bugs before we
+> start backporting the relevant patch, it simply suggests that there
+> needs to be a reasonable explanation of how this issue can be hit.
+> 
+> For this memory hotplug patch in particular, I use the hv_balloon driver
+> at this very moment (running a linux guest on windows, with "dynamic
+> memory" enabled). Should I wait for it to crash before I can fix it?
+> 
+> Is the upstream code perfect? No, but that doesn't mean that it's not
+> working at all, and if there are users they expect to see fixes going in
+> and not just sitting idly waiting for a big rewrite that will come in a
+> few years.
+> 
+> Memory hotplug fixes are not something you think should go to stable?
+> Andrew sent a few of them to stable, so that can't be the case.
 
-Indeed, that particular example is out of scope for this series. The
-first objective is to aid a process running in node B's CPUs to allocate
-memory in B1. Anything that crosses QPI are their own.
+I am not arguing about hotplug fixes in general. I was arguing that this
+particular one is a theoretical one and hotplug locking is quite subtle.
+E.g. 381eab4a6ee mm/memory_hotplug: fix online/offline_pages called w.o. mem_hotplug_lock
+http://lkml.kernel.org/r/20181114070909.GB2653@MiWiFi-R3L-srv
+So in general unless the issue is really triggered easily I am rather
+conservative.
 
-> I understand you're trying to reflect what the HMAT table is telling you,
-> I'm just really fuzzy on who's ultimately consuming this information
-> and what decisions they're trying to drive from it.
+> > > Raising an OOM event that causes issues in userspace when no OOM has
+> > > actually occured:
+> > > 
+> > > 	https://marc.info/?l=linux-mm&m=154211939811582&w=2
+> > 
+> > The patch makes sense I just do not think this is a stable material. The
+> > semantic of the event was and still is suboptimal.
+> 
+> I really fail to understand your reasoning about -stable here. This
+> patch is something people actually hit in the field, spent time on
+> triaging and analysing it, and submitting a fix which looks reasonably
+> straightforward.
+> 
+> That fix was acked by quite a few folks (including yourself) and merged
+> in. And as far as we can tell, it actually fixed the problem.
+> 
+> Why is it not stable material?
 
-Intended consumers include processes using numa_alloc_onnode() and mbind().
+Because the semantic of the OOM event is quite tricky itself. We have
+discussed this patch and concluded that the updated one is more
+sensible. But it is not yet clear whether this is actually what other
+users expect as well. That to me does sound quite risky for a stable
+kernel.
 
-Consider a system with faster DRAM and slower persistent memory. Such
-a system may group the DRAM in a different proximity domain than the
-persistent memory, and both are local to yet another proximity domain
-that contains the CPUs. HMAT provides a way to express that relationship,
-and this patch provides a user facing abstraction for that information.
+> My understanding is that you're concerned with the patch itself being
+> "suboptimal", but in that case - why did you ack it?
+> 
+> > > I think that all 3 cases represent a "real" bug users can hit, and I
+> > > honestly don't know why they were not tagged for stable.
+> > 
+> > It would be much better to ask in the respective email thread rather
+> > than spamming mailing with AUTOSEL patches which rarely get any
+> > attention.
+> 
+> I actually tried it, but the comments I got is that it gets in the way
+> and people preferred something they can filter.
+
+which means that AUTOSEL just goes to /dev/null...
+
+> > We have been through this discussion several times already and I thought
+> > we have agreed that those subsystems which are seriously considering stable
+> > are opted out from the AUTOSEL automagic. Has anything changed in that
+> > regards.
+> 
+> I checked in with Andrew to get his input on this, he suggested that
+> these patches should be sent to linux-mm and he'll give it a close look.
+
+If Andrew is happy to get AUTOSEL patches then I will not object of
+course but let's not merge these patches without and expclicit OK.
+
+-- 
+Michal Hocko
+SUSE Labs
