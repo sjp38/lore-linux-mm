@@ -1,57 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D3AEF6B0994
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 08:06:45 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id k58so4532292eda.20
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 05:06:45 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b11-v6si2442361edj.131.2018.11.16.05.06.44
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BDF736B099D
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 08:13:07 -0500 (EST)
+Received: by mail-wm1-f70.google.com with SMTP id y85so13023208wmc.7
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 05:13:07 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id r75-v6si18307254wmb.60.2018.11.16.05.13.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Nov 2018 05:06:44 -0800 (PST)
-Message-ID: <1542373588.3020.22.camel@suse.de>
-Subject: Re: [PATCH 2/5] mm/memory_hotplug: Create add/del_device_memory
- functions
-From: osalvador <osalvador@suse.de>
-Date: Fri, 16 Nov 2018 14:06:28 +0100
-In-Reply-To: <20181112212839.ut4owdqfuibzuhvz@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
-References: <20181015153034.32203-1-osalvador@techadventures.net>
-	 <20181015153034.32203-3-osalvador@techadventures.net>
-	 <CAPcyv4jM-EJCmOwFkPqXhtgR54UueNtHjfCUbnnJqFLmgj7Jvw@mail.gmail.com>
-	 <20181112212839.ut4owdqfuibzuhvz@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Fri, 16 Nov 2018 05:13:06 -0800 (PST)
+Date: Fri, 16 Nov 2018 14:13:05 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH V10 01/19] block: introduce multi-page page bvec helpers
+Message-ID: <20181116131305.GA3165@lst.de>
+References: <20181115085306.9910-1-ming.lei@redhat.com> <20181115085306.9910-2-ming.lei@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181115085306.9910-2-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@soleen.com>, Dan Williams <dan.j.williams@intel.com>
-Cc: osalvador@techadventures.net, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, rppt@linux.vnet.ibm.com, malat@debian.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Pasha Tatashin <pavel.tatashin@microsoft.com>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>, Jonathan.Cameron@huawei.com, "Rafael J. Wysocki" <rafael@kernel.org>, David Hildenbrand <david@redhat.com>, Dave Jiang <dave.jiang@intel.com>, Linux MM <linux-mm@kvack.org>, alexander.h.duyck@linux.intel.com
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On Mon, 2018-11-12 at 21:28 +0000, Pavel Tatashin wrote:
-> > 
-> > This collides with the refactoring of hmm, to be done in terms of
-> > devm_memremap_pages(). I'd rather not introduce another common
-> > function *beneath* hmm and devm_memremap_pages() and rather make
-> > devm_memremap_pages() the common function.
-> > 
-> > I plan to resubmit that cleanup after Plumbers. So, unless I'm
-> > misunderstanding some other benefit a nak from me on this patch as
-> > it
-> > stands currently.
-> > 
-> 
-> Ok, Dan, I will wait for your new refactoring series before
-> continuing
-> reviewing this series.
+> -#define bvec_iter_page(bvec, iter)				\
+> +#define mp_bvec_iter_page(bvec, iter)				\
+>  	(__bvec_iter_bvec((bvec), (iter))->bv_page)
+>  
+> -#define bvec_iter_len(bvec, iter)				\
+> +#define mp_bvec_iter_len(bvec, iter)				\
 
-Hi Pavel,
+I'd much prefer if we would stick to the segment naming that
+we also use in the higher level helper.
 
-thanks for reviewing the other patches.
-You could still check patch4 and patch5, as they are not strictly
-related to this one.
-(Not asking for your Reviewed-by, but I would still like you to check
-them)
-I could use your eyes there if you have time ;-)
+So segment_iter_page, segment_iter_len, etc.
 
-Thanks
-Oscar Salvador
+> + * This helpers are for building sp bvec in flight.
+
+Please spell out single page, sp is not easy understandable.
