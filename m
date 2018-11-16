@@ -1,55 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 24E866B0887
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 03:39:48 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id s24-v6so16418721plp.12
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 00:39:48 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E7636B088F
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 03:45:59 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id h25-v6so11407501eds.21
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 00:45:59 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 32-v6si32788874plc.370.2018.11.16.00.39.46
+        by mx.google.com with ESMTPS id q1-v6si5723443ejk.0.2018.11.16.00.45.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Nov 2018 00:39:46 -0800 (PST)
-Date: Fri, 16 Nov 2018 09:39:42 +0100
+        Fri, 16 Nov 2018 00:45:58 -0800 (PST)
+Date: Fri, 16 Nov 2018 09:45:56 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] slab: fix 'dubious: x & !y' warning from Sparse
-Message-ID: <20181116083942.GA14767@dhcp22.suse.cz>
-References: <1542346829-31063-1-git-send-email-yamada.masahiro@socionext.com>
+Subject: Re: [PATCH] mm/swap: use nr_node_ids for avail_lists in
+ swap_info_struct
+Message-ID: <20181116084556.GB14706@dhcp22.suse.cz>
+References: <20181115083847.GA11129@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1542346829-31063-1-git-send-email-yamada.masahiro@socionext.com>
+In-Reply-To: <20181115083847.GA11129@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Masahiro Yamada <yamada.masahiro@socionext.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Vasily Averin <vvs@virtuozzo.com>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri 16-11-18 14:40:29, Masahiro Yamada wrote:
-> Sparse reports:
-> ./include/linux/slab.h:332:43: warning: dubious: x & !y
+On Thu 15-11-18 16:38:47, Aaron Lu wrote:
+> Since commit a2468cc9bfdf ("swap: choose swap device according to
+> numa node"), avail_lists field of swap_info_struct is changed to
+> an array with MAX_NUMNODES elements. This made swap_info_struct
+> size increased to 40KiB and needs an order-4 page to hold it.
+> 
+> This is not optimal in that:
+> 1 Most systems have way less than MAX_NUMNODES(1024) nodes so it
+>   is a waste of memory;
+> 2 It could cause swapon failure if the swap device is swapped on
+>   after system has been running for a while, due to no order-4
+>   page is available as pointed out by Vasily Averin.
+> 
+> Solve the above two issues by using nr_node_ids(which is the actual
+> possible node number the running system has) for avail_lists instead
+> of MAX_NUMNODES.
+> 
+> nr_node_ids is unknown at compile time so can't be directly used
+> when declaring this array. What I did here is to declare avail_lists
+> as zero element array and allocate space for it when allocating
+> space for swap_info_struct. The reason why keep using array but
+> not pointer is plist_for_each_entry needs the field to be part
+> of the struct, so pointer will not work.
+> 
+> This patch is on top of Vasily Averin's fix commit. I think the
+> use of kvzalloc for swap_info_struct is still needed in case
+> nr_node_ids is really big on some systems.
 
-JFYI this has been discussed here http://lkml.kernel.org/r/20181105204000.129023-1-bvanassche@acm.org
+I haven't seen any system with a huge nr_node_ids but using kvzalloc
+is not harmfull.
 
-> Signed-off-by: Masahiro Yamada <yamada.masahiro@socionext.com>
+> Cc: Vasily Averin <vvs@virtuozzo.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Huang Ying <ying.huang@intel.com>
+> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
 > ---
+>  include/linux/swap.h | 11 ++++++++++-
+>  mm/swapfile.c        |  3 ++-
+>  2 files changed, 12 insertions(+), 2 deletions(-)
 > 
->  include/linux/slab.h | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index 918f374..d395c73 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -329,7 +329,7 @@ static __always_inline enum kmalloc_cache_type kmalloc_type(gfp_t flags)
->  	 * If an allocation is both __GFP_DMA and __GFP_RECLAIMABLE, return
->  	 * KMALLOC_DMA and effectively ignore __GFP_RECLAIMABLE
->  	 */
-> -	return type_dma + (is_reclaimable & !is_dma) * KMALLOC_RECLAIM;
-> +	return type_dma + (is_reclaimable && !is_dma) * KMALLOC_RECLAIM;
->  }
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index d8a07a4f171d..3d3630b3f63d 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -233,7 +233,6 @@ struct swap_info_struct {
+>  	unsigned long	flags;		/* SWP_USED etc: see above */
+>  	signed short	prio;		/* swap priority of this type */
+>  	struct plist_node list;		/* entry in swap_active_head */
+> -	struct plist_node avail_lists[MAX_NUMNODES];/* entry in swap_avail_heads */
+>  	signed char	type;		/* strange name for an index */
+>  	unsigned int	max;		/* extent of the swap_map */
+>  	unsigned char *swap_map;	/* vmalloc'ed array of usage counts */
+> @@ -274,6 +273,16 @@ struct swap_info_struct {
+>  					 */
+>  	struct work_struct discard_work; /* discard worker */
+>  	struct swap_cluster_list discard_clusters; /* discard clusters list */
+> +	struct plist_node avail_lists[0]; /*
+> +					   * entries in swap_avail_heads, one
+> +					   * entry per node.
+> +					   * Must be last as the number of the
+> +					   * array is nr_node_ids, which is not
+> +					   * a fixed value so have to allocate
+> +					   * dynamically.
+> +					   * And it has to be an array so that
+> +					   * plist_for_each_* can work.
+> +					   */
+>  };
 >  
->  /*
+>  #ifdef CONFIG_64BIT
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 8688ae65ef58..6e06821623f6 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -2812,8 +2812,9 @@ static struct swap_info_struct *alloc_swap_info(void)
+>  	struct swap_info_struct *p;
+>  	unsigned int type;
+>  	int i;
+> +	int size = sizeof(*p) + nr_node_ids * sizeof(struct plist_node);
+>  
+> -	p = kvzalloc(sizeof(*p), GFP_KERNEL);
+> +	p = kvzalloc(size, GFP_KERNEL);
+>  	if (!p)
+>  		return ERR_PTR(-ENOMEM);
+>  
 > -- 
-> 2.7.4
+> 2.17.2
+> 
 
 -- 
 Michal Hocko
