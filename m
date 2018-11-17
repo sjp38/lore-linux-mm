@@ -1,156 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 56E936B0D26
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 23:22:16 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id v74so34318340qkb.21
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 20:22:16 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o187si5349422qkb.117.2018.11.16.20.22.14
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 663896B0DBD
+	for <linux-mm@kvack.org>; Sat, 17 Nov 2018 01:53:13 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id j24-v6so11258357lji.20
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 22:53:13 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c7sor8225291lff.32.2018.11.16.22.53.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Nov 2018 20:22:15 -0800 (PST)
-Date: Sat, 17 Nov 2018 12:22:08 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: Memory hotplug softlock issue
-Message-ID: <20181117042208.GB18471@MiWiFi-R3L-srv>
-References: <20181115051034.GK2653@MiWiFi-R3L-srv>
- <20181115073052.GA23831@dhcp22.suse.cz>
- <20181115075349.GL2653@MiWiFi-R3L-srv>
- <20181115083055.GD23831@dhcp22.suse.cz>
- <20181115131211.GP2653@MiWiFi-R3L-srv>
- <20181115131927.GT23831@dhcp22.suse.cz>
- <20181115133840.GR2653@MiWiFi-R3L-srv>
- <20181115143204.GV23831@dhcp22.suse.cz>
- <20181116012433.GU2653@MiWiFi-R3L-srv>
- <20181116091409.GD14706@dhcp22.suse.cz>
+        (Google Transport Security);
+        Fri, 16 Nov 2018 22:53:11 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181116091409.GD14706@dhcp22.suse.cz>
+References: <20181115154530.GA27872@jordon-HP-15-Notebook-PC> <20181116182836.GB17088@rapoport-lnx>
+In-Reply-To: <20181116182836.GB17088@rapoport-lnx>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Sat, 17 Nov 2018 12:26:38 +0530
+Message-ID: <CAFqt6zYp0j999WXw9Jus0oZMjADQQkPfso8btv6du6L9CE3PXA@mail.gmail.com>
+Subject: Re: [PATCH 1/9] mm: Introduce new vm_insert_range API
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, pifang@redhat.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com
+To: rppt@linux.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz, Rik van Riel <riel@surriel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, rppt@linux.vnet.ibm.com, Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, Kees Cook <keescook@chromium.org>, Marek Szyprowski <m.szyprowski@samsung.com>, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, Kyungmin Park <kyungmin.park@samsung.com>, mchehab@kernel.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
 
-On 11/16/18 at 10:14am, Michal Hocko wrote:
-> Could you try to apply this debugging patch on top please? It will dump
-> stack trace for each reference count elevation for one page that fails
-> to migrate after multiple passes.
+On Fri, Nov 16, 2018 at 11:59 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
+>
+> On Thu, Nov 15, 2018 at 09:15:30PM +0530, Souptick Joarder wrote:
+> > Previouly drivers have their own way of mapping range of
+> > kernel pages/memory into user vma and this was done by
+> > invoking vm_insert_page() within a loop.
+> >
+> > As this pattern is common across different drivers, it can
+> > be generalized by creating a new function and use it across
+> > the drivers.
+> >
+> > vm_insert_range is the new API which will be used to map a
+> > range of kernel memory/pages to user vma.
+> >
+> > Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+> > Reviewed-by: Matthew Wilcox <willy@infradead.org>
+> > ---
+> >  include/linux/mm_types.h |  3 +++
+> >  mm/memory.c              | 28 ++++++++++++++++++++++++++++
+> >  mm/nommu.c               |  7 +++++++
+> >  3 files changed, 38 insertions(+)
+> >
+> > diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> > index 5ed8f62..15ae24f 100644
+> > --- a/include/linux/mm_types.h
+> > +++ b/include/linux/mm_types.h
+> > @@ -523,6 +523,9 @@ extern void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
+> >  extern void tlb_finish_mmu(struct mmu_gather *tlb,
+> >                               unsigned long start, unsigned long end);
+> >
+> > +int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
+> > +                     struct page **pages, unsigned long page_count);
+> > +
+> >  static inline void init_tlb_flush_pending(struct mm_struct *mm)
+> >  {
+> >       atomic_set(&mm->tlb_flush_pending, 0);
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index 15c417e..da904ed 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -1478,6 +1478,34 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
+> >  }
+> >
+> >  /**
+> > + * vm_insert_range - insert range of kernel pages into user vma
+> > + * @vma: user vma to map to
+> > + * @addr: target user address of this page
+> > + * @pages: pointer to array of source kernel pages
+> > + * @page_count: no. of pages need to insert into user vma
+> > + *
+> > + * This allows drivers to insert range of kernel pages they've allocated
+> > + * into a user vma. This is a generic function which drivers can use
+> > + * rather than using their own way of mapping range of kernel pages into
+> > + * user vma.
+>
+> Please add the return value and context descriptions.
+>
+> > + */
+> > +int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
+> > +                     struct page **pages, unsigned long page_count)
+> > +{
+> > +     unsigned long uaddr = addr;
+> > +     int ret = 0, i;
+> > +
+> > +     for (i = 0; i < page_count; i++) {
+> > +             ret = vm_insert_page(vma, uaddr, pages[i]);
+> > +             if (ret < 0)
+> > +                     return ret;
+> > +             uaddr += PAGE_SIZE;
+> > +     }
+> > +
+> > +     return ret;
+> > +}
+> > +
+> > +/**
+> >   * vm_insert_page - insert single page into user vma
+> >   * @vma: user vma to map to
+> >   * @addr: target user address of this page
+> > diff --git a/mm/nommu.c b/mm/nommu.c
+> > index 749276b..d6ef5c7 100644
+> > --- a/mm/nommu.c
+> > +++ b/mm/nommu.c
+> > @@ -473,6 +473,13 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
+> >  }
+> >  EXPORT_SYMBOL(vm_insert_page);
+> >
+> > +int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
+> > +                     struct page **pages, unsigned long page_count)
+> > +{
+> > +     return -EINVAL;
+> > +}
+> > +EXPORT_SYMBOL(vm_insert_range);
+> > +
+> >  /*
+> >   *  sys_brk() for the most part doesn't need the global kernel
+> >   *  lock, except when an application is doing something nasty
+> > --
+> > 1.9.1
+> >
+>
+> --
+> Sincerely yours,
+> Mike.
+>
 
-Thanks, applied and fixed two code issues. The dmesg has been sent to
-you privately, please check. The dmesg is overflow, if you need the
-earlier message, I will retest.
+Sure I will wait for some time to get additional review comments and
+add all of those requested changes in v2.
 
-diff --git a/include/linux/page_ref.h b/include/linux/page_ref.h
-index b64ebf253381..f76e2c498f31 100644
---- a/include/linux/page_ref.h
-+++ b/include/linux/page_ref.h
-@@ -72,7 +72,7 @@ static inline int page_count(struct page *page)
-        return atomic_read(&compound_head(page)->_refcount);
- }
- 
--struct page *page_to_track;
-+extern struct page *page_to_track;
- static inline void set_page_count(struct page *page, int v)
- {
-        atomic_set(&page->_refcount, v);
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 9b2e395a3d68..42c7499c43b9 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1339,6 +1339,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
- }
- 
- struct page *page_to_track;
-+EXPORT_SYMBOL_GPL(page_to_track);
- 
- /*
-  * migrate_pages - migrate the pages specified in a list, to the free pages
-
-> 
-> diff --git a/include/linux/page_ref.h b/include/linux/page_ref.h
-> index 14d14beb1f7f..b64ebf253381 100644
-> --- a/include/linux/page_ref.h
-> +++ b/include/linux/page_ref.h
-> @@ -72,9 +72,12 @@ static inline int page_count(struct page *page)
->  	return atomic_read(&compound_head(page)->_refcount);
->  }
->  
-> +struct page *page_to_track;
->  static inline void set_page_count(struct page *page, int v)
->  {
->  	atomic_set(&page->_refcount, v);
-> +	if (page == page_to_track)
-> +		dump_stack();
->  	if (page_ref_tracepoint_active(__tracepoint_page_ref_set))
->  		__page_ref_set(page, v);
->  }
-> @@ -91,6 +94,8 @@ static inline void init_page_count(struct page *page)
->  static inline void page_ref_add(struct page *page, int nr)
->  {
->  	atomic_add(nr, &page->_refcount);
-> +	if (page == page_to_track)
-> +		dump_stack();
->  	if (page_ref_tracepoint_active(__tracepoint_page_ref_mod))
->  		__page_ref_mod(page, nr);
->  }
-> @@ -105,6 +110,8 @@ static inline void page_ref_sub(struct page *page, int nr)
->  static inline void page_ref_inc(struct page *page)
->  {
->  	atomic_inc(&page->_refcount);
-> +	if (page == page_to_track)
-> +		dump_stack();
->  	if (page_ref_tracepoint_active(__tracepoint_page_ref_mod))
->  		__page_ref_mod(page, 1);
->  }
-> @@ -129,6 +136,8 @@ static inline int page_ref_inc_return(struct page *page)
->  {
->  	int ret = atomic_inc_return(&page->_refcount);
->  
-> +	if (page == page_to_track)
-> +		dump_stack();
->  	if (page_ref_tracepoint_active(__tracepoint_page_ref_mod_and_return))
->  		__page_ref_mod_and_return(page, 1, ret);
->  	return ret;
-> @@ -156,6 +165,8 @@ static inline int page_ref_add_unless(struct page *page, int nr, int u)
->  {
->  	int ret = atomic_add_unless(&page->_refcount, nr, u);
->  
-> +	if (page == page_to_track)
-> +		dump_stack();
->  	if (page_ref_tracepoint_active(__tracepoint_page_ref_mod_unless))
->  		__page_ref_mod_unless(page, nr, ret);
->  	return ret;
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index f7e4bfdc13b7..9b2e395a3d68 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -1338,6 +1338,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
->  	return rc;
->  }
->  
-> +struct page *page_to_track;
-> +
->  /*
->   * migrate_pages - migrate the pages specified in a list, to the free pages
->   *		   supplied as the target for the page migration
-> @@ -1375,6 +1377,7 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
->  	if (!swapwrite)
->  		current->flags |= PF_SWAPWRITE;
->  
-> +	page_to_track = NULL;
->  	for(pass = 0; pass < 10 && retry; pass++) {
->  		retry = 0;
->  
-> @@ -1417,6 +1420,8 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
->  				goto out;
->  			case -EAGAIN:
->  				retry++;
-> +				if (pass > 1 && !page_to_track)
-> +					page_to_track = page;
->  				break;
->  			case MIGRATEPAGE_SUCCESS:
->  				nr_succeeded++;
-> -- 
-> Michal Hocko
-> SUSE Labs
+Any further feedback on driver changes as part of this patch series ?
