@@ -1,100 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 125756B0C7D
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 20:33:46 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id w7-v6so18473948plp.9
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 17:33:46 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id w17si26077608pgl.6.2018.11.16.17.33.44
+	by kanga.kvack.org (Postfix) with ESMTP id E779F6B0CAD
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 21:21:39 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id a22-v6so11649710plm.23
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 18:21:39 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 24sor4220851pgq.13.2018.11.16.18.21.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Nov 2018 17:33:44 -0800 (PST)
-From: Wengang Wang <wen.gang.wang@oracle.com>
-Subject: [PATCH] mm: use this_cpu_cmpxchg_double in put_cpu_partial
-Date: Fri, 16 Nov 2018 17:33:35 -0800
-Message-Id: <20181117013335.32220-1-wen.gang.wang@oracle.com>
+        (Google Transport Security);
+        Fri, 16 Nov 2018 18:21:38 -0800 (PST)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH] mm, page_alloc: fix calculation of pgdat->nr_zones
+Date: Sat, 17 Nov 2018 10:20:22 +0800
+Message-Id: <20181117022022.9956-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: wen.gang.wang@oracle.com
+To: akpm@linux-foundation.org, mhocko@suse.com, dave.hansen@intel.com
+Cc: linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-The this_cpu_cmpxchg makes the do-while loop pass as long as the
-s->cpu_slab->partial as the same value. It doesn't care what happened to
-that slab. Interrupt is not disabled, and new alloc/free can happen in the
-interrupt handlers. Theoretically, after we have a reference to the it,
-stored in _oldpage_, the first slab on the partial list on this CPU can be
-moved to kmem_cache_node and then moved to different kmem_cache_cpu and
-then somehow can be added back as head to partial list of current
-kmem_cache_cpu, though that is a very rare case. If that rare case really
-happened, the reading of oldpage->pobjects may get a 0xdead0000
-unexpectedly, stored in _pobjects_, if the reading happens just after
-another CPU removed the slab from kmem_cache_node, setting lru.prev to
-LIST_POISON2 (0xdead000000000200). The wrong _pobjects_(negative) then
-prevents slabs from being moved to kmem_cache_node and being finally freed.
+Function init_currently_empty_zone() will adjust pgdat->nr_zones and set
+it to 'zone_idx(zone) + 1' unconditionally. This is correct in the
+normal case, while not exact in hot-plug situation.
 
-We see in a vmcore, there are 375210 slabs kept in the partial list of one
-kmem_cache_cpu, but only 305 in-use objects in the same list for
-kmalloc-2048 cache. We see negative values for page.pobjects, the last page
-with negative _pobjects_ has the value of 0xdead0004, the next page looks
-good (_pobjects is 1).
+This function is used in two places:
 
-For the fix, I wanted to call this_cpu_cmpxchg_double with
-oldpage->pobjects, but failed due to size difference between
-oldpage->pobjects and cpu_slab->partial. So I changed to call
-this_cpu_cmpxchg_double with _tid_. I don't really want no alloc/free
-happen in between, but just want to make sure the first slab did expereince
-a remove and re-add. This patch is more to call for ideas.
+  * free_area_init_core()
+  * move_pfn_range_to_zone()
 
-Signed-off-by: Wengang Wang <wen.gang.wang@oracle.com>
+In the first case, we are sure zone index increase monotonically. While
+in the second one, this is under users control.
+
+One way to reproduce this is:
+----------------------------
+
+1. create a virtual machine with empty node1
+
+   -m 4G,slots=32,maxmem=32G \
+   -smp 4,maxcpus=8          \
+   -numa node,nodeid=0,mem=4G,cpus=0-3 \
+   -numa node,nodeid=1,mem=0G,cpus=4-7
+
+2. hot-add cpu 3-7
+
+   cpu-add [3-7]
+
+2. hot-add memory to nod1
+
+   object_add memory-backend-ram,id=ram0,size=1G
+   device_add pc-dimm,id=dimm0,memdev=ram0,node=1
+
+3. online memory with following order
+
+   echo online_movable > memory47/state
+   echo online > memory40/state
+
+After this, node1 will have its nr_zones equals to (ZONE_NORMAL + 1)
+instead of (ZONE_MOVABLE + 1).
+
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 ---
- mm/slub.c | 20 +++++++++++++++++---
- 1 file changed, 17 insertions(+), 3 deletions(-)
+ mm/page_alloc.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index e3629cd..26539e6 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2248,6 +2248,7 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5b7cd20dbaef..2d3c54201255 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5823,8 +5823,10 @@ void __meminit init_currently_empty_zone(struct zone *zone,
+ 					unsigned long size)
  {
- #ifdef CONFIG_SLUB_CPU_PARTIAL
- 	struct page *oldpage;
-+	unsigned long tid;
- 	int pages;
- 	int pobjects;
+ 	struct pglist_data *pgdat = zone->zone_pgdat;
++	int zone_idx = zone_idx(zone) + 1;
  
-@@ -2255,8 +2256,12 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
- 	do {
- 		pages = 0;
- 		pobjects = 0;
--		oldpage = this_cpu_read(s->cpu_slab->partial);
+-	pgdat->nr_zones = zone_idx(zone) + 1;
++	if (zone_idx > pgdat->nr_zones)
++		pgdat->nr_zones = zone_idx;
  
-+		tid = this_cpu_read(s->cpu_slab->tid);
-+		/* read tid before reading oldpage */
-+		barrier();
-+
-+		oldpage = this_cpu_read(s->cpu_slab->partial);
- 		if (oldpage) {
- 			pobjects = oldpage->pobjects;
- 			pages = oldpage->pages;
-@@ -2283,8 +2288,17 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
- 		page->pobjects = pobjects;
- 		page->next = oldpage;
- 
--	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page)
--								!= oldpage);
-+		/* we dont' change tid, but want to make sure it didn't change
-+		 * in between. We don't really hope alloc/free not happen on
-+		 * this CPU, but don't want the first slab be removed from and
-+		 * then re-added as head to this partial list. If that case
-+		 * happened, pobjects may read 0xdead0000 when this slab is just
-+		 * removed from kmem_cache_node by other CPU setting lru.prev
-+		 * to LIST_POISON2.
-+		 */
-+	} while (this_cpu_cmpxchg_double(s->cpu_slab->partial, s->cpu_slab->tid,
-+					 oldpage, tid, page, tid) == 0);
-+
- 	if (unlikely(!s->cpu_partial)) {
- 		unsigned long flags;
+ 	zone->zone_start_pfn = zone_start_pfn;
  
 -- 
-2.9.5
+2.15.1
