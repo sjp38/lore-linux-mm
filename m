@@ -1,151 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 277606B0C10
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 18:44:19 -0500 (EST)
-Received: by mail-it1-f198.google.com with SMTP id p78-v6so301989itb.1
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 15:44:19 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c188-v6sor38064120itc.35.2018.11.16.15.44.17
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 125756B0C7D
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2018 20:33:46 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id w7-v6so18473948plp.9
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2018 17:33:46 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id w17si26077608pgl.6.2018.11.16.17.33.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 16 Nov 2018 15:44:17 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20181113152941.cc328e48d5c0c2f366f5db83@linux-foundation.org>
-References: <CAEAjamseRRHu+TaTkd1TwpLNm8mtDGP=2K0WKLF0wH-3iLcW_w@mail.gmail.com>
- <20181109084353.GA5321@dhcp22.suse.cz> <20181113094305.GM15120@dhcp22.suse.cz>
- <20181113152941.cc328e48d5c0c2f366f5db83@linux-foundation.org>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 16 Nov 2018 15:43:56 -0800
-Message-ID: <CACT4Y+ZD-oLa50qHRUPG217b50PD5saQGTRUF84VXTURXC41Rg@mail.gmail.com>
-Subject: Re: UBSAN: Undefined behaviour in mm/page_alloc.c
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Nov 2018 17:33:44 -0800 (PST)
+From: Wengang Wang <wen.gang.wang@oracle.com>
+Subject: [PATCH] mm: use this_cpu_cmpxchg_double in put_cpu_partial
+Date: Fri, 16 Nov 2018 17:33:35 -0800
+Message-Id: <20181117013335.32220-1-wen.gang.wang@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Kyungtae Kim <kt0755@gmail.com>, pavel.tatashin@microsoft.com, Vlastimil Babka <vbabka@suse.cz>, osalvador@suse.de, Mike Rapoport <rppt@linux.vnet.ibm.com>, aaron.lu@intel.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, alexander.h.duyck@linux.intel.com, Mel Gorman <mgorman@techsingularity.net>, lifeasageek@gmail.com, "Dae R. Jeong" <threeearcat@gmail.com>, syzkaller <syzkaller@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: wen.gang.wang@oracle.com
 
-On Tue, Nov 13, 2018 at 3:29 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Tue, 13 Nov 2018 10:43:05 +0100 Michal Hocko <mhocko@kernel.org> wrote:
->
->> From: Michal Hocko <mhocko@suse.com>
->> Date: Fri, 9 Nov 2018 09:35:29 +0100
->> Subject: [PATCH] mm, page_alloc: check for max order in hot path
->>
->> Konstantin has noticed that kvmalloc might trigger the following warning
->> [Thu Nov  1 08:43:56 2018] WARNING: CPU: 0 PID: 6676 at mm/vmstat.c:986 __fragmentation_index+0x54/0x60
->
-> um, wait...
->
->> [...]
->> [Thu Nov  1 08:43:56 2018] Call Trace:
->> [Thu Nov  1 08:43:56 2018]  fragmentation_index+0x76/0x90
->> [Thu Nov  1 08:43:56 2018]  compaction_suitable+0x4f/0xf0
->> [Thu Nov  1 08:43:56 2018]  shrink_node+0x295/0x310
->> [Thu Nov  1 08:43:56 2018]  node_reclaim+0x205/0x250
->> [Thu Nov  1 08:43:56 2018]  get_page_from_freelist+0x649/0xad0
->> [Thu Nov  1 08:43:56 2018]  ? get_page_from_freelist+0x2d4/0xad0
->> [Thu Nov  1 08:43:56 2018]  ? release_sock+0x19/0x90
->> [Thu Nov  1 08:43:56 2018]  ? do_ipv6_setsockopt.isra.5+0x10da/0x1290
->> [Thu Nov  1 08:43:56 2018]  __alloc_pages_nodemask+0x12a/0x2a0
->> [Thu Nov  1 08:43:56 2018]  kmalloc_large_node+0x47/0x90
->> [Thu Nov  1 08:43:56 2018]  __kmalloc_node+0x22b/0x2e0
->> [Thu Nov  1 08:43:56 2018]  kvmalloc_node+0x3e/0x70
->> [Thu Nov  1 08:43:56 2018]  xt_alloc_table_info+0x3a/0x80 [x_tables]
->> [Thu Nov  1 08:43:56 2018]  do_ip6t_set_ctl+0xcd/0x1c0 [ip6_tables]
->> [Thu Nov  1 08:43:56 2018]  nf_setsockopt+0x44/0x60
->> [Thu Nov  1 08:43:56 2018]  SyS_setsockopt+0x6f/0xc0
->> [Thu Nov  1 08:43:56 2018]  do_syscall_64+0x67/0x120
->> [Thu Nov  1 08:43:56 2018]  entry_SYSCALL_64_after_hwframe+0x3d/0xa2
->
-> If kvalloc_node() is going to call kmalloc() without checking for a
-> huge allocation request then surely it should set __GFP_NOWARN.
+The this_cpu_cmpxchg makes the do-while loop pass as long as the
+s->cpu_slab->partial as the same value. It doesn't care what happened to
+that slab. Interrupt is not disabled, and new alloc/free can happen in the
+interrupt handlers. Theoretically, after we have a reference to the it,
+stored in _oldpage_, the first slab on the partial list on this CPU can be
+moved to kmem_cache_node and then moved to different kmem_cache_cpu and
+then somehow can be added back as head to partial list of current
+kmem_cache_cpu, though that is a very rare case. If that rare case really
+happened, the reading of oldpage->pobjects may get a 0xdead0000
+unexpectedly, stored in _pobjects_, if the reading happens just after
+another CPU removed the slab from kmem_cache_node, setting lru.prev to
+LIST_POISON2 (0xdead000000000200). The wrong _pobjects_(negative) then
+prevents slabs from being moved to kmem_cache_node and being finally freed.
 
+We see in a vmcore, there are 375210 slabs kept in the partial list of one
+kmem_cache_cpu, but only 305 in-use objects in the same list for
+kmalloc-2048 cache. We see negative values for page.pobjects, the last page
+with negative _pobjects_ has the value of 0xdead0004, the next page looks
+good (_pobjects is 1).
 
-kmalloc won't warn about large allocations after "mm: don't warn about
-large allocations for slab":
-https://lkml.org/lkml/2018/9/27/1156
-It will just return NULL. That was already the case for slub.
+For the fix, I wanted to call this_cpu_cmpxchg_double with
+oldpage->pobjects, but failed due to size difference between
+oldpage->pobjects and cpu_slab->partial. So I changed to call
+this_cpu_cmpxchg_double with _tid_. I don't really want no alloc/free
+happen in between, but just want to make sure the first slab did expereince
+a remove and re-add. This patch is more to call for ideas.
 
+Signed-off-by: Wengang Wang <wen.gang.wang@oracle.com>
+---
+ mm/slub.c | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)
 
-> And it
-> shouldn't bother at all if size > KMALLOC_MAX_SIZE, surely?  So
-> something like
->
-> --- a/mm/util.c~a
-> +++ a/mm/util.c
-> @@ -393,11 +393,16 @@ void *kvmalloc_node(size_t size, gfp_t f
->         void *ret;
->
->         /*
-> -        * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
-> -        * so the given set of flags has to be compatible.
-> +        * vmalloc uses GFP_KERNEL for some internal allocations (e.g page
-> +        * tables) so the given set of flags has to be compatible.
->          */
-> -       if ((flags & GFP_KERNEL) != GFP_KERNEL)
-> +       if ((flags & GFP_KERNEL) != GFP_KERNEL) {
-> +               if (size > KMALLOC_MAX_SIZE)
-> +                       return NULL;
-> +               if (size > PAGE_SIZE)
-> +                       flags |= __GFP_NOWARN;
->                 return kmalloc_node(size, flags, node);
-> +       }
->
->         /*
->          * We want to attempt a large physically contiguous block first because
->
->
->> the problem is that we only check for an out of bound order in the slow
->> path and the node reclaim might happen from the fast path already. This
->> is fixable by making sure that kvmalloc doesn't ever use kmalloc for
->> requests that are larger than KMALLOC_MAX_SIZE but this also shows that
->> the code is rather fragile. A recent UBSAN report just underlines that
->> by the following report
->>
->>  UBSAN: Undefined behaviour in mm/page_alloc.c:3117:19
->>  shift exponent 51 is too large for 32-bit type 'int'
->>  CPU: 0 PID: 6520 Comm: syz-executor1 Not tainted 4.19.0-rc2 #1
->>  Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
->>  Call Trace:
->>   __dump_stack lib/dump_stack.c:77 [inline]
->>   dump_stack+0xd2/0x148 lib/dump_stack.c:113
->>   ubsan_epilogue+0x12/0x94 lib/ubsan.c:159
->>   __ubsan_handle_shift_out_of_bounds+0x2b6/0x30b lib/ubsan.c:425
->>   __zone_watermark_ok+0x2c7/0x400 mm/page_alloc.c:3117
->>   zone_watermark_fast mm/page_alloc.c:3216 [inline]
->>   get_page_from_freelist+0xc49/0x44c0 mm/page_alloc.c:3300
->>   __alloc_pages_nodemask+0x21e/0x640 mm/page_alloc.c:4370
->>   alloc_pages_current+0xcc/0x210 mm/mempolicy.c:2093
->>   alloc_pages include/linux/gfp.h:509 [inline]
->>   __get_free_pages+0x12/0x60 mm/page_alloc.c:4414
->>   dma_mem_alloc+0x36/0x50 arch/x86/include/asm/floppy.h:156
->>   raw_cmd_copyin drivers/block/floppy.c:3159 [inline]
->>   raw_cmd_ioctl drivers/block/floppy.c:3206 [inline]
->>   fd_locked_ioctl+0xa00/0x2c10 drivers/block/floppy.c:3544
->>   fd_ioctl+0x40/0x60 drivers/block/floppy.c:3571
->>   __blkdev_driver_ioctl block/ioctl.c:303 [inline]
->>   blkdev_ioctl+0xb3c/0x1a30 block/ioctl.c:601
->>   block_ioctl+0x105/0x150 fs/block_dev.c:1883
->>   vfs_ioctl fs/ioctl.c:46 [inline]
->>   do_vfs_ioctl+0x1c0/0x1150 fs/ioctl.c:687
->>   ksys_ioctl+0x9e/0xb0 fs/ioctl.c:702
->>   __do_sys_ioctl fs/ioctl.c:709 [inline]
->>   __se_sys_ioctl fs/ioctl.c:707 [inline]
->>   __x64_sys_ioctl+0x7e/0xc0 fs/ioctl.c:707
->>   do_syscall_64+0xc4/0x510 arch/x86/entry/common.c:290
->>   entry_SYSCALL_64_after_hwframe+0x49/0xbe
->
-> And we could fix this in the floppy driver.
->
->> Note that this is not a kvmalloc path. It is just that the fast path
->> really depends on having sanitzed order as well. Therefore move the
->> order check to the fast path.
->
-> But do we really need to do this?  Are there any other known potential
-> callsites?
->
-> --
-> You received this message because you are subscribed to the Google Groups "syzkaller" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller+unsubscribe@googlegroups.com.
-> For more options, visit https://groups.google.com/d/optout.
+diff --git a/mm/slub.c b/mm/slub.c
+index e3629cd..26539e6 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2248,6 +2248,7 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ {
+ #ifdef CONFIG_SLUB_CPU_PARTIAL
+ 	struct page *oldpage;
++	unsigned long tid;
+ 	int pages;
+ 	int pobjects;
+ 
+@@ -2255,8 +2256,12 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ 	do {
+ 		pages = 0;
+ 		pobjects = 0;
+-		oldpage = this_cpu_read(s->cpu_slab->partial);
+ 
++		tid = this_cpu_read(s->cpu_slab->tid);
++		/* read tid before reading oldpage */
++		barrier();
++
++		oldpage = this_cpu_read(s->cpu_slab->partial);
+ 		if (oldpage) {
+ 			pobjects = oldpage->pobjects;
+ 			pages = oldpage->pages;
+@@ -2283,8 +2288,17 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ 		page->pobjects = pobjects;
+ 		page->next = oldpage;
+ 
+-	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page)
+-								!= oldpage);
++		/* we dont' change tid, but want to make sure it didn't change
++		 * in between. We don't really hope alloc/free not happen on
++		 * this CPU, but don't want the first slab be removed from and
++		 * then re-added as head to this partial list. If that case
++		 * happened, pobjects may read 0xdead0000 when this slab is just
++		 * removed from kmem_cache_node by other CPU setting lru.prev
++		 * to LIST_POISON2.
++		 */
++	} while (this_cpu_cmpxchg_double(s->cpu_slab->partial, s->cpu_slab->tid,
++					 oldpage, tid, page, tid) == 0);
++
+ 	if (unlikely(!s->cpu_partial)) {
+ 		unsigned long flags;
+ 
+-- 
+2.9.5
