@@ -1,211 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 78C5D6B11EE
-	for <linux-mm@kvack.org>; Sat, 17 Nov 2018 19:46:10 -0500 (EST)
-Received: by mail-oi1-f198.google.com with SMTP id k76so8927895oih.13
-        for <linux-mm@kvack.org>; Sat, 17 Nov 2018 16:46:10 -0800 (PST)
-Received: from m15-48.126.com (m15-48.126.com. [220.181.15.48])
-        by mx.google.com with ESMTP id z88si14741140ota.151.2018.11.17.16.46.07
-        for <linux-mm@kvack.org>;
-        Sat, 17 Nov 2018 16:46:09 -0800 (PST)
-Date: Sun, 18 Nov 2018 08:44:14 +0800 (CST)
-From: dong <bauers@126.com>
-Subject: Re:Re: [Bug 201699] New: kmemleak in memcg_create_kmem_cache
-In-Reply-To: <20181116175005.3dcfpyhuj57oaszm@esperanza>
-References: <bug-201699-27@https.bugzilla.kernel.org/>
- <20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org>
- <20181116175005.3dcfpyhuj57oaszm@esperanza>
-Content-Type: multipart/alternative;
-	boundary="----=_Part_12343_2144901996.1542501854423"
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EDD66B1200
+	for <linux-mm@kvack.org>; Sat, 17 Nov 2018 20:02:33 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id v4so11547399edm.18
+        for <linux-mm@kvack.org>; Sat, 17 Nov 2018 17:02:33 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n25sor16981803edv.25.2018.11.17.17.02.31
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sat, 17 Nov 2018 17:02:31 -0800 (PST)
+Date: Sun, 18 Nov 2018 01:02:29 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH] mm: use this_cpu_cmpxchg_double in put_cpu_partial
+Message-ID: <20181118010229.esa32zk5hpob67y7@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181117013335.32220-1-wen.gang.wang@oracle.com>
 MIME-Version: 1.0
-Message-ID: <433c2924.f6c.16724466cd8.Coremail.bauers@126.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181117013335.32220-1-wen.gang.wang@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Wengang Wang <wen.gang.wang@oracle.com>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-------=_Part_12343_2144901996.1542501854423
-Content-Type: text/plain; charset=gbk
-Content-Transfer-Encoding: base64
+On Fri, Nov 16, 2018 at 05:33:35PM -0800, Wengang Wang wrote:
+>The this_cpu_cmpxchg makes the do-while loop pass as long as the
+>s->cpu_slab->partial as the same value. It doesn't care what happened to
+>that slab. Interrupt is not disabled, and new alloc/free can happen in the
 
-Rmlyc3Qgb2YgYWxsLEkgY2FuIHNlZSBtZW1vcnkgbGVhayB3aGVuIEkgcnVuIKGuZnJlZSAtZ6Gv
-IGNvbW1hbmQuIFNvIEkgZW5hYmxlZCBrbWVtbGVhay4gSSBnb3QgdGhlIG1lc3NhZ2VzIGFib3Zl
-LiBXaGVuIEkgcnVuIKGuY2F0IC9zeXMva2VybmVsL2RlYnVnL2ttZW1sZWFroa8sIG5vdGhpbmcg
-Y2FtZSB1cC4gSW5zdGVhZCwgdGhlIKGuZG1lc2ehryBjb21tYW5kIHNob3cgbWUgdGhlIGxlYWsg
-bWVzc2FnZXMuIFNvIHRoZSBtZXNzYWdlcyBpcyBub3QgdGhlIGxlYWsgcmVhc29uo79Ib3cgY2Fu
-IEkgZGV0ZWN0IHRoZSByZWFsIG1lbW9yeSBsZWFro79UaGFua3OjoQoKCgoKLS0Kt6LX1M7StcTN
-+NLX08rP5MrWu/rWx8TcsOYKPGJyLz48YnIvPjxici8+CgoKLS0tLS0gT3JpZ2luYWwgTWVzc2Fn
-ZSAtLS0tLQpGcm9tOiAiVmxhZGltaXIgRGF2eWRvdiIgPHZkYXZ5ZG92LmRldkBnbWFpbC5jb20+
-ClRvOiBiYXVlcnNAMTI2LmNvbQpDYzogIk1pY2hhbCBIb2NrbyIgPG1ob2Nrb0BrZXJuZWwub3Jn
-PiwgIkpvaGFubmVzIFdlaW5lciIgPGhhbm5lc0BjbXB4Y2hnLm9yZz4sIGJ1Z3ppbGxhLWRhZW1v
-bkBidWd6aWxsYS5rZXJuZWwub3JnLCBsaW51eC1tbUBrdmFjay5vcmcsICJBbmRyZXcgTW9ydG9u
-IiA8YWtwbUBsaW51eC1mb3VuZGF0aW9uLm9yZz4KU2VudDogRnJpLCAxNiBOb3YgMjAxOCAyMDo1
-MDowNSArMDMwMApTdWJqZWN0OiBSZTogW0J1ZyAyMDE2OTldIE5ldzoga21lbWxlYWsgaW4gbWVt
-Y2dfY3JlYXRlX2ttZW1fY2FjaGUKCk9uIFRodSwgTm92IDE1LCAyMDE4IGF0IDAxOjA2OjQ2UE0g
-LTA4MDAsIEFuZHJldyBNb3J0b24gd3JvdGU6Cj4gPiBPbiBkZWJpYW4gT1MsIHdoZW4gc3lzdGVt
-ZCByZXN0YXJ0IGEgZmFpbGVkIHNlcnZpY2UgcGVyaW9kaWNhbGx5LiBJdCB3aWxsIGNhdXNlCj4g
-PiBtZW1vcnkgbGVhay4gV2hlbiBJIGVuYWJsZSBrbWVtbGVhaywgdGhlIG1lc3NhZ2UgY29tZXMg
-dXAuCgpXaGF0IG1hZGUgeW91IHRoaW5rIHRoZXJlIHdhcyBhIG1lbW9yeSBsZWFrIGluIHRoZSBm
-aXJzdCBwbGFjZT8KCj4gPiAKPiA+IAo+ID4gWyA0NjU4LjA2NTU3OF0ga21lbWxlYWs6IEZvdW5k
-IG9iamVjdCBieSBhbGlhcyBhdCAweGZmZmY5ZDg0YmE4Njg4MDgKPiA+IFsgNDY1OC4wNjU1ODFd
-IENQVTogOCBQSUQ6IDUxOTQgQ29tbToga3dvcmtlci84OjMgTm90IHRhaW50ZWQgNC4yMC4wLXJj
-Mi5ibS4xKwo+ID4gIzEKPiA+IFsgNDY1OC4wNjU1ODJdIEhhcmR3YXJlIG5hbWU6IERlbGwgSW5j
-LiBQb3dlckVkZ2UgQzYzMjAvMDgyRjlNLCBCSU9TIDIuMS41Cj4gPiAwNC8xMi8yMDE2Cj4gPiBb
-IDQ2NTguMDY1NTg2XSBXb3JrcXVldWU6IG1lbWNnX2ttZW1fY2FjaGUgbWVtY2dfa21lbV9jYWNo
-ZV9jcmVhdGVfZnVuYwo+ID4gWyA0NjU4LjA2NTU4N10gQ2FsbCBUcmFjZToKPiA+IFsgNDY1OC4w
-NjU1OTBdICBkdW1wX3N0YWNrKzB4NWMvMHg3Ygo+ID4gWyA0NjU4LjA2NTU5NF0gIGxvb2t1cF9v
-YmplY3QrMHg1ZS8weDgwCj4gPiBbIDQ2NTguMDY1NTk2XSAgZmluZF9hbmRfZ2V0X29iamVjdCsw
-eDI5LzB4ODAKPiA+IFsgNDY1OC4wNjU1OThdICBrbWVtbGVha19ub19zY2FuKzB4MzEvMHhjMAo+
-ID4gWyA0NjU4LjA2NTYwMF0gIHNldHVwX2ttZW1fY2FjaGVfbm9kZSsweDI3MS8weDM1MAo+ID4g
-WyA0NjU4LjA2NTYwMl0gIF9fZG9fdHVuZV9jcHVjYWNoZSsweDE4Yy8weDIyMAo+ID4gWyA0NjU4
-LjA2NTYwM10gIGRvX3R1bmVfY3B1Y2FjaGUrMHgyNy8weGIwCj4gPiBbIDQ2NTguMDY1NjA1XSAg
-ZW5hYmxlX2NwdWNhY2hlKzB4ODAvMHgxMTAKPiA+IFsgNDY1OC4wNjU2MDZdICBfX2ttZW1fY2Fj
-aGVfY3JlYXRlKzB4MjE3LzB4M2EwCj4gPiBbIDQ2NTguMDY1NjA5XSAgPyBrbWVtX2NhY2hlX2Fs
-bG9jKzB4MWFhLzB4MjgwCj4gPiBbIDQ2NTguMDY1NjEyXSAgY3JlYXRlX2NhY2hlKzB4ZDkvMHgy
-MDAKPiA+IFsgNDY1OC4wNjU2MTRdICBtZW1jZ19jcmVhdGVfa21lbV9jYWNoZSsweGVmLzB4MTIw
-Cj4gPiBbIDQ2NTguMDY1NjE2XSAgbWVtY2dfa21lbV9jYWNoZV9jcmVhdGVfZnVuYysweDFiLzB4
-NjAKPiA+IFsgNDY1OC4wNjU2MTldICBwcm9jZXNzX29uZV93b3JrKzB4MWQxLzB4M2QwCj4gPiBb
-IDQ2NTguMDY1NjIxXSAgd29ya2VyX3RocmVhZCsweDRmLzB4M2IwCj4gPiBbIDQ2NTguMDY1NjIz
-XSAgPyByZXNjdWVyX3RocmVhZCsweDM2MC8weDM2MAo+ID4gWyA0NjU4LjA2NTYyNV0gIGt0aHJl
-YWQrMHhmOC8weDEzMAo+ID4gWyA0NjU4LjA2NTYyN10gID8ga3RocmVhZF9jcmVhdGVfd29ya2Vy
-X29uX2NwdSsweDcwLzB4NzAKPiA+IFsgNDY1OC4wNjU2MjhdICByZXRfZnJvbV9mb3JrKzB4MzUv
-MHg0MAo+ID4gWyA0NjU4LjA2NTYzMF0ga21lbWxlYWs6IE9iamVjdCAweGZmZmY5ZDg0YmE4Njg4
-MDAgKHNpemUgMTI4KToKPiA+IFsgNDY1OC4wNjU2MzFdIGttZW1sZWFrOiAgIGNvbW0gImt3b3Jr
-ZXIvODozIiwgcGlkIDUxOTQsIGppZmZpZXMgNDI5NjA1NjE5Ngo+ID4gWyA0NjU4LjA2NTYzMV0g
-a21lbWxlYWs6ICAgbWluX2NvdW50ID0gMQo+ID4gWyA0NjU4LjA2NTYzMl0ga21lbWxlYWs6ICAg
-Y291bnQgPSAwCj4gPiBbIDQ2NTguMDY1NjMyXSBrbWVtbGVhazogICBmbGFncyA9IDB4MQo+ID4g
-WyA0NjU4LjA2NTYzM10ga21lbWxlYWs6ICAgY2hlY2tzdW0gPSAwCj4gPiBbIDQ2NTguMDY1NjMz
-XSBrbWVtbGVhazogICBiYWNrdHJhY2U6Cj4gPiBbIDQ2NTguMDY1NjM1XSAgICAgIF9fZG9fdHVu
-ZV9jcHVjYWNoZSsweDE4Yy8weDIyMAo+ID4gWyA0NjU4LjA2NTYzNl0gICAgICBkb190dW5lX2Nw
-dWNhY2hlKzB4MjcvMHhiMAo+ID4gWyA0NjU4LjA2NTYzN10gICAgICBlbmFibGVfY3B1Y2FjaGUr
-MHg4MC8weDExMAo+ID4gWyA0NjU4LjA2NTYzOF0gICAgICBfX2ttZW1fY2FjaGVfY3JlYXRlKzB4
-MjE3LzB4M2EwCj4gPiBbIDQ2NTguMDY1NjQwXSAgICAgIGNyZWF0ZV9jYWNoZSsweGQ5LzB4MjAw
-Cj4gPiBbIDQ2NTguMDY1NjQxXSAgICAgIG1lbWNnX2NyZWF0ZV9rbWVtX2NhY2hlKzB4ZWYvMHgx
-MjAKPiA+IFsgNDY1OC4wNjU2NDJdICAgICAgbWVtY2dfa21lbV9jYWNoZV9jcmVhdGVfZnVuYysw
-eDFiLzB4NjAKPiA+IFsgNDY1OC4wNjU2NDRdICAgICAgcHJvY2Vzc19vbmVfd29yaysweDFkMS8w
-eDNkMAo+ID4gWyA0NjU4LjA2NTY0Nl0gICAgICB3b3JrZXJfdGhyZWFkKzB4NGYvMHgzYjAKPiA+
-IFsgNDY1OC4wNjU2NDddICAgICAga3RocmVhZCsweGY4LzB4MTMwCj4gPiBbIDQ2NTguMDY1NjQ4
-XSAgICAgIHJldF9mcm9tX2ZvcmsrMHgzNS8weDQwCj4gPiBbIDQ2NTguMDY1NjQ5XSAgICAgIDB4
-ZmZmZmZmZmZmZmZmZmZmZgo+ID4gWyA0NjU4LjA2NTY1MF0ga21lbWxlYWs6IE5vdCBzY2Fubmlu
-ZyB1bmtub3duIG9iamVjdCBhdCAweGZmZmY5ZDg0YmE4Njg4MDgKClRoaXMgZG9lc24ndCBsb29r
-IGxpa2Uga21lbWxlYWsgcmVwb3J0aW5nIGEgbGVhayB0byBtZSwgYWx0aG91Z2ggdGhpcwpkb2Vz
-IGxvb2sgd2VpcmQuIFdoYXQgZG9lcyAvc3lzL2tlcm5lbC9kZWJ1Zy9rbWVtbGVhayBzaG93Pwo=
+Well, I seems to understand your description.
 
-------=_Part_12343_2144901996.1542501854423
-Content-Type: text/html; charset=gbk
-Content-Transfer-Encoding: base64
+There are two slabs
 
-Rmlyc3Qgb2YgYWxsLEkgY2FuIHNlZSBtZW1vcnkgbGVhayB3aGVuIEkgcnVuIKGuZnJlZSAtZ6Gv
-IGNvbW1hbmQuIFNvIEkgZW5hYmxlZCBrbWVtbGVhay4gSSBnb3QgdGhlIG1lc3NhZ2VzIGFib3Zl
-LiBXaGVuIEkgcnVuIKGuY2F0IC9zeXMva2VybmVsL2RlYnVnL2ttZW1sZWFroa8sIG5vdGhpbmcg
-Y2FtZSB1cC4gSW5zdGVhZCwgdGhlIKGuZG1lc2ehryBjb21tYW5kIHNob3cgbWUgdGhlIGxlYWsg
-bWVzc2FnZXMuIFNvIHRoZSBtZXNzYWdlcyBpcyBub3QgdGhlIGxlYWsgcmVhc29uo79Ib3cgY2Fu
-IEkgZGV0ZWN0IHRoZSByZWFsIG1lbW9yeSBsZWFro79UaGFua3OjoTxkaXY+PGRpdj48ZGl2Pjxi
-cj48YnI+PGJyPjxkaXYgaWQ9InNwbkVkaXRvclNpZ25fYXBwIj4tLTxicj63otfUztK1xM340tfT
-ys/kyta7+tbHxNyw5jwvZGl2PiZsdDtici8mZ3Q7Jmx0O2JyLyZndDsmbHQ7YnIvJmd0Owo8YnI+
-Cjxicj4KPGJyPi0tLS0tJm5ic3A7T3JpZ2luYWwmbmJzcDtNZXNzYWdlJm5ic3A7LS0tLS0KPGJy
-PkZyb206Jm5ic3A7IlZsYWRpbWlyJm5ic3A7RGF2eWRvdiImbmJzcDsmbHQ7dmRhdnlkb3YuZGV2
-QGdtYWlsLmNvbSZndDsKPGJyPlRvOiZuYnNwO2JhdWVyc0AxMjYuY29tCjxicj5DYzombmJzcDsi
-TWljaGFsJm5ic3A7SG9ja28iJm5ic3A7Jmx0O21ob2Nrb0BrZXJuZWwub3JnJmd0OywmbmJzcDsi
-Sm9oYW5uZXMmbmJzcDtXZWluZXIiJm5ic3A7Jmx0O2hhbm5lc0BjbXB4Y2hnLm9yZyZndDssJm5i
-c3A7YnVnemlsbGEtZGFlbW9uQGJ1Z3ppbGxhLmtlcm5lbC5vcmcsJm5ic3A7bGludXgtbW1Aa3Zh
-Y2sub3JnLCZuYnNwOyJBbmRyZXcmbmJzcDtNb3J0b24iJm5ic3A7Jmx0O2FrcG1AbGludXgtZm91
-bmRhdGlvbi5vcmcmZ3Q7Cjxicj5TZW50OiZuYnNwO0ZyaSwmbmJzcDsxNiZuYnNwO05vdiZuYnNw
-OzIwMTgmbmJzcDsyMDo1MDowNSZuYnNwOyswMzAwCjxicj5TdWJqZWN0OiZuYnNwO1JlOiZuYnNw
-O1tCdWcmbmJzcDsyMDE2OTldJm5ic3A7TmV3OiZuYnNwO2ttZW1sZWFrJm5ic3A7aW4mbmJzcDtt
-ZW1jZ19jcmVhdGVfa21lbV9jYWNoZQo8YnI+Cjxicj5PbiZuYnNwO1RodSwmbmJzcDtOb3YmbmJz
-cDsxNSwmbmJzcDsyMDE4Jm5ic3A7YXQmbmJzcDswMTowNjo0NlBNJm5ic3A7LTA4MDAsJm5ic3A7
-QW5kcmV3Jm5ic3A7TW9ydG9uJm5ic3A7d3JvdGU6Cjxicj4mZ3Q7Jm5ic3A7Jmd0OyZuYnNwO09u
-Jm5ic3A7ZGViaWFuJm5ic3A7T1MsJm5ic3A7d2hlbiZuYnNwO3N5c3RlbWQmbmJzcDtyZXN0YXJ0
-Jm5ic3A7YSZuYnNwO2ZhaWxlZCZuYnNwO3NlcnZpY2UmbmJzcDtwZXJpb2RpY2FsbHkuJm5ic3A7
-SXQmbmJzcDt3aWxsJm5ic3A7Y2F1c2UKPGJyPiZndDsmbmJzcDsmZ3Q7Jm5ic3A7bWVtb3J5Jm5i
-c3A7bGVhay4mbmJzcDtXaGVuJm5ic3A7SSZuYnNwO2VuYWJsZSZuYnNwO2ttZW1sZWFrLCZuYnNw
-O3RoZSZuYnNwO21lc3NhZ2UmbmJzcDtjb21lcyZuYnNwO3VwLgo8YnI+Cjxicj5XaGF0Jm5ic3A7
-bWFkZSZuYnNwO3lvdSZuYnNwO3RoaW5rJm5ic3A7dGhlcmUmbmJzcDt3YXMmbmJzcDthJm5ic3A7
-bWVtb3J5Jm5ic3A7bGVhayZuYnNwO2luJm5ic3A7dGhlJm5ic3A7Zmlyc3QmbmJzcDtwbGFjZT8K
-PGJyPgo8YnI+Jmd0OyZuYnNwOyZndDsmbmJzcDsKPGJyPiZndDsmbmJzcDsmZ3Q7Jm5ic3A7Cjxi
-cj4mZ3Q7Jm5ic3A7Jmd0OyZuYnNwO1smbmJzcDs0NjU4LjA2NTU3OF0mbmJzcDtrbWVtbGVhazom
-bmJzcDtGb3VuZCZuYnNwO29iamVjdCZuYnNwO2J5Jm5ic3A7YWxpYXMmbmJzcDthdCZuYnNwOzB4
-ZmZmZjlkODRiYTg2ODgwOAo8YnI+Jmd0OyZuYnNwOyZndDsmbmJzcDtbJm5ic3A7NDY1OC4wNjU1
-ODFdJm5ic3A7Q1BVOiZuYnNwOzgmbmJzcDtQSUQ6Jm5ic3A7NTE5NCZuYnNwO0NvbW06Jm5ic3A7
-a3dvcmtlci84OjMmbmJzcDtOb3QmbmJzcDt0YWludGVkJm5ic3A7NC4yMC4wLXJjMi5ibS4xKwo8
-YnI+Jmd0OyZuYnNwOyZndDsmbmJzcDsjMQo8YnI+Jmd0OyZuYnNwOyZndDsmbmJzcDtbJm5ic3A7
-NDY1OC4wNjU1ODJdJm5ic3A7SGFyZHdhcmUmbmJzcDtuYW1lOiZuYnNwO0RlbGwmbmJzcDtJbmMu
-Jm5ic3A7UG93ZXJFZGdlJm5ic3A7QzYzMjAvMDgyRjlNLCZuYnNwO0JJT1MmbmJzcDsyLjEuNQo8
-YnI+Jmd0OyZuYnNwOyZndDsmbmJzcDswNC8xMi8yMDE2Cjxicj4mZ3Q7Jm5ic3A7Jmd0OyZuYnNw
-O1smbmJzcDs0NjU4LjA2NTU4Nl0mbmJzcDtXb3JrcXVldWU6Jm5ic3A7bWVtY2dfa21lbV9jYWNo
-ZSZuYnNwO21lbWNnX2ttZW1fY2FjaGVfY3JlYXRlX2Z1bmMKPGJyPiZndDsmbmJzcDsmZ3Q7Jm5i
-c3A7WyZuYnNwOzQ2NTguMDY1NTg3XSZuYnNwO0NhbGwmbmJzcDtUcmFjZToKPGJyPiZndDsmbmJz
-cDsmZ3Q7Jm5ic3A7WyZuYnNwOzQ2NTguMDY1NTkwXSZuYnNwOyZuYnNwO2R1bXBfc3RhY2srMHg1
-Yy8weDdiCjxicj4mZ3Q7Jm5ic3A7Jmd0OyZuYnNwO1smbmJzcDs0NjU4LjA2NTU5NF0mbmJzcDsm
-bmJzcDtsb29rdXBfb2JqZWN0KzB4NWUvMHg4MAo8YnI+Jmd0OyZuYnNwOyZndDsmbmJzcDtbJm5i
-c3A7NDY1OC4wNjU1OTZdJm5ic3A7Jm5ic3A7ZmluZF9hbmRfZ2V0X29iamVjdCsweDI5LzB4ODAK
-PGJyPiZndDsmbmJzcDsmZ3Q7Jm5ic3A7WyZuYnNwOzQ2NTguMDY1NTk4XSZuYnNwOyZuYnNwO2tt
-ZW1sZWFrX25vX3NjYW4rMHgzMS8weGMwCjxicj4mZ3Q7Jm5ic3A7Jmd0OyZuYnNwO1smbmJzcDs0
-NjU4LjA2NTYwMF0mbmJzcDsmbmJzcDtzZXR1cF9rbWVtX2NhY2hlX25vZGUrMHgyNzEvMHgzNTAK
-PGJyPiZndDsmbmJzcDsmZ3Q7Jm5ic3A7WyZuYnNwOzQ2NTguMDY1NjAyXSZuYnNwOyZuYnNwO19f
-ZG9fdHVuZV9jcHVjYWNoZSsweDE4Yy8weDIyMAo8YnI+Jmd0OyZuYnNwOyZndDsmbmJzcDtbJm5i
-c3A7NDY1OC4wNjU2MDNdJm5ic3A7Jm5ic3A7ZG9fdHVuZV9jcHVjYWNoZSsweDI3LzB4YjAKPGJy
-PiZndDsmbmJzcDsmZ3Q7Jm5ic3A7WyZuYnNwOzQ2NTguMDY1NjA1XSZuYnNwOyZuYnNwO2VuYWJs
-ZV9jcHVjYWNoZSsweDgwLzB4MTEwCjxicj4mZ3Q7Jm5ic3A7Jmd0OyZuYnNwO1smbmJzcDs0NjU4
-LjA2NTYwNl0mbmJzcDsmbmJzcDtfX2ttZW1fY2FjaGVfY3JlYXRlKzB4MjE3LzB4M2EwCjxicj4m
-Z3Q7Jm5ic3A7Jmd0OyZuYnNwO1smbmJzcDs0NjU4LjA2NTYwOV0mbmJzcDsmbmJzcDs/Jm5ic3A7
-a21lbV9jYWNoZV9hbGxvYysweDFhYS8weDI4MAo8YnI+Jmd0OyZuYnNwOyZndDsmbmJzcDtbJm5i
-c3A7NDY1OC4wNjU2MTJdJm5ic3A7Jm5ic3A7Y3JlYXRlX2NhY2hlKzB4ZDkvMHgyMDAKPGJyPiZn
-dDsmbmJzcDsmZ3Q7Jm5ic3A7WyZuYnNwOzQ2NTguMDY1NjE0XSZuYnNwOyZuYnNwO21lbWNnX2Ny
-ZWF0ZV9rbWVtX2NhY2hlKzB4ZWYvMHgxMjAKPGJyPiZndDsmbmJzcDsmZ3Q7Jm5ic3A7WyZuYnNw
-OzQ2NTguMDY1NjE2XSZuYnNwOyZuYnNwO21lbWNnX2ttZW1fY2FjaGVfY3JlYXRlX2Z1bmMrMHgx
-Yi8weDYwCjxicj4mZ3Q7Jm5ic3A7Jmd0OyZuYnNwO1smbmJzcDs0NjU4LjA2NTYxOV0mbmJzcDsm
-bmJzcDtwcm9jZXNzX29uZV93b3JrKzB4MWQxLzB4M2QwCjxicj4mZ3Q7Jm5ic3A7Jmd0OyZuYnNw
-O1smbmJzcDs0NjU4LjA2NTYyMV0mbmJzcDsmbmJzcDt3b3JrZXJfdGhyZWFkKzB4NGYvMHgzYjAK
-PGJyPiZndDsmbmJzcDsmZ3Q7Jm5ic3A7WyZuYnNwOzQ2NTguMDY1NjIzXSZuYnNwOyZuYnNwOz8m
-bmJzcDtyZXNjdWVyX3RocmVhZCsweDM2MC8weDM2MAo8YnI+Jmd0OyZuYnNwOyZndDsmbmJzcDtb
-Jm5ic3A7NDY1OC4wNjU2MjVdJm5ic3A7Jm5ic3A7a3RocmVhZCsweGY4LzB4MTMwCjxicj4mZ3Q7
-Jm5ic3A7Jmd0OyZuYnNwO1smbmJzcDs0NjU4LjA2NTYyN10mbmJzcDsmbmJzcDs/Jm5ic3A7a3Ro
-cmVhZF9jcmVhdGVfd29ya2VyX29uX2NwdSsweDcwLzB4NzAKPGJyPiZndDsmbmJzcDsmZ3Q7Jm5i
-c3A7WyZuYnNwOzQ2NTguMDY1NjI4XSZuYnNwOyZuYnNwO3JldF9mcm9tX2ZvcmsrMHgzNS8weDQw
-Cjxicj4mZ3Q7Jm5ic3A7Jmd0OyZuYnNwO1smbmJzcDs0NjU4LjA2NTYzMF0mbmJzcDtrbWVtbGVh
-azombmJzcDtPYmplY3QmbmJzcDsweGZmZmY5ZDg0YmE4Njg4MDAmbmJzcDsoc2l6ZSZuYnNwOzEy
-OCk6Cjxicj4mZ3Q7Jm5ic3A7Jmd0OyZuYnNwO1smbmJzcDs0NjU4LjA2NTYzMV0mbmJzcDtrbWVt
-bGVhazombmJzcDsmbmJzcDsmbmJzcDtjb21tJm5ic3A7Imt3b3JrZXIvODozIiwmbmJzcDtwaWQm
-bmJzcDs1MTk0LCZuYnNwO2ppZmZpZXMmbmJzcDs0Mjk2MDU2MTk2Cjxicj4mZ3Q7Jm5ic3A7Jmd0
-OyZuYnNwO1smbmJzcDs0NjU4LjA2NTYzMV0mbmJzcDtrbWVtbGVhazombmJzcDsmbmJzcDsmbmJz
-cDttaW5fY291bnQmbmJzcDs9Jm5ic3A7MQo8YnI+Jmd0OyZuYnNwOyZndDsmbmJzcDtbJm5ic3A7
-NDY1OC4wNjU2MzJdJm5ic3A7a21lbWxlYWs6Jm5ic3A7Jm5ic3A7Jm5ic3A7Y291bnQmbmJzcDs9
-Jm5ic3A7MAo8YnI+Jmd0OyZuYnNwOyZndDsmbmJzcDtbJm5ic3A7NDY1OC4wNjU2MzJdJm5ic3A7
-a21lbWxlYWs6Jm5ic3A7Jm5ic3A7Jm5ic3A7ZmxhZ3MmbmJzcDs9Jm5ic3A7MHgxCjxicj4mZ3Q7
-Jm5ic3A7Jmd0OyZuYnNwO1smbmJzcDs0NjU4LjA2NTYzM10mbmJzcDtrbWVtbGVhazombmJzcDsm
-bmJzcDsmbmJzcDtjaGVja3N1bSZuYnNwOz0mbmJzcDswCjxicj4mZ3Q7Jm5ic3A7Jmd0OyZuYnNw
-O1smbmJzcDs0NjU4LjA2NTYzM10mbmJzcDtrbWVtbGVhazombmJzcDsmbmJzcDsmbmJzcDtiYWNr
-dHJhY2U6Cjxicj4mZ3Q7Jm5ic3A7Jmd0OyZuYnNwO1smbmJzcDs0NjU4LjA2NTYzNV0mbmJzcDsm
-bmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDtfX2RvX3R1bmVfY3B1Y2FjaGUrMHgxOGMvMHgy
-MjAKPGJyPiZndDsmbmJzcDsmZ3Q7Jm5ic3A7WyZuYnNwOzQ2NTguMDY1NjM2XSZuYnNwOyZuYnNw
-OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwO2RvX3R1bmVfY3B1Y2FjaGUrMHgyNy8weGIwCjxicj4m
-Z3Q7Jm5ic3A7Jmd0OyZuYnNwO1smbmJzcDs0NjU4LjA2NTYzN10mbmJzcDsmbmJzcDsmbmJzcDsm
-bmJzcDsmbmJzcDsmbmJzcDtlbmFibGVfY3B1Y2FjaGUrMHg4MC8weDExMAo8YnI+Jmd0OyZuYnNw
-OyZndDsmbmJzcDtbJm5ic3A7NDY1OC4wNjU2MzhdJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5i
-c3A7Jm5ic3A7X19rbWVtX2NhY2hlX2NyZWF0ZSsweDIxNy8weDNhMAo8YnI+Jmd0OyZuYnNwOyZn
-dDsmbmJzcDtbJm5ic3A7NDY1OC4wNjU2NDBdJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
-Jm5ic3A7Y3JlYXRlX2NhY2hlKzB4ZDkvMHgyMDAKPGJyPiZndDsmbmJzcDsmZ3Q7Jm5ic3A7WyZu
-YnNwOzQ2NTguMDY1NjQxXSZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwO21lbWNn
-X2NyZWF0ZV9rbWVtX2NhY2hlKzB4ZWYvMHgxMjAKPGJyPiZndDsmbmJzcDsmZ3Q7Jm5ic3A7WyZu
-YnNwOzQ2NTguMDY1NjQyXSZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwO21lbWNn
-X2ttZW1fY2FjaGVfY3JlYXRlX2Z1bmMrMHgxYi8weDYwCjxicj4mZ3Q7Jm5ic3A7Jmd0OyZuYnNw
-O1smbmJzcDs0NjU4LjA2NTY0NF0mbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDtw
-cm9jZXNzX29uZV93b3JrKzB4MWQxLzB4M2QwCjxicj4mZ3Q7Jm5ic3A7Jmd0OyZuYnNwO1smbmJz
-cDs0NjU4LjA2NTY0Nl0mbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDt3b3JrZXJf
-dGhyZWFkKzB4NGYvMHgzYjAKPGJyPiZndDsmbmJzcDsmZ3Q7Jm5ic3A7WyZuYnNwOzQ2NTguMDY1
-NjQ3XSZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwO2t0aHJlYWQrMHhmOC8weDEz
-MAo8YnI+Jmd0OyZuYnNwOyZndDsmbmJzcDtbJm5ic3A7NDY1OC4wNjU2NDhdJm5ic3A7Jm5ic3A7
-Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7cmV0X2Zyb21fZm9yaysweDM1LzB4NDAKPGJyPiZndDsm
-bmJzcDsmZ3Q7Jm5ic3A7WyZuYnNwOzQ2NTguMDY1NjQ5XSZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
-OyZuYnNwOyZuYnNwOzB4ZmZmZmZmZmZmZmZmZmZmZgo8YnI+Jmd0OyZuYnNwOyZndDsmbmJzcDtb
-Jm5ic3A7NDY1OC4wNjU2NTBdJm5ic3A7a21lbWxlYWs6Jm5ic3A7Tm90Jm5ic3A7c2Nhbm5pbmcm
-bmJzcDt1bmtub3duJm5ic3A7b2JqZWN0Jm5ic3A7YXQmbmJzcDsweGZmZmY5ZDg0YmE4Njg4MDgK
-PGJyPgo8YnI+VGhpcyZuYnNwO2RvZXNuJ3QmbmJzcDtsb29rJm5ic3A7bGlrZSZuYnNwO2ttZW1s
-ZWFrJm5ic3A7cmVwb3J0aW5nJm5ic3A7YSZuYnNwO2xlYWsmbmJzcDt0byZuYnNwO21lLCZuYnNw
-O2FsdGhvdWdoJm5ic3A7dGhpcwo8YnI+ZG9lcyZuYnNwO2xvb2smbmJzcDt3ZWlyZC4mbmJzcDtX
-aGF0Jm5ic3A7ZG9lcyZuYnNwOy9zeXMva2VybmVsL2RlYnVnL2ttZW1sZWFrJm5ic3A7c2hvdz8K
-PGJyPjwvZGl2PjwvZGl2PjwvZGl2Pjxicj48YnI+PHNwYW4gdGl0bGU9Im5ldGVhc2Vmb290ZXIi
-PjxwPiZuYnNwOzwvcD48L3NwYW4+
-------=_Part_12343_2144901996.1542501854423--
+   * one which put_cpu_partial() trying to free an object
+   * one which is the first slab in cpu_partial list
+
+There is some tricky case, the first slab in cpu_partial list we
+reference to will change since interrupt is not disabled.
+
+>interrupt handlers. Theoretically, after we have a reference to the it,
+
+                                                                 ^^^
+							 one more word?
+
+>stored in _oldpage_, the first slab on the partial list on this CPU can be
+
+                                            ^^^
+One little suggestion here, mayby use cpu_partial would be more easy to
+understand. I confused this with the partial list in kmem_cache_node at
+the first time.  :-)
+
+>moved to kmem_cache_node and then moved to different kmem_cache_cpu and
+>then somehow can be added back as head to partial list of current
+>kmem_cache_cpu, though that is a very rare case. If that rare case really
+
+Actually, no matter what happens after the removal of the first slab in
+cpu_partial, it would leads to problem.
+
+>happened, the reading of oldpage->pobjects may get a 0xdead0000
+>unexpectedly, stored in _pobjects_, if the reading happens just after
+>another CPU removed the slab from kmem_cache_node, setting lru.prev to
+>LIST_POISON2 (0xdead000000000200). The wrong _pobjects_(negative) then
+>prevents slabs from being moved to kmem_cache_node and being finally freed.
+>
+>We see in a vmcore, there are 375210 slabs kept in the partial list of one
+>kmem_cache_cpu, but only 305 in-use objects in the same list for
+>kmalloc-2048 cache. We see negative values for page.pobjects, the last page
+>with negative _pobjects_ has the value of 0xdead0004, the next page looks
+>good (_pobjects is 1).
+>
+>For the fix, I wanted to call this_cpu_cmpxchg_double with
+>oldpage->pobjects, but failed due to size difference between
+>oldpage->pobjects and cpu_slab->partial. So I changed to call
+>this_cpu_cmpxchg_double with _tid_. I don't really want no alloc/free
+>happen in between, but just want to make sure the first slab did expereince
+>a remove and re-add. This patch is more to call for ideas.
+
+Maybe not an exact solution.
+
+I took a look into the code and change log.
+
+_tid_ is introduced by commit 8a5ec0ba42c4 ('Lockless (and preemptless)
+fastpaths for slub'), which is used to guard cpu_freelist. While we don't
+modify _tid_ when cpu_partial changes.
+
+May need another _tid_ for cpu_partial?
+
+>
+>Signed-off-by: Wengang Wang <wen.gang.wang@oracle.com>
+>---
+> mm/slub.c | 20 +++++++++++++++++---
+> 1 file changed, 17 insertions(+), 3 deletions(-)
+>
+>diff --git a/mm/slub.c b/mm/slub.c
+>index e3629cd..26539e6 100644
+>--- a/mm/slub.c
+>+++ b/mm/slub.c
+>@@ -2248,6 +2248,7 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+> {
+> #ifdef CONFIG_SLUB_CPU_PARTIAL
+> 	struct page *oldpage;
+>+	unsigned long tid;
+> 	int pages;
+> 	int pobjects;
+> 
+>@@ -2255,8 +2256,12 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+> 	do {
+> 		pages = 0;
+> 		pobjects = 0;
+>-		oldpage = this_cpu_read(s->cpu_slab->partial);
+> 
+>+		tid = this_cpu_read(s->cpu_slab->tid);
+>+		/* read tid before reading oldpage */
+>+		barrier();
+>+
+>+		oldpage = this_cpu_read(s->cpu_slab->partial);
+> 		if (oldpage) {
+> 			pobjects = oldpage->pobjects;
+> 			pages = oldpage->pages;
+>@@ -2283,8 +2288,17 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+> 		page->pobjects = pobjects;
+> 		page->next = oldpage;
+> 
+>-	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page)
+>-								!= oldpage);
+>+		/* we dont' change tid, but want to make sure it didn't change
+>+		 * in between. We don't really hope alloc/free not happen on
+>+		 * this CPU, but don't want the first slab be removed from and
+>+		 * then re-added as head to this partial list. If that case
+>+		 * happened, pobjects may read 0xdead0000 when this slab is just
+>+		 * removed from kmem_cache_node by other CPU setting lru.prev
+>+		 * to LIST_POISON2.
+>+		 */
+>+	} while (this_cpu_cmpxchg_double(s->cpu_slab->partial, s->cpu_slab->tid,
+>+					 oldpage, tid, page, tid) == 0);
+>+
+> 	if (unlikely(!s->cpu_partial)) {
+> 		unsigned long flags;
+> 
+>-- 
+>2.9.5
+
+-- 
+Wei Yang
+Help you, Help me
