@@ -1,46 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 904606B1497
-	for <linux-mm@kvack.org>; Sun, 18 Nov 2018 07:03:07 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id s14so520312pfk.16
-        for <linux-mm@kvack.org>; Sun, 18 Nov 2018 04:03:07 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w11sor19558975ply.14.2018.11.18.04.03.05
+	by kanga.kvack.org (Postfix) with ESMTP id 844756B14A3
+	for <linux-mm@kvack.org>; Sun, 18 Nov 2018 07:13:24 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id 129-v6so23163754pfx.11
+        for <linux-mm@kvack.org>; Sun, 18 Nov 2018 04:13:24 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id o19si15703032pfi.261.2018.11.18.04.13.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 18 Nov 2018 04:03:06 -0800 (PST)
-From: Yafang Shao <laoar.shao@gmail.com>
-Subject: [PATCH] mm/filemap.c: minor optimization in write_iter file operation
-Date: Sun, 18 Nov 2018 20:02:18 +0800
-Message-Id: <1542542538-11938-1-git-send-email-laoar.shao@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 18 Nov 2018 04:13:23 -0800 (PST)
+Date: Sun, 18 Nov 2018 04:13:18 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm/filemap.c: minor optimization in write_iter file
+ operation
+Message-ID: <20181118121318.GC7861@bombadil.infradead.org>
+References: <1542542538-11938-1-git-send-email-laoar.shao@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1542542538-11938-1-git-send-email-laoar.shao@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: willy@infradead.org, akpm@linux-foundation.org, darrick.wong@oracle.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yafang Shao <laoar.shao@gmail.com>
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: akpm@linux-foundation.org, darrick.wong@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This little adjustment on bitwise operation could make the code a little
-faster.
-As write_iter is used in lots of critical path, so this code change is
-useful for performance.
+On Sun, Nov 18, 2018 at 08:02:18PM +0800, Yafang Shao wrote:
+> This little adjustment on bitwise operation could make the code a little
+> faster.
+> As write_iter is used in lots of critical path, so this code change is
+> useful for performance.
 
-Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
----
- mm/filemap.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+Did you check the before/after code generation with this patch applied?
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 81adec8..a65056ea 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2881,7 +2881,8 @@ inline ssize_t generic_write_checks(struct kiocb *iocb, struct iov_iter *from)
- 	if (iocb->ki_flags & IOCB_APPEND)
- 		iocb->ki_pos = i_size_read(inode);
+$ diff -u before.S after.S
+--- before.S	2018-11-18 07:11:48.031096768 -0500
++++ after.S	2018-11-18 07:11:36.883069103 -0500
+@@ -1,5 +1,5 @@
  
--	if ((iocb->ki_flags & IOCB_NOWAIT) && !(iocb->ki_flags & IOCB_DIRECT))
-+	if ((iocb->ki_flags & (IOCB_NOWAIT | IOCB_DIRECT)) ==
-+	    IOCB_NOWAIT)
- 		return -EINVAL;
+-before.o:     file format elf32-i386
++after.o:     file format elf32-i386
  
- 	count = iov_iter_count(from);
--- 
-1.8.3.1
+ 
+ Disassembly of section .text:
+
+with gcc 8.2.0, I see no difference, indicating that the compiler already
+makes this optimisation.
