@@ -1,91 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B0276B1B5E
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 11:46:10 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id z68so45877501qkb.14
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 08:46:10 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id k6si5022295qte.125.2018.11.19.08.46.08
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EA386B1B60
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 11:46:21 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id c18so1717092edt.23
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 08:46:21 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f14si4166252edw.282.2018.11.19.08.46.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 08:46:09 -0800 (PST)
-Date: Mon, 19 Nov 2018 08:45:54 -0800
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: Re: [RFC PATCH v4 05/13] workqueue, ktask: renice helper threads to
- prevent starvation
-Message-ID: <20181119164554.axobolrufu26kfah@ca-dmjordan1.us.oracle.com>
-References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
- <20181105165558.11698-6-daniel.m.jordan@oracle.com>
- <20181113163400.GK2509588@devbig004.ftw2.facebook.com>
+        Mon, 19 Nov 2018 08:46:19 -0800 (PST)
+Date: Mon, 19 Nov 2018 17:46:18 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Memory hotplug softlock issue
+Message-ID: <20181119164618.GQ22247@dhcp22.suse.cz>
+References: <20181115131927.GT23831@dhcp22.suse.cz>
+ <20181115133840.GR2653@MiWiFi-R3L-srv>
+ <20181115143204.GV23831@dhcp22.suse.cz>
+ <20181116012433.GU2653@MiWiFi-R3L-srv>
+ <20181116091409.GD14706@dhcp22.suse.cz>
+ <20181119105202.GE18471@MiWiFi-R3L-srv>
+ <20181119124033.GJ22247@dhcp22.suse.cz>
+ <20181119125121.GK22247@dhcp22.suse.cz>
+ <20181119141016.GO22247@dhcp22.suse.cz>
+ <eb979e1e-e0fc-b1a3-b6cc-70b503a74a20@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181113163400.GK2509588@devbig004.ftw2.facebook.com>
+In-Reply-To: <eb979e1e-e0fc-b1a3-b6cc-70b503a74a20@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-mm@kvack.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, aaron.lu@intel.com, akpm@linux-foundation.org, alex.williamson@redhat.com, bsd@redhat.com, darrick.wong@oracle.com, dave.hansen@linux.intel.com, jgg@mellanox.com, jwadams@google.com, jiangshanlai@gmail.com, mhocko@kernel.org, mike.kravetz@oracle.com, Pavel.Tatashin@microsoft.com, prasad.singamsetty@oracle.com, rdunlap@infradead.org, steven.sistare@oracle.com, tim.c.chen@intel.com, vbabka@suse.cz
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Baoquan He <bhe@redhat.com>, David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, pifang@redhat.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
 
-On Tue, Nov 13, 2018 at 08:34:00AM -0800, Tejun Heo wrote:
-> Hello, Daniel.
-
-Hi Tejun, sorry for the delay.  Plumbers...
-
-> On Mon, Nov 05, 2018 at 11:55:50AM -0500, Daniel Jordan wrote:
-> >  static bool start_flush_work(struct work_struct *work, struct wq_barrier *barr,
-> > -			     bool from_cancel)
-> > +			     struct nice_work *nice_work, int flags)
-> >  {
-> >  	struct worker *worker = NULL;
-> >  	struct worker_pool *pool;
-> > @@ -2868,11 +2926,19 @@ static bool start_flush_work(struct work_struct *work, struct wq_barrier *barr,
-> >  	if (pwq) {
-> >  		if (unlikely(pwq->pool != pool))
-> >  			goto already_gone;
-> > +
-> > +		/* not yet started, insert linked work before work */
-> > +		if (unlikely(flags & WORK_FLUSH_AT_NICE))
-> > +			insert_nice_work(pwq, nice_work, work);
+On Mon 19-11-18 17:36:21, Vlastimil Babka wrote:
+> On 11/19/18 3:10 PM, Michal Hocko wrote:
+> > On Mon 19-11-18 13:51:21, Michal Hocko wrote:
+> >> On Mon 19-11-18 13:40:33, Michal Hocko wrote:
+> >>> How are
+> >>> we supposed to converge when the swapin code waits for the migration to
+> >>> finish with the reference count elevated?
 > 
-> So, I'm not sure this works that well.  e.g. what if the work item is
-> waiting for other work items which are at lower priority?  Also, in
-> this case, it'd be a lot simpler to simply dequeue the work item and
-> execute it synchronously.
+> Indeed this looks wrong. How comes we only found this out now? I guess
+> the race window where refcounts matter is only a part of the whole
+> migration, where we update the mapping (migrate_page_move_mapping()).
+> That's before copying contents, flags etc.
 
-Good idea, that is much simpler (and shorter).
+I guess we simply never found out because most migration callers simply
+fail after few attempts. The notable exception is memory offline which
+tries retries until it suceeds or the caller terminates the process by a
+fatal signal
 
-So doing it this way, the current task's nice level would be adjusted while
-running the work synchronously.
-
+> >> Just to clarify. This is not only about swapin obviously. Any caller of
+> >> __migration_entry_wait is affected the same way AFAICS.
+> > 
+> > In other words. Why cannot we do the following?
+> > 
+> > diff --git a/mm/migrate.c b/mm/migrate.c
+> > index f7e4bfdc13b7..7ccab29bcf9a 100644
+> > --- a/mm/migrate.c
+> > +++ b/mm/migrate.c
+> > @@ -324,19 +324,9 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
+> >  		goto out;
+> >  
+> >  	page = migration_entry_to_page(entry);
+> > -
+> > -	/*
+> > -	 * Once page cache replacement of page migration started, page_count
+> > -	 * *must* be zero. And, we don't want to call wait_on_page_locked()
+> > -	 * against a page without get_page().
+> > -	 * So, we use get_page_unless_zero(), here. Even failed, page fault
+> > -	 * will occur again.
+> > -	 */
+> > -	if (!get_page_unless_zero(page))
+> > -		goto out;
+> >  	pte_unmap_unlock(ptep, ptl);
+> > -	wait_on_page_locked(page);
+> > -	put_page(page);
+> > +	page_lock(page);
+> > +	page_unlock(page);
 > 
-> >  	} else {
-> >  		worker = find_worker_executing_work(pool, work);
-> >  		if (!worker)
-> >  			goto already_gone;
-> >  		pwq = worker->current_pwq;
-> > +		if (unlikely(flags & WORK_FLUSH_AT_NICE)) {
-> > +			set_user_nice(worker->task, nice_work->nice);
-> > +			worker->flags |= WORKER_NICED;
-> > +		}
-> >  	}
-> 
-> I'm not sure about this.  Can you see whether canceling & executing
-> synchronously is enough to address the latency regression?
+> So what protects us from locking a page whose refcount dropped to zero?
+> and is being freed? The checks in freeing path won't be happy about a
+> stray lock.
 
-In my testing, canceling was practically never successful because these are
-long running jobs, so by the time the main ktask thread gets around to
-flushing/nice'ing the works, worker threads have already started running them.
-I had to write a no-op ktask to hit the first path where you suggest
-dequeueing.  So adjusting the priority of a running worker seems required to
-address the latency issue.
+Nothing really prevents that. But does it matter. The worst that might
+happen is that we lock a freed or reused page. Who would complain?
 
-So instead of flush_work_at_nice, how about this?:
-
-void renice_work_sync(work_struct *work, long nice);
-
-If a worker is running the work, renice the worker to 'nice' and wait for it to
-finish (what this patch does now), and if the work isn't running, dequeue it
-and run in the current thread, again at 'nice'.
-
-
-Thanks for taking a look.
+-- 
+Michal Hocko
+SUSE Labs
