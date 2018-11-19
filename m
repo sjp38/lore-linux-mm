@@ -1,171 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C1FD6B1800
-	for <linux-mm@kvack.org>; Sun, 18 Nov 2018 21:25:52 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id k66so66883821qkf.1
-        for <linux-mm@kvack.org>; Sun, 18 Nov 2018 18:25:52 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d18si5453101qta.143.2018.11.18.18.25.51
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Nov 2018 18:25:51 -0800 (PST)
-Date: Mon, 19 Nov 2018 10:25:26 +0800
-From: Ming Lei <ming.lei@redhat.com>
-Subject: Re: [PATCH V10 01/19] block: introduce multi-page page bvec helpers
-Message-ID: <20181119022525.GD10838@ming.t460p>
-References: <20181115085306.9910-1-ming.lei@redhat.com>
- <20181115085306.9910-2-ming.lei@redhat.com>
- <20181115182559.GA9348@vader>
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DE16F6B1816
+	for <linux-mm@kvack.org>; Sun, 18 Nov 2018 21:46:07 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id z14so862972oig.17
+        for <linux-mm@kvack.org>; Sun, 18 Nov 2018 18:46:07 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id u205-v6si15618248oig.84.2018.11.18.18.46.06
+        for <linux-mm@kvack.org>;
+        Sun, 18 Nov 2018 18:46:06 -0800 (PST)
+Subject: Re: [PATCH 1/7] node: Link memory nodes to their compute nodes
+References: <20181114224921.12123-2-keith.busch@intel.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <79caebd8-ebf1-58b5-31e7-ead3626a1ec7@arm.com>
+Date: Mon, 19 Nov 2018 08:16:02 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181115182559.GA9348@vader>
+In-Reply-To: <20181114224921.12123-2-keith.busch@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Omar Sandoval <osandov@osandov.com>
-Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: Keith Busch <keith.busch@intel.com>, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Thu, Nov 15, 2018 at 10:25:59AM -0800, Omar Sandoval wrote:
-> On Thu, Nov 15, 2018 at 04:52:48PM +0800, Ming Lei wrote:
-> > This patch introduces helpers of 'mp_bvec_iter_*' for multipage
-> > bvec support.
-> > 
-> > The introduced helpers treate one bvec as real multi-page segment,
-> > which may include more than one pages.
-> > 
-> > The existed helpers of bvec_iter_* are interfaces for supporting current
-> > bvec iterator which is thought as single-page by drivers, fs, dm and
-> > etc. These introduced helpers will build single-page bvec in flight, so
-> > this way won't break current bio/bvec users, which needn't any change.
-> > 
-> > Cc: Dave Chinner <dchinner@redhat.com>
-> > Cc: Kent Overstreet <kent.overstreet@gmail.com>
-> > Cc: Mike Snitzer <snitzer@redhat.com>
-> > Cc: dm-devel@redhat.com
-> > Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> > Cc: linux-fsdevel@vger.kernel.org
-> > Cc: Shaohua Li <shli@kernel.org>
-> > Cc: linux-raid@vger.kernel.org
-> > Cc: linux-erofs@lists.ozlabs.org
-> > Cc: David Sterba <dsterba@suse.com>
-> > Cc: linux-btrfs@vger.kernel.org
-> > Cc: Darrick J. Wong <darrick.wong@oracle.com>
-> > Cc: linux-xfs@vger.kernel.org
-> > Cc: Gao Xiang <gaoxiang25@huawei.com>
-> > Cc: Christoph Hellwig <hch@lst.de>
-> > Cc: Theodore Ts'o <tytso@mit.edu>
-> > Cc: linux-ext4@vger.kernel.org
-> > Cc: Coly Li <colyli@suse.de>
-> > Cc: linux-bcache@vger.kernel.org
-> > Cc: Boaz Harrosh <ooo@electrozaur.com>
-> > Cc: Bob Peterson <rpeterso@redhat.com>
-> > Cc: cluster-devel@redhat.com
-> 
-> Reviewed-by: Omar Sandoval <osandov@fb.com>
-> 
-> But a couple of comments below.
-> 
-> > Signed-off-by: Ming Lei <ming.lei@redhat.com>
-> > ---
-> >  include/linux/bvec.h | 63 +++++++++++++++++++++++++++++++++++++++++++++++++---
-> >  1 file changed, 60 insertions(+), 3 deletions(-)
-> > 
-> > diff --git a/include/linux/bvec.h b/include/linux/bvec.h
-> > index 02c73c6aa805..8ef904a50577 100644
-> > --- a/include/linux/bvec.h
-> > +++ b/include/linux/bvec.h
-> > @@ -23,6 +23,44 @@
-> >  #include <linux/kernel.h>
-> >  #include <linux/bug.h>
-> >  #include <linux/errno.h>
-> > +#include <linux/mm.h>
-> > +
-> > +/*
-> > + * What is multi-page bvecs?
-> > + *
-> > + * - bvecs stored in bio->bi_io_vec is always multi-page(mp) style
-> > + *
-> > + * - bvec(struct bio_vec) represents one physically contiguous I/O
-> > + *   buffer, now the buffer may include more than one pages after
-> > + *   multi-page(mp) bvec is supported, and all these pages represented
-> > + *   by one bvec is physically contiguous. Before mp support, at most
-> > + *   one page is included in one bvec, we call it single-page(sp)
-> > + *   bvec.
-> > + *
-> > + * - .bv_page of the bvec represents the 1st page in the mp bvec
-> > + *
-> > + * - .bv_offset of the bvec represents offset of the buffer in the bvec
-> > + *
-> > + * The effect on the current drivers/filesystem/dm/bcache/...:
-> > + *
-> > + * - almost everyone supposes that one bvec only includes one single
-> > + *   page, so we keep the sp interface not changed, for example,
-> > + *   bio_for_each_segment() still returns bvec with single page
-> > + *
-> > + * - bio_for_each_segment*() will be changed to return single-page
-> > + *   bvec too
-> > + *
-> > + * - during iterating, iterator variable(struct bvec_iter) is always
-> > + *   updated in multipage bvec style and that means bvec_iter_advance()
-> > + *   is kept not changed
-> > + *
-> > + * - returned(copied) single-page bvec is built in flight by bvec
-> > + *   helpers from the stored multipage bvec
-> > + *
-> > + * - In case that some components(such as iov_iter) need to support
-> > + *   multi-page bvec, we introduce new helpers(mp_bvec_iter_*) for
-> > + *   them.
-> > + */
-> 
-> This comment sounds more like a commit message (i.e., how were things
-> before, and how are we changing them). In a couple of years when I read
-> this code, I probably won't care how it was changed, just how it works.
-> So I think a comment explaining the concepts of multi-page and
-> single-page bvecs is very useful, but please move all of the "foo was
-> changed" and "before mp support" type stuff to the commit message.
 
-OK.
+
+On 11/15/2018 04:19 AM, Keith Busch wrote:
+> Memory-only nodes will often have affinity to a compute node, and
+> platforms have ways to express that locality relationship.
+
+It may not have a local affinity to any compute node but it might have a
+valid NUMA distance from all available compute nodes. This is particularly
+true when the coherent device memory which is accessible from all available
+compute nodes without having local affinity to any compute node other than
+the device compute which may or not be represented as a NUMA node in itself.
+
+But in case of normally system memory also, a memory only node might be far
+from other CPU nodes and may not have CPUs of it's own. In that case there
+is no local affinity anyways.
 
 > 
-> >  /*
-> >   * was unsigned short, but we might as well be ready for > 64kB I/O pages
-> > @@ -50,16 +88,35 @@ struct bvec_iter {
-> >   */
-> >  #define __bvec_iter_bvec(bvec, iter)	(&(bvec)[(iter).bi_idx])
-> >  
-> > -#define bvec_iter_page(bvec, iter)				\
-> > +#define mp_bvec_iter_page(bvec, iter)				\
-> >  	(__bvec_iter_bvec((bvec), (iter))->bv_page)
-> >  
-> > -#define bvec_iter_len(bvec, iter)				\
-> > +#define mp_bvec_iter_len(bvec, iter)				\
-> >  	min((iter).bi_size,					\
-> >  	    __bvec_iter_bvec((bvec), (iter))->bv_len - (iter).bi_bvec_done)
-> >  
-> > -#define bvec_iter_offset(bvec, iter)				\
-> > +#define mp_bvec_iter_offset(bvec, iter)				\
-> >  	(__bvec_iter_bvec((bvec), (iter))->bv_offset + (iter).bi_bvec_done)
-> >  
-> > +#define mp_bvec_iter_page_idx(bvec, iter)			\
-> > +	(mp_bvec_iter_offset((bvec), (iter)) / PAGE_SIZE)
-> > +
-> > +/*
-> > + * <page, offset,length> of single-page(sp) segment.
-> > + *
-> > + * This helpers are for building sp bvec in flight.
-> > + */
-> > +#define bvec_iter_offset(bvec, iter)					\
-> > +	(mp_bvec_iter_offset((bvec), (iter)) % PAGE_SIZE)
-> > +
-> > +#define bvec_iter_len(bvec, iter)					\
-> > +	min_t(unsigned, mp_bvec_iter_len((bvec), (iter)),		\
-> > +	    (PAGE_SIZE - (bvec_iter_offset((bvec), (iter)))))
+> A node containing CPUs or other DMA devices that can initiate memory
+> access are referred to as "memory iniators". A "memory target" is a
+
+Memory initiators should also include heterogeneous compute elements like
+GPU cores, FPGA elements etc apart from CPU and DMA engines.
+
+> node that provides at least one phyiscal address range accessible to a
+> memory initiator.
+
+This definition for "memory target" makes sense. Coherent accesses within
+PA range from all possible "memory initiators" which should also include
+heterogeneous compute elements as mentioned before.
+
 > 
-> The parentheses around (bvec_iter_offset((bvec), (iter))) and
-> (PAGE_SIZE - (bvec_iter_offset((bvec), (iter)))) are unnecessary
-> clutter. This looks easier to read to me:
+> In preparation for these systems, provide a new kernel API to link
+> the target memory node to its initiator compute node with symlinks to
+> each other.
 
-Good catch!
+Makes sense but how would we really define NUMA placement for various
+heterogeneous compute elements which are connected differently to the
+system bus differently than the CPU and DMA. 
 
-Thanks,
-Ming
+> 
+> The following example shows the new sysfs hierarchy setup for memory node
+> 'Y' local to commpute node 'X':
+> 
+>   # ls -l /sys/devices/system/node/nodeX/initiator*
+>   /sys/devices/system/node/nodeX/targetY -> ../nodeY
+> 
+>   # ls -l /sys/devices/system/node/nodeY/target*
+>   /sys/devices/system/node/nodeY/initiatorX -> ../nodeX
+
+This inter linking makes sense but once we are able to define all possible
+memory initiators and memory targets as NUMA nodes (which might not very
+trivial) taking into account heterogeneous compute environment. But this
+linking at least establishes the coherency relationship between memory
+initiators and memory targets.
+
+> 
+> Signed-off-by: Keith Busch <keith.busch@intel.com>
+> ---
+>  drivers/base/node.c  | 32 ++++++++++++++++++++++++++++++++
+>  include/linux/node.h |  2 ++
+>  2 files changed, 34 insertions(+)
+> 
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 86d6cd92ce3d..a9b7512a9502 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -372,6 +372,38 @@ int register_cpu_under_node(unsigned int cpu, unsigned int nid)
+>  				 kobject_name(&node_devices[nid]->dev.kobj));
+>  }
+>  
+> +int register_memory_node_under_compute_node(unsigned int m, unsigned int p)
+> +{
+> +	int ret;
+> +	char initiator[20], target[17];
+
+20, 17 seems arbitrary here.
+
+> +
+> +	if (!node_online(p) || !node_online(m))
+> +		return -ENODEV;
+
+Just wondering how a NUMA node for group of GPU compute elements will look
+like which are not manage by kernel but are still memory initiators having
+access to a number of memory targets.
+
+> +	if (m == p)
+> +		return 0;
+
+Why skip ? Should not we link memory target to it's own node which can be
+it's memory initiator as well. Caller of this linking function might decide
+on whether the memory target is accessible from same NUMA node as a memory
+initiator or not.
+
+> +
+> +	snprintf(initiator, sizeof(initiator), "initiator%d", p);
+> +	snprintf(target, sizeof(target), "target%d", m);
+> +
+> +	ret = sysfs_create_link(&node_devices[p]->dev.kobj,
+> +				&node_devices[m]->dev.kobj,
+> +				target);
+> +	if (ret)
+> +		return ret;
+> +
+> +	ret = sysfs_create_link(&node_devices[m]->dev.kobj,
+> +				&node_devices[p]->dev.kobj,
+> +				initiator);
+> +	if (ret)
+> +		goto err;
+> +
+> +	return 0;
+> + err:
+> +	sysfs_remove_link(&node_devices[p]->dev.kobj,
+> +			  kobject_name(&node_devices[m]->dev.kobj));
+> +	return ret;
+> +}
+> +
+>  int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
+>  {
+>  	struct device *obj;
+> diff --git a/include/linux/node.h b/include/linux/node.h
+> index 257bb3d6d014..1fd734a3fb3f 100644
+> --- a/include/linux/node.h
+> +++ b/include/linux/node.h
+> @@ -75,6 +75,8 @@ extern int register_mem_sect_under_node(struct memory_block *mem_blk,
+>  extern int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+>  					   unsigned long phys_index);
+>  
+> +extern int register_memory_node_under_compute_node(unsigned int m, unsigned int p);
+> +
+>  #ifdef CONFIG_HUGETLBFS
+>  extern void register_hugetlbfs_with_node(node_registration_func_t doregister,
+>  					 node_registration_func_t unregister);
+>
+The code is all good but as mentioned before the primary concern is whether
+this semantics will be able to correctly represent all possible present and
+future heterogeneous compute environments with multi attribute memory. This
+is going to be a kernel API. So apart from various NUMA representation for
+all possible kinds, the interface has to be abstract with generic elements
+and room for future extension.
