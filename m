@@ -1,52 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 508F86B1BB0
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 12:32:13 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id g28so21842778otd.19
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 09:32:13 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id q82si11175623oic.178.2018.11.19.09.32.11
-        for <linux-mm@kvack.org>;
-        Mon, 19 Nov 2018 09:32:11 -0800 (PST)
-Date: Mon, 19 Nov 2018 17:32:02 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH v11 00/24] kasan: add software tag-based mode for arm64
-Message-ID: <20181119173202.7pcxp5osupdw4t5t@lakrids.cambridge.arm.com>
-References: <cover.1542648335.git.andreyknvl@google.com>
- <CAAeHK+xr04YNUY21osduxrVzxNEpiXZamSsFCGquvBD6JV6Lbw@mail.gmail.com>
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 60FA86B1BB3
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 12:33:15 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id o42so16228084edc.13
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 09:33:15 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y20si2677634edb.128.2018.11.19.09.33.13
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Nov 2018 09:33:14 -0800 (PST)
+Date: Mon, 19 Nov 2018 18:33:12 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Memory hotplug softlock issue
+Message-ID: <20181119173312.GV22247@dhcp22.suse.cz>
+References: <20181115131211.GP2653@MiWiFi-R3L-srv>
+ <20181115131927.GT23831@dhcp22.suse.cz>
+ <20181115133840.GR2653@MiWiFi-R3L-srv>
+ <20181115143204.GV23831@dhcp22.suse.cz>
+ <20181116012433.GU2653@MiWiFi-R3L-srv>
+ <20181116091409.GD14706@dhcp22.suse.cz>
+ <20181119105202.GE18471@MiWiFi-R3L-srv>
+ <20181119124033.GJ22247@dhcp22.suse.cz>
+ <20181119125121.GK22247@dhcp22.suse.cz>
+ <20181119141016.GO22247@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAAeHK+xr04YNUY21osduxrVzxNEpiXZamSsFCGquvBD6JV6Lbw@mail.gmail.com>
+In-Reply-To: <20181119141016.GO22247@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>
+To: Baoquan He <bhe@redhat.com>
+Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, pifang@redhat.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>
 
-On Mon, Nov 19, 2018 at 06:28:57PM +0100, Andrey Konovalov wrote:
-> On Mon, Nov 19, 2018 at 6:26 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> > Changes in v11:
-> > - Rebased onto 9ff01193 (4.20-rc3).
-> > - Moved KASAN_SHADOW_SCALE_SHIFT definition to arch/arm64/Makefile.
-> > - Added and used CC_HAS_KASAN_GENERIC and CC_HAS_KASAN_SW_TAGS configs to
-> >   detect compiler support.
-> > - New patch: "kasan: rename kasan_zero_page to kasan_early_shadow_page".
-> > - New patch: "arm64: move untagged_addr macro from uaccess.h to memory.h".
-> > - Renamed KASAN_SET_TAG/... macros in arch/arm64/include/asm/memory.h to
-> >   __tag_set/... and reused them later in KASAN core code instead of
-> >   redefining.
-> > - Removed tag reset from the __kimg_to_phys() macro.
-> > - Fixed tagged pointer handling in arm64 fault handling logic.
-> 
-> Hi Mark and Catalin,
+On Mon 19-11-18 15:10:16, Michal Hocko wrote:
+[...]
+> In other words. Why cannot we do the following?
 
-Hi Andrey,
+Baoquan, this is certainly not the right fix but I would be really
+curious whether it makes the problem go away.
 
-> I've addressed your comments, please take a look.
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index f7e4bfdc13b7..7ccab29bcf9a 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -324,19 +324,9 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
+>  		goto out;
+>  
+>  	page = migration_entry_to_page(entry);
+> -
+> -	/*
+> -	 * Once page cache replacement of page migration started, page_count
+> -	 * *must* be zero. And, we don't want to call wait_on_page_locked()
+> -	 * against a page without get_page().
+> -	 * So, we use get_page_unless_zero(), here. Even failed, page fault
+> -	 * will occur again.
+> -	 */
+> -	if (!get_page_unless_zero(page))
+> -		goto out;
+>  	pte_unmap_unlock(ptep, ptl);
+> -	wait_on_page_locked(page);
+> -	put_page(page);
+> +	page_lock(page);
+> +	page_unlock(page);
+>  	return;
+>  out:
+>  	pte_unmap_unlock(ptep, ptl);
 
-Catalin and I have just returned from Linux Plumbers and are ctaching up
-with things. I do intend to look at this, but it may take me a short
-while before I can.
-
-Thanks,
-Mark.
+-- 
+Michal Hocko
+SUSE Labs
