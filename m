@@ -1,53 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F1AC06B1A3D
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 09:23:28 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id r65-v6so21368812pfa.8
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 06:23:28 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c24si12673855pgk.269.2018.11.19.06.23.27
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 31EEA6B1AE4
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 10:00:58 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id y7so28373586wrr.12
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 07:00:58 -0800 (PST)
+Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10085.outbound.protection.outlook.com. [40.107.1.85])
+        by mx.google.com with ESMTPS id i8si1911179wrm.449.2018.11.19.07.00.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 06:23:28 -0800 (PST)
-Date: Mon, 19 Nov 2018 15:23:25 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm, page_alloc: fix calculation of pgdat->nr_zones
-Message-ID: <20181119142325.GP22247@dhcp22.suse.cz>
-References: <20181117022022.9956-1-richard.weiyang@gmail.com>
- <1542622061.3002.6.camel@suse.de>
- <20181119141505.xugul3s5nbzssybm@master>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 19 Nov 2018 07:00:56 -0800 (PST)
+From: Tariq Toukan <tariqt@mellanox.com>
+Subject: Re: [PATCH v2 RESEND 1/2] mm/page_alloc: free order-0 pages through
+ PCP in page_frag_free()
+Date: Mon, 19 Nov 2018 15:00:53 +0000
+Message-ID: <be048469-d29d-e700-4858-4a5263a50eb6@mellanox.com>
+References: <20181119134834.17765-1-aaron.lu@intel.com>
+ <20181119134834.17765-2-aaron.lu@intel.com>
+In-Reply-To: <20181119134834.17765-2-aaron.lu@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <6A9C7ED5C96A7A499DA2C1C1F937C3B8@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181119141505.xugul3s5nbzssybm@master>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: osalvador <osalvador@suse.de>, akpm@linux-foundation.org, dave.hansen@intel.com, linux-mm@kvack.org
+To: Aaron Lu <aaron.lu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, =?utf-8?B?UGF3ZcWCIFN0YXN6ZXdza2k=?= <pstaszewski@itcare.pl>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, Ilias Apalodimas <ilias.apalodimas@linaro.org>, Yoel Caspersen <yoel@kviknet.dk>, Mel Gorman <mgorman@techsingularity.net>, Saeed Mahameed <saeedm@mellanox.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Ian Kumlien <ian.kumlien@gmail.com>
 
-On Mon 19-11-18 14:15:05, Wei Yang wrote:
-> On Mon, Nov 19, 2018 at 11:07:41AM +0100, osalvador wrote:
-> >
-> >> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-> >
-> >Good catch.
-> >
-> >One thing I was wondering is that if we also should re-adjust it when a
-> >zone gets emptied during offlining memory.
-> >I checked, and whenever we work wirh pgdat->nr_zones we seem to check
-> >if the zone is populated in order to work with it.
-> >But still, I wonder if we should re-adjust it.
-> 
-> Well, thanks all for comments. I am glad you like it.
-> 
-> Actually, I have another proposal or I notice another potential issue.
-> 
-> In case user online pages in parallel, we may face a contention and get
-> a wrong nr_zones.
-
-No, this should be protected by the global mem hotplug lock. Anyway a
-dedicated lock would be much better. I would move it under
-pgdat_resize_lock.
--- 
-Michal Hocko
-SUSE Labs
+DQoNCk9uIDE5LzExLzIwMTggMzo0OCBQTSwgQWFyb24gTHUgd3JvdGU6DQo+IHBhZ2VfZnJhZ19m
+cmVlKCkgY2FsbHMgX19mcmVlX3BhZ2VzX29rKCkgdG8gZnJlZSB0aGUgcGFnZSBiYWNrIHRvDQo+
+IEJ1ZGR5LiBUaGlzIGlzIE9LIGZvciBoaWdoIG9yZGVyIHBhZ2UsIGJ1dCBmb3Igb3JkZXItMCBw
+YWdlcywgaXQNCj4gbWlzc2VzIHRoZSBvcHRpbWl6YXRpb24gb3Bwb3J0dW5pdHkgb2YgdXNpbmcg
+UGVyLUNwdS1QYWdlcyBhbmQgY2FuDQo+IGNhdXNlIHpvbmUgbG9jayBjb250ZW50aW9uIHdoZW4g
+Y2FsbGVkIGZyZXF1ZW50bHkuDQo+IA0KPiBQYXdlxYIgU3Rhc3pld3NraSByZWNlbnRseSBzaGFy
+ZWQgaGlzIHJlc3VsdCBvZiAnaG93IExpbnV4IGtlcm5lbA0KPiBoYW5kbGVzIG5vcm1hbCB0cmFm
+ZmljJ1sxXSBhbmQgZnJvbSBwZXJmIGRhdGEsIEplc3BlciBEYW5nYWFyZCBCcm91ZXINCj4gZm91
+bmQgdGhlIGxvY2sgY29udGVudGlvbiBjb21lcyBmcm9tIHBhZ2UgYWxsb2NhdG9yOg0KPiANCj4g
+ICAgbWx4NWVfcG9sbF90eF9jcQ0KPiAgICB8DQo+ICAgICAtLTE2LjM0JS0tbmFwaV9jb25zdW1l
+X3NrYg0KPiAgICAgICAgICAgICAgIHwNCj4gICAgICAgICAgICAgICB8LS0xMi42NSUtLV9fZnJl
+ZV9wYWdlc19vaw0KPiAgICAgICAgICAgICAgIHwgICAgICAgICAgfA0KPiAgICAgICAgICAgICAg
+IHwgICAgICAgICAgIC0tMTEuODYlLS1mcmVlX29uZV9wYWdlDQo+ICAgICAgICAgICAgICAgfCAg
+ICAgICAgICAgICAgICAgICAgIHwNCj4gICAgICAgICAgICAgICB8ICAgICAgICAgICAgICAgICAg
+ICAgfC0tMTAuMTAlLS1xdWV1ZWRfc3Bpbl9sb2NrX3Nsb3dwYXRoDQo+ICAgICAgICAgICAgICAg
+fCAgICAgICAgICAgICAgICAgICAgIHwNCj4gICAgICAgICAgICAgICB8ICAgICAgICAgICAgICAg
+ICAgICAgIC0tMC42NSUtLV9yYXdfc3Bpbl9sb2NrDQo+ICAgICAgICAgICAgICAgfA0KPiAgICAg
+ICAgICAgICAgIHwtLTEuNTUlLS1wYWdlX2ZyYWdfZnJlZQ0KPiAgICAgICAgICAgICAgIHwNCj4g
+ICAgICAgICAgICAgICAgLS0xLjQ0JS0tc2tiX3JlbGVhc2VfZGF0YQ0KPiANCj4gSmVzcGVyIGV4
+cGxhaW5lZCBob3cgaXQgaGFwcGVuZWQ6IG1seDUgZHJpdmVyIFJYLXBhZ2UgcmVjeWNsZQ0KPiBt
+ZWNoYW5pc20gaXMgbm90IGVmZmVjdGl2ZSBpbiB0aGlzIHdvcmtsb2FkIGFuZCBwYWdlcyBoYXZl
+IHRvIGdvDQo+IHRocm91Z2ggdGhlIHBhZ2UgYWxsb2NhdG9yLiBUaGUgbG9jayBjb250ZW50aW9u
+IGhhcHBlbnMgZHVyaW5nDQo+IG1seDUgRE1BIFRYIGNvbXBsZXRpb24gY3ljbGUuIEFuZCB0aGUg
+cGFnZSBhbGxvY2F0b3IgY2Fubm90IGtlZXANCj4gdXAgYXQgdGhlc2Ugc3BlZWRzLlsyXQ0KPiAN
+Cj4gSSB0aG91Z2h0IHRoYXQgX19mcmVlX3BhZ2VzX29rKCkgYXJlIG1vc3RseSBmcmVlaW5nIGhp
+Z2ggb3JkZXINCj4gcGFnZXMgYW5kIHRob3VnaHQgdGhpcyBpcyBhbiBsb2NrIGNvbnRlbnRpb24g
+Zm9yIGhpZ2ggb3JkZXIgcGFnZXMNCj4gYnV0IEplc3BlciBleHBsYWluZWQgaW4gZGV0YWlsIHRo
+YXQgX19mcmVlX3BhZ2VzX29rKCkgaGVyZSBhcmUNCj4gYWN0dWFsbHkgZnJlZWluZyBvcmRlci0w
+IHBhZ2VzIGJlY2F1c2UgbWx4NSBpcyB1c2luZyBvcmRlci0wIHBhZ2VzDQo+IHRvIHNhdGlzZnkg
+aXRzIHBhZ2UgcG9vbCBhbGxvY2F0aW9uIHJlcXVlc3QuWzNdDQo+IA0KPiBUaGUgZnJlZSBwYXRo
+IGFzIHBvaW50ZWQgb3V0IGJ5IEplc3BlciBpczoNCj4gc2tiX2ZyZWVfaGVhZCgpDQo+ICAgIC0+
+IHNrYl9mcmVlX2ZyYWcoKQ0KPiAgICAgIC0+IHBhZ2VfZnJhZ19mcmVlKCkNCj4gQW5kIHRoZSBw
+YWdlcyBiZWluZyBmcmVlZCBvbiB0aGlzIHBhdGggYXJlIG9yZGVyLTAgcGFnZXMuDQo+IA0KPiBG
+aXggdGhpcyBieSBkb2luZyBzaW1pbGFyIHRoaW5ncyBhcyBpbiBfX3BhZ2VfZnJhZ19jYWNoZV9k
+cmFpbigpIC0NCj4gc2VuZCB0aGUgYmVpbmcgZnJlZWQgcGFnZSB0byBQQ1AgaWYgaXQncyBhbiBv
+cmRlci0wIHBhZ2UsIG9yDQo+IGRpcmVjdGx5IHRvIEJ1ZGR5IGlmIGl0IGlzIGEgaGlnaCBvcmRl
+ciBwYWdlLg0KPiANCj4gV2l0aCB0aGlzIGNoYW5nZSwgUGF3ZcWCIGhhc24ndCBub3RpY2VkIGxv
+Y2sgY29udGVudGlvbiB5ZXQgaW4NCj4gaGlzIHdvcmtsb2FkIGFuZCBKZXNwZXIgaGFzIG5vdGlj
+ZWQgYSA3JSBwZXJmb3JtYW5jZSBpbXByb3ZlbWVudA0KPiB1c2luZyBhIG1pY3JvIGJlbmNobWFy
+ayBhbmQgbG9jayBjb250ZW50aW9uIGlzIGdvbmUuIElsaWFzJyB0ZXN0DQo+IG9uIGEgJ2xvdycg
+c3BlZWQgMUdiaXQgaW50ZXJmYWNlIG9uIGFuIGNvcnRleC1hNTMgc2hvd3MgfjExJQ0KPiBwZXJm
+b3JtYW5jZSBib29zdCB0ZXN0aW5nIHdpdGggNjRieXRlIHBhY2tldHMgYW5kIF9fZnJlZV9wYWdl
+c19vaygpDQo+IGRpc2FwcGVhcmVkIGZyb20gcGVyZiB0b3AuDQo+IA0KPiBbMV06IGh0dHBzOi8v
+d3d3LnNwaW5pY3MubmV0L2xpc3RzL25ldGRldi9tc2c1MzEzNjIuaHRtbA0KPiBbMl06IGh0dHBz
+Oi8vd3d3LnNwaW5pY3MubmV0L2xpc3RzL25ldGRldi9tc2c1MzE0MjEuaHRtbA0KPiBbM106IGh0
+dHBzOi8vd3d3LnNwaW5pY3MubmV0L2xpc3RzL25ldGRldi9tc2c1MzE1NTYuaHRtbA0KPiANCj4g
+UmVwb3J0ZWQtYnk6IFBhd2XFgiBTdGFzemV3c2tpIDxwc3Rhc3pld3NraUBpdGNhcmUucGw+DQo+
+IEFuYWx5c2VkLWJ5OiBKZXNwZXIgRGFuZ2FhcmQgQnJvdWVyIDxicm91ZXJAcmVkaGF0LmNvbT4N
+Cj4gQWNrZWQtYnk6IFZsYXN0aW1pbCBCYWJrYSA8dmJhYmthQHN1c2UuY3o+DQo+IEFja2VkLWJ5
+OiBNZWwgR29ybWFuIDxtZ29ybWFuQHRlY2hzaW5ndWxhcml0eS5uZXQ+DQo+IEFja2VkLWJ5OiBK
+ZXNwZXIgRGFuZ2FhcmQgQnJvdWVyIDxicm91ZXJAcmVkaGF0LmNvbT4NCj4gQWNrZWQtYnk6IEls
+aWFzIEFwYWxvZGltYXMgPGlsaWFzLmFwYWxvZGltYXNAbGluYXJvLm9yZz4NCj4gVGVzdGVkLWJ5
+OiBJbGlhcyBBcGFsb2RpbWFzIDxpbGlhcy5hcGFsb2RpbWFzQGxpbmFyby5vcmc+DQo+IEFja2Vk
+LWJ5OiBBbGV4YW5kZXIgRHV5Y2sgPGFsZXhhbmRlci5oLmR1eWNrQGxpbnV4LmludGVsLmNvbT4N
+Cj4gQWNrZWQtYnk6IFRhcmlxIFRvdWthbiA8dGFyaXF0QG1lbGxhbm94LmNvbQ0KDQptaXNzaW5n
+ICc+JyBzaWduIGluIG15IGVtYWlsIHRhZy4NCg0KPiBTaWduZWQtb2ZmLWJ5OiBBYXJvbiBMdSA8
+YWFyb24ubHVAaW50ZWwuY29tPg0KPiAtLS0NCg==
