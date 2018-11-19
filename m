@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 846226B1B89
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 12:27:12 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id v2-v6so44124531wrn.0
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 09:27:12 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 1C79F6B1B8B
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 12:27:14 -0500 (EST)
+Received: by mail-wr1-f70.google.com with SMTP id x3so18443173wru.22
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 09:27:14 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h7sor13717248wrv.20.2018.11.19.09.27.10
+        by mx.google.com with SMTPS id r2-v6sor18569538wma.5.2018.11.19.09.27.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 19 Nov 2018 09:27:10 -0800 (PST)
+        Mon, 19 Nov 2018 09:27:12 -0800 (PST)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v11 10/24] kasan: add tag related helper functions
-Date: Mon, 19 Nov 2018 18:26:26 +0100
-Message-Id: <bc37609da963901927e2446f1be97900e1984038.1542648335.git.andreyknvl@google.com>
+Subject: [PATCH v11 11/24] kasan, arm64: untag address in _virt_addr_is_linear
+Date: Mon, 19 Nov 2018 18:26:27 +0100
+Message-Id: <5cb565e6a6b17eceb6590a33d84208f725cf8dc2.1542648335.git.andreyknvl@google.com>
 In-Reply-To: <cover.1542648335.git.andreyknvl@google.com>
 References: <cover.1542648335.git.andreyknvl@google.com>
 MIME-Version: 1.0
@@ -22,199 +22,36 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
 Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-This commit adds a few helper functions, that are meant to be used to
-work with tags embedded in the top byte of kernel pointers: to set, to
-get or to reset the top byte.
+virt_addr_is_linear (which is used by virt_addr_valid) assumes that the
+top byte of the address is 0xff, which isn't always the case with
+tag-based KASAN.
 
+This patch resets the tag in this macro.
+
+Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- arch/arm64/include/asm/kasan.h  |  8 +++++--
- arch/arm64/include/asm/memory.h | 12 +++++++++++
- arch/arm64/mm/kasan_init.c      |  2 ++
- include/linux/kasan.h           | 13 ++++++++++++
- mm/kasan/kasan.h                | 31 +++++++++++++++++++++++++++
- mm/kasan/tags.c                 | 37 +++++++++++++++++++++++++++++++++
- 6 files changed, 101 insertions(+), 2 deletions(-)
+ arch/arm64/include/asm/memory.h | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
-diff --git a/arch/arm64/include/asm/kasan.h b/arch/arm64/include/asm/kasan.h
-index 8758bb008436..b52aacd2c526 100644
---- a/arch/arm64/include/asm/kasan.h
-+++ b/arch/arm64/include/asm/kasan.h
-@@ -4,12 +4,16 @@
- 
- #ifndef __ASSEMBLY__
- 
--#ifdef CONFIG_KASAN
--
- #include <linux/linkage.h>
- #include <asm/memory.h>
- #include <asm/pgtable-types.h>
- 
-+#define arch_kasan_set_tag(addr, tag)	__tag_set(addr, tag)
-+#define arch_kasan_reset_tag(addr)	__tag_reset(addr)
-+#define arch_kasan_get_tag(addr)	__tag_get(addr)
-+
-+#ifdef CONFIG_KASAN
-+
- /*
-  * KASAN_SHADOW_START: beginning of the kernel virtual addresses.
-  * KASAN_SHADOW_END: KASAN_SHADOW_START + 1/N of kernel virtual addresses,
 diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-index deb95be44392..ae741827039c 100644
+index ae741827039c..ddad7df77027 100644
 --- a/arch/arm64/include/asm/memory.h
 +++ b/arch/arm64/include/asm/memory.h
-@@ -94,6 +94,18 @@
- #define KASAN_THREAD_SHIFT	0
+@@ -322,9 +322,10 @@ static inline void *phys_to_virt(phys_addr_t x)
+ #endif
  #endif
  
-+#ifdef CONFIG_KASAN_SW_TAGS
-+#define __tag_shifted(tag)	((__u64)(tag) << 56)
-+#define __tag_set(addr, tag)	(__typeof__(addr))( \
-+		((__u64)(addr) & ~__tag_shifted(0xff)) | __tag_shifted(tag))
-+#define __tag_reset(addr)	untagged_addr(addr)
-+#define __tag_get(addr)		(__u8)((__u64)(addr) >> 56)
-+#else
-+#define __tag_set(addr, tag)	(addr)
-+#define __tag_reset(addr)	(addr)
-+#define __tag_get(addr)		0
-+#endif
-+
- #define MIN_THREAD_SHIFT	(14 + KASAN_THREAD_SHIFT)
+-#define _virt_addr_is_linear(kaddr)	(((u64)(kaddr)) >= PAGE_OFFSET)
+-#define virt_addr_valid(kaddr)		(_virt_addr_is_linear(kaddr) && \
+-					 _virt_addr_valid(kaddr))
++#define _virt_addr_is_linear(kaddr)	\
++	(__tag_reset((u64)(kaddr)) >= PAGE_OFFSET)
++#define virt_addr_valid(kaddr)		\
++	(_virt_addr_is_linear(kaddr) && _virt_addr_valid(kaddr))
  
- /*
-diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
-index 7a4a0904cac8..1df536bdabcb 100644
---- a/arch/arm64/mm/kasan_init.c
-+++ b/arch/arm64/mm/kasan_init.c
-@@ -253,6 +253,8 @@ void __init kasan_init(void)
- 	memset(kasan_early_shadow_page, KASAN_SHADOW_INIT, PAGE_SIZE);
- 	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
+ #include <asm-generic/memory_model.h>
  
-+	kasan_init_tags();
-+
- 	/* At this point kasan is fully initialized. Enable error messages */
- 	init_task.kasan_depth = 0;
- 	pr_info("KernelAddressSanitizer initialized\n");
-diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index c56af24bd3e7..a477ce2abdc9 100644
---- a/include/linux/kasan.h
-+++ b/include/linux/kasan.h
-@@ -169,6 +169,19 @@ static inline void kasan_cache_shutdown(struct kmem_cache *cache) {}
- 
- #define KASAN_SHADOW_INIT 0xFF
- 
-+void kasan_init_tags(void);
-+
-+void *kasan_reset_tag(const void *addr);
-+
-+#else /* CONFIG_KASAN_SW_TAGS */
-+
-+static inline void kasan_init_tags(void) { }
-+
-+static inline void *kasan_reset_tag(const void *addr)
-+{
-+	return (void *)addr;
-+}
-+
- #endif /* CONFIG_KASAN_SW_TAGS */
- 
- #endif /* LINUX_KASAN_H */
-diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-index 19b950eaccff..6e42f46522c0 100644
---- a/mm/kasan/kasan.h
-+++ b/mm/kasan/kasan.h
-@@ -8,6 +8,10 @@
- #define KASAN_SHADOW_SCALE_SIZE (1UL << KASAN_SHADOW_SCALE_SHIFT)
- #define KASAN_SHADOW_MASK       (KASAN_SHADOW_SCALE_SIZE - 1)
- 
-+#define KASAN_TAG_KERNEL	0xFF /* native kernel pointers tag */
-+#define KASAN_TAG_INVALID	0xFE /* inaccessible memory tag */
-+#define KASAN_TAG_MAX		0xFD /* maximum value for random tags */
-+
- #define KASAN_FREE_PAGE         0xFF  /* page was freed */
- #define KASAN_PAGE_REDZONE      0xFE  /* redzone for kmalloc_large allocations */
- #define KASAN_KMALLOC_REDZONE   0xFC  /* redzone inside slub object */
-@@ -126,6 +130,33 @@ static inline void quarantine_reduce(void) { }
- static inline void quarantine_remove_cache(struct kmem_cache *cache) { }
- #endif
- 
-+#ifdef CONFIG_KASAN_SW_TAGS
-+
-+u8 random_tag(void);
-+
-+#else
-+
-+static inline u8 random_tag(void)
-+{
-+	return 0;
-+}
-+
-+#endif
-+
-+#ifndef arch_kasan_set_tag
-+#define arch_kasan_set_tag(addr, tag)	(void *)addr
-+#endif
-+#ifndef arch_kasan_reset_tag
-+#define arch_kasan_reset_tag(addr)	(void *)addr
-+#endif
-+#ifndef arch_kasan_get_tag
-+#define arch_kasan_get_tag(addr)	0
-+#endif
-+
-+#define set_tag(addr, tag)	(void *)arch_kasan_set_tag(addr, tag)
-+#define reset_tag(addr)		(void *)arch_kasan_reset_tag(addr)
-+#define get_tag(addr)		arch_kasan_get_tag(addr)
-+
- /*
-  * Exported functions for interfaces called from assembly or from generated
-  * code. Declarations here to avoid warning about missing declarations.
-diff --git a/mm/kasan/tags.c b/mm/kasan/tags.c
-index 04194923c543..1c4e7ce2e6fe 100644
---- a/mm/kasan/tags.c
-+++ b/mm/kasan/tags.c
-@@ -38,6 +38,43 @@
- #include "kasan.h"
- #include "../slab.h"
- 
-+static DEFINE_PER_CPU(u32, prng_state);
-+
-+void kasan_init_tags(void)
-+{
-+	int cpu;
-+
-+	for_each_possible_cpu(cpu)
-+		per_cpu(prng_state, cpu) = get_random_u32();
-+}
-+
-+/*
-+ * If a preemption happens between this_cpu_read and this_cpu_write, the only
-+ * side effect is that we'll give a few allocated in different contexts objects
-+ * the same tag. Since tag-based KASAN is meant to be used a probabilistic
-+ * bug-detection debug feature, this doesn't have significant negative impact.
-+ *
-+ * Ideally the tags use strong randomness to prevent any attempts to predict
-+ * them during explicit exploit attempts. But strong randomness is expensive,
-+ * and we did an intentional trade-off to use a PRNG. This non-atomic RMW
-+ * sequence has in fact positive effect, since interrupts that randomly skew
-+ * PRNG at unpredictable points do only good.
-+ */
-+u8 random_tag(void)
-+{
-+	u32 state = this_cpu_read(prng_state);
-+
-+	state = 1664525 * state + 1013904223;
-+	this_cpu_write(prng_state, state);
-+
-+	return (u8)(state % (KASAN_TAG_MAX + 1));
-+}
-+
-+void *kasan_reset_tag(const void *addr)
-+{
-+	return reset_tag(addr);
-+}
-+
- void check_memory_region(unsigned long addr, size_t size, bool write,
- 				unsigned long ret_ip)
- {
 -- 
 2.19.1.1215.g8438c0b245-goog
