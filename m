@@ -1,89 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EFDFF6B1A3E
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 08:51:52 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id n32-v6so15502118edc.17
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 05:51:52 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 193176B1A34
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 09:10:20 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id e17so12222986edr.7
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 06:10:20 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 6si8725616edx.32.2018.11.19.05.51.51
+        by mx.google.com with ESMTPS id i88-v6si427295edi.389.2018.11.19.06.10.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 05:51:51 -0800 (PST)
-Date: Mon, 19 Nov 2018 14:51:49 +0100
+        Mon, 19 Nov 2018 06:10:18 -0800 (PST)
+Date: Mon, 19 Nov 2018 15:10:16 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] l1tf: drop the swap storage limit restriction when
- l1tf=off
-Message-ID: <20181119135149.GN22247@dhcp22.suse.cz>
-References: <20181113184910.26697-1-mhocko@kernel.org>
- <nycvar.YFH.7.76.1811132054521.19754@cbobk.fhfr.pm>
- <20181114073229.GC23419@dhcp22.suse.cz>
- <nycvar.YFH.7.76.1811191436140.21108@cbobk.fhfr.pm>
+Subject: Re: Memory hotplug softlock issue
+Message-ID: <20181119141016.GO22247@dhcp22.suse.cz>
+References: <20181115083055.GD23831@dhcp22.suse.cz>
+ <20181115131211.GP2653@MiWiFi-R3L-srv>
+ <20181115131927.GT23831@dhcp22.suse.cz>
+ <20181115133840.GR2653@MiWiFi-R3L-srv>
+ <20181115143204.GV23831@dhcp22.suse.cz>
+ <20181116012433.GU2653@MiWiFi-R3L-srv>
+ <20181116091409.GD14706@dhcp22.suse.cz>
+ <20181119105202.GE18471@MiWiFi-R3L-srv>
+ <20181119124033.GJ22247@dhcp22.suse.cz>
+ <20181119125121.GK22247@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <nycvar.YFH.7.76.1811191436140.21108@cbobk.fhfr.pm>
+In-Reply-To: <20181119125121.GK22247@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Kosina <jikos@kernel.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <ak@linux.intel.com>, Borislav Petkov <bp@suse.de>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Baoquan He <bhe@redhat.com>
+Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, pifang@redhat.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>
 
-On Mon 19-11-18 14:36:32, Jiri Kosina wrote:
-> On Wed, 14 Nov 2018, Michal Hocko wrote:
+On Mon 19-11-18 13:51:21, Michal Hocko wrote:
+> On Mon 19-11-18 13:40:33, Michal Hocko wrote:
+> > On Mon 19-11-18 18:52:02, Baoquan He wrote:
+> > [...]
+> > 
+> > There are few stacks directly in the offline path but those should be
+> > OK.
+> > The real culprit seems to be the swap in code
+> > 
+> > > [  +1.734416] CPU: 255 PID: 5558 Comm: stress Tainted: G             L    4.20.0-rc2+ #7
+> > > [  +0.007927] Hardware name:  9008/IT91SMUB, BIOS BLXSV512 03/22/2018
+> > > [  +0.006297] Call Trace:
+> > > [  +0.002537]  dump_stack+0x46/0x60
+> > > [  +0.003386]  __migration_entry_wait.cold.65+0x5/0x14
+> > > [  +0.005043]  do_swap_page+0x84e/0x960
+> > > [  +0.003727]  ? arch_tlb_finish_mmu+0x29/0xc0
+> > > [  +0.006412]  __handle_mm_fault+0x933/0x1330
+> > > [  +0.004265]  handle_mm_fault+0xc4/0x250
+> > > [  +0.003915]  __do_page_fault+0x2b7/0x510
+> > > [  +0.003990]  do_page_fault+0x2c/0x110
+> > > [  +0.003729]  ? page_fault+0x8/0x30
+> > > [  +0.003462]  page_fault+0x1e/0x30
+> > 
+> > There are many traces to this path. We are 
+> > 	/*
+> > 	 * Once page cache replacement of page migration started, page_count
+> > 	 * *must* be zero. And, we don't want to call wait_on_page_locked()
+> > 	 * against a page without get_page().
+> > 	 * So, we use get_page_unless_zero(), here. Even failed, page fault
+> > 	 * will occur again.
+> > 	 */
+> > 	if (!get_page_unless_zero(page))
+> > 		goto out;
+> > 	pte_unmap_unlock(ptep, ptl);
+> > 	wait_on_page_locked(page);
+> > 
+> > taking a reference to the page under the migration. I have to think
+> > about this much more but I suspec this is just calling for a problem.
+> > 
+> > Cc migration experts. For you background information. We are seeing
+> > memory offline not being able to converge because few heavily used pages
+> > fail to migrate away - e.g. http://lkml.kernel.org/r/20181116012433.GU2653@MiWiFi-R3L-srv
+> > A debugging page to dump stack for these pages http://lkml.kernel.org/r/20181116091409.GD14706@dhcp22.suse.cz
+> > shows that references are taken from the swap in code (above). How are
+> > we supposed to converge when the swapin code waits for the migration to
+> > finish with the reference count elevated?
 > 
-> > > > +				It also drops the swap size and available
-> > > > +				RAM limit restriction.
-> > > 
-> > > Minor nit: I think this should explicitly mention that those two things 
-> > > are related to bare metal mitigation, to avoid any confusion (as otherwise 
-> > > the l1tf cmdline parameter is purely about hypervisor mitigations).
-> > 
-> > Do you have any specific wording in mind?
-> > 
-> > It also drops the swap size and available RAM limit restrictions on both
-> > hypervisor and bare metal.
-> > 
-> > Sounds better?
-> > 
-> > > With that
-> > > 
-> > > 	Acked-by: Jiri Kosina <jkosina@suse.cz>
-> > 
-> > Thanks!
-> 
-> Yes, I think that makes it absolutely clear. Thanks,
+> Just to clarify. This is not only about swapin obviously. Any caller of
+> __migration_entry_wait is affected the same way AFAICS.
 
-OK. Here is the incremental diff on top of the patch. I will fold and
-repost later this week. I assume people are still catching up after LPC
-and I do not want to spam them even more.
+In other words. Why cannot we do the following?
 
-diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index a54f2bd39e77..c5aa4b4a797d 100644
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -2096,7 +2096,8 @@
- 				Disables hypervisor mitigations and doesn't
- 				emit any warnings.
- 				It also drops the swap size and available
--				RAM limit restriction.
-+				RAM limit restriction on both hypervisor and
-+				bare metal.
+diff --git a/mm/migrate.c b/mm/migrate.c
+index f7e4bfdc13b7..7ccab29bcf9a 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -324,19 +324,9 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
+ 		goto out;
  
- 			Default is 'flush'.
- 
-diff --git a/Documentation/admin-guide/l1tf.rst b/Documentation/admin-guide/l1tf.rst
-index b00464a9c09c..2e65e6cb033e 100644
---- a/Documentation/admin-guide/l1tf.rst
-+++ b/Documentation/admin-guide/l1tf.rst
-@@ -405,7 +405,8 @@ The kernel command line allows to control the L1TF mitigations at boot
- 
-   off		Disables hypervisor mitigations and doesn't emit any
- 		warnings.
--		It also drops the swap size and available RAM limit restrictions.
-+		It also drops the swap size and available RAM limit restrictions
-+                on both hypervisor and bare metal.
- 
-   ============  =============================================================
- 
+ 	page = migration_entry_to_page(entry);
+-
+-	/*
+-	 * Once page cache replacement of page migration started, page_count
+-	 * *must* be zero. And, we don't want to call wait_on_page_locked()
+-	 * against a page without get_page().
+-	 * So, we use get_page_unless_zero(), here. Even failed, page fault
+-	 * will occur again.
+-	 */
+-	if (!get_page_unless_zero(page))
+-		goto out;
+ 	pte_unmap_unlock(ptep, ptl);
+-	wait_on_page_locked(page);
+-	put_page(page);
++	page_lock(page);
++	page_unlock(page);
+ 	return;
+ out:
+ 	pte_unmap_unlock(ptep, ptl);
 -- 
 Michal Hocko
 SUSE Labs
