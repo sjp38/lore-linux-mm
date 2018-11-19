@@ -1,49 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A83566B1997
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 03:29:55 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id f22so66767468qkm.11
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 00:29:55 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e97si1196858qtb.180.2018.11.19.00.29.54
+Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EE026B19A3
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 03:30:50 -0500 (EST)
+Received: by mail-lf1-f70.google.com with SMTP id y6so7006492lfy.11
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 00:30:50 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h5-v6sor19665502ljj.15.2018.11.19.00.30.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 00:29:54 -0800 (PST)
-Date: Mon, 19 Nov 2018 16:29:32 +0800
-From: Ming Lei <ming.lei@redhat.com>
-Subject: Re: [PATCH V10 12/19] block: allow bio_for_each_segment_all() to
- iterate over multi-page bvec
-Message-ID: <20181119082931.GG16736@ming.t460p>
-References: <20181115085306.9910-1-ming.lei@redhat.com>
- <20181115085306.9910-13-ming.lei@redhat.com>
- <20181115124252.GP24115@twin.jikos.cz>
+        (Google Transport Security);
+        Mon, 19 Nov 2018 00:30:48 -0800 (PST)
+Date: Mon, 19 Nov 2018 11:30:45 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: Re: [Bug 201699] New: kmemleak in memcg_create_kmem_cache
+Message-ID: <20181119083045.m5rhvbsze4h5l6jq@esperanza>
+References: <bug-201699-27@https.bugzilla.kernel.org/>
+ <20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org>
+ <20181116175005.3dcfpyhuj57oaszm@esperanza>
+ <433c2924.f6c.16724466cd8.Coremail.bauers@126.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20181115124252.GP24115@twin.jikos.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <433c2924.f6c.16724466cd8.Coremail.bauers@126.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dsterba@suse.cz, Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, linux-fsdevel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, linux-btrfs@vger.kernel.org, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: dong <bauers@126.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Nov 15, 2018 at 01:42:52PM +0100, David Sterba wrote:
-> On Thu, Nov 15, 2018 at 04:52:59PM +0800, Ming Lei wrote:
-> > diff --git a/block/blk-zoned.c b/block/blk-zoned.c
-> > index 13ba2011a306..789b09ae402a 100644
-> > --- a/block/blk-zoned.c
-> > +++ b/block/blk-zoned.c
-> > @@ -123,6 +123,7 @@ static int blk_report_zones(struct gendisk *disk, sector_t sector,
-> >  	unsigned int z = 0, n, nrz = *nr_zones;
-> >  	sector_t capacity = get_capacity(disk);
-> >  	int ret;
-> > +	struct bvec_iter_all iter_all;
-> >  
-> >  	while (z < nrz && sector < capacity) {
-> >  		n = nrz - z;
-> 
-> iter_all is added but not used and I don't see any
-> bio_for_each_segment_all for conversion in this function.
+On Sun, Nov 18, 2018 at 08:44:14AM +0800, dong wrote:
+> First of all,I can see memory leak when I run a??free -ga?? command.
 
-Good catch, will fix it in next version.
+This doesn't mean there's a leak. The kernel may postpone freeing memory
+until there's memory pressure. In particular cgroup objects are not
+released until there are objects allocated from the corresponding kmem
+caches. Those objects may be inodes or dentries, which are freed lazily.
+Looks like restarting a service causes recreation of a memory cgroup and
+hence piling up dead cgroups. Try to drop caches.
 
-Thanks,
-Ming
+>So I enabled kmemleak. I got the messages above. When I run a??cat
+>/sys/kernel/debug/kmemleaka??, nothing came up. Instead, the a??dmesga??
+>command show me the leak messages. So the messages is not the leak
+>reasoni 1/4 ?How can I detect the real memory leaki 1/4 ?Thanksi 1/4 ?
