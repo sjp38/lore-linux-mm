@@ -1,71 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 60FA86B1BB3
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 12:33:15 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id o42so16228084edc.13
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 09:33:15 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y20si2677634edb.128.2018.11.19.09.33.13
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A87AA6B1BB9
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 12:37:56 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id x7so957209pll.23
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 09:37:56 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id u11si6780617plq.287.2018.11.19.09.37.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 09:33:14 -0800 (PST)
-Date: Mon, 19 Nov 2018 18:33:12 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Memory hotplug softlock issue
-Message-ID: <20181119173312.GV22247@dhcp22.suse.cz>
-References: <20181115131211.GP2653@MiWiFi-R3L-srv>
- <20181115131927.GT23831@dhcp22.suse.cz>
- <20181115133840.GR2653@MiWiFi-R3L-srv>
- <20181115143204.GV23831@dhcp22.suse.cz>
- <20181116012433.GU2653@MiWiFi-R3L-srv>
- <20181116091409.GD14706@dhcp22.suse.cz>
- <20181119105202.GE18471@MiWiFi-R3L-srv>
- <20181119124033.GJ22247@dhcp22.suse.cz>
- <20181119125121.GK22247@dhcp22.suse.cz>
- <20181119141016.GO22247@dhcp22.suse.cz>
+        Mon, 19 Nov 2018 09:37:55 -0800 (PST)
+Subject: Re: [PATCH 0/7] ACPI HMAT memory sysfs representation
+References: <20181114224902.12082-1-keith.busch@intel.com>
+ <1ed406b2-b85f-8e02-1df0-7c39aa21eca9@arm.com>
+ <4ea6e80f-80ba-6992-8aa0-5c2d88996af7@intel.com>
+ <b79804b0-32ee-03f9-fa62-a89684d46be6@arm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <c6abb754-0d82-8739-fe08-24e9402bae75@intel.com>
+Date: Mon, 19 Nov 2018 09:37:51 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181119141016.GO22247@dhcp22.suse.cz>
+In-Reply-To: <b79804b0-32ee-03f9-fa62-a89684d46be6@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, pifang@redhat.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>, Keith Busch <keith.busch@intel.com>, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dan Williams <dan.j.williams@intel.com>
 
-On Mon 19-11-18 15:10:16, Michal Hocko wrote:
-[...]
-> In other words. Why cannot we do the following?
+On 11/18/18 9:44 PM, Anshuman Khandual wrote:
+> IIUC NUMA re-work in principle involves these functional changes
+> 
+> 1. Enumerating compute and memory nodes in heterogeneous environment (short/medium term)
 
-Baoquan, this is certainly not the right fix but I would be really
-curious whether it makes the problem go away.
+This patch set _does_ that, though.
 
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index f7e4bfdc13b7..7ccab29bcf9a 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -324,19 +324,9 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
->  		goto out;
->  
->  	page = migration_entry_to_page(entry);
-> -
-> -	/*
-> -	 * Once page cache replacement of page migration started, page_count
-> -	 * *must* be zero. And, we don't want to call wait_on_page_locked()
-> -	 * against a page without get_page().
-> -	 * So, we use get_page_unless_zero(), here. Even failed, page fault
-> -	 * will occur again.
-> -	 */
-> -	if (!get_page_unless_zero(page))
-> -		goto out;
->  	pte_unmap_unlock(ptep, ptl);
-> -	wait_on_page_locked(page);
-> -	put_page(page);
-> +	page_lock(page);
-> +	page_unlock(page);
->  	return;
->  out:
->  	pte_unmap_unlock(ptep, ptl);
+> 2. Enumerating memory node attributes as seen from the compute nodes (short/medium term)
 
--- 
-Michal Hocko
-SUSE Labs
+It does that as well (a subset at least).
+
+It sounds like the subset that's being exposed is insufficient for yo
+We did that because we think doing anything but a subset in sysfs will
+just blow up sysfs:  MAX_NUMNODES is as high as 1024, so if we have 4
+attributes, that's at _least_ 1024*1024*4 files if we expose *all*
+combinations.
+
+Do we agree that sysfs is unsuitable for exposing attributes in this manner?
