@@ -1,98 +1,258 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B38A96B1918
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 01:38:58 -0500 (EST)
-Received: by mail-oi1-f197.google.com with SMTP id w129-v6so16427475oib.18
-        for <linux-mm@kvack.org>; Sun, 18 Nov 2018 22:38:58 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id d134si9318847oib.261.2018.11.18.22.38.57
-        for <linux-mm@kvack.org>;
-        Sun, 18 Nov 2018 22:38:57 -0800 (PST)
-Subject: Re: [PATCH] mm, page_alloc: fix calculation of pgdat->nr_zones
-References: <20181117022022.9956-1-richard.weiyang@gmail.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <fc661a9c-3cde-8e43-a05d-f26817ba6e8e@arm.com>
-Date: Mon, 19 Nov 2018 12:08:54 +0530
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DE28F6B1962
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 02:50:57 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id v64so6708104qka.5
+        for <linux-mm@kvack.org>; Sun, 18 Nov 2018 23:50:57 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s17si3780662qkl.40.2018.11.18.23.50.56
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 18 Nov 2018 23:50:56 -0800 (PST)
+Date: Mon, 19 Nov 2018 15:50:25 +0800
+From: Ming Lei <ming.lei@redhat.com>
+Subject: Re: [PATCH V10 03/19] block: use bio_for_each_bvec() to compute
+ multi-page bvec count
+Message-ID: <20181119075024.GA16519@ming.t460p>
+References: <20181115085306.9910-1-ming.lei@redhat.com>
+ <20181115085306.9910-4-ming.lei@redhat.com>
+ <20181115202028.GC9348@vader>
 MIME-Version: 1.0
-In-Reply-To: <20181117022022.9956-1-richard.weiyang@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181115202028.GC9348@vader>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, mhocko@suse.com, dave.hansen@intel.com
-Cc: linux-mm@kvack.org
+To: Omar Sandoval <osandov@osandov.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+
+On Thu, Nov 15, 2018 at 12:20:28PM -0800, Omar Sandoval wrote:
+> On Thu, Nov 15, 2018 at 04:52:50PM +0800, Ming Lei wrote:
+> > First it is more efficient to use bio_for_each_bvec() in both
+> > blk_bio_segment_split() and __blk_recalc_rq_segments() to compute how
+> > many multi-page bvecs there are in the bio.
+> > 
+> > Secondly once bio_for_each_bvec() is used, the bvec may need to be
+> > splitted because its length can be very longer than max segment size,
+> > so we have to split the big bvec into several segments.
+> > 
+> > Thirdly when splitting multi-page bvec into segments, the max segment
+> > limit may be reached, so the bio split need to be considered under
+> > this situation too.
+> > 
+> > Cc: Dave Chinner <dchinner@redhat.com>
+> > Cc: Kent Overstreet <kent.overstreet@gmail.com>
+> > Cc: Mike Snitzer <snitzer@redhat.com>
+> > Cc: dm-devel@redhat.com
+> > Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> > Cc: linux-fsdevel@vger.kernel.org
+> > Cc: Shaohua Li <shli@kernel.org>
+> > Cc: linux-raid@vger.kernel.org
+> > Cc: linux-erofs@lists.ozlabs.org
+> > Cc: David Sterba <dsterba@suse.com>
+> > Cc: linux-btrfs@vger.kernel.org
+> > Cc: Darrick J. Wong <darrick.wong@oracle.com>
+> > Cc: linux-xfs@vger.kernel.org
+> > Cc: Gao Xiang <gaoxiang25@huawei.com>
+> > Cc: Christoph Hellwig <hch@lst.de>
+> > Cc: Theodore Ts'o <tytso@mit.edu>
+> > Cc: linux-ext4@vger.kernel.org
+> > Cc: Coly Li <colyli@suse.de>
+> > Cc: linux-bcache@vger.kernel.org
+> > Cc: Boaz Harrosh <ooo@electrozaur.com>
+> > Cc: Bob Peterson <rpeterso@redhat.com>
+> > Cc: cluster-devel@redhat.com
+> > Signed-off-by: Ming Lei <ming.lei@redhat.com>
+> > ---
+> >  block/blk-merge.c | 90 ++++++++++++++++++++++++++++++++++++++++++++++---------
+> >  1 file changed, 76 insertions(+), 14 deletions(-)
+> > 
+> > diff --git a/block/blk-merge.c b/block/blk-merge.c
+> > index 91b2af332a84..6f7deb94a23f 100644
+> > --- a/block/blk-merge.c
+> > +++ b/block/blk-merge.c
+> > @@ -160,6 +160,62 @@ static inline unsigned get_max_io_size(struct request_queue *q,
+> >  	return sectors;
+> >  }
+> >  
+> > +/*
+> > + * Split the bvec @bv into segments, and update all kinds of
+> > + * variables.
+> > + */
+> > +static bool bvec_split_segs(struct request_queue *q, struct bio_vec *bv,
+> > +		unsigned *nsegs, unsigned *last_seg_size,
+> > +		unsigned *front_seg_size, unsigned *sectors)
+> > +{
+> > +	bool need_split = false;
+> > +	unsigned len = bv->bv_len;
+> > +	unsigned total_len = 0;
+> > +	unsigned new_nsegs = 0, seg_size = 0;
+> 
+> "unsigned int" here and everywhere else.
+> 
+> > +	if ((*nsegs >= queue_max_segments(q)) || !len)
+> > +		return need_split;
+> > +
+> > +	/*
+> > +	 * Multipage bvec may be too big to hold in one segment,
+> > +	 * so the current bvec has to be splitted as multiple
+> > +	 * segments.
+> > +	 */
+> > +	while (new_nsegs + *nsegs < queue_max_segments(q)) {
+> > +		seg_size = min(queue_max_segment_size(q), len);
+> > +
+> > +		new_nsegs++;
+> > +		total_len += seg_size;
+> > +		len -= seg_size;
+> > +
+> > +		if ((queue_virt_boundary(q) && ((bv->bv_offset +
+> > +		    total_len) & queue_virt_boundary(q))) || !len)
+> > +			break;
+> 
+> Checking queue_virt_boundary(q) != 0 is superfluous, and the len check
+> could just control the loop, i.e.,
+> 
+> 	while (len && new_nsegs + *nsegs < queue_max_segments(q)) {
+> 		seg_size = min(queue_max_segment_size(q), len);
+> 
+> 		new_nsegs++;
+> 		total_len += seg_size;
+> 		len -= seg_size;
+> 
+> 		if ((bv->bv_offset + total_len) & queue_virt_boundary(q))
+> 			break;
+> 	}
+> 
+> And if you rewrite it this way, I _think_ you can get rid of this
+> special case:
+> 
+> 	if ((*nsegs >= queue_max_segments(q)) || !len)
+> 		return need_split;
+> 
+> above.
+
+Good point, will do in next version.
+
+> 
+> > +	}
+> > +
+> > +	/* split in the middle of the bvec */
+> > +	if (len)
+> > +		need_split = true;
+> 
+> need_split is unnecessary, just return len != 0.
+
+OK.
+
+> 
+> > +
+> > +	/* update front segment size */
+> > +	if (!*nsegs) {
+> > +		unsigned first_seg_size = seg_size;
+> > +
+> > +		if (new_nsegs > 1)
+> > +			first_seg_size = queue_max_segment_size(q);
+> > +		if (*front_seg_size < first_seg_size)
+> > +			*front_seg_size = first_seg_size;
+> > +	}
+> > +
+> > +	/* update other varibles */
+> > +	*last_seg_size = seg_size;
+> > +	*nsegs += new_nsegs;
+> > +	if (sectors)
+> > +		*sectors += total_len >> 9;
+> > +
+> > +	return need_split;
+> > +}
+> > +
+> >  static struct bio *blk_bio_segment_split(struct request_queue *q,
+> >  					 struct bio *bio,
+> >  					 struct bio_set *bs,
+> > @@ -173,7 +229,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+> >  	struct bio *new = NULL;
+> >  	const unsigned max_sectors = get_max_io_size(q, bio);
+> >  
+> > -	bio_for_each_segment(bv, bio, iter) {
+> > +	bio_for_each_bvec(bv, bio, iter) {
+> >  		/*
+> >  		 * If the queue doesn't support SG gaps and adding this
+> >  		 * offset would create a gap, disallow it.
+> > @@ -188,8 +244,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+> >  			 */
+> >  			if (nsegs < queue_max_segments(q) &&
+> >  			    sectors < max_sectors) {
+> > -				nsegs++;
+> > -				sectors = max_sectors;
+> > +				/* split in the middle of bvec */
+> > +				bv.bv_len = (max_sectors - sectors) << 9;
+> > +				bvec_split_segs(q, &bv, &nsegs,
+> > +						&seg_size,
+> > +						&front_seg_size,
+> > +						&sectors);
+> >  			}
+> >  			goto split;
+> >  		}
+> > @@ -214,11 +274,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+> >  		if (nsegs == 1 && seg_size > front_seg_size)
+> >  			front_seg_size = seg_size;
+> 
+> Hm, do we still need to check this here now that we're updating
+> front_seg_size inside of bvec_split_segs()?
+
+Right, the check & update can be removed.
+
+> 
+> >  
+> > -		nsegs++;
+> >  		bvprv = bv;
+> >  		bvprvp = &bvprv;
+> > -		seg_size = bv.bv_len;
+> > -		sectors += bv.bv_len >> 9;
+> > +
+> > +		if (bvec_split_segs(q, &bv, &nsegs, &seg_size,
+> > +					&front_seg_size, &sectors))
+> 
+> What happened to the indent alignment here?
+
+Will fix it in next version.
+
+> 
+> > +			goto split;
+> >  
+> >  	}
+> >  
+> > @@ -296,6 +357,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+> >  	struct bio_vec bv, bvprv = { NULL };
+> >  	int cluster, prev = 0;
+> >  	unsigned int seg_size, nr_phys_segs;
+> > +	unsigned front_seg_size = bio->bi_seg_front_size;
+> >  	struct bio *fbio, *bbio;
+> >  	struct bvec_iter iter;
+> >  
+> > @@ -316,7 +378,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+> >  	seg_size = 0;
+> >  	nr_phys_segs = 0;
+> >  	for_each_bio(bio) {
+> > -		bio_for_each_segment(bv, bio, iter) {
+> > +		bio_for_each_bvec(bv, bio, iter) {
+> >  			/*
+> >  			 * If SG merging is disabled, each bio vector is
+> >  			 * a segment
+> > @@ -336,20 +398,20 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+> >  				continue;
+> >  			}
+> >  new_segment:
+> > -			if (nr_phys_segs == 1 && seg_size >
+> > -			    fbio->bi_seg_front_size)
+> > -				fbio->bi_seg_front_size = seg_size;
+> > +			if (nr_phys_segs == 1 && seg_size > front_seg_size)
+> > +				front_seg_size = seg_size;
+> 
+> Same comment as in blk_bio_segment_split(), do we still need to check
+> this if we're updating front_seg_size in bvec_split_segs()?
+
+I think we can remove it too.
 
 
-
-On 11/17/2018 07:50 AM, Wei Yang wrote:
-> Function init_currently_empty_zone() will adjust pgdat->nr_zones and set
-> it to 'zone_idx(zone) + 1' unconditionally. This is correct in the
-> normal case, while not exact in hot-plug situation.
-> 
-> This function is used in two places:
-> 
->   * free_area_init_core()
->   * move_pfn_range_to_zone()
-> 
-> In the first case, we are sure zone index increase monotonically. While
-> in the second one, this is under users control.
-
-So pgdat->nr_zones over counts the number of zones than what node has
-really got ? Does it affect all online options (online/online_kernel
-/online_movable) if there are other higher index zones present on the
-node. 
-
-> 
-> One way to reproduce this is:
-> ----------------------------
-> 
-> 1. create a virtual machine with empty node1
-> 
->    -m 4G,slots=32,maxmem=32G \
->    -smp 4,maxcpus=8          \
->    -numa node,nodeid=0,mem=4G,cpus=0-3 \
->    -numa node,nodeid=1,mem=0G,cpus=4-7
-> 
-> 2. hot-add cpu 3-7
-> 
->    cpu-add [3-7]
-> 
-> 2. hot-add memory to nod1
-> 
->    object_add memory-backend-ram,id=ram0,size=1G
->    device_add pc-dimm,id=dimm0,memdev=ram0,node=1
-> 
-> 3. online memory with following order
-> 
->    echo online_movable > memory47/state
->    echo online > memory40/state
-> 
-> After this, node1 will have its nr_zones equals to (ZONE_NORMAL + 1)
-> instead of (ZONE_MOVABLE + 1).
-
-Which prevents an over count I guess. Just wondering if you noticed this
-causing any real problem or some other side effects.
-
-> 
-> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-> ---
->  mm/page_alloc.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 5b7cd20dbaef..2d3c54201255 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5823,8 +5823,10 @@ void __meminit init_currently_empty_zone(struct zone *zone,
->  					unsigned long size)
->  {
->  	struct pglist_data *pgdat = zone->zone_pgdat;
-> +	int zone_idx = zone_idx(zone) + 1;
->  
-> -	pgdat->nr_zones = zone_idx(zone) + 1;
-> +	if (zone_idx > pgdat->nr_zones)
-> +		pgdat->nr_zones = zone_idx;
-
-This seems to be correct if we try to init a zone (due to memory hotplug)
-in between index 0 and pgdat->nr_zones on an already populated node.
+Thanks,
+Ming
