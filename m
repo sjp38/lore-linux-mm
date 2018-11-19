@@ -1,21 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 53C7C6B1CEE
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 17:18:02 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id x13so18393784wro.9
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 14:18:02 -0800 (PST)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B1DBA6B1CF5
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 17:23:02 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id y1so20943925wrd.7
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 14:23:02 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a14sor4140402wrm.46.2018.11.19.14.18.00
+        by mx.google.com with SMTPS id d70-v6sor19814548wme.3.2018.11.19.14.23.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 19 Nov 2018 14:18:00 -0800 (PST)
+        Mon, 19 Nov 2018 14:23:01 -0800 (PST)
 MIME-Version: 1.0
-References: <20181119214934.6174-1-yu-cheng.yu@intel.com> <20181119214934.6174-9-yu-cheng.yu@intel.com>
-In-Reply-To: <20181119214934.6174-9-yu-cheng.yu@intel.com>
+References: <20181119214934.6174-1-yu-cheng.yu@intel.com> <20181119214934.6174-11-yu-cheng.yu@intel.com>
+In-Reply-To: <20181119214934.6174-11-yu-cheng.yu@intel.com>
 From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 19 Nov 2018 14:17:48 -0800
-Message-ID: <CALCETrW9ABDotyM020V147+kuizpTRJUAANn-6kUt6-h0Qn0og@mail.gmail.com>
-Subject: Re: [RFC PATCH v6 08/11] x86: Insert endbr32/endbr64 to vDSO
+Date: Mon, 19 Nov 2018 14:22:50 -0800
+Message-ID: <CALCETrWP20o62m_5mp_yCBFNMQ4YYV-kPKiytHObhvJs_bjFVQ@mail.gmail.com>
+Subject: Re: [RFC PATCH v6 10/11] x86/vsyscall/64: Add ENDBR64 to vsyscall
+ entry points
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -26,30 +27,13 @@ On Mon, Nov 19, 2018 at 1:55 PM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
 >
 > From: "H.J. Lu" <hjl.tools@gmail.com>
 >
-> When Intel indirect branch tracking is enabled, functions in vDSO which
-> may be called indirectly must have endbr32 or endbr64 as the first
-> instruction.  Compiler must support -fcf-protection=branch so that it
-> can be used to compile vDSO.
+> Add ENDBR64 to vsyscall entry points.
 >
 > Signed-off-by: H.J. Lu <hjl.tools@gmail.com>
-> ---
->  arch/x86/entry/vdso/.gitignore        |  4 ++++
->  arch/x86/entry/vdso/Makefile          | 12 +++++++++++-
->  arch/x86/entry/vdso/vdso-layout.lds.S |  1 +
->  3 files changed, 16 insertions(+), 1 deletion(-)
->
-> diff --git a/arch/x86/entry/vdso/.gitignore b/arch/x86/entry/vdso/.gitignore
-> index aae8ffdd5880..552941fdfae0 100644
-> --- a/arch/x86/entry/vdso/.gitignore
-> +++ b/arch/x86/entry/vdso/.gitignore
-> @@ -5,3 +5,7 @@ vdso32-sysenter-syms.lds
->  vdso32-int80-syms.lds
->  vdso-image-*.c
->  vdso2c
-> +vclock_gettime.S
-> +vgetcpu.S
-> +vclock_gettime.asm
-> +vgetcpu.asm
 
+Acked-by: Andy Lutomirski <luto@kernel.org>
 
-What's this hunk about?
+although the scenarios where this matters will be extremely rare,
+given that this code is mapped NX :)  Tools like 'pin' may care.
+
+--Andy
