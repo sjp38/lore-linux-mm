@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E11E86B1B8D
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 12:27:17 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id w4so5598385wrt.21
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 09:27:17 -0800 (PST)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A6906B1B8F
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 12:27:19 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id v2-v6so44125064wrn.0
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 09:27:19 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i74sor7048772wmd.20.2018.11.19.09.27.16
+        by mx.google.com with SMTPS id r7sor16612093wru.16.2018.11.19.09.27.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 19 Nov 2018 09:27:16 -0800 (PST)
+        Mon, 19 Nov 2018 09:27:18 -0800 (PST)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v11 13/24] kasan, arm64: fix up fault handling logic
-Date: Mon, 19 Nov 2018 18:26:29 +0100
-Message-Id: <99c747edfba8ea4b93d9c70aac47ea86ef258b86.1542648335.git.andreyknvl@google.com>
+Subject: [PATCH v11 14/24] kasan, arm64: enable top byte ignore for the kernel
+Date: Mon, 19 Nov 2018 18:26:30 +0100
+Message-Id: <7194a50384cb755e389ccecda66942e15b7b76ad.1542648335.git.andreyknvl@google.com>
 In-Reply-To: <cover.1542648335.git.andreyknvl@google.com>
 References: <cover.1542648335.git.andreyknvl@google.com>
 MIME-Version: 1.0
@@ -22,132 +22,56 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
 Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-Right now arm64 fault handling code removes pointer tags from addresses
-covered by TTBR0 in faults taken from both EL0 and EL1, but doesn't do
-that for pointers covered by TTBR1.
+Tag-based KASAN uses the Top Byte Ignore feature of arm64 CPUs to store a
+pointer tag in the top byte of each pointer. This commit enables the
+TCR_TBI1 bit, which enables Top Byte Ignore for the kernel, when tag-based
+KASAN is used.
 
-This patch adds two helper functions is_ttbr0_addr() and is_ttbr1_addr(),
-where the latter one accounts for the fact that TTBR1 pointers might be
-tagged when tag-based KASAN is in use, and uses these helper functions to
-perform pointer checks in arch/arm64/mm/fault.c.
-
-Suggested-by: Mark Rutland <mark.rutland@arm.com>
+Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- arch/arm64/mm/fault.c | 31 ++++++++++++++++++++++---------
- 1 file changed, 22 insertions(+), 9 deletions(-)
+ arch/arm64/include/asm/pgtable-hwdef.h | 1 +
+ arch/arm64/mm/proc.S                   | 8 +++++++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)
 
-diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index 7d9571f4ae3d..6023d4752701 100644
---- a/arch/arm64/mm/fault.c
-+++ b/arch/arm64/mm/fault.c
-@@ -40,6 +40,7 @@
- #include <asm/daifflags.h>
- #include <asm/debug-monitors.h>
- #include <asm/esr.h>
-+#include <asm/kasan.h>
- #include <asm/sysreg.h>
- #include <asm/system_misc.h>
- #include <asm/pgtable.h>
-@@ -132,6 +133,18 @@ static void mem_abort_decode(unsigned int esr)
- 		data_abort_decode(esr);
- }
+diff --git a/arch/arm64/include/asm/pgtable-hwdef.h b/arch/arm64/include/asm/pgtable-hwdef.h
+index 1d7d8da2ef9b..d43b870c39b3 100644
+--- a/arch/arm64/include/asm/pgtable-hwdef.h
++++ b/arch/arm64/include/asm/pgtable-hwdef.h
+@@ -291,6 +291,7 @@
+ #define TCR_A1			(UL(1) << 22)
+ #define TCR_ASID16		(UL(1) << 36)
+ #define TCR_TBI0		(UL(1) << 37)
++#define TCR_TBI1		(UL(1) << 38)
+ #define TCR_HA			(UL(1) << 39)
+ #define TCR_HD			(UL(1) << 40)
+ #define TCR_NFD1		(UL(1) << 54)
+diff --git a/arch/arm64/mm/proc.S b/arch/arm64/mm/proc.S
+index 2c75b0b903ae..d861f208eeb1 100644
+--- a/arch/arm64/mm/proc.S
++++ b/arch/arm64/mm/proc.S
+@@ -47,6 +47,12 @@
+ /* PTWs cacheable, inner/outer WBWA */
+ #define TCR_CACHE_FLAGS	TCR_IRGN_WBWA | TCR_ORGN_WBWA
  
-+static inline bool is_ttbr0_addr(unsigned long addr)
-+{
-+        /* entry assembly clears tags for TTBR0 addrs */
-+        return addr < TASK_SIZE;
-+}
++#ifdef CONFIG_KASAN_SW_TAGS
++#define TCR_KASAN_FLAGS TCR_TBI1
++#else
++#define TCR_KASAN_FLAGS 0
++#endif
 +
-+static inline bool is_ttbr1_addr(unsigned long addr)
-+{
-+        /* TTBR1 addresses may have a tag if KASAN_SW_TAGS is in use */
-+        return arch_kasan_reset_tag(addr) >= VA_START;
-+}
-+
+ #define MAIR(attr, mt)	((attr) << ((mt) * 8))
+ 
  /*
-  * Dump out the page tables associated with 'addr' in the currently active mm.
-  */
-@@ -141,7 +154,7 @@ void show_pte(unsigned long addr)
- 	pgd_t *pgdp;
- 	pgd_t pgd;
- 
--	if (addr < TASK_SIZE) {
-+	if (is_ttbr0_addr(addr)) {
- 		/* TTBR0 */
- 		mm = current->active_mm;
- 		if (mm == &init_mm) {
-@@ -149,7 +162,7 @@ void show_pte(unsigned long addr)
- 				 addr);
- 			return;
- 		}
--	} else if (addr >= VA_START) {
-+	} else if (is_ttbr1_addr(addr)) {
- 		/* TTBR1 */
- 		mm = &init_mm;
- 	} else {
-@@ -254,7 +267,7 @@ static inline bool is_el1_permission_fault(unsigned long addr, unsigned int esr,
- 	if (fsc_type == ESR_ELx_FSC_PERM)
- 		return true;
- 
--	if (addr < TASK_SIZE && system_uses_ttbr0_pan())
-+	if (is_ttbr0_addr(addr) && system_uses_ttbr0_pan())
- 		return fsc_type == ESR_ELx_FSC_FAULT &&
- 			(regs->pstate & PSR_PAN_BIT);
- 
-@@ -319,7 +332,7 @@ static void set_thread_esr(unsigned long address, unsigned int esr)
- 	 * type", so we ignore this wrinkle and just return the translation
- 	 * fault.)
+@@ -445,7 +451,7 @@ ENTRY(__cpu_setup)
  	 */
--	if (current->thread.fault_address >= TASK_SIZE) {
-+	if (!is_ttbr0_addr(current->thread.fault_address)) {
- 		switch (ESR_ELx_EC(esr)) {
- 		case ESR_ELx_EC_DABT_LOW:
- 			/*
-@@ -455,7 +468,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
- 		mm_flags |= FAULT_FLAG_WRITE;
- 	}
+ 	ldr	x10, =TCR_TxSZ(VA_BITS) | TCR_CACHE_FLAGS | TCR_SMP_FLAGS | \
+ 			TCR_TG_FLAGS | TCR_KASLR_FLAGS | TCR_ASID16 | \
+-			TCR_TBI0 | TCR_A1
++			TCR_TBI0 | TCR_A1 | TCR_KASAN_FLAGS
+ 	tcr_set_idmap_t0sz	x10, x9
  
--	if (addr < TASK_SIZE && is_el1_permission_fault(addr, esr, regs)) {
-+	if (is_ttbr0_addr(addr) && is_el1_permission_fault(addr, esr, regs)) {
- 		/* regs->orig_addr_limit may be 0 if we entered from EL0 */
- 		if (regs->orig_addr_limit == KERNEL_DS)
- 			die_kernel_fault("access to user memory with fs=KERNEL_DS",
-@@ -603,7 +616,7 @@ static int __kprobes do_translation_fault(unsigned long addr,
- 					  unsigned int esr,
- 					  struct pt_regs *regs)
- {
--	if (addr < TASK_SIZE)
-+	if (is_ttbr0_addr(addr))
- 		return do_page_fault(addr, esr, regs);
- 
- 	do_bad_area(addr, esr, regs);
-@@ -758,7 +771,7 @@ asmlinkage void __exception do_el0_ia_bp_hardening(unsigned long addr,
- 	 * re-enabled IRQs. If the address is a kernel address, apply
- 	 * BP hardening prior to enabling IRQs and pre-emption.
- 	 */
--	if (addr > TASK_SIZE)
-+	if (!is_ttbr0_addr(addr))
- 		arm64_apply_bp_hardening();
- 
- 	local_daif_restore(DAIF_PROCCTX);
-@@ -771,7 +784,7 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
- 					   struct pt_regs *regs)
- {
- 	if (user_mode(regs)) {
--		if (instruction_pointer(regs) > TASK_SIZE)
-+		if (!is_ttbr0_addr(instruction_pointer(regs)))
- 			arm64_apply_bp_hardening();
- 		local_daif_restore(DAIF_PROCCTX);
- 	}
-@@ -825,7 +838,7 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
- 	if (interrupts_enabled(regs))
- 		trace_hardirqs_off();
- 
--	if (user_mode(regs) && instruction_pointer(regs) > TASK_SIZE)
-+	if (user_mode(regs) && !is_ttbr0_addr(instruction_pointer(regs)))
- 		arm64_apply_bp_hardening();
- 
- 	if (!inf->fn(addr, esr, regs)) {
+ 	/*
 -- 
 2.19.1.1215.g8438c0b245-goog
