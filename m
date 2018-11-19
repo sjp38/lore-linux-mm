@@ -1,85 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 960D46B1802
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 07:51:24 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id o42so15819255edc.13
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 04:51:24 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e3si2764505edy.403.2018.11.19.04.51.23
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B8CE06B198D
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 08:07:25 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id n68so68084653qkn.8
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 05:07:25 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i17si7943416qte.298.2018.11.19.05.07.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 04:51:23 -0800 (PST)
-Date: Mon, 19 Nov 2018 13:51:21 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Memory hotplug softlock issue
-Message-ID: <20181119125121.GK22247@dhcp22.suse.cz>
-References: <20181115075349.GL2653@MiWiFi-R3L-srv>
- <20181115083055.GD23831@dhcp22.suse.cz>
- <20181115131211.GP2653@MiWiFi-R3L-srv>
- <20181115131927.GT23831@dhcp22.suse.cz>
- <20181115133840.GR2653@MiWiFi-R3L-srv>
- <20181115143204.GV23831@dhcp22.suse.cz>
- <20181116012433.GU2653@MiWiFi-R3L-srv>
- <20181116091409.GD14706@dhcp22.suse.cz>
- <20181119105202.GE18471@MiWiFi-R3L-srv>
- <20181119124033.GJ22247@dhcp22.suse.cz>
+        Mon, 19 Nov 2018 05:07:24 -0800 (PST)
+Subject: Re: [PATCH v1 4/8] xen/balloon: mark inflated pages PG_offline
+References: <20181119101616.8901-1-david@redhat.com>
+ <20181119101616.8901-5-david@redhat.com>
+ <fc69e0cf-c005-472a-b3f6-09d0c963cf52@suse.com>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <554d4e68-8fa9-6849-8480-fc9446bea79d@redhat.com>
+Date: Mon, 19 Nov 2018 14:07:18 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181119124033.GJ22247@dhcp22.suse.cz>
+In-Reply-To: <fc69e0cf-c005-472a-b3f6-09d0c963cf52@suse.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, pifang@redhat.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>
+To: Juergen Gross <jgross@suse.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, kexec-ml <kexec@lists.infradead.org>, pv-drivers@vmware.com, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Stefano Stabellini <sstabellini@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, "Michael S. Tsirkin" <mst@redhat.com>
 
-On Mon 19-11-18 13:40:33, Michal Hocko wrote:
-> On Mon 19-11-18 18:52:02, Baoquan He wrote:
-> [...]
+On 19.11.18 13:22, Juergen Gross wrote:
+> On 19/11/2018 11:16, David Hildenbrand wrote:
+>> Mark inflated and never onlined pages PG_offline, to tell the world that
+>> the content is stale and should not be dumped.
+>>
+>> Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+>> Cc: Juergen Gross <jgross@suse.com>
+>> Cc: Stefano Stabellini <sstabellini@kernel.org>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: Matthew Wilcox <willy@infradead.org>
+>> Cc: Michal Hocko <mhocko@suse.com>
+>> Cc: "Michael S. Tsirkin" <mst@redhat.com>
+>> Signed-off-by: David Hildenbrand <david@redhat.com>
+>> ---
+>>  drivers/xen/balloon.c | 3 +++
+>>  1 file changed, 3 insertions(+)
+>>
+>> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+>> index 12148289debd..14dd6b814db3 100644
+>> --- a/drivers/xen/balloon.c
+>> +++ b/drivers/xen/balloon.c
+>> @@ -425,6 +425,7 @@ static int xen_bring_pgs_online(struct page *pg, unsigned int order)
+>>  	for (i = 0; i < size; i++) {
+>>  		p = pfn_to_page(start_pfn + i);
+>>  		__online_page_set_limits(p);
+>> +		__SetPageOffline(p);
+>>  		__balloon_append(p);
+>>  	}
 > 
-> There are few stacks directly in the offline path but those should be
-> OK.
-> The real culprit seems to be the swap in code
+> This seems not to be based on current master. Could you please tell
+> against which tree this should be reviewed?
 > 
-> > [  +1.734416] CPU: 255 PID: 5558 Comm: stress Tainted: G             L    4.20.0-rc2+ #7
-> > [  +0.007927] Hardware name:  9008/IT91SMUB, BIOS BLXSV512 03/22/2018
-> > [  +0.006297] Call Trace:
-> > [  +0.002537]  dump_stack+0x46/0x60
-> > [  +0.003386]  __migration_entry_wait.cold.65+0x5/0x14
-> > [  +0.005043]  do_swap_page+0x84e/0x960
-> > [  +0.003727]  ? arch_tlb_finish_mmu+0x29/0xc0
-> > [  +0.006412]  __handle_mm_fault+0x933/0x1330
-> > [  +0.004265]  handle_mm_fault+0xc4/0x250
-> > [  +0.003915]  __do_page_fault+0x2b7/0x510
-> > [  +0.003990]  do_page_fault+0x2c/0x110
-> > [  +0.003729]  ? page_fault+0x8/0x30
-> > [  +0.003462]  page_fault+0x1e/0x30
-> 
-> There are many traces to this path. We are 
-> 	/*
-> 	 * Once page cache replacement of page migration started, page_count
-> 	 * *must* be zero. And, we don't want to call wait_on_page_locked()
-> 	 * against a page without get_page().
-> 	 * So, we use get_page_unless_zero(), here. Even failed, page fault
-> 	 * will occur again.
-> 	 */
-> 	if (!get_page_unless_zero(page))
-> 		goto out;
-> 	pte_unmap_unlock(ptep, ptl);
-> 	wait_on_page_locked(page);
-> 
-> taking a reference to the page under the migration. I have to think
-> about this much more but I suspec this is just calling for a problem.
-> 
-> Cc migration experts. For you background information. We are seeing
-> memory offline not being able to converge because few heavily used pages
-> fail to migrate away - e.g. http://lkml.kernel.org/r/20181116012433.GU2653@MiWiFi-R3L-srv
-> A debugging page to dump stack for these pages http://lkml.kernel.org/r/20181116091409.GD14706@dhcp22.suse.cz
-> shows that references are taken from the swap in code (above). How are
-> we supposed to converge when the swapin code waits for the migration to
-> finish with the reference count elevated?
+Hi Juergen,
 
-Just to clarify. This is not only about swapin obviously. Any caller of
-__migration_entry_wait is affected the same way AFAICS.
+this is based on linux-next/master.
+
+Thanks!
+
+> 
+> Juergen
+> 
+
+
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
