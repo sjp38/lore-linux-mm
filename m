@@ -1,60 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1967F6B182C
-	for <linux-mm@kvack.org>; Sun, 18 Nov 2018 22:04:47 -0500 (EST)
-Received: by mail-oi1-f199.google.com with SMTP id h135-v6so16520358oic.2
-        for <linux-mm@kvack.org>; Sun, 18 Nov 2018 19:04:47 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id e200-v6si17075668oic.46.2018.11.18.19.04.45
-        for <linux-mm@kvack.org>;
-        Sun, 18 Nov 2018 19:04:46 -0800 (PST)
-Subject: Re: [PATCH 1/7] node: Link memory nodes to their compute nodes
-References: <20181114224921.12123-2-keith.busch@intel.com>
- <20181115135710.GD19286@bombadil.infradead.org>
- <20181115145920.GG11416@localhost.localdomain>
- <CAPcyv4iLSiJz6Z7qyjqpo=HUZQy-gAcaG69JytLPPGqOO157sg@mail.gmail.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <55e5a20e-4267-cb1d-959b-6068ebbd64b1@arm.com>
-Date: Mon, 19 Nov 2018 08:34:42 +0530
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 923C56B1834
+	for <linux-mm@kvack.org>; Sun, 18 Nov 2018 22:10:19 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id h10so17170274pgv.20
+        for <linux-mm@kvack.org>; Sun, 18 Nov 2018 19:10:19 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k64sor42426571pgd.87.2018.11.18.19.10.18
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sun, 18 Nov 2018 19:10:18 -0800 (PST)
+Subject: Re: [PATCH V10 01/19] block: introduce multi-page page bvec helpers
+References: <20181115085306.9910-1-ming.lei@redhat.com>
+ <20181115085306.9910-2-ming.lei@redhat.com> <20181116131305.GA3165@lst.de>
+ <20181119022327.GC10838@ming.t460p>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <83fb4102-bffe-41f1-c8d0-3bdf61fe0ba8@kernel.dk>
+Date: Sun, 18 Nov 2018 20:10:14 -0700
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4iLSiJz6Z7qyjqpo=HUZQy-gAcaG69JytLPPGqOO157sg@mail.gmail.com>
+In-Reply-To: <20181119022327.GC10838@ming.t460p>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux ACPI <linux-acpi@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Greg KH <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>
+To: Ming Lei <ming.lei@redhat.com>, Christoph Hellwig <hch@lst.de>
+Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-
-
-On 11/15/2018 11:20 PM, Dan Williams wrote:
-> On Thu, Nov 15, 2018 at 7:02 AM Keith Busch <keith.busch@intel.com> wrote:
+On 11/18/18 7:23 PM, Ming Lei wrote:
+> On Fri, Nov 16, 2018 at 02:13:05PM +0100, Christoph Hellwig wrote:
+>>> -#define bvec_iter_page(bvec, iter)				\
+>>> +#define mp_bvec_iter_page(bvec, iter)				\
+>>>  	(__bvec_iter_bvec((bvec), (iter))->bv_page)
+>>>  
+>>> -#define bvec_iter_len(bvec, iter)				\
+>>> +#define mp_bvec_iter_len(bvec, iter)				\
 >>
->> On Thu, Nov 15, 2018 at 05:57:10AM -0800, Matthew Wilcox wrote:
->>> On Wed, Nov 14, 2018 at 03:49:14PM -0700, Keith Busch wrote:
->>>> Memory-only nodes will often have affinity to a compute node, and
->>>> platforms have ways to express that locality relationship.
->>>>
->>>> A node containing CPUs or other DMA devices that can initiate memory
->>>> access are referred to as "memory iniators". A "memory target" is a
->>>> node that provides at least one phyiscal address range accessible to a
->>>> memory initiator.
->>>
->>> I think I may be confused here.  If there is _no_ link from node X to
->>> node Y, does that mean that node X's CPUs cannot access the memory on
->>> node Y?  In my mind, all nodes can access all memory in the system,
->>> just not with uniform bandwidth/latency.
+>> I'd much prefer if we would stick to the segment naming that
+>> we also use in the higher level helper.
 >>
->> The link is just about which nodes are "local". It's like how nodes have
->> a cpulist. Other CPUs not in the node's list can acces that node's memory,
->> but the ones in the mask are local, and provide useful optimization hints.
->>
->> Would a node mask would be prefered to symlinks?
+>> So segment_iter_page, segment_iter_len, etc.
 > 
-> I think that would be more flexible, because the set of initiators
-> that may have "best" or "local" access to a target may be more than 1.
+> We discussed the naming problem before, one big problem is that the 'segment'
+> in bio_for_each_segment*() means one single page segment actually.
+> 
+> If we use segment_iter_page() here for multi-page segment, it may
+> confuse people.
+> 
+> Of course, I prefer to the naming of segment/page, 
+> 
+> And Jens didn't agree to rename bio_for_each_segment*() before.
 
-Right. The memory target should have two nodemasks (for now at least). One
-enumerating which initiator nodes can access the memory coherently and the
-other one which are nearer and can benefit from local allocation.
+I didn't like frivolous renaming (and I still don't), but mp_
+is horrible imho. Don't name these after the fact that they
+are done in conjunction with supporting multipage bvecs. That
+very fact will be irrelevant very soon
+
+-- 
+Jens Axboe
