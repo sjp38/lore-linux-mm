@@ -1,74 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B7D7C6B183B
-	for <linux-mm@kvack.org>; Sun, 18 Nov 2018 22:15:30 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id e10so20611410oth.21
-        for <linux-mm@kvack.org>; Sun, 18 Nov 2018 19:15:30 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id k18si16812169otj.208.2018.11.18.19.15.29
-        for <linux-mm@kvack.org>;
-        Sun, 18 Nov 2018 19:15:29 -0800 (PST)
-Subject: Re: [PATCH 1/7] node: Link memory nodes to their compute nodes
-References: <20181114224921.12123-2-keith.busch@intel.com>
- <20181115135710.GD19286@bombadil.infradead.org>
- <20181115145920.GG11416@localhost.localdomain>
- <20181115203654.GA28246@bombadil.infradead.org>
- <20181116183254.GD14630@localhost.localdomain>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <d5c7a267-840b-f253-ef0d-3715b2bcc196@arm.com>
-Date: Mon, 19 Nov 2018 08:45:25 +0530
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E08E86B184D
+	for <linux-mm@kvack.org>; Sun, 18 Nov 2018 22:31:44 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id v64so5818475qka.5
+        for <linux-mm@kvack.org>; Sun, 18 Nov 2018 19:31:44 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v1si9211605qtc.391.2018.11.18.19.31.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 18 Nov 2018 19:31:44 -0800 (PST)
+Date: Mon, 19 Nov 2018 11:31:11 +0800
+From: Ming Lei <ming.lei@redhat.com>
+Subject: Re: [PATCH V10 02/19] block: introduce bio_for_each_bvec()
+Message-ID: <20181119033110.GE10838@ming.t460p>
+References: <20181115085306.9910-1-ming.lei@redhat.com>
+ <20181115085306.9910-3-ming.lei@redhat.com>
+ <20181116133028.GB3165@lst.de>
 MIME-Version: 1.0
-In-Reply-To: <20181116183254.GD14630@localhost.localdomain>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181116133028.GB3165@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Keith Busch <keith.busch@intel.com>, Matthew Wilcox <willy@infradead.org>
-Cc: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-
-
-On 11/17/2018 12:02 AM, Keith Busch wrote:
-> On Thu, Nov 15, 2018 at 12:36:54PM -0800, Matthew Wilcox wrote:
->> On Thu, Nov 15, 2018 at 07:59:20AM -0700, Keith Busch wrote:
->>> On Thu, Nov 15, 2018 at 05:57:10AM -0800, Matthew Wilcox wrote:
->>>> On Wed, Nov 14, 2018 at 03:49:14PM -0700, Keith Busch wrote:
->>>>> Memory-only nodes will often have affinity to a compute node, and
->>>>> platforms have ways to express that locality relationship.
->>>>>
->>>>> A node containing CPUs or other DMA devices that can initiate memory
->>>>> access are referred to as "memory iniators". A "memory target" is a
->>>>> node that provides at least one phyiscal address range accessible to a
->>>>> memory initiator.
->>>>
->>>> I think I may be confused here.  If there is _no_ link from node X to
->>>> node Y, does that mean that node X's CPUs cannot access the memory on
->>>> node Y?  In my mind, all nodes can access all memory in the system,
->>>> just not with uniform bandwidth/latency.
->>>
->>> The link is just about which nodes are "local". It's like how nodes have
->>> a cpulist. Other CPUs not in the node's list can acces that node's memory,
->>> but the ones in the mask are local, and provide useful optimization hints.
->>
->> So ... let's imagine a hypothetical system (I've never seen one built like
->> this, but it doesn't seem too implausible).  Connect four CPU sockets in
->> a square, each of which has some regular DIMMs attached to it.  CPU A is
->> 0 hops to Memory A, one hop to Memory B and Memory C, and two hops from
->> Memory D (each CPU only has two "QPI" links).  Then maybe there's some
->> special memory extender device attached on the PCIe bus.  Now there's
->> Memory B1 and B2 that's attached to CPU B and it's local to CPU B, but
->> not as local as Memory B is ... and we'd probably _prefer_ to allocate
->> memory for CPU A from Memory B1 than from Memory D.  But ... *mumble*,
->> this seems hard.
+On Fri, Nov 16, 2018 at 02:30:28PM +0100, Christoph Hellwig wrote:
+> > +static inline void __bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
+> > +				      unsigned bytes, bool mp)
 > 
-> Indeed, that particular example is out of scope for this series. The
-> first objective is to aid a process running in node B's CPUs to allocate
-> memory in B1. Anything that crosses QPI are their own.
+> I think these magic 'bool np' arguments and wrappers over wrapper
+> don't help anyone to actually understand the code.  I'd vote for
+> removing as many wrappers as we really don't need, and passing the
+> actual segment limit instead of the magic bool flag.  Something like
+> this untested patch:
 
-This is problematic. Any new kernel API interface should accommodate B2 type
-memory as well from the above example which is on a PCIe bus. Because
-eventually they would be represented as some sort of a NUMA node and then
-applications will have to depend on this sysfs interface for their desired
-memory placement requirements. Unless this interface is thought through for
-B2 type of memory, it might not be extensible in the future.
+I think this way is fine, just a little comment.
+
+> 
+> diff --git a/include/linux/bio.h b/include/linux/bio.h
+> index 277921ad42e7..dcad0b69f57a 100644
+> --- a/include/linux/bio.h
+> +++ b/include/linux/bio.h
+> @@ -138,30 +138,21 @@ static inline bool bio_full(struct bio *bio)
+>  		bvec_for_each_segment(bvl, &((bio)->bi_io_vec[iter_all.idx]), i, iter_all)
+>  
+>  static inline void __bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
+> -				      unsigned bytes, bool mp)
+> +				      unsigned bytes, unsigned max_segment)
+
+The new parameter should have been named as 'max_segment_len' or
+'max_seg_len'.
+
+>  {
+>  	iter->bi_sector += bytes >> 9;
+>  
+>  	if (bio_no_advance_iter(bio))
+>  		iter->bi_size -= bytes;
+>  	else
+> -		if (!mp)
+> -			bvec_iter_advance(bio->bi_io_vec, iter, bytes);
+> -		else
+> -			mp_bvec_iter_advance(bio->bi_io_vec, iter, bytes);
+> +		__bvec_iter_advance(bio->bi_io_vec, iter, bytes, max_segment);
+>  		/* TODO: It is reasonable to complete bio with error here. */
+>  }
+>  
+>  static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
+>  				    unsigned bytes)
+>  {
+> -	__bio_advance_iter(bio, iter, bytes, false);
+> -}
+> -
+> -static inline void bio_advance_mp_iter(struct bio *bio, struct bvec_iter *iter,
+> -				       unsigned bytes)
+> -{
+> -	__bio_advance_iter(bio, iter, bytes, true);
+> +	__bio_advance_iter(bio, iter, bytes, PAGE_SIZE);
+>  }
+>  
+>  #define __bio_for_each_segment(bvl, bio, iter, start)			\
+> @@ -177,7 +168,7 @@ static inline void bio_advance_mp_iter(struct bio *bio, struct bvec_iter *iter,
+>  	for (iter = (start);						\
+>  	     (iter).bi_size &&						\
+>  		((bvl = bio_iter_mp_iovec((bio), (iter))), 1);	\
+> -	     bio_advance_mp_iter((bio), &(iter), (bvl).bv_len))
+> +	     __bio_advance_iter((bio), &(iter), (bvl).bv_len, 0))
+
+Even we might pass '-1' for multi-page segment.
+
+>  
+>  /* returns one real segment(multipage bvec) each time */
+>  #define bio_for_each_bvec(bvl, bio, iter)			\
+> diff --git a/include/linux/bvec.h b/include/linux/bvec.h
+> index 02f26d2b59ad..5e2ed46c1c88 100644
+> --- a/include/linux/bvec.h
+> +++ b/include/linux/bvec.h
+> @@ -138,8 +138,7 @@ struct bvec_iter_all {
+>  })
+>  
+>  static inline bool __bvec_iter_advance(const struct bio_vec *bv,
+> -				       struct bvec_iter *iter,
+> -				       unsigned bytes, bool mp)
+> +		struct bvec_iter *iter, unsigned bytes, unsigned max_segment)
+>  {
+>  	if (WARN_ONCE(bytes > iter->bi_size,
+>  		     "Attempted to advance past end of bvec iter\n")) {
+> @@ -148,18 +147,18 @@ static inline bool __bvec_iter_advance(const struct bio_vec *bv,
+>  	}
+>  
+>  	while (bytes) {
+> -		unsigned len;
+> +		unsigned segment_len = mp_bvec_iter_len(bv, *iter);
+>  
+> -		if (mp)
+> -			len = mp_bvec_iter_len(bv, *iter);
+> -		else
+> -			len = bvec_iter_len(bv, *iter);
+> +		if (max_segment) {
+> +			max_segment -= bvec_iter_offset(bv, *iter);
+> +			segment_len = min(segment_len, max_segment);
+
+Looks 'max_segment' needs to be constant, shouldn't be updated.
+
+If '-1' is passed for multipage case, the above change may become:
+
+		segment_len = min_t(segment_len, max_seg_len - bvec_iter_offset(bv, *iter));
+
+This way is more clean, but with extra cost of the above line for multipage
+case.
+
+Thanks,
+Ming
