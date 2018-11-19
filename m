@@ -1,63 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 76DF86B1A41
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 05:17:24 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id 80so68595447qkd.0
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 02:17:24 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 52B3B6B1A29
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 05:18:41 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id a199so67600789qkb.23
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 02:18:41 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g92si2124389qva.34.2018.11.19.02.17.23
+        by mx.google.com with ESMTPS id c19si40699qkh.43.2018.11.19.02.18.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 02:17:23 -0800 (PST)
+        Mon, 19 Nov 2018 02:18:39 -0800 (PST)
 From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH v1 8/8] PM / Hibernate: exclude all PageOffline() pages
-Date: Mon, 19 Nov 2018 11:16:16 +0100
-Message-Id: <20181119101616.8901-9-david@redhat.com>
+Subject: [PATCH v1] makedumpfile: exclude pages that are logically offline
+Date: Mon, 19 Nov 2018 11:18:35 +0100
+Message-Id: <20181119101835.9140-1-david@redhat.com>
 In-Reply-To: <20181119101616.8901-1-david@redhat.com>
 References: <20181119101616.8901-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, kexec-ml <kexec@lists.infradead.org>, pv-drivers@vmware.com, David Hildenbrand <david@redhat.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, "Michael S. Tsirkin" <mst@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, kexec-ml <kexec@lists.infradead.org>, pv-drivers@vmware.com, Kazuhito Hagio <k-hagio@ab.jp.nec.com>, David Hildenbrand <david@redhat.com>
 
-The content of pages that are marked PG_offline is not of interest
-(e.g. inflated by a balloon driver), let's skip these pages.
+Linux marks pages that are logically offline via a page flag (map count).
+Such pages e.g. include pages infated as part of a balloon driver or
+pages that were not actually onlined when onlining the whole section.
 
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Pavel Machek <pavel@ucw.cz>
-Cc: Len Brown <len.brown@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>
-Acked-by: Pavel Machek <pavel@ucw.cz>
+While the hypervisor usually allows to read such inflated memory, we
+basically read and dump data that is completely irrelevant. Also, this
+might result in quite some overhead in the hypervisor. In addition,
+we saw some problems under Hyper-V, whereby we can crash the kernel by
+dumping, when reading memory of a partially onlined memory segment
+(for memory added by the Hyper-V balloon driver).
+
+Therefore, don't read and dump pages that are marked as being logically
+offline.
+
 Signed-off-by: David Hildenbrand <david@redhat.com>
 ---
- kernel/power/snapshot.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ makedumpfile.c | 34 ++++++++++++++++++++++++++++++----
+ makedumpfile.h |  1 +
+ 2 files changed, 31 insertions(+), 4 deletions(-)
 
-diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
-index 87e6dd57819f..8d7b4d458842 100644
---- a/kernel/power/snapshot.c
-+++ b/kernel/power/snapshot.c
-@@ -1222,7 +1222,7 @@ static struct page *saveable_highmem_page(struct zone *zone, unsigned long pfn)
- 	BUG_ON(!PageHighMem(page));
+diff --git a/makedumpfile.c b/makedumpfile.c
+index 8923538..b8bfd4c 100644
+--- a/makedumpfile.c
++++ b/makedumpfile.c
+@@ -88,6 +88,7 @@ mdf_pfn_t pfn_cache_private;
+ mdf_pfn_t pfn_user;
+ mdf_pfn_t pfn_free;
+ mdf_pfn_t pfn_hwpoison;
++mdf_pfn_t pfn_offline;
  
- 	if (swsusp_page_is_forbidden(page) ||  swsusp_page_is_free(page) ||
--	    PageReserved(page))
-+	    PageReserved(page) || PageOffline(page))
- 		return NULL;
+ mdf_pfn_t num_dumped;
  
- 	if (page_is_guard(page))
-@@ -1286,6 +1286,9 @@ static struct page *saveable_page(struct zone *zone, unsigned long pfn)
- 	if (swsusp_page_is_forbidden(page) || swsusp_page_is_free(page))
- 		return NULL;
+@@ -249,6 +250,21 @@ isHugetlb(unsigned long dtor)
+                     && (SYMBOL(free_huge_page) == dtor));
+ }
  
-+	if (PageOffline(page))
-+		return NULL;
++static int
++isOffline(unsigned long flags, unsigned int _mapcount)
++{
++	if (NUMBER(PAGE_BUDDY_MAPCOUNT_VALUE) == NOT_FOUND_NUMBER)
++		return FALSE;
 +
- 	if (PageReserved(page)
- 	    && (!kernel_page_present(page) || pfn_is_nosave(pfn)))
- 		return NULL;
++	if (flags & (1UL << NUMBER(PG_slab)))
++		return FALSE;
++
++	if (_mapcount == (int)NUMBER(PAGE_OFFLINE_MAPCOUNT_VALUE))
++		return TRUE;
++
++	return FALSE;
++}
++
+ static int
+ is_cache_page(unsigned long flags)
+ {
+@@ -2287,6 +2303,8 @@ write_vmcoreinfo_data(void)
+ 	WRITE_NUMBER("PG_hwpoison", PG_hwpoison);
+ 
+ 	WRITE_NUMBER("PAGE_BUDDY_MAPCOUNT_VALUE", PAGE_BUDDY_MAPCOUNT_VALUE);
++	WRITE_NUMBER("PAGE_OFFLINE_MAPCOUNT_VALUE",
++		     PAGE_OFFLINE_MAPCOUNT_VALUE);
+ 	WRITE_NUMBER("phys_base", phys_base);
+ 
+ 	WRITE_NUMBER("HUGETLB_PAGE_DTOR", HUGETLB_PAGE_DTOR);
+@@ -2687,6 +2705,7 @@ read_vmcoreinfo(void)
+ 	READ_SRCFILE("pud_t", pud_t);
+ 
+ 	READ_NUMBER("PAGE_BUDDY_MAPCOUNT_VALUE", PAGE_BUDDY_MAPCOUNT_VALUE);
++	READ_NUMBER("PAGE_OFFLINE_MAPCOUNT_VALUE", PAGE_OFFLINE_MAPCOUNT_VALUE);
+ 	READ_NUMBER("phys_base", phys_base);
+ #ifdef __aarch64__
+ 	READ_NUMBER("VA_BITS", VA_BITS);
+@@ -6041,6 +6060,12 @@ __exclude_unnecessary_pages(unsigned long mem_map,
+ 		else if (isHWPOISON(flags)) {
+ 			pfn_counter = &pfn_hwpoison;
+ 		}
++		/*
++		 * Exclude pages that are logically offline.
++		 */
++		else if (isOffline(flags, _mapcount)) {
++			pfn_counter = &pfn_offline;
++		}
+ 		/*
+ 		 * Unexcludable page
+ 		 */
+@@ -7522,7 +7547,7 @@ write_elf_pages_cyclic(struct cache_data *cd_header, struct cache_data *cd_page)
+ 	 */
+ 	if (info->flag_cyclic) {
+ 		pfn_zero = pfn_cache = pfn_cache_private = 0;
+-		pfn_user = pfn_free = pfn_hwpoison = 0;
++		pfn_user = pfn_free = pfn_hwpoison = pfn_offline = 0;
+ 		pfn_memhole = info->max_mapnr;
+ 	}
+ 
+@@ -8804,7 +8829,7 @@ write_kdump_pages_and_bitmap_cyclic(struct cache_data *cd_header, struct cache_d
+ 		 * Reset counter for debug message.
+ 		 */
+ 		pfn_zero = pfn_cache = pfn_cache_private = 0;
+-		pfn_user = pfn_free = pfn_hwpoison = 0;
++		pfn_user = pfn_free = pfn_hwpoison = pfn_offline = 0;
+ 		pfn_memhole = info->max_mapnr;
+ 
+ 		/*
+@@ -9749,7 +9774,7 @@ print_report(void)
+ 	pfn_original = info->max_mapnr - pfn_memhole;
+ 
+ 	pfn_excluded = pfn_zero + pfn_cache + pfn_cache_private
+-	    + pfn_user + pfn_free + pfn_hwpoison;
++	    + pfn_user + pfn_free + pfn_hwpoison + pfn_offline;
+ 	shrinking = (pfn_original - pfn_excluded) * 100;
+ 	shrinking = shrinking / pfn_original;
+ 
+@@ -9763,6 +9788,7 @@ print_report(void)
+ 	REPORT_MSG("    User process data pages : 0x%016llx\n", pfn_user);
+ 	REPORT_MSG("    Free pages              : 0x%016llx\n", pfn_free);
+ 	REPORT_MSG("    Hwpoison pages          : 0x%016llx\n", pfn_hwpoison);
++	REPORT_MSG("    Offline pages           : 0x%016llx\n", pfn_offline);
+ 	REPORT_MSG("  Remaining pages  : 0x%016llx\n",
+ 	    pfn_original - pfn_excluded);
+ 	REPORT_MSG("  (The number of pages is reduced to %lld%%.)\n",
+@@ -9790,7 +9816,7 @@ print_mem_usage(void)
+ 	pfn_original = info->max_mapnr - pfn_memhole;
+ 
+ 	pfn_excluded = pfn_zero + pfn_cache + pfn_cache_private
+-	    + pfn_user + pfn_free + pfn_hwpoison;
++	    + pfn_user + pfn_free + pfn_hwpoison + pfn_offline;
+ 	shrinking = (pfn_original - pfn_excluded) * 100;
+ 	shrinking = shrinking / pfn_original;
+ 	total_size = info->page_size * pfn_original;
+diff --git a/makedumpfile.h b/makedumpfile.h
+index f02f86d..e3a2b29 100644
+--- a/makedumpfile.h
++++ b/makedumpfile.h
+@@ -1927,6 +1927,7 @@ struct number_table {
+ 	long    PG_hwpoison;
+ 
+ 	long	PAGE_BUDDY_MAPCOUNT_VALUE;
++	long	PAGE_OFFLINE_MAPCOUNT_VALUE;
+ 	long	SECTION_SIZE_BITS;
+ 	long	MAX_PHYSMEM_BITS;
+ 	long    HUGETLB_PAGE_DTOR;
 -- 
 2.17.2
