@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BD356B1B98
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 12:27:30 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id r137-v6so13796889wmb.0
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 09:27:30 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 7CC116B1B99
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 12:27:32 -0500 (EST)
+Received: by mail-wm1-f70.google.com with SMTP id b186so13684067wmc.8
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 09:27:32 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n15-v6sor19244582wmd.2.2018.11.19.09.27.28
+        by mx.google.com with SMTPS id j78sor6036246wmd.27.2018.11.19.09.27.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 19 Nov 2018 09:27:28 -0800 (PST)
+        Mon, 19 Nov 2018 09:27:30 -0800 (PST)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v11 20/24] kasan, arm64: add brk handler for inline instrumentation
-Date: Mon, 19 Nov 2018 18:26:36 +0100
-Message-Id: <33d91a4f2ea70b7c58cdfbedb8042118b05eca30.1542648335.git.andreyknvl@google.com>
+Subject: [PATCH v11 21/24] kasan, mm, arm64: tag non slab memory allocated via pagealloc
+Date: Mon, 19 Nov 2018 18:26:37 +0100
+Message-Id: <a3c6695128f0b301141be215d88b1a68703f0c65.1542648335.git.andreyknvl@google.com>
 In-Reply-To: <cover.1542648335.git.andreyknvl@google.com>
 References: <cover.1542648335.git.andreyknvl@google.com>
 MIME-Version: 1.0
@@ -22,169 +22,237 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
 Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-Tag-based KASAN inline instrumentation mode (which embeds checks of shadow
-memory into the generated code, instead of inserting a callback) generates
-a brk instruction when a tag mismatch is detected.
+Tag-based KASAN doesn't check memory accesses through pointers tagged with
+0xff. When page_address is used to get pointer to memory that corresponds
+to some page, the tag of the resulting pointer gets set to 0xff, even
+though the allocated memory might have been tagged differently.
 
-This commit adds a tag-based KASAN specific brk handler, that decodes the
-immediate value passed to the brk instructions (to extract information
-about the memory access that triggered the mismatch), reads the register
-values (x0 contains the guilty address) and reports the bug.
+For slab pages it's impossible to recover the correct tag to return from
+page_address, since the page might contain multiple slab objects tagged
+with different values, and we can't know in advance which one of them is
+going to get accessed. For non slab pages however, we can recover the tag
+in page_address, since the whole page was marked with the same tag.
+
+This patch adds tagging to non slab memory allocated with pagealloc. To
+set the tag of the pointer returned from page_address, the tag gets stored
+to page->flags when the memory gets allocated.
 
 Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- arch/arm64/include/asm/brk-imm.h |  2 +
- arch/arm64/kernel/traps.c        | 68 +++++++++++++++++++++++++++++++-
- include/linux/kasan.h            |  3 ++
- 3 files changed, 71 insertions(+), 2 deletions(-)
+ arch/arm64/include/asm/memory.h   |  8 +++++++-
+ include/linux/mm.h                | 29 +++++++++++++++++++++++++++++
+ include/linux/page-flags-layout.h | 10 ++++++++++
+ mm/cma.c                          | 11 +++++++++++
+ mm/kasan/common.c                 | 15 +++++++++++++--
+ mm/page_alloc.c                   |  1 +
+ mm/slab.c                         |  2 +-
+ 7 files changed, 72 insertions(+), 4 deletions(-)
 
-diff --git a/arch/arm64/include/asm/brk-imm.h b/arch/arm64/include/asm/brk-imm.h
-index ed693c5bcec0..2945fe6cd863 100644
---- a/arch/arm64/include/asm/brk-imm.h
-+++ b/arch/arm64/include/asm/brk-imm.h
-@@ -16,10 +16,12 @@
-  * 0x400: for dynamic BRK instruction
-  * 0x401: for compile time BRK instruction
-  * 0x800: kernel-mode BUG() and WARN() traps
-+ * 0x9xx: tag-based KASAN trap (allowed values 0x900 - 0x9ff)
-  */
- #define FAULT_BRK_IMM			0x100
- #define KGDB_DYN_DBG_BRK_IMM		0x400
- #define KGDB_COMPILED_DBG_BRK_IMM	0x401
- #define BUG_BRK_IMM			0x800
-+#define KASAN_BRK_IMM			0x900
+diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
+index ddad7df77027..48586d7c7edb 100644
+--- a/arch/arm64/include/asm/memory.h
++++ b/arch/arm64/include/asm/memory.h
+@@ -314,7 +314,13 @@ static inline void *phys_to_virt(phys_addr_t x)
+ #define __virt_to_pgoff(kaddr)	(((u64)(kaddr) & ~PAGE_OFFSET) / PAGE_SIZE * sizeof(struct page))
+ #define __page_to_voff(kaddr)	(((u64)(kaddr) & ~VMEMMAP_START) * PAGE_SIZE / sizeof(struct page))
  
- #endif
-diff --git a/arch/arm64/kernel/traps.c b/arch/arm64/kernel/traps.c
-index 5f4d9acb32f5..04bdc53716ef 100644
---- a/arch/arm64/kernel/traps.c
-+++ b/arch/arm64/kernel/traps.c
-@@ -35,6 +35,7 @@
- #include <linux/sizes.h>
- #include <linux/syscalls.h>
- #include <linux/mm_types.h>
-+#include <linux/kasan.h>
+-#define page_to_virt(page)	((void *)((__page_to_voff(page)) | PAGE_OFFSET))
++#define page_to_virt(page)	({					\
++	unsigned long __addr =						\
++		((__page_to_voff(page)) | PAGE_OFFSET);			\
++	__addr = __tag_set(__addr, page_kasan_tag(page));		\
++	((void *)__addr);						\
++})
++
+ #define virt_to_page(vaddr)	((struct page *)((__virt_to_pgoff(vaddr)) | VMEMMAP_START))
  
- #include <asm/atomic.h>
- #include <asm/bug.h>
-@@ -284,10 +285,14 @@ void arm64_notify_die(const char *str, struct pt_regs *regs,
- 	}
+ #define _virt_addr_valid(kaddr)	pfn_valid((((u64)(kaddr) & ~PAGE_OFFSET) \
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 5411de93a363..b4d01969e700 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -804,6 +804,7 @@ vm_fault_t finish_mkwrite_fault(struct vm_fault *vmf);
+ #define NODES_PGOFF		(SECTIONS_PGOFF - NODES_WIDTH)
+ #define ZONES_PGOFF		(NODES_PGOFF - ZONES_WIDTH)
+ #define LAST_CPUPID_PGOFF	(ZONES_PGOFF - LAST_CPUPID_WIDTH)
++#define KASAN_TAG_PGOFF		(LAST_CPUPID_PGOFF - KASAN_TAG_WIDTH)
+ 
+ /*
+  * Define the bit shifts to access each section.  For non-existent
+@@ -814,6 +815,7 @@ vm_fault_t finish_mkwrite_fault(struct vm_fault *vmf);
+ #define NODES_PGSHIFT		(NODES_PGOFF * (NODES_WIDTH != 0))
+ #define ZONES_PGSHIFT		(ZONES_PGOFF * (ZONES_WIDTH != 0))
+ #define LAST_CPUPID_PGSHIFT	(LAST_CPUPID_PGOFF * (LAST_CPUPID_WIDTH != 0))
++#define KASAN_TAG_PGSHIFT	(KASAN_TAG_PGOFF * (KASAN_TAG_WIDTH != 0))
+ 
+ /* NODE:ZONE or SECTION:ZONE is used to ID a zone for the buddy allocator */
+ #ifdef NODE_NOT_IN_PAGE_FLAGS
+@@ -836,6 +838,7 @@ vm_fault_t finish_mkwrite_fault(struct vm_fault *vmf);
+ #define NODES_MASK		((1UL << NODES_WIDTH) - 1)
+ #define SECTIONS_MASK		((1UL << SECTIONS_WIDTH) - 1)
+ #define LAST_CPUPID_MASK	((1UL << LAST_CPUPID_SHIFT) - 1)
++#define KASAN_TAG_MASK		((1UL << KASAN_TAG_WIDTH) - 1)
+ #define ZONEID_MASK		((1UL << ZONEID_SHIFT) - 1)
+ 
+ static inline enum zone_type page_zonenum(const struct page *page)
+@@ -1101,6 +1104,32 @@ static inline bool cpupid_match_pid(struct task_struct *task, int cpupid)
  }
- 
--void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
-+void __arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
- {
- 	regs->pc += size;
-+}
- 
-+void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
-+{
-+	__arm64_skip_faulting_instruction(regs, size);
- 	/*
- 	 * If we were single stepping, we want to get the step exception after
- 	 * we return from the trap.
-@@ -959,7 +964,7 @@ static int bug_handler(struct pt_regs *regs, unsigned int esr)
- 	}
- 
- 	/* If thread survives, skip over the BUG instruction and continue: */
--	arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
-+	__arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
- 	return DBG_HOOK_HANDLED;
- }
- 
-@@ -969,6 +974,58 @@ static struct break_hook bug_break_hook = {
- 	.fn = bug_handler,
- };
+ #endif /* CONFIG_NUMA_BALANCING */
  
 +#ifdef CONFIG_KASAN_SW_TAGS
-+
-+#define KASAN_ESR_RECOVER	0x20
-+#define KASAN_ESR_WRITE	0x10
-+#define KASAN_ESR_SIZE_MASK	0x0f
-+#define KASAN_ESR_SIZE(esr)	(1 << ((esr) & KASAN_ESR_SIZE_MASK))
-+
-+static int kasan_handler(struct pt_regs *regs, unsigned int esr)
++static inline u8 page_kasan_tag(const struct page *page)
 +{
-+	bool recover = esr & KASAN_ESR_RECOVER;
-+	bool write = esr & KASAN_ESR_WRITE;
-+	size_t size = KASAN_ESR_SIZE(esr);
-+	u64 addr = regs->regs[0];
-+	u64 pc = regs->pc;
-+
-+	if (user_mode(regs))
-+		return DBG_HOOK_ERROR;
-+
-+	kasan_report(addr, size, write, pc);
-+
-+	/*
-+	 * The instrumentation allows to control whether we can proceed after
-+	 * a crash was detected. This is done by passing the -recover flag to
-+	 * the compiler. Disabling recovery allows to generate more compact
-+	 * code.
-+	 *
-+	 * Unfortunately disabling recovery doesn't work for the kernel right
-+	 * now. KASAN reporting is disabled in some contexts (for example when
-+	 * the allocator accesses slab object metadata; this is controlled by
-+	 * current->kasan_depth). All these accesses are detected by the tool,
-+	 * even though the reports for them are not printed.
-+	 *
-+	 * This is something that might be fixed at some point in the future.
-+	 */
-+	if (!recover)
-+		die("Oops - KASAN", regs, 0);
-+
-+	/* If thread survives, skip over the brk instruction and continue: */
-+	__arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
-+	return DBG_HOOK_HANDLED;
++	return (page->flags >> KASAN_TAG_PGSHIFT) & KASAN_TAG_MASK;
 +}
 +
-+#define KASAN_ESR_VAL (0xf2000000 | KASAN_BRK_IMM)
-+#define KASAN_ESR_MASK 0xffffff00
++static inline void page_kasan_tag_set(struct page *page, u8 tag)
++{
++	page->flags &= ~(KASAN_TAG_MASK << KASAN_TAG_PGSHIFT);
++	page->flags |= (tag & KASAN_TAG_MASK) << KASAN_TAG_PGSHIFT;
++}
 +
-+static struct break_hook kasan_break_hook = {
-+	.esr_val = KASAN_ESR_VAL,
-+	.esr_mask = KASAN_ESR_MASK,
-+	.fn = kasan_handler,
-+};
++static inline void page_kasan_tag_reset(struct page *page)
++{
++	page_kasan_tag_set(page, 0xff);
++}
++#else
++static inline u8 page_kasan_tag(const struct page *page)
++{
++	return 0xff;
++}
++
++static inline void page_kasan_tag_set(struct page *page, u8 tag) { }
++static inline void page_kasan_tag_reset(struct page *page) { }
++#endif
++
+ static inline struct zone *page_zone(const struct page *page)
+ {
+ 	return &NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)];
+diff --git a/include/linux/page-flags-layout.h b/include/linux/page-flags-layout.h
+index 7ec86bf31ce4..1dda31825ec4 100644
+--- a/include/linux/page-flags-layout.h
++++ b/include/linux/page-flags-layout.h
+@@ -82,6 +82,16 @@
+ #define LAST_CPUPID_WIDTH 0
+ #endif
+ 
++#ifdef CONFIG_KASAN_SW_TAGS
++#define KASAN_TAG_WIDTH 8
++#if SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH+LAST_CPUPID_WIDTH+KASAN_TAG_WIDTH \
++	> BITS_PER_LONG - NR_PAGEFLAGS
++#error "KASAN: not enough bits in page flags for tag"
++#endif
++#else
++#define KASAN_TAG_WIDTH 0
 +#endif
 +
  /*
-  * Initial handler for AArch64 BRK exceptions
-  * This handler only used until debug_traps_init().
-@@ -976,6 +1033,10 @@ static struct break_hook bug_break_hook = {
- int __init early_brk64(unsigned long addr, unsigned int esr,
- 		struct pt_regs *regs)
- {
-+#ifdef CONFIG_KASAN_SW_TAGS
-+	if ((esr & KASAN_ESR_MASK) == KASAN_ESR_VAL)
-+		return kasan_handler(regs, esr) != DBG_HOOK_HANDLED;
-+#endif
- 	return bug_handler(regs, esr) != DBG_HOOK_HANDLED;
- }
+  * We are going to use the flags for the page to node mapping if its in
+  * there.  This includes the case where there is no node, so it is implicit.
+diff --git a/mm/cma.c b/mm/cma.c
+index 4cb76121a3ab..c7b39dd3b4f6 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -407,6 +407,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
+ 	unsigned long pfn = -1;
+ 	unsigned long start = 0;
+ 	unsigned long bitmap_maxno, bitmap_no, bitmap_count;
++	size_t i;
+ 	struct page *page = NULL;
+ 	int ret = -ENOMEM;
  
-@@ -983,4 +1044,7 @@ int __init early_brk64(unsigned long addr, unsigned int esr,
- void __init trap_init(void)
- {
- 	register_break_hook(&bug_break_hook);
-+#ifdef CONFIG_KASAN_SW_TAGS
-+	register_break_hook(&kasan_break_hook);
-+#endif
- }
-diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index a477ce2abdc9..8da7b7a4397a 100644
---- a/include/linux/kasan.h
-+++ b/include/linux/kasan.h
-@@ -173,6 +173,9 @@ void kasan_init_tags(void);
+@@ -466,6 +467,16 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
  
- void *kasan_reset_tag(const void *addr);
+ 	trace_cma_alloc(pfn, page, count, align);
  
-+void kasan_report(unsigned long addr, size_t size,
-+		bool is_write, unsigned long ip);
++	/*
++	 * CMA can allocate multiple page blocks, which results in different
++	 * blocks being marked with different tags. Reset the tags to ignore
++	 * those page blocks.
++	 */
++	if (page) {
++		for (i = 0; i < count; i++)
++			page_kasan_tag_reset(page + i);
++	}
 +
- #else /* CONFIG_KASAN_SW_TAGS */
+ 	if (ret && !no_warn) {
+ 		pr_err("%s: alloc failed, req-size: %zu pages, ret: %d\n",
+ 			__func__, count, ret);
+diff --git a/mm/kasan/common.c b/mm/kasan/common.c
+index 27f0cae336c9..195ca385cf7a 100644
+--- a/mm/kasan/common.c
++++ b/mm/kasan/common.c
+@@ -220,8 +220,15 @@ void kasan_unpoison_stack_above_sp_to(const void *watermark)
  
- static inline void kasan_init_tags(void) { }
+ void kasan_alloc_pages(struct page *page, unsigned int order)
+ {
++	u8 tag;
++	unsigned long i;
++
+ 	if (unlikely(PageHighMem(page)))
+ 		return;
++
++	tag = random_tag();
++	for (i = 0; i < (1 << order); i++)
++		page_kasan_tag_set(page + i, tag);
+ 	kasan_unpoison_shadow(page_address(page), PAGE_SIZE << order);
+ }
+ 
+@@ -319,6 +326,10 @@ struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
+ 
+ void kasan_poison_slab(struct page *page)
+ {
++	unsigned long i;
++
++	for (i = 0; i < (1 << compound_order(page)); i++)
++		page_kasan_tag_reset(page + i);
+ 	kasan_poison_shadow(page_address(page),
+ 			PAGE_SIZE << compound_order(page),
+ 			KASAN_KMALLOC_REDZONE);
+@@ -517,7 +528,7 @@ void kasan_poison_kfree(void *ptr, unsigned long ip)
+ 	page = virt_to_head_page(ptr);
+ 
+ 	if (unlikely(!PageSlab(page))) {
+-		if (reset_tag(ptr) != page_address(page)) {
++		if (ptr != page_address(page)) {
+ 			kasan_report_invalid_free(ptr, ip);
+ 			return;
+ 		}
+@@ -530,7 +541,7 @@ void kasan_poison_kfree(void *ptr, unsigned long ip)
+ 
+ void kasan_kfree_large(void *ptr, unsigned long ip)
+ {
+-	if (reset_tag(ptr) != page_address(virt_to_head_page(ptr)))
++	if (ptr != page_address(virt_to_head_page(ptr)))
+ 		kasan_report_invalid_free(ptr, ip);
+ 	/* The object will be poisoned by page_alloc. */
+ }
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6847177dc4a1..5b2a1b6ef1be 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1183,6 +1183,7 @@ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
+ 	init_page_count(page);
+ 	page_mapcount_reset(page);
+ 	page_cpupid_reset_last(page);
++	page_kasan_tag_reset(page);
+ 
+ 	INIT_LIST_HEAD(&page->lru);
+ #ifdef WANT_PAGE_VIRTUAL
+diff --git a/mm/slab.c b/mm/slab.c
+index d2f827316dfc..d747433ecdbb 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2357,7 +2357,7 @@ static void *alloc_slabmgmt(struct kmem_cache *cachep,
+ 	void *freelist;
+ 	void *addr = page_address(page);
+ 
+-	page->s_mem = addr + colour_off;
++	page->s_mem = kasan_reset_tag(addr) + colour_off;
+ 	page->active = 0;
+ 
+ 	if (OBJFREELIST_SLAB(cachep))
 -- 
 2.19.1.1215.g8438c0b245-goog
