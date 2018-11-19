@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A05266B1B85
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 12:27:08 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id z14-v6so33640376wrh.23
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 09:27:08 -0800 (PST)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A48D6B1B87
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 12:27:10 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id w1-v6so41394767wrr.3
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 09:27:10 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g5sor12797870wme.13.2018.11.19.09.27.07
+        by mx.google.com with SMTPS id y11-v6sor26325308wrp.50.2018.11.19.09.27.08
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 19 Nov 2018 09:27:07 -0800 (PST)
+        Mon, 19 Nov 2018 09:27:08 -0800 (PST)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v11 08/24] kasan: initialize shadow to 0xff for tag-based mode
-Date: Mon, 19 Nov 2018 18:26:24 +0100
-Message-Id: <1a06035a7777dedcc93680ca739c481fb068073d.1542648335.git.andreyknvl@google.com>
+Subject: [PATCH v11 09/24] arm64: move untagged_addr macro from uaccess.h to memory.h
+Date: Mon, 19 Nov 2018 18:26:25 +0100
+Message-Id: <0288334225edc99d98d70c896494e19c3bd9361a.1542648335.git.andreyknvl@google.com>
 In-Reply-To: <cover.1542648335.git.andreyknvl@google.com>
 References: <cover.1542648335.git.andreyknvl@google.com>
 MIME-Version: 1.0
@@ -22,101 +22,55 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
 Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-A tag-based KASAN shadow memory cell contains a memory tag, that
-corresponds to the tag in the top byte of the pointer, that points to that
-memory. The native top byte value of kernel pointers is 0xff, so with
-tag-based KASAN we need to initialize shadow memory to 0xff.
+Move the untagged_addr() macro from arch/arm64/include/asm/uaccess.h
+to arch/arm64/include/asm/memory.h to be later reused by KASAN.
 
-Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+Also make the untagged_addr() macro accept all kinds of address types
+(void *, unsigned long, etc.). This allows not to specify type casts in
+each place where the macro is used. This is done by using __typeof__.
+
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- arch/arm64/mm/kasan_init.c | 15 +++++++++++++--
- include/linux/kasan.h      |  8 ++++++++
- mm/kasan/common.c          |  3 ++-
- 3 files changed, 23 insertions(+), 3 deletions(-)
+ arch/arm64/include/asm/memory.h  | 8 ++++++++
+ arch/arm64/include/asm/uaccess.h | 7 -------
+ 2 files changed, 8 insertions(+), 7 deletions(-)
 
-diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
-index 4ebc19422931..7a4a0904cac8 100644
---- a/arch/arm64/mm/kasan_init.c
-+++ b/arch/arm64/mm/kasan_init.c
-@@ -43,6 +43,15 @@ static phys_addr_t __init kasan_alloc_zeroed_page(int node)
- 	return __pa(p);
+diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
+index 05fbc7ffcd31..deb95be44392 100644
+--- a/arch/arm64/include/asm/memory.h
++++ b/arch/arm64/include/asm/memory.h
+@@ -73,6 +73,14 @@
+ #define KERNEL_START      _text
+ #define KERNEL_END        _end
+ 
++/*
++ * When dealing with data aborts, watchpoints, or instruction traps we may end
++ * up with a tagged userland pointer. Clear the tag to get a sane pointer to
++ * pass on to access_ok(), for instance.
++ */
++#define untagged_addr(addr)	\
++	(__typeof__(addr))sign_extend64((__u64)(addr), 55)
++
+ /*
+  * Generic and tag-based KASAN require 1/8th and 1/16th of the kernel virtual
+  * address space for the shadow region respectively. They can bloat the stack
+diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
+index 07c34087bd5e..281a1e47263d 100644
+--- a/arch/arm64/include/asm/uaccess.h
++++ b/arch/arm64/include/asm/uaccess.h
+@@ -96,13 +96,6 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
+ 	return ret;
  }
  
-+static phys_addr_t __init kasan_alloc_raw_page(int node)
-+{
-+	void *p = memblock_alloc_try_nid_raw(PAGE_SIZE, PAGE_SIZE,
-+						__pa(MAX_DMA_ADDRESS),
-+						MEMBLOCK_ALLOC_ACCESSIBLE,
-+						node);
-+	return __pa(p);
-+}
-+
- static pte_t *__init kasan_pte_offset(pmd_t *pmdp, unsigned long addr, int node,
- 				      bool early)
- {
-@@ -92,7 +101,9 @@ static void __init kasan_pte_populate(pmd_t *pmdp, unsigned long addr,
- 	do {
- 		phys_addr_t page_phys = early ?
- 				__pa_symbol(kasan_early_shadow_page)
--					: kasan_alloc_zeroed_page(node);
-+					: kasan_alloc_raw_page(node);
-+		if (!early)
-+			memset(__va(page_phys), KASAN_SHADOW_INIT, PAGE_SIZE);
- 		next = addr + PAGE_SIZE;
- 		set_pte(ptep, pfn_pte(__phys_to_pfn(page_phys), PAGE_KERNEL));
- 	} while (ptep++, addr = next, addr != end && pte_none(READ_ONCE(*ptep)));
-@@ -239,7 +250,7 @@ void __init kasan_init(void)
- 			pfn_pte(sym_to_pfn(kasan_early_shadow_page),
- 				PAGE_KERNEL_RO));
+-/*
+- * When dealing with data aborts, watchpoints, or instruction traps we may end
+- * up with a tagged userland pointer. Clear the tag to get a sane pointer to
+- * pass on to access_ok(), for instance.
+- */
+-#define untagged_addr(addr)		sign_extend64(addr, 55)
+-
+ #define access_ok(type, addr, size)	__range_ok(addr, size)
+ #define user_addr_max			get_fs
  
--	memset(kasan_early_shadow_page, 0, PAGE_SIZE);
-+	memset(kasan_early_shadow_page, KASAN_SHADOW_INIT, PAGE_SIZE);
- 	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
- 
- 	/* At this point kasan is fully initialized. Enable error messages */
-diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index ec22d548d0d7..c56af24bd3e7 100644
---- a/include/linux/kasan.h
-+++ b/include/linux/kasan.h
-@@ -153,6 +153,8 @@ static inline size_t kasan_metadata_size(struct kmem_cache *cache) { return 0; }
- 
- #ifdef CONFIG_KASAN_GENERIC
- 
-+#define KASAN_SHADOW_INIT 0
-+
- void kasan_cache_shrink(struct kmem_cache *cache);
- void kasan_cache_shutdown(struct kmem_cache *cache);
- 
-@@ -163,4 +165,10 @@ static inline void kasan_cache_shutdown(struct kmem_cache *cache) {}
- 
- #endif /* CONFIG_KASAN_GENERIC */
- 
-+#ifdef CONFIG_KASAN_SW_TAGS
-+
-+#define KASAN_SHADOW_INIT 0xFF
-+
-+#endif /* CONFIG_KASAN_SW_TAGS */
-+
- #endif /* LINUX_KASAN_H */
-diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index 5f68c93734ba..7134e75447ff 100644
---- a/mm/kasan/common.c
-+++ b/mm/kasan/common.c
-@@ -473,11 +473,12 @@ int kasan_module_alloc(void *addr, size_t size)
- 
- 	ret = __vmalloc_node_range(shadow_size, 1, shadow_start,
- 			shadow_start + shadow_size,
--			GFP_KERNEL | __GFP_ZERO,
-+			GFP_KERNEL,
- 			PAGE_KERNEL, VM_NO_GUARD, NUMA_NO_NODE,
- 			__builtin_return_address(0));
- 
- 	if (ret) {
-+		__memset(ret, KASAN_SHADOW_INIT, shadow_size);
- 		find_vm_area(addr)->flags |= VM_KASAN;
- 		kmemleak_ignore(ret);
- 		return 0;
 -- 
 2.19.1.1215.g8438c0b245-goog
