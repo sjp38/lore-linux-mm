@@ -1,41 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 47C276B1A39
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 05:20:34 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id c53so6710339edc.9
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 02:20:34 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 44D786B1A47
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 05:24:31 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id x1-v6so14989337edh.8
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 02:24:31 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l15-v6si1554327ejc.183.2018.11.19.02.20.32
+        by mx.google.com with ESMTPS id hb8-v6si4663442ejb.196.2018.11.19.02.24.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 02:20:32 -0800 (PST)
-Date: Mon, 19 Nov 2018 11:20:30 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm, page_alloc: fix calculation of pgdat->nr_zones
-Message-ID: <20181119102030.GD22247@dhcp22.suse.cz>
-References: <20181117022022.9956-1-richard.weiyang@gmail.com>
- <1542622061.3002.6.camel@suse.de>
+        Mon, 19 Nov 2018 02:24:29 -0800 (PST)
+Date: Mon, 19 Nov 2018 11:24:28 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Re: [Bug 201699] New: kmemleak in memcg_create_kmem_cache
+Message-ID: <20181119102428.GE22247@dhcp22.suse.cz>
+References: <bug-201699-27@https.bugzilla.kernel.org/>
+ <20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org>
+ <20181116175005.3dcfpyhuj57oaszm@esperanza>
+ <433c2924.f6c.16724466cd8.Coremail.bauers@126.com>
+ <20181119083045.m5rhvbsze4h5l6jq@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <1542622061.3002.6.camel@suse.de>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181119083045.m5rhvbsze4h5l6jq@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: osalvador <osalvador@suse.de>
-Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, dave.hansen@intel.com, linux-mm@kvack.org
+To: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: dong <bauers@126.com>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guroan@gmail.com>
 
-On Mon 19-11-18 11:07:41, osalvador wrote:
-[...]
-> One thing I was wondering is that if we also should re-adjust it when a
-> zone gets emptied during offlining memory.
-> I checked, and whenever we work wirh pgdat->nr_zones we seem to check
-> if the zone is populated in order to work with it.
-> But still, I wonder if we should re-adjust it.
+[Cc Roman - the email thread starts
+http://lkml.kernel.org/r/20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org]
 
-I would rather not because we are not really deallocating zones and once
-you want to shrink it you have to linearize all the loops depending on
-it.
+On Mon 19-11-18 11:30:45, Vladimir Davydov wrote:
+> On Sun, Nov 18, 2018 at 08:44:14AM +0800, dong wrote:
+> > First of all,I can see memory leak when I run a??free -ga?? command.
+> 
+> This doesn't mean there's a leak. The kernel may postpone freeing memory
+> until there's memory pressure. In particular cgroup objects are not
+> released until there are objects allocated from the corresponding kmem
+> caches. Those objects may be inodes or dentries, which are freed lazily.
+> Looks like restarting a service causes recreation of a memory cgroup and
+> hence piling up dead cgroups. Try to drop caches.
 
+This seems similar to what Roman was looking recently. All the fixes
+should be merged in the current Linus tree IIRC.
 -- 
 Michal Hocko
 SUSE Labs
