@@ -1,45 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BB08F6B17A5
-	for <linux-mm@kvack.org>; Sun, 18 Nov 2018 20:03:02 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id m1-v6so22160444plb.13
-        for <linux-mm@kvack.org>; Sun, 18 Nov 2018 17:03:02 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id h188si13219299pfg.44.2018.11.18.17.03.01
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 874826B17AD
+	for <linux-mm@kvack.org>; Sun, 18 Nov 2018 20:09:34 -0500 (EST)
+Received: by mail-io1-f70.google.com with SMTP id u5-v6so29016183iol.11
+        for <linux-mm@kvack.org>; Sun, 18 Nov 2018 17:09:34 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c17sor6733807itd.32.2018.11.18.17.09.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 18 Nov 2018 17:03:01 -0800 (PST)
-Date: Sun, 18 Nov 2018 17:03:00 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm/filemap.c: minor optimization in write_iter file
- operation
-Message-ID: <20181119010300.GD7861@bombadil.infradead.org>
-References: <1542542538-11938-1-git-send-email-laoar.shao@gmail.com>
- <20181118121318.GC7861@bombadil.infradead.org>
- <CALOAHbAfWkAYJPTRfyPmHKSmg7UEhtnamzUVx9xd4oYkqi_x8g@mail.gmail.com>
+        (Google Transport Security);
+        Sun, 18 Nov 2018 17:09:33 -0800 (PST)
+From: Yu Zhao <yuzhao@google.com>
+Subject: [PATCH v2] mm: fix swap offset when replacing shmem page
+Date: Sun, 18 Nov 2018 18:09:24 -0700
+Message-Id: <20181119010924.177177-1-yuzhao@google.com>
+In-Reply-To: <20181119004719.156411-1-yuzhao@google.com>
+References: <20181119004719.156411-1-yuzhao@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALOAHbAfWkAYJPTRfyPmHKSmg7UEhtnamzUVx9xd4oYkqi_x8g@mail.gmail.com>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, darrick.wong@oracle.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yu Zhao <yuzhao@google.com>
 
-On Sun, Nov 18, 2018 at 11:02:19PM +0800, Yafang Shao wrote:
-> On Sun, Nov 18, 2018 at 8:13 PM Matthew Wilcox <willy@infradead.org> wrote:
-> > Did you check the before/after code generation with this patch applied?
-> 
-> Yes, I did.
-> My oompiler is gcc-4.8.5, a litte old, and with CONFIG_CC_OPTIMIZE_FOR_SIZE on.
-> > with gcc 8.2.0, I see no difference, indicating that the compiler already
-> > makes this optimisation.
-> 
-> Could pls. try set CONFIG_CC_OPTIMIZE_FOR_SIZE on and then compare them again ?
+We used to have a single swap address space with swp_entry_t.val
+as its radix tree index. This is not the case anymore. Now Each
+swp_type() has its own address space and should use swp_offset()
+as radix tree index.
 
-Actually it was already on:
+Signed-off-by: Yu Zhao <yuzhao@google.com>
+---
+ mm/shmem.c | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
 
-# CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE is not set
-CONFIG_CC_OPTIMIZE_FOR_SIZE=y
-
-I happened to build it in my build-tiny output tree.
+diff --git a/mm/shmem.c b/mm/shmem.c
+index d44991ea5ed4..685faa3e0191 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1509,11 +1509,13 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
+ {
+ 	struct page *oldpage, *newpage;
+ 	struct address_space *swap_mapping;
+-	pgoff_t swap_index;
++	swp_entry_t entry;
+ 	int error;
+ 
++	VM_BUG_ON(!PageSwapCache(*pagep));
++
+ 	oldpage = *pagep;
+-	swap_index = page_private(oldpage);
++	entry.val = page_private(oldpage);
+ 	swap_mapping = page_mapping(oldpage);
+ 
+ 	/*
+@@ -1532,7 +1534,7 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
+ 	__SetPageLocked(newpage);
+ 	__SetPageSwapBacked(newpage);
+ 	SetPageUptodate(newpage);
+-	set_page_private(newpage, swap_index);
++	set_page_private(newpage, entry.val);
+ 	SetPageSwapCache(newpage);
+ 
+ 	/*
+@@ -1540,7 +1542,8 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
+ 	 * a nice clean interface for us to replace oldpage by newpage there.
+ 	 */
+ 	xa_lock_irq(&swap_mapping->i_pages);
+-	error = shmem_replace_entry(swap_mapping, swap_index, oldpage, newpage);
++	error = shmem_replace_entry(swap_mapping, swp_offset(entry),
++				    oldpage, newpage);
+ 	if (!error) {
+ 		__inc_node_page_state(newpage, NR_FILE_PAGES);
+ 		__dec_node_page_state(oldpage, NR_FILE_PAGES);
+-- 
+2.19.1.1215.g8438c0b245-goog
