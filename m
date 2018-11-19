@@ -1,102 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 491346B1BBF
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 12:41:51 -0500 (EST)
-Received: by mail-lj1-f197.google.com with SMTP id v27-v6so1784730ljv.1
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 09:41:51 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m15sor8155490lfh.52.2018.11.19.09.41.49
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E28A26B1BDB
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 13:39:31 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id u17so6821307pgn.17
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 10:39:31 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id w9si39438807pgg.72.2018.11.19.10.39.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 19 Nov 2018 09:41:49 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Nov 2018 10:39:30 -0800 (PST)
+Date: Mon, 19 Nov 2018 11:36:13 -0700
+From: Keith Busch <keith.busch@intel.com>
+Subject: Re: [PATCH 6/7] acpi: Create subtable parsing infrastructure
+Message-ID: <20181119183613.GB26707@localhost.localdomain>
+References: <20181114224921.12123-2-keith.busch@intel.com>
+ <20181114224921.12123-7-keith.busch@intel.com>
+ <CAJZ5v0gQCpmRHdSS=xxLSx-+1xbexSFQb_ZxMvZuKUjk6+w5ww@mail.gmail.com>
 MIME-Version: 1.0
-References: <20181115154530.GA27872@jordon-HP-15-Notebook-PC>
- <20181116182836.GB17088@rapoport-lnx> <CAFqt6zYp0j999WXw9Jus0oZMjADQQkPfso8btv6du6L9CE3PXA@mail.gmail.com>
- <20181117143742.GB7861@bombadil.infradead.org> <CAFqt6zbOWX5LUTWwoGDJsGdf+pTR6N1yTPVxyr1W3-6Fte39ww@mail.gmail.com>
- <20181119162623.GA13200@rapoport-lnx>
-In-Reply-To: <20181119162623.GA13200@rapoport-lnx>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Mon, 19 Nov 2018 23:15:15 +0530
-Message-ID: <CAFqt6zbhodAGQz-RCB3C-wt_Mvb9QDmQ8pFeP2EO+ba2k2OccA@mail.gmail.com>
-Subject: Re: [PATCH 1/9] mm: Introduce new vm_insert_range API
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJZ5v0gQCpmRHdSS=xxLSx-+1xbexSFQb_ZxMvZuKUjk6+w5ww@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rppt@linux.ibm.com
-Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz, Rik van Riel <riel@surriel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, rppt@linux.vnet.ibm.com, Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, Kees Cook <keescook@chromium.org>, Marek Szyprowski <m.szyprowski@samsung.com>, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, Kyungmin Park <kyungmin.park@samsung.com>, mchehab@kernel.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
+To: "Rafael J. Wysocki" <rafael@kernel.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Mon, Nov 19, 2018 at 9:56 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
->
-> On Mon, Nov 19, 2018 at 08:43:09PM +0530, Souptick Joarder wrote:
-> > Hi Mike,
-> >
-> > On Sat, Nov 17, 2018 at 8:07 PM Matthew Wilcox <willy@infradead.org> wrote:
-> > >
-> > > On Sat, Nov 17, 2018 at 12:26:38PM +0530, Souptick Joarder wrote:
-> > > > On Fri, Nov 16, 2018 at 11:59 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
-> > > > > > + * vm_insert_range - insert range of kernel pages into user vma
-> > > > > > + * @vma: user vma to map to
-> > > > > > + * @addr: target user address of this page
-> > > > > > + * @pages: pointer to array of source kernel pages
-> > > > > > + * @page_count: no. of pages need to insert into user vma
-> > > > > > + *
-> > > > > > + * This allows drivers to insert range of kernel pages they've allocated
-> > > > > > + * into a user vma. This is a generic function which drivers can use
-> > > > > > + * rather than using their own way of mapping range of kernel pages into
-> > > > > > + * user vma.
-> > > > >
-> > > > > Please add the return value and context descriptions.
-> > > > >
-> > > >
-> > > > Sure I will wait for some time to get additional review comments and
-> > > > add all of those requested changes in v2.
-> > >
-> > > You could send your proposed wording now which might remove the need
-> > > for a v3 if we end up arguing about the wording.
-> >
-> > Does this description looks good ?
-> >
-> > /**
-> >  * vm_insert_range - insert range of kernel pages into user vma
-> >  * @vma: user vma to map to
-> >  * @addr: target user address of this page
-> >  * @pages: pointer to array of source kernel pages
-> >  * @page_count: number of pages need to insert into user vma
-> >  *
-> >  * This allows drivers to insert range of kernel pages they've allocated
-> >  * into a user vma. This is a generic function which drivers can use
-> >  * rather than using their own way of mapping range of kernel pages into
-> >  * user vma.
-> >  *
-> >  * Context - Process context. Called by mmap handlers.
->
-> Context:
->
-> >  * Return - int error value
->
-> Return:
->
-> >  * 0                    - OK
-> >  * -EINVAL              - Invalid argument
-> >  * -ENOMEM              - No memory
-> >  * -EFAULT              - Bad address
-> >  * -EBUSY               - Device or resource busy
->
-> I don't think that elaborate description of error values is needed, just "0
-> on success and error code otherwise" would be sufficient.
+On Mon, Nov 19, 2018 at 10:58:12AM +0100, Rafael J. Wysocki wrote:
+> > +static unsigned long __init
+> > +acpi_get_entry_length(struct acpi_subtable_entry *entry)
+> > +{
+> > +       switch (entry->type) {
+> > +       case ACPI_SUBTABLE_COMMON:
+> > +               return entry->hdr->common.length;
+> > +       }
+> > +       WARN_ONCE(1, "invalid acpi type\n");
+> 
+> AFAICS this does a WARN_ONCE() on information obtained from firmware.
+> 
+> That is not a kernel problem, so generating traces in that case is not
+> a good idea IMO.  Moreover, users can't really do much about this in
+> the majority of cases, so a pr_info() message should be sufficient.
 
-/**
- * vm_insert_range - insert range of kernel pages into user vma
- * @vma: user vma to map to
- * @addr: target user address of this page
- * @pages: pointer to array of source kernel pages
- * @page_count: number of pages need to insert into user vma
- *
- * This allows drivers to insert range of kernel pages they've allocated
- * into a user vma. This is a generic function which drivers can use
- * rather than using their own way of mapping range of kernel pages into
- * user vma.
- *
- * Context: Process context. Called by mmap handlers.
- * Return: 0 on success and error code otherwise
- */
+Sure thing, I'll fix that up for the next revision.
