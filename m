@@ -1,87 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F5196B1AA8
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 06:57:06 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id l9so16813257plt.7
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 03:57:06 -0800 (PST)
-Received: from m15-57.126.com (m15-57.126.com. [220.181.15.57])
-        by mx.google.com with ESMTP id 1-v6si42719334plq.243.2018.11.19.03.57.04
-        for <linux-mm@kvack.org>;
-        Mon, 19 Nov 2018 03:57:05 -0800 (PST)
-Date: Mon, 19 Nov 2018 19:56:53 +0800 (CST)
-From: dong  <bauers@126.com>
-Subject: Re:Re: Re: [Bug 201699] New: kmemleak in memcg_create_kmem_cache
-In-Reply-To: <20181119083045.m5rhvbsze4h5l6jq@esperanza>
-References: <bug-201699-27@https.bugzilla.kernel.org/>
- <20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org>
- <20181116175005.3dcfpyhuj57oaszm@esperanza>
- <433c2924.f6c.16724466cd8.Coremail.bauers@126.com>
- <20181119083045.m5rhvbsze4h5l6jq@esperanza>
-Content-Type: multipart/alternative;
-	boundary="----=_Part_136095_708746507.1542628613841"
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B4506B17AF
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 07:13:10 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id c18so1340861edt.23
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 04:13:09 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 6-v6si1674585edo.127.2018.11.19.04.13.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Nov 2018 04:13:08 -0800 (PST)
+Date: Mon, 19 Nov 2018 13:13:06 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v1 7/8] PM / Hibernate: use pfn_to_online_page()
+Message-ID: <20181119121306.GI22247@dhcp22.suse.cz>
+References: <20181119101616.8901-1-david@redhat.com>
+ <20181119101616.8901-8-david@redhat.com>
 MIME-Version: 1.0
-Message-ID: <6185b79c.9161.1672bd49ed1.Coremail.bauers@126.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181119101616.8901-8-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, kexec-ml <kexec@lists.infradead.org>, pv-drivers@vmware.com, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, "Michael S. Tsirkin" <mst@redhat.com>
 
-------=_Part_136095_708746507.1542628613841
-Content-Type: text/plain; charset=GBK
-Content-Transfer-Encoding: base64
+On Mon 19-11-18 11:16:15, David Hildenbrand wrote:
+> Let's use pfn_to_online_page() instead of pfn_to_page() when checking
+> for saveable pages to not save/restore offline memory sections.
+> 
+> Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+> Cc: Pavel Machek <pavel@ucw.cz>
+> Cc: Len Brown <len.brown@intel.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: "Michael S. Tsirkin" <mst@redhat.com>
+> Suggested-by: Michal Hocko <mhocko@kernel.org>
+> Signed-off-by: David Hildenbrand <david@redhat.com>
 
-U29ycnksIHRoZXJlJ3MgYSBsZWFrIGluZGVlZC4gVGhlIG1lbW9yeSB3YXMgbGVha2luZyBhbGwg
-dGhlIHRpbWUgYW5kIEkgdHJpZWQgdG8gcnVuIGNvbW1hbmQgYGVjaG8gMyA+IC9wcm9jL3N5cy92
-bS9kcm9wX2NhY2hlc2AsIGl0IGRpZG4ndCBoZWxwLgoKQnV0IHdoZW4gSSBkZWxldGUgdGhlIGxv
-ZyBmaWxlcyB3aGljaCB3YXMgY3JlYXRlZCBieSB0aGUgZmFpbGVkIHN5c3RlbWQgc2VydmljZSwg
-dGhlIGxlYWsoY2FjaGVkKSBtZW1vcnkgd2FzIHJlbGVhc2VkLiAKSSBzdXNwZWN0IHRoZSBsZWFr
-IGlzIHJlbGV2YW50IHRvIHRoZSBpbm9kZSBvYmplY3RzLgoKCgoKCkF0IDIwMTgtMTEtMTkgMTY6
-MzA6NDUsICJWbGFkaW1pciBEYXZ5ZG92IiA8dmRhdnlkb3YuZGV2QGdtYWlsLmNvbT4gd3JvdGU6
-Cj5PbiBTdW4sIE5vdiAxOCwgMjAxOCBhdCAwODo0NDoxNEFNICswODAwLCBkb25nIHdyb3RlOgo+
-PiBGaXJzdCBvZiBhbGwsSSBjYW4gc2VlIG1lbW9yeSBsZWFrIHdoZW4gSSBydW4goa5mcmVlIC1n
-oa8gY29tbWFuZC4KPgo+VGhpcyBkb2Vzbid0IG1lYW4gdGhlcmUncyBhIGxlYWsuIFRoZSBrZXJu
-ZWwgbWF5IHBvc3Rwb25lIGZyZWVpbmcgbWVtb3J5Cj51bnRpbCB0aGVyZSdzIG1lbW9yeSBwcmVz
-c3VyZS4gSW4gcGFydGljdWxhciBjZ3JvdXAgb2JqZWN0cyBhcmUgbm90Cj5yZWxlYXNlZCB1bnRp
-bCB0aGVyZSBhcmUgb2JqZWN0cyBhbGxvY2F0ZWQgZnJvbSB0aGUgY29ycmVzcG9uZGluZyBrbWVt
-Cj5jYWNoZXMuIFRob3NlIG9iamVjdHMgbWF5IGJlIGlub2RlcyBvciBkZW50cmllcywgd2hpY2gg
-YXJlIGZyZWVkIGxhemlseS4KPkxvb2tzIGxpa2UgcmVzdGFydGluZyBhIHNlcnZpY2UgY2F1c2Vz
-IHJlY3JlYXRpb24gb2YgYSBtZW1vcnkgY2dyb3VwIGFuZAo+aGVuY2UgcGlsaW5nIHVwIGRlYWQg
-Y2dyb3Vwcy4gVHJ5IHRvIGRyb3AgY2FjaGVzLgo+Cj4+U28gSSBlbmFibGVkIGttZW1sZWFrLiBJ
-IGdvdCB0aGUgbWVzc2FnZXMgYWJvdmUuIFdoZW4gSSBydW4goa5jYXQKPj4vc3lzL2tlcm5lbC9k
-ZWJ1Zy9rbWVtbGVha6GvLCBub3RoaW5nIGNhbWUgdXAuIEluc3RlYWQsIHRoZSChrmRtZXNnoa8K
-Pj5jb21tYW5kIHNob3cgbWUgdGhlIGxlYWsgbWVzc2FnZXMuIFNvIHRoZSBtZXNzYWdlcyBpcyBu
-b3QgdGhlIGxlYWsKPj5yZWFzb26jv0hvdyBjYW4gSSBkZXRlY3QgdGhlIHJlYWwgbWVtb3J5IGxl
-YWujv1RoYW5rc6OhCg==
-------=_Part_136095_708746507.1542628613841
-Content-Type: text/html; charset=GBK
-Content-Transfer-Encoding: base64
+I have only a very vague understanding of this specific code but I do
+not really see any real reason for checking offlined ranges. Also
+offline pfn ranges might have uninitialized struct pages so making
+any decisions of the struct page is basically undefined behavior.
 
-PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MS43O2NvbG9yOiMwMDAwMDA7Zm9udC1zaXplOjE0cHg7
-Zm9udC1mYW1pbHk6QXJpYWwiPlNvcnJ5LCB0aGVyZSdzIGEgbGVhayBpbmRlZWQuIFRoZSBtZW1v
-cnkgd2FzIGxlYWtpbmcgYWxsIHRoZSB0aW1lIGFuZCBJIHRyaWVkIHRvIHJ1biBjb21tYW5kIGBl
-Y2hvIDMgJmd0OyAvcHJvYy9zeXMvdm0vZHJvcF9jYWNoZXNgLCBpdCBkaWRuJ3QgaGVscC48YnI+
-PGRpdj5CdXQgd2hlbiBJIGRlbGV0ZSB0aGUgbG9nIGZpbGVzIHdoaWNoIHdhcyBjcmVhdGVkIGJ5
-IHRoZSBmYWlsZWQgc3lzdGVtZCBzZXJ2aWNlLCB0aGUgbGVhayhjYWNoZWQpIG1lbW9yeSB3YXMg
-cmVsZWFzZWQuJm5ic3A7PC9kaXY+PGRpdj5JIHN1c3BlY3QgdGhlIGxlYWsgaXMgcmVsZXZhbnQg
-dG8gdGhlIGlub2RlIG9iamVjdHMuPC9kaXY+PGJyPjxkaXYgc3R5bGU9InBvc2l0aW9uOnJlbGF0
-aXZlO3pvb206MSI+PC9kaXY+PGRpdiBpZD0iZGl2TmV0ZWFzZU1haWxDYXJkIj48L2Rpdj48YnI+
-PHByZT48YnI+QXQgMjAxOC0xMS0xOSAxNjozMDo0NSwgIlZsYWRpbWlyIERhdnlkb3YiICZsdDt2
-ZGF2eWRvdi5kZXZAZ21haWwuY29tJmd0OyB3cm90ZToKJmd0O09uIFN1biwgTm92IDE4LCAyMDE4
-IGF0IDA4OjQ0OjE0QU0gKzA4MDAsIGRvbmcgd3JvdGU6CiZndDsmZ3Q7IEZpcnN0IG9mIGFsbCxJ
-IGNhbiBzZWUgbWVtb3J5IGxlYWsgd2hlbiBJIHJ1biChrmZyZWUgLWehryBjb21tYW5kLgomZ3Q7
-CiZndDtUaGlzIGRvZXNuJ3QgbWVhbiB0aGVyZSdzIGEgbGVhay4gVGhlIGtlcm5lbCBtYXkgcG9z
-dHBvbmUgZnJlZWluZyBtZW1vcnkKJmd0O3VudGlsIHRoZXJlJ3MgbWVtb3J5IHByZXNzdXJlLiBJ
-biBwYXJ0aWN1bGFyIGNncm91cCBvYmplY3RzIGFyZSBub3QKJmd0O3JlbGVhc2VkIHVudGlsIHRo
-ZXJlIGFyZSBvYmplY3RzIGFsbG9jYXRlZCBmcm9tIHRoZSBjb3JyZXNwb25kaW5nIGttZW0KJmd0
-O2NhY2hlcy4gVGhvc2Ugb2JqZWN0cyBtYXkgYmUgaW5vZGVzIG9yIGRlbnRyaWVzLCB3aGljaCBh
-cmUgZnJlZWQgbGF6aWx5LgomZ3Q7TG9va3MgbGlrZSByZXN0YXJ0aW5nIGEgc2VydmljZSBjYXVz
-ZXMgcmVjcmVhdGlvbiBvZiBhIG1lbW9yeSBjZ3JvdXAgYW5kCiZndDtoZW5jZSBwaWxpbmcgdXAg
-ZGVhZCBjZ3JvdXBzLiBUcnkgdG8gZHJvcCBjYWNoZXMuCiZndDsKJmd0OyZndDtTbyBJIGVuYWJs
-ZWQga21lbWxlYWsuIEkgZ290IHRoZSBtZXNzYWdlcyBhYm92ZS4gV2hlbiBJIHJ1biChrmNhdAom
-Z3Q7Jmd0Oy9zeXMva2VybmVsL2RlYnVnL2ttZW1sZWFroa8sIG5vdGhpbmcgY2FtZSB1cC4gSW5z
-dGVhZCwgdGhlIKGuZG1lc2ehrwomZ3Q7Jmd0O2NvbW1hbmQgc2hvdyBtZSB0aGUgbGVhayBtZXNz
-YWdlcy4gU28gdGhlIG1lc3NhZ2VzIGlzIG5vdCB0aGUgbGVhawomZ3Q7Jmd0O3JlYXNvbqO/SG93
-IGNhbiBJIGRldGVjdCB0aGUgcmVhbCBtZW1vcnkgbGVha6O/VGhhbmtzo6EKPC9wcmU+PC9kaXY+
-PGJyPjxicj48c3BhbiB0aXRsZT0ibmV0ZWFzZWZvb3RlciI+PHA+Jm5ic3A7PC9wPjwvc3Bhbj4=
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-------=_Part_136095_708746507.1542628613841--
+> ---
+>  kernel/power/snapshot.c | 8 ++++----
+>  1 file changed, 4 insertions(+), 4 deletions(-)
+> 
+> diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
+> index 640b2034edd6..87e6dd57819f 100644
+> --- a/kernel/power/snapshot.c
+> +++ b/kernel/power/snapshot.c
+> @@ -1215,8 +1215,8 @@ static struct page *saveable_highmem_page(struct zone *zone, unsigned long pfn)
+>  	if (!pfn_valid(pfn))
+>  		return NULL;
+>  
+> -	page = pfn_to_page(pfn);
+> -	if (page_zone(page) != zone)
+> +	page = pfn_to_online_page(pfn);
+> +	if (!page || page_zone(page) != zone)
+>  		return NULL;
+>  
+>  	BUG_ON(!PageHighMem(page));
+> @@ -1277,8 +1277,8 @@ static struct page *saveable_page(struct zone *zone, unsigned long pfn)
+>  	if (!pfn_valid(pfn))
+>  		return NULL;
+>  
+> -	page = pfn_to_page(pfn);
+> -	if (page_zone(page) != zone)
+> +	page = pfn_to_online_page(pfn);
+> +	if (!page || page_zone(page) != zone)
+>  		return NULL;
+>  
+>  	BUG_ON(PageHighMem(page));
+> -- 
+> 2.17.2
+
+-- 
+Michal Hocko
+SUSE Labs
