@@ -1,100 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 499B16B1A3D
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 08:48:45 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id 143so17846355pgc.3
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 05:48:45 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id v189si38253742pgb.398.2018.11.19.05.48.44
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EFDFF6B1A3E
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 08:51:52 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id n32-v6so15502118edc.17
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 05:51:52 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 6si8725616edx.32.2018.11.19.05.51.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 05:48:44 -0800 (PST)
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: [PATCH v3 RESEND 2/2] mm/page_alloc: use a single function to free page
-Date: Mon, 19 Nov 2018 21:48:34 +0800
-Message-Id: <20181119134834.17765-3-aaron.lu@intel.com>
-In-Reply-To: <20181119134834.17765-1-aaron.lu@intel.com>
-References: <20181119134834.17765-1-aaron.lu@intel.com>
+        Mon, 19 Nov 2018 05:51:51 -0800 (PST)
+Date: Mon, 19 Nov 2018 14:51:49 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] l1tf: drop the swap storage limit restriction when
+ l1tf=off
+Message-ID: <20181119135149.GN22247@dhcp22.suse.cz>
+References: <20181113184910.26697-1-mhocko@kernel.org>
+ <nycvar.YFH.7.76.1811132054521.19754@cbobk.fhfr.pm>
+ <20181114073229.GC23419@dhcp22.suse.cz>
+ <nycvar.YFH.7.76.1811191436140.21108@cbobk.fhfr.pm>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <nycvar.YFH.7.76.1811191436140.21108@cbobk.fhfr.pm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?q?Pawe=C5=82=20Staszewski?= <pstaszewski@itcare.pl>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, Ilias Apalodimas <ilias.apalodimas@linaro.org>, Yoel Caspersen <yoel@kviknet.dk>, Mel Gorman <mgorman@techsingularity.net>, Saeed Mahameed <saeedm@mellanox.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Ian Kumlien <ian.kumlien@gmail.com>
+To: Jiri Kosina <jikos@kernel.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <ak@linux.intel.com>, Borislav Petkov <bp@suse.de>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-There are multiple places of freeing a page, they all do the same
-things so a common function can be used to reduce code duplicate.
+On Mon 19-11-18 14:36:32, Jiri Kosina wrote:
+> On Wed, 14 Nov 2018, Michal Hocko wrote:
+> 
+> > > > +				It also drops the swap size and available
+> > > > +				RAM limit restriction.
+> > > 
+> > > Minor nit: I think this should explicitly mention that those two things 
+> > > are related to bare metal mitigation, to avoid any confusion (as otherwise 
+> > > the l1tf cmdline parameter is purely about hypervisor mitigations).
+> > 
+> > Do you have any specific wording in mind?
+> > 
+> > It also drops the swap size and available RAM limit restrictions on both
+> > hypervisor and bare metal.
+> > 
+> > Sounds better?
+> > 
+> > > With that
+> > > 
+> > > 	Acked-by: Jiri Kosina <jkosina@suse.cz>
+> > 
+> > Thanks!
+> 
+> Yes, I think that makes it absolutely clear. Thanks,
 
-It also avoids bug fixed in one function but left in another.
+OK. Here is the incremental diff on top of the patch. I will fold and
+repost later this week. I assume people are still catching up after LPC
+and I do not want to spam them even more.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Aaron Lu <aaron.lu@intel.com>
----
- mm/page_alloc.c | 37 ++++++++++++++-----------------------
- 1 file changed, 14 insertions(+), 23 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8f8c6b33b637..93cc8e686eca 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4547,16 +4547,19 @@ unsigned long get_zeroed_page(gfp_t gfp_mask)
- }
- EXPORT_SYMBOL(get_zeroed_page);
+diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+index a54f2bd39e77..c5aa4b4a797d 100644
+--- a/Documentation/admin-guide/kernel-parameters.txt
++++ b/Documentation/admin-guide/kernel-parameters.txt
+@@ -2096,7 +2096,8 @@
+ 				Disables hypervisor mitigations and doesn't
+ 				emit any warnings.
+ 				It also drops the swap size and available
+-				RAM limit restriction.
++				RAM limit restriction on both hypervisor and
++				bare metal.
  
--void __free_pages(struct page *page, unsigned int order)
-+static inline void free_the_page(struct page *page, unsigned int order)
- {
--	if (put_page_testzero(page)) {
--		if (order == 0)
--			free_unref_page(page);
--		else
--			__free_pages_ok(page, order);
--	}
-+	if (order == 0)
-+		free_unref_page(page);
-+	else
-+		__free_pages_ok(page, order);
- }
+ 			Default is 'flush'.
  
-+void __free_pages(struct page *page, unsigned int order)
-+{
-+	if (put_page_testzero(page))
-+		free_the_page(page, order);
-+}
- EXPORT_SYMBOL(__free_pages);
+diff --git a/Documentation/admin-guide/l1tf.rst b/Documentation/admin-guide/l1tf.rst
+index b00464a9c09c..2e65e6cb033e 100644
+--- a/Documentation/admin-guide/l1tf.rst
++++ b/Documentation/admin-guide/l1tf.rst
+@@ -405,7 +405,8 @@ The kernel command line allows to control the L1TF mitigations at boot
  
- void free_pages(unsigned long addr, unsigned int order)
-@@ -4605,14 +4608,8 @@ void __page_frag_cache_drain(struct page *page, unsigned int count)
- {
- 	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
+   off		Disables hypervisor mitigations and doesn't emit any
+ 		warnings.
+-		It also drops the swap size and available RAM limit restrictions.
++		It also drops the swap size and available RAM limit restrictions
++                on both hypervisor and bare metal.
  
--	if (page_ref_sub_and_test(page, count)) {
--		unsigned int order = compound_order(page);
--
--		if (order == 0)
--			free_unref_page(page);
--		else
--			__free_pages_ok(page, order);
--	}
-+	if (page_ref_sub_and_test(page, count))
-+		free_the_page(page, compound_order(page));
- }
- EXPORT_SYMBOL(__page_frag_cache_drain);
- 
-@@ -4677,14 +4674,8 @@ void page_frag_free(void *addr)
- {
- 	struct page *page = virt_to_head_page(addr);
- 
--	if (unlikely(put_page_testzero(page))) {
--		unsigned int order = compound_order(page);
--
--		if (order == 0)
--			free_unref_page(page);
--		else
--			__free_pages_ok(page, order);
--	}
-+	if (unlikely(put_page_testzero(page)))
-+		free_the_page(page, compound_order(page));
- }
- EXPORT_SYMBOL(page_frag_free);
+   ============  =============================================================
  
 -- 
-2.17.2
+Michal Hocko
+SUSE Labs
