@@ -1,49 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 44D786B1A47
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 05:24:31 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id x1-v6so14989337edh.8
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 02:24:31 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hb8-v6si4663442ejb.196.2018.11.19.02.24.29
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 079496B1A5A
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 05:42:19 -0500 (EST)
+Received: by mail-lj1-f198.google.com with SMTP id p86-v6so6186146lja.2
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 02:42:18 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o87sor8432394lfg.70.2018.11.19.02.42.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 02:24:29 -0800 (PST)
-Date: Mon, 19 Nov 2018 11:24:28 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Re: [Bug 201699] New: kmemleak in memcg_create_kmem_cache
-Message-ID: <20181119102428.GE22247@dhcp22.suse.cz>
-References: <bug-201699-27@https.bugzilla.kernel.org/>
- <20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org>
- <20181116175005.3dcfpyhuj57oaszm@esperanza>
- <433c2924.f6c.16724466cd8.Coremail.bauers@126.com>
- <20181119083045.m5rhvbsze4h5l6jq@esperanza>
+        (Google Transport Security);
+        Mon, 19 Nov 2018 02:42:17 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20181119083045.m5rhvbsze4h5l6jq@esperanza>
+References: <20181115154912.GA27969@jordon-HP-15-Notebook-PC> <ed294bea-bf07-6a4d-51ec-9e7082703b61@gmail.com>
+In-Reply-To: <ed294bea-bf07-6a4d-51ec-9e7082703b61@gmail.com>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Mon, 19 Nov 2018 16:12:03 +0530
+Message-ID: <CAFqt6zZ_FnWg2K3Lh=-1KFOk1XteHnroua6QzJrKo+khZTgieg@mail.gmail.com>
+Subject: Re: [Xen-devel] [PATCH 5/9] drm/xen/xen_drm_front_gem.c: Convert to
+ use vm_insert_range
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: dong <bauers@126.com>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guroan@gmail.com>
+To: andr2000@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, oleksandr_andrushchenko@epam.com, airlied@linux.ie, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, xen-devel@lists.xen.org
 
-[Cc Roman - the email thread starts
-http://lkml.kernel.org/r/20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org]
+On Mon, Nov 19, 2018 at 3:22 PM Oleksandr Andrushchenko
+<andr2000@gmail.com> wrote:
+>
+> On 11/15/18 5:49 PM, Souptick Joarder wrote:
+> > Convert to use vm_insert_range() to map range of kernel
+> > memory to user vma.
+> >
+> > Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+> > Reviewed-by: Matthew Wilcox <willy@infradead.org>
+> > ---
+> >   drivers/gpu/drm/xen/xen_drm_front_gem.c | 20 ++++++--------------
+> >   1 file changed, 6 insertions(+), 14 deletions(-)
+> >
+> > diff --git a/drivers/gpu/drm/xen/xen_drm_front_gem.c b/drivers/gpu/drm/xen/xen_drm_front_gem.c
+> > index 47ff019..a3eade6 100644
+> > --- a/drivers/gpu/drm/xen/xen_drm_front_gem.c
+> > +++ b/drivers/gpu/drm/xen/xen_drm_front_gem.c
+> > @@ -225,8 +225,7 @@ struct drm_gem_object *
+> >   static int gem_mmap_obj(struct xen_gem_object *xen_obj,
+> >                       struct vm_area_struct *vma)
+> >   {
+> > -     unsigned long addr = vma->vm_start;
+> > -     int i;
+> > +     int err;
+> I would love to keep ret, not err
 
-On Mon 19-11-18 11:30:45, Vladimir Davydov wrote:
-> On Sun, Nov 18, 2018 at 08:44:14AM +0800, dong wrote:
-> > First of all,I can see memory leak when I run a??free -ga?? command.
-> 
-> This doesn't mean there's a leak. The kernel may postpone freeing memory
-> until there's memory pressure. In particular cgroup objects are not
-> released until there are objects allocated from the corresponding kmem
-> caches. Those objects may be inodes or dentries, which are freed lazily.
-> Looks like restarting a service causes recreation of a memory cgroup and
-> hence piling up dead cgroups. Try to drop caches.
+Sure, will add it in v2.
+But I think, err is more appropriate here.
 
-This seems similar to what Roman was looking recently. All the fixes
-should be merged in the current Linus tree IIRC.
--- 
-Michal Hocko
-SUSE Labs
+> >
+> >       /*
+> >        * clear the VM_PFNMAP flag that was set by drm_gem_mmap(), and set the
+> > @@ -247,18 +246,11 @@ static int gem_mmap_obj(struct xen_gem_object *xen_obj,
+> >        * FIXME: as we insert all the pages now then no .fault handler must
+> >        * be called, so don't provide one
+> >        */
+> > -     for (i = 0; i < xen_obj->num_pages; i++) {
+> > -             int ret;
+> > -
+> > -             ret = vm_insert_page(vma, addr, xen_obj->pages[i]);
+> > -             if (ret < 0) {
+> > -                     DRM_ERROR("Failed to insert pages into vma: %d\n", ret);
+> > -                     return ret;
+> > -             }
+> > -
+> > -             addr += PAGE_SIZE;
+> > -     }
+> > -     return 0;
+> > +     err = vm_insert_range(vma, vma->vm_start, xen_obj->pages,
+> > +                             xen_obj->num_pages);
+> > +     if (err < 0)
+> > +             DRM_ERROR("Failed to insert pages into vma: %d\n", err);
+> > +     return err;
+> >   }
+> >
+> >   int xen_drm_front_gem_mmap(struct file *filp, struct vm_area_struct *vma)
+>
+> With the above fixed,
+>
+> Reviewed-by: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
+>
