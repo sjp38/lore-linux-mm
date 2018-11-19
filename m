@@ -1,60 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BD876B1864
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 07:22:28 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id w15so4012754edl.21
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 04:22:27 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gx11-v6si13985839ejb.297.2018.11.19.04.22.26
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 091196B1911
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 07:29:34 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id d23so18552696plj.22
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 04:29:33 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id p14si14495615pfi.12.2018.11.19.04.29.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 04:22:26 -0800 (PST)
-Subject: Re: [PATCH v1 4/8] xen/balloon: mark inflated pages PG_offline
-References: <20181119101616.8901-1-david@redhat.com>
- <20181119101616.8901-5-david@redhat.com>
-From: Juergen Gross <jgross@suse.com>
-Message-ID: <fc69e0cf-c005-472a-b3f6-09d0c963cf52@suse.com>
-Date: Mon, 19 Nov 2018 13:22:22 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 19 Nov 2018 04:29:32 -0800 (PST)
+Date: Mon, 19 Nov 2018 04:29:29 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [Xen-devel] [PATCH 5/9] drm/xen/xen_drm_front_gem.c: Convert to
+ use vm_insert_range
+Message-ID: <20181119122929.GA394@bombadil.infradead.org>
+References: <20181115154912.GA27969@jordon-HP-15-Notebook-PC>
+ <ed294bea-bf07-6a4d-51ec-9e7082703b61@gmail.com>
+ <CAFqt6zZ_FnWg2K3Lh=-1KFOk1XteHnroua6QzJrKo+khZTgieg@mail.gmail.com>
+ <c76fc2fa-d08b-7db3-5693-d9c303cd7126@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20181119101616.8901-5-david@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: de-DE
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c76fc2fa-d08b-7db3-5693-d9c303cd7126@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, kexec-ml <kexec@lists.infradead.org>, pv-drivers@vmware.com, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Stefano Stabellini <sstabellini@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, "Michael S. Tsirkin" <mst@redhat.com>
+To: Oleksandr Andrushchenko <andr2000@gmail.com>
+Cc: Souptick Joarder <jrdr.linux@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, oleksandr_andrushchenko@epam.com, airlied@linux.ie, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, xen-devel@lists.xen.org
 
-On 19/11/2018 11:16, David Hildenbrand wrote:
-> Mark inflated and never onlined pages PG_offline, to tell the world that
-> the content is stale and should not be dumped.
+On Mon, Nov 19, 2018 at 01:02:46PM +0200, Oleksandr Andrushchenko wrote:
+> On 11/19/18 12:42 PM, Souptick Joarder wrote:
+> > On Mon, Nov 19, 2018 at 3:22 PM Oleksandr Andrushchenko
+> > <andr2000@gmail.com> wrote:
+> > > > -     unsigned long addr = vma->vm_start;
+> > > > -     int i;
+> > > > +     int err;
+> > > I would love to keep ret, not err
+> > Sure, will add it in v2.
+> > But I think, err is more appropriate here.
 > 
-> Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-> Cc: Juergen Gross <jgross@suse.com>
-> Cc: Stefano Stabellini <sstabellini@kernel.org>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: "Michael S. Tsirkin" <mst@redhat.com>
-> Signed-off-by: David Hildenbrand <david@redhat.com>
-> ---
->  drivers/xen/balloon.c | 3 +++
->  1 file changed, 3 insertions(+)
+> I used "ret" throughout the driver, so this is just to remain consistent:
 > 
-> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-> index 12148289debd..14dd6b814db3 100644
-> --- a/drivers/xen/balloon.c
-> +++ b/drivers/xen/balloon.c
-> @@ -425,6 +425,7 @@ static int xen_bring_pgs_online(struct page *pg, unsigned int order)
->  	for (i = 0; i < size; i++) {
->  		p = pfn_to_page(start_pfn + i);
->  		__online_page_set_limits(p);
-> +		__SetPageOffline(p);
->  		__balloon_append(p);
->  	}
+> grep -rnw err drivers/gpu/drm/xen/ | wc -l
+> 0
+> grep -rnw ret drivers/gpu/drm/xen/ | wc -l
+> 204
 
-This seems not to be based on current master. Could you please tell
-against which tree this should be reviewed?
+It's your driver, so that's fine.  The reason we chose 'err' over 'ret'
+is that there's a history of errno vs VM_FAULT_xxx code confusion in
+this area.  Naming a variable 'err' makes it clear this is an errno and
+not a vm_fault_t.
 
+> > > With the above fixed,
+> > > 
+> > > Reviewed-by: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
 
-Juergen
+Thanks.
