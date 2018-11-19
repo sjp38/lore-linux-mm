@@ -1,234 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 929566B1A40
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 06:56:20 -0500 (EST)
-Received: by mail-it1-f199.google.com with SMTP id y86so7818731ita.2
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 03:56:20 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k138sor5302156itk.14.2018.11.19.03.56.19
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 19 Nov 2018 03:56:19 -0800 (PST)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F5196B1AA8
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 06:57:06 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id l9so16813257plt.7
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 03:57:06 -0800 (PST)
+Received: from m15-57.126.com (m15-57.126.com. [220.181.15.57])
+        by mx.google.com with ESMTP id 1-v6si42719334plq.243.2018.11.19.03.57.04
+        for <linux-mm@kvack.org>;
+        Mon, 19 Nov 2018 03:57:05 -0800 (PST)
+Date: Mon, 19 Nov 2018 19:56:53 +0800 (CST)
+From: dong  <bauers@126.com>
+Subject: Re:Re: Re: [Bug 201699] New: kmemleak in memcg_create_kmem_cache
+In-Reply-To: <20181119083045.m5rhvbsze4h5l6jq@esperanza>
+References: <bug-201699-27@https.bugzilla.kernel.org/>
+ <20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org>
+ <20181116175005.3dcfpyhuj57oaszm@esperanza>
+ <433c2924.f6c.16724466cd8.Coremail.bauers@126.com>
+ <20181119083045.m5rhvbsze4h5l6jq@esperanza>
+Content-Type: multipart/alternative;
+	boundary="----=_Part_136095_708746507.1542628613841"
 MIME-Version: 1.0
-References: <20181119101616.8901-1-david@redhat.com> <20181119101616.8901-3-david@redhat.com>
-In-Reply-To: <20181119101616.8901-3-david@redhat.com>
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Date: Mon, 19 Nov 2018 14:56:07 +0300
-Message-ID: <CALYGNiM+Fr+RbNFWrxkT9u+nOORTG2dTXo=VYz4yt2k7is=eLQ@mail.gmail.com>
-Subject: Re: [PATCH v1 2/8] mm: convert PG_balloon to PG_offline
-Content-Type: text/plain; charset="UTF-8"
+Message-ID: <6185b79c.9161.1672bd49ed1.Coremail.bauers@126.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david@redhat.com
-Cc: linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, kexec@lists.infradead.org, pv-drivers@vmware.com, Jonathan Corbet <corbet@lwn.net>, Alexey Dobriyan <adobriyan@gmail.com>, rppt@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>, chansen3@cisco.com, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Matthew Wilcox <willy@infradead.org>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Hocko <mhocko@suse.com>, pasha.tatashin@oracle.com, alexander.h.duyck@linux.intel.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, miles.chen@mediatek.com, David Rientjes <rientjes@google.com>, k-hagio@ab.jp.nec.com
+To: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Nov 19, 2018 at 1:16 PM David Hildenbrand <david@redhat.com> wrote:
->
-> PG_balloon was introduced to implement page migration/compaction for pages
-> inflated in virtio-balloon. Nowadays, it is only a marker that a page is
-> part of virtio-balloon and therefore logically offline.
->
-> We also want to make use of this flag in other balloon drivers - for
-> inflated pages or when onlining a section but keeping some pages offline
-> (e.g. used right now by XEN and Hyper-V via set_online_page_callback()).
->
-> We are going to expose this flag to dump tools like makedumpfile. But
-> instead of exposing PG_balloon, let's generalize the concept of marking
-> pages as logically offline, so it can be reused for other purposes
-> later on.
->
-> Rename PG_balloon to PG_offline. This is an indicator that the page is
-> logically offline, the content stale and that it should not be touched
-> (e.g. a hypervisor would have to allocate backing storage in order for the
-> guest to dump an unused page).  We can then e.g. exclude such pages from
-> dumps.
->
-> We replace and reuse KPF_BALLOON (23), as this shouldn't really harm
-> (and for now the semantics stay the same).  In following patches, we will
-> make use of this bit also in other balloon drivers. While at it, document
-> PGTABLE.
+------=_Part_136095_708746507.1542628613841
+Content-Type: text/plain; charset=GBK
+Content-Transfer-Encoding: base64
 
-Ok, makes sense.
+U29ycnksIHRoZXJlJ3MgYSBsZWFrIGluZGVlZC4gVGhlIG1lbW9yeSB3YXMgbGVha2luZyBhbGwg
+dGhlIHRpbWUgYW5kIEkgdHJpZWQgdG8gcnVuIGNvbW1hbmQgYGVjaG8gMyA+IC9wcm9jL3N5cy92
+bS9kcm9wX2NhY2hlc2AsIGl0IGRpZG4ndCBoZWxwLgoKQnV0IHdoZW4gSSBkZWxldGUgdGhlIGxv
+ZyBmaWxlcyB3aGljaCB3YXMgY3JlYXRlZCBieSB0aGUgZmFpbGVkIHN5c3RlbWQgc2VydmljZSwg
+dGhlIGxlYWsoY2FjaGVkKSBtZW1vcnkgd2FzIHJlbGVhc2VkLiAKSSBzdXNwZWN0IHRoZSBsZWFr
+IGlzIHJlbGV2YW50IHRvIHRoZSBpbm9kZSBvYmplY3RzLgoKCgoKCkF0IDIwMTgtMTEtMTkgMTY6
+MzA6NDUsICJWbGFkaW1pciBEYXZ5ZG92IiA8dmRhdnlkb3YuZGV2QGdtYWlsLmNvbT4gd3JvdGU6
+Cj5PbiBTdW4sIE5vdiAxOCwgMjAxOCBhdCAwODo0NDoxNEFNICswODAwLCBkb25nIHdyb3RlOgo+
+PiBGaXJzdCBvZiBhbGwsSSBjYW4gc2VlIG1lbW9yeSBsZWFrIHdoZW4gSSBydW4goa5mcmVlIC1n
+oa8gY29tbWFuZC4KPgo+VGhpcyBkb2Vzbid0IG1lYW4gdGhlcmUncyBhIGxlYWsuIFRoZSBrZXJu
+ZWwgbWF5IHBvc3Rwb25lIGZyZWVpbmcgbWVtb3J5Cj51bnRpbCB0aGVyZSdzIG1lbW9yeSBwcmVz
+c3VyZS4gSW4gcGFydGljdWxhciBjZ3JvdXAgb2JqZWN0cyBhcmUgbm90Cj5yZWxlYXNlZCB1bnRp
+bCB0aGVyZSBhcmUgb2JqZWN0cyBhbGxvY2F0ZWQgZnJvbSB0aGUgY29ycmVzcG9uZGluZyBrbWVt
+Cj5jYWNoZXMuIFRob3NlIG9iamVjdHMgbWF5IGJlIGlub2RlcyBvciBkZW50cmllcywgd2hpY2gg
+YXJlIGZyZWVkIGxhemlseS4KPkxvb2tzIGxpa2UgcmVzdGFydGluZyBhIHNlcnZpY2UgY2F1c2Vz
+IHJlY3JlYXRpb24gb2YgYSBtZW1vcnkgY2dyb3VwIGFuZAo+aGVuY2UgcGlsaW5nIHVwIGRlYWQg
+Y2dyb3Vwcy4gVHJ5IHRvIGRyb3AgY2FjaGVzLgo+Cj4+U28gSSBlbmFibGVkIGttZW1sZWFrLiBJ
+IGdvdCB0aGUgbWVzc2FnZXMgYWJvdmUuIFdoZW4gSSBydW4goa5jYXQKPj4vc3lzL2tlcm5lbC9k
+ZWJ1Zy9rbWVtbGVha6GvLCBub3RoaW5nIGNhbWUgdXAuIEluc3RlYWQsIHRoZSChrmRtZXNnoa8K
+Pj5jb21tYW5kIHNob3cgbWUgdGhlIGxlYWsgbWVzc2FnZXMuIFNvIHRoZSBtZXNzYWdlcyBpcyBu
+b3QgdGhlIGxlYWsKPj5yZWFzb26jv0hvdyBjYW4gSSBkZXRlY3QgdGhlIHJlYWwgbWVtb3J5IGxl
+YWujv1RoYW5rc6OhCg==
+------=_Part_136095_708746507.1542628613841
+Content-Type: text/html; charset=GBK
+Content-Transfer-Encoding: base64
 
-Acked-by: Konstantin Khlebnikov <koct9i@gmail.com>
+PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MS43O2NvbG9yOiMwMDAwMDA7Zm9udC1zaXplOjE0cHg7
+Zm9udC1mYW1pbHk6QXJpYWwiPlNvcnJ5LCB0aGVyZSdzIGEgbGVhayBpbmRlZWQuIFRoZSBtZW1v
+cnkgd2FzIGxlYWtpbmcgYWxsIHRoZSB0aW1lIGFuZCBJIHRyaWVkIHRvIHJ1biBjb21tYW5kIGBl
+Y2hvIDMgJmd0OyAvcHJvYy9zeXMvdm0vZHJvcF9jYWNoZXNgLCBpdCBkaWRuJ3QgaGVscC48YnI+
+PGRpdj5CdXQgd2hlbiBJIGRlbGV0ZSB0aGUgbG9nIGZpbGVzIHdoaWNoIHdhcyBjcmVhdGVkIGJ5
+IHRoZSBmYWlsZWQgc3lzdGVtZCBzZXJ2aWNlLCB0aGUgbGVhayhjYWNoZWQpIG1lbW9yeSB3YXMg
+cmVsZWFzZWQuJm5ic3A7PC9kaXY+PGRpdj5JIHN1c3BlY3QgdGhlIGxlYWsgaXMgcmVsZXZhbnQg
+dG8gdGhlIGlub2RlIG9iamVjdHMuPC9kaXY+PGJyPjxkaXYgc3R5bGU9InBvc2l0aW9uOnJlbGF0
+aXZlO3pvb206MSI+PC9kaXY+PGRpdiBpZD0iZGl2TmV0ZWFzZU1haWxDYXJkIj48L2Rpdj48YnI+
+PHByZT48YnI+QXQgMjAxOC0xMS0xOSAxNjozMDo0NSwgIlZsYWRpbWlyIERhdnlkb3YiICZsdDt2
+ZGF2eWRvdi5kZXZAZ21haWwuY29tJmd0OyB3cm90ZToKJmd0O09uIFN1biwgTm92IDE4LCAyMDE4
+IGF0IDA4OjQ0OjE0QU0gKzA4MDAsIGRvbmcgd3JvdGU6CiZndDsmZ3Q7IEZpcnN0IG9mIGFsbCxJ
+IGNhbiBzZWUgbWVtb3J5IGxlYWsgd2hlbiBJIHJ1biChrmZyZWUgLWehryBjb21tYW5kLgomZ3Q7
+CiZndDtUaGlzIGRvZXNuJ3QgbWVhbiB0aGVyZSdzIGEgbGVhay4gVGhlIGtlcm5lbCBtYXkgcG9z
+dHBvbmUgZnJlZWluZyBtZW1vcnkKJmd0O3VudGlsIHRoZXJlJ3MgbWVtb3J5IHByZXNzdXJlLiBJ
+biBwYXJ0aWN1bGFyIGNncm91cCBvYmplY3RzIGFyZSBub3QKJmd0O3JlbGVhc2VkIHVudGlsIHRo
+ZXJlIGFyZSBvYmplY3RzIGFsbG9jYXRlZCBmcm9tIHRoZSBjb3JyZXNwb25kaW5nIGttZW0KJmd0
+O2NhY2hlcy4gVGhvc2Ugb2JqZWN0cyBtYXkgYmUgaW5vZGVzIG9yIGRlbnRyaWVzLCB3aGljaCBh
+cmUgZnJlZWQgbGF6aWx5LgomZ3Q7TG9va3MgbGlrZSByZXN0YXJ0aW5nIGEgc2VydmljZSBjYXVz
+ZXMgcmVjcmVhdGlvbiBvZiBhIG1lbW9yeSBjZ3JvdXAgYW5kCiZndDtoZW5jZSBwaWxpbmcgdXAg
+ZGVhZCBjZ3JvdXBzLiBUcnkgdG8gZHJvcCBjYWNoZXMuCiZndDsKJmd0OyZndDtTbyBJIGVuYWJs
+ZWQga21lbWxlYWsuIEkgZ290IHRoZSBtZXNzYWdlcyBhYm92ZS4gV2hlbiBJIHJ1biChrmNhdAom
+Z3Q7Jmd0Oy9zeXMva2VybmVsL2RlYnVnL2ttZW1sZWFroa8sIG5vdGhpbmcgY2FtZSB1cC4gSW5z
+dGVhZCwgdGhlIKGuZG1lc2ehrwomZ3Q7Jmd0O2NvbW1hbmQgc2hvdyBtZSB0aGUgbGVhayBtZXNz
+YWdlcy4gU28gdGhlIG1lc3NhZ2VzIGlzIG5vdCB0aGUgbGVhawomZ3Q7Jmd0O3JlYXNvbqO/SG93
+IGNhbiBJIGRldGVjdCB0aGUgcmVhbCBtZW1vcnkgbGVha6O/VGhhbmtzo6EKPC9wcmU+PC9kaXY+
+PGJyPjxicj48c3BhbiB0aXRsZT0ibmV0ZWFzZWZvb3RlciI+PHA+Jm5ic3A7PC9wPjwvc3Bhbj4=
 
->
-> Cc: Jonathan Corbet <corbet@lwn.net>
-> Cc: Alexey Dobriyan <adobriyan@gmail.com>
-> Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Christian Hansen <chansen3@cisco.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: "Michael S. Tsirkin" <mst@redhat.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
-> Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Miles Chen <miles.chen@mediatek.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Konstantin Khlebnikov <koct9i@gmail.com>
-> Cc: Kazuhito Hagio <k-hagio@ab.jp.nec.com>
-> Signed-off-by: David Hildenbrand <david@redhat.com>
-> ---
->  Documentation/admin-guide/mm/pagemap.rst |  9 ++++++---
->  fs/proc/page.c                           |  4 ++--
->  include/linux/balloon_compaction.h       |  8 ++++----
->  include/linux/page-flags.h               | 11 +++++++----
->  include/uapi/linux/kernel-page-flags.h   |  2 +-
->  tools/vm/page-types.c                    |  2 +-
->  6 files changed, 21 insertions(+), 15 deletions(-)
->
-> diff --git a/Documentation/admin-guide/mm/pagemap.rst b/Documentation/admin-guide/mm/pagemap.rst
-> index 3f7bade2c231..340a5aee9b80 100644
-> --- a/Documentation/admin-guide/mm/pagemap.rst
-> +++ b/Documentation/admin-guide/mm/pagemap.rst
-> @@ -75,9 +75,10 @@ number of times a page is mapped.
->      20. NOPAGE
->      21. KSM
->      22. THP
-> -    23. BALLOON
-> +    23. OFFLINE
->      24. ZERO_PAGE
->      25. IDLE
-> +    26. PGTABLE
->
->   * ``/proc/kpagecgroup``.  This file contains a 64-bit inode number of the
->     memory cgroup each page is charged to, indexed by PFN. Only available when
-> @@ -118,8 +119,8 @@ Short descriptions to the page flags
->      identical memory pages dynamically shared between one or more processes
->  22 - THP
->      contiguous pages which construct transparent hugepages
-> -23 - BALLOON
-> -    balloon compaction page
-> +23 - OFFLINE
-> +    page is logically offline
->  24 - ZERO_PAGE
->      zero page for pfn_zero or huge_zero page
->  25 - IDLE
-> @@ -128,6 +129,8 @@ Short descriptions to the page flags
->      Note that this flag may be stale in case the page was accessed via
->      a PTE. To make sure the flag is up-to-date one has to read
->      ``/sys/kernel/mm/page_idle/bitmap`` first.
-> +26 - PGTABLE
-> +    page is in use as a page table
->
->  IO related page flags
->  ---------------------
-> diff --git a/fs/proc/page.c b/fs/proc/page.c
-> index 6c517b11acf8..378401af4d9d 100644
-> --- a/fs/proc/page.c
-> +++ b/fs/proc/page.c
-> @@ -152,8 +152,8 @@ u64 stable_page_flags(struct page *page)
->         else if (page_count(page) == 0 && is_free_buddy_page(page))
->                 u |= 1 << KPF_BUDDY;
->
-> -       if (PageBalloon(page))
-> -               u |= 1 << KPF_BALLOON;
-> +       if (PageOffline(page))
-> +               u |= 1 << KPF_OFFLINE;
->         if (PageTable(page))
->                 u |= 1 << KPF_PGTABLE;
->
-> diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
-> index cbe50da5a59d..f111c780ef1d 100644
-> --- a/include/linux/balloon_compaction.h
-> +++ b/include/linux/balloon_compaction.h
-> @@ -95,7 +95,7 @@ extern int balloon_page_migrate(struct address_space *mapping,
->  static inline void balloon_page_insert(struct balloon_dev_info *balloon,
->                                        struct page *page)
->  {
-> -       __SetPageBalloon(page);
-> +       __SetPageOffline(page);
->         __SetPageMovable(page, balloon->inode->i_mapping);
->         set_page_private(page, (unsigned long)balloon);
->         list_add(&page->lru, &balloon->pages);
-> @@ -111,7 +111,7 @@ static inline void balloon_page_insert(struct balloon_dev_info *balloon,
->   */
->  static inline void balloon_page_delete(struct page *page)
->  {
-> -       __ClearPageBalloon(page);
-> +       __ClearPageOffline(page);
->         __ClearPageMovable(page);
->         set_page_private(page, 0);
->         /*
-> @@ -141,13 +141,13 @@ static inline gfp_t balloon_mapping_gfp_mask(void)
->  static inline void balloon_page_insert(struct balloon_dev_info *balloon,
->                                        struct page *page)
->  {
-> -       __SetPageBalloon(page);
-> +       __SetPageOffline(page);
->         list_add(&page->lru, &balloon->pages);
->  }
->
->  static inline void balloon_page_delete(struct page *page)
->  {
-> -       __ClearPageBalloon(page);
-> +       __ClearPageOffline(page);
->         list_del(&page->lru);
->  }
->
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 50ce1bddaf56..f91da3d0a67e 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -670,7 +670,7 @@ PAGEFLAG_FALSE(DoubleMap)
->  #define PAGE_TYPE_BASE 0xf0000000
->  /* Reserve             0x0000007f to catch underflows of page_mapcount */
->  #define PG_buddy       0x00000080
-> -#define PG_balloon     0x00000100
-> +#define PG_offline     0x00000100
->  #define PG_kmemcg      0x00000200
->  #define PG_table       0x00000400
->
-> @@ -700,10 +700,13 @@ static __always_inline void __ClearPage##uname(struct page *page) \
->  PAGE_TYPE_OPS(Buddy, buddy)
->
->  /*
-> - * PageBalloon() is true for pages that are on the balloon page list
-> - * (see mm/balloon_compaction.c).
-> + * PageOffline() indicates that the pages is logically offline although the
-> + * containing section is online. (e.g. inflated in a balloon driver or
-> + * not onlined when onlining the section).
-> + * The content of these pages is effectively stale. Such pages should not
-> + * be touched (read/write/dump/save) except by their owner.
->   */
-> -PAGE_TYPE_OPS(Balloon, balloon)
-> +PAGE_TYPE_OPS(Offline, offline)
->
->  /*
->   * If kmemcg is enabled, the buddy allocator will set PageKmemcg() on
-> diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
-> index 21b9113c69da..6f2f2720f3ac 100644
-> --- a/include/uapi/linux/kernel-page-flags.h
-> +++ b/include/uapi/linux/kernel-page-flags.h
-> @@ -32,7 +32,7 @@
->
->  #define KPF_KSM                        21
->  #define KPF_THP                        22
-> -#define KPF_BALLOON            23
-> +#define KPF_OFFLINE            23
->  #define KPF_ZERO_PAGE          24
->  #define KPF_IDLE               25
->  #define KPF_PGTABLE            26
-> diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
-> index 37908a83ddc2..6c38d3b862e4 100644
-> --- a/tools/vm/page-types.c
-> +++ b/tools/vm/page-types.c
-> @@ -133,7 +133,7 @@ static const char * const page_flag_names[] = {
->         [KPF_NOPAGE]            = "n:nopage",
->         [KPF_KSM]               = "x:ksm",
->         [KPF_THP]               = "t:thp",
-> -       [KPF_BALLOON]           = "o:balloon",
-> +       [KPF_OFFLINE]           = "o:offline",
-
-Even 'o' keyword is better suits for Offline than for ballOon =)
-
->         [KPF_PGTABLE]           = "g:pgtable",
->         [KPF_ZERO_PAGE]         = "z:zero_page",
->         [KPF_IDLE]              = "i:idle_page",
-> --
-> 2.17.2
->
+------=_Part_136095_708746507.1542628613841--
