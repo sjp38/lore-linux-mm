@@ -1,67 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 797E56B1856
-	for <linux-mm@kvack.org>; Sun, 18 Nov 2018 22:35:45 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id j125so216713qke.12
-        for <linux-mm@kvack.org>; Sun, 18 Nov 2018 19:35:45 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j125si1438215qkd.94.2018.11.18.19.35.44
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B5FFE6B1864
+	for <linux-mm@kvack.org>; Sun, 18 Nov 2018 22:48:54 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id k125so19652840pga.5
+        for <linux-mm@kvack.org>; Sun, 18 Nov 2018 19:48:54 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t186sor22208179pgd.63.2018.11.18.19.48.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Nov 2018 19:35:44 -0800 (PST)
-Date: Mon, 19 Nov 2018 11:35:14 +0800
-From: Ming Lei <ming.lei@redhat.com>
-Subject: Re: [PATCH V10 01/19] block: introduce multi-page page bvec helpers
-Message-ID: <20181119033513.GF10838@ming.t460p>
-References: <20181115085306.9910-1-ming.lei@redhat.com>
- <20181115085306.9910-2-ming.lei@redhat.com>
- <20181116131305.GA3165@lst.de>
- <20181119022327.GC10838@ming.t460p>
- <83fb4102-bffe-41f1-c8d0-3bdf61fe0ba8@kernel.dk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <83fb4102-bffe-41f1-c8d0-3bdf61fe0ba8@kernel.dk>
+        (Google Transport Security);
+        Sun, 18 Nov 2018 19:48:53 -0800 (PST)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [RFC PATCH] mm, meminit: remove init_reserved_page()
+Date: Mon, 19 Nov 2018 11:48:45 +0800
+Message-Id: <20181119034845.20469-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: Christoph Hellwig <hch@lst.de>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: mgorman@suse.de, pavel.tatashin@microsoft.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-On Sun, Nov 18, 2018 at 08:10:14PM -0700, Jens Axboe wrote:
-> On 11/18/18 7:23 PM, Ming Lei wrote:
-> > On Fri, Nov 16, 2018 at 02:13:05PM +0100, Christoph Hellwig wrote:
-> >>> -#define bvec_iter_page(bvec, iter)				\
-> >>> +#define mp_bvec_iter_page(bvec, iter)				\
-> >>>  	(__bvec_iter_bvec((bvec), (iter))->bv_page)
-> >>>  
-> >>> -#define bvec_iter_len(bvec, iter)				\
-> >>> +#define mp_bvec_iter_len(bvec, iter)				\
-> >>
-> >> I'd much prefer if we would stick to the segment naming that
-> >> we also use in the higher level helper.
-> >>
-> >> So segment_iter_page, segment_iter_len, etc.
-> > 
-> > We discussed the naming problem before, one big problem is that the 'segment'
-> > in bio_for_each_segment*() means one single page segment actually.
-> > 
-> > If we use segment_iter_page() here for multi-page segment, it may
-> > confuse people.
-> > 
-> > Of course, I prefer to the naming of segment/page, 
-> > 
-> > And Jens didn't agree to rename bio_for_each_segment*() before.
-> 
-> I didn't like frivolous renaming (and I still don't), but mp_
-> is horrible imho. Don't name these after the fact that they
-> are done in conjunction with supporting multipage bvecs. That
-> very fact will be irrelevant very soon
+Function init_reserved_page() is introduced in commit 7e18adb4f80b ("mm:
+meminit: initialize remaining struct pages in parallel with kswapd").
+While I am confused why it uses for_each_mem_pfn_range() in
+deferred_init_memmap() to initialize deferred pages structure.
 
-OK, so what is your suggestion for the naming issue?
+After commit 2f47a91f4dab ("mm: deferred_init_memmap improvements"),
+deferred_init_memmap() uses for_each_free_mem_range() to initialize
+page structure. This means the reserved memory is not touched.
 
-Are you fine to use segment_iter_page() here? Then the term of 'segment'
-may be interpreted as multi-page segment here, but as single-page in
-bio_for_each_segment*().
+The original context before commit 7e18adb4f80b ("mm: meminit: initialize
+remaining struct pages in parallel with kswapd"), reserved memory's page
+structure is just SetPageReserved, which means they are not necessary to be
+initialized.
 
-thanks
-Ming
+This patch removes init_reserved_page() to restore the original context.
+
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+
+---
+
+I did bootup and kernel build test with the patched kernel, it looks good.
+
+One of my confusion is the commit 7e18adb4f80b ("mm: meminit: initialize
+remaining struct pages in parallel with kswapd") works fine. Does it eat some
+reserved pages? Either I don't see the reason in commit 2f47a91f4dab ("mm:
+deferred_init_memmap improvements") of changing pfn iteration from
+for_each_mem_pfn_range() to for_each_free_mem_range().
+
+Another question is in function reserve_bootmem_region(), we add a
+INIT_LIST_HEAD() in commit 1d798ca3f164 ("mm: make compound_head() robust").
+While the reserved page is never visible in page allocator. Do we still need
+to do this step?
+
+---
+ mm/page_alloc.c | 28 ----------------------------
+ 1 file changed, 28 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2d3c54201255..48cf24766343 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1192,32 +1192,6 @@ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
+ #endif
+ }
+ 
+-#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+-static void __meminit init_reserved_page(unsigned long pfn)
+-{
+-	pg_data_t *pgdat;
+-	int nid, zid;
+-
+-	if (!early_page_uninitialised(pfn))
+-		return;
+-
+-	nid = early_pfn_to_nid(pfn);
+-	pgdat = NODE_DATA(nid);
+-
+-	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+-		struct zone *zone = &pgdat->node_zones[zid];
+-
+-		if (pfn >= zone->zone_start_pfn && pfn < zone_end_pfn(zone))
+-			break;
+-	}
+-	__init_single_page(pfn_to_page(pfn), pfn, zid, nid);
+-}
+-#else
+-static inline void init_reserved_page(unsigned long pfn)
+-{
+-}
+-#endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
+-
+ /*
+  * Initialised pages do not have PageReserved set. This function is
+  * called for each range allocated by the bootmem allocator and
+@@ -1233,8 +1207,6 @@ void __meminit reserve_bootmem_region(phys_addr_t start, phys_addr_t end)
+ 		if (pfn_valid(start_pfn)) {
+ 			struct page *page = pfn_to_page(start_pfn);
+ 
+-			init_reserved_page(start_pfn);
+-
+ 			/* Avoid false-positive PageTail() */
+ 			INIT_LIST_HEAD(&page->lru);
+ 
+-- 
+2.15.1
