@@ -1,83 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 21C556B1BFB
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 13:57:54 -0500 (EST)
-Received: by mail-it1-f199.google.com with SMTP id x82so5452121ita.9
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 10:57:54 -0800 (PST)
-Received: from p3plsmtpa11-05.prod.phx3.secureserver.net (p3plsmtpa11-05.prod.phx3.secureserver.net. [68.178.252.106])
-        by mx.google.com with ESMTPS id n6si2777697ioc.84.2018.11.19.10.57.52
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ABACC6B1C32
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 15:34:20 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id m16so4721327pgd.0
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 12:34:20 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f68sor18951244pfh.22.2018.11.19.12.34.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 10:57:52 -0800 (PST)
-Subject: Re: [PATCH v2 0/6] RFC: gup+dma: tracking dma-pinned pages
-References: <20181110085041.10071-1-jhubbard@nvidia.com>
-From: Tom Talpey <tom@talpey.com>
-Message-ID: <942cb823-9b18-69e7-84aa-557a68f9d7e9@talpey.com>
-Date: Mon, 19 Nov 2018 13:57:51 -0500
+        (Google Transport Security);
+        Mon, 19 Nov 2018 12:34:19 -0800 (PST)
+Date: Mon, 19 Nov 2018 12:34:09 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: Memory hotplug softlock issue
+In-Reply-To: <20181119173312.GV22247@dhcp22.suse.cz>
+Message-ID: <alpine.LSU.2.11.1811191215290.15640@eggly.anvils>
+References: <20181115131211.GP2653@MiWiFi-R3L-srv> <20181115131927.GT23831@dhcp22.suse.cz> <20181115133840.GR2653@MiWiFi-R3L-srv> <20181115143204.GV23831@dhcp22.suse.cz> <20181116012433.GU2653@MiWiFi-R3L-srv> <20181116091409.GD14706@dhcp22.suse.cz>
+ <20181119105202.GE18471@MiWiFi-R3L-srv> <20181119124033.GJ22247@dhcp22.suse.cz> <20181119125121.GK22247@dhcp22.suse.cz> <20181119141016.GO22247@dhcp22.suse.cz> <20181119173312.GV22247@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20181110085041.10071-1-jhubbard@nvidia.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john.hubbard@gmail.com, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Baoquan He <bhe@redhat.com>, David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, pifang@redhat.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>
 
-John, thanks for the discussion at LPC. One of the concerns we
-raised however was the performance test. The numbers below are
-rather obviously tainted. I think we need to get a better baseline
-before concluding anything...
-
-Here's my main concern:
-
-On 11/10/2018 3:50 AM, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
->...
-> ------------------------------------------------------
-> WITHOUT the patch:
-> ------------------------------------------------------
-> reader: (g=0): rw=read, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
-> fio-3.3
-> Starting 1 process
-> Jobs: 1 (f=1): [R(1)][100.0%][r=55.5MiB/s,w=0KiB/s][r=14.2k,w=0 IOPS][eta 00m:00s]
-> reader: (groupid=0, jobs=1): err= 0: pid=1750: Tue Nov  6 20:18:06 2018
->     read: IOPS=13.9k, BW=54.4MiB/s (57.0MB/s)(1024MiB/18826msec)
-
-~14000 4KB read IOPS is really, really low for an NVMe disk.
-
->    cpu          : usr=2.39%, sys=95.30%, ctx=669, majf=0, minf=72
-
-CPU is obviously the limiting factor. At these IOPS, it should be far
-less.
-> ------------------------------------------------------
-> OR, here's a better run WITH the patch applied, and you can see that this is nearly as good
-> as the "without" case:
-> ------------------------------------------------------
+On Mon, 19 Nov 2018, Michal Hocko wrote:
+> On Mon 19-11-18 15:10:16, Michal Hocko wrote:
+> [...]
+> > In other words. Why cannot we do the following?
 > 
-> reader: (g=0): rw=read, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
-> fio-3.3
-> Starting 1 process
-> Jobs: 1 (f=1): [R(1)][100.0%][r=53.2MiB/s,w=0KiB/s][r=13.6k,w=0 IOPS][eta 00m:00s]
-> reader: (groupid=0, jobs=1): err= 0: pid=2521: Tue Nov  6 20:01:33 2018
->     read: IOPS=13.4k, BW=52.5MiB/s (55.1MB/s)(1024MiB/19499msec)
+> Baoquan, this is certainly not the right fix but I would be really
+> curious whether it makes the problem go away.
+> 
+> > diff --git a/mm/migrate.c b/mm/migrate.c
+> > index f7e4bfdc13b7..7ccab29bcf9a 100644
+> > --- a/mm/migrate.c
+> > +++ b/mm/migrate.c
+> > @@ -324,19 +324,9 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
+> >  		goto out;
+> >  
+> >  	page = migration_entry_to_page(entry);
+> > -
+> > -	/*
+> > -	 * Once page cache replacement of page migration started, page_count
+> > -	 * *must* be zero. And, we don't want to call wait_on_page_locked()
+> > -	 * against a page without get_page().
+> > -	 * So, we use get_page_unless_zero(), here. Even failed, page fault
+> > -	 * will occur again.
+> > -	 */
+> > -	if (!get_page_unless_zero(page))
+> > -		goto out;
+> >  	pte_unmap_unlock(ptep, ptl);
+> > -	wait_on_page_locked(page);
+> > -	put_page(page);
+> > +	page_lock(page);
+> > +	page_unlock(page);
+> >  	return;
+> >  out:
+> >  	pte_unmap_unlock(ptep, ptl);
 
-Similar low IOPS.
+Thanks for Cc'ing me. I did mention precisely this issue two or three
+times at LSF/MM this year, and claimed then that I would post the fix.
 
->    cpu          : usr=3.47%, sys=94.61%, ctx=370, majf=0, minf=73
+I'm glad that I delayed, what I had then (migration_waitqueue instead
+of using page_waitqueue) was not wrong, but what I've been using the
+last couple of months is rather better (and can be put to use to solve
+similar problems in collapsing pages on huge tmpfs. but we don't need
+to get into that at this time): put_and_wait_on_page_locked().
 
-Similar CPU saturation.
+What I have not yet done is verify it on latest kernel, and research
+the interested Cc list (Linus and Tim Chen come immediately to mind),
+and write the commit comment. I have some testing to do on the latest
+kernel today, so I'll throw put_and_wait_on_page_locked() in too,
+and post tomorrow I hope.
 
->
-
-I get nearly 400,000 4KB IOPS on my tiny desktop, which has a 25W
-i7-7500 and a Samsung PM961 128GB NVMe (stock Bionic 4.15 kernel
-and fio version 3.1). Even then, the CPU saturates, so it's not
-necessarily a perfect test. I'd like to see your runs both get to
-"max" IOPS, i.e. CPU < 100%, and compare the CPU numbers. This would
-give the best comparison for making a decision.
-
-Can you confirm what type of hardware you're running this test on?
-CPU, memory speed and capacity, and NVMe device especially?
-
-Tom.
+Hugh
