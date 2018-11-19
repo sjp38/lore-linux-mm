@@ -1,39 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BC176B1A1D
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 05:08:00 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id h86-v6so21025946pfd.2
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 02:08:00 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m38si38678746pgl.125.2018.11.19.02.07.59
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AE3016B1A28
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 05:16:37 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id 92so68387583qkx.19
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 02:16:37 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z13si4597738qkz.84.2018.11.19.02.16.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 02:07:59 -0800 (PST)
-Message-ID: <1542622061.3002.6.camel@suse.de>
-Subject: Re: [PATCH] mm, page_alloc: fix calculation of pgdat->nr_zones
-From: osalvador <osalvador@suse.de>
-Date: Mon, 19 Nov 2018 11:07:41 +0100
-In-Reply-To: <20181117022022.9956-1-richard.weiyang@gmail.com>
-References: <20181117022022.9956-1-richard.weiyang@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Mon, 19 Nov 2018 02:16:36 -0800 (PST)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH v1 0/8] mm/kdump: allow to exclude pages that are logically offline
+Date: Mon, 19 Nov 2018 11:16:08 +0100
+Message-Id: <20181119101616.8901-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, mhocko@suse.com, dave.hansen@intel.com
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, kexec-ml <kexec@lists.infradead.org>, pv-drivers@vmware.com, David Hildenbrand <david@redhat.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Alexey Dobriyan <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Baoquan He <bhe@redhat.com>, Borislav Petkov <bp@alien8.de>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Christian Hansen <chansen3@cisco.com>, Dave Young <dyoung@redhat.com>, David Rientjes <rientjes@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Jonathan Corbet <corbet@lwn.net>, Juergen Gross <jgross@suse.com>, Julien Freche <jfreche@vmware.com>, Kairui Song <kasong@redhat.com>, Kazuhito Hagio <k-hagio@ab.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, "K. Y. Srinivasan" <kys@microsoft.com>, Len Brown <len.brown@intel.com>, Lianbo Jiang <lijiang@redhat.com>, Matthew Wilcox <willy@infradead.org>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Miles Chen <miles.chen@mediatek.com>, Nadav Amit <namit@vmware.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Omar Sandoval <osandov@fb.com>, Pavel Machek <pavel@ucw.cz>, Pavel Tatashin <pasha.tatashin@oracle.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Stefano Stabellini <sstabellini@kernel.org>, Stephen Hemminger <sthemmin@microsoft.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Vitaly Kuznetsov <vkuznets@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Xavier Deguillard <xdeguillard@vmware.com>
 
+Right now, pages inflated as part of a balloon driver will be dumped
+by dump tools like makedumpfile. While XEN is able to check in the
+crash kernel whether a certain pfn is actuall backed by memory in the
+hypervisor (see xen_oldmem_pfn_is_ram) and optimize this case, dumps of
+virtio-balloon, hv-balloon and VMWare balloon inflated memory will
+essentially result in zero pages getting allocated by the hypervisor and
+the dump getting filled with this data.
 
-> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+The allocation and reading of zero pages can directly be avoided if a
+dumping tool could know which pages only contain stale information not to
+be dumped.
 
-Good catch.
+Also for XEN, calling into the kernel and asking the hypervisor if a
+pfn is backed can be avoided if the duming tool would skip such pages
+right from the beginning.
 
-One thing I was wondering is that if we also should re-adjust it when a
-zone gets emptied during offlining memory.
-I checked, and whenever we work wirh pgdat->nr_zones we seem to check
-if the zone is populated in order to work with it.
-But still, I wonder if we should re-adjust it.
+Dumping tools have no idea whether a given page is part of a balloon driver
+and shall not be dumped. Esp. PG_reserved cannot be used for that purpose
+as all memory allocated during early boot is also PG_reserved, see
+discussion at [1]. So some other way of indication is required and a new
+page flag is frowned upon.
 
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
+We have PG_balloon (MAPCOUNT value), which is essentially unused now. I
+suggest renaming it to something more generic (PG_offline) to mark pages as
+logically offline. This flag can than e.g. also be used by virtio-mem in
+the future to mark subsections as offline. Or by other code that wants to
+put pages logically offline (e.g. later maybe poisoned pages that shall
+no longer be used).
 
-Oscar Salvador
+This series converts PG_balloon to PG_offline, allows dumping tools to
+query the value to detect such pages and marks pages in the hv-balloon
+and XEN balloon properly as PG_offline. Note that virtio-balloon already
+set pages to PG_balloon (and now PG_offline).
+
+Please note that this is also helpful for a problem we were seeing under
+Hyper-V: Dumping logically offline memory (pages kept fake offline while
+onlining a section via online_page_callback) would under some condicions
+result in a kernel panic when dumping them.
+
+As I don't have access to neither XEN nor Hyper-V nor VMWare installations,
+this was only tested with the virtio-balloon and pages were properly
+skipped when dumping. I'll also attach the makedumpfile patch to this
+series.
+
+[1] https://lkml.org/lkml/2018/7/20/566
+
+RFC -> v1:
+- Add "PM / Hibernate: use pfn_to_online_page()"
+- Add "vmw_balloon: mark inflated pages PG_offline"
+- "mm: convert PG_balloon to PG_offline"
+-- After discussions, also rename the UAPI bit name (KPF_BALLOON -> KPF_OFFLINE)
+
+David Hildenbrand (8):
+  mm: balloon: update comment about isolation/migration/compaction
+  mm: convert PG_balloon to PG_offline
+  kexec: export PG_offline to VMCOREINFO
+  xen/balloon: mark inflated pages PG_offline
+  hv_balloon: mark inflated pages PG_offline
+  vmw_balloon: mark inflated pages PG_offline
+  PM / Hibernate: use pfn_to_online_page()
+  PM / Hibernate: exclude all PageOffline() pages
+
+ Documentation/admin-guide/mm/pagemap.rst |  9 ++++---
+ drivers/hv/hv_balloon.c                  | 14 ++++++++--
+ drivers/misc/vmw_balloon.c               | 32 ++++++++++++++++++++++
+ drivers/xen/balloon.c                    |  3 +++
+ fs/proc/page.c                           |  4 +--
+ include/linux/balloon_compaction.h       | 34 +++++++++---------------
+ include/linux/page-flags.h               | 11 +++++---
+ include/uapi/linux/kernel-page-flags.h   |  2 +-
+ kernel/crash_core.c                      |  2 ++
+ kernel/power/snapshot.c                  | 13 +++++----
+ tools/vm/page-types.c                    |  2 +-
+ 11 files changed, 87 insertions(+), 39 deletions(-)
+
+-- 
+2.17.2
