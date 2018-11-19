@@ -1,86 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 31EEA6B1AE4
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 10:00:58 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id y7so28373586wrr.12
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 07:00:58 -0800 (PST)
-Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10085.outbound.protection.outlook.com. [40.107.1.85])
-        by mx.google.com with ESMTPS id i8si1911179wrm.449.2018.11.19.07.00.56
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CEFC06B1AEF
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 10:09:43 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id t7-v6so13086598ljg.9
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 07:09:43 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r10-v6sor5484791lji.40.2018.11.19.07.09.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 19 Nov 2018 07:00:56 -0800 (PST)
-From: Tariq Toukan <tariqt@mellanox.com>
-Subject: Re: [PATCH v2 RESEND 1/2] mm/page_alloc: free order-0 pages through
- PCP in page_frag_free()
-Date: Mon, 19 Nov 2018 15:00:53 +0000
-Message-ID: <be048469-d29d-e700-4858-4a5263a50eb6@mellanox.com>
-References: <20181119134834.17765-1-aaron.lu@intel.com>
- <20181119134834.17765-2-aaron.lu@intel.com>
-In-Reply-To: <20181119134834.17765-2-aaron.lu@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <6A9C7ED5C96A7A499DA2C1C1F937C3B8@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Mon, 19 Nov 2018 07:09:42 -0800 (PST)
 MIME-Version: 1.0
+References: <20181115154530.GA27872@jordon-HP-15-Notebook-PC>
+ <20181116182836.GB17088@rapoport-lnx> <CAFqt6zYp0j999WXw9Jus0oZMjADQQkPfso8btv6du6L9CE3PXA@mail.gmail.com>
+ <20181117143742.GB7861@bombadil.infradead.org>
+In-Reply-To: <20181117143742.GB7861@bombadil.infradead.org>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Mon, 19 Nov 2018 20:43:09 +0530
+Message-ID: <CAFqt6zbOWX5LUTWwoGDJsGdf+pTR6N1yTPVxyr1W3-6Fte39ww@mail.gmail.com>
+Subject: Re: [PATCH 1/9] mm: Introduce new vm_insert_range API
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, =?utf-8?B?UGF3ZcWCIFN0YXN6ZXdza2k=?= <pstaszewski@itcare.pl>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, Ilias Apalodimas <ilias.apalodimas@linaro.org>, Yoel Caspersen <yoel@kviknet.dk>, Mel Gorman <mgorman@techsingularity.net>, Saeed Mahameed <saeedm@mellanox.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Ian Kumlien <ian.kumlien@gmail.com>
+To: Matthew Wilcox <willy@infradead.org>, rppt@linux.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz, Rik van Riel <riel@surriel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, rppt@linux.vnet.ibm.com, Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, Kees Cook <keescook@chromium.org>, Marek Szyprowski <m.szyprowski@samsung.com>, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, Kyungmin Park <kyungmin.park@samsung.com>, mchehab@kernel.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
 
-DQoNCk9uIDE5LzExLzIwMTggMzo0OCBQTSwgQWFyb24gTHUgd3JvdGU6DQo+IHBhZ2VfZnJhZ19m
-cmVlKCkgY2FsbHMgX19mcmVlX3BhZ2VzX29rKCkgdG8gZnJlZSB0aGUgcGFnZSBiYWNrIHRvDQo+
-IEJ1ZGR5LiBUaGlzIGlzIE9LIGZvciBoaWdoIG9yZGVyIHBhZ2UsIGJ1dCBmb3Igb3JkZXItMCBw
-YWdlcywgaXQNCj4gbWlzc2VzIHRoZSBvcHRpbWl6YXRpb24gb3Bwb3J0dW5pdHkgb2YgdXNpbmcg
-UGVyLUNwdS1QYWdlcyBhbmQgY2FuDQo+IGNhdXNlIHpvbmUgbG9jayBjb250ZW50aW9uIHdoZW4g
-Y2FsbGVkIGZyZXF1ZW50bHkuDQo+IA0KPiBQYXdlxYIgU3Rhc3pld3NraSByZWNlbnRseSBzaGFy
-ZWQgaGlzIHJlc3VsdCBvZiAnaG93IExpbnV4IGtlcm5lbA0KPiBoYW5kbGVzIG5vcm1hbCB0cmFm
-ZmljJ1sxXSBhbmQgZnJvbSBwZXJmIGRhdGEsIEplc3BlciBEYW5nYWFyZCBCcm91ZXINCj4gZm91
-bmQgdGhlIGxvY2sgY29udGVudGlvbiBjb21lcyBmcm9tIHBhZ2UgYWxsb2NhdG9yOg0KPiANCj4g
-ICAgbWx4NWVfcG9sbF90eF9jcQ0KPiAgICB8DQo+ICAgICAtLTE2LjM0JS0tbmFwaV9jb25zdW1l
-X3NrYg0KPiAgICAgICAgICAgICAgIHwNCj4gICAgICAgICAgICAgICB8LS0xMi42NSUtLV9fZnJl
-ZV9wYWdlc19vaw0KPiAgICAgICAgICAgICAgIHwgICAgICAgICAgfA0KPiAgICAgICAgICAgICAg
-IHwgICAgICAgICAgIC0tMTEuODYlLS1mcmVlX29uZV9wYWdlDQo+ICAgICAgICAgICAgICAgfCAg
-ICAgICAgICAgICAgICAgICAgIHwNCj4gICAgICAgICAgICAgICB8ICAgICAgICAgICAgICAgICAg
-ICAgfC0tMTAuMTAlLS1xdWV1ZWRfc3Bpbl9sb2NrX3Nsb3dwYXRoDQo+ICAgICAgICAgICAgICAg
-fCAgICAgICAgICAgICAgICAgICAgIHwNCj4gICAgICAgICAgICAgICB8ICAgICAgICAgICAgICAg
-ICAgICAgIC0tMC42NSUtLV9yYXdfc3Bpbl9sb2NrDQo+ICAgICAgICAgICAgICAgfA0KPiAgICAg
-ICAgICAgICAgIHwtLTEuNTUlLS1wYWdlX2ZyYWdfZnJlZQ0KPiAgICAgICAgICAgICAgIHwNCj4g
-ICAgICAgICAgICAgICAgLS0xLjQ0JS0tc2tiX3JlbGVhc2VfZGF0YQ0KPiANCj4gSmVzcGVyIGV4
-cGxhaW5lZCBob3cgaXQgaGFwcGVuZWQ6IG1seDUgZHJpdmVyIFJYLXBhZ2UgcmVjeWNsZQ0KPiBt
-ZWNoYW5pc20gaXMgbm90IGVmZmVjdGl2ZSBpbiB0aGlzIHdvcmtsb2FkIGFuZCBwYWdlcyBoYXZl
-IHRvIGdvDQo+IHRocm91Z2ggdGhlIHBhZ2UgYWxsb2NhdG9yLiBUaGUgbG9jayBjb250ZW50aW9u
-IGhhcHBlbnMgZHVyaW5nDQo+IG1seDUgRE1BIFRYIGNvbXBsZXRpb24gY3ljbGUuIEFuZCB0aGUg
-cGFnZSBhbGxvY2F0b3IgY2Fubm90IGtlZXANCj4gdXAgYXQgdGhlc2Ugc3BlZWRzLlsyXQ0KPiAN
-Cj4gSSB0aG91Z2h0IHRoYXQgX19mcmVlX3BhZ2VzX29rKCkgYXJlIG1vc3RseSBmcmVlaW5nIGhp
-Z2ggb3JkZXINCj4gcGFnZXMgYW5kIHRob3VnaHQgdGhpcyBpcyBhbiBsb2NrIGNvbnRlbnRpb24g
-Zm9yIGhpZ2ggb3JkZXIgcGFnZXMNCj4gYnV0IEplc3BlciBleHBsYWluZWQgaW4gZGV0YWlsIHRo
-YXQgX19mcmVlX3BhZ2VzX29rKCkgaGVyZSBhcmUNCj4gYWN0dWFsbHkgZnJlZWluZyBvcmRlci0w
-IHBhZ2VzIGJlY2F1c2UgbWx4NSBpcyB1c2luZyBvcmRlci0wIHBhZ2VzDQo+IHRvIHNhdGlzZnkg
-aXRzIHBhZ2UgcG9vbCBhbGxvY2F0aW9uIHJlcXVlc3QuWzNdDQo+IA0KPiBUaGUgZnJlZSBwYXRo
-IGFzIHBvaW50ZWQgb3V0IGJ5IEplc3BlciBpczoNCj4gc2tiX2ZyZWVfaGVhZCgpDQo+ICAgIC0+
-IHNrYl9mcmVlX2ZyYWcoKQ0KPiAgICAgIC0+IHBhZ2VfZnJhZ19mcmVlKCkNCj4gQW5kIHRoZSBw
-YWdlcyBiZWluZyBmcmVlZCBvbiB0aGlzIHBhdGggYXJlIG9yZGVyLTAgcGFnZXMuDQo+IA0KPiBG
-aXggdGhpcyBieSBkb2luZyBzaW1pbGFyIHRoaW5ncyBhcyBpbiBfX3BhZ2VfZnJhZ19jYWNoZV9k
-cmFpbigpIC0NCj4gc2VuZCB0aGUgYmVpbmcgZnJlZWQgcGFnZSB0byBQQ1AgaWYgaXQncyBhbiBv
-cmRlci0wIHBhZ2UsIG9yDQo+IGRpcmVjdGx5IHRvIEJ1ZGR5IGlmIGl0IGlzIGEgaGlnaCBvcmRl
-ciBwYWdlLg0KPiANCj4gV2l0aCB0aGlzIGNoYW5nZSwgUGF3ZcWCIGhhc24ndCBub3RpY2VkIGxv
-Y2sgY29udGVudGlvbiB5ZXQgaW4NCj4gaGlzIHdvcmtsb2FkIGFuZCBKZXNwZXIgaGFzIG5vdGlj
-ZWQgYSA3JSBwZXJmb3JtYW5jZSBpbXByb3ZlbWVudA0KPiB1c2luZyBhIG1pY3JvIGJlbmNobWFy
-ayBhbmQgbG9jayBjb250ZW50aW9uIGlzIGdvbmUuIElsaWFzJyB0ZXN0DQo+IG9uIGEgJ2xvdycg
-c3BlZWQgMUdiaXQgaW50ZXJmYWNlIG9uIGFuIGNvcnRleC1hNTMgc2hvd3MgfjExJQ0KPiBwZXJm
-b3JtYW5jZSBib29zdCB0ZXN0aW5nIHdpdGggNjRieXRlIHBhY2tldHMgYW5kIF9fZnJlZV9wYWdl
-c19vaygpDQo+IGRpc2FwcGVhcmVkIGZyb20gcGVyZiB0b3AuDQo+IA0KPiBbMV06IGh0dHBzOi8v
-d3d3LnNwaW5pY3MubmV0L2xpc3RzL25ldGRldi9tc2c1MzEzNjIuaHRtbA0KPiBbMl06IGh0dHBz
-Oi8vd3d3LnNwaW5pY3MubmV0L2xpc3RzL25ldGRldi9tc2c1MzE0MjEuaHRtbA0KPiBbM106IGh0
-dHBzOi8vd3d3LnNwaW5pY3MubmV0L2xpc3RzL25ldGRldi9tc2c1MzE1NTYuaHRtbA0KPiANCj4g
-UmVwb3J0ZWQtYnk6IFBhd2XFgiBTdGFzemV3c2tpIDxwc3Rhc3pld3NraUBpdGNhcmUucGw+DQo+
-IEFuYWx5c2VkLWJ5OiBKZXNwZXIgRGFuZ2FhcmQgQnJvdWVyIDxicm91ZXJAcmVkaGF0LmNvbT4N
-Cj4gQWNrZWQtYnk6IFZsYXN0aW1pbCBCYWJrYSA8dmJhYmthQHN1c2UuY3o+DQo+IEFja2VkLWJ5
-OiBNZWwgR29ybWFuIDxtZ29ybWFuQHRlY2hzaW5ndWxhcml0eS5uZXQ+DQo+IEFja2VkLWJ5OiBK
-ZXNwZXIgRGFuZ2FhcmQgQnJvdWVyIDxicm91ZXJAcmVkaGF0LmNvbT4NCj4gQWNrZWQtYnk6IEls
-aWFzIEFwYWxvZGltYXMgPGlsaWFzLmFwYWxvZGltYXNAbGluYXJvLm9yZz4NCj4gVGVzdGVkLWJ5
-OiBJbGlhcyBBcGFsb2RpbWFzIDxpbGlhcy5hcGFsb2RpbWFzQGxpbmFyby5vcmc+DQo+IEFja2Vk
-LWJ5OiBBbGV4YW5kZXIgRHV5Y2sgPGFsZXhhbmRlci5oLmR1eWNrQGxpbnV4LmludGVsLmNvbT4N
-Cj4gQWNrZWQtYnk6IFRhcmlxIFRvdWthbiA8dGFyaXF0QG1lbGxhbm94LmNvbQ0KDQptaXNzaW5n
-ICc+JyBzaWduIGluIG15IGVtYWlsIHRhZy4NCg0KPiBTaWduZWQtb2ZmLWJ5OiBBYXJvbiBMdSA8
-YWFyb24ubHVAaW50ZWwuY29tPg0KPiAtLS0NCg==
+Hi Mike,
+
+On Sat, Nov 17, 2018 at 8:07 PM Matthew Wilcox <willy@infradead.org> wrote:
+>
+> On Sat, Nov 17, 2018 at 12:26:38PM +0530, Souptick Joarder wrote:
+> > On Fri, Nov 16, 2018 at 11:59 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
+> > > > + * vm_insert_range - insert range of kernel pages into user vma
+> > > > + * @vma: user vma to map to
+> > > > + * @addr: target user address of this page
+> > > > + * @pages: pointer to array of source kernel pages
+> > > > + * @page_count: no. of pages need to insert into user vma
+> > > > + *
+> > > > + * This allows drivers to insert range of kernel pages they've allocated
+> > > > + * into a user vma. This is a generic function which drivers can use
+> > > > + * rather than using their own way of mapping range of kernel pages into
+> > > > + * user vma.
+> > >
+> > > Please add the return value and context descriptions.
+> > >
+> >
+> > Sure I will wait for some time to get additional review comments and
+> > add all of those requested changes in v2.
+>
+> You could send your proposed wording now which might remove the need
+> for a v3 if we end up arguing about the wording.
+
+Does this description looks good ?
+
+/**
+ * vm_insert_range - insert range of kernel pages into user vma
+ * @vma: user vma to map to
+ * @addr: target user address of this page
+ * @pages: pointer to array of source kernel pages
+ * @page_count: number of pages need to insert into user vma
+ *
+ * This allows drivers to insert range of kernel pages they've allocated
+ * into a user vma. This is a generic function which drivers can use
+ * rather than using their own way of mapping range of kernel pages into
+ * user vma.
+ *
+ * Context - Process context. Called by mmap handlers.
+ * Return - int error value
+ * 0                    - OK
+ * -EINVAL              - Invalid argument
+ * -ENOMEM              - No memory
+ * -EFAULT              - Bad address
+ * -EBUSY               - Device or resource busy
+ */
