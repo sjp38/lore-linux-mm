@@ -1,35 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E4E5D6B1AFA
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 10:18:10 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id h10so6002069plk.12
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 07:18:10 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BBE66B1B00
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 10:22:05 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id m1-v6so23678108plb.13
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 07:22:05 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id h3-v6si43894138pfd.228.2018.11.19.07.18.09
+        by mx.google.com with ESMTPS id y188si24144395pfb.59.2018.11.19.07.22.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 07:18:09 -0800 (PST)
-Date: Mon, 19 Nov 2018 16:18:07 +0100
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: request for 4.14-stable: fd5f7cde1b85 ("printk: Never set
- console_may_schedule in console_trylock()")
-Message-ID: <20181119151807.GE5340@kroah.com>
-References: <20181111202045.vocb3dthuquf7h2y@debian>
+        Mon, 19 Nov 2018 07:22:04 -0800 (PST)
+Subject: Patch "printk: Never set console_may_schedule in console_trylock()" has been added to the 4.14-stable tree
+From: <gregkh@linuxfoundation.org>
+Date: Mon, 19 Nov 2018 16:21:46 +0100
+Message-ID: <154264090622177@kroah.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181111202045.vocb3dthuquf7h2y@debian>
+Content-Type: text/plain; charset=ANSI_X3.4-1968
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sudip Mukherjee <sudipm.mukherjee@gmail.com>
-Cc: stable@vger.kernel.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, Steven Rostedt <rostedt@goodmis.org>, Petr Mladek <pmladek@suse.com>
+To: akpm@linux-foundation.org, byungchul.park@lge.com, dave.hansen@intel.com, gregkh@linuxfoundation.org, hannes@cmpxchg.org, jack@suse.cz, linux-mm@kvack.org, mathieu.desnoyers@efficios.com, mgorman@suse.de, mhocko@kernel.org, pavel@ucw.cz, penguin-kernel@I-love.SAKURA.ne.jp, peterz@infradead.org, pmladek@suse.com, rostedt@goodmis.org, sergey.senozhatsky.work@gmail.com, sergey.senozhatsky@gmail.com, sudipm.mukherjee@gmail.com, tj@kernel.org, torvalds@linux-foundation.org, vbabka@suse.cz, xiyou.wangcong@gmail.com
+Cc: stable-commits@vger.kernel.org
 
-On Sun, Nov 11, 2018 at 08:20:45PM +0000, Sudip Mukherjee wrote:
-> Hi Greg,
-> 
-> This was not marked for stable but seems it should be in stable.
-> Please apply to your queue of 4.14-stable.
 
-Now queued up, thanks.
+This is a note to let you know that I've just added the patch titled
 
-greg k-h
+    printk: Never set console_may_schedule in console_trylock()
+
+to the 4.14-stable tree which can be found at:
+    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
+
+The filename of the patch is:
+     printk-never-set-console_may_schedule-in-console_trylock.patch
+and it can be found in the queue-4.14 subdirectory.
+
+If you, or anyone else, feels it should not be added to the stable tree,
+please let <stable@vger.kernel.org> know about it.
