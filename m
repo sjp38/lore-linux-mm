@@ -1,47 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 402706B1F6F
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 04:11:29 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id s22so871968pgv.8
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 01:11:29 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b1-v6sor51200657plr.70.2018.11.20.01.11.28
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 46B5D6B1F8B
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 04:37:19 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id s19so2393642qke.20
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 01:37:19 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r95si7110564qkh.131.2018.11.20.01.37.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 20 Nov 2018 01:11:28 -0800 (PST)
-Date: Tue, 20 Nov 2018 12:11:22 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC PATCH] mm: thp: implement THP reservations for anonymous
- memory
-Message-ID: <20181120091122.3dxlgff3vivwilrg@kshutemo-mobl1>
-References: <1541746138-6706-1-git-send-email-anthony.yznaga@oracle.com>
- <20181109121318.3f3ou56ceegrqhcp@kshutemo-mobl1>
- <20181109195150.GA24747@redhat.com>
- <20181110132249.GH23260@techsingularity.net>
- <20181110164412.GB22642@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Nov 2018 01:37:18 -0800 (PST)
+Date: Tue, 20 Nov 2018 04:37:16 -0500 (EST)
+From: Pankaj Gupta <pagupta@redhat.com>
+Message-ID: <1380154502.35259416.1542706636322.JavaMail.zimbra@redhat.com>
+In-Reply-To: <6258a58b-28c7-c055-0752-e8bd085b835f@redhat.com>
+References: <20181119101616.8901-1-david@redhat.com> <20181119101616.8901-6-david@redhat.com> <1747228.35250472.1542703532881.JavaMail.zimbra@redhat.com> <6258a58b-28c7-c055-0752-e8bd085b835f@redhat.com>
+Subject: Re: [PATCH v1 5/8] hv_balloon: mark inflated pages PG_offline
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181110164412.GB22642@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Anthony Yznaga <anthony.yznaga@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, aneesh.kumar@linux.ibm.com, akpm@linux-foundation.org, jglisse@redhat.com, khandual@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, mhocko@kernel.org, minchan@kernel.org, peterz@infradead.org, rientjes@google.com, vbabka@suse.cz, willy@infradead.org, ying.huang@intel.com, nitingupta910@gmail.com
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, kexec-ml <kexec@lists.infradead.org>, pv-drivers@vmware.com, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, Stephen Hemminger <sthemmin@microsoft.com>, Kairui Song <kasong@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, "Michael S. Tsirkin" <mst@redhat.com>
 
-On Sat, Nov 10, 2018 at 11:44:12AM -0500, Andrea Arcangeli wrote:
-> I would prefer to add intelligence to detect when COWs after fork
-> should be done at 2m or 4k granularity (in the latter case by
-> splitting the pmd before the actual COW while leaving the transhuge
-> pmd intact in the other mm), because that would save CPU (and it'd
-> automatically optimize redis). The snapshot process especially would
-> run faster as it will read with THP performance.
 
-I would argue we should switch to 4k COW everywhere. But it requires some
-work on khugepaged side to be able to recover THP back after multiple 4k
-COW in the range. Currently khugepaged is not able to collapse PTE entires
-backed by compound page back to PMD.
+> >> ---
+> >>  drivers/hv/hv_balloon.c | 14 ++++++++++++--
+> >>  1 file changed, 12 insertions(+), 2 deletions(-)
+> >>
+> >> diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
+> >> index 211f3fe3a038..47719862e57f 100644
+> >> --- a/drivers/hv/hv_balloon.c
+> >> +++ b/drivers/hv/hv_balloon.c
+> >> @@ -681,8 +681,13 @@ static struct notifier_block hv_memory_nb = {
+> >>  /* Check if the particular page is backed and can be onlined and online
+> >>  it.
+> >>  */
+> >>  static void hv_page_online_one(struct hv_hotadd_state *has, struct page
+> >>  *pg)
+> >>  {
+> >> -	if (!has_pfn_is_backed(has, page_to_pfn(pg)))
+> >> +	if (!has_pfn_is_backed(has, page_to_pfn(pg))) {
+> >> +		if (!PageOffline(pg))
+> >> +			__SetPageOffline(pg);
+> >>  		return;
+> >> +	}
+> >> +	if (PageOffline(pg))
+> >> +		__ClearPageOffline(pg);
+> >>  
+> >>  	/* This frame is currently backed; online the page. */
+> >>  	__online_page_set_limits(pg);
+> >> @@ -1201,6 +1206,7 @@ static void free_balloon_pages(struct
+> >> hv_dynmem_device
+> >> *dm,
+> >>  
+> >>  	for (i = 0; i < num_pages; i++) {
+> >>  		pg = pfn_to_page(i + start_frame);
+> >> +		__ClearPageOffline(pg);
+> > 
+> > Just thinking, do we need to care for clearing PageOffline flag before
+> > freeing
+> > a balloon'd page?
+> 
+> Yes we have to otherwise the code will crash when trying to set PageBuddy.
+> 
+> (only one page type at a time may be set right now, and it makes sense.
+> A page that is offline cannot e.g. be a buddy page)
 
-I have this on my todo list for long time, but...
+o.k
+> 
+> So PageOffline is completely managed by the page owner.
 
--- 
- Kirill A. Shutemov
+Makes sense. Thanks for explaining.
+
+Pankaj
+> 
+> > 
+> > Thanks,
+> > Pankaj
+> 
+> 
+> --
+> 
+> Thanks,
+> 
+> David / dhildenb
+> 
