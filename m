@@ -1,55 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 962CA6B1EDD
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 02:43:03 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id v11so827905ply.4
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 23:43:03 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 11si40843484pgy.408.2018.11.19.23.43.02
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E2C026B1EE4
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 02:48:02 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id e17so825261edr.7
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 23:48:02 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t24-v6si1010704ejo.216.2018.11.19.23.48.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 23:43:02 -0800 (PST)
-Date: Tue, 20 Nov 2018 08:42:59 +0100
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: request for 4.14-stable: fd5f7cde1b85 ("printk: Never set
- console_may_schedule in console_trylock()")
-Message-ID: <20181120074259.GA15276@kroah.com>
-References: <20181111202045.vocb3dthuquf7h2y@debian>
- <20181119151807.GE5340@kroah.com>
- <20181120022315.GA4231@jagdpanzerIV>
- <20181120022841.GB4231@jagdpanzerIV>
+        Mon, 19 Nov 2018 23:48:01 -0800 (PST)
+Date: Tue, 20 Nov 2018 08:48:00 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm, proc: report PR_SET_THP_DISABLE in proc
+Message-ID: <20181120074759.GB22247@dhcp22.suse.cz>
+References: <alpine.DEB.2.21.1810151519250.247641@chino.kir.corp.google.com>
+ <20181016104855.GQ18839@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810161416540.83080@chino.kir.corp.google.com>
+ <20181017070531.GC18839@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1810171256330.60837@chino.kir.corp.google.com>
+ <20181018070031.GW18839@dhcp22.suse.cz>
+ <20181114132306.GX23419@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1811141336010.200345@chino.kir.corp.google.com>
+ <20181115090242.GH23831@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1811191404030.150313@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181120022841.GB4231@jagdpanzerIV>
+In-Reply-To: <alpine.DEB.2.21.1811191404030.150313@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Sudip Mukherjee <sudipm.mukherjee@gmail.com>, stable@vger.kernel.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, Steven Rostedt <rostedt@goodmis.org>, Petr Mladek <pmladek@suse.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Alexey Dobriyan <adobriyan@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-On Tue, Nov 20, 2018 at 11:28:41AM +0900, Sergey Senozhatsky wrote:
-> On (11/20/18 11:23), Sergey Senozhatsky wrote:
-> > On (11/19/18 16:18), Greg Kroah-Hartman wrote:
-> > > On Sun, Nov 11, 2018 at 08:20:45PM +0000, Sudip Mukherjee wrote:
-> > > > Hi Greg,
-> > > > 
-> > > > This was not marked for stable but seems it should be in stable.
-> > > > Please apply to your queue of 4.14-stable.
-> > > 
-> > > Now queued up, thanks.
+On Mon 19-11-18 14:05:34, David Rientjes wrote:
+> On Thu, 15 Nov 2018, Michal Hocko wrote:
+> 
+> > > The userspace had a single way to determine if thp had been disabled for a 
+> > > specific vma and that was broken with your commit.  We have since fixed 
+> > > it.  Modifying our software stack to start looking for some field 
+> > > somewhere else will not help anybody else that this has affected or will 
+> > > affect.  I'm interested in not breaking userspace, not trying a wait and 
+> > > see approach to see if anybody else complains once we start looking for 
+> > > some other field.  The risk outweighs the reward, it already broke us, and 
+> > > I'd prefer not to even open the possibility of breaking anybody else.
 > > 
-> > Very sorry for the late reply!
+> > I very much agree on "do not break userspace" part but this is kind of
+> > gray area. VMA flags are a deep internal implementation detail and
+> > nobody should really depend on it for anything important. The original
+> > motivation for introducing it was CRIU where it is kind of
+> > understandable. I would argue they should find a different way but it is
+> > just too late for them.
 > > 
-> > Greg, Sudip, the commit in question is known to be controversial
+> > For this particular case there was no other bug report except for yours
+> > and if it is possible to fix it on your end then I would really love to
+> > make the a sensible user interface to query the status. If we are going
+> > to change the semantic of the exported flag again then we risk yet
+> > another breakage.
+> > 
+> > Therefore I am asking whether changing your particular usecase to a new
+> > interface is possible because that would allow to have a longerm
+> > sensible user interface rather than another kludge which still doesn't
+> > cover all the usecases (e.g. there is no way to reliably query the
+> > madvise status after your patch).
+> > 
 > 
-> Yikes!! PLEASE *IGNORE MY PREVIOUS EMAIL*!
-> 
-> 
-> This is a *totally stupid* situation. I, somehow, got completely confused
-> and looked at the wrong commit ID.
-> 
-> Really sorry!
+> Providing another interface is great, I have no objection other than 
+> emitting another line for every vma on the system for smaps is probably 
+> overkill for something as rare as PR_SET_THP_DISABLE.
 
-No worries, email is now ignored :)
+Let me think about a full patch and see how it looks like.
 
-greg k-h
+> 
+> That said, I think the current handling of the "nh" flag being emitted in 
+> smaps is logical and ensures no further userspace breakage.
+
+I have already expressed a concern that there is no way to query for
+MADV_NOHUGEPAGE if we overload the flag. So this is not a riskfree
+option.
+
+> If that is to 
+> be removed, I consider it an unnecessary risk.  That would raised in code 
+> review.
+
+-- 
+Michal Hocko
+SUSE Labs
