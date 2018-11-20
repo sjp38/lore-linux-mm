@@ -1,52 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E5E26B1CB7
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 20:56:55 -0500 (EST)
-Received: by mail-oi1-f198.google.com with SMTP id j13so234731oii.8
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 17:56:55 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g4si17453258otd.220.2018.11.19.17.56.53
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 898C36B1D9E
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 21:18:26 -0500 (EST)
+Received: by mail-oi1-f199.google.com with SMTP id k76so253590oih.13
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 18:18:26 -0800 (PST)
+Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
+        by mx.google.com with ESMTPS id m130-v6si17879360oif.194.2018.11.19.18.18.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 17:56:54 -0800 (PST)
-Date: Tue, 20 Nov 2018 09:56:44 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: Memory hotplug softlock issue
-Message-ID: <20181120015644.GA5727@MiWiFi-R3L-srv>
-References: <20181115143204.GV23831@dhcp22.suse.cz>
- <20181116012433.GU2653@MiWiFi-R3L-srv>
- <20181116091409.GD14706@dhcp22.suse.cz>
- <20181119105202.GE18471@MiWiFi-R3L-srv>
- <20181119124033.GJ22247@dhcp22.suse.cz>
- <20181119125121.GK22247@dhcp22.suse.cz>
- <20181119141016.GO22247@dhcp22.suse.cz>
- <20181119173312.GV22247@dhcp22.suse.cz>
- <alpine.LSU.2.11.1811191215290.15640@eggly.anvils>
- <20181119205907.GW22247@dhcp22.suse.cz>
+        Mon, 19 Nov 2018 18:18:25 -0800 (PST)
+Message-ID: <5BF36EE9.9090808@huawei.com>
+Date: Tue, 20 Nov 2018 10:18:17 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181119205907.GW22247@dhcp22.suse.cz>
+Subject: Re: [PATCH] mm: use this_cpu_cmpxchg_double in put_cpu_partial
+References: <20181117013335.32220-1-wen.gang.wang@oracle.com>
+In-Reply-To: <20181117013335.32220-1-wen.gang.wang@oracle.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
-Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, pifang@redhat.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, Mel Gorman <mgorman@suse.de>
+To: Wengang Wang <wen.gang.wang@oracle.com>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 11/19/18 at 09:59pm, Michal Hocko wrote:
-> On Mon 19-11-18 12:34:09, Hugh Dickins wrote:
-> > I'm glad that I delayed, what I had then (migration_waitqueue instead
-> > of using page_waitqueue) was not wrong, but what I've been using the
-> > last couple of months is rather better (and can be put to use to solve
-> > similar problems in collapsing pages on huge tmpfs. but we don't need
-> > to get into that at this time): put_and_wait_on_page_locked().
-> > 
-> > What I have not yet done is verify it on latest kernel, and research
-> > the interested Cc list (Linus and Tim Chen come immediately to mind),
-> > and write the commit comment. I have some testing to do on the latest
-> > kernel today, so I'll throw put_and_wait_on_page_locked() in too,
-> > and post tomorrow I hope.
-> 
-> Cool, it seems that Baoquan has a reliable test case to trigger the
-> pathological case.
+On 2018/11/17 9:33, Wengang Wang wrote:
+> The this_cpu_cmpxchg makes the do-while loop pass as long as the
+> s->cpu_slab->partial as the same value. It doesn't care what happened to
+> that slab. Interrupt is not disabled, and new alloc/free can happen in the
+> interrupt handlers. Theoretically, after we have a reference to the it,
+> stored in _oldpage_, the first slab on the partial list on this CPU can be
+> moved to kmem_cache_node and then moved to different kmem_cache_cpu and
+> then somehow can be added back as head to partial list of current
+> kmem_cache_cpu, though that is a very rare case. If that rare case really
+> happened, the reading of oldpage->pobjects may get a 0xdead0000
+> unexpectedly, stored in _pobjects_, if the reading happens just after
+> another CPU removed the slab from kmem_cache_node, setting lru.prev to
+> LIST_POISON2 (0xdead000000000200). The wrong _pobjects_(negative) then
+> prevents slabs from being moved to kmem_cache_node and being finally freed.
+>
+> We see in a vmcore, there are 375210 slabs kept in the partial list of one
+> kmem_cache_cpu, but only 305 in-use objects in the same list for
+> kmalloc-2048 cache. We see negative values for page.pobjects, the last page
+> with negative _pobjects_ has the value of 0xdead0004, the next page looks
+> good (_pobjects is 1).
+>
+> For the fix, I wanted to call this_cpu_cmpxchg_double with
+> oldpage->pobjects, but failed due to size difference between
+> oldpage->pobjects and cpu_slab->partial. So I changed to call
+> this_cpu_cmpxchg_double with _tid_. I don't really want no alloc/free
+> happen in between, but just want to make sure the first slab did expereince
+> a remove and re-add. This patch is more to call for ideas.
+Have you hit the really issue or just review the code ?
 
-Yes. I will test Hugh's patch.
+I did hit the issue and fixed in the upstream patch unpredictably by the following patch.
+e5d9998f3e09 ("slub: make ->cpu_partial unsigned int")
+
+Thanks,
+zhong jiang
+> Signed-off-by: Wengang Wang <wen.gang.wang@oracle.com>
+> ---
+>  mm/slub.c | 20 +++++++++++++++++---
+>  1 file changed, 17 insertions(+), 3 deletions(-)
+>
+> diff --git a/mm/slub.c b/mm/slub.c
+> index e3629cd..26539e6 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -2248,6 +2248,7 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+>  {
+>  #ifdef CONFIG_SLUB_CPU_PARTIAL
+>  	struct page *oldpage;
+> +	unsigned long tid;
+>  	int pages;
+>  	int pobjects;
+>  
+> @@ -2255,8 +2256,12 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+>  	do {
+>  		pages = 0;
+>  		pobjects = 0;
+> -		oldpage = this_cpu_read(s->cpu_slab->partial);
+>  
+> +		tid = this_cpu_read(s->cpu_slab->tid);
+> +		/* read tid before reading oldpage */
+> +		barrier();
+> +
+> +		oldpage = this_cpu_read(s->cpu_slab->partial);
+>  		if (oldpage) {
+>  			pobjects = oldpage->pobjects;
+>  			pages = oldpage->pages;
+> @@ -2283,8 +2288,17 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+>  		page->pobjects = pobjects;
+>  		page->next = oldpage;
+>  
+> -	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page)
+> -								!= oldpage);
+> +		/* we dont' change tid, but want to make sure it didn't change
+> +		 * in between. We don't really hope alloc/free not happen on
+> +		 * this CPU, but don't want the first slab be removed from and
+> +		 * then re-added as head to this partial list. If that case
+> +		 * happened, pobjects may read 0xdead0000 when this slab is just
+> +		 * removed from kmem_cache_node by other CPU setting lru.prev
+> +		 * to LIST_POISON2.
+> +		 */
+> +	} while (this_cpu_cmpxchg_double(s->cpu_slab->partial, s->cpu_slab->tid,
+> +					 oldpage, tid, page, tid) == 0);
+> +
+>  	if (unlikely(!s->cpu_partial)) {
+>  		unsigned long flags;
+>  
