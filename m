@@ -1,113 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D37F6B201E
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 06:42:22 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id x98-v6so1155243ede.0
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 03:42:22 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 12-v6si314165eja.151.2018.11.20.03.42.20
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 469606B1F22
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 07:11:08 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id h10so1249294plk.12
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 04:11:08 -0800 (PST)
+Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
+        by mx.google.com with ESMTPS id f18si13984202pgl.457.2018.11.20.04.11.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Nov 2018 03:42:20 -0800 (PST)
-Date: Tue, 20 Nov 2018 12:42:19 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 3/3] mm, proc: report PR_SET_THP_DISABLE in proc
-Message-ID: <20181120114219.GG22247@dhcp22.suse.cz>
-References: <20181120103515.25280-1-mhocko@kernel.org>
- <20181120103515.25280-4-mhocko@kernel.org>
+        Tue, 20 Nov 2018 04:11:06 -0800 (PST)
+Subject: Re: [LKP] dd2283f260 [ 97.263072]
+ WARNING:at_kernel/locking/lockdep.c:#lock_downgrade
+References: <20181115055443.GF18977@shao2-debian>
+ <d9371abc-60f6-ce37-529f-d097464a1412@linux.alibaba.com>
+ <20181120085749.lj7dzk52633oq42s@kshutemo-mobl1>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <9dec33d0-f408-8428-b004-fa63fc2e9091@linux.alibaba.com>
+Date: Tue, 20 Nov 2018 20:10:51 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181120103515.25280-4-mhocko@kernel.org>
+In-Reply-To: <20181120085749.lj7dzk52633oq42s@kshutemo-mobl1>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-api@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: kernel test robot <rong.a.chen@intel.com>, Waiman Long <longman@redhat.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, LKP <lkp@01.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
 
-Damn, David somehow didn't make it to the CC list. Sorry about that.
 
-On Tue 20-11-18 11:35:15, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> David Rientjes has reported that 1860033237d4 ("mm: make
-> PR_SET_THP_DISABLE immediately active") has changed the way how
-> we report THPable VMAs to the userspace. Their monitoring tool is
-> triggering false alarms on PR_SET_THP_DISABLE tasks because it considers
-> an insufficient THP usage as a memory fragmentation resp. memory
-> pressure issue.
-> 
-> Before the said commit each newly created VMA inherited VM_NOHUGEPAGE
-> flag and that got exposed to the userspace via /proc/<pid>/smaps file.
-> This implementation had its downsides as explained in the commit message
-> but it is true that the userspace doesn't have any means to query for
-> the process wide THP enabled/disabled status.
-> 
-> PR_SET_THP_DISABLE is a process wide flag so it makes a lot of sense
-> to export in the process wide context rather than per-vma. Introduce
-> a new field to /proc/<pid>/status which export this status.  If
-> PR_SET_THP_DISABLE is used then it reports false same as when the THP is
-> not compiled in. It doesn't consider the global THP status because we
-> already export that information via sysfs
-> 
-> Fixes: 1860033237d4 ("mm: make PR_SET_THP_DISABLE immediately active")
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  Documentation/filesystems/proc.txt |  3 +++
->  fs/proc/array.c                    | 10 ++++++++++
->  2 files changed, 13 insertions(+)
-> 
-> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-> index 06562bab509a..7995e9322889 100644
-> --- a/Documentation/filesystems/proc.txt
-> +++ b/Documentation/filesystems/proc.txt
-> @@ -182,6 +182,7 @@ For example, to get the status information of a process, all you have to do is
->    VmSwap:        0 kB
->    HugetlbPages:          0 kB
->    CoreDumping:    0
-> +  THP_enabled:	  1
->    Threads:        1
->    SigQ:   0/28578
->    SigPnd: 0000000000000000
-> @@ -256,6 +257,8 @@ Table 1-2: Contents of the status files (as of 4.8)
->   HugetlbPages                size of hugetlb memory portions
->   CoreDumping                 process's memory is currently being dumped
->                               (killing the process may lead to a corrupted core)
-> + THP_enabled		     process is allowed to use THP (returns 0 when
-> +			     PR_SET_THP_DISABLE is set on the process
->   Threads                     number of threads
->   SigQ                        number of signals queued/max. number for queue
->   SigPnd                      bitmap of pending signals for the thread
-> diff --git a/fs/proc/array.c b/fs/proc/array.c
-> index 0ceb3b6b37e7..9d428d5a0ac8 100644
-> --- a/fs/proc/array.c
-> +++ b/fs/proc/array.c
-> @@ -392,6 +392,15 @@ static inline void task_core_dumping(struct seq_file *m, struct mm_struct *mm)
->  	seq_putc(m, '\n');
->  }
->  
-> +static inline void task_thp_status(struct seq_file *m, struct mm_struct *mm)
-> +{
-> +	bool thp_enabled = IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE);
-> +
-> +	if (thp_enabled)
-> +		thp_enabled = !test_bit(MMF_DISABLE_THP, &mm->flags);
-> +	seq_printf(m, "THP_enabled:\t%d\n", thp_enabled);
-> +}
-> +
->  int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
->  			struct pid *pid, struct task_struct *task)
->  {
-> @@ -406,6 +415,7 @@ int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
->  	if (mm) {
->  		task_mem(m, mm);
->  		task_core_dumping(m, mm);
-> +		task_thp_status(m, mm);
->  		mmput(mm);
->  	}
->  	task_sig(m, task);
-> -- 
-> 2.19.1
 
--- 
-Michal Hocko
-SUSE Labs
+On 11/20/18 4:57 PM, Kirill A. Shutemov wrote:
+> On Fri, Nov 16, 2018 at 08:56:04AM -0800, Yang Shi wrote:
+>>> a8dda165ec  vfree: add debug might_sleep()
+>>> dd2283f260  mm: mmap: zap pages with read mmap_sem in munmap
+>>> 5929a1f0ff  Merge tag 'riscv-for-linus-4.20-rc2' of git://git.kernel.org/pub/scm/linux/kernel/git/palmer/riscv-linux
+>>> 0bc80e3cb0  Add linux-next specific files for 20181114
+>>> +-----------------------------------------------------+------------+------------+------------+---------------+
+>>> |                                                     | a8dda165ec | dd2283f260 | 5929a1f0ff | next-20181114 |
+>>> +-----------------------------------------------------+------------+------------+------------+---------------+
+>>> | boot_successes                                      | 314        | 178        | 190        | 168           |
+>>> | boot_failures                                       | 393        | 27         | 21         | 40            |
+>>> | WARNING:held_lock_freed                             | 383        | 23         | 17         | 39            |
+>>> | is_freeing_memory#-#,with_a_lock_still_held_there   | 383        | 23         | 17         | 39            |
+>>> | BUG:unable_to_handle_kernel                         | 5          | 2          | 4          | 1             |
+>>> | Oops:#[##]                                          | 9          | 3          | 4          | 1             |
+>>> | EIP:debug_check_no_locks_freed                      | 9          | 3          | 4          | 1             |
+>>> | Kernel_panic-not_syncing:Fatal_exception            | 9          | 3          | 4          | 1             |
+>>> | Mem-Info                                            | 4          | 1          |            |               |
+>>> | invoked_oom-killer:gfp_mask=0x                      | 1          | 1          |            |               |
+>>> | WARNING:at_kernel/locking/lockdep.c:#lock_downgrade | 0          | 6          | 4          | 7             |
+>>> | EIP:lock_downgrade                                  | 0          | 6          | 4          | 7             |
+>>> +-----------------------------------------------------+------------+------------+------------+---------------+
+>>>
+>>> [   96.288009] random: get_random_u32 called from arch_rnd+0x3c/0x70 with crng_init=0
+>>> [   96.359626] input_id (331) used greatest stack depth: 6360 bytes left
+>>> [   96.749228] grep (358) used greatest stack depth: 6336 bytes left
+>>> [   96.921470] network.sh (341) used greatest stack depth: 6212 bytes left
+>>> [   97.262340]
+>>> [   97.262587] =========================
+>>> [   97.263072] WARNING: held lock freed!
+>>> [   97.263536] 4.19.0-06969-gdd2283f #1 Not tainted
+>>> [   97.264110] -------------------------
+>>> [   97.264575] udevd/198 is freeing memory 9c16c930-9c16c99b, with a lock still held there!
+>>> [   97.265542] (ptrval) (&anon_vma->rwsem){....}, at: unlink_anon_vmas+0x14e/0x420
+>>> [   97.266450] 1 lock held by udevd/198:
+>>> [   97.266924]  #0: (ptrval) (&mm->mmap_sem){....}, at: __do_munmap+0x531/0x730
+>> I have not figured out what this is caused by. But, the below warning looks
+>> more confusing. This might be caused by the below one.
+> I *think* we need to understand more about what detached VMAs mean for
+> rmap. The anon_vma for these VMAs still reachable for the rmap and
+> therefore VMA too. I don't quite grasp what is implications of this, but
+> it doesn't look good.
+
+I'm supposed before accessing anon_vma, VMA need to be found by 
+find_vma() first, right? But, finding VMA need hold mmap_sem, once 
+detach VMAs is called, others should not be able to find the VMAs 
+anymore. So, the anon_vma should not be reachable except the munmap caller.
+
+>
+> I'll look into this more when I get some free cycles.
+
+I'm still traveling, will definitely look into it further once I'm back.
+
+Thanks,
+Yang
+
+>
+> It's better to disable the optimization for now (by ignoring 'downgrade'
+> in __do_munmap()). Before it hits release.
+>
