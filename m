@@ -1,40 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6588E6B20D0
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 11:16:54 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id y85so4271602wmc.7
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 08:16:54 -0800 (PST)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id d64si15517884wmc.146.2018.11.20.08.16.52
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C66486B20DB
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 11:25:33 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id w7-v6so1841591plp.9
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 08:25:33 -0800 (PST)
+Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
+        by mx.google.com with ESMTPS id m7si43393385pgi.547.2018.11.20.08.25.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Nov 2018 08:16:52 -0800 (PST)
-Date: Tue, 20 Nov 2018 17:16:51 +0100
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH V10 09/19] block: introduce bio_bvecs()
-Message-ID: <20181120161651.GB2629@lst.de>
-References: <20181115085306.9910-1-ming.lei@redhat.com> <20181115085306.9910-10-ming.lei@redhat.com> <20181116134541.GH3165@lst.de> <002fe56b-25e4-573e-c09b-bb12c3e8d25a@grimberg.me>
+        Tue, 20 Nov 2018 08:25:32 -0800 (PST)
+Date: Tue, 20 Nov 2018 09:25:30 -0700
+From: Jonathan Corbet <corbet@lwn.net>
+Subject: Re: [PATCH] docs/mm: update kmalloc kernel-doc description
+Message-ID: <20181120092530.5620a924@lwn.net>
+In-Reply-To: <1541954924-21471-1-git-send-email-rppt@linux.ibm.com>
+References: <1541954924-21471-1-git-send-email-rppt@linux.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <002fe56b-25e4-573e-c09b-bb12c3e8d25a@grimberg.me>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sagi Grimberg <sagi@grimberg.me>
-Cc: Christoph Hellwig <hch@lst.de>, Ming Lei <ming.lei@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Randy Dunlap <rdunlap@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Nov 19, 2018 at 04:49:27PM -0800, Sagi Grimberg wrote:
->
->> The only user in your final tree seems to be the loop driver, and
->> even that one only uses the helper for read/write bios.
->>
->> I think something like this would be much simpler in the end:
->
-> The recently submitted nvme-tcp host driver should also be a user
-> of this. Does it make sense to keep it as a helper then?
+On Sun, 11 Nov 2018 18:48:44 +0200
+Mike Rapoport <rppt@linux.ibm.com> wrote:
 
-I did take a brief look at the code, and I really don't understand
-why the heck it even deals with bios to start with.  Like all the
-other nvme transports it is a blk-mq driver and should iterate
-over segments in a request and more or less ignore bios.  Something
-is horribly wrong in the design.
+> Add references to GFP documentation and the memory-allocation.rst and remove
+> GFP_USER, GFP_DMA and GFP_NOIO descriptions.
+> 
+> While on it slightly change the formatting so that the list of GFP flags
+> will be rendered as "description" in the generated html.
+> 
+> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+> ---
+> 
+> Probably this should go via the -mm tree as it touches include/linux/slab.h
+
+A week and some later it's not there - Andrew is even slower than me, it
+seems! :)  So I went ahead and applied it, fixing the conflict over the
+addition of the memory_allocation label while I was at it.
+
+Thanks,
+
+jon
