@@ -1,79 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 874F46B1ECF
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 02:31:45 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id w2so291499edc.13
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 23:31:45 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f27-v6si7195239ejh.100.2018.11.19.23.31.43
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 962CA6B1EDD
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 02:43:03 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id v11so827905ply.4
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 23:43:03 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 11si40843484pgy.408.2018.11.19.23.43.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 23:31:43 -0800 (PST)
-Date: Tue, 20 Nov 2018 08:31:41 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm, hotplug: protect nr_zones with pgdat_resize_lock()
-Message-ID: <20181120073141.GY22247@dhcp22.suse.cz>
-References: <20181120014822.27968-1-richard.weiyang@gmail.com>
+        Mon, 19 Nov 2018 23:43:02 -0800 (PST)
+Date: Tue, 20 Nov 2018 08:42:59 +0100
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: request for 4.14-stable: fd5f7cde1b85 ("printk: Never set
+ console_may_schedule in console_trylock()")
+Message-ID: <20181120074259.GA15276@kroah.com>
+References: <20181111202045.vocb3dthuquf7h2y@debian>
+ <20181119151807.GE5340@kroah.com>
+ <20181120022315.GA4231@jagdpanzerIV>
+ <20181120022841.GB4231@jagdpanzerIV>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181120014822.27968-1-richard.weiyang@gmail.com>
+In-Reply-To: <20181120022841.GB4231@jagdpanzerIV>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: osalvador@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Sudip Mukherjee <sudipm.mukherjee@gmail.com>, stable@vger.kernel.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, Steven Rostedt <rostedt@goodmis.org>, Petr Mladek <pmladek@suse.com>
 
-On Tue 20-11-18 09:48:22, Wei Yang wrote:
-> After memory hot-added, users could online pages through sysfs, and this
-> could be done in parallel.
+On Tue, Nov 20, 2018 at 11:28:41AM +0900, Sergey Senozhatsky wrote:
+> On (11/20/18 11:23), Sergey Senozhatsky wrote:
+> > On (11/19/18 16:18), Greg Kroah-Hartman wrote:
+> > > On Sun, Nov 11, 2018 at 08:20:45PM +0000, Sudip Mukherjee wrote:
+> > > > Hi Greg,
+> > > > 
+> > > > This was not marked for stable but seems it should be in stable.
+> > > > Please apply to your queue of 4.14-stable.
+> > > 
+> > > Now queued up, thanks.
+> > 
+> > Very sorry for the late reply!
+> > 
+> > Greg, Sudip, the commit in question is known to be controversial
 > 
-> In case two threads online pages in two different empty zones at the
-> same time, there would be a contention to update the nr_zones.
-
-No, this shouldn't be the case as I've explained in the original thread.
-We use memory hotplug lock over the online phase. So there shouldn't be
-any race possible.
-
-On the other hand I would like to see the global lock to go away because
-it causes scalability issues and I would like to change it to a range
-lock. This would make this race possible.
-
-That being said this is more of a preparatory work than a fix. One could
-argue that pgdat resize lock is abused here but I am not convinced a
-dedicated lock is much better. We do take this lock already and spanning
-its scope seems reasonable. An update to the documentation is due.
-
-> The patch use pgdat_resize_lock() to protect this critical section.
+> Yikes!! PLEASE *IGNORE MY PREVIOUS EMAIL*!
 > 
-> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-
-After the changelog is updated to reflect the above, feel free to add
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/page_alloc.c | 3 +++
->  1 file changed, 3 insertions(+)
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index e13987c2e1c4..525a5344a13b 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5796,9 +5796,12 @@ void __meminit init_currently_empty_zone(struct zone *zone,
->  {
->  	struct pglist_data *pgdat = zone->zone_pgdat;
->  	int zone_idx = zone_idx(zone) + 1;
-> +	unsigned long flags;
->  
-> +	pgdat_resize_lock(pgdat, &flags);
->  	if (zone_idx > pgdat->nr_zones)
->  		pgdat->nr_zones = zone_idx;
-> +	pgdat_resize_unlock(pgdat, &flags);
->  
->  	zone->zone_start_pfn = zone_start_pfn;
->  
-> -- 
-> 2.15.1
+> This is a *totally stupid* situation. I, somehow, got completely confused
+> and looked at the wrong commit ID.
+> 
+> Really sorry!
 
--- 
-Michal Hocko
-SUSE Labs
+No worries, email is now ignored :)
+
+greg k-h
