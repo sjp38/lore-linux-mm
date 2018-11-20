@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F8886B1FCC
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 08:43:38 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id x15so1307403edd.2
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 05:43:38 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 56A996B203E
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 08:43:39 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id w15so1282167edl.21
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 05:43:39 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k6sor21397135edx.21.2018.11.20.05.43.36
+        by mx.google.com with SMTPS id p16-v6sor21836215eds.29.2018.11.20.05.43.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 20 Nov 2018 05:43:36 -0800 (PST)
+        Tue, 20 Nov 2018 05:43:37 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH 1/3] mm, memory_hotplug: try to migrate full section worth of pages
-Date: Tue, 20 Nov 2018 14:43:21 +0100
-Message-Id: <20181120134323.13007-2-mhocko@kernel.org>
+Subject: [RFC PATCH 2/3] mm, memory_hotplug: deobfuscate migration part of offlining
+Date: Tue, 20 Nov 2018 14:43:22 +0100
+Message-Id: <20181120134323.13007-3-mhocko@kernel.org>
 In-Reply-To: <20181120134323.13007-1-mhocko@kernel.org>
 References: <20181120134323.13007-1-mhocko@kernel.org>
 MIME-Version: 1.0
@@ -24,70 +24,97 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Oscar Salvador <OSalvador@suse.co
 
 From: Michal Hocko <mhocko@suse.com>
 
-do_migrate_range has been limiting the number of pages to migrate to 256
-for some reason which is not documented. Even if the limit made some
-sense back then when it was introduced it doesn't really serve a good
-purpose these days. If the range contains huge pages then
-we break out of the loop too early and go through LRU and pcp
-caches draining and scan_movable_pages is quite suboptimal.
+Memory migration might fail during offlining and we keep retrying in
+that case. This is currently obfuscate by goto retry loop. The code
+is hard to follow and as a result it is even suboptimal becase each
+retry round scans the full range from start_pfn even though we have
+successfully scanned/migrated [start_pfn, pfn] range already. This
+is all only because check_pages_isolated failure has to rescan the full
+range again.
 
-The only reason to limit the number of pages I can think of is to reduce
-the potential time to react on the fatal signal. But even then the
-number of pages is a questionable metric because even a single page
-might migration block in a non-killable state (e.g. __unmap_and_move).
-
-Remove the limit and offline the full requested range (this is one
-membblock worth of pages with the current code). Should we ever get a
-report that offlining takes too long to react on fatal signal then we
-should rather fix the core migration to use killable waits and bailout
-on a signal.
+De-obfuscate the migration retry loop by promoting it to a real for
+loop. In fact remove the goto altogether by making it a proper double
+loop (yeah, gotos are nasty in this specific case). In the end we
+will get a slightly more optimal code which is better readable.
 
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/memory_hotplug.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ mm/memory_hotplug.c | 60 +++++++++++++++++++++++----------------------
+ 1 file changed, 31 insertions(+), 29 deletions(-)
 
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index c82193db4be6..6263c8cd4491 100644
+index 6263c8cd4491..9cd161db3061 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -1339,18 +1339,16 @@ static struct page *new_node_page(struct page *page, unsigned long private)
- 	return new_page_nodemask(page, nid, &nmask);
- }
+@@ -1591,38 +1591,40 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 		goto failed_removal_isolated;
+ 	}
  
--#define NR_OFFLINE_AT_ONCE_PAGES	(256)
- static int
- do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- {
- 	unsigned long pfn;
- 	struct page *page;
--	int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
- 	int not_managed = 0;
- 	int ret = 0;
- 	LIST_HEAD(source);
+-	pfn = start_pfn;
+-repeat:
+-	/* start memory hot removal */
+-	ret = -EINTR;
+-	if (signal_pending(current)) {
+-		reason = "signal backoff";
+-		goto failed_removal_isolated;
+-	}
++	do {
++		for (pfn = start_pfn; pfn;)
++		{
++			/* start memory hot removal */
++			ret = -EINTR;
++			if (signal_pending(current)) {
++				reason = "signal backoff";
++				goto failed_removal_isolated;
++			}
  
--	for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
-+	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
- 		if (!pfn_valid(pfn))
- 			continue;
- 		page = pfn_to_page(pfn);
-@@ -1362,8 +1360,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 				ret = -EBUSY;
- 				break;
- 			}
--			if (isolate_huge_page(page, &source))
--				move_pages -= 1 << compound_order(head);
-+			isolate_huge_page(page, &source);
- 			continue;
- 		} else if (PageTransHuge(page))
- 			pfn = page_to_pfn(compound_head(page))
-@@ -1382,7 +1379,6 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 		if (!ret) { /* Success */
- 			put_page(page);
- 			list_add_tail(&page->lru, &source);
--			move_pages--;
- 			if (!__PageMovable(page))
- 				inc_node_page_state(page, NR_ISOLATED_ANON +
- 						    page_is_file_cache(page));
+-	cond_resched();
+-	lru_add_drain_all();
+-	drain_all_pages(zone);
++			cond_resched();
++			lru_add_drain_all();
++			drain_all_pages(zone);
+ 
+-	pfn = scan_movable_pages(start_pfn, end_pfn);
+-	if (pfn) { /* We have movable pages */
+-		ret = do_migrate_range(pfn, end_pfn);
+-		goto repeat;
+-	}
++			pfn = scan_movable_pages(pfn, end_pfn);
++			if (pfn) {
++				/* TODO fatal migration failures should bail out */
++				do_migrate_range(pfn, end_pfn);
++			}
++		}
++
++		/*
++		 * dissolve free hugepages in the memory block before doing offlining
++		 * actually in order to make hugetlbfs's object counting consistent.
++		 */
++		ret = dissolve_free_huge_pages(start_pfn, end_pfn);
++		if (ret) {
++			reason = "failure to dissolve huge pages";
++			goto failed_removal_isolated;
++		}
++		/* check again */
++		offlined_pages = check_pages_isolated(start_pfn, end_pfn);
++	} while (offlined_pages < 0);
+ 
+-	/*
+-	 * dissolve free hugepages in the memory block before doing offlining
+-	 * actually in order to make hugetlbfs's object counting consistent.
+-	 */
+-	ret = dissolve_free_huge_pages(start_pfn, end_pfn);
+-	if (ret) {
+-		reason = "failure to dissolve huge pages";
+-		goto failed_removal_isolated;
+-	}
+-	/* check again */
+-	offlined_pages = check_pages_isolated(start_pfn, end_pfn);
+-	if (offlined_pages < 0)
+-		goto repeat;
+ 	pr_info("Offlined Pages %ld\n", offlined_pages);
+ 	/* Ok, all of our target is isolated.
+ 	   We cannot do rollback at this point. */
 -- 
 2.19.1
