@@ -1,51 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id ECAC36B1DC1
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 21:45:10 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id 68so442541pfr.6
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 18:45:10 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id k27-v6si45894923pfb.216.2018.11.19.18.45.09
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F19566B1DE8
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 22:22:45 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id b7so558025eda.10
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 19:22:45 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l37sor18090746edb.2.2018.11.19.19.22.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 18:45:09 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH V10 15/19] block: always define BIO_MAX_PAGES as 256
-References: <20181115085306.9910-1-ming.lei@redhat.com>
-	<20181115085306.9910-16-ming.lei@redhat.com>
-	<20181116015936.GJ23828@vader> <20181119090415.GM16736@ming.t460p>
-Date: Tue, 20 Nov 2018 10:45:03 +0800
-In-Reply-To: <20181119090415.GM16736@ming.t460p> (Ming Lei's message of "Mon,
-	19 Nov 2018 17:04:16 +0800")
-Message-ID: <87o9ak8o28.fsf@yhuang-dev.intel.com>
+        (Google Transport Security);
+        Mon, 19 Nov 2018 19:22:44 -0800 (PST)
+Date: Tue, 20 Nov 2018 03:22:42 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH] mm, page_alloc: fix calculation of pgdat->nr_zones
+Message-ID: <20181120032242.joduflm2tndr6imq@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181117022022.9956-1-richard.weiyang@gmail.com>
+ <fc661a9c-3cde-8e43-a05d-f26817ba6e8e@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <fc661a9c-3cde-8e43-a05d-f26817ba6e8e@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@redhat.com>
-Cc: Omar Sandoval <osandov@osandov.com>, Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, mhocko@suse.com, dave.hansen@intel.com, linux-mm@kvack.org
 
-Ming Lei <ming.lei@redhat.com> writes:
-
-> On Thu, Nov 15, 2018 at 05:59:36PM -0800, Omar Sandoval wrote:
->> On Thu, Nov 15, 2018 at 04:53:02PM +0800, Ming Lei wrote:
->> > Now multi-page bvec can cover CONFIG_THP_SWAP, so we don't need to
->> > increase BIO_MAX_PAGES for it.
->> 
->> You mentioned to it in the cover letter, but this needs more explanation
->> in the commit message. Why did CONFIG_THP_SWAP require > 256? Why does
->> multipage bvecs remove that requirement?
+On Mon, Nov 19, 2018 at 12:08:54PM +0530, Anshuman Khandual wrote:
 >
-> CONFIG_THP_SWAP needs to split one TH page into normal pages and adds
-> them all to one bio. With multipage-bvec, it just takes one bvec to
-> hold them all.
+>
+>On 11/17/2018 07:50 AM, Wei Yang wrote:
+>> Function init_currently_empty_zone() will adjust pgdat->nr_zones and set
+>> it to 'zone_idx(zone) + 1' unconditionally. This is correct in the
+>> normal case, while not exact in hot-plug situation.
+>> 
+>> This function is used in two places:
+>> 
+>>   * free_area_init_core()
+>>   * move_pfn_range_to_zone()
+>> 
+>> In the first case, we are sure zone index increase monotonically. While
+>> in the second one, this is under users control.
+>
+>So pgdat->nr_zones over counts the number of zones than what node has
+>really got ? Does it affect all online options (online/online_kernel
 
-Yes.  CONFIG_THP_SWAP needs to put 512 normal sub-pages into one bio to
-write the 512 sub-pages together.  With the help of multipage-bvec, it
-needs just bvect to hold 512 normal sub-pages.
+Yes, nr_zones is not the literal meaning.
 
-Best Regards,
-Huang, Ying
+>/online_movable) if there are other higher index zones present on the
+>node. 
+>
 
-> thanks,
-> Ming
+The sequence matters, while usually we online page to ZONE_NORMAL, if I
+am correct.
+
+I may not get your question clearly.
+
+>> 
+>> One way to reproduce this is:
+>> ----------------------------
+>> 
+>> 1. create a virtual machine with empty node1
+>> 
+>>    -m 4G,slots=32,maxmem=32G \
+>>    -smp 4,maxcpus=8          \
+>>    -numa node,nodeid=0,mem=4G,cpus=0-3 \
+>>    -numa node,nodeid=1,mem=0G,cpus=4-7
+>> 
+>> 2. hot-add cpu 3-7
+>> 
+>>    cpu-add [3-7]
+>> 
+>> 2. hot-add memory to nod1
+>> 
+>>    object_add memory-backend-ram,id=ram0,size=1G
+>>    device_add pc-dimm,id=dimm0,memdev=ram0,node=1
+>> 
+>> 3. online memory with following order
+>> 
+>>    echo online_movable > memory47/state
+>>    echo online > memory40/state
+>> 
+>> After this, node1 will have its nr_zones equals to (ZONE_NORMAL + 1)
+>> instead of (ZONE_MOVABLE + 1).
+>
+>Which prevents an over count I guess. Just wondering if you noticed this
+>causing any real problem or some other side effects.
+>
+
+Not from my side.
+
+I think Michal's rely may answer your question.
+
+>> 
+>> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+>> ---
+>>  mm/page_alloc.c | 4 +++-
+>>  1 file changed, 3 insertions(+), 1 deletion(-)
+>> 
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 5b7cd20dbaef..2d3c54201255 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -5823,8 +5823,10 @@ void __meminit init_currently_empty_zone(struct zone *zone,
+>>  					unsigned long size)
+>>  {
+>>  	struct pglist_data *pgdat = zone->zone_pgdat;
+>> +	int zone_idx = zone_idx(zone) + 1;
+>>  
+>> -	pgdat->nr_zones = zone_idx(zone) + 1;
+>> +	if (zone_idx > pgdat->nr_zones)
+>> +		pgdat->nr_zones = zone_idx;
+>
+>This seems to be correct if we try to init a zone (due to memory hotplug)
+>in between index 0 and pgdat->nr_zones on an already populated node.
+
+Yes, you are right.
+
+-- 
+Wei Yang
+Help you, Help me
