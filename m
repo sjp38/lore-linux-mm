@@ -1,45 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B9D9B6B21B8
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 15:41:58 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id m13so3346805pls.15
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 12:41:58 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id 19si41239578pgp.186.2018.11.20.12.41.57
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C7ACF6B21E3
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 15:47:13 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id d23so3320836plj.22
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 12:47:13 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z83sor2977741pfd.11.2018.11.20.12.47.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Nov 2018 12:41:57 -0800 (PST)
-Message-ID: <16a0261fbe4b31e2f42b552d6a991a1116d398c2.camel@intel.com>
-Subject: Re: [RFC PATCH v6 01/26] Documentation/x86: Add CET description
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Date: Tue, 20 Nov 2018 12:36:38 -0800
-In-Reply-To: <20181120095253.GA119911@gmail.com>
-References: <20181119214809.6086-1-yu-cheng.yu@intel.com>
-	 <20181119214809.6086-2-yu-cheng.yu@intel.com>
-	 <20181120095253.GA119911@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Tue, 20 Nov 2018 12:47:12 -0800 (PST)
+Date: Tue, 20 Nov 2018 12:47:10 -0800
+From: Joel Fernandes <joel@joelfernandes.org>
+Subject: Re: [PATCH -next 1/2] mm/memfd: make F_SEAL_FUTURE_WRITE seal more
+ robust
+Message-ID: <20181120204710.GB22801@google.com>
+References: <20181120052137.74317-1-joel@joelfernandes.org>
+ <CALCETrXgBENat=5=7EuU-ttQ-YSXT+ifjLGc=hpJ=unRgSsndw@mail.gmail.com>
+ <20181120183926.GA124387@google.com>
+ <20181121070658.011d576d@canb.auug.org.au>
+ <469B80CB-D982-4802-A81D-95AC493D7E87@amacapital.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <469B80CB-D982-4802-A81D-95AC493D7E87@amacapital.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V.
- Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Jann Horn <jannh@google.com>, Khalid Aziz <khalid.aziz@oracle.com>, Linux API <linux-api@vger.kernel.org>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, marcandre.lureau@redhat.com, Matthew Wilcox <willy@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>, Shuah Khan <shuah@kernel.org>
 
-On Tue, 2018-11-20 at 10:52 +0100, Ingo Molnar wrote:
-> * Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
+On Tue, Nov 20, 2018 at 01:33:18PM -0700, Andy Lutomirski wrote:
 > 
-> > +X86 Documentation
-> > [...]
-> > +
-> > +At run time, /proc/cpuinfo shows the availability of SHSTK and IBT.
+> > On Nov 20, 2018, at 1:07 PM, Stephen Rothwell <sfr@canb.auug.org.au> wrote:
+> > 
+> > Hi Joel,
+> > 
+> >> On Tue, 20 Nov 2018 10:39:26 -0800 Joel Fernandes <joel@joelfernandes.org> wrote:
+> >> 
+> >>> On Tue, Nov 20, 2018 at 07:13:17AM -0800, Andy Lutomirski wrote:
+> >>> On Mon, Nov 19, 2018 at 9:21 PM Joel Fernandes (Google)
+> >>> <joel@joelfernandes.org> wrote:  
+> >>>> 
+> >>>> A better way to do F_SEAL_FUTURE_WRITE seal was discussed [1] last week
+> >>>> where we don't need to modify core VFS structures to get the same
+> >>>> behavior of the seal. This solves several side-effects pointed out by
+> >>>> Andy [2].
+> >>>> 
+> >>>> [1] https://lore.kernel.org/lkml/20181111173650.GA256781@google.com/
+> >>>> [2] https://lore.kernel.org/lkml/69CE06CC-E47C-4992-848A-66EB23EE6C74@amacapital.net/
+> >>>> 
+> >>>> Suggested-by: Andy Lutomirski <luto@kernel.org>
+> >>>> Fixes: 5e653c2923fd ("mm: Add an F_SEAL_FUTURE_WRITE seal to memfd")  
+> >>> 
+> >>> What tree is that commit in?  Can we not just fold this in?  
+> >> 
+> >> It is in linux-next. Could we keep both commits so we have the history?
+> > 
+> > Well, its in Andrew's mmotm, so its up to him.
+> > 
+> > 
 > 
-> What is the rough expected performance impact of CET on average function 
-> call frequency user applications and the kernel itself?
+> Unless mmotm is more magical than I think, the commit hash in your fixed
+> tag is already nonsense. mmotm gets rebased all the time, and is only
+> barely a git tree.
 
-I don't have any conclusive numbers yet; but since currently only user-mode
-protection is implemented, I suspect any impact would be most likely to the
-application.  The kernel would spend some small amount of time on the setup of
-CET.
+I wouldn't go so far to call it nonsense. It was a working patch, it just did
+things differently. Your help with improving the patch is much appreciated.
 
-Yu-cheng
+I am Ok with whatever Andrew wants to do, if it is better to squash it with
+the original, then I can do that and send another patch.
+
+- Joel
