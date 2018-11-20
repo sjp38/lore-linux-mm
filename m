@@ -1,133 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 41AC76B1E55
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 00:21:59 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id i19-v6so690710pfi.21
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 21:21:59 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 49AB46B1E56
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 00:22:00 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id e68so545851plb.3
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 21:22:00 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n13sor19641080pfj.12.2018.11.19.21.21.57
+        by mx.google.com with SMTPS id h4-v6sor49092142plk.55.2018.11.19.21.21.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 19 Nov 2018 21:21:57 -0800 (PST)
+        Mon, 19 Nov 2018 21:21:58 -0800 (PST)
 From: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-Subject: [PATCH -next 1/2] mm/memfd: make F_SEAL_FUTURE_WRITE seal more robust
-Date: Mon, 19 Nov 2018 21:21:36 -0800
-Message-Id: <20181120052137.74317-1-joel@joelfernandes.org>
+Subject: [PATCH -next 2/2] selftests/memfd: modify tests for F_SEAL_FUTURE_WRITE seal
+Date: Mon, 19 Nov 2018 21:21:37 -0800
+Message-Id: <20181120052137.74317-2-joel@joelfernandes.org>
+In-Reply-To: <20181120052137.74317-1-joel@joelfernandes.org>
+References: <20181120052137.74317-1-joel@joelfernandes.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: "Joel Fernandes (Google)" <joel@joelfernandes.org>, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Jann Horn <jannh@google.com>, Khalid Aziz <khalid.aziz@oracle.com>, linux-api@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-mm@kvack.org, =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>, Matthew Wilcox <willy@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>, Shuah Khan <shuah@kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: "Joel Fernandes (Google)" <joel@joelfernandes.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Hugh Dickins <hughd@google.com>, Khalid Aziz <khalid.aziz@oracle.com>, linux-api@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-mm@kvack.org, =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>, Matthew Wilcox <willy@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>, Shuah Khan <shuah@kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-A better way to do F_SEAL_FUTURE_WRITE seal was discussed [1] last week
-where we don't need to modify core VFS structures to get the same
-behavior of the seal. This solves several side-effects pointed out by
-Andy [2].
+Modify the tests for F_SEAL_FUTURE_WRITE based on the changes
+introduced in previous patch.
 
-[1] https://lore.kernel.org/lkml/20181111173650.GA256781@google.com/
-[2] https://lore.kernel.org/lkml/69CE06CC-E47C-4992-848A-66EB23EE6C74@amacapital.net/
+Also add a test to make sure the reopen issue pointed by Jann Horn [1]
+is fixed.
 
-Suggested-by: Andy Lutomirski <luto@kernel.org>
-Fixes: 5e653c2923fd ("mm: Add an F_SEAL_FUTURE_WRITE seal to memfd")
+[1] https://lore.kernel.org/lkml/CAG48ez1h=v-JYnDw81HaYJzOfrNhwYksxmc2r=cJvdQVgYM+NA@mail.gmail.com/
+
+Cc: Jann Horn <jannh@google.com>
 Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
 ---
- fs/hugetlbfs/inode.c |  2 +-
- mm/memfd.c           | 19 -------------------
- mm/shmem.c           | 24 +++++++++++++++++++++---
- 3 files changed, 22 insertions(+), 23 deletions(-)
+ tools/testing/selftests/memfd/memfd_test.c | 88 +++++++++++-----------
+ 1 file changed, 44 insertions(+), 44 deletions(-)
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 762028994f47..5b54bf893a67 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -558,7 +558,7 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
- 		inode_lock(inode);
+diff --git a/tools/testing/selftests/memfd/memfd_test.c b/tools/testing/selftests/memfd/memfd_test.c
+index 32b207ca7372..c67d32eeb668 100644
+--- a/tools/testing/selftests/memfd/memfd_test.c
++++ b/tools/testing/selftests/memfd/memfd_test.c
+@@ -54,6 +54,22 @@ static int mfd_assert_new(const char *name, loff_t sz, unsigned int flags)
+ 	return fd;
+ }
  
- 		/* protected by i_mutex */
--		if (info->seals & F_SEAL_WRITE) {
-+		if (info->seals & (F_SEAL_WRITE | F_SEAL_FUTURE_WRITE)) {
- 			inode_unlock(inode);
- 			return -EPERM;
- 		}
-diff --git a/mm/memfd.c b/mm/memfd.c
-index 63fff5e77114..650e65a46b9c 100644
---- a/mm/memfd.c
-+++ b/mm/memfd.c
-@@ -201,25 +201,6 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
- 		}
- 	}
- 
--	if ((seals & F_SEAL_FUTURE_WRITE) &&
--	    !(*file_seals & F_SEAL_FUTURE_WRITE)) {
--		/*
--		 * The FUTURE_WRITE seal also prevents growing and shrinking
--		 * so we need them to be already set, or requested now.
--		 */
--		int test_seals = (seals | *file_seals) &
--				 (F_SEAL_GROW | F_SEAL_SHRINK);
--
--		if (test_seals != (F_SEAL_GROW | F_SEAL_SHRINK)) {
--			error = -EINVAL;
--			goto unlock;
--		}
--
--		spin_lock(&file->f_lock);
--		file->f_mode &= ~(FMODE_WRITE | FMODE_PWRITE);
--		spin_unlock(&file->f_lock);
--	}
--
- 	*file_seals |= seals;
- 	error = 0;
- 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 32eb29bd72c6..cee9878c87f1 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -2121,6 +2121,23 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
- 
- static int shmem_mmap(struct file *file, struct vm_area_struct *vma)
++static int mfd_assert_reopen_fd(int fd_in)
++{
++	int r, fd;
++	char path[100];
++
++	sprintf(path, "/proc/self/fd/%d", fd_in);
++
++	fd = open(path, O_RDWR);
++	if (fd < 0) {
++		printf("re-open of existing fd %d failed\n", fd_in);
++		abort();
++	}
++
++	return fd;
++}
++
+ static void mfd_fail_new(const char *name, unsigned int flags)
  {
-+	struct shmem_inode_info *info = SHMEM_I(file_inode(file));
-+
-+	/*
-+	 * New PROT_READ and MAP_SHARED mmaps are not allowed when "future
-+	 * write" seal active.
-+	 */
-+	if ((vma->vm_flags & VM_SHARED) && (vma->vm_flags & VM_WRITE) &&
-+	    (info->seals & F_SEAL_FUTURE_WRITE))
-+		return -EPERM;
-+
-+	/*
-+	 * Since the F_SEAL_FUTURE_WRITE seals allow for a MAP_SHARED read-only
-+	 * mapping, take care to not allow mprotect to revert protections.
-+	 */
-+	if (info->seals & F_SEAL_FUTURE_WRITE)
-+		vma->vm_flags &= ~(VM_MAYWRITE);
-+
- 	file_accessed(file);
- 	vma->vm_ops = &shmem_vm_ops;
- 	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE) &&
-@@ -2346,8 +2363,9 @@ shmem_write_begin(struct file *file, struct address_space *mapping,
- 	pgoff_t index = pos >> PAGE_SHIFT;
+ 	int r;
+@@ -255,6 +271,25 @@ static void mfd_assert_read(int fd)
+ 	munmap(p, mfd_def_size);
+ }
  
- 	/* i_mutex is held by caller */
--	if (unlikely(info->seals & (F_SEAL_WRITE | F_SEAL_GROW))) {
--		if (info->seals & F_SEAL_WRITE)
-+	if (unlikely(info->seals & (F_SEAL_GROW |
-+				   F_SEAL_WRITE | F_SEAL_FUTURE_WRITE))) {
-+		if (info->seals & (F_SEAL_WRITE | F_SEAL_FUTURE_WRITE))
- 			return -EPERM;
- 		if ((info->seals & F_SEAL_GROW) && pos + len > inode->i_size)
- 			return -EPERM;
-@@ -2610,7 +2628,7 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
- 		DECLARE_WAIT_QUEUE_HEAD_ONSTACK(shmem_falloc_waitq);
++/* Test that PROT_READ + MAP_SHARED mappings work. */
++static void mfd_assert_read_shared(int fd)
++{
++	void *p;
++
++	/* verify PROT_READ and MAP_SHARED *is* allowed */
++	p = mmap(NULL,
++		 mfd_def_size,
++		 PROT_READ,
++		 MAP_SHARED,
++		 fd,
++		 0);
++	if (p == MAP_FAILED) {
++		printf("mmap() failed: %m\n");
++		abort();
++	}
++	munmap(p, mfd_def_size);
++}
++
+ static void mfd_assert_write(int fd)
+ {
+ 	ssize_t l;
+@@ -698,7 +733,7 @@ static void test_seal_write(void)
+  */
+ static void test_seal_future_write(void)
+ {
+-	int fd;
++	int fd, fd2;
+ 	void *p;
  
- 		/* protected by i_mutex */
--		if (info->seals & F_SEAL_WRITE) {
-+		if (info->seals & (F_SEAL_WRITE | F_SEAL_FUTURE_WRITE)) {
- 			error = -EPERM;
- 			goto out;
- 		}
+ 	printf("%s SEAL-FUTURE-WRITE\n", memfd_str);
+@@ -710,58 +745,23 @@ static void test_seal_future_write(void)
+ 	p = mfd_assert_mmap_shared(fd);
+ 
+ 	mfd_assert_has_seals(fd, 0);
+-	/* Not adding grow/shrink seals makes the future write
+-	 * seal fail to get added
+-	 */
+-	mfd_fail_add_seals(fd, F_SEAL_FUTURE_WRITE);
+-
+-	mfd_assert_add_seals(fd, F_SEAL_GROW);
+-	mfd_assert_has_seals(fd, F_SEAL_GROW);
+-
+-	/* Should still fail since shrink seal has
+-	 * not yet been added
+-	 */
+-	mfd_fail_add_seals(fd, F_SEAL_FUTURE_WRITE);
+-
+-	mfd_assert_add_seals(fd, F_SEAL_SHRINK);
+-	mfd_assert_has_seals(fd, F_SEAL_GROW |
+-				 F_SEAL_SHRINK);
+ 
+-	/* Now should succeed, also verifies that the seal
+-	 * could be added with an existing writable mmap
+-	 */
+ 	mfd_assert_add_seals(fd, F_SEAL_FUTURE_WRITE);
+-	mfd_assert_has_seals(fd, F_SEAL_SHRINK |
+-				 F_SEAL_GROW |
+-				 F_SEAL_FUTURE_WRITE);
++	mfd_assert_has_seals(fd, F_SEAL_FUTURE_WRITE);
+ 
+ 	/* read should pass, writes should fail */
+ 	mfd_assert_read(fd);
++	mfd_assert_read_shared(fd);
+ 	mfd_fail_write(fd);
+ 
+-	munmap(p, mfd_def_size);
+-	close(fd);
+-
+-	/* Test adding all seals (grow, shrink, future write) at once */
+-	fd = mfd_assert_new("kern_memfd_seal_future_write2",
+-			    mfd_def_size,
+-			    MFD_CLOEXEC | MFD_ALLOW_SEALING);
+-
+-	p = mfd_assert_mmap_shared(fd);
+-
+-	mfd_assert_has_seals(fd, 0);
+-	mfd_assert_add_seals(fd, F_SEAL_SHRINK |
+-				 F_SEAL_GROW |
+-				 F_SEAL_FUTURE_WRITE);
+-	mfd_assert_has_seals(fd, F_SEAL_SHRINK |
+-				 F_SEAL_GROW |
+-				 F_SEAL_FUTURE_WRITE);
+-
+-	/* read should pass, writes should fail */
+-	mfd_assert_read(fd);
+-	mfd_fail_write(fd);
++	fd2 = mfd_assert_reopen_fd(fd);
++	/* read should pass, writes should still fail */
++	mfd_assert_read(fd2);
++	mfd_assert_read_shared(fd2);
++	mfd_fail_write(fd2);
+ 
+ 	munmap(p, mfd_def_size);
++	close(fd2);
+ 	close(fd);
+ }
+ 
 -- 
 2.19.1.1215.g8438c0b245-goog
