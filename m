@@ -1,121 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F19566B1DE8
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 22:22:45 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id b7so558025eda.10
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 19:22:45 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l37sor18090746edb.2.2018.11.19.19.22.44
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C5FBF6B1DF3
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 22:31:32 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id 190-v6so527340pfd.7
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 19:31:32 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id f21sor46540866pgm.40.2018.11.19.19.31.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 19 Nov 2018 19:22:44 -0800 (PST)
-Date: Tue, 20 Nov 2018 03:22:42 +0000
+        Mon, 19 Nov 2018 19:31:31 -0800 (PST)
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH] mm, page_alloc: fix calculation of pgdat->nr_zones
-Message-ID: <20181120032242.joduflm2tndr6imq@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20181117022022.9956-1-richard.weiyang@gmail.com>
- <fc661a9c-3cde-8e43-a05d-f26817ba6e8e@arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <fc661a9c-3cde-8e43-a05d-f26817ba6e8e@arm.com>
+Subject: [PATCH v2] mm/slub: improve performance by skipping checked node in get_any_partial()
+Date: Tue, 20 Nov 2018 11:31:19 +0800
+Message-Id: <20181120033119.30013-1-richard.weiyang@gmail.com>
+In-Reply-To: <20181108011204.9491-1-richard.weiyang@gmail.com>
+References: <20181108011204.9491-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, mhocko@suse.com, dave.hansen@intel.com, linux-mm@kvack.org
+To: cl@linux.com, penberg@kernel.org, mhocko@kernel.org, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-On Mon, Nov 19, 2018 at 12:08:54PM +0530, Anshuman Khandual wrote:
->
->
->On 11/17/2018 07:50 AM, Wei Yang wrote:
->> Function init_currently_empty_zone() will adjust pgdat->nr_zones and set
->> it to 'zone_idx(zone) + 1' unconditionally. This is correct in the
->> normal case, while not exact in hot-plug situation.
->> 
->> This function is used in two places:
->> 
->>   * free_area_init_core()
->>   * move_pfn_range_to_zone()
->> 
->> In the first case, we are sure zone index increase monotonically. While
->> in the second one, this is under users control.
->
->So pgdat->nr_zones over counts the number of zones than what node has
->really got ? Does it affect all online options (online/online_kernel
+1. Background
 
-Yes, nr_zones is not the literal meaning.
+  Current slub has three layers:
 
->/online_movable) if there are other higher index zones present on the
->node. 
->
+    * cpu_slab
+    * percpu_partial
+    * per node partial list
 
-The sequence matters, while usually we online page to ZONE_NORMAL, if I
-am correct.
+  Slub allocator tries to get an object from top to bottom. When it can't
+  get an object from the upper two layers, it will search the per node
+  partial list. The is done in get_partial().
 
-I may not get your question clearly.
+  The abstraction of get_partial() may looks like this:
 
->> 
->> One way to reproduce this is:
->> ----------------------------
->> 
->> 1. create a virtual machine with empty node1
->> 
->>    -m 4G,slots=32,maxmem=32G \
->>    -smp 4,maxcpus=8          \
->>    -numa node,nodeid=0,mem=4G,cpus=0-3 \
->>    -numa node,nodeid=1,mem=0G,cpus=4-7
->> 
->> 2. hot-add cpu 3-7
->> 
->>    cpu-add [3-7]
->> 
->> 2. hot-add memory to nod1
->> 
->>    object_add memory-backend-ram,id=ram0,size=1G
->>    device_add pc-dimm,id=dimm0,memdev=ram0,node=1
->> 
->> 3. online memory with following order
->> 
->>    echo online_movable > memory47/state
->>    echo online > memory40/state
->> 
->> After this, node1 will have its nr_zones equals to (ZONE_NORMAL + 1)
->> instead of (ZONE_MOVABLE + 1).
->
->Which prevents an over count I guess. Just wondering if you noticed this
->causing any real problem or some other side effects.
->
+      get_partial()
+          get_partial_node()
+          get_any_partial()
+              for_each_zone_zonelist()
 
-Not from my side.
+  The idea behind this is: it first try a local node, then try other nodes
+  if caller doesn't specify a node.
 
-I think Michal's rely may answer your question.
+2. Room for Improvement
 
->> 
->> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
->> ---
->>  mm/page_alloc.c | 4 +++-
->>  1 file changed, 3 insertions(+), 1 deletion(-)
->> 
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 5b7cd20dbaef..2d3c54201255 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -5823,8 +5823,10 @@ void __meminit init_currently_empty_zone(struct zone *zone,
->>  					unsigned long size)
->>  {
->>  	struct pglist_data *pgdat = zone->zone_pgdat;
->> +	int zone_idx = zone_idx(zone) + 1;
->>  
->> -	pgdat->nr_zones = zone_idx(zone) + 1;
->> +	if (zone_idx > pgdat->nr_zones)
->> +		pgdat->nr_zones = zone_idx;
->
->This seems to be correct if we try to init a zone (due to memory hotplug)
->in between index 0 and pgdat->nr_zones on an already populated node.
+  When we look one step deeper in get_any_partial(), it tries to get a
+  proper node by for_each_zone_zonelist(), which iterates on the
+  node_zonelists.
 
-Yes, you are right.
+  This behavior would introduce some redundant check on the same node.
+  Because:
 
+    * the local node is already checked in get_partial_node()
+    * one node may have several zones on node_zonelists
+
+3. Solution Proposed in Patch
+
+  We could reduce these redundant check by record the last unsuccessful
+  node and then skip it.
+
+4. Tests & Result
+
+  After some tests, the result shows this may improve the system a little,
+  especially on a machine with only one node.
+
+4.1 Test Description
+
+  There are two cases for two system configurations.
+
+  Test Cases:
+
+    1. counter comparison
+    2. kernel build test
+
+  System Configuration:
+
+    1. One node machine with 4G
+    2. Four node machine with 8G
+
+4.2 Result for Test 1
+
+  Test 1: counter comparison
+
+  This is a test with hacked kernel to record times function
+  get_any_partial() is invoked and times the inner loop iterates. By
+  comparing the ratio of two counters, we get to know how many inner
+  loops we skipped.
+
+  Here is a snip of the test patch.
+
+  ---
+  static void *get_any_partial() {
+
+	get_partial_count++;
+
+        do {
+		for_each_zone_zonelist() {
+			get_partial_try_count++;
+		}
+	} while();
+
+	return NULL;
+  }
+  ---
+
+  The result of (get_partial_count / get_partial_try_count):
+
+   +----------+----------------+------------+-------------+
+   |          |       Base     |    Patched |  Improvement|
+   +----------+----------------+------------+-------------+
+   |One Node  |       1:3      |    1:0     |      - 100% |
+   +----------+----------------+------------+-------------+
+   |Four Nodes|       1:5.8    |    1:2.5   |      -  56% |
+   +----------+----------------+------------+-------------+
+
+4.3 Result for Test 2
+
+  Test 2: kernel build
+
+   Command used:
+
+   > time make -j8 bzImage
+
+   Each version/system configuration combination has four round kernel
+   build tests. Take the average result of real to compare.
+
+   +----------+----------------+------------+-------------+
+   |          |       Base     |   Patched  |  Improvement|
+   +----------+----------------+------------+-------------+
+   |One Node  |      4m41s     |   4m32s    |     - 4.47% |
+   +----------+----------------+------------+-------------+
+   |Four Nodes|      4m45s     |   4m39s    |     - 2.92% |
+   +----------+----------------+------------+-------------+
+
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+
+---
+v3:
+  * replace nmask with except to reduce potential stack overflow and copy
+    overhead
+  * test this in two cases and two system configurations and list the result
+
+v2:
+  * rewrite the changelog and add a comment based on Andrew's comment
+
+---
+ mm/slub.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index e3629cd7aff1..3d93a07d86d9 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1873,7 +1873,7 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
+  * Get a page from somewhere. Search in increasing NUMA distances.
+  */
+ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
+-		struct kmem_cache_cpu *c)
++		struct kmem_cache_cpu *c, int except)
+ {
+ #ifdef CONFIG_NUMA
+ 	struct zonelist *zonelist;
+@@ -1911,6 +1911,9 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
+ 		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+ 			struct kmem_cache_node *n;
+ 
++			if (except == zone_to_nid(zone))
++				continue;
++
+ 			n = get_node(s, zone_to_nid(zone));
+ 
+ 			if (n && cpuset_zone_allowed(zone, flags) &&
+@@ -1927,6 +1930,13 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
+ 					return object;
+ 				}
+ 			}
++			/*
++			 * Fail to get object from this node, either because
++			 *   1. Fails in if check
++			 *   2. NULl object returns from get_partial_node()
++			 * Skip it next time.
++			 */
++			except = zone_to_nid(zone);
+ 		}
+ 	} while (read_mems_allowed_retry(cpuset_mems_cookie));
+ #endif
+@@ -1951,7 +1961,7 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
+ 	if (object || node != NUMA_NO_NODE)
+ 		return object;
+ 
+-	return get_any_partial(s, flags, c);
++	return get_any_partial(s, flags, c, searchnode);
+ }
+ 
+ #ifdef CONFIG_PREEMPT
 -- 
-Wei Yang
-Help you, Help me
+2.15.1
