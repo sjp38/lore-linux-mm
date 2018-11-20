@@ -1,55 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A1BE6B2071
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 10:00:38 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id y35so1409265edb.5
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 07:00:38 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r18-v6si14019895ejh.206.2018.11.20.07.00.36
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B114A6B2095
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 10:13:33 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id o9so1449602pgv.19
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 07:13:33 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id y3-v6si42858511pfe.42.2018.11.20.07.13.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Nov 2018 07:00:37 -0800 (PST)
-Date: Tue, 20 Nov 2018 16:00:35 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/3] mm, memory_hotplug: try to migrate full section
- worth of pages
-Message-ID: <20181120150035.GP22247@dhcp22.suse.cz>
-References: <20181120134323.13007-1-mhocko@kernel.org>
- <20181120134323.13007-2-mhocko@kernel.org>
- <1542725492.6817.3.camel@suse.com>
+        Tue, 20 Nov 2018 07:13:31 -0800 (PST)
+Received: from mail-wm1-f51.google.com (mail-wm1-f51.google.com [209.85.128.51])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 22F42208E4
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 15:13:31 +0000 (UTC)
+Received: by mail-wm1-f51.google.com with SMTP id g131so2459745wmg.3
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 07:13:31 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1542725492.6817.3.camel@suse.com>
+References: <20181120052137.74317-1-joel@joelfernandes.org>
+In-Reply-To: <20181120052137.74317-1-joel@joelfernandes.org>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Tue, 20 Nov 2018 07:13:17 -0800
+Message-ID: <CALCETrXgBENat=5=7EuU-ttQ-YSXT+ifjLGc=hpJ=unRgSsndw@mail.gmail.com>
+Subject: Re: [PATCH -next 1/2] mm/memfd: make F_SEAL_FUTURE_WRITE seal more robust
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: osalvador <osalvador@suse.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Hildenbrand <david@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Pavel Tatashin <pasha.tatashin@soleen.com>
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Jann Horn <jannh@google.com>, Khalid Aziz <khalid.aziz@oracle.com>, Linux API <linux-api@vger.kernel.org>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, marcandre.lureau@redhat.com, Matthew Wilcox <willy@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>, Shuah Khan <shuah@kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On Tue 20-11-18 15:51:32, Oscar Salvador wrote:
-> On Tue, 2018-11-20 at 14:43 +0100, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > do_migrate_range has been limiting the number of pages to migrate to
-> > 256
-> > for some reason which is not documented. 
-> 
-> When looking back at old memory-hotplug commits one feels pretty sad
-> about the brevity of the changelogs.
+On Mon, Nov 19, 2018 at 9:21 PM Joel Fernandes (Google)
+<joel@joelfernandes.org> wrote:
+>
+> A better way to do F_SEAL_FUTURE_WRITE seal was discussed [1] last week
+> where we don't need to modify core VFS structures to get the same
+> behavior of the seal. This solves several side-effects pointed out by
+> Andy [2].
+>
+> [1] https://lore.kernel.org/lkml/20181111173650.GA256781@google.com/
+> [2] https://lore.kernel.org/lkml/69CE06CC-E47C-4992-848A-66EB23EE6C74@amacapital.net/
+>
+> Suggested-by: Andy Lutomirski <luto@kernel.org>
+> Fixes: 5e653c2923fd ("mm: Add an F_SEAL_FUTURE_WRITE seal to memfd")
 
-Well, things evolve and we've become much more careful about changelogs
-over time. It still gets quite a lot of time to push back on changelogs
-even these days though. People still keep forgetting that "what" is not
-as important as "why" because the former is usually quite easy to
-understand from reading the diff. The intention behind is usually what
-gets forgotten after years. I guess people realize this much more after
-few excavation git blame tours.
-
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> 
-> Reviewed-by: Oscar Salvador <osalvador@suse.de>
-
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+What tree is that commit in?  Can we not just fold this in?
