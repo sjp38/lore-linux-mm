@@ -1,66 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C8FA36B207A
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 09:34:24 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id c18so1306058edt.23
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 06:34:24 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p18si633618edi.197.2018.11.20.06.34.23
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 51CD86B207B
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 09:34:53 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id q3so131260qtq.15
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 06:34:53 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e97si4619952qtb.180.2018.11.20.06.34.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Nov 2018 06:34:23 -0800 (PST)
-Date: Tue, 20 Nov 2018 15:34:22 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/3] mm, memory_hotplug: deobfuscate migration part
- of offlining
-Message-ID: <20181120143422.GN22247@dhcp22.suse.cz>
+        Tue, 20 Nov 2018 06:34:52 -0800 (PST)
+Subject: Re: [RFC PATCH 2/3] mm, memory_hotplug: deobfuscate migration part of
+ offlining
 References: <20181120134323.13007-1-mhocko@kernel.org>
  <20181120134323.13007-3-mhocko@kernel.org>
  <f25bfa30-96cf-799c-6885-86a3a537a977@redhat.com>
+ <20181120143422.GN22247@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <bcd55324-1dc9-904e-d457-ebce7684712f@redhat.com>
+Date: Tue, 20 Nov 2018 15:34:49 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f25bfa30-96cf-799c-6885-86a3a537a977@redhat.com>
+In-Reply-To: <20181120143422.GN22247@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Oscar Salvador <OSalvador@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 20-11-18 15:26:43, David Hildenbrand wrote:
-[...]
-> > +	do {
-> > +		for (pfn = start_pfn; pfn;)
-> > +		{
+On 20.11.18 15:34, Michal Hocko wrote:
+> On Tue 20-11-18 15:26:43, David Hildenbrand wrote:
+> [...]
+>>> +	do {
+>>> +		for (pfn = start_pfn; pfn;)
+>>> +		{
+>>
+>> { on a new line looks weird.
+>>
+>>> +			/* start memory hot removal */
+>>> +			ret = -EINTR;
+>>
+>> I think we can move that into the "if (signal_pending(current))"
+>>
+>> (if my eyes are not wrong, this will not be touched otherwise)
 > 
-> { on a new line looks weird.
+> Better?
 > 
-> > +			/* start memory hot removal */
-> > +			ret = -EINTR;
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 9cd161db3061..6bc3aee30f5e 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1592,11 +1592,10 @@ static int __ref __offline_pages(unsigned long start_pfn,
+>  	}
+>  
+>  	do {
+> -		for (pfn = start_pfn; pfn;)
+> -		{
+> +		for (pfn = start_pfn; pfn;) {
+>  			/* start memory hot removal */
+> -			ret = -EINTR;
+>  			if (signal_pending(current)) {
+> +				ret = -EINTR;
+>  				reason = "signal backoff";
+>  				goto failed_removal_isolated;
+>  			}
 > 
-> I think we can move that into the "if (signal_pending(current))"
-> 
-> (if my eyes are not wrong, this will not be touched otherwise)
 
-Better?
+Reviewed-by: David Hildenbrand <david@redhat.com>
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 9cd161db3061..6bc3aee30f5e 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1592,11 +1592,10 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 	}
- 
- 	do {
--		for (pfn = start_pfn; pfn;)
--		{
-+		for (pfn = start_pfn; pfn;) {
- 			/* start memory hot removal */
--			ret = -EINTR;
- 			if (signal_pending(current)) {
-+				ret = -EINTR;
- 				reason = "signal backoff";
- 				goto failed_removal_isolated;
- 			}
+:)
+
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
