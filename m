@@ -1,78 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 933DB6B1D13
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 18:09:18 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id r13so7172pgb.7
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 15:09:18 -0800 (PST)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id h3-v6si16225707plh.390.2018.11.19.15.09.17
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E44006B1D6D
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 19:49:33 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id g204-v6so127118oia.21
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 16:49:33 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i10sor8770536oik.158.2018.11.19.16.49.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Nov 2018 15:09:17 -0800 (PST)
-Date: Mon, 19 Nov 2018 16:06:00 -0700
-From: Keith Busch <keith.busch@intel.com>
-Subject: Re: [PATCH 4/7] node: Add memory caching attributes
-Message-ID: <20181119230600.GC26707@localhost.localdomain>
-References: <20181114224921.12123-2-keith.busch@intel.com>
- <20181114224921.12123-5-keith.busch@intel.com>
- <91698cef-cdcd-5143-884f-3da5536e156f@arm.com>
+        (Google Transport Security);
+        Mon, 19 Nov 2018 16:49:32 -0800 (PST)
+Subject: Re: [PATCH V10 09/19] block: introduce bio_bvecs()
+References: <20181115085306.9910-1-ming.lei@redhat.com>
+ <20181115085306.9910-10-ming.lei@redhat.com> <20181116134541.GH3165@lst.de>
+From: Sagi Grimberg <sagi@grimberg.me>
+Message-ID: <002fe56b-25e4-573e-c09b-bb12c3e8d25a@grimberg.me>
+Date: Mon, 19 Nov 2018 16:49:27 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <91698cef-cdcd-5143-884f-3da5536e156f@arm.com>
+In-Reply-To: <20181116134541.GH3165@lst.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: Christoph Hellwig <hch@lst.de>, Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On Mon, Nov 19, 2018 at 09:44:00AM +0530, Anshuman Khandual wrote:
-> On 11/15/2018 04:19 AM, Keith Busch wrote:
-> > System memory may have side caches to help improve access speed. While
-> > the system provided cache is transparent to the software accessing
-> > these memory ranges, applications can optimize their own access based
-> > on cache attributes.
+
+> The only user in your final tree seems to be the loop driver, and
+> even that one only uses the helper for read/write bios.
 > 
-> Cache is not a separate memory attribute. It impacts how the real attributes
-> like bandwidth, latency e.g which are already captured in the previous patch.
-> What is the purpose of adding this as a separate attribute ? Can you explain
-> how this is going to help the user space apart from the hints it has already
-> received with bandwidth, latency etc properties.
+> I think something like this would be much simpler in the end:
 
-I am not sure I understand the question here. Access bandwidth and latency
-are entirely attributes different than what this patch provides. If the
-system side-caches memory, the associativity, line size, and total size
-can optionally be used by software to improve performance.
- 
-> > In preparation for such systems, provide a new API for the kernel to
-> > register these memory side caches under the memory node that provides it.
-> 
-> Under target memory node interface /sys/devices/system/node/nodeY/target* ?
-
-Yes.
- 
-> > 
-> > The kernel's sysfs representation is modeled from the cpu cacheinfo
-> > attributes, as seen from /sys/devices/system/cpu/cpuX/cache/. Unlike CPU
-> > cacheinfo, though, a higher node's memory cache level is nearer to the
-> > CPU, while lower levels are closer to the backing memory. Also unlike
-> > CPU cache, the system handles flushing any dirty cached memory to the
-> > last level the memory on a power failure if the range is persistent.
-> 
-> Lets assume that a CPU has got four levels of caches L1, L2, L3, L4 before
-> reaching memory. L4 is the backing cache for the memory 
-
-I don't quite understand this question either. The cache doesn't back
-the memory; the system side caches access to memory.
-
-> and L1-L3 is from
-> CPU till the system bus. Hence some of them will be represented as CPU
-> caches and some of them will be represented as memory caches ?
->
-> /sys/devices/system/cpu/cpuX/cache/ --> L1, L2, L3
-> /sys/devices/system/node/nodeY/target --> L4 
-> 
-> L4 will be listed even if the node is memory only ?
-
-The system provided memory side caches are independent of the
-CPU. I'm just providing the CPU caches as a more familiar example to
-compare/contrast system memory cache attributes.
+The recently submitted nvme-tcp host driver should also be a user
+of this. Does it make sense to keep it as a helper then?
