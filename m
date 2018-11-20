@@ -1,140 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F6536B204C
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 08:52:03 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id t22so1423783plo.10
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 05:52:03 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 558DB6B204F
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 08:53:59 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id g24-v6so1556608pfi.23
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 05:53:59 -0800 (PST)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id j20si42644080pgh.224.2018.11.20.05.52.01
+        by mx.google.com with ESMTPS id f10si17668290pgo.356.2018.11.20.05.53.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Nov 2018 05:52:02 -0800 (PST)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAKDnNc4073172
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 08:52:01 -0500
+        Tue, 20 Nov 2018 05:53:58 -0800 (PST)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAKDrsXu131854
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 08:53:57 -0500
 Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2nvjpytcfw-1
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2nvkb20k7y-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 08:52:01 -0500
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 08:53:57 -0500
 Received: from localhost
 	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Tue, 20 Nov 2018 13:51:58 -0000
-Date: Tue, 20 Nov 2018 14:51:50 +0100
+	Tue, 20 Nov 2018 13:53:42 -0000
+Date: Tue, 20 Nov 2018 14:53:34 +0100
 From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: Re: [PATCH 3/7] doc/vm: New documentation for memory performance
+Subject: Re: [PATCH 5/7] doc/vm: New documentation for memory cache
 References: <20181114224921.12123-2-keith.busch@intel.com>
- <20181114224921.12123-4-keith.busch@intel.com>
+ <20181114224921.12123-6-keith.busch@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181114224921.12123-4-keith.busch@intel.com>
-Message-Id: <20181120135149.GA24627@rapoport-lnx>
+In-Reply-To: <20181114224921.12123-6-keith.busch@intel.com>
+Message-Id: <20181120135333.GB24627@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Keith Busch <keith.busch@intel.com>
 Cc: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-Hi,
-
-Sorry if I'm jumping too late.
-
-On Wed, Nov 14, 2018 at 03:49:16PM -0700, Keith Busch wrote:
-> Platforms may provide system memory where some physical address ranges
-> perform differently than others. These heterogeneous memory attributes are
-> common to the node that provides the memory and exported by the kernel.
+On Wed, Nov 14, 2018 at 03:49:18PM -0700, Keith Busch wrote:
+> Platforms may provide system memory that contains side caches to help
+> spped up access. These memory caches are part of a memory node and
+> the cache attributes are exported by the kernel.
 > 
-> Add new documentation providing a brief overview of such systems and
-> the attributes the kernel makes available to aid applications wishing
-> to query this information.
+> Add new documentation providing a brief overview of system memory side
+> caches and the kernel provided attributes for application optimization.
 > 
 > Signed-off-by: Keith Busch <keith.busch@intel.com>
 > ---
->  Documentation/vm/numaperf.rst | 71 +++++++++++++++++++++++++++++++++++++++++++
+>  Documentation/vm/numacache.rst | 76 ++++++++++++++++++++++++++++++++++++++++++
 
-As this document describes user-space interfaces it belongs to
-Documentation/admin-guide/mm.
+I think it's better to have both numaperf and numacache in a single
+document, as they are quite related.
 
->  1 file changed, 71 insertions(+)
->  create mode 100644 Documentation/vm/numaperf.rst
+>  1 file changed, 76 insertions(+)
+>  create mode 100644 Documentation/vm/numacache.rst
 > 
-> diff --git a/Documentation/vm/numaperf.rst b/Documentation/vm/numaperf.rst
+> diff --git a/Documentation/vm/numacache.rst b/Documentation/vm/numacache.rst
 > new file mode 100644
-> index 000000000000..5a3ecaff5474
+> index 000000000000..e79c801b7e3b
 > --- /dev/null
-> +++ b/Documentation/vm/numaperf.rst
-> @@ -0,0 +1,71 @@
-> +.. _numaperf:
+> +++ b/Documentation/vm/numacache.rst
+> @@ -0,0 +1,76 @@
+> +.. _numacache:
 > +
-> +================
-> +NUMA Performance
-> +================
+> +==========
+> +NUMA Cache
+> +==========
 > +
-> +Some platforms may have multiple types of memory attached to a single
-> +CPU. These disparate memory ranges share some characteristics, such as
-> +CPU cache coherence, but may have different performance. For example,
-> +different media types and buses affect bandwidth and latency.
+> +System memory may be constructed in a hierarchy of various performing
+> +characteristics in order to provide large address space of slower
+> +performing memory cached by a smaller size of higher performing
+> +memory. The system physical addresses that software is aware of see
+> +is provided by the last memory level in the hierarchy, while higher
+> +performing memory transparently provides caching to slower levels.
 > +
-> +A system supporting such heterogeneous memory groups each memory type
-> +under different "nodes" based on similar CPU locality and performance
-> +characteristics.  Some memory may share the same node as a CPU, and
-> +others are provided as memory-only nodes. While memory only nodes do not
-> +provide CPUs, they may still be local to one or more compute nodes. The
-> +following diagram shows one such example of two compute noes with local
-> +memory and a memory only node for each of compute node:
+> +The term "far memory" is used to denote the last level memory in the
+> +hierarchy. Each increasing cache level provides higher performing CPU
+> +access, and the term "near memory" represents the highest level cache
+> +provided by the system. This number is different than CPU caches where
+> +the cache level (ex: L1, L2, L3) uses a CPU centric view with each level
+> +being lower performing and closer to system memory. The memory cache
+> +level is centric to the last level memory, so the higher numbered cache
+> +level denotes memory nearer to the CPU, and further from far memory.
 > +
-> + +------------------+     +------------------+
-> + | Compute Node 0   +-----+ Compute Node 1   |
-> + | Local Node0 Mem  |     | Local Node1 Mem  |
-> + +--------+---------+     +--------+---------+
-> +          |                        |
-> + +--------+---------+     +--------+---------+
-> + | Slower Node2 Mem |     | Slower Node3 Mem |
-> + +------------------+     +--------+---------+
+> +The memory side caches are not directly addressable by software. When
+> +software accesses a system address, the system will return it from the
+> +near memory cache if it is present. If it is not present, the system
+> +accesses the next level of memory until there is either a hit in that
+> +cache level, or it reaches far memory.
 > +
-> +A "memory initiator" is a node containing one or more devices such as
-> +CPUs or separate memory I/O devices that can initiate memory requests. A
-> +"memory target" is a node containing one or more CPU-accessible physical
-> +address ranges.
+> +In order to maximize the performance out of such a setup, software may
+> +wish to query the memory cache attributes. If the system provides a way
+> +to query this information, for example with ACPI HMAT (Heterogeneous
+> +Memory Attribute Table)[1], the kernel will append these attributes to
+> +the NUMA node that provides the memory.
 > +
-> +When multiple memory initiators exist, accessing the same memory
-> +target may not perform the same as each other. The highest performing
-> +initiator to a given target is considered to be one of that target's
-> +local initiators.
+> +When the kernel first registers a memory cache with a node, the kernel
+> +will create the following directory::
 > +
-> +To aid applications matching memory targets with their initiators,
-> +the kernel provide symlinks to each other like the following example::
+> +	/sys/devices/system/node/nodeX/cache/
 > +
-> +	# ls -l /sys/devices/system/node/nodeX/initiator*
-> +	/sys/devices/system/node/nodeX/targetY -> ../nodeY
+> +If that directory is not present, then either the memory does not have
+> +a side cache, or that information is not provided to the kernel.
 > +
-> +	# ls -l /sys/devices/system/node/nodeY/target*
-> +	/sys/devices/system/node/nodeY/initiatorX -> ../nodeX
+> +The attributes for each level of cache is provided under its cache
+> +level index::
 > +
-> +Applications may wish to consider which node they want their memory to
-> +be allocated from based on the nodes performance characteristics. If
-> +the system provides these attributes, the kernel exports them under the
-> +node sysfs hierarchy by appending the initiator_access directory under
-> +the node as follows::
+> +	/sys/devices/system/node/nodeX/cache/indexA/
+> +	/sys/devices/system/node/nodeX/cache/indexB/
+> +	/sys/devices/system/node/nodeX/cache/indexC/
 > +
-> +	/sys/devices/system/node/nodeY/initiator_access/
+> +Each cache level's directory provides its attributes. For example,
+> +the following is a single cache level and the attributes available for
+> +software to query::
 > +
-> +The kernel does not provide performance attributes for non-local memory
-> +initiators. The performance characteristics the kernel provides for
-> +the local initiators are exported are as follows::
+> +	# tree sys/devices/system/node/node0/cache/
+> +	/sys/devices/system/node/node0/cache/
+> +	|-- index1
+> +	|   |-- associativity
+> +	|   |-- level
+> +	|   |-- line_size
+> +	|   |-- size
+> +	|   `-- write_policy
 > +
-> +	# tree /sys/devices/system/node/nodeY/initiator_access
-> +	/sys/devices/system/node/nodeY/initiator_access
-> +	|-- read_bandwidth
-> +	|-- read_latency
-> +	|-- write_bandwidth
-> +	`-- write_latency
+> +The cache "associativity" will be 0 if it is a direct-mapped cache, and
+> +non-zero for any other indexed based, multi-way associativity.
 > +
-> +The bandwidth attributes are provided in MiB/second.
+> +The "level" is the distance from the far memory, and matches the number
+> +appended to its "index" directory.
 > +
-> +The latency attributes are provided in nanoseconds.
+> +The "line_size" is the number of bytes accessed on a cache miss.
 > +
-> +See also: https://www.uefi.org/sites/default/files/resources/ACPI_6_2.pdf
+> +The "size" is the number of bytes provided by this cache level.
+> +
+> +The "write_policy" will be 0 for write-back, and non-zero for
+> +write-through caching.
+> +
+> +[1] https://www.uefi.org/sites/default/files/resources/ACPI_6_2.pdf
 > -- 
 > 2.14.4
 > 
