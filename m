@@ -1,128 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 608F86B1D8F
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 20:29:56 -0500 (EST)
-Received: by mail-it1-f198.google.com with SMTP id p73-v6so880215itb.7
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 17:29:56 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o184-v6sor51799600ito.23.2018.11.19.17.29.54
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E70C26B1CA0
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2018 20:43:18 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id h10so239525plk.12
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2018 17:43:18 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id 16-v6si44895353pfy.64.2018.11.19.17.43.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 19 Nov 2018 17:29:54 -0800 (PST)
-Date: Mon, 19 Nov 2018 18:29:50 -0700
-From: Yu Zhao <yuzhao@google.com>
-Subject: Re: [PATCH v2] mm: fix swap offset when replacing shmem page
-Message-ID: <20181120012950.GA94981@google.com>
-References: <20181119004719.156411-1-yuzhao@google.com>
- <20181119010924.177177-1-yuzhao@google.com>
- <alpine.LSU.2.11.1811191343280.17359@eggly.anvils>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Nov 2018 17:43:17 -0800 (PST)
+Date: Tue, 20 Nov 2018 09:43:13 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [PATCH v2 RESEND 1/2] mm/page_alloc: free order-0 pages through
+ PCP in page_frag_free()
+Message-ID: <20181120014313.GA10657@intel.com>
+References: <20181119134834.17765-1-aaron.lu@intel.com>
+ <20181119134834.17765-2-aaron.lu@intel.com>
+ <be048469-d29d-e700-4858-4a5263a50eb6@mellanox.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1811191343280.17359@eggly.anvils>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <be048469-d29d-e700-4858-4a5263a50eb6@mellanox.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tariq Toukan <tariqt@mellanox.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, =?utf-8?B?UGF3ZcWC?= Staszewski <pstaszewski@itcare.pl>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Ilias Apalodimas <ilias.apalodimas@linaro.org>, Yoel Caspersen <yoel@kviknet.dk>, Mel Gorman <mgorman@techsingularity.net>, Saeed Mahameed <saeedm@mellanox.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Ian Kumlien <ian.kumlien@gmail.com>
 
-On Mon, Nov 19, 2018 at 02:11:27PM -0800, Hugh Dickins wrote:
-> On Sun, 18 Nov 2018, Yu Zhao wrote:
+On Mon, Nov 19, 2018 at 03:00:53PM +0000, Tariq Toukan wrote:
 > 
-> > We used to have a single swap address space with swp_entry_t.val
-> > as its radix tree index. This is not the case anymore. Now Each
-> > swp_type() has its own address space and should use swp_offset()
-> > as radix tree index.
+> 
+> On 19/11/2018 3:48 PM, Aaron Lu wrote:
+> > page_frag_free() calls __free_pages_ok() to free the page back to
+> > Buddy. This is OK for high order page, but for order-0 pages, it
+> > misses the optimization opportunity of using Per-Cpu-Pages and can
+> > cause zone lock contention when called frequently.
 > > 
-> > Signed-off-by: Yu Zhao <yuzhao@google.com>
+> > PaweA? Staszewski recently shared his result of 'how Linux kernel
+> > handles normal traffic'[1] and from perf data, Jesper Dangaard Brouer
+> > found the lock contention comes from page allocator:
+> > 
+> >    mlx5e_poll_tx_cq
+> >    |
+> >     --16.34%--napi_consume_skb
+> >               |
+> >               |--12.65%--__free_pages_ok
+> >               |          |
+> >               |           --11.86%--free_one_page
+> >               |                     |
+> >               |                     |--10.10%--queued_spin_lock_slowpath
+> >               |                     |
+> >               |                      --0.65%--_raw_spin_lock
+> >               |
+> >               |--1.55%--page_frag_free
+> >               |
+> >                --1.44%--skb_release_data
+> > 
+> > Jesper explained how it happened: mlx5 driver RX-page recycle
+> > mechanism is not effective in this workload and pages have to go
+> > through the page allocator. The lock contention happens during
+> > mlx5 DMA TX completion cycle. And the page allocator cannot keep
+> > up at these speeds.[2]
+> > 
+> > I thought that __free_pages_ok() are mostly freeing high order
+> > pages and thought this is an lock contention for high order pages
+> > but Jesper explained in detail that __free_pages_ok() here are
+> > actually freeing order-0 pages because mlx5 is using order-0 pages
+> > to satisfy its page pool allocation request.[3]
+> > 
+> > The free path as pointed out by Jesper is:
+> > skb_free_head()
+> >    -> skb_free_frag()
+> >      -> page_frag_free()
+> > And the pages being freed on this path are order-0 pages.
+> > 
+> > Fix this by doing similar things as in __page_frag_cache_drain() -
+> > send the being freed page to PCP if it's an order-0 page, or
+> > directly to Buddy if it is a high order page.
+> > 
+> > With this change, PaweA? hasn't noticed lock contention yet in
+> > his workload and Jesper has noticed a 7% performance improvement
+> > using a micro benchmark and lock contention is gone. Ilias' test
+> > on a 'low' speed 1Gbit interface on an cortex-a53 shows ~11%
+> > performance boost testing with 64byte packets and __free_pages_ok()
+> > disappeared from perf top.
+> > 
+> > [1]: https://www.spinics.net/lists/netdev/msg531362.html
+> > [2]: https://www.spinics.net/lists/netdev/msg531421.html
+> > [3]: https://www.spinics.net/lists/netdev/msg531556.html
+> > 
+> > Reported-by: PaweA? Staszewski <pstaszewski@itcare.pl>
+> > Analysed-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> > Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> > Acked-by: Mel Gorman <mgorman@techsingularity.net>
+> > Acked-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> > Acked-by: Ilias Apalodimas <ilias.apalodimas@linaro.org>
+> > Tested-by: Ilias Apalodimas <ilias.apalodimas@linaro.org>
+> > Acked-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > Acked-by: Tariq Toukan <tariqt@mellanox.com
 > 
-> This fix is a great find, thank you! But completely mis-described!
+> missing '>' sign in my email tag.
 
-Yes, now I remember making swap offset as key was done long after per
-swap device radix tree.
-
-> And could you do a smaller patch, keeping swap_index, that can go to
-> stable without getting into trouble with the recent xarrifications?
-> 
-> Fixes: bde05d1ccd51 ("shmem: replace page if mapping excludes its zone")
-> Cc: stable@vger.kernel.org # 3.5+
-> 
-> Seems shmem_replace_page() has been wrong since the day I wrote it:
-> good enough to work on swap "type" 0, which is all most people ever use
-> (especially those few who need shmem_replace_page() at all), but broken
-> once there are any non-0 swp_type bits set in the higher order bits.
-
-But you did get it right when you wrote the function, which was before
-the per swap device radix tree. so
-Fixes: f6ab1f7f6b2d ("mm, swap: use offset of swap entry as key of swap cache")
-looks good?
-
+Sorry about that, will fix this and resend.
+ 
+> > Signed-off-by: Aaron Lu <aaron.lu@intel.com>
 > > ---
-> >  mm/shmem.c | 11 +++++++----
-> >  1 file changed, 7 insertions(+), 4 deletions(-)
-> > 
-> > diff --git a/mm/shmem.c b/mm/shmem.c
-> > index d44991ea5ed4..685faa3e0191 100644
-> > --- a/mm/shmem.c
-> > +++ b/mm/shmem.c
-> > @@ -1509,11 +1509,13 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
-> >  {
-> >  	struct page *oldpage, *newpage;
-> >  	struct address_space *swap_mapping;
-> > -	pgoff_t swap_index;
-> > +	swp_entry_t entry;
-> 
-> Please keep swap_index as well as adding entry.
-
-Ack.
-
-> >  	int error;
-> >  
-> > +	VM_BUG_ON(!PageSwapCache(*pagep));
-> > +
-> 
-> I'd prefer you to drop that, it has no bearing on this patch;
-> we used to have it, along with lots of other VM_BUG_ONs in here,
-> but they outlived their usefulness, and don't need reintroducing -
-> they didn't help at all to prevent the actual bug you've found.
-> 
-> >  	oldpage = *pagep;
-> > -	swap_index = page_private(oldpage);
-> > +	entry.val = page_private(oldpage);
-> 
-> entry.val = page_private(oldpage);
-> swap_index = swp_offset(entry);
-> 
-> >  	swap_mapping = page_mapping(oldpage);
-> >  
-> >  	/*
-> > @@ -1532,7 +1534,7 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
-> >  	__SetPageLocked(newpage);
-> >  	__SetPageSwapBacked(newpage);
-> >  	SetPageUptodate(newpage);
-> > -	set_page_private(newpage, swap_index);
-> > +	set_page_private(newpage, entry.val);
-> 
-> Yes.
-> 
-> >  	SetPageSwapCache(newpage);
-> >  
-> >  	/*
-> > @@ -1540,7 +1542,8 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
-> >  	 * a nice clean interface for us to replace oldpage by newpage there.
-> >  	 */
-> >  	xa_lock_irq(&swap_mapping->i_pages);
-> > -	error = shmem_replace_entry(swap_mapping, swap_index, oldpage, newpage);
-> > +	error = shmem_replace_entry(swap_mapping, swp_offset(entry),
-> > +				    oldpage, newpage);
-> 
-> I'd prefer to omit that hunk, to avoid the xa_lock_irq() in the context;
-> the patch is just as good if we keep the swap_index variable.
-> 
-> >  	if (!error) {
-> >  		__inc_node_page_state(newpage, NR_FILE_PAGES);
-> >  		__dec_node_page_state(oldpage, NR_FILE_PAGES);
-> > -- 
-> > 2.19.1.1215.g8438c0b245-goog
-> 
-> Thanks,
-> Hugh
