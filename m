@@ -1,180 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D5406B2443
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 00:28:37 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id m13so6098471pls.15
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 21:28:37 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id d23si29647316pll.161.2018.11.20.21.28.35
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 220816B2447
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 00:29:12 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id x15so2468893edd.2
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 21:29:12 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id p3si247577edx.140.2018.11.20.21.29.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Nov 2018 21:28:35 -0800 (PST)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAL5SLo8144313
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 00:28:34 -0500
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2nw0fasm95-1
+        Tue, 20 Nov 2018 21:29:10 -0800 (PST)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAL5T7a4031146
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 00:29:08 -0500
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2nw001tchd-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 00:28:34 -0500
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 00:29:08 -0500
 Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <bharata@linux.ibm.com>;
-	Wed, 21 Nov 2018 05:28:32 -0000
+	Wed, 21 Nov 2018 05:28:28 -0000
 From: Bharata B Rao <bharata@linux.ibm.com>
-Subject: [RFC PATCH v2 4/4] kvmppc: Handle memory plug/unplug to secure VM
-Date: Wed, 21 Nov 2018 10:58:11 +0530
+Subject: [RFC PATCH v2 3/4] kvmppc: H_SVM_INIT_START and H_SVM_INIT_DONE hcalls
+Date: Wed, 21 Nov 2018 10:58:10 +0530
 In-Reply-To: <20181121052811.4819-1-bharata@linux.ibm.com>
 References: <20181121052811.4819-1-bharata@linux.ibm.com>
-Message-Id: <20181121052811.4819-5-bharata@linux.ibm.com>
+Message-Id: <20181121052811.4819-4-bharata@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linuxppc-dev@lists.ozlabs.org
 Cc: kvm-ppc@vger.kernel.org, linux-mm@kvack.org, paulus@au1.ibm.com, benh@linux.ibm.com, aneesh.kumar@linux.vnet.ibm.com, jglisse@redhat.com, linuxram@us.ibm.com, Bharata B Rao <bharata@linux.ibm.com>
 
-Register the new memslot with UV during plug and unregister
-the memslot during unplug.
+H_SVM_INIT_START: Initiate securing a VM
+H_SVM_INIT_DONE: Conclude securing a VM
 
-This needs addition of kvm_mr_change argument to
-kvm_ops->commit_memory_region()
+During early guest init, these hcalls will be issued by UV.
+As part of these hcalls, [un]register memslots with UV.
 
 Signed-off-by: Bharata B Rao <bharata@linux.ibm.com>
 ---
- arch/powerpc/include/asm/kvm_ppc.h   |  6 ++++--
- arch/powerpc/include/asm/ucall-api.h |  5 +++++
- arch/powerpc/kvm/book3s.c            |  5 +++--
- arch/powerpc/kvm/book3s_hv.c         | 22 +++++++++++++++++++++-
- arch/powerpc/kvm/book3s_pr.c         |  3 ++-
- arch/powerpc/kvm/powerpc.c           |  2 +-
- 6 files changed, 36 insertions(+), 7 deletions(-)
+ arch/powerpc/include/asm/hvcall.h    |  2 ++
+ arch/powerpc/include/asm/kvm_host.h  |  1 +
+ arch/powerpc/include/asm/kvm_ppc.h   | 12 ++++++++++
+ arch/powerpc/include/asm/ucall-api.h |  6 +++++
+ arch/powerpc/kvm/book3s_hv.c         |  6 +++++
+ arch/powerpc/kvm/book3s_hv_hmm.c     | 33 ++++++++++++++++++++++++++++
+ 6 files changed, 60 insertions(+)
 
+diff --git a/arch/powerpc/include/asm/hvcall.h b/arch/powerpc/include/asm/hvcall.h
+index 34791c627f87..4872b044cca8 100644
+--- a/arch/powerpc/include/asm/hvcall.h
++++ b/arch/powerpc/include/asm/hvcall.h
+@@ -342,6 +342,8 @@
+ /* Platform-specific hcalls used by the Ultravisor */
+ #define H_SVM_PAGE_IN		0xFF00
+ #define H_SVM_PAGE_OUT		0xFF04
++#define H_SVM_INIT_START	0xFF08
++#define H_SVM_INIT_DONE		0xFF0C
+ 
+ /* Values for 2nd argument to H_SET_MODE */
+ #define H_SET_MODE_RESOURCE_SET_CIABR		1
+diff --git a/arch/powerpc/include/asm/kvm_host.h b/arch/powerpc/include/asm/kvm_host.h
+index 729bdea22250..174aa7e30ff7 100644
+--- a/arch/powerpc/include/asm/kvm_host.h
++++ b/arch/powerpc/include/asm/kvm_host.h
+@@ -296,6 +296,7 @@ struct kvm_arch {
+ 	struct dentry *htab_dentry;
+ 	struct dentry *radix_dentry;
+ 	struct kvm_resize_hpt *resize_hpt; /* protected by kvm->lock */
++	bool secure; /* Indicates H_SVM_INIT_START has been called */
+ #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
+ #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
+ 	struct mutex hpt_mutex;
 diff --git a/arch/powerpc/include/asm/kvm_ppc.h b/arch/powerpc/include/asm/kvm_ppc.h
-index 5f4b6a73789f..1ac920f2e18b 100644
+index 659c80982497..5f4b6a73789f 100644
 --- a/arch/powerpc/include/asm/kvm_ppc.h
 +++ b/arch/powerpc/include/asm/kvm_ppc.h
-@@ -224,7 +224,8 @@ extern int kvmppc_core_prepare_memory_region(struct kvm *kvm,
- extern void kvmppc_core_commit_memory_region(struct kvm *kvm,
- 				const struct kvm_userspace_memory_region *mem,
- 				const struct kvm_memory_slot *old,
--				const struct kvm_memory_slot *new);
-+				const struct kvm_memory_slot *new,
-+				enum kvm_mr_change change);
- extern int kvm_vm_ioctl_get_smmu_info(struct kvm *kvm,
- 				      struct kvm_ppc_smmu_info *info);
- extern void kvmppc_core_flush_memslot(struct kvm *kvm,
-@@ -294,7 +295,8 @@ struct kvmppc_ops {
- 	void (*commit_memory_region)(struct kvm *kvm,
- 				     const struct kvm_userspace_memory_region *mem,
- 				     const struct kvm_memory_slot *old,
--				     const struct kvm_memory_slot *new);
-+				     const struct kvm_memory_slot *new,
-+				     enum kvm_mr_change change);
- 	int (*unmap_hva_range)(struct kvm *kvm, unsigned long start,
- 			   unsigned long end);
- 	int (*age_hva)(struct kvm *kvm, unsigned long start, unsigned long end);
+@@ -919,6 +919,8 @@ extern unsigned long kvmppc_h_svm_page_out(struct kvm *kvm,
+ 					  unsigned long gra,
+ 					  unsigned long flags,
+ 					  unsigned long page_shift);
++extern unsigned long kvmppc_h_svm_init_start(struct kvm *kvm);
++extern unsigned long kvmppc_h_svm_init_done(struct kvm *kvm);
+ #else
+ static inline unsigned long
+ kvmppc_h_svm_page_in(struct kvm *kvm, unsigned int lpid,
+@@ -935,5 +937,15 @@ kvmppc_h_svm_page_out(struct kvm *kvm, unsigned int lpid,
+ {
+ 	return H_UNSUPPORTED;
+ }
++
++static inline unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
++{
++	return H_UNSUPPORTED;
++}
++
++static inline unsigned long kvmppc_h_svm_init_done(struct kvm *kvm)
++{
++	return H_UNSUPPORTED;
++}
+ #endif
+ #endif /* __POWERPC_KVM_PPC_H__ */
 diff --git a/arch/powerpc/include/asm/ucall-api.h b/arch/powerpc/include/asm/ucall-api.h
-index 347637995b1b..02c9be311a4f 100644
+index a84dc2abd172..347637995b1b 100644
 --- a/arch/powerpc/include/asm/ucall-api.h
 +++ b/arch/powerpc/include/asm/ucall-api.h
-@@ -25,4 +25,9 @@ static inline int uv_register_mem_slot(u64 lpid, u64 start_gpa, u64 size,
- 	return 0;
+@@ -19,4 +19,10 @@ static inline int uv_page_out(u64 lpid, u64 dst_ra, u64 src_gpa, u64 flags,
+ 	return U_SUCCESS;
  }
  
-+static inline int uv_unregister_mem_slot(u64 lpid, u64 dw0)
++static inline int uv_register_mem_slot(u64 lpid, u64 start_gpa, u64 size,
++				       u64 flags, u64 slotid)
 +{
 +	return 0;
 +}
 +
  #endif	/* _ASM_POWERPC_UCALL_API_H */
-diff --git a/arch/powerpc/kvm/book3s.c b/arch/powerpc/kvm/book3s.c
-index fd9893bc7aa1..a35fb4099094 100644
---- a/arch/powerpc/kvm/book3s.c
-+++ b/arch/powerpc/kvm/book3s.c
-@@ -830,9 +830,10 @@ int kvmppc_core_prepare_memory_region(struct kvm *kvm,
- void kvmppc_core_commit_memory_region(struct kvm *kvm,
- 				const struct kvm_userspace_memory_region *mem,
- 				const struct kvm_memory_slot *old,
--				const struct kvm_memory_slot *new)
-+				const struct kvm_memory_slot *new,
-+				enum kvm_mr_change change)
- {
--	kvm->arch.kvm_ops->commit_memory_region(kvm, mem, old, new);
-+	kvm->arch.kvm_ops->commit_memory_region(kvm, mem, old, new, change);
- }
- 
- int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
 diff --git a/arch/powerpc/kvm/book3s_hv.c b/arch/powerpc/kvm/book3s_hv.c
-index d7aa85330016..351ce259d8bb 100644
+index 7e413605e7c4..d7aa85330016 100644
 --- a/arch/powerpc/kvm/book3s_hv.c
 +++ b/arch/powerpc/kvm/book3s_hv.c
-@@ -75,6 +75,7 @@
- #include <asm/xics.h>
- #include <asm/xive.h>
- #include <asm/kvm_host.h>
-+#include <asm/ucall-api.h>
+@@ -1006,6 +1006,12 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
+ 					    kvmppc_get_gpr(vcpu, 6),
+ 					    kvmppc_get_gpr(vcpu, 7));
+ 		break;
++	case H_SVM_INIT_START:
++		ret = kvmppc_h_svm_init_start(vcpu->kvm);
++		break;
++	case H_SVM_INIT_DONE:
++		ret = kvmppc_h_svm_init_done(vcpu->kvm);
++		break;
  
- #include "book3s.h"
+ 	default:
+ 		return RESUME_HOST;
+diff --git a/arch/powerpc/kvm/book3s_hv_hmm.c b/arch/powerpc/kvm/book3s_hv_hmm.c
+index 2730ab832330..e138b0edee9f 100644
+--- a/arch/powerpc/kvm/book3s_hv_hmm.c
++++ b/arch/powerpc/kvm/book3s_hv_hmm.c
+@@ -55,6 +55,39 @@ struct kvmppc_hmm_migrate_args {
+ 	unsigned long page_shift;
+ };
  
-@@ -4392,7 +4393,8 @@ static int kvmppc_core_prepare_memory_region_hv(struct kvm *kvm,
- static void kvmppc_core_commit_memory_region_hv(struct kvm *kvm,
- 				const struct kvm_userspace_memory_region *mem,
- 				const struct kvm_memory_slot *old,
--				const struct kvm_memory_slot *new)
-+				const struct kvm_memory_slot *new,
-+				enum kvm_mr_change change)
- {
- 	unsigned long npages = mem->memory_size >> PAGE_SHIFT;
- 
-@@ -4404,6 +4406,24 @@ static void kvmppc_core_commit_memory_region_hv(struct kvm *kvm,
- 	 */
- 	if (npages)
- 		atomic64_inc(&kvm->arch.mmio_update);
-+	/*
-+	 * If UV hasn't yet called H_SVM_INIT_START, don't register memslots.
-+	 */
-+	if (!kvm->arch.secure)
-+		return;
++unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
++{
++	struct kvm_memslots *slots;
++	struct kvm_memory_slot *memslot;
++	int ret = H_SUCCESS;
++	int srcu_idx;
 +
-+	/*
-+	 * TODO: Handle KVM_MR_MOVE
-+	 */
-+	if (change == KVM_MR_CREATE) {
-+		uv_register_mem_slot(kvm->arch.lpid,
-+					   new->base_gfn << PAGE_SHIFT,
-+					   new->npages * PAGE_SIZE,
-+					   0,
-+					   new->id);
-+	} else if (change == KVM_MR_DELETE) {
-+		uv_unregister_mem_slot(kvm->arch.lpid, old->id);
++	srcu_idx = srcu_read_lock(&kvm->srcu);
++	slots = kvm_memslots(kvm);
++	kvm_for_each_memslot(memslot, slots) {
++		ret = uv_register_mem_slot(kvm->arch.lpid,
++					   memslot->base_gfn << PAGE_SHIFT,
++					   memslot->npages * PAGE_SIZE,
++					   0, memslot->id);
++		if (ret < 0) {
++			ret = H_PARAMETER; /* TODO: proper retval */
++			goto out;
++		}
 +	}
- }
++	kvm->arch.secure = true;
++out:
++	srcu_read_unlock(&kvm->srcu, srcu_idx);
++	return ret;
++}
++
++unsigned long kvmppc_h_svm_init_done(struct kvm *kvm)
++{
++	if (kvm->arch.secure)
++		return H_SUCCESS;
++	else
++		return H_UNSUPPORTED;
++}
++
+ #define KVMPPC_PFN_HMM		(0x1ULL << 61)
  
- /*
-diff --git a/arch/powerpc/kvm/book3s_pr.c b/arch/powerpc/kvm/book3s_pr.c
-index 4efd65d9e828..3aeb17b88de7 100644
---- a/arch/powerpc/kvm/book3s_pr.c
-+++ b/arch/powerpc/kvm/book3s_pr.c
-@@ -1913,7 +1913,8 @@ static int kvmppc_core_prepare_memory_region_pr(struct kvm *kvm,
- static void kvmppc_core_commit_memory_region_pr(struct kvm *kvm,
- 				const struct kvm_userspace_memory_region *mem,
- 				const struct kvm_memory_slot *old,
--				const struct kvm_memory_slot *new)
-+				const struct kvm_memory_slot *new,
-+				enum kvm_mr_change change)
- {
- 	return;
- }
-diff --git a/arch/powerpc/kvm/powerpc.c b/arch/powerpc/kvm/powerpc.c
-index 2869a299c4ed..6a7a6a101efd 100644
---- a/arch/powerpc/kvm/powerpc.c
-+++ b/arch/powerpc/kvm/powerpc.c
-@@ -696,7 +696,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
- 				   const struct kvm_memory_slot *new,
- 				   enum kvm_mr_change change)
- {
--	kvmppc_core_commit_memory_region(kvm, mem, old, new);
-+	kvmppc_core_commit_memory_region(kvm, mem, old, new, change);
- }
- 
- void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
+ static inline bool kvmppc_is_hmm_pfn(unsigned long pfn)
 -- 
 2.17.1
