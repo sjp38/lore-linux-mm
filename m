@@ -1,121 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 303D96B253A
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 03:47:00 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id o10-v6so6916304plk.16
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 00:47:00 -0800 (PST)
-Received: from m15-23.126.com (m15-23.126.com. [220.181.15.23])
-        by mx.google.com with ESMTP id f189si17543188pfg.123.2018.11.21.00.46.58
-        for <linux-mm@kvack.org>;
-        Wed, 21 Nov 2018 00:46:59 -0800 (PST)
-Date: Wed, 21 Nov 2018 16:46:48 +0800 (CST)
-From: dong  <bauers@126.com>
-Subject: Re:Re:Re: Re: [Bug 201699] New: kmemleak in memcg_create_kmem_cache
-In-Reply-To: <6185b79c.9161.1672bd49ed1.Coremail.bauers@126.com>
-References: <bug-201699-27@https.bugzilla.kernel.org/>
- <20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org>
- <20181116175005.3dcfpyhuj57oaszm@esperanza>
- <433c2924.f6c.16724466cd8.Coremail.bauers@126.com>
- <20181119083045.m5rhvbsze4h5l6jq@esperanza>
- <6185b79c.9161.1672bd49ed1.Coremail.bauers@126.com>
-Content-Type: multipart/alternative;
-	boundary="----=_Part_110189_322001948.1542790008216"
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A20E6B2540
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 03:50:49 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id v74so5899586qkb.21
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 00:50:49 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c1si3949498qvm.119.2018.11.21.00.50.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Nov 2018 00:50:48 -0800 (PST)
+Subject: Re: [PATCH v1 3/8] kexec: export PG_offline to VMCOREINFO
+References: <20181119101616.8901-1-david@redhat.com>
+ <20181119101616.8901-4-david@redhat.com>
+ <20181121060458.GC7386@MiWiFi-R3L-srv>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <ddd5a6f4-59d0-474b-45d5-3589a21ebcd4@redhat.com>
+Date: Wed, 21 Nov 2018 09:50:17 +0100
 MIME-Version: 1.0
-Message-ID: <375ca28a.7433.16735734d98.Coremail.bauers@126.com>
+In-Reply-To: <20181121060458.GC7386@MiWiFi-R3L-srv>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dong <bauers@126.com>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Baoquan He <bhe@redhat.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Arnd Bergmann <arnd@arndb.de>, linux-pm@vger.kernel.org, pv-drivers@vmware.com, Borislav Petkov <bp@alien8.de>, linux-doc@vger.kernel.org, kexec-ml <kexec@lists.infradead.org>, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, Omar Sandoval <osandov@fb.com>, Kazuhito Hagio <k-hagio@ab.jp.nec.com>, "Michael S. Tsirkin" <mst@redhat.com>, xen-devel@lists.xenproject.org, linux-fsdevel@vger.kernel.org, devel@linuxdriverproject.org, Dave Young <dyoung@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Lianbo Jiang <lijiang@redhat.com>
 
-------=_Part_110189_322001948.1542790008216
-Content-Type: text/plain; charset=GBK
-Content-Transfer-Encoding: base64
+On 21.11.18 07:04, Baoquan He wrote:
+> On 11/19/18 at 11:16am, David Hildenbrand wrote:
+>> diff --git a/kernel/crash_core.c b/kernel/crash_core.c
+>> index 933cb3e45b98..093c9f917ed0 100644
+>> --- a/kernel/crash_core.c
+>> +++ b/kernel/crash_core.c
+>> @@ -464,6 +464,8 @@ static int __init crash_save_vmcoreinfo_init(void)
+>>  	VMCOREINFO_NUMBER(PAGE_BUDDY_MAPCOUNT_VALUE);
+>>  #ifdef CONFIG_HUGETLB_PAGE
+>>  	VMCOREINFO_NUMBER(HUGETLB_PAGE_DTOR);
+>> +#define PAGE_OFFLINE_MAPCOUNT_VALUE	(~PG_offline)
+>> +	VMCOREINFO_NUMBER(PAGE_OFFLINE_MAPCOUNT_VALUE);
+>>  #endif
+> 
+> This solution looks good to me. One small concern is why we don't
+> export PG_offline to vmcoreinfo directly, then define
+> PAGE_OFFLINE_MAPCOUNT_VALUE in makedumpfile. We have been exporting
+> kernel data/MACRO directly, why this one is exceptional.
+> 
 
-U29ycnksIEkgZm91bmQgd2hlbiBJIHJhbiBgZWNobyAzID4gIC9wcm9jL3N5cy92bS9kcm9wX2Nh
-Y2hlc2AsIHRoZSBsZWFrIG1lbW9yeSB3YXMgcmVsZWFzZWQgdmVyeSBzbG93bHkuIAoKVGhlIGBQ
-YWdlIENhY2hlYCBvZiB0aGUgb3BlbmVkIGxvZyBmaWxlIGlzIHRoZSByZWFzb24gdG8gY2F1c2Ug
-bGVhay4gQmVjYXVzZSB0aGUgYHN0cnVjdCBwYWdlYCBjb250YWlucyAKYHN0cnVjdCBtZW1fY2dy
-b3VwICptZW1fY2dyb3VwYCB3aGljaCBoYXMgYSBsYXJnZSBjaHVuayBvZiBtZW1vcnkuIFRoYW5r
-cyBldmVyeW9uZSBmb3IgaGVscGluZyBtZSB0bwpzb2x2ZSB0aGUgcHJvYmxlbS4KCgpUaGUgbGFz
-dCBxdWVzdGlvbjogSWYgSSBhbGxvYyBtYW55IHNtYWxsIHBhZ2VzIGFuZCBub3QgZnJlZSB0aGVt
-LCB3aWxsIEkgZXhoYXVzdCB0aGUgbWVtb3J5ICggYmVjYXVzZSBldmVyeSBwYWdlIGNvbnRhaW5z
-IGBtZW1fY2dyb3VwYCApPwoKCgoKQXQgMjAxOC0xMS0xOSAxOTo1Njo1MywgImRvbmciIDxiYXVl
-cnNAMTI2LmNvbT4gd3JvdGU6CgpTb3JyeSwgdGhlcmUncyBhIGxlYWsgaW5kZWVkLiBUaGUgbWVt
-b3J5IHdhcyBsZWFraW5nIGFsbCB0aGUgdGltZSBhbmQgSSB0cmllZCB0byBydW4gY29tbWFuZCBg
-ZWNobyAzID4gL3Byb2Mvc3lzL3ZtL2Ryb3BfY2FjaGVzYCwgaXQgZGlkbid0IGhlbHAuCgpCdXQg
-d2hlbiBJIGRlbGV0ZSB0aGUgbG9nIGZpbGVzIHdoaWNoIHdhcyBjcmVhdGVkIGJ5IHRoZSBmYWls
-ZWQgc3lzdGVtZCBzZXJ2aWNlLCB0aGUgbGVhayhjYWNoZWQpIG1lbW9yeSB3YXMgcmVsZWFzZWQu
-IApJIHN1c3BlY3QgdGhlIGxlYWsgaXMgcmVsZXZhbnQgdG8gdGhlIGlub2RlIG9iamVjdHMuCgoK
-CgoKQXQgMjAxOC0xMS0xOSAxNjozMDo0NSwgIlZsYWRpbWlyIERhdnlkb3YiIDx2ZGF2eWRvdi5k
-ZXZAZ21haWwuY29tPiB3cm90ZToKPk9uIFN1biwgTm92IDE4LCAyMDE4IGF0IDA4OjQ0OjE0QU0g
-KzA4MDAsIGRvbmcgd3JvdGU6Cj4+IEZpcnN0IG9mIGFsbCxJIGNhbiBzZWUgbWVtb3J5IGxlYWsg
-d2hlbiBJIHJ1biChrmZyZWUgLWehryBjb21tYW5kLgo+Cj5UaGlzIGRvZXNuJ3QgbWVhbiB0aGVy
-ZSdzIGEgbGVhay4gVGhlIGtlcm5lbCBtYXkgcG9zdHBvbmUgZnJlZWluZyBtZW1vcnkKPnVudGls
-IHRoZXJlJ3MgbWVtb3J5IHByZXNzdXJlLiBJbiBwYXJ0aWN1bGFyIGNncm91cCBvYmplY3RzIGFy
-ZSBub3QKPnJlbGVhc2VkIHVudGlsIHRoZXJlIGFyZSBvYmplY3RzIGFsbG9jYXRlZCBmcm9tIHRo
-ZSBjb3JyZXNwb25kaW5nIGttZW0KPmNhY2hlcy4gVGhvc2Ugb2JqZWN0cyBtYXkgYmUgaW5vZGVz
-IG9yIGRlbnRyaWVzLCB3aGljaCBhcmUgZnJlZWQgbGF6aWx5Lgo+TG9va3MgbGlrZSByZXN0YXJ0
-aW5nIGEgc2VydmljZSBjYXVzZXMgcmVjcmVhdGlvbiBvZiBhIG1lbW9yeSBjZ3JvdXAgYW5kCj5o
-ZW5jZSBwaWxpbmcgdXAgZGVhZCBjZ3JvdXBzLiBUcnkgdG8gZHJvcCBjYWNoZXMuCj4KPj5TbyBJ
-IGVuYWJsZWQga21lbWxlYWsuIEkgZ290IHRoZSBtZXNzYWdlcyBhYm92ZS4gV2hlbiBJIHJ1biCh
-rmNhdAo+Pi9zeXMva2VybmVsL2RlYnVnL2ttZW1sZWFroa8sIG5vdGhpbmcgY2FtZSB1cC4gSW5z
-dGVhZCwgdGhlIKGuZG1lc2ehrwo+PmNvbW1hbmQgc2hvdyBtZSB0aGUgbGVhayBtZXNzYWdlcy4g
-U28gdGhlIG1lc3NhZ2VzIGlzIG5vdCB0aGUgbGVhawo+PnJlYXNvbqO/SG93IGNhbiBJIGRldGVj
-dCB0aGUgcmVhbCBtZW1vcnkgbGVha6O/VGhhbmtzo6EKCgoKCgog
-------=_Part_110189_322001948.1542790008216
-Content-Type: text/html; charset=GBK
-Content-Transfer-Encoding: base64
+1. We are much more similar to PG_buddy (in contrast to actual page
+flags), and for PG_buddy it is historically handled like this (and I
+think it makes sense to expose these as actual MAPCOUNT_VALUEs).
 
-PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MS43O2NvbG9yOiMwMDAwMDA7Zm9udC1zaXplOjE0cHg7
-Zm9udC1mYW1pbHk6QXJpYWwiPlNvcnJ5LCBJIGZvdW5kIHdoZW4gSSByYW4gYGVjaG8gMyAmZ3Q7
-Jm5ic3A7Jm5ic3A7L3Byb2Mvc3lzL3ZtL2Ryb3BfY2FjaGVzYCwgdGhlIGxlYWsgbWVtb3J5IHdh
-cyByZWxlYXNlZCB2ZXJ5IHNsb3dseS4mbmJzcDs8YnI+PGRpdj5UaGUgYFBhZ2UgQ2FjaGVgIG9m
-IHRoZSBvcGVuZWQgbG9nIGZpbGUgaXMgdGhlIHJlYXNvbiB0byBjYXVzZSBsZWFrLiBCZWNhdXNl
-IHRoZSBgc3RydWN0IHBhZ2VgJm5ic3A7Y29udGFpbnMmbmJzcDs8L2Rpdj48ZGl2PmBzdHJ1Y3Qg
-bWVtX2Nncm91cCAqbWVtX2Nncm91cGAgd2hpY2ggaGFzIGEgbGFyZ2UgY2h1bmsgb2YgbWVtb3J5
-LiBUaGFua3MgZXZlcnlvbmUgZm9yIGhlbHBpbmcgbWUgdG88L2Rpdj48ZGl2PnNvbHZlIHRoZSBw
-cm9ibGVtLjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+VGhlIGxhc3QgcXVlc3Rpb246IElmIEkg
-YWxsb2MgbWFueSBzbWFsbCBwYWdlcyBhbmQgbm90IGZyZWUgdGhlbSwgd2lsbCBJIGV4aGF1c3Qg
-dGhlIG1lbW9yeSAoIGJlY2F1c2UgZXZlcnkgcGFnZSBjb250YWlucyBgbWVtX2Nncm91cGAgKT88
-L2Rpdj48YnI+PGJyPjxkaXYgc3R5bGU9InBvc2l0aW9uOnJlbGF0aXZlO3pvb206MSI+PC9kaXY+
-PGRpdiBpZD0iZGl2TmV0ZWFzZU1haWxDYXJkIj48L2Rpdj48YnI+QXQgMjAxOC0xMS0xOSAxOTo1
-Njo1MywgImRvbmciICZsdDtiYXVlcnNAMTI2LmNvbSZndDsgd3JvdGU6PGJyPiA8YmxvY2txdW90
-ZSBpZD0iaXNSZXBseUNvbnRlbnQiIHN0eWxlPSJQQURESU5HLUxFRlQ6IDFleDsgTUFSR0lOOiAw
-cHggMHB4IDBweCAwLjhleDsgQk9SREVSLUxFRlQ6ICNjY2MgMXB4IHNvbGlkIj48ZGl2IHN0eWxl
-PSJsaW5lLWhlaWdodDoxLjc7Y29sb3I6IzAwMDAwMDtmb250LXNpemU6MTRweDtmb250LWZhbWls
-eTpBcmlhbCI+U29ycnksIHRoZXJlJ3MgYSBsZWFrIGluZGVlZC4gVGhlIG1lbW9yeSB3YXMgbGVh
-a2luZyBhbGwgdGhlIHRpbWUgYW5kIEkgdHJpZWQgdG8gcnVuIGNvbW1hbmQgYGVjaG8gMyAmZ3Q7
-IC9wcm9jL3N5cy92bS9kcm9wX2NhY2hlc2AsIGl0IGRpZG4ndCBoZWxwLjxicj48ZGl2PkJ1dCB3
-aGVuIEkgZGVsZXRlIHRoZSBsb2cgZmlsZXMgd2hpY2ggd2FzIGNyZWF0ZWQgYnkgdGhlIGZhaWxl
-ZCBzeXN0ZW1kIHNlcnZpY2UsIHRoZSBsZWFrKGNhY2hlZCkgbWVtb3J5IHdhcyByZWxlYXNlZC4m
-bmJzcDs8L2Rpdj48ZGl2Pkkgc3VzcGVjdCB0aGUgbGVhayBpcyByZWxldmFudCB0byB0aGUgaW5v
-ZGUgb2JqZWN0cy48L2Rpdj48YnI+PGRpdiBzdHlsZT0icG9zaXRpb246cmVsYXRpdmU7em9vbTox
-Ij48L2Rpdj48ZGl2PjwvZGl2Pjxicj48cHJlPjxicj5BdCAyMDE4LTExLTE5IDE2OjMwOjQ1LCAi
-VmxhZGltaXIgRGF2eWRvdiIgJmx0OzxhIGhyZWY9Im1haWx0bzp2ZGF2eWRvdi5kZXZAZ21haWwu
-Y29tIj52ZGF2eWRvdi5kZXZAZ21haWwuY29tPC9hPiZndDsgd3JvdGU6CiZndDtPbiBTdW4sIE5v
-diAxOCwgMjAxOCBhdCAwODo0NDoxNEFNICswODAwLCBkb25nIHdyb3RlOgomZ3Q7Jmd0OyBGaXJz
-dCBvZiBhbGwsSSBjYW4gc2VlIG1lbW9yeSBsZWFrIHdoZW4gSSBydW4goa5mcmVlIC1noa8gY29t
-bWFuZC4KJmd0OwomZ3Q7VGhpcyBkb2Vzbid0IG1lYW4gdGhlcmUncyBhIGxlYWsuIFRoZSBrZXJu
-ZWwgbWF5IHBvc3Rwb25lIGZyZWVpbmcgbWVtb3J5CiZndDt1bnRpbCB0aGVyZSdzIG1lbW9yeSBw
-cmVzc3VyZS4gSW4gcGFydGljdWxhciBjZ3JvdXAgb2JqZWN0cyBhcmUgbm90CiZndDtyZWxlYXNl
-ZCB1bnRpbCB0aGVyZSBhcmUgb2JqZWN0cyBhbGxvY2F0ZWQgZnJvbSB0aGUgY29ycmVzcG9uZGlu
-ZyBrbWVtCiZndDtjYWNoZXMuIFRob3NlIG9iamVjdHMgbWF5IGJlIGlub2RlcyBvciBkZW50cmll
-cywgd2hpY2ggYXJlIGZyZWVkIGxhemlseS4KJmd0O0xvb2tzIGxpa2UgcmVzdGFydGluZyBhIHNl
-cnZpY2UgY2F1c2VzIHJlY3JlYXRpb24gb2YgYSBtZW1vcnkgY2dyb3VwIGFuZAomZ3Q7aGVuY2Ug
-cGlsaW5nIHVwIGRlYWQgY2dyb3Vwcy4gVHJ5IHRvIGRyb3AgY2FjaGVzLgomZ3Q7CiZndDsmZ3Q7
-U28gSSBlbmFibGVkIGttZW1sZWFrLiBJIGdvdCB0aGUgbWVzc2FnZXMgYWJvdmUuIFdoZW4gSSBy
-dW4goa5jYXQKJmd0OyZndDsvc3lzL2tlcm5lbC9kZWJ1Zy9rbWVtbGVha6GvLCBub3RoaW5nIGNh
-bWUgdXAuIEluc3RlYWQsIHRoZSChrmRtZXNnoa8KJmd0OyZndDtjb21tYW5kIHNob3cgbWUgdGhl
-IGxlYWsgbWVzc2FnZXMuIFNvIHRoZSBtZXNzYWdlcyBpcyBub3QgdGhlIGxlYWsKJmd0OyZndDty
-ZWFzb26jv0hvdyBjYW4gSSBkZXRlY3QgdGhlIHJlYWwgbWVtb3J5IGxlYWujv1RoYW5rc6OhCjwv
-cHJlPjwvZGl2Pjxicj48YnI+PHNwYW4gdGl0bGU9Im5ldGVhc2Vmb290ZXIiPjxwPiZuYnNwOzwv
-cD48L3NwYW4+PC9ibG9ja3F1b3RlPjwvZGl2Pjxicj48YnI+PHNwYW4gdGl0bGU9Im5ldGVhc2Vm
-b290ZXIiPjxkaXYgaWQ9Im5ldGVhc2VfbWFpbF9mb290ZXIiPjxkaXYgc3R5bGU9ImJvcmRlci10
-b3A6I0NDQyAxcHggc29saWQ7cGFkZGluZzoxMHB4IDVweDtmb250LXNpemU6MTZweDtjb2xvcjoj
-Nzc3O2xpbmUtaGVpZ2h0OjIycHgiPjxhIGhyZWY9Imh0dHA6Ly95b3UuMTYzLmNvbS9pdGVtL2Rl
-dGFpbD9pZD0xMDkyMDAxJmZyb209d2ViX2dnX21haWxfamlhb2JpYW9fNwoiIHRhcmdldD0iX2Js
-YW5rIiBzdHlsZT0iY29sb3I6IzMzNjZGRjt0ZXh0LWRlY29yYXRpb246bm9uZSI+ob7N+NLX19TT
-qnwzMMzszt7Tx83Lu/Whv7Cuyc/K6dC0o7rKqbuqwuXKwMbm1sbU7MnM0Me/1dStyavLrr6nscqj
-rM/eyrG99jI51KomZ3Q7Jmd0OyAmbmJzcDs8L2E+CiAmbmJzcDsgJm5ic3A7PC9kaXY+PC9kaXY+
-PC9zcGFuPg==
-------=_Part_110189_322001948.1542790008216--
+2. Right now only one page type per page is supported. Therefore only
+exactly one value in mapcount indicates e.g. PageBuddy()/PageOffline().
+
+Now, if we ever decide to change this (e.g. treat them like real flags),
+it is much easier to switch to PG_offline/PG_buddy then. We can directly
+see in makedumpfile that .*_MAPCOUNT_VALUE is no longer available but
+instead e.g. PG_offline and PG_buddy. Instead we would no see a change
+in makedumpfile and would have to rely on other properties.
+
+If there are no strong opinions I will leave it like this.
+
+Thanks!
+
+> Thanks
+> Baoquan
+> 
+
+
+-- 
+
+Thanks,
+
+David / dhildenb
