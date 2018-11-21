@@ -1,57 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CDD6C6B239F
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 07:21:43 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id 92so6353626qkx.19
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 04:21:43 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h8si8087376qta.340.2018.11.21.04.21.42
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 86EEE6B2355
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 07:36:04 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id o23so8214791pll.0
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 04:36:04 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id v10-v6si11739498pfk.264.2018.11.21.04.36.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Nov 2018 04:21:42 -0800 (PST)
-Subject: Re: [PATCH v1 8/8] PM / Hibernate: exclude all PageOffline() pages
-References: <20181119101616.8901-1-david@redhat.com>
- <20181119101616.8901-9-david@redhat.com>
- <11E3C0B0-AEED-42C6-A21C-1820F4B47A68@oracle.com>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <88f19102-9830-1ed0-1f46-56e11316ca09@redhat.com>
-Date: Wed, 21 Nov 2018 13:21:08 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 21 Nov 2018 04:36:03 -0800 (PST)
+Date: Wed, 21 Nov 2018 04:35:13 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 1/9] mm: Introduce new vm_insert_range API
+Message-ID: <20181121123513.GF3065@bombadil.infradead.org>
+References: <20181115154530.GA27872@jordon-HP-15-Notebook-PC>
+ <20181116182836.GB17088@rapoport-lnx>
+ <CAFqt6zYp0j999WXw9Jus0oZMjADQQkPfso8btv6du6L9CE3PXA@mail.gmail.com>
+ <20181117143742.GB7861@bombadil.infradead.org>
+ <CAFqt6zbOWX5LUTWwoGDJsGdf+pTR6N1yTPVxyr1W3-6Fte39ww@mail.gmail.com>
+ <833B5050-DEF6-44A0-9832-276F86671212@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <11E3C0B0-AEED-42C6-A21C-1820F4B47A68@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <833B5050-DEF6-44A0-9832-276F86671212@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: William Kucharski <william.kucharski@oracle.com>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, kexec-ml <kexec@lists.infradead.org>, pv-drivers@vmware.com, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Souptick Joarder <jrdr.linux@gmail.com>, rppt@linux.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz, Rik van Riel <riel@surriel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, rppt@linux.vnet.ibm.com, Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, Kees Cook <keescook@chromium.org>, Marek Szyprowski <m.szyprowski@samsung.com>, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, Kyungmin Park <kyungmin.park@samsung.com>, mchehab@kernel.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
 
-On 21.11.18 12:35, William Kucharski wrote:
-> If you are adding PageOffline(page) to the condition list of the already existing if in
-> saveable_highmem_page(), why explicitly add it as a separate statement in saveable_page()?
+On Wed, Nov 21, 2018 at 04:19:11AM -0700, William Kucharski wrote:
+> Could you add a line to the description explicitly stating that a failure
+> to insert any page in the range will fail the entire routine, something
+> like:
 > 
-> It would seem more consistent to make the second check:
+> > * This allows drivers to insert range of kernel pages they've allocated
+> > * into a user vma. This is a generic function which drivers can use
+> > * rather than using their own way of mapping range of kernel pages into
+> > * user vma.
+> > *
+> > * A failure to insert any page in the range will fail the call as a whole.
 > 
-> -	if (swsusp_page_is_forbidden(page) || swsusp_page_is_free(page))
-> +	if (swsusp_page_is_forbidden(page) || swsusp_page_is_free(page) ||
-> +		PageOffline(page))
-> 
-> instead.
-> 
-> It's admittedly a nit but it just seems cleaner to either do that or, if your intention
-> was to separate the Page checks from the swsusp checks, to break the calls to
-> PageReserved() and PageOffline() into their own check in saveable_highmem_page().
+> It's obvious when reading the code, but it would be self-documenting to
+> state it outright.
 
-I'll split PageReserved() and PageOffline() off from the swsusp checks,
-thanks for your comment!
+It's probably better to be more explicit and answer Randy's question:
 
-> 
-> Thanks!
->     -- Bill
+ * If we fail to insert any page into the vma, the function will return
+ * immediately leaving any previously-inserted pages present.  Callers
+ * from the mmap handler may immediately return the error as their
+ * caller will destroy the vma, removing any successfully-inserted pages.
+ * Other callers should make their own arrangements for calling unmap_region().
 
-
--- 
-
-Thanks,
-
-David / dhildenb
+Although unmap_region() is static so there clearly isn't any code in the
+kernel today other than in mmap handlers (or fault handlers) that needs to
+insert pages into a VMA.
