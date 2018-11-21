@@ -1,89 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D2D8B6B2574
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 04:23:24 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id o23so7270651pll.0
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 01:23:24 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id x1si25766639pfn.111.2018.11.21.01.23.23
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Nov 2018 01:23:23 -0800 (PST)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAL9J9fi088616
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 04:23:23 -0500
-Received: from e11.ny.us.ibm.com (e11.ny.us.ibm.com [129.33.205.201])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2nw4c313ju-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 04:23:23 -0500
-Received: from localhost
-	by e11.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Wed, 21 Nov 2018 09:23:21 -0000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [PATCH V4 3/3] powerpc/mm/iommu: Allow large IOMMU page size only for hugetlb backing
-Date: Wed, 21 Nov 2018 14:52:59 +0530
-In-Reply-To: <20181121092259.16482-1-aneesh.kumar@linux.ibm.com>
-References: <20181121092259.16482-1-aneesh.kumar@linux.ibm.com>
-Message-Id: <20181121092259.16482-4-aneesh.kumar@linux.ibm.com>
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 523456B2576
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 04:23:30 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id l9so6767626plt.7
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 01:23:30 -0800 (PST)
+Received: from m15-23.126.com (m15-23.126.com. [220.181.15.23])
+        by mx.google.com with ESMTP id x186si37748640pgb.33.2018.11.21.01.23.28
+        for <linux-mm@kvack.org>;
+        Wed, 21 Nov 2018 01:23:29 -0800 (PST)
+Date: Wed, 21 Nov 2018 17:22:18 +0800 (CST)
+From: dong  <bauers@126.com>
+Subject: Re:Re: Re:Re: Re: [Bug 201699] New: kmemleak in
+ memcg_create_kmem_cache
+In-Reply-To: <20181121091041.GM12932@dhcp22.suse.cz>
+References: <bug-201699-27@https.bugzilla.kernel.org/>
+ <20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org>
+ <20181116175005.3dcfpyhuj57oaszm@esperanza>
+ <433c2924.f6c.16724466cd8.Coremail.bauers@126.com>
+ <20181119083045.m5rhvbsze4h5l6jq@esperanza>
+ <6185b79c.9161.1672bd49ed1.Coremail.bauers@126.com>
+ <375ca28a.7433.16735734d98.Coremail.bauers@126.com>
+ <20181121091041.GM12932@dhcp22.suse.cz>
+Content-Type: multipart/alternative;
+	boundary="----=_Part_118031_835964661.1542792138968"
+MIME-Version: 1.0
+Message-ID: <5fa306b3.7c7c.1673593d0d8.Coremail.bauers@126.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, mpe@ellerman.id.au, paulus@samba.org, David Gibson <david@gibson.dropbear.id.au>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, duanxiongchun@bytedance.com
 
-THP pages can get split during different code paths. An incremented reference
-count do imply we will not split the compound page. But the pmd entry can be
-converted to level 4 pte entries. Keep the code simpler by allowing large
-IOMMU page size only if the guest ram is backed by hugetlb pages.
+------=_Part_118031_835964661.1542792138968
+Content-Type: text/plain; charset=GBK
+Content-Transfer-Encoding: base64
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
----
- arch/powerpc/mm/mmu_context_iommu.c | 24 +++++++-----------------
- 1 file changed, 7 insertions(+), 17 deletions(-)
+VGhhbmtzIGZvciByZXBseWluZywgTWljaGFsLgoKCmNjIHRvIGR1YW54aW9uZ2NodW4KCgoKCgoK
+CgpBdCAyMDE4LTExLTIxIDE3OjEwOjQxLCAiTWljaGFsIEhvY2tvIiA8bWhvY2tvQGtlcm5lbC5v
+cmc+IHdyb3RlOgo+T24gV2VkIDIxLTExLTE4IDE2OjQ2OjQ4LCBkb25nIHdyb3RlOgo+PiBUaGUg
+bGFzdCBxdWVzdGlvbjogSWYgSSBhbGxvYyBtYW55IHNtYWxsIHBhZ2VzIGFuZCBub3QgZnJlZSB0
+aGVtLCB3aWxsCj4+IEkgZXhoYXVzdCB0aGUgbWVtb3J5ICggYmVjYXVzZSBldmVyeSBwYWdlIGNv
+bnRhaW5zIGBtZW1fY2dyb3VwYCApPwo+Cj5ObywgdGhlIG1lbW9yeSB3aWxsIGdldCByZWNsYWlt
+ZWQgb24gdGhlIG1lbW9yeSBwcmVzc3VyZSBvciBmb3IKPmFub255bW91cyBvbmUgKG1hbGxvYykg
+d2hlbiB0aGUgcHJvY2VzcyBhbGxvY2F0aW5nIGl0IHRlcm1pbmF0ZXMsCj4tLSAKPk1pY2hhbCBI
+b2Nrbwo+U1VTRSBMYWJzCg==
+------=_Part_118031_835964661.1542792138968
+Content-Type: text/html; charset=GBK
+Content-Transfer-Encoding: base64
 
-diff --git a/arch/powerpc/mm/mmu_context_iommu.c b/arch/powerpc/mm/mmu_context_iommu.c
-index 1d5161f93ce6..0741d905ed04 100644
---- a/arch/powerpc/mm/mmu_context_iommu.c
-+++ b/arch/powerpc/mm/mmu_context_iommu.c
-@@ -95,8 +95,6 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
- 	struct mm_iommu_table_group_mem_t *mem;
- 	long i, ret = 0, locked_entries = 0;
- 	unsigned int pageshift;
--	unsigned long flags;
--	unsigned long cur_ua;
- 
- 	mutex_lock(&mem_list_mutex);
- 
-@@ -159,23 +157,15 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
- 	pageshift = PAGE_SHIFT;
- 	for (i = 0; i < entries; ++i) {
- 		struct page *page = mem->hpages[i];
--		cur_ua = ua + (i << PAGE_SHIFT);
- 
--		if (mem->pageshift > PAGE_SHIFT && PageCompound(page)) {
--			pte_t *pte;
-+		/*
-+		 * Allow to use larger than 64k IOMMU pages. Only do that
-+		 * if we are backed by hugetlb.
-+		 */
-+		if ((mem->pageshift > PAGE_SHIFT) && PageHuge(page)) {
- 			struct page *head = compound_head(page);
--			unsigned int compshift = compound_order(head);
--			unsigned int pteshift;
--
--			local_irq_save(flags); /* disables as well */
--			pte = find_linux_pte(mm->pgd, cur_ua, NULL, &pteshift);
--
--			/* Double check it is still the same pinned page */
--			if (pte && pte_page(*pte) == head &&
--			    pteshift == compshift + PAGE_SHIFT)
--				pageshift = max_t(unsigned int, pteshift,
--						PAGE_SHIFT);
--			local_irq_restore(flags);
-+
-+			pageshift = compound_order(head) + PAGE_SHIFT;
- 		}
- 		mem->pageshift = min(mem->pageshift, pageshift);
- 		/*
--- 
-2.17.2
+PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MS43O2NvbG9yOiMwMDAwMDA7Zm9udC1zaXplOjE0cHg7
+Zm9udC1mYW1pbHk6QXJpYWwiPjxkaXY+VGhhbmtzIGZvciByZXBseWluZywmbmJzcDs8c3BhbiBz
+dHlsZT0iZm9udC1mYW1pbHk6IGFyaWFsOyB3aGl0ZS1zcGFjZTogcHJlLXdyYXA7Ij5NaWNoYWw8
+L3NwYW4+LjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+Y2MgdG8gZHVhbnhpb25nY2h1bjwvZGl2
+Pjxicj48YnI+PGJyPjxicj48ZGl2IHN0eWxlPSJwb3NpdGlvbjpyZWxhdGl2ZTt6b29tOjEiPjwv
+ZGl2PjxkaXYgaWQ9ImRpdk5ldGVhc2VNYWlsQ2FyZCI+PC9kaXY+PGJyPjxwcmU+PGJyPkF0IDIw
+MTgtMTEtMjEgMTc6MTA6NDEsICJNaWNoYWwgSG9ja28iICZsdDttaG9ja29Aa2VybmVsLm9yZyZn
+dDsgd3JvdGU6CiZndDtPbiBXZWQgMjEtMTEtMTggMTY6NDY6NDgsIGRvbmcgd3JvdGU6CiZndDsm
+Z3Q7IFRoZSBsYXN0IHF1ZXN0aW9uOiBJZiBJIGFsbG9jIG1hbnkgc21hbGwgcGFnZXMgYW5kIG5v
+dCBmcmVlIHRoZW0sIHdpbGwKJmd0OyZndDsgSSBleGhhdXN0IHRoZSBtZW1vcnkgKCBiZWNhdXNl
+IGV2ZXJ5IHBhZ2UgY29udGFpbnMgYG1lbV9jZ3JvdXBgICk/CiZndDsKJmd0O05vLCB0aGUgbWVt
+b3J5IHdpbGwgZ2V0IHJlY2xhaW1lZCBvbiB0aGUgbWVtb3J5IHByZXNzdXJlIG9yIGZvcgomZ3Q7
+YW5vbnltb3VzIG9uZSAobWFsbG9jKSB3aGVuIHRoZSBwcm9jZXNzIGFsbG9jYXRpbmcgaXQgdGVy
+bWluYXRlcywKJmd0Oy0tIAomZ3Q7TWljaGFsIEhvY2tvCiZndDtTVVNFIExhYnMKPC9wcmU+PC9k
+aXY+PGJyPjxicj48c3BhbiB0aXRsZT0ibmV0ZWFzZWZvb3RlciI+PHA+Jm5ic3A7PC9wPjwvc3Bh
+bj4=
+------=_Part_118031_835964661.1542792138968--
