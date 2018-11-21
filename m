@@ -1,62 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 336826B2424
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 00:04:26 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id k203so5679321qke.2
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 21:04:26 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y65si1847371qky.128.2018.11.20.21.04.25
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C0836B243E
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 00:28:24 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id z10so2455172edz.15
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 21:28:24 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id l1si4551487edc.252.2018.11.20.21.28.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Nov 2018 21:04:25 -0800 (PST)
-Date: Wed, 21 Nov 2018 13:04:00 +0800
-From: Ming Lei <ming.lei@redhat.com>
-Subject: Re: [PATCH V10 09/19] block: introduce bio_bvecs()
-Message-ID: <20181121050359.GA31915@ming.t460p>
-References: <20181115085306.9910-10-ming.lei@redhat.com>
- <20181116134541.GH3165@lst.de>
- <002fe56b-25e4-573e-c09b-bb12c3e8d25a@grimberg.me>
- <20181120161651.GB2629@lst.de>
- <53526aae-fb9b-ee38-0a01-e5899e2d4e4d@grimberg.me>
- <20181121005902.GA31748@ming.t460p>
- <2d9bee7a-f010-dcf4-1184-094101058584@grimberg.me>
- <20181121034415.GA8408@ming.t460p>
- <2a47d336-c19b-6bf4-c247-d7382871eeea@grimberg.me>
- <7378bf49-5a7e-5622-d4d1-808ba37ce656@grimberg.me>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <7378bf49-5a7e-5622-d4d1-808ba37ce656@grimberg.me>
+        Tue, 20 Nov 2018 21:28:22 -0800 (PST)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAL5SKjB052746
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 00:28:21 -0500
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2nvxhyd975-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 00:28:21 -0500
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <bharata@linux.ibm.com>;
+	Wed, 21 Nov 2018 05:28:19 -0000
+From: Bharata B Rao <bharata@linux.ibm.com>
+Subject: [RFC PATCH v2 0/4] kvmppc: HMM backend driver to manage pages of secure guest
+Date: Wed, 21 Nov 2018 10:58:07 +0530
+Message-Id: <20181121052811.4819-1-bharata@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sagi Grimberg <sagi@grimberg.me>
-Cc: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: linuxppc-dev@lists.ozlabs.org
+Cc: kvm-ppc@vger.kernel.org, linux-mm@kvack.org, paulus@au1.ibm.com, benh@linux.ibm.com, aneesh.kumar@linux.vnet.ibm.com, jglisse@redhat.com, linuxram@us.ibm.com, Bharata B Rao <bharata@linux.ibm.com>
 
-On Tue, Nov 20, 2018 at 08:42:04PM -0800, Sagi Grimberg wrote:
-> 
-> > > Yeah, that is the most common example, given merge is enabled
-> > > in most of cases. If the driver or device doesn't care merge,
-> > > you can disable it and always get single bio request, then the
-> > > bio's bvec table can be reused for send().
-> > 
-> > Does bvec_iter span bvecs with your patches? I didn't see that change?
-> 
-> Wait, I see that the bvec is still a single array per bio. When you said
-> a table I thought you meant a 2-dimentional array...
+Hi,
 
-I mean a new 1-d table A has to be created for multiple bios in one rq,
-and build it in the following way
+A pseries guest can be run as a secure guest on Ultravisor-enabled
+POWER platforms. On such platforms, this driver will be used to manage
+the movement of guest pages between the normal memory managed by
+hypervisor (HV) and secure memory managed by Ultravisor (UV).
 
-           rq_for_each_bvec(tmp, rq, rq_iter)
-                    *A = tmp;
+This is an early post of HMM driver patches that manage page migration
+between normal and secure memory.
 
-Then you can pass A to iov_iter_bvec() & send().
+Private ZONE_DEVICE memory equal to the amount of secure memory
+available in the platform for running secure guests is created
+via a HMM device. The movement of pages between normal and secure
+memory is done by ->alloc_and_copy() callback routine of migrate_vma().
 
-Given it is over TCP, I guess it should be doable for you to preallocate one
-256-bvec table in one page for each request, then sets the max segment size as
-(unsigned int)-1, and max segment number as 256, the preallocated table
-should work anytime.
+The page-in or page-out requests from UV will come to HV as hcalls and
+HV will call back into UV via uvcalls to satisfy these page requests.
 
+The implementation of uvcall themselves are not present in this post
+and will be posted separately.
 
-Thanks,
-Ming
+Changes in v2
+=============
+- Removed the HMM PFN hash table as the same information is now being
+  stored in kvm_memory_slot->arch.rmap[] array as suggested by
+  Paul Mackerras.
+- Addressed the review comments from v1.
+
+Bharata B Rao (4):
+  kvmppc: HMM backend driver to manage pages of secure guest
+  kvmppc: Add support for shared pages in HMM driver
+  kvmppc: H_SVM_INIT_START and H_SVM_INIT_DONE hcalls
+  kvmppc: Handle memory plug/unplug to secure VM
+
+ arch/powerpc/include/asm/hvcall.h    |   9 +
+ arch/powerpc/include/asm/kvm_host.h  |  15 +
+ arch/powerpc/include/asm/kvm_ppc.h   |  46 ++-
+ arch/powerpc/include/asm/ucall-api.h |  33 ++
+ arch/powerpc/kvm/Makefile            |   3 +
+ arch/powerpc/kvm/book3s.c            |   5 +-
+ arch/powerpc/kvm/book3s_hv.c         |  49 ++-
+ arch/powerpc/kvm/book3s_hv_hmm.c     | 542 +++++++++++++++++++++++++++
+ arch/powerpc/kvm/book3s_pr.c         |   3 +-
+ arch/powerpc/kvm/powerpc.c           |   2 +-
+ 10 files changed, 700 insertions(+), 7 deletions(-)
+ create mode 100644 arch/powerpc/include/asm/ucall-api.h
+ create mode 100644 arch/powerpc/kvm/book3s_hv_hmm.c
+
+-- 
+2.17.1
