@@ -1,142 +1,276 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 67BC16B2695
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 11:49:36 -0500 (EST)
-Received: by mail-yw1-f71.google.com with SMTP id q3-v6so3607304ywh.17
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 08:49:36 -0800 (PST)
-Received: from p3plsmtpa07-10.prod.phx3.secureserver.net (p3plsmtpa07-10.prod.phx3.secureserver.net. [173.201.192.239])
-        by mx.google.com with ESMTPS id u131si11578662ywb.382.2018.11.21.08.49.34
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 35A866B2696
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 11:49:59 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id f22so6905018qkm.11
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 08:49:59 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 13si105965qtu.390.2018.11.21.08.49.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Nov 2018 08:49:34 -0800 (PST)
-Subject: Re: [PATCH v2 0/6] RFC: gup+dma: tracking dma-pinned pages
-References: <20181110085041.10071-1-jhubbard@nvidia.com>
- <942cb823-9b18-69e7-84aa-557a68f9d7e9@talpey.com>
- <97934904-2754-77e0-5fcb-83f2311362ee@nvidia.com>
-From: Tom Talpey <tom@talpey.com>
-Message-ID: <5159e02f-17f8-df8b-600c-1b09356e46a9@talpey.com>
-Date: Wed, 21 Nov 2018 11:49:33 -0500
+        Wed, 21 Nov 2018 08:49:58 -0800 (PST)
+Subject: Re: [PATCH v2 07/17] debugobjects: Move printk out of db lock
+ critical sections
+References: <1542653726-5655-1-git-send-email-longman@redhat.com>
+ <1542653726-5655-8-git-send-email-longman@redhat.com>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <2ddd9e3d-951e-1892-c941-54be80f7e6aa@redhat.com>
+Date: Wed, 21 Nov 2018 11:49:54 -0500
 MIME-Version: 1.0
-In-Reply-To: <97934904-2754-77e0-5fcb-83f2311362ee@nvidia.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
+In-Reply-To: <1542653726-5655-8-git-send-email-longman@redhat.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>, john.hubbard@gmail.com, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 11/21/2018 1:09 AM, John Hubbard wrote:
-> On 11/19/18 10:57 AM, Tom Talpey wrote:
->> ~14000 4KB read IOPS is really, really low for an NVMe disk.
-> 
-> Yes, but Jan Kara's original config file for fio is *intended* to highlight
-> the get_user_pages/put_user_pages changes. It was *not* intended to get max
-> performance,  as you can see by the numjobs and direct IO parameters:
-> 
-> cat fio.conf
-> [reader]
-> direct=1
-> ioengine=libaio
-> blocksize=4096
-> size=1g
-> numjobs=1
-> rw=read
-> iodepth=64
+On 11/19/2018 01:55 PM, Waiman Long wrote:
+> The db->lock is a raw spinlock and so the lock hold time is supposed
+> to be short. This will not be the case when printk() is being involved
+> in some of the critical sections. In order to avoid the long hold time,
+> in case some messages need to be printed, the debug_object_is_on_stack()
+> and debug_print_object() calls are now moved out of those critical
+> sections.
+>
+> Signed-off-by: Waiman Long <longman@redhat.com>
+> ---
+>  lib/debugobjects.c | 61 +++++++++++++++++++++++++++++++++++++-----------------
+>  1 file changed, 42 insertions(+), 19 deletions(-)
+>
+> diff --git a/lib/debugobjects.c b/lib/debugobjects.c
+> index 403dd95..4216d3d 100644
+> --- a/lib/debugobjects.c
+> +++ b/lib/debugobjects.c
+> @@ -376,6 +376,8 @@ static void debug_object_is_on_stack(void *addr, int onstack)
+>  	struct debug_bucket *db;
+>  	struct debug_obj *obj;
+>  	unsigned long flags;
+> +	bool debug_printobj = false;
+> +	bool debug_chkstack = false;
+>  
+>  	fill_pool();
+>  
+> @@ -392,7 +394,7 @@ static void debug_object_is_on_stack(void *addr, int onstack)
+>  			debug_objects_oom();
+>  			return;
+>  		}
+> -		debug_object_is_on_stack(addr, onstack);
+> +		debug_chkstack = true;
+>  	}
+>  
+>  	switch (obj->state) {
+> @@ -403,20 +405,25 @@ static void debug_object_is_on_stack(void *addr, int onstack)
+>  		break;
+>  
+>  	case ODEBUG_STATE_ACTIVE:
+> -		debug_print_object(obj, "init");
+>  		state = obj->state;
+>  		raw_spin_unlock_irqrestore(&db->lock, flags);
+> +		debug_print_object(obj, "init");
+>  		debug_object_fixup(descr->fixup_init, addr, state);
+>  		return;
+>  
+>  	case ODEBUG_STATE_DESTROYED:
+> -		debug_print_object(obj, "init");
+> +		debug_printobj = true;
+>  		break;
+>  	default:
+>  		break;
+>  	}
+>  
+>  	raw_spin_unlock_irqrestore(&db->lock, flags);
+> +	if (debug_chkstack)
+> +		debug_object_is_on_stack(addr, onstack);
+> +	if (debug_printobj)
+> +		debug_print_object(obj, "init");
+> +
+>  }
+>  
+>  /**
+> @@ -474,6 +481,8 @@ int debug_object_activate(void *addr, struct debug_obj_descr *descr)
+>  
+>  	obj = lookup_object(addr, db);
+>  	if (obj) {
+> +		bool debug_printobj = false;
+> +
+>  		switch (obj->state) {
+>  		case ODEBUG_STATE_INIT:
+>  		case ODEBUG_STATE_INACTIVE:
+> @@ -482,14 +491,14 @@ int debug_object_activate(void *addr, struct debug_obj_descr *descr)
+>  			break;
+>  
+>  		case ODEBUG_STATE_ACTIVE:
+> -			debug_print_object(obj, "activate");
+>  			state = obj->state;
+>  			raw_spin_unlock_irqrestore(&db->lock, flags);
+> +			debug_print_object(obj, "activate");
+>  			ret = debug_object_fixup(descr->fixup_activate, addr, state);
+>  			return ret ? 0 : -EINVAL;
+>  
+>  		case ODEBUG_STATE_DESTROYED:
+> -			debug_print_object(obj, "activate");
+> +			debug_printobj = true;
+>  			ret = -EINVAL;
+>  			break;
+>  		default:
+> @@ -497,10 +506,13 @@ int debug_object_activate(void *addr, struct debug_obj_descr *descr)
+>  			break;
+>  		}
+>  		raw_spin_unlock_irqrestore(&db->lock, flags);
+> +		if (debug_printobj)
+> +			debug_print_object(obj, "activate");
+>  		return ret;
+>  	}
+>  
+>  	raw_spin_unlock_irqrestore(&db->lock, flags);
+> +
+>  	/*
+>  	 * We are here when a static object is activated. We
+>  	 * let the type specific code confirm whether this is
+> @@ -532,6 +544,7 @@ void debug_object_deactivate(void *addr, struct debug_obj_descr *descr)
+>  	struct debug_bucket *db;
+>  	struct debug_obj *obj;
+>  	unsigned long flags;
+> +	bool debug_printobj = false;
+>  
+>  	if (!debug_objects_enabled)
+>  		return;
+> @@ -549,24 +562,27 @@ void debug_object_deactivate(void *addr, struct debug_obj_descr *descr)
+>  			if (!obj->astate)
+>  				obj->state = ODEBUG_STATE_INACTIVE;
+>  			else
+> -				debug_print_object(obj, "deactivate");
+> +				debug_printobj = true;
+>  			break;
+>  
+>  		case ODEBUG_STATE_DESTROYED:
+> -			debug_print_object(obj, "deactivate");
+> +			debug_printobj = true;
+>  			break;
+>  		default:
+>  			break;
+>  		}
+> -	} else {
+> +	}
+> +
+> +	raw_spin_unlock_irqrestore(&db->lock, flags);
+> +	if (!obj) {
+>  		struct debug_obj o = { .object = addr,
+>  				       .state = ODEBUG_STATE_NOTAVAILABLE,
+>  				       .descr = descr };
+>  
+>  		debug_print_object(&o, "deactivate");
+> +	} else if (debug_printobj) {
+> +		debug_print_object(obj, "deactivate");
+>  	}
+> -
+> -	raw_spin_unlock_irqrestore(&db->lock, flags);
+>  }
+>  EXPORT_SYMBOL_GPL(debug_object_deactivate);
+>  
+> @@ -581,6 +597,7 @@ void debug_object_destroy(void *addr, struct debug_obj_descr *descr)
+>  	struct debug_bucket *db;
+>  	struct debug_obj *obj;
+>  	unsigned long flags;
+> +	bool debug_printobj = false;
+>  
+>  	if (!debug_objects_enabled)
+>  		return;
+> @@ -600,20 +617,22 @@ void debug_object_destroy(void *addr, struct debug_obj_descr *descr)
+>  		obj->state = ODEBUG_STATE_DESTROYED;
+>  		break;
+>  	case ODEBUG_STATE_ACTIVE:
+> -		debug_print_object(obj, "destroy");
+>  		state = obj->state;
+>  		raw_spin_unlock_irqrestore(&db->lock, flags);
+> +		debug_print_object(obj, "destroy");
+>  		debug_object_fixup(descr->fixup_destroy, addr, state);
+>  		return;
+>  
+>  	case ODEBUG_STATE_DESTROYED:
+> -		debug_print_object(obj, "destroy");
+> +		debug_printobj = true;
+>  		break;
+>  	default:
+>  		break;
+>  	}
+>  out_unlock:
+>  	raw_spin_unlock_irqrestore(&db->lock, flags);
+> +	if (debug_printobj)
+> +		debug_print_object(obj, "destroy");
+>  }
+>  EXPORT_SYMBOL_GPL(debug_object_destroy);
+>  
+> @@ -642,9 +661,9 @@ void debug_object_free(void *addr, struct debug_obj_descr *descr)
+>  
+>  	switch (obj->state) {
+>  	case ODEBUG_STATE_ACTIVE:
+> -		debug_print_object(obj, "free");
+>  		state = obj->state;
+>  		raw_spin_unlock_irqrestore(&db->lock, flags);
+> +		debug_print_object(obj, "free");
+>  		debug_object_fixup(descr->fixup_free, addr, state);
+>  		return;
+>  	default:
+> @@ -717,6 +736,7 @@ void debug_object_assert_init(void *addr, struct debug_obj_descr *descr)
+>  	struct debug_bucket *db;
+>  	struct debug_obj *obj;
+>  	unsigned long flags;
+> +	bool debug_printobj = false;
+>  
+>  	if (!debug_objects_enabled)
+>  		return;
+> @@ -732,22 +752,25 @@ void debug_object_assert_init(void *addr, struct debug_obj_descr *descr)
+>  			if (obj->astate == expect)
+>  				obj->astate = next;
+>  			else
+> -				debug_print_object(obj, "active_state");
+> +				debug_printobj = true;
+>  			break;
+>  
+>  		default:
+> -			debug_print_object(obj, "active_state");
+> +			debug_printobj = true;
+>  			break;
+>  		}
+> -	} else {
+> +	}
+> +
+> +	raw_spin_unlock_irqrestore(&db->lock, flags);
+> +	if (!obj) {
+>  		struct debug_obj o = { .object = addr,
+>  				       .state = ODEBUG_STATE_NOTAVAILABLE,
+>  				       .descr = descr };
+>  
+>  		debug_print_object(&o, "active_state");
+> +	} else if (debug_printobj) {
+> +		debug_print_object(obj, "active_state");
+>  	}
+> -
+> -	raw_spin_unlock_irqrestore(&db->lock, flags);
+>  }
+>  EXPORT_SYMBOL_GPL(debug_object_active_state);
+>  
+> @@ -783,10 +806,10 @@ static void __debug_check_no_obj_freed(const void *address, unsigned long size)
+>  
+>  			switch (obj->state) {
+>  			case ODEBUG_STATE_ACTIVE:
+> -				debug_print_object(obj, "free");
+>  				descr = obj->descr;
+>  				state = obj->state;
+>  				raw_spin_unlock_irqrestore(&db->lock, flags);
+> +				debug_print_object(obj, "free");
+>  				debug_object_fixup(descr->fixup_free,
+>  						   (void *) oaddr, state);
+>  				goto repeat;
 
-To be clear - I used those identical parameters, on my lower-spec
-machine, and got 400,000 4KB read IOPS. Those results are nearly 30x
-higher than yours!
+As a side note, one of the test systems that I used generated a
+debugobjects splat in the bootup process and the system hanged
+afterward. Applying this patch alone fix the hanging problem and the
+system booted up successfully. So it is not really a good idea to call
+printk() while holding a raw spinlock.
 
-> So I'm thinking that this is not a "tainted" test, but rather, we're constraining
-> things a lot with these choices. It's hard to find a good test config to run that
-> allows decisions, but so far, I'm not really seeing anything that says "this
-> is so bad that we can't afford to fix the brokenness." I think.
-
-I'm not suggesting we tune the benchmark, I'm suggesting the results
-on your system are not meaningful since they are orders of magnitude
-low. And without meaningful data it's impossible to see the performance
-impact of the change...
-
->> Can you confirm what type of hardware you're running this test on?
->> CPU, memory speed and capacity, and NVMe device especially?
->>
->> Tom.
-> 
-> Yes, it's a nice new system, I don't expect any strange perf problems:
-> 
-> CPU: Intel(R) Core(TM) i7-7800X CPU @ 3.50GHz
->      (Intel X299 chipset)
-> Block device: nvme-Samsung_SSD_970_EVO_250GB
-> DRAM: 32 GB
-
-The Samsung Evo 970 250GB is speced to yield 200,000 random read IOPS
-with a 4KB QD32 workload:
-
- 
-https://www.samsung.com/us/computing/memory-storage/solid-state-drives/ssd-970-evo-nvme-m-2-250gb-mz-v7e250bw/#specs
-
-And the I7-7800X is a 6-core processor (12 hyperthreads).
-
-> So, here's a comparison using 20 threads, direct IO, for the baseline vs.
-> patched kernel (below). Highlights:
-> 
-> 	-- IOPS are similar, around 60k.
-> 	-- BW gets worse, dropping from 290 to 220 MB/s.
-> 	-- CPU is well under 100%.
-> 	-- latency is incredibly long, but...20 threads.
-> 
-> Baseline:
-> 
-> $ ./run.sh
-> fio configuration:
-> [reader]
-> ioengine=libaio
-> blocksize=4096
-> size=1g
-> rw=read
-> group_reporting
-> iodepth=256
-> direct=1
-> numjobs=20
-
-Ouch - 20 threads issuing 256 io's each!? Of course latency skyrockets.
-That's going to cause tremendous queuing, and context switching, far
-outside of the get_user_pages() change.
-
-But even so, it only brings IOPS to 74.2K, which is still far short of
-the device's 200K spec.
-
-Comparing anyway:
-
-
-> Patched:
-> 
-> -------- Running fio:
-> reader: (g=0): rw=read, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=256
-> ...
-> fio-3.3
-> Starting 20 processes
-> Jobs: 13 (f=8): [_(1),R(1),_(1),f(1),R(2),_(1),f(2),_(1),R(1),f(1),R(1),f(1),R(1),_(2),R(1),_(1),R(1)][97.9%][r=229MiB/s,w=0KiB/s][r=58.5k,w=0 IOPS][eta 00m:02s]
-> reader: (groupid=0, jobs=20): err= 0: pid=2104: Tue Nov 20 22:01:58 2018
->     read: IOPS=56.8k, BW=222MiB/s (232MB/s)(20.0GiB/92385msec)
-> ...
-> Thoughts?
-
-Concern - the 74.2K IOPS unpatched drops to 56.8K patched!
-
-What I'd really like to see is to go back to the original fio parameters
-(1 thread, 64 iodepth) and try to get a result that gets at least close
-to the speced 200K IOPS of the NVMe device. There seems to be something
-wrong with yours, currently.
-
-Then of course, the result with the patched get_user_pages, and
-compare whichever of IOPS or CPU% changes, and how much.
-
-If these are within a few percent, I agree it's good to go. If it's
-roughly 25% like the result just above, that's a rocky road.
-
-I can try this after the holiday on some basic hardware and might
-be able to scrounge up better. Can you post that github link?
-
-Tom.
+Cheers,
+Longman
