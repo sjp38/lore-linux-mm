@@ -1,185 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7ED096B2629
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 09:59:17 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id w7-v6so8845434plp.9
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 06:59:17 -0800 (PST)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id v25si127319pfg.135.2018.11.21.06.59.15
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 888406B262D
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 10:07:23 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id n95so3561959qte.16
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 07:07:23 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v11si2339389qvj.128.2018.11.21.07.07.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Nov 2018 06:59:16 -0800 (PST)
-From: Kazuhito Hagio <k-hagio@ab.jp.nec.com>
-Subject: RE: [PATCH v1] makedumpfile: exclude pages that are logically
- offline
-Date: Wed, 21 Nov 2018 14:58:22 +0000
-Message-ID: <4AE2DC15AC0B8543882A74EA0D43DBEC03561222@BPXM09GP.gisp.nec.co.jp>
-References: <20181119101616.8901-1-david@redhat.com>
- <20181119101835.9140-1-david@redhat.com>
-In-Reply-To: <20181119101835.9140-1-david@redhat.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: quoted-printable
+        Wed, 21 Nov 2018 07:07:22 -0800 (PST)
+Date: Wed, 21 Nov 2018 23:06:11 +0800
+From: Ming Lei <ming.lei@redhat.com>
+Subject: Re: [PATCH V11 02/19] block: introduce multi-page bvec helpers
+Message-ID: <20181121150610.GA19111@ming.t460p>
+References: <20181121032327.8434-1-ming.lei@redhat.com>
+ <20181121032327.8434-3-ming.lei@redhat.com>
+ <20181121131928.GA1640@lst.de>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181121131928.GA1640@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, "xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>, kexec-ml <kexec@lists.infradead.org>, "pv-drivers@vmware.com" <pv-drivers@vmware.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-Hi David,
+On Wed, Nov 21, 2018 at 02:19:28PM +0100, Christoph Hellwig wrote:
+> On Wed, Nov 21, 2018 at 11:23:10AM +0800, Ming Lei wrote:
+> > This patch introduces helpers of 'segment_iter_*' for multipage
+> > bvec support.
+> > 
+> > The introduced helpers treate one bvec as real multi-page segment,
+> > which may include more than one pages.
+> 
+> Unless I'm missing something these bvec vs segment names are exactly
+> inverted vs how we use it elsewhere.
+> 
+> In the iterators we use segment for single-page bvec, and bvec for multi
+> page ones, and here it is inverse.  Please switch it around.
 
-> Linux marks pages that are logically offline via a page flag (map count).
-> Such pages e.g. include pages infated as part of a balloon driver or
-> pages that were not actually onlined when onlining the whole section.
->=20
-> While the hypervisor usually allows to read such inflated memory, we
-> basically read and dump data that is completely irrelevant. Also, this
-> might result in quite some overhead in the hypervisor. In addition,
-> we saw some problems under Hyper-V, whereby we can crash the kernel by
-> dumping, when reading memory of a partially onlined memory segment
-> (for memory added by the Hyper-V balloon driver).
->=20
-> Therefore, don't read and dump pages that are marked as being logically
-> offline.
->=20
-> Signed-off-by: David Hildenbrand <david@redhat.com>
-> ---
->  makedumpfile.c | 34 ++++++++++++++++++++++++++++++----
->  makedumpfile.h |  1 +
->  2 files changed, 31 insertions(+), 4 deletions(-)
->=20
-> diff --git a/makedumpfile.c b/makedumpfile.c
-> index 8923538..b8bfd4c 100644
-> --- a/makedumpfile.c
-> +++ b/makedumpfile.c
-> @@ -88,6 +88,7 @@ mdf_pfn_t pfn_cache_private;
->  mdf_pfn_t pfn_user;
->  mdf_pfn_t pfn_free;
->  mdf_pfn_t pfn_hwpoison;
-> +mdf_pfn_t pfn_offline;
->=20
->  mdf_pfn_t num_dumped;
->=20
-> @@ -249,6 +250,21 @@ isHugetlb(unsigned long dtor)
->                      && (SYMBOL(free_huge_page) =3D=3D dtor));
->  }
->=20
-> +static int
-> +isOffline(unsigned long flags, unsigned int _mapcount)
-> +{
-> +	if (NUMBER(PAGE_BUDDY_MAPCOUNT_VALUE) =3D=3D NOT_FOUND_NUMBER)
-> +		return FALSE;
+bvec_iter_* is used for single-page bvec in current linus tree, and there are
+lots of users now:
 
-This is NUMBER(PAGE_OFFLINE_MAPCOUNT_VALUE), isn't it?
-If so, I will correct it when merging.
+[linux]$ git grep -n "bvec_iter_*" ./ | wc
+    191     995   13242
 
-Otherwise, looks good to me.
+If we have to switch it first, it can be a big change, just wondering if Jens
+is happy with that?
 
-Thanks!
-Kazu
-
-> +
-> +	if (flags & (1UL << NUMBER(PG_slab)))
-> +		return FALSE;
-> +
-> +	if (_mapcount =3D=3D (int)NUMBER(PAGE_OFFLINE_MAPCOUNT_VALUE))
-> +		return TRUE;
-> +
-> +	return FALSE;
-> +}
-> +
->  static int
->  is_cache_page(unsigned long flags)
->  {
-> @@ -2287,6 +2303,8 @@ write_vmcoreinfo_data(void)
->  	WRITE_NUMBER("PG_hwpoison", PG_hwpoison);
->=20
->  	WRITE_NUMBER("PAGE_BUDDY_MAPCOUNT_VALUE", PAGE_BUDDY_MAPCOUNT_VALUE);
-> +	WRITE_NUMBER("PAGE_OFFLINE_MAPCOUNT_VALUE",
-> +		     PAGE_OFFLINE_MAPCOUNT_VALUE);
->  	WRITE_NUMBER("phys_base", phys_base);
->=20
->  	WRITE_NUMBER("HUGETLB_PAGE_DTOR", HUGETLB_PAGE_DTOR);
-> @@ -2687,6 +2705,7 @@ read_vmcoreinfo(void)
->  	READ_SRCFILE("pud_t", pud_t);
->=20
->  	READ_NUMBER("PAGE_BUDDY_MAPCOUNT_VALUE", PAGE_BUDDY_MAPCOUNT_VALUE);
-> +	READ_NUMBER("PAGE_OFFLINE_MAPCOUNT_VALUE", PAGE_OFFLINE_MAPCOUNT_VALUE)=
-;
->  	READ_NUMBER("phys_base", phys_base);
->  #ifdef __aarch64__
->  	READ_NUMBER("VA_BITS", VA_BITS);
-> @@ -6041,6 +6060,12 @@ __exclude_unnecessary_pages(unsigned long mem_map,
->  		else if (isHWPOISON(flags)) {
->  			pfn_counter =3D &pfn_hwpoison;
->  		}
-> +		/*
-> +		 * Exclude pages that are logically offline.
-> +		 */
-> +		else if (isOffline(flags, _mapcount)) {
-> +			pfn_counter =3D &pfn_offline;
-> +		}
->  		/*
->  		 * Unexcludable page
->  		 */
-> @@ -7522,7 +7547,7 @@ write_elf_pages_cyclic(struct cache_data *cd_header=
-, struct cache_data *cd_page)
->  	 */
->  	if (info->flag_cyclic) {
->  		pfn_zero =3D pfn_cache =3D pfn_cache_private =3D 0;
-> -		pfn_user =3D pfn_free =3D pfn_hwpoison =3D 0;
-> +		pfn_user =3D pfn_free =3D pfn_hwpoison =3D pfn_offline =3D 0;
->  		pfn_memhole =3D info->max_mapnr;
->  	}
->=20
-> @@ -8804,7 +8829,7 @@ write_kdump_pages_and_bitmap_cyclic(struct cache_da=
-ta *cd_header, struct cache_d
->  		 * Reset counter for debug message.
->  		 */
->  		pfn_zero =3D pfn_cache =3D pfn_cache_private =3D 0;
-> -		pfn_user =3D pfn_free =3D pfn_hwpoison =3D 0;
-> +		pfn_user =3D pfn_free =3D pfn_hwpoison =3D pfn_offline =3D 0;
->  		pfn_memhole =3D info->max_mapnr;
->=20
->  		/*
-> @@ -9749,7 +9774,7 @@ print_report(void)
->  	pfn_original =3D info->max_mapnr - pfn_memhole;
->=20
->  	pfn_excluded =3D pfn_zero + pfn_cache + pfn_cache_private
-> -	    + pfn_user + pfn_free + pfn_hwpoison;
-> +	    + pfn_user + pfn_free + pfn_hwpoison + pfn_offline;
->  	shrinking =3D (pfn_original - pfn_excluded) * 100;
->  	shrinking =3D shrinking / pfn_original;
->=20
-> @@ -9763,6 +9788,7 @@ print_report(void)
->  	REPORT_MSG("    User process data pages : 0x%016llx\n", pfn_user);
->  	REPORT_MSG("    Free pages              : 0x%016llx\n", pfn_free);
->  	REPORT_MSG("    Hwpoison pages          : 0x%016llx\n", pfn_hwpoison);
-> +	REPORT_MSG("    Offline pages           : 0x%016llx\n", pfn_offline);
->  	REPORT_MSG("  Remaining pages  : 0x%016llx\n",
->  	    pfn_original - pfn_excluded);
->  	REPORT_MSG("  (The number of pages is reduced to %lld%%.)\n",
-> @@ -9790,7 +9816,7 @@ print_mem_usage(void)
->  	pfn_original =3D info->max_mapnr - pfn_memhole;
->=20
->  	pfn_excluded =3D pfn_zero + pfn_cache + pfn_cache_private
-> -	    + pfn_user + pfn_free + pfn_hwpoison;
-> +	    + pfn_user + pfn_free + pfn_hwpoison + pfn_offline;
->  	shrinking =3D (pfn_original - pfn_excluded) * 100;
->  	shrinking =3D shrinking / pfn_original;
->  	total_size =3D info->page_size * pfn_original;
-> diff --git a/makedumpfile.h b/makedumpfile.h
-> index f02f86d..e3a2b29 100644
-> --- a/makedumpfile.h
-> +++ b/makedumpfile.h
-> @@ -1927,6 +1927,7 @@ struct number_table {
->  	long    PG_hwpoison;
->=20
->  	long	PAGE_BUDDY_MAPCOUNT_VALUE;
-> +	long	PAGE_OFFLINE_MAPCOUNT_VALUE;
->  	long	SECTION_SIZE_BITS;
->  	long	MAX_PHYSMEM_BITS;
->  	long    HUGETLB_PAGE_DTOR;
-> --
-> 2.17.2
->=20
+Thanks,
+Ming
