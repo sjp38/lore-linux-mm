@@ -1,71 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 76D6F6B22F7
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 20:21:40 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id o23so4939416pll.0
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 17:21:40 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C20D16B2313
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 20:47:25 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id o23so5073669pll.0
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 17:47:25 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m9sor3306679pfj.63.2018.11.20.17.21.39
+        by mx.google.com with SMTPS id 23sor28138786pfr.25.2018.11.20.17.47.24
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 20 Nov 2018 17:21:39 -0800 (PST)
-Date: Tue, 20 Nov 2018 17:21:36 -0800 (PST)
+        Tue, 20 Nov 2018 17:47:24 -0800 (PST)
+Date: Tue, 20 Nov 2018 17:47:21 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: Memory hotplug softlock issue
-In-Reply-To: <20181120135803.GA3369@MiWiFi-R3L-srv>
-Message-ID: <alpine.LSU.2.11.1811201710410.2061@eggly.anvils>
-References: <20181119105202.GE18471@MiWiFi-R3L-srv> <20181119124033.GJ22247@dhcp22.suse.cz> <20181119125121.GK22247@dhcp22.suse.cz> <20181119141016.GO22247@dhcp22.suse.cz> <20181119173312.GV22247@dhcp22.suse.cz> <alpine.LSU.2.11.1811191215290.15640@eggly.anvils>
- <20181119205907.GW22247@dhcp22.suse.cz> <20181120015644.GA5727@MiWiFi-R3L-srv> <alpine.LSU.2.11.1811192127130.2848@eggly.anvils> <3f1a82a8-f2aa-ac5e-e6a8-057256162321@suse.cz> <20181120135803.GA3369@MiWiFi-R3L-srv>
+Subject: Re: [RFC PATCH 3/3] mm, fault_around: do not take a reference to a
+ locked page
+In-Reply-To: <20181120134323.13007-4-mhocko@kernel.org>
+Message-ID: <alpine.LSU.2.11.1811201721470.2061@eggly.anvils>
+References: <20181120134323.13007-1-mhocko@kernel.org> <20181120134323.13007-4-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, pifang@redhat.com, David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, Mel Gorman <mgorman@suse.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Oscar Salvador <OSalvador@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Hildenbrand <david@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On Tue, 20 Nov 2018, Baoquan He wrote:
-> On 11/20/18 at 02:38pm, Vlastimil Babka wrote:
-> > On 11/20/18 6:44 AM, Hugh Dickins wrote:
-> > > [PATCH] mm: put_and_wait_on_page_locked() while page is migrated
-> > > 
-> > > We have all assumed that it is essential to hold a page reference while
-> > > waiting on a page lock: partly to guarantee that there is still a struct
-> > > page when MEMORY_HOTREMOVE is configured, but also to protect against
-> > > reuse of the struct page going to someone who then holds the page locked
-> > > indefinitely, when the waiter can reasonably expect timely unlocking.
-> > > 
-> > > But in fact, so long as wait_on_page_bit_common() does the put_page(),
-> > > and is careful not to rely on struct page contents thereafter, there is
-> > > no need to hold a reference to the page while waiting on it.  That does
-> > 
-> > So there's still a moment where refcount is elevated, but hopefully
-> > short enough, right? Let's see if it survives Baoquan's stress testing.
+On Tue, 20 Nov 2018, Michal Hocko wrote:
+
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Yes, I applied Hugh's patch 8 hours ago, then our QE Ping operated on
-> that machine, after many times of hot removing/adding, the endless
-> looping during mirgrating is not seen any more. The test result for
-> Hugh's patch is positive. I even suggested Ping increasing the memory
-> pressure to "stress -m 250", it still succeeded to offline and remove.
+> filemap_map_pages takes a speculative reference to each page in the
+> range before it tries to lock that page. While this is correct it
+> also can influence page migration which will bail out when seeing
+> an elevated reference count. The faultaround code would bail on
+> seeing a locked page so we can pro-actively check the PageLocked
+> bit before page_cache_get_speculative and prevent from pointless
+> reference count churn.
 > 
-> So I think this patch works to solve the issue. Thanks a lot for your
-> help, all of you. 
+> Cc: "Kirill A. Shutemov" <kirill@shutemov.name>
+> Suggested-by: Jan Kara <jack@suse.cz>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Very good to hear, thanks a lot for your quick feedback.
+Acked-by: Hugh Dickins <hughd@google.com>
 
+though I think this patch is more useful to the avoid atomic ops,
+and unnecessary dirtying of the cacheline, than to avoid the very
+transient elevation of refcount, which will not affect page migration
+very much.
+
+> ---
+>  mm/filemap.c | 3 +++
+>  1 file changed, 3 insertions(+)
 > 
-> High, will you post a formal patch in a separate thread?
-
-Yes, I promise that I shall do so in the next few days, but not today:
-some other things have to take priority.
-
-And Vlastimil has raised an excellent point about the interaction with
-PSI "thrashing": I need to read up and decide which way to go on that
-(and add Johannes to the Cc when I post).
-
-I think I shall probably post it directly to Linus (lists and other
-people Cc'ed of course): not because I think it should be rushed in
-too quickly, nor to sidestep Andrew, but because Linus was very closely
-involved in both the PG_waiters and WQ_FLAG_BOOKMARK discussions:
-it is an area of special interest to him.
-
-Hugh
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 81adec8ee02c..c76d6a251770 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -2553,6 +2553,9 @@ void filemap_map_pages(struct vm_fault *vmf,
+>  			goto next;
+>  
+>  		head = compound_head(page);
+> +
+> +		if (PageLocked(head))
+> +			goto next;
+>  		if (!page_cache_get_speculative(head))
+>  			goto next;
+>  
+> -- 
+> 2.19.1
