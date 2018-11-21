@@ -1,18 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 523456B2576
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 04:23:30 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id l9so6767626plt.7
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 01:23:30 -0800 (PST)
-Received: from m15-23.126.com (m15-23.126.com. [220.181.15.23])
-        by mx.google.com with ESMTP id x186si37748640pgb.33.2018.11.21.01.23.28
-        for <linux-mm@kvack.org>;
-        Wed, 21 Nov 2018 01:23:29 -0800 (PST)
-Date: Wed, 21 Nov 2018 17:22:18 +0800 (CST)
-From: dong  <bauers@126.com>
-Subject: Re:Re: Re:Re: Re: [Bug 201699] New: kmemleak in
- memcg_create_kmem_cache
-In-Reply-To: <20181121091041.GM12932@dhcp22.suse.cz>
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B50D6B2586
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 04:36:59 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id 89so7081419ple.19
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 01:36:59 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a5sor53116188pgk.84.2018.11.21.01.36.57
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 21 Nov 2018 01:36:57 -0800 (PST)
+Content-Type: multipart/alternative;
+	boundary="Apple-Mail=_C5B43EB3-8830-4F15-94A3-55DE627B3B01"
+Mime-Version: 1.0 (Mac OS X Mail 12.1 \(3445.101.1\))
+Subject: Re: [Bug 201699] New: kmemleak in memcg_create_kmem_cache
+From: =?utf-8?B?5q6154aK5pil?= <duanxiongchun@bytedance.com>
+In-Reply-To: <5fa306b3.7c7c.1673593d0d8.Coremail.bauers@126.com>
+Date: Wed, 21 Nov 2018 17:36:51 +0800
+Message-Id: <556CF326-C3ED-44A7-909B-780531A8D4FF@bytedance.com>
 References: <bug-201699-27@https.bugzilla.kernel.org/>
  <20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org>
  <20181116175005.3dcfpyhuj57oaszm@esperanza>
@@ -21,46 +25,139 @@ References: <bug-201699-27@https.bugzilla.kernel.org/>
  <6185b79c.9161.1672bd49ed1.Coremail.bauers@126.com>
  <375ca28a.7433.16735734d98.Coremail.bauers@126.com>
  <20181121091041.GM12932@dhcp22.suse.cz>
-Content-Type: multipart/alternative;
-	boundary="----=_Part_118031_835964661.1542792138968"
-MIME-Version: 1.0
-Message-ID: <5fa306b3.7c7c.1673593d0d8.Coremail.bauers@126.com>
+ <5fa306b3.7c7c.1673593d0d8.Coremail.bauers@126.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, duanxiongchun@bytedance.com
+To: dong <bauers@126.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-------=_Part_118031_835964661.1542792138968
-Content-Type: text/plain; charset=GBK
-Content-Transfer-Encoding: base64
 
-VGhhbmtzIGZvciByZXBseWluZywgTWljaGFsLgoKCmNjIHRvIGR1YW54aW9uZ2NodW4KCgoKCgoK
-CgpBdCAyMDE4LTExLTIxIDE3OjEwOjQxLCAiTWljaGFsIEhvY2tvIiA8bWhvY2tvQGtlcm5lbC5v
-cmc+IHdyb3RlOgo+T24gV2VkIDIxLTExLTE4IDE2OjQ2OjQ4LCBkb25nIHdyb3RlOgo+PiBUaGUg
-bGFzdCBxdWVzdGlvbjogSWYgSSBhbGxvYyBtYW55IHNtYWxsIHBhZ2VzIGFuZCBub3QgZnJlZSB0
-aGVtLCB3aWxsCj4+IEkgZXhoYXVzdCB0aGUgbWVtb3J5ICggYmVjYXVzZSBldmVyeSBwYWdlIGNv
-bnRhaW5zIGBtZW1fY2dyb3VwYCApPwo+Cj5ObywgdGhlIG1lbW9yeSB3aWxsIGdldCByZWNsYWlt
-ZWQgb24gdGhlIG1lbW9yeSBwcmVzc3VyZSBvciBmb3IKPmFub255bW91cyBvbmUgKG1hbGxvYykg
-d2hlbiB0aGUgcHJvY2VzcyBhbGxvY2F0aW5nIGl0IHRlcm1pbmF0ZXMsCj4tLSAKPk1pY2hhbCBI
-b2Nrbwo+U1VTRSBMYWJzCg==
-------=_Part_118031_835964661.1542792138968
-Content-Type: text/html; charset=GBK
-Content-Transfer-Encoding: base64
+--Apple-Mail=_C5B43EB3-8830-4F15-94A3-55DE627B3B01
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+	charset=utf-8
 
-PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MS43O2NvbG9yOiMwMDAwMDA7Zm9udC1zaXplOjE0cHg7
-Zm9udC1mYW1pbHk6QXJpYWwiPjxkaXY+VGhhbmtzIGZvciByZXBseWluZywmbmJzcDs8c3BhbiBz
-dHlsZT0iZm9udC1mYW1pbHk6IGFyaWFsOyB3aGl0ZS1zcGFjZTogcHJlLXdyYXA7Ij5NaWNoYWw8
-L3NwYW4+LjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+Y2MgdG8gZHVhbnhpb25nY2h1bjwvZGl2
-Pjxicj48YnI+PGJyPjxicj48ZGl2IHN0eWxlPSJwb3NpdGlvbjpyZWxhdGl2ZTt6b29tOjEiPjwv
-ZGl2PjxkaXYgaWQ9ImRpdk5ldGVhc2VNYWlsQ2FyZCI+PC9kaXY+PGJyPjxwcmU+PGJyPkF0IDIw
-MTgtMTEtMjEgMTc6MTA6NDEsICJNaWNoYWwgSG9ja28iICZsdDttaG9ja29Aa2VybmVsLm9yZyZn
-dDsgd3JvdGU6CiZndDtPbiBXZWQgMjEtMTEtMTggMTY6NDY6NDgsIGRvbmcgd3JvdGU6CiZndDsm
-Z3Q7IFRoZSBsYXN0IHF1ZXN0aW9uOiBJZiBJIGFsbG9jIG1hbnkgc21hbGwgcGFnZXMgYW5kIG5v
-dCBmcmVlIHRoZW0sIHdpbGwKJmd0OyZndDsgSSBleGhhdXN0IHRoZSBtZW1vcnkgKCBiZWNhdXNl
-IGV2ZXJ5IHBhZ2UgY29udGFpbnMgYG1lbV9jZ3JvdXBgICk/CiZndDsKJmd0O05vLCB0aGUgbWVt
-b3J5IHdpbGwgZ2V0IHJlY2xhaW1lZCBvbiB0aGUgbWVtb3J5IHByZXNzdXJlIG9yIGZvcgomZ3Q7
-YW5vbnltb3VzIG9uZSAobWFsbG9jKSB3aGVuIHRoZSBwcm9jZXNzIGFsbG9jYXRpbmcgaXQgdGVy
-bWluYXRlcywKJmd0Oy0tIAomZ3Q7TWljaGFsIEhvY2tvCiZndDtTVVNFIExhYnMKPC9wcmU+PC9k
-aXY+PGJyPjxicj48c3BhbiB0aXRsZT0ibmV0ZWFzZWZvb3RlciI+PHA+Jm5ic3A7PC9wPjwvc3Bh
-bj4=
-------=_Part_118031_835964661.1542792138968--
+hi all=EF=BC=9A
+
+In same case=EF=BC=8C I think it=E2=80=99s may be a problem=E3=80=82
+
+if I create a virtual netdev device under mem cgroup(like ip link add =
+ve_A type veth peer name ve_B).after that ,I destroy this mem cgroup=E3=80=
+=82
+
+I find that may the object  net_device, will be hold by the kernel until =
+I run command (ip link del ). And the memory pages which container the =
+object won=E2=80=99t be uncharge. mem_cgroup object  also will be not =
+free.=20
+
+Anothers may think kernel just hold sizeof(struct netdev_device) memory =
+size. But,it=E2=80=99s not really,it=E2=80=99s much bigger than they =
+think.
+
+It=E2=80=99s maybe a problems, I am not very sure about that.
+
+ Thanks
+
+bytedance.net
+=E6=AE=B5=E7=86=8A=E6=98=A5
+duanxiongchun@bytedance.com
+
+
+
+
+> On Nov 21, 2018, at 5:22 PM, dong <bauers@126.com> wrote:
+>=20
+> Thanks for replying, Michal.
+>=20
+> cc to duanxiongchun
+>=20
+>=20
+>=20
+>=20
+>=20
+>=20
+> At 2018-11-21 17:10:41, "Michal Hocko" <mhocko@kernel.org> wrote:
+> >On Wed 21-11-18 16:46:48, dong wrote:
+> >> The last question: If I alloc many small pages and not free them, =
+will
+> >> I exhaust the memory ( because every page contains `mem_cgroup` )?
+> >
+> >No, the memory will get reclaimed on the memory pressure or for
+> >anonymous one (malloc) when the process allocating it terminates,
+> >--=20
+> >Michal Hocko
+> >SUSE Labs
+>=20
+>=20
+> =20
+
+
+--Apple-Mail=_C5B43EB3-8830-4F15-94A3-55DE627B3B01
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/html;
+	charset=utf-8
+
+<html><head><meta http-equiv=3D"Content-Type" content=3D"text/html; =
+charset=3Dutf-8"></head><body style=3D"word-wrap: break-word; =
+-webkit-nbsp-mode: space; line-break: after-white-space;" class=3D"">hi =
+all=EF=BC=9A<div class=3D""><br class=3D""></div><div class=3D"">In same =
+case=EF=BC=8C I think it=E2=80=99s may be a problem=E3=80=82</div><div =
+class=3D""><br class=3D""></div><div class=3D"">if I create a virtual =
+netdev device under mem cgroup(like ip link add ve_A type veth peer name =
+ve_B).after that ,I destroy this mem cgroup=E3=80=82</div><div =
+class=3D""><br class=3D""></div><div class=3D"">I find that may the =
+object &nbsp;net_device, will be hold by the kernel until I run command =
+(ip link del ). And the memory pages which container the object won=E2=80=99=
+t be uncharge. mem_cgroup object &nbsp;also will be not =
+free.&nbsp;</div><div class=3D""><br class=3D""></div><div =
+class=3D"">Anothers may think kernel just hold sizeof(struct =
+netdev_device) memory size. But,it=E2=80=99s not really,it=E2=80=99s =
+much bigger than they think.</div><div class=3D""><br =
+class=3D""></div><div class=3D"">It=E2=80=99s maybe a problems, I am not =
+very sure about that.</div><div class=3D""><br class=3D""></div><div =
+class=3D"">&nbsp;Thanks</div><div class=3D""><br class=3D""><div =
+class=3D"">
+<div dir=3D"auto" style=3D"word-wrap: break-word; -webkit-nbsp-mode: =
+space; line-break: after-white-space;" class=3D""><div =
+style=3D"caret-color: rgb(0, 0, 0); color: rgb(0, 0, 0); font-family: =
+Helvetica; font-size: 12px; font-style: normal; font-variant-caps: =
+normal; font-weight: normal; letter-spacing: normal; text-align: start; =
+text-indent: 0px; text-transform: none; white-space: normal; =
+word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: =
+none;"><a href=3D"http://bytedance.net" class=3D"">bytedance.net</a><br =
+class=3D"">=E6=AE=B5=E7=86=8A=E6=98=A5<br =
+class=3D"">duanxiongchun@bytedance.com<br class=3D""><br =
+class=3D""></div><br class=3D"Apple-interchange-newline"></div><br =
+class=3D"Apple-interchange-newline">
+</div>
+<div><br class=3D""><blockquote type=3D"cite" class=3D""><div =
+class=3D"">On Nov 21, 2018, at 5:22 PM, dong &lt;<a =
+href=3D"mailto:bauers@126.com" class=3D"">bauers@126.com</a>&gt; =
+wrote:</div><br class=3D"Apple-interchange-newline"><div class=3D""><div =
+style=3D"line-height: 1.7; font-size: 14px; font-family: Arial;" =
+class=3D""><div class=3D"">Thanks for replying,&nbsp;<span =
+style=3D"font-family: arial; white-space: pre-wrap;" =
+class=3D"">Michal</span>.</div><div class=3D""><br class=3D""></div><div =
+class=3D"">cc to duanxiongchun</div><br class=3D""><br class=3D""><br =
+class=3D""><br class=3D""><div style=3D"position:relative;zoom:1" =
+class=3D""></div><div id=3D"divNeteaseMailCard" class=3D""></div><br =
+class=3D""><pre class=3D""><br class=3D"">At 2018-11-21 17:10:41, =
+"Michal Hocko" &lt;<a href=3D"mailto:mhocko@kernel.org" =
+class=3D"">mhocko@kernel.org</a>&gt; wrote:
+&gt;On Wed 21-11-18 16:46:48, dong wrote:
+&gt;&gt; The last question: If I alloc many small pages and not free =
+them, will
+&gt;&gt; I exhaust the memory ( because every page contains `mem_cgroup` =
+)?
+&gt;
+&gt;No, the memory will get reclaimed on the memory pressure or for
+&gt;anonymous one (malloc) when the process allocating it terminates,
+&gt;--=20
+&gt;Michal Hocko
+&gt;SUSE Labs
+</pre></div><br class=3D""><br class=3D""><span title=3D"neteasefooter" =
+class=3D""><div class=3D"">&nbsp;<br =
+class=3D"webkit-block-placeholder"></div></span></div></blockquote></div><=
+br class=3D""></div></body></html>=
+
+--Apple-Mail=_C5B43EB3-8830-4F15-94A3-55DE627B3B01--
