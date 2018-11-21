@@ -1,65 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B4E96B2513
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 03:14:09 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id m13so6910456pls.15
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 00:14:09 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d10sor6741833pgo.78.2018.11.21.00.14.08
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E31ED6B2520
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 03:24:32 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id t2so2604035edb.22
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 00:24:32 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g14si9644617edy.160.2018.11.21.00.24.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 21 Nov 2018 00:14:08 -0800 (PST)
-From: john.hubbard@gmail.com
-Subject: [PATCH] mm/gup: finish consolidating error handling
-Date: Wed, 21 Nov 2018 00:14:02 -0800
-Message-Id: <20181121081402.29641-2-jhubbard@nvidia.com>
-In-Reply-To: <20181121081402.29641-1-jhubbard@nvidia.com>
-References: <20181121081402.29641-1-jhubbard@nvidia.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Nov 2018 00:24:31 -0800 (PST)
+Message-ID: <1542788654.2940.14.camel@suse.de>
+Subject: Re: [PATCH] mm, hotplug: protect nr_zones with pgdat_resize_lock()
+From: osalvador <osalvador@suse.de>
+Date: Wed, 21 Nov 2018 09:24:14 +0100
+In-Reply-To: <20181121025231.ggk7zgq53nmqsqds@master>
+References: <20181120014822.27968-1-richard.weiyang@gmail.com>
+	 <20181120073141.GY22247@dhcp22.suse.cz>
+	 <3ba8d8c524d86af52e4c1fddc2d45734@suse.de>
+	 <20181121025231.ggk7zgq53nmqsqds@master>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: Michal Hocko <mhocko@suse.com>, akpm@linux-foundation.org, linux-mm@kvack.org
 
-From: John Hubbard <jhubbard@nvidia.com>
+On Wed, 2018-11-21 at 02:52 +0000, Wei Yang wrote:
+> On Tue, Nov 20, 2018 at 08:58:11AM +0100, osalvador@suse.de wrote:
+> > > On the other hand I would like to see the global lock to go away
+> > > because
+> > > it causes scalability issues and I would like to change it to a
+> > > range
+> > > lock. This would make this race possible.
+> > > 
+> > > That being said this is more of a preparatory work than a fix.
+> > > One could
+> > > argue that pgdat resize lock is abused here but I am not
+> > > convinced a
+> > > dedicated lock is much better. We do take this lock already and
+> > > spanning
+> > > its scope seems reasonable. An update to the documentation is
+> > > due.
+> > 
+> > Would not make more sense to move it within the pgdat lock
+> > in move_pfn_range_to_zone?
+> > The call from free_area_init_core is safe as we are single-thread
+> > there.
+> > 
+> 
+> Agree. This would be better.
+> 
+> > And if we want to move towards a range locking, I even think it
+> > would be more
+> > consistent if we move it within the zone's span lock (which is
+> > already
+> > wrapped with a pgdat lock).
+> > 
+> 
+> I lost a little here, just want to confirm with you.
+> 
+> Instead of call pgdat_resize_lock() around
+> init_currently_empty_zone()
+> in move_pfn_range_to_zone(), we move init_currently_empty_zone()
+> before
+> resize_zone_range()?
+> 
+> This sounds reasonable.
 
-Commit df06b37ffe5a4 ("mm/gup: cache dev_pagemap while pinning pages")
-attempted to operate on each page that get_user_pages had retrieved. In
-order to do that, it created a common exit point from the routine.
-However, one case was missed, which this patch fixes up.
+Yeah.
+spanned pages are being touched in:
 
-Also, there was still an unnecessary shadow declaration (with a
-different type) of the "ret" variable, which this patch removes.
+- shrink_pgdat_span
+- resize_zone_range
+- init_currently_emty_zone
 
-Fixes: df06b37ffe5a4 ("mm/gup: cache dev_pagemap while pinning pages")
+The first two are already protected by the span lock.
 
-Reviewed-by: Keith Busch <keith.busch@intel.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
----
- mm/gup.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+In init_currently_empty_zone, we also touch zone_start_pfn, which is
+part of the spanned pages (beginning), so I think it makes sense to
+also protect it with the span lock.
+We just call init_currently_empty_zone in case the zone is empty, so
+the race should be not existent to be honest.
 
-diff --git a/mm/gup.c b/mm/gup.c
-index aa43620a3270..8cb68a50dbdf 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -702,12 +702,11 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 		if (!vma || start >= vma->vm_end) {
- 			vma = find_extend_vma(mm, start);
- 			if (!vma && in_gate_area(mm, start)) {
--				int ret;
- 				ret = get_gate_page(mm, start & PAGE_MASK,
- 						gup_flags, &vma,
- 						pages ? &pages[i] : NULL);
- 				if (ret)
--					return i ? : ret;
-+					goto out;
- 				ctx.page_mask = 0;
- 				goto next_page;
- 			}
--- 
-2.19.1
+But I just think it is more consistent, and since moving it under
+spanlock would imply to also have it under pgdat lock, which was the
+main point of this, I think we do not have anything to lose.
