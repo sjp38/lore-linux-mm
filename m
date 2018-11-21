@@ -1,164 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0606E6B2623
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 09:55:05 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id x13so7029470wro.9
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 06:55:04 -0800 (PST)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id x65si977901wmg.7.2018.11.21.06.55.03
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7ED096B2629
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 09:59:17 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id w7-v6so8845434plp.9
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 06:59:17 -0800 (PST)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id v25si127319pfg.135.2018.11.21.06.59.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Nov 2018 06:55:03 -0800 (PST)
-Date: Wed, 21 Nov 2018 15:55:02 +0100
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH V11 15/19] block: enable multipage bvecs
-Message-ID: <20181121145502.GA3241@lst.de>
-References: <20181121032327.8434-1-ming.lei@redhat.com> <20181121032327.8434-16-ming.lei@redhat.com>
+        Wed, 21 Nov 2018 06:59:16 -0800 (PST)
+From: Kazuhito Hagio <k-hagio@ab.jp.nec.com>
+Subject: RE: [PATCH v1] makedumpfile: exclude pages that are logically
+ offline
+Date: Wed, 21 Nov 2018 14:58:22 +0000
+Message-ID: <4AE2DC15AC0B8543882A74EA0D43DBEC03561222@BPXM09GP.gisp.nec.co.jp>
+References: <20181119101616.8901-1-david@redhat.com>
+ <20181119101835.9140-1-david@redhat.com>
+In-Reply-To: <20181119101835.9140-1-david@redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181121032327.8434-16-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@redhat.com>
-Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: David Hildenbrand <david@redhat.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, "xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>, kexec-ml <kexec@lists.infradead.org>, "pv-drivers@vmware.com" <pv-drivers@vmware.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, Nov 21, 2018 at 11:23:23AM +0800, Ming Lei wrote:
->  	if (bio->bi_vcnt > 0) {
-> -		struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
-> +		struct bio_vec bv;
-> +		struct bio_vec *seg = &bio->bi_io_vec[bio->bi_vcnt - 1];
->  
-> -		if (page == bv->bv_page && off == bv->bv_offset + bv->bv_len) {
-> -			bv->bv_len += len;
-> +		bvec_last_segment(seg, &bv);
+Hi David,
+
+> Linux marks pages that are logically offline via a page flag (map count).
+> Such pages e.g. include pages infated as part of a balloon driver or
+> pages that were not actually onlined when onlining the whole section.
+>=20
+> While the hypervisor usually allows to read such inflated memory, we
+> basically read and dump data that is completely irrelevant. Also, this
+> might result in quite some overhead in the hypervisor. In addition,
+> we saw some problems under Hyper-V, whereby we can crash the kernel by
+> dumping, when reading memory of a partially onlined memory segment
+> (for memory added by the Hyper-V balloon driver).
+>=20
+> Therefore, don't read and dump pages that are marked as being logically
+> offline.
+>=20
+> Signed-off-by: David Hildenbrand <david@redhat.com>
+> ---
+>  makedumpfile.c | 34 ++++++++++++++++++++++++++++++----
+>  makedumpfile.h |  1 +
+>  2 files changed, 31 insertions(+), 4 deletions(-)
+>=20
+> diff --git a/makedumpfile.c b/makedumpfile.c
+> index 8923538..b8bfd4c 100644
+> --- a/makedumpfile.c
+> +++ b/makedumpfile.c
+> @@ -88,6 +88,7 @@ mdf_pfn_t pfn_cache_private;
+>  mdf_pfn_t pfn_user;
+>  mdf_pfn_t pfn_free;
+>  mdf_pfn_t pfn_hwpoison;
+> +mdf_pfn_t pfn_offline;
+>=20
+>  mdf_pfn_t num_dumped;
+>=20
+> @@ -249,6 +250,21 @@ isHugetlb(unsigned long dtor)
+>                      && (SYMBOL(free_huge_page) =3D=3D dtor));
+>  }
+>=20
+> +static int
+> +isOffline(unsigned long flags, unsigned int _mapcount)
+> +{
+> +	if (NUMBER(PAGE_BUDDY_MAPCOUNT_VALUE) =3D=3D NOT_FOUND_NUMBER)
+> +		return FALSE;
+
+This is NUMBER(PAGE_OFFLINE_MAPCOUNT_VALUE), isn't it?
+If so, I will correct it when merging.
+
+Otherwise, looks good to me.
+
+Thanks!
+Kazu
+
 > +
-> +		if (page == bv.bv_page && off == bv.bv_offset + bv.bv_len) {
-
-I think this we can simplify the try to merge into bio case a bit,
-and also document it better with something like this:
-
-diff --git a/block/bio.c b/block/bio.c
-index 854676edc438..cc913281a723 100644
---- a/block/bio.c
-+++ b/block/bio.c
-@@ -822,54 +822,40 @@ EXPORT_SYMBOL(bio_add_pc_page);
-  * @page: page to add
-  * @len: length of the data to add
-  * @off: offset of the data in @page
-+ * @same_page: if %true only merge if the new data is in the same physical
-+ *		page as the last segment of the bio.
-  *
-- * Try to add the data at @page + @off to the last page of @bio.  This is a
-+ * Try to add the data at @page + @off to the last bvec of @bio.  This is a
-  * a useful optimisation for file systems with a block size smaller than the
-  * page size.
-  *
-  * Return %true on success or %false on failure.
-  */
- bool __bio_try_merge_page(struct bio *bio, struct page *page,
--		unsigned int len, unsigned int off)
-+		unsigned int len, unsigned int off, bool same_page)
- {
- 	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
- 		return false;
- 
- 	if (bio->bi_vcnt > 0) {
--		struct bio_vec bv;
--		struct bio_vec *seg = &bio->bi_io_vec[bio->bi_vcnt - 1];
--
--		bvec_last_segment(seg, &bv);
--
--		if (page == bv.bv_page && off == bv.bv_offset + bv.bv_len) {
--			seg->bv_len += len;
--			bio->bi_iter.bi_size += len;
--			return true;
--		}
-+		struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
-+		phys_addr_t vec_addr = page_to_phys(bv->bv_page);
-+		phys_addr_t page_addr = page_to_phys(page);
-+
-+		if (vec_addr + bv->bv_offset + bv->bv_len != page_addr + off)
-+			return false;
-+		if (same_page &&
-+		    (vec_addr & PAGE_SIZE) != (page_addr & PAGE_SIZE))
-+			return false;
-+
-+		bv->bv_len += len;
-+		bio->bi_iter.bi_size += len;
-+		return true;
- 	}
- 	return false;
- }
- EXPORT_SYMBOL_GPL(__bio_try_merge_page);
- 
--static bool bio_try_merge_segment(struct bio *bio, struct page *page,
--				  unsigned int len, unsigned int off)
--{
--	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
--		return false;
--
--	if (bio->bi_vcnt > 0) {
--		struct bio_vec *seg = &bio->bi_io_vec[bio->bi_vcnt - 1];
--
--		if (page_to_phys(seg->bv_page) + seg->bv_offset + seg->bv_len ==
--		    page_to_phys(page) + off) {
--			seg->bv_len += len;
--			bio->bi_iter.bi_size += len;
--			return true;
--		}
--	}
--	return false;
--}
--
- /**
-  * __bio_add_page - add page to a bio in a new segment
-  * @bio: destination bio
-@@ -910,7 +896,7 @@ EXPORT_SYMBOL_GPL(__bio_add_page);
- int bio_add_page(struct bio *bio, struct page *page,
- 		 unsigned int len, unsigned int offset)
- {
--	if (!bio_try_merge_segment(bio, page, len, offset)) {
-+	if (!__bio_try_merge_page(bio, page, len, offset, false)) {
- 		if (bio_full(bio))
- 			return 0;
- 		__bio_add_page(bio, page, len, offset);
-diff --git a/fs/iomap.c b/fs/iomap.c
-index ccc2ba115f4d..d918acb9bfc9 100644
---- a/fs/iomap.c
-+++ b/fs/iomap.c
-@@ -313,7 +313,7 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
- 	 */
- 	sector = iomap_sector(iomap, pos);
- 	if (ctx->bio && bio_end_sector(ctx->bio) == sector) {
--		if (__bio_try_merge_page(ctx->bio, page, plen, poff))
-+		if (__bio_try_merge_page(ctx->bio, page, plen, poff, true))
- 			goto done;
- 		is_contig = true;
- 	}
-diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-index 5c2190216614..b9fd44168f61 100644
---- a/fs/xfs/xfs_aops.c
-+++ b/fs/xfs/xfs_aops.c
-@@ -616,7 +616,7 @@ xfs_add_to_ioend(
- 				bdev, sector);
- 	}
- 
--	if (!__bio_try_merge_page(wpc->ioend->io_bio, page, len, poff)) {
-+	if (!__bio_try_merge_page(wpc->ioend->io_bio, page, len, poff, true)) {
- 		if (iop)
- 			atomic_inc(&iop->write_count);
- 		if (bio_full(wpc->ioend->io_bio))
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index e5b975fa0558..f08e6940c1ab 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -442,7 +442,7 @@ extern int bio_add_page(struct bio *, struct page *, unsigned int,unsigned int);
- extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
- 			   unsigned int, unsigned int);
- bool __bio_try_merge_page(struct bio *bio, struct page *page,
--		unsigned int len, unsigned int off);
-+		unsigned int len, unsigned int off, bool same_page);
- void __bio_add_page(struct bio *bio, struct page *page,
- 		unsigned int len, unsigned int off);
- int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter);
+> +	if (flags & (1UL << NUMBER(PG_slab)))
+> +		return FALSE;
+> +
+> +	if (_mapcount =3D=3D (int)NUMBER(PAGE_OFFLINE_MAPCOUNT_VALUE))
+> +		return TRUE;
+> +
+> +	return FALSE;
+> +}
+> +
+>  static int
+>  is_cache_page(unsigned long flags)
+>  {
+> @@ -2287,6 +2303,8 @@ write_vmcoreinfo_data(void)
+>  	WRITE_NUMBER("PG_hwpoison", PG_hwpoison);
+>=20
+>  	WRITE_NUMBER("PAGE_BUDDY_MAPCOUNT_VALUE", PAGE_BUDDY_MAPCOUNT_VALUE);
+> +	WRITE_NUMBER("PAGE_OFFLINE_MAPCOUNT_VALUE",
+> +		     PAGE_OFFLINE_MAPCOUNT_VALUE);
+>  	WRITE_NUMBER("phys_base", phys_base);
+>=20
+>  	WRITE_NUMBER("HUGETLB_PAGE_DTOR", HUGETLB_PAGE_DTOR);
+> @@ -2687,6 +2705,7 @@ read_vmcoreinfo(void)
+>  	READ_SRCFILE("pud_t", pud_t);
+>=20
+>  	READ_NUMBER("PAGE_BUDDY_MAPCOUNT_VALUE", PAGE_BUDDY_MAPCOUNT_VALUE);
+> +	READ_NUMBER("PAGE_OFFLINE_MAPCOUNT_VALUE", PAGE_OFFLINE_MAPCOUNT_VALUE)=
+;
+>  	READ_NUMBER("phys_base", phys_base);
+>  #ifdef __aarch64__
+>  	READ_NUMBER("VA_BITS", VA_BITS);
+> @@ -6041,6 +6060,12 @@ __exclude_unnecessary_pages(unsigned long mem_map,
+>  		else if (isHWPOISON(flags)) {
+>  			pfn_counter =3D &pfn_hwpoison;
+>  		}
+> +		/*
+> +		 * Exclude pages that are logically offline.
+> +		 */
+> +		else if (isOffline(flags, _mapcount)) {
+> +			pfn_counter =3D &pfn_offline;
+> +		}
+>  		/*
+>  		 * Unexcludable page
+>  		 */
+> @@ -7522,7 +7547,7 @@ write_elf_pages_cyclic(struct cache_data *cd_header=
+, struct cache_data *cd_page)
+>  	 */
+>  	if (info->flag_cyclic) {
+>  		pfn_zero =3D pfn_cache =3D pfn_cache_private =3D 0;
+> -		pfn_user =3D pfn_free =3D pfn_hwpoison =3D 0;
+> +		pfn_user =3D pfn_free =3D pfn_hwpoison =3D pfn_offline =3D 0;
+>  		pfn_memhole =3D info->max_mapnr;
+>  	}
+>=20
+> @@ -8804,7 +8829,7 @@ write_kdump_pages_and_bitmap_cyclic(struct cache_da=
+ta *cd_header, struct cache_d
+>  		 * Reset counter for debug message.
+>  		 */
+>  		pfn_zero =3D pfn_cache =3D pfn_cache_private =3D 0;
+> -		pfn_user =3D pfn_free =3D pfn_hwpoison =3D 0;
+> +		pfn_user =3D pfn_free =3D pfn_hwpoison =3D pfn_offline =3D 0;
+>  		pfn_memhole =3D info->max_mapnr;
+>=20
+>  		/*
+> @@ -9749,7 +9774,7 @@ print_report(void)
+>  	pfn_original =3D info->max_mapnr - pfn_memhole;
+>=20
+>  	pfn_excluded =3D pfn_zero + pfn_cache + pfn_cache_private
+> -	    + pfn_user + pfn_free + pfn_hwpoison;
+> +	    + pfn_user + pfn_free + pfn_hwpoison + pfn_offline;
+>  	shrinking =3D (pfn_original - pfn_excluded) * 100;
+>  	shrinking =3D shrinking / pfn_original;
+>=20
+> @@ -9763,6 +9788,7 @@ print_report(void)
+>  	REPORT_MSG("    User process data pages : 0x%016llx\n", pfn_user);
+>  	REPORT_MSG("    Free pages              : 0x%016llx\n", pfn_free);
+>  	REPORT_MSG("    Hwpoison pages          : 0x%016llx\n", pfn_hwpoison);
+> +	REPORT_MSG("    Offline pages           : 0x%016llx\n", pfn_offline);
+>  	REPORT_MSG("  Remaining pages  : 0x%016llx\n",
+>  	    pfn_original - pfn_excluded);
+>  	REPORT_MSG("  (The number of pages is reduced to %lld%%.)\n",
+> @@ -9790,7 +9816,7 @@ print_mem_usage(void)
+>  	pfn_original =3D info->max_mapnr - pfn_memhole;
+>=20
+>  	pfn_excluded =3D pfn_zero + pfn_cache + pfn_cache_private
+> -	    + pfn_user + pfn_free + pfn_hwpoison;
+> +	    + pfn_user + pfn_free + pfn_hwpoison + pfn_offline;
+>  	shrinking =3D (pfn_original - pfn_excluded) * 100;
+>  	shrinking =3D shrinking / pfn_original;
+>  	total_size =3D info->page_size * pfn_original;
+> diff --git a/makedumpfile.h b/makedumpfile.h
+> index f02f86d..e3a2b29 100644
+> --- a/makedumpfile.h
+> +++ b/makedumpfile.h
+> @@ -1927,6 +1927,7 @@ struct number_table {
+>  	long    PG_hwpoison;
+>=20
+>  	long	PAGE_BUDDY_MAPCOUNT_VALUE;
+> +	long	PAGE_OFFLINE_MAPCOUNT_VALUE;
+>  	long	SECTION_SIZE_BITS;
+>  	long	MAX_PHYSMEM_BITS;
+>  	long    HUGETLB_PAGE_DTOR;
+> --
+> 2.17.2
+>=20
