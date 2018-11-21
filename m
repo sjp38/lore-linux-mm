@@ -1,69 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CECA6B2387
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 22:20:56 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id a9so5401518pla.2
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 19:20:56 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h17sor1081312pfa.67.2018.11.20.19.20.55
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 43DD96B238C
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 22:22:36 -0500 (EST)
+Received: by mail-it1-f197.google.com with SMTP id k133so5330763ite.4
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 19:22:36 -0800 (PST)
+Received: from NAM04-BN3-obe.outbound.protection.outlook.com (mail-eopbgr680072.outbound.protection.outlook.com. [40.107.68.72])
+        by mx.google.com with ESMTPS id u20si15568716jab.10.2018.11.20.19.22.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 20 Nov 2018 19:20:55 -0800 (PST)
-Subject: Re: [PATCH V10 09/19] block: introduce bio_bvecs()
-References: <20181115085306.9910-1-ming.lei@redhat.com>
- <20181115085306.9910-10-ming.lei@redhat.com> <20181116134541.GH3165@lst.de>
- <002fe56b-25e4-573e-c09b-bb12c3e8d25a@grimberg.me>
- <20181120161651.GB2629@lst.de>
- <53526aae-fb9b-ee38-0a01-e5899e2d4e4d@grimberg.me>
- <20181121005902.GA31748@ming.t460p>
-From: Sagi Grimberg <sagi@grimberg.me>
-Message-ID: <2d9bee7a-f010-dcf4-1184-094101058584@grimberg.me>
-Date: Tue, 20 Nov 2018 19:20:45 -0800
-MIME-Version: 1.0
-In-Reply-To: <20181121005902.GA31748@ming.t460p>
-Content-Type: text/plain; charset=utf-8; format=flowed
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 20 Nov 2018 19:22:35 -0800 (PST)
+From: Nadav Amit <namit@vmware.com>
+Subject: Re: [PATCH v1 6/8] vmw_balloon: mark inflated pages PG_offline
+Date: Wed, 21 Nov 2018 03:22:26 +0000
+Message-ID: <9F78496F-EBAE-4248-80F0-0CB55CEFA238@vmware.com>
+References: <20181119101616.8901-1-david@redhat.com>
+ <20181119101616.8901-7-david@redhat.com>
+In-Reply-To: <20181119101616.8901-7-david@redhat.com>
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <12E088AA76269B4A994B7F7315294D9A@namprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@redhat.com>
-Cc: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, xen-devel <xen-devel@lists.xenproject.org>, kexec-ml <kexec@lists.infradead.org>, pv-drivers <pv-drivers@vmware.com>, Xavier Deguillard <xdeguillard@vmware.com>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Julien Freche <jfreche@vmware.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, "Michael S.
+ Tsirkin" <mst@redhat.com>
+
+Thanks for this patch!
+
+> On Nov 19, 2018, at 2:16 AM, David Hildenbrand <david@redhat.com> wrote:
+>=20
+> Mark inflated and never onlined pages PG_offline, to tell the world that
+> the content is stale and should not be dumped.
+>=20
+> Cc: Xavier Deguillard <xdeguillard@vmware.com>
+> Cc: Nadav Amit <namit@vmware.com>
+> Cc: Arnd Bergmann <arnd@arndb.de>
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Cc: Julien Freche <jfreche@vmware.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: "Michael S. Tsirkin" <mst@redhat.com>
+> Signed-off-by: David Hildenbrand <david@redhat.com>
+> ---
+> drivers/misc/vmw_balloon.c | 32 ++++++++++++++++++++++++++++++++
+> 1 file changed, 32 insertions(+)
+>=20
+> diff --git a/drivers/misc/vmw_balloon.c b/drivers/misc/vmw_balloon.c
+> index e6126a4b95d3..8cc8bd9a4e32 100644
+> --- a/drivers/misc/vmw_balloon.c
+> +++ b/drivers/misc/vmw_balloon.c
+> @@ -544,6 +544,36 @@ unsigned int vmballoon_page_order(enum vmballoon_pag=
+e_size_type page_size)
+> 	return page_size =3D=3D VMW_BALLOON_2M_PAGE ? VMW_BALLOON_2M_ORDER : 0;
+> }
+>=20
+> +/**
+> + * vmballoon_mark_page_offline() - mark a page as offline
+> + * @page: pointer for the page
+
+If possible, please add a period at the end of the sentence (yes, I know I
+got it wrong in some places too).
+
+> + * @page_size: the size of the page.
+> + */
+> +static void
+> +vmballoon_mark_page_offline(struct page *page,
+> +			    enum vmballoon_page_size_type page_size)
+> +{
+> +	int i;
+> +
+> +	for (i =3D 0; i < 1ULL << vmballoon_page_order(page_size); i++)
+
+Can you please do instead:
+
+	unsigned int;
+
+	for (i =3D 0; i < vmballoon_page_in_frames(page_size); i++)
 
 
-> Not sure I understand the 'blocking' problem in this case.
-> 
-> We can build a bvec table from this req, and send them all
-> in send(),
+> +		__SetPageOffline(page + i);
+> +}
+> +
+> +/**
+> + * vmballoon_mark_page_online() - mark a page as online
+> + * @page: pointer for the page
+> + * @page_size: the size of the page.
+> + */
+> +static void
+> +vmballoon_mark_page_online(struct page *page,
+> +			   enum vmballoon_page_size_type page_size)
+> +{
+> +	int i;
+> +
+> +	for (i =3D 0; i < 1ULL << vmballoon_page_order(page_size); i++)
+> +		__ClearPageOffline(page + i);
 
-I would like to avoid growing bvec tables and keep everything
-preallocated. Plus, a bvec_iter operates on a bvec which means
-we'll need a table there as well... Not liking it so far...
+Same here (use vmballoon_page_in_frames).
 
-> can this way avoid your blocking issue? You may see this
-> example in branch 'rq->bio != rq->biotail' of lo_rw_aio().
+> +}
+> +
+> /**
+>  * vmballoon_page_in_frames() - returns the number of frames in a page.
+>  * @page_size: the size of the page.
+> @@ -612,6 +642,7 @@ static int vmballoon_alloc_page_list(struct vmballoon=
+ *b,
+> 					 ctl->page_size);
+>=20
+> 		if (page) {
+> +			vmballoon_mark_page_offline(page, ctl->page_size);
+> 			/* Success. Add the page to the list and continue. */
+> 			list_add(&page->lru, &ctl->pages);
+> 			continue;
+> @@ -850,6 +881,7 @@ static void vmballoon_release_page_list(struct list_h=
+ead *page_list,
+>=20
+> 	list_for_each_entry_safe(page, tmp, page_list, lru) {
+> 		list_del(&page->lru);
+> +		vmballoon_mark_page_online(page, page_size);
+> 		__free_pages(page, vmballoon_page_order(page_size));
+> 	}
 
-This is exactly an example of not ignoring the bios...
+We would like to test it in the next few days, but in the meanwhile, after
+you address these minor issues:
 
-> If this way is what you need, I think you are right, even we may
-> introduce the following helpers:
-> 
-> 	rq_for_each_bvec()
-> 	rq_bvecs()
+Acked-by: Nadav Amit <namit@vmware.com>
 
-I'm not sure how this helps me either. Unless we can set a bvec_iter to
-span bvecs or have an abstract bio crossing when we re-initialize the
-bvec_iter I don't see how I can ignore bios completely...
-
-> So looks nvme-tcp host driver might be the 2nd driver which benefits
-> from multi-page bvec directly.
-> 
-> The multi-page bvec V11 has passed my tests and addressed almost
-> all the comments during review on V10. I removed bio_vecs() in V11,
-> but it won't be big deal, we can introduce them anytime when there
-> is the requirement.
-
-multipage-bvecs and nvme-tcp are going to conflict, so it would be good
-to coordinate on this. I think that nvme-tcp host needs some adjustments
-as setting a bvec_iter. I'm under the impression that the change is 
-rather small and self-contained, but I'm not sure I have the full
-picture here.
+Thanks again,
+Nadav=20
