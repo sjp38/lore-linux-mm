@@ -1,78 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DDE16B24F1
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 02:45:32 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id d17-v6so2609944edv.4
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 23:45:32 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y1-v6si5436220ejh.51.2018.11.20.23.45.29
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 086DA6B24FC
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 02:54:23 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id 34-v6so6749286plf.6
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 23:54:23 -0800 (PST)
+Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
+        by mx.google.com with ESMTPS id p16si26643999pff.272.2018.11.20.23.54.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Nov 2018 23:45:30 -0800 (PST)
-Subject: Re: [PATCH V11 17/19] block: document usage of bio iterator helpers
-References: <20181121032327.8434-1-ming.lei@redhat.com>
- <20181121032327.8434-18-ming.lei@redhat.com>
-From: Nikolay Borisov <nborisov@suse.com>
-Message-ID: <1f93e845-09e8-2c6c-3643-654b8c490597@suse.com>
-Date: Wed, 21 Nov 2018 09:45:25 +0200
+        Tue, 20 Nov 2018 23:54:21 -0800 (PST)
+Received: from eucas1p2.samsung.com (unknown [182.198.249.207])
+	by mailout1.w1.samsung.com (KnoxPortal) with ESMTP id 20181121075417euoutp011b5fd4456442d7c33ba4859e55f1bb47~pFHj5YK860231702317euoutp01v
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 07:54:17 +0000 (GMT)
+Subject: Re: [PATCH 7/9] videobuf2/videobuf2-dma-sg.c: Convert to use
+ vm_insert_range
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Message-ID: <1c228982-e1c6-a9d5-87ef-1a3206a426f3@samsung.com>
+Date: Wed, 21 Nov 2018 08:54:14 +0100
 MIME-Version: 1.0
-In-Reply-To: <20181121032327.8434-18-ming.lei@redhat.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20181115155037.GA28004@jordon-HP-15-Notebook-PC>
+Content-Transfer-Encoding: 7bit
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset="utf-8"
+References: <CGME20181115154713epcas4p1818fa71d5e67c9a73dc75ceda1704ea3@epcas4p1.samsung.com>
+	<20181115155037.GA28004@jordon-HP-15-Notebook-PC>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@redhat.com>, Jens Axboe <axboe@kernel.dk>
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: Souptick Joarder <jrdr.linux@gmail.com>, akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, pawel@osciak.com, kyungmin.park@samsung.com, mchehab@kernel.org
+Cc: linux-media@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+Hi Souptick,
 
+On 2018-11-15 16:50, Souptick Joarder wrote:
+> Convert to use vm_insert_range to map range of kernel memory
+> to user vma.
+>
+> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+> Reviewed-by: Matthew Wilcox <willy@infradead.org>
 
-On 21.11.18 D3. 5:23 N?., Ming Lei wrote:
-> Now multi-page bvec is supported, some helpers may return page by
-> page, meantime some may return segment by segment, this patch
-> documents the usage.
-> 
-> Signed-off-by: Ming Lei <ming.lei@redhat.com>
+Acked-by: Marek Szyprowski <m.szyprowski@samsung.com>
+
 > ---
->  Documentation/block/biovecs.txt | 24 ++++++++++++++++++++++++
->  1 file changed, 24 insertions(+)
-> 
-> diff --git a/Documentation/block/biovecs.txt b/Documentation/block/biovecs.txt
-> index 25689584e6e0..bb008f7afb05 100644
-> --- a/Documentation/block/biovecs.txt
-> +++ b/Documentation/block/biovecs.txt
-> @@ -117,3 +117,27 @@ Other implications:
->     size limitations and the limitations of the underlying devices. Thus
->     there's no need to define ->merge_bvec_fn() callbacks for individual block
->     drivers.
-> +
-> +Usage of helpers:
-> +=================
-> +
-> +* The following helpers whose names have the suffix of "_all" can only be used
-> +on non-BIO_CLONED bio. They are usually used by filesystem code. Drivers
-> +shouldn't use them because the bio may have been split before it reached the
-> +driver.
-> +
-> +	bio_for_each_segment_all()
-> +	bio_first_bvec_all()
-> +	bio_first_page_all()
-> +	bio_last_bvec_all()
-> +
-> +* The following helpers iterate over single-page bvecs. The passed 'struct
-> +bio_vec' will contain a single-page IO vector during the iteration
-> +
-> +	bio_for_each_segment()
-> +	bio_for_each_segment_all()
-> +
-> +* The following helpers iterate over single-page bvecs. The passed 'struct
-> +bio_vec' will contain a single-page IO vector during the iteration
-> +
-> +	bio_for_each_bvec()
+>  drivers/media/common/videobuf2/videobuf2-dma-sg.c | 23 +++++++----------------
+>  1 file changed, 7 insertions(+), 16 deletions(-)
+>
+> diff --git a/drivers/media/common/videobuf2/videobuf2-dma-sg.c b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
+> index 015e737..898adef 100644
+> --- a/drivers/media/common/videobuf2/videobuf2-dma-sg.c
+> +++ b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
+> @@ -328,28 +328,19 @@ static unsigned int vb2_dma_sg_num_users(void *buf_priv)
+>  static int vb2_dma_sg_mmap(void *buf_priv, struct vm_area_struct *vma)
+>  {
+>  	struct vb2_dma_sg_buf *buf = buf_priv;
+> -	unsigned long uaddr = vma->vm_start;
+> -	unsigned long usize = vma->vm_end - vma->vm_start;
+> -	int i = 0;
+> +	unsigned long page_count = vma_pages(vma);
+> +	int err;
+>  
+>  	if (!buf) {
+>  		printk(KERN_ERR "No memory to map\n");
+>  		return -EINVAL;
+>  	}
+>  
+> -	do {
+> -		int ret;
+> -
+> -		ret = vm_insert_page(vma, uaddr, buf->pages[i++]);
+> -		if (ret) {
+> -			printk(KERN_ERR "Remapping memory, error: %d\n", ret);
+> -			return ret;
+> -		}
+> -
+> -		uaddr += PAGE_SIZE;
+> -		usize -= PAGE_SIZE;
+> -	} while (usize > 0);
+> -
+> +	err = vm_insert_range(vma, vma->vm_start, buf->pages, page_count);
+> +	if (err) {
+> +		printk(KERN_ERR "Remapping memory, error: %d\n", err);
+> +		return err;
+> +	}
+>  
+>  	/*
+>  	 * Use common vm_area operations to track buffer refcount.
 
-Just put this helper right below the above 2, no need to repeat the
-explanation. Also I'd suggest introducing another catch-all sentence
-"All other helpers are assumed to iterate multipage bio vecs" and
-perhaps give an example with 1-2 helpers.
-
-> 
+Best regards
+-- 
+Marek Szyprowski, PhD
+Samsung R&D Institute Poland
