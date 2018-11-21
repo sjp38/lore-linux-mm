@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E40DC6B2399
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 22:25:48 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id f22so5408066qkm.11
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 19:25:48 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C1E86B239B
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 22:26:08 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id j5so2168383qtk.11
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 19:26:08 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 14si5809585qka.272.2018.11.20.19.25.47
+        by mx.google.com with ESMTPS id l8si202245qte.153.2018.11.20.19.26.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Nov 2018 19:25:47 -0800 (PST)
+        Tue, 20 Nov 2018 19:26:07 -0800 (PST)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V11 04/19] block: use bio_for_each_bvec() to compute multi-page bvec count
-Date: Wed, 21 Nov 2018 11:23:12 +0800
-Message-Id: <20181121032327.8434-5-ming.lei@redhat.com>
+Subject: [PATCH V11 05/19] block: use bio_for_each_bvec() to map sg
+Date: Wed, 21 Nov 2018 11:23:13 +0800
+Message-Id: <20181121032327.8434-6-ming.lei@redhat.com>
 In-Reply-To: <20181121032327.8434-1-ming.lei@redhat.com>
 References: <20181121032327.8434-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,178 +20,107 @@ List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@kernel.dk>
 Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
 
-First it is more efficient to use bio_for_each_bvec() in both
-blk_bio_segment_split() and __blk_recalc_rq_segments() to compute how
-many multi-page bvecs there are in the bio.
+It is more efficient to use bio_for_each_bvec() to map sg, meantime
+we have to consider splitting multipage bvec as done in blk_bio_segment_split().
 
-Secondly once bio_for_each_bvec() is used, the bvec may need to be
-splitted because its length can be very longer than max segment size,
-so we have to split the big bvec into several segments.
-
-Thirdly when splitting multi-page bvec into segments, the max segment
-limit may be reached, so the bio split need to be considered under
-this situation too.
-
+Reviewed-by: Omar Sandoval <osandov@fb.com>
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- block/blk-merge.c | 87 +++++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 68 insertions(+), 19 deletions(-)
+ block/blk-merge.c | 68 +++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 48 insertions(+), 20 deletions(-)
 
 diff --git a/block/blk-merge.c b/block/blk-merge.c
-index f52400ce2187..ec0b93fa1ff8 100644
+index ec0b93fa1ff8..8829c51b4e75 100644
 --- a/block/blk-merge.c
 +++ b/block/blk-merge.c
-@@ -161,6 +161,54 @@ static inline unsigned get_max_io_size(struct request_queue *q,
- 	return sectors;
+@@ -455,6 +455,52 @@ static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
+ 	return biovec_phys_mergeable(q, &end_bv, &nxt_bv);
  }
  
-+/*
-+ * Split the bvec @bv into segments, and update all kinds of
-+ * variables.
-+ */
-+static bool bvec_split_segs(struct request_queue *q, struct bio_vec *bv,
-+		unsigned *nsegs, unsigned *last_seg_size,
-+		unsigned *front_seg_size, unsigned *sectors)
++static struct scatterlist *blk_next_sg(struct scatterlist **sg,
++		struct scatterlist *sglist)
 +{
-+	unsigned len = bv->bv_len;
-+	unsigned total_len = 0;
-+	unsigned new_nsegs = 0, seg_size = 0;
++	if (!*sg)
++		return sglist;
 +
 +	/*
-+	 * Multipage bvec may be too big to hold in one segment,
-+	 * so the current bvec has to be splitted as multiple
-+	 * segments.
++	 * If the driver previously mapped a shorter list, we could see a
++	 * termination bit prematurely unless it fully inits the sg table
++	 * on each mapping. We KNOW that there must be more entries here
++	 * or the driver would be buggy, so force clear the termination bit
++	 * to avoid doing a full sg_init_table() in drivers for each command.
 +	 */
-+	while (len && new_nsegs + *nsegs < queue_max_segments(q)) {
-+		seg_size = min(queue_max_segment_size(q), len);
-+
-+		new_nsegs++;
-+		total_len += seg_size;
-+		len -= seg_size;
-+
-+		if ((bv->bv_offset + total_len) & queue_virt_boundary(q))
-+			break;
-+	}
-+
-+	/* update front segment size */
-+	if (!*nsegs) {
-+		unsigned first_seg_size = seg_size;
-+
-+		if (new_nsegs > 1)
-+			first_seg_size = queue_max_segment_size(q);
-+		if (*front_seg_size < first_seg_size)
-+			*front_seg_size = first_seg_size;
-+	}
-+
-+	/* update other varibles */
-+	*last_seg_size = seg_size;
-+	*nsegs += new_nsegs;
-+	if (sectors)
-+		*sectors += total_len >> 9;
-+
-+	/* split in the middle of the bvec if len != 0 */
-+	return !!len;
++	sg_unmark_end(*sg);
++	return sg_next(*sg);
 +}
 +
- static struct bio *blk_bio_segment_split(struct request_queue *q,
- 					 struct bio *bio,
- 					 struct bio_set *bs,
-@@ -174,7 +222,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
- 	struct bio *new = NULL;
- 	const unsigned max_sectors = get_max_io_size(q, bio);
- 
--	bio_for_each_segment(bv, bio, iter) {
-+	bio_for_each_bvec(bv, bio, iter) {
- 		/*
- 		 * If the queue doesn't support SG gaps and adding this
- 		 * offset would create a gap, disallow it.
-@@ -189,8 +237,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
- 			 */
- 			if (nsegs < queue_max_segments(q) &&
- 			    sectors < max_sectors) {
--				nsegs++;
--				sectors = max_sectors;
-+				/* split in the middle of bvec */
-+				bv.bv_len = (max_sectors - sectors) << 9;
-+				bvec_split_segs(q, &bv, &nsegs,
-+						&seg_size,
-+						&front_seg_size,
-+						&sectors);
- 			}
- 			goto split;
- 		}
-@@ -212,14 +264,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
- 		if (nsegs == queue_max_segments(q))
- 			goto split;
- 
--		if (nsegs == 1 && seg_size > front_seg_size)
--			front_seg_size = seg_size;
--
--		nsegs++;
- 		bvprv = bv;
- 		bvprvp = &bvprv;
--		seg_size = bv.bv_len;
--		sectors += bv.bv_len >> 9;
++static unsigned blk_bvec_map_sg(struct request_queue *q,
++		struct bio_vec *bvec, struct scatterlist *sglist,
++		struct scatterlist **sg)
++{
++	unsigned nbytes = bvec->bv_len;
++	unsigned nsegs = 0, total = 0;
 +
-+		if (bvec_split_segs(q, &bv, &nsegs, &seg_size,
-+				    &front_seg_size, &sectors))
-+			goto split;
- 
- 	}
- 
-@@ -233,8 +283,6 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
- 			bio = new;
- 	}
- 
--	if (nsegs == 1 && seg_size > front_seg_size)
--		front_seg_size = seg_size;
- 	bio->bi_seg_front_size = front_seg_size;
- 	if (seg_size > bio->bi_seg_back_size)
- 		bio->bi_seg_back_size = seg_size;
-@@ -297,6 +345,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
- 	struct bio_vec bv, bvprv = { NULL };
- 	int cluster, prev = 0;
- 	unsigned int seg_size, nr_phys_segs;
-+	unsigned front_seg_size = bio->bi_seg_front_size;
- 	struct bio *fbio, *bbio;
- 	struct bvec_iter iter;
- 
-@@ -317,7 +366,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
- 	seg_size = 0;
- 	nr_phys_segs = 0;
- 	for_each_bio(bio) {
--		bio_for_each_segment(bv, bio, iter) {
-+		bio_for_each_bvec(bv, bio, iter) {
- 			/*
- 			 * If SG merging is disabled, each bio vector is
- 			 * a segment
-@@ -337,20 +386,20 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
- 				continue;
- 			}
++	while (nbytes > 0) {
++		unsigned seg_size;
++		struct page *pg;
++		unsigned offset, idx;
++
++		*sg = blk_next_sg(sg, sglist);
++
++		seg_size = min(nbytes, queue_max_segment_size(q));
++		offset = (total + bvec->bv_offset) % PAGE_SIZE;
++		idx = (total + bvec->bv_offset) / PAGE_SIZE;
++		pg = nth_page(bvec->bv_page, idx);
++
++		sg_set_page(*sg, pg, seg_size, offset);
++
++		total += seg_size;
++		nbytes -= seg_size;
++		nsegs++;
++	}
++
++	return nsegs;
++}
++
+ static inline void
+ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
+ 		     struct scatterlist *sglist, struct bio_vec *bvprv,
+@@ -472,25 +518,7 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
+ 		(*sg)->length += nbytes;
+ 	} else {
  new_segment:
--			if (nr_phys_segs == 1 && seg_size >
--			    fbio->bi_seg_front_size)
--				fbio->bi_seg_front_size = seg_size;
-+			if (nr_phys_segs == 1 && seg_size > front_seg_size)
-+				front_seg_size = seg_size;
- 
--			nr_phys_segs++;
- 			bvprv = bv;
- 			prev = 1;
--			seg_size = bv.bv_len;
-+			bvec_split_segs(q, &bv, &nr_phys_segs, &seg_size,
-+					&front_seg_size, NULL);
- 		}
- 		bbio = bio;
+-		if (!*sg)
+-			*sg = sglist;
+-		else {
+-			/*
+-			 * If the driver previously mapped a shorter
+-			 * list, we could see a termination bit
+-			 * prematurely unless it fully inits the sg
+-			 * table on each mapping. We KNOW that there
+-			 * must be more entries here or the driver
+-			 * would be buggy, so force clear the
+-			 * termination bit to avoid doing a full
+-			 * sg_init_table() in drivers for each command.
+-			 */
+-			sg_unmark_end(*sg);
+-			*sg = sg_next(*sg);
+-		}
+-
+-		sg_set_page(*sg, bvec->bv_page, nbytes, bvec->bv_offset);
+-		(*nsegs)++;
++		(*nsegs) += blk_bvec_map_sg(q, bvec, sglist, sg);
  	}
+ 	*bvprv = *bvec;
+ }
+@@ -512,7 +540,7 @@ static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
+ 	int cluster = blk_queue_cluster(q), nsegs = 0;
  
--	if (nr_phys_segs == 1 && seg_size > fbio->bi_seg_front_size)
--		fbio->bi_seg_front_size = seg_size;
-+	if (nr_phys_segs == 1 && seg_size > front_seg_size)
-+		front_seg_size = seg_size;
-+	fbio->bi_seg_front_size = front_seg_size;
- 	if (seg_size > bbio->bi_seg_back_size)
- 		bbio->bi_seg_back_size = seg_size;
+ 	for_each_bio(bio)
+-		bio_for_each_segment(bvec, bio, iter)
++		bio_for_each_bvec(bvec, bio, iter)
+ 			__blk_segment_map_sg(q, &bvec, sglist, &bvprv, sg,
+ 					     &nsegs, &cluster);
  
 -- 
 2.9.5
