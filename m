@@ -1,66 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DF1D46B2386
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 22:20:50 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id w7-v6so5492499plp.9
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 19:20:50 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id u23sor25979268pfi.65.2018.11.20.19.20.49
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CECA6B2387
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 22:20:56 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id a9so5401518pla.2
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 19:20:56 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h17sor1081312pfa.67.2018.11.20.19.20.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 20 Nov 2018 19:20:49 -0800 (PST)
-Date: Tue, 20 Nov 2018 19:20:40 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: Memory hotplug softlock issue
-In-Reply-To: <alpine.LSU.2.11.1811201630360.2061@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1811201852370.2804@eggly.anvils>
-References: <20181115143204.GV23831@dhcp22.suse.cz> <20181116012433.GU2653@MiWiFi-R3L-srv> <20181116091409.GD14706@dhcp22.suse.cz> <20181119105202.GE18471@MiWiFi-R3L-srv> <20181119124033.GJ22247@dhcp22.suse.cz> <20181119125121.GK22247@dhcp22.suse.cz>
- <20181119141016.GO22247@dhcp22.suse.cz> <20181119173312.GV22247@dhcp22.suse.cz> <alpine.LSU.2.11.1811191215290.15640@eggly.anvils> <20181119205907.GW22247@dhcp22.suse.cz> <20181120015644.GA5727@MiWiFi-R3L-srv> <alpine.LSU.2.11.1811192127130.2848@eggly.anvils>
- <3f1a82a8-f2aa-ac5e-e6a8-057256162321@suse.cz> <alpine.LSU.2.11.1811201630360.2061@eggly.anvils>
+        Tue, 20 Nov 2018 19:20:55 -0800 (PST)
+Subject: Re: [PATCH V10 09/19] block: introduce bio_bvecs()
+References: <20181115085306.9910-1-ming.lei@redhat.com>
+ <20181115085306.9910-10-ming.lei@redhat.com> <20181116134541.GH3165@lst.de>
+ <002fe56b-25e4-573e-c09b-bb12c3e8d25a@grimberg.me>
+ <20181120161651.GB2629@lst.de>
+ <53526aae-fb9b-ee38-0a01-e5899e2d4e4d@grimberg.me>
+ <20181121005902.GA31748@ming.t460p>
+From: Sagi Grimberg <sagi@grimberg.me>
+Message-ID: <2d9bee7a-f010-dcf4-1184-094101058584@grimberg.me>
+Date: Tue, 20 Nov 2018 19:20:45 -0800
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20181121005902.GA31748@ming.t460p>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>, Baoquan He <bhe@redhat.com>, Michal Hocko <mhocko@kernel.org>, David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, pifang@redhat.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, Mel Gorman <mgorman@suse.de>
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On Tue, 20 Nov 2018, Hugh Dickins wrote:
-> On Tue, 20 Nov 2018, Vlastimil Babka wrote:
-> > >  
-> > >  	finish_wait(q, wait);
-> > 
-> > ... the code continues by:
-> > 
-> >         if (thrashing) {
-> >                 if (!PageSwapBacked(page))
-> > 
-> > So maybe we should not set 'thrashing' true when lock < 0?
+
+> Not sure I understand the 'blocking' problem in this case.
 > 
-> Very good catch, thank you Vlastimil: as you might have guessed, the
-> patch from a pre-PSI kernel applied cleanly, and I just hadn't reviewed
-> the surrounding context properly before sending out.
+> We can build a bvec table from this req, and send them all
+> in send(),
+
+I would like to avoid growing bvec tables and keep everything
+preallocated. Plus, a bvec_iter operates on a bvec which means
+we'll need a table there as well... Not liking it so far...
+
+> can this way avoid your blocking issue? You may see this
+> example in branch 'rq->bio != rq->biotail' of lo_rw_aio().
+
+This is exactly an example of not ignoring the bios...
+
+> If this way is what you need, I think you are right, even we may
+> introduce the following helpers:
 > 
-> I cannot say immediately what the right answer is, I'll have to do some
-> research first: maybe not enter the block that sets thrashing true when
-> lock < 0, as you suggest, or maybe force lock < 0 to 0 and put_page()
-> afterwards, or... 
+> 	rq_for_each_bvec()
+> 	rq_bvecs()
 
-... I still won't adjust the patch tonight, but the answer is obvious
-now I look closer: as you show in your extract above, the only thing
-it does with "page" at the end is to ask if it was SwapBacked, so we
-just need to set one more bool at the beginning to check at the end
-(or I could make "thrashing" a -1, 0, 1 int like "lock": but my guess
-is that that would not be to other people's taste: acceptable for the
-arg, but stretching your patience for the local variable).
+I'm not sure how this helps me either. Unless we can set a bvec_iter to
+span bvecs or have an abstract bio crossing when we re-initialize the
+bvec_iter I don't see how I can ignore bios completely...
 
-By the way, I do have a further patch to wait_on_page_bit_common(),
-which I could send at the same time, if it sounds right to you
-(but it's a no-op in the put_and_wait page migration case).  That
-__add_wait_queue_entry_tail() is right for the first time into
-the loop, but I maintain that it should use __add_wait_queue()
-for fairness thereafter, to avoid repeatedly sending older waiters
-back to the back of the queue.  I don't have hard numbers for it,
-but it's one of several patches, each of which helped to reduce our
-wait_on_page_bit lockups in some (perhaps unrealistic) stress tests.
+> So looks nvme-tcp host driver might be the 2nd driver which benefits
+> from multi-page bvec directly.
+> 
+> The multi-page bvec V11 has passed my tests and addressed almost
+> all the comments during review on V10. I removed bio_vecs() in V11,
+> but it won't be big deal, we can introduce them anytime when there
+> is the requirement.
 
-Hugh
+multipage-bvecs and nvme-tcp are going to conflict, so it would be good
+to coordinate on this. I think that nvme-tcp host needs some adjustments
+as setting a bvec_iter. I'm under the impression that the change is 
+rather small and self-contained, but I'm not sure I have the full
+picture here.
