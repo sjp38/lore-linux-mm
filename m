@@ -1,64 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E0C36B2755
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 15:05:18 -0500 (EST)
-Received: by mail-ot1-f72.google.com with SMTP id 62so3595884otr.14
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 12:05:18 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id e31si20389668otd.314.2018.11.21.12.05.17
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E7D66B2765
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 15:19:35 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id o205so8352298itc.2
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 12:19:35 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s197-v6sor3227394itb.11.2018.11.21.12.19.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Nov 2018 12:05:17 -0800 (PST)
-Subject: Re: [PATCH 0/9] Use vm_insert_range
-References: <20181115154314.GA27850@jordon-HP-15-Notebook-PC>
- <CAFqt6zZGP5DnAQd_19xKcLezOYaLsZpPr=FGxiTb7JRjTEJ4cA@mail.gmail.com>
- <0c6f1144-6ee0-29df-5e1f-d35d2264e06e@oracle.com>
- <CAFqt6zavi-S9ySZJTKG9zChacSD+ZCOVyyW71B1DfjggTH=Jkg@mail.gmail.com>
-From: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Message-ID: <fcaff67b-5ce0-d981-5820-9e587b98abee@oracle.com>
-Date: Wed, 21 Nov 2018 15:04:27 -0500
+        (Google Transport Security);
+        Wed, 21 Nov 2018 12:19:34 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAFqt6zavi-S9ySZJTKG9zChacSD+ZCOVyyW71B1DfjggTH=Jkg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+References: <201811171022.9O8KA7ol%fengguang.wu@intel.com> <20181121181556.GD5704@rapoport-lnx>
+In-Reply-To: <20181121181556.GD5704@rapoport-lnx>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Wed, 21 Nov 2018 12:19:22 -0800
+Message-ID: <CAKgT0Uff+CB=tyaE-0bc9p5ifUizbshx1QuBeOtBQbuPLvbkdw@mail.gmail.com>
+Subject: Re: [mmotm:master 47/137] htmldocs: mm/memblock.c:1261: warning:
+ Function parameter or member 'out_spfn' not described in '__next_mem_pfn_range_in_zone'
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz, Rik van Riel <riel@surriel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, rppt@linux.vnet.ibm.com, Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, Kees Cook <keescook@chromium.org>, Marek Szyprowski <m.szyprowski@samsung.com>, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, Kyungmin Park <kyungmin.park@samsung.com>, mchehab@kernel.org, Juergen Gross <jgross@suse.com>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
+To: rppt@linux.ibm.com
+Cc: alexander.h.duyck@linux.intel.com, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 
-On 11/21/18 2:56 PM, Souptick Joarder wrote:
-> On Thu, Nov 22, 2018 at 1:08 AM Boris Ostrovsky
-> <boris.ostrovsky@oracle.com> wrote:
->> On 11/21/18 1:24 AM, Souptick Joarder wrote:
->>> On Thu, Nov 15, 2018 at 9:09 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
->>>> Previouly drivers have their own way of mapping range of
->>>> kernel pages/memory into user vma and this was done by
->>>> invoking vm_insert_page() within a loop.
->>>>
->>>> As this pattern is common across different drivers, it can
->>>> be generalized by creating a new function and use it across
->>>> the drivers.
->>>>
->>>> vm_insert_range is the new API which will be used to map a
->>>> range of kernel memory/pages to user vma.
->>>>
->>>> All the applicable places are converted to use new vm_insert_range
->>>> in this patch series.
->>>>
->>>> Souptick Joarder (9):
->>>>   mm: Introduce new vm_insert_range API
->>>>   arch/arm/mm/dma-mapping.c: Convert to use vm_insert_range
->>>>   drivers/firewire/core-iso.c: Convert to use vm_insert_range
->>>>   drm/rockchip/rockchip_drm_gem.c: Convert to use vm_insert_range
->>>>   drm/xen/xen_drm_front_gem.c: Convert to use vm_insert_range
->>>>   iommu/dma-iommu.c: Convert to use vm_insert_range
->>>>   videobuf2/videobuf2-dma-sg.c: Convert to use vm_insert_range
->>>>   xen/gntdev.c: Convert to use vm_insert_range
->>>>   xen/privcmd-buf.c: Convert to use vm_insert_range
->>> Any further comment on driver changes ?
->> Xen drivers (the last two patches) look fine to me.
-> Thanks, can I considered this as Reviewed-by ?
+On Wed, Nov 21, 2018 at 10:16 AM Mike Rapoport <rppt@linux.ibm.com> wrote:
+>
+> Hi Alex,
+>
+> On Sat, Nov 17, 2018 at 10:26:25AM +0800, kbuild test robot wrote:
+> > tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> > head:   4de8d18fa38298433f161f8780b5e1b0f01a8c17
+> > commit: 711bb3ee3832a764cb2ea03e97b7183b938e1f6c [47/137] mm: implement new zone specific memblock iterator
+> > reproduce: make htmldocs
+> >
+> > All warnings (new ones prefixed by >>):
+> >
+> >    WARNING: convert(1) not found, for SVG to PDF conversion install ImageMagick (https://www.imagemagick.org)
+> >    mm/memblock.c:1261: warning: Excess function parameter 'out_start' description in '__next_mem_pfn_range_in_zone'
+> >    mm/memblock.c:1261: warning: Excess function parameter 'out_end' description in '__next_mem_pfn_range_in_zone'
+> > >> mm/memblock.c:1261: warning: Function parameter or member 'out_spfn' not described in '__next_mem_pfn_range_in_zone'
+> > >> mm/memblock.c:1261: warning: Function parameter or member 'out_epfn' not described in '__next_mem_pfn_range_in_zone'
+> >    mm/memblock.c:1261: warning: Excess function parameter 'out_start' description in '__next_mem_pfn_range_in_zone'
+> >    mm/memblock.c:1261: warning: Excess function parameter 'out_end' description in '__next_mem_pfn_range_in_zone'
+>
+> Can you please fix those?
 
+Yes. I have a follow-up patch set in the works and that is one of the
+things I plan to address.
 
-Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Thanks.
+
+- Alex
