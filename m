@@ -1,276 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 35A866B2696
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 11:49:59 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id f22so6905018qkm.11
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 08:49:59 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 13si105965qtu.390.2018.11.21.08.49.57
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D19146B26AC
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 12:12:19 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id 143-v6so8116748wmv.0
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 09:12:19 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id k13si883527wrm.210.2018.11.21.09.12.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Nov 2018 08:49:58 -0800 (PST)
-Subject: Re: [PATCH v2 07/17] debugobjects: Move printk out of db lock
- critical sections
-References: <1542653726-5655-1-git-send-email-longman@redhat.com>
- <1542653726-5655-8-git-send-email-longman@redhat.com>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <2ddd9e3d-951e-1892-c941-54be80f7e6aa@redhat.com>
-Date: Wed, 21 Nov 2018 11:49:54 -0500
+        Wed, 21 Nov 2018 09:12:18 -0800 (PST)
+Date: Wed, 21 Nov 2018 18:12:17 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH V11 03/19] block: introduce bio_for_each_bvec()
+Message-ID: <20181121171217.GA6259@lst.de>
+References: <20181121032327.8434-1-ming.lei@redhat.com> <20181121032327.8434-4-ming.lei@redhat.com> <20181121133244.GB1640@lst.de> <20181121153135.GB19111@ming.t460p> <20181121161025.GB4977@lst.de>
 MIME-Version: 1.0
-In-Reply-To: <1542653726-5655-8-git-send-email-longman@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181121161025.GB4977@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On 11/19/2018 01:55 PM, Waiman Long wrote:
-> The db->lock is a raw spinlock and so the lock hold time is supposed
-> to be short. This will not be the case when printk() is being involved
-> in some of the critical sections. In order to avoid the long hold time,
-> in case some messages need to be printed, the debug_object_is_on_stack()
-> and debug_print_object() calls are now moved out of those critical
-> sections.
->
-> Signed-off-by: Waiman Long <longman@redhat.com>
-> ---
->  lib/debugobjects.c | 61 +++++++++++++++++++++++++++++++++++++-----------------
->  1 file changed, 42 insertions(+), 19 deletions(-)
->
-> diff --git a/lib/debugobjects.c b/lib/debugobjects.c
-> index 403dd95..4216d3d 100644
-> --- a/lib/debugobjects.c
-> +++ b/lib/debugobjects.c
-> @@ -376,6 +376,8 @@ static void debug_object_is_on_stack(void *addr, int onstack)
->  	struct debug_bucket *db;
->  	struct debug_obj *obj;
->  	unsigned long flags;
-> +	bool debug_printobj = false;
-> +	bool debug_chkstack = false;
->  
->  	fill_pool();
->  
-> @@ -392,7 +394,7 @@ static void debug_object_is_on_stack(void *addr, int onstack)
->  			debug_objects_oom();
->  			return;
->  		}
-> -		debug_object_is_on_stack(addr, onstack);
-> +		debug_chkstack = true;
->  	}
->  
->  	switch (obj->state) {
-> @@ -403,20 +405,25 @@ static void debug_object_is_on_stack(void *addr, int onstack)
->  		break;
->  
->  	case ODEBUG_STATE_ACTIVE:
-> -		debug_print_object(obj, "init");
->  		state = obj->state;
->  		raw_spin_unlock_irqrestore(&db->lock, flags);
-> +		debug_print_object(obj, "init");
->  		debug_object_fixup(descr->fixup_init, addr, state);
->  		return;
->  
->  	case ODEBUG_STATE_DESTROYED:
-> -		debug_print_object(obj, "init");
-> +		debug_printobj = true;
->  		break;
->  	default:
->  		break;
->  	}
->  
->  	raw_spin_unlock_irqrestore(&db->lock, flags);
-> +	if (debug_chkstack)
-> +		debug_object_is_on_stack(addr, onstack);
-> +	if (debug_printobj)
-> +		debug_print_object(obj, "init");
-> +
->  }
->  
->  /**
-> @@ -474,6 +481,8 @@ int debug_object_activate(void *addr, struct debug_obj_descr *descr)
->  
->  	obj = lookup_object(addr, db);
->  	if (obj) {
-> +		bool debug_printobj = false;
-> +
->  		switch (obj->state) {
->  		case ODEBUG_STATE_INIT:
->  		case ODEBUG_STATE_INACTIVE:
-> @@ -482,14 +491,14 @@ int debug_object_activate(void *addr, struct debug_obj_descr *descr)
->  			break;
->  
->  		case ODEBUG_STATE_ACTIVE:
-> -			debug_print_object(obj, "activate");
->  			state = obj->state;
->  			raw_spin_unlock_irqrestore(&db->lock, flags);
-> +			debug_print_object(obj, "activate");
->  			ret = debug_object_fixup(descr->fixup_activate, addr, state);
->  			return ret ? 0 : -EINVAL;
->  
->  		case ODEBUG_STATE_DESTROYED:
-> -			debug_print_object(obj, "activate");
-> +			debug_printobj = true;
->  			ret = -EINVAL;
->  			break;
->  		default:
-> @@ -497,10 +506,13 @@ int debug_object_activate(void *addr, struct debug_obj_descr *descr)
->  			break;
->  		}
->  		raw_spin_unlock_irqrestore(&db->lock, flags);
-> +		if (debug_printobj)
-> +			debug_print_object(obj, "activate");
->  		return ret;
->  	}
->  
->  	raw_spin_unlock_irqrestore(&db->lock, flags);
-> +
->  	/*
->  	 * We are here when a static object is activated. We
->  	 * let the type specific code confirm whether this is
-> @@ -532,6 +544,7 @@ void debug_object_deactivate(void *addr, struct debug_obj_descr *descr)
->  	struct debug_bucket *db;
->  	struct debug_obj *obj;
->  	unsigned long flags;
-> +	bool debug_printobj = false;
->  
->  	if (!debug_objects_enabled)
->  		return;
-> @@ -549,24 +562,27 @@ void debug_object_deactivate(void *addr, struct debug_obj_descr *descr)
->  			if (!obj->astate)
->  				obj->state = ODEBUG_STATE_INACTIVE;
->  			else
-> -				debug_print_object(obj, "deactivate");
-> +				debug_printobj = true;
->  			break;
->  
->  		case ODEBUG_STATE_DESTROYED:
-> -			debug_print_object(obj, "deactivate");
-> +			debug_printobj = true;
->  			break;
->  		default:
->  			break;
->  		}
-> -	} else {
-> +	}
-> +
-> +	raw_spin_unlock_irqrestore(&db->lock, flags);
-> +	if (!obj) {
->  		struct debug_obj o = { .object = addr,
->  				       .state = ODEBUG_STATE_NOTAVAILABLE,
->  				       .descr = descr };
->  
->  		debug_print_object(&o, "deactivate");
-> +	} else if (debug_printobj) {
-> +		debug_print_object(obj, "deactivate");
->  	}
-> -
-> -	raw_spin_unlock_irqrestore(&db->lock, flags);
->  }
->  EXPORT_SYMBOL_GPL(debug_object_deactivate);
->  
-> @@ -581,6 +597,7 @@ void debug_object_destroy(void *addr, struct debug_obj_descr *descr)
->  	struct debug_bucket *db;
->  	struct debug_obj *obj;
->  	unsigned long flags;
-> +	bool debug_printobj = false;
->  
->  	if (!debug_objects_enabled)
->  		return;
-> @@ -600,20 +617,22 @@ void debug_object_destroy(void *addr, struct debug_obj_descr *descr)
->  		obj->state = ODEBUG_STATE_DESTROYED;
->  		break;
->  	case ODEBUG_STATE_ACTIVE:
-> -		debug_print_object(obj, "destroy");
->  		state = obj->state;
->  		raw_spin_unlock_irqrestore(&db->lock, flags);
-> +		debug_print_object(obj, "destroy");
->  		debug_object_fixup(descr->fixup_destroy, addr, state);
->  		return;
->  
->  	case ODEBUG_STATE_DESTROYED:
-> -		debug_print_object(obj, "destroy");
-> +		debug_printobj = true;
->  		break;
->  	default:
->  		break;
->  	}
->  out_unlock:
->  	raw_spin_unlock_irqrestore(&db->lock, flags);
-> +	if (debug_printobj)
-> +		debug_print_object(obj, "destroy");
->  }
->  EXPORT_SYMBOL_GPL(debug_object_destroy);
->  
-> @@ -642,9 +661,9 @@ void debug_object_free(void *addr, struct debug_obj_descr *descr)
->  
->  	switch (obj->state) {
->  	case ODEBUG_STATE_ACTIVE:
-> -		debug_print_object(obj, "free");
->  		state = obj->state;
->  		raw_spin_unlock_irqrestore(&db->lock, flags);
-> +		debug_print_object(obj, "free");
->  		debug_object_fixup(descr->fixup_free, addr, state);
->  		return;
->  	default:
-> @@ -717,6 +736,7 @@ void debug_object_assert_init(void *addr, struct debug_obj_descr *descr)
->  	struct debug_bucket *db;
->  	struct debug_obj *obj;
->  	unsigned long flags;
-> +	bool debug_printobj = false;
->  
->  	if (!debug_objects_enabled)
->  		return;
-> @@ -732,22 +752,25 @@ void debug_object_assert_init(void *addr, struct debug_obj_descr *descr)
->  			if (obj->astate == expect)
->  				obj->astate = next;
->  			else
-> -				debug_print_object(obj, "active_state");
-> +				debug_printobj = true;
->  			break;
->  
->  		default:
-> -			debug_print_object(obj, "active_state");
-> +			debug_printobj = true;
->  			break;
->  		}
-> -	} else {
-> +	}
-> +
-> +	raw_spin_unlock_irqrestore(&db->lock, flags);
-> +	if (!obj) {
->  		struct debug_obj o = { .object = addr,
->  				       .state = ODEBUG_STATE_NOTAVAILABLE,
->  				       .descr = descr };
->  
->  		debug_print_object(&o, "active_state");
-> +	} else if (debug_printobj) {
-> +		debug_print_object(obj, "active_state");
->  	}
-> -
-> -	raw_spin_unlock_irqrestore(&db->lock, flags);
->  }
->  EXPORT_SYMBOL_GPL(debug_object_active_state);
->  
-> @@ -783,10 +806,10 @@ static void __debug_check_no_obj_freed(const void *address, unsigned long size)
->  
->  			switch (obj->state) {
->  			case ODEBUG_STATE_ACTIVE:
-> -				debug_print_object(obj, "free");
->  				descr = obj->descr;
->  				state = obj->state;
->  				raw_spin_unlock_irqrestore(&db->lock, flags);
-> +				debug_print_object(obj, "free");
->  				debug_object_fixup(descr->fixup_free,
->  						   (void *) oaddr, state);
->  				goto repeat;
+On Wed, Nov 21, 2018 at 05:10:25PM +0100, Christoph Hellwig wrote:
+> No - I think we can always use the code without any segment in
+> bvec_iter_advance.  Because bvec_iter_advance only operates on the
+> iteractor, the generation of an actual single-page or multi-page
+> bvec is left to the caller using the bvec_iter_bvec or segment_iter_bvec
+> helpers.  The only difference is how many bytes you can move the
+> iterator forward in a single loop iteration - so if you pass in
+> PAGE_SIZE as the max_seg_len you just will have to loop more often
+> for a large enough bytes, but not actually do anything different.
 
-As a side note, one of the test systems that I used generated a
-debugobjects splat in the bootup process and the system hanged
-afterward. Applying this patch alone fix the hanging problem and the
-system booted up successfully. So it is not really a good idea to call
-printk() while holding a raw spinlock.
+FYI, this patch reverts the max_seg_len related changes back to where
+we are in mainline, and as expected everything works fine for me:
 
-Cheers,
-Longman
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index e5b975fa0558..926550ce2d21 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -137,24 +137,18 @@ static inline bool bio_full(struct bio *bio)
+ 	for (i = 0, iter_all.idx = 0; iter_all.idx < (bio)->bi_vcnt; iter_all.idx++)	\
+ 		bvec_for_each_segment(bvl, &((bio)->bi_io_vec[iter_all.idx]), i, iter_all)
+ 
+-static inline void __bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
+-				      unsigned bytes, unsigned max_seg_len)
++static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
++				    unsigned bytes)
+ {
+ 	iter->bi_sector += bytes >> 9;
+ 
+ 	if (bio_no_advance_iter(bio))
+ 		iter->bi_size -= bytes;
+ 	else
+-		__bvec_iter_advance(bio->bi_io_vec, iter, bytes, max_seg_len);
++		bvec_iter_advance(bio->bi_io_vec, iter, bytes);
+ 		/* TODO: It is reasonable to complete bio with error here. */
+ }
+ 
+-static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
+-				    unsigned bytes)
+-{
+-	__bio_advance_iter(bio, iter, bytes, PAGE_SIZE);
+-}
+-
+ #define __bio_for_each_segment(bvl, bio, iter, start)			\
+ 	for (iter = (start);						\
+ 	     (iter).bi_size &&						\
+@@ -168,7 +162,7 @@ static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
+ 	for (iter = (start);						\
+ 	     (iter).bi_size &&						\
+ 		((bvl = bio_iter_mp_iovec((bio), (iter))), 1);	\
+-	     __bio_advance_iter((bio), &(iter), (bvl).bv_len, BVEC_MAX_LEN))
++	     bio_advance_iter((bio), &(iter), (bvl).bv_len))
+ 
+ /* returns one real segment(multi-page bvec) each time */
+ #define bio_for_each_bvec(bvl, bio, iter)			\
+diff --git a/include/linux/bvec.h b/include/linux/bvec.h
+index cab36d838ed0..138b4007b8f2 100644
+--- a/include/linux/bvec.h
++++ b/include/linux/bvec.h
+@@ -25,8 +25,6 @@
+ #include <linux/errno.h>
+ #include <linux/mm.h>
+ 
+-#define BVEC_MAX_LEN  ((unsigned int)-1)
+-
+ /*
+  * was unsigned short, but we might as well be ready for > 64kB I/O pages
+  */
+@@ -102,8 +100,8 @@ struct bvec_iter_all {
+ 	.bv_offset	= segment_iter_offset((bvec), (iter)),	\
+ })
+ 
+-static inline bool __bvec_iter_advance(const struct bio_vec *bv,
+-		struct bvec_iter *iter, unsigned bytes, unsigned max_seg_len)
++static inline bool bvec_iter_advance(const struct bio_vec *bv,
++		struct bvec_iter *iter, unsigned bytes)
+ {
+ 	if (WARN_ONCE(bytes > iter->bi_size,
+ 		     "Attempted to advance past end of bvec iter\n")) {
+@@ -112,18 +110,12 @@ static inline bool __bvec_iter_advance(const struct bio_vec *bv,
+ 	}
+ 
+ 	while (bytes) {
+-		unsigned segment_len = segment_iter_len(bv, *iter);
+-
+-		if (max_seg_len < BVEC_MAX_LEN)
+-			segment_len = min_t(unsigned, segment_len,
+-					    max_seg_len -
+-					    bvec_iter_offset(bv, *iter));
++		unsigned iter_len = bvec_iter_len(bv, *iter);
++		unsigned len = min(bytes, iter_len);
+ 
+-		segment_len = min(bytes, segment_len);
+-
+-		bytes -= segment_len;
+-		iter->bi_size -= segment_len;
+-		iter->bi_bvec_done += segment_len;
++		bytes -= len;
++		iter->bi_size -= len;
++		iter->bi_bvec_done += len;
+ 
+ 		if (iter->bi_bvec_done == __bvec_iter_bvec(bv, *iter)->bv_len) {
+ 			iter->bi_bvec_done = 0;
+@@ -157,13 +149,6 @@ static inline bool bvec_iter_rewind(const struct bio_vec *bv,
+ 	return true;
+ }
+ 
+-static inline bool bvec_iter_advance(const struct bio_vec *bv,
+-				     struct bvec_iter *iter,
+-				     unsigned bytes)
+-{
+-	return __bvec_iter_advance(bv, iter, bytes, PAGE_SIZE);
+-}
+-
+ #define for_each_bvec(bvl, bio_vec, iter, start)			\
+ 	for (iter = (start);						\
+ 	     (iter).bi_size &&						\
