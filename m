@@ -1,125 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 75FD76B25AC
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A95B66B25AD
 	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 05:14:17 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id s50so2762318edd.11
+Received: by mail-ed1-f69.google.com with SMTP id e17so2754962edr.7
         for <linux-mm@kvack.org>; Wed, 21 Nov 2018 02:14:17 -0800 (PST)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id z44si2575313edd.279.2018.11.21.02.14.15
+Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.106])
+        by mx.google.com with ESMTPS id t10si685289edq.195.2018.11.21.02.14.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 21 Nov 2018 02:14:15 -0800 (PST)
 Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 5CA1C989DF
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 10:14:15 +0000 (UTC)
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id EE4AA1C25B7
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 10:14:14 +0000 (GMT)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 2/4] mm: Move zone watermark accesses behind an accessor
-Date: Wed, 21 Nov 2018 10:14:12 +0000
-Message-Id: <20181121101414.21301-3-mgorman@techsingularity.net>
-In-Reply-To: <20181121101414.21301-1-mgorman@techsingularity.net>
-References: <20181121101414.21301-1-mgorman@techsingularity.net>
+Subject: [PATCH 0/4] Fragmentation avoidance improvements v4
+Date: Wed, 21 Nov 2018 10:14:10 +0000
+Message-Id: <20181121101414.21301-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-This is a preparation patch only, no functional change.
+No major change from v3 really, mostly resending to see if there is any
+review reaction. It's rebased but a partial test indicated that the
+behaviour is similar to the previous baseline
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- include/linux/mmzone.h |  9 +++++----
- mm/compaction.c        |  2 +-
- mm/page_alloc.c        | 12 ++++++------
- 3 files changed, 12 insertions(+), 11 deletions(-)
+Changelog since v3
+o Rebase to 4.20-rc3
+o Remove a stupid warning from the last patch
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 847705a6d0ec..e43e8e79db99 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -269,9 +269,10 @@ enum zone_watermarks {
- 	NR_WMARK
- };
- 
--#define min_wmark_pages(z) (z->watermark[WMARK_MIN])
--#define low_wmark_pages(z) (z->watermark[WMARK_LOW])
--#define high_wmark_pages(z) (z->watermark[WMARK_HIGH])
-+#define min_wmark_pages(z) (z->_watermark[WMARK_MIN])
-+#define low_wmark_pages(z) (z->_watermark[WMARK_LOW])
-+#define high_wmark_pages(z) (z->_watermark[WMARK_HIGH])
-+#define wmark_pages(z, i) (z->_watermark[i])
- 
- struct per_cpu_pages {
- 	int count;		/* number of pages in the list */
-@@ -362,7 +363,7 @@ struct zone {
- 	/* Read-mostly fields */
- 
- 	/* zone watermarks, access with *_wmark_pages(zone) macros */
--	unsigned long watermark[NR_WMARK];
-+	unsigned long _watermark[NR_WMARK];
- 
- 	unsigned long nr_reserved_highatomic;
- 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 7c607479de4a..ef29490b0f46 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1431,7 +1431,7 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
- 	if (is_via_compact_memory(order))
- 		return COMPACT_CONTINUE;
- 
--	watermark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
-+	watermark = wmark_pages(zone, alloc_flags & ALLOC_WMARK_MASK);
- 	/*
- 	 * If watermarks for high-order allocation are already met, there
- 	 * should be no need for compaction at all.
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 828fcccbc5c5..9ea2d828d20c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3370,7 +3370,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 			}
- 		}
- 
--		mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
-+		mark = wmark_pages(zone, alloc_flags & ALLOC_WMARK_MASK);
- 		if (!zone_watermark_fast(zone, order, mark,
- 				       ac_classzone_idx(ac), alloc_flags)) {
- 			int ret;
-@@ -4790,7 +4790,7 @@ long si_mem_available(void)
- 		pages[lru] = global_node_page_state(NR_LRU_BASE + lru);
- 
- 	for_each_zone(zone)
--		wmark_low += zone->watermark[WMARK_LOW];
-+		wmark_low += low_wmark_pages(zone);
- 
- 	/*
- 	 * Estimate the amount of memory available for userspace allocations,
-@@ -7416,13 +7416,13 @@ static void __setup_per_zone_wmarks(void)
- 
- 			min_pages = zone->managed_pages / 1024;
- 			min_pages = clamp(min_pages, SWAP_CLUSTER_MAX, 128UL);
--			zone->watermark[WMARK_MIN] = min_pages;
-+			zone->_watermark[WMARK_MIN] = min_pages;
- 		} else {
- 			/*
- 			 * If it's a lowmem zone, reserve a number of pages
- 			 * proportionate to the zone's size.
- 			 */
--			zone->watermark[WMARK_MIN] = tmp;
-+			zone->_watermark[WMARK_MIN] = tmp;
- 		}
- 
- 		/*
-@@ -7434,8 +7434,8 @@ static void __setup_per_zone_wmarks(void)
- 			    mult_frac(zone->managed_pages,
- 				      watermark_scale_factor, 10000));
- 
--		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
--		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
-+		zone->_watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
-+		zone->_watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
- 
- 		spin_unlock_irqrestore(&zone->lock, flags);
- 	}
+Changelog since v2
+o Drop patch 5 as it was borderline
+o Decrease timeout when stalling on fragmentation events
+
+Changelog since v1
+o Rebase to v4.20-rc1 for the THP __GFP_THISNODE patch in particular
+o Add tracepoint to record fragmentation stall durations
+o Add vmstat event to record that a fragmentation stall occurred
+o Stalls now alter watermark boosting
+o Stalls occur only when the allocation is about to fail
+
+It has been noted before that fragmentation avoidance (aka
+anti-fragmentation) is not perfect. Given sufficient time or an adverse
+workload, memory gets fragmented and the long-term success of high-order
+allocations degrades. This series defines an adverse workload, a definition
+of external fragmentation events (including serious) ones and a series
+that reduces the level of those fragmentation events.
+
+The details of the workload and the consequences are described in more
+detail in the changelogs. However, from patch 1, this is a high-level
+summary of the adverse workload. The exact details are found in the
+mmtests implementation.
+
+The broad details of the workload are as follows;
+
+1. Create an XFS filesystem (not specified in the configuration but done
+   as part of the testing for this patch)
+2. Start 4 fio threads that write a number of 64K files inefficiently.
+   Inefficiently means that files are created on first access and not
+   created in advance (fio parameterr create_on_open=1) and fallocate
+   is not used (fallocate=none). With multiple IO issuers this creates
+   a mix of slab and page cache allocations over time. The total size
+   of the files is 150% physical memory so that the slabs and page cache
+   pages get mixed
+3. Warm up a number of fio read-only threads accessing the same files
+   created in step 2. This part runs for the same length of time it
+   took to create the files. It'll fault back in old data and further
+   interleave slab and page cache allocations. As it's now low on
+   memory due to step 2, fragmentation occurs as pageblocks get
+   stolen.
+4. While step 3 is still running, start a process that tries to allocate
+   75% of memory as huge pages with a number of threads. The number of
+   threads is based on a (NR_CPUS_SOCKET - NR_FIO_THREADS)/4 to avoid THP
+   threads contending with fio, any other threads or forcing cross-NUMA
+   scheduling. Note that the test has not been used on a machine with less
+   than 8 cores. The benchmark records whether huge pages were allocated
+   and what the fault latency was in microseconds
+5. Measure the number of events potentially causing external fragmentation,
+   the fault latency and the huge page allocation success rate.
+6. Cleanup
+
+Overall the series reduces external fragmentation causing events by over 95%
+on 1 and 2 socket machines, which in turn impacts high-order allocation
+success rates over the long term. There are differences in latencies and
+high-order allocation success rates. Latencies are a mixed bag as they
+are vulnerable to exact system state and whether allocations succeeded so
+they are treated as a secondary metric.
+
+Patch 1 uses lower zones if they are populated and have free memory
+	instead of fragmenting a higher zone. It's special cased to
+	handle a Normal->DMA32 fallback with the reasons explained
+	in the changelog.
+
+Patch 2+3 boosts watermarks temporarily when an external fragmentation
+	event occurs. kswapd wakes to reclaim a small amount of old memory
+	and then wakes kcompactd on completion to recover the system
+	slightly. This introduces some overhead in the slowpath. The level
+	of boosting can be tuned or disabled depending on the tolerance
+	for fragmentation vs allocation latency.
+
+Patch 4 is more heavy handed. In the event of a movable allocation
+	request that can stall, it'll wake kswapd as in patch 3.  However,
+	if the expected fragmentation event is serious then the request
+	will stall briefly on pfmemalloc_wait until kswapd completes
+	light reclaim work and retry the allocation without stalling.
+	This can avoid the fragmentation event entirely in some cases.
+	The definition of a serious fragmentation event can be tuned
+	or disabled.
+
+The bulk of the improvement in fragmentation avoidance is from patches
+1-3 (94-97% reduction in fragmentation events for an adverse workload on
+both a 1-socket and 2-socket machine). The primary benefit of patch 4 is
+the increase in THP success rates and the fact it reduces fragmentation
+events to almost negligible levels with the option of eliminating them.
+
+ Documentation/sysctl/vm.txt   |  42 ++++++++
+ include/linux/mm.h            |   2 +
+ include/linux/mmzone.h        |  14 ++-
+ include/linux/vm_event_item.h |   1 +
+ include/trace/events/kmem.h   |  21 ++++
+ kernel/sysctl.c               |  18 ++++
+ mm/compaction.c               |   2 +-
+ mm/internal.h                 |  14 ++-
+ mm/page_alloc.c               | 238 ++++++++++++++++++++++++++++++++++++++----
+ mm/vmscan.c                   | 123 ++++++++++++++++++++--
+ mm/vmstat.c                   |   1 +
+ 11 files changed, 436 insertions(+), 40 deletions(-)
+
 -- 
 2.16.4
