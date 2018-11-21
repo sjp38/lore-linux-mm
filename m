@@ -1,56 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 86EEE6B2355
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 07:36:04 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id o23so8214791pll.0
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 04:36:04 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v10-v6si11739498pfk.264.2018.11.21.04.36.03
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F25A6B2425
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 08:19:31 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id p12so6553659wrt.17
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 05:19:31 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id p65-v6si784874wmp.160.2018.11.21.05.19.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 21 Nov 2018 04:36:03 -0800 (PST)
-Date: Wed, 21 Nov 2018 04:35:13 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 1/9] mm: Introduce new vm_insert_range API
-Message-ID: <20181121123513.GF3065@bombadil.infradead.org>
-References: <20181115154530.GA27872@jordon-HP-15-Notebook-PC>
- <20181116182836.GB17088@rapoport-lnx>
- <CAFqt6zYp0j999WXw9Jus0oZMjADQQkPfso8btv6du6L9CE3PXA@mail.gmail.com>
- <20181117143742.GB7861@bombadil.infradead.org>
- <CAFqt6zbOWX5LUTWwoGDJsGdf+pTR6N1yTPVxyr1W3-6Fte39ww@mail.gmail.com>
- <833B5050-DEF6-44A0-9832-276F86671212@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Nov 2018 05:19:29 -0800 (PST)
+Date: Wed, 21 Nov 2018 14:19:28 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH V11 02/19] block: introduce multi-page bvec helpers
+Message-ID: <20181121131928.GA1640@lst.de>
+References: <20181121032327.8434-1-ming.lei@redhat.com> <20181121032327.8434-3-ming.lei@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <833B5050-DEF6-44A0-9832-276F86671212@oracle.com>
+In-Reply-To: <20181121032327.8434-3-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: William Kucharski <william.kucharski@oracle.com>
-Cc: Souptick Joarder <jrdr.linux@gmail.com>, rppt@linux.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz, Rik van Riel <riel@surriel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, rppt@linux.vnet.ibm.com, Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, Kees Cook <keescook@chromium.org>, Marek Szyprowski <m.szyprowski@samsung.com>, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, Kyungmin Park <kyungmin.park@samsung.com>, mchehab@kernel.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On Wed, Nov 21, 2018 at 04:19:11AM -0700, William Kucharski wrote:
-> Could you add a line to the description explicitly stating that a failure
-> to insert any page in the range will fail the entire routine, something
-> like:
+On Wed, Nov 21, 2018 at 11:23:10AM +0800, Ming Lei wrote:
+> This patch introduces helpers of 'segment_iter_*' for multipage
+> bvec support.
 > 
-> > * This allows drivers to insert range of kernel pages they've allocated
-> > * into a user vma. This is a generic function which drivers can use
-> > * rather than using their own way of mapping range of kernel pages into
-> > * user vma.
-> > *
-> > * A failure to insert any page in the range will fail the call as a whole.
-> 
-> It's obvious when reading the code, but it would be self-documenting to
-> state it outright.
+> The introduced helpers treate one bvec as real multi-page segment,
+> which may include more than one pages.
 
-It's probably better to be more explicit and answer Randy's question:
+Unless I'm missing something these bvec vs segment names are exactly
+inverted vs how we use it elsewhere.
 
- * If we fail to insert any page into the vma, the function will return
- * immediately leaving any previously-inserted pages present.  Callers
- * from the mmap handler may immediately return the error as their
- * caller will destroy the vma, removing any successfully-inserted pages.
- * Other callers should make their own arrangements for calling unmap_region().
-
-Although unmap_region() is static so there clearly isn't any code in the
-kernel today other than in mmap handlers (or fault handlers) that needs to
-insert pages into a VMA.
+In the iterators we use segment for single-page bvec, and bvec for multi
+page ones, and here it is inverse.  Please switch it around.
