@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2495D6B26DD
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 13:20:04 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id w15so4091404qtk.19
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 10:20:04 -0800 (PST)
-Received: from a9-37.smtp-out.amazonses.com (a9-37.smtp-out.amazonses.com. [54.240.9.37])
-        by mx.google.com with ESMTPS id o20si5617332qvc.62.2018.11.21.10.20.03
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8522A6B26FE
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 13:32:59 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id x125so7140752qka.17
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 10:32:59 -0800 (PST)
+Received: from a9-54.smtp-out.amazonses.com (a9-54.smtp-out.amazonses.com. [54.240.9.54])
+        by mx.google.com with ESMTPS id v11si9828439qvq.113.2018.11.21.10.32.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 21 Nov 2018 10:20:03 -0800 (PST)
-Date: Wed, 21 Nov 2018 18:20:02 +0000
+        Wed, 21 Nov 2018 10:32:58 -0800 (PST)
+Date: Wed, 21 Nov 2018 18:32:58 +0000
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH v2 0/3] iommu/io-pgtable-arm-v7s: Use DMA32 zone for page
- tables
-In-Reply-To: <20181111090341.120786-1-drinkcat@chromium.org>
-Message-ID: <0100016737801f14-84f1265d-4577-4dcf-ad57-90dbc8e0a78f-000000@email.amazonses.com>
-References: <20181111090341.120786-1-drinkcat@chromium.org>
+Subject: Re: [PATCH v2 2/3] mm: Add support for SLAB_CACHE_DMA32
+In-Reply-To: <20181111090341.120786-3-drinkcat@chromium.org>
+Message-ID: <01000167378bf31a-a639b46c-4d1d-43de-9bed-9cdd9c07fa94-000000@email.amazonses.com>
+References: <20181111090341.120786-1-drinkcat@chromium.org> <20181111090341.120786-3-drinkcat@chromium.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -25,9 +24,9 @@ Cc: Robin Murphy <robin.murphy@arm.com>, Will Deacon <will.deacon@arm.com>, Joer
 
 On Sun, 11 Nov 2018, Nicolas Boichat wrote:
 
-> This is a follow-up to the discussion in [1], to make sure that the page
-> tables allocated by iommu/io-pgtable-arm-v7s are contained within 32-bit
-> physical address space.
+> SLAB_CACHE_DMA32 is only available after explicit kmem_cache_create calls,
+> no default cache is created for kmalloc. Add a test in check_slab_flags
+> for this.
 
-Page tables? This means you need a page frame? Why go through the slab
-allocators?
+This does not define the dma32 kmalloc array. Is that intentional? In that
+case you need to fail any request for GFP_DMA32 coming in via kmalloc.
