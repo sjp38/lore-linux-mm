@@ -1,115 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A7F936B4968
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:56:37 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id b186so16863486wmc.8
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:56:37 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id x9-v6sor3431243wmh.17.2018.11.27.08.56.36
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 242E26B27D4
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 17:10:37 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id e29so3667781ede.19
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 14:10:37 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f4si4378019edt.45.2018.11.21.14.10.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 27 Nov 2018 08:56:36 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v12 25/25] kasan: add SPDX-License-Identifier mark to source files
-Date: Tue, 27 Nov 2018 17:55:43 +0100
-Message-Id: <8e26a568b12ea02e11c35b681f3c36aff2fc1d77.1543337629.git.andreyknvl@google.com>
-In-Reply-To: <cover.1543337629.git.andreyknvl@google.com>
-References: <cover.1543337629.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Nov 2018 14:10:35 -0800 (PST)
+Subject: Re: [PATCH 2/4] mm: Move zone watermark accesses behind an accessor
+References: <20181121101414.21301-1-mgorman@techsingularity.net>
+ <20181121101414.21301-3-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <340eecec-347b-e9c2-58ff-2a8e837291b5@suse.cz>
+Date: Wed, 21 Nov 2018 23:07:41 +0100
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181121101414.21301-3-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Mel Gorman <mgorman@techsingularity.net>, Linux-MM <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-This patch adds a "SPDX-License-Identifier: GPL-2.0" mark to all source
-files under mm/kasan.
+On 11/21/18 11:14 AM, Mel Gorman wrote:
+> This is a preparation patch only, no functional change.
+> 
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- mm/kasan/common.c         | 1 +
- mm/kasan/generic.c        | 1 +
- mm/kasan/generic_report.c | 1 +
- mm/kasan/init.c           | 1 +
- mm/kasan/quarantine.c     | 1 +
- mm/kasan/report.c         | 1 +
- mm/kasan/tags.c           | 1 +
- mm/kasan/tags_report.c    | 1 +
- 8 files changed, 8 insertions(+)
-
-diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index 1144e741feb6..03d5d1374ca7 100644
---- a/mm/kasan/common.c
-+++ b/mm/kasan/common.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains common generic and tag-based KASAN code.
-  *
-diff --git a/mm/kasan/generic.c b/mm/kasan/generic.c
-index b8de6d33c55c..ccb6207276e3 100644
---- a/mm/kasan/generic.c
-+++ b/mm/kasan/generic.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains core generic KASAN code.
-  *
-diff --git a/mm/kasan/generic_report.c b/mm/kasan/generic_report.c
-index a4604cceae59..5e12035888f2 100644
---- a/mm/kasan/generic_report.c
-+++ b/mm/kasan/generic_report.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains generic KASAN specific error reporting code.
-  *
-diff --git a/mm/kasan/init.c b/mm/kasan/init.c
-index 2b21d3717d62..34afad56497b 100644
---- a/mm/kasan/init.c
-+++ b/mm/kasan/init.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains some kasan initialization code.
-  *
-diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
-index b209dbaefde8..57334ef2d7ef 100644
---- a/mm/kasan/quarantine.c
-+++ b/mm/kasan/quarantine.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * KASAN quarantine.
-  *
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index 214d85035f99..ca9418fe9232 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains common generic and tag-based KASAN error reporting code.
-  *
-diff --git a/mm/kasan/tags.c b/mm/kasan/tags.c
-index 1d1b79350e28..0777649e07c4 100644
---- a/mm/kasan/tags.c
-+++ b/mm/kasan/tags.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains core tag-based KASAN code.
-  *
-diff --git a/mm/kasan/tags_report.c b/mm/kasan/tags_report.c
-index 573c51d20d09..8eaf5f722271 100644
---- a/mm/kasan/tags_report.c
-+++ b/mm/kasan/tags_report.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains tag-based KASAN specific error reporting code.
-  *
--- 
-2.20.0.rc0.387.gc7a69e6b6c-goog
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
