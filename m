@@ -1,88 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E31ED6B2520
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 03:24:32 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id t2so2604035edb.22
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 00:24:32 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g14si9644617edy.160.2018.11.21.00.24.31
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E89796B2538
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 03:46:10 -0500 (EST)
+Received: by mail-wr1-f71.google.com with SMTP id e14so6479517wru.19
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 00:46:10 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id f2si14209675wrj.427.2018.11.21.00.46.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Nov 2018 00:24:31 -0800 (PST)
-Message-ID: <1542788654.2940.14.camel@suse.de>
-Subject: Re: [PATCH] mm, hotplug: protect nr_zones with pgdat_resize_lock()
-From: osalvador <osalvador@suse.de>
-Date: Wed, 21 Nov 2018 09:24:14 +0100
-In-Reply-To: <20181121025231.ggk7zgq53nmqsqds@master>
-References: <20181120014822.27968-1-richard.weiyang@gmail.com>
-	 <20181120073141.GY22247@dhcp22.suse.cz>
-	 <3ba8d8c524d86af52e4c1fddc2d45734@suse.de>
-	 <20181121025231.ggk7zgq53nmqsqds@master>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Wed, 21 Nov 2018 00:46:09 -0800 (PST)
+Date: Wed, 21 Nov 2018 09:46:08 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH V10 09/19] block: introduce bio_bvecs()
+Message-ID: <20181121084608.GA29622@lst.de>
+References: <002fe56b-25e4-573e-c09b-bb12c3e8d25a@grimberg.me> <20181120161651.GB2629@lst.de> <53526aae-fb9b-ee38-0a01-e5899e2d4e4d@grimberg.me> <20181121005902.GA31748@ming.t460p> <2d9bee7a-f010-dcf4-1184-094101058584@grimberg.me> <20181121034415.GA8408@ming.t460p> <2a47d336-c19b-6bf4-c247-d7382871eeea@grimberg.me> <7378bf49-5a7e-5622-d4d1-808ba37ce656@grimberg.me> <20181121050359.GA31915@ming.t460p> <fc268b0e-61b5-aacc-67be-cb7b266c6d8f@grimberg.me>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <fc268b0e-61b5-aacc-67be-cb7b266c6d8f@grimberg.me>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: Michal Hocko <mhocko@suse.com>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Sagi Grimberg <sagi@grimberg.me>
+Cc: Ming Lei <ming.lei@redhat.com>, Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On Wed, 2018-11-21 at 02:52 +0000, Wei Yang wrote:
-> On Tue, Nov 20, 2018 at 08:58:11AM +0100, osalvador@suse.de wrote:
-> > > On the other hand I would like to see the global lock to go away
-> > > because
-> > > it causes scalability issues and I would like to change it to a
-> > > range
-> > > lock. This would make this race possible.
-> > > 
-> > > That being said this is more of a preparatory work than a fix.
-> > > One could
-> > > argue that pgdat resize lock is abused here but I am not
-> > > convinced a
-> > > dedicated lock is much better. We do take this lock already and
-> > > spanning
-> > > its scope seems reasonable. An update to the documentation is
-> > > due.
-> > 
-> > Would not make more sense to move it within the pgdat lock
-> > in move_pfn_range_to_zone?
-> > The call from free_area_init_core is safe as we are single-thread
-> > there.
-> > 
-> 
-> Agree. This would be better.
-> 
-> > And if we want to move towards a range locking, I even think it
-> > would be more
-> > consistent if we move it within the zone's span lock (which is
-> > already
-> > wrapped with a pgdat lock).
-> > 
-> 
-> I lost a little here, just want to confirm with you.
-> 
-> Instead of call pgdat_resize_lock() around
-> init_currently_empty_zone()
-> in move_pfn_range_to_zone(), we move init_currently_empty_zone()
-> before
-> resize_zone_range()?
-> 
-> This sounds reasonable.
+On Tue, Nov 20, 2018 at 09:35:07PM -0800, Sagi Grimberg wrote:
+>> Given it is over TCP, I guess it should be doable for you to preallocate one
+>> 256-bvec table in one page for each request, then sets the max segment size as
+>> (unsigned int)-1, and max segment number as 256, the preallocated table
+>> should work anytime.
+>
+> 256 bvec table is really a lot to preallocate, especially when its not
+> needed, I can easily initialize the bvec_iter on the bio bvec. If this
+> involves preallocation of the worst-case than I don't consider this to
+> be an improvement.
 
-Yeah.
-spanned pages are being touched in:
-
-- shrink_pgdat_span
-- resize_zone_range
-- init_currently_emty_zone
-
-The first two are already protected by the span lock.
-
-In init_currently_empty_zone, we also touch zone_start_pfn, which is
-part of the spanned pages (beginning), so I think it makes sense to
-also protect it with the span lock.
-We just call init_currently_empty_zone in case the zone is empty, so
-the race should be not existent to be honest.
-
-But I just think it is more consistent, and since moving it under
-spanlock would imply to also have it under pgdat lock, which was the
-main point of this, I think we do not have anything to lose.
+Ok, I took a look at the nvme-tcp code and it seems you care about
+bios because you want a contiguos bio chunk for sending it down
+the networking code.  Yes, in that case we sort of need to iterate
+over bios.  But you already have a special case for discard, so you
+don't really need any of the magic in the bio_bvecs() helper either
+can can just count bi_vcnt in the bio.
