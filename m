@@ -1,89 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 38F5E6B2294
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 18:25:55 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id e68so4127730plb.3
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 15:25:55 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id z129si1576898pfz.13.2018.11.20.15.25.53
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 397FC6B228F
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2018 19:01:52 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id y2so4450993plr.8
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2018 16:01:52 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y40-v6sor52924606pla.26.2018.11.20.16.01.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Nov 2018 15:25:53 -0800 (PST)
-Subject: [PATCH v8 7/7] mm, hmm: Mark hmm_devmem_{add,
- add_resource} EXPORT_SYMBOL_GPL
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 20 Nov 2018 15:13:25 -0800
-Message-ID: <154275560565.76910.15919297436557795278.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <154275556908.76910.8966087090637564219.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <154275556908.76910.8966087090637564219.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (Google Transport Security);
+        Tue, 20 Nov 2018 16:01:49 -0800 (PST)
+Date: Tue, 20 Nov 2018 16:01:47 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC PATCH 1/3] mm, proc: be more verbose about unstable VMA
+ flags in /proc/<pid>/smaps
+In-Reply-To: <20181120105135.GF8842@quack2.suse.cz>
+Message-ID: <alpine.DEB.2.21.1811201558060.89573@chino.kir.corp.google.com>
+References: <20181120103515.25280-1-mhocko@kernel.org> <20181120103515.25280-2-mhocko@kernel.org> <20181120105135.GF8842@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Logan Gunthorpe <logang@deltatee.com>, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@lst.de>, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org
+To: Jan Kara <jack@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-api@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>
 
-The routines hmm_devmem_add(), and hmm_devmem_add_resource() duplicated
-devm_memremap_pages() and are now simple now wrappers around the core
-facility to inject a dev_pagemap instance into the global pgmap_radix
-and hook page-idle events. The devm_memremap_pages() interface is base
-infrastructure for HMM. HMM has more and deeper ties into the kernel
-memory management implementation than base ZONE_DEVICE which is itself a
-EXPORT_SYMBOL_GPL facility.
+On Tue, 20 Nov 2018, Jan Kara wrote:
 
-Originally, the HMM page structure creation routines copied the
-devm_memremap_pages() code and reused ZONE_DEVICE. A cleanup to unify
-the implementations was discussed during the initial review:
-http://lkml.iu.edu/hypermail/linux/kernel/1701.2/00812.html
-Recent work to extend devm_memremap_pages() for the peer-to-peer-DMA
-facility enabled this cleanup to move forward.
+> > Even though vma flags exported via /proc/<pid>/smaps are explicitly
+> > documented to be not guaranteed for future compatibility the warning
+> > doesn't go far enough because it doesn't mention semantic changes to
+> > those flags. And they are important as well because these flags are
+> > a deep implementation internal to the MM code and the semantic might
+> > change at any time.
+> > 
+> > Let's consider two recent examples:
+> > http://lkml.kernel.org/r/20181002100531.GC4135@quack2.suse.cz
+> > : commit e1fb4a086495 "dax: remove VM_MIXEDMAP for fsdax and device dax" has
+> > : removed VM_MIXEDMAP flag from DAX VMAs. Now our testing shows that in the
+> > : mean time certain customer of ours started poking into /proc/<pid>/smaps
+> > : and looks at VMA flags there and if VM_MIXEDMAP is missing among the VMA
+> > : flags, the application just fails to start complaining that DAX support is
+> > : missing in the kernel.
+> > 
+> > http://lkml.kernel.org/r/alpine.DEB.2.21.1809241054050.224429@chino.kir.corp.google.com
+> > : Commit 1860033237d4 ("mm: make PR_SET_THP_DISABLE immediately active")
+> > : introduced a regression in that userspace cannot always determine the set
+> > : of vmas where thp is ineligible.
+> > : Userspace relies on the "nh" flag being emitted as part of /proc/pid/smaps
+> > : to determine if a vma is eligible to be backed by hugepages.
+> > : Previous to this commit, prctl(PR_SET_THP_DISABLE, 1) would cause thp to
+> > : be disabled and emit "nh" as a flag for the corresponding vmas as part of
+> > : /proc/pid/smaps.  After the commit, thp is disabled by means of an mm
+> > : flag and "nh" is not emitted.
+> > : This causes smaps parsing libraries to assume a vma is eligible for thp
+> > : and ends up puzzling the user on why its memory is not backed by thp.
+> > 
+> > In both cases userspace was relying on a semantic of a specific VMA
+> > flag. The primary reason why that happened is a lack of a proper
+> > internface. While this has been worked on and it will be fixed properly,
+> > it seems that our wording could see some refinement and be more vocal
+> > about semantic aspect of these flags as well.
+> > 
+> > Cc: Jan Kara <jack@suse.cz>
+> > Cc: Dan Williams <dan.j.williams@intel.com>
+> > Cc: David Rientjes <rientjes@google.com>
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> 
+> Honestly, it just shows that no amount of documentation is going to stop
+> userspace from abusing API that's exposing too much if there's no better
+> alternative. But this is a good clarification regardless. So feel free to
+> add:
+> 
+> Acked-by: Jan Kara <jack@suse.cz>
+> 
 
-In addition to the integration with devm_memremap_pages() HMM depends on
-other GPL-only symbols:
+I'm not sure what is expected of a userspace developer who finds they have 
+a single way to determine if something is enabled/disabled.  Should they 
+refer to the documentation and see that the flag may be unstable so they 
+write a kernel patch and have it merged upstream before using it?  What to 
+do when they don't control the kernel version they are running on?
 
-    mmu_notifier_unregister_no_release
-    percpu_ref
-    region_intersects
-    __class_create
+Anyway, mentioning that the vm flags here only have meaning depending on 
+the kernel version seems like a worthwhile addition:
 
-It goes further to consume / indirectly expose functionality that is not
-exported to any other driver:
-
-    alloc_pages_vma
-    walk_page_range
-
-HMM is derived from devm_memremap_pages(), and extends deep core-kernel
-fundamentals. Similar to devm_memremap_pages(), mark its entry points
-EXPORT_SYMBOL_GPL().
-
-Cc: Logan Gunthorpe <logang@deltatee.com>
-Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- mm/hmm.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/hmm.c b/mm/hmm.c
-index bf2495d9de81..50fbaf80f95e 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -1110,7 +1110,7 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
- 		return result;
- 	return devmem;
- }
--EXPORT_SYMBOL(hmm_devmem_add);
-+EXPORT_SYMBOL_GPL(hmm_devmem_add);
- 
- struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
- 					   struct device *device,
-@@ -1164,7 +1164,7 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
- 		return result;
- 	return devmem;
- }
--EXPORT_SYMBOL(hmm_devmem_add_resource);
-+EXPORT_SYMBOL_GPL(hmm_devmem_add_resource);
- 
- /*
-  * A device driver that wants to handle multiple devices memory through a
+Acked-by: David Rientjes <rientjes@google.com>
