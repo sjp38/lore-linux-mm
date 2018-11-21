@@ -1,68 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0581D6B2441
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 08:22:54 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id e17so2976089edr.7
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 05:22:53 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k10-v6si332956ejq.34.2018.11.21.05.22.52
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F2F776B2476
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 08:32:46 -0500 (EST)
+Received: by mail-wr1-f71.google.com with SMTP id j6so6904153wrw.1
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 05:32:46 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id s13si5928243wrv.406.2018.11.21.05.32.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Nov 2018 05:22:52 -0800 (PST)
-Subject: Re: [PATCH] slab.h: Avoid using & for logical and of booleans
-From: Vlastimil Babka <vbabka@suse.cz>
-References: <20181105204000.129023-1-bvanassche@acm.org>
- <62188a351f2249188ce654ee03c894b1@AcuMS.aculab.com>
- <e44e6c8b-e4e4-e7cb-a5ca-88e9559eb0d7@suse.cz>
- <3c9adab0f1f74c46a60b3d4401030337@AcuMS.aculab.com>
- <60deb90d-e521-39e5-5072-fc9efb98e365@suse.cz>
- <9af3ac1d43bb422cb3c41e7e8e422e6e@AcuMS.aculab.com>
- <cbc1fc52-dc8c-aa38-8f29-22da8bcd91c1@suse.cz>
- <20181109110019.c82fba8125d4e2891fbe4a6c@linux-foundation.org>
- <b8ffd59b-0d15-9c98-b9ea-ad71e4c0c734@suse.cz>
- <bf7c2a6b801a4430bf842fc20e826db6@AcuMS.aculab.com>
- <aa5975b6-58ed-5a3e-7de1-4b1384f88457@suse.cz>
-Message-ID: <80340595-d7c5-97b9-4f6c-23fa893a91e9@suse.cz>
-Date: Wed, 21 Nov 2018 14:22:49 +0100
+        Wed, 21 Nov 2018 05:32:45 -0800 (PST)
+Date: Wed, 21 Nov 2018 14:32:44 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH V11 03/19] block: introduce bio_for_each_bvec()
+Message-ID: <20181121133244.GB1640@lst.de>
+References: <20181121032327.8434-1-ming.lei@redhat.com> <20181121032327.8434-4-ming.lei@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <aa5975b6-58ed-5a3e-7de1-4b1384f88457@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181121032327.8434-4-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@ACULAB.COM>, Andrew Morton <akpm@linux-foundation.org>
-Cc: 'Bart Van Assche' <bvanassche@acm.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Christoph Lameter <cl@linux.com>, Roman Gushchin <guro@fb.com>, "Darryl T. Agostinelli" <dagostinelli@gmail.com>, linux-mm <linux-mm@kvack.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Dan Carpenter <dan.carpenter@oracle.com>
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On 11/13/18 7:22 PM, Vlastimil Babka wrote:
-> On 11/12/18 10:55 AM, David Laight wrote:
->> From: Vlastimil Babka [mailto:vbabka@suse.cz]
->>> Sent: 09 November 2018 19:16
->> ...
->>> This? Not terribly elegant, but I don't see a nicer way right now...
->>
->> Maybe just have two copies of the function body?
->>
->>  static __always_inline enum kmalloc_cache_type kmalloc_type(gfp_t flags)
->> {
->> #ifndef CONFIG_ZONE_DMA
->> 	return flags & __GFP_RECLAIMABLE ? KMALLOC_RECLAIM : KMALLOC_NORMAL;
->> #else
->> 	if (likely((flags & (__GFP_DMA | __GFP_RECLAIMABLE)) == 0))
->> 		return KMALLOC_NORMAL;
->> 	return flags & __GFP_DMA ? KMALLOC_DMA : KMALLOC_RECLAIM;
->> #endif
->> }
-> 
-> OK that's probably the most straightforward to follow, thanks.
-> Note that for CONFIG_ZONE_DMA=n the result is identical to original code and
-> all other attempts. flags & __GFP_DMA is converted to 1/0 index without branches
-> or cmovs or whatnot.
+> +#define bio_iter_mp_iovec(bio, iter)				\
+> +	segment_iter_bvec((bio)->bi_io_vec, (iter))
 
-Ping? Seems like people will report duplicates until the sparse warning
-is gone in mainline...
+Besides the mp naming we'd like to get rid off there also is just
+a single user of this macro, please just expand it there.
 
-Also CC linux-mm which was somehow lost.
+> +#define segment_iter_bvec(bvec, iter)				\
+> +((struct bio_vec) {							\
+> +	.bv_page	= segment_iter_page((bvec), (iter)),	\
+> +	.bv_len		= segment_iter_len((bvec), (iter)),	\
+> +	.bv_offset	= segment_iter_offset((bvec), (iter)),	\
+> +})
 
+And for this one please keep the segment vs bvec versions of these
+macros close together in the file please, right now it follow the
+bvec_iter_bvec variant closely.
 
-----8<----
+> +static inline void __bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
+> +				      unsigned bytes, unsigned max_seg_len)
+>  {
+>  	iter->bi_sector += bytes >> 9;
+>  
+>  	if (bio_no_advance_iter(bio))
+>  		iter->bi_size -= bytes;
+>  	else
+> -		bvec_iter_advance(bio->bi_io_vec, iter, bytes);
+> +		__bvec_iter_advance(bio->bi_io_vec, iter, bytes, max_seg_len);
+>  		/* TODO: It is reasonable to complete bio with error here. */
+>  }
+>  
+> +static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
+> +				    unsigned bytes)
+> +{
+> +	__bio_advance_iter(bio, iter, bytes, PAGE_SIZE);
+> +}
+
+Btw, I think the remaining users of bio_advance_iter() in bio.h
+should probably switch to using __bio_advance_iter to make them a little
+more clear to read.
+
+> +/* returns one real segment(multi-page bvec) each time */
+
+space before the brace, please.
+
+> +#define BVEC_MAX_LEN  ((unsigned int)-1)
+
+>  	while (bytes) {
+> +		unsigned segment_len = segment_iter_len(bv, *iter);
+>  
+> -		iter->bi_bvec_done += len;
+> +		if (max_seg_len < BVEC_MAX_LEN)
+> +			segment_len = min_t(unsigned, segment_len,
+> +					    max_seg_len -
+> +					    bvec_iter_offset(bv, *iter));
+> +
+> +		segment_len = min(bytes, segment_len);
+
+Please stick to passing the magic zero here as can often generate more
+efficient code.
+
+Talking about efficent code - I wonder how much code size we'd save
+by moving this function out of line..
+
+But while looking over this I wonder why we even need the max_seg_len
+here.  The only thing __bvec_iter_advance does it to move bi_bvec_done
+and bi_idx forward, with corresponding decrements of bi_size.  As far
+as I can tell the only thing that max_seg_len does is that we need
+to more iterations of the while loop to archive the same thing.
+
+And actual bvec used by the caller will be obtained using
+bvec_iter_bvec or segment_iter_bvec depending on if they want multi-page
+or single-page variants.
