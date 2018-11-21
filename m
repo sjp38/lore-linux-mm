@@ -1,129 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DC2C6B2572
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 09:31:45 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id d41so2991166eda.12
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 06:31:45 -0800 (PST)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id p8-v6si502733ejq.121.2018.11.21.06.31.43
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B46EE6B2574
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 09:33:58 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id j6so6992131wrw.1
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 06:33:58 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id x11si15480730wrq.288.2018.11.21.06.33.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Nov 2018 06:31:43 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id D6E611C1FD0
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 14:31:42 +0000 (GMT)
-Date: Wed, 21 Nov 2018 14:31:41 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 1/4] mm, page_alloc: Spread allocations across zones
- before introducing fragmentation
-Message-ID: <20181121143141.GJ23260@techsingularity.net>
-References: <20181121101414.21301-1-mgorman@techsingularity.net>
- <20181121101414.21301-2-mgorman@techsingularity.net>
- <7c053d34-fd3f-ca10-6ad7-a9d85652626f@suse.cz>
+        Wed, 21 Nov 2018 06:33:56 -0800 (PST)
+Date: Wed, 21 Nov 2018 15:33:55 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH V11 14/19] block: handle non-cluster bio out of
+ blk_bio_segment_split
+Message-ID: <20181121143355.GB2594@lst.de>
+References: <20181121032327.8434-1-ming.lei@redhat.com> <20181121032327.8434-15-ming.lei@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <7c053d34-fd3f-ca10-6ad7-a9d85652626f@suse.cz>
+In-Reply-To: <20181121032327.8434-15-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On Wed, Nov 21, 2018 at 03:18:28PM +0100, Vlastimil Babka wrote:
-> > 1-socket Skylake machine
-> > config-global-dhp__workload_thpfioscale XFS (no special madvise)
-> > 4 fio threads, 1 THP allocating thread
-> > --------------------------------------
-> > 
-> > 4.20-rc1 extfrag events < order 9:  1023463
-> > 4.20-rc1+patch:                      358574 (65% reduction)
-> 
-> It would be nice to have also breakdown of what kind of extfrag events,
-> mainly distinguish number of unmovable/reclaimable allocations
-> fragmenting movable pageblocks, as those are the most critical ones.
-> 
+> +			non-cluster.o
 
-I can include that but bear in mind that the volume of data is already
-extremely high. FWIW, the bulk of the fallbacks in this particular case
-happen to be movable.
+Do we really need a new source file for these few functions?
 
-> > @@ -3253,6 +3268,36 @@ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
-> >  }
-> >  #endif	/* CONFIG_NUMA */
-> >  
-> > +#ifdef CONFIG_ZONE_DMA32
-> > +/*
-> > + * The restriction on ZONE_DMA32 as being a suitable zone to use to avoid
-> > + * fragmentation is subtle. If the preferred zone was HIGHMEM then
-> > + * premature use of a lower zone may cause lowmem pressure problems that
-> > + * are wose than fragmentation. If the next zone is ZONE_DMA then it is
-> > + * probably too small. It only makes sense to spread allocations to avoid
-> > + * fragmentation between the Normal and DMA32 zones.
-> > + */
-> > +static inline unsigned int alloc_flags_nofragment(struct zone *zone)
-> > +{
-> > +	if (zone_idx(zone) != ZONE_NORMAL)
-> > +		return 0;
-> > +
-> > +	/*
-> > +	 * If ZONE_DMA32 exists, assume it is the one after ZONE_NORMAL and
-> > +	 * the pointer is within zone->zone_pgdat->node_zones[].
-> > +	 */
-> > +	if (!populated_zone(--zone))
-> > +		return 0;
-> 
-> How about something along:
-> BUILD_BUG_ON(ZONE_NORMAL - ZONE_DMA32 != 1);
-> 
+>  	default:
+> +		if (!blk_queue_cluster(q)) {
+> +			blk_queue_non_cluster_bio(q, bio);
+> +			return;
 
-Good plan.
+I'd name this blk_bio_segment_split_singlepage or similar.
 
-> Also is this perhaps going against your earlier efforts of speeding up
-> the fast path, and maybe it would be faster to just stick a bool into
-> struct zone, which would be set true once during zonelist build, only
-> for a ZONE_NORMAL with ZONE_DMA32 in the same node?
-> 
+> +static __init int init_non_cluster_bioset(void)
+> +{
+> +	WARN_ON(bioset_init(&non_cluster_bio_set, BIO_POOL_SIZE, 0,
+> +			   BIOSET_NEED_BVECS));
+> +	WARN_ON(bioset_integrity_create(&non_cluster_bio_set, BIO_POOL_SIZE));
+> +	WARN_ON(bioset_init(&non_cluster_bio_split, BIO_POOL_SIZE, 0, 0));
 
-It does somewhat go against the previous work on the fast path but
-we really did hit the limits of the microoptimisations there and the
-longer-term consequences of fragmentation are potentially worse than a
-few cycles in each fast path. The speedup we need for extremely high
-network devices is much larger than a few cycles so I think we can take
-the hit -- at least until a better idea comes along.
+Please only allocate the resources once a queue without the cluster
+flag is registered, there are only very few modern drivers that do that.
 
-> > +
-> > +	return ALLOC_NOFRAGMENT;
-> > +}
-> > +#else
-> > +static inline unsigned int alloc_flags_nofragment(struct zone *zone)
-> > +{
-> > +	return 0;
-> > +}
-> > +#endif
-> > +
-> >  /*
-> >   * get_page_from_freelist goes through the zonelist trying to allocate
-> >   * a page.
-> > @@ -3264,11 +3309,14 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
-> >  	struct zoneref *z = ac->preferred_zoneref;
-> >  	struct zone *zone;
-> >  	struct pglist_data *last_pgdat_dirty_limit = NULL;
-> > +	bool no_fallback;
-> >  
-> > +retry:
-> 
-> Ugh, I think 'z = ac->preferred_zoneref' should be moved here under
-> retry. AFAICS without that, the preference of local node to
-> fragmentation avoidance doesn't work?
-> 
+> +static void non_cluster_end_io(struct bio *bio)
+> +{
+> +	struct bio *bio_orig = bio->bi_private;
+> +
+> +	bio_orig->bi_status = bio->bi_status;
+> +	bio_endio(bio_orig);
+> +	bio_put(bio);
+> +}
 
-Yup, you're right!
+Why can't we use bio_chain for the split bios?
 
-In the event of fragmentation of both normal and dma32 zone, it doesn't
-restart on the local node and instead falls over to the remote node
-prematurely. This is obviously not desirable. I'll give it and thanks
-for spotting it.
+> +	bio_for_each_segment(from, *bio_orig, iter) {
+> +		if (i++ < max_segs)
+> +			sectors += from.bv_len >> 9;
+> +		else
+> +			break;
+> +	}
 
--- 
-Mel Gorman
-SUSE Labs
+The easy to read way would be:
+
+	bio_for_each_segment(from, *bio_orig, iter) {
+		if (i++ == max_segs)
+			break;
+		sectors += from.bv_len >> 9;
+	}
+
+> +	if (sectors < bio_sectors(*bio_orig)) {
+> +		bio = bio_split(*bio_orig, sectors, GFP_NOIO,
+> +				&non_cluster_bio_split);
+> +		bio_chain(bio, *bio_orig);
+> +		generic_make_request(*bio_orig);
+> +		*bio_orig = bio;
+
+I don't think this is very efficient, as this means we now
+clone the bio twice, first to split it at the sector boundary,
+and then again when converting it to single-page bio_vec.
+
+I think this could be something like this (totally untested):
+
+diff --git a/block/non-cluster.c b/block/non-cluster.c
+index 9c2910be9404..60389f275c43 100644
+--- a/block/non-cluster.c
++++ b/block/non-cluster.c
+@@ -13,58 +13,59 @@
+ 
+ #include "blk.h"
+ 
+-static struct bio_set non_cluster_bio_set, non_cluster_bio_split;
++static struct bio_set non_cluster_bio_set;
+ 
+ static __init int init_non_cluster_bioset(void)
+ {
+ 	WARN_ON(bioset_init(&non_cluster_bio_set, BIO_POOL_SIZE, 0,
+ 			   BIOSET_NEED_BVECS));
+ 	WARN_ON(bioset_integrity_create(&non_cluster_bio_set, BIO_POOL_SIZE));
+-	WARN_ON(bioset_init(&non_cluster_bio_split, BIO_POOL_SIZE, 0, 0));
+ 
+ 	return 0;
+ }
+ __initcall(init_non_cluster_bioset);
+ 
+-static void non_cluster_end_io(struct bio *bio)
+-{
+-	struct bio *bio_orig = bio->bi_private;
+-
+-	bio_orig->bi_status = bio->bi_status;
+-	bio_endio(bio_orig);
+-	bio_put(bio);
+-}
+-
+ void blk_queue_non_cluster_bio(struct request_queue *q, struct bio **bio_orig)
+ {
+-	struct bio *bio;
+ 	struct bvec_iter iter;
+-	struct bio_vec from;
+-	unsigned i = 0;
+-	unsigned sectors = 0;
+-	unsigned short max_segs = min_t(unsigned short, BIO_MAX_PAGES,
+-					queue_max_segments(q));
++	struct bio *bio;
++	struct bio_vec bv;
++	unsigned short max_segs, segs = 0;
++
++	bio = bio_alloc_bioset(GFP_NOIO, bio_segments(*bio_orig),
++			&non_cluster_bio_set);
++	bio->bi_disk		= (*bio_orig)->bi_disk;
++	bio->bi_partno		= (*bio_orig)->bi_partno;
++	bio_set_flag(bio, BIO_CLONED);
++	if (bio_flagged(*bio_orig, BIO_THROTTLED))
++		bio_set_flag(bio, BIO_THROTTLED);
++	bio->bi_opf		= (*bio_orig)->bi_opf;
++	bio->bi_ioprio		= (*bio_orig)->bi_ioprio;
++	bio->bi_write_hint	= (*bio_orig)->bi_write_hint;
++	bio->bi_iter.bi_sector	= (*bio_orig)->bi_iter.bi_sector;
++	bio->bi_iter.bi_size	= (*bio_orig)->bi_iter.bi_size;
++
++	if (bio_integrity(*bio_orig))
++		bio_integrity_clone(bio, *bio_orig, GFP_NOIO);
+ 
+-	bio_for_each_segment(from, *bio_orig, iter) {
+-		if (i++ < max_segs)
+-			sectors += from.bv_len >> 9;
+-		else
++	bio_clone_blkcg_association(bio, *bio_orig);
++
++	max_segs = min_t(unsigned short, queue_max_segments(q), BIO_MAX_PAGES);
++	bio_for_each_segment(bv, *bio_orig, iter) {
++		bio->bi_io_vec[segs++] = bv;
++		if (segs++ == max_segs)
+ 			break;
+ 	}
+ 
+-	if (sectors < bio_sectors(*bio_orig)) {
+-		bio = bio_split(*bio_orig, sectors, GFP_NOIO,
+-				&non_cluster_bio_split);
+-		bio_chain(bio, *bio_orig);
+-		generic_make_request(*bio_orig);
+-		*bio_orig = bio;
+-	}
+-	bio = bio_clone_bioset(*bio_orig, GFP_NOIO, &non_cluster_bio_set);
++	bio->bi_vcnt = segs;
++	bio->bi_phys_segments = segs;
++	bio_set_flag(bio, BIO_SEG_VALID);
++	bio_chain(bio, *bio_orig);
+ 
+-	bio->bi_phys_segments = bio_segments(bio);
+-        bio_set_flag(bio, BIO_SEG_VALID);
+-	bio->bi_end_io = non_cluster_end_io;
++	if (bio_integrity(bio))
++		bio_integrity_trim(bio);
++	bio_advance(bio, (*bio_orig)->bi_iter.bi_size);
+ 
+-	bio->bi_private = *bio_orig;
++	generic_make_request(*bio_orig);
+ 	*bio_orig = bio;
+ }
