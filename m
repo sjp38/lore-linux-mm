@@ -1,69 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E4FD96B25BC
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 05:20:06 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id z6so2913441qtj.21
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 02:20:06 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q4si3718749qkj.161.2018.11.21.02.20.05
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DC276B25F7
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 06:17:52 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id 4so7780830plc.5
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 03:17:52 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y64sor42941272pgd.38.2018.11.21.03.17.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Nov 2018 02:20:05 -0800 (PST)
-Date: Wed, 21 Nov 2018 18:19:38 +0800
-From: Ming Lei <ming.lei@redhat.com>
-Subject: Re: [PATCH V10 09/19] block: introduce bio_bvecs()
-Message-ID: <20181121101937.GA16204@ming.t460p>
-References: <002fe56b-25e4-573e-c09b-bb12c3e8d25a@grimberg.me>
- <20181120161651.GB2629@lst.de>
- <53526aae-fb9b-ee38-0a01-e5899e2d4e4d@grimberg.me>
- <20181121005902.GA31748@ming.t460p>
- <2d9bee7a-f010-dcf4-1184-094101058584@grimberg.me>
- <20181121034415.GA8408@ming.t460p>
- <2a47d336-c19b-6bf4-c247-d7382871eeea@grimberg.me>
- <7378bf49-5a7e-5622-d4d1-808ba37ce656@grimberg.me>
- <20181121050359.GA31915@ming.t460p>
- <fc268b0e-61b5-aacc-67be-cb7b266c6d8f@grimberg.me>
+        (Google Transport Security);
+        Wed, 21 Nov 2018 03:17:51 -0800 (PST)
+Date: Wed, 21 Nov 2018 14:17:45 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [LKP] dd2283f260 [ 97.263072]
+ WARNING:at_kernel/locking/lockdep.c:#lock_downgrade
+Message-ID: <20181121111745.v56gygpfn5gvdoc4@kshutemo-mobl1>
+References: <20181115055443.GF18977@shao2-debian>
+ <d9371abc-60f6-ce37-529f-d097464a1412@linux.alibaba.com>
+ <20181120085749.lj7dzk52633oq42s@kshutemo-mobl1>
+ <9dec33d0-f408-8428-b004-fa63fc2e9091@linux.alibaba.com>
+ <20181120134216.s5derazwpay5gkfk@kshutemo-mobl1>
+ <d552af11-7b73-da6a-ed12-6cb7bd1bb5a4@linux.alibaba.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fc268b0e-61b5-aacc-67be-cb7b266c6d8f@grimberg.me>
+In-Reply-To: <d552af11-7b73-da6a-ed12-6cb7bd1bb5a4@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sagi Grimberg <sagi@grimberg.me>
-Cc: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, linux-erofs@lists.ozlabs.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: kernel test robot <rong.a.chen@intel.com>, Waiman Long <longman@redhat.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, LKP <lkp@01.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue, Nov 20, 2018 at 09:35:07PM -0800, Sagi Grimberg wrote:
+On Wed, Nov 21, 2018 at 08:35:28AM +0800, Yang Shi wrote:
 > 
-> > > Wait, I see that the bvec is still a single array per bio. When you said
-> > > a table I thought you meant a 2-dimentional array...
-> > 
-> > I mean a new 1-d table A has to be created for multiple bios in one rq,
-> > and build it in the following way
-> > 
-> >             rq_for_each_bvec(tmp, rq, rq_iter)
-> >                      *A = tmp;
-> > 
-> > Then you can pass A to iov_iter_bvec() & send().
-> > 
-> > Given it is over TCP, I guess it should be doable for you to preallocate one
-> > 256-bvec table in one page for each request, then sets the max segment size as
-> > (unsigned int)-1, and max segment number as 256, the preallocated table
-> > should work anytime.
 > 
-> 256 bvec table is really a lot to preallocate, especially when its not
-> needed, I can easily initialize the bvec_iter on the bio bvec. If this
-> involves preallocation of the worst-case than I don't consider this to
-> be an improvement.
+> On 11/20/18 9:42 PM, Kirill A. Shutemov wrote:
+> > On Tue, Nov 20, 2018 at 08:10:51PM +0800, Yang Shi wrote:
+> > > 
+> > > On 11/20/18 4:57 PM, Kirill A. Shutemov wrote:
+> > > > On Fri, Nov 16, 2018 at 08:56:04AM -0800, Yang Shi wrote:
+> > > > > > a8dda165ec  vfree: add debug might_sleep()
+> > > > > > dd2283f260  mm: mmap: zap pages with read mmap_sem in munmap
+> > > > > > 5929a1f0ff  Merge tag 'riscv-for-linus-4.20-rc2' of git://git.kernel.org/pub/scm/linux/kernel/git/palmer/riscv-linux
+> > > > > > 0bc80e3cb0  Add linux-next specific files for 20181114
+> > > > > > +-----------------------------------------------------+------------+------------+------------+---------------+
+> > > > > > |                                                     | a8dda165ec | dd2283f260 | 5929a1f0ff | next-20181114 |
+> > > > > > +-----------------------------------------------------+------------+------------+------------+---------------+
+> > > > > > | boot_successes                                      | 314        | 178        | 190        | 168           |
+> > > > > > | boot_failures                                       | 393        | 27         | 21         | 40            |
+> > > > > > | WARNING:held_lock_freed                             | 383        | 23         | 17         | 39            |
+> > > > > > | is_freeing_memory#-#,with_a_lock_still_held_there   | 383        | 23         | 17         | 39            |
+> > > > > > | BUG:unable_to_handle_kernel                         | 5          | 2          | 4          | 1             |
+> > > > > > | Oops:#[##]                                          | 9          | 3          | 4          | 1             |
+> > > > > > | EIP:debug_check_no_locks_freed                      | 9          | 3          | 4          | 1             |
+> > > > > > | Kernel_panic-not_syncing:Fatal_exception            | 9          | 3          | 4          | 1             |
+> > > > > > | Mem-Info                                            | 4          | 1          |            |               |
+> > > > > > | invoked_oom-killer:gfp_mask=0x                      | 1          | 1          |            |               |
+> > > > > > | WARNING:at_kernel/locking/lockdep.c:#lock_downgrade | 0          | 6          | 4          | 7             |
+> > > > > > | EIP:lock_downgrade                                  | 0          | 6          | 4          | 7             |
+> > > > > > +-----------------------------------------------------+------------+------------+------------+---------------+
+> > > > > > 
+> > > > > > [   96.288009] random: get_random_u32 called from arch_rnd+0x3c/0x70 with crng_init=0
+> > > > > > [   96.359626] input_id (331) used greatest stack depth: 6360 bytes left
+> > > > > > [   96.749228] grep (358) used greatest stack depth: 6336 bytes left
+> > > > > > [   96.921470] network.sh (341) used greatest stack depth: 6212 bytes left
+> > > > > > [   97.262340]
+> > > > > > [   97.262587] =========================
+> > > > > > [   97.263072] WARNING: held lock freed!
+> > > > > > [   97.263536] 4.19.0-06969-gdd2283f #1 Not tainted
+> > > > > > [   97.264110] -------------------------
+> > > > > > [   97.264575] udevd/198 is freeing memory 9c16c930-9c16c99b, with a lock still held there!
+> > > > > > [   97.265542] (ptrval) (&anon_vma->rwsem){....}, at: unlink_anon_vmas+0x14e/0x420
+> > > > > > [   97.266450] 1 lock held by udevd/198:
+> > > > > > [   97.266924]  #0: (ptrval) (&mm->mmap_sem){....}, at: __do_munmap+0x531/0x730
+> > > > > I have not figured out what this is caused by. But, the below warning looks
+> > > > > more confusing. This might be caused by the below one.
+> > > > I *think* we need to understand more about what detached VMAs mean for
+> > > > rmap. The anon_vma for these VMAs still reachable for the rmap and
+> > > > therefore VMA too. I don't quite grasp what is implications of this, but
+> > > > it doesn't look good.
+> > > I'm supposed before accessing anon_vma, VMA need to be found by find_vma()
+> > > first, right? But, finding VMA need hold mmap_sem, once detach VMAs is
+> > > called, others should not be able to find the VMAs anymore. So, the anon_vma
+> > > should not be reachable except the munmap caller.
+> > No. anon_vma can be reached from page->mapping. The page can be reached
+> > during physcal memory scan or if the page is shared (across fork()). None
+> > of these accesses require mmap_sem.
+> 
+> If they don't require mmap_sem at all, this problem should be valid
+> regardless of the optimization. We just downgraded write mmap_sem to read,
+> but still hold it.
 
-If you don't provide one single bvec table, I understand you may not send
-this req via one send().
+I tend to agree with you.
 
-The bvec_iter initialization is easy to do:
+But having the crash in the picture makes me wounder if there's scenario
+when VMA reachable via anon_vma, but not via find_vma() causes a problem.
+I cannot think of any, but who knows.
 
-	bvec_iter = bio->bi_iter
-
-when you move to a new a bio, please refer to  __bio_for_each_bvec() or
-__bio_for_each_segment().
-
-Thanks,
-Ming
+-- 
+ Kirill A. Shutemov
