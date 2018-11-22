@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E6096B2CF8
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 14:56:22 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id l131so3057426pga.2
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 11:56:22 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B2BB06B2CEE
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 14:54:53 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id v79so3686960pfd.20
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 11:54:53 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id f61si13275929plb.51.2018.11.22.11.56.20
+        by mx.google.com with ESMTPS id o22si41201070pgb.584.2018.11.22.11.54.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Nov 2018 11:56:21 -0800 (PST)
+        Thu, 22 Nov 2018 11:54:52 -0800 (PST)
 From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.14 21/21] mm, page_alloc: check for max order in hot path
-Date: Thu, 22 Nov 2018 14:54:52 -0500
-Message-Id: <20181122195452.13520-21-sashal@kernel.org>
-In-Reply-To: <20181122195452.13520-1-sashal@kernel.org>
-References: <20181122195452.13520-1-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.19 36/36] mm, page_alloc: check for max order in hot path
+Date: Thu, 22 Nov 2018 14:52:40 -0500
+Message-Id: <20181122195240.13123-36-sashal@kernel.org>
+In-Reply-To: <20181122195240.13123-1-sashal@kernel.org>
+References: <20181122195240.13123-1-sashal@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: stable@vger.kernel.org, linux-kernel@vger.kernel.org
@@ -112,10 +112,10 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  1 file changed, 9 insertions(+), 11 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a604b5da6755..2074f424dabf 100644
+index 3a4065312938..b721631d78ab 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -3867,17 +3867,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+@@ -4055,17 +4055,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
  	unsigned int cpuset_mems_cookie;
  	int reserve_flags;
  
@@ -133,7 +133,7 @@ index a604b5da6755..2074f424dabf 100644
  	/*
  	 * We also sanity check to catch abuse of atomic reserves being used by
  	 * callers that are not in atomic context.
-@@ -4179,6 +4168,15 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
+@@ -4359,6 +4348,15 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
  	gfp_t alloc_mask; /* The gfp_t that was actually used for allocation */
  	struct alloc_context ac = { };
  
