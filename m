@@ -1,73 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5427F6B3E45
-	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 16:45:11 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id e89so9711820pfb.17
-        for <linux-mm@kvack.org>; Sun, 25 Nov 2018 13:45:11 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id q14si59863190pgg.433.2018.11.25.13.45.10
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E82796B288D
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 20:09:44 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id u20so4942778qtk.6
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 17:09:44 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u28si8129348qtj.69.2018.11.21.17.09.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Nov 2018 13:45:10 -0800 (PST)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAPLifcY013702
-	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 16:45:10 -0500
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2nymvtptpp-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 16:45:09 -0500
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Sun, 25 Nov 2018 21:45:07 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH 4/5] openrisc: simplify pte_alloc_one_kernel()
-Date: Sun, 25 Nov 2018 23:44:36 +0200
-In-Reply-To: <1543182277-8819-1-git-send-email-rppt@linux.ibm.com>
-References: <1543182277-8819-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1543182277-8819-5-git-send-email-rppt@linux.ibm.com>
+        Wed, 21 Nov 2018 17:09:44 -0800 (PST)
+Date: Thu, 22 Nov 2018 09:09:13 +0800
+From: Ming Lei <ming.lei@redhat.com>
+Subject: Re: [PATCH V11 02/19] block: introduce multi-page bvec helpers
+Message-ID: <20181122010912.GB20814@ming.t460p>
+References: <20181121032327.8434-1-ming.lei@redhat.com>
+ <20181121032327.8434-3-ming.lei@redhat.com>
+ <20181121131928.GA1640@lst.de>
+ <20181121150610.GA19111@ming.t460p>
+ <20181121160811.GA4977@lst.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181121160811.GA4977@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Jonas Bonn <jonas@southpole.se>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-The pte_alloc_one_kernel() function allocates a page using
-__get_free_page(GFP_KERNEL) when mm initialization is complete and
-memblock_phys_alloc() on the earlier stages. The physical address of the
-page allocated with memblock_phys_alloc() is converted to the virtual
-address and in the both cases the allocated page is cleared using
-clear_page().
+On Wed, Nov 21, 2018 at 05:08:11PM +0100, Christoph Hellwig wrote:
+> On Wed, Nov 21, 2018 at 11:06:11PM +0800, Ming Lei wrote:
+> > bvec_iter_* is used for single-page bvec in current linus tree, and there are
+> > lots of users now:
+> > 
+> > [linux]$ git grep -n "bvec_iter_*" ./ | wc
+> >     191     995   13242
+> > 
+> > If we have to switch it first, it can be a big change, just wondering if Jens
+> > is happy with that?
+> 
+> Your above grep statement seems to catch every use of struct bvec_iter,
+> due to the *.
+> 
+> Most uses of bvec_iter_ are either in the block headers, or are
+> ceph wrappers that match the above and can easily be redefined.
 
-The code is simplified by replacing __get_free_page() with
-get_zeroed_page() and by replacing memblock_phys_alloc() with
-memblock_alloc().
+OK, looks you are right, seems not so widely used:
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
- arch/openrisc/mm/ioremap.c | 11 ++++-------
- 1 file changed, 4 insertions(+), 7 deletions(-)
+$ git grep -n -w -E "bvec_iter_len|bvec_iter_bvec|bvec_iter_advance|bvec_iter_page|bvec_iter_offset" ./  | wc
+     36     194    2907
 
-diff --git a/arch/openrisc/mm/ioremap.c b/arch/openrisc/mm/ioremap.c
-index c969752..cfef989 100644
---- a/arch/openrisc/mm/ioremap.c
-+++ b/arch/openrisc/mm/ioremap.c
-@@ -123,13 +123,10 @@ pte_t __ref *pte_alloc_one_kernel(struct mm_struct *mm,
- {
- 	pte_t *pte;
- 
--	if (likely(mem_init_done)) {
--		pte = (pte_t *) __get_free_page(GFP_KERNEL);
--	} else {
--		pte = (pte_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
--	}
-+	if (likely(mem_init_done))
-+		pte = (pte_t *)get_zeroed_page(GFP_KERNEL);
-+	else
-+		pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
- 
--	if (pte)
--		clear_page(pte);
- 	return pte;
- }
--- 
-2.7.4
+I will switch to that given the effected driver are only dm, nvdimm and ceph.
+
+Thanks,
+Ming
