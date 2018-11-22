@@ -1,70 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A3436B4F9B
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 18:55:34 -0500 (EST)
-Received: by mail-it1-f198.google.com with SMTP id j202so3967414itj.1
-        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 15:55:34 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t187sor39446iod.103.2018.11.28.15.55.33
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AD47E6B2CC2
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 14:10:18 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id e29so4944432ede.19
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 11:10:18 -0800 (PST)
+Received: from outbound-smtp27.blacknight.com (outbound-smtp27.blacknight.com. [81.17.249.195])
+        by mx.google.com with ESMTPS id s55si1964466eda.33.2018.11.22.11.10.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 28 Nov 2018 15:55:33 -0800 (PST)
-From: Yu Zhao <yuzhao@google.com>
-Subject: [PATCH] mm: remove pte_lock_deinit()
-Date: Wed, 28 Nov 2018 16:55:25 -0700
-Message-Id: <20181128235525.58780-1-yuzhao@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Nov 2018 11:10:16 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp27.blacknight.com (Postfix) with ESMTPS id 2A78DB8AC2
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 19:10:16 +0000 (GMT)
+Date: Thu, 22 Nov 2018 19:10:14 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 4/4] mm: Stall movable allocations until kswapd
+ progresses during serious external fragmentation event
+Message-ID: <20181122191014.GM23260@techsingularity.net>
+References: <20181121101414.21301-1-mgorman@techsingularity.net>
+ <20181121101414.21301-5-mgorman@techsingularity.net>
+ <35ea6691-e819-5581-7d32-39c1abfbe775@suse.cz>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <35ea6691-e819-5581-7d32-39c1abfbe775@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Souptick Joarder <jrdr.linux@gmail.com>, Logan Gunthorpe <logang@deltatee.com>, Keith Busch <keith.busch@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yu Zhao <yuzhao@google.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-Pagetable page doesn't touch page->mapping or have any used field
-that overlaps with it. No need to clear mapping in dtor. In fact,
-doing so might mask problems that otherwise would be detected by
-bad_page().
+On Thu, Nov 22, 2018 at 06:02:10PM +0100, Vlastimil Babka wrote:
+> On 11/21/18 11:14 AM, Mel Gorman wrote:
+> > An event that potentially causes external fragmentation problems has
+> > already been described but there are degrees of severity.  A "serious"
+> > event is defined as one that steals a contiguous range of pages of an order
+> > lower than fragment_stall_order (PAGE_ALLOC_COSTLY_ORDER by default). If a
+> > movable allocation request that is allowed to sleep needs to steal a small
+> > block then it schedules until kswapd makes progress or a timeout passes.
+> > The watermarks are also boosted slightly faster so that kswapd makes
+> > greater effort to reclaim enough pages to avoid the fragmentation event.
+> > 
+> > This stall is not guaranteed to avoid serious fragmentation events.
+> > If memory pressure is high enough, the pages freed by kswapd may be
+> > reallocated or the free pages may not be in pageblocks that contain
+> > only movable pages. Furthermore an allocation request that cannot stall
+> > (e.g. atomic allocations) or unmovable/reclaimable allocations will still
+> > proceed without stalling.
+> 
+> Not doing this for unmovable/reclaimable allocations is kinda disadvantage?
+> 
 
-Signed-off-by: Yu Zhao <yuzhao@google.com>
----
- include/linux/mm.h | 11 ++---------
- 1 file changed, 2 insertions(+), 9 deletions(-)
+Yes, but this series is primarily aimed at when movable allocations are
+causing the fragmentation. We stall so that there are compaction targets
+due to reclaimed pages. The same does not apply to unmovable and
+reclaimable pages because they cannot compact so sure, we can stall, but
+I cannot see how it would help.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 5411de93a363..7c8f4fc9244e 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1900,13 +1900,6 @@ static inline bool ptlock_init(struct page *page)
- 	return true;
- }
- 
--/* Reset page->mapping so free_pages_check won't complain. */
--static inline void pte_lock_deinit(struct page *page)
--{
--	page->mapping = NULL;
--	ptlock_free(page);
--}
--
- #else	/* !USE_SPLIT_PTE_PTLOCKS */
- /*
-  * We use mm->page_table_lock to guard all pagetable pages of the mm.
-@@ -1917,7 +1910,7 @@ static inline spinlock_t *pte_lockptr(struct mm_struct *mm, pmd_t *pmd)
- }
- static inline void ptlock_cache_init(void) {}
- static inline bool ptlock_init(struct page *page) { return true; }
--static inline void pte_lock_deinit(struct page *page) {}
-+static inline void ptlock_free(struct page *page) {}
- #endif /* USE_SPLIT_PTE_PTLOCKS */
- 
- static inline void pgtable_init(void)
-@@ -1937,7 +1930,7 @@ static inline bool pgtable_page_ctor(struct page *page)
- 
- static inline void pgtable_page_dtor(struct page *page)
- {
--	pte_lock_deinit(page);
-+	ptlock_free(page);
- 	__ClearPageTable(page);
- 	dec_zone_page_state(page, NR_PAGETABLE);
- }
+> >  ==============================================================
+> >  
+> > +fragment_stall_order
+> > +
+> > +External fragmentation control is managed on a pageblock level where the
+> > +page allocator tries to avoid mixing pages of different mobility within page
+> > +blocks (e.g. order 9 on 64-bit x86). If external fragmentation is perfectly
+> > +controlled then a THP allocation will often succeed up to the number of
+> > +movable pageblocks in the system as reported by /proc/pagetypeinfo.
+> > +
+> > +When memory is low, the system may have to mix pageblocks and will wake
+> > +kswapd to try control future fragmentation. fragment_stall_order controls if
+> > +the allocating task will stall if possible until kswapd makes some progress
+> > +in preference to fragmenting the system. This incurs a small stall penalty
+> > +in exchange for future success at allocating huge pages. If the stalls
+> > +are undesirable and high-order allocations are irrelevant then this can
+> > +be disabled by writing 0 to the tunable. Writing the pageblock order will
+> > +strongly (but not perfectly) control external fragmentation.
+> > +
+> > +The default will stall for fragmenting allocations smaller than the
+> > +PAGE_ALLOC_COSTLY_ORDER (defined as order-3 at the time of writing).
+> 
+> Perhaps be more explicit that steals of orders strictly lower than given
+> value will stall? So for the default order-3, the sysctl value is 4,
+> which might confuse somebody.
+> 
+
+I'll clarify it.
+
+> > +
+> > @@ -2130,9 +2131,10 @@ static bool can_steal_fallback(unsigned int order, int start_mt)
+> >  	return false;
+> >  }
+> >  
+> > +
+> > +static void stall_fragmentation(struct zone *pzone)
+> > +{
+> > +	DEFINE_WAIT(wait);
+> > +	long remaining = 0;
+> > +	long timeout = HZ/50;
+> > +	pg_data_t *pgdat = pzone->zone_pgdat;
+> > +
+> > +	if (current->flags & PF_MEMALLOC)
+> > +		return;
+> > +
+> > +	boost_watermark(pzone, true);
+> 
+> Should zone->lock be taken around this to make watermark_boost
+> adjustment safe? Similar to balance_pgdat().
+> 
+
+Yeah, that was a relatively late adjustment. The risk is low but it's
+possible best to be safe. I'm not super-keen that zone->lock protects
+this but that lock already protects more than it should and there is
+little motivation to split it just yet.
+
+> > +	prepare_to_wait(&pgdat->pfmemalloc_wait, &wait, TASK_INTERRUPTIBLE);
+> > +	if (waitqueue_active(&pgdat->kswapd_wait))
+> > +		wake_up_interruptible(&pgdat->kswapd_wait);
+> > +	remaining = schedule_timeout(timeout);
+> > +	finish_wait(&pgdat->pfmemalloc_wait, &wait);
+> > +	if (remaining != timeout) {
+> > +		trace_mm_fragmentation_stall(pgdat->node_id,
+> > +			jiffies_to_usecs(timeout - remaining));
+> > +		count_vm_event(FRAGMENTSTALL);
+> > +	}
+> >  }
+> >  
+> 
+> > @@ -4186,6 +4234,14 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+> >  	 */
+> >  	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+> >  
+> > +	/*
+> > +	 * Consider stalling on heavy for movable allocations in preference to
+> > +	 * fragmenting unmovable/reclaimable pageblocks.
+> > +	 */
+> > +	if ((gfp_mask & (__GFP_MOVABLE|__GFP_DIRECT_RECLAIM)) ==
+> > +			(__GFP_MOVABLE|__GFP_DIRECT_RECLAIM))
+> > +		alloc_flags |= ALLOC_FRAGMENT_STALL;
+> 
+> Surprised that this only has effect in the slowpath, i.e. when
+> watermarks are below 'low'. If it's intended (to not stall that much I
+> suppose) maybe explain the rationale in the changelog?
+> 
+
+Well, it's the same path when stalls can happen on direct reclaim so I
+didn't think it needed to be explicitly called out. The slowpath is also
+the "we can stall if the context allows" path so this is checking that
+it's a compatible cont3xt.
+
+> Thanks for the series, Mel, hope the results are still optimistic after
+> some of the fixes that might unfortunately limit its impact :)
+> 
+
+Preliminary results indicate they are slightly worse but slightly worse
+than 90+% is still better than nothing so I'm reasonably optimistic!
+
+Thanks for the careful review and catching a lot of issues!
+
 -- 
-2.20.0.rc1.387.gf8505762e3-goog
+Mel Gorman
+SUSE Labs
