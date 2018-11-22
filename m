@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 370376B2CF6
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 14:56:15 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id 4so14572653plc.5
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 11:56:15 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C9AD6B2CED
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 14:54:47 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id ay11so13963977plb.20
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 11:54:47 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id z10si37404161pfm.37.2018.11.22.11.56.14
+        by mx.google.com with ESMTPS id j28si49463654pgm.160.2018.11.22.11.54.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Nov 2018 11:56:14 -0800 (PST)
+        Thu, 22 Nov 2018 11:54:46 -0800 (PST)
 From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.14 20/21] tmpfs: make lseek(SEEK_DATA/SEK_HOLE) return ENXIO with a negative offset
-Date: Thu, 22 Nov 2018 14:54:51 -0500
-Message-Id: <20181122195452.13520-20-sashal@kernel.org>
-In-Reply-To: <20181122195452.13520-1-sashal@kernel.org>
-References: <20181122195452.13520-1-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.19 35/36] tmpfs: make lseek(SEEK_DATA/SEK_HOLE) return ENXIO with a negative offset
+Date: Thu, 22 Nov 2018 14:52:39 -0500
+Message-Id: <20181122195240.13123-35-sashal@kernel.org>
+In-Reply-To: <20181122195240.13123-1-sashal@kernel.org>
+References: <20181122195240.13123-1-sashal@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: stable@vger.kernel.org, linux-kernel@vger.kernel.org
@@ -53,10 +53,10 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  1 file changed, 1 insertion(+), 3 deletions(-)
 
 diff --git a/mm/shmem.c b/mm/shmem.c
-index ea786a504e1b..fa08f56fd5e5 100644
+index 446942677cd4..38d228a30fdc 100644
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
-@@ -2590,9 +2590,7 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
+@@ -2610,9 +2610,7 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
  	inode_lock(inode);
  	/* We're holding i_mutex so we can access i_size directly */
  
