@@ -1,94 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D8F06B303A
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 03:46:14 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id c53so5583706edc.9
-        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 00:46:14 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k37sor6656eda.26.2018.11.23.00.46.12
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 486536B2CB1
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 13:55:21 -0500 (EST)
+Received: by mail-yw1-f72.google.com with SMTP id e62-v6so5687940ywf.21
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 10:55:21 -0800 (PST)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-eopbgr810074.outbound.protection.outlook.com. [40.107.81.74])
+        by mx.google.com with ESMTPS id n184si22833049ywn.314.2018.11.22.10.55.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 23 Nov 2018 00:46:12 -0800 (PST)
-Date: Fri, 23 Nov 2018 09:46:09 +0100
-From: Daniel Vetter <daniel@ffwll.ch>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 22 Nov 2018 10:55:20 -0800 (PST)
+From: "Koenig, Christian" <Christian.Koenig@amd.com>
 Subject: Re: [PATCH 2/3] mm, notifier: Catch sleeping/blocking for !blockable
-Message-ID: <20181123084609.GH4266@phenom.ffwll.local>
+Date: Thu, 22 Nov 2018 18:55:17 +0000
+Message-ID: <f9c39a9a-5afd-4aed-c9ad-0c3fef34a449@amd.com>
 References: <20181122165106.18238-1-daniel.vetter@ffwll.ch>
  <20181122165106.18238-3-daniel.vetter@ffwll.ch>
- <f9c39a9a-5afd-4aed-c9ad-0c3fef34a449@amd.com>
+In-Reply-To: <20181122165106.18238-3-daniel.vetter@ffwll.ch>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <4EC4BF4399C95F4382DBAFADB9310725@namprd12.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <f9c39a9a-5afd-4aed-c9ad-0c3fef34a449@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Koenig, Christian" <Christian.Koenig@amd.com>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Daniel Vetter <daniel.vetter@intel.com>
+To: Daniel Vetter <daniel.vetter@ffwll.ch>, LKML <linux-kernel@vger.kernel.org>
+Cc: Linux MM <linux-mm@kvack.org>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Daniel Vetter <daniel.vetter@intel.com>
 
-On Thu, Nov 22, 2018 at 06:55:17PM +0000, Koenig, Christian wrote:
-> Am 22.11.18 um 17:51 schrieb Daniel Vetter:
-> > We need to make sure implementations don't cheat and don't have a
-> > possible schedule/blocking point deeply burried where review can't
-> > catch it.
-> >
-> > I'm not sure whether this is the best way to make sure all the
-> > might_sleep() callsites trigger, and it's a bit ugly in the code flow.
-> > But it gets the job done.
-> >
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: Michal Hocko <mhocko@suse.com>
-> > Cc: David Rientjes <rientjes@google.com>
-> > Cc: "Christian K�nig" <christian.koenig@amd.com>
-> > Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
-> > Cc: "J�r�me Glisse" <jglisse@redhat.com>
-> > Cc: linux-mm@kvack.org
-> > Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
-> > ---
-> >   mm/mmu_notifier.c | 8 +++++++-
-> >   1 file changed, 7 insertions(+), 1 deletion(-)
-> >
-> > diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-> > index 59e102589a25..4d282cfb296e 100644
-> > --- a/mm/mmu_notifier.c
-> > +++ b/mm/mmu_notifier.c
-> > @@ -185,7 +185,13 @@ int __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-> >   	id = srcu_read_lock(&srcu);
-> >   	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
-> >   		if (mn->ops->invalidate_range_start) {
-> > -			int _ret = mn->ops->invalidate_range_start(mn, mm, start, end, blockable);
-> > +			int _ret;
-> > +
-> > +			if (IS_ENABLED(CONFIG_DEBUG_ATOMIC_SLEEP) && !blockable)
-> > +				preempt_disable();
-> > +			_ret = mn->ops->invalidate_range_start(mn, mm, start, end, blockable);
-> > +			if (IS_ENABLED(CONFIG_DEBUG_ATOMIC_SLEEP) && !blockable)
-> > +				preempt_enable();
-> 
-> Just for the sake of better documenting this how about adding this to 
-> include/linux/kernel.h right next to might_sleep():
-> 
-> #define disallow_sleeping_if(cond)��� for((cond) ? preempt_disable() : 
-> (void)0; (cond); preempt_disable())
-> 
-> (Just from the back of my head, might contain peanuts and/or hints of 
-> errors).
-
-I think these magic for blocks aren't used in the kernel. goto breaks
-them, and we use goto a lot. I think a disallow/allow_sleep() pair with
-the conditional preept_disable/enable() calls would be nice though. I can
-do that if the overall idea sticks.
--Daniel
-
-> 
-> Christian.
-> 
-> >   			if (_ret) {
-> >   				pr_info("%pS callback failed with %d in %sblockable context.\n",
-> >   						mn->ops->invalidate_range_start, _ret,
-> 
-
--- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-http://blog.ffwll.ch
+QW0gMjIuMTEuMTggdW0gMTc6NTEgc2NocmllYiBEYW5pZWwgVmV0dGVyOg0KPiBXZSBuZWVkIHRv
+IG1ha2Ugc3VyZSBpbXBsZW1lbnRhdGlvbnMgZG9uJ3QgY2hlYXQgYW5kIGRvbid0IGhhdmUgYQ0K
+PiBwb3NzaWJsZSBzY2hlZHVsZS9ibG9ja2luZyBwb2ludCBkZWVwbHkgYnVycmllZCB3aGVyZSBy
+ZXZpZXcgY2FuJ3QNCj4gY2F0Y2ggaXQuDQo+DQo+IEknbSBub3Qgc3VyZSB3aGV0aGVyIHRoaXMg
+aXMgdGhlIGJlc3Qgd2F5IHRvIG1ha2Ugc3VyZSBhbGwgdGhlDQo+IG1pZ2h0X3NsZWVwKCkgY2Fs
+bHNpdGVzIHRyaWdnZXIsIGFuZCBpdCdzIGEgYml0IHVnbHkgaW4gdGhlIGNvZGUgZmxvdy4NCj4g
+QnV0IGl0IGdldHMgdGhlIGpvYiBkb25lLg0KPg0KPiBDYzogQW5kcmV3IE1vcnRvbiA8YWtwbUBs
+aW51eC1mb3VuZGF0aW9uLm9yZz4NCj4gQ2M6IE1pY2hhbCBIb2NrbyA8bWhvY2tvQHN1c2UuY29t
+Pg0KPiBDYzogRGF2aWQgUmllbnRqZXMgPHJpZW50amVzQGdvb2dsZS5jb20+DQo+IENjOiAiQ2hy
+aXN0aWFuIEvDtm5pZyIgPGNocmlzdGlhbi5rb2VuaWdAYW1kLmNvbT4NCj4gQ2M6IERhbmllbCBW
+ZXR0ZXIgPGRhbmllbC52ZXR0ZXJAZmZ3bGwuY2g+DQo+IENjOiAiSsOpcsO0bWUgR2xpc3NlIiA8
+amdsaXNzZUByZWRoYXQuY29tPg0KPiBDYzogbGludXgtbW1Aa3ZhY2sub3JnDQo+IFNpZ25lZC1v
+ZmYtYnk6IERhbmllbCBWZXR0ZXIgPGRhbmllbC52ZXR0ZXJAaW50ZWwuY29tPg0KPiAtLS0NCj4g
+ICBtbS9tbXVfbm90aWZpZXIuYyB8IDggKysrKysrKy0NCj4gICAxIGZpbGUgY2hhbmdlZCwgNyBp
+bnNlcnRpb25zKCspLCAxIGRlbGV0aW9uKC0pDQo+DQo+IGRpZmYgLS1naXQgYS9tbS9tbXVfbm90
+aWZpZXIuYyBiL21tL21tdV9ub3RpZmllci5jDQo+IGluZGV4IDU5ZTEwMjU4OWEyNS4uNGQyODJj
+ZmIyOTZlIDEwMDY0NA0KPiAtLS0gYS9tbS9tbXVfbm90aWZpZXIuYw0KPiArKysgYi9tbS9tbXVf
+bm90aWZpZXIuYw0KPiBAQCAtMTg1LDcgKzE4NSwxMyBAQCBpbnQgX19tbXVfbm90aWZpZXJfaW52
+YWxpZGF0ZV9yYW5nZV9zdGFydChzdHJ1Y3QgbW1fc3RydWN0ICptbSwNCj4gICAJaWQgPSBzcmN1
+X3JlYWRfbG9jaygmc3JjdSk7DQo+ICAgCWhsaXN0X2Zvcl9lYWNoX2VudHJ5X3JjdShtbiwgJm1t
+LT5tbXVfbm90aWZpZXJfbW0tPmxpc3QsIGhsaXN0KSB7DQo+ICAgCQlpZiAobW4tPm9wcy0+aW52
+YWxpZGF0ZV9yYW5nZV9zdGFydCkgew0KPiAtCQkJaW50IF9yZXQgPSBtbi0+b3BzLT5pbnZhbGlk
+YXRlX3JhbmdlX3N0YXJ0KG1uLCBtbSwgc3RhcnQsIGVuZCwgYmxvY2thYmxlKTsNCj4gKwkJCWlu
+dCBfcmV0Ow0KPiArDQo+ICsJCQlpZiAoSVNfRU5BQkxFRChDT05GSUdfREVCVUdfQVRPTUlDX1NM
+RUVQKSAmJiAhYmxvY2thYmxlKQ0KPiArCQkJCXByZWVtcHRfZGlzYWJsZSgpOw0KPiArCQkJX3Jl
+dCA9IG1uLT5vcHMtPmludmFsaWRhdGVfcmFuZ2Vfc3RhcnQobW4sIG1tLCBzdGFydCwgZW5kLCBi
+bG9ja2FibGUpOw0KPiArCQkJaWYgKElTX0VOQUJMRUQoQ09ORklHX0RFQlVHX0FUT01JQ19TTEVF
+UCkgJiYgIWJsb2NrYWJsZSkNCj4gKwkJCQlwcmVlbXB0X2VuYWJsZSgpOw0KDQpKdXN0IGZvciB0
+aGUgc2FrZSBvZiBiZXR0ZXIgZG9jdW1lbnRpbmcgdGhpcyBob3cgYWJvdXQgYWRkaW5nIHRoaXMg
+dG8gDQppbmNsdWRlL2xpbnV4L2tlcm5lbC5oIHJpZ2h0IG5leHQgdG8gbWlnaHRfc2xlZXAoKToN
+Cg0KI2RlZmluZSBkaXNhbGxvd19zbGVlcGluZ19pZihjb25kKcKgwqDCoCBmb3IoKGNvbmQpID8g
+cHJlZW1wdF9kaXNhYmxlKCkgOiANCih2b2lkKTA7IChjb25kKTsgcHJlZW1wdF9kaXNhYmxlKCkp
+DQoNCihKdXN0IGZyb20gdGhlIGJhY2sgb2YgbXkgaGVhZCwgbWlnaHQgY29udGFpbiBwZWFudXRz
+IGFuZC9vciBoaW50cyBvZiANCmVycm9ycykuDQoNCkNocmlzdGlhbi4NCg0KPiAgIAkJCWlmIChf
+cmV0KSB7DQo+ICAgCQkJCXByX2luZm8oIiVwUyBjYWxsYmFjayBmYWlsZWQgd2l0aCAlZCBpbiAl
+c2Jsb2NrYWJsZSBjb250ZXh0LlxuIiwNCj4gICAJCQkJCQltbi0+b3BzLT5pbnZhbGlkYXRlX3Jh
+bmdlX3N0YXJ0LCBfcmV0LA0KDQo=
