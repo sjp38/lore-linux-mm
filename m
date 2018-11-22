@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 59A536B290E
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 21:56:11 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id o23so12837678pll.0
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 18:56:11 -0800 (PST)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A11BD6B28E2
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 21:20:04 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id 89so12377239ple.19
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 18:20:04 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y64sor46223274pgd.38.2018.11.21.18.56.09
+        by mx.google.com with SMTPS id 30sor56443776pgz.10.2018.11.21.18.20.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 21 Nov 2018 18:56:09 -0800 (PST)
+        Wed, 21 Nov 2018 18:20:03 -0800 (PST)
 From: =?utf-8?B?5q6154aK5pil?= <duanxiongchun@bytedance.com>
-Message-Id: <7348A2DF-87E8-4F88-B270-7FB71DB5C8CB@bytedance.com>
+Message-Id: <314D030F-2112-44E4-ABD3-A3A9B8597A3A@bytedance.com>
 Content-Type: multipart/alternative;
-	boundary="Apple-Mail=_B44ED4FD-3340-4525-B0B2-D7F8D1C4E36F"
+	boundary="Apple-Mail=_12BBE2AE-838C-40BB-B17E-6826CC2A0957"
 Mime-Version: 1.0 (Mac OS X Mail 12.1 \(3445.101.1\))
 Subject: Re: [Bug 201699] New: kmemleak in memcg_create_kmem_cache
-Date: Thu, 22 Nov 2018 10:56:04 +0800
+Date: Thu, 22 Nov 2018 10:19:58 +0800
 In-Reply-To: <20181121162747.GR12932@dhcp22.suse.cz>
 References: <bug-201699-27@https.bugzilla.kernel.org/>
  <20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org>
@@ -34,33 +34,30 @@ To: Michal Hocko <mhocko@kernel.org>
 Cc: dong <bauers@126.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
 
---Apple-Mail=_B44ED4FD-3340-4525-B0B2-D7F8D1C4E36F
+--Apple-Mail=_12BBE2AE-838C-40BB-B17E-6826CC2A0957
 Content-Transfer-Encoding: quoted-printable
 Content-Type: text/plain;
 	charset=utf-8
 
-We worry about that because in our system ,we use systemd manager our =
-service . One day we find some machine suddenly eat lots of memory.
-we find in some case=EF=BC=8Cour server will start fail just recording a =
-log then exit=E3=80=82 but the systemd will relaunch this server every 2 =
-second. That  server is limit memory access by memcg.
+I had view the slab kmem_cache_alloc function=EF=BC=8CI think the =
+virtual netdevice object will charged to memcg.
+Becuse the function slab_pre_alloc_hook will choose a kmem_cache, which =
+belong to current task memcg.
+If  virtual netdevice object not destroy by another command, the virtual =
+netdevice object will still charged to memcg, and the memcg will still =
+in memory.
 
-After long time dig, we find their lots of offline but not release memcg =
-object in memory eating lots of memory.
-Why this memcg not release? Because the inode pagecache use  some page =
-which is charged to those memcg,
+Above is just an example.
+The general scenario is as follows
+if a user process which has own memcg creates a semi-permeanent kernel =
+object , and does not release this kernel object before exit.
+The memcg which belong to this process will just offline but not release =
+until the semi-permeanent kernel object release.
 
-And we find some time the inode(log file inode ) is also charged to one  =
-memcg.  The only way to release that memcg is to free the inode =
-object(example, to remove the log file.)
+I think in those case=EF=BC=8C kernel will hold more memory than =
+user=E2=80=99s think=E3=80=82no just sizeof(struct blabla),but =
+sizeof(struct blabla) + memory memcg used.
 
-No matter which allocator  using (slab or slub), the problem is aways =
-there.=20
-
-After  I view the code in slab ,slub and memcg. I think in above general =
-scenario there maybe a problem.
-
-Thanks for replying
 bytedance.net
 =E6=AE=B5=E7=86=8A=E6=98=A5
 duanxiongchun@bytedance.com
@@ -87,34 +84,32 @@ ve_A type veth peer name ve_B).after that ,I destroy this mem cgroup=E3=80=
 > SUSE Labs
 
 
---Apple-Mail=_B44ED4FD-3340-4525-B0B2-D7F8D1C4E36F
+--Apple-Mail=_12BBE2AE-838C-40BB-B17E-6826CC2A0957
 Content-Transfer-Encoding: quoted-printable
 Content-Type: text/html;
 	charset=utf-8
 
 <html><head><meta http-equiv=3D"Content-Type" content=3D"text/html; =
 charset=3Dutf-8"></head><body style=3D"word-wrap: break-word; =
--webkit-nbsp-mode: space; line-break: after-white-space;" class=3D"">We =
-worry about that because in our system ,we use systemd manager our =
-service . One day we find some machine suddenly eat lots of memory.<div =
-class=3D"">we find in some case=EF=BC=8Cour server will start fail just =
-recording a log then exit=E3=80=82 but the systemd will relaunch this =
-server every 2 second. That &nbsp;server is limit memory access by =
-memcg.</div><div class=3D""><br class=3D""></div><div class=3D"">After =
-long time dig, we find their lots of offline but not release memcg =
-object in memory eating lots of memory.</div><div class=3D"">Why this =
-memcg not release? Because the inode pagecache use &nbsp;some page which =
-is charged to those memcg,</div><div class=3D""><br class=3D""></div><div =
-class=3D"">And we find some time the inode(log file inode ) is also =
-charged to one &nbsp;memcg. &nbsp;The only way to release that memcg is =
-to free the inode object(example, to remove the log file.)</div><div =
-class=3D""><br class=3D""></div><div class=3D"">No matter which =
-allocator &nbsp;using (slab or slub), the problem is aways =
-there.&nbsp;</div><div class=3D""><br class=3D""></div><div =
-class=3D"">After &nbsp;I view the code in slab ,slub and memcg. I think =
-in above general scenario there maybe a problem.</div><div class=3D""><br =
-class=3D""></div><div class=3D"">Thanks for replying</div><div =
-class=3D""><div class=3D"">
+-webkit-nbsp-mode: space; line-break: after-white-space;" class=3D"">I =
+had view the slab kmem_cache_alloc function=EF=BC=8CI think the virtual =
+netdevice object will charged to memcg.<div class=3D"">Becuse the =
+function slab_pre_alloc_hook will choose a kmem_cache, which belong to =
+current task memcg.</div><div class=3D"">If &nbsp;virtual netdevice =
+object not destroy by another command, the virtual netdevice object will =
+still charged to memcg, and the memcg will still in memory.</div><div =
+class=3D""><br class=3D""></div><div class=3D"">Above is just an =
+example.</div><div class=3D"">The general scenario is as =
+follows</div><div class=3D"">if a user process which has own memcg =
+creates a semi-permeanent kernel object , and does not release this =
+kernel object before exit.</div><div class=3D"">The memcg which belong =
+to this process will just offline but not release until the =
+semi-permeanent kernel object release.</div><div class=3D""><br =
+class=3D""></div><div class=3D"">I think in those case=EF=BC=8C kernel =
+will hold more memory than user=E2=80=99s think=E3=80=82no just =
+sizeof(struct blabla),but sizeof(struct blabla) + memory memcg =
+used.</div><div class=3D""><br class=3D""></div><div class=3D""><div =
+class=3D"">
 <div dir=3D"auto" style=3D"word-wrap: break-word; -webkit-nbsp-mode: =
 space; line-break: after-white-space;" class=3D""><div =
 style=3D"caret-color: rgb(0, 0, 0); color: rgb(0, 0, 0); font-family: =
@@ -145,4 +140,4 @@ accounting to a memcg is problematic.<br class=3D""><br class=3D"">-- =
 class=3D""></div></div></blockquote></div><br =
 class=3D""></div></body></html>=
 
---Apple-Mail=_B44ED4FD-3340-4525-B0B2-D7F8D1C4E36F--
+--Apple-Mail=_12BBE2AE-838C-40BB-B17E-6826CC2A0957--
