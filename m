@@ -1,164 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 302586B4AB0
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 16:44:04 -0500 (EST)
-Received: by mail-io1-f69.google.com with SMTP id e144-v6so23643026iof.13
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 13:44:04 -0800 (PST)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id q12si3692498jai.95.2018.11.27.13.43.59
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E9A326B2AF0
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 05:06:40 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id w185so8935842qka.9
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 02:06:40 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q10si25935081qvh.99.2018.11.22.02.06.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 27 Nov 2018 13:44:00 -0800 (PST)
-References: <154275556908.76910.8966087090637564219.stgit@dwillia2-desk3.amr.corp.intel.com>
- <154275558526.76910.7535251937849268605.stgit@dwillia2-desk3.amr.corp.intel.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <6875ca04-a36a-89ae-825b-f629ab011d47@deltatee.com>
-Date: Tue, 27 Nov 2018 14:43:52 -0700
-MIME-Version: 1.0
-In-Reply-To: <154275558526.76910.7535251937849268605.stgit@dwillia2-desk3.amr.corp.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-CA
-Content-Transfer-Encoding: 8bit
-Subject: Re: [PATCH v8 3/7] mm, devm_memremap_pages: Fix shutdown handling
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Nov 2018 02:06:39 -0800 (PST)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH v2 0/8] mm/kdump: allow to exclude pages that are logically offline
+Date: Thu, 22 Nov 2018 11:06:19 +0100
+Message-Id: <20181122100627.5189-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
-Cc: stable@vger.kernel.org, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Christoph Hellwig <hch@lst.de>, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, Bjorn Helgaas <bhelgaas@google.com>, Stephen Bates <sbates@raithlin.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, kexec-ml <kexec@lists.infradead.org>, pv-drivers@vmware.com, David Hildenbrand <david@redhat.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Alexey Dobriyan <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Baoquan He <bhe@redhat.com>, Borislav Petkov <bp@alien8.de>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Christian Hansen <chansen3@cisco.com>, Dave Young <dyoung@redhat.com>, David Rientjes <rientjes@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Jonathan Corbet <corbet@lwn.net>, Juergen Gross <jgross@suse.com>, Julien Freche <jfreche@vmware.com>, Kairui Song <kasong@redhat.com>, Kazuhito Hagio <k-hagio@ab.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, "K. Y. Srinivasan" <kys@microsoft.com>, Len Brown <len.brown@intel.com>, Lianbo Jiang <lijiang@redhat.com>, Matthew Wilcox <willy@infradead.org>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Miles Chen <miles.chen@mediatek.com>, Nadav Amit <namit@vmware.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Omar Sandoval <osandov@fb.com>, Pankaj gupta <pagupta@redhat.com>, Pavel Machek <pavel@ucw.cz>, Pavel Tatashin <pasha.tatashin@oracle.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Stefano Stabellini <sstabellini@kernel.org>, Stephen Hemminger <sthemmin@microsoft.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Vitaly Kuznetsov <vkuznets@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Xavier Deguillard <xdeguillard@vmware.com>
 
-Hey Dan,
+Right now, pages inflated as part of a balloon driver will be dumped
+by dump tools like makedumpfile. While XEN is able to check in the
+crash kernel whether a certain pfn is actually backed by memory in the
+hypervisor (see xen_oldmem_pfn_is_ram) and optimize this case, dumps of
+virtio-balloon, hv-balloon and VMWare balloon inflated memory will
+essentially result in zero pages getting allocated by the hypervisor and
+the dump getting filled with this data.
 
-On 2018-11-20 4:13 p.m., Dan Williams wrote:
-> The last step before devm_memremap_pages() returns success is to
-> allocate a release action, devm_memremap_pages_release(), to tear the
-> entire setup down. However, the result from devm_add_action() is not
-> checked.
-> 
-> Checking the error from devm_add_action() is not enough. The api
-> currently relies on the fact that the percpu_ref it is using is killed
-> by the time the devm_memremap_pages_release() is run. Rather than
-> continue this awkward situation, offload the responsibility of killing
-> the percpu_ref to devm_memremap_pages_release() directly. This allows
-> devm_memremap_pages() to do the right thing  relative to init failures
-> and shutdown.
-> 
-> Without this change we could fail to register the teardown of
-> devm_memremap_pages(). The likelihood of hitting this failure is tiny as
-> small memory allocations almost always succeed. However, the impact of
-> the failure is large given any future reconfiguration, or
-> disable/enable, of an nvdimm namespace will fail forever as subsequent
-> calls to devm_memremap_pages() will fail to setup the pgmap_radix since
-> there will be stale entries for the physical address range.
-> 
-> An argument could be made to require that the ->kill() operation be set
-> in the @pgmap arg rather than passed in separately. However, it helps
-> code readability, tracking the lifetime of a given instance, to be able
-> to grep the kill routine directly at the devm_memremap_pages() call
-> site.
-> 
-> Cc: <stable@vger.kernel.org>
-> Fixes: e8d513483300 ("memremap: change devm_memremap_pages interface...")
-> Reviewed-by: "Jérôme Glisse" <jglisse@redhat.com>
-> Reported-by: Logan Gunthorpe <logang@deltatee.com>
-> Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
-> Reviewed-by: Christoph Hellwig <hch@lst.de>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+The allocation and reading of zero pages can directly be avoided if a
+dumping tool could know which pages only contain stale information not to
+be dumped.
 
-I recently realized this patch, which was recently added to the mm tree,
-will break p2pdma. This is largely because the patch was written and
-reviewed before p2pdma was merged (in 4.20). Originally, I think we both
-expected this patch would be merged before p2pdma but that's not what
-happened.
+Also for XEN, calling into the kernel and asking the hypervisor if a
+pfn is backed can be avoided if the duming tool would skip such pages
+right from the beginning.
 
-Also, while testing this, I found the teardown is still not quite
-correct. In p2pdma, the struct pages will be removed before all of the
-percpu references have released and if the device is unbound while pages
-are in use, there will be a kernel panic. This is because we wait on the
-completion that indicates all references have been free'd after
-devm_memremap_pages_release() is called and the pages are removed. This
-is fairly easily fixed by waiting for the completion in the kill
-function and moving the call after the last put_page(). I suspect device
-DAX also has this problem but I'm not entirely certain if something else
-might be preventing us from hitting this bug.
+Dumping tools have no idea whether a given page is part of a balloon driver
+and shall not be dumped. Esp. PG_reserved cannot be used for that purpose
+as all memory allocated during early boot is also PG_reserved, see
+discussion at [1]. So some other way of indication is required and a new
+page flag is frowned upon.
 
-Ideally, as part of this patch we need to update the p2pdma call site
-for devm_memremap_pages() and fix the completion issue. The diff for all
-this is below, but if you'd like I can send a proper patch.
+We have PG_balloon (MAPCOUNT value), which is essentially unused now. I
+suggest renaming it to something more generic (PG_offline) to mark pages as
+logically offline. This flag can than e.g. also be used by virtio-mem in
+the future to mark subsections as offline. Or by other code that wants to
+put pages logically offline (e.g. later maybe poisoned pages that shall
+no longer be used).
 
-Thanks,
+This series converts PG_balloon to PG_offline, allows dumping tools to
+query the value to detect such pages and marks pages in the hv-balloon
+and XEN balloon properly as PG_offline. Note that virtio-balloon already
+set pages to PG_balloon (and now PG_offline).
 
-Logan
+Please note that this is also helpful for a problem we were seeing under
+Hyper-V: Dumping logically offline memory (pages kept fake offline while
+onlining a section via online_page_callback) would under some condicions
+result in a kernel panic when dumping them.
 
---
+As I don't have access to neither XEN nor Hyper-V nor VMWare installations,
+this was only tested with the virtio-balloon and pages were properly
+skipped when dumping. I'll also attach the makedumpfile patch to this
+series.
+
+[1] https://lkml.org/lkml/2018/7/20/566
+
+v1 -> v2:
+- "kexec: export PG_offline to VMCOREINFO"
+-- Add description why it is exported as a macro
+- "vmw_balloon: mark inflated pages PG_offline"
+-- Use helper function + adapt comments
+- "PM / Hibernate: exclude all PageOffline() pages"
+-- Perform the check separate from swsusp checks.
+- Added RBs/ACKs
 
 
-diff --git a/drivers/pci/p2pdma.c b/drivers/pci/p2pdma.c
-index ae3c5b25dcc7..1df7bdb45eab 100644
---- a/drivers/pci/p2pdma.c
-+++ b/drivers/pci/p2pdma.c
-@@ -82,9 +82,10 @@ static void pci_p2pdma_percpu_release(struct
-percpu_ref *ref)
-        complete_all(&p2p->devmap_ref_done);
- }
+David Hildenbrand (8):
+  mm: balloon: update comment about isolation/migration/compaction
+  mm: convert PG_balloon to PG_offline
+  kexec: export PG_offline to VMCOREINFO
+  xen/balloon: mark inflated pages PG_offline
+  hv_balloon: mark inflated pages PG_offline
+  vmw_balloon: mark inflated pages PG_offline
+  PM / Hibernate: use pfn_to_online_page()
+  PM / Hibernate: exclude all PageOffline() pages
 
--static void pci_p2pdma_percpu_kill(void *data)
-+static void pci_p2pdma_percpu_kill(struct percpu_ref *ref)
- {
--       struct percpu_ref *ref = data;
-+       struct pci_p2pdma *p2p =
-+               container_of(ref, struct pci_p2pdma, devmap_ref);
+ Documentation/admin-guide/mm/pagemap.rst |  9 ++++---
+ drivers/hv/hv_balloon.c                  | 14 ++++++++--
+ drivers/misc/vmw_balloon.c               | 32 ++++++++++++++++++++++
+ drivers/xen/balloon.c                    |  3 +++
+ fs/proc/page.c                           |  4 +--
+ include/linux/balloon_compaction.h       | 34 +++++++++---------------
+ include/linux/page-flags.h               | 11 +++++---
+ include/uapi/linux/kernel-page-flags.h   |  2 +-
+ kernel/crash_core.c                      |  2 ++
+ kernel/power/snapshot.c                  | 17 +++++++-----
+ tools/vm/page-types.c                    |  2 +-
+ 11 files changed, 90 insertions(+), 40 deletions(-)
 
-        /*
-         * pci_p2pdma_add_resource() may be called multiple times
-@@ -96,6 +97,7 @@ static void pci_p2pdma_percpu_kill(void *data)
-                return;
-
-        percpu_ref_kill(ref);
-+       wait_for_completion(&p2p->devmap_ref_done);
- }
-
- static void pci_p2pdma_release(void *data)
-@@ -105,7 +107,6 @@ static void pci_p2pdma_release(void *data)
-        if (!pdev->p2pdma)
-                return;
-
--       wait_for_completion(&pdev->p2pdma->devmap_ref_done);
-        percpu_ref_exit(&pdev->p2pdma->devmap_ref);
-
-        gen_pool_destroy(pdev->p2pdma->pool);
-@@ -198,6 +199,7 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev,
-int bar, size_t size,
-        pgmap->type = MEMORY_DEVICE_PCI_P2PDMA;
-        pgmap->pci_p2pdma_bus_offset = pci_bus_address(pdev, bar) -
-                pci_resource_start(pdev, bar);
-+       pgmap->kill = pci_p2pdma_percpu_kill;
-
-        addr = devm_memremap_pages(&pdev->dev, pgmap);
-        if (IS_ERR(addr)) {
-@@ -211,11 +213,6 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev,
-int bar, size_t size,
-        if (error)
-                goto pgmap_free;
-
--       error = devm_add_action_or_reset(&pdev->dev, pci_p2pdma_percpu_kill,
--                                         &pdev->p2pdma->devmap_ref);
--       if (error)
--               goto pgmap_free;
--
-        pci_info(pdev, "added peer-to-peer DMA memory %pR\n",
-                 &pgmap->res);
-
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 5e45f0c327a5..dd9a953e796a 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -88,9 +88,9 @@ static void devm_memremap_pages_release(void *data)
-        resource_size_t align_start, align_size;
-        unsigned long pfn;
-
--       pgmap->kill(pgmap->ref);
-        for_each_device_pfn(pfn, pgmap)
-                put_page(pfn_to_page(pfn));
-+       pgmap->kill(pgmap->ref);
-
-        /* pages are dead and unused, undo the arch mapping */
-        align_start = res->start & ~(SECTION_SIZE - 1);
+-- 
+2.17.2
