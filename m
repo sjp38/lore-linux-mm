@@ -1,63 +1,122 @@
-From: Richard Weinberger <richard@nod.at>
-Subject: Re: [PATCH -next 0/3] Add support for fast mremap
-Date: Sat, 03 Nov 2018 10:15:11 +0100
-Message-ID: <6886607.O3ZT5bM3Cy@blindfold>
-References: <20181103040041.7085-1-joelaf@google.com>
+From: Guo Ren <ren_guo-Y+KPrCd2zL4AvxtiuMwx3w@public.gmane.org>
+Subject: Re: [PATCH] mm: convert totalram_pages, totalhigh_pages and
+ managed_pages to atomic.
+Date: Thu, 22 Nov 2018 09:33:10 +0800
+Message-ID: <20181122013310.GA20480@guoren-Inspiron-7460>
+References: <1540229092-25207-1-git-send-email-arunks@codeaurora.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-Return-path: <linux-snps-arc-bounces+gla-linux-snps-arc=m.gmane.org@lists.infradead.org>
-In-Reply-To: <20181103040041.7085-1-joelaf@google.com>
-List-Unsubscribe: <http://lists.infradead.org/mailman/options/linux-snps-arc>,
- <mailto:linux-snps-arc-request@lists.infradead.org?subject=unsubscribe>
-List-Archive: <http://lists.infradead.org/pipermail/linux-snps-arc/>
-List-Post: <mailto:linux-snps-arc@lists.infradead.org>
-List-Help: <mailto:linux-snps-arc-request@lists.infradead.org?subject=help>
-List-Subscribe: <http://lists.infradead.org/mailman/listinfo/linux-snps-arc>,
- <mailto:linux-snps-arc-request@lists.infradead.org?subject=subscribe>
-Sender: "linux-snps-arc" <linux-snps-arc-bounces@lists.infradead.org>
-Errors-To: linux-snps-arc-bounces+gla-linux-snps-arc=m.gmane.org@lists.infradead.org
-To: Joel Fernandes <joel@joelfernandes.org>
-Cc: Joel Fernandes <joelaf@google.com>, linux-mips@linux-mips.org, Rich Felker <dalias@libc.org>, linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon <will.deacon@arm.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, lokeshgidra@google.com, sparclinux@vger.kernel.org, linux-riscv@lists.infradead.org, linux-ia64@vge, elfring@users.sourceforge.net, Jonas Bonn <jonas@southpole.se>, kvmarm@lists.cs.columbia.edu, dancol@google.com, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-xtensa@linux-xtensa.org, linux-hexagon@vger.kernel.org, Helge Deller <deller@gmx.de>, r.kernel.org@lithops.sigma-star.at, hughd@google.com, "James E.J. Bottomley" <jejb@parisc-linux.org>, kasan-dev@googlegroups.com
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <linux-mediatek-bounces+glpam-linux-mediatek=m.gmane.org-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org>
+Content-Disposition: inline
+In-Reply-To: <1540229092-25207-1-git-send-email-arunks-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>
+List-Unsubscribe: <http://lists.infradead.org/mailman/options/linux-mediatek>,
+ <mailto:linux-mediatek-request-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org?subject=unsubscribe>
+List-Archive: <http://lists.infradead.org/pipermail/linux-mediatek/>
+List-Post: <mailto:linux-mediatek-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org>
+List-Help: <mailto:linux-mediatek-request-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org?subject=help>
+List-Subscribe: <http://lists.infradead.org/mailman/listinfo/linux-mediatek>,
+ <mailto:linux-mediatek-request-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org?subject=subscribe>
+Sender: "Linux-mediatek" <linux-mediatek-bounces-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org>
+Errors-To: linux-mediatek-bounces+glpam-linux-mediatek=m.gmane.org-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org
+To: Arun KS <arunks-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>
+Cc: Mike Snitzer <snitzer-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Benjamin Herrenschmidt <benh-XVmvHMARGAS8U2dJNN8I7kB+6BGkLq7r@public.gmane.org>, Kemi Wang <kemi.wang-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>, dri-devel-PD4FTy7X32lNgt0PjOBp9y5qC8QIuHrW@public.gmane.org, "J. Bruce Fields" <bfields-uC3wQj2KruNg9hUCZPvPmw@public.gmane.org>, linux-sctp-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Paul Mackerras <paulus-eUNUBHrolfbYtjvyW6yDsg@public.gmane.org>, Pavel Machek <pavel-+ZI9xUNit7I@public.gmane.org>, Christoph Lameter <cl-vYTEC60ixJUAvxtiuMwx3w@public.gmane.org>, "K. Y. Srinivasan" <kys-0li6OtcxBFHby3iVrkZq2A@public.gmane.org>, Sumit Semwal <sumit.semwal-QSEj5FYQhm4dnm+yROfE0A@public.gmane.org>, "David (ChunMing) Zhou" <David1.Zhou-5C7GfCeVMHo@public.gmane.org>, Petr Tesarik <ptesarik-IBi9RG/b67k@public.gmane.org>, Michael Ellerman <mpe-Gsx/Oe8HsFggBc27wqDAHg@public.gmane.org>, ceph-devel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, James Morris <jmorris-gx6/JNMH7DfYtjvyW6yDsg@public.gmane.org>, kasan-dev-/JYPxA39Uh5TLH3MbocFFw@public.gmane.org, Marcos Paulo de Souza <marcos.souza.org-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org>, "Steven J. Hill" <steven.hill-YGCgFSpz5w/QT0dZR+AlfA@public.gmane.org>, David Rientjes <rientjes-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, Anthony Yznaga <anthony.yznaga-QHcLZuEGTsvQT0dZR+AlfA@public.gmane.org>, Daniel Vacek <neelx-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Roman Gushchin <guro-b10kYP2dOMg@public.gmane.org>, Len Brown <len.brown-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>
 List-Id: linux-mm.kvack.org
 
-Sm9lbCwKCkFtIFNhbXN0YWcsIDMuIE5vdmVtYmVyIDIwMTgsIDA1OjAwOjM4IENFVCBzY2hyaWVi
-IEpvZWwgRmVybmFuZGVzOgo+IEhpLAo+IEhlcmUgaXMgdGhlIGxhdGVzdCAiZmFzdCBtcmVtYXAi
-IHNlcmllcy4gVGhpcyBqdXN0IGEgcmVwb3N0IHdpdGggS2lyaWxsJ3MKPiBBY2tlZC1ieXMgYWRk
-ZWQuIEkgd291bGQgbGlrZSB0aGlzIHRvIGJlIGNvbnNpZGVyZWQgZm9yIGxpbnV4IC1uZXh0LiAg
-SSBhbHNvCj4gZHJvcHBlZCB0aGUgQ09ORklHIGVuYWJsZW1lbnQgcGF0Y2ggZm9yIGFybTY0IHNp
-bmNlIEkgYW0geWV0IHRvIHRlc3QgaXQgd2l0aAo+IHRoZSBuZXcgVExCIGZsdXNoaW5nIGNvZGUg
-dGhhdCBpcyBpbiB2ZXJ5IHJlY2VudCBrZXJuZWwgcmVsZWFzZXMuIChOb25lIG9mIG15Cj4gYXJt
-NjQgZGV2aWNlcyBydW4gbWFpbmxpbmUgcmlnaHQgbm93Likgc28gSSB3aWxsIHBvc3QgdGhlIGFy
-bTY0IGVuYWJsZW1lbnQgb25jZQo+IEkgZ2V0IHRvIHRoYXQuIFRoZSBwZXJmb3JtYW5jZSBudW1i
-ZXJzIGluIHRoZSBzZXJpZXMgYXJlIGZvciB4ODYuCj4gCj4gTGlzdCBvZiBwYXRjaGVzIGluIHNl
-cmllczoKPiAKPiAoMSkgbW06IHNlbGVjdCBIQVZFX01PVkVfUE1EIGluIHg4NiBmb3IgZmFzdGVy
-IG1yZW1hcAo+IAo+ICgyKSBtbTogc3BlZWQgdXAgbXJlbWFwIGJ5IDIweCBvbiBsYXJnZSByZWdp
-b25zICh2NCkKPiB2MS0+djI6IEFkZGVkIHN1cHBvcnQgZm9yIHBlci1hcmNoIGVuYWJsZW1lbnQg
-KEtpcmlsbCBTaHV0ZW1vdikKPiB2Mi0+djM6IFVwZGF0ZWQgY29tbWl0IG1lc3NhZ2UgdG8gc3Rh
-dGUgdGhlIG9wdGltaXphdGlvbiBtYXkgYWxzbwo+IAlydW4gZm9yIG5vbi10aHAgdHlwZSBvZiBz
-eXN0ZW1zIChEYW5pZWwgQ29sKS4KPiB2My0+djQ6IFJlbW92ZSB1c2VsZXNzIHBtZF9sb2NrIGNo
-ZWNrIChLaXJpbGwgU2h1dGVtb3YpCj4gCVJlYmFzZWQgb250b3Agb2YgTGludXMncyBtYXN0ZXIs
-IHVwZGF0ZWQgcGVyZiByZXN1bHRzIGJhc2VkCj4gICAgICAgICBvbiB4ODYgdGVzdGluZy4gQWRk
-ZWQgS2lyaWxsJ3MgQWNrcy4KPiAKPiAoMykgbW06IHRyZWV3aWRlOiByZW1vdmUgdW51c2VkIGFk
-ZHJlc3MgYXJndW1lbnQgZnJvbSBwdGVfYWxsb2MgZnVuY3Rpb25zICh2MikKPiB2MS0+djI6IGZp
-eCBhcmNoL3VtLyBwcm90b3R5cGUgd2hpY2ggd2FzIG1pc3NlZCBpbiB2MSAoQW50b24gSXZhbm92
-KQo+ICAgICAgICAgdXBkYXRlIGNoYW5nZWxvZyB3aXRoIG1hbnVhbCBmaXh1cHMgZm9yIG02OGsg
-YW5kIG1pY3JvYmxhemUuCj4gCj4gbm90IGluY2x1ZGVkIC0gKDQpIG1tOiBzZWxlY3QgSEFWRV9N
-T1ZFX1BNRCBpbiBhcm02NCBmb3IgZmFzdGVyIG1yZW1hcAo+ICAgICBUaGlzIHBhdGNoIGlzIGRy
-b3BwZWQgc2luY2UgbGFzdCBwb3N0aW5nIHBlbmRpbmcgZnVydGhlciBwZXJmb3JtYW5jZQo+ICAg
-ICB0ZXN0aW5nIG9uIGFybTY0IHdpdGggbmV3IFRMQiBnYXRoZXIgdXBkYXRlcy4gU2VlIG5vdGVz
-IGluIHBhdGNoCj4gICAgIHRpdGxlZCAibW06IHNwZWVkIHVwIG1yZW1hcCBieSA1MDB4IG9uIGxh
-cmdlIHJlZ2lvbnMiIGZvciBtb3JlCj4gICAgIGRldGFpbHMuCj4gCgpUaGlzIGJyZWFrcyBVTUwg
-YnVpbGQ6CiAgQ0MgICAgICBtbS9tcmVtYXAubwptbS9tcmVtYXAuYzogSW4gZnVuY3Rpb24g4oCY
-bW92ZV9ub3JtYWxfcG1k4oCZOgptbS9tcmVtYXAuYzoyMjk6MjogZXJyb3I6IGltcGxpY2l0IGRl
-Y2xhcmF0aW9uIG9mIGZ1bmN0aW9uIOKAmHNldF9wbWRfYXTigJk7IGRpZCB5b3UgbWVhbiDigJhz
-ZXRfcHRlX2F04oCZPyBbLVdlcnJvcj1pbXBsaWNpdC1mdW5jdGlvbi1kZWNsYXJhdGlvbl0KICBz
-ZXRfcG1kX2F0KG1tLCBuZXdfYWRkciwgbmV3X3BtZCwgcG1kKTsKICBefn5+fn5+fn5+CiAgc2V0
-X3B0ZV9hdAogIENDICAgICAgY3J5cHRvL3JuZy5vCiAgQ0MgICAgICBmcy9kaXJlY3QtaW8ubwpj
-YzE6IHNvbWUgd2FybmluZ3MgYmVpbmcgdHJlYXRlZCBhcyBlcnJvcnMKClRvIHRlc3QgeW91cnNl
-bGYsIGp1c3QgcnVuIG9uIGEgeDg2IGJveDoKJCBtYWtlIGRlZmNvbmZpZyBBUkNIPXVtCiQgbWFr
-ZSBsaW51eCBBUkNIPXVtCgpUaGFua3MsCi8vcmljaGFyZAoKCgpfX19fX19fX19fX19fX19fX19f
-X19fX19fX19fX19fX19fX19fX19fX19fX19fXwpsaW51eC1zbnBzLWFyYyBtYWlsaW5nIGxpc3QK
-bGludXgtc25wcy1hcmNAbGlzdHMuaW5mcmFkZWFkLm9yZwpodHRwOi8vbGlzdHMuaW5mcmFkZWFk
-Lm9yZy9tYWlsbWFuL2xpc3RpbmZvL2xpbnV4LXNucHMtYXJj
+On Mon, Oct 22, 2018 at 10:53:22PM +0530, Arun KS wrote:
+> Remove managed_page_count_lock spinlock and instead use atomic
+> variables.
+> 
+> Suggested-by: Michal Hocko <mhocko-IBi9RG/b67k@public.gmane.org>
+> Suggested-by: Vlastimil Babka <vbabka-AlSwsSmVLrQ@public.gmane.org>
+> Signed-off-by: Arun KS <arunks-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>
+> 
+> ---
+> As discussed here,
+> https://patchwork.kernel.org/patch/10627521/#22261253
+> ---
+> ---
+>  arch/csky/mm/init.c                           |  4 +-
+>  arch/powerpc/platforms/pseries/cmm.c          | 11 ++--
+>  arch/s390/mm/init.c                           |  2 +-
+>  arch/um/kernel/mem.c                          |  4 +-
+>  arch/x86/kernel/cpu/microcode/core.c          |  5 +-
+>  drivers/char/agp/backend.c                    |  4 +-
+>  drivers/gpu/drm/amd/amdkfd/kfd_crat.c         |  2 +-
+>  drivers/gpu/drm/i915/i915_gem.c               |  2 +-
+>  drivers/gpu/drm/i915/selftests/i915_gem_gtt.c |  4 +-
+>  drivers/hv/hv_balloon.c                       | 19 +++----
+>  drivers/md/dm-bufio.c                         |  5 +-
+>  drivers/md/dm-crypt.c                         |  4 +-
+>  drivers/md/dm-integrity.c                     |  4 +-
+>  drivers/md/dm-stats.c                         |  3 +-
+>  drivers/media/platform/mtk-vpu/mtk_vpu.c      |  3 +-
+>  drivers/misc/vmw_balloon.c                    |  2 +-
+>  drivers/parisc/ccio-dma.c                     |  5 +-
+>  drivers/parisc/sba_iommu.c                    |  5 +-
+>  drivers/staging/android/ion/ion_system_heap.c |  2 +-
+>  drivers/xen/xen-selfballoon.c                 |  7 +--
+>  fs/ceph/super.h                               |  3 +-
+>  fs/file_table.c                               |  9 ++--
+>  fs/fuse/inode.c                               |  4 +-
+>  fs/nfs/write.c                                |  3 +-
+>  fs/nfsd/nfscache.c                            |  3 +-
+>  fs/ntfs/malloc.h                              |  2 +-
+>  fs/proc/base.c                                |  3 +-
+>  include/linux/highmem.h                       |  2 +-
+>  include/linux/mm.h                            |  2 +-
+>  include/linux/mmzone.h                        | 10 +---
+>  include/linux/swap.h                          |  2 +-
+>  kernel/fork.c                                 |  6 +--
+>  kernel/kexec_core.c                           |  5 +-
+>  kernel/power/snapshot.c                       |  2 +-
+>  lib/show_mem.c                                |  3 +-
+>  mm/highmem.c                                  |  2 +-
+>  mm/huge_memory.c                              |  2 +-
+>  mm/kasan/quarantine.c                         |  4 +-
+>  mm/memblock.c                                 |  6 +--
+>  mm/memory_hotplug.c                           |  4 +-
+>  mm/mm_init.c                                  |  3 +-
+>  mm/oom_kill.c                                 |  2 +-
+>  mm/page_alloc.c                               | 75 ++++++++++++++-------------
+>  mm/shmem.c                                    | 12 +++--
+>  mm/slab.c                                     |  3 +-
+>  mm/swap.c                                     |  3 +-
+>  mm/util.c                                     |  2 +-
+>  mm/vmalloc.c                                  |  4 +-
+>  mm/vmstat.c                                   |  4 +-
+>  mm/workingset.c                               |  2 +-
+>  mm/zswap.c                                    |  2 +-
+>  net/dccp/proto.c                              |  6 +--
+>  net/decnet/dn_route.c                         |  2 +-
+>  net/ipv4/tcp_metrics.c                        |  2 +-
+>  net/netfilter/nf_conntrack_core.c             |  6 +--
+>  net/netfilter/xt_hashlimit.c                  |  4 +-
+>  net/sctp/protocol.c                           |  6 +--
+>  security/integrity/ima/ima_kexec.c            |  2 +-
+>  58 files changed, 171 insertions(+), 143 deletions(-)
+> 
+> diff --git a/arch/csky/mm/init.c b/arch/csky/mm/init.c
+> index dc07c07..3f4d35e 100644
+> --- a/arch/csky/mm/init.c
+> +++ b/arch/csky/mm/init.c
+> @@ -71,7 +71,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
+>  		ClearPageReserved(virt_to_page(start));
+>  		init_page_count(virt_to_page(start));
+>  		free_page(start);
+> -		totalram_pages++;
+> +		atomic_long_inc(&totalram_pages);
+>  	}
+>  }
+>  #endif
+> @@ -88,7 +88,7 @@ void free_initmem(void)
+>  		ClearPageReserved(virt_to_page(addr));
+>  		init_page_count(virt_to_page(addr));
+>  		free_page(addr);
+> -		totalram_pages++;
+> +		atomic_long_inc(&totalram_pages);
+>  		addr += PAGE_SIZE;
+>  	}
+For csky part, it's OK.
+
+ Guo Ren
