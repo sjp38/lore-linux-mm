@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 145346B2CF4
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 14:56:12 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id g188so3004749pgc.22
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 11:56:12 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0959A6B2CEA
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 14:54:40 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id h9so3062470pgm.1
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 11:54:40 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id t3si32217804pgl.108.2018.11.22.11.56.10
+        by mx.google.com with ESMTPS id h191si21267462pgc.302.2018.11.22.11.54.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Nov 2018 11:56:10 -0800 (PST)
+        Thu, 22 Nov 2018 11:54:38 -0800 (PST)
 From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.14 19/21] z3fold: fix possible reclaim races
-Date: Thu, 22 Nov 2018 14:54:50 -0500
-Message-Id: <20181122195452.13520-19-sashal@kernel.org>
-In-Reply-To: <20181122195452.13520-1-sashal@kernel.org>
-References: <20181122195452.13520-1-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.19 33/36] z3fold: fix possible reclaim races
+Date: Thu, 22 Nov 2018 14:52:37 -0500
+Message-Id: <20181122195240.13123-33-sashal@kernel.org>
+In-Reply-To: <20181122195240.13123-1-sashal@kernel.org>
+References: <20181122195240.13123-1-sashal@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: stable@vger.kernel.org, linux-kernel@vger.kernel.org
@@ -51,7 +51,7 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  1 file changed, 62 insertions(+), 39 deletions(-)
 
 diff --git a/mm/z3fold.c b/mm/z3fold.c
-index f33403d718ac..2813cdfa46b9 100644
+index 4b366d181f35..aee9b0b8d907 100644
 --- a/mm/z3fold.c
 +++ b/mm/z3fold.c
 @@ -99,6 +99,7 @@ struct z3fold_header {
@@ -107,7 +107,7 @@ index f33403d718ac..2813cdfa46b9 100644
  /*
   * (handle & BUDDY_MASK) < zhdr->first_num is possible in encode_handle
   *  but that doesn't matter. because the masking will result in the
-@@ -717,37 +727,39 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+@@ -720,37 +730,39 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
  	page = virt_to_page(zhdr);
  
  	if (test_bit(PAGE_HEADLESS, &page->private)) {
@@ -175,7 +175,7 @@ index f33403d718ac..2813cdfa46b9 100644
  		return;
  	}
  
-@@ -755,7 +767,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+@@ -758,7 +770,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
  		atomic64_dec(&pool->pages_nr);
  		return;
  	}
@@ -184,7 +184,7 @@ index f33403d718ac..2813cdfa46b9 100644
  		z3fold_page_unlock(zhdr);
  		return;
  	}
-@@ -833,20 +845,30 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+@@ -836,20 +848,30 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
  		}
  		list_for_each_prev(pos, &pool->lru) {
  			page = list_entry(pos, struct page, lru);
@@ -219,7 +219,7 @@ index f33403d718ac..2813cdfa46b9 100644
  		list_del_init(&page->lru);
  		spin_unlock(&pool->lock);
  
-@@ -895,6 +917,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+@@ -898,6 +920,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
  		if (test_bit(PAGE_HEADLESS, &page->private)) {
  			if (ret == 0) {
  				free_z3fold_page(page);
@@ -227,7 +227,7 @@ index f33403d718ac..2813cdfa46b9 100644
  				return 0;
  			}
  			spin_lock(&pool->lock);
-@@ -902,7 +925,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+@@ -905,7 +928,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
  			spin_unlock(&pool->lock);
  		} else {
  			z3fold_page_lock(zhdr);
@@ -236,7 +236,7 @@ index f33403d718ac..2813cdfa46b9 100644
  			if (kref_put(&zhdr->refcount,
  					release_z3fold_page_locked)) {
  				atomic64_dec(&pool->pages_nr);
-@@ -961,7 +984,7 @@ static void *z3fold_map(struct z3fold_pool *pool, unsigned long handle)
+@@ -964,7 +987,7 @@ static void *z3fold_map(struct z3fold_pool *pool, unsigned long handle)
  		set_bit(MIDDLE_CHUNK_MAPPED, &page->private);
  		break;
  	case LAST:
