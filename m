@@ -1,97 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C0C0B6B52A4
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2018 07:52:32 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id h11so1372787pfj.13
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2018 04:52:32 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id b91si2309972plb.11.2018.11.29.04.52.31
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 47E2D6B2878
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 19:52:59 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id m13so12104578pls.15
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 16:52:59 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r2sor30764195pgv.24.2018.11.21.16.52.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Nov 2018 04:52:31 -0800 (PST)
-Date: Thu, 29 Nov 2018 13:52:28 +0100
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH] mm: hide incomplete nr_indirectly_reclaimable in
- /proc/zoneinfo
-Message-ID: <20181129125228.GN3149@kroah.com>
-References: <20181030174649.16778-1-guro@fb.com>
+        (Google Transport Security);
+        Wed, 21 Nov 2018 16:52:58 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181030174649.16778-1-guro@fb.com>
+References: <20181111090341.120786-1-drinkcat@chromium.org>
+ <20181111090341.120786-3-drinkcat@chromium.org> <01000167378bf31a-a639b46c-4d1d-43de-9bed-9cdd9c07fa94-000000@email.amazonses.com>
+In-Reply-To: <01000167378bf31a-a639b46c-4d1d-43de-9bed-9cdd9c07fa94-000000@email.amazonses.com>
+From: Nicolas Boichat <drinkcat@chromium.org>
+Date: Thu, 22 Nov 2018 08:52:46 +0800
+Message-ID: <CANMq1KD4j=Zh1izN8Ujn3+ZsdMMzCLPurfkXTkM9TyQaTptjFw@mail.gmail.com>
+Subject: Re: [PATCH v2 2/3] mm: Add support for SLAB_CACHE_DMA32
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: "stable@vger.kernel.org" <stable@vger.kernel.org>, Yongqin Liu <yongqin.liu@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Robin Murphy <robin.murphy@arm.com>, Will Deacon <will.deacon@arm.com>, Joerg Roedel <joro@8bytes.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm Mailing List <linux-arm-kernel@lists.infradead.org>, iommu@lists.linux-foundation.org, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Matthias Brugger <matthias.bgg@gmail.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com
 
-On Tue, Oct 30, 2018 at 05:48:25PM +0000, Roman Gushchin wrote:
-> Yongqin reported that /proc/zoneinfo format is broken in 4.14
-> due to commit 7aaf77272358 ("mm: don't show nr_indirectly_reclaimable
-> in /proc/vmstat")
-> 
-> Node 0, zone      DMA
->   per-node stats
->       nr_inactive_anon 403
->       nr_active_anon 89123
->       nr_inactive_file 128887
->       nr_active_file 47377
->       nr_unevictable 2053
->       nr_slab_reclaimable 7510
->       nr_slab_unreclaimable 10775
->       nr_isolated_anon 0
->       nr_isolated_file 0
->       <...>
->       nr_vmscan_write 0
->       nr_vmscan_immediate_reclaim 0
->       nr_dirtied   6022
->       nr_written   5985
->                    74240
->       ^^^^^^^^^^
->   pages free     131656
-> 
-> The problem is caused by the nr_indirectly_reclaimable counter,
-> which is hidden from the /proc/vmstat, but not from the
-> /proc/zoneinfo. Let's fix this inconsistency and hide the
-> counter from /proc/zoneinfo exactly as from /proc/vmstat.
-> 
-> BTW, in 4.19+ the counter has been renamed and exported by
-> the commit b29940c1abd7 ("mm: rename and change semantics of
-> nr_indirectly_reclaimable_bytes"), so there is no such a problem
-> anymore.
-> 
-> Cc: <stable@vger.kernel.org> # 4.14.x-4.18.x
-> Fixes: 7aaf77272358 ("mm: don't show nr_indirectly_reclaimable in /proc/vmstat")
-> Reported-by: Yongqin Liu <yongqin.liu@linaro.org>
-> Signed-off-by: Roman Gushchin <guro@fb.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> ---
->  mm/vmstat.c | 4 ++++
->  1 file changed, 4 insertions(+)
-> 
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 527ae727d547..6389e876c7a7 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -1500,6 +1500,10 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
->  	if (is_zone_first_populated(pgdat, zone)) {
->  		seq_printf(m, "\n  per-node stats");
->  		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
-> +			/* Skip hidden vmstat items. */
-> +			if (*vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
-> +					 NR_VM_NUMA_STAT_ITEMS] == '\0')
-> +				continue;
->  			seq_printf(m, "\n      %-12s %lu",
->  				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
->  				NR_VM_NUMA_STAT_ITEMS],
-> -- 
-> 2.17.2
-> 
+On Thu, Nov 22, 2018 at 2:32 AM Christopher Lameter <cl@linux.com> wrote:
+>
+> On Sun, 11 Nov 2018, Nicolas Boichat wrote:
+>
+> > SLAB_CACHE_DMA32 is only available after explicit kmem_cache_create calls,
+> > no default cache is created for kmalloc. Add a test in check_slab_flags
+> > for this.
+>
+> This does not define the dma32 kmalloc array. Is that intentional?
 
-I do not see this patch in Linus's tree, do you?
+Yes that's intentional, AFAICT there is no user, so there is no point
+creating the cache.
 
-If not, what am I supposed to do with this?
+ (okay, I could find one, but it's probably broken:
+git grep GFP_DMA32 | grep k[a-z]*alloc
+drivers/media/platform/vivid/vivid-osd.c: dev->video_vbase =
+kzalloc(dev->video_buffer_size, GFP_KERNEL | GFP_DMA32);
+).
 
-confused,
+> In that
+> case you need to fail any request for GFP_DMA32 coming in via kmalloc.
 
-greg k-h
+Well, we do check for these in check_slab_flags (aka GFP_SLAB_BUG_MASK
+before patch 1/3 of this series), so, with or without this patch,
+calls with GFP_DMA32 will end up failing in check_slab_flags.
