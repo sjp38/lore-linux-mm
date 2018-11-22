@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 780296B2DF6
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 18:42:03 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id x1-v6so4936319edh.8
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 15:42:03 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id CCD336B2AB1
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 04:13:32 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id w15so4237321edl.21
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 01:13:32 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p9-v6sor27255036edr.10.2018.11.22.15.42.01
+        by mx.google.com with SMTPS id l37sor22422385edb.2.2018.11.22.01.13.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 22 Nov 2018 15:42:01 -0800 (PST)
-Date: Thu, 22 Nov 2018 23:41:59 +0000
+        Thu, 22 Nov 2018 01:13:31 -0800 (PST)
+Date: Thu, 22 Nov 2018 09:13:29 +0000
 From: Wei Yang <richard.weiyang@gmail.com>
 Subject: Re: [PATCH v2] mm/slub: improve performance by skipping checked node
  in get_any_partial()
-Message-ID: <20181122234159.5hrhxioe6b777ttb@master>
+Message-ID: <20181122091329.gjz4muzjwp55dnjo@master>
 Reply-To: Wei Yang <richard.weiyang@gmail.com>
 References: <20181108011204.9491-1-richard.weiyang@gmail.com>
  <20181120033119.30013-1-richard.weiyang@gmail.com>
@@ -153,10 +153,49 @@ On Wed, Nov 21, 2018 at 07:05:55PM -0800, Andrew Morton wrote:
 >improved.  Please review:
 >
 
-Can I add this?
+Looks much better, thanks :-)
 
-Reviewed-by: Wei Yang <richard.weiyang@gmail.com>
-
+>
+>--- a/mm/slub.c~mm-slub-improve-performance-by-skipping-checked-node-in-get_any_partial-fix
+>+++ a/mm/slub.c
+>@@ -1873,7 +1873,7 @@ static void *get_partial_node(struct kme
+>  * Get a page from somewhere. Search in increasing NUMA distances.
+>  */
+> static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
+>-		struct kmem_cache_cpu *c, int except)
+>+		struct kmem_cache_cpu *c, int exclude_nid)
+> {
+> #ifdef CONFIG_NUMA
+> 	struct zonelist *zonelist;
+>@@ -1911,7 +1911,7 @@ static void *get_any_partial(struct kmem
+> 		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+> 			struct kmem_cache_node *n;
+> 
+>-			if (except == zone_to_nid(zone))
+>+			if (exclude_nid == zone_to_nid(zone))
+> 				continue;
+> 
+> 			n = get_node(s, zone_to_nid(zone));
+>@@ -1931,12 +1931,13 @@ static void *get_any_partial(struct kmem
+> 				}
+> 			}
+> 			/*
+>-			 * Fail to get object from this node, either because
+>-			 *   1. Fails in if check
+>-			 *   2. NULl object returns from get_partial_node()
+>-			 * Skip it next time.
+>+			 * Failed to get an object from this node, either 
+>+			 * because
+>+			 *   1. Failure in the above if check
+>+			 *   2. NULL return from get_partial_node()
+>+			 * So skip this node next time.
+> 			 */
+>-			except = zone_to_nid(zone);
+>+			exclude_nid = zone_to_nid(zone);
+> 		}
+> 	} while (read_mems_allowed_retry(cpuset_mems_cookie));
+> #endif
+>_
 
 -- 
 Wei Yang
