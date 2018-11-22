@@ -1,122 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 56BE36B4945
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:56:05 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id b186so16862908wmc.8
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:56:05 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u1sor3060213wrr.11.2018.11.27.08.56.03
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5735E6B2925
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 22:15:16 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id v11so12674239ply.4
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 19:15:16 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id s22-v6si49740852plp.201.2018.11.21.19.15.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 27 Nov 2018 08:56:03 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v12 08/25] kasan: initialize shadow to 0xff for tag-based mode
-Date: Tue, 27 Nov 2018 17:55:26 +0100
-Message-Id: <9004fd16d56d8772775cf671a8fa66e54ed138dd.1543337629.git.andreyknvl@google.com>
-In-Reply-To: <cover.1543337629.git.andreyknvl@google.com>
-References: <cover.1543337629.git.andreyknvl@google.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Nov 2018 19:15:15 -0800 (PST)
+Date: Wed, 21 Nov 2018 19:15:11 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 RESEND update 1/2] mm/page_alloc: free order-0 pages
+ through PCP in page_frag_free()
+Message-Id: <20181121191511.658e0d41504e146edd88af53@linux-foundation.org>
+In-Reply-To: <20181120014544.GB10657@intel.com>
+References: <20181119134834.17765-1-aaron.lu@intel.com>
+	<20181119134834.17765-2-aaron.lu@intel.com>
+	<20181120014544.GB10657@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, =?UTF-8?Q?Pawe=C5=82?= Staszewski <pstaszewski@itcare.pl>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, Ilias Apalodimas <ilias.apalodimas@linaro.org>, Yoel Caspersen <yoel@kviknet.dk>, Mel Gorman <mgorman@techsingularity.net>, Saeed Mahameed <saeedm@mellanox.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Ian Kumlien <ian.kumlien@gmail.com>
 
-A tag-based KASAN shadow memory cell contains a memory tag, that
-corresponds to the tag in the top byte of the pointer, that points to that
-memory. The native top byte value of kernel pointers is 0xff, so with
-tag-based KASAN we need to initialize shadow memory to 0xff.
+On Tue, 20 Nov 2018 09:45:44 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
 
-Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- arch/arm64/mm/kasan_init.c | 15 +++++++++++++--
- include/linux/kasan.h      |  8 ++++++++
- mm/kasan/common.c          |  3 ++-
- 3 files changed, 23 insertions(+), 3 deletions(-)
+> page_frag_free() calls __free_pages_ok() to free the page back to
+> Buddy. This is OK for high order page, but for order-0 pages, it
+> misses the optimization opportunity of using Per-Cpu-Pages and can
+> cause zone lock contention when called frequently.
+> 
 
-diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
-index 4ebc19422931..7a4a0904cac8 100644
---- a/arch/arm64/mm/kasan_init.c
-+++ b/arch/arm64/mm/kasan_init.c
-@@ -43,6 +43,15 @@ static phys_addr_t __init kasan_alloc_zeroed_page(int node)
- 	return __pa(p);
- }
+Looks nice to me.  Let's tell our readers why we're doing this.
+
+--- a/mm/page_alloc.c~mm-page_alloc-free-order-0-pages-through-pcp-in-page_frag_free-fix
++++ a/mm/page_alloc.c
+@@ -4684,7 +4684,7 @@ void page_frag_free(void *addr)
+ 	if (unlikely(put_page_testzero(page))) {
+ 		unsigned int order = compound_order(page);
  
-+static phys_addr_t __init kasan_alloc_raw_page(int node)
-+{
-+	void *p = memblock_alloc_try_nid_raw(PAGE_SIZE, PAGE_SIZE,
-+						__pa(MAX_DMA_ADDRESS),
-+						MEMBLOCK_ALLOC_ACCESSIBLE,
-+						node);
-+	return __pa(p);
-+}
-+
- static pte_t *__init kasan_pte_offset(pmd_t *pmdp, unsigned long addr, int node,
- 				      bool early)
- {
-@@ -92,7 +101,9 @@ static void __init kasan_pte_populate(pmd_t *pmdp, unsigned long addr,
- 	do {
- 		phys_addr_t page_phys = early ?
- 				__pa_symbol(kasan_early_shadow_page)
--					: kasan_alloc_zeroed_page(node);
-+					: kasan_alloc_raw_page(node);
-+		if (!early)
-+			memset(__va(page_phys), KASAN_SHADOW_INIT, PAGE_SIZE);
- 		next = addr + PAGE_SIZE;
- 		set_pte(ptep, pfn_pte(__phys_to_pfn(page_phys), PAGE_KERNEL));
- 	} while (ptep++, addr = next, addr != end && pte_none(READ_ONCE(*ptep)));
-@@ -239,7 +250,7 @@ void __init kasan_init(void)
- 			pfn_pte(sym_to_pfn(kasan_early_shadow_page),
- 				PAGE_KERNEL_RO));
- 
--	memset(kasan_early_shadow_page, 0, PAGE_SIZE);
-+	memset(kasan_early_shadow_page, KASAN_SHADOW_INIT, PAGE_SIZE);
- 	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
- 
- 	/* At this point kasan is fully initialized. Enable error messages */
-diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index ec22d548d0d7..c56af24bd3e7 100644
---- a/include/linux/kasan.h
-+++ b/include/linux/kasan.h
-@@ -153,6 +153,8 @@ static inline size_t kasan_metadata_size(struct kmem_cache *cache) { return 0; }
- 
- #ifdef CONFIG_KASAN_GENERIC
- 
-+#define KASAN_SHADOW_INIT 0
-+
- void kasan_cache_shrink(struct kmem_cache *cache);
- void kasan_cache_shutdown(struct kmem_cache *cache);
- 
-@@ -163,4 +165,10 @@ static inline void kasan_cache_shutdown(struct kmem_cache *cache) {}
- 
- #endif /* CONFIG_KASAN_GENERIC */
- 
-+#ifdef CONFIG_KASAN_SW_TAGS
-+
-+#define KASAN_SHADOW_INIT 0xFF
-+
-+#endif /* CONFIG_KASAN_SW_TAGS */
-+
- #endif /* LINUX_KASAN_H */
-diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index 5f68c93734ba..7134e75447ff 100644
---- a/mm/kasan/common.c
-+++ b/mm/kasan/common.c
-@@ -473,11 +473,12 @@ int kasan_module_alloc(void *addr, size_t size)
- 
- 	ret = __vmalloc_node_range(shadow_size, 1, shadow_start,
- 			shadow_start + shadow_size,
--			GFP_KERNEL | __GFP_ZERO,
-+			GFP_KERNEL,
- 			PAGE_KERNEL, VM_NO_GUARD, NUMA_NO_NODE,
- 			__builtin_return_address(0));
- 
- 	if (ret) {
-+		__memset(ret, KASAN_SHADOW_INIT, shadow_size);
- 		find_vm_area(addr)->flags |= VM_KASAN;
- 		kmemleak_ignore(ret);
- 		return 0;
--- 
-2.20.0.rc0.387.gc7a69e6b6c-goog
+-		if (order == 0)
++		if (order == 0)		/* Via pcp? */
+ 			free_unref_page(page);
+ 		else
+ 			__free_pages_ok(page, order);
+_
