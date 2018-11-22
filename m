@@ -1,143 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A11BD6B28E2
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 21:20:04 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id 89so12377239ple.19
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 18:20:04 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 30sor56443776pgz.10.2018.11.21.18.20.03
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AA9036B2B02
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 05:07:24 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id n95so5789594qte.16
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 02:07:24 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c19si8557331qkh.43.2018.11.22.02.07.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 21 Nov 2018 18:20:03 -0800 (PST)
-From: =?utf-8?B?5q6154aK5pil?= <duanxiongchun@bytedance.com>
-Message-Id: <314D030F-2112-44E4-ABD3-A3A9B8597A3A@bytedance.com>
-Content-Type: multipart/alternative;
-	boundary="Apple-Mail=_12BBE2AE-838C-40BB-B17E-6826CC2A0957"
-Mime-Version: 1.0 (Mac OS X Mail 12.1 \(3445.101.1\))
-Subject: Re: [Bug 201699] New: kmemleak in memcg_create_kmem_cache
-Date: Thu, 22 Nov 2018 10:19:58 +0800
-In-Reply-To: <20181121162747.GR12932@dhcp22.suse.cz>
-References: <bug-201699-27@https.bugzilla.kernel.org/>
- <20181115130646.6de1029eb1f3b8d7276c3543@linux-foundation.org>
- <20181116175005.3dcfpyhuj57oaszm@esperanza>
- <433c2924.f6c.16724466cd8.Coremail.bauers@126.com>
- <20181119083045.m5rhvbsze4h5l6jq@esperanza>
- <6185b79c.9161.1672bd49ed1.Coremail.bauers@126.com>
- <375ca28a.7433.16735734d98.Coremail.bauers@126.com>
- <20181121091041.GM12932@dhcp22.suse.cz>
- <5fa306b3.7c7c.1673593d0d8.Coremail.bauers@126.com>
- <556CF326-C3ED-44A7-909B-780531A8D4FF@bytedance.com>
- <20181121162747.GR12932@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Nov 2018 02:07:23 -0800 (PST)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH v2 7/8] PM / Hibernate: use pfn_to_online_page()
+Date: Thu, 22 Nov 2018 11:06:26 +0100
+Message-Id: <20181122100627.5189-8-david@redhat.com>
+In-Reply-To: <20181122100627.5189-1-david@redhat.com>
+References: <20181122100627.5189-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: dong <bauers@126.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, kexec-ml <kexec@lists.infradead.org>, pv-drivers@vmware.com, David Hildenbrand <david@redhat.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, "Michael S. Tsirkin" <mst@redhat.com>
 
+Let's use pfn_to_online_page() instead of pfn_to_page() when checking
+for saveable pages to not save/restore offline memory sections.
 
---Apple-Mail=_12BBE2AE-838C-40BB-B17E-6826CC2A0957
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain;
-	charset=utf-8
+Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: Pavel Machek <pavel@ucw.cz>
+Cc: Len Brown <len.brown@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <willy@infradead.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>
+Suggested-by: Michal Hocko <mhocko@kernel.org>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Acked-by: Pavel Machek <pavel@ucw.cz>
+Acked-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Signed-off-by: David Hildenbrand <david@redhat.com>
+---
+ kernel/power/snapshot.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-I had view the slab kmem_cache_alloc function=EF=BC=8CI think the =
-virtual netdevice object will charged to memcg.
-Becuse the function slab_pre_alloc_hook will choose a kmem_cache, which =
-belong to current task memcg.
-If  virtual netdevice object not destroy by another command, the virtual =
-netdevice object will still charged to memcg, and the memcg will still =
-in memory.
-
-Above is just an example.
-The general scenario is as follows
-if a user process which has own memcg creates a semi-permeanent kernel =
-object , and does not release this kernel object before exit.
-The memcg which belong to this process will just offline but not release =
-until the semi-permeanent kernel object release.
-
-I think in those case=EF=BC=8C kernel will hold more memory than =
-user=E2=80=99s think=E3=80=82no just sizeof(struct blabla),but =
-sizeof(struct blabla) + memory memcg used.
-
-bytedance.net
-=E6=AE=B5=E7=86=8A=E6=98=A5
-duanxiongchun@bytedance.com
-
-
-
-
-> On Nov 22, 2018, at 12:27 AM, Michal Hocko <mhocko@kernel.org> wrote:
->=20
-> On Wed 21-11-18 17:36:51, =E6=AE=B5=E7=86=8A=E6=98=A5 wrote:
->> hi all=EF=BC=9A
->>=20
->> In same case=EF=BC=8C I think it=E2=80=99s may be a problem=E3=80=82
->>=20
->> if I create a virtual netdev device under mem cgroup(like ip link add =
-ve_A type veth peer name ve_B).after that ,I destroy this mem cgroup=E3=80=
-=82
->=20
-> Which object is charged to that memcg? If there is no relation to any
-> task context then accounting to a memcg is problematic.
->=20
-> --=20
-> Michal Hocko
-> SUSE Labs
-
-
---Apple-Mail=_12BBE2AE-838C-40BB-B17E-6826CC2A0957
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/html;
-	charset=utf-8
-
-<html><head><meta http-equiv=3D"Content-Type" content=3D"text/html; =
-charset=3Dutf-8"></head><body style=3D"word-wrap: break-word; =
--webkit-nbsp-mode: space; line-break: after-white-space;" class=3D"">I =
-had view the slab kmem_cache_alloc function=EF=BC=8CI think the virtual =
-netdevice object will charged to memcg.<div class=3D"">Becuse the =
-function slab_pre_alloc_hook will choose a kmem_cache, which belong to =
-current task memcg.</div><div class=3D"">If &nbsp;virtual netdevice =
-object not destroy by another command, the virtual netdevice object will =
-still charged to memcg, and the memcg will still in memory.</div><div =
-class=3D""><br class=3D""></div><div class=3D"">Above is just an =
-example.</div><div class=3D"">The general scenario is as =
-follows</div><div class=3D"">if a user process which has own memcg =
-creates a semi-permeanent kernel object , and does not release this =
-kernel object before exit.</div><div class=3D"">The memcg which belong =
-to this process will just offline but not release until the =
-semi-permeanent kernel object release.</div><div class=3D""><br =
-class=3D""></div><div class=3D"">I think in those case=EF=BC=8C kernel =
-will hold more memory than user=E2=80=99s think=E3=80=82no just =
-sizeof(struct blabla),but sizeof(struct blabla) + memory memcg =
-used.</div><div class=3D""><br class=3D""></div><div class=3D""><div =
-class=3D"">
-<div dir=3D"auto" style=3D"word-wrap: break-word; -webkit-nbsp-mode: =
-space; line-break: after-white-space;" class=3D""><div =
-style=3D"caret-color: rgb(0, 0, 0); color: rgb(0, 0, 0); font-family: =
-Helvetica; font-size: 12px; font-style: normal; font-variant-caps: =
-normal; font-weight: normal; letter-spacing: normal; text-align: start; =
-text-indent: 0px; text-transform: none; white-space: normal; =
-word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: =
-none;"><a href=3D"http://bytedance.net" class=3D"">bytedance.net</a><br =
-class=3D"">=E6=AE=B5=E7=86=8A=E6=98=A5<br =
-class=3D"">duanxiongchun@bytedance.com<br class=3D""><br =
-class=3D""></div><br class=3D"Apple-interchange-newline"></div><br =
-class=3D"Apple-interchange-newline">
-</div>
-<div><br class=3D""><blockquote type=3D"cite" class=3D""><div =
-class=3D"">On Nov 22, 2018, at 12:27 AM, Michal Hocko &lt;<a =
-href=3D"mailto:mhocko@kernel.org" class=3D"">mhocko@kernel.org</a>&gt; =
-wrote:</div><br class=3D"Apple-interchange-newline"><div class=3D""><div =
-class=3D"">On Wed 21-11-18 17:36:51, =E6=AE=B5=E7=86=8A=E6=98=A5 =
-wrote:<br class=3D""><blockquote type=3D"cite" class=3D"">hi all=EF=BC=9A<=
-br class=3D""><br class=3D"">In same case=EF=BC=8C I think it=E2=80=99s =
-may be a problem=E3=80=82<br class=3D""><br class=3D"">if I create a =
-virtual netdev device under mem cgroup(like ip link add ve_A type veth =
-peer name ve_B).after that ,I destroy this mem cgroup=E3=80=82<br =
-class=3D""></blockquote><br class=3D"">Which object is charged to that =
-memcg? If there is no relation to any<br class=3D"">task context then =
-accounting to a memcg is problematic.<br class=3D""><br class=3D"">-- =
-<br class=3D"">Michal Hocko<br class=3D"">SUSE Labs<br =
-class=3D""></div></div></blockquote></div><br =
-class=3D""></div></body></html>=
-
---Apple-Mail=_12BBE2AE-838C-40BB-B17E-6826CC2A0957--
+diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
+index 640b2034edd6..87e6dd57819f 100644
+--- a/kernel/power/snapshot.c
++++ b/kernel/power/snapshot.c
+@@ -1215,8 +1215,8 @@ static struct page *saveable_highmem_page(struct zone *zone, unsigned long pfn)
+ 	if (!pfn_valid(pfn))
+ 		return NULL;
+ 
+-	page = pfn_to_page(pfn);
+-	if (page_zone(page) != zone)
++	page = pfn_to_online_page(pfn);
++	if (!page || page_zone(page) != zone)
+ 		return NULL;
+ 
+ 	BUG_ON(!PageHighMem(page));
+@@ -1277,8 +1277,8 @@ static struct page *saveable_page(struct zone *zone, unsigned long pfn)
+ 	if (!pfn_valid(pfn))
+ 		return NULL;
+ 
+-	page = pfn_to_page(pfn);
+-	if (page_zone(page) != zone)
++	page = pfn_to_online_page(pfn);
++	if (!page || page_zone(page) != zone)
+ 		return NULL;
+ 
+ 	BUG_ON(PageHighMem(page));
+-- 
+2.17.2
