@@ -1,95 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 454446B2EAD
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 21:35:21 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id i3so2006570pfj.4
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 18:35:21 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w2sor59239711pgo.65.2018.11.22.18.35.19
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A2196B2D27
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 15:29:41 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id w19so7051821qto.13
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 12:29:41 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g11si3489722qvm.35.2018.11.22.12.29.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 22 Nov 2018 18:35:20 -0800 (PST)
-Date: Fri, 23 Nov 2018 11:35:14 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Nov 2018 12:29:40 -0800 (PST)
 Subject: Re: [PATCH v2 07/17] debugobjects: Move printk out of db lock
  critical sections
-Message-ID: <20181123023514.GC1582@jagdpanzerIV>
 References: <1542653726-5655-1-git-send-email-longman@redhat.com>
  <1542653726-5655-8-git-send-email-longman@redhat.com>
  <2ddd9e3d-951e-1892-c941-54be80f7e6aa@redhat.com>
  <20181122020422.GA3441@jagdpanzerIV>
- <c8c29a58-f356-d379-2bf4-cea09b03dc3e@redhat.com>
+ <20181122160250.lxyfzsybfwskrh54@pathway.suse.cz>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <fd006ace-f339-34c2-d87f-51f145ac8364@redhat.com>
+Date: Thu, 22 Nov 2018 15:29:35 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <c8c29a58-f356-d379-2bf4-cea09b03dc3e@redhat.com>
+In-Reply-To: <20181122160250.lxyfzsybfwskrh54@pathway.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On (11/22/18 14:57), Waiman Long wrote:
-> > [..]
-> >> As a side note, one of the test systems that I used generated a
-> >> debugobjects splat in the bootup process and the system hanged
-> >> afterward. Applying this patch alone fix the hanging problem and the
-> >> system booted up successfully. So it is not really a good idea to call
-> >> printk() while holding a raw spinlock.
-> > Right, I like this patch.
-> > And I think that we, maybe, can go even further.
-> >
-> > Some serial consoles call mod_timer(). So what we could have with the
-> > debug objects enabled was
-> >
-> > 	mod_timer()
-> > 	 lock_timer_base()
-> > 	  debug_activate()
-> > 	   printk()
-> > 	    call_console_drivers()
-> > 	     foo_console()
-> > 	      mod_timer()
-> > 	       lock_timer_base()       << deadlock
-> >
-> > That's one possible scenario. The other one can involve console's
-> > IRQ handler, uart port spinlock, mod_timer, debug objects, printk,
-> > and an eventual deadlock on the uart port spinlock. This one can
-> > be mitigated with printk_safe. But mod_timer() deadlock will require
-> > a different fix.
-> >
-> > So maybe we need to switch debug objects print-outs to _always_
-> > printk_deferred(). Debug objects can be used in code which cannot
-> > do direct printk() - timekeeping is just one example.
-> 
-> Actually, I don't think that was the cause of the hang.
+On 11/22/2018 11:02 AM, Petr Mladek wrote:
+> On Thu 2018-11-22 11:04:22, Sergey Senozhatsky wrote:
+>> On (11/21/18 11:49), Waiman Long wrote:
+>> [..]
+>>>>  	case ODEBUG_STATE_ACTIVE:
+>>>> -		debug_print_object(obj, "init");
+>>>>  		state =3D obj->state;
+>>>>  		raw_spin_unlock_irqrestore(&db->lock, flags);
+>>>> +		debug_print_object(obj, "init");
+>>>>  		debug_object_fixup(descr->fixup_init, addr, state);
+>>>>  		return;
+>>>> =20
+>>>>  	case ODEBUG_STATE_DESTROYED:
+>>>> -		debug_print_object(obj, "init");
+>>>> +		debug_printobj =3D true;
+>>>>  		break;
+>>>>  	default:
+>>>>  		break;
+>>>>  	}
+>>>> =20
+>>>>  	raw_spin_unlock_irqrestore(&db->lock, flags);
+>>>> +	if (debug_chkstack)
+>>>> +		debug_object_is_on_stack(addr, onstack);
+>>>> +	if (debug_printobj)
+>>>> +		debug_print_object(obj, "init");
+>>>>
+>> [..]
+>>> As a side note, one of the test systems that I used generated a
+>>> debugobjects splat in the bootup process and the system hanged
+>>> afterward. Applying this patch alone fix the hanging problem and the
+>>> system booted up successfully. So it is not really a good idea to cal=
+l
+>>> printk() while holding a raw spinlock.
+> Please, was the system hang reproducible? I wonder if it was a
+> deadlock described by Sergey below.
 
-Oh, I didn't suggest that this was the case. Just talked about more
-problems with printk in debug objects. Serial consoles call mod_time,
-mod_timer calls debug objects, debug objects call printk and end up
-in serial console again. Serial consoles are not re-entrant at this
-point.
+Yes, it is 100% reproducible on the testing system that I used.
 
-> The debugobjects splat was caused by debug_object_is_on_stack(), below
-> was the output:
+> The commit message is right. printk() might take too long and
+> cause softlockup or livelock. But it does not explain why
+> the system could competely hang.
 >
-> [��� 6.890048] ODEBUG: object (____ptrval____) is NOT on stack
-> (____ptrval____), but annotated.
-> [��� 6.891000] WARNING: CPU: 28 PID: 1 at lib/debugobjects.c:369
-> __debug_object_init.cold.11+0x51/0x2d6
-[..]
-> �� 11.270654] systemd[1]: systemd 239 running in system mode. (+PAM
-> +AUDIT +SELINUX +IMA -APPARMOR +SMACK +SYSVINIT +UTMP +LIBCRYPTSETUP
-> +GCRYPT +GNUTLS +ACL +XZ +LZ4 +SECCOMP +BLKID +ELFUTILS +KMOD +IDN2 -IDN
-> +PCRE2 default-hierarchy=legacy)
-> [�� 11.311307] systemd[1]: Detected architecture x86-64.
-> [�� 11.316420] systemd[1]: Running in initial RAM disk.
-> 
-> Welcome to
-> 
-> The system is not responsive at this point.
-> 
-> I am not totally sure what caused this.
+> Also note that prinkt() should not longer block a single process
+> indefinitely thanks to the commit dbdda842fe96f8932 ("printk:
+> Add console owner and waiter logic to load balance console writes").
 
-Hmm, me neither.
+The problem might have been caused by the fact that IRQ was also
+disabled in the lock critical section.
 
-	-ss
+>> Some serial consoles call mod_timer(). So what we could have with the
+>> debug objects enabled was
+>>
+>> 	mod_timer()
+>> 	 lock_timer_base()
+>> 	  debug_activate()
+>> 	   printk()
+>> 	    call_console_drivers()
+>> 	     foo_console()
+>> 	      mod_timer()
+>> 	       lock_timer_base()       << deadlock
+> Anyway, I wonder what was the primary motivation for this patch.
+> Was it the system hang? Or was it lockdep report about nesting
+> two terminal locks: db->lock, pool_lock with logbuf_lock?
+
+The primary motivation was to make sure that printk() won't be called
+while holding either db->lock or pool_lock in the debugobjects code. In
+the determination of which locks can be made terminal, I focused on
+local spinlocks that won't cause boundary to an unrelated subsystem as
+it will greatly complicate the analysis.
+
+I didn't realize that it fixed a hang problem that I was seeing until I
+did bisection to find out that it was caused by the patch that cause the
+debugobjects splat in the first place a few days ago. I was comparing
+the performance status of the pre and post patched kernel. The pre-patch
+kernel failed to boot in the one of my test systems, but the
+post-patched kernel could. I narrowed it down to this patch as the fix
+for the hang problem.
+
+Cheers,
+Longman
