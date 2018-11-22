@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 955806B2B30
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 05:32:47 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id 92so8955785qkx.19
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 02:32:47 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 809456B290F
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 05:26:43 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id u20so5810352qtk.6
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 02:26:43 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c29si1377459qte.8.2018.11.22.02.32.46
+        by mx.google.com with ESMTPS id j35si1786491qtb.113.2018.11.22.02.26.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Nov 2018 02:32:46 -0800 (PST)
-Date: Thu, 22 Nov 2018 18:32:09 +0800
+        Thu, 22 Nov 2018 02:26:42 -0800 (PST)
+Date: Thu, 22 Nov 2018 18:26:17 +0800
 From: Ming Lei <ming.lei@redhat.com>
 Subject: Re: [PATCH V11 14/19] block: handle non-cluster bio out of
  blk_bio_segment_split
-Message-ID: <20181122103208.GD27273@ming.t460p>
+Message-ID: <20181122102616.GC27273@ming.t460p>
 References: <20181121032327.8434-1-ming.lei@redhat.com>
  <20181121032327.8434-15-ming.lei@redhat.com>
  <20181121143355.GB2594@lst.de>
@@ -41,23 +41,16 @@ On Thu, Nov 22, 2018 at 11:04:28AM +0100, Christoph Hellwig wrote:
 > segment is in a different page than the previous one, which is exactly
 > what we need here.  Multiple small bvec inside the same page (e.g.
 > 512 byte buffer_heads) will still be merged.
-> 
-> > What we want to do is just to avoid to merge bvecs to segment, which
-> > should have been done by NO_SG_MERGE simply. However, after multi-page
-> > is enabled, two adjacent bvecs won't be merged any more, I just forget
-> > to remove the bvec merge code in V11.
-> > 
-> > So seems we can simply avoid to use virt boundary limit for non-cluster
-> > after multipage bvec is enabled?
-> 
-> No, we can't just remove it.  As explained in the patch there is one very
-> visible difference of setting the flag amd that is no segment will span a
-> page boundary, and at least the iSCSI code seems to rely on that.
 
-IMO, we should use queue_segment_boundary() to enhance the rule during splitting
-segment after multi-page bvec is enabled.
+Suppose one bio includes (pg0, 0, 512) and (pg1, 512, 512):
 
-Seems we miss the segment boundary limit in bvec_split_segs().
+The split is introduced by the following code in blk_bio_segment_split():
+
+      if (bvprvp && bvec_gap_to_prev(q, bvprvp, bv.bv_offset))
+		  	goto split;
+
+Without this patch, for non-cluster, the two bvecs are just in different
+segment, but still handled by one same bio. Now you convert into two bios.
 
 Thanks,
 Ming
