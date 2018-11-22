@@ -1,47 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D4A226B4A61
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 15:33:34 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id a199so23610688qkb.23
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 12:33:34 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q1sor5250502qte.27.2018.11.27.12.33.34
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 11A866B2B49
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 05:47:31 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id r11so244776wmg.1
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 02:47:31 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id o1si3412401wme.62.2018.11.22.02.47.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 27 Nov 2018 12:33:34 -0800 (PST)
-Subject: Re: [PATCH v2] mm/zsmalloc.c: Fix zsmalloc 32-bit PAE support
-References: <20181025134344.GZ30658@n2100.armlinux.org.uk>
- <20181121001150.405-1-rafael.tinoco@linaro.org>
- <91776bf8-0d12-1cc4-1ffb-ca3c486aeb0b@linaro.org>
-From: Rafael David Tinoco <rafael.tinoco@linaro.org>
-Message-ID: <93b0cce5-4ceb-14ab-5987-af54f15958f2@linaro.org>
-Date: Tue, 27 Nov 2018 18:33:29 -0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Nov 2018 02:47:29 -0800 (PST)
+Date: Thu, 22 Nov 2018 11:47:29 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH V11 14/19] block: handle non-cluster bio out of
+ blk_bio_segment_split
+Message-ID: <20181122104729.GA29938@lst.de>
+References: <20181121032327.8434-1-ming.lei@redhat.com> <20181121032327.8434-15-ming.lei@redhat.com> <20181121143355.GB2594@lst.de> <20181121153726.GC19111@ming.t460p> <20181121174621.GA6961@lst.de> <20181122093259.GA27007@ming.t460p> <20181122100427.GA28871@lst.de> <20181122103208.GD27273@ming.t460p> <20181122104150.GA29808@lst.de> <20181122104604.GE27273@ming.t460p>
 MIME-Version: 1.0
-In-Reply-To: <91776bf8-0d12-1cc4-1ffb-ca3c486aeb0b@linaro.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181122104604.GE27273@ming.t460p>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux@armlinux.org.uk
-Cc: Rafael David Tinoco <rafael.tinoco@linaro.org>, broonie@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On 11/20/18 10:18 PM, Rafael David Tinoco wrote:
-> 
-> Russell,
-> 
-> I have tried to place MAX_POSSIBLE_PHYSMEM_BITS in the best available
-> header for each architecture, considering different paging levels, PAE
-> existence, and existing similar definitions. Also, I have only
-> considered those architectures already having "sparsemem.h" header.
-> 
-> Would you mind reviewing it ?
+On Thu, Nov 22, 2018 at 06:46:05PM +0800, Ming Lei wrote:
+> Then your patch should work by just replacing virt boundary with segment
+> boudary limit. I will do that change in V12 if you don't object.
 
-Should I re-send the this v2 (as v3) with complete list of
-get_maintainer.pl ? I was in doubt because I'm touching headers from
-several archs and I'm not sure who, if it is accepted, would merge it.
-
-Thank you
--- 
-Rafael D. Tinoco
-Linaro Kernel Validation
+Please do, thanks a lot.
