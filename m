@@ -1,50 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E5816B2AA0
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 08:29:26 -0500 (EST)
-Received: by mail-ot1-f71.google.com with SMTP id j15so4712356ota.17
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 05:29:26 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id p10si17014714otl.267.2018.11.22.05.29.25
-        for <linux-mm@kvack.org>;
-        Thu, 22 Nov 2018 05:29:25 -0800 (PST)
-Subject: Re: [PATCH 4/7] node: Add memory caching attributes
-References: <20181114224921.12123-2-keith.busch@intel.com>
- <20181114224921.12123-5-keith.busch@intel.com>
- <91698cef-cdcd-5143-884f-3da5536e156f@arm.com>
- <20181119230600.GC26707@localhost.localdomain>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <731533d5-26e1-ade7-1a63-d1f85461d091@arm.com>
-Date: Thu, 22 Nov 2018 18:59:21 +0530
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E456C6B32A8
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 15:22:33 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id g63-v6so5734887pfc.9
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 12:22:33 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b35sor17138175plb.6.2018.11.23.12.22.32
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 23 Nov 2018 12:22:32 -0800 (PST)
+Date: Fri, 23 Nov 2018 12:22:29 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [RFC PATCH 3/3] mm, fault_around: do not take a reference to a
+ locked page
+In-Reply-To: <20181122090547.GD18011@dhcp22.suse.cz>
+Message-ID: <alpine.LSU.2.11.1811231211200.1964@eggly.anvils>
+References: <20181120134323.13007-1-mhocko@kernel.org> <20181120134323.13007-4-mhocko@kernel.org> <alpine.LSU.2.11.1811201721470.2061@eggly.anvils> <20181121071132.GD12932@dhcp22.suse.cz> <alpine.LSU.2.11.1811211757070.5557@eggly.anvils>
+ <20181122090547.GD18011@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20181119230600.GC26707@localhost.localdomain>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Keith Busch <keith.busch@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Oscar Salvador <OSalvador@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Hildenbrand <david@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-
-
-On 11/20/2018 04:36 AM, Keith Busch wrote:
-> On Mon, Nov 19, 2018 at 09:44:00AM +0530, Anshuman Khandual wrote:
->> On 11/15/2018 04:19 AM, Keith Busch wrote:
->>> System memory may have side caches to help improve access speed. While
->>> the system provided cache is transparent to the software accessing
->>> these memory ranges, applications can optimize their own access based
->>> on cache attributes.
->>
->> Cache is not a separate memory attribute. It impacts how the real attributes
->> like bandwidth, latency e.g which are already captured in the previous patch.
->> What is the purpose of adding this as a separate attribute ? Can you explain
->> how this is going to help the user space apart from the hints it has already
->> received with bandwidth, latency etc properties.
+On Thu, 22 Nov 2018, Michal Hocko wrote:
 > 
-> I am not sure I understand the question here. Access bandwidth and latency
-> are entirely attributes different than what this patch provides. If the
-> system side-caches memory, the associativity, line size, and total size
-> can optionally be used by software to improve performance.
+> If you want some update to the comment in this function or to the
+> changelog, I am open of course. Right now I have
+> +                * Check for a locked page first, as a speculative
+> +                * reference may adversely influence page migration.
+> as suggested by William.
 
-Okay but then does this belong to this series which about memory attributes ?
+I ought to care, since I challenged the significance of this aspect
+in the first place, but find I don't care enough - I much prefer the
+patch to the comments on and in it, but have not devised any wording
+that I'd prefer to see instead - sorry.
+
+Hugh
