@@ -1,92 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B902D6B535E
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2018 10:53:45 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id o23so1735575pll.0
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2018 07:53:45 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p18sor2852719pgl.33.2018.11.29.07.53.44
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B1286B2E9A
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 21:20:02 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id d35so7682121qtd.20
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 18:20:02 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e2si7635462qto.135.2018.11.22.18.20.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 29 Nov 2018 07:53:44 -0800 (PST)
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH v3 2/2] mm, sparse: pass nid instead of pgdat to sparse_add_one_section()
-Date: Thu, 29 Nov 2018 23:53:16 +0800
-Message-Id: <20181129155316.8174-2-richard.weiyang@gmail.com>
-In-Reply-To: <20181129155316.8174-1-richard.weiyang@gmail.com>
-References: <20181128091243.19249-1-richard.weiyang@gmail.com>
- <20181129155316.8174-1-richard.weiyang@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Nov 2018 18:20:01 -0800 (PST)
+Date: Fri, 23 Nov 2018 10:19:34 +0800
+From: Ming Lei <ming.lei@redhat.com>
+Subject: Re: [PATCH V11 12/19] block: allow bio_for_each_segment_all() to
+ iterate over multi-page bvec
+Message-ID: <20181123021933.GB20110@ming.t460p>
+References: <20181121032327.8434-1-ming.lei@redhat.com>
+ <20181121032327.8434-13-ming.lei@redhat.com>
+ <20181122110315.GA30369@lst.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181122110315.GA30369@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, dave.hansen@intel.com, osalvador@suse.de, david@redhat.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-Since the information needed in sparse_add_one_section() is node id to
-allocate proper memory, it is not necessary to pass its pgdat.
+On Thu, Nov 22, 2018 at 12:03:15PM +0100, Christoph Hellwig wrote:
+> > +/* used for chunk_for_each_segment */
+> > +static inline void bvec_next_segment(const struct bio_vec *bvec,
+> > +				     struct bvec_iter_all *iter_all)
+> 
+> FYI, chunk_for_each_segment doesn't exist anymore, this is
+> bvec_for_each_segment now.  Not sure the comment helps much, though.
 
-This patch changes the prototype of sparse_add_one_section() to pass
-node id directly. This is intended to reduce misleading that
-sparse_add_one_section() would touch pgdat.
+OK, will remove the comment.
 
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
----
- include/linux/memory_hotplug.h | 2 +-
- mm/memory_hotplug.c            | 2 +-
- mm/sparse.c                    | 6 +++---
- 3 files changed, 5 insertions(+), 5 deletions(-)
+> 
+> > +{
+> > +	struct bio_vec *bv = &iter_all->bv;
+> > +
+> > +	if (bv->bv_page) {
+> > +		bv->bv_page += 1;
+> 
+> I think this needs to use nth_page() given that with discontigmem
+> page structures might not be allocated contigously.
 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 45a5affcab8a..3787d4e913e6 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -333,7 +333,7 @@ extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
- 		unsigned long nr_pages, struct vmem_altmap *altmap);
- extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
- extern bool is_memblock_offlined(struct memory_block *mem);
--extern int sparse_add_one_section(struct pglist_data *pgdat,
-+extern int sparse_add_one_section(int nid,
- 		unsigned long start_pfn, struct vmem_altmap *altmap);
- extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
- 		unsigned long map_offset, struct vmem_altmap *altmap);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index f626e7e5f57b..5b3a3d7b4466 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -253,7 +253,7 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
- 	if (pfn_valid(phys_start_pfn))
- 		return -EEXIST;
- 
--	ret = sparse_add_one_section(NODE_DATA(nid), phys_start_pfn, altmap);
-+	ret = sparse_add_one_section(nid, phys_start_pfn, altmap);
- 	if (ret < 0)
- 		return ret;
- 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 5825f276485f..2472bf23278a 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -662,7 +662,7 @@ static void free_map_bootmem(struct page *memmap)
-  * set.  If this is <=0, then that means that the passed-in
-  * map was not consumed and must be freed.
-  */
--int __meminit sparse_add_one_section(struct pglist_data *pgdat,
-+int __meminit sparse_add_one_section(int nid,
- 		unsigned long start_pfn, struct vmem_altmap *altmap)
- {
- 	unsigned long section_nr = pfn_to_section_nr(start_pfn);
-@@ -675,11 +675,11 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
- 	 * no locking for this, because it does its own
- 	 * plus, it does a kmalloc
- 	 */
--	ret = sparse_index_init(section_nr, pgdat->node_id);
-+	ret = sparse_index_init(section_nr, nid);
- 	if (ret < 0 && ret != -EEXIST)
- 		return ret;
- 	ret = 0;
--	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, altmap);
-+	memmap = kmalloc_section_memmap(section_nr, nid, altmap);
- 	if (!memmap)
- 		return -ENOMEM;
- 	usemap = __kmalloc_section_usemap();
--- 
-2.15.1
+Good catch!
+
+Thanks,
+Ming
