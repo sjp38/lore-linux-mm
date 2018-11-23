@@ -1,163 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 466A46B42B1
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 11:50:38 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id z6so17010247qtj.21
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 08:50:38 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e10si633643qtb.330.2018.11.26.08.50.36
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ACCE6B2CEE
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 06:45:31 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id s50so5635150edd.11
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 03:45:31 -0800 (PST)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id l24si321599edr.135.2018.11.23.03.45.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Nov 2018 08:50:37 -0800 (PST)
-Subject: Re: [PATCH v2 1/3] mm: make dev_pagemap_mapping_shift() externally
- visible
-References: <20181109203921.178363-1-brho@google.com>
- <20181114215155.259978-1-brho@google.com>
- <20181114215155.259978-2-brho@google.com>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Message-ID: <af356f2c-0121-a190-b150-f1352b068945@redhat.com>
-Date: Mon, 26 Nov 2018 17:50:22 +0100
-MIME-Version: 1.0
-In-Reply-To: <20181114215155.259978-2-brho@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Fri, 23 Nov 2018 03:45:29 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 9B74C1C2CEA
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 11:45:29 +0000 (GMT)
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH 2/5] mm: Move zone watermark accesses behind an accessor
+Date: Fri, 23 Nov 2018 11:45:25 +0000
+Message-Id: <20181123114528.28802-3-mgorman@techsingularity.net>
+In-Reply-To: <20181123114528.28802-1-mgorman@techsingularity.net>
+References: <20181123114528.28802-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Barret Rhoden <brho@google.com>, Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>, Ross Zwisler <zwisler@kernel.org>, Vishal Verma <vishal.l.verma@intel.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, kvm@vger.kernel.org, yu.c.zhang@intel.com, yi.z.zhang@intel.com, linux-mm@kvack.org, David Hildenbrand <david@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
 
-On 14/11/18 22:51, Barret Rhoden wrote:
-> KVM has a use case for determining the size of a dax mapping.  The KVM
-> code has easy access to the address and the mm; hence the change in
-> parameters.
-> 
-> Signed-off-by: Barret Rhoden <brho@google.com>
-> Reviewed-by: David Hildenbrand <david@redhat.com>
-> ---
->  include/linux/mm.h  |  3 +++
->  mm/memory-failure.c | 38 +++-----------------------------------
->  mm/util.c           | 34 ++++++++++++++++++++++++++++++++++
->  3 files changed, 40 insertions(+), 35 deletions(-)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 5411de93a363..51215d695753 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -935,6 +935,9 @@ static inline bool is_pci_p2pdma_page(const struct page *page)
->  }
->  #endif /* CONFIG_DEV_PAGEMAP_OPS */
->  
-> +unsigned long dev_pagemap_mapping_shift(unsigned long address,
-> +					struct mm_struct *mm);
-> +
->  static inline void get_page(struct page *page)
->  {
->  	page = compound_head(page);
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 0cd3de3550f0..c3f2c6a8607e 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -265,40 +265,6 @@ void shake_page(struct page *p, int access)
->  }
->  EXPORT_SYMBOL_GPL(shake_page);
->  
-> -static unsigned long dev_pagemap_mapping_shift(struct page *page,
-> -		struct vm_area_struct *vma)
-> -{
-> -	unsigned long address = vma_address(page, vma);
-> -	pgd_t *pgd;
-> -	p4d_t *p4d;
-> -	pud_t *pud;
-> -	pmd_t *pmd;
-> -	pte_t *pte;
-> -
-> -	pgd = pgd_offset(vma->vm_mm, address);
-> -	if (!pgd_present(*pgd))
-> -		return 0;
-> -	p4d = p4d_offset(pgd, address);
-> -	if (!p4d_present(*p4d))
-> -		return 0;
-> -	pud = pud_offset(p4d, address);
-> -	if (!pud_present(*pud))
-> -		return 0;
-> -	if (pud_devmap(*pud))
-> -		return PUD_SHIFT;
-> -	pmd = pmd_offset(pud, address);
-> -	if (!pmd_present(*pmd))
-> -		return 0;
-> -	if (pmd_devmap(*pmd))
-> -		return PMD_SHIFT;
-> -	pte = pte_offset_map(pmd, address);
-> -	if (!pte_present(*pte))
-> -		return 0;
-> -	if (pte_devmap(*pte))
-> -		return PAGE_SHIFT;
-> -	return 0;
-> -}
-> -
->  /*
->   * Failure handling: if we can't find or can't kill a process there's
->   * not much we can do.	We just print a message and ignore otherwise.
-> @@ -329,7 +295,9 @@ static void add_to_kill(struct task_struct *tsk, struct page *p,
->  	tk->addr = page_address_in_vma(p, vma);
->  	tk->addr_valid = 1;
->  	if (is_zone_device_page(p))
-> -		tk->size_shift = dev_pagemap_mapping_shift(p, vma);
-> +		tk->size_shift =
-> +			dev_pagemap_mapping_shift(vma_address(page, vma),
-> +						  vma->vm_mm);
->  	else
->  		tk->size_shift = compound_order(compound_head(p)) + PAGE_SHIFT;
->  
-> diff --git a/mm/util.c b/mm/util.c
-> index 8bf08b5b5760..61bc9bab931d 100644
-> --- a/mm/util.c
-> +++ b/mm/util.c
-> @@ -780,3 +780,37 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
->  out:
->  	return res;
->  }
-> +
-> +unsigned long dev_pagemap_mapping_shift(unsigned long address,
-> +					struct mm_struct *mm)
-> +{
-> +	pgd_t *pgd;
-> +	p4d_t *p4d;
-> +	pud_t *pud;
-> +	pmd_t *pmd;
-> +	pte_t *pte;
-> +
-> +	pgd = pgd_offset(mm, address);
-> +	if (!pgd_present(*pgd))
-> +		return 0;
-> +	p4d = p4d_offset(pgd, address);
-> +	if (!p4d_present(*p4d))
-> +		return 0;
-> +	pud = pud_offset(p4d, address);
-> +	if (!pud_present(*pud))
-> +		return 0;
-> +	if (pud_devmap(*pud))
-> +		return PUD_SHIFT;
-> +	pmd = pmd_offset(pud, address);
-> +	if (!pmd_present(*pmd))
-> +		return 0;
-> +	if (pmd_devmap(*pmd))
-> +		return PMD_SHIFT;
-> +	pte = pte_offset_map(pmd, address);
-> +	if (!pte_present(*pte))
-> +		return 0;
-> +	if (pte_devmap(*pte))
-> +		return PAGE_SHIFT;
-> +	return 0;
-> +}
-> +EXPORT_SYMBOL_GPL(dev_pagemap_mapping_shift);
-> 
+This is a preparation patch only, no functional change.
 
-Andrew,
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ include/linux/mmzone.h |  9 +++++----
+ mm/compaction.c        |  2 +-
+ mm/page_alloc.c        | 12 ++++++------
+ 3 files changed, 12 insertions(+), 11 deletions(-)
 
-can you ack this patch?
-
-Thanks,
-
-Paolo
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 847705a6d0ec..e43e8e79db99 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -269,9 +269,10 @@ enum zone_watermarks {
+ 	NR_WMARK
+ };
+ 
+-#define min_wmark_pages(z) (z->watermark[WMARK_MIN])
+-#define low_wmark_pages(z) (z->watermark[WMARK_LOW])
+-#define high_wmark_pages(z) (z->watermark[WMARK_HIGH])
++#define min_wmark_pages(z) (z->_watermark[WMARK_MIN])
++#define low_wmark_pages(z) (z->_watermark[WMARK_LOW])
++#define high_wmark_pages(z) (z->_watermark[WMARK_HIGH])
++#define wmark_pages(z, i) (z->_watermark[i])
+ 
+ struct per_cpu_pages {
+ 	int count;		/* number of pages in the list */
+@@ -362,7 +363,7 @@ struct zone {
+ 	/* Read-mostly fields */
+ 
+ 	/* zone watermarks, access with *_wmark_pages(zone) macros */
+-	unsigned long watermark[NR_WMARK];
++	unsigned long _watermark[NR_WMARK];
+ 
+ 	unsigned long nr_reserved_highatomic;
+ 
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 7c607479de4a..ef29490b0f46 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1431,7 +1431,7 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+ 	if (is_via_compact_memory(order))
+ 		return COMPACT_CONTINUE;
+ 
+-	watermark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
++	watermark = wmark_pages(zone, alloc_flags & ALLOC_WMARK_MASK);
+ 	/*
+ 	 * If watermarks for high-order allocation are already met, there
+ 	 * should be no need for compaction at all.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f86638aee96a..4ba84cd2977a 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3376,7 +3376,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 			}
+ 		}
+ 
+-		mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
++		mark = wmark_pages(zone, alloc_flags & ALLOC_WMARK_MASK);
+ 		if (!zone_watermark_fast(zone, order, mark,
+ 				       ac_classzone_idx(ac), alloc_flags)) {
+ 			int ret;
+@@ -4796,7 +4796,7 @@ long si_mem_available(void)
+ 		pages[lru] = global_node_page_state(NR_LRU_BASE + lru);
+ 
+ 	for_each_zone(zone)
+-		wmark_low += zone->watermark[WMARK_LOW];
++		wmark_low += low_wmark_pages(zone);
+ 
+ 	/*
+ 	 * Estimate the amount of memory available for userspace allocations,
+@@ -7422,13 +7422,13 @@ static void __setup_per_zone_wmarks(void)
+ 
+ 			min_pages = zone->managed_pages / 1024;
+ 			min_pages = clamp(min_pages, SWAP_CLUSTER_MAX, 128UL);
+-			zone->watermark[WMARK_MIN] = min_pages;
++			zone->_watermark[WMARK_MIN] = min_pages;
+ 		} else {
+ 			/*
+ 			 * If it's a lowmem zone, reserve a number of pages
+ 			 * proportionate to the zone's size.
+ 			 */
+-			zone->watermark[WMARK_MIN] = tmp;
++			zone->_watermark[WMARK_MIN] = tmp;
+ 		}
+ 
+ 		/*
+@@ -7440,8 +7440,8 @@ static void __setup_per_zone_wmarks(void)
+ 			    mult_frac(zone->managed_pages,
+ 				      watermark_scale_factor, 10000));
+ 
+-		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
+-		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
++		zone->_watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
++		zone->_watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
+ 
+ 		spin_unlock_irqrestore(&zone->lock, flags);
+ 	}
+-- 
+2.16.4
