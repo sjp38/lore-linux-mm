@@ -1,87 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C31C86B316D
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 10:07:13 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id x15so5907271edd.2
-        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 07:07:13 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E2B3B6B308C
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 08:00:46 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id v4so5588009edm.18
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 05:00:46 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a12si4893823edk.106.2018.11.23.07.07.12
+        by mx.google.com with ESMTPS id h28si5497233ede.371.2018.11.23.05.00.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Nov 2018 07:07:12 -0800 (PST)
-Subject: Re: [RFC PATCH 2/3] mm, thp, proc: report THP eligibility for each
- vma
-References: <20181120103515.25280-1-mhocko@kernel.org>
- <20181120103515.25280-3-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <73b55240-d36c-cf97-d7fd-85e2ae1e9309@suse.cz>
-Date: Fri, 23 Nov 2018 16:07:06 +0100
+        Fri, 23 Nov 2018 05:00:45 -0800 (PST)
+Date: Fri, 23 Nov 2018 14:00:43 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 2/4] mm, memory_hotplug: provide a more generic
+ restrictions for memory hotplug
+Message-ID: <20181123130043.GM8625@dhcp22.suse.cz>
+References: <20181116101222.16581-1-osalvador@suse.com>
+ <20181116101222.16581-3-osalvador@suse.com>
 MIME-Version: 1.0
-In-Reply-To: <20181120103515.25280-3-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181116101222.16581-3-osalvador@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-api@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Oscar Salvador <osalvador@suse.com>
+Cc: linux-mm@kvack.org, david@redhat.com, rppt@linux.vnet.ibm.com, akpm@linux-foundation.org, arunks@codeaurora.org, bhe@redhat.com, dan.j.williams@intel.com, Pavel.Tatashin@microsoft.com, Jonathan.Cameron@huawei.com, jglisse@redhat.com, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>, Alexander Duyck <alexander.h.duyck@linux.intel.com>
 
-On 11/20/18 11:35 AM, Michal Hocko wrote:
+[Cc Alexander - email thread starts http://lkml.kernel.org/r/20181116101222.16581-1-osalvador@suse.com]
+
+On Fri 16-11-18 11:12:20, Oscar Salvador wrote:
 > From: Michal Hocko <mhocko@suse.com>
 > 
-> Userspace falls short when trying to find out whether a specific memory
-> range is eligible for THP. There are usecases that would like to know
-> that
-> http://lkml.kernel.org/r/alpine.DEB.2.21.1809251248450.50347@chino.kir.corp.google.com
-> : This is used to identify heap mappings that should be able to fault thp
-> : but do not, and they normally point to a low-on-memory or fragmentation
-> : issue.
+> arch_add_memory, __add_pages take a want_memblock which controls whether
+> the newly added memory should get the sysfs memblock user API (e.g.
+> ZONE_DEVICE users do not want/need this interface). Some callers even
+> want to control where do we allocate the memmap from by configuring
+> altmap. This is currently done quite ugly by searching for altmap down
+> in memory hotplug (to_vmem_altmap). It should be the caller to provide
+> the altmap down the call chain.
 > 
-> The only way to deduce this now is to query for hg resp. nh flags and
-> confronting the state with the global setting. Except that there is
-> also PR_SET_THP_DISABLE that might change the picture. So the final
-> logic is not trivial. Moreover the eligibility of the vma depends on
-> the type of VMA as well. In the past we have supported only anononymous
-> memory VMAs but things have changed and shmem based vmas are supported
-> as well these days and the query logic gets even more complicated
-> because the eligibility depends on the mount option and another global
-> configuration knob.
-> 
-> Simplify the current state and report the THP eligibility in
-> /proc/<pid>/smaps for each existing vma. Reuse transparent_hugepage_enabled
-> for this purpose. The original implementation of this function assumes
-> that the caller knows that the vma itself is supported for THP so make
-> the core checks into __transparent_hugepage_enabled and use it for
-> existing callers. __show_smap just use the new transparent_hugepage_enabled
-> which also checks the vma support status (please note that this one has
-> to be out of line due to include dependency issues).
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> Add a more generic hotplug context for arch_add_memory and __add_pages.
+> struct mhp_restrictions contains flags which contains additional
+> features to be enabled by the memory hotplug (MHP_MEMBLOCK_API
+> currently) and altmap for alternative memmap allocator.
 
-Not thrilled by this, but kernel is always better suited to report this,
-than userspace piecing it together from multiple sources, relying on
-possibly outdated knowledge of kernel implementation details...
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-A nitpick:
-
-> ---
->  Documentation/filesystems/proc.txt |  3 +++
->  fs/proc/task_mmu.c                 |  2 ++
->  include/linux/huge_mm.h            | 13 ++++++++++++-
->  mm/huge_memory.c                   | 12 +++++++++++-
->  mm/memory.c                        |  4 ++--
->  5 files changed, 30 insertions(+), 4 deletions(-)
-> 
-> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-> index b1fda309f067..06562bab509a 100644
-> --- a/Documentation/filesystems/proc.txt
-> +++ b/Documentation/filesystems/proc.txt
-> @@ -425,6 +425,7 @@ SwapPss:               0 kB
->  KernelPageSize:        4 kB
->  MMUPageSize:           4 kB
->  Locked:                0 kB
-> +THPeligible:           0
-
-I would use THP_Eligible. There are already fields with underscore in smaps.
+One note here as well. In the retrospect the API I have come up
+with here is quite hackish. Considering the recent discussion about
+special needs ZONE_DEVICE has for both initialization and struct page
+allocations with Alexander Duyck I believe we wanted a more abstracted
+API with allocator and constructor callbacks. This would allow different
+usecases to fine tune their needs without specialcasing deep in the core
+hotplug code paths.
+-- 
+Michal Hocko
+SUSE Labs
