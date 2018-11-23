@@ -1,55 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B48E36B2D69
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 16:32:36 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id o17so3159730pgi.14
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 13:32:36 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e8si8528398pfc.248.2018.11.22.13.32.35
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 977C86B3071
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 04:29:14 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id m19so5533067edc.6
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 01:29:14 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v9-v6si1972339eje.240.2018.11.23.01.29.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 22 Nov 2018 13:32:35 -0800 (PST)
-From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 1/2] mm: Remove redundant test from find_get_pages_contig
-Date: Thu, 22 Nov 2018 13:32:23 -0800
-Message-Id: <20181122213224.12793-2-willy@infradead.org>
-In-Reply-To: <20181122213224.12793-1-willy@infradead.org>
-References: <20181122213224.12793-1-willy@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Nov 2018 01:29:13 -0800 (PST)
+Date: Fri, 23 Nov 2018 10:29:11 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH v2 09/17] debugobjects: Make object hash locks nestable
+ terminal locks
+Message-ID: <20181123092911.vgl2se2jdt3lqi7r@pathway.suse.cz>
+References: <1542653726-5655-1-git-send-email-longman@redhat.com>
+ <1542653726-5655-10-git-send-email-longman@redhat.com>
+ <20181122153302.y5vqovrsaigi6pte@pathway.suse.cz>
+ <6879cb32-1d6e-79bd-04c2-8f7c09c48bfe@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6879cb32-1d6e-79bd-04c2-8f7c09c48bfe@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>
+To: Waiman Long <longman@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-After we establish a reference on the page, we check the pointer continues
-to be in the correct position in i_pages.  There's no need to check the
-page->mapping or page->index afterwards; if those can change after we've
-got the reference, they can change after we return the page to the caller.
+On Thu 2018-11-22 15:17:52, Waiman Long wrote:
+> On 11/22/2018 10:33 AM, Petr Mladek wrote:
+> > On Mon 2018-11-19 13:55:18, Waiman Long wrote:
+> >> By making the object hash locks nestable terminal locks, we can avoid
+> >> a bunch of unnecessary lockdep validations as well as saving space
+> >> in the lockdep tables.
+> > Please, explain which terminal lock might be nested.
+>
+> So the db_lock is made to be nestable that it can allow acquisition of
+> pool_lock (a regular terminal lock) underneath it.
 
-Signed-off-by: Matthew Wilcox <willy@infradead.org>
----
- mm/filemap.c | 10 ----------
- 1 file changed, 10 deletions(-)
+Please, mention this in the commit message.
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 81adec8ee02cc..538531590ef2d 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1776,16 +1776,6 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
- 		if (unlikely(page != xas_reload(&xas)))
- 			goto put_page;
- 
--		/*
--		 * must check mapping and index after taking the ref.
--		 * otherwise we can get both false positives and false
--		 * negatives, which is just confusing to the caller.
--		 */
--		if (!page->mapping || page_to_pgoff(page) != xas.xa_index) {
--			put_page(page);
--			break;
--		}
--
- 		pages[ret] = page;
- 		if (++ret == nr_pages)
- 			break;
--- 
-2.19.1
+Best Regards,
+Petr
