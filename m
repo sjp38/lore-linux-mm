@@ -1,114 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 975AF6B445A
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 18:22:02 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id p3so2415831plk.9
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 15:22:02 -0800 (PST)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5602D6B2F8D
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 01:11:23 -0500 (EST)
+Received: by mail-lj1-f198.google.com with SMTP id e8-v6so3112416ljg.22
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 22:11:23 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y73sor2781442pfd.54.2018.11.26.15.22.01
+        by mx.google.com with SMTPS id a22-v6sor9938989ljd.6.2018.11.22.22.11.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 26 Nov 2018 15:22:01 -0800 (PST)
-Date: Mon, 26 Nov 2018 15:21:58 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 03/10] mm/huge_memory: fix lockdep complaint on 32-bit
- i_size_read()
-In-Reply-To: <alpine.LSU.2.11.1811261444420.2275@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1811261520070.2275@eggly.anvils>
-References: <alpine.LSU.2.11.1811261444420.2275@eggly.anvils>
+        Thu, 22 Nov 2018 22:11:21 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <1542799799-36184-1-git-send-email-ufo19890607@gmail.com>
+ <1542799799-36184-2-git-send-email-ufo19890607@gmail.com> <20181122133954.GI18011@dhcp22.suse.cz>
+In-Reply-To: <20181122133954.GI18011@dhcp22.suse.cz>
+From: =?UTF-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>
+Date: Fri, 23 Nov 2018 14:11:09 +0800
+Message-ID: <CAHCio2gdCX3p-7=N0cA22cWTaUmUXRq8WbiMAA2sM2wLVX4GjQ@mail.gmail.com>
+Subject: Re: [PATCH v15 2/2] Add oom victim's memcg to the oom context information
+Content-Type: multipart/alternative; boundary="00000000000024b275057b4eda1a"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
 
-Huge tmpfs testing, on 32-bit kernel with lockdep enabled, showed that
-__split_huge_page() was using i_size_read() while holding the irq-safe
-lru_lock and page tree lock, but the 32-bit i_size_read() uses an
-irq-unsafe seqlock which should not be nested inside them.
+--00000000000024b275057b4eda1a
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Instead, read the i_size earlier in split_huge_page_to_list(), and pass
-the end offset down to __split_huge_page(): all while holding head page
-lock, which is enough to prevent truncation of that extent before the
-page tree lock has been taken.
+Hi Michal
+I just rebase the patch from the latest version.
 
-Fixes: baa355fd33142 ("thp: file pages support for split_huge_page()")
-Signed-off-by: Hugh Dickins <hughd@google.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: stable@vger.kernel.org # 4.8+
----
- mm/huge_memory.c | 19 +++++++++++++------
- 1 file changed, 13 insertions(+), 6 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index cef2c256e7c4..622cced74fd9 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2439,12 +2439,11 @@ static void __split_huge_page_tail(struct page *head, int tail,
- }
- 
- static void __split_huge_page(struct page *page, struct list_head *list,
--		unsigned long flags)
-+		pgoff_t end, unsigned long flags)
- {
- 	struct page *head = compound_head(page);
- 	struct zone *zone = page_zone(head);
- 	struct lruvec *lruvec;
--	pgoff_t end = -1;
- 	int i;
- 
- 	lruvec = mem_cgroup_page_lruvec(head, zone->zone_pgdat);
-@@ -2452,9 +2451,6 @@ static void __split_huge_page(struct page *page, struct list_head *list,
- 	/* complete memcg works before add pages to LRU */
- 	mem_cgroup_split_huge_fixup(head);
- 
--	if (!PageAnon(page))
--		end = DIV_ROUND_UP(i_size_read(head->mapping->host), PAGE_SIZE);
--
- 	for (i = HPAGE_PMD_NR - 1; i >= 1; i--) {
- 		__split_huge_page_tail(head, i, lruvec, list);
- 		/* Some pages can be beyond i_size: drop them from page cache */
-@@ -2626,6 +2622,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 	int count, mapcount, extra_pins, ret;
- 	bool mlocked;
- 	unsigned long flags;
-+	pgoff_t end;
- 
- 	VM_BUG_ON_PAGE(is_huge_zero_page(page), page);
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
-@@ -2648,6 +2645,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 			ret = -EBUSY;
- 			goto out;
- 		}
-+		end = -1;
- 		mapping = NULL;
- 		anon_vma_lock_write(anon_vma);
- 	} else {
-@@ -2661,6 +2659,15 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 
- 		anon_vma = NULL;
- 		i_mmap_lock_read(mapping);
-+
-+		/*
-+		 *__split_huge_page() may need to trim off pages beyond EOF:
-+		 * but on 32-bit, i_size_read() takes an irq-unsafe seqlock,
-+		 * which cannot be nested inside the page tree lock. So note
-+		 * end now: i_size itself may be changed at any moment, but
-+		 * head page lock is good enough to serialize the trimming.
-+		 */
-+		end = DIV_ROUND_UP(i_size_read(mapping->host), PAGE_SIZE);
- 	}
- 
- 	/*
-@@ -2707,7 +2714,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 		if (mapping)
- 			__dec_node_page_state(page, NR_SHMEM_THPS);
- 		spin_unlock(&pgdata->split_queue_lock);
--		__split_huge_page(page, list, flags);
-+		__split_huge_page(page, list, end, flags);
- 		if (PageSwapCache(head)) {
- 			swp_entry_t entry = { .val = page_private(head) };
- 
--- 
-2.20.0.rc0.387.gc7a69e6b6c-goog
+Michal Hocko <mhocko@kernel.org> =E4=BA=8E2018=E5=B9=B411=E6=9C=8822=E6=97=
+=A5=E5=91=A8=E5=9B=9B =E4=B8=8B=E5=8D=889:39=E5=86=99=E9=81=93=EF=BC=9A
+
+> On Wed 21-11-18 19:29:59, ufo19890607@gmail.com wrote:
+> > From: yuzhoujian <yuzhoujian@didichuxing.com>
+> >
+> > The current oom report doesn't display victim's memcg context during th=
+e
+> > global OOM situation. While this information is not strictly needed, it
+> > can be really helpful for containerized environments to locate which
+> > container has lost a process. Now that we have a single line for the oo=
+m
+> > context, we can trivially add both the oom memcg (this can be either
+> > global_oom or a specific memcg which hits its hard limits) and task_mem=
+cg
+> > which is the victim's memcg.
+> >
+> > Below is the single line output in the oom report after this patch.
+> > - global oom context information:
+> >
+> oom-kill:constraint=3D<constraint>,nodemask=3D<nodemask>,cpuset=3D<cpuset=
+>,mems_allowed=3D<mems_allowed>,global_oom,task_memcg=3D<memcg>,task=3D<com=
+m>,pid=3D<pid>,uid=3D<uid>
+> > - memcg oom context information:
+> >
+> oom-kill:constraint=3D<constraint>,nodemask=3D<nodemask>,cpuset=3D<cpuset=
+>,mems_allowed=3D<mems_allowed>,oom_memcg=3D<memcg>,task_memcg=3D<memcg>,ta=
+sk=3D<comm>,pid=3D<pid>,uid=3D<uid>
+> >
+> > Signed-off-by: yuzhoujian <yuzhoujian@didichuxing.com>
+>
+> I thought I have acked this one already.
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> --
+> Michal Hocko
+> SUSE Labs
+>
+
+--00000000000024b275057b4eda1a
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">Hi Michal<div>I just rebase the patch from the latest vers=
+ion.</div></div><br><br><div class=3D"gmail_quote"><div dir=3D"ltr">Michal =
+Hocko &lt;<a href=3D"mailto:mhocko@kernel.org">mhocko@kernel.org</a>&gt; =
+=E4=BA=8E2018=E5=B9=B411=E6=9C=8822=E6=97=A5=E5=91=A8=E5=9B=9B =E4=B8=8B=E5=
+=8D=889:39=E5=86=99=E9=81=93=EF=BC=9A<br></div><blockquote class=3D"gmail_q=
+uote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1e=
+x">On Wed 21-11-18 19:29:59, <a href=3D"mailto:ufo19890607@gmail.com" targe=
+t=3D"_blank">ufo19890607@gmail.com</a> wrote:<br>
+&gt; From: yuzhoujian &lt;<a href=3D"mailto:yuzhoujian@didichuxing.com" tar=
+get=3D"_blank">yuzhoujian@didichuxing.com</a>&gt;<br>
+&gt; <br>
+&gt; The current oom report doesn&#39;t display victim&#39;s memcg context =
+during the<br>
+&gt; global OOM situation. While this information is not strictly needed, i=
+t<br>
+&gt; can be really helpful for containerized environments to locate which<b=
+r>
+&gt; container has lost a process. Now that we have a single line for the o=
+om<br>
+&gt; context, we can trivially add both the oom memcg (this can be either<b=
+r>
+&gt; global_oom or a specific memcg which hits its hard limits) and task_me=
+mcg<br>
+&gt; which is the victim&#39;s memcg.<br>
+&gt; <br>
+&gt; Below is the single line output in the oom report after this patch.<br=
+>
+&gt; - global oom context information:<br>
+&gt; oom-kill:constraint=3D&lt;constraint&gt;,nodemask=3D&lt;nodemask&gt;,c=
+puset=3D&lt;cpuset&gt;,mems_allowed=3D&lt;mems_allowed&gt;,global_oom,task_=
+memcg=3D&lt;memcg&gt;,task=3D&lt;comm&gt;,pid=3D&lt;pid&gt;,uid=3D&lt;uid&g=
+t;<br>
+&gt; - memcg oom context information:<br>
+&gt; oom-kill:constraint=3D&lt;constraint&gt;,nodemask=3D&lt;nodemask&gt;,c=
+puset=3D&lt;cpuset&gt;,mems_allowed=3D&lt;mems_allowed&gt;,oom_memcg=3D&lt;=
+memcg&gt;,task_memcg=3D&lt;memcg&gt;,task=3D&lt;comm&gt;,pid=3D&lt;pid&gt;,=
+uid=3D&lt;uid&gt;<br>
+&gt; <br>
+&gt; Signed-off-by: yuzhoujian &lt;<a href=3D"mailto:yuzhoujian@didichuxing=
+.com" target=3D"_blank">yuzhoujian@didichuxing.com</a>&gt;<br>
+<br>
+I thought I have acked this one already.<br>
+Acked-by: Michal Hocko &lt;<a href=3D"mailto:mhocko@suse.com" target=3D"_bl=
+ank">mhocko@suse.com</a>&gt;<br>
+-- <br>
+Michal Hocko<br>
+SUSE Labs<br>
+</blockquote></div>
+
+--00000000000024b275057b4eda1a--
