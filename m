@@ -1,50 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E0FB6B3F7E
-	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 21:20:15 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id k66so18280268qkf.1
-        for <linux-mm@kvack.org>; Sun, 25 Nov 2018 18:20:15 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b48si5800396qtk.45.2018.11.25.18.20.14
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BC51E6B332C
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 17:28:43 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id a72-v6so5906016pfj.14
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 14:28:43 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i63sor63780418pge.62.2018.11.23.14.28.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Nov 2018 18:20:14 -0800 (PST)
-From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V12 12/20] fs/buffer.c: use bvec iterator to truncate the bio
-Date: Mon, 26 Nov 2018 10:17:12 +0800
-Message-Id: <20181126021720.19471-13-ming.lei@redhat.com>
-In-Reply-To: <20181126021720.19471-1-ming.lei@redhat.com>
-References: <20181126021720.19471-1-ming.lei@redhat.com>
+        (Google Transport Security);
+        Fri, 23 Nov 2018 14:28:42 -0800 (PST)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH] drivers/base/memory.c: remove an unnecessary check on NR_MEM_SECTIONS
+Date: Sat, 24 Nov 2018 06:28:11 +0800
+Message-Id: <20181123222811.18216-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
+To: gregkh@linuxfoundation.org, rafael@kernel.org, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>
 
-Once multi-page bvec is enabled, the last bvec may include more than one
-page, this patch use bvec_last_segment() to truncate the bio.
+In commit cb5e39b8038b ("drivers: base: refactor add_memory_section() to
+add_memory_block()"), add_memory_block() is introduced, which is only
+invoked in memory_dev_init().
 
-Reviewed-by: Omar Sandoval <osandov@fb.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Signed-off-by: Ming Lei <ming.lei@redhat.com>
+When combine these two loops in memory_dev_init() and
+add_memory_block(), they looks like this:
+
+    for (i = 0; i < NR_MEM_SECTIONS; i += sections_per_block)
+        for (j = i;
+	    (j < i + sections_per_block) && j < NR_MEM_SECTIONS;
+	    j++)
+
+Since it is sure (i < NR_MEM_SECTIONS) and j sits in its own memory
+block, the check of (j < NR_MEM_SECTIONS) is not necessary.
+
+This patch just removes this check.
+
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 ---
- fs/buffer.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ drivers/base/memory.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 1286c2b95498..fa37ad52e962 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -3032,7 +3032,10 @@ void guard_bio_eod(int op, struct bio *bio)
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 0e5985682642..547997a2249b 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -688,7 +688,7 @@ static int add_memory_block(int base_section_nr)
+ 	int i, ret, section_count = 0, section_nr;
  
- 	/* ..and clear the end of the buffer for reads */
- 	if (op == REQ_OP_READ) {
--		zero_user(bvec->bv_page, bvec->bv_offset + bvec->bv_len,
-+		struct bio_vec bv;
-+
-+		bvec_last_segment(bvec, &bv);
-+		zero_user(bv.bv_page, bv.bv_offset + bv.bv_len,
- 				truncated_bytes);
- 	}
- }
+ 	for (i = base_section_nr;
+-	     (i < base_section_nr + sections_per_block) && i < NR_MEM_SECTIONS;
++	     i < base_section_nr + sections_per_block;
+ 	     i++) {
+ 		if (!present_section_nr(i))
+ 			continue;
 -- 
-2.9.5
+2.15.1
