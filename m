@@ -1,47 +1,31 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3117B6B323F
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 13:35:22 -0500 (EST)
-Received: by mail-ot1-f71.google.com with SMTP id w24so690518otk.22
-        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 10:35:22 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id j4si9645860otp.25.2018.11.23.10.35.20
-        for <linux-mm@kvack.org>;
-        Fri, 23 Nov 2018 10:35:21 -0800 (PST)
-Date: Fri, 23 Nov 2018 18:35:16 +0000
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Date: Fri, 23 Nov 2018 14:42:26 +0000
 From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH V3 4/5] arm64: mm: introduce 52-bit userspace support
-Message-ID: <20181123183516.GM3360@arrakis.emea.arm.com>
-References: <20181114133920.7134-1-steve.capper@arm.com>
- <20181114133920.7134-5-steve.capper@arm.com>
+Subject: Re: [PATCH V3 4/5] arm64/mm: Enable HugeTLB migration
+Message-ID: <20181123144226.GD3360@arrakis.emea.arm.com>
+References: <1540299721-26484-1-git-send-email-anshuman.khandual@arm.com>
+ <1540299721-26484-5-git-send-email-anshuman.khandual@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181114133920.7134-5-steve.capper@arm.com>
-Sender: owner-linux-mm@kvack.org
+In-Reply-To: <1540299721-26484-5-git-send-email-anshuman.khandual@arm.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, steve.capper@arm.com, punit.agrawal@arm.com, will.deacon@arm.com, Steven.Price@arm.com, akpm@linux-foundation.org, mhocko@kernel.org, n-horiguchi@ah.jp.nec.com, suzuki.poulose@arm.com, mike.kravetz@oracle.com
 List-ID: <linux-mm.kvack.org>
-To: Steve Capper <steve.capper@arm.com>
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, will.deacon@arm.com, jcm@redhat.com, ard.biesheuvel@linaro.org
 
-On Wed, Nov 14, 2018 at 01:39:19PM +0000, Steve Capper wrote:
-> diff --git a/arch/arm64/include/asm/pgalloc.h b/arch/arm64/include/asm/pgalloc.h
-> index 2e05bcd944c8..56c3ccabeffe 100644
-> --- a/arch/arm64/include/asm/pgalloc.h
-> +++ b/arch/arm64/include/asm/pgalloc.h
-> @@ -27,7 +27,11 @@
->  #define check_pgt_cache()		do { } while (0)
->  
->  #define PGALLOC_GFP	(GFP_KERNEL | __GFP_ZERO)
-> +#ifdef CONFIG_ARM64_52BIT_VA
-> +#define PGD_SIZE	((1 << (52 - PGDIR_SHIFT)) * sizeof(pgd_t))
-> +#else
->  #define PGD_SIZE	(PTRS_PER_PGD * sizeof(pgd_t))
-> +#endif
+On Tue, Oct 23, 2018 at 06:32:00PM +0530, Anshuman Khandual wrote:
+> Let arm64 subscribe to generic HugeTLB page migration framework. Right now
+> this only works on the following PMD and PUD level HugeTLB page sizes with
+> various kernel base page size combinations.
+> 
+>        CONT PTE    PMD    CONT PMD    PUD
+>        --------    ---    --------    ---
+> 4K:         NA     2M         NA      1G
+> 16K:        NA    32M         NA
+> 64K:        NA   512M         NA
+> 
+> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
 
-This introduces a mismatch between PTRS_PER_PGD and PGD_SIZE. While it
-happens not to corrupt any memory (we allocate a full page for pgdirs),
-the compiler complains about the memset() in map_entry_trampoline()
-since tramp_pg_dir[] is smaller.
-
--- 
-Catalin
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
