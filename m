@@ -1,43 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5202E6B3269
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 14:21:03 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id g12-v6so16018111plo.14
-        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 11:21:03 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id d25si42630562pgd.88.2018.11.23.11.21.01
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DAB546B31EB
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 12:15:59 -0500 (EST)
+Received: by mail-oi1-f198.google.com with SMTP id w128so5766721oie.20
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 09:15:59 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x8sor12039751otp.142.2018.11.23.09.15.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Nov 2018 11:21:02 -0800 (PST)
-Subject: Re: [PATCH 0/7] ACPI HMAT memory sysfs representation
-References: <20181114224902.12082-1-keith.busch@intel.com>
- <1ed406b2-b85f-8e02-1df0-7c39aa21eca9@arm.com>
- <4ea6e80f-80ba-6992-8aa0-5c2d88996af7@intel.com>
- <b79804b0-32ee-03f9-fa62-a89684d46be6@arm.com>
- <c6abb754-0d82-8739-fe08-24e9402bae75@intel.com>
- <aae34dde-fa70-870a-9b74-fff9e385bfc9@arm.com>
- <f5315662-5c1a-68a3-4d04-21b4b5ca94b1@intel.com>
- <ac942498-8966-6a9b-0e55-c79ae167c679@arm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <9015e51a-3584-7bb2-cc5e-25b0ec8e5494@intel.com>
-Date: Fri, 23 Nov 2018 11:21:00 -0800
+        (Google Transport Security);
+        Fri, 23 Nov 2018 09:15:58 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <ac942498-8966-6a9b-0e55-c79ae167c679@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+References: <20181114224902.12082-1-keith.busch@intel.com> <1ed406b2-b85f-8e02-1df0-7c39aa21eca9@arm.com>
+ <4ea6e80f-80ba-6992-8aa0-5c2d88996af7@intel.com> <b79804b0-32ee-03f9-fa62-a89684d46be6@arm.com>
+ <c6abb754-0d82-8739-fe08-24e9402bae75@intel.com> <aae34dde-fa70-870a-9b74-fff9e385bfc9@arm.com>
+ <CAPcyv4hj61o+TDTSGxYSMMXMn7YiOGP0fj6R-cquPodN4VeT9A@mail.gmail.com> <0194f47c-d1d8-108e-a57f-0316adb9112b@arm.com>
+In-Reply-To: <0194f47c-d1d8-108e-a57f-0316adb9112b@arm.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 23 Nov 2018 09:15:45 -0800
+Message-ID: <CAPcyv4iP_+BhVD9NqYG_m8thXARbOfPMDpvg4hfxRATWom_MRQ@mail.gmail.com>
+Subject: Re: [PATCH 0/7] ACPI HMAT memory sysfs representation
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>, Keith Busch <keith.busch@intel.com>, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dan Williams <dan.j.williams@intel.com>
+To: anshuman.khandual@arm.com
+Cc: Dave Hansen <dave.hansen@intel.com>, Keith Busch <keith.busch@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux ACPI <linux-acpi@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Greg KH <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>
 
-On 11/22/18 10:42 PM, Anshuman Khandual wrote:
-> Are we willing to go in the direction for inclusion of a new system
-> call, subset of it appears on sysfs etc ? My primary concern is not
-> how the attribute information appears on the sysfs but lack of it's
-> completeness.
+On Thu, Nov 22, 2018 at 11:11 PM Anshuman Khandual
+<anshuman.khandual@arm.com> wrote:
+>
+>
+>
+> On 11/22/2018 11:38 PM, Dan Williams wrote:
+> > On Thu, Nov 22, 2018 at 3:52 AM Anshuman Khandual
+> > <anshuman.khandual@arm.com> wrote:
+> >>
+> >>
+> >>
+> >> On 11/19/2018 11:07 PM, Dave Hansen wrote:
+> >>> On 11/18/18 9:44 PM, Anshuman Khandual wrote:
+> >>>> IIUC NUMA re-work in principle involves these functional changes
+> >>>>
+> >>>> 1. Enumerating compute and memory nodes in heterogeneous environment (short/medium term)
+> >>>
+> >>> This patch set _does_ that, though.
+> >>>
+> >>>> 2. Enumerating memory node attributes as seen from the compute nodes (short/medium term)
+> >>>
+> >>> It does that as well (a subset at least).
+> >>>
+> >>> It sounds like the subset that's being exposed is insufficient for yo
+> >>> We did that because we think doing anything but a subset in sysfs will
+> >>> just blow up sysfs:  MAX_NUMNODES is as high as 1024, so if we have 4
+> >>> attributes, that's at _least_ 1024*1024*4 files if we expose *all*
+> >>> combinations.
+> >> Each permutation need not be a separate file inside all possible NODE X
+> >> (/sys/devices/system/node/nodeX) directories. It can be a top level file
+> >> enumerating various attribute values for a given (X, Y) node pair based
+> >> on an offset something like /proc/pid/pagemap.
+> >>
+> >>>
+> >>> Do we agree that sysfs is unsuitable for exposing attributes in this manner?
+> >>>
+> >>
+> >> Yes, for individual files. But this can be worked around with an offset
+> >> based access from a top level global attributes file as mentioned above.
+> >> Is there any particular advantage of using individual files for each
+> >> given attribute ? I was wondering that a single unsigned long (u64) will
+> >> be able to pack 8 different attributes where each individual attribute
+> >> values can be abstracted out in 8 bits.
+> >
+> > sysfs has a 4K limit, and in general I don't think there is much
+> > incremental value to go describe the entirety of the system from sysfs
+> > or anywhere else in the kernel for that matter. It's simply too much> information to reasonably consume. Instead the kernel can describe the
+>
+> I agree that it may be some amount of information to parse but is crucial
+> for any task on a heterogeneous system to evaluate (probably re-evaluate
+> if the task moves around) its memory and CPU binding at runtime to make
+> sure it has got the right one.
 
-A new system call makes total sense to me.  I have the same concern
-about the completeness of what's exposed in sysfs, I just don't see a
-_route_ to completeness with sysfs itself.  Thus, the minimalist
-approach as a first step.
+Can you provide some more evidence for this statement? It seems that
+not many applications even care about basic numa let alone specific
+memory targeting, at least according to libnumactl users.
+
+     dnf repoquery --whatrequires numactl-libs
+
+The kernel is the arbiter of memory, something is broken if
+applications *need* to take on this responsibility. Yes, there will be
+applications that want to tune and override the default kernel
+behavior, but this is the exception, not the rule. The applications
+that tend to care about specific memories also tend to be purpose
+built for a given platform, and that lessens their reliance on the
+kernel to enumerate all properties.
+
+> > coarse boundaries and some semblance of "best" access initiator for a
+> > given target. That should cover the "80%" case of what applications
+>
+> The current proposal just assumes that the best one is the nearest one.
+> This may be true for bandwidth and latency but may not be true for some
+> other properties. This assumptions should not be there while defining
+> new ABI.
+
+In fact, I tend to agree with you, but in my opinion that's an
+argument to expose even less, not more. If we start with something
+minimal that can be extended over time we lessen the risk of over
+exposing details that don't matter in practice.
+
+We're in the middle of a bit of a disaster with the VmFlags export in
+/proc/$pid/smaps precisely because the implementation was too
+comprehensive and applications started depending on details that the
+kernel does not want to guarantee going forward. So there is a real
+risk of being too descriptive in an interface design.
+
+> > want to discover, for the other "20%" we likely need some userspace
+> > library that can go parse these platform specific information sources
+> > and supplement the kernel view. I also think a simpler kernel starting
+> > point gives us room to go pull in more commonly used attributes if it
+> > turns out they are useful, and avoid going down the path of exporting
+> > attributes that have questionable value in practice.
+> >
+>
+> Applications can just query platform information right now and just use
+> them for mbind() without requiring this new interface.
+
+No, they can't today, at least not for the topology details that HMAT
+is describing. The platform-firmware to numa-node translation is
+currently not complete. At a minimum we need a listing of initiator
+ids and target ids. For an ACPI platform that is the proximity-domain
+to numa-node-id translation information. Once that translation is in
+place then a userspace library can consult the platform-specific
+information sources to translate the platform-firmware view to the
+Linux handles for those memories. Am I missing the library that does
+this today?
+
+> We are not even
+> changing any core MM yet. So if it's just about identifying the node's
+> memory properties it can be scanned from platform itself. But I agree
+> we would like the kernel to start adding interfaces for multi attribute
+> memory but all I am saying is that it has to be comprehensive. Some of
+> the attributes have more usefulness now and some have less but the new
+> ABI interface has to accommodate exporting all of these.
+
+I get the sense we are talking past each other, can you give the next
+level of detail on that "has to be comprehensive" statement?
