@@ -1,102 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E47BF6B28C0
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 20:52:42 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id c53so3900613edc.9
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 17:52:42 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x1-v6sor1895852ejf.13.2018.11.21.17.52.40
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B5EB6B3183
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 10:25:08 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id 75so2988293pfq.8
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 07:25:08 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v23-v6si51320987plo.182.2018.11.23.07.25.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 21 Nov 2018 17:52:41 -0800 (PST)
-Date: Thu, 22 Nov 2018 01:52:39 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH] mm, hotplug: protect nr_zones with pgdat_resize_lock()
-Message-ID: <20181122015239.qm5xdoxf4t5jzyld@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20181120014822.27968-1-richard.weiyang@gmail.com>
- <20181120073141.GY22247@dhcp22.suse.cz>
- <3ba8d8c524d86af52e4c1fddc2d45734@suse.de>
- <20181121025231.ggk7zgq53nmqsqds@master>
- <20181121071549.GG12932@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Nov 2018 07:25:06 -0800 (PST)
+Subject: Re: [RFC PATCH 2/3] mm, thp, proc: report THP eligibility for each
+ vma
+References: <20181120103515.25280-1-mhocko@kernel.org>
+ <20181120103515.25280-3-mhocko@kernel.org>
+ <73b55240-d36c-cf97-d7fd-85e2ae1e9309@suse.cz>
+ <20181123152136.GA5827@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a5b54792-7ad8-6502-a588-892f63df01cd@suse.cz>
+Date: Fri, 23 Nov 2018 16:24:57 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181121071549.GG12932@dhcp22.suse.cz>
+In-Reply-To: <20181123152136.GA5827@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, osalvador@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-api@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Nov 21, 2018 at 08:15:49AM +0100, Michal Hocko wrote:
->On Wed 21-11-18 02:52:31, Wei Yang wrote:
->> On Tue, Nov 20, 2018 at 08:58:11AM +0100, osalvador@suse.de wrote:
->> >> On the other hand I would like to see the global lock to go away because
->> >> it causes scalability issues and I would like to change it to a range
->> >> lock. This would make this race possible.
->> >> 
->> >> That being said this is more of a preparatory work than a fix. One could
->> >> argue that pgdat resize lock is abused here but I am not convinced a
->> >> dedicated lock is much better. We do take this lock already and spanning
->> >> its scope seems reasonable. An update to the documentation is due.
->> >
->> >Would not make more sense to move it within the pgdat lock
->> >in move_pfn_range_to_zone?
->> >The call from free_area_init_core is safe as we are single-thread there.
->> >
->> 
->> Agree. This would be better.
->> 
->> >And if we want to move towards a range locking, I even think it would be more
->> >consistent if we move it within the zone's span lock (which is already
->> >wrapped with a pgdat lock).
->> >
->> 
->> I lost a little here, just want to confirm with you.
->> 
->> Instead of call pgdat_resize_lock() around init_currently_empty_zone()
->> in move_pfn_range_to_zone(), we move init_currently_empty_zone() before
->> resize_zone_range()?
->> 
->> This sounds reasonable.
->
->Btw. resolving the existing TODO would be nice as well, now that you are
->looking that direction...
-
-I took a look at that commit, seems I need some time to understand this
-TODO. :-)
-
->
->diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->index c6c42a7425e5..c75fca900044 100644
->--- a/mm/memory_hotplug.c
->+++ b/mm/memory_hotplug.c
->@@ -743,13 +743,12 @@ void __ref move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
-> 	int nid = pgdat->node_id;
-> 	unsigned long flags;
+On 11/23/18 4:21 PM, Michal Hocko wrote:
+> On Fri 23-11-18 16:07:06, Vlastimil Babka wrote:
+>> On 11/20/18 11:35 AM, Michal Hocko wrote:
+>>> From: Michal Hocko <mhocko@suse.com>
+>>>
+>>> Userspace falls short when trying to find out whether a specific memory
+>>> range is eligible for THP. There are usecases that would like to know
+>>> that
+>>> http://lkml.kernel.org/r/alpine.DEB.2.21.1809251248450.50347@chino.kir.corp.google.com
+>>> : This is used to identify heap mappings that should be able to fault thp
+>>> : but do not, and they normally point to a low-on-memory or fragmentation
+>>> : issue.
+>>>
+>>> The only way to deduce this now is to query for hg resp. nh flags and
+>>> confronting the state with the global setting. Except that there is
+>>> also PR_SET_THP_DISABLE that might change the picture. So the final
+>>> logic is not trivial. Moreover the eligibility of the vma depends on
+>>> the type of VMA as well. In the past we have supported only anononymous
+>>> memory VMAs but things have changed and shmem based vmas are supported
+>>> as well these days and the query logic gets even more complicated
+>>> because the eligibility depends on the mount option and another global
+>>> configuration knob.
+>>>
+>>> Simplify the current state and report the THP eligibility in
+>>> /proc/<pid>/smaps for each existing vma. Reuse transparent_hugepage_enabled
+>>> for this purpose. The original implementation of this function assumes
+>>> that the caller knows that the vma itself is supported for THP so make
+>>> the core checks into __transparent_hugepage_enabled and use it for
+>>> existing callers. __show_smap just use the new transparent_hugepage_enabled
+>>> which also checks the vma support status (please note that this one has
+>>> to be out of line due to include dependency issues).
+>>>
+>>> Signed-off-by: Michal Hocko <mhocko@suse.com>
+>>
+>> Not thrilled by this,
 > 
->+	/* TODO Huh pgdat is irqsave while zone is not. It used to be like that before */
->+	pgdat_resize_lock(pgdat, &flags);
-> 	if (zone_is_empty(zone))
-> 		init_currently_empty_zone(zone, start_pfn, nr_pages);
-> 
-> 	clear_zone_contiguous(zone);
->-
->-	/* TODO Huh pgdat is irqsave while zone is not. It used to be like that before */
->-	pgdat_resize_lock(pgdat, &flags);
-> 	zone_span_writelock(zone);
+> Any specific concern?
 
-Just want to make sure, Oscar suggests to move the code here to protect
-this under zone_span_lock.
-
-If this the correct, I would spin a v2 and try to address the TODO.
-
-> 	resize_zone_range(zone, start_pfn, nr_pages);
-> 	zone_span_writeunlock(zone);
->-- 
->Michal Hocko
->SUSE Labs
-
--- 
-Wei Yang
-Help you, Help me
+The kitchen sink that smaps slowly becomes, with associated overhead
+(i.e. one of reasons there's now smaps_rollup). Would be much nicer if
+userspace had some way to say which fields it's interested in. But I
+have no good ideas for that right now :/
