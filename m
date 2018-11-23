@@ -1,80 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 526726B48F0
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:20:40 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id 68so14408424pfr.6
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:20:40 -0800 (PST)
-Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
-        by mx.google.com with ESMTPS id p26si5129609pli.225.2018.11.27.08.20.38
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FF616B303F
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 03:47:12 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id o10-v6so15232474plk.16
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 00:47:12 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d17si34724310pfm.40.2018.11.23.00.47.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Nov 2018 08:20:38 -0800 (PST)
-From: Oscar Salvador <osalvador@suse.de>
-Subject: [PATCH v2 2/5] kernel, resource: Check for IORESOURCE_SYSRAM in release_mem_region_adjustable
-Date: Tue, 27 Nov 2018 17:20:02 +0100
-Message-Id: <20181127162005.15833-3-osalvador@suse.de>
-In-Reply-To: <20181127162005.15833-1-osalvador@suse.de>
-References: <20181127162005.15833-1-osalvador@suse.de>
+        Fri, 23 Nov 2018 00:47:11 -0800 (PST)
+Date: Fri, 23 Nov 2018 09:47:09 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v8 1/7] mm, devm_memremap_pages: Mark
+ devm_memremap_pages() EXPORT_SYMBOL_GPL
+Message-ID: <20181123084709.GB8625@dhcp22.suse.cz>
+References: <154275556908.76910.8966087090637564219.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <154275557457.76910.16923571232582744134.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20181122133013.GG18011@dhcp22.suse.cz>
+ <20181122163858.GA23809@lst.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181122163858.GA23809@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, dan.j.williams@intel.com, pavel.tatashin@microsoft.com, jglisse@redhat.com, Jonathan.Cameron@huawei.com, rafael@kernel.org, david@redhat.com, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org
 
-This is a preparation for the next patch.
+On Thu 22-11-18 17:38:58, Christoph Hellwig wrote:
+> On Thu, Nov 22, 2018 at 02:30:13PM +0100, Michal Hocko wrote:
+> > Whoever needs a wrapper around arch_add_memory can do so because this
+> > symbol has no restriction for the usage.
+> 
+> arch_add_memory is not exported, and it really should not be.
 
-Currently, we only call release_mem_region_adjustable() in __remove_pages
-if the zone is not ZONE_DEVICE, because resources that belong to
-HMM/devm are being released by themselves with devm_release_mem_region.
+It is not, but nobody really prevents from wrapping it and exporting.
+I am definitely not arguing for that and I would even agree with you
+that it shouldn't be exported at all unless there is a _very_ good
+reason for that. Because usecases is what we care about here.
 
-Since we do not want to touch any zone/page stuff during the removing
-of the memory (but during the offlining), we do not want to check for
-the zone here.
-So we need another way to tell release_mem_region_adjustable() to not
-realease the resource in case it belongs to HMM/devm.
-
-HMM/devm acquires/releases a resource through
-devm_request_mem_region/devm_release_mem_region.
-
-These resources have the flag IORESOURCE_MEM, while resources acquired by
-hot-add memory path (register_memory_resource()) contain
-IORESOURCE_SYSTEM_RAM.
-
-So, we can check for this flag in release_mem_region_adjustable, and if
-the resource does not contain such flag, we know that we are dealing with
-a HMM/devm resource, so we can back off.
-
-Signed-off-by: Oscar Salvador <osalvador@suse.de>
-Reviewed-by: David Hildenbrand <david@redhat.com>
-Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
----
- kernel/resource.c | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
-
-diff --git a/kernel/resource.c b/kernel/resource.c
-index 0aaa95005a2e..e20cea416f1f 100644
---- a/kernel/resource.c
-+++ b/kernel/resource.c
-@@ -1266,6 +1266,21 @@ int release_mem_region_adjustable(struct resource *parent,
- 			continue;
- 		}
- 
-+		/*
-+		 * All memory regions added from memory-hotplug path have the
-+		 * flag IORESOURCE_SYSTEM_RAM. If the resource does not have
-+		 * this flag, we know that we are dealing with a resource coming
-+		 * from HMM/devm. HMM/devm use another mechanism to add/release
-+		 * a resource. This goes via devm_request_mem_region and
-+		 * devm_release_mem_region.
-+		 * HMM/devm take care to release their resources when they want,
-+		 * so if we are dealing with them, let us just back off here.
-+		 */
-+		if (!(res->flags & IORESOURCE_SYSRAM)) {
-+			ret = 0;
-+			break;
-+		}
-+
- 		if (!(res->flags & IORESOURCE_MEM))
- 			break;
- 
 -- 
-2.13.6
+Michal Hocko
+SUSE Labs
