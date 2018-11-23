@@ -1,105 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A97726B2ABB
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 08:30:16 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id e68so13576659plb.3
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 05:30:16 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 31AB16B3049
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 07:15:22 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id g12-v6so15361095plo.14
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 04:15:22 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s24si17731630plq.41.2018.11.22.05.30.15
+        by mx.google.com with ESMTPS id t129-v6si58274723pfb.16.2018.11.23.04.15.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Nov 2018 05:30:15 -0800 (PST)
-Date: Thu, 22 Nov 2018 14:30:13 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v8 1/7] mm, devm_memremap_pages: Mark
- devm_memremap_pages() EXPORT_SYMBOL_GPL
-Message-ID: <20181122133013.GG18011@dhcp22.suse.cz>
-References: <154275556908.76910.8966087090637564219.stgit@dwillia2-desk3.amr.corp.intel.com>
- <154275557457.76910.16923571232582744134.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Fri, 23 Nov 2018 04:15:21 -0800 (PST)
+Subject: Re: [PATCH v2 3/3] iommu/io-pgtable-arm-v7s: Request DMA32 memory,
+ and improve debugging
+References: <20181111090341.120786-1-drinkcat@chromium.org>
+ <20181111090341.120786-4-drinkcat@chromium.org>
+ <20181121164638.GD24883@arm.com> <20181121180000.GU12932@dhcp22.suse.cz>
+ <CANMq1KCHGZ2vEWg+OQQ-SwvHcU-oMp4qKzEYfLwRYD5ZmRdRsA@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <f5411603-2d06-916c-473d-1a40a5463876@suse.cz>
+Date: Fri, 23 Nov 2018 13:15:16 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <154275557457.76910.16923571232582744134.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <CANMq1KCHGZ2vEWg+OQQ-SwvHcU-oMp4qKzEYfLwRYD5ZmRdRsA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@lst.de>, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org
+To: Nicolas Boichat <drinkcat@chromium.org>, mhocko@kernel.org
+Cc: Will Deacon <will.deacon@arm.com>, Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <joro@8bytes.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm Mailing List <linux-arm-kernel@lists.infradead.org>, iommu@lists.linux-foundation.org, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Matthias Brugger <matthias.bgg@gmail.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com
 
-On Tue 20-11-18 15:12:54, Dan Williams wrote:
-> devm_memremap_pages() is a facility that can create struct page entries
-> for any arbitrary range and give drivers the ability to subvert core
-> aspects of page management.
+On 11/22/18 2:20 AM, Nicolas Boichat wrote:
+> On Thu, Nov 22, 2018 at 2:02 AM Michal Hocko <mhocko@kernel.org> wrote:
+>>
+>> On Wed 21-11-18 16:46:38, Will Deacon wrote:
+>>> On Sun, Nov 11, 2018 at 05:03:41PM +0800, Nicolas Boichat wrote:
+>>>
+>>> It's a bit grotty that GFP_DMA32 doesn't just map to GFP_DMA on 32-bit
+>>> architectures, since then we wouldn't need this #ifdeffery afaict.
+>>
+>> But GFP_DMA32 should map to GFP_KERNEL on 32b, no? Or what exactly is
+>> going on in here?
 > 
-> Specifically the facility is tightly integrated with the kernel's memory
-> hotplug functionality. It injects an altmap argument deep into the
-> architecture specific vmemmap implementation to allow allocating from
-> specific reserved pages, and it has Linux specific assumptions about
-> page structure reference counting relative to get_user_pages() and
-> get_user_pages_fast(). It was an oversight and a mistake that this was
-> not marked EXPORT_SYMBOL_GPL from the outset.
-> 
-> Again, devm_memremap_pagex() exposes and relies upon core kernel
-> internal assumptions and will continue to evolve along with 'struct
-> page', memory hotplug, and support for new memory types / topologies.
-> Only an in-kernel GPL-only driver is expected to keep up with this
-> ongoing evolution. This interface, and functionality derived from this
-> interface, is not suitable for kernel-external drivers.
+> GFP_DMA32 will fail due to check_slab_flags (aka GFP_SLAB_BUG_MASK
+> before patch 1/3 of this series)... But yes, it may be neater if there
+> was transparent remapping of GFP_DMA32/SLAB_CACHE_DMA32 to
+> GFP_DMA/SLAB_CACHE_DMA on 32-bit arch...
 
-As I've said earlier I do not buy this justification because there is
-simply no stable API for modules by definition
-(Documentation/process/stable-api-nonsense.rst). I do understand
-your reasoning that you as an author never intended to export the symbol
-this way. That is fair and justified reason for this patch.
+I don't know about ARM, but AFAIK on x86 DMA means within first 4MB of
+physical memory, and DMA32 means within first 4GB. It doesn't matter if
+the CPU is running in 32bit or 64bit mode. But, when it runs 32bit, the
+kernel can direct map less than 4GB anyway, which means it doesn't need
+the extra DMA32 zone, i.e. GFP_KERNEL can only get you memory that's
+also acceptable for GFP_DMA32.
+But, DMA is still DMA, i.e. first 4MB. Remapping GFP_DMA32 to GFP_DMA on
+x86 wouldn't work, as the GFP_DMA32 allocations would then only use
+those 4MB and exhaust it very fast.
 
-Whoever needs a wrapper around arch_add_memory can do so because this
-symbol has no restriction for the usage. It will be still the same
-fiddling with struct page and deep mm internals. Do we care? I am not
-convinced because once we grow any in tree user we have to cope with any
-potential abuse like we have in other areas in the past. And out-of-tree
-modules? Who cares. Those are on their own completely and have their
-ways to go around.
-
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: "J�r�me Glisse" <jglisse@redhat.com>
-> Reviewed-by: Christoph Hellwig <hch@lst.de>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-
-That being said
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  kernel/memremap.c                 |    2 +-
->  tools/testing/nvdimm/test/iomap.c |    2 +-
->  2 files changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/kernel/memremap.c b/kernel/memremap.c
-> index 9eced2cc9f94..61dbcaa95530 100644
-> --- a/kernel/memremap.c
-> +++ b/kernel/memremap.c
-> @@ -233,7 +233,7 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
->   err_array:
->  	return ERR_PTR(error);
->  }
-> -EXPORT_SYMBOL(devm_memremap_pages);
-> +EXPORT_SYMBOL_GPL(devm_memremap_pages);
->  
->  unsigned long vmem_altmap_offset(struct vmem_altmap *altmap)
->  {
-> diff --git a/tools/testing/nvdimm/test/iomap.c b/tools/testing/nvdimm/test/iomap.c
-> index ff9d3a5825e1..ed18a0cbc0c8 100644
-> --- a/tools/testing/nvdimm/test/iomap.c
-> +++ b/tools/testing/nvdimm/test/iomap.c
-> @@ -113,7 +113,7 @@ void *__wrap_devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
->  		return nfit_res->buf + offset - nfit_res->res.start;
->  	return devm_memremap_pages(dev, pgmap);
->  }
-> -EXPORT_SYMBOL(__wrap_devm_memremap_pages);
-> +EXPORT_SYMBOL_GPL(__wrap_devm_memremap_pages);
->  
->  pfn_t __wrap_phys_to_pfn_t(phys_addr_t addr, unsigned long flags)
->  {
-
--- 
-Michal Hocko
-SUSE Labs
+>> --
+>> Michal Hocko
+>> SUSE Labs
