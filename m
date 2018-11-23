@@ -1,101 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DEDA6B2AFC
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 08:38:09 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id o17so2518667pgi.14
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 05:38:09 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bi6si34028876plb.279.2018.11.22.05.38.07
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FC696B2FC7
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 02:03:11 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id t7-v6so3211312ljg.9
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 23:03:11 -0800 (PST)
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id y7-v6si26064497ljj.102.2018.11.22.23.03.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Nov 2018 05:38:07 -0800 (PST)
-Date: Thu, 22 Nov 2018 14:38:04 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v15 1/2] Reorganize the oom report in dump_header
-Message-ID: <20181122133804.GH18011@dhcp22.suse.cz>
-References: <1542799799-36184-1-git-send-email-ufo19890607@gmail.com>
+        Thu, 22 Nov 2018 23:03:09 -0800 (PST)
+Subject: Re: [PATCH 2/2] mm: ksm: do not block on page lock when searching
+ stable tree
+References: <1541618201-120667-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1541618201-120667-2-git-send-email-yang.shi@linux.alibaba.com>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <302f3116-7e53-2750-ec2d-b90feb4cafec@virtuozzo.com>
+Date: Fri, 23 Nov 2018 10:03:04 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1542799799-36184-1-git-send-email-ufo19890607@gmail.com>
+In-Reply-To: <1541618201-120667-2-git-send-email-yang.shi@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ufo19890607@gmail.com
-Cc: akpm@linux-foundation.org, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yuzhoujian@didichuxing.com
+To: Yang Shi <yang.shi@linux.alibaba.com>, mhocko@kernel.org, vbabka@suse.cz, hannes@cmpxchg.org, hughd@google.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 21-11-18 19:29:58, ufo19890607@gmail.com wrote:
-> From: yuzhoujian <yuzhoujian@didichuxing.com>
+On 07.11.2018 22:16, Yang Shi wrote:
+> ksmd need search stable tree to look for the suitable KSM page, but the
+> KSM page might be locked for long time due to i.e. KSM page rmap walk.
 > 
-> OOM report contains several sections. The first one is the allocation
-> context that has triggered the OOM. Then we have cpuset context
-> followed by the stack trace of the OOM path. The tird one is the OOM
-> memory information. Followed by the current memory state of all system
-> tasks. At last, we will show oom eligible tasks and the information
-> about the chosen oom victim.
+> It sounds not worth waiting for the lock, the page can be skip, then try
+> to merge it in the next scan to avoid long stall if its content is
+> still intact.
 > 
-> One thing that makes parsing more awkward than necessary is that we do
-> not have a single and easily parsable line about the oom context. This
-> patch is reorganizing the oom report to
-> 1) who invoked oom and what was the allocation request
-> [  515.902945] tuned invoked oom-killer: gfp_mask=0x6200ca(GFP_HIGHUSER_MOVABLE), order=0, oom_score_adj=0
+> Introduce async mode to get_ksm_page() to not block on page lock, like
+> what try_to_merge_one_page() does.
 > 
-> 2) OOM stack trace
-> [  515.904273] CPU: 24 PID: 1809 Comm: tuned Not tainted 4.20.0-rc3+ #3
-> [  515.905518] Hardware name: Inspur SA5212M4/YZMB-00370-107, BIOS 4.1.10 11/14/2016
-> [  515.906821] Call Trace:
-> [  515.908062]  dump_stack+0x5a/0x73
-> [  515.909311]  dump_header+0x55/0x28c
-> [  515.914260]  oom_kill_process+0x2d8/0x300
-> [  515.916708]  out_of_memory+0x145/0x4a0
-> [  515.917932]  __alloc_pages_slowpath+0x7d2/0xa16
-> [  515.919157]  __alloc_pages_nodemask+0x277/0x290
-> [  515.920367]  filemap_fault+0x3d0/0x6c0
-> [  515.921529]  ? filemap_map_pages+0x2b8/0x420
-> [  515.922709]  ext4_filemap_fault+0x2c/0x40 [ext4]
-> [  515.923884]  __do_fault+0x20/0x80
-> [  515.925032]  __handle_mm_fault+0xbc0/0xe80
-> [  515.926195]  handle_mm_fault+0xfa/0x210
-> [  515.927357]  __do_page_fault+0x233/0x4c0
-> [  515.928506]  do_page_fault+0x32/0x140
-> [  515.929646]  ? page_fault+0x8/0x30
-> [  515.930770]  page_fault+0x1e/0x30
+> Return -EBUSY if trylock fails, since NULL means not find suitable KSM
+> page, which is a valid case.
 > 
-> 3) OOM memory information
-> [  515.958093] Mem-Info:
-> [  515.959647] active_anon:26501758 inactive_anon:1179809 isolated_anon:0
->  active_file:4402672 inactive_file:483963 isolated_file:1344
->  unevictable:0 dirty:4886753 writeback:0 unstable:0
->  slab_reclaimable:148442 slab_unreclaimable:18741
->  mapped:1347 shmem:1347 pagetables:58669 bounce:0
->  free:88663 free_pcp:0 free_cma:0
-> ...
-> 
-> 4) current memory state of all system tasks
-> [  516.079544] [    744]     0   744     9211     1345   114688       82             0 systemd-journal
-> [  516.082034] [    787]     0   787    31764        0   143360       92             0 lvmetad
-> [  516.084465] [    792]     0   792    10930        1   110592      208         -1000 systemd-udevd
-> [  516.086865] [   1199]     0  1199    13866        0   131072      112         -1000 auditd
-> [  516.089190] [   1222]     0  1222    31990        1   110592      157             0 smartd
-> [  516.091477] [   1225]     0  1225     4864       85    81920       43             0 irqbalance
-> [  516.093712] [   1226]     0  1226    52612        0   258048      426             0 abrtd
-> [  516.112128] [   1280]     0  1280   109774       55   299008      400             0 NetworkManager
-> [  516.113998] [   1295]     0  1295    28817       37    69632       24             0 ksmtuned
-> [  516.144596] [  10718]     0 10718  2622484  1721372 15998976   267219             0 panic
-> [  516.145792] [  10719]     0 10719  2622484  1164767  9818112    53576             0 panic
-> [  516.146977] [  10720]     0 10720  2622484  1174361  9904128    53709             0 panic
-> [  516.148163] [  10721]     0 10721  2622484  1209070 10194944    54824             0 panic
-> [  516.149329] [  10722]     0 10722  2622484  1745799 14774272    91138             0 panic
-> 
-> 5) oom context (contrains and the chosen victim).
-> oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=/,mems_allowed=0-1,task=panic,pid=10737,uid=0
-> 
-> An admin can easily get the full oom context at a single line which
-> makes parsing much easier.
-> 
-> Signed-off-by: yuzhoujian <yuzhoujian@didichuxing.com>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 
-Looks good, finally
-Acked-by: Michal Hocko <mhocko@suse.com>
--- 
-Michal Hocko
-SUSE Labs
+Reviewed-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+
+> ---
+>  mm/ksm.c | 29 +++++++++++++++++++++++++----
+>  1 file changed, 25 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> index 5b0894b..576803d 100644
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -667,7 +667,7 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
+>  }
+>  
+>  /*
+> - * get_ksm_page: checks if the page indicated by the stable node
+> + * __get_ksm_page: checks if the page indicated by the stable node
+>   * is still its ksm page, despite having held no reference to it.
+>   * In which case we can trust the content of the page, and it
+>   * returns the gotten page; but if the page has now been zapped,
+> @@ -685,7 +685,8 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
+>   * a page to put something that might look like our key in page->mapping.
+>   * is on its way to being freed; but it is an anomaly to bear in mind.
+>   */
+> -static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
+> +static struct page *__get_ksm_page(struct stable_node *stable_node,
+> +				   bool lock_it, bool async)
+>  {
+>  	struct page *page;
+>  	void *expected_mapping;
+> @@ -728,7 +729,14 @@ static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
+>  	}
+>  
+>  	if (lock_it) {
+> -		lock_page(page);
+> +		if (async) {
+> +			if (!trylock_page(page)) {
+> +				put_page(page);
+> +				return ERR_PTR(-EBUSY);
+> +			}
+> +		} else
+> +			lock_page(page);
+> +
+>  		if (READ_ONCE(page->mapping) != expected_mapping) {
+>  			unlock_page(page);
+>  			put_page(page);
+> @@ -751,6 +759,11 @@ static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
+>  	return NULL;
+>  }
+>  
+> +static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
+> +{
+> +	return __get_ksm_page(stable_node, lock_it, false);
+> +}
+> +
+>  /*
+>   * Removing rmap_item from stable or unstable tree.
+>   * This function will clean the information from the stable/unstable tree.
+> @@ -1675,7 +1688,11 @@ static struct page *stable_tree_search(struct page *page)
+>  			 * It would be more elegant to return stable_node
+>  			 * than kpage, but that involves more changes.
+>  			 */
+> -			tree_page = get_ksm_page(stable_node_dup, true);
+> +			tree_page = __get_ksm_page(stable_node_dup, true, true);
+> +
+> +			if (PTR_ERR(tree_page) == -EBUSY)
+> +				return ERR_PTR(-EBUSY);
+> +
+>  			if (unlikely(!tree_page))
+>  				/*
+>  				 * The tree may have been rebalanced,
+> @@ -2062,6 +2079,10 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
+>  
+>  	/* We first start with searching the page inside the stable tree */
+>  	kpage = stable_tree_search(page);
+> +
+> +	if (PTR_ERR(kpage) == -EBUSY)
+> +		return;
+> +
+>  	if (kpage == page && rmap_item->head == stable_node) {
+>  		put_page(kpage);
+>  		return;
+> 
