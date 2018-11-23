@@ -1,116 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 48D406B59F2
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 14:58:22 -0500 (EST)
-Received: by mail-yw1-f70.google.com with SMTP id t17so4380254ywc.23
-        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 11:58:22 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u186-v6sor2671556ybf.135.2018.11.30.11.58.21
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EB5356B30E3
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 08:47:09 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id e29so5873470ede.19
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 05:47:09 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q51si107472eda.161.2018.11.23.05.47.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 30 Nov 2018 11:58:21 -0800 (PST)
-From: Josef Bacik <josef@toxicpanda.com>
-Subject: [PATCH 4/4] mm: use the cached page for filemap_fault
-Date: Fri, 30 Nov 2018 14:58:12 -0500
-Message-Id: <20181130195812.19536-5-josef@toxicpanda.com>
-In-Reply-To: <20181130195812.19536-1-josef@toxicpanda.com>
-References: <20181130195812.19536-1-josef@toxicpanda.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Nov 2018 05:47:08 -0800 (PST)
+Subject: Re: [RFC PATCH 1/3] mm, proc: be more verbose about unstable VMA
+ flags in /proc/<pid>/smaps
+References: <20181120103515.25280-1-mhocko@kernel.org>
+ <20181120103515.25280-2-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <28689fcd-fd57-6a1a-6ae1-a860c77842f8@suse.cz>
+Date: Fri, 23 Nov 2018 14:47:06 +0100
+MIME-Version: 1.0
+In-Reply-To: <20181120103515.25280-2-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel-team@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tj@kernel.org, david@fromorbit.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, jack@suse.cz
+To: Michal Hocko <mhocko@kernel.org>, linux-api@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>, David Rientjes <rientjes@google.com>
 
-If we drop the mmap_sem we have to redo the vma lookup which requires
-redoing the fault handler.  Chances are we will just come back to the
-same page, so save this page in our vmf->cached_page and reuse it in the
-next loop through the fault handler.
+On 11/20/18 11:35 AM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> Even though vma flags exported via /proc/<pid>/smaps are explicitly
+> documented to be not guaranteed for future compatibility the warning
+> doesn't go far enough because it doesn't mention semantic changes to
+> those flags. And they are important as well because these flags are
+> a deep implementation internal to the MM code and the semantic might
+> change at any time.
+> 
+> Let's consider two recent examples:
+> http://lkml.kernel.org/r/20181002100531.GC4135@quack2.suse.cz
+> : commit e1fb4a086495 "dax: remove VM_MIXEDMAP for fsdax and device dax" has
+> : removed VM_MIXEDMAP flag from DAX VMAs. Now our testing shows that in the
+> : mean time certain customer of ours started poking into /proc/<pid>/smaps
+> : and looks at VMA flags there and if VM_MIXEDMAP is missing among the VMA
+> : flags, the application just fails to start complaining that DAX support is
+> : missing in the kernel.
+> 
+> http://lkml.kernel.org/r/alpine.DEB.2.21.1809241054050.224429@chino.kir.corp.google.com
+> : Commit 1860033237d4 ("mm: make PR_SET_THP_DISABLE immediately active")
+> : introduced a regression in that userspace cannot always determine the set
+> : of vmas where thp is ineligible.
+> : Userspace relies on the "nh" flag being emitted as part of /proc/pid/smaps
+> : to determine if a vma is eligible to be backed by hugepages.
+> : Previous to this commit, prctl(PR_SET_THP_DISABLE, 1) would cause thp to
+> : be disabled and emit "nh" as a flag for the corresponding vmas as part of
+> : /proc/pid/smaps.  After the commit, thp is disabled by means of an mm
+> : flag and "nh" is not emitted.
+> : This causes smaps parsing libraries to assume a vma is eligible for thp
+> : and ends up puzzling the user on why its memory is not backed by thp.
+> 
+> In both cases userspace was relying on a semantic of a specific VMA
+> flag. The primary reason why that happened is a lack of a proper
+> internface. While this has been worked on and it will be fixed properly,
+> it seems that our wording could see some refinement and be more vocal
+> about semantic aspect of these flags as well.
+> 
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Signed-off-by: Josef Bacik <josef@toxicpanda.com>
----
- mm/filemap.c | 45 +++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 43 insertions(+), 2 deletions(-)
+Agreed, although no amount of docs will override the
+do-not-break-userspace rule I'm afraid :)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 5e76b24b2a0f..d4385b704e04 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2392,6 +2392,35 @@ static struct file *do_async_mmap_readahead(struct vm_area_struct *vma,
- 	return fpin;
- }
- 
-+static int vmf_has_cached_page(struct vm_fault *vmf, struct page **page)
-+{
-+	struct page *cached_page = vmf->cached_page;
-+	struct mm_struct *mm = vmf->vma->vm_mm;
-+	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
-+	pgoff_t offset = vmf->pgoff;
-+
-+	if (!cached_page)
-+		return 0;
-+
-+	if (vmf->flags & FAULT_FLAG_KILLABLE) {
-+		int ret = lock_page_killable(cached_page);
-+		if (ret) {
-+			up_read(&mm->mmap_sem);
-+			return ret;
-+		}
-+	} else
-+		lock_page(cached_page);
-+	vmf->cached_page = NULL;
-+	if (cached_page->mapping == mapping &&
-+	    cached_page->index == offset) {
-+		*page = cached_page;
-+	} else {
-+		unlock_page(cached_page);
-+		put_page(cached_page);
-+	}
-+	return 0;
-+}
-+
- /**
-  * filemap_fault - read in file data for page fault handling
-  * @vmf:	struct vm_fault containing details of the fault
-@@ -2425,13 +2454,24 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
- 	struct inode *inode = mapping->host;
- 	pgoff_t offset = vmf->pgoff;
- 	pgoff_t max_off;
--	struct page *page;
-+	struct page *page = NULL;
- 	vm_fault_t ret = 0;
- 
- 	max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
- 	if (unlikely(offset >= max_off))
- 		return VM_FAULT_SIGBUS;
- 
-+	/*
-+	 * We may have read in the page already and have a page from an earlier
-+	 * loop.  If so we need to see if this page is still valid, and if not
-+	 * do the whole dance over again.
-+	 */
-+	error = vmf_has_cached_page(vmf, &page);
-+	if (error)
-+		goto out_retry;
-+	if (page)
-+		goto have_cached_page;
-+
- 	/*
- 	 * Do we have something in the page cache already?
- 	 */
-@@ -2492,6 +2532,7 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
- 		put_page(page);
- 		goto retry_find;
- 	}
-+have_cached_page:
- 	VM_BUG_ON_PAGE(page->index != offset, page);
- 
- 	/*
-@@ -2558,7 +2599,7 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
- 	 * page.
- 	 */
- 	if (page)
--		put_page(page);
-+		vmf->cached_page = page;
- 	if (fpin)
- 		fput(fpin);
- 	return ret | VM_FAULT_RETRY;
--- 
-2.14.3
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+On top of typos reported by Mike:
+
+> ---
+>  Documentation/filesystems/proc.txt | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+> index 12a5e6e693b6..b1fda309f067 100644
+> --- a/Documentation/filesystems/proc.txt
+> +++ b/Documentation/filesystems/proc.txt
+> @@ -496,7 +496,9 @@ flags associated with the particular virtual memory area in two letter encoded
+>  
+>  Note that there is no guarantee that every flag and associated mnemonic will
+>  be present in all further kernel releases. Things get changed, the flags may
+> -be vanished or the reverse -- new added.
+> +be vanished or the reverse -- new added. Interpretatation of their meaning
+
+                                            ^ interpretation
+
+> +might change in future as well. So each consumnent of these flags have to
+> +follow each specific kernel version for the exact semantic.
+>  
+>  This file is only present if the CONFIG_MMU kernel configuration option is
+>  enabled.
+> 
