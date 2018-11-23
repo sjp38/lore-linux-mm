@@ -1,59 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 394D16B310F
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 06:31:38 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id q11so187265otl.23
-        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 03:31:38 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 32si19978233otw.207.2018.11.23.03.31.36
-        for <linux-mm@kvack.org>;
-        Fri, 23 Nov 2018 03:31:37 -0800 (PST)
-Date: Fri, 23 Nov 2018 11:31:31 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4256C6B30E8
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 06:06:24 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id r11so1255726wmg.1
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 03:06:24 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id u83si5994166wmb.83.2018.11.23.03.06.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 23 Nov 2018 03:06:23 -0800 (PST)
+Date: Fri, 23 Nov 2018 12:06:11 +0100
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 Subject: Re: [PATCH v2] kmemleak: Turn kmemleak_lock to raw spinlock on RT
-Message-ID: <20181123113130.GA3360@arrakis.emea.arm.com>
+Message-ID: <20181123110611.s2gmd237j7docrxt@linutronix.de>
 References: <1542877459-144382-1-git-send-email-zhe.he@windriver.com>
  <20181123095314.hervxkxtqoixovro@linutronix.de>
  <20181123110226.GA5125@andrea>
- <20181123110611.s2gmd237j7docrxt@linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20181123110611.s2gmd237j7docrxt@linutronix.de>
+In-Reply-To: <20181123110226.GA5125@andrea>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: Andrea Parri <andrea.parri@amarulasolutions.com>, Peter Zijlstra <peterz@infradead.org>, zhe.he@windriver.com, tglx@linutronix.de, rostedt@goodmis.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-rt-users@vger.kernel.org, boqun.feng@gmail.com
+To: Andrea Parri <andrea.parri@amarulasolutions.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: zhe.he@windriver.com, catalin.marinas@arm.com, tglx@linutronix.de, rostedt@goodmis.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-rt-users@vger.kernel.org, boqun.feng@gmail.com
 
-On Fri, Nov 23, 2018 at 12:06:11PM +0100, Sebastian Andrzej Siewior wrote:
-> On 2018-11-23 12:02:55 [+0100], Andrea Parri wrote:
-> > > is this an RT-only problem? Because mainline should not allow read->read
-> > > locking or read->write locking for reader-writer locks. If this only
-> > > happens on v4.18 and not on v4.19 then something must have fixed it.
-> > 
-> > Probably misunderstanding, but I'd say that read->read locking is "the
-> > norm"...?
-> > 
-> > If you don't use qrwlock, readers are also "recursive", in part.,
-> > 
-> >   P0			P1
-> >   read_lock(l)
-> > 			write_lock(l)
-> >   read_lock(l)
-> > 
-> > won't block P0 on the second read_lock().  (qrwlock somehow complicate
-> > the analysis; IIUC, they are recursive if and only if in_interrupt().).
+On 2018-11-23 12:02:55 [+0100], Andrea Parri wrote:
+> > is this an RT-only problem? Because mainline should not allow read->read
+> > locking or read->write locking for reader-writer locks. If this only
+> > happens on v4.18 and not on v4.19 then something must have fixed it.
 > 
-> ehm, peterz, is that true? My memory on that is that all readers will
-> block if there is a writer pending.
+> Probably misunderstanding, but I'd say that read->read locking is "the
+> norm"...?
+> 
+> If you don't use qrwlock, readers are also "recursive", in part.,
+> 
+>   P0			P1
+>   read_lock(l)
+> 			write_lock(l)
+>   read_lock(l)
+> 
+> won't block P0 on the second read_lock().  (qrwlock somehow complicate
+> the analysis; IIUC, they are recursive if and only if in_interrupt().).
 
-With qwrlocks, the readers will normally block if there is a pending
-writer (to avoid starving the writer), unless in_interrupt() when the
-readers are allowed to starve a pending writer.
+ehm, peterz, is that true? My memory on that is that all readers will
+block if there is a writer pending.
 
-TLA+/PlusCal model here:  ;)
+>   Andrea
 
-https://git.kernel.org/pub/scm/linux/kernel/git/cmarinas/kernel-tla.git/tree/qrwlock.tla
-
--- 
-Catalin
+Sebastian
