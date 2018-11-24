@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 653776B40A6
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 01:44:39 -0500 (EST)
-Received: by mail-lj1-f197.google.com with SMTP id l12-v6so5091179ljb.11
-        for <linux-mm@kvack.org>; Sun, 25 Nov 2018 22:44:39 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 9E72A6B34C1
+	for <linux-mm@kvack.org>; Sat, 24 Nov 2018 00:01:35 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id g92-v6so3692339ljg.23
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 21:01:35 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s30sor12215792lfc.1.2018.11.25.22.44.37
+        by mx.google.com with SMTPS id m72sor13077459lfe.8.2018.11.23.21.01.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 25 Nov 2018 22:44:37 -0800 (PST)
+        Fri, 23 Nov 2018 21:01:34 -0800 (PST)
 MIME-Version: 1.0
 References: <20181115154950.GA27985@jordon-HP-15-Notebook-PC>
  <bbad42cb-4a76-a7e7-c385-db77f1cc588b@arm.com> <20181123213448.GW3065@bombadil.infradead.org>
 In-Reply-To: <20181123213448.GW3065@bombadil.infradead.org>
 From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Mon, 26 Nov 2018 12:14:22 +0530
-Message-ID: <CAFqt6zYmy5SdZY6_1BXFbY2pBQaNd+Z8R71wHEs6nKmxjht07A@mail.gmail.com>
+Date: Sat, 24 Nov 2018 10:31:20 +0530
+Message-ID: <CAFqt6zawenCGGhLoVzCrjzdHH4rV1RqpWGswDGjGE-VqJETFBA@mail.gmail.com>
 Subject: Re: [PATCH 6/9] iommu/dma-iommu.c: Convert to use vm_insert_range
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
@@ -62,31 +62,17 @@ On Sat, Nov 24, 2018 at 3:04 AM Matthew Wilcox <willy@infradead.org> wrote:
 > Whoops.  That should have been:
 >
 > return vm_insert_range(vma, vma->vm_start, pages + vma->vm_pgoff, count);
-
-I am unable to trace back where vma->vm_pgoff is set for this driver ? if any ?
-If default value set to 0 then I think existing code is correct.
-
 >
 > I suppose.
->
 
+Matthew, patch "drm/rockchip/rockchip_drm_gem.c: Convert to use vm_insert_range"
+also need to address the same issue ?
+
+>
 > Although arguably we should respect vm_pgoff inside vm_insert_region()
 > and then callers automatically get support for vm_pgoff without having
-> to think about it ...
-
-I assume, vm_insert_region() means vm_insert_range(). If we respect vm_pgoff
-inside vm_insert_range, for any uninitialized/ error value set for vm_pgoff from
-drivers will introduce a bug inside core mm which might be difficult
-to trace back.
-But when vm_pgoff set and passed from caller (drivers) it might be
-easy to figure out.
-
-> although we should then also pass in the length
+> to think about it ... although we should then also pass in the length
 > of the pages array to avoid pages being mapped in which aren't part of
 > the allocated array.
-
-Mostly Partial mapping is done by starting from an index and mapped it till
-end of pages array. Calculating length of the pages array will have a small
-overhead for each drivers.
-
-Please correct me if I am wrong.
+>
+> Hm.  More thought required.
