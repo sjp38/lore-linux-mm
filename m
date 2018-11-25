@@ -1,90 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B9E06B434C
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 14:20:27 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id q8so4377947edd.8
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 11:20:27 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id y1-v6si718766ejh.51.2018.11.26.11.20.25
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8481C6B3B10
+	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 03:08:38 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id e29so7792790ede.19
+        for <linux-mm@kvack.org>; Sun, 25 Nov 2018 00:08:38 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h6si1836753edn.332.2018.11.25.00.08.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Nov 2018 11:20:25 -0800 (PST)
-Subject: Re: [PATCH V2 0/6] VA to numa node information
-References: <1536783844-4145-1-git-send-email-prakash.sangappa@oracle.com>
- <20180913084011.GC20287@dhcp22.suse.cz>
- <375951d0-f103-dec3-34d8-bbeb2f45f666@oracle.com>
- <20180914055637.GH20287@dhcp22.suse.cz>
- <91988f05-2723-3120-5607-40fabe4a170d@oracle.com>
- <20180924171443.GI18685@dhcp22.suse.cz>
- <41af45a9-c428-ccd8-ca10-c355d22c56a7@oracle.com>
-From: Steven Sistare <steven.sistare@oracle.com>
-Message-ID: <79d5e991-d9f6-65e2-cb77-0f999fa512fe@oracle.com>
-Date: Mon, 26 Nov 2018 14:20:10 -0500
+        Sun, 25 Nov 2018 00:08:36 -0800 (PST)
+Date: Sun, 25 Nov 2018 09:08:34 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: debug: Fix a width vs precision bug in printk
+Message-ID: <20181125080834.GB12455@dhcp22.suse.cz>
+References: <20181123072135.gqvblm2vdujbvfjs@kili.mountain>
+ <20181123090125.GC8625@dhcp22.suse.cz>
+ <20181123143605.GB2970@unbuntlaptop>
+ <ddbf19fb-1d73-40ca-b421-4c171466833b@I-love.SAKURA.ne.jp>
+ <20181123160846.1160ba23c2514ed9c316be9d@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <41af45a9-c428-ccd8-ca10-c355d22c56a7@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181123160846.1160ba23c2514ed9c316be9d@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Prakash Sangappa <prakash.sangappa@oracle.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@intel.com, nao.horiguchi@gmail.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, khandual@linux.vnet.ibm.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Dan Carpenter <dan.carpenter@oracle.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, kernel-janitors@vger.kernel.org
 
-On 11/9/2018 11:48 PM, Prakash Sangappa wrote:
-> On 9/24/18 10:14 AM, Michal Hocko wrote:
->> On Fri 14-09-18 12:01:18, Steven Sistare wrote:
->>> On 9/14/2018 1:56 AM, Michal Hocko wrote:
->> [...]
->>>> Why does this matter for something that is for analysis purposes.
->>>> Reading the file for the whole address space is far from a free
->>>> operation. Is the page walk optimization really essential for usability?
->>>> Moreover what prevents move_pages implementation to be clever for the
->>>> page walk itself? In other words why would we want to add a new API
->>>> rather than make the existing one faster for everybody.
->>> One could optimize move pages.  If the caller passes a consecutive range
->>> of small pages, and the page walk sees that a VA is mapped by a huge page,
->>> then it can return the same numa node for each of the following VA's that fall
->>> into the huge page range. It would be faster than 55 nsec per small page, but
->>> hard to say how much faster, and the cost is still driven by the number of
->>> small pages.
->> This is exactly what I was arguing for. There is some room for
->> improvements for the existing interface. I yet have to hear the explicit
->> usecase which would required even better performance that cannot be
->> achieved by the existing API.
->>
+On Fri 23-11-18 16:08:46, Andrew Morton wrote:
+> On Fri, 23 Nov 2018 23:48:06 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
 > 
-> Above mentioned optimization to move_pages() API helps when scanning
-> mapped huge pages, but does not help if there are large sparse mappings
-> with few pages mapped. Otherwise, consider adding page walk support in
-> the move_pages() implementation, enhance the API(new flag?) to return
-> address range to numa node information. The page walk optimization
-> would certainly make a difference for usability.
+> > On 2018/11/23 23:36, Dan Carpenter wrote:
+> > > On Fri, Nov 23, 2018 at 10:01:25AM +0100, Michal Hocko wrote:
+> > >> On Fri 23-11-18 10:21:35, Dan Carpenter wrote:
+> > >>> We had intended to only print dentry->d_name.len characters but there is
+> > >>> a width vs precision typo so if the name isn't NUL terminated it will
+> > >>> read past the end of the buffer.
+> > >>
+> > >> OK, it took me quite some time to grasp what you mean here. The code
+> > >> works as expected because d_name.len and dname.name are in sync so there
+> > >> no spacing going to happen. Anyway what you propose is formally more
+> > >> correct I guess.
+> > >>  
+> > > 
+> > > Yeah.  If we are sure that the name has a NUL terminator then this
+> > > change has no effect.
+> > 
+> > There seems to be %pd which is designed for printing "struct dentry".
 > 
-> We can have applications(Like Oracle DB) having processes with large sparse
-> mappings(in TBs)  with only some areas of these mapped address range
-> being accessed, basically  large portions not having page tables backing it.
-> This can become more prevalent on newer systems with multiple TBs of
-> memory.
-> 
-> Here is some data from pmap using move_pages() API  with optimization.
-> Following table compares time pmap takes to print address mapping of a
-> large process, with numa node information using move_pages() api vs pmap
-> using /proc numa_vamaps file.
-> 
-> Running pmap command on a process with 1.3 TB of address space, with
-> sparse mappings.
-> 
->                        ~1.3 TB sparse      250G dense segment with hugepages.
-> move_pages              8.33s              3.14
-> optimized move_pages    6.29s              0.92
-> /proc numa_vamaps       0.08s              0.04
-> 
->  
-> Second column is pmap time on a 250G address range of this process, which maps
-> hugepages(THP & hugetlb).
+> ooh, who knew.  Can we use that please?
 
-The data look compelling to me.  numa_vmap provides a much smoother user experience
-for the analyst who is casting a wide net looking for the root of a performance issue.
-Almost no waiting to see the data.
+I wasn't aware of it either. I do not mind using it instead of the
+opencoded variant of mine.
 
-- Steve
+This should do it, right?
+diff --git a/mm/debug.c b/mm/debug.c
+index d18c5cea3320..68e9a9f2df16 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -80,7 +80,7 @@ void __dump_page(struct page *page, const char *reason)
+ 		if (mapping->host->i_dentry.first) {
+ 			struct dentry *dentry;
+ 			dentry = container_of(mapping->host->i_dentry.first, struct dentry, d_u.d_alias);
+-			pr_warn("name:\"%*s\" ", dentry->d_name.len, dentry->d_name.name);
++			pr_warn("name:\"%pd\" ", dentry);
+ 		}
+ 	}
+ 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
+
+-- 
+Michal Hocko
+SUSE Labs
