@@ -1,249 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0959A6B2CEA
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 14:54:40 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id h9so3062470pgm.1
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 11:54:40 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id h191si21267462pgc.302.2018.11.22.11.54.38
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 524B76B3E41
+	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 16:45:04 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id s14so9742894pfk.16
+        for <linux-mm@kvack.org>; Sun, 25 Nov 2018 13:45:04 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id b4si58450537pgk.350.2018.11.25.13.45.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Nov 2018 11:54:38 -0800 (PST)
-From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.19 33/36] z3fold: fix possible reclaim races
-Date: Thu, 22 Nov 2018 14:52:37 -0500
-Message-Id: <20181122195240.13123-33-sashal@kernel.org>
-In-Reply-To: <20181122195240.13123-1-sashal@kernel.org>
-References: <20181122195240.13123-1-sashal@kernel.org>
+        Sun, 25 Nov 2018 13:45:03 -0800 (PST)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAPLi8XU095483
+	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 16:45:03 -0500
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2nymncf1u3-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 16:45:01 -0500
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Sun, 25 Nov 2018 21:44:59 -0000
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: [PATCH 2/5] microblaze: prefer memblock API returning virtual address
+Date: Sun, 25 Nov 2018 23:44:34 +0200
+In-Reply-To: <1543182277-8819-1-git-send-email-rppt@linux.ibm.com>
+References: <1543182277-8819-1-git-send-email-rppt@linux.ibm.com>
+Message-Id: <1543182277-8819-3-git-send-email-rppt@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stable@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Vitaly Wool <vitalywool@gmail.com>, Vitaly Wool <vitaly.vul@sony.com>, Jongseok Kim <ks77sj@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sashal@kernel.org>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Jonas Bonn <jonas@southpole.se>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
 
-From: Vitaly Wool <vitalywool@gmail.com>
+Rather than use the memblock_alloc_base that returns a physical address and
+then convert this address to the virtual one, use appropriate memblock
+function that returns a virtual address.
 
-[ Upstream commit ca0246bb97c23da9d267c2107c07fb77e38205c9 ]
-
-Reclaim and free can race on an object which is basically fine but in
-order for reclaim to be able to map "freed" object we need to encode
-object length in the handle.  handle_to_chunks() is then introduced to
-extract object length from a handle and use it during mapping.
-
-Moreover, to avoid racing on a z3fold "headless" page release, we should
-not try to free that page in z3fold_free() if the reclaim bit is set.
-Also, in the unlikely case of trying to reclaim a page being freed, we
-should not proceed with that page.
-
-While at it, fix the page accounting in reclaim function.
-
-This patch supersedes "[PATCH] z3fold: fix reclaim lock-ups".
-
-Link: http://lkml.kernel.org/r/20181105162225.74e8837d03583a9b707cf559@gmail.com
-Signed-off-by: Vitaly Wool <vitaly.vul@sony.com>
-Signed-off-by: Jongseok Kim <ks77sj@gmail.com>
-Reported-by-by: Jongseok Kim <ks77sj@gmail.com>
-Reviewed-by: Snild Dolkow <snild@sony.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Sasha Levin <sashal@kernel.org>
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
 ---
- mm/z3fold.c | 101 ++++++++++++++++++++++++++++++++--------------------
- 1 file changed, 62 insertions(+), 39 deletions(-)
+ arch/microblaze/mm/init.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/mm/z3fold.c b/mm/z3fold.c
-index 4b366d181f35..aee9b0b8d907 100644
---- a/mm/z3fold.c
-+++ b/mm/z3fold.c
-@@ -99,6 +99,7 @@ struct z3fold_header {
- #define NCHUNKS		((PAGE_SIZE - ZHDR_SIZE_ALIGNED) >> CHUNK_SHIFT)
- 
- #define BUDDY_MASK	(0x3)
-+#define BUDDY_SHIFT	2
- 
- /**
-  * struct z3fold_pool - stores metadata for each z3fold pool
-@@ -145,7 +146,7 @@ enum z3fold_page_flags {
- 	MIDDLE_CHUNK_MAPPED,
- 	NEEDS_COMPACTING,
- 	PAGE_STALE,
--	UNDER_RECLAIM
-+	PAGE_CLAIMED, /* by either reclaim or free */
- };
- 
- /*****************
-@@ -174,7 +175,7 @@ static struct z3fold_header *init_z3fold_page(struct page *page,
- 	clear_bit(MIDDLE_CHUNK_MAPPED, &page->private);
- 	clear_bit(NEEDS_COMPACTING, &page->private);
- 	clear_bit(PAGE_STALE, &page->private);
--	clear_bit(UNDER_RECLAIM, &page->private);
-+	clear_bit(PAGE_CLAIMED, &page->private);
- 
- 	spin_lock_init(&zhdr->page_lock);
- 	kref_init(&zhdr->refcount);
-@@ -223,8 +224,11 @@ static unsigned long encode_handle(struct z3fold_header *zhdr, enum buddy bud)
- 	unsigned long handle;
- 
- 	handle = (unsigned long)zhdr;
--	if (bud != HEADLESS)
--		handle += (bud + zhdr->first_num) & BUDDY_MASK;
-+	if (bud != HEADLESS) {
-+		handle |= (bud + zhdr->first_num) & BUDDY_MASK;
-+		if (bud == LAST)
-+			handle |= (zhdr->last_chunks << BUDDY_SHIFT);
-+	}
- 	return handle;
+diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
+index b17fd8a..44f4b89 100644
+--- a/arch/microblaze/mm/init.c
++++ b/arch/microblaze/mm/init.c
+@@ -363,8 +363,9 @@ void __init *early_get_page(void)
+ 	 * Mem start + kernel_tlb -> here is limit
+ 	 * because of mem mapping from head.S
+ 	 */
+-	return __va(memblock_alloc_base(PAGE_SIZE, PAGE_SIZE,
+-				memory_start + kernel_tlb));
++	return memblock_alloc_try_nid_raw(PAGE_SIZE, PAGE_SIZE,
++				MEMBLOCK_LOW_LIMIT, memory_start + kernel_tlb,
++				NUMA_NO_NODE);
  }
  
-@@ -234,6 +238,12 @@ static struct z3fold_header *handle_to_z3fold_header(unsigned long handle)
- 	return (struct z3fold_header *)(handle & PAGE_MASK);
- }
- 
-+/* only for LAST bud, returns zero otherwise */
-+static unsigned short handle_to_chunks(unsigned long handle)
-+{
-+	return (handle & ~PAGE_MASK) >> BUDDY_SHIFT;
-+}
-+
- /*
-  * (handle & BUDDY_MASK) < zhdr->first_num is possible in encode_handle
-  *  but that doesn't matter. because the masking will result in the
-@@ -720,37 +730,39 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 	page = virt_to_page(zhdr);
- 
- 	if (test_bit(PAGE_HEADLESS, &page->private)) {
--		/* HEADLESS page stored */
--		bud = HEADLESS;
--	} else {
--		z3fold_page_lock(zhdr);
--		bud = handle_to_buddy(handle);
--
--		switch (bud) {
--		case FIRST:
--			zhdr->first_chunks = 0;
--			break;
--		case MIDDLE:
--			zhdr->middle_chunks = 0;
--			zhdr->start_middle = 0;
--			break;
--		case LAST:
--			zhdr->last_chunks = 0;
--			break;
--		default:
--			pr_err("%s: unknown bud %d\n", __func__, bud);
--			WARN_ON(1);
--			z3fold_page_unlock(zhdr);
--			return;
-+		/* if a headless page is under reclaim, just leave.
-+		 * NB: we use test_and_set_bit for a reason: if the bit
-+		 * has not been set before, we release this page
-+		 * immediately so we don't care about its value any more.
-+		 */
-+		if (!test_and_set_bit(PAGE_CLAIMED, &page->private)) {
-+			spin_lock(&pool->lock);
-+			list_del(&page->lru);
-+			spin_unlock(&pool->lock);
-+			free_z3fold_page(page);
-+			atomic64_dec(&pool->pages_nr);
- 		}
-+		return;
- 	}
- 
--	if (bud == HEADLESS) {
--		spin_lock(&pool->lock);
--		list_del(&page->lru);
--		spin_unlock(&pool->lock);
--		free_z3fold_page(page);
--		atomic64_dec(&pool->pages_nr);
-+	/* Non-headless case */
-+	z3fold_page_lock(zhdr);
-+	bud = handle_to_buddy(handle);
-+
-+	switch (bud) {
-+	case FIRST:
-+		zhdr->first_chunks = 0;
-+		break;
-+	case MIDDLE:
-+		zhdr->middle_chunks = 0;
-+		break;
-+	case LAST:
-+		zhdr->last_chunks = 0;
-+		break;
-+	default:
-+		pr_err("%s: unknown bud %d\n", __func__, bud);
-+		WARN_ON(1);
-+		z3fold_page_unlock(zhdr);
- 		return;
- 	}
- 
-@@ -758,7 +770,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 		atomic64_dec(&pool->pages_nr);
- 		return;
- 	}
--	if (test_bit(UNDER_RECLAIM, &page->private)) {
-+	if (test_bit(PAGE_CLAIMED, &page->private)) {
- 		z3fold_page_unlock(zhdr);
- 		return;
- 	}
-@@ -836,20 +848,30 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 		}
- 		list_for_each_prev(pos, &pool->lru) {
- 			page = list_entry(pos, struct page, lru);
-+
-+			/* this bit could have been set by free, in which case
-+			 * we pass over to the next page in the pool.
-+			 */
-+			if (test_and_set_bit(PAGE_CLAIMED, &page->private))
-+				continue;
-+
-+			zhdr = page_address(page);
- 			if (test_bit(PAGE_HEADLESS, &page->private))
--				/* candidate found */
- 				break;
- 
--			zhdr = page_address(page);
--			if (!z3fold_page_trylock(zhdr))
-+			if (!z3fold_page_trylock(zhdr)) {
-+				zhdr = NULL;
- 				continue; /* can't evict at this point */
-+			}
- 			kref_get(&zhdr->refcount);
- 			list_del_init(&zhdr->buddy);
- 			zhdr->cpu = -1;
--			set_bit(UNDER_RECLAIM, &page->private);
- 			break;
- 		}
- 
-+		if (!zhdr)
-+			break;
-+
- 		list_del_init(&page->lru);
- 		spin_unlock(&pool->lock);
- 
-@@ -898,6 +920,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 		if (test_bit(PAGE_HEADLESS, &page->private)) {
- 			if (ret == 0) {
- 				free_z3fold_page(page);
-+				atomic64_dec(&pool->pages_nr);
- 				return 0;
- 			}
- 			spin_lock(&pool->lock);
-@@ -905,7 +928,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 			spin_unlock(&pool->lock);
- 		} else {
- 			z3fold_page_lock(zhdr);
--			clear_bit(UNDER_RECLAIM, &page->private);
-+			clear_bit(PAGE_CLAIMED, &page->private);
- 			if (kref_put(&zhdr->refcount,
- 					release_z3fold_page_locked)) {
- 				atomic64_dec(&pool->pages_nr);
-@@ -964,7 +987,7 @@ static void *z3fold_map(struct z3fold_pool *pool, unsigned long handle)
- 		set_bit(MIDDLE_CHUNK_MAPPED, &page->private);
- 		break;
- 	case LAST:
--		addr += PAGE_SIZE - (zhdr->last_chunks << CHUNK_SHIFT);
-+		addr += PAGE_SIZE - (handle_to_chunks(handle) << CHUNK_SHIFT);
- 		break;
- 	default:
- 		pr_err("unknown buddy id %d\n", buddy);
+ #endif /* CONFIG_MMU */
 -- 
-2.17.1
+2.7.4
