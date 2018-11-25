@@ -1,119 +1,77 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 599DD6B2EA3
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 21:27:40 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id m19so5184599edc.6
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 18:27:40 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w19-v6sor11443556ejv.42.2018.11.22.18.27.38
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 22 Nov 2018 18:27:39 -0800 (PST)
-Date: Fri, 23 Nov 2018 02:27:37 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [RFC PATCH] mm, meminit: remove init_reserved_page()
-Message-ID: <20181123022737.tbqk463ypioh7hka@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20181119034845.20469-1-richard.weiyang@gmail.com>
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Date: Sun, 25 Nov 2018 23:04:44 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH v8 0/7] mm: Merge hmm into devm_memremap_pages, mark
+ GPL-only
+Message-ID: <20181125220444.GA30242@amd>
+References: <154275556908.76910.8966087090637564219.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20181121172055.91dc52fc0b985be85e640328@linux-foundation.org>
 MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+        protocol="application/pgp-signature"; boundary="+QahgC5+KEYLbs62"
+Content-Disposition: inline
+In-Reply-To: <20181121172055.91dc52fc0b985be85e640328@linux-foundation.org>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dan Williams <dan.j.williams@intel.com>, stable@vger.kernel.org, Balbir Singh <bsingharora@gmail.com>, Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org
+List-ID: <linux-mm.kvack.org>
+
+
+--+QahgC5+KEYLbs62
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181119034845.20469-1-richard.weiyang@gmail.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: mgorman@suse.de, pavel.tatashin@microsoft.com, akpm@linux-foundation.org, linux-mm@kvack.org
+Content-Transfer-Encoding: quoted-printable
 
-On Mon, Nov 19, 2018 at 11:48:45AM +0800, Wei Yang wrote:
->Function init_reserved_page() is introduced in commit 7e18adb4f80b ("mm:
->meminit: initialize remaining struct pages in parallel with kswapd").
->While I am confused why it uses for_each_mem_pfn_range() in
->deferred_init_memmap() to initialize deferred pages structure.
->
->After commit 2f47a91f4dab ("mm: deferred_init_memmap improvements"),
->deferred_init_memmap() uses for_each_free_mem_range() to initialize
->page structure. This means the reserved memory is not touched.
->
->The original context before commit 7e18adb4f80b ("mm: meminit: initialize
->remaining struct pages in parallel with kswapd"), reserved memory's page
->structure is just SetPageReserved, which means they are not necessary to be
->initialized.
->
->This patch removes init_reserved_page() to restore the original context.
+Hi!
 
-Oops, my understanding is not correct :-(
+> > Changes since v7 [1]:
+> > At Maintainer Summit, Greg brought up a topic I proposed around
+> > EXPORT_SYMBOL_GPL usage. The motivation was considerations for when
+> > EXPORT_SYMBOL_GPL is warranted and the criteria for taking the
+> > exceptional step of reclassifying an existing export. Specifically, I
+> > wanted to make the case that although the line is fuzzy and hard to
+> > specify in abstract terms, it is nonetheless clear that
+> > devm_memremap_pages() and HMM (Heterogeneous Memory Management) have
+> > crossed it. The devm_memremap_pages() facility should have been
+> > EXPORT_SYMBOL_GPL from the beginning, and HMM as a derivative of that
+> > functionality should have naturally picked up that designation as well.
+> >=20
+> > Contrary to typical rules, the HMM infrastructure was merged upstream
+> > with zero in-tree consumers. There was a promise at the time that those
+> > users would be merged "soon", but it has been over a year with no drive=
+rs
+> > arriving. While the Nouveau driver is about to belatedly make good on
+> > that promise it is clear that HMM was targeted first and foremost at an
+> > out-of-tree consumer.
 
->
->Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
->
->---
->
->I did bootup and kernel build test with the patched kernel, it looks good.
->
->One of my confusion is the commit 7e18adb4f80b ("mm: meminit: initialize
->remaining struct pages in parallel with kswapd") works fine. Does it eat some
->reserved pages? Either I don't see the reason in commit 2f47a91f4dab ("mm:
->deferred_init_memmap improvements") of changing pfn iteration from
->for_each_mem_pfn_range() to for_each_free_mem_range().
->
->Another question is in function reserve_bootmem_region(), we add a
->INIT_LIST_HEAD() in commit 1d798ca3f164 ("mm: make compound_head() robust").
->While the reserved page is never visible in page allocator. Do we still need
->to do this step?
->
->---
-> mm/page_alloc.c | 28 ----------------------------
-> 1 file changed, 28 deletions(-)
->
->diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->index 2d3c54201255..48cf24766343 100644
->--- a/mm/page_alloc.c
->+++ b/mm/page_alloc.c
->@@ -1192,32 +1192,6 @@ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
-> #endif
-> }
-> 
->-#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
->-static void __meminit init_reserved_page(unsigned long pfn)
->-{
->-	pg_data_t *pgdat;
->-	int nid, zid;
->-
->-	if (!early_page_uninitialised(pfn))
->-		return;
->-
->-	nid = early_pfn_to_nid(pfn);
->-	pgdat = NODE_DATA(nid);
->-
->-	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
->-		struct zone *zone = &pgdat->node_zones[zid];
->-
->-		if (pfn >= zone->zone_start_pfn && pfn < zone_end_pfn(zone))
->-			break;
->-	}
->-	__init_single_page(pfn_to_page(pfn), pfn, zid, nid);
->-}
->-#else
->-static inline void init_reserved_page(unsigned long pfn)
->-{
->-}
->-#endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
->-
-> /*
->  * Initialised pages do not have PageReserved set. This function is
->  * called for each range allocated by the bootmem allocator and
->@@ -1233,8 +1207,6 @@ void __meminit reserve_bootmem_region(phys_addr_t start, phys_addr_t end)
-> 		if (pfn_valid(start_pfn)) {
-> 			struct page *page = pfn_to_page(start_pfn);
-> 
->-			init_reserved_page(start_pfn);
->-
-> 			/* Avoid false-positive PageTail() */
-> 			INIT_LIST_HEAD(&page->lru);
-> 
->-- 
->2.15.1
+Ok, so who is this consumer and is he GPLed?
 
--- 
-Wei Yang
-Help you, Help me
+> It should be noted that [7/7] has a cc:stable.
+
+That is pretty evil thing to do, right?
+
+The aim here is not to fix "a real bug that hits people", AFAICT. The
+aim is to break existing configurations for users.
+
+Political games are sometimes neccessary, but should not really be
+played with stable.
+
+									Pavel
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
+
+--+QahgC5+KEYLbs62
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iEYEARECAAYFAlv7HHwACgkQMOfwapXb+vLS2QCdGLrC5x+ES/mY7gi/L7zIzTjd
+BYsAn2//n2PuJ6KNErZ6Uy4a0fSjEiOE
+=i+UE
+-----END PGP SIGNATURE-----
+
+--+QahgC5+KEYLbs62--
