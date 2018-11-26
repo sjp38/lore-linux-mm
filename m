@@ -1,124 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C508A6B2FDB
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 02:19:46 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id t2so4529304pfj.15
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 23:19:46 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 1si4512239pls.16.2018.11.22.23.19.45
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 86C4E6B43F4
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 17:13:00 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id 74so12382009pfk.12
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 14:13:00 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y6sor2679598pfi.19.2018.11.26.14.12.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Nov 2018 23:19:45 -0800 (PST)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAN7JElw026293
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 02:19:44 -0500
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2nxcv20ex5-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 02:19:44 -0500
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Fri, 23 Nov 2018 07:19:41 -0000
-Date: Fri, 23 Nov 2018 09:19:25 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: Re: [PATCH 1/9] mm: Introduce new vm_insert_range API
-References: <20181115154530.GA27872@jordon-HP-15-Notebook-PC>
- <20181116182836.GB17088@rapoport-lnx>
- <CAFqt6zYp0j999WXw9Jus0oZMjADQQkPfso8btv6du6L9CE3PXA@mail.gmail.com>
- <20181117143742.GB7861@bombadil.infradead.org>
- <CAFqt6zbOWX5LUTWwoGDJsGdf+pTR6N1yTPVxyr1W3-6Fte39ww@mail.gmail.com>
- <20181119162623.GA13200@rapoport-lnx>
- <CAFqt6zbhodAGQz-RCB3C-wt_Mvb9QDmQ8pFeP2EO+ba2k2OccA@mail.gmail.com>
+        (Google Transport Security);
+        Mon, 26 Nov 2018 14:12:59 -0800 (PST)
+Date: Mon, 26 Nov 2018 14:12:56 -0800
+From: Omar Sandoval <osandov@osandov.com>
+Subject: Re: [PATCH V12 03/20] block: remove the "cluster" flag
+Message-ID: <20181126221256.GD30411@vader>
+References: <20181126021720.19471-1-ming.lei@redhat.com>
+ <20181126021720.19471-4-ming.lei@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAFqt6zbhodAGQz-RCB3C-wt_Mvb9QDmQ8pFeP2EO+ba2k2OccA@mail.gmail.com>
-Message-Id: <20181123071924.GF5704@rapoport-lnx>
+In-Reply-To: <20181126021720.19471-4-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz, Rik van Riel <riel@surriel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, rppt@linux.vnet.ibm.com, Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, Kees Cook <keescook@chromium.org>, Marek Szyprowski <m.szyprowski@samsung.com>, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, Kyungmin Park <kyungmin.park@samsung.com>, mchehab@kernel.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On Mon, Nov 19, 2018 at 11:15:15PM +0530, Souptick Joarder wrote:
-> On Mon, Nov 19, 2018 at 9:56 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
-> >
-> > On Mon, Nov 19, 2018 at 08:43:09PM +0530, Souptick Joarder wrote:
-> > > Hi Mike,
-> > >
-> > > On Sat, Nov 17, 2018 at 8:07 PM Matthew Wilcox <willy@infradead.org> wrote:
-> > > >
-> > > > On Sat, Nov 17, 2018 at 12:26:38PM +0530, Souptick Joarder wrote:
-> > > > > On Fri, Nov 16, 2018 at 11:59 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
-> > > > > > > + * vm_insert_range - insert range of kernel pages into user vma
-> > > > > > > + * @vma: user vma to map to
-> > > > > > > + * @addr: target user address of this page
-> > > > > > > + * @pages: pointer to array of source kernel pages
-> > > > > > > + * @page_count: no. of pages need to insert into user vma
-> > > > > > > + *
-> > > > > > > + * This allows drivers to insert range of kernel pages they've allocated
-> > > > > > > + * into a user vma. This is a generic function which drivers can use
-> > > > > > > + * rather than using their own way of mapping range of kernel pages into
-> > > > > > > + * user vma.
-> > > > > >
-> > > > > > Please add the return value and context descriptions.
-> > > > > >
-> > > > >
-> > > > > Sure I will wait for some time to get additional review comments and
-> > > > > add all of those requested changes in v2.
-> > > >
-> > > > You could send your proposed wording now which might remove the need
-> > > > for a v3 if we end up arguing about the wording.
-> > >
-> > > Does this description looks good ?
-> > >
-> > > /**
-> > >  * vm_insert_range - insert range of kernel pages into user vma
-> > >  * @vma: user vma to map to
-> > >  * @addr: target user address of this page
-> > >  * @pages: pointer to array of source kernel pages
-> > >  * @page_count: number of pages need to insert into user vma
-> > >  *
-> > >  * This allows drivers to insert range of kernel pages they've allocated
-> > >  * into a user vma. This is a generic function which drivers can use
-> > >  * rather than using their own way of mapping range of kernel pages into
-> > >  * user vma.
-> > >  *
-> > >  * Context - Process context. Called by mmap handlers.
-> >
-> > Context:
-> >
-> > >  * Return - int error value
-> >
-> > Return:
-> >
-> > >  * 0                    - OK
-> > >  * -EINVAL              - Invalid argument
-> > >  * -ENOMEM              - No memory
-> > >  * -EFAULT              - Bad address
-> > >  * -EBUSY               - Device or resource busy
-> >
-> > I don't think that elaborate description of error values is needed, just "0
-> > on success and error code otherwise" would be sufficient.
+On Mon, Nov 26, 2018 at 10:17:03AM +0800, Ming Lei wrote:
+> From: Christoph Hellwig <hch@lst.de>
 > 
-> /**
->  * vm_insert_range - insert range of kernel pages into user vma
->  * @vma: user vma to map to
->  * @addr: target user address of this page
->  * @pages: pointer to array of source kernel pages
->  * @page_count: number of pages need to insert into user vma
->  *
->  * This allows drivers to insert range of kernel pages they've allocated
->  * into a user vma. This is a generic function which drivers can use
->  * rather than using their own way of mapping range of kernel pages into
->  * user vma.
->  *
->  * Context: Process context. Called by mmap handlers.
->  * Return: 0 on success and error code otherwise
->  */
+> The cluster flag implements some very old SCSI behavior.  As far as I
+> can tell the original intent was to enable or disable any kind of
+> segment merging.  But the actually visible effect to the LLDD is that
+> it limits each segments to be inside a single page, which we can
+> also affect by setting the maximum segment size and the segment
+> boundary.
 
-Looks good to me.
+Reviewed-by: Omar Sandoval <osandov@fb.com>
 
--- 
-Sincerely yours,
-Mike.
+One comment typo below.
+
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> 
+> Replace virt boundary with segment boundary limit.
+> 
+> Signed-off-by: Ming Lei <ming.lei@redhat.com>
+> ---
+>  block/blk-merge.c       | 20 ++++++++------------
+>  block/blk-settings.c    |  3 ---
+>  block/blk-sysfs.c       |  5 +----
+>  drivers/scsi/scsi_lib.c | 20 ++++++++++++++++----
+>  include/linux/blkdev.h  |  6 ------
+>  5 files changed, 25 insertions(+), 29 deletions(-)
+> 
+
+[snip]
+
+> diff --git a/drivers/scsi/scsi_lib.c b/drivers/scsi/scsi_lib.c
+> index 0df15cb738d2..78d6d05992b0 100644
+> --- a/drivers/scsi/scsi_lib.c
+> +++ b/drivers/scsi/scsi_lib.c
+> @@ -1810,6 +1810,8 @@ static int scsi_map_queues(struct blk_mq_tag_set *set)
+>  void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
+>  {
+>  	struct device *dev = shost->dma_dev;
+> +	unsigned max_segment_size = dma_get_max_seg_size(dev);
+> +	unsigned long segment_boundary = shost->dma_boundary;
+>  
+>  	/*
+>  	 * this limit is imposed by hardware restrictions
+> @@ -1828,13 +1830,23 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
+>  	blk_queue_max_hw_sectors(q, shost->max_sectors);
+>  	if (shost->unchecked_isa_dma)
+>  		blk_queue_bounce_limit(q, BLK_BOUNCE_ISA);
+> -	blk_queue_segment_boundary(q, shost->dma_boundary);
+>  	dma_set_seg_boundary(dev, shost->dma_boundary);
+>  
+> -	blk_queue_max_segment_size(q, dma_get_max_seg_size(dev));
+> +	/*
+> +	 * Clustering is a really old concept from the stone age of Linux
+> +	 * SCSI support.  But the basic idea is that we never give the
+> +	 * driver a segment that spans multiple pages.  For that we need
+> +	 * to limit the segment size, and set the segment boundary so that
+> +	 * we never merge a second segment which is no page aligned.
+
+Typo, "which is not page aligned".
