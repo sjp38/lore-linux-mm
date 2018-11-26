@@ -1,20 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ADD396B4425
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 17:43:55 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id p15so7548476pfk.7
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 14:43:55 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i7-v6sor2414006plt.38.2018.11.26.14.43.54
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E131E6B3F6F
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 07:59:03 -0500 (EST)
+Received: by mail-wr1-f71.google.com with SMTP id p12so15596284wrt.17
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 04:59:03 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id s16si231721wrt.20.2018.11.26.04.59.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 26 Nov 2018 14:43:54 -0800 (PST)
-Date: Mon, 26 Nov 2018 14:43:51 -0800
-From: Omar Sandoval <osandov@osandov.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Nov 2018 04:59:02 -0800 (PST)
+Date: Mon, 26 Nov 2018 13:59:02 +0100
+From: Christoph Hellwig <hch@lst.de>
 Subject: Re: [PATCH V12 18/20] block: document usage of bio iterator helpers
-Message-ID: <20181126224351.GM30411@vader>
-References: <20181126021720.19471-1-ming.lei@redhat.com>
- <20181126021720.19471-19-ming.lei@redhat.com>
+Message-ID: <20181126125902.GF6383@lst.de>
+References: <20181126021720.19471-1-ming.lei@redhat.com> <20181126021720.19471-19-ming.lei@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -28,47 +27,9 @@ On Mon, Nov 26, 2018 at 10:17:18AM +0800, Ming Lei wrote:
 > Now multi-page bvec is supported, some helpers may return page by
 > page, meantime some may return segment by segment, this patch
 > documents the usage.
-
-Reviewed-by: Omar Sandoval <osandov@fb.com>
-
+> 
 > Signed-off-by: Ming Lei <ming.lei@redhat.com>
-> ---
->  Documentation/block/biovecs.txt | 25 +++++++++++++++++++++++++
->  1 file changed, 25 insertions(+)
-> 
-> diff --git a/Documentation/block/biovecs.txt b/Documentation/block/biovecs.txt
-> index 25689584e6e0..ce6eccaf5df7 100644
-> --- a/Documentation/block/biovecs.txt
-> +++ b/Documentation/block/biovecs.txt
-> @@ -117,3 +117,28 @@ Other implications:
->     size limitations and the limitations of the underlying devices. Thus
->     there's no need to define ->merge_bvec_fn() callbacks for individual block
->     drivers.
-> +
-> +Usage of helpers:
-> +=================
-> +
-> +* The following helpers whose names have the suffix of "_all" can only be used
-> +on non-BIO_CLONED bio. They are usually used by filesystem code. Drivers
-> +shouldn't use them because the bio may have been split before it reached the
-> +driver.
-> +
-> +	bio_for_each_segment_all()
-> +	bio_first_bvec_all()
-> +	bio_first_page_all()
-> +	bio_last_bvec_all()
-> +
-> +* The following helpers iterate over single-page segment. The passed 'struct
-> +bio_vec' will contain a single-page IO vector during the iteration
-> +
-> +	bio_for_each_segment()
-> +	bio_for_each_segment_all()
-> +
-> +* The following helpers iterate over multi-page bvec. The passed 'struct
-> +bio_vec' will contain a multi-page IO vector during the iteration
-> +
-> +	bio_for_each_bvec()
-> +	rq_for_each_bvec()
-> -- 
-> 2.9.5
-> 
+
+Looks fine,
+
+Reviewed-by: Christoph Hellwig <hch@lst.de>
