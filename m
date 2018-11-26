@@ -1,163 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F1A476B41CB
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 06:00:42 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id p4so7592474pgj.21
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 03:00:42 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id w11si7087313plz.327.2018.11.26.03.00.41
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BF5406B4422
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 17:42:42 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id az10so22346902plb.11
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 14:42:42 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k1sor2673174pfj.30.2018.11.26.14.42.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Nov 2018 03:00:41 -0800 (PST)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.14 49/62] x86/ldt: Unmap PTEs for the slot before freeing LDT pages
-Date: Mon, 26 Nov 2018 11:51:30 +0100
-Message-Id: <20181126105054.440503950@linuxfoundation.org>
-In-Reply-To: <20181126105050.592727680@linuxfoundation.org>
-References: <20181126105050.592727680@linuxfoundation.org>
+        (Google Transport Security);
+        Mon, 26 Nov 2018 14:42:41 -0800 (PST)
+Date: Mon, 26 Nov 2018 14:42:39 -0800
+From: Omar Sandoval <osandov@osandov.com>
+Subject: Re: [PATCH V12 15/20] block: allow bio_for_each_segment_all() to
+ iterate over multi-page bvec
+Message-ID: <20181126224239.GL30411@vader>
+References: <20181126021720.19471-1-ming.lei@redhat.com>
+ <20181126021720.19471-16-ming.lei@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181126021720.19471-16-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org, boris.ostrovsky@oracle.com, jgross@suse.com, bhe@redhat.com, willy@infradead.org, linux-mm@kvack.org, Sasha Levin <sashal@kernel.org>
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-4.14-stable review patch.  If anyone has any objections, please let me know.
+On Mon, Nov 26, 2018 at 10:17:15AM +0800, Ming Lei wrote:
+> This patch introduces one extra iterator variable to bio_for_each_segment_all(),
+> then we can allow bio_for_each_segment_all() to iterate over multi-page bvec.
+> 
+> Given it is just one mechannical & simple change on all bio_for_each_segment_all()
+> users, this patch does tree-wide change in one single patch, so that we can
+> avoid to use a temporary helper for this conversion.
+> 
+> Reviewed-by: Christoph Hellwig <hch@lst.de>
 
-------------------
+Reviewed-by: Omar Sandoval <osandov@fb.com>
 
-commit a0e6e0831c516860fc7f9be1db6c081fe902ebcf upstream
-
-modify_ldt(2) leaves the old LDT mapped after switching over to the new
-one. The old LDT gets freed and the pages can be re-used.
-
-Leaving the mapping in place can have security implications. The mapping is
-present in the userspace page tables and Meltdown-like attacks can read
-these freed and possibly reused pages.
-
-It's relatively simple to fix: unmap the old LDT and flush TLB before
-freeing the old LDT memory.
-
-This further allows to avoid flushing the TLB in map_ldt_struct() as the
-slot is unmapped and flushed by unmap_ldt_struct() or has never been mapped
-at all.
-
-[ tglx: Massaged changelog and removed the needless line breaks ]
-
-Fixes: f55f0501cbf6 ("x86/pti: Put the LDT in its own PGD if PTI is on")
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Cc: bp@alien8.de
-Cc: hpa@zytor.com
-Cc: dave.hansen@linux.intel.com
-Cc: luto@kernel.org
-Cc: peterz@infradead.org
-Cc: boris.ostrovsky@oracle.com
-Cc: jgross@suse.com
-Cc: bhe@redhat.com
-Cc: willy@infradead.org
-Cc: linux-mm@kvack.org
-Cc: stable@vger.kernel.org
-Link: https://lkml.kernel.org/r/20181026122856.66224-3-kirill.shutemov@linux.intel.com
-Signed-off-by: Sasha Levin <sashal@kernel.org>
----
- arch/x86/kernel/ldt.c | 49 +++++++++++++++++++++++++++++++------------
- 1 file changed, 36 insertions(+), 13 deletions(-)
-
-diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
-index 26d713ecad34..65df298d4e9e 100644
---- a/arch/x86/kernel/ldt.c
-+++ b/arch/x86/kernel/ldt.c
-@@ -103,14 +103,6 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
- /*
-  * If PTI is enabled, this maps the LDT into the kernelmode and
-  * usermode tables for the given mm.
-- *
-- * There is no corresponding unmap function.  Even if the LDT is freed, we
-- * leave the PTEs around until the slot is reused or the mm is destroyed.
-- * This is harmless: the LDT is always in ordinary memory, and no one will
-- * access the freed slot.
-- *
-- * If we wanted to unmap freed LDTs, we'd also need to do a flush to make
-- * it useful, and the flush would slow down modify_ldt().
-  */
- static int
- map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
-@@ -119,8 +111,8 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- 	bool is_vmalloc, had_top_level_entry;
- 	unsigned long va;
- 	spinlock_t *ptl;
-+	int i, nr_pages;
- 	pgd_t *pgd;
--	int i;
- 
- 	if (!static_cpu_has(X86_FEATURE_PTI))
- 		return 0;
-@@ -141,7 +133,9 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- 
- 	is_vmalloc = is_vmalloc_addr(ldt->entries);
- 
--	for (i = 0; i * PAGE_SIZE < ldt->nr_entries * LDT_ENTRY_SIZE; i++) {
-+	nr_pages = DIV_ROUND_UP(ldt->nr_entries * LDT_ENTRY_SIZE, PAGE_SIZE);
-+
-+	for (i = 0; i < nr_pages; i++) {
- 		unsigned long offset = i << PAGE_SHIFT;
- 		const void *src = (char *)ldt->entries + offset;
- 		unsigned long pfn;
-@@ -189,14 +183,42 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- 		}
- 	}
- 
--	va = (unsigned long)ldt_slot_va(slot);
--	flush_tlb_mm_range(mm, va, va + LDT_SLOT_STRIDE, 0);
--
- 	ldt->slot = slot;
- #endif
- 	return 0;
- }
- 
-+static void unmap_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt)
-+{
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+	unsigned long va;
-+	int i, nr_pages;
-+
-+	if (!ldt)
-+		return;
-+
-+	/* LDT map/unmap is only required for PTI */
-+	if (!static_cpu_has(X86_FEATURE_PTI))
-+		return;
-+
-+	nr_pages = DIV_ROUND_UP(ldt->nr_entries * LDT_ENTRY_SIZE, PAGE_SIZE);
-+
-+	for (i = 0; i < nr_pages; i++) {
-+		unsigned long offset = i << PAGE_SHIFT;
-+		spinlock_t *ptl;
-+		pte_t *ptep;
-+
-+		va = (unsigned long)ldt_slot_va(ldt->slot) + offset;
-+		ptep = get_locked_pte(mm, va, &ptl);
-+		pte_clear(mm, va, ptep);
-+		pte_unmap_unlock(ptep, ptl);
-+	}
-+
-+	va = (unsigned long)ldt_slot_va(ldt->slot);
-+	flush_tlb_mm_range(mm, va, va + nr_pages * PAGE_SIZE, 0);
-+#endif /* CONFIG_PAGE_TABLE_ISOLATION */
-+}
-+
- static void free_ldt_pgtables(struct mm_struct *mm)
- {
- #ifdef CONFIG_PAGE_TABLE_ISOLATION
-@@ -433,6 +455,7 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
- 	}
- 
- 	install_ldt(mm, new_ldt);
-+	unmap_ldt_struct(mm, old_ldt);
- 	free_ldt_struct(old_ldt);
- 	error = 0;
- 
--- 
-2.17.1
+> Signed-off-by: Ming Lei <ming.lei@redhat.com>
+> ---
+>  block/bio.c                       | 27 ++++++++++++++++++---------
+>  block/bounce.c                    |  6 ++++--
+>  drivers/md/bcache/btree.c         |  3 ++-
+>  drivers/md/dm-crypt.c             |  3 ++-
+>  drivers/md/raid1.c                |  3 ++-
+>  drivers/staging/erofs/data.c      |  3 ++-
+>  drivers/staging/erofs/unzip_vle.c |  3 ++-
+>  fs/block_dev.c                    |  6 ++++--
+>  fs/btrfs/compression.c            |  3 ++-
+>  fs/btrfs/disk-io.c                |  3 ++-
+>  fs/btrfs/extent_io.c              |  9 ++++++---
+>  fs/btrfs/inode.c                  |  6 ++++--
+>  fs/btrfs/raid56.c                 |  3 ++-
+>  fs/crypto/bio.c                   |  3 ++-
+>  fs/direct-io.c                    |  4 +++-
+>  fs/exofs/ore.c                    |  3 ++-
+>  fs/exofs/ore_raid.c               |  3 ++-
+>  fs/ext4/page-io.c                 |  3 ++-
+>  fs/ext4/readpage.c                |  3 ++-
+>  fs/f2fs/data.c                    |  9 ++++++---
+>  fs/gfs2/lops.c                    |  6 ++++--
+>  fs/gfs2/meta_io.c                 |  3 ++-
+>  fs/iomap.c                        |  6 ++++--
+>  fs/mpage.c                        |  3 ++-
+>  fs/xfs/xfs_aops.c                 |  5 +++--
+>  include/linux/bio.h               | 11 +++++++++--
+>  include/linux/bvec.h              | 30 ++++++++++++++++++++++++++++++
+>  27 files changed, 125 insertions(+), 45 deletions(-)
