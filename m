@@ -1,182 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B28746B48EE
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:20:38 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id 75so12143345pfq.8
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:20:38 -0800 (PST)
-Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
-        by mx.google.com with ESMTPS id c15si3960584pgg.446.2018.11.27.08.20.36
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A75716B42CE
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 12:35:00 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id q33so16965042qte.23
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 09:35:00 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t7si693925qtd.217.2018.11.26.09.34.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Nov 2018 08:20:36 -0800 (PST)
-From: Oscar Salvador <osalvador@suse.de>
-Subject: [PATCH v2 1/5] mm, memory_hotplug: Add nid parameter to arch_remove_memory
-Date: Tue, 27 Nov 2018 17:20:01 +0100
-Message-Id: <20181127162005.15833-2-osalvador@suse.de>
-In-Reply-To: <20181127162005.15833-1-osalvador@suse.de>
-References: <20181127162005.15833-1-osalvador@suse.de>
+        Mon, 26 Nov 2018 09:34:59 -0800 (PST)
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH 2/5] userfaultfd: shmem: allocate anonymous memory for MAP_PRIVATE shmem
+Date: Mon, 26 Nov 2018 12:34:49 -0500
+Message-Id: <20181126173452.26955-3-aarcange@redhat.com>
+In-Reply-To: <20181126173452.26955-1-aarcange@redhat.com>
+References: <20181126173452.26955-1-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, dan.j.williams@intel.com, pavel.tatashin@microsoft.com, jglisse@redhat.com, Jonathan.Cameron@huawei.com, rafael@kernel.org, david@redhat.com, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.com>, Oscar Salvador <osalvador@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mike Kravetz <mike.kravetz@oracle.com>, Jann Horn <jannh@google.com>, Peter Xu <peterx@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>
 
-From: Oscar Salvador <osalvador@suse.com>
+Userfaultfd did not create private memory when UFFDIO_COPY was invoked
+on a MAP_PRIVATE shmem mapping. Instead it wrote to the shmem file,
+even when that had not been opened for writing. Though, fortunately,
+that could only happen where there was a hole in the file.
 
-This patch is only a preparation for the following-up patches.
-The idea of passing the nid is that it will allow us to get rid
-of the zone parameter afterwards.
+Fix the shmem-backed implementation of UFFDIO_COPY to create private
+memory for MAP_PRIVATE mappings. The hugetlbfs-backed implementation
+was already correct.
 
-Signed-off-by: Oscar Salvador <osalvador@suse.de>
-Reviewed-by: David Hildenbrand <david@redhat.com>
-Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+This change is visible to userland, if userfaultfd has been used in
+unintended ways: so it introduces a small risk of incompatibility, but
+is necessary in order to respect file permissions.
+
+An app that uses UFFDIO_COPY for anything like postcopy live migration
+won't notice the difference, and in fact it'll run faster because
+there will be no copy-on-write and memory waste in the tmpfs pagecache
+anymore.
+
+Userfaults on MAP_PRIVATE shmem keep triggering only on file holes
+like before.
+
+The real zeropage can also be built on a MAP_PRIVATE shmem mapping
+through UFFDIO_ZEROPAGE and that's safe because the zeropage pte is
+never dirty, in turn even an mprotect upgrading the vma permission
+from PROT_READ to PROT_READ|PROT_WRITE won't make the zeropage pte
+writable.
+
+Reported-by: Mike Rapoport <rppt@linux.ibm.com>
+Reviewed-by: Hugh Dickins <hughd@google.com>
+Cc: stable@vger.kernel.org
+Fixes: 4c27fe4c4c84 ("userfaultfd: shmem: add shmem_mcopy_atomic_pte for userfaultfd support")
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- arch/ia64/mm/init.c            | 2 +-
- arch/powerpc/mm/mem.c          | 3 ++-
- arch/s390/mm/init.c            | 2 +-
- arch/sh/mm/init.c              | 2 +-
- arch/x86/mm/init_32.c          | 2 +-
- arch/x86/mm/init_64.c          | 3 ++-
- include/linux/memory_hotplug.h | 4 ++--
- kernel/memremap.c              | 5 ++++-
- mm/memory_hotplug.c            | 2 +-
- 9 files changed, 15 insertions(+), 10 deletions(-)
+ mm/userfaultfd.c | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)
 
-diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
-index d5e12ff1d73c..904fe55e10fc 100644
---- a/arch/ia64/mm/init.c
-+++ b/arch/ia64/mm/init.c
-@@ -661,7 +661,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
+diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+index 46c8949e5f8f..471b6457f95f 100644
+--- a/mm/userfaultfd.c
++++ b/mm/userfaultfd.c
+@@ -380,7 +380,17 @@ static __always_inline ssize_t mfill_atomic_pte(struct mm_struct *dst_mm,
  {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
-index 0a64fffabee1..40feb262080e 100644
---- a/arch/powerpc/mm/mem.c
-+++ b/arch/powerpc/mm/mem.c
-@@ -139,7 +139,8 @@ int __meminit arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *
- }
+ 	ssize_t err;
  
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int __meminit arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int __meminit arch_remove_memory(int nid, u64 start, u64 size,
-+					struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
-index 50388190b393..3e82f66d5c61 100644
---- a/arch/s390/mm/init.c
-+++ b/arch/s390/mm/init.c
-@@ -242,7 +242,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
- }
+-	if (vma_is_anonymous(dst_vma)) {
++	/*
++	 * The normal page fault path for a shmem will invoke the
++	 * fault, fill the hole in the file and COW it right away. The
++	 * result generates plain anonymous memory. So when we are
++	 * asked to fill an hole in a MAP_PRIVATE shmem mapping, we'll
++	 * generate anonymous memory directly without actually filling
++	 * the hole. For the MAP_PRIVATE case the robustness check
++	 * only happens in the pagetable (to verify it's still none)
++	 * and not in the radix tree.
++	 */
++	if (!(dst_vma->vm_flags & VM_SHARED)) {
+ 		if (!zeropage)
+ 			err = mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
+ 					       dst_addr, src_addr, page);
+@@ -489,7 +499,8 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+ 	 * dst_vma.
+ 	 */
+ 	err = -ENOMEM;
+-	if (vma_is_anonymous(dst_vma) && unlikely(anon_vma_prepare(dst_vma)))
++	if (!(dst_vma->vm_flags & VM_SHARED) &&
++	    unlikely(anon_vma_prepare(dst_vma)))
+ 		goto out_unlock;
  
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
- {
- 	/*
- 	 * There is no hardware or firmware interface which could trigger a
-diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
-index c8c13c777162..a8e5c0e00fca 100644
---- a/arch/sh/mm/init.c
-+++ b/arch/sh/mm/init.c
-@@ -443,7 +443,7 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
- #endif
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = PFN_DOWN(start);
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-index 49ecf5ecf6d3..85c94f9a87f8 100644
---- a/arch/x86/mm/init_32.c
-+++ b/arch/x86/mm/init_32.c
-@@ -860,7 +860,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 5fab264948c2..449958da97a4 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1147,7 +1147,8 @@ kernel_physical_mapping_remove(unsigned long start, unsigned long end)
- 	remove_pagetable(start, end, true, NULL);
- }
- 
--int __ref arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int __ref arch_remove_memory(int nid, u64 start, u64 size,
-+				struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 84e9ae205930..3aedcd7929cd 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -107,8 +107,8 @@ static inline bool movable_node_is_enabled(void)
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--extern int arch_remove_memory(u64 start, u64 size,
--		struct vmem_altmap *altmap);
-+extern int arch_remove_memory(int nid, u64 start, u64 size,
-+				struct vmem_altmap *altmap);
- extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
- 	unsigned long nr_pages, struct vmem_altmap *altmap);
- #endif /* CONFIG_MEMORY_HOTREMOVE */
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 3eef989ef035..0d5603d76c37 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -87,6 +87,7 @@ static void devm_memremap_pages_release(void *data)
- 	struct resource *res = &pgmap->res;
- 	resource_size_t align_start, align_size;
- 	unsigned long pfn;
-+	int nid;
- 
- 	pgmap->kill(pgmap->ref);
- 	for_each_device_pfn(pfn, pgmap)
-@@ -97,13 +98,15 @@ static void devm_memremap_pages_release(void *data)
- 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
- 		- align_start;
- 
-+	nid = page_to_nid(pfn_to_page(align_start >> PAGE_SHIFT));
-+
- 	mem_hotplug_begin();
- 	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
- 		pfn = align_start >> PAGE_SHIFT;
- 		__remove_pages(page_zone(pfn_to_page(pfn)), pfn,
- 				align_size >> PAGE_SHIFT, NULL);
- 	} else {
--		arch_remove_memory(align_start, align_size,
-+		arch_remove_memory(nid, align_start, align_size,
- 				pgmap->altmap_valid ? &pgmap->altmap : NULL);
- 		kasan_remove_zero_shadow(__va(align_start), align_size);
- 	}
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 7b4317ae8318..849bcc55c5f1 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1858,7 +1858,7 @@ void __ref __remove_memory(int nid, u64 start, u64 size)
- 	memblock_free(start, size);
- 	memblock_remove(start, size);
- 
--	arch_remove_memory(start, size, NULL);
-+	arch_remove_memory(nid, start, size, NULL);
- 
- 	try_offline_node(nid);
- 
--- 
-2.13.6
+ 	while (src_addr < src_start + len) {
