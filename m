@@ -1,20 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FA1D6B4400
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 17:18:42 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id p9so12456969pfj.3
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 14:18:42 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y17sor2315749pll.68.2018.11.26.14.18.41
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E03FF6B3EF5
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 07:55:00 -0500 (EST)
+Received: by mail-wr1-f71.google.com with SMTP id a9so16008251wrs.6
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 04:55:00 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id a10si180474wrt.328.2018.11.26.04.54.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 26 Nov 2018 14:18:41 -0800 (PST)
-Date: Mon, 26 Nov 2018 14:18:35 -0800
-From: Omar Sandoval <osandov@osandov.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Nov 2018 04:54:59 -0800 (PST)
+Date: Mon, 26 Nov 2018 13:54:59 +0100
+From: Christoph Hellwig <hch@lst.de>
 Subject: Re: [PATCH V12 06/20] block: rename bvec helpers
-Message-ID: <20181126221835.GG30411@vader>
-References: <20181126021720.19471-1-ming.lei@redhat.com>
- <20181126021720.19471-7-ming.lei@redhat.com>
+Message-ID: <20181126125459.GB6383@lst.de>
+References: <20181126021720.19471-1-ming.lei@redhat.com> <20181126021720.19471-7-ming.lei@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -50,19 +49,8 @@ On Mon, Nov 26, 2018 at 10:17:06AM +0800, Ming Lei wrote:
 > on real bvec even though multi-page bvec is supported.
 > 
 > Suggested-by: Christoph Hellwig <hch@lst.de>
-
-Reviewed-by: Omar Sandoval <osandov@fb.com>
-
 > Signed-off-by: Ming Lei <ming.lei@redhat.com>
-> ---
->  .clang-format                  |  2 +-
->  drivers/md/dm-integrity.c      |  2 +-
->  drivers/md/dm-io.c             |  4 ++--
->  drivers/nvdimm/blk.c           |  4 ++--
->  drivers/nvdimm/btt.c           |  4 ++--
->  include/linux/bio.h            | 10 +++++-----
->  include/linux/bvec.h           | 20 +++++++++++---------
->  include/linux/ceph/messenger.h |  2 +-
->  lib/iov_iter.c                 |  2 +-
->  net/ceph/messenger.c           | 14 +++++++-------
->  10 files changed, 33 insertions(+), 31 deletions(-)
+
+Looks fine,
+
+Reviewed-by: Christoph Hellwig <hch@lst.de>
