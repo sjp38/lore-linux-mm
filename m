@@ -1,97 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D51246B5943
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 12:06:15 -0500 (EST)
-Received: by mail-io1-f70.google.com with SMTP id x5so6123047ion.1
-        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 09:06:15 -0800 (PST)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id d81si3604103itc.66.2018.11.30.09.06.14
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CACC36B4061
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 00:37:50 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id t22-v6so5105709lji.14
+        for <linux-mm@kvack.org>; Sun, 25 Nov 2018 21:37:50 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a12-v6sor369172lji.34.2018.11.25.21.37.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 30 Nov 2018 09:06:14 -0800 (PST)
-From: Logan Gunthorpe <logang@deltatee.com>
-Date: Fri, 30 Nov 2018 10:06:06 -0700
-Message-Id: <20181130170606.17252-7-logang@deltatee.com>
-In-Reply-To: <20181130170606.17252-1-logang@deltatee.com>
-References: <20181130170606.17252-1-logang@deltatee.com>
+        (Google Transport Security);
+        Sun, 25 Nov 2018 21:37:49 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Subject: [PATCH v24 6/6] ntb: ntb_hw_switchtec: Cleanup 64bit IO defines to use the common header
+References: <20181115154645.GA27912@jordon-HP-15-Notebook-PC>
+In-Reply-To: <20181115154645.GA27912@jordon-HP-15-Notebook-PC>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Mon, 26 Nov 2018 11:07:36 +0530
+Message-ID: <CAFqt6zYgzRUAisxAjFcuO_QZ3FnX+Yuhndjz9=Dx7Edx6M91xQ@mail.gmail.com>
+Subject: Re: [PATCH 2/9] arch/arm/mm/dma-mapping.c: Convert to use vm_insert_range
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-ntb@googlegroups.com, linux-crypto@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andy Shevchenko <andy.shevchenko@gmail.com>, =?UTF-8?q?Horia=20Geant=C4=83?= <horia.geanta@nxp.com>, Logan Gunthorpe <logang@deltatee.com>, Jon Mason <jdmason@kudzu.us>
+To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, Kees Cook <keescook@chromium.org>, Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org
 
-Clean up the ifdefs which conditionally defined the io{read|write}64
-functions in favour of the new common io-64-nonatomic-lo-hi header.
+Hi Russell,
 
-Per a nit from Andy Shevchenko, the include list is also made
-alphabetical.
+On Thu, Nov 15, 2018 at 9:13 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
+>
+> Convert to use vm_insert_range() to map range of kernel
+> memory to user vma.
+>
+> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
 
-Signed-off-by: Logan Gunthorpe <logang@deltatee.com>
-Reviewed-by: Andy Shevchenko <andy.shevchenko@gmail.com>
-Cc: Jon Mason <jdmason@kudzu.us>
----
- drivers/ntb/hw/mscc/ntb_hw_switchtec.c | 36 +++-----------------------
- 1 file changed, 4 insertions(+), 32 deletions(-)
+Any comment on this patch ?
 
-diff --git a/drivers/ntb/hw/mscc/ntb_hw_switchtec.c b/drivers/ntb/hw/mscc/ntb_hw_switchtec.c
-index 5ee5f40b4dfc..c0b97699169d 100644
---- a/drivers/ntb/hw/mscc/ntb_hw_switchtec.c
-+++ b/drivers/ntb/hw/mscc/ntb_hw_switchtec.c
-@@ -13,13 +13,14 @@
-  *
-  */
- 
--#include <linux/switchtec.h>
--#include <linux/module.h>
-+#include <linux/interrupt.h>
-+#include <linux/io-64-nonatomic-lo-hi.h>
- #include <linux/delay.h>
- #include <linux/kthread.h>
--#include <linux/interrupt.h>
-+#include <linux/module.h>
- #include <linux/ntb.h>
- #include <linux/pci.h>
-+#include <linux/switchtec.h>
- 
- MODULE_DESCRIPTION("Microsemi Switchtec(tm) NTB Driver");
- MODULE_VERSION("0.1");
-@@ -36,35 +37,6 @@ module_param(use_lut_mws, bool, 0644);
- MODULE_PARM_DESC(use_lut_mws,
- 		 "Enable the use of the LUT based memory windows");
- 
--#ifndef ioread64
--#ifdef readq
--#define ioread64 readq
--#else
--#define ioread64 _ioread64
--static inline u64 _ioread64(void __iomem *mmio)
--{
--	u64 low, high;
--
--	low = ioread32(mmio);
--	high = ioread32(mmio + sizeof(u32));
--	return low | (high << 32);
--}
--#endif
--#endif
--
--#ifndef iowrite64
--#ifdef writeq
--#define iowrite64 writeq
--#else
--#define iowrite64 _iowrite64
--static inline void _iowrite64(u64 val, void __iomem *mmio)
--{
--	iowrite32(val, mmio);
--	iowrite32(val >> 32, mmio + sizeof(u32));
--}
--#endif
--#endif
--
- #define SWITCHTEC_NTB_MAGIC 0x45CC0001
- #define MAX_MWS     128
- 
--- 
-2.19.0
+> ---
+>  arch/arm/mm/dma-mapping.c | 21 +++++++--------------
+>  1 file changed, 7 insertions(+), 14 deletions(-)
+>
+> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+> index 661fe48..4eec323 100644
+> --- a/arch/arm/mm/dma-mapping.c
+> +++ b/arch/arm/mm/dma-mapping.c
+> @@ -1582,31 +1582,24 @@ static int __arm_iommu_mmap_attrs(struct device *dev, struct vm_area_struct *vma
+>                     void *cpu_addr, dma_addr_t dma_addr, size_t size,
+>                     unsigned long attrs)
+>  {
+> -       unsigned long uaddr = vma->vm_start;
+> -       unsigned long usize = vma->vm_end - vma->vm_start;
+> +       unsigned long page_count = vma_pages(vma);
+>         struct page **pages = __iommu_get_pages(cpu_addr, attrs);
+>         unsigned long nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
+>         unsigned long off = vma->vm_pgoff;
+> +       int err;
+>
+>         if (!pages)
+>                 return -ENXIO;
+>
+> -       if (off >= nr_pages || (usize >> PAGE_SHIFT) > nr_pages - off)
+> +       if (off >= nr_pages || page_count > nr_pages - off)
+>                 return -ENXIO;
+>
+>         pages += off;
+> +       err = vm_insert_range(vma, vma->vm_start, pages, page_count);
+> +       if (err)
+> +               pr_err("Remapping memory failed: %d\n", err);
+>
+> -       do {
+> -               int ret = vm_insert_page(vma, uaddr, *pages++);
+> -               if (ret) {
+> -                       pr_err("Remapping memory failed: %d\n", ret);
+> -                       return ret;
+> -               }
+> -               uaddr += PAGE_SIZE;
+> -               usize -= PAGE_SIZE;
+> -       } while (usize > 0);
+> -
+> -       return 0;
+> +       return err;
+>  }
+>  static int arm_iommu_mmap_attrs(struct device *dev,
+>                 struct vm_area_struct *vma, void *cpu_addr,
+> --
+> 1.9.1
+>
