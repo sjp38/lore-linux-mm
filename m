@@ -1,105 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 549AC6B5A6A
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 16:52:50 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id 89so5050558ple.19
-        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 13:52:50 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id s11si5832718pgk.344.2018.11.30.13.52.48
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2600F6B420A
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 06:54:20 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id m19so9070311edc.6
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 03:54:20 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id h17si295151edr.245.2018.11.26.03.54.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Nov 2018 13:52:48 -0800 (PST)
-Subject: [mm PATCH v6 0/7] Deferred page init improvements
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Date: Fri, 30 Nov 2018 13:52:48 -0800
-Message-ID: <154361452447.7497.1348692079883153517.stgit@ahduyck-desk1.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+        Mon, 26 Nov 2018 03:54:18 -0800 (PST)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAQBsE1x030035
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 06:54:16 -0500
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2p0enpcqw7-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 06:54:15 -0500
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Mon, 26 Nov 2018 11:53:45 -0000
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: [PATCH] alpha: fix hang caused by the bootmem removal
+Date: Mon, 26 Nov 2018 13:53:36 +0200
+Message-Id: <1543233216-25833-1-git-send-email-rppt@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mhocko@suse.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, alexander.h.duyck@linux.intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.comalexander.h.duyck@linux.intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Meelis Roos <mroos@linux.ee>, linux-alpha@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
 
-This patchset is essentially a refactor of the page initialization logic
-that is meant to provide for better code reuse while providing a
-significant improvement in deferred page initialization performance.
+The conversion of alpha to memblock as the early memory manager caused boot
+to hang as described at [1].
 
-In my testing on an x86_64 system with 384GB of RAM and 3TB of persistent
-memory per node I have seen the following. In the case of regular memory
-initialization the deferred init time was decreased from 3.75s to 1.06s on
-average. For the persistent memory the initialization time dropped from
-24.17s to 19.12s on average. This amounts to a 253% improvement for the
-deferred memory initialization performance, and a 26% improvement in the
-persistent memory initialization performance.
+The issue is caused because for CONFIG_DISCTONTIGMEM=y case, memblock_add()
+is called using memory start PFN that had been rounded down to the nearest
+8Mb and it caused memblock to see more memory that is actually present in
+the system.
 
-I have called out the improvement observed with each patch.
+Besides, memblock allocates memory from high addresses while bootmem was
+using low memory, which broke the assumption that early allocations are
+always accessible by the hardware.
 
-Note: This patch set is meant as a replacment for the v5 set that is already
-      in the MM tree.
-      
-      I had considered just doing incremental changes but Pavel at the time
-      had suggested I submit it as a whole set, however that was almost 3
-      weeks ago so if incremental changes are preferred let me know and
-      I can submit the changes as incremental updates.
+This patch ensures that memblock_add() is using the correct PFN for the
+memory start and forces memblock to use bottom-up allocations.
 
-      I appologize for the delay in submitting this follow-on set. I had been
-      trying to address the DAX PageReserved bit issue at the same time but
-      that is taking more time than I anticipated so I decided to push this
-      before the code sits too much longer.
+[1] https://lkml.org/lkml/2018/11/22/1032
 
-      Commit bf416078f1d83 ("mm/page_alloc.c: memory hotplug: free pages as 
-      higher order") causes issues with the revert of patch 7. It was
-      necessary to replace all instances of __free_pages_boot_core with
-      __free_pages_core.
-
-v1->v2:
-    Fixed build issue on PowerPC due to page struct size being 56
-    Added new patch that removed __SetPageReserved call for hotplug
-v2->v3:
-    Rebased on latest linux-next
-    Removed patch that had removed __SetPageReserved call from init
-    Added patch that folded __SetPageReserved into set_page_links
-    Tweaked __init_pageblock to use start_pfn to get section_nr instead of pfn
-v3->v4:
-    Updated patch description and comments for mm_zero_struct_page patch
-        Replaced "default" with "case 64"
-        Removed #ifndef mm_zero_struct_page
-    Fixed typo in comment that ommited "_from" in kerneldoc for iterator
-    Added Reviewed-by for patches reviewed by Pavel
-    Added Acked-by from Michal Hocko
-    Added deferred init times for patches that affect init performance
-    Swapped patches 5 & 6, pulled some code/comments from 4 into 5
-v4->v5:
-    Updated Acks/Reviewed-by
-    Rebased on latest linux-next
-    Split core bits of zone iterator patch from MAX_ORDER_NR_PAGES init
-v5->v6:
-    Rebased on linux-next with previous v5 reverted
-    Drop the "This patch" or "This change" from patch desriptions.
-    Cleaned up patch descriptions for patches 3 & 4
-    Fixed kerneldoc for __next_mem_pfn_range_in_zone
-    Updated several Reviewed-by, and incorporated suggestions from Pavel
-    Added __init_single_page_nolru to patch 5 to consolidate code
-    Refactored iterator in patch 7 and fixed several issues
-
+Reported-by: Meelis Roos <mroos@linux.ee>
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+Tested-by: Meelis Roos <mroos@linux.ee>
 ---
+ arch/alpha/kernel/setup.c | 1 +
+ arch/alpha/mm/numa.c      | 6 +++---
+ 2 files changed, 4 insertions(+), 3 deletions(-)
 
-Alexander Duyck (7):
-      mm: Use mm_zero_struct_page from SPARC on all 64b architectures
-      mm: Drop meminit_pfn_in_nid as it is redundant
-      mm: Implement new zone specific memblock iterator
-      mm: Initialize MAX_ORDER_NR_PAGES at a time instead of doing larger sections
-      mm: Move hot-plug specific memory init into separate functions and optimize
-      mm: Add reserved flag setting to set_page_links
-      mm: Use common iterator for deferred_init_pages and deferred_free_pages
-
-
- arch/sparc/include/asm/pgtable_64.h |   30 --
- include/linux/memblock.h            |   41 +++
- include/linux/mm.h                  |   50 +++
- mm/memblock.c                       |   64 ++++
- mm/page_alloc.c                     |  571 +++++++++++++++++++++--------------
- 5 files changed, 498 insertions(+), 258 deletions(-)
-
---
+diff --git a/arch/alpha/kernel/setup.c b/arch/alpha/kernel/setup.c
+index a37fd99..4b5b1b2 100644
+--- a/arch/alpha/kernel/setup.c
++++ b/arch/alpha/kernel/setup.c
+@@ -634,6 +634,7 @@ setup_arch(char **cmdline_p)
+ 
+ 	/* Find our memory.  */
+ 	setup_memory(kernel_end);
++	memblock_set_bottom_up(true);
+ 
+ 	/* First guess at cpu cache sizes.  Do this before init_arch.  */
+ 	determine_cpu_caches(cpu->type);
+diff --git a/arch/alpha/mm/numa.c b/arch/alpha/mm/numa.c
+index 74846553..d0b7337 100644
+--- a/arch/alpha/mm/numa.c
++++ b/arch/alpha/mm/numa.c
+@@ -144,14 +144,14 @@ setup_memory_node(int nid, void *kernel_end)
+ 	if (!nid && (node_max_pfn < end_kernel_pfn || node_min_pfn > start_kernel_pfn))
+ 		panic("kernel loaded out of ram");
+ 
++	memblock_add(PFN_PHYS(node_min_pfn),
++		     (node_max_pfn - node_min_pfn) << PAGE_SHIFT);
++
+ 	/* Zone start phys-addr must be 2^(MAX_ORDER-1) aligned.
+ 	   Note that we round this down, not up - node memory
+ 	   has much larger alignment than 8Mb, so it's safe. */
+ 	node_min_pfn &= ~((1UL << (MAX_ORDER-1))-1);
+ 
+-	memblock_add(PFN_PHYS(node_min_pfn),
+-		     (node_max_pfn - node_min_pfn) << PAGE_SHIFT);
+-
+ 	NODE_DATA(nid)->node_start_pfn = node_min_pfn;
+ 	NODE_DATA(nid)->node_present_pages = node_max_pfn - node_min_pfn;
+ 
+-- 
+2.7.4
