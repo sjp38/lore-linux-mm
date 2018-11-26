@@ -1,174 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B88266B449E
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 19:12:33 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id w6so9450766otb.6
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 16:12:33 -0800 (PST)
-Received: from g9t5008.houston.hpe.com (g9t5008.houston.hpe.com. [15.241.48.72])
-        by mx.google.com with ESMTPS id 6si808061otb.214.2018.11.26.16.12.32
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A67226B3F8E
+	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 21:21:43 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id k66so18282774qkf.1
+        for <linux-mm@kvack.org>; Sun, 25 Nov 2018 18:21:43 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 10si1065707qto.215.2018.11.25.18.21.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Nov 2018 16:12:32 -0800 (PST)
-From: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
-Subject: RE: [RFC PATCH v4 11/13] mm: parallelize deferred struct page
- initialization within each node
-Date: Tue, 27 Nov 2018 00:12:28 +0000
-Message-ID: <AT5PR8401MB1169AA00F542BA2E3204FC24ABD00@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
-References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
- <20181105165558.11698-12-daniel.m.jordan@oracle.com>
- <AT5PR8401MB1169798EBEF1EE5EBA3ABFFFABC70@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
- <20181112165412.vizeiv6oimsuxkbk@ca-dmjordan1.us.oracle.com>
- <AT5PR8401MB1169B05F889BCF8EF113E053ABC10@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
- <20181119160137.72zha7dbsr3adkfs@ca-dmjordan1.us.oracle.com>
-In-Reply-To: <20181119160137.72zha7dbsr3adkfs@ca-dmjordan1.us.oracle.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        Sun, 25 Nov 2018 18:21:42 -0800 (PST)
+From: Ming Lei <ming.lei@redhat.com>
+Subject: [PATCH V12 20/20] block: kill BLK_MQ_F_SG_MERGE
+Date: Mon, 26 Nov 2018 10:17:20 +0800
+Message-Id: <20181126021720.19471-21-ming.lei@redhat.com>
+In-Reply-To: <20181126021720.19471-1-ming.lei@redhat.com>
+References: <20181126021720.19471-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Daniel Jordan' <daniel.m.jordan@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "aarcange@redhat.com" <aarcange@redhat.com>, "aaron.lu@intel.com" <aaron.lu@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "bsd@redhat.com" <bsd@redhat.com>, "darrick.wong@oracle.com" <darrick.wong@oracle.com>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "jgg@mellanox.com" <jgg@mellanox.com>, "jwadams@google.com" <jwadams@google.com>, "jiangshanlai@gmail.com" <jiangshanlai@gmail.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>, "Pavel.Tatashin@microsoft.com" <Pavel.Tatashin@microsoft.com>, "prasad.singamsetty@oracle.com" <prasad.singamsetty@oracle.com>, "rdunlap@infradead.org" <rdunlap@infradead.org>, "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "tim.c.chen@intel.com" <tim.c.chen@intel.com>, "tj@kernel.org" <tj@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
 
+QUEUE_FLAG_NO_SG_MERGE has been killed, so kill BLK_MQ_F_SG_MERGE too.
 
-
-> -----Original Message-----
-> From: Daniel Jordan [mailto:daniel.m.jordan@oracle.com]
-> Sent: Monday, November 19, 2018 10:02 AM
-> On Mon, Nov 12, 2018 at 10:15:46PM +0000, Elliott, Robert (Persistent Mem=
-ory) wrote:
-> >
-> > > -----Original Message-----
-> > > From: Daniel Jordan <daniel.m.jordan@oracle.com>
-> > > Sent: Monday, November 12, 2018 11:54 AM
-> > >
-> > > On Sat, Nov 10, 2018 at 03:48:14AM +0000, Elliott, Robert (Persistent
-> > > Memory) wrote:
-> > > > > -----Original Message-----
-> > > > > From: linux-kernel-owner@vger.kernel.org <linux-kernel-
-> > > > > owner@vger.kernel.org> On Behalf Of Daniel Jordan
-> > > > > Sent: Monday, November 05, 2018 10:56 AM
-> > > > > Subject: [RFC PATCH v4 11/13] mm: parallelize deferred struct pag=
-e
-> > > > > initialization within each node
-> > > > >
-> > ...
-> > > > > In testing, a reasonable value turned out to be about a quarter o=
-f the
-> > > > > CPUs on the node.
-> > > > ...
-> > > > > +	/*
-> > > > > +	 * We'd like to know the memory bandwidth of the chip to
-> > > > >         calculate the
-> > > > > +	 * most efficient number of threads to start, but we can't.
-> > > > > +	 * In testing, a good value for a variety of systems was a
-> > > > >         quarter of the CPUs on the node.
-> > > > > +	 */
-> > > > > +	nr_node_cpus =3D DIV_ROUND_UP(cpumask_weight(cpumask), 4);
-> > > >
-> > > >
-> > > > You might want to base that calculation on and limit the threads to
-> > > > physical cores, not hyperthreaded cores.
-> > >
-> > > Why?  Hyperthreads can be beneficial when waiting on memory.  That sa=
-id, I
-> > > don't have data that shows that in this case.
-> >
-> > I think that's only if there are some register-based calculations to do=
- while
-> > waiting. If both threads are just doing memory accesses, they'll both s=
-tall, and
-> > there doesn't seem to be any benefit in having two contexts generate th=
-e IOs
-> > rather than one (at least on the systems I've used). I think it takes l=
-onger
-> > to switch contexts than to just turnaround the next IO.
->=20
-> (Sorry for the delay, Plumbers is over now...)
->=20
-> I guess we're both just waving our hands without data.  I've only got x86=
-, so
-> using a quarter of the CPUs rules out HT on my end.  Do you have a system=
- that
-> you can test this on, where using a quarter of the CPUs will involve HT?
-
-I ran a short test with:
-* HPE ProLiant DL360 Gen9 system
-* Intel Xeon E5-2699 CPU with 18 physical cores (0-17) and=20
-  18 hyperthreaded cores (36-53)
-* DDR4 NVDIMM-Ns (which run at regular DRAM DIMM speeds)
-* fio workload generator
-* cores on one CPU socket talking to a pmem device on the same CPU
-* large (1 MiB) random writes (to minimize the threads getting CPU cache
-  hits from each other)
-
-Results:
-* 31.7 GB/s    four threads, four physical cores (0,1,2,3)
-* 22.2 GB/s    four threads, two physical cores (0,1,36,37)
-* 21.4 GB/s    two threads, two physical cores (0,1)
-* 12.1 GB/s    two threads, one physical core (0,36)
-* 11.2 GB/s    one thread, one physical core (0)
-
-So, I think it's important that the initialization threads run on
-separate physical cores.
-
-For the number of cores to use, one approach is:
-    memory bandwidth (number of interleaved channels * speed)
-divided by=20
-    CPU core max sustained write bandwidth
-
-For example, this 2133 MT/s system is roughly:
-    68 GB/s    (4 * 17 GB/s nominal)
-divided by
-    11.2 GB/s  (one core's performance)
-which is=20
-    6 cores
-
-ACPI HMAT will report that 68 GB/s number.  I'm not sure of
-a good way to discover the 11.2 GB/s number.
-
-
-fio job file:
-[global]
-direct=3D1
-ioengine=3Dsync
-norandommap
-randrepeat=3D0
-bs=3D1M
-runtime=3D20
-time_based=3D1
-group_reporting
-thread
-gtod_reduce=3D1
-zero_buffers
-cpus_allowed_policy=3Dsplit
-# pick the desired number of threads
-numjobs=3D4
-numjobs=3D2
-numjobs=3D1
-
-# CPU0: cores 0-17, hyperthreaded cores 36-53
-[pmem0]
-filename=3D/dev/pmem0
-# pick the desired cpus_allowed list
-cpus_allowed=3D0,1,2,3
-cpus_allowed=3D0,1,36,37
-cpus_allowed=3D0,36
-cpus_allowed=3D0,1
-cpus_allowed=3D0
-rw=3Drandwrite
-
-Although most CPU time is in movnti instructions (non-temporal stores),
-there is overhead in clearing the page cache and in the pmem block
-driver; those won't be present in your initialization function.=20
-perf top shows:
-  82.00%  [kernel]                [k] memcpy_flushcache
-   5.23%  [kernel]                [k] gup_pgd_range
-   3.41%  [kernel]                [k] __blkdev_direct_IO_simple
-   2.38%  [kernel]                [k] pmem_make_request
-   1.46%  [kernel]                [k] write_pmem
-   1.29%  [kernel]                [k] pmem_do_bvec
-
-
+Reviewed-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Omar Sandoval <osandov@fb.com>
+Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
-Robert Elliott, HPE Persistent Memory
+ block/blk-mq-debugfs.c       | 1 -
+ drivers/block/loop.c         | 2 +-
+ drivers/block/nbd.c          | 2 +-
+ drivers/block/rbd.c          | 2 +-
+ drivers/block/skd_main.c     | 1 -
+ drivers/block/xen-blkfront.c | 2 +-
+ drivers/md/dm-rq.c           | 2 +-
+ drivers/mmc/core/queue.c     | 3 +--
+ drivers/scsi/scsi_lib.c      | 2 +-
+ include/linux/blk-mq.h       | 1 -
+ 10 files changed, 7 insertions(+), 11 deletions(-)
+
+diff --git a/block/blk-mq-debugfs.c b/block/blk-mq-debugfs.c
+index d752fe4461af..a6ec055b54fa 100644
+--- a/block/blk-mq-debugfs.c
++++ b/block/blk-mq-debugfs.c
+@@ -249,7 +249,6 @@ static const char *const alloc_policy_name[] = {
+ static const char *const hctx_flag_name[] = {
+ 	HCTX_FLAG_NAME(SHOULD_MERGE),
+ 	HCTX_FLAG_NAME(TAG_SHARED),
+-	HCTX_FLAG_NAME(SG_MERGE),
+ 	HCTX_FLAG_NAME(BLOCKING),
+ 	HCTX_FLAG_NAME(NO_SCHED),
+ };
+diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+index e3683211f12d..4cf5486689de 100644
+--- a/drivers/block/loop.c
++++ b/drivers/block/loop.c
+@@ -1906,7 +1906,7 @@ static int loop_add(struct loop_device **l, int i)
+ 	lo->tag_set.queue_depth = 128;
+ 	lo->tag_set.numa_node = NUMA_NO_NODE;
+ 	lo->tag_set.cmd_size = sizeof(struct loop_cmd);
+-	lo->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
++	lo->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+ 	lo->tag_set.driver_data = lo;
+ 
+ 	err = blk_mq_alloc_tag_set(&lo->tag_set);
+diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
+index 08696f5f00bb..999c94de78e5 100644
+--- a/drivers/block/nbd.c
++++ b/drivers/block/nbd.c
+@@ -1570,7 +1570,7 @@ static int nbd_dev_add(int index)
+ 	nbd->tag_set.numa_node = NUMA_NO_NODE;
+ 	nbd->tag_set.cmd_size = sizeof(struct nbd_cmd);
+ 	nbd->tag_set.flags = BLK_MQ_F_SHOULD_MERGE |
+-		BLK_MQ_F_SG_MERGE | BLK_MQ_F_BLOCKING;
++		BLK_MQ_F_BLOCKING;
+ 	nbd->tag_set.driver_data = nbd;
+ 
+ 	err = blk_mq_alloc_tag_set(&nbd->tag_set);
+diff --git a/drivers/block/rbd.c b/drivers/block/rbd.c
+index 8e5140bbf241..3dfd300b5283 100644
+--- a/drivers/block/rbd.c
++++ b/drivers/block/rbd.c
+@@ -3988,7 +3988,7 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
+ 	rbd_dev->tag_set.ops = &rbd_mq_ops;
+ 	rbd_dev->tag_set.queue_depth = rbd_dev->opts->queue_depth;
+ 	rbd_dev->tag_set.numa_node = NUMA_NO_NODE;
+-	rbd_dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
++	rbd_dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+ 	rbd_dev->tag_set.nr_hw_queues = 1;
+ 	rbd_dev->tag_set.cmd_size = sizeof(struct work_struct);
+ 
+diff --git a/drivers/block/skd_main.c b/drivers/block/skd_main.c
+index a10d5736d8f7..a7040f9a1b1b 100644
+--- a/drivers/block/skd_main.c
++++ b/drivers/block/skd_main.c
+@@ -2843,7 +2843,6 @@ static int skd_cons_disk(struct skd_device *skdev)
+ 		skdev->sgs_per_request * sizeof(struct scatterlist);
+ 	skdev->tag_set.numa_node = NUMA_NO_NODE;
+ 	skdev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE |
+-		BLK_MQ_F_SG_MERGE |
+ 		BLK_ALLOC_POLICY_TO_MQ_FLAG(BLK_TAG_ALLOC_FIFO);
+ 	skdev->tag_set.driver_data = skdev;
+ 	rc = blk_mq_alloc_tag_set(&skdev->tag_set);
+diff --git a/drivers/block/xen-blkfront.c b/drivers/block/xen-blkfront.c
+index 0ed4b200fa58..d43a5677ccbc 100644
+--- a/drivers/block/xen-blkfront.c
++++ b/drivers/block/xen-blkfront.c
+@@ -977,7 +977,7 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
+ 	} else
+ 		info->tag_set.queue_depth = BLK_RING_SIZE(info);
+ 	info->tag_set.numa_node = NUMA_NO_NODE;
+-	info->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
++	info->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+ 	info->tag_set.cmd_size = sizeof(struct blkif_req);
+ 	info->tag_set.driver_data = info;
+ 
+diff --git a/drivers/md/dm-rq.c b/drivers/md/dm-rq.c
+index 1f1fe9a618ea..afbac62a02a2 100644
+--- a/drivers/md/dm-rq.c
++++ b/drivers/md/dm-rq.c
+@@ -536,7 +536,7 @@ int dm_mq_init_request_queue(struct mapped_device *md, struct dm_table *t)
+ 	md->tag_set->ops = &dm_mq_ops;
+ 	md->tag_set->queue_depth = dm_get_blk_mq_queue_depth();
+ 	md->tag_set->numa_node = md->numa_node_id;
+-	md->tag_set->flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
++	md->tag_set->flags = BLK_MQ_F_SHOULD_MERGE;
+ 	md->tag_set->nr_hw_queues = dm_get_blk_mq_nr_hw_queues();
+ 	md->tag_set->driver_data = md;
+ 
+diff --git a/drivers/mmc/core/queue.c b/drivers/mmc/core/queue.c
+index 35cc138b096d..cc19e71c71d4 100644
+--- a/drivers/mmc/core/queue.c
++++ b/drivers/mmc/core/queue.c
+@@ -410,8 +410,7 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
+ 	else
+ 		mq->tag_set.queue_depth = MMC_QUEUE_DEPTH;
+ 	mq->tag_set.numa_node = NUMA_NO_NODE;
+-	mq->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE |
+-			    BLK_MQ_F_BLOCKING;
++	mq->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING;
+ 	mq->tag_set.nr_hw_queues = 1;
+ 	mq->tag_set.cmd_size = sizeof(struct mmc_queue_req);
+ 	mq->tag_set.driver_data = mq;
+diff --git a/drivers/scsi/scsi_lib.c b/drivers/scsi/scsi_lib.c
+index 78d6d05992b0..f5ffb97352f7 100644
+--- a/drivers/scsi/scsi_lib.c
++++ b/drivers/scsi/scsi_lib.c
+@@ -1902,7 +1902,7 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
+ 	shost->tag_set.queue_depth = shost->can_queue;
+ 	shost->tag_set.cmd_size = cmd_size;
+ 	shost->tag_set.numa_node = NUMA_NO_NODE;
+-	shost->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
++	shost->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+ 	shost->tag_set.flags |=
+ 		BLK_ALLOC_POLICY_TO_MQ_FLAG(shost->hostt->tag_alloc_policy);
+ 	shost->tag_set.driver_data = shost;
+diff --git a/include/linux/blk-mq.h b/include/linux/blk-mq.h
+index 929e8abc5535..ca7389d7e04f 100644
+--- a/include/linux/blk-mq.h
++++ b/include/linux/blk-mq.h
+@@ -211,7 +211,6 @@ struct blk_mq_ops {
+ enum {
+ 	BLK_MQ_F_SHOULD_MERGE	= 1 << 0,
+ 	BLK_MQ_F_TAG_SHARED	= 1 << 1,
+-	BLK_MQ_F_SG_MERGE	= 1 << 2,
+ 	BLK_MQ_F_BLOCKING	= 1 << 5,
+ 	BLK_MQ_F_NO_SCHED	= 1 << 6,
+ 	BLK_MQ_F_ALLOC_POLICY_START_BIT = 8,
+-- 
+2.9.5
