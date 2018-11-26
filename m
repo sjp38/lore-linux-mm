@@ -1,82 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 245186B4455
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 18:20:01 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id q62so8793654pgq.9
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 15:20:01 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n13sor2812115pfj.12.2018.11.26.15.20.00
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 03FE86B422D
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 09:35:11 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id d41so9013330eda.12
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 06:35:10 -0800 (PST)
+Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
+        by mx.google.com with ESMTPS id n23si401920edt.94.2018.11.26.06.35.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 26 Nov 2018 15:20:00 -0800 (PST)
-Date: Mon, 26 Nov 2018 15:19:57 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 02/10] mm/huge_memory: splitting set mapping+index before
- unfreeze
-In-Reply-To: <alpine.LSU.2.11.1811261444420.2275@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1811261516380.2275@eggly.anvils>
-References: <alpine.LSU.2.11.1811261444420.2275@eggly.anvils>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Nov 2018 06:35:05 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id DF7E51C2CBB
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 14:35:04 +0000 (GMT)
+Date: Mon, 26 Nov 2018 14:35:03 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH] mm: Use alloc_flags to record if kswapd can wake -fix
+Message-ID: <20181126143503.GO23260@techsingularity.net>
+References: <20181123114528.28802-1-mgorman@techsingularity.net>
+ <20181123114528.28802-4-mgorman@techsingularity.net>
+ <39711f99-1a2a-67d3-5cb0-a63ac739a917@suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <39711f99-1a2a-67d3-5cb0-a63ac739a917@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Matthew Wilcox <willy@infradead.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-mm@kvack.org
+Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-Huge tmpfs stress testing has occasionally hit shmem_undo_range()'s
-VM_BUG_ON_PAGE(page_to_pgoff(page) != index, page).
+Vlastimil Babka correctly pointed out that the ALLOC_KSWAPD flag needs to be
+applied in the !CONFIG_ZONE_DMA32 case. This is a fix for the mmotm path
+mm-use-alloc_flags-to-record-if-kswapd-can-wake.patch
 
-Move the setting of mapping and index up before the page_ref_unfreeze()
-in __split_huge_page_tail() to fix this: so that a page cache lookup
-cannot get a reference while the tail's mapping and index are unstable.
-
-In fact, might as well move them up before the smp_wmb(): I don't see
-an actual need for that, but if I'm missing something, this way round
-is safer than the other, and no less efficient.
-
-You might argue that VM_BUG_ON_PAGE(page_to_pgoff(page) != index, page)
-is misplaced, and should be left until after the trylock_page(); but
-left as is has not crashed since, and gives more stringent assurance.
-
-Fixes: e9b61f19858a5 ("thp: reintroduce split_huge_page()")
-Requires: 605ca5ede764 ("mm/huge_memory.c: reorder operations in __split_huge_page_tail()")
-Signed-off-by: Hugh Dickins <hughd@google.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: stable@vger.kernel.org # 4.8+
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/huge_memory.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ mm/page_alloc.c | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 30100fac2341..cef2c256e7c4 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2402,6 +2402,12 @@ static void __split_huge_page_tail(struct page *head, int tail,
- 			 (1L << PG_unevictable) |
- 			 (1L << PG_dirty)));
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index e44eb68744ed..a48ebb821360 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3268,7 +3268,6 @@ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
+ }
+ #endif	/* CONFIG_NUMA */
  
-+	/* ->mapping in first tail page is compound_mapcount */
-+	VM_BUG_ON_PAGE(tail > 2 && page_tail->mapping != TAIL_MAPPING,
-+			page_tail);
-+	page_tail->mapping = head->mapping;
-+	page_tail->index = head->index + tail;
-+
- 	/* Page flags must be visible before we make the page non-compound. */
- 	smp_wmb();
+-#ifdef CONFIG_ZONE_DMA32
+ /*
+  * The restriction on ZONE_DMA32 as being a suitable zone to use to avoid
+  * fragmentation is subtle. If the preferred zone was HIGHMEM then
+@@ -3285,6 +3284,7 @@ alloc_flags_nofragment(struct zone *zone, gfp_t gfp_mask)
+ 	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
+ 		alloc_flags |= ALLOC_KSWAPD;
  
-@@ -2422,12 +2428,6 @@ static void __split_huge_page_tail(struct page *head, int tail,
- 	if (page_is_idle(head))
- 		set_page_idle(page_tail);
++#ifdef CONFIG_ZONE_DMA32
+ 	if (zone_idx(zone) != ZONE_NORMAL)
+ 		goto out;
  
--	/* ->mapping in first tail page is compound_mapcount */
--	VM_BUG_ON_PAGE(tail > 2 && page_tail->mapping != TAIL_MAPPING,
--			page_tail);
--	page_tail->mapping = head->mapping;
--
--	page_tail->index = head->index + tail;
- 	page_cpupid_xchg_last(page_tail, page_cpupid_last(head));
+@@ -3298,15 +3298,9 @@ alloc_flags_nofragment(struct zone *zone, gfp_t gfp_mask)
+ 		goto out;
  
- 	/*
--- 
-2.20.0.rc0.387.gc7a69e6b6c-goog
+ out:
++#endif /* CONFIG_ZONE_DMA32 */
+ 	return alloc_flags;
+ }
+-#else
+-static inline unsigned int
+-alloc_flags_nofragment(struct zone *zone, gfp_t gfp_mask)
+-{
+-	return 0;
+-}
+-#endif
+ 
+ /*
+  * get_page_from_freelist goes through the zonelist trying to allocate
