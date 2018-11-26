@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 352536B51FE
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2018 05:06:11 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id a199so1193470qkb.23
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2018 02:06:11 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e7si1014107qvp.159.2018.11.29.02.06.10
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 48F466B411F
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 03:25:33 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id w15so8828377edl.21
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 00:25:33 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y24si3088edo.347.2018.11.26.00.25.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Nov 2018 02:06:10 -0800 (PST)
+        Mon, 26 Nov 2018 00:25:32 -0800 (PST)
 Subject: Re: [PATCH] mm: make "migrate_reason_names[]" const char *
 References: <20181124090508.GB10877@avx2>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <91e0e37f-6217-e8a5-6e70-75c8572e608c@redhat.com>
-Date: Thu, 29 Nov 2018 11:06:07 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <3f66d1a7-afee-ef3e-1c0a-e1aabb305abe@suse.cz>
+Date: Mon, 26 Nov 2018 09:25:30 +0100
 MIME-Version: 1.0
 In-Reply-To: <20181124090508.GB10877@avx2>
 Content-Type: text/plain; charset=utf-8
@@ -22,12 +22,17 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Alexey Dobriyan <adobriyan@gmail.com>, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, vbabka@suse.cz
+Cc: linux-mm@kvack.org
 
-On 24.11.18 10:05, Alexey Dobriyan wrote:
+On 11/24/18 10:05 AM, Alexey Dobriyan wrote:
 > Those strings are immutable as well.
 > 
 > Signed-off-by: Alexey Dobriyan <adobriyan@gmail.com>
+
+Sounds a bit random, but why not.
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
 > ---
 > 
 >  include/linux/migrate.h |    2 +-
@@ -57,11 +62,3 @@ On 24.11.18 10:05, Alexey Dobriyan wrote:
 >  	"memory_failure",
 >  	"memory_hotplug",
 > 
-
-Reviewed-by: David Hildenbrand <david@redhat.com>
-
--- 
-
-Thanks,
-
-David / dhildenb
