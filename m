@@ -1,130 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EBE06B4C04
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 03:36:42 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id r16so11757092pgr.15
-        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 00:36:42 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h192sor8335663pgc.77.2018.11.28.00.36.40
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 138936B4139
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 03:47:36 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id m13so21196703pls.15
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 00:47:36 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id m3si34578480pfh.58.2018.11.26.00.47.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 28 Nov 2018 00:36:40 -0800 (PST)
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [RFC PATCH] mm: update highest_memmap_pfn based on exact pfn
-Date: Wed, 28 Nov 2018 16:36:34 +0800
-Message-Id: <20181128083634.18515-1-richard.weiyang@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Nov 2018 00:47:35 -0800 (PST)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAQ8eG1L117596
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 03:47:34 -0500
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2p0b5g5s96-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 03:47:34 -0500
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Mon, 26 Nov 2018 08:47:31 -0000
+Date: Mon, 26 Nov 2018 10:47:20 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: Re: [PATCH 5/5] arch: simplify several early memory allocations
+References: <1543182277-8819-1-git-send-email-rppt@linux.ibm.com>
+ <1543182277-8819-6-git-send-email-rppt@linux.ibm.com>
+ <20181126082134.GA10530@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181126082134.GA10530@infradead.org>
+Message-Id: <20181126084719.GC14863@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hughd@google.com, akpm@linux-foundation.org, pasha.tatashin@oracle.com, mgorman@suse.de
-Cc: linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Jonas Bonn <jonas@southpole.se>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org
 
-When DEFERRED_STRUCT_PAGE_INIT is set, page struct will not be
-initialized all at boot up. Some of them is postponed to defer stage.
-While the global variable highest_memmap_pfn is still set to the highest
-pfn at boot up, even some of them are not initialized.
+On Mon, Nov 26, 2018 at 12:21:34AM -0800, Christoph Hellwig wrote:
+> >  static void __init *early_alloc_aligned(unsigned long sz, unsigned long align)
+> >  {
+> > -	void *ptr = __va(memblock_phys_alloc(sz, align));
+> > -	memset(ptr, 0, sz);
+> > -	return ptr;
+> > +	return memblock_alloc(sz, align);
+> >  }
+> 
+> What is the point of keeping this wrapper?
 
-This patch adjust this behavior by update highest_memmap_pfn with the
-exact pfn during each iteration. Since each node has a defer thread,
-introduce a spin lock to protect it.
+No point indeed. I'll remove it in v2.
+ 
+> >  static void __init *early_alloc(unsigned long sz)
+> >  {
+> > -	void *ptr = __va(memblock_phys_alloc(sz, sz));
+> > -	memset(ptr, 0, sz);
+> > -	return ptr;
+> > +	return memblock_alloc(sz, sz);
+> >  }
+> 
+> Same here.
+> 
 
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
----
- mm/internal.h   | 8 ++++++++
- mm/memory.c     | 1 +
- mm/nommu.c      | 1 +
- mm/page_alloc.c | 9 ++++++---
- 4 files changed, 16 insertions(+), 3 deletions(-)
+Here it provides a shortcut for allocations with align == size, but can be
+removed as well.
 
-diff --git a/mm/internal.h b/mm/internal.h
-index 6a57811ae47d..f9e19c7d9b0a 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -79,6 +79,14 @@ static inline void set_page_refcounted(struct page *page)
- }
- 
- extern unsigned long highest_memmap_pfn;
-+extern spinlock_t highest_memmap_pfn_lock;
-+static inline void update_highest_memmap_pfn(unsigned long end_pfn)
-+{
-+	spin_lock(&highest_memmap_pfn_lock);
-+	if (highest_memmap_pfn < end_pfn - 1)
-+		highest_memmap_pfn = end_pfn - 1;
-+	spin_unlock(&highest_memmap_pfn_lock);
-+}
- 
- /*
-  * Maximum number of reclaim retries without progress before the OOM
-diff --git a/mm/memory.c b/mm/memory.c
-index 4ad2d293ddc2..0cf9b88b51b7 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -127,6 +127,7 @@ unsigned long zero_pfn __read_mostly;
- EXPORT_SYMBOL(zero_pfn);
- 
- unsigned long highest_memmap_pfn __read_mostly;
-+DEFINE_SPINLOCK(highest_memmap_pfn_lock);
- 
- /*
-  * CONFIG_MMU architectures set up ZERO_PAGE in their paging_init()
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 749276beb109..610dc6e17ce5 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -48,6 +48,7 @@ struct page *mem_map;
- unsigned long max_mapnr;
- EXPORT_SYMBOL(max_mapnr);
- unsigned long highest_memmap_pfn;
-+static DEFINE_SPINLOCK(highest_memmap_pfn_lock);
- int sysctl_nr_trim_pages = CONFIG_NOMMU_INITIAL_TRIM_EXCESS;
- int heap_stack_gap = 0;
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ccc86df24f28..33bb339aaef8 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1216,6 +1216,7 @@ static void __meminit init_reserved_page(unsigned long pfn)
- 			break;
- 	}
- 	__init_single_page(pfn_to_page(pfn), pfn, zid, nid);
-+	update_highest_memmap_pfn(pfn);
- }
- #else
- static inline void init_reserved_page(unsigned long pfn)
-@@ -1540,6 +1541,7 @@ static unsigned long  __init deferred_init_pages(int nid, int zid,
- 		__init_single_page(page, pfn, zid, nid);
- 		nr_pages++;
- 	}
-+	update_highest_memmap_pfn(pfn);
- 	return (nr_pages);
- }
- 
-@@ -5491,9 +5493,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 	unsigned long pfn, end_pfn = start_pfn + size;
- 	struct page *page;
- 
--	if (highest_memmap_pfn < end_pfn - 1)
--		highest_memmap_pfn = end_pfn - 1;
--
- #ifdef CONFIG_ZONE_DEVICE
- 	/*
- 	 * Honor reservation requested by the driver for this ZONE_DEVICE
-@@ -5550,6 +5549,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 			cond_resched();
- 		}
- 	}
-+
-+	update_highest_memmap_pfn(pfn);
- }
- 
- #ifdef CONFIG_ZONE_DEVICE
-@@ -5622,6 +5623,8 @@ void __ref memmap_init_zone_device(struct zone *zone,
- 		}
- 	}
- 
-+	update_highest_memmap_pfn(pfn);
-+
- 	pr_info("%s initialised, %lu pages in %ums\n", dev_name(pgmap->dev),
- 		size, jiffies_to_msecs(jiffies - start));
- }
 -- 
-2.15.1
+Sincerely yours,
+Mike.
