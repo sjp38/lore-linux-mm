@@ -1,34 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CC4126B46CD
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 03:21:24 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id e17so10353094edr.7
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 00:21:24 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ge19-v6si46811ejb.169.2018.11.27.00.21.22
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B42D6B43A6
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 15:54:07 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id t2so12286146pfj.15
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 12:54:07 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id i6si1344633pgq.207.2018.11.26.12.54.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Nov 2018 00:21:23 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 26 Nov 2018 12:54:05 -0800 (PST)
+Date: Mon, 26 Nov 2018 12:53:51 -0800
+From: Matthew Wilcox <willy@infradead.org>
 Subject: Re: [PATCHi v2] mm: put_and_wait_on_page_locked() while page is
  migrated
+Message-ID: <20181126205351.GM3065@bombadil.infradead.org>
 References: <alpine.LSU.2.11.1811241858540.4415@eggly.anvils>
  <CAHk-=wjeqKYevxGnfCM4UkxX8k8xfArzM6gKkG3BZg1jBYThVQ@mail.gmail.com>
  <alpine.LSU.2.11.1811251900300.1278@eggly.anvils>
  <alpine.LSU.2.11.1811261121330.1116@eggly.anvils>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <e35e9354-a4be-ebcc-064d-c9e5b42a14c3@suse.cz>
-Date: Tue, 27 Nov 2018 09:21:20 +0100
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <alpine.LSU.2.11.1811261121330.1116@eggly.anvils>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Hildenbrand <david@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, David Herrmann <dh.herrmann@gmail.com>, Tim Chen <tim.c.chen@linux.intel.com>, Kan Liang <kan.liang@intel.com>, Andi Kleen <ak@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux.com>, Nick Piggin <npiggin@gmail.com>, pifang@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, David Hildenbrand <david@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, David Herrmann <dh.herrmann@gmail.com>, Tim Chen <tim.c.chen@linux.intel.com>, Kan Liang <kan.liang@intel.com>, Andi Kleen <ak@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux.com>, Nick Piggin <npiggin@gmail.com>, pifang@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 11/26/18 8:27 PM, Hugh Dickins wrote:
+On Mon, Nov 26, 2018 at 11:27:07AM -0800, Hugh Dickins wrote:
 > Waiting on a page migration entry has used wait_on_page_locked() all
 > along since 2006: but you cannot safely wait_on_page_locked() without
 > holding a reference to the page, and that extra reference is enough to
@@ -106,7 +105,37 @@ On 11/26/18 8:27 PM, Hugh Dickins wrote:
 > Signed-off-by: Hugh Dickins <hughd@google.com>
 > Acked-by: Michal Hocko <mhocko@suse.com>
 > Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  include/linux/pagemap.h |  2 ++
+>  mm/filemap.c            | 77 ++++++++++++++++++++++++++++++++++-------
+>  mm/huge_memory.c        |  6 ++--
+>  mm/migrate.c            | 12 +++----
+>  mm/vmscan.c             | 10 ++----
+>  5 files changed, 74 insertions(+), 33 deletions(-)
+> 
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+/**
+ * put_and_wait_on_page_locked - Drop a reference and wait for it to be unlocked
+ * @page: The page to wait for.
+ *
+ * The caller should hold a reference on @page.  They expect the page to
+ * become unlocked relatively soon, but do not wish to hold up migration
+ * (for example) by holding the reference while waiting for the page to
+ * come unlocked.  After this function returns, the caller should not
+ * dereference @page.
+ */
 
-Thanks!
+(improvements gratefully received)
+
+> +void put_and_wait_on_page_locked(struct page *page)
+> +{
+> +	wait_queue_head_t *q;
+> +
+> +	page = compound_head(page);
+> +	q = page_waitqueue(page);
+> +	wait_on_page_bit_common(q, page, PG_locked, TASK_UNINTERRUPTIBLE, DROP);
+> +}
+> +
+>  /**
+>   * add_page_wait_queue - Add an arbitrary waiter to a page's wait queue
+>   * @page: Page defining the wait queue of interest
