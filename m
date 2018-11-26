@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 30E036B41D5
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 06:05:28 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id a10so399070plp.14
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 03:05:28 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F1A476B41CB
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 06:00:42 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id p4so7592474pgj.21
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 03:00:42 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id x4si34869882plv.56.2018.11.26.03.05.26
+        by mx.google.com with ESMTPS id w11si7087313plz.327.2018.11.26.03.00.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Nov 2018 03:05:26 -0800 (PST)
+        Mon, 26 Nov 2018 03:00:41 -0800 (PST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.19 093/118] x86/ldt: Unmap PTEs for the slot before freeing LDT pages
-Date: Mon, 26 Nov 2018 11:51:27 +0100
-Message-Id: <20181126105105.431465354@linuxfoundation.org>
-In-Reply-To: <20181126105059.832485122@linuxfoundation.org>
-References: <20181126105059.832485122@linuxfoundation.org>
+Subject: [PATCH 4.14 49/62] x86/ldt: Unmap PTEs for the slot before freeing LDT pages
+Date: Mon, 26 Nov 2018 11:51:30 +0100
+Message-Id: <20181126105054.440503950@linuxfoundation.org>
+In-Reply-To: <20181126105050.592727680@linuxfoundation.org>
+References: <20181126105050.592727680@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -23,7 +23,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org, boris.ostrovsky@oracle.com, jgross@suse.com, bhe@redhat.com, willy@infradead.org, linux-mm@kvack.org, Sasha Levin <sashal@kernel.org>
 
-4.19-stable review patch.  If anyone has any objections, please let me know.
+4.14-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
@@ -62,14 +62,14 @@ Cc: stable@vger.kernel.org
 Link: https://lkml.kernel.org/r/20181026122856.66224-3-kirill.shutemov@linux.intel.com
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- arch/x86/kernel/ldt.c | 51 ++++++++++++++++++++++++++++++++-----------
- 1 file changed, 38 insertions(+), 13 deletions(-)
+ arch/x86/kernel/ldt.c | 49 +++++++++++++++++++++++++++++++------------
+ 1 file changed, 36 insertions(+), 13 deletions(-)
 
 diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
-index 733e6ace0fa4..2a71ded9b13e 100644
+index 26d713ecad34..65df298d4e9e 100644
 --- a/arch/x86/kernel/ldt.c
 +++ b/arch/x86/kernel/ldt.c
-@@ -199,14 +199,6 @@ static void sanity_check_ldt_mapping(struct mm_struct *mm)
+@@ -103,14 +103,6 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
  /*
   * If PTI is enabled, this maps the LDT into the kernelmode and
   * usermode tables for the given mm.
@@ -84,9 +84,9 @@ index 733e6ace0fa4..2a71ded9b13e 100644
   */
  static int
  map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
-@@ -214,8 +206,8 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
+@@ -119,8 +111,8 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
+ 	bool is_vmalloc, had_top_level_entry;
  	unsigned long va;
- 	bool is_vmalloc;
  	spinlock_t *ptl;
 +	int i, nr_pages;
  	pgd_t *pgd;
@@ -94,7 +94,7 @@ index 733e6ace0fa4..2a71ded9b13e 100644
  
  	if (!static_cpu_has(X86_FEATURE_PTI))
  		return 0;
-@@ -238,7 +230,9 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
+@@ -141,7 +133,9 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
  
  	is_vmalloc = is_vmalloc_addr(ldt->entries);
  
@@ -105,19 +105,21 @@ index 733e6ace0fa4..2a71ded9b13e 100644
  		unsigned long offset = i << PAGE_SHIFT;
  		const void *src = (char *)ldt->entries + offset;
  		unsigned long pfn;
-@@ -272,13 +266,39 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- 	/* Propagate LDT mapping to the user page-table */
- 	map_ldt_struct_to_user(mm);
+@@ -189,14 +183,42 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
+ 		}
+ 	}
  
 -	va = (unsigned long)ldt_slot_va(slot);
 -	flush_tlb_mm_range(mm, va, va + LDT_SLOT_STRIDE, 0);
 -
  	ldt->slot = slot;
+ #endif
  	return 0;
  }
  
 +static void unmap_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt)
 +{
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
 +	unsigned long va;
 +	int i, nr_pages;
 +
@@ -143,23 +145,13 @@ index 733e6ace0fa4..2a71ded9b13e 100644
 +
 +	va = (unsigned long)ldt_slot_va(ldt->slot);
 +	flush_tlb_mm_range(mm, va, va + nr_pages * PAGE_SIZE, 0);
++#endif /* CONFIG_PAGE_TABLE_ISOLATION */
 +}
 +
- #else /* !CONFIG_PAGE_TABLE_ISOLATION */
- 
- static int
-@@ -286,6 +306,10 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- {
- 	return 0;
- }
-+
-+static void unmap_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt)
-+{
-+}
- #endif /* CONFIG_PAGE_TABLE_ISOLATION */
- 
  static void free_ldt_pgtables(struct mm_struct *mm)
-@@ -524,6 +548,7 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
+ {
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+@@ -433,6 +455,7 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
  	}
  
  	install_ldt(mm, new_ldt);
