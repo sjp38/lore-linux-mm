@@ -1,96 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EDBE26B4959
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:56:23 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id o76so16748170wmg.4
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:56:23 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r201sor3378349wmb.26.2018.11.27.08.56.22
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D7CB6B4396
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 15:38:05 -0500 (EST)
+Received: by mail-it1-f197.google.com with SMTP id v3so24353505itf.4
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 12:38:05 -0800 (PST)
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id m43-v6sor165869iti.0.2018.11.26.12.38.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 27 Nov 2018 08:56:22 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v12 18/25] mm: move obj_to_index to include/linux/slab_def.h
-Date: Tue, 27 Nov 2018 17:55:36 +0100
-Message-Id: <b68796c554fba66d5285274ea6356e642e18a9e5.1543337629.git.andreyknvl@google.com>
-In-Reply-To: <cover.1543337629.git.andreyknvl@google.com>
-References: <cover.1543337629.git.andreyknvl@google.com>
+        Mon, 26 Nov 2018 12:38:03 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Date: Mon, 26 Nov 2018 12:38:03 -0800
+Message-ID: <00000000000043ae20057b974f14@google.com>
+Subject: WARNING: locking bug in lock_downgrade
+From: syzbot <syzbot+53383ae265fb161ef488@syzkaller.appspotmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux@dominikbrodowski.net, mhocko@suse.com, rientjes@google.com, syzkaller-bugs@googlegroups.com, vbabka@suse.cz, yang.shi@linux.alibaba.com
 
-While with SLUB we can actually preassign tags for caches with contructors
-and store them in pointers in the freelist, SLAB doesn't allow that since
-the freelist is stored as an array of indexes, so there are no pointers to
-store the tags.
+Hello,
 
-Instead we compute the tag twice, once when a slab is created before
-calling the constructor and then again each time when an object is
-allocated with kmalloc. Tag is computed simply by taking the lowest byte of
-the index that corresponds to the object. However in kasan_kmalloc we only
-have access to the objects pointer, so we need a way to find out which
-index this object corresponds to.
+syzbot found the following crash on:
 
-This patch moves obj_to_index from slab.c to include/linux/slab_def.h to
-be reused by KASAN.
+HEAD commit:    e195ca6cb6f2 Merge branch 'for-linus' of git://git.kernel...
+git tree:       upstream
+console output: https://syzkaller.appspot.com/x/log.txt?x=12336ed5400000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=73e2bc0cb6463446
+dashboard link: https://syzkaller.appspot.com/bug?extid=53383ae265fb161ef488
+compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
 
-Acked-by: Christoph Lameter <cl@linux.com>
-Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+Unfortunately, I don't have any reproducer for this crash yet.
+
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+53383ae265fb161ef488@syzkaller.appspotmail.com
+
+
+------------[ cut here ]------------
+downgrading a read lock
+WARNING: CPU: 0 PID: 26202 at kernel/locking/lockdep.c:3556  
+__lock_downgrade kernel/locking/lockdep.c:3556 [inline]
+WARNING: CPU: 0 PID: 26202 at kernel/locking/lockdep.c:3556  
+lock_downgrade+0x4d7/0x900 kernel/locking/lockdep.c:3819
+Kernel panic - not syncing: panic_on_warn set ...
+CPU: 0 PID: 26202 Comm: blkid Not tainted 4.20.0-rc3+ #127
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+Call Trace:
+  __dump_stack lib/dump_stack.c:77 [inline]
+  dump_stack+0x244/0x39d lib/dump_stack.c:113
+  panic+0x2ad/0x55c kernel/panic.c:188
+  __warn.cold.8+0x20/0x45 kernel/panic.c:540
+  report_bug+0x254/0x2d0 lib/bug.c:186
+  fixup_bug arch/x86/kernel/traps.c:178 [inline]
+  do_error_trap+0x11b/0x200 arch/x86/kernel/traps.c:271
+  do_invalid_op+0x36/0x40 arch/x86/kernel/traps.c:290
+  invalid_op+0x14/0x20 arch/x86/entry/entry_64.S:969
+RIP: 0010:__lock_downgrade kernel/locking/lockdep.c:3556 [inline]
+RIP: 0010:lock_downgrade+0x4d7/0x900 kernel/locking/lockdep.c:3819
+Code: 00 00 fc ff df 41 c6 44 05 00 f8 e9 1b ff ff ff 48 c7 c7 60 68 2b 88  
+4c 89 9d 58 ff ff ff 48 89 85 60 ff ff ff e8 d9 1f e7 ff <0f> 0b 48 8b 85  
+60 ff ff ff 4c 8d 4d d8 4c 89 e9 48 ba 00 00 00 00
+RSP: 0018:ffff8881ba547b70 EFLAGS: 00010086
+RAX: 0000000000000000 RBX: 1ffff110374a8f74 RCX: 0000000000000000
+RDX: 0000000000000000 RSI: ffffffff8165eaf5 RDI: 0000000000000006
+RBP: ffff8881ba547c28 R08: ffff88817c0b2400 R09: fffffbfff12b2254
+R10: fffffbfff12b2254 R11: ffffffff895912a3 R12: ffffffff8b0f67a0
+R13: ffff8881ba547bc0 R14: 0000000000000001 R15: ffff88817c0b2400
+  downgrade_write+0x76/0x270 kernel/locking/rwsem.c:147
+  __do_munmap+0xcd8/0xf80 mm/mmap.c:2812
+  __vm_munmap+0x138/0x1f0 mm/mmap.c:2837
+  __do_sys_munmap mm/mmap.c:2862 [inline]
+  __se_sys_munmap mm/mmap.c:2859 [inline]
+  __x64_sys_munmap+0x65/0x80 mm/mmap.c:2859
+  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+RIP: 0033:0x7f237e5ce417
+Code: f0 ff ff 73 01 c3 48 8d 0d 8a ad 20 00 31 d2 48 29 c2 89 11 48 83 c8  
+ff eb eb 90 90 90 90 90 90 90 90 90 b8 0b 00 00 00 0f 05 <48> 3d 01 f0 ff  
+ff 73 01 c3 48 8d 0d 5d ad 20 00 31 d2 48 29 c2 89
+RSP: 002b:00007ffe61bed9d8 EFLAGS: 00000203 ORIG_RAX: 000000000000000b
+RAX: ffffffffffffffda RBX: 00007f237e7d91c8 RCX: 00007f237e5ce417
+RDX: 000000000224ff00 RSI: 00000000000033ef RDI: 00007f237e7d1000
+RBP: 00007ffe61bedb40 R08: 0000000000000001 R09: 0000000000000007
+R10: 00007f237e5c8a0b R11: 0000000000000203 R12: 00000000b1f97d00
+R13: 000004b2b1f97d00 R14: 000004b2afd5fdeb R15: 00007f237e7ce740
+Kernel Offset: disabled
+Rebooting in 86400 seconds..
+
+
 ---
- include/linux/slab_def.h | 13 +++++++++++++
- mm/slab.c                | 13 -------------
- 2 files changed, 13 insertions(+), 13 deletions(-)
+This bug is generated by a bot. It may contain errors.
+See https://goo.gl/tpsmEJ for more information about syzbot.
+syzbot engineers can be reached at syzkaller@googlegroups.com.
 
-diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
-index 3485c58cfd1c..9a5eafb7145b 100644
---- a/include/linux/slab_def.h
-+++ b/include/linux/slab_def.h
-@@ -104,4 +104,17 @@ static inline void *nearest_obj(struct kmem_cache *cache, struct page *page,
- 		return object;
- }
- 
-+/*
-+ * We want to avoid an expensive divide : (offset / cache->size)
-+ *   Using the fact that size is a constant for a particular cache,
-+ *   we can replace (offset / cache->size) by
-+ *   reciprocal_divide(offset, cache->reciprocal_buffer_size)
-+ */
-+static inline unsigned int obj_to_index(const struct kmem_cache *cache,
-+					const struct page *page, void *obj)
-+{
-+	u32 offset = (obj - page->s_mem);
-+	return reciprocal_divide(offset, cache->reciprocal_buffer_size);
-+}
-+
- #endif	/* _LINUX_SLAB_DEF_H */
-diff --git a/mm/slab.c b/mm/slab.c
-index 27859fb39889..d2f827316dfc 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -406,19 +406,6 @@ static inline void *index_to_obj(struct kmem_cache *cache, struct page *page,
- 	return page->s_mem + cache->size * idx;
- }
- 
--/*
-- * We want to avoid an expensive divide : (offset / cache->size)
-- *   Using the fact that size is a constant for a particular cache,
-- *   we can replace (offset / cache->size) by
-- *   reciprocal_divide(offset, cache->reciprocal_buffer_size)
-- */
--static inline unsigned int obj_to_index(const struct kmem_cache *cache,
--					const struct page *page, void *obj)
--{
--	u32 offset = (obj - page->s_mem);
--	return reciprocal_divide(offset, cache->reciprocal_buffer_size);
--}
--
- #define BOOT_CPUCACHE_ENTRIES	1
- /* internal cache of cache description objs */
- static struct kmem_cache kmem_cache_boot = {
--- 
-2.20.0.rc0.387.gc7a69e6b6c-goog
+syzbot will keep track of this bug report. See:
+https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
+syzbot.
