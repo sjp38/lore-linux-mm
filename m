@@ -1,64 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BDBC6B2897
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 20:17:32 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id w19so5009039qto.13
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 17:17:32 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j25si12667822qtp.145.2018.11.21.17.17.31
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Nov 2018 17:17:31 -0800 (PST)
-Date: Thu, 22 Nov 2018 09:17:06 +0800
-From: Ming Lei <ming.lei@redhat.com>
-Subject: Re: [PATCH V11 03/19] block: introduce bio_for_each_bvec()
-Message-ID: <20181122011705.GC20814@ming.t460p>
-References: <20181121032327.8434-1-ming.lei@redhat.com>
- <20181121032327.8434-4-ming.lei@redhat.com>
- <20181121133244.GB1640@lst.de>
- <20181121153135.GB19111@ming.t460p>
- <20181121161025.GB4977@lst.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181121161025.GB4977@lst.de>
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C6A26B42CF
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 12:07:36 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id w80so10795251oiw.19
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 09:07:36 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id h16si444614otg.62.2018.11.26.09.07.32
+        for <linux-mm@kvack.org>;
+        Mon, 26 Nov 2018 09:07:32 -0800 (PST)
+From: Will Deacon <will.deacon@arm.com>
+Subject: [PATCH v4 5/5] lib/ioremap: Ensure break-before-make is used for huge p4d mappings
+Date: Mon, 26 Nov 2018 17:07:47 +0000
+Message-Id: <1543252067-30831-6-git-send-email-will.deacon@arm.com>
+In-Reply-To: <1543252067-30831-1-git-send-email-will.deacon@arm.com>
+References: <1543252067-30831-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: cpandya@codeaurora.org, toshi.kani@hpe.com, tglx@linutronix.de, mhocko@suse.com, akpm@linux-foundation.org, sean.j.christopherson@intel.com, Will Deacon <will.deacon@arm.com>
 
-On Wed, Nov 21, 2018 at 05:10:25PM +0100, Christoph Hellwig wrote:
-> On Wed, Nov 21, 2018 at 11:31:36PM +0800, Ming Lei wrote:
-> > > But while looking over this I wonder why we even need the max_seg_len
-> > > here.  The only thing __bvec_iter_advance does it to move bi_bvec_done
-> > > and bi_idx forward, with corresponding decrements of bi_size.  As far
-> > > as I can tell the only thing that max_seg_len does is that we need
-> > > to more iterations of the while loop to archive the same thing.
-> > > 
-> > > And actual bvec used by the caller will be obtained using
-> > > bvec_iter_bvec or segment_iter_bvec depending on if they want multi-page
-> > > or single-page variants.
-> > 
-> > Right, we let __bvec_iter_advance() serve for both multi-page and single-page
-> > case, then we have to tell it via one way or another, now we use the constant
-> > of 'max_seg_len'.
-> > 
-> > Or you suggest to implement two versions of __bvec_iter_advance()?
-> 
-> No - I think we can always use the code without any segment in
-> bvec_iter_advance.  Because bvec_iter_advance only operates on the
-> iteractor, the generation of an actual single-page or multi-page
-> bvec is left to the caller using the bvec_iter_bvec or segment_iter_bvec
-> helpers.  The only difference is how many bytes you can move the
-> iterator forward in a single loop iteration - so if you pass in
-> PAGE_SIZE as the max_seg_len you just will have to loop more often
-> for a large enough bytes, but not actually do anything different.
+Whilst no architectures actually enable support for huge p4d mappings
+in the vmap area, the code that is implemented should be using
+break-before-make, as we do for pud and pmd huge entries.
 
-Yeah, I see that.
+Cc: Chintan Pandya <cpandya@codeaurora.org>
+Cc: Toshi Kani <toshi.kani@hpe.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Reviewed-by: Toshi Kani <toshi.kani@hpe.com>
+Signed-off-by: Will Deacon <will.deacon@arm.com>
+---
+ arch/arm64/mm/mmu.c           |  5 +++++
+ arch/x86/mm/pgtable.c         |  8 ++++++++
+ include/asm-generic/pgtable.h |  5 +++++
+ lib/ioremap.c                 | 27 +++++++++++++++++++++------
+ 4 files changed, 39 insertions(+), 6 deletions(-)
 
-The difference is made by bio_iter_iovec()/bio_iter_mp_iovec() in
-__bio_for_each_segment()/__bio_for_each_bvec().
-
-
-Thanks,
-Ming
+diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+index 786cfa6355be..cf9a26d3d7f5 100644
+--- a/arch/arm64/mm/mmu.c
++++ b/arch/arm64/mm/mmu.c
+@@ -1028,3 +1028,8 @@ int pud_free_pmd_page(pud_t *pudp, unsigned long addr)
+ 	pmd_free(NULL, table);
+ 	return 1;
+ }
++
++int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
++{
++	return 0;	/* Don't attempt a block mapping */
++}
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index e95a7d6ac8f8..b0284eab14dc 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -794,6 +794,14 @@ int pmd_clear_huge(pmd_t *pmd)
+ 	return 0;
+ }
+ 
++/*
++ * Until we support 512GB pages, skip them in the vmap area.
++ */
++int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
++{
++	return 0;
++}
++
+ #ifdef CONFIG_X86_64
+ /**
+  * pud_free_pmd_page - Clear pud entry and free pmd page.
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 359fb935ded6..e0381a4ce7d4 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -1019,6 +1019,7 @@ int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot);
+ int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot);
+ int pud_clear_huge(pud_t *pud);
+ int pmd_clear_huge(pmd_t *pmd);
++int p4d_free_pud_page(p4d_t *p4d, unsigned long addr);
+ int pud_free_pmd_page(pud_t *pud, unsigned long addr);
+ int pmd_free_pte_page(pmd_t *pmd, unsigned long addr);
+ #else	/* !CONFIG_HAVE_ARCH_HUGE_VMAP */
+@@ -1046,6 +1047,10 @@ static inline int pmd_clear_huge(pmd_t *pmd)
+ {
+ 	return 0;
+ }
++static inline int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
++{
++	return 0;
++}
+ static inline int pud_free_pmd_page(pud_t *pud, unsigned long addr)
+ {
+ 	return 0;
+diff --git a/lib/ioremap.c b/lib/ioremap.c
+index 10d7c5485c39..063213685563 100644
+--- a/lib/ioremap.c
++++ b/lib/ioremap.c
+@@ -156,6 +156,25 @@ static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
+ 	return 0;
+ }
+ 
++static int ioremap_try_huge_p4d(p4d_t *p4d, unsigned long addr,
++				unsigned long end, phys_addr_t phys_addr,
++				pgprot_t prot)
++{
++	if (!ioremap_p4d_enabled())
++		return 0;
++
++	if ((end - addr) != P4D_SIZE)
++		return 0;
++
++	if (!IS_ALIGNED(phys_addr, P4D_SIZE))
++		return 0;
++
++	if (p4d_present(*p4d) && !p4d_free_pud_page(p4d, addr))
++		return 0;
++
++	return p4d_set_huge(p4d, phys_addr, prot);
++}
++
+ static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
+ 		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
+ {
+@@ -168,12 +187,8 @@ static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
+ 	do {
+ 		next = p4d_addr_end(addr, end);
+ 
+-		if (ioremap_p4d_enabled() &&
+-		    ((next - addr) == P4D_SIZE) &&
+-		    IS_ALIGNED(phys_addr, P4D_SIZE)) {
+-			if (p4d_set_huge(p4d, phys_addr, prot))
+-				continue;
+-		}
++		if (ioremap_try_huge_p4d(p4d, addr, next, phys_addr, prot))
++			continue;
+ 
+ 		if (ioremap_pud_range(p4d, addr, next, phys_addr, prot))
+ 			return -ENOMEM;
+-- 
+2.1.4
