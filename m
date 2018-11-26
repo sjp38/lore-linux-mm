@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C76A06B41D3
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 06:05:23 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id h86-v6so11133857pfd.2
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 03:05:23 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E173E6B41CA
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 06:00:40 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id a9so20831325pla.2
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 03:00:40 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id e9si50886969plt.330.2018.11.26.03.05.22
+        by mx.google.com with ESMTPS id c31si46871694pgc.465.2018.11.26.03.00.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Nov 2018 03:05:22 -0800 (PST)
+        Mon, 26 Nov 2018 03:00:39 -0800 (PST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.19 092/118] x86/mm: Move LDT remap out of KASLR region on 5-level paging
-Date: Mon, 26 Nov 2018 11:51:26 +0100
-Message-Id: <20181126105105.393471598@linuxfoundation.org>
-In-Reply-To: <20181126105059.832485122@linuxfoundation.org>
-References: <20181126105059.832485122@linuxfoundation.org>
+Subject: [PATCH 4.14 48/62] x86/mm: Move LDT remap out of KASLR region on 5-level paging
+Date: Mon, 26 Nov 2018 11:51:29 +0100
+Message-Id: <20181126105054.375708665@linuxfoundation.org>
+In-Reply-To: <20181126105050.592727680@linuxfoundation.org>
+References: <20181126105050.592727680@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -23,7 +23,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@kernel.org>, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, peterz@infradead.org, boris.ostrovsky@oracle.com, jgross@suse.com, bhe@redhat.com, willy@infradead.org, linux-mm@kvack.org, Sasha Levin <sashal@kernel.org>
 
-4.19-stable review patch.  If anyone has any objections, please let me know.
+4.14-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
@@ -64,12 +64,12 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
  Documentation/x86/x86_64/mm.txt         | 10 ++++++----
  arch/x86/include/asm/page_64_types.h    | 12 +++++++-----
- arch/x86/include/asm/pgtable_64_types.h |  4 +---
+ arch/x86/include/asm/pgtable_64_types.h |  7 +++----
  arch/x86/xen/mmu_pv.c                   |  6 +++---
- 4 files changed, 17 insertions(+), 15 deletions(-)
+ 4 files changed, 19 insertions(+), 16 deletions(-)
 
 diff --git a/Documentation/x86/x86_64/mm.txt b/Documentation/x86/x86_64/mm.txt
-index 5432a96d31ff..05ef53d83a41 100644
+index ea91cb61a602..43f066cde67d 100644
 --- a/Documentation/x86/x86_64/mm.txt
 +++ b/Documentation/x86/x86_64/mm.txt
 @@ -4,8 +4,9 @@ Virtual memory map with 4 level page tables:
@@ -97,10 +97,10 @@ index 5432a96d31ff..05ef53d83a41 100644
  ffd2000000000000 - ffd3ffffffffffff (=49 bits) hole
  ffd4000000000000 - ffd5ffffffffffff (=49 bits) virtual memory map (512TB)
 diff --git a/arch/x86/include/asm/page_64_types.h b/arch/x86/include/asm/page_64_types.h
-index 6afac386a434..b99d497e342d 100644
+index e1407312c412..74d531f6d518 100644
 --- a/arch/x86/include/asm/page_64_types.h
 +++ b/arch/x86/include/asm/page_64_types.h
-@@ -33,12 +33,14 @@
+@@ -33,14 +33,16 @@
  
  /*
   * Set __PAGE_OFFSET to the most negative possible address +
@@ -113,33 +113,44 @@ index 6afac386a434..b99d497e342d 100644
 + * a hypervisor (16 slots). Choosing 16 slots for a hypervisor is arbitrary,
 + * but it's what Xen requires.
   */
--#define __PAGE_OFFSET_BASE_L5	_AC(0xff10000000000000, UL)
--#define __PAGE_OFFSET_BASE_L4	_AC(0xffff880000000000, UL)
-+#define __PAGE_OFFSET_BASE_L5	_AC(0xff11000000000000, UL)
-+#define __PAGE_OFFSET_BASE_L4	_AC(0xffff888000000000, UL)
+ #ifdef CONFIG_X86_5LEVEL
+-#define __PAGE_OFFSET_BASE      _AC(0xff10000000000000, UL)
++#define __PAGE_OFFSET_BASE	_AC(0xff11000000000000, UL)
+ #else
+-#define __PAGE_OFFSET_BASE      _AC(0xffff880000000000, UL)
++#define __PAGE_OFFSET_BASE	_AC(0xffff888000000000, UL)
+ #endif
  
- #ifdef CONFIG_DYNAMIC_MEMORY_LAYOUT
- #define __PAGE_OFFSET           page_offset_base
+ #ifdef CONFIG_RANDOMIZE_MEMORY
 diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 04edd2d58211..84bd9bdc1987 100644
+index 6b8f73dcbc2c..7764617b8f9c 100644
 --- a/arch/x86/include/asm/pgtable_64_types.h
 +++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -111,9 +111,7 @@ extern unsigned int ptrs_per_p4d;
-  */
- #define MAXMEM			(1UL << MAX_PHYSMEM_BITS)
+@@ -88,16 +88,15 @@ typedef struct { pteval_t pte; } pte_t;
+ # define VMALLOC_SIZE_TB	_AC(12800, UL)
+ # define __VMALLOC_BASE		_AC(0xffa0000000000000, UL)
+ # define __VMEMMAP_BASE		_AC(0xffd4000000000000, UL)
+-# define LDT_PGD_ENTRY		_AC(-112, UL)
+-# define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
+ #else
+ # define VMALLOC_SIZE_TB	_AC(32, UL)
+ # define __VMALLOC_BASE		_AC(0xffffc90000000000, UL)
+ # define __VMEMMAP_BASE		_AC(0xffffea0000000000, UL)
+-# define LDT_PGD_ENTRY		_AC(-3, UL)
+-# define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
+ #endif
  
--#define LDT_PGD_ENTRY_L4	-3UL
--#define LDT_PGD_ENTRY_L5	-112UL
--#define LDT_PGD_ENTRY		(pgtable_l5_enabled() ? LDT_PGD_ENTRY_L5 : LDT_PGD_ENTRY_L4)
 +#define LDT_PGD_ENTRY		-240UL
- #define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
- #define LDT_END_ADDR		(LDT_BASE_ADDR + PGDIR_SIZE)
- 
++#define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
++
+ #ifdef CONFIG_RANDOMIZE_MEMORY
+ # define VMALLOC_START		vmalloc_base
+ # define VMEMMAP_START		vmemmap_base
 diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
-index dd461c0167ef..2c84c6ad8b50 100644
+index 8ed11a5b1a9d..b33fa127a613 100644
 --- a/arch/x86/xen/mmu_pv.c
 +++ b/arch/x86/xen/mmu_pv.c
-@@ -1897,7 +1897,7 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
+@@ -1869,7 +1869,7 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
  	init_top_pgt[0] = __pgd(0);
  
  	/* Pre-constructed entries are in pfn, so convert to mfn */
@@ -148,7 +159,7 @@ index dd461c0167ef..2c84c6ad8b50 100644
  	/* L4[511] -> level3_kernel_pgt */
  	convert_pfn_mfn(init_top_pgt);
  
-@@ -1917,8 +1917,8 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
+@@ -1889,8 +1889,8 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
  	addr[0] = (unsigned long)pgd;
  	addr[1] = (unsigned long)l3;
  	addr[2] = (unsigned long)l2;
