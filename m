@@ -1,108 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A71F96B2C3B
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 11:51:18 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id o21so1369344edq.4
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 08:51:18 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b51sor8949498edd.5.2018.11.22.08.51.17
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 846146B3F4A
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 07:55:26 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id g3so1688307wmf.1
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 04:55:26 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id r1si578924wmh.33.2018.11.26.04.55.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 22 Nov 2018 08:51:17 -0800 (PST)
-From: Daniel Vetter <daniel.vetter@ffwll.ch>
-Subject: [PATCH 3/3] mm, notifier: Add a lockdep map for invalidate_range_start
-Date: Thu, 22 Nov 2018 17:51:06 +0100
-Message-Id: <20181122165106.18238-4-daniel.vetter@ffwll.ch>
-In-Reply-To: <20181122165106.18238-1-daniel.vetter@ffwll.ch>
-References: <20181122165106.18238-1-daniel.vetter@ffwll.ch>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Nov 2018 04:55:25 -0800 (PST)
+Date: Mon, 26 Nov 2018 13:55:24 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH V12 07/20] block: introduce multi-page bvec helpers
+Message-ID: <20181126125524.GC6383@lst.de>
+References: <20181126021720.19471-1-ming.lei@redhat.com> <20181126021720.19471-8-ming.lei@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181126021720.19471-8-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: Linux MM <linux-mm@kvack.org>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, Daniel Vetter <daniel.vetter@ffwll.ch>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Daniel Vetter <daniel.vetter@intel.com>
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-This is a similar idea to the fs_reclaim fake lockdep lock. It's
-fairly easy to provoke a specific notifier to be run on a specific
-range: Just prep it, and then munmap() it.
+Looks fine,
 
-A bit harder, but still doable, is to provoke the mmu notifiers for
-all the various callchains that might lead to them. But both at the
-same time is really hard to reliable hit, especially when you want to
-exercise paths like direct reclaim or compaction, where it's not
-easy to control what exactly will be unmapped.
-
-By introducing a lockdep map to tie them all together we allow lockdep
-to see a lot more dependencies, without having to actually hit them
-in a single challchain while testing.
-
-Aside: Since I typed this to test i915 mmu notifiers I've only rolled
-this out for the invaliate_range_start callback. If there's
-interest, we should probably roll this out to all of them. But my
-undestanding of core mm is seriously lacking, and I'm not clear on
-whether we need a lockdep map for each callback, or whether some can
-be shared.
-
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: "Jérôme Glisse" <jglisse@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: "Christian König" <christian.koenig@amd.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org
-Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
----
- include/linux/mmu_notifier.h | 7 +++++++
- mm/mmu_notifier.c            | 7 +++++++
- 2 files changed, 14 insertions(+)
-
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index 9893a6432adf..a39ba218dbbe 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -12,6 +12,10 @@ struct mmu_notifier_ops;
- 
- #ifdef CONFIG_MMU_NOTIFIER
- 
-+#ifdef CONFIG_LOCKDEP
-+extern struct lockdep_map __mmu_notifier_invalidate_range_start_map;
-+#endif
-+
- /*
-  * The mmu notifier_mm structure is allocated and installed in
-  * mm->mmu_notifier_mm inside the mm_take_all_locks() protected
-@@ -267,8 +271,11 @@ static inline void mmu_notifier_change_pte(struct mm_struct *mm,
- static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end)
- {
-+	mutex_acquire(&__mmu_notifier_invalidate_range_start_map, 0, 0,
-+		      _RET_IP_);
- 	if (mm_has_notifiers(mm))
- 		__mmu_notifier_invalidate_range_start(mm, start, end, true);
-+	mutex_release(&__mmu_notifier_invalidate_range_start_map, 1, _RET_IP_);
- }
- 
- static inline int mmu_notifier_invalidate_range_start_nonblock(struct mm_struct *mm,
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index 4d282cfb296e..c6e797927376 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -23,6 +23,13 @@
- /* global SRCU for all MMs */
- DEFINE_STATIC_SRCU(srcu);
- 
-+#ifdef CONFIG_LOCKDEP
-+struct lockdep_map __mmu_notifier_invalidate_range_start_map = {
-+	.name = "mmu_notifier_invalidate_range_start"
-+};
-+EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start_map);
-+#endif
-+
- /*
-  * This function allows mmu_notifier::release callback to delay a call to
-  * a function that will free appropriate resources. The function must be
--- 
-2.19.1
+Reviewed-by: Christoph Hellwig <hch@lst.de>
