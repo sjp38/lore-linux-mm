@@ -1,149 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E65F76B2B29
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 08:56:04 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id x1-v6so4448992edh.8
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 05:56:04 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f4si5480605edt.45.2018.11.22.05.56.03
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 30E036B41D5
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 06:05:28 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id a10so399070plp.14
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 03:05:28 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id x4si34869882plv.56.2018.11.26.03.05.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Nov 2018 05:56:03 -0800 (PST)
-Subject: Re: [PATCH 3/4] mm: Reclaim small amounts of memory when an external
- fragmentation event occurs
-References: <20181121101414.21301-1-mgorman@techsingularity.net>
- <20181121101414.21301-4-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <cc8ec820-1526-d753-4619-dedaa227a179@suse.cz>
-Date: Thu, 22 Nov 2018 14:53:08 +0100
+        Mon, 26 Nov 2018 03:05:26 -0800 (PST)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.19 093/118] x86/ldt: Unmap PTEs for the slot before freeing LDT pages
+Date: Mon, 26 Nov 2018 11:51:27 +0100
+Message-Id: <20181126105105.431465354@linuxfoundation.org>
+In-Reply-To: <20181126105059.832485122@linuxfoundation.org>
+References: <20181126105059.832485122@linuxfoundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20181121101414.21301-4-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Linux-MM <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org, boris.ostrovsky@oracle.com, jgross@suse.com, bhe@redhat.com, willy@infradead.org, linux-mm@kvack.org, Sasha Levin <sashal@kernel.org>
 
-On 11/21/18 11:14 AM, Mel Gorman wrote:
-> An external fragmentation event was previously described as
-> 
->     When the page allocator fragments memory, it records the event using
->     the mm_page_alloc_extfrag event. If the fallback_order is smaller
->     than a pageblock order (order-9 on 64-bit x86) then it's considered
->     an event that will cause external fragmentation issues in the future.
-> 
-> The kernel reduces the probability of such events by increasing the
-> watermark sizes by calling set_recommended_min_free_kbytes early in the
-> lifetime of the system. This works reasonably well in general but if there
-> are enough sparsely populated pageblocks then the problem can still occur
-> as enough memory is free overall and kswapd stays asleep.
-> 
-> This patch introduces a watermark_boost_factor sysctl that allows a
-> zone watermark to be temporarily boosted when an external fragmentation
-> causing events occurs. The boosting will stall allocations that would
-> decrease free memory below the boosted low watermark and kswapd is woken
-> unconditionally to reclaim an amount of memory relative to the size
-> of the high watermark and the watermark_boost_factor until the boost
-> is cleared. When kswapd finishes, it wakes kcompactd at the pageblock
-> order to clean some of the pageblocks that may have been affected by the
-> fragmentation event. kswapd avoids any writeback or swap from reclaim
-> context during this operation to avoid excessive system disruption in
-> the name of fragmentation avoidance. Care is taken so that kswapd will
-> do normal reclaim work if the system is really low on memory.
-> 
-> This was evaluated using the same workloads as "mm, page_alloc: Spread
-> allocations across zones before introducing fragmentation".
-> 
-> 1-socket Skylake machine
-> config-global-dhp__workload_thpfioscale XFS (no special madvise)
-> 4 fio threads, 1 THP allocating thread
-> --------------------------------------
-> 
-> 4.20-rc1 extfrag events < order 9:  1023463
-> 4.20-rc1+patch:                      358574 (65% reduction)
-> 4.20-rc1+patch1-3:                    19274 (98% reduction)
+4.19-stable review patch.  If anyone has any objections, please let me know.
 
-So the reason I was wondering about movable vs unmovable fallbacks here
-is that movable fallbacks are ok as they can be migrated later, but the
-unmovable/reclaimable not, which is bad if they fallback to movable
-pageblock. Movable fallbacks can however fill the unmovable pageblocks
-and increase change of the unmovable fallback, but that would depend on
-the workload. So hypothetically if the test workload was such that
-movable fallbacks did not cause unmovable fallbacks, and a patch would
-thus only decrease the movable fallbacks (at the cost of e.g. higher
-reclaim, as this patch) with unmovable fallbacks unchanged, then it
-would be useful to know that for better evaluation of the pros vs cons,
-imho.
+------------------
 
-> +static inline void boost_watermark(struct zone *zone)
-> +{
-> +	unsigned long max_boost;
-> +
-> +	if (!watermark_boost_factor)
-> +		return;
-> +
-> +	max_boost = mult_frac(wmark_pages(zone, WMARK_HIGH),
-> +			watermark_boost_factor, 10000);
+commit a0e6e0831c516860fc7f9be1db6c081fe902ebcf upstream
 
-Hmm I assume you didn't use high_wmark_pages() because the calculation
-should start with high watermark not including existing boost. But then,
-wmark_pages() also includes existing boost, so the limit won't work and
-each invocation of boost_watermark() will simply add pageblock_nr_pages?
-I.e. this should use zone->_watermark[] instead of wmark_pages()?
+modify_ldt(2) leaves the old LDT mapped after switching over to the new
+one. The old LDT gets freed and the pages can be re-used.
 
-> +	max_boost = max(pageblock_nr_pages, max_boost);
-> +
-> +	zone->watermark_boost = min(zone->watermark_boost + pageblock_nr_pages,
-> +		max_boost);
-> +}
-> +
->  /*
->   * This function implements actual steal behaviour. If order is large enough,
->   * we can steal whole pageblock. If not, we first move freepages in this
-> @@ -2160,6 +2176,14 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
->  		goto single_page;
->  	}
->  
-> +	/*
-> +	 * Boost watermarks to increase reclaim pressure to reduce the
-> +	 * likelihood of future fallbacks. Wake kswapd now as the node
-> +	 * may be balanced overall and kswapd will not wake naturally.
-> +	 */
-> +	boost_watermark(zone);
-> +	wakeup_kswapd(zone, 0, 0, zone_idx(zone));
-> +
->  	/* We are not allowed to try stealing from the whole block */
->  	if (!whole_block)
->  		goto single_page;
-> @@ -3277,11 +3301,19 @@ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
->   * probably too small. It only makes sense to spread allocations to avoid
->   * fragmentation between the Normal and DMA32 zones.
->   */
-> -static inline unsigned int alloc_flags_nofragment(struct zone *zone)
-> +static inline unsigned int
-> +alloc_flags_nofragment(struct zone *zone, gfp_t gfp_mask)
->  {
->  	if (zone_idx(zone) != ZONE_NORMAL)
->  		return 0;
->  
-> +	/*
-> +	 * A fragmenting fallback will try waking kswapd. ALLOC_NOFRAGMENT
-> +	 * may break that so such callers can introduce fragmentation.
-> +	 */
+Leaving the mapping in place can have security implications. The mapping is
+present in the userspace page tables and Meltdown-like attacks can read
+these freed and possibly reused pages.
 
-I think I don't understand this comment :( Do you want to avoid waking
-up kswapd from steal_suitable_fallback() (introduced above) for
-allocations without __GFP_KSWAPD_RECLAIM? But returning 0 here means
-actually allowing the allocation go through steal_suitable_fallback()?
-So should it return ALLOC_NOFRAGMENT below, or was the intent different?
+It's relatively simple to fix: unmap the old LDT and flush TLB before
+freeing the old LDT memory.
 
-> +	if (!(gfp_mask & __GFP_KSWAPD_RECLAIM))
-> +		return 0;
-> +
->  	/*
->  	 * If ZONE_DMA32 exists, assume it is the one after ZONE_NORMAL and
->  	 * the pointer is within zone->zone_pgdat->node_zones[]
+This further allows to avoid flushing the TLB in map_ldt_struct() as the
+slot is unmapped and flushed by unmap_ldt_struct() or has never been mapped
+at all.
 
-.
+[ tglx: Massaged changelog and removed the needless line breaks ]
+
+Fixes: f55f0501cbf6 ("x86/pti: Put the LDT in its own PGD if PTI is on")
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: bp@alien8.de
+Cc: hpa@zytor.com
+Cc: dave.hansen@linux.intel.com
+Cc: luto@kernel.org
+Cc: peterz@infradead.org
+Cc: boris.ostrovsky@oracle.com
+Cc: jgross@suse.com
+Cc: bhe@redhat.com
+Cc: willy@infradead.org
+Cc: linux-mm@kvack.org
+Cc: stable@vger.kernel.org
+Link: https://lkml.kernel.org/r/20181026122856.66224-3-kirill.shutemov@linux.intel.com
+Signed-off-by: Sasha Levin <sashal@kernel.org>
+---
+ arch/x86/kernel/ldt.c | 51 ++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 38 insertions(+), 13 deletions(-)
+
+diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
+index 733e6ace0fa4..2a71ded9b13e 100644
+--- a/arch/x86/kernel/ldt.c
++++ b/arch/x86/kernel/ldt.c
+@@ -199,14 +199,6 @@ static void sanity_check_ldt_mapping(struct mm_struct *mm)
+ /*
+  * If PTI is enabled, this maps the LDT into the kernelmode and
+  * usermode tables for the given mm.
+- *
+- * There is no corresponding unmap function.  Even if the LDT is freed, we
+- * leave the PTEs around until the slot is reused or the mm is destroyed.
+- * This is harmless: the LDT is always in ordinary memory, and no one will
+- * access the freed slot.
+- *
+- * If we wanted to unmap freed LDTs, we'd also need to do a flush to make
+- * it useful, and the flush would slow down modify_ldt().
+  */
+ static int
+ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
+@@ -214,8 +206,8 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
+ 	unsigned long va;
+ 	bool is_vmalloc;
+ 	spinlock_t *ptl;
++	int i, nr_pages;
+ 	pgd_t *pgd;
+-	int i;
+ 
+ 	if (!static_cpu_has(X86_FEATURE_PTI))
+ 		return 0;
+@@ -238,7 +230,9 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
+ 
+ 	is_vmalloc = is_vmalloc_addr(ldt->entries);
+ 
+-	for (i = 0; i * PAGE_SIZE < ldt->nr_entries * LDT_ENTRY_SIZE; i++) {
++	nr_pages = DIV_ROUND_UP(ldt->nr_entries * LDT_ENTRY_SIZE, PAGE_SIZE);
++
++	for (i = 0; i < nr_pages; i++) {
+ 		unsigned long offset = i << PAGE_SHIFT;
+ 		const void *src = (char *)ldt->entries + offset;
+ 		unsigned long pfn;
+@@ -272,13 +266,39 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
+ 	/* Propagate LDT mapping to the user page-table */
+ 	map_ldt_struct_to_user(mm);
+ 
+-	va = (unsigned long)ldt_slot_va(slot);
+-	flush_tlb_mm_range(mm, va, va + LDT_SLOT_STRIDE, 0);
+-
+ 	ldt->slot = slot;
+ 	return 0;
+ }
+ 
++static void unmap_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt)
++{
++	unsigned long va;
++	int i, nr_pages;
++
++	if (!ldt)
++		return;
++
++	/* LDT map/unmap is only required for PTI */
++	if (!static_cpu_has(X86_FEATURE_PTI))
++		return;
++
++	nr_pages = DIV_ROUND_UP(ldt->nr_entries * LDT_ENTRY_SIZE, PAGE_SIZE);
++
++	for (i = 0; i < nr_pages; i++) {
++		unsigned long offset = i << PAGE_SHIFT;
++		spinlock_t *ptl;
++		pte_t *ptep;
++
++		va = (unsigned long)ldt_slot_va(ldt->slot) + offset;
++		ptep = get_locked_pte(mm, va, &ptl);
++		pte_clear(mm, va, ptep);
++		pte_unmap_unlock(ptep, ptl);
++	}
++
++	va = (unsigned long)ldt_slot_va(ldt->slot);
++	flush_tlb_mm_range(mm, va, va + nr_pages * PAGE_SIZE, 0);
++}
++
+ #else /* !CONFIG_PAGE_TABLE_ISOLATION */
+ 
+ static int
+@@ -286,6 +306,10 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
+ {
+ 	return 0;
+ }
++
++static void unmap_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt)
++{
++}
+ #endif /* CONFIG_PAGE_TABLE_ISOLATION */
+ 
+ static void free_ldt_pgtables(struct mm_struct *mm)
+@@ -524,6 +548,7 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
+ 	}
+ 
+ 	install_ldt(mm, new_ldt);
++	unmap_ldt_struct(mm, old_ldt);
+ 	free_ldt_struct(old_ldt);
+ 	error = 0;
+ 
+-- 
+2.17.1
