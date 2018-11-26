@@ -1,122 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AF476B59F4
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 15:23:52 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id p4so4081456pgj.21
-        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 12:23:52 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id m3si6242816pld.331.2018.11.30.12.23.50
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Nov 2018 12:23:50 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 1/2] x86/mm: Fix guard hole handling
-Date: Fri, 30 Nov 2018 23:23:27 +0300
-Message-Id: <20181130202328.65359-2-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20181130202328.65359-1-kirill.shutemov@linux.intel.com>
-References: <20181130202328.65359-1-kirill.shutemov@linux.intel.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C37BA6B42C9
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 12:07:32 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id t13so6694613otk.4
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 09:07:32 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 4si345997ote.30.2018.11.26.09.07.31
+        for <linux-mm@kvack.org>;
+        Mon, 26 Nov 2018 09:07:31 -0800 (PST)
+From: Will Deacon <will.deacon@arm.com>
+Subject: [PATCH v4 1/5] ioremap: Rework pXd_free_pYd_page() API
+Date: Mon, 26 Nov 2018 17:07:43 +0000
+Message-Id: <1543252067-30831-2-git-send-email-will.deacon@arm.com>
+In-Reply-To: <1543252067-30831-1-git-send-email-will.deacon@arm.com>
+References: <1543252067-30831-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tglx@linutronix.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org
-Cc: boris.ostrovsky@oracle.com, jgross@suse.com, bhe@redhat.com, hans.van.kranenburg@mendix.com, x86@kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: cpandya@codeaurora.org, toshi.kani@hpe.com, tglx@linutronix.de, mhocko@suse.com, akpm@linux-foundation.org, sean.j.christopherson@intel.com, Will Deacon <will.deacon@arm.com>
 
-There is a guard hole at the beginning of kernel address space, also
-used by hypervisors. It occupies 16 PGD entries.
+The recently merged API for ensuring break-before-make on page-table
+entries when installing huge mappings in the vmalloc/ioremap region is
+fairly counter-intuitive, resulting in the arch freeing functions
+(e.g. pmd_free_pte_page()) being called even on entries that aren't
+present. This resulted in a minor bug in the arm64 implementation, giving
+rise to spurious VM_WARN messages.
 
-We do not state the reserved range directly, but calculate it relative
-to other entities: direct mapping and user space ranges.
+This patch moves the pXd_present() checks out into the core code,
+refactoring the callsites at the same time so that we avoid the complex
+conjunctions when determining whether or not we can put down a huge
+mapping.
 
-The calculation got broken by recent change in kernel memory layout: LDT
-remap range is now mapped before direct mapping and makes the calculation
-invalid.
-
-The breakage leads to crash on Xen dom0 boot[1].
-
-State the reserved range directly. It's part of kernel ABI (hypervisors
-expect it to be stable) and must not depend on changes in the rest of
-kernel memory layout.
-
-[1] https://lists.xenproject.org/archives/html/xen-devel/2018-11/msg03313.html
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reported-by: Hans van Kranenburg <hans.van.kranenburg@mendix.com>
-Tested-by: Hans van Kranenburg <hans.van.kranenburg@mendix.com>
-Reviewed-by: Juergen Gross <jgross@suse.com>
-Fixes: d52888aa2753 ("x86/mm: Move LDT remap out of KASLR region on 5-level paging")
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Chintan Pandya <cpandya@codeaurora.org>
+Cc: Toshi Kani <toshi.kani@hpe.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
+Reviewed-by: Toshi Kani <toshi.kani@hpe.com>
+Signed-off-by: Will Deacon <will.deacon@arm.com>
 ---
- arch/x86/include/asm/pgtable_64_types.h |  5 +++++
- arch/x86/mm/dump_pagetables.c           |  8 ++++----
- arch/x86/xen/mmu_pv.c                   | 11 ++++++-----
- 3 files changed, 15 insertions(+), 9 deletions(-)
+ lib/ioremap.c | 56 ++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 42 insertions(+), 14 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 84bd9bdc1987..88bca456da99 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -111,6 +111,11 @@ extern unsigned int ptrs_per_p4d;
-  */
- #define MAXMEM			(1UL << MAX_PHYSMEM_BITS)
+diff --git a/lib/ioremap.c b/lib/ioremap.c
+index 517f5853ffed..6c72764af19c 100644
+--- a/lib/ioremap.c
++++ b/lib/ioremap.c
+@@ -76,6 +76,25 @@ static int ioremap_pte_range(pmd_t *pmd, unsigned long addr,
+ 	return 0;
+ }
  
-+#define GUARD_HOLE_PGD_ENTRY	-256UL
-+#define GUARD_HOLE_SIZE		(16UL << PGDIR_SHIFT)
-+#define GUARD_HOLE_BASE_ADDR	(GUARD_HOLE_PGD_ENTRY << PGDIR_SHIFT)
-+#define GUARD_HOLE_END_ADDR	(GUARD_HOLE_BASE_ADDR + GUARD_HOLE_SIZE)
++static int ioremap_try_huge_pmd(pmd_t *pmd, unsigned long addr,
++				unsigned long end, phys_addr_t phys_addr,
++				pgprot_t prot)
++{
++	if (!ioremap_pmd_enabled())
++		return 0;
 +
- #define LDT_PGD_ENTRY		-240UL
- #define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
- #define LDT_END_ADDR		(LDT_BASE_ADDR + PGDIR_SIZE)
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index fc37bbd23eb8..dad153e5a427 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -512,11 +512,11 @@ static inline bool is_hypervisor_range(int idx)
++	if ((end - addr) != PMD_SIZE)
++		return 0;
++
++	if (!IS_ALIGNED(phys_addr, PMD_SIZE))
++		return 0;
++
++	if (pmd_present(*pmd) && !pmd_free_pte_page(pmd, addr))
++		return 0;
++
++	return pmd_set_huge(pmd, phys_addr, prot);
++}
++
+ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
+ 		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
  {
- #ifdef CONFIG_X86_64
- 	/*
--	 * ffff800000000000 - ffff87ffffffffff is reserved for
--	 * the hypervisor.
-+	 * A hole in the beginning of kernel address space reserved
-+	 * for a hypervisor.
- 	 */
--	return	(idx >= pgd_index(__PAGE_OFFSET) - 16) &&
--		(idx <  pgd_index(__PAGE_OFFSET));
-+	return	(idx >= pgd_index(GUARD_HOLE_BASE_ADDR)) &&
-+		(idx <  pgd_index(GUARD_HOLE_END_ADDR));
- #else
- 	return false;
- #endif
-diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
-index a5d7ed125337..0f4fe206dcc2 100644
---- a/arch/x86/xen/mmu_pv.c
-+++ b/arch/x86/xen/mmu_pv.c
-@@ -648,19 +648,20 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
- 			  unsigned long limit)
+@@ -89,13 +108,8 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
+ 	do {
+ 		next = pmd_addr_end(addr, end);
+ 
+-		if (ioremap_pmd_enabled() &&
+-		    ((next - addr) == PMD_SIZE) &&
+-		    IS_ALIGNED(phys_addr + addr, PMD_SIZE) &&
+-		    pmd_free_pte_page(pmd, addr)) {
+-			if (pmd_set_huge(pmd, phys_addr + addr, prot))
+-				continue;
+-		}
++		if (ioremap_try_huge_pmd(pmd, addr, next, phys_addr + addr, prot))
++			continue;
+ 
+ 		if (ioremap_pte_range(pmd, addr, next, phys_addr + addr, prot))
+ 			return -ENOMEM;
+@@ -103,6 +117,25 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
+ 	return 0;
+ }
+ 
++static int ioremap_try_huge_pud(pud_t *pud, unsigned long addr,
++				unsigned long end, phys_addr_t phys_addr,
++				pgprot_t prot)
++{
++	if (!ioremap_pud_enabled())
++		return 0;
++
++	if ((end - addr) != PUD_SIZE)
++		return 0;
++
++	if (!IS_ALIGNED(phys_addr, PUD_SIZE))
++		return 0;
++
++	if (pud_present(*pud) && !pud_free_pmd_page(pud, addr))
++		return 0;
++
++	return pud_set_huge(pud, phys_addr, prot);
++}
++
+ static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
+ 		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
  {
- 	int i, nr, flush = 0;
--	unsigned hole_low, hole_high;
-+	unsigned hole_low = 0, hole_high = 0;
+@@ -116,13 +149,8 @@ static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
+ 	do {
+ 		next = pud_addr_end(addr, end);
  
- 	/* The limit is the last byte to be touched */
- 	limit--;
- 	BUG_ON(limit >= FIXADDR_TOP);
+-		if (ioremap_pud_enabled() &&
+-		    ((next - addr) == PUD_SIZE) &&
+-		    IS_ALIGNED(phys_addr + addr, PUD_SIZE) &&
+-		    pud_free_pmd_page(pud, addr)) {
+-			if (pud_set_huge(pud, phys_addr + addr, prot))
+-				continue;
+-		}
++		if (ioremap_try_huge_pud(pud, addr, next, phys_addr + addr, prot))
++			continue;
  
-+#ifdef CONFIG_X86_64
- 	/*
- 	 * 64-bit has a great big hole in the middle of the address
--	 * space, which contains the Xen mappings.  On 32-bit these
--	 * will end up making a zero-sized hole and so is a no-op.
-+	 * space, which contains the Xen mappings.
- 	 */
--	hole_low = pgd_index(USER_LIMIT);
--	hole_high = pgd_index(PAGE_OFFSET);
-+	hole_low = pgd_index(GUARD_HOLE_BASE_ADDR);
-+	hole_high = pgd_index(GUARD_HOLE_END_ADDR);
-+#endif
- 
- 	nr = pgd_index(limit) + 1;
- 	for (i = 0; i < nr; i++) {
+ 		if (ioremap_pmd_range(pud, addr, next, phys_addr + addr, prot))
+ 			return -ENOMEM;
 -- 
-2.19.2
+2.1.4
