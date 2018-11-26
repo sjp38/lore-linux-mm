@@ -1,127 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B15396B28C3
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 20:53:38 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id g12-v6so12059942plo.14
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 17:53:38 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CF8286B4417
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 17:37:13 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id s22so8712813pgv.8
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 14:37:13 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a96sor12464389pla.29.2018.11.21.17.53.36
+        by mx.google.com with SMTPS id n13sor2681685pfj.12.2018.11.26.14.37.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 21 Nov 2018 17:53:36 -0800 (PST)
-Date: Wed, 21 Nov 2018 17:53:33 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: Memory hotplug softlock issue
-In-Reply-To: <20181121173123.GS12932@dhcp22.suse.cz>
-Message-ID: <alpine.LSU.2.11.1811211726080.5557@eggly.anvils>
-References: <20181116091409.GD14706@dhcp22.suse.cz> <20181119105202.GE18471@MiWiFi-R3L-srv> <20181119124033.GJ22247@dhcp22.suse.cz> <20181119125121.GK22247@dhcp22.suse.cz> <20181119141016.GO22247@dhcp22.suse.cz> <20181119173312.GV22247@dhcp22.suse.cz>
- <alpine.LSU.2.11.1811191215290.15640@eggly.anvils> <20181119205907.GW22247@dhcp22.suse.cz> <20181120015644.GA5727@MiWiFi-R3L-srv> <alpine.LSU.2.11.1811192127130.2848@eggly.anvils> <20181121173123.GS12932@dhcp22.suse.cz>
+        Mon, 26 Nov 2018 14:37:12 -0800 (PST)
+Date: Mon, 26 Nov 2018 14:37:09 -0800
+From: Omar Sandoval <osandov@osandov.com>
+Subject: Re: [PATCH V12 09/20] block: use bio_for_each_bvec() to compute
+ multi-page bvec count
+Message-ID: <20181126223709.GI30411@vader>
+References: <20181126021720.19471-1-ming.lei@redhat.com>
+ <20181126021720.19471-10-ming.lei@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181126021720.19471-10-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, Baoquan He <bhe@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, pifang@redhat.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, Mel Gorman <mgorman@suse.de>
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-On Wed, 21 Nov 2018, Michal Hocko wrote:
-> On Mon 19-11-18 21:44:41, Hugh Dickins wrote:
-> [...]
-> > [PATCH] mm: put_and_wait_on_page_locked() while page is migrated
-> > 
-> > We have all assumed that it is essential to hold a page reference while
-> > waiting on a page lock: partly to guarantee that there is still a struct
-> > page when MEMORY_HOTREMOVE is configured, but also to protect against
-> > reuse of the struct page going to someone who then holds the page locked
-> > indefinitely, when the waiter can reasonably expect timely unlocking.
+On Mon, Nov 26, 2018 at 10:17:09AM +0800, Ming Lei wrote:
+> First it is more efficient to use bio_for_each_bvec() in both
+> blk_bio_segment_split() and __blk_recalc_rq_segments() to compute how
+> many multi-page bvecs there are in the bio.
 > 
-> I would add the following for the "problem statement". Feel free to
-> reuse per your preference:
-> "
-> An elevated reference count, however, stands in the way of migration and
-> forces it to fail with a bad timing. This is especially a problem for
-> memory offlining which retries for ever (or until the operation is
-> terminated from userspace) because a heavy refault workload can trigger
-> essentially an endless loop of migration failures. Therefore
-> __migration_entry_wait is essentially harmful for the even it is waiting
-> for.
-> "
-
-Okay, I do have a lot written from way back when I prepared the
-now-abandoned migration_waitqueue patch internally, but I'll factor in
-what you say above when I get there - in particular, you highlight the
-memory offlining aspect, as in this mailthread: which is very helpful,
-because it's outside my experience so I won't have mentioned it - thanks.
-
-I just know that there's some important linkage to do, to the August 2017
-WQ_FLAG_BOOKMARK discussion: so it's a research and editing job I have to
-work myself up to at the right moment.
-
+> Secondly once bio_for_each_bvec() is used, the bvec may need to be
+> splitted because its length can be very longer than max segment size,
+> so we have to split the big bvec into several segments.
 > 
-> > But in fact, so long as wait_on_page_bit_common() does the put_page(),
-> > and is careful not to rely on struct page contents thereafter, there is
-> > no need to hold a reference to the page while waiting on it.  That does
-> > mean that this case cannot go back through the loop: but that's fine for
-> > the page migration case, and even if used more widely, is limited by the
-> > "Stop walking if it's locked" optimization in wake_page_function().
+> Thirdly when splitting multi-page bvec into segments, the max segment
+> limit may be reached, so the bio split need to be considered under
+> this situation too.
+
+Reviewed-by: Omar Sandoval <osandov@fb.com>
+
+> Signed-off-by: Ming Lei <ming.lei@redhat.com>
+> ---
+>  block/blk-merge.c | 100 +++++++++++++++++++++++++++++++++++++++++++-----------
+>  1 file changed, 80 insertions(+), 20 deletions(-)
 > 
-> I would appreciate this would be more explicit about the existence of
-> the elevated-ref-count problem but it reduces it to a tiny time window
-> compared to the whole time the waiter is blocked. So a great
-> improvement.
-
-Fair enough, I'll do so. (But that's a bit like when we say we've attached
-something and then forget to do so: please check that I've been honest
-when I do post.)
-
+> diff --git a/block/blk-merge.c b/block/blk-merge.c
+> index 51ec6ca56a0a..2d8f388d43de 100644
+> --- a/block/blk-merge.c
+> +++ b/block/blk-merge.c
+> @@ -161,6 +161,70 @@ static inline unsigned get_max_io_size(struct request_queue *q,
+>  	return sectors;
+>  }
+>  
+> +static unsigned get_max_segment_size(struct request_queue *q,
+> +				     unsigned offset)
+> +{
+> +	unsigned long mask = queue_segment_boundary(q);
+> +
+> +	return min_t(unsigned long, mask - (mask & offset) + 1,
+> +		     queue_max_segment_size(q));
+> +}
+> +
+> +/*
+> + * Split the bvec @bv into segments, and update all kinds of
+> + * variables.
+> + */
+> +static bool bvec_split_segs(struct request_queue *q, struct bio_vec *bv,
+> +		unsigned *nsegs, unsigned *last_seg_size,
+> +		unsigned *front_seg_size, unsigned *sectors)
+> +{
+> +	unsigned len = bv->bv_len;
+> +	unsigned total_len = 0;
+> +	unsigned new_nsegs = 0, seg_size = 0;
+> +
+> +	/*
+> +	 * Multipage bvec may be too big to hold in one segment,
+> +	 * so the current bvec has to be splitted as multiple
+> +	 * segments.
+> +	 */
+> +	while (len && new_nsegs + *nsegs < queue_max_segments(q)) {
+> +		seg_size = get_max_segment_size(q, bv->bv_offset + total_len);
+> +		seg_size = min(seg_size, len);
+> +
+> +		new_nsegs++;
+> +		total_len += seg_size;
+> +		len -= seg_size;
+> +
+> +		if ((bv->bv_offset + total_len) & queue_virt_boundary(q))
+> +			break;
+> +	}
+> +
+> +	if (!new_nsegs)
+> +		return !!len;
+> +
+> +	/* update front segment size */
+> +	if (!*nsegs) {
+> +		unsigned first_seg_size;
+> +
+> +		if (new_nsegs == 1)
+> +			first_seg_size = get_max_segment_size(q, bv->bv_offset);
+> +		else
+> +			first_seg_size = queue_max_segment_size(q);
+> +
+> +		if (*front_seg_size < first_seg_size)
+> +			*front_seg_size = first_seg_size;
+> +	}
+> +
+> +	/* update other varibles */
+> +	*last_seg_size = seg_size;
+> +	*nsegs += new_nsegs;
+> +	if (sectors)
+> +		*sectors += total_len >> 9;
+> +
+> +	/* split in the middle of the bvec if len != 0 */
+> +	return !!len;
+> +}
+> +
+>  static struct bio *blk_bio_segment_split(struct request_queue *q,
+>  					 struct bio *bio,
+>  					 struct bio_set *bs,
+> @@ -174,7 +238,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+>  	struct bio *new = NULL;
+>  	const unsigned max_sectors = get_max_io_size(q, bio);
+>  
+> -	bio_for_each_segment(bv, bio, iter) {
+> +	bio_for_each_bvec(bv, bio, iter) {
+>  		/*
+>  		 * If the queue doesn't support SG gaps and adding this
+>  		 * offset would create a gap, disallow it.
+> @@ -189,8 +253,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+>  			 */
+>  			if (nsegs < queue_max_segments(q) &&
+>  			    sectors < max_sectors) {
+> -				nsegs++;
+> -				sectors = max_sectors;
+> +				/* split in the middle of bvec */
+> +				bv.bv_len = (max_sectors - sectors) << 9;
+> +				bvec_split_segs(q, &bv, &nsegs,
+> +						&seg_size,
+> +						&front_seg_size,
+> +						&sectors);
+>  			}
+>  			goto split;
+>  		}
+> @@ -212,14 +280,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+>  		if (nsegs == queue_max_segments(q))
+>  			goto split;
+>  
+> -		if (nsegs == 1 && seg_size > front_seg_size)
+> -			front_seg_size = seg_size;
+> -
+> -		nsegs++;
+>  		bvprv = bv;
+>  		bvprvp = &bvprv;
+> -		seg_size = bv.bv_len;
+> -		sectors += bv.bv_len >> 9;
+> +
+> +		if (bvec_split_segs(q, &bv, &nsegs, &seg_size,
+> +				    &front_seg_size, &sectors))
+> +			goto split;
+>  
+>  	}
+>  
+> @@ -233,8 +299,6 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+>  			bio = new;
+>  	}
+>  
+> -	if (nsegs == 1 && seg_size > front_seg_size)
+> -		front_seg_size = seg_size;
+>  	bio->bi_seg_front_size = front_seg_size;
+>  	if (seg_size > bio->bi_seg_back_size)
+>  		bio->bi_seg_back_size = seg_size;
+> @@ -296,6 +360,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+>  {
+>  	struct bio_vec bv, bvprv = { NULL };
+>  	unsigned int seg_size, nr_phys_segs;
+> +	unsigned front_seg_size = bio->bi_seg_front_size;
+>  	struct bio *fbio, *bbio;
+>  	struct bvec_iter iter;
+>  	bool prev = false;
+> @@ -316,7 +381,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+>  	seg_size = 0;
+>  	nr_phys_segs = 0;
+>  	for_each_bio(bio) {
+> -		bio_for_each_segment(bv, bio, iter) {
+> +		bio_for_each_bvec(bv, bio, iter) {
+>  			/*
+>  			 * If SG merging is disabled, each bio vector is
+>  			 * a segment
+> @@ -336,20 +401,15 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+>  				continue;
+>  			}
+>  new_segment:
+> -			if (nr_phys_segs == 1 && seg_size >
+> -			    fbio->bi_seg_front_size)
+> -				fbio->bi_seg_front_size = seg_size;
+> -
+> -			nr_phys_segs++;
+>  			bvprv = bv;
+>  			prev = true;
+> -			seg_size = bv.bv_len;
+> +			bvec_split_segs(q, &bv, &nr_phys_segs, &seg_size,
+> +					&front_seg_size, NULL);
+>  		}
+>  		bbio = bio;
+>  	}
+>  
+> -	if (nr_phys_segs == 1 && seg_size > fbio->bi_seg_front_size)
+> -		fbio->bi_seg_front_size = seg_size;
+> +	fbio->bi_seg_front_size = front_seg_size;
+>  	if (seg_size > bbio->bi_seg_back_size)
+>  		bbio->bi_seg_back_size = seg_size;
+>  
+> -- 
+> 2.9.5
 > 
-> > Add interface put_and_wait_on_page_locked() to do this, using negative
-> > value of the lock arg to wait_on_page_bit_common() to implement it.
-> > No interruptible or killable variant needed yet, but they might follow:
-> > I have a vague notion that reporting -EINTR should take precedence over
-> > return from wait_on_page_bit_common() without knowing the page state,
-> > so arrange it accordingly - but that may be nothing but pedantic.
-> > 
-> > shrink_page_list()'s __ClearPageLocked(): that was a surprise!
-> 
-> and I can imagine a bad one. Do we really have to be so clever here?
-> The unlock_page went away in the name of performance (a978d6f521063)
-> and I would argue that this is a slow path where this is just not worth
-> it.
-
-Do we really have to be so clever here? That's a good question: now we
-have PG_waiters, we probably do not need to bother with this cleverness,
-and it would save me from having to expand on that comment as I was asked.
-I'll try going back to a simple unlock_page() there: and can always restore
-the __ClearPageLocked if a reviewer demands, or 0-day notices regression,
-
-> 
-> > this
-> > survived a lot of testing before that showed up.  It does raise the
-> > question: should is_page_cache_freeable() and __remove_mapping() now
-> > treat a PG_waiters page as if an extra reference were held?  Perhaps,
-> > but I don't think it matters much, since shrink_page_list() already
-> > had to win its trylock_page(), so waiters are not very common there: I
-> > noticed no difference when trying the bigger change, and it's surely not
-> > needed while put_and_wait_on_page_locked() is only for page migration.
-> > 
-> > Signed-off-by: Hugh Dickins <hughd@google.com>
-> 
-> The patch looks good to me - quite ugly but it doesn't make the existing
-> code much worse.
-> 
-> With the problem described Vlastimil fixed, feel free to add
-> Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks!
-
-> 
-> And thanks for a prompt patch. This is something I've been chasing for
-> quite some time. __migration_entry_wait came to my radar only recently
-> because this is an extremely volatile area.
-
-You are very gracious to describe a patch promised six months ago as
-"prompt".  But it does help me a lot to have it fixing a real problem
-for someone (thank you Baoquan) - well, it fixed a real problem for us
-internally too, but very nice to gather more backing for it like this.
-
-Hugh
