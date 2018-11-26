@@ -1,118 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EA04F6B5977
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 12:59:47 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id k66so6115550qkf.1
-        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 09:59:47 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C81C6B3F78
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 08:05:45 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id n45so16608080qta.5
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 05:05:45 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 52si2845155qvg.213.2018.11.30.09.59.46
+        by mx.google.com with ESMTPS id p65si248471qkh.93.2018.11.26.05.05.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Nov 2018 09:59:46 -0800 (PST)
+        Mon, 26 Nov 2018 05:05:44 -0800 (PST)
+Subject: Re: [RFC PATCH 0/4] mm, memory_hotplug: allocate memmap from hotadded
+ memory
+References: <20181116101222.16581-1-osalvador@suse.com>
+ <2571308d-0460-e8b9-ad40-75d6b13b2d09@redhat.com>
+ <20181123115519.2dnzscmmgv63fdub@d104.suse.de>
 From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH RFCv2 0/4] mm/memory_hotplug: Introduce memory block types
-Date: Fri, 30 Nov 2018 18:59:18 +0100
-Message-Id: <20181130175922.10425-1-david@redhat.com>
+Message-ID: <7095eab7-bcff-204b-beb1-fed5e4151f87@redhat.com>
+Date: Mon, 26 Nov 2018 14:05:39 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20181123115519.2dnzscmmgv63fdub@d104.suse.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-acpi@vger.kernel.org, devel@linuxdriverproject.org, xen-devel@lists.xenproject.org, x86@kernel.org, David Hildenbrand <david@redhat.com>, Andrew Banman <andrew.banman@hpe.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Arun KS <arunks@codeaurora.org>, Balbir Singh <bsingharora@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Borislav Petkov <bp@alien8.de>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Christophe Leroy <christophe.leroy@c-s.fr>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Dave Jiang <dave.jiang@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Ingo Molnar <mingo@redhat.com>, =?UTF-8?q?Jan=20H=2E=20Sch=C3=B6nherr?= <jschoenh@amazon.de>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, =?UTF-8?q?Jonathan=20Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "K. Y. Srinivasan" <kys@microsoft.com>, Len Brown <lenb@kernel.org>, Logan Gunthorpe <logang@deltatee.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Mathieu Malaterre <malat@debian.org>, Matthew Wilcox <willy@infradead.org>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Michael Neuling <mikey@neuling.org>, Michal Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>, =?UTF-8?q?Michal=20Such=C3=A1nek?= <msuchanek@suse.de>, Mike Rapoport <rppt@linux.vnet.ibm.com>, "mike.travis@hpe.com" <mike.travis@hpe.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Nicholas Piggin <npiggin@gmail.com>, Oscar Salvador <osalvador@suse.com>, Oscar Salvador <osalvador@suse.de>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Pavel Tatashin <pasha.tatashin@soleen.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rafael@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Rashmica Gupta <rashmica.g@gmail.com>, Rich Felker <dalias@libc.org>, Rob Herring <robh@kernel.org>, Stefano Stabellini <sstabellini@kernel.org>, Stephen Hemminger <sthemmin@microsoft.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Vasily Gorbik <gor@linux.ibm.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Wei Yang <richard.weiyang@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, YueHaibing <yuehaibing@huawei.com>
+To: Oscar Salvador <osalvador@suse.com>
+Cc: linux-mm@kvack.org, mhocko@suse.com, rppt@linux.vnet.ibm.com, akpm@linux-foundation.org, arunks@codeaurora.org, bhe@redhat.com, dan.j.williams@intel.com, Pavel.Tatashin@microsoft.com, Jonathan.Cameron@huawei.com, jglisse@redhat.com, linux-kernel@vger.kernel.org
 
-This is the second approach, introducing more meaningful memory block
-types and not changing online behavior in the kernel. It is based on
-latest linux-next.
+On 23.11.18 12:55, Oscar Salvador wrote:
+> On Thu, Nov 22, 2018 at 10:21:24AM +0100, David Hildenbrand wrote:
+>> 1. How are we going to present such memory to the system statistics?
+>>
+>> In my opinion, this vmemmap memory should
+>> a) still account to total memory
+>> b) show up as allocated
+>>
+>> So just like before.
+> 
+> No, it does not show up under total memory and neither as allocated memory.
+> This memory is not for use for anything but for creating the pagetables
+> for the memmap array for the section/s.
+> 
+> It is not memory that the system can use.
+> 
+> I also guess that if there is a strong opinion on this, we could create
+> a counter, something like NR_VMEMMAP_PAGES, and show it under /proc/meminfo.
+> 
+>> 2. Is this optional, in other words, can a device driver decide to not
+>> to it like that?
+> 
+> Right now, is a per arch setup.
+> For example, x86_64/powerpc/arm64 will do it inconditionally.
+> 
 
-As we found out during dicussion, user space should always handle onlining
-of memory, in any case. However in order to make smart decisions in user
-space about if and how to online memory, we have to export more information
-about memory blocks. This way, we can formulate rules in user space.
+Just FYI another special case is s390x right now when it comes to adding
+standby memory: (linux/drivers/s390/char/sclp_cmd.c)
 
-One such information is the type of memory block we are talking about.
-This helps to answer some questions like:
-- Does this memory block belong to a DIMM?
-- Can this DIMM theoretically ever be unplugged again?
-- Was this memory added by a balloon driver that will rely on balloon
-  inflation to remove chunks of that memory again? Which zone is advised?
-- Is this special standby memory on s390x that is usually not automatically
-  onlined?
+There are two issues:
 
-And in short it helps to answer to some extend (excluding zone imbalances)
-- Should I online this memory block?
-- To which zone should I online this memory block?
-... of course special use cases will result in different anwers. But that's
-why user space has control of onlining memory.
+a) Storage keys
 
-More details can be found in Patch 1 and Patch 3.
-Tested on x86 with hotplugged DIMMs. Cross-compiled for PPC and s390x.
+On s390x, storage keys have to be initialized before memory might be
+used (think of it as 7bit page status/protection for each 4k page
+managed and stored by the HW separately)
 
+Storage keys are initialized in sclp_assign_storage(), when the memory
+is going online (MEM_GOING_ONLINE).
 
-Example:
-$ udevadm info -q all -a /sys/devices/system/memory/memory0
-	KERNEL=="memory0"
-	SUBSYSTEM=="memory"
-	DRIVER==""
-	ATTR{online}=="1"
-	ATTR{phys_device}=="0"
-	ATTR{phys_index}=="00000000"
-	ATTR{removable}=="0"
-	ATTR{state}=="online"
-	ATTR{type}=="boot"
-	ATTR{valid_zones}=="none"
-$ udevadm info -q all -a /sys/devices/system/memory/memory90
-	KERNEL=="memory90"
-	SUBSYSTEM=="memory"
-	DRIVER==""
-	ATTR{online}=="1"
-	ATTR{phys_device}=="0"
-	ATTR{phys_index}=="0000005a"
-	ATTR{removable}=="1"
-	ATTR{state}=="online"
-	ATTR{type}=="dimm"
-	ATTR{valid_zones}=="Normal"
+b) Hypervisor making memory accessible
+
+Only when onlining memory, the memory is actually made accessible in the
+hypervisor (sclp_assign_storage()). Touching it before that is bad and
+will fail.
+
+You can think of standby memory on s390x like memory that is only
+onlined on request by an administrator. Once onlined, the hypervisor
+will allocate memory for it.
 
 
-RFC -> RFCv2:
-- Now also taking care of PPC (somehow missed it :/ )
-- Split the series up to some degree (some ideas on how to split up patch 3
-  would be very welcome)
-- Introduce more memory block types. Turns out abstracting too much was
-  rather confusing and not helpful. Properly document them.
+However, once we have other ways of adding memory to a s390x guest (e.g.
+virtio-mem) at least b) is not an issue anymore. a) would require manual
+tweaking (e.g. initialize storage keys of memory for vmmaps early).
 
-Notes:
-- I wanted to convert the enum of types into a named enum but this
-  provoked all kinds of different errors. For now, I am doing it just like
-  the other types (e.g. online_type) we are using in that context.
-- The "removable" property should never have been named like that. It
-  should have been "offlinable". Can we still rename that? E.g. boot memory
-  is sometimes marked as removable ...
 
-David Hildenbrand (4):
-  mm/memory_hotplug: Introduce memory block types
-  mm/memory_hotplug: Replace "bool want_memblock" by "int type"
-  mm/memory_hotplug: Introduce and use more memory types
-  mm/memory_hotplug: Drop MEMORY_TYPE_UNSPECIFIED
+So in summary as of now your approach will not work on s390x, but with
+e.g. virtio-mem it could. We would need some interface to specify how to
+add memory. (To somehow allow a driver to specify it - e.g. SCLP vs.
+virtio-mem)
 
- arch/ia64/mm/init.c                           |  4 +-
- arch/powerpc/mm/mem.c                         |  4 +-
- arch/powerpc/platforms/powernv/memtrace.c     |  9 +--
- .../platforms/pseries/hotplug-memory.c        |  7 +-
- arch/s390/mm/init.c                           |  4 +-
- arch/sh/mm/init.c                             |  4 +-
- arch/x86/mm/init_32.c                         |  4 +-
- arch/x86/mm/init_64.c                         |  8 +--
- drivers/acpi/acpi_memhotplug.c                | 16 ++++-
- drivers/base/memory.c                         | 60 ++++++++++++++--
- drivers/hv/hv_balloon.c                       |  3 +-
- drivers/s390/char/sclp_cmd.c                  |  3 +-
- drivers/xen/balloon.c                         |  2 +-
- include/linux/memory.h                        | 69 ++++++++++++++++++-
- include/linux/memory_hotplug.h                | 18 ++---
- kernel/memremap.c                             |  6 +-
- mm/memory_hotplug.c                           | 29 ++++----
- 17 files changed, 194 insertions(+), 56 deletions(-)
+Cheers!
 
 -- 
-2.17.2
+
+Thanks,
+
+David / dhildenb
