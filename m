@@ -1,239 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 53B4A6B5A71
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 16:53:05 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id v2so5068228plg.6
-        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 13:53:05 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id l66si6654894pfl.258.2018.11.30.13.53.03
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B28746B48EE
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:20:38 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id 75so12143345pfq.8
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:20:38 -0800 (PST)
+Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
+        by mx.google.com with ESMTPS id c15si3960584pgg.446.2018.11.27.08.20.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Nov 2018 13:53:03 -0800 (PST)
-Subject: [mm PATCH v6 3/7] mm: Implement new zone specific memblock iterator
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Date: Fri, 30 Nov 2018 13:53:03 -0800
-Message-ID: <154361478343.7497.6591693538181082582.stgit@ahduyck-desk1.amr.corp.intel.com>
-In-Reply-To: <154361452447.7497.1348692079883153517.stgit@ahduyck-desk1.amr.corp.intel.com>
-References: <154361452447.7497.1348692079883153517.stgit@ahduyck-desk1.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+        Tue, 27 Nov 2018 08:20:36 -0800 (PST)
+From: Oscar Salvador <osalvador@suse.de>
+Subject: [PATCH v2 1/5] mm, memory_hotplug: Add nid parameter to arch_remove_memory
+Date: Tue, 27 Nov 2018 17:20:01 +0100
+Message-Id: <20181127162005.15833-2-osalvador@suse.de>
+In-Reply-To: <20181127162005.15833-1-osalvador@suse.de>
+References: <20181127162005.15833-1-osalvador@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mhocko@suse.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, alexander.h.duyck@linux.intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.comalexander.h.duyck@linux.intel.com
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com, dan.j.williams@intel.com, pavel.tatashin@microsoft.com, jglisse@redhat.com, Jonathan.Cameron@huawei.com, rafael@kernel.org, david@redhat.com, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.com>, Oscar Salvador <osalvador@suse.de>
 
-Introduce a new iterator for_each_free_mem_pfn_range_in_zone.
+From: Oscar Salvador <osalvador@suse.com>
 
-This iterator will take care of making sure a given memory range provided
-is in fact contained within a zone. It takes are of all the bounds checking
-we were doing in deferred_grow_zone, and deferred_init_memmap. In addition
-it should help to speed up the search a bit by iterating until the end of a
-range is greater than the start of the zone pfn range, and will exit
-completely if the start is beyond the end of the zone.
+This patch is only a preparation for the following-up patches.
+The idea of passing the nid is that it will allow us to get rid
+of the zone parameter afterwards.
 
+Signed-off-by: Oscar Salvador <osalvador@suse.de>
+Reviewed-by: David Hildenbrand <david@redhat.com>
 Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
-Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 ---
- include/linux/memblock.h |   25 ++++++++++++++++++
- mm/memblock.c            |   64 ++++++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c          |   31 +++++++++-------------
- 3 files changed, 101 insertions(+), 19 deletions(-)
+ arch/ia64/mm/init.c            | 2 +-
+ arch/powerpc/mm/mem.c          | 3 ++-
+ arch/s390/mm/init.c            | 2 +-
+ arch/sh/mm/init.c              | 2 +-
+ arch/x86/mm/init_32.c          | 2 +-
+ arch/x86/mm/init_64.c          | 3 ++-
+ include/linux/memory_hotplug.h | 4 ++--
+ kernel/memremap.c              | 5 ++++-
+ mm/memory_hotplug.c            | 2 +-
+ 9 files changed, 15 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 64c41cf45590..95d1aaa3f412 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -247,6 +247,31 @@ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
- 	     i >= 0; __next_mem_pfn_range(&i, nid, p_start, p_end, p_nid))
- #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
- 
-+#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-+void __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
-+				  unsigned long *out_spfn,
-+				  unsigned long *out_epfn);
-+/**
-+ * for_each_free_mem_range_in_zone - iterate through zone specific free
-+ * memblock areas
-+ * @i: u64 used as loop variable
-+ * @zone: zone in which all of the memory blocks reside
-+ * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
-+ * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
-+ *
-+ * Walks over free (memory && !reserved) areas of memblock in a specific
-+ * zone. Available once memblock and an empty zone is initialized. The main
-+ * assumption is that the zone start, end, and pgdat have been associated.
-+ * This way we can use the zone to determine NUMA node, and if a given part
-+ * of the memblock is valid for the zone.
-+ */
-+#define for_each_free_mem_pfn_range_in_zone(i, zone, p_start, p_end)	\
-+	for (i = 0,							\
-+	     __next_mem_pfn_range_in_zone(&i, zone, p_start, p_end);	\
-+	     i != U64_MAX;					\
-+	     __next_mem_pfn_range_in_zone(&i, zone, p_start, p_end))
-+#endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
-+
- /**
-  * for_each_free_mem_range - iterate through free memblock areas
-  * @i: u64 used as loop variable
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 57298abc7d98..0e49382033dd 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1247,6 +1247,70 @@ int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
- 	return 0;
+diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+index d5e12ff1d73c..904fe55e10fc 100644
+--- a/arch/ia64/mm/init.c
++++ b/arch/ia64/mm/init.c
+@@ -661,7 +661,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
  }
- #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-+#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-+/**
-+ * __next_mem_pfn_range_in_zone - iterator for for_each_*_range_in_zone()
-+ *
-+ * @idx: pointer to u64 loop variable
-+ * @zone: zone in which all of the memory blocks reside
-+ * @out_spfn: ptr to ulong for start pfn of the range, can be %NULL
-+ * @out_epfn: ptr to ulong for end pfn of the range, can be %NULL
-+ *
-+ * This function is meant to be a zone/pfn specific wrapper for the
-+ * for_each_mem_range type iterators. Specifically they are used in the
-+ * deferred memory init routines and as such we were duplicating much of
-+ * this logic throughout the code. So instead of having it in multiple
-+ * locations it seemed like it would make more sense to centralize this to
-+ * one new iterator that does everything they need.
-+ */
-+void __init_memblock
-+__next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
-+			     unsigned long *out_spfn, unsigned long *out_epfn)
-+{
-+	int zone_nid = zone_to_nid(zone);
-+	phys_addr_t spa, epa;
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
++int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+index 0a64fffabee1..40feb262080e 100644
+--- a/arch/powerpc/mm/mem.c
++++ b/arch/powerpc/mm/mem.c
+@@ -139,7 +139,8 @@ int __meminit arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-int __meminit arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
++int __meminit arch_remove_memory(int nid, u64 start, u64 size,
++					struct vmem_altmap *altmap)
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+index 50388190b393..3e82f66d5c61 100644
+--- a/arch/s390/mm/init.c
++++ b/arch/s390/mm/init.c
+@@ -242,7 +242,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
++int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
+ {
+ 	/*
+ 	 * There is no hardware or firmware interface which could trigger a
+diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+index c8c13c777162..a8e5c0e00fca 100644
+--- a/arch/sh/mm/init.c
++++ b/arch/sh/mm/init.c
+@@ -443,7 +443,7 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+ #endif
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
++int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
+ {
+ 	unsigned long start_pfn = PFN_DOWN(start);
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+index 49ecf5ecf6d3..85c94f9a87f8 100644
+--- a/arch/x86/mm/init_32.c
++++ b/arch/x86/mm/init_32.c
+@@ -860,7 +860,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
++int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 5fab264948c2..449958da97a4 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1147,7 +1147,8 @@ kernel_physical_mapping_remove(unsigned long start, unsigned long end)
+ 	remove_pagetable(start, end, true, NULL);
+ }
+ 
+-int __ref arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
++int __ref arch_remove_memory(int nid, u64 start, u64 size,
++				struct vmem_altmap *altmap)
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 84e9ae205930..3aedcd7929cd 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -107,8 +107,8 @@ static inline bool movable_node_is_enabled(void)
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-extern int arch_remove_memory(u64 start, u64 size,
+-		struct vmem_altmap *altmap);
++extern int arch_remove_memory(int nid, u64 start, u64 size,
++				struct vmem_altmap *altmap);
+ extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
+ 	unsigned long nr_pages, struct vmem_altmap *altmap);
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index 3eef989ef035..0d5603d76c37 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -87,6 +87,7 @@ static void devm_memremap_pages_release(void *data)
+ 	struct resource *res = &pgmap->res;
+ 	resource_size_t align_start, align_size;
+ 	unsigned long pfn;
 +	int nid;
-+
-+	__next_mem_range(idx, zone_nid, MEMBLOCK_NONE,
-+			 &memblock.memory, &memblock.reserved,
-+			 &spa, &epa, &nid);
-+
-+	while (*idx != U64_MAX) {
-+		unsigned long epfn = PFN_DOWN(epa);
-+		unsigned long spfn = PFN_UP(spa);
-+
-+		/*
-+		 * Verify the end is at least past the start of the zone and
-+		 * that we have at least one PFN to initialize.
-+		 */
-+		if (zone->zone_start_pfn < epfn && spfn < epfn) {
-+			/* if we went too far just stop searching */
-+			if (zone_end_pfn(zone) <= spfn) {
-+				*idx = U64_MAX;
-+				break;
-+			}
-+
-+			if (out_spfn)
-+				*out_spfn = max(zone->zone_start_pfn, spfn);
-+			if (out_epfn)
-+				*out_epfn = min(zone_end_pfn(zone), epfn);
-+
-+			return;
-+		}
-+
-+		__next_mem_range(idx, zone_nid, MEMBLOCK_NONE,
-+				 &memblock.memory, &memblock.reserved,
-+				 &spa, &epa, &nid);
-+	}
-+
-+	/* signal end of iteration */
-+	if (out_spfn)
-+		*out_spfn = ULONG_MAX;
-+	if (out_epfn)
-+		*out_epfn = 0;
-+}
-+
-+#endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
  
- static phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
- 					phys_addr_t align, phys_addr_t start,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 09969619ab48..72f9889e3866 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1523,11 +1523,9 @@ static unsigned long  __init deferred_init_pages(struct zone *zone,
- static int __init deferred_init_memmap(void *data)
- {
- 	pg_data_t *pgdat = data;
--	int nid = pgdat->node_id;
- 	unsigned long start = jiffies;
- 	unsigned long nr_pages = 0;
- 	unsigned long spfn, epfn, first_init_pfn, flags;
--	phys_addr_t spa, epa;
- 	int zid;
- 	struct zone *zone;
- 	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
-@@ -1564,14 +1562,12 @@ static int __init deferred_init_memmap(void *data)
- 	 * freeing pages we can access pages that are ahead (computing buddy
- 	 * page in __free_one_page()).
- 	 */
--	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
--		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
--		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
-+	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
-+		spfn = max_t(unsigned long, first_init_pfn, spfn);
- 		nr_pages += deferred_init_pages(zone, spfn, epfn);
+ 	pgmap->kill(pgmap->ref);
+ 	for_each_device_pfn(pfn, pgmap)
+@@ -97,13 +98,15 @@ static void devm_memremap_pages_release(void *data)
+ 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
+ 		- align_start;
+ 
++	nid = page_to_nid(pfn_to_page(align_start >> PAGE_SHIFT));
++
+ 	mem_hotplug_begin();
+ 	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
+ 		pfn = align_start >> PAGE_SHIFT;
+ 		__remove_pages(page_zone(pfn_to_page(pfn)), pfn,
+ 				align_size >> PAGE_SHIFT, NULL);
+ 	} else {
+-		arch_remove_memory(align_start, align_size,
++		arch_remove_memory(nid, align_start, align_size,
+ 				pgmap->altmap_valid ? &pgmap->altmap : NULL);
+ 		kasan_remove_zero_shadow(__va(align_start), align_size);
  	}
--	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
--		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
--		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
-+	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
-+		spfn = max_t(unsigned long, first_init_pfn, spfn);
- 		deferred_free_pages(spfn, epfn);
- 	}
- 	pgdat_resize_unlock(pgdat, &flags);
-@@ -1579,8 +1575,8 @@ static int __init deferred_init_memmap(void *data)
- 	/* Sanity check that the next zone really is unpopulated */
- 	WARN_ON(++zid < MAX_NR_ZONES && populated_zone(++zone));
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 7b4317ae8318..849bcc55c5f1 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1858,7 +1858,7 @@ void __ref __remove_memory(int nid, u64 start, u64 size)
+ 	memblock_free(start, size);
+ 	memblock_remove(start, size);
  
--	pr_info("node %d initialised, %lu pages in %ums\n", nid, nr_pages,
--					jiffies_to_msecs(jiffies - start));
-+	pr_info("node %d initialised, %lu pages in %ums\n",
-+		pgdat->node_id,	nr_pages, jiffies_to_msecs(jiffies - start));
+-	arch_remove_memory(start, size, NULL);
++	arch_remove_memory(nid, start, size, NULL);
  
- 	pgdat_init_report_one_done();
- 	return 0;
-@@ -1611,13 +1607,11 @@ static DEFINE_STATIC_KEY_TRUE(deferred_pages);
- static noinline bool __init
- deferred_grow_zone(struct zone *zone, unsigned int order)
- {
--	int nid = zone_to_nid(zone);
--	pg_data_t *pgdat = NODE_DATA(nid);
- 	unsigned long nr_pages_needed = ALIGN(1 << order, PAGES_PER_SECTION);
-+	pg_data_t *pgdat = zone->zone_pgdat;
- 	unsigned long nr_pages = 0;
- 	unsigned long first_init_pfn, spfn, epfn, t, flags;
- 	unsigned long first_deferred_pfn = pgdat->first_deferred_pfn;
--	phys_addr_t spa, epa;
- 	u64 i;
+ 	try_offline_node(nid);
  
- 	/* Only the last zone may have deferred pages */
-@@ -1653,9 +1647,8 @@ deferred_grow_zone(struct zone *zone, unsigned int order)
- 		return false;
- 	}
- 
--	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
--		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
--		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
-+	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
-+		spfn = max_t(unsigned long, first_init_pfn, spfn);
- 
- 		while (spfn < epfn && nr_pages < nr_pages_needed) {
- 			t = ALIGN(spfn + PAGES_PER_SECTION, PAGES_PER_SECTION);
-@@ -1669,9 +1662,9 @@ deferred_grow_zone(struct zone *zone, unsigned int order)
- 			break;
- 	}
- 
--	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
--		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
--		epfn = min_t(unsigned long, first_deferred_pfn, PFN_DOWN(epa));
-+	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
-+		spfn = max_t(unsigned long, first_init_pfn, spfn);
-+		epfn = min_t(unsigned long, first_deferred_pfn, epfn);
- 		deferred_free_pages(spfn, epfn);
- 
- 		if (first_deferred_pfn == epfn)
+-- 
+2.13.6
