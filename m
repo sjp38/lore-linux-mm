@@ -1,95 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 057746B4682
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 19:34:08 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id u20so13239699pfa.1
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 16:34:08 -0800 (PST)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id s5si5346864pfi.134.2018.11.27.16.34.07
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F74B6B4711
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 04:23:24 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id l45so10561085edb.1
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 01:23:24 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g24si1674437edm.273.2018.11.27.01.23.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Nov 2018 16:34:07 -0800 (PST)
-From: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH 1/2] vmalloc: New flag for flush before releasing pages
-Date: Tue, 27 Nov 2018 16:07:53 -0800
-Message-Id: <20181128000754.18056-2-rick.p.edgecombe@intel.com>
-In-Reply-To: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
-References: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
+        Tue, 27 Nov 2018 01:23:22 -0800 (PST)
+Subject: Re: [PATCH 4/5] mm: Reclaim small amounts of memory when an external
+ fragmentation event occurs
+References: <20181123114528.28802-1-mgorman@techsingularity.net>
+ <20181123114528.28802-5-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <0e042569-eb95-623f-242c-9cf9c87c5223@suse.cz>
+Date: Tue, 27 Nov 2018 10:23:21 +0100
+MIME-Version: 1.0
+In-Reply-To: <20181123114528.28802-5-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, luto@kernel.org, will.deacon@arm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, naveen.n.rao@linux.vnet.ibm.com, anil.s.keshavamurthy@intel.com, davem@davemloft.net, mhiramat@kernel.org, rostedt@goodmis.org, mingo@redhat.com, ast@kernel.org, daniel@iogearbox.net, jeyu@kernel.org, netdev@vger.kernel.org, ard.biesheuvel@linaro.org, jannh@google.com
-Cc: kristen@linux.intel.com, dave.hansen@intel.com, deneen.t.dock@intel.com, Rick Edgecombe <rick.p.edgecombe@intel.com>
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-Since vfree will lazily flush the TLB, but not lazily free the underlying pages,
-it often leaves stale TLB entries to freed pages that could get re-used. This is
-undesirable for cases where the memory being freed has special permissions such
-as executable.
+On 11/23/18 12:45 PM, Mel Gorman wrote:
+> An external fragmentation event was previously described as
+> 
+>     When the page allocator fragments memory, it records the event using
+>     the mm_page_alloc_extfrag event. If the fallback_order is smaller
+>     than a pageblock order (order-9 on 64-bit x86) then it's considered
+>     an event that will cause external fragmentation issues in the future.
+> 
+> The kernel reduces the probability of such events by increasing the
+> watermark sizes by calling set_recommended_min_free_kbytes early in the
+> lifetime of the system. This works reasonably well in general but if there
+> are enough sparsely populated pageblocks then the problem can still occur
+> as enough memory is free overall and kswapd stays asleep.
+> 
+> This patch introduces a watermark_boost_factor sysctl that allows a zone
+> watermark to be temporarily boosted when an external fragmentation causing
+> events occurs. The boosting will stall allocations that would decrease
+> free memory below the boosted low watermark and kswapd is woken if the
+> calling context allows to reclaim an amount of memory relative to the
+> size of the high watermark and the watermark_boost_factor until the boost
+> is cleared. When kswapd finishes, it wakes kcompactd at the pageblock
+> order to clean some of the pageblocks that may have been affected by
+> the fragmentation event. kswapd avoids any writeback, slab shrinkage and
+> swap from reclaim context during this operation to avoid excessive system
+> disruption in the name of fragmentation avoidance. Care is taken so that
+> kswapd will do normal reclaim work if the system is really low on memory.
+> 
+> This was evaluated using the same workloads as "mm, page_alloc: Spread
+> allocations across zones before introducing fragmentation".
+> 
+> 1-socket Skylake machine
+> config-global-dhp__workload_thpfioscale XFS (no special madvise)
+> 4 fio threads, 1 THP allocating thread
+> --------------------------------------
+> 
+> 4.20-rc3 extfrag events < order 9:   804694
+> 4.20-rc3+patch:                      408912 (49% reduction)
+> 4.20-rc3+patch1-4:                    18421 (98% reduction)
+> 
+>                                    4.20.0-rc3             4.20.0-rc3
+>                                  lowzone-v5r8             boost-v5r8
+> Amean     fault-base-1      653.58 (   0.00%)      652.71 (   0.13%)
+> Amean     fault-huge-1        0.00 (   0.00%)      178.93 * -99.00%*
+> 
+>                               4.20.0-rc3             4.20.0-rc3
+>                             lowzone-v5r8             boost-v5r8
+> Percentage huge-1        0.00 (   0.00%)        5.12 ( 100.00%)
+> 
+> Note that external fragmentation causing events are massively reduced
+> by this path whether in comparison to the previous kernel or the vanilla
+> kernel. The fault latency for huge pages appears to be increased but that
+> is only because THP allocations were successful with the patch applied.
+> 
+> 1-socket Skylake machine
+> global-dhp__workload_thpfioscale-madvhugepage-xfs (MADV_HUGEPAGE)
+> -----------------------------------------------------------------
+> 
+> 4.20-rc3 extfrag events < order 9:  291392
+> 4.20-rc3+patch:                     191187 (34% reduction)
+> 4.20-rc3+patch1-4:                   13464 (95% reduction)
+> 
+> thpfioscale Fault Latencies
+>                                    4.20.0-rc3             4.20.0-rc3
+>                                  lowzone-v5r8             boost-v5r8
+> Min       fault-base-1      912.00 (   0.00%)      905.00 (   0.77%)
+> Min       fault-huge-1      127.00 (   0.00%)      135.00 (  -6.30%)
+> Amean     fault-base-1     1467.55 (   0.00%)     1481.67 (  -0.96%)
+> Amean     fault-huge-1     1127.11 (   0.00%)     1063.88 *   5.61%*
+> 
+>                               4.20.0-rc3             4.20.0-rc3
+>                             lowzone-v5r8             boost-v5r8
+> Percentage huge-1       77.64 (   0.00%)       83.46 (   7.49%)
+> 
+> As before, massive reduction in external fragmentation events, some jitter
+> on latencies and an increase in THP allocation success rates.
+> 
+> 2-socket Haswell machine
+> config-global-dhp__workload_thpfioscale XFS (no special madvise)
+> 4 fio threads, 5 THP allocating threads
+> ----------------------------------------------------------------
+> 
+> 4.20-rc3 extfrag events < order 9:  215698
+> 4.20-rc3+patch:                     200210 (7% reduction)
+> 4.20-rc3+patch1-4:                   14263 (93% reduction)
+> 
+>                                    4.20.0-rc3             4.20.0-rc3
+>                                  lowzone-v5r8             boost-v5r8
+> Amean     fault-base-5     1346.45 (   0.00%)     1306.87 (   2.94%)
+> Amean     fault-huge-5     3418.60 (   0.00%)     1348.94 (  60.54%)
+> 
+>                               4.20.0-rc3             4.20.0-rc3
+>                             lowzone-v5r8             boost-v5r8
+> Percentage huge-5        0.78 (   0.00%)        7.91 ( 910.64%)
+> 
+> There is a 93% reduction in fragmentation causing events, there
+> is a big reduction in the huge page fault latency and allocation
+> success rate is higher.
+> 
+> 2-socket Haswell machine
+> global-dhp__workload_thpfioscale-madvhugepage-xfs (MADV_HUGEPAGE)
+> -----------------------------------------------------------------
+> 
+> 4.20-rc3 extfrag events < order 9: 166352
+> 4.20-rc3+patch:                    147463 (11% reduction)
+> 4.20-rc3+patch1-4:                  11095 (93% reduction)
+> 
+> thpfioscale Fault Latencies
+>                                    4.20.0-rc3             4.20.0-rc3
+>                                  lowzone-v5r8             boost-v5r8
+> Amean     fault-base-5     6217.43 (   0.00%)     7419.67 * -19.34%*
+> Amean     fault-huge-5     3163.33 (   0.00%)     3263.80 (  -3.18%)
+> 
+>                               4.20.0-rc3             4.20.0-rc3
+>                             lowzone-v5r8             boost-v5r8
+> Percentage huge-5       95.14 (   0.00%)       87.98 (  -7.53%)
+> 
+> There is a large reduction in fragmentation events with some jitter around
+> the latencies and success rates. As before, the high THP allocation
+> success rate does mean the system is under a lot of pressure. However,
+> as the fragmentation events are reduced, it would be expected that the
+> long-term allocation success rate would be higher.
+> 
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-Having callers flush the TLB after calling vfree still leaves a window where
-the pages are freed, but the TLB entry remains. Also the entire operation can be
-deferred if the vfree is called from an interrupt and so a TLB flush after
-calling vfree would miss the entire operation. So in order to support this use
-case, a new flag VM_IMMEDIATE_UNMAP is added, that will cause the free operation
-to take place like this:
-        1. Unmap
-        2. Flush TLB/Unmap aliases
-        3. Free pages
-In the deferred case these steps are all done by the work queue.
-
-This implementation derives from two sketches from Dave Hansen and
-Andy Lutomirski.
-
-Suggested-by: Dave Hansen <dave.hansen@intel.com>
-Suggested-by: Andy Lutomirski <luto@kernel.org>
-Suggested-by: Will Deacon <will.deacon@arm.com>
-Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
----
- include/linux/vmalloc.h |  1 +
- mm/vmalloc.c            | 13 +++++++++++--
- 2 files changed, 12 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 398e9c95cd61..cca6b6b83cf0 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -21,6 +21,7 @@ struct notifier_block;		/* in notifier.h */
- #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
- #define VM_NO_GUARD		0x00000040      /* don't add guard page */
- #define VM_KASAN		0x00000080      /* has allocated kasan shadow memory */
-+#define VM_IMMEDIATE_UNMAP	0x00000200	/* flush before releasing pages */
- /* bits [20..32] reserved for arch specific ioremap internals */
- 
- /*
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 97d4b25d0373..68766651b5a7 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1516,6 +1516,14 @@ static void __vunmap(const void *addr, int deallocate_pages)
- 	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
- 
- 	remove_vm_area(addr);
-+
-+	/*
-+	 * Need to flush the TLB before freeing pages in the case of this flag.
-+	 * As long as that's happening, unmap aliases.
-+	 */
-+	if (area->flags & VM_IMMEDIATE_UNMAP)
-+		vm_unmap_aliases();
-+
- 	if (deallocate_pages) {
- 		int i;
- 
-@@ -1925,8 +1933,9 @@ EXPORT_SYMBOL(vzalloc_node);
- 
- void *vmalloc_exec(unsigned long size)
- {
--	return __vmalloc_node(size, 1, GFP_KERNEL, PAGE_KERNEL_EXEC,
--			      NUMA_NO_NODE, __builtin_return_address(0));
-+	return __vmalloc_node_range(size, 1, VMALLOC_START, VMALLOC_END,
-+			GFP_KERNEL, PAGE_KERNEL_EXEC, VM_IMMEDIATE_UNMAP,
-+			NUMA_NO_NODE, __builtin_return_address(0));
- }
- 
- #if defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA32)
--- 
-2.17.1
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
