@@ -1,244 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F7F86B2ABB
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 04:21:32 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id j125so8682647qke.12
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 01:21:32 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q11si1858140qki.187.2018.11.22.01.21.31
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D453E6B473A
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 05:00:57 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id y2so23545680plr.8
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 02:00:57 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id i16si3419973pgk.445.2018.11.27.02.00.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Nov 2018 01:21:31 -0800 (PST)
-Subject: Re: [RFC PATCH 0/4] mm, memory_hotplug: allocate memmap from hotadded
- memory
-References: <20181116101222.16581-1-osalvador@suse.com>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <2571308d-0460-e8b9-ad40-75d6b13b2d09@redhat.com>
-Date: Thu, 22 Nov 2018 10:21:24 +0100
+        Tue, 27 Nov 2018 02:00:56 -0800 (PST)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAR9wtxl117547
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 05:00:55 -0500
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2p12cybv6e-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 05:00:54 -0500
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Tue, 27 Nov 2018 10:00:52 -0000
+Date: Tue, 27 Nov 2018 12:00:45 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: Re: [PATCH 4/5] userfaultfd: shmem: add i_size checks
+References: <20181126173452.26955-5-aarcange@redhat.com>
+ <20181127065733.83FBA208E4@mail.kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20181116101222.16581-1-osalvador@suse.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181127065733.83FBA208E4@mail.kernel.org>
+Message-Id: <20181127100044.GA16502@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@suse.com>, linux-mm@kvack.org
-Cc: mhocko@suse.com, rppt@linux.vnet.ibm.com, akpm@linux-foundation.org, arunks@codeaurora.org, bhe@redhat.com, dan.j.williams@intel.com, Pavel.Tatashin@microsoft.com, Jonathan.Cameron@huawei.com, jglisse@redhat.com, linux-kernel@vger.kernel.org
+To: Sasha Levin <sashal@kernel.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On 16.11.18 11:12, Oscar Salvador wrote:
+Hi,
+
+On Tue, Nov 27, 2018 at 06:57:32AM +0000, Sasha Levin wrote:
 > Hi,
 > 
-> this patchset is based on Michal's patchset [1].
-> Patch#1, patch#2 and patch#4 are quite the same.
-> They just needed little changes to adapt it to current codestream,
-> so it seemed fair to leave them.
+> [This is an automated email]
 > 
-> ---------
-> Original cover:
+> This commit has been processed because it contains a "Fixes:" tag,
+> fixing commit: 4c27fe4c4c84 userfaultfd: shmem: add shmem_mcopy_atomic_pte for userfaultfd support.
 > 
-> This is another step to make the memory hotplug more usable. The primary
-> goal of this patchset is to reduce memory overhead of the hot added
-> memory (at least for SPARSE_VMEMMAP memory model). Currently we use
-> kmalloc to poppulate memmap (struct page array) which has two main
-> drawbacks a) it consumes an additional memory until the hotadded memory
-> itslef is onlined and b) memmap might end up on a different numa node
-> which is especially true for movable_node configuration.
+> The bot has tested the following trees: v4.19.4, v4.14.83, 
+> 
+> v4.19.4: Build OK!
+> v4.14.83: Failed to apply! Possible dependencies:
+>     2a70f6a76bb8 ("memcg, thp: do not invoke oom killer on thp charges")
+>     2cf855837b89 ("memcontrol: schedule throttling if we are congested")
+> 
+> 
+> How should we proceed with this patch?
 
-I haven't looked at the patches but have some questions.
+Below is the same patch backported to 4.14.83. With it the patch 5/5 in the
+series applies cleanly.
 
-1. How are we going to present such memory to the system statistics?
+>From 89135f0df0323f38c0b036c87688f5a7e3cfa9e9 Mon Sep 17 00:00:00 2001
+From: Andrea Arcangeli <aarcange@redhat.com>
+Date: Mon, 26 Nov 2018 12:34:51 -0500
+Subject: [PATCH v4.14.83] userfaultfd: shmem: add i_size checks
 
-In my opinion, this vmemmap memory should
-a) still account to total memory
-b) show up as allocated
+With MAP_SHARED: recheck the i_size after taking the PT lock, to
+serialize against truncate with the PT lock. Delete the page from the
+pagecache if the i_size_read check fails.
 
-So just like before.
+With MAP_PRIVATE: check the i_size after the PT lock before mapping
+anonymous memory or zeropages into the MAP_PRIVATE shmem mapping.
 
+A mostly irrelevant cleanup: like we do the delete_from_page_cache()
+pagecache removal after dropping the PT lock, the PT lock is a
+spinlock so drop it before the sleepable page lock.
 
-2. Is this optional, in other words, can a device driver decide to not
-to it like that?
+Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
+Reviewed-by: Hugh Dickins <hughd@google.com>
+Reported-by: Jann Horn <jannh@google.com>
+Fixes: 4c27fe4c4c84 ("userfaultfd: shmem: add shmem_mcopy_atomic_pte for userfaultfd support")
+Cc: stable@vger.kernel.org
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+---
+ mm/shmem.c       | 18 ++++++++++++++++--
+ mm/userfaultfd.c | 26 ++++++++++++++++++++++++--
+ 2 files changed, 40 insertions(+), 4 deletions(-)
 
-You mention ballooning. Now, both XEN and Hyper-V (the only balloon
-drivers that add new memory as of now), usually add e.g. a 128MB segment
-to only actually some part of it (e.g. 64MB, but could vary). Now, going
-ahead and assuming that all memory of a section can be read/written is
-wrong. A device driver will indicate which pages may actually be used
-via set_online_page_callback() when new memory is added. But at that
-point you already happily accessed some memory for vmmap - which might
-lead to crashes.
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 8019118..70b9fb9 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -2238,6 +2238,7 @@ static int shmem_mfill_atomic_pte(struct mm_struct *dst_mm,
+ 	struct page *page;
+ 	pte_t _dst_pte, *dst_pte;
+ 	int ret;
++	pgoff_t offset, max_off;
+ 
+ 	ret = -ENOMEM;
+ 	if (!shmem_inode_acct_block(inode, 1))
+@@ -2275,6 +2276,12 @@ static int shmem_mfill_atomic_pte(struct mm_struct *dst_mm,
+ 	__SetPageSwapBacked(page);
+ 	__SetPageUptodate(page);
+ 
++	ret = -EFAULT;
++	offset = linear_page_index(dst_vma, dst_addr);
++	max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
++	if (unlikely(offset >= max_off))
++		goto out_release;
++
+ 	ret = mem_cgroup_try_charge(page, dst_mm, gfp, &memcg, false);
+ 	if (ret)
+ 		goto out_release;
+@@ -2293,8 +2300,14 @@ static int shmem_mfill_atomic_pte(struct mm_struct *dst_mm,
+ 	if (dst_vma->vm_flags & VM_WRITE)
+ 		_dst_pte = pte_mkwrite(pte_mkdirty(_dst_pte));
+ 
+-	ret = -EEXIST;
+ 	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
++
++	ret = -EFAULT;
++	max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
++	if (unlikely(offset >= max_off))
++		goto out_release_uncharge_unlock;
++
++	ret = -EEXIST;
+ 	if (!pte_none(*dst_pte))
+ 		goto out_release_uncharge_unlock;
+ 
+@@ -2312,13 +2325,14 @@ static int shmem_mfill_atomic_pte(struct mm_struct *dst_mm,
+ 
+ 	/* No need to invalidate - it was non-present before */
+ 	update_mmu_cache(dst_vma, dst_addr, dst_pte);
+-	unlock_page(page);
+ 	pte_unmap_unlock(dst_pte, ptl);
++	unlock_page(page);
+ 	ret = 0;
+ out:
+ 	return ret;
+ out_release_uncharge_unlock:
+ 	pte_unmap_unlock(dst_pte, ptl);
++	delete_from_page_cache(page);
+ out_release_uncharge:
+ 	mem_cgroup_cancel_charge(page, memcg, false);
+ out_release:
+diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+index 5dbfcac0..5d70fdb 100644
+--- a/mm/userfaultfd.c
++++ b/mm/userfaultfd.c
+@@ -34,6 +34,8 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
+ 	void *page_kaddr;
+ 	int ret;
+ 	struct page *page;
++	pgoff_t offset, max_off;
++	struct inode *inode;
+ 
+ 	if (!*pagep) {
+ 		ret = -ENOMEM;
+@@ -74,8 +76,17 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
+ 	if (dst_vma->vm_flags & VM_WRITE)
+ 		_dst_pte = pte_mkwrite(pte_mkdirty(_dst_pte));
+ 
+-	ret = -EEXIST;
+ 	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
++	if (dst_vma->vm_file) {
++		/* the shmem MAP_PRIVATE case requires checking the i_size */
++		inode = dst_vma->vm_file->f_inode;
++		offset = linear_page_index(dst_vma, dst_addr);
++		max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
++		ret = -EFAULT;
++		if (unlikely(offset >= max_off))
++			goto out_release_uncharge_unlock;
++	}
++	ret = -EEXIST;
+ 	if (!pte_none(*dst_pte))
+ 		goto out_release_uncharge_unlock;
+ 
+@@ -109,11 +120,22 @@ static int mfill_zeropage_pte(struct mm_struct *dst_mm,
+ 	pte_t _dst_pte, *dst_pte;
+ 	spinlock_t *ptl;
+ 	int ret;
++	pgoff_t offset, max_off;
++	struct inode *inode;
+ 
+ 	_dst_pte = pte_mkspecial(pfn_pte(my_zero_pfn(dst_addr),
+ 					 dst_vma->vm_page_prot));
+-	ret = -EEXIST;
+ 	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
++	if (dst_vma->vm_file) {
++		/* the shmem MAP_PRIVATE case requires checking the i_size */
++		inode = dst_vma->vm_file->f_inode;
++		offset = linear_page_index(dst_vma, dst_addr);
++		max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
++		ret = -EFAULT;
++		if (unlikely(offset >= max_off))
++			goto out_unlock;
++	}
++	ret = -EEXIST;
+ 	if (!pte_none(*dst_pte))
+ 		goto out_unlock;
+ 	set_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte);
+-- 
+2.7.4
 
-For now the rule was: Memory that was not onlined will not be
-read/written, that's why it works for XEN and Hyper-V.
-
-It *could* work for them if they could know and communicate to
-add_memory() which part of a newly added memory block is definitely usable.
-
-So, especially for the case of balloning that you describe, things are
-more tricky than a simple "let's just use some memory of the memory
-block we're adding" unfortunately. For DIMMs it can work.
-
+ 
+> --
+> Thanks,
+> Sasha
 > 
-> a) is problem especially for memory hotplug based memory "ballooning"
-> solutions when the delay between physical memory hotplug and the
-> onlining can lead to OOM and that led to introduction of hacks like auto
-> onlining (see 31bc3858ea3e ("memory-hotplug: add automatic onlining
-> policy for the newly added memory")).
-> b) can have performance drawbacks.
-> 
-> One way to mitigate both issues is to simply allocate memmap array
-> (which is the largest memory footprint of the physical memory hotplug)
-> from the hotadded memory itself. VMEMMAP memory model allows us to map
-> any pfn range so the memory doesn't need to be online to be usable
-> for the array. See patch 3 for more details. In short I am reusing an
-> existing vmem_altmap which wants to achieve the same thing for nvdim
-> device memory.
-> 
-> There is also one potential drawback, though. If somebody uses memory
-> hotplug for 1G (gigantic) hugetlb pages then this scheme will not work
-> for them obviously because each memory block will contain reserved
-> area. Large x86 machines will use 2G memblocks so at least one 1G page
-> will be available but this is still not 2G...
-
-Yes, I think this is a possible use case. So it would have to be
-configurable somewehere - opt-in most probably. But related to
-ballooning, they will usually add the minimum possible granularity (e.g.
-128MB) and that seems to work for these setups. DIMMs are probably
-different.
-
-> 
-> I am not really sure somebody does that and how reliable that can work
-> actually. Nevertheless, I _believe_ that onlining more memory into
-> virtual machines is much more common usecase. Anyway if there ever is a
-> strong demand for such a usecase we have basically 3 options a) enlarge
-> memory blocks even more b) enhance altmap allocation strategy and reuse
-> low memory sections to host memmaps of other sections on the same NUMA
-> node c) have the memmap allocation strategy configurable to fallback to
-> the current allocation.
-> 
-> ---------
-> 
-> Old version of this patchset would blow up because we were clearing the
-> pmds while we still had to reference pages backed by that memory.
-> I picked another approach which does not force us to touch arch specific code
-> in that regard.
-> 
-> Overall design:
-> 
-> With the preface of:
-> 
->     1) Whenever you hot-add a range, this is the same range that will be hot-removed.
->        This is just because you can't remove half of a DIMM, in the same way you can't
->        remove half of a device in qemu.
->        A device/DIMM are added/removed as a whole.
-> 
->     2) Every add_memory()->add_memory_resource()->arch_add_memory()->__add_pages()
->        will use a new altmap because it is a different hot-added range.
-> 
->     3) When you hot-remove a range, the sections will be removed sequantially
->        starting from the first section of the range and ending with the last one.
-> 
->     4) hot-remove operations are protected by hotplug lock, so no parallel operations
->        can take place.
-> 
->     The current design is as follows:
-> 
->     hot-remove operation)
-> 
->     - __kfree_section_memmap will be called for every section to be removed.
->     - We catch the first vmemmap_page and we pin it to a global variable.
->     - Further calls to __kfree_section_memmap will decrease refcount of
->       the vmemmap page without calling vmemmap_free().
->       We defer the call to vmemmap_free() untill all sections are removed
->     - If the refcount drops to 0, we know that we hit the last section.
->     - We clear the global variable.
->     - We call vmemmap_free for [last_section, current_vmemmap_page)
-> 
->     In case we are hot-removing a range that used altmap, the call to
->     vmemmap_free must be done backwards, because the beginning of memory
->     is used for the pagetables.
->     Doing it this way, we ensure that by the time we remove the pagetables,
->     those pages will not have to be referenced anymore.
-> 
->     An example:
-> 
->     (qemu) object_add memory-backend-ram,id=ram0,size=10G
->     (qemu) device_add pc-dimm,id=dimm0,memdev=ram0,node=1
-> 
->     - This has added: ffffea0004000000 - ffffea000427ffc0 (refcount: 80)
-> 
->     When refcount of ffffea0004000000 drops to 0, vmemmap_free()
->     will be called in this way:
-> 
->     vmemmap_free: start/end: ffffea000de00000 - ffffea000e000000
->     vmemmap_free: start/end: ffffea000dc00000 - ffffea000de00000
->     vmemmap_free: start/end: ffffea000da00000 - ffffea000dc00000
->     vmemmap_free: start/end: ffffea000d800000 - ffffea000da00000
->     vmemmap_free: start/end: ffffea000d600000 - ffffea000d800000
->     vmemmap_free: start/end: ffffea000d400000 - ffffea000d600000
->     vmemmap_free: start/end: ffffea000d200000 - ffffea000d400000
->     vmemmap_free: start/end: ffffea000d000000 - ffffea000d200000
->     vmemmap_free: start/end: ffffea000ce00000 - ffffea000d000000
->     vmemmap_free: start/end: ffffea000cc00000 - ffffea000ce00000
->     vmemmap_free: start/end: ffffea000ca00000 - ffffea000cc00000
->     vmemmap_free: start/end: ffffea000c800000 - ffffea000ca00000
->     vmemmap_free: start/end: ffffea000c600000 - ffffea000c800000
->     vmemmap_free: start/end: ffffea000c400000 - ffffea000c600000
->     vmemmap_free: start/end: ffffea000c200000 - ffffea000c400000
->     vmemmap_free: start/end: ffffea000c000000 - ffffea000c200000
->     vmemmap_free: start/end: ffffea000be00000 - ffffea000c000000
->     ...
->     ...
->     vmemmap_free: start/end: ffffea0004000000 - ffffea0004200000
-> 
-> 
->     [Testing]
-> 
->     - Tested ony on x86_64
->     - Several tests were carried out with memblocks of different sizes.
->     - Tests were performed adding different memory-range sizes
->       from 512M to 60GB.
-> 
->     [Todo]
->     - Look into hotplug gigantic pages case
-> 
-> Before investing more effort, I would like to hear some opinions/thoughts/ideas.
-> 
-> [1] https://lore.kernel.org/lkml/20170801124111.28881-1-mhocko@kernel.org/
-> 
-> Michal Hocko (3):
->   mm, memory_hotplug: cleanup memory offline path
->   mm, memory_hotplug: provide a more generic restrictions for memory
->     hotplug
->   mm, sparse: rename kmalloc_section_memmap, __kfree_section_memmap
-> 
-> Oscar Salvador (1):
->   mm, memory_hotplug: allocate memmap from the added memory range for
->     sparse-vmemmap
-> 
->  arch/arm64/mm/mmu.c            |   5 +-
->  arch/ia64/mm/init.c            |   5 +-
->  arch/powerpc/mm/init_64.c      |   2 +
->  arch/powerpc/mm/mem.c          |   6 +-
->  arch/s390/mm/init.c            |  12 +++-
->  arch/sh/mm/init.c              |   6 +-
->  arch/x86/mm/init_32.c          |   6 +-
->  arch/x86/mm/init_64.c          |  17 ++++--
->  include/linux/memory_hotplug.h |  35 ++++++++---
->  include/linux/memremap.h       |  65 +++++++++++++++++++-
->  include/linux/page-flags.h     |  18 ++++++
->  kernel/memremap.c              |  12 ++--
->  mm/compaction.c                |   3 +
->  mm/hmm.c                       |   6 +-
->  mm/memory_hotplug.c            | 133 ++++++++++++++++++++++++++++-------------
->  mm/page_alloc.c                |  33 ++++++++--
->  mm/page_isolation.c            |  13 +++-
->  mm/sparse.c                    |  62 ++++++++++++++++---
->  18 files changed, 345 insertions(+), 94 deletions(-)
-> 
-
 
 -- 
-
-Thanks,
-
-David / dhildenb
+Sincerely yours,
+Mike.
