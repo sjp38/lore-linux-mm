@@ -1,60 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 24E166B53CE
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2018 13:16:59 -0500 (EST)
-Received: by mail-oi1-f200.google.com with SMTP id h85so1504755oib.9
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2018 10:16:59 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id s12si1220347otp.8.2018.11.29.10.16.58
-        for <linux-mm@kvack.org>;
-        Thu, 29 Nov 2018 10:16:58 -0800 (PST)
-Date: Thu, 29 Nov 2018 18:16:51 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v8 0/8] arm64: untag user pointers passed to the kernel
-Message-ID: <20181129181650.GG22027@arrakis.emea.arm.com>
-References: <cover.1541687720.git.andreyknvl@google.com>
- <CAAeHK+w1Qv6owkdWfjbXMFqOA8BURDN5gviw8vpgi3eon1dWmA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAAeHK+w1Qv6owkdWfjbXMFqOA8BURDN5gviw8vpgi3eon1dWmA@mail.gmail.com>
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 93F166B4918
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:42:37 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id g63-v6so14462204pfc.9
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:42:37 -0800 (PST)
+Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
+        by mx.google.com with ESMTPS id 5-v6si4317046plt.408.2018.11.27.08.42.35
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Nov 2018 08:42:36 -0800 (PST)
+From: Oscar Salvador <osalvador@suse.de>
+Subject: [PATCH v2 4/5] mm, memory-hotplug: Rework unregister_mem_sect_under_nodes
+Date: Tue, 27 Nov 2018 17:20:04 +0100
+Message-Id: <20181127162005.15833-5-osalvador@suse.de>
+In-Reply-To: <20181127162005.15833-1-osalvador@suse.de>
+References: <20181127162005.15833-1-osalvador@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Will Deacon <will.deacon@arm.com>, Kostya Serebryany <kcc@google.com>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Evgeniy Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Murphy <robin.murphy@arm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com, dan.j.williams@intel.com, pavel.tatashin@microsoft.com, jglisse@redhat.com, Jonathan.Cameron@huawei.com, rafael@kernel.org, david@redhat.com, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.com>, Oscar Salvador <osalvador@suse.de>
 
-Hi Andrey,
+From: Oscar Salvador <osalvador@suse.com>
 
-On Thu, Nov 08, 2018 at 03:48:10PM +0100, Andrey Konovalov wrote:
-> On Thu, Nov 8, 2018 at 3:36 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> > Changes in v8:
-> > - Rebased onto 65102238 (4.20-rc1).
-> > - Added a note to the cover letter on why syscall wrappers/shims that untag
-> >   user pointers won't work.
-> > - Added a note to the cover letter that this patchset has been merged into
-> >   the Pixel 2 kernel tree.
-> > - Documentation fixes, in particular added a list of syscalls that don't
-> >   support tagged user pointers.
-> 
-> I've changed the documentation to be more specific, please take a look.
-> 
-> I haven't done anything about adding a way for the user to find out
-> that the kernel supports this ABI extension. I don't know what would
-> the the preferred way to do this, and we haven't received any comments
-> on that from anybody else. Probing "on some innocuous syscall
-> currently returning -EFAULT on tagged pointer arguments" works though,
-> as you mentioned.
+This tries to address another issue about accessing
+unitiliazed pages.
 
-We've had some internal discussions and also talked to some people at
-Plumbers. I think the best option is to introduce an AT_FLAGS bit to
-describe the ABI relaxation on tagged pointers. Vincenzo is going to
-propose a patch on top of this series.
+Jonathan reported a problem [1] where we can access steal pages
+in case we hot-remove memory without onlining it first.
 
-> As mentioned in the cover letter, this patchset has been merged into
-> the Pixel 2 kernel tree.
+This time is in unregister_mem_sect_under_nodes.
+This function tries to get the nid from the pfn and then
+tries to remove the symlink between mem_blk <-> nid and vice versa.
 
-I just hope it's not enabled on production kernels, it would introduce
-a user ABI that may differ from what ends up upstream.
+Since we already know the nid in remove_memory(), we can pass
+it down the chain to unregister_mem_sect_under_nodes.
+There we can just remove the symlinks without the need
+to look into the pages.
 
+This also allows us to cleanup unregister_mem_sect_under_nodes.
+
+[1] https://www.spinics.net/lists/linux-mm/msg161316.html
+
+Signed-off-by: Oscar Salvador <osalvador@suse.de>
+Tested-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+---
+ drivers/base/memory.c  |  9 ++++-----
+ drivers/base/node.c    | 39 ++++++---------------------------------
+ include/linux/memory.h |  2 +-
+ include/linux/node.h   |  9 ++++-----
+ mm/memory_hotplug.c    |  2 +-
+ 5 files changed, 16 insertions(+), 45 deletions(-)
+
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 0e5985682642..3d8c65d84bea 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -744,8 +744,7 @@ unregister_memory(struct memory_block *memory)
+ 	device_unregister(&memory->dev);
+ }
+ 
+-static int remove_memory_section(unsigned long node_id,
+-			       struct mem_section *section, int phys_device)
++static int remove_memory_section(unsigned long nid, struct mem_section *section)
+ {
+ 	struct memory_block *mem;
+ 
+@@ -759,7 +758,7 @@ static int remove_memory_section(unsigned long node_id,
+ 	if (!mem)
+ 		goto out_unlock;
+ 
+-	unregister_mem_sect_under_nodes(mem, __section_nr(section));
++	unregister_mem_sect_under_nodes(nid, mem);
+ 
+ 	mem->section_count--;
+ 	if (mem->section_count == 0)
+@@ -772,12 +771,12 @@ static int remove_memory_section(unsigned long node_id,
+ 	return 0;
+ }
+ 
+-int unregister_memory_section(struct mem_section *section)
++int unregister_memory_section(int nid, struct mem_section *section)
+ {
+ 	if (!present_section(section))
+ 		return -EINVAL;
+ 
+-	return remove_memory_section(0, section, 0);
++	return remove_memory_section(nid, section);
+ }
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 86d6cd92ce3d..0858f7f3c7cd 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -453,40 +453,13 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, void *arg)
+ 	return 0;
+ }
+ 
+-/* unregister memory section under all nodes that it spans */
+-int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+-				    unsigned long phys_index)
++/* Remove symlink between node <-> mem_blk */
++void unregister_mem_sect_under_nodes(int nid, struct memory_block *mem_blk)
+ {
+-	NODEMASK_ALLOC(nodemask_t, unlinked_nodes, GFP_KERNEL);
+-	unsigned long pfn, sect_start_pfn, sect_end_pfn;
+-
+-	if (!mem_blk) {
+-		NODEMASK_FREE(unlinked_nodes);
+-		return -EFAULT;
+-	}
+-	if (!unlinked_nodes)
+-		return -ENOMEM;
+-	nodes_clear(*unlinked_nodes);
+-
+-	sect_start_pfn = section_nr_to_pfn(phys_index);
+-	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
+-	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
+-		int nid;
+-
+-		nid = get_nid_for_pfn(pfn);
+-		if (nid < 0)
+-			continue;
+-		if (!node_online(nid))
+-			continue;
+-		if (node_test_and_set(nid, *unlinked_nodes))
+-			continue;
+-		sysfs_remove_link(&node_devices[nid]->dev.kobj,
+-			 kobject_name(&mem_blk->dev.kobj));
+-		sysfs_remove_link(&mem_blk->dev.kobj,
+-			 kobject_name(&node_devices[nid]->dev.kobj));
+-	}
+-	NODEMASK_FREE(unlinked_nodes);
+-	return 0;
++	sysfs_remove_link(&node_devices[nid]->dev.kobj,
++			kobject_name(&mem_blk->dev.kobj));
++	sysfs_remove_link(&mem_blk->dev.kobj,
++			kobject_name(&node_devices[nid]->dev.kobj));
+ }
+ 
+ int link_mem_sections(int nid, unsigned long start_pfn, unsigned long end_pfn)
+diff --git a/include/linux/memory.h b/include/linux/memory.h
+index a6ddefc60517..d75ec88ca09d 100644
+--- a/include/linux/memory.h
++++ b/include/linux/memory.h
+@@ -113,7 +113,7 @@ extern int register_memory_isolate_notifier(struct notifier_block *nb);
+ extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
+ int hotplug_memory_register(int nid, struct mem_section *section);
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-extern int unregister_memory_section(struct mem_section *);
++extern int unregister_memory_section(int nid, struct mem_section *);
+ #endif
+ extern int memory_dev_init(void);
+ extern int memory_notify(unsigned long val, void *v);
+diff --git a/include/linux/node.h b/include/linux/node.h
+index 257bb3d6d014..488c1333bb06 100644
+--- a/include/linux/node.h
++++ b/include/linux/node.h
+@@ -72,8 +72,8 @@ extern int register_cpu_under_node(unsigned int cpu, unsigned int nid);
+ extern int unregister_cpu_under_node(unsigned int cpu, unsigned int nid);
+ extern int register_mem_sect_under_node(struct memory_block *mem_blk,
+ 						void *arg);
+-extern int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+-					   unsigned long phys_index);
++extern void unregister_mem_sect_under_nodes(int nid,
++			struct memory_block *mem_blk);
+ 
+ #ifdef CONFIG_HUGETLBFS
+ extern void register_hugetlbfs_with_node(node_registration_func_t doregister,
+@@ -105,10 +105,9 @@ static inline int register_mem_sect_under_node(struct memory_block *mem_blk,
+ {
+ 	return 0;
+ }
+-static inline int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+-						  unsigned long phys_index)
++static inline void unregister_mem_sect_under_nodes(int nid,
++				struct memory_block *mem_blk)
+ {
+-	return 0;
+ }
+ 
+ static inline void register_hugetlbfs_with_node(node_registration_func_t reg,
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 4fe42ccb0be4..49b91907e19e 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -544,7 +544,7 @@ static int __remove_section(int nid, struct mem_section *ms,
+ 	if (!valid_section(ms))
+ 		return ret;
+ 
+-	ret = unregister_memory_section(ms);
++	ret = unregister_memory_section(nid, ms);
+ 	if (ret)
+ 		return ret;
+ 
 -- 
-Catalin
+2.13.6
