@@ -1,71 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F9C06B3F66
-	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 21:18:05 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id 98so17818932qkp.22
-        for <linux-mm@kvack.org>; Sun, 25 Nov 2018 18:18:05 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s16si5789310qtk.382.2018.11.25.18.18.04
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BBAF66B49A5
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 12:39:13 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id e12so11152073edd.16
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 09:39:13 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g23-v6sor1381867ejc.26.2018.11.27.09.39.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Nov 2018 18:18:04 -0800 (PST)
-From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V12 02/20] btrfs: look at bi_size for repair decisions
-Date: Mon, 26 Nov 2018 10:17:02 +0800
-Message-Id: <20181126021720.19471-3-ming.lei@redhat.com>
-In-Reply-To: <20181126021720.19471-1-ming.lei@redhat.com>
-References: <20181126021720.19471-1-ming.lei@redhat.com>
+        (Google Transport Security);
+        Tue, 27 Nov 2018 09:39:12 -0800 (PST)
+Date: Tue, 27 Nov 2018 18:39:08 +0100
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [Intel-gfx] [PATCH 3/3] mm, notifier: Add a lockdep map for
+ invalidate_range_start
+Message-ID: <20181127173908.GC4266@phenom.ffwll.local>
+References: <20181122165106.18238-1-daniel.vetter@ffwll.ch>
+ <20181122165106.18238-4-daniel.vetter@ffwll.ch>
+ <20181127074918.GT4266@phenom.ffwll.local>
+ <154333737908.11623.17864230889834398136@skylake-alporthouse-com>
+ <CAKMK7uGSP7wWHSRFsCv90qCyHiSBS+o9CK1BPUXbGj6Crcy_Cg@mail.gmail.com>
+ <154334003817.11623.5449603736660799102@skylake-alporthouse-com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <154334003817.11623.5449603736660799102@skylake-alporthouse-com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Daniel Vetter <daniel@ffwll.ch>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Greg KH <gregkh@linuxfoundation.org>, intel-gfx <intel-gfx@lists.freedesktop.org>, dri-devel <dri-devel@lists.freedesktop.org>, Linux MM <linux-mm@kvack.org>, Jerome Glisse <jglisse@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Daniel Vetter <daniel.vetter@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>
 
-From: Christoph Hellwig <hch@lst.de>
+On Tue, Nov 27, 2018 at 05:33:58PM +0000, Chris Wilson wrote:
+> Quoting Daniel Vetter (2018-11-27 17:28:43)
+> > On Tue, Nov 27, 2018 at 5:50 PM Chris Wilson <chris@chris-wilson.co.uk> wrote:
+> > >
+> > > Quoting Daniel Vetter (2018-11-27 07:49:18)
+> > > > On Thu, Nov 22, 2018 at 05:51:06PM +0100, Daniel Vetter wrote:
+> > > > > This is a similar idea to the fs_reclaim fake lockdep lock. It's
+> > > > > fairly easy to provoke a specific notifier to be run on a specific
+> > > > > range: Just prep it, and then munmap() it.
+> > > > >
+> > > > > A bit harder, but still doable, is to provoke the mmu notifiers for
+> > > > > all the various callchains that might lead to them. But both at the
+> > > > > same time is really hard to reliable hit, especially when you want to
+> > > > > exercise paths like direct reclaim or compaction, where it's not
+> > > > > easy to control what exactly will be unmapped.
+> > > > >
+> > > > > By introducing a lockdep map to tie them all together we allow lockdep
+> > > > > to see a lot more dependencies, without having to actually hit them
+> > > > > in a single challchain while testing.
+> > > > >
+> > > > > Aside: Since I typed this to test i915 mmu notifiers I've only rolled
+> > > > > this out for the invaliate_range_start callback. If there's
+> > > > > interest, we should probably roll this out to all of them. But my
+> > > > > undestanding of core mm is seriously lacking, and I'm not clear on
+> > > > > whether we need a lockdep map for each callback, or whether some can
+> > > > > be shared.
+> > > > >
+> > > > > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > > > > Cc: David Rientjes <rientjes@google.com>
+> > > > > Cc: "J�r�me Glisse" <jglisse@redhat.com>
+> > > > > Cc: Michal Hocko <mhocko@suse.com>
+> > > > > Cc: "Christian K�nig" <christian.koenig@amd.com>
+> > > > > Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> > > > > Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
+> > > > > Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> > > > > Cc: linux-mm@kvack.org
+> > > > > Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
+> > > >
+> > > > Any comments on this one here? This is really the main ingredient for
+> > > > catching deadlocks in mmu notifier callbacks. The other two patches are
+> > > > more the icing on the cake.
+> > > >
+> > > > Thanks, Daniel
+> > > >
+> > > > > ---
+> > > > >  include/linux/mmu_notifier.h | 7 +++++++
+> > > > >  mm/mmu_notifier.c            | 7 +++++++
+> > > > >  2 files changed, 14 insertions(+)
+> > > > >
+> > > > > diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+> > > > > index 9893a6432adf..a39ba218dbbe 100644
+> > > > > --- a/include/linux/mmu_notifier.h
+> > > > > +++ b/include/linux/mmu_notifier.h
+> > > > > @@ -12,6 +12,10 @@ struct mmu_notifier_ops;
+> > > > >
+> > > > >  #ifdef CONFIG_MMU_NOTIFIER
+> > > > >
+> > > > > +#ifdef CONFIG_LOCKDEP
+> > > > > +extern struct lockdep_map __mmu_notifier_invalidate_range_start_map;
+> > > > > +#endif
+> > > > > +
+> > > > >  /*
+> > > > >   * The mmu notifier_mm structure is allocated and installed in
+> > > > >   * mm->mmu_notifier_mm inside the mm_take_all_locks() protected
+> > > > > @@ -267,8 +271,11 @@ static inline void mmu_notifier_change_pte(struct mm_struct *mm,
+> > > > >  static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+> > > > >                                 unsigned long start, unsigned long end)
+> > > > >  {
+> > > > > +     mutex_acquire(&__mmu_notifier_invalidate_range_start_map, 0, 0,
+> > > > > +                   _RET_IP_);
+> > >
+> > > Would not lock_acquire_shared() be more appropriate, i.e. treat this as
+> > > a rwsem_acquire_read()?
+> > 
+> > read lock critical sections can't create any dependencies against any
+> > other read lock critical section of the same lock. Switching this to a
+> > read lock would just render the annotation pointless (if you don't
+> > include at least some write lock critical section somewhere, but I
+> > have no idea where you'd do that). A read lock that you only ever take
+> > for reading essentially doesn't do anything at all.
+> > 
+> > So not clear on why you're suggesting this?
+> 
+> Just that it's not acting as a mutex, so emulating one looks wrong.
 
-bio_readpage_error currently uses bi_vcnt to decide if it is worth
-retrying an I/O.  But the vector count is mostly an implementation
-artifact - it really should figure out if there is more than a
-single sector worth retrying.  Use bi_size for that and shift by
-PAGE_SHIFT.  This really should be blocks/sectors, but given that
-btrfs doesn't support a sector size different from the PAGE_SIZE
-using the page size keeps the changes to a minimum.
-
-Reviewed-by: David Sterba <dsterba@suse.com>
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- fs/btrfs/extent_io.c | 2 +-
- include/linux/bio.h  | 6 ------
- 2 files changed, 1 insertion(+), 7 deletions(-)
-
-diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
-index 15fd46582bb2..40751e86a2a9 100644
---- a/fs/btrfs/extent_io.c
-+++ b/fs/btrfs/extent_io.c
-@@ -2368,7 +2368,7 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
- 	int read_mode = 0;
- 	blk_status_t status;
- 	int ret;
--	unsigned failed_bio_pages = bio_pages_all(failed_bio);
-+	unsigned failed_bio_pages = failed_bio->bi_iter.bi_size >> PAGE_SHIFT;
- 
- 	BUG_ON(bio_op(failed_bio) == REQ_OP_WRITE);
- 
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 056fb627edb3..6f6bc331a5d1 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -263,12 +263,6 @@ static inline void bio_get_last_bvec(struct bio *bio, struct bio_vec *bv)
- 		bv->bv_len = iter.bi_bvec_done;
- }
- 
--static inline unsigned bio_pages_all(struct bio *bio)
--{
--	WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED));
--	return bio->bi_vcnt;
--}
--
- static inline struct bio_vec *bio_first_bvec_all(struct bio *bio)
- {
- 	WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED));
+Ok, I think switching to lock_map_acquire/release should address that.
+-Daniel
 -- 
-2.9.5
+Daniel Vetter
+Software Engineer, Intel Corporation
+http://blog.ffwll.ch
