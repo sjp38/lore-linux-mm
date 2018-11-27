@@ -1,56 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D528D6B492F
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:53:35 -0500 (EST)
-Received: by mail-yw1-f71.google.com with SMTP id x14so14309050ywg.18
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:53:35 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DFFE56B491E
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:46:22 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id n39so20337432qtn.18
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:46:22 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 195sor552349ywf.56.2018.11.27.08.53.32
+        by mx.google.com with SMTPS id k34sor4210281qvf.44.2018.11.27.08.46.19
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 27 Nov 2018 08:53:32 -0800 (PST)
-Date: Tue, 27 Nov 2018 11:53:29 -0500
+        Tue, 27 Nov 2018 08:46:19 -0800 (PST)
+Date: Tue, 27 Nov 2018 11:46:17 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: Hackbench pipes regression bisected to PSI
-Message-ID: <20181127165329.GA29728@cmpxchg.org>
+Message-ID: <20181127164617.GA29488@cmpxchg.org>
 References: <20181126133420.GN23260@techsingularity.net>
  <20181126160724.GA21268@cmpxchg.org>
  <20181126165446.GQ23260@techsingularity.net>
  <20181126173218.GA22640@cmpxchg.org>
  <20181126232926.GS23260@techsingularity.net>
- <20181127164617.GA29488@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181127164617.GA29488@cmpxchg.org>
+In-Reply-To: <20181126232926.GS23260@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@techsingularity.net>
 Cc: Tejun Heo <tj@kernel.org>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-On Tue, Nov 27, 2018 at 11:46:17AM -0500, Johannes Weiner wrote:
-> From 347b69a52d1ec7e71df1108cbc5703d6dd0616ba Mon Sep 17 00:00:00 2001
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Date: Mon, 26 Nov 2018 09:39:23 -0500
-> Subject: [PATCH] psi: make disabling/enabling easier for vendor kernels
+On Mon, Nov 26, 2018 at 11:29:26PM +0000, Mel Gorman wrote:
+> The following is a comparision using CONFIG_PSI=n as a baseline against
+> your patch and a vanilla kernel
 > 
-> Mel Gorman reports a hackbench regression with psi that would prohibit
-> shipping the suse kernel with it default-enabled, but he'd still like
-> users to be able to opt in at little to no cost to others.
+>                          4.20.0-rc4             4.20.0-rc4             4.20.0-rc4
+>                 kconfigdisable-v1r1                vanilla        psidisable-v1r1
+> Amean     1       1.3100 (   0.00%)      1.3923 (  -6.28%)      1.3427 (  -2.49%)
+> Amean     3       3.8860 (   0.00%)      4.1230 *  -6.10%*      3.8860 (  -0.00%)
+> Amean     5       6.8847 (   0.00%)      8.0390 * -16.77%*      6.7727 (   1.63%)
+> Amean     7       9.9310 (   0.00%)     10.8367 *  -9.12%*      9.9910 (  -0.60%)
+> Amean     12     16.6577 (   0.00%)     18.2363 *  -9.48%*     17.1083 (  -2.71%)
+> Amean     18     26.5133 (   0.00%)     27.8833 *  -5.17%*     25.7663 (   2.82%)
+> Amean     24     34.3003 (   0.00%)     34.6830 (  -1.12%)     32.0450 (   6.58%)
+> Amean     30     40.0063 (   0.00%)     40.5800 (  -1.43%)     41.5087 (  -3.76%)
+> Amean     32     40.1407 (   0.00%)     41.2273 (  -2.71%)     39.9417 (   0.50%)
 > 
-> With the current combination of CONFIG_PSI and the psi_disabled bool
-> set from the commandline, this is a challenge. Do the following things
-> to make it easier:
+> It's showing that the vanilla kernel takes a hit (as the bisection
+> indicated it would) and that disabling PSI by default is reasonably
+> close in terms of performance for this particular workload on this
+> particular machine so;
 > 
-> 1. Add a config option CONFIG_PSI_DEFAULT_ENABLED that allows distros
+> Tested-by: Mel Gorman <mgorman@techsingularity.net>
 
-This should be:          CONFIG_PSI_DEFAULT_DISABLED
-
-Refreshed the patch.
+Thanks for testing it. Let's add these results to the changelog:
 
 ---
 
->From dc1511101b4c6aa3f7cfb91d8634a682fe7c147e Mon Sep 17 00:00:00 2001
+>From 347b69a52d1ec7e71df1108cbc5703d6dd0616ba Mon Sep 17 00:00:00 2001
 From: Johannes Weiner <hannes@cmpxchg.org>
 Date: Mon, 26 Nov 2018 09:39:23 -0500
 Subject: [PATCH] psi: make disabling/enabling easier for vendor kernels
@@ -63,9 +67,9 @@ With the current combination of CONFIG_PSI and the psi_disabled bool
 set from the commandline, this is a challenge. Do the following things
 to make it easier:
 
-1. Add a config option CONFIG_PSI_DEFAULT_DISABLED that allows distros
-   to enable CONFIG_PSI in their kernel but leave the feature disabled
-   unless a user requests it at boot-time.
+1. Add a config option CONFIG_PSI_DEFAULT_ENABLED that allows distros
+   to enable CONFIG_PSI in their kernel, but leaving the feature
+   disabled unless a user requests it at boot-time.
 
    To avoid double negatives, rename psi_disabled= to psi=.
 
@@ -76,7 +80,7 @@ In terms of numbers before and after this patch, Mel says:
 
 : The following is a comparision using CONFIG_PSI=n as a baseline against
 : your patch and a vanilla kernel
-:
+: 
 :                          4.20.0-rc4             4.20.0-rc4             4.20.0-rc4
 :                 kconfigdisable-v1r1                vanilla        psidisable-v1r1
 : Amean     1       1.3100 (   0.00%)      1.3923 (  -6.28%)      1.3427 (  -2.49%)
@@ -88,7 +92,7 @@ In terms of numbers before and after this patch, Mel says:
 : Amean     24     34.3003 (   0.00%)     34.6830 (  -1.12%)     32.0450 (   6.58%)
 : Amean     30     40.0063 (   0.00%)     40.5800 (  -1.43%)     41.5087 (  -3.76%)
 : Amean     32     40.1407 (   0.00%)     41.2273 (  -2.71%)     39.9417 (   0.50%)
-:
+: 
 : It's showing that the vanilla kernel takes a hit (as the bisection
 : indicated it would) and that disabling PSI by default is reasonably
 : close in terms of performance for this particular workload on this
