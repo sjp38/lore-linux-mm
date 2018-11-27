@@ -1,98 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AD1316B56E3
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 01:59:08 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id a2so2903376pgt.11
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2018 22:59:08 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F33A06B44B0
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 19:24:02 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id s50so9907539edd.11
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 16:24:02 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x21-v6sor5716000pln.20.2018.11.29.22.59.07
+        by mx.google.com with SMTPS id r11sor1531309eda.27.2018.11.26.16.24.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 29 Nov 2018 22:59:07 -0800 (PST)
+        Mon, 26 Nov 2018 16:24:01 -0800 (PST)
+Date: Tue, 27 Nov 2018 00:23:59 +0000
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH v3] mm, hotplug: move init_currently_empty_zone() under zone_span_lock protection
-Date: Fri, 30 Nov 2018 14:58:47 +0800
-Message-Id: <20181130065847.13714-1-richard.weiyang@gmail.com>
-In-Reply-To: <20181122101241.7965-1-richard.weiyang@gmail.com>
-References: <20181122101241.7965-1-richard.weiyang@gmail.com>
+Subject: Re: [PATCH v2] mm, hotplug: move init_currently_empty_zone() under
+ zone_span_lock protection
+Message-ID: <20181127002359.tmw75tozh2rntel4@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181120014822.27968-1-richard.weiyang@gmail.com>
+ <20181122101241.7965-1-richard.weiyang@gmail.com>
+ <18088694-22c8-b09b-f500-4932b6199004@redhat.com>
+ <20181123084201.GA8625@dhcp22.suse.cz>
+ <ca7d2320-6263-f213-d064-b5dc404bfa07@redhat.com>
+ <20181126014451.grrdei2luujiqwrh@master>
+ <424dd9eb-7295-5cf4-98b2-7a1bfd53b32e@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <424dd9eb-7295-5cf4-98b2-7a1bfd53b32e@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, osalvador@suse.de, david@redhat.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, Michal Hocko <mhocko@suse.com>, osalvador@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org
 
-During online_pages phase, pgdat->nr_zones will be updated in case this
-zone is empty.
+On Mon, Nov 26, 2018 at 10:24:26AM +0100, David Hildenbrand wrote:
+>On 26.11.18 02:44, Wei Yang wrote:
+>> On Fri, Nov 23, 2018 at 09:46:52AM +0100, David Hildenbrand wrote:
+>>> On 23.11.18 09:42, Michal Hocko wrote:
+>>>> On Thu 22-11-18 16:26:40, David Hildenbrand wrote:
+>>>>> On 22.11.18 11:12, Wei Yang wrote:
+>>>>>> During online_pages phase, pgdat->nr_zones will be updated in case this
+>>>>>> zone is empty.
+>>>>>>
+>>>>>> Currently the online_pages phase is protected by the global lock
+>>>>>> mem_hotplug_begin(), which ensures there is no contention during the
+>>>>>> update of nr_zones. But this global lock introduces scalability issues.
+>>>>>>
+>>>>>> This patch is a preparation for removing the global lock during
+>>>>>> online_pages phase. Also this patch changes the documentation of
+>>>>>> node_size_lock to include the protectioin of nr_zones.
+>>>>>
+>>>>> I looked into locking recently, and there is more to it.
+>>>>>
+>>>>> Please read:
+>>>>>
+>>>>> commit dee6da22efac451d361f5224a60be2796d847b51
+>>>>> Author: David Hildenbrand <david@redhat.com>
+>>>>> Date:   Tue Oct 30 15:10:44 2018 -0700
+>>>>>
+>>>>>     memory-hotplug.rst: add some details about locking internals
+>>>>>     
+>>>>>     Let's document the magic a bit, especially why device_hotplug_lock is
+>>>>>     required when adding/removing memory and how it all play together with
+>>>>>     requests to online/offline memory from user space.
+>>>>>
+>>>>> Short summary: Onlining/offlining of memory requires the device_hotplug_lock
+>>>>> as of now.
+>>>>
+>>>> Well, I would tend to disagree here. You might be describing the current
+>>>> state of art but the device_hotplug_lock doesn't make much sense for the
+>>>> memory hotplug in principle. There is absolutely nothing in the core MM
+>>>
+>>> There are collisions with CPU hotplug that require this lock (when nodes
+>>> come and go as far as I remember). And there is the problematic lock
+>>> inversion that can happen when adding/remving memory. This all has to be
+>>> sorted out, we'll have to see if we really need it for
+>>> onlining/offlining, though, however ...
+>>>
+>> 
+>> Seems I get a little understanding on this part.
+>> 
+>> There are two hotplug:
+>>    * CPU hotplug 
+>>    * Memory hotplug.
+>> 
+>> There are two phase for Memory hotplug:
+>>    * physical add/remove 
+>>    * logical online/offline
+>> 
+>> All of them are protected by device_hotplug_lock now, so we need to be
+>> careful to release this in any case. Is my understanding correct?
+>
+>Yes, e.g. the acpi driver always held the device_hotplug_lock (due to
+>possible problems with concurrent cpu/memory hot(un)plug). Onlining
+>offlining of devices (including cpu/memory) from user space always held
+>the device_hotplug_lock. So this part was executed sequentially for a
+>long time.
+>
+>I recently made sure that any adding/removing/onlining/offlining
+>correctly grabs the device_hotplug_lock AND the mem_hotplug_lock in any
+>case (because it was inconsistent and broken), so it is all executed
+>sequentially.
+>
+>So when getting rid of mem_hotplug_lock we only have to care about all
+>users that don't take the device_hotplug_lock.
+>
 
-Currently the online_pages phase is protected by the global lock
-mem_hotplug_begin(), which ensures there is no contention during the
-update of nr_zones. But this global lock introduces scalability issues.
+Thanks for your sharing.
 
-The patch moves init_currently_empty_zone under both zone_span_writelock
-and pgdat_resize_lock because both the pgdat state is changed (nr_zones)
-and the zone's start_pfn. Also this patch changes the documentation
-of node_size_lock to include the protectioin of nr_zones.
+So there are two global locks to protect the hotplug procedure.
 
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
-CC: David Hildenbrand <david@redhat.com>
+  * device_hotplug_lock
+  * mem_hotplug_lock
 
----
-David, I may not catch you exact comment on the code or changelog. If I
-missed, just let me know.
+Seems even removing mem_hotplug_lock doesn't help much on scalability?
 
----
-v3:
-  * slightly modify the last paragraph of changelog based on Michal's
-    comment
-v2:
-  * commit log changes
-  * modify the code in move_pfn_range_to_zone() instead of in
-    init_currently_empty_zone()
-  * pgdat_resize_lock documentation change
----
- include/linux/mmzone.h | 7 ++++---
- mm/memory_hotplug.c    | 5 ++---
- 2 files changed, 6 insertions(+), 6 deletions(-)
+Maybe we need to move one by one.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 3d0c472438d2..37d9c5c3faa6 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -635,9 +635,10 @@ typedef struct pglist_data {
- #endif
- #if defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_DEFERRED_STRUCT_PAGE_INIT)
- 	/*
--	 * Must be held any time you expect node_start_pfn, node_present_pages
--	 * or node_spanned_pages stay constant.  Holding this will also
--	 * guarantee that any pfn_valid() stays that way.
-+	 * Must be held any time you expect node_start_pfn,
-+	 * node_present_pages, node_spanned_pages or nr_zones stay constant.
-+	 * Holding this will also guarantee that any pfn_valid() stays that
-+	 * way.
- 	 *
- 	 * pgdat_resize_lock() and pgdat_resize_unlock() are provided to
- 	 * manipulate node_size_lock without checking for CONFIG_MEMORY_HOTPLUG
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 61972da38d93..f626e7e5f57b 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -742,14 +742,13 @@ void __ref move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
- 	int nid = pgdat->node_id;
- 	unsigned long flags;
- 
--	if (zone_is_empty(zone))
--		init_currently_empty_zone(zone, start_pfn, nr_pages);
--
- 	clear_zone_contiguous(zone);
- 
- 	/* TODO Huh pgdat is irqsave while zone is not. It used to be like that before */
- 	pgdat_resize_lock(pgdat, &flags);
- 	zone_span_writelock(zone);
-+	if (zone_is_empty(zone))
-+		init_currently_empty_zone(zone, start_pfn, nr_pages);
- 	resize_zone_range(zone, start_pfn, nr_pages);
- 	zone_span_writeunlock(zone);
- 	resize_pgdat_range(pgdat, start_pfn, nr_pages);
 -- 
-2.15.1
+Wei Yang
+Help you, Help me
