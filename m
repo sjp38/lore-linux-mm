@@ -1,144 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A332A6B4753
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 05:21:39 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id j10so17204192wrt.11
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 02:21:39 -0800 (PST)
-Received: from www62.your-server.de (www62.your-server.de. [213.133.104.62])
-        by mx.google.com with ESMTPS id j11si2766435wrx.187.2018.11.27.02.21.37
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 540256B44A9
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 19:19:22 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id h9so8918584pgm.1
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 16:19:22 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id e6si1799596pgl.471.2018.11.26.16.19.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 27 Nov 2018 02:21:38 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Nov 2018 16:19:21 -0800 (PST)
+From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
 Subject: Re: [PATCH v9 RESEND 0/4] KASLR feature to randomize each loadable
  module
+Date: Tue, 27 Nov 2018 00:19:19 +0000
+Message-ID: <54dafdec825859afc85a3bd651f9e850e57a59dc.camel@intel.com>
 References: <20181120232312.30037-1-rick.p.edgecombe@intel.com>
- <20181126153611.GA17169@linux-8ccs>
- <54dafdec825859afc85a3bd651f9e850e57a59dc.camel@intel.com>
-From: Daniel Borkmann <daniel@iogearbox.net>
-Message-ID: <76b6ffbc-8c44-75ab-382b-ad281c20c2bf@iogearbox.net>
-Date: Tue, 27 Nov 2018 11:21:20 +0100
-MIME-Version: 1.0
-In-Reply-To: <54dafdec825859afc85a3bd651f9e850e57a59dc.camel@intel.com>
-Content-Type: text/plain; charset=utf-8
+	 <20181126153611.GA17169@linux-8ccs>
+In-Reply-To: <20181126153611.GA17169@linux-8ccs>
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <DD9162A81F3AB248B951FE31C65C3B37@intel.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>, "jeyu@kernel.org" <jeyu@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "jannh@google.com" <jannh@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "willy@infradead.org" <willy@infradead.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "arjan@linux.intel.com" <arjan@linux.intel.com>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "mingo@redhat.com" <mingo@redhat.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "Hansen, Dave" <dave.hansen@intel.com>, alexei.starovoitov@gmail.com, netdev@vger.kernel.org
+To: "jeyu@kernel.org" <jeyu@kernel.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "jannh@google.com" <jannh@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "willy@infradead.org" <willy@infradead.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "arjan@linux.intel.com" <arjan@linux.intel.com>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "mingo@redhat.com" <mingo@redhat.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "Hansen, Dave" <dave.hansen@intel.com>
 
-On 11/27/2018 01:19 AM, Edgecombe, Rick P wrote:
-> On Mon, 2018-11-26 at 16:36 +0100, Jessica Yu wrote:
->> +++ Rick Edgecombe [20/11/18 15:23 -0800]:
-> [snip]
->> Hi Rick!
->>
->> Sorry for the delay. I'd like to take a step back and ask some broader
->> questions -
->>
->> - Is the end goal of this patchset to randomize loading kernel modules, or
->> most/all
->>    executable kernel memory allocations, including bpf, kprobes, etc?
-> Thanks for taking a look!
-> 
-> It started with the goal of just randomizing modules (hence the name), but I
-> think there is maybe value in randomizing the placement of all runtime added
-> executable code. Beyond just trying to make executable code placement less
-> deterministic in general, today all of the usages have the property of starting
-> with RW permissions and then becoming RO executable, so there is the benefit of
-> narrowing the chances a bug could successfully write to it during the RW window.
-> 
->> - It seems that a lot of complexity and heuristics are introduced just to
->>    accommodate the potential fragmentation that can happen when the module
->> vmalloc
->>    space starts to get fragmented with bpf filters. I'm partial to the idea of
->>    splitting or having bpf own its own vmalloc space, similar to what Ard is
->> already
->>    implementing for arm64.
->>
->>    So a question for the bpf and x86 folks, is having a dedicated vmalloc
->> region
->>    (as well as a seperate bpf_alloc api) for bpf feasible or desirable on
->> x86_64?
-> I actually did some prototyping and testing on this. It seems there would be
-> some slowdown from the required changes to the JITed code to support calling
-> back from the vmalloc region into the kernel, and so module space would still be
-> the preferred region.
-
-Yes, any runtime slow-down would be no-go as BPF sits in the middle of critical
-networking fast-path and e.g. on XDP or tc layer and is used in load-balancing,
-firewalling, DDoS protection scenarios, some recent examples in [0-3].
-
-  [0] http://vger.kernel.org/lpc-networking2018.html#session-10
-  [1] http://vger.kernel.org/lpc-networking2018.html#session-15
-  [2] https://blog.cloudflare.com/how-to-drop-10-million-packets/
-  [3] http://vger.kernel.org/lpc-bpf2018.html#session-1
-
->>    If bpf filters need to be within 2 GB of the core kernel, would it make
->> sense
->>    to carve out a portion of the current module region for bpf
->> filters?  According
->>    to Documentation/x86/x86_64/mm.txt, the module region is ~1.5 GB. I am
->> doubtful
->>    that any real system will actually have 1.5 GB worth of kernel modules
->> loaded.
->>    Is there a specific reason why that much space is dedicated to kernel
->> modules,
->>    and would it be feasible to split that region cleanly with bpf?
-> Hopefully someone from BPF side of things will chime in, but my understanding
-> was that they would like even more space than today if possible and so they may
-> not like the reduced space.
-
-I wouldn't mind of the region is split as Jessica suggests but in a way where
-there would be _no_ runtime regressions for BPF. This might also allow to have
-more flexibility in sizing the area dedicated for BPF in future, and could
-potentially be done in similar way as Ard was proposing recently [4].
-
-  [4] https://patchwork.ozlabs.org/project/netdev/list/?series=77779
-
-> Also with KASLR on x86 its actually only 1GB, so it would only be 500MB per
-> section (assuming kprobes, etc would share the non-module region, so just two
-> sections).
-> 
->> - If bpf gets its own dedicated vmalloc space, and we stick to the single task
->>    of randomizing *just* kernel modules, could the vmalloc optimizations and
->> the
->>    "backup" area be dropped? The benefits of the vmalloc optimizations seem to
->>    only be noticeable when we get to thousands of module_alloc allocations -
->>    again, a concern caused by bpf filters sharing the same space with kernel
->>    modules.
-> I think the backup area may still be needed, for example if you have 200 modules
-> evenly spaced inside 500MB there is only average ~2.5MB gap between them. So a
-> late added large module could still get blocked.
-> 
->>    So tldr, it seems to me that the concern of fragmentation, the vmalloc
->>    optimizations, and the main purpose of the backup area - basically, the
->> more
->>    complex parts of this patchset - stems squarely from the fact that bpf
->> filters
->>    share the same space as modules on x86. If we were to focus on randomizing
->>    *just* kernel modules, and if bpf and modules had their own dedicated
->> regions,
->>    then I *think* the concrete use cases for the backup area and the vmalloc
->>    optimizations (if we're strictly considering just kernel modules) would
->>    mostly disappear (please correct me if I'm in the wrong here). Then
->> tackling the
->>    randomization of bpf allocations could potentially be a separate task on
->> its own.
-> Yes it seems then the vmalloc optimizations could be dropped then, but I don't
-> think the backup area could be. Also the entropy would go down since there would
-> be less possible positions and we would reduce the space available to BPF. So
-> there are some downsides just to remove the vmalloc piece.
-> 
-> Is your concern that vmalloc optimizations might regress something else? There
-> is a middle ground vmalloc optimization where only the try_purge flag is plumbed
-> through. The flag was most of the performance gained and with just that piece it
-> should not change any behavior for the non-modules flows. Would that be more
-> acceptable?
-> 
->> Thanks!
->>
->> Jessica
->>
-> [snip]
-> 
+T24gTW9uLCAyMDE4LTExLTI2IGF0IDE2OjM2ICswMTAwLCBKZXNzaWNhIFl1IHdyb3RlOg0KPiAr
+KysgUmljayBFZGdlY29tYmUgWzIwLzExLzE4IDE1OjIzIC0wODAwXToNCltzbmlwXQ0KPiBIaSBS
+aWNrIQ0KPiANCj4gU29ycnkgZm9yIHRoZSBkZWxheS4gSSdkIGxpa2UgdG8gdGFrZSBhIHN0ZXAg
+YmFjayBhbmQgYXNrIHNvbWUgYnJvYWRlcg0KPiBxdWVzdGlvbnMgLQ0KPiANCj4gLSBJcyB0aGUg
+ZW5kIGdvYWwgb2YgdGhpcyBwYXRjaHNldCB0byByYW5kb21pemUgbG9hZGluZyBrZXJuZWwgbW9k
+dWxlcywgb3INCj4gbW9zdC9hbGwNCj4gICAgZXhlY3V0YWJsZSBrZXJuZWwgbWVtb3J5IGFsbG9j
+YXRpb25zLCBpbmNsdWRpbmcgYnBmLCBrcHJvYmVzLCBldGM/DQpUaGFua3MgZm9yIHRha2luZyBh
+IGxvb2shDQoNCkl0IHN0YXJ0ZWQgd2l0aCB0aGUgZ29hbCBvZiBqdXN0IHJhbmRvbWl6aW5nIG1v
+ZHVsZXMgKGhlbmNlIHRoZSBuYW1lKSwgYnV0IEkNCnRoaW5rIHRoZXJlIGlzIG1heWJlIHZhbHVl
+IGluIHJhbmRvbWl6aW5nIHRoZSBwbGFjZW1lbnQgb2YgYWxsIHJ1bnRpbWUgYWRkZWQNCmV4ZWN1
+dGFibGUgY29kZS4gQmV5b25kIGp1c3QgdHJ5aW5nIHRvIG1ha2UgZXhlY3V0YWJsZSBjb2RlIHBs
+YWNlbWVudCBsZXNzDQpkZXRlcm1pbmlzdGljIGluIGdlbmVyYWwsIHRvZGF5IGFsbCBvZiB0aGUg
+dXNhZ2VzIGhhdmUgdGhlIHByb3BlcnR5IG9mIHN0YXJ0aW5nDQp3aXRoIFJXIHBlcm1pc3Npb25z
+IGFuZCB0aGVuIGJlY29taW5nIFJPIGV4ZWN1dGFibGUsIHNvIHRoZXJlIGlzIHRoZSBiZW5lZml0
+IG9mDQpuYXJyb3dpbmcgdGhlIGNoYW5jZXMgYSBidWcgY291bGQgc3VjY2Vzc2Z1bGx5IHdyaXRl
+IHRvIGl0IGR1cmluZyB0aGUgUlcgd2luZG93Lg0KDQo+IC0gSXQgc2VlbXMgdGhhdCBhIGxvdCBv
+ZiBjb21wbGV4aXR5IGFuZCBoZXVyaXN0aWNzIGFyZSBpbnRyb2R1Y2VkIGp1c3QgdG8NCj4gICAg
+YWNjb21tb2RhdGUgdGhlIHBvdGVudGlhbCBmcmFnbWVudGF0aW9uIHRoYXQgY2FuIGhhcHBlbiB3
+aGVuIHRoZSBtb2R1bGUNCj4gdm1hbGxvYw0KPiAgICBzcGFjZSBzdGFydHMgdG8gZ2V0IGZyYWdt
+ZW50ZWQgd2l0aCBicGYgZmlsdGVycy4gSSdtIHBhcnRpYWwgdG8gdGhlIGlkZWEgb2YNCj4gICAg
+c3BsaXR0aW5nIG9yIGhhdmluZyBicGYgb3duIGl0cyBvd24gdm1hbGxvYyBzcGFjZSwgc2ltaWxh
+ciB0byB3aGF0IEFyZCBpcw0KPiBhbHJlYWR5DQo+ICAgIGltcGxlbWVudGluZyBmb3IgYXJtNjQu
+DQo+IA0KPiAgICBTbyBhIHF1ZXN0aW9uIGZvciB0aGUgYnBmIGFuZCB4ODYgZm9sa3MsIGlzIGhh
+dmluZyBhIGRlZGljYXRlZCB2bWFsbG9jDQo+IHJlZ2lvbg0KPiAgICAoYXMgd2VsbCBhcyBhIHNl
+cGVyYXRlIGJwZl9hbGxvYyBhcGkpIGZvciBicGYgZmVhc2libGUgb3IgZGVzaXJhYmxlIG9uDQo+
+IHg4Nl82ND8NCkkgYWN0dWFsbHkgZGlkIHNvbWUgcHJvdG90eXBpbmcgYW5kIHRlc3Rpbmcgb24g
+dGhpcy4gSXQgc2VlbXMgdGhlcmUgd291bGQgYmUNCnNvbWUgc2xvd2Rvd24gZnJvbSB0aGUgcmVx
+dWlyZWQgY2hhbmdlcyB0byB0aGUgSklUZWQgY29kZSB0byBzdXBwb3J0IGNhbGxpbmcNCmJhY2sg
+ZnJvbSB0aGUgdm1hbGxvYyByZWdpb24gaW50byB0aGUga2VybmVsLCBhbmQgc28gbW9kdWxlIHNw
+YWNlIHdvdWxkIHN0aWxsIGJlDQp0aGUgcHJlZmVycmVkIHJlZ2lvbi4NCg0KPiAgICBJZiBicGYg
+ZmlsdGVycyBuZWVkIHRvIGJlIHdpdGhpbiAyIEdCIG9mIHRoZSBjb3JlIGtlcm5lbCwgd291bGQg
+aXQgbWFrZQ0KPiBzZW5zZQ0KPiAgICB0byBjYXJ2ZSBvdXQgYSBwb3J0aW9uIG9mIHRoZSBjdXJy
+ZW50IG1vZHVsZSByZWdpb24gZm9yIGJwZg0KPiBmaWx0ZXJzPyAgQWNjb3JkaW5nDQo+ICAgIHRv
+IERvY3VtZW50YXRpb24veDg2L3g4Nl82NC9tbS50eHQsIHRoZSBtb2R1bGUgcmVnaW9uIGlzIH4x
+LjUgR0IuIEkgYW0NCj4gZG91YnRmdWwNCj4gICAgdGhhdCBhbnkgcmVhbCBzeXN0ZW0gd2lsbCBh
+Y3R1YWxseSBoYXZlIDEuNSBHQiB3b3J0aCBvZiBrZXJuZWwgbW9kdWxlcw0KPiBsb2FkZWQuDQo+
+ICAgIElzIHRoZXJlIGEgc3BlY2lmaWMgcmVhc29uIHdoeSB0aGF0IG11Y2ggc3BhY2UgaXMgZGVk
+aWNhdGVkIHRvIGtlcm5lbA0KPiBtb2R1bGVzLA0KPiAgICBhbmQgd291bGQgaXQgYmUgZmVhc2li
+bGUgdG8gc3BsaXQgdGhhdCByZWdpb24gY2xlYW5seSB3aXRoIGJwZj8NCkhvcGVmdWxseSBzb21l
+b25lIGZyb20gQlBGIHNpZGUgb2YgdGhpbmdzIHdpbGwgY2hpbWUgaW4sIGJ1dCBteSB1bmRlcnN0
+YW5kaW5nDQp3YXMgdGhhdCB0aGV5IHdvdWxkIGxpa2UgZXZlbiBtb3JlIHNwYWNlIHRoYW4gdG9k
+YXkgaWYgcG9zc2libGUgYW5kIHNvIHRoZXkgbWF5DQpub3QgbGlrZSB0aGUgcmVkdWNlZCBzcGFj
+ZS4NCg0KQWxzbyB3aXRoIEtBU0xSIG9uIHg4NiBpdHMgYWN0dWFsbHkgb25seSAxR0IsIHNvIGl0
+IHdvdWxkIG9ubHkgYmUgNTAwTUIgcGVyDQpzZWN0aW9uIChhc3N1bWluZyBrcHJvYmVzLCBldGMg
+d291bGQgc2hhcmUgdGhlIG5vbi1tb2R1bGUgcmVnaW9uLCBzbyBqdXN0IHR3bw0Kc2VjdGlvbnMp
+Lg0KDQo+IC0gSWYgYnBmIGdldHMgaXRzIG93biBkZWRpY2F0ZWQgdm1hbGxvYyBzcGFjZSwgYW5k
+IHdlIHN0aWNrIHRvIHRoZSBzaW5nbGUgdGFzaw0KPiAgICBvZiByYW5kb21pemluZyAqanVzdCog
+a2VybmVsIG1vZHVsZXMsIGNvdWxkIHRoZSB2bWFsbG9jIG9wdGltaXphdGlvbnMgYW5kDQo+IHRo
+ZQ0KPiAgICAiYmFja3VwIiBhcmVhIGJlIGRyb3BwZWQ/IFRoZSBiZW5lZml0cyBvZiB0aGUgdm1h
+bGxvYyBvcHRpbWl6YXRpb25zIHNlZW0gdG8NCj4gICAgb25seSBiZSBub3RpY2VhYmxlIHdoZW4g
+d2UgZ2V0IHRvIHRob3VzYW5kcyBvZiBtb2R1bGVfYWxsb2MgYWxsb2NhdGlvbnMgLQ0KPiAgICBh
+Z2FpbiwgYSBjb25jZXJuIGNhdXNlZCBieSBicGYgZmlsdGVycyBzaGFyaW5nIHRoZSBzYW1lIHNw
+YWNlIHdpdGgga2VybmVsDQo+ICAgIG1vZHVsZXMuDQpJIHRoaW5rIHRoZSBiYWNrdXAgYXJlYSBt
+YXkgc3RpbGwgYmUgbmVlZGVkLCBmb3IgZXhhbXBsZSBpZiB5b3UgaGF2ZSAyMDAgbW9kdWxlcw0K
+ZXZlbmx5IHNwYWNlZCBpbnNpZGUgNTAwTUIgdGhlcmUgaXMgb25seSBhdmVyYWdlIH4yLjVNQiBn
+YXAgYmV0d2VlbiB0aGVtLiBTbyBhDQpsYXRlIGFkZGVkIGxhcmdlIG1vZHVsZSBjb3VsZCBzdGls
+bCBnZXQgYmxvY2tlZC4NCg0KPiAgICBTbyB0bGRyLCBpdCBzZWVtcyB0byBtZSB0aGF0IHRoZSBj
+b25jZXJuIG9mIGZyYWdtZW50YXRpb24sIHRoZSB2bWFsbG9jDQo+ICAgIG9wdGltaXphdGlvbnMs
+IGFuZCB0aGUgbWFpbiBwdXJwb3NlIG9mIHRoZSBiYWNrdXAgYXJlYSAtIGJhc2ljYWxseSwgdGhl
+DQo+IG1vcmUNCj4gICAgY29tcGxleCBwYXJ0cyBvZiB0aGlzIHBhdGNoc2V0IC0gc3RlbXMgc3F1
+YXJlbHkgZnJvbSB0aGUgZmFjdCB0aGF0IGJwZg0KPiBmaWx0ZXJzDQo+ICAgIHNoYXJlIHRoZSBz
+YW1lIHNwYWNlIGFzIG1vZHVsZXMgb24geDg2LiBJZiB3ZSB3ZXJlIHRvIGZvY3VzIG9uIHJhbmRv
+bWl6aW5nDQo+ICAgICpqdXN0KiBrZXJuZWwgbW9kdWxlcywgYW5kIGlmIGJwZiBhbmQgbW9kdWxl
+cyBoYWQgdGhlaXIgb3duIGRlZGljYXRlZA0KPiByZWdpb25zLA0KPiAgICB0aGVuIEkgKnRoaW5r
+KiB0aGUgY29uY3JldGUgdXNlIGNhc2VzIGZvciB0aGUgYmFja3VwIGFyZWEgYW5kIHRoZSB2bWFs
+bG9jDQo+ICAgIG9wdGltaXphdGlvbnMgKGlmIHdlJ3JlIHN0cmljdGx5IGNvbnNpZGVyaW5nIGp1
+c3Qga2VybmVsIG1vZHVsZXMpIHdvdWxkDQo+ICAgIG1vc3RseSBkaXNhcHBlYXIgKHBsZWFzZSBj
+b3JyZWN0IG1lIGlmIEknbSBpbiB0aGUgd3JvbmcgaGVyZSkuIFRoZW4NCj4gdGFja2xpbmcgdGhl
+DQo+ICAgIHJhbmRvbWl6YXRpb24gb2YgYnBmIGFsbG9jYXRpb25zIGNvdWxkIHBvdGVudGlhbGx5
+IGJlIGEgc2VwYXJhdGUgdGFzayBvbg0KPiBpdHMgb3duLg0KWWVzIGl0IHNlZW1zIHRoZW4gdGhl
+IHZtYWxsb2Mgb3B0aW1pemF0aW9ucyBjb3VsZCBiZSBkcm9wcGVkIHRoZW4sIGJ1dCBJIGRvbid0
+DQp0aGluayB0aGUgYmFja3VwIGFyZWEgY291bGQgYmUuIEFsc28gdGhlIGVudHJvcHkgd291bGQg
+Z28gZG93biBzaW5jZSB0aGVyZSB3b3VsZA0KYmUgbGVzcyBwb3NzaWJsZSBwb3NpdGlvbnMgYW5k
+IHdlIHdvdWxkIHJlZHVjZSB0aGUgc3BhY2UgYXZhaWxhYmxlIHRvIEJQRi4gU28NCnRoZXJlIGFy
+ZSBzb21lIGRvd25zaWRlcyBqdXN0IHRvIHJlbW92ZSB0aGUgdm1hbGxvYyBwaWVjZS4NCg0KSXMg
+eW91ciBjb25jZXJuIHRoYXQgdm1hbGxvYyBvcHRpbWl6YXRpb25zIG1pZ2h0IHJlZ3Jlc3Mgc29t
+ZXRoaW5nIGVsc2U/IFRoZXJlDQppcyBhIG1pZGRsZSBncm91bmQgdm1hbGxvYyBvcHRpbWl6YXRp
+b24gd2hlcmUgb25seSB0aGUgdHJ5X3B1cmdlIGZsYWcgaXMgcGx1bWJlZA0KdGhyb3VnaC4gVGhl
+IGZsYWcgd2FzIG1vc3Qgb2YgdGhlIHBlcmZvcm1hbmNlIGdhaW5lZCBhbmQgd2l0aCBqdXN0IHRo
+YXQgcGllY2UgaXQNCnNob3VsZCBub3QgY2hhbmdlIGFueSBiZWhhdmlvciBmb3IgdGhlIG5vbi1t
+b2R1bGVzIGZsb3dzLiBXb3VsZCB0aGF0IGJlIG1vcmUNCmFjY2VwdGFibGU/DQoNCj4gVGhhbmtz
+IQ0KPiANCj4gSmVzc2ljYQ0KPiANCltzbmlwXQ0K
