@@ -1,63 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 95C306B2B90
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 06:52:23 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id c33so4581490otb.18
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 03:52:23 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 8si20740171oth.87.2018.11.22.03.52.22
-        for <linux-mm@kvack.org>;
-        Thu, 22 Nov 2018 03:52:22 -0800 (PST)
-Subject: Re: [PATCH 0/7] ACPI HMAT memory sysfs representation
-References: <20181114224902.12082-1-keith.busch@intel.com>
- <1ed406b2-b85f-8e02-1df0-7c39aa21eca9@arm.com>
- <4ea6e80f-80ba-6992-8aa0-5c2d88996af7@intel.com>
- <b79804b0-32ee-03f9-fa62-a89684d46be6@arm.com>
- <c6abb754-0d82-8739-fe08-24e9402bae75@intel.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <aae34dde-fa70-870a-9b74-fff9e385bfc9@arm.com>
-Date: Thu, 22 Nov 2018 17:22:19 +0530
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 99D2D6B494D
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:56:14 -0500 (EST)
+Received: by mail-wm1-f70.google.com with SMTP id o76so16748003wmg.4
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:56:14 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r7sor3151229wru.16.2018.11.27.08.56.12
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 27 Nov 2018 08:56:13 -0800 (PST)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH v12 13/25] kasan, arm64: fix up fault handling logic
+Date: Tue, 27 Nov 2018 17:55:31 +0100
+Message-Id: <a54fe8c8c11948b0ac8c8b285fb36f845217c84a.1543337629.git.andreyknvl@google.com>
+In-Reply-To: <cover.1543337629.git.andreyknvl@google.com>
+References: <cover.1543337629.git.andreyknvl@google.com>
 MIME-Version: 1.0
-In-Reply-To: <c6abb754-0d82-8739-fe08-24e9402bae75@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Keith Busch <keith.busch@intel.com>, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dan Williams <dan.j.williams@intel.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
+Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
+Right now arm64 fault handling code removes pointer tags from addresses
+covered by TTBR0 in faults taken from both EL0 and EL1, but doesn't do
+that for pointers covered by TTBR1.
 
+This patch adds two helper functions is_ttbr0_addr() and is_ttbr1_addr(),
+where the latter one accounts for the fact that TTBR1 pointers might be
+tagged when tag-based KASAN is in use, and uses these helper functions to
+perform pointer checks in arch/arm64/mm/fault.c.
 
-On 11/19/2018 11:07 PM, Dave Hansen wrote:
-> On 11/18/18 9:44 PM, Anshuman Khandual wrote:
->> IIUC NUMA re-work in principle involves these functional changes
->>
->> 1. Enumerating compute and memory nodes in heterogeneous environment (short/medium term)
-> 
-> This patch set _does_ that, though.
-> 
->> 2. Enumerating memory node attributes as seen from the compute nodes (short/medium term)
-> 
-> It does that as well (a subset at least).
-> 
-> It sounds like the subset that's being exposed is insufficient for yo
-> We did that because we think doing anything but a subset in sysfs will
-> just blow up sysfs:  MAX_NUMNODES is as high as 1024, so if we have 4
-> attributes, that's at _least_ 1024*1024*4 files if we expose *all*
-> combinations.
-Each permutation need not be a separate file inside all possible NODE X
-(/sys/devices/system/node/nodeX) directories. It can be a top level file
-enumerating various attribute values for a given (X, Y) node pair based
-on an offset something like /proc/pid/pagemap.
+Suggested-by: Mark Rutland <mark.rutland@arm.com>
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+---
+ arch/arm64/mm/fault.c | 31 ++++++++++++++++++++++---------
+ 1 file changed, 22 insertions(+), 9 deletions(-)
 
-> 
-> Do we agree that sysfs is unsuitable for exposing attributes in this manner?
-> 
-
-Yes, for individual files. But this can be worked around with an offset
-based access from a top level global attributes file as mentioned above.
-Is there any particular advantage of using individual files for each
-given attribute ? I was wondering that a single unsigned long (u64) will
-be able to pack 8 different attributes where each individual attribute
-values can be abstracted out in 8 bits.
+diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
+index 7d9571f4ae3d..c1d98f0a3086 100644
+--- a/arch/arm64/mm/fault.c
++++ b/arch/arm64/mm/fault.c
+@@ -40,6 +40,7 @@
+ #include <asm/daifflags.h>
+ #include <asm/debug-monitors.h>
+ #include <asm/esr.h>
++#include <asm/kasan.h>
+ #include <asm/sysreg.h>
+ #include <asm/system_misc.h>
+ #include <asm/pgtable.h>
+@@ -132,6 +133,18 @@ static void mem_abort_decode(unsigned int esr)
+ 		data_abort_decode(esr);
+ }
+ 
++static inline bool is_ttbr0_addr(unsigned long addr)
++{
++	/* entry assembly clears tags for TTBR0 addrs */
++	return addr < TASK_SIZE;
++}
++
++static inline bool is_ttbr1_addr(unsigned long addr)
++{
++	/* TTBR1 addresses may have a tag if KASAN_SW_TAGS is in use */
++	return arch_kasan_reset_tag(addr) >= VA_START;
++}
++
+ /*
+  * Dump out the page tables associated with 'addr' in the currently active mm.
+  */
+@@ -141,7 +154,7 @@ void show_pte(unsigned long addr)
+ 	pgd_t *pgdp;
+ 	pgd_t pgd;
+ 
+-	if (addr < TASK_SIZE) {
++	if (is_ttbr0_addr(addr)) {
+ 		/* TTBR0 */
+ 		mm = current->active_mm;
+ 		if (mm == &init_mm) {
+@@ -149,7 +162,7 @@ void show_pte(unsigned long addr)
+ 				 addr);
+ 			return;
+ 		}
+-	} else if (addr >= VA_START) {
++	} else if (is_ttbr1_addr(addr)) {
+ 		/* TTBR1 */
+ 		mm = &init_mm;
+ 	} else {
+@@ -254,7 +267,7 @@ static inline bool is_el1_permission_fault(unsigned long addr, unsigned int esr,
+ 	if (fsc_type == ESR_ELx_FSC_PERM)
+ 		return true;
+ 
+-	if (addr < TASK_SIZE && system_uses_ttbr0_pan())
++	if (is_ttbr0_addr(addr) && system_uses_ttbr0_pan())
+ 		return fsc_type == ESR_ELx_FSC_FAULT &&
+ 			(regs->pstate & PSR_PAN_BIT);
+ 
+@@ -319,7 +332,7 @@ static void set_thread_esr(unsigned long address, unsigned int esr)
+ 	 * type", so we ignore this wrinkle and just return the translation
+ 	 * fault.)
+ 	 */
+-	if (current->thread.fault_address >= TASK_SIZE) {
++	if (!is_ttbr0_addr(current->thread.fault_address)) {
+ 		switch (ESR_ELx_EC(esr)) {
+ 		case ESR_ELx_EC_DABT_LOW:
+ 			/*
+@@ -455,7 +468,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
+ 		mm_flags |= FAULT_FLAG_WRITE;
+ 	}
+ 
+-	if (addr < TASK_SIZE && is_el1_permission_fault(addr, esr, regs)) {
++	if (is_ttbr0_addr(addr) && is_el1_permission_fault(addr, esr, regs)) {
+ 		/* regs->orig_addr_limit may be 0 if we entered from EL0 */
+ 		if (regs->orig_addr_limit == KERNEL_DS)
+ 			die_kernel_fault("access to user memory with fs=KERNEL_DS",
+@@ -603,7 +616,7 @@ static int __kprobes do_translation_fault(unsigned long addr,
+ 					  unsigned int esr,
+ 					  struct pt_regs *regs)
+ {
+-	if (addr < TASK_SIZE)
++	if (is_ttbr0_addr(addr))
+ 		return do_page_fault(addr, esr, regs);
+ 
+ 	do_bad_area(addr, esr, regs);
+@@ -758,7 +771,7 @@ asmlinkage void __exception do_el0_ia_bp_hardening(unsigned long addr,
+ 	 * re-enabled IRQs. If the address is a kernel address, apply
+ 	 * BP hardening prior to enabling IRQs and pre-emption.
+ 	 */
+-	if (addr > TASK_SIZE)
++	if (!is_ttbr0_addr(addr))
+ 		arm64_apply_bp_hardening();
+ 
+ 	local_daif_restore(DAIF_PROCCTX);
+@@ -771,7 +784,7 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
+ 					   struct pt_regs *regs)
+ {
+ 	if (user_mode(regs)) {
+-		if (instruction_pointer(regs) > TASK_SIZE)
++		if (!is_ttbr0_addr(instruction_pointer(regs)))
+ 			arm64_apply_bp_hardening();
+ 		local_daif_restore(DAIF_PROCCTX);
+ 	}
+@@ -825,7 +838,7 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
+ 	if (interrupts_enabled(regs))
+ 		trace_hardirqs_off();
+ 
+-	if (user_mode(regs) && instruction_pointer(regs) > TASK_SIZE)
++	if (user_mode(regs) && !is_ttbr0_addr(instruction_pointer(regs)))
+ 		arm64_apply_bp_hardening();
+ 
+ 	if (!inf->fn(addr, esr, regs)) {
+-- 
+2.20.0.rc0.387.gc7a69e6b6c-goog
