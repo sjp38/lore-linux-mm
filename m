@@ -1,57 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DA70C6B319B
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 10:49:06 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id c3so6037376eda.3
-        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 07:49:06 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d1si4199018edd.122.2018.11.23.07.49.05
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C0DB6B4945
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:56:07 -0500 (EST)
+Received: by mail-wm1-f70.google.com with SMTP id t62-v6so16769760wmg.6
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:56:07 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g18sor3093315wrw.3.2018.11.27.08.56.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Nov 2018 07:49:05 -0800 (PST)
-Subject: Re: [RFC PATCH 3/3] mm, proc: report PR_SET_THP_DISABLE in proc
-References: <20181120103515.25280-1-mhocko@kernel.org>
- <20181120103515.25280-4-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <d07d9742-e7dc-0fe7-c4be-3bd9a60fde98@suse.cz>
-Date: Fri, 23 Nov 2018 16:49:04 +0100
+        (Google Transport Security);
+        Tue, 27 Nov 2018 08:56:05 -0800 (PST)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH v12 09/25] arm64: move untagged_addr macro from uaccess.h to memory.h
+Date: Tue, 27 Nov 2018 17:55:27 +0100
+Message-Id: <432ef6686a25b49244f54c4dfd86bc4b20381d8a.1543337629.git.andreyknvl@google.com>
+In-Reply-To: <cover.1543337629.git.andreyknvl@google.com>
+References: <cover.1543337629.git.andreyknvl@google.com>
 MIME-Version: 1.0
-In-Reply-To: <20181120103515.25280-4-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-api@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
+Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-On 11/20/18 11:35 AM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> David Rientjes has reported that 1860033237d4 ("mm: make
-> PR_SET_THP_DISABLE immediately active") has changed the way how
-> we report THPable VMAs to the userspace. Their monitoring tool is
-> triggering false alarms on PR_SET_THP_DISABLE tasks because it considers
-> an insufficient THP usage as a memory fragmentation resp. memory
-> pressure issue.
-> 
-> Before the said commit each newly created VMA inherited VM_NOHUGEPAGE
-> flag and that got exposed to the userspace via /proc/<pid>/smaps file.
-> This implementation had its downsides as explained in the commit message
-> but it is true that the userspace doesn't have any means to query for
-> the process wide THP enabled/disabled status.
-> 
-> PR_SET_THP_DISABLE is a process wide flag so it makes a lot of sense
-> to export in the process wide context rather than per-vma. Introduce
+Move the untagged_addr() macro from arch/arm64/include/asm/uaccess.h
+to arch/arm64/include/asm/memory.h to be later reused by KASAN.
 
-Agreed.
+Also make the untagged_addr() macro accept all kinds of address types
+(void *, unsigned long, etc.). This allows not to specify type casts in
+each place where the macro is used. This is done by using __typeof__.
 
-> a new field to /proc/<pid>/status which export this status.  If
-> PR_SET_THP_DISABLE is used then it reports false same as when the THP is
-> not compiled in. It doesn't consider the global THP status because we
-> already export that information via sysfs
-> 
-> Fixes: 1860033237d4 ("mm: make PR_SET_THP_DISABLE immediately active")
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+Acked-by: Mark Rutland <mark.rutland@arm.com>
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+---
+ arch/arm64/include/asm/memory.h  | 8 ++++++++
+ arch/arm64/include/asm/uaccess.h | 7 -------
+ 2 files changed, 8 insertions(+), 7 deletions(-)
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
+index 05fbc7ffcd31..e2c9857157f2 100644
+--- a/arch/arm64/include/asm/memory.h
++++ b/arch/arm64/include/asm/memory.h
+@@ -211,6 +211,14 @@ static inline unsigned long kaslr_offset(void)
+  */
+ #define PHYS_PFN_OFFSET	(PHYS_OFFSET >> PAGE_SHIFT)
+ 
++/*
++ * When dealing with data aborts, watchpoints, or instruction traps we may end
++ * up with a tagged userland pointer. Clear the tag to get a sane pointer to
++ * pass on to access_ok(), for instance.
++ */
++#define untagged_addr(addr)	\
++	((__typeof__(addr))sign_extend64((u64)(addr), 55))
++
+ /*
+  * Physical vs virtual RAM address space conversion.  These are
+  * private definitions which should NOT be used outside memory.h
+diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
+index 07c34087bd5e..281a1e47263d 100644
+--- a/arch/arm64/include/asm/uaccess.h
++++ b/arch/arm64/include/asm/uaccess.h
+@@ -96,13 +96,6 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
+ 	return ret;
+ }
+ 
+-/*
+- * When dealing with data aborts, watchpoints, or instruction traps we may end
+- * up with a tagged userland pointer. Clear the tag to get a sane pointer to
+- * pass on to access_ok(), for instance.
+- */
+-#define untagged_addr(addr)		sign_extend64(addr, 55)
+-
+ #define access_ok(type, addr, size)	__range_ok(addr, size)
+ #define user_addr_max			get_fs
+ 
+-- 
+2.20.0.rc0.387.gc7a69e6b6c-goog
