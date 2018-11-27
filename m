@@ -1,52 +1,78 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Qian Cai <cai@gmx.us>
-Subject: [PATCH] mm/memblock: skip kmemleak for kasan_init()
-Date: Wed, 28 Nov 2018 12:40:33 -0500
-Message-Id: <1543426833-24378-1-git-send-email-cai@gmx.us>
-Sender: linux-kernel-owner@vger.kernel.org
-To: akpm@linux-foundation.org
-Cc: catalin.marinas@arm.com, mhocko@suse.com, rppt@linux.vnet.ibm.com, aryabinin@virtuozzo.com, glider@google.com, dvyukov@google.com, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Qian Cai <cai@gmx.us>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 978146B49B1
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 12:48:00 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id t72so7754237pfi.21
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 09:48:00 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id w2si4172850pgs.264.2018.11.27.09.47.59
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Nov 2018 09:47:59 -0800 (PST)
+Date: Tue, 27 Nov 2018 10:44:57 -0700
+From: Keith Busch <keith.busch@intel.com>
+Subject: Re: [PATCH 2/7] node: Add heterogenous memory performance
+Message-ID: <20181127174457.GB6401@localhost.localdomain>
+References: <20181114224921.12123-2-keith.busch@intel.com>
+ <20181114224921.12123-3-keith.busch@intel.com>
+ <CAPcyv4jNpgzpfG1awrxspTeQ1JOK-4-Wu6Kb6cd6NGY6Atj3cg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4jNpgzpfG1awrxspTeQ1JOK-4-Wu6Kb6cd6NGY6Atj3cg@mail.gmail.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux ACPI <linux-acpi@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Greg KH <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>
 
-Kmemleak does not play well with KASAN (tested on both HPE Apollo 70 and
-Huawei TaiShan 2280 aarch64 servers).
+On Mon, Nov 26, 2018 at 11:00:09PM -0800, Dan Williams wrote:
+> On Wed, Nov 14, 2018 at 2:53 PM Keith Busch <keith.busch@intel.com> wrote:
+> >
+> > Heterogeneous memory systems provide memory nodes with latency
+> > and bandwidth performance attributes that are different from other
+> > nodes. Create an interface for the kernel to register these attributes
+> > under the node that provides the memory. If the system provides this
+> > information, applications can query the node attributes when deciding
+> > which node to request memory.
+> >
+> > When multiple memory initiators exist, accessing the same memory target
+> > from each may not perform the same as the other. The highest performing
+> > initiator to a given target is considered to be a local initiator for
+> > that target. The kernel provides performance attributes only for the
+> > local initiators.
+> >
+> > The memory's compute node should be symlinked in sysfs as one of the
+> > node's initiators.
+> >
+> > The following example shows the new sysfs hierarchy for a node exporting
+> > performance attributes:
+> >
+> >   # tree /sys/devices/system/node/nodeY/initiator_access
+> >   /sys/devices/system/node/nodeY/initiator_access
+> >   |-- read_bandwidth
+> >   |-- read_latency
+> >   |-- write_bandwidth
+> >   `-- write_latency
+> 
+> With the expectation that there will be nodes that are initiator-only,
+> target-only, or both I think this interface should indicate that. The
+> 1:1 "local" designation of HMAT should not be directly encoded in the
+> interface, it's just a shortcut for finding at least one initiator in
+> the set that can realize the advertised performance. At least if the
+> interface can enumerate the set of initiators then it becomes clear
+> whether sysfs can answer a performance enumeration question or if the
+> application needs to consult an interface with specific knowledge of a
+> given initiator-target pairing.
+> 
+> It seems a precursor to these patches is arranges for offline node
+> devices to be created for the ACPI proximity domains that are
+> offline-by default for reserved memory ranges.
 
-After calling start_kernel()->setup_arch()->kasan_init(), kmemleak early
-log buffer went from something like 280 to 260000 which caused kmemleak
-disabled and crash dump memory reservation failed. The multitude of
-kmemleak_alloc() calls is from,
+The intention is that all initiators symlinked to the memory node share
+the initiator_access attributes, as well as itself the node is its own
+initiator. There's no limit to how many the new kernel interface in
+patch 1/7 allows you to register, so it's not really a 1:1 relationship.
 
-for_each_memblock(memory, reg) x \
-while (pgdp++, addr = next, addr != end) x \
-while (pudp++, addr = next, addr != end && pud_none(READ_ONCE(*pudp))) \
-while (pmdp++, addr = next, addr != end && pmd_none(READ_ONCE(*pmdp))) \
-while (ptep++, addr = next, addr != end && pte_none(READ_ONCE(*ptep)))
-
-Signed-off-by: Qian Cai <cai@gmx.us>
----
- mm/memblock.c | 3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 9a2d5ae..fd78e39 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1412,6 +1412,8 @@ static void * __init memblock_alloc_internal(
- done:
- 	ptr = phys_to_virt(alloc);
- 
-+/* Skip kmemleak for kasan_init() due to high volume. */
-+#ifndef CONFIG_KASAN
- 	/*
- 	 * The min_count is set to 0 so that bootmem allocated blocks
- 	 * are never reported as leaks. This is because many of these blocks
-@@ -1419,6 +1421,7 @@ static void * __init memblock_alloc_internal(
- 	 * looked up by kmemleak.
- 	 */
- 	kmemleak_alloc(ptr, size, 0, 0);
-+#endif
- 
- 	return ptr;
- }
--- 
-1.8.3.1
+Either instead or in addition to the symlinks, we can export a node_mask
+in the initiator_access directory for which these access attributes
+apply if that makes the intention more clear.
