@@ -1,79 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 346436B31A4
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 10:58:38 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id o17so4333254pgi.14
-        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 07:58:38 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b11-v6sor54467121pla.12.2018.11.23.07.58.36
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D6036B48A6
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 10:20:29 -0500 (EST)
+Received: by mail-wm1-f70.google.com with SMTP id g3so3715332wmf.1
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 07:20:29 -0800 (PST)
+Received: from unicorn.mansr.com (unicorn.mansr.com. [2001:8b0:ca0d:8d8e::2])
+        by mx.google.com with ESMTPS id q184-v6si3323643wma.41.2018.11.27.07.20.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 23 Nov 2018 07:58:36 -0800 (PST)
-Date: Fri, 23 Nov 2018 18:58:31 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv3 1/3] x86/mm: Move LDT remap out of KASLR region on
- 5-level paging
-Message-ID: <20181123155831.ewkrq4r27rne75mz@kshutemo-mobl1>
-References: <20181026122856.66224-1-kirill.shutemov@linux.intel.com>
- <20181026122856.66224-2-kirill.shutemov@linux.intel.com>
- <20181110122905.GA2653@MiWiFi-R3L-srv>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Nov 2018 07:20:27 -0800 (PST)
+From: =?iso-8859-1?Q?M=E5ns_Rullg=E5rd?= <mans@mansr.com>
+Subject: Re: [PATCH] mm: fix insert_pfn() return value
+References: <20181127144351.9137-1-mans@mansr.com>
+	<20181127150852.GA10377@bombadil.infradead.org>
+Date: Tue, 27 Nov 2018 15:20:24 +0000
+In-Reply-To: <20181127150852.GA10377@bombadil.infradead.org> (Matthew Wilcox's
+	message of "Tue, 27 Nov 2018 07:08:52 -0800")
+Message-ID: <yw1x8t1elf7r.fsf@mansr.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181110122905.GA2653@MiWiFi-R3L-srv>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, tglx@linutronix.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org, boris.ostrovsky@oracle.com, jgross@suse.com, willy@infradead.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, Nov 10, 2018 at 08:29:05PM +0800, Baoquan He wrote:
-> > diff --git a/Documentation/x86/x86_64/mm.txt b/Documentation/x86/x86_64/mm.txt
-> > index 702898633b00..75bff98928a8 100644
-> > --- a/Documentation/x86/x86_64/mm.txt
-> > +++ b/Documentation/x86/x86_64/mm.txt
-> > @@ -34,23 +34,24 @@ __________________|____________|__________________|_________|___________________
-> >  ____________________________________________________________|___________________________________________________________
-> >                    |            |                  |         |
-> >   ffff800000000000 | -128    TB | ffff87ffffffffff |    8 TB | ... guard hole, also reserved for hypervisor
-> > - ffff880000000000 | -120    TB | ffffc7ffffffffff |   64 TB | direct mapping of all physical memory (page_offset_base)
-> > - ffffc80000000000 |  -56    TB | ffffc8ffffffffff |    1 TB | ... unused hole
-> > + ffff880000000000 | -120    TB | ffff887fffffffff |  0.5 TB | LDT remap for PTI
-> > + ffff888000000000 | -119.5  TB | ffffc87fffffffff |   64 TB | direct mapping of all physical memory (page_offset_base)
-> > + ffffc88000000000 |  -55.5  TB | ffffc8ffffffffff |  0.5 TB | ... unused hole
-> 
-> Hi Kirill,
-> 
-> Thanks for this fix. One small concern is whether we can put LDT
-> remap in other place, e.g shrink KASAN area and save one pgd size for
-> it, Just from Redhat's enterprise relase point of view, we don't
-> enable CONFIG_KASAN, and LDT is rarely used for server, now cutting one
-> block from the direct mapping area and moving it up one pgd slot seems a
-> little too abrupt. Does KASAN really cost 16 TB in 4-level and 8 PB in
-> 5-level? After all the direct mapping is the core mapping and has been
-> there always, LDT remap is kind of not so core and important mapping.
-> Just a very perceptual feeling.
+Matthew Wilcox <willy@infradead.org> writes:
 
-Sorry for late reply.
+> On Tue, Nov 27, 2018 at 02:43:51PM +0000, Mans Rullgard wrote:
+>> Commit 9b5a8e00d479 ("mm: convert insert_pfn() to vm_fault_t") accidenta=
+lly
+>> made insert_pfn() always return an error.  Fix this.
+>
+> Umm.  VM_FAULT_NOPAGE is not an error.  It's saying "I inserted the PFN,
+> there's no struct page for the core VM to do anything with".  Which is
+> the correct response from a device driver which has called insert_pfn().
+>
+> Could you explain a bit more what led you to think there's a problem here?
 
-KASAN requires one byte of shadow memory per 8 bytes of target memory, so,
-yeah, we need 16 TiB of virtual address space with 4-level paging.
+Apparently some (not in mainline) driver code had been hastily converted
+to the vm_fault_t codes, and that is where the error is.  Sorry for the
+noise.  Please disregard this.
 
-With 5-level, we might save some address space as the limit for physical
-address space if 52-bit, not 55. I dedicated 55-bit address space because
-it was easier: just scale 4-level layout by factor of 9 and you'll get all
-nicely aligned without much thought (PGD translates to PGD, etc).
+(The quickest way to get the correct answer is still to send a bad
+patch.)
 
-There is also complication with KASAN layout. We have to have the same
-KASAN_SHADOW_OFFSET between 4- and 5-level paging to make boot time
-switching between paging modes work. The offset cannot be changed at
-runtime: it used as parameter to compiler. That's the reason KASAN area
-alignment looks strange.
+> Also, rather rude of you not to cc the patch author when you claim to
+> be fixing a bug in their patch.
 
-A possibly better solution would be to actually include LDT in KASLR:
-randomize the area along with direct mapping, vmalloc and vmemmap.
-But it's more complexity than I found reasonable for a fix.
+Sorry about that.  Blame the get-maintainers script.
 
-Do you want to try this? :)
-
--- 
- Kirill A. Shutemov
+--=20
+M=E5ns Rullg=E5rd
