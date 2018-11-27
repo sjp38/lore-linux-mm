@@ -1,104 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D47BE6B2EA3
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2018 07:37:49 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id 98so11470810qkp.22
-        for <linux-mm@kvack.org>; Fri, 23 Nov 2018 04:37:49 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z8si2646589qto.268.2018.11.23.04.37.48
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 526726B48F0
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:20:40 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id 68so14408424pfr.6
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:20:40 -0800 (PST)
+Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
+        by mx.google.com with ESMTPS id p26si5129609pli.225.2018.11.27.08.20.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Nov 2018 04:37:48 -0800 (PST)
-From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH v1] mm/memory_hotplug: drop "online" parameter from add_memory_resource()
-Date: Fri, 23 Nov 2018 13:37:40 +0100
-Message-Id: <20181123123740.27652-1-david@redhat.com>
+        Tue, 27 Nov 2018 08:20:38 -0800 (PST)
+From: Oscar Salvador <osalvador@suse.de>
+Subject: [PATCH v2 2/5] kernel, resource: Check for IORESOURCE_SYSRAM in release_mem_region_adjustable
+Date: Tue, 27 Nov 2018 17:20:02 +0100
+Message-Id: <20181127162005.15833-3-osalvador@suse.de>
+In-Reply-To: <20181127162005.15833-1-osalvador@suse.de>
+References: <20181127162005.15833-1-osalvador@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, David Hildenbrand <david@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Stefano Stabellini <sstabellini@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Oscar Salvador <osalvador@suse.de>, Pavel Tatashin <pasha.tatashin@oracle.com>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Arun KS <arunks@codeaurora.org>, Mathieu Malaterre <malat@debian.org>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com, dan.j.williams@intel.com, pavel.tatashin@microsoft.com, jglisse@redhat.com, Jonathan.Cameron@huawei.com, rafael@kernel.org, david@redhat.com, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
 
-User space should always be in charge of how to online memory and
-if memory should be onlined automatically in the kernel. Let's drop the
-parameter to overwrite this - XEN passes memhp_auto_online, just like
-add_memory(), so we can directly use that instead internally.
+This is a preparation for the next patch.
 
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Stefano Stabellini <sstabellini@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Oscar Salvador <osalvador@suse.de>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: David Hildenbrand <david@redhat.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Arun KS <arunks@codeaurora.org>
-Cc: Mathieu Malaterre <malat@debian.org>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Signed-off-by: David Hildenbrand <david@redhat.com>
+Currently, we only call release_mem_region_adjustable() in __remove_pages
+if the zone is not ZONE_DEVICE, because resources that belong to
+HMM/devm are being released by themselves with devm_release_mem_region.
+
+Since we do not want to touch any zone/page stuff during the removing
+of the memory (but during the offlining), we do not want to check for
+the zone here.
+So we need another way to tell release_mem_region_adjustable() to not
+realease the resource in case it belongs to HMM/devm.
+
+HMM/devm acquires/releases a resource through
+devm_request_mem_region/devm_release_mem_region.
+
+These resources have the flag IORESOURCE_MEM, while resources acquired by
+hot-add memory path (register_memory_resource()) contain
+IORESOURCE_SYSTEM_RAM.
+
+So, we can check for this flag in release_mem_region_adjustable, and if
+the resource does not contain such flag, we know that we are dealing with
+a HMM/devm resource, so we can back off.
+
+Signed-off-by: Oscar Salvador <osalvador@suse.de>
+Reviewed-by: David Hildenbrand <david@redhat.com>
+Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
 ---
- drivers/xen/balloon.c          | 2 +-
- include/linux/memory_hotplug.h | 2 +-
- mm/memory_hotplug.c            | 6 +++---
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ kernel/resource.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
 
-diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index 12148289debd..81ba448166cd 100644
---- a/drivers/xen/balloon.c
-+++ b/drivers/xen/balloon.c
-@@ -397,7 +397,7 @@ static enum bp_state reserve_additional_memory(void)
- 	mutex_unlock(&balloon_mutex);
- 	/* add_memory_resource() requires the device_hotplug lock */
- 	lock_device_hotplug();
--	rc = add_memory_resource(nid, resource, memhp_auto_online);
-+	rc = add_memory_resource(nid, resource);
- 	unlock_device_hotplug();
- 	mutex_lock(&balloon_mutex);
+diff --git a/kernel/resource.c b/kernel/resource.c
+index 0aaa95005a2e..e20cea416f1f 100644
+--- a/kernel/resource.c
++++ b/kernel/resource.c
+@@ -1266,6 +1266,21 @@ int release_mem_region_adjustable(struct resource *parent,
+ 			continue;
+ 		}
  
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 84e9ae205930..ebc99f29aeae 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -326,7 +326,7 @@ extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
- 		void *arg, int (*func)(struct memory_block *, void *));
- extern int __add_memory(int nid, u64 start, u64 size);
- extern int add_memory(int nid, u64 start, u64 size);
--extern int add_memory_resource(int nid, struct resource *resource, bool online);
-+extern int add_memory_resource(int nid, struct resource *resource);
- extern int arch_add_memory(int nid, u64 start, u64 size,
- 		struct vmem_altmap *altmap, bool want_memblock);
- extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 7b4317ae8318..7b64bbf645c3 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1096,7 +1096,7 @@ static int online_memory_block(struct memory_block *mem, void *arg)
-  *
-  * we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG
-  */
--int __ref add_memory_resource(int nid, struct resource *res, bool online)
-+int __ref add_memory_resource(int nid, struct resource *res)
- {
- 	u64 start, size;
- 	bool new_node = false;
-@@ -1151,7 +1151,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
- 	mem_hotplug_done();
++		/*
++		 * All memory regions added from memory-hotplug path have the
++		 * flag IORESOURCE_SYSTEM_RAM. If the resource does not have
++		 * this flag, we know that we are dealing with a resource coming
++		 * from HMM/devm. HMM/devm use another mechanism to add/release
++		 * a resource. This goes via devm_request_mem_region and
++		 * devm_release_mem_region.
++		 * HMM/devm take care to release their resources when they want,
++		 * so if we are dealing with them, let us just back off here.
++		 */
++		if (!(res->flags & IORESOURCE_SYSRAM)) {
++			ret = 0;
++			break;
++		}
++
+ 		if (!(res->flags & IORESOURCE_MEM))
+ 			break;
  
- 	/* online pages if requested */
--	if (online)
-+	if (memhp_auto_online)
- 		walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1),
- 				  NULL, online_memory_block);
- 
-@@ -1175,7 +1175,7 @@ int __ref __add_memory(int nid, u64 start, u64 size)
- 	if (IS_ERR(res))
- 		return PTR_ERR(res);
- 
--	ret = add_memory_resource(nid, res, memhp_auto_online);
-+	ret = add_memory_resource(nid, res);
- 	if (ret < 0)
- 		release_memory_resource(res);
- 	return ret;
 -- 
-2.17.2
+2.13.6
