@@ -1,266 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CF6806B3E4A
-	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 16:45:17 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id s50so8135561edd.11
-        for <linux-mm@kvack.org>; Sun, 25 Nov 2018 13:45:17 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id h23si8858682edb.114.2018.11.25.13.45.15
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 674046B4AEF
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 17:41:02 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id 68so15199785pfr.6
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 14:41:02 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p3sor1573506plo.56.2018.11.27.14.41.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Nov 2018 13:45:15 -0800 (PST)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAPLi5dM081493
-	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 16:45:14 -0500
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2p02202tx9-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 16:45:13 -0500
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Sun, 25 Nov 2018 21:45:11 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH 5/5] arch: simplify several early memory allocations
-Date: Sun, 25 Nov 2018 23:44:37 +0200
-In-Reply-To: <1543182277-8819-1-git-send-email-rppt@linux.ibm.com>
-References: <1543182277-8819-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1543182277-8819-6-git-send-email-rppt@linux.ibm.com>
+        (Google Transport Security);
+        Tue, 27 Nov 2018 14:41:01 -0800 (PST)
+Date: Tue, 27 Nov 2018 12:40:52 -1000
+From: Joey Pabalinas <joeypabalinas@gmail.com>
+Subject: Re: [PATCHi v2] mm: put_and_wait_on_page_locked() while page is
+ migrated
+Message-ID: <20181127224052.2zyxkdo4lbecq4cz@gmail.com>
+References: <alpine.LSU.2.11.1811241858540.4415@eggly.anvils>
+ <CAHk-=wjeqKYevxGnfCM4UkxX8k8xfArzM6gKkG3BZg1jBYThVQ@mail.gmail.com>
+ <alpine.LSU.2.11.1811251900300.1278@eggly.anvils>
+ <alpine.LSU.2.11.1811261121330.1116@eggly.anvils>
+ <20181127105848.GD16502@rapoport-lnx>
+ <alpine.LSU.2.11.1811271258070.4506@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha512;
+	protocol="application/pgp-signature"; boundary="rjiqytyomg5yqcqz"
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1811271258070.4506@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Jonas Bonn <jonas@southpole.se>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Mike Rapoport <rppt@linux.ibm.com>, Matthew Wilcox <willy@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, David Hildenbrand <david@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, David Herrmann <dh.herrmann@gmail.com>, Tim Chen <tim.c.chen@linux.intel.com>, Kan Liang <kan.liang@intel.com>, Andi Kleen <ak@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux.com>, Nick Piggin <npiggin@gmail.com>, pifang@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joey Pabalinas <joeypabalinas@gmail.com>
 
-There are several early memory allocations in arch/ code that use
-memblock_phys_alloc() to allocate memory, convert the returned physical
-address to the virtual address and then set the allocated memory to zero.
 
-Exactly the same behaviour can be achieved simply by calling
-memblock_alloc(): it allocates the memory in the same way as
-memblock_phys_alloc(), then it performs the phys_to_virt() conversion and
-clears the allocated memory.
+--rjiqytyomg5yqcqz
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Replace the longer sequence with a simpler call to memblock_alloc().
+On Tue, Nov 27, 2018 at 01:08:50PM -0800, Hugh Dickins wrote:
+> On Tue, 27 Nov 2018, Mike Rapoport wrote:
+> > On Mon, Nov 26, 2018 at 11:27:07AM -0800, Hugh Dickins wrote:
+> > >=20
+> > > +/*
+> > > + * A choice of three behaviors for wait_on_page_bit_common():
+> > > + */
+> > > +enum behavior {
+> > > +	EXCLUSIVE,	/* Hold ref to page and take the bit when woken, like
+> > > +			 * __lock_page() waiting on then setting PG_locked.
+> > > +			 */
+> > > +	SHARED,		/* Hold ref to page and check the bit when woken, like
+> > > +			 * wait_on_page_writeback() waiting on PG_writeback.
+> > > +			 */
+> > > +	DROP,		/* Drop ref to page before wait, no check when woken,
+> > > +			 * like put_and_wait_on_page_locked() on PG_locked.
+> > > +			 */
+> > > +};
+> >=20
+> > Can we please make it:
+> >=20
+> > /**
+> >  * enum behavior - a choice of three behaviors for wait_on_page_bit_com=
+mon()
+> >  */
+> > enum behavior {
+> > 	/**
+> > 	 * @EXCLUSIVE: Hold ref to page and take the bit when woken,
+> > 	 * like __lock_page() waiting on then setting %PG_locked.
+> > 	 */
+> > 	EXCLUSIVE,
+> > 	/**
+> > 	 * @SHARED: Hold ref to page and check the bit when woken,
+> > 	 * like wait_on_page_writeback() waiting on %PG_writeback.
+> > 	 */
+> > 	SHARED,
+> > 	/**
+> > 	 * @DROP: Drop ref to page before wait, no check when woken,
+> > 	 * like put_and_wait_on_page_locked() on %PG_locked.
+> > 	 */
+> > 	DROP,
+> > };
+>=20
+> I'm with Matthew, I'd prefer not: the first looks a more readable,
+> less cluttered comment to me than the second: this is just an arg
+> to an internal helper in mm/filemap.c, itself not kernel-doc'ed.
+>=20
+> But the comment is not there for me: if consensus is that the
+> second is preferable, then sure, we can change it over.
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
- arch/arm/mm/mmu.c                     |  4 +---
- arch/c6x/mm/dma-coherent.c            |  9 ++-------
- arch/nds32/mm/init.c                  | 12 ++++--------
- arch/powerpc/kernel/setup-common.c    |  4 ++--
- arch/powerpc/mm/pgtable_32.c          |  4 +---
- arch/powerpc/mm/ppc_mmu_32.c          |  3 +--
- arch/powerpc/platforms/powernv/opal.c |  3 +--
- arch/sparc/kernel/prom_64.c           |  7 ++-----
- arch/sparc/mm/init_64.c               |  9 +++------
- arch/unicore32/mm/mmu.c               |  4 +---
- 10 files changed, 18 insertions(+), 41 deletions(-)
+For something which is internal to a single file I strongly prefer
+the first as well.
 
-diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
-index f5cc1cc..0a04c9a5 100644
---- a/arch/arm/mm/mmu.c
-+++ b/arch/arm/mm/mmu.c
-@@ -721,9 +721,7 @@ EXPORT_SYMBOL(phys_mem_access_prot);
- 
- static void __init *early_alloc_aligned(unsigned long sz, unsigned long align)
- {
--	void *ptr = __va(memblock_phys_alloc(sz, align));
--	memset(ptr, 0, sz);
--	return ptr;
-+	return memblock_alloc(sz, align);
- }
- 
- static void __init *early_alloc(unsigned long sz)
-diff --git a/arch/c6x/mm/dma-coherent.c b/arch/c6x/mm/dma-coherent.c
-index 01305c7..ffc49e2 100644
---- a/arch/c6x/mm/dma-coherent.c
-+++ b/arch/c6x/mm/dma-coherent.c
-@@ -118,8 +118,6 @@ void arch_dma_free(struct device *dev, size_t size, void *vaddr,
-  */
- void __init coherent_mem_init(phys_addr_t start, u32 size)
- {
--	phys_addr_t bitmap_phys;
--
- 	if (!size)
- 		return;
- 
-@@ -135,11 +133,8 @@ void __init coherent_mem_init(phys_addr_t start, u32 size)
- 	if (dma_size & (PAGE_SIZE - 1))
- 		++dma_pages;
- 
--	bitmap_phys = memblock_phys_alloc(BITS_TO_LONGS(dma_pages) * sizeof(long),
--					  sizeof(long));
--
--	dma_bitmap = phys_to_virt(bitmap_phys);
--	memset(dma_bitmap, 0, dma_pages * PAGE_SIZE);
-+	dma_bitmap = memblock_alloc(BITS_TO_LONGS(dma_pages) * sizeof(long),
-+				    sizeof(long));
- }
- 
- static void c6x_dma_sync(struct device *dev, phys_addr_t paddr, size_t size,
-diff --git a/arch/nds32/mm/init.c b/arch/nds32/mm/init.c
-index 131104b..9f19be8 100644
---- a/arch/nds32/mm/init.c
-+++ b/arch/nds32/mm/init.c
-@@ -80,8 +80,7 @@ static void __init map_ram(void)
- 		}
- 
- 		/* Alloc one page for holding PTE's... */
--		pte = (pte_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
--		memset(pte, 0, PAGE_SIZE);
-+		pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
- 		set_pmd(pme, __pmd(__pa(pte) + _PAGE_KERNEL_TABLE));
- 
- 		/* Fill the newly allocated page with PTE'S */
-@@ -113,8 +112,7 @@ static void __init fixedrange_init(void)
- 	pgd = swapper_pg_dir + pgd_index(vaddr);
- 	pud = pud_offset(pgd, vaddr);
- 	pmd = pmd_offset(pud, vaddr);
--	fixmap_pmd_p = (pmd_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
--	memset(fixmap_pmd_p, 0, PAGE_SIZE);
-+	fixmap_pmd_p = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
- 	set_pmd(pmd, __pmd(__pa(fixmap_pmd_p) + _PAGE_KERNEL_TABLE));
- 
- #ifdef CONFIG_HIGHMEM
-@@ -126,8 +124,7 @@ static void __init fixedrange_init(void)
- 	pgd = swapper_pg_dir + pgd_index(vaddr);
- 	pud = pud_offset(pgd, vaddr);
- 	pmd = pmd_offset(pud, vaddr);
--	pte = (pte_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
--	memset(pte, 0, PAGE_SIZE);
-+	pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
- 	set_pmd(pmd, __pmd(__pa(pte) + _PAGE_KERNEL_TABLE));
- 	pkmap_page_table = pte;
- #endif /* CONFIG_HIGHMEM */
-@@ -152,8 +149,7 @@ void __init paging_init(void)
- 	fixedrange_init();
- 
- 	/* allocate space for empty_zero_page */
--	zero_page = __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
--	memset(zero_page, 0, PAGE_SIZE);
-+	zero_page = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
- 	zone_sizes_init();
- 
- 	empty_zero_page = virt_to_page(zero_page);
-diff --git a/arch/powerpc/kernel/setup-common.c b/arch/powerpc/kernel/setup-common.c
-index 93ee370..8f6c763 100644
---- a/arch/powerpc/kernel/setup-common.c
-+++ b/arch/powerpc/kernel/setup-common.c
-@@ -459,8 +459,8 @@ void __init smp_setup_cpu_maps(void)
- 
- 	DBG("smp_setup_cpu_maps()\n");
- 
--	cpu_to_phys_id = __va(memblock_phys_alloc(nr_cpu_ids * sizeof(u32), __alignof__(u32)));
--	memset(cpu_to_phys_id, 0, nr_cpu_ids * sizeof(u32));
-+	cpu_to_phys_id = memblock_alloc(nr_cpu_ids * sizeof(u32),
-+					__alignof__(u32));
- 
- 	for_each_node_by_type(dn, "cpu") {
- 		const __be32 *intserv;
-diff --git a/arch/powerpc/mm/pgtable_32.c b/arch/powerpc/mm/pgtable_32.c
-index bda3c6f..9931e68 100644
---- a/arch/powerpc/mm/pgtable_32.c
-+++ b/arch/powerpc/mm/pgtable_32.c
-@@ -50,9 +50,7 @@ __ref pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
- 	if (slab_is_available()) {
- 		pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
- 	} else {
--		pte = __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
--		if (pte)
--			clear_page(pte);
-+		pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
- 	}
- 	return pte;
- }
-diff --git a/arch/powerpc/mm/ppc_mmu_32.c b/arch/powerpc/mm/ppc_mmu_32.c
-index f6f575b..fddf823 100644
---- a/arch/powerpc/mm/ppc_mmu_32.c
-+++ b/arch/powerpc/mm/ppc_mmu_32.c
-@@ -224,8 +224,7 @@ void __init MMU_init_hw(void)
- 	 * Find some memory for the hash table.
- 	 */
- 	if ( ppc_md.progress ) ppc_md.progress("hash:find piece", 0x322);
--	Hash = __va(memblock_phys_alloc(Hash_size, Hash_size));
--	memset(Hash, 0, Hash_size);
-+	Hash = memblock_alloc(Hash_size, Hash_size);
- 	_SDR1 = __pa(Hash) | SDR1_LOW_BITS;
- 
- 	Hash_end = (struct hash_pte *) ((unsigned long)Hash + Hash_size);
-diff --git a/arch/powerpc/platforms/powernv/opal.c b/arch/powerpc/platforms/powernv/opal.c
-index beed86f..29ee2ea 100644
---- a/arch/powerpc/platforms/powernv/opal.c
-+++ b/arch/powerpc/platforms/powernv/opal.c
-@@ -171,8 +171,7 @@ int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
- 	/*
- 	 * Allocate a buffer to hold the MC recoverable ranges.
- 	 */
--	mc_recoverable_range =__va(memblock_phys_alloc(size, __alignof__(u64)));
--	memset(mc_recoverable_range, 0, size);
-+	mc_recoverable_range = memblock_alloc(size, __alignof__(u64));
- 
- 	for (i = 0; i < mc_recoverable_range_len; i++) {
- 		mc_recoverable_range[i].start_addr =
-diff --git a/arch/sparc/kernel/prom_64.c b/arch/sparc/kernel/prom_64.c
-index c37955d..2a17665 100644
---- a/arch/sparc/kernel/prom_64.c
-+++ b/arch/sparc/kernel/prom_64.c
-@@ -34,16 +34,13 @@
- 
- void * __init prom_early_alloc(unsigned long size)
- {
--	unsigned long paddr = memblock_phys_alloc(size, SMP_CACHE_BYTES);
--	void *ret;
-+	void *ret = memblock_alloc(size, SMP_CACHE_BYTES);
- 
--	if (!paddr) {
-+	if (!ret) {
- 		prom_printf("prom_early_alloc(%lu) failed\n", size);
- 		prom_halt();
- 	}
- 
--	ret = __va(paddr);
--	memset(ret, 0, size);
- 	prom_early_allocated += size;
- 
- 	return ret;
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index 3c8aac2..52884f4 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -1089,16 +1089,13 @@ static void __init allocate_node_data(int nid)
- 	struct pglist_data *p;
- 	unsigned long start_pfn, end_pfn;
- #ifdef CONFIG_NEED_MULTIPLE_NODES
--	unsigned long paddr;
- 
--	paddr = memblock_phys_alloc_try_nid(sizeof(struct pglist_data),
--					    SMP_CACHE_BYTES, nid);
--	if (!paddr) {
-+	NODE_DATA(nid) = memblock_alloc_node(sizeof(struct pglist_data),
-+					     SMP_CACHE_BYTES, nid);
-+	if (!NODE_DATA(nid)) {
- 		prom_printf("Cannot allocate pglist_data for nid[%d]\n", nid);
- 		prom_halt();
- 	}
--	NODE_DATA(nid) = __va(paddr);
--	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
- 
- 	NODE_DATA(nid)->node_id = nid;
- #endif
-diff --git a/arch/unicore32/mm/mmu.c b/arch/unicore32/mm/mmu.c
-index 040a8c2..50d8c1a 100644
---- a/arch/unicore32/mm/mmu.c
-+++ b/arch/unicore32/mm/mmu.c
-@@ -143,9 +143,7 @@ static void __init build_mem_type_table(void)
- 
- static void __init *early_alloc(unsigned long sz)
- {
--	void *ptr = __va(memblock_phys_alloc(sz, sz));
--	memset(ptr, 0, sz);
--	return ptr;
-+	return memblock_alloc(sz, sz);
- }
- 
- static pte_t * __init early_pte_alloc(pmd_t *pmd, unsigned long addr,
--- 
-2.7.4
+--=20
+Cheers,
+Joey Pabalinas
+
+--rjiqytyomg5yqcqz
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCgAdFiEENpTlWU2hUK/KMvHp2rGdfm9DtVIFAlv9x/MACgkQ2rGdfm9D
+tVKdGRAAut8v4nSlw2U4Hn42UtEqzpblfw3CUOpTTRO8TArXhZyq7cCQW9+rmfXf
+83gLqcfVwIt+jg9VqpORM6hFtotkwRtwBOM0ZO5KkcHKpgI1+z9UVTWI1ZYSwm67
+0CF/TyeRdNm3VP8WF1RG0CffG1ujTEZMF2sG0krVwKhBVNARD3hZSaI5jWBtxyJ0
+VnCiGrkzChqwoQDtRQaIb2DXNRd1w4GX2K+A3SJi7ALUvyPsk1+rrrsss+fHaEkB
+pZIy/5NNnOKvO3vxtxOSs2xWKVF5weBdjOCtr9UbZOY7BMpoZxAGCRSXxngk4K6a
+croT4+68OKW4OXmyHL2HXlHPuj9dRvHQXUXtBpYRPHdwz3QC9LK62nOo8FTjO6BK
+mwuoAu5pnkdZZJKLB4jIfiyPssBl6+gyYfkS5WVpNTtHXB4jdvSbyg4GGUdBUiuB
+zhv8SHNSsNpDL0SORZPkOpc6OYnvZVIa+tFyop7YWCeLh3GdMcKdKSxsynaizk3c
+w4cXc7E8vawHWEiEDOTp0/cbAh0ZJeU0H7WyJssdHsNEjL90dppsMxGrOTJs+U2+
+zjtB9te3QakLh48Y2nppuYy+9WH75Xs72lNHo+dN3wmuAQwUH74p+FPHSynh1yoE
+sj8tpBBYrkDcOlDlFuL+37U2Noo39zzfXMCoZeoMcEy01DC92iQ=
+=9Eyk
+-----END PGP SIGNATURE-----
+
+--rjiqytyomg5yqcqz--
