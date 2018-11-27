@@ -1,95 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A3AC6B2A3A
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 08:22:48 -0500 (EST)
-Received: by mail-ot1-f72.google.com with SMTP id c33so4696520otb.18
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 05:22:48 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id m18si7981438otp.53.2018.11.22.05.22.45
-        for <linux-mm@kvack.org>;
-        Thu, 22 Nov 2018 05:22:46 -0800 (PST)
-Subject: Re: [PATCH 2/7] node: Add heterogenous memory performance
-References: <20181114224921.12123-2-keith.busch@intel.com>
- <20181114224921.12123-3-keith.busch@intel.com>
- <91369e94-d389-7cb9-6274-f46c9ec779d3@arm.com>
- <20181119154604.GC23062@localhost.localdomain>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <2482fbdf-e672-8d46-edcb-021f7af8d9b7@arm.com>
-Date: Thu, 22 Nov 2018 18:52:43 +0530
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 01CA26B4AB8
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 16:49:01 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id q8so6131588edd.8
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 13:49:00 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id j5-v6si2287351ejz.265.2018.11.27.13.48.59
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Nov 2018 13:48:59 -0800 (PST)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wARLjJWV030135
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 16:48:58 -0500
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2p1cgrkxem-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 16:48:58 -0500
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Tue, 27 Nov 2018 21:48:55 -0000
+Date: Tue, 27 Nov 2018 23:48:45 +0200
+In-Reply-To: <20181127211600.GB3235@lianli.shorne-pla.net>
+References: <1543182277-8819-1-git-send-email-rppt@linux.ibm.com> <1543182277-8819-5-git-send-email-rppt@linux.ibm.com> <20181127211600.GB3235@lianli.shorne-pla.net>
 MIME-Version: 1.0
-In-Reply-To: <20181119154604.GC23062@localhost.localdomain>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+ charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 4/5] openrisc: simplify pte_alloc_one_kernel()
+From: Mike Rapoport <rppt@linux.ibm.com>
+Message-Id: <7843DE67-DCC3-48BF-873F-71D87B08EDA8@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Keith Busch <keith.busch@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: Stafford Horne <shorne@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Jonas Bonn <jonas@southpole.se>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org
 
 
 
-On 11/19/2018 09:16 PM, Keith Busch wrote:
-> On Mon, Nov 19, 2018 at 09:05:07AM +0530, Anshuman Khandual wrote:
->> On 11/15/2018 04:19 AM, Keith Busch wrote:
->>> Heterogeneous memory systems provide memory nodes with latency
->>> and bandwidth performance attributes that are different from other
->>> nodes. Create an interface for the kernel to register these attributes
->>
->> There are other properties like power consumption, reliability which can
->> be associated with a particular PA range. Also the set of properties has
->> to be extensible for the future.
-> 
-> Sure, I'm just starting with the attributes available from HMAT, 
-> If there are additional possible attributes that make sense to add, I
-> don't see why we can't continue appending them if this patch is okay.
+On November 27, 2018 11:16:00 PM GMT+02:00, Stafford Horne <shorne@gmail=
+=2Ecom> wrote:
+>On Sun, Nov 25, 2018 at 11:44:36PM +0200, Mike Rapoport wrote:
+>> The pte_alloc_one_kernel() function allocates a page using
+>> __get_free_page(GFP_KERNEL) when mm initialization is complete and
+>> memblock_phys_alloc() on the earlier stages=2E The physical address of
+>the
+>> page allocated with memblock_phys_alloc() is converted to the virtual
+>> address and in the both cases the allocated page is cleared using
+>> clear_page()=2E
+>>=20
+>> The code is simplified by replacing __get_free_page() with
+>> get_zeroed_page() and by replacing memblock_phys_alloc() with
+>> memblock_alloc()=2E
+>
+>Hello Mike,
+>
+>This looks fine to me=2E  How do you plan to get this merged?  Will you
+>be taking
+>care of the whole series or so you want me to queue this openrisc part?
 
-As I mentioned on the other thread
+I was thinking about merging via the -mm tree=2E
+Andrew, would that be ok?
 
-1) The interface needs to be compact to avoid large number of files
-2) Single U64 will be able to handle 8 attributes with 8 bit values
-3) 8 bit value needs needs to be arch independent and abstracted out
+>> Signed-off-by: Mike Rapoport <rppt@linux=2Eibm=2Ecom>
+>
+>Acked-by: Stafford Horne <shorne@gmail=2Ecom>
 
-I guess 8 attributes should be good enough for all type of memory in
-foreseeable future.
+Thanks!
 
->  
->>> under the node that provides the memory. If the system provides this
->>> information, applications can query the node attributes when deciding
->>> which node to request memory.
->>
->> Right but each (memory initiator, memory target) should have these above
->> mentioned properties enumerated to have an 'property as seen' from kind
->> of semantics.
->>
->>>
->>> When multiple memory initiators exist, accessing the same memory target
->>> from each may not perform the same as the other. The highest performing
->>> initiator to a given target is considered to be a local initiator for
->>> that target. The kernel provides performance attributes only for the
->>> local initiators.
->>
->> As mentioned above the interface must enumerate a future extensible set
->> of properties for each (memory initiator, memory target) pair available
->> on the system.
-> 
-> That seems less friendly to use if forces the application to figure out
-> which CPU is the best for a given memory node rather than just provide
-> that answer directly.
+>> ---
+>>  arch/openrisc/mm/ioremap=2Ec | 11 ++++-------
+>>  1 file changed, 4 insertions(+), 7 deletions(-)
+>>=20
+>> diff --git a/arch/openrisc/mm/ioremap=2Ec b/arch/openrisc/mm/ioremap=2E=
+c
+>> index c969752=2E=2Ecfef989 100644
+>> --- a/arch/openrisc/mm/ioremap=2Ec
+>> +++ b/arch/openrisc/mm/ioremap=2Ec
+>> @@ -123,13 +123,10 @@ pte_t __ref *pte_alloc_one_kernel(struct
+>mm_struct *mm,
+>>  {
+>>  	pte_t *pte;
+>> =20
+>> -	if (likely(mem_init_done)) {
+>> -		pte =3D (pte_t *) __get_free_page(GFP_KERNEL);
+>> -	} else {
+>> -		pte =3D (pte_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
+>> -	}
+>> +	if (likely(mem_init_done))
+>> +		pte =3D (pte_t *)get_zeroed_page(GFP_KERNEL);
+>> +	else
+>> +		pte =3D memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+>> =20
+>> -	if (pte)
+>> -		clear_page(pte);
+>>  	return pte;
+>>  }
+>> --=20
+>> 2=2E7=2E4
+>>=20
 
-Why ? The application would just have to scan all possible values out
-there and decide for itself. A complete set of attribute values for
-each pair makes the sysfs more comprehensive and gives the application
-more control over it's choices.
-
-> 
->>> The memory's compute node should be symlinked in sysfs as one of the
->>> node's initiators.
->>
->> Right. IIUC the first patch skips the linking process of for two nodes A
->> and B if (A == B) preventing association to local memory initiator.
-> 
-> Right, CPUs and memory sharing a proximity domain are assumed to be
-> local to each other, so not going to set up those links to itself.
-
-But this will be required for applications to evaluate correctly between
-possible values from all node pairs.
+--=20
+Sincerely yours,
+Mike=2E
