@@ -1,53 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C4A536B2C19
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 11:51:14 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id n32-v6so4706286edc.17
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 08:51:14 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x9-v6sor1058377edq.14.2018.11.22.08.51.13
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E5A1C6B4978
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 12:06:58 -0500 (EST)
+Received: by mail-io1-f70.google.com with SMTP id s10so22381104iop.16
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 09:06:58 -0800 (PST)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id z18si3009934ioj.17.2018.11.27.09.06.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 22 Nov 2018 08:51:13 -0800 (PST)
-From: Daniel Vetter <daniel.vetter@ffwll.ch>
-Subject: [PATCH 0/3] RFC: mmu notifier debug checks
-Date: Thu, 22 Nov 2018 17:51:03 +0100
-Message-Id: <20181122165106.18238-1-daniel.vetter@ffwll.ch>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Nov 2018 09:06:57 -0800 (PST)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
+Subject: Re: [RFC PATCH 3/3] mm, proc: report PR_SET_THP_DISABLE in proc
+From: William Kucharski <william.kucharski@oracle.com>
+In-Reply-To: <283f38d9-1142-60b6-0b84-7129b7f9781e@suse.cz>
+Date: Tue, 27 Nov 2018 10:06:50 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <5CB5F808-ECA8-4A4E-B942-7D69522E3FA4@oracle.com>
+References: <20181120103515.25280-1-mhocko@kernel.org>
+ <20181120103515.25280-4-mhocko@kernel.org>
+ <0ACDD94B-75AD-4DD0-B2E3-32C0EDFBAA5E@oracle.com>
+ <20181127131707.GW12455@dhcp22.suse.cz>
+ <04647F77-FE93-4A8E-90C1-4245709B88A5@oracle.com>
+ <283f38d9-1142-60b6-0b84-7129b7f9781e@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: Linux MM <linux-mm@kvack.org>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, Daniel Vetter <daniel.vetter@ffwll.ch>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-api@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Hi all,
 
-We're having some good fun with the i915 mmu notifier (it deadlocks), and
-I think it'd be very useful to have a bunch more runtime debug checks to
-catch screw-ups.
 
-I'm also working on some lockdep improvements in gpu code (better
-annotations and stuff like that). Together with this series here this
-seems to catch a lot of bugs pretty much instantly, which previously took
-hours/days of CI workloads to reproduce. Plus now you get nice backtraces
-and the kernel keeps working, whereas without this it's real deadlocks
-with piles of stuck processes (the deadlock needed at least 3 processes,
-but generally it took more to close the loop, plus everyone piling in on
-top).
+> On Nov 27, 2018, at 9:50 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>=20
+> On 11/27/18 3:50 PM, William Kucharski wrote:
+>>=20
+>> I was just double checking that this was meant to be more of a check =
+done
+>> before code elsewhere performs additional checks and does the actual =
+THP
+>> mapping, not an all-encompassing go/no go check for THP mapping.
+>=20
+> Yes, the code doing the actual mapping is still checking also =
+alignment etc.
 
-If this looks like a good idea I'm happy to polish it for merging.
-
-Thanks, Daniel
-
-Daniel Vetter (3):
-  mm: Check if mmu notifier callbacks are allowed to fail
-  mm, notifier: Catch sleeping/blocking for !blockable
-  mm, notifier: Add a lockdep map for invalidate_range_start
-
- include/linux/mmu_notifier.h |  7 +++++++
- mm/mmu_notifier.c            | 17 ++++++++++++++++-
- 2 files changed, 23 insertions(+), 1 deletion(-)
-
--- 
-2.19.1
+Thanks, yes, that is what I was getting at.
