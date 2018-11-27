@@ -1,31 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 978146B49B1
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 12:48:00 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id t72so7754237pfi.21
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 09:48:00 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id w2si4172850pgs.264.2018.11.27.09.47.59
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F34566B49AB
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 12:43:08 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id o13so4088209otl.20
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 09:43:08 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 201sor2178116oib.7.2018.11.27.09.43.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Nov 2018 09:47:59 -0800 (PST)
-Date: Tue, 27 Nov 2018 10:44:57 -0700
-From: Keith Busch <keith.busch@intel.com>
-Subject: Re: [PATCH 2/7] node: Add heterogenous memory performance
-Message-ID: <20181127174457.GB6401@localhost.localdomain>
-References: <20181114224921.12123-2-keith.busch@intel.com>
- <20181114224921.12123-3-keith.busch@intel.com>
- <CAPcyv4jNpgzpfG1awrxspTeQ1JOK-4-Wu6Kb6cd6NGY6Atj3cg@mail.gmail.com>
+        (Google Transport Security);
+        Tue, 27 Nov 2018 09:43:07 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+References: <20181114224921.12123-2-keith.busch@intel.com> <20181114224921.12123-3-keith.busch@intel.com>
+ <CAPcyv4jNpgzpfG1awrxspTeQ1JOK-4-Wu6Kb6cd6NGY6Atj3cg@mail.gmail.com>
 In-Reply-To: <CAPcyv4jNpgzpfG1awrxspTeQ1JOK-4-Wu6Kb6cd6NGY6Atj3cg@mail.gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 27 Nov 2018 09:42:54 -0800
+Message-ID: <CAPcyv4hMFc7K=FjHWiMVAiOxVC-s0itPjVTs_-7KrFhg4h_SXQ@mail.gmail.com>
+Subject: Re: [PATCH 2/7] node: Add heterogenous memory performance
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux ACPI <linux-acpi@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Greg KH <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>
+To: Keith Busch <keith.busch@intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux ACPI <linux-acpi@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Greg KH <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>
 
-On Mon, Nov 26, 2018 at 11:00:09PM -0800, Dan Williams wrote:
+On Mon, Nov 26, 2018 at 11:00 PM Dan Williams <dan.j.williams@intel.com> wrote:
+>
 > On Wed, Nov 14, 2018 at 2:53 PM Keith Busch <keith.busch@intel.com> wrote:
 > >
 > > Heterogeneous memory systems provide memory nodes with latency
@@ -53,7 +52,7 @@ On Mon, Nov 26, 2018 at 11:00:09PM -0800, Dan Williams wrote:
 > >   |-- read_latency
 > >   |-- write_bandwidth
 > >   `-- write_latency
-> 
+>
 > With the expectation that there will be nodes that are initiator-only,
 > target-only, or both I think this interface should indicate that. The
 > 1:1 "local" designation of HMAT should not be directly encoded in the
@@ -63,16 +62,14 @@ On Mon, Nov 26, 2018 at 11:00:09PM -0800, Dan Williams wrote:
 > whether sysfs can answer a performance enumeration question or if the
 > application needs to consult an interface with specific knowledge of a
 > given initiator-target pairing.
-> 
+
+Sorry, I misread patch1, this series does allow publishing the
+multi-initiator case that shares the same performance profile to a
+given target.
+
 > It seems a precursor to these patches is arranges for offline node
 > devices to be created for the ACPI proximity domains that are
 > offline-by default for reserved memory ranges.
 
-The intention is that all initiators symlinked to the memory node share
-the initiator_access attributes, as well as itself the node is its own
-initiator. There's no limit to how many the new kernel interface in
-patch 1/7 allows you to register, so it's not really a 1:1 relationship.
-
-Either instead or in addition to the symlinks, we can export a node_mask
-in the initiator_access directory for which these access attributes
-apply if that makes the intention more clear.
+Likely still need this though because node devices don't tend to show
+up until they have a cpu or online memory.
