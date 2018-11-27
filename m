@@ -1,99 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D7CB6B4396
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 15:38:05 -0500 (EST)
-Received: by mail-it1-f197.google.com with SMTP id v3so24353505itf.4
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 12:38:05 -0800 (PST)
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id m43-v6sor165869iti.0.2018.11.26.12.38.03
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BBE26B4466
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 18:56:27 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id o21so8270617edq.4
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 15:56:27 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id e19sor3372415edq.29.2018.11.27.15.56.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 26 Nov 2018 12:38:03 -0800 (PST)
+        Tue, 27 Nov 2018 15:56:25 -0800 (PST)
+Date: Tue, 27 Nov 2018 23:56:23 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH] mm, hotplug: protect nr_zones with pgdat_resize_lock()
+Message-ID: <20181127235623.oou7hhiiuxhyvofg@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181120014822.27968-1-richard.weiyang@gmail.com>
+ <20181120073141.GY22247@dhcp22.suse.cz>
+ <3ba8d8c524d86af52e4c1fddc2d45734@suse.de>
+ <20181121025231.ggk7zgq53nmqsqds@master>
+ <20181121071549.GG12932@dhcp22.suse.cz>
+ <CADZGycYghU=_vXR759mwFhvV=7KKu3z3h1FyWb4OeEMeOY5isg@mail.gmail.com>
+ <20181126081608.GE12455@dhcp22.suse.cz>
+ <20181127031200.46mu6moxcxat57wz@master>
+ <20181127131658.GV12455@dhcp22.suse.cz>
 MIME-Version: 1.0
-Date: Mon, 26 Nov 2018 12:38:03 -0800
-Message-ID: <00000000000043ae20057b974f14@google.com>
-Subject: WARNING: locking bug in lock_downgrade
-From: syzbot <syzbot+53383ae265fb161ef488@syzkaller.appspotmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181127131658.GV12455@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux@dominikbrodowski.net, mhocko@suse.com, rientjes@google.com, syzkaller-bugs@googlegroups.com, vbabka@suse.cz, yang.shi@linux.alibaba.com
+To: Michal Hocko <mhocko@suse.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, Oscar Salvador <osalvador@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
 
-Hello,
+On Tue, Nov 27, 2018 at 02:16:58PM +0100, Michal Hocko wrote:
+>On Tue 27-11-18 03:12:00, Wei Yang wrote:
+>> On Mon, Nov 26, 2018 at 09:16:08AM +0100, Michal Hocko wrote:
+>> >On Mon 26-11-18 10:28:40, Wei Yang wrote:
+>> >[...]
+>> >> But I get some difficulty to understand this TODO. You want to get rid of
+>> >> these lock? While these locks seem necessary to protect those data of
+>> >> pgdat/zone. Would you mind sharing more on this statement?
+>> >
+>> >Why do we need this lock to be irqsave? Is there any caller that uses
+>> >the lock from the IRQ context?
+>> 
+>> Went through the code, we have totally 9 place acquire
+>> pgdat_resize_lock:
+>> 
+>>    lib/show_mem.c:         1    show_mem()
+>>    mm/memory_hotplug.c:    4    online/offline_pages/__remove_zone()
+>>    mm/page_alloc.c:        2    defer_init
+>>    mm/sparse.c:            2    not necessary
+>> 
+>> Two places I am not sure:
+>> 
+>>    * show_mem() would be called from __alloc_pages_slowpath()
+>
+>This shouldn't really need the lock. It is a mostly debugging aid rather
+>than something that cannot tolarate racing with hotplug. What is the
+>worst case that can happen?
+>
 
-syzbot found the following crash on:
+Agree.
 
-HEAD commit:    e195ca6cb6f2 Merge branch 'for-linus' of git://git.kernel...
-git tree:       upstream
-console output: https://syzkaller.appspot.com/x/log.txt?x=12336ed5400000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=73e2bc0cb6463446
-dashboard link: https://syzkaller.appspot.com/bug?extid=53383ae265fb161ef488
-compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+The worst case is debug information is not exact in case defer init or
+hotplug happens at the same time. While this is a rare case.
 
-Unfortunately, I don't have any reproducer for this crash yet.
+If you think it is ok, I would suggest to remove the lock here.
 
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+53383ae265fb161ef488@syzkaller.appspotmail.com
+>>    * __remove_zone() is related to acpi_scan() on x86, may related to
+>>      other method on different arch
+>
+>This one really needs a lock qwith a larger scope anyway.
 
+Based on my understanding, __remove_zone() happens at physical memory
+remove phase. While for currently logic, we adjust zone information at
+logic memory online phase.
 
-------------[ cut here ]------------
-downgrading a read lock
-WARNING: CPU: 0 PID: 26202 at kernel/locking/lockdep.c:3556  
-__lock_downgrade kernel/locking/lockdep.c:3556 [inline]
-WARNING: CPU: 0 PID: 26202 at kernel/locking/lockdep.c:3556  
-lock_downgrade+0x4d7/0x900 kernel/locking/lockdep.c:3819
-Kernel panic - not syncing: panic_on_warn set ...
-CPU: 0 PID: 26202 Comm: blkid Not tainted 4.20.0-rc3+ #127
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x244/0x39d lib/dump_stack.c:113
-  panic+0x2ad/0x55c kernel/panic.c:188
-  __warn.cold.8+0x20/0x45 kernel/panic.c:540
-  report_bug+0x254/0x2d0 lib/bug.c:186
-  fixup_bug arch/x86/kernel/traps.c:178 [inline]
-  do_error_trap+0x11b/0x200 arch/x86/kernel/traps.c:271
-  do_invalid_op+0x36/0x40 arch/x86/kernel/traps.c:290
-  invalid_op+0x14/0x20 arch/x86/entry/entry_64.S:969
-RIP: 0010:__lock_downgrade kernel/locking/lockdep.c:3556 [inline]
-RIP: 0010:lock_downgrade+0x4d7/0x900 kernel/locking/lockdep.c:3819
-Code: 00 00 fc ff df 41 c6 44 05 00 f8 e9 1b ff ff ff 48 c7 c7 60 68 2b 88  
-4c 89 9d 58 ff ff ff 48 89 85 60 ff ff ff e8 d9 1f e7 ff <0f> 0b 48 8b 85  
-60 ff ff ff 4c 8d 4d d8 4c 89 e9 48 ba 00 00 00 00
-RSP: 0018:ffff8881ba547b70 EFLAGS: 00010086
-RAX: 0000000000000000 RBX: 1ffff110374a8f74 RCX: 0000000000000000
-RDX: 0000000000000000 RSI: ffffffff8165eaf5 RDI: 0000000000000006
-RBP: ffff8881ba547c28 R08: ffff88817c0b2400 R09: fffffbfff12b2254
-R10: fffffbfff12b2254 R11: ffffffff895912a3 R12: ffffffff8b0f67a0
-R13: ffff8881ba547bc0 R14: 0000000000000001 R15: ffff88817c0b2400
-  downgrade_write+0x76/0x270 kernel/locking/rwsem.c:147
-  __do_munmap+0xcd8/0xf80 mm/mmap.c:2812
-  __vm_munmap+0x138/0x1f0 mm/mmap.c:2837
-  __do_sys_munmap mm/mmap.c:2862 [inline]
-  __se_sys_munmap mm/mmap.c:2859 [inline]
-  __x64_sys_munmap+0x65/0x80 mm/mmap.c:2859
-  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x7f237e5ce417
-Code: f0 ff ff 73 01 c3 48 8d 0d 8a ad 20 00 31 d2 48 29 c2 89 11 48 83 c8  
-ff eb eb 90 90 90 90 90 90 90 90 90 b8 0b 00 00 00 0f 05 <48> 3d 01 f0 ff  
-ff 73 01 c3 48 8d 0d 5d ad 20 00 31 d2 48 29 c2 89
-RSP: 002b:00007ffe61bed9d8 EFLAGS: 00000203 ORIG_RAX: 000000000000000b
-RAX: ffffffffffffffda RBX: 00007f237e7d91c8 RCX: 00007f237e5ce417
-RDX: 000000000224ff00 RSI: 00000000000033ef RDI: 00007f237e7d1000
-RBP: 00007ffe61bedb40 R08: 0000000000000001 R09: 0000000000000007
-R10: 00007f237e5c8a0b R11: 0000000000000203 R12: 00000000b1f97d00
-R13: 000004b2b1f97d00 R14: 000004b2afd5fdeb R15: 00007f237e7ce740
-Kernel Offset: disabled
-Rebooting in 86400 seconds..
+They looks not consistent?
 
+If we could do this at logical memory offline phase, we are sure this is
+not in IRQ context.
 
----
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
+>-- 
+>Michal Hocko
+>SUSE Labs
 
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
-syzbot.
+-- 
+Wei Yang
+Help you, Help me
