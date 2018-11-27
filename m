@@ -1,20 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 93F166B4918
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:42:37 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id g63-v6so14462204pfc.9
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:42:37 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C81A6B4900
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:26:06 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id o21so7688213edq.4
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:26:06 -0800 (PST)
 Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
-        by mx.google.com with ESMTPS id 5-v6si4317046plt.408.2018.11.27.08.42.35
+        by mx.google.com with ESMTPS id k3-v6si27618ejr.219.2018.11.27.08.26.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Nov 2018 08:42:36 -0800 (PST)
+        Tue, 27 Nov 2018 08:26:04 -0800 (PST)
 From: Oscar Salvador <osalvador@suse.de>
 Subject: [PATCH v2 4/5] mm, memory-hotplug: Rework unregister_mem_sect_under_nodes
-Date: Tue, 27 Nov 2018 17:20:04 +0100
-Message-Id: <20181127162005.15833-5-osalvador@suse.de>
-In-Reply-To: <20181127162005.15833-1-osalvador@suse.de>
-References: <20181127162005.15833-1-osalvador@suse.de>
+Date: Tue, 27 Nov 2018 17:25:35 +0100
+Message-Id: <20181127162535.15910-1-osalvador@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
