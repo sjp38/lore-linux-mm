@@ -1,66 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0329E6B3ECB
-	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 18:55:40 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id ay11so19670413plb.20
-        for <linux-mm@kvack.org>; Sun, 25 Nov 2018 15:55:39 -0800 (PST)
-Received: from mxhk.zte.com.cn (mxhk.zte.com.cn. [63.217.80.70])
-        by mx.google.com with ESMTPS id k189si2757709pgd.589.2018.11.25.15.55.38
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D91E6B4957
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:56:23 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id t83so10516431oie.16
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:56:23 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k11sor1865563oif.101.2018.11.27.08.56.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Nov 2018 15:55:38 -0800 (PST)
-From: Yang Yang <yang.yang29@zte.com.cn>
-Subject: [PATCH] mm: do not consider SWAP to calculate available when not necessary
-Date: Mon, 26 Nov 2018 07:58:23 +0800
-Message-Id: <1543190303-8121-1-git-send-email-yang.yang29@zte.com.cn>
+        (Google Transport Security);
+        Tue, 27 Nov 2018 08:56:22 -0800 (PST)
+MIME-Version: 1.0
+References: <20181114224902.12082-1-keith.busch@intel.com> <1ed406b2-b85f-8e02-1df0-7c39aa21eca9@arm.com>
+ <4ea6e80f-80ba-6992-8aa0-5c2d88996af7@intel.com> <b79804b0-32ee-03f9-fa62-a89684d46be6@arm.com>
+ <c6abb754-0d82-8739-fe08-24e9402bae75@intel.com> <aae34dde-fa70-870a-9b74-fff9e385bfc9@arm.com>
+ <f5315662-5c1a-68a3-4d04-21b4b5ca94b1@intel.com> <ac942498-8966-6a9b-0e55-c79ae167c679@arm.com>
+ <9015e51a-3584-7bb2-cc5e-25b0ec8e5494@intel.com> <CAPcyv4jnnnXi9Fqaf-d7AdnKrTMDCWr-e9tAx+G6nphrEPYm=w@mail.gmail.com>
+ <b9962dfa-924f-77f7-a40f-407dd20e9082@intel.com> <CAPcyv4hVFMvut9+Rq7G41yyKzV072U33YEeHNh160VBr3QW-nw@mail.gmail.com>
+ <325d0e69-053a-ae9c-eede-7cdf28b1dbd6@arm.com>
+In-Reply-To: <325d0e69-053a-ae9c-eede-7cdf28b1dbd6@arm.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 27 Nov 2018 08:56:09 -0800
+Message-ID: <CAPcyv4iA+yA_OZMUSbJTV=c9=QsRAcLjzLK94uuVsMTaPu6eTg@mail.gmail.com>
+Subject: Re: [PATCH 0/7] ACPI HMAT memory sysfs representation
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, pavel.tatashin@microsoft.com, vbabka@suse.cz, osalvador@suse.de, rppt@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, alexander.h.duyck@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhong.weidong@zte.com.cn, wang.yi59@zte.com.cn, Yang Yang <yang.yang29@zte.com.cn>
+To: anshuman.khandual@arm.com
+Cc: Dave Hansen <dave.hansen@intel.com>, Keith Busch <keith.busch@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux ACPI <linux-acpi@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Greg KH <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>
 
-When si_mem_available() calculates 'available', it takes SWAP
-into account. But if CONFIG_SWAP is N or SWAP is off(some embedded system
-would like to do that), there is no need to consider it.
+On Tue, Nov 27, 2018 at 2:15 AM Anshuman Khandual
+<anshuman.khandual@arm.com> wrote:
+>
+>
+>
+> On 11/26/2018 11:38 PM, Dan Williams wrote:
+> > On Mon, Nov 26, 2018 at 8:42 AM Dave Hansen <dave.hansen@intel.com> wrote:
+> >>
+> >> On 11/23/18 1:13 PM, Dan Williams wrote:
+> >>>> A new system call makes total sense to me.  I have the same concern
+> >>>> about the completeness of what's exposed in sysfs, I just don't see a
+> >>>> _route_ to completeness with sysfs itself.  Thus, the minimalist
+> >>>> approach as a first step.
+> >>> Outside of platform-firmware-id to Linux-numa-node-id what other
+> >>> userspace API infrastructure does the kernel need to provide? It seems
+> >>> userspace enumeration of memory attributes is fully enabled once the
+> >>> firmware-to-Linux identification is established.
+> >>
+> >> It would be nice not to have each app need to know about each specific
+> >> platform's firmware.
+> >
+> > The app wouldn't need to know if it uses a common library. Whether the
+> > library calls into the kernel or not is an implementation detail. If
+> > it is information that only the app cares about and the kernel does
+> > not consume, why have a syscall?
+>
+> If we just care about platform-firmware-id <--> Linux-numa-node-id mapping
+> and fetching memory attribute from the platform (and hiding implementation
+> details in a library) then the following interface should be sufficient.
+>
+> /sys/devices/system/node/nodeX/platform_id
+>
+> But as the series proposes (and rightly so) kernel needs to start providing
+> ABI interfaces for memory attributes instead of hiding them in libraries.
 
-Signed-off-by: Yang Yang <yang.yang29@zte.com.cn>
----
- mm/page_alloc.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+Yes, I can get on board with sysfs providing a subset of the
+performance description for administrators to discover the common case
+via scripting and leave the exhaustive attribute description to a
+separate interface. I was pushing back on the notion that sysfs must
+be that exhaustive interface... we're making progress.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6847177..10e186b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4700,6 +4700,7 @@ static inline void show_node(struct zone *zone)
- 
- long si_mem_available(void)
- {
-+	struct sysinfo i;
- 	long available;
- 	unsigned long pagecache;
- 	unsigned long wmark_low = 0;
-@@ -4708,6 +4709,7 @@ long si_mem_available(void)
- 	struct zone *zone;
- 	int lru;
- 
-+	si_swapinfo(&i);
- 	for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
- 		pages[lru] = global_node_page_state(NR_LRU_BASE + lru);
- 
-@@ -4724,9 +4726,13 @@ long si_mem_available(void)
- 	 * Not all the page cache can be freed, otherwise the system will
- 	 * start swapping. Assume at least half of the page cache, or the
- 	 * low watermark worth of cache, needs to stay.
-+	 * But if CONFIG_SWAP is N or SWAP is off, do not consider it.
- 	 */
- 	pagecache = pages[LRU_ACTIVE_FILE] + pages[LRU_INACTIVE_FILE];
--	pagecache -= min(pagecache / 2, wmark_low);
-+#ifdef CONFIG_SWAP
-+	if (i.totalswap > 0)
-+		pagecache -= min(pagecache / 2, wmark_low);
-+#endif
- 	available += pagecache;
- 
- 	/*
--- 
-2.15.2
+I still think we need /sys/devices/system/node/nodeX/platform_id to
+enable higher order platform enumeration tooling, but that need not be
+the end of the kernel interface description.
