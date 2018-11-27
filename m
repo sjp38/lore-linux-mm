@@ -1,100 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BA216B4461
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 18:25:05 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id 74so12513874pfk.12
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 15:25:05 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h191sor2685046pge.48.2018.11.26.15.25.04
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A8926B4A56
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 15:24:19 -0500 (EST)
+Received: by mail-yw1-f72.google.com with SMTP id y65so14989711ywy.3
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 12:24:19 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id g4-v6si3227847ybq.491.2018.11.27.12.24.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 26 Nov 2018 15:25:04 -0800 (PST)
-Date: Mon, 26 Nov 2018 15:25:01 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 05/10] mm/khugepaged: fix crashes due to misaccounted holes
-In-Reply-To: <alpine.LSU.2.11.1811261444420.2275@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1811261523450.2275@eggly.anvils>
-References: <alpine.LSU.2.11.1811261444420.2275@eggly.anvils>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Nov 2018 12:24:17 -0800 (PST)
+Date: Tue, 27 Nov 2018 12:23:59 -0800
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [RFC PATCH v4 11/13] mm: parallelize deferred struct page
+ initialization within each node
+Message-ID: <20181127202359.biav42vbfchprmo5@ca-dmjordan1.us.oracle.com>
+References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
+ <20181105165558.11698-12-daniel.m.jordan@oracle.com>
+ <AT5PR8401MB1169798EBEF1EE5EBA3ABFFFABC70@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
+ <20181112165412.vizeiv6oimsuxkbk@ca-dmjordan1.us.oracle.com>
+ <AT5PR8401MB1169B05F889BCF8EF113E053ABC10@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
+ <20181119160137.72zha7dbsr3adkfs@ca-dmjordan1.us.oracle.com>
+ <AT5PR8401MB1169AA00F542BA2E3204FC24ABD00@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AT5PR8401MB1169AA00F542BA2E3204FC24ABD00@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
+To: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
+Cc: 'Daniel Jordan' <daniel.m.jordan@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "aarcange@redhat.com" <aarcange@redhat.com>, "aaron.lu@intel.com" <aaron.lu@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "bsd@redhat.com" <bsd@redhat.com>, "darrick.wong@oracle.com" <darrick.wong@oracle.com>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "jgg@mellanox.com" <jgg@mellanox.com>, "jwadams@google.com" <jwadams@google.com>, "jiangshanlai@gmail.com" <jiangshanlai@gmail.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>, "Pavel.Tatashin@microsoft.com" <Pavel.Tatashin@microsoft.com>, "prasad.singamsetty@oracle.com" <prasad.singamsetty@oracle.com>, "rdunlap@infradead.org" <rdunlap@infradead.org>, "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "tim.c.chen@intel.com" <tim.c.chen@intel.com>, "tj@kernel.org" <tj@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>, peterz@infradead.org, dhaval.giani@oracle.com
 
-Huge tmpfs testing on a shortish file mapped into a pmd-rounded extent hit
-shmem_evict_inode()'s WARN_ON(inode->i_blocks) followed by clear_inode()'s
-BUG_ON(inode->i_data.nrpages) when the file was later closed and unlinked.
+On Tue, Nov 27, 2018 at 12:12:28AM +0000, Elliott, Robert (Persistent Memory) wrote:
+> I ran a short test with:
+> * HPE ProLiant DL360 Gen9 system
+> * Intel Xeon E5-2699 CPU with 18 physical cores (0-17) and 
+>   18 hyperthreaded cores (36-53)
+> * DDR4 NVDIMM-Ns (which run at regular DRAM DIMM speeds)
+> * fio workload generator
+> * cores on one CPU socket talking to a pmem device on the same CPU
+> * large (1 MiB) random writes (to minimize the threads getting CPU cache
+>   hits from each other)
+> 
+> Results:
+> * 31.7 GB/s    four threads, four physical cores (0,1,2,3)
+> * 22.2 GB/s    four threads, two physical cores (0,1,36,37)
+> * 21.4 GB/s    two threads, two physical cores (0,1)
+> * 12.1 GB/s    two threads, one physical core (0,36)
+> * 11.2 GB/s    one thread, one physical core (0)
+> 
+> So, I think it's important that the initialization threads run on
+> separate physical cores.
 
-khugepaged's collapse_shmem() was forgetting to update mapping->nrpages on
-the rollback path, after it had added but then needs to undo some holes.
+Thanks for running this.  And fair enough, in this test using both siblings
+gives only a 4-8% speedup over one, so it makes sense to use only cores in the
+calculation.
 
-There is indeed an irritating asymmetry between shmem_charge(), whose
-callers want it to increment nrpages after successfully accounting blocks,
-and shmem_uncharge(), when __delete_from_page_cache() already decremented
-nrpages itself: oh well, just add a comment on that to them both.
+As for how to actually do this, some arches have smp_num_siblings, but there
+should be a generic interface to provide that.
 
-And shmem_recalc_inode() is supposed to be called when the accounting is
-expected to be in balance (so it can deduce from imbalance that reclaim
-discarded some pages): so change shmem_charge() to update nrpages earlier
-(though it's rare for the difference to matter at all).
+It's also possible to calculate this from the existing
+topology_sibling_cpumask, but the first option is better IMHO.  Open to
+suggestions.
 
-Fixes: 800d8c63b2e98 ("shmem: add huge pages support")
-Fixes: f3f0e1d2150b2 ("khugepaged: add support of collapse for tmpfs/shmem pages")
-Signed-off-by: Hugh Dickins <hughd@google.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: stable@vger.kernel.org # 4.8+
----
- mm/khugepaged.c | 5 ++++-
- mm/shmem.c      | 6 +++++-
- 2 files changed, 9 insertions(+), 2 deletions(-)
+> For the number of cores to use, one approach is:
+>     memory bandwidth (number of interleaved channels * speed)
+> divided by 
+>     CPU core max sustained write bandwidth
+> 
+> For example, this 2133 MT/s system is roughly:
+>     68 GB/s    (4 * 17 GB/s nominal)
+> divided by
+>     11.2 GB/s  (one core's performance)
+> which is 
+>     6 cores
+> 
+> ACPI HMAT will report that 68 GB/s number.  I'm not sure of
+> a good way to discover the 11.2 GB/s number.
 
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index 2070c316f06e..65e82f665c7c 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -1506,9 +1506,12 @@ static void collapse_shmem(struct mm_struct *mm,
- 		khugepaged_pages_collapsed++;
- 	} else {
- 		struct page *page;
-+
- 		/* Something went wrong: roll back page cache changes */
--		shmem_uncharge(mapping->host, nr_none);
- 		xas_lock_irq(&xas);
-+		mapping->nrpages -= nr_none;
-+		shmem_uncharge(mapping->host, nr_none);
-+
- 		xas_set(&xas, start);
- 		xas_for_each(&xas, page, end - 1) {
- 			page = list_first_entry_or_null(&pagelist,
-diff --git a/mm/shmem.c b/mm/shmem.c
-index ea26d7a0342d..e6558e49b42a 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -297,12 +297,14 @@ bool shmem_charge(struct inode *inode, long pages)
- 	if (!shmem_inode_acct_block(inode, pages))
- 		return false;
- 
-+	/* nrpages adjustment first, then shmem_recalc_inode() when balanced */
-+	inode->i_mapping->nrpages += pages;
-+
- 	spin_lock_irqsave(&info->lock, flags);
- 	info->alloced += pages;
- 	inode->i_blocks += pages * BLOCKS_PER_PAGE;
- 	shmem_recalc_inode(inode);
- 	spin_unlock_irqrestore(&info->lock, flags);
--	inode->i_mapping->nrpages += pages;
- 
- 	return true;
- }
-@@ -312,6 +314,8 @@ void shmem_uncharge(struct inode *inode, long pages)
- 	struct shmem_inode_info *info = SHMEM_I(inode);
- 	unsigned long flags;
- 
-+	/* nrpages adjustment done by __delete_from_page_cache() or caller */
-+
- 	spin_lock_irqsave(&info->lock, flags);
- 	info->alloced -= pages;
- 	inode->i_blocks -= pages * BLOCKS_PER_PAGE;
--- 
-2.20.0.rc0.387.gc7a69e6b6c-goog
+Yes, this would be nice to do if we could know the per-core number, with the
+caveat that a single number like this would be most useful for the CPU-memory
+pair it was calculated for, so the kernel could at least calculate it for jobs
+operating on local memory.
+
+Some BogoMIPS-like calibration may work, but I'll wait for ACPI HMAT support in
+the kernel.
