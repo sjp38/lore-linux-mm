@@ -1,85 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 098646B2CEB
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 14:54:44 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id k125so3048264pga.5
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 11:54:44 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id s123si3095407pgs.93.2018.11.22.11.54.42
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EA6C06B4905
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:29:19 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id c3so11248090eda.3
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:29:19 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b6si33995edc.315.2018.11.27.08.29.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Nov 2018 11:54:43 -0800 (PST)
-From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.19 34/36] mm, memory_hotplug: check zone_movable in has_unmovable_pages
-Date: Thu, 22 Nov 2018 14:52:38 -0500
-Message-Id: <20181122195240.13123-34-sashal@kernel.org>
-In-Reply-To: <20181122195240.13123-1-sashal@kernel.org>
-References: <20181122195240.13123-1-sashal@kernel.org>
+        Tue, 27 Nov 2018 08:29:17 -0800 (PST)
+Date: Tue, 27 Nov 2018 17:29:16 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: warn only once if page table misaccounting is
+ detected
+Message-ID: <20181127162916.GB6923@dhcp22.suse.cz>
+References: <20181127083603.39041-1-heiko.carstens@de.ibm.com>
+ <20181127131916.GX12455@dhcp22.suse.cz>
+ <20181127143638.GE3625@osiris>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181127143638.GE3625@osiris>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stable@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sashal@kernel.org>, linux-mm@kvack.org
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill@shutemov.name>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-From: Michal Hocko <mhocko@suse.com>
+On Tue 27-11-18 15:36:38, Heiko Carstens wrote:
+> On Tue, Nov 27, 2018 at 02:19:16PM +0100, Michal Hocko wrote:
+> > On Tue 27-11-18 09:36:03, Heiko Carstens wrote:
+> > > Use pr_alert_once() instead of pr_alert() if page table misaccounting
+> > > has been detected.
+> > > 
+> > > If this happens once it is very likely that there will be numerous
+> > > other occurrence as well, which would flood dmesg and the console with
+> > > hardly any added information. Therefore print the warning only once.
+> > 
+> > Have you actually experience a flood of these messages? Is one per mm
+> > message really that much?
+> 
+> Yes, I did. Since in this case all compat processes caused the message
+> to appear, I saw thousands of these messages.
 
-[ Upstream commit 9d7899999c62c1a81129b76d2a6ecbc4655e1597 ]
+This means something went colossally wrong and seeing an avalanche of
+messages might be actually helpful because you can at least see the
+pattern. I wonder whether the underlying issue would be obvious from a
+single instance.
 
-Page state checks are racy.  Under a heavy memory workload (e.g.  stress
--m 200 -t 2h) it is quite easy to hit a race window when the page is
-allocated but its state is not fully populated yet.  A debugging patch to
-dump the struct page state shows
-
-  has_unmovable_pages: pfn:0x10dfec00, found:0x1, count:0x0
-  page:ffffea0437fb0000 count:1 mapcount:1 mapping:ffff880e05239841 index:0x7f26e5000 compound_mapcount: 1
-  flags: 0x5fffffc0090034(uptodate|lru|active|head|swapbacked)
-
-Note that the state has been checked for both PageLRU and PageSwapBacked
-already.  Closing this race completely would require some sort of retry
-logic.  This can be tricky and error prone (think of potential endless
-or long taking loops).
-
-Workaround this problem for movable zones at least.  Such a zone should
-only contain movable pages.  Commit 15c30bc09085 ("mm, memory_hotplug:
-make has_unmovable_pages more robust") has told us that this is not
-strictly true though.  Bootmem pages should be marked reserved though so
-we can move the original check after the PageReserved check.  Pages from
-other zones are still prone to races but we even do not pretend that
-memory hotremove works for those so pre-mature failure doesn't hurt that
-much.
-
-Link: http://lkml.kernel.org/r/20181106095524.14629-1-mhocko@kernel.org
-Fixes: 15c30bc09085 ("mm, memory_hotplug: make has_unmovable_pages more robust")
-Signed-off-by: Michal Hocko <mhocko@suse.com>
-Reported-by: Baoquan He <bhe@redhat.com>
-Tested-by: Baoquan He <bhe@redhat.com>
-Acked-by: Baoquan He <bhe@redhat.com>
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
-Acked-by: Balbir Singh <bsingharora@gmail.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Sasha Levin <sashal@kernel.org>
----
- mm/page_alloc.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e2ef1c17942f..3a4065312938 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7690,6 +7690,14 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 		if (PageReserved(page))
- 			goto unmovable;
+Maybe we want ratelimit instead?
  
-+		/*
-+		 * If the zone is movable and we have ruled out all reserved
-+		 * pages then it should be reasonably safe to assume the rest
-+		 * is movable.
-+		 */
-+		if (zone_idx(zone) == ZONE_MOVABLE)
-+			continue;
-+
- 		/*
- 		 * Hugepages are not in LRU lists, but they're movable.
- 		 * We need not scan over tail pages bacause we don't
+> > If yes why rss counters do not exhibit the same problem?
+> 
+> No rss counter messages appeared. Or do you suggest that the other
+> pr_alert() within check_mm() should also be changed?
+
+Whatever we go with (and I do not have a strong opinion here) we should
+be consistent I believe.
+
 -- 
-2.17.1
+Michal Hocko
+SUSE Labs
