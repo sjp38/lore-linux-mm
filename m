@@ -1,89 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EFB7A6B2AFD
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2018 05:07:13 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id 92so8913668qkx.19
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2018 02:07:13 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u16si9887277qku.262.2018.11.22.02.07.13
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 964E36B4672
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 02:26:54 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id t2so13430348pfj.15
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 23:26:54 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c10sor3711309pgq.28.2018.11.26.23.26.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Nov 2018 02:07:13 -0800 (PST)
-From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH v2 5/8] hv_balloon: mark inflated pages PG_offline
-Date: Thu, 22 Nov 2018 11:06:24 +0100
-Message-Id: <20181122100627.5189-6-david@redhat.com>
-In-Reply-To: <20181122100627.5189-1-david@redhat.com>
-References: <20181122100627.5189-1-david@redhat.com>
+        (Google Transport Security);
+        Mon, 26 Nov 2018 23:26:53 -0800 (PST)
+Date: Tue, 27 Nov 2018 10:26:48 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 02/10] mm/huge_memory: splitting set mapping+index before
+ unfreeze
+Message-ID: <20181127072648.nh4jqlip3too22fl@kshutemo-mobl1>
+References: <alpine.LSU.2.11.1811261444420.2275@eggly.anvils>
+ <alpine.LSU.2.11.1811261516380.2275@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1811261516380.2275@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org, kexec-ml <kexec@lists.infradead.org>, pv-drivers@vmware.com, David Hildenbrand <david@redhat.com>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, Stephen Hemminger <sthemmin@microsoft.com>, Kairui Song <kasong@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, "Michael S. Tsirkin" <mst@redhat.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-mm@kvack.org
 
-Mark inflated and never onlined pages PG_offline, to tell the world that
-the content is stale and should not be dumped.
+On Mon, Nov 26, 2018 at 03:19:57PM -0800, Hugh Dickins wrote:
+> Huge tmpfs stress testing has occasionally hit shmem_undo_range()'s
+> VM_BUG_ON_PAGE(page_to_pgoff(page) != index, page).
+> 
+> Move the setting of mapping and index up before the page_ref_unfreeze()
+> in __split_huge_page_tail() to fix this: so that a page cache lookup
+> cannot get a reference while the tail's mapping and index are unstable.
+> 
+> In fact, might as well move them up before the smp_wmb(): I don't see
+> an actual need for that, but if I'm missing something, this way round
+> is safer than the other, and no less efficient.
+> 
+> You might argue that VM_BUG_ON_PAGE(page_to_pgoff(page) != index, page)
+> is misplaced, and should be left until after the trylock_page(); but
+> left as is has not crashed since, and gives more stringent assurance.
+> 
+> Fixes: e9b61f19858a5 ("thp: reintroduce split_huge_page()")
+> Requires: 605ca5ede764 ("mm/huge_memory.c: reorder operations in __split_huge_page_tail()")
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> Cc: stable@vger.kernel.org # 4.8+
 
-Cc: "K. Y. Srinivasan" <kys@microsoft.com>
-Cc: Haiyang Zhang <haiyangz@microsoft.com>
-Cc: Stephen Hemminger <sthemmin@microsoft.com>
-Cc: Kairui Song <kasong@redhat.com>
-Cc: Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>
-Acked-by: Pankaj gupta <pagupta@redhat.com>
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- drivers/hv/hv_balloon.c | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
-index 211f3fe3a038..47719862e57f 100644
---- a/drivers/hv/hv_balloon.c
-+++ b/drivers/hv/hv_balloon.c
-@@ -681,8 +681,13 @@ static struct notifier_block hv_memory_nb = {
- /* Check if the particular page is backed and can be onlined and online it. */
- static void hv_page_online_one(struct hv_hotadd_state *has, struct page *pg)
- {
--	if (!has_pfn_is_backed(has, page_to_pfn(pg)))
-+	if (!has_pfn_is_backed(has, page_to_pfn(pg))) {
-+		if (!PageOffline(pg))
-+			__SetPageOffline(pg);
- 		return;
-+	}
-+	if (PageOffline(pg))
-+		__ClearPageOffline(pg);
- 
- 	/* This frame is currently backed; online the page. */
- 	__online_page_set_limits(pg);
-@@ -1201,6 +1206,7 @@ static void free_balloon_pages(struct hv_dynmem_device *dm,
- 
- 	for (i = 0; i < num_pages; i++) {
- 		pg = pfn_to_page(i + start_frame);
-+		__ClearPageOffline(pg);
- 		__free_page(pg);
- 		dm->num_pages_ballooned--;
- 	}
-@@ -1213,7 +1219,7 @@ static unsigned int alloc_balloon_pages(struct hv_dynmem_device *dm,
- 					struct dm_balloon_response *bl_resp,
- 					int alloc_unit)
- {
--	unsigned int i = 0;
-+	unsigned int i, j;
- 	struct page *pg;
- 
- 	if (num_pages < alloc_unit)
-@@ -1245,6 +1251,10 @@ static unsigned int alloc_balloon_pages(struct hv_dynmem_device *dm,
- 		if (alloc_unit != 1)
- 			split_page(pg, get_order(alloc_unit << PAGE_SHIFT));
- 
-+		/* mark all pages offline */
-+		for (j = 0; j < (1 << get_order(alloc_unit << PAGE_SHIFT)); j++)
-+			__SetPageOffline(pg + j);
-+
- 		bl_resp->range_count++;
- 		bl_resp->range_array[i].finfo.start_page =
- 			page_to_pfn(pg);
 -- 
-2.17.2
+ Kirill A. Shutemov
