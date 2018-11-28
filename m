@@ -1,79 +1,45 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BF7586B475A
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 20:21:13 -0500 (EST)
-Received: by mail-yw1-f71.google.com with SMTP id u38so10762392ywh.16
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 17:21:13 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e138-v6sor2102525ybb.107.2018.11.27.17.21.12
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 27 Nov 2018 17:21:12 -0800 (PST)
+Return-Path: <linux-kernel-owner@vger.kernel.org>
 Content-Type: text/plain;
-	charset=utf-8
+        charset=utf-8
 Mime-Version: 1.0 (Mac OS X Mail 12.1 \(3445.101.1\))
 Subject: =?utf-8?Q?Re=3A_=5BPATCH_0/2=5D_Don=E2=80=99t_leave_executable_TL?=
  =?utf-8?Q?B_entries_to_freed_pages?=
 From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <CDB8B7C1-FD55-44AD-9B71-B3A750BF5489@gmail.com>
-Date: Tue, 27 Nov 2018 17:21:08 -0800
+In-Reply-To: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
+Date: Tue, 27 Nov 2018 17:06:05 -0800
 Content-Transfer-Encoding: quoted-printable
-Message-Id: <449E6648-5599-476D-8136-EE570101F930@gmail.com>
+Message-Id: <CDB8B7C1-FD55-44AD-9B71-B3A750BF5489@gmail.com>
 References: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
- <CDB8B7C1-FD55-44AD-9B71-B3A750BF5489@gmail.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
+Sender: linux-kernel-owner@vger.kernel.org
 To: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Will Deacon <will.deacon@arm.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, naveen.n.rao@linux.vnet.ibm.com, anil.s.keshavamurthy@intel.com, David Miller <davem@davemloft.net>, Masami Hiramatsu <mhiramat@kernel.org>, rostedt@goodmis.org, mingo@redhat.com, ast@kernel.org, daniel@iogearbox.net, jeyu@kernel.org, netdev@vger.kernel.org, ard.biesheuvel@linaro.org, jannh@google.com, kristen@linux.intel.com, dave.hansen@intel.com, deneen.t.dock@intel.com
+Cc: akpm@linux-foundation.org, luto@kernel.org, will.deacon@arm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, naveen.n.rao@linux.vnet.ibm.com, anil.s.keshavamurthy@intel.com, davem@davemloft.net, mhiramat@kernel.org, rostedt@goodmis.org, mingo@redhat.com, ast@kernel.org, daniel@iogearbox.net, jeyu@kernel.org, netdev@vger.kernel.org, ard.biesheuvel@linaro.org, jannh@google.com, kristen@linux.intel.com, dave.hansen@intel.com, deneen.t.dock@intel.com
+List-ID: <linux-mm.kvack.org>
 
-> On Nov 27, 2018, at 5:06 PM, Nadav Amit <nadav.amit@gmail.com> wrote:
->=20
->> On Nov 27, 2018, at 4:07 PM, Rick Edgecombe =
+> On Nov 27, 2018, at 4:07 PM, Rick Edgecombe =
 <rick.p.edgecombe@intel.com> wrote:
->>=20
->> Sometimes when memory is freed via the module subsystem, an =
-executable
->> permissioned TLB entry can remain to a freed page. If the page is =
+>=20
+> Sometimes when memory is freed via the module subsystem, an executable
+> permissioned TLB entry can remain to a freed page. If the page is =
 re-used to
->> back an address that will receive data from userspace, it can result =
+> back an address that will receive data from userspace, it can result =
 in user
->> data being mapped as executable in the kernel. The root of this =
+> data being mapped as executable in the kernel. The root of this =
 behavior is
->> vfree lazily flushing the TLB, but not lazily freeing the underlying =
+> vfree lazily flushing the TLB, but not lazily freeing the underlying =
 pages.=20
->>=20
->> There are sort of three categories of this which show up across =
+>=20
+> There are sort of three categories of this which show up across =
 modules, bpf,
->> kprobes and ftrace:
->>=20
->> 1. When executable memory is touched and then immediatly freed
->>=20
->>  This shows up in a couple error conditions in the module loader and =
+> kprobes and ftrace:
+>=20
+> 1. When executable memory is touched and then immediatly freed
+>=20
+>   This shows up in a couple error conditions in the module loader and =
 BPF JIT
->>  compiler.
->=20
-> Interesting!
->=20
-> Note that this may cause conflict with "x86: avoid W^X being broken =
+>   compiler.
+
+Interesting!
+
+Note that this may cause conflict with "x86: avoid W^X being broken =
 during
-> modules loading=E2=80=9D, which I recently submitted.
-
-I actually have not looked on the vmalloc() code too much recent, but it
-seems =E2=80=A6 strange:
-
-  void vm_unmap_aliases(void)
-  {      =20
-
-  ...
-  	mutex_lock(&vmap_purge_lock);
-  	purge_fragmented_blocks_allcpus();
-  	if (!__purge_vmap_area_lazy(start, end) && flush)
-  		flush_tlb_kernel_range(start, end);
-  	mutex_unlock(&vmap_purge_lock);
-  }
-
-Since __purge_vmap_area_lazy() releases the memory, it seems there is a =
-time
-window between the release of the region and the TLB flush, in which the
-area can be allocated for another purpose. This can result in a
-(theoretical) correctness issue. No?
+modules loading=E2=80=9D, which I recently submitted.
