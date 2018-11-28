@@ -1,92 +1,40 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-Date: Tue, 20 Nov 2018 00:57:48 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: UBSAN: Undefined behaviour in mm/page_alloc.c
-Message-ID: <20181119235748.GC7367@amd>
-References: <CAEAjamseRRHu+TaTkd1TwpLNm8mtDGP=2K0WKLF0wH-3iLcW_w@mail.gmail.com>
- <20181109084353.GA5321@dhcp22.suse.cz>
- <20181113094305.GM15120@dhcp22.suse.cz>
- <20181113151503.fd370e28cb9df5a0933e9b04@linux-foundation.org>
- <d88fae5c-e12d-ca35-d200-587a2ff02ec9@suse.cz>
- <20181113153204.ea0c0895866838de9e3bc8d0@linux-foundation.org>
- <1f4439c8-d669-a1ac-53f5-36c04da72a51@suse.cz>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-        protocol="application/pgp-signature"; boundary="ZwgA9U+XZDXt4+m+"
-Content-Disposition: inline
-In-Reply-To: <1f4439c8-d669-a1ac-53f5-36c04da72a51@suse.cz>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Kyungtae Kim <kt0755@gmail.com>, pavel.tatashin@microsoft.com, osalvador@suse.de, rppt@linux.vnet.ibm.com, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, alexander.h.duyck@linux.intel.com, mgorman@techsingularity.net, lifeasageek@gmail.com, threeearcat@gmail.com, syzkaller@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-List-ID: <linux-mm.kvack.org>
-
-
---ZwgA9U+XZDXt4+m+
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 804676B4DE1
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 11:31:59 -0500 (EST)
+Received: by mail-wr1-f71.google.com with SMTP id q18so21913916wrx.0
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 08:31:59 -0800 (PST)
+Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40073.outbound.protection.outlook.com. [40.107.4.73])
+        by mx.google.com with ESMTPS id o8si6151183wrv.48.2018.11.28.08.31.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 28 Nov 2018 08:31:58 -0800 (PST)
+From: Steve Capper <Steve.Capper@arm.com>
+Subject: Re: [PATCH V3 3/5] arm64: mm: Define arch_get_mmap_end,
+ arch_get_mmap_base
+Date: Wed, 28 Nov 2018 16:31:56 +0000
+Message-ID: <20181128163147.GB20432@capper-debian.cambridge.arm.com>
+References: <20181114133920.7134-1-steve.capper@arm.com>
+ <20181114133920.7134-4-steve.capper@arm.com>
+ <20181127171017.GD3563@arrakis.emea.arm.com>
+In-Reply-To: <20181127171017.GD3563@arrakis.emea.arm.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <602326BECCD55B469AA8A5A5E3979526@eurprd08.prod.outlook.com>
 Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Catalin Marinas <Catalin.Marinas@arm.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Will Deacon <Will.Deacon@arm.com>, "jcm@redhat.com" <jcm@redhat.com>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, nd <nd@arm.com>
 
-Hi1
-
-> >>>> --- a/mm/page_alloc.c
-> >>>> +++ b/mm/page_alloc.c
-> >>>> @@ -4364,6 +4353,15 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsign=
-ed int order, int preferred_nid,
-> >>>>  	gfp_t alloc_mask; /* The gfp_t that was actually used for allocati=
-on */
-> >>>>  	struct alloc_context ac =3D { };
-> >>>> =20
-> >>>> +	/*
-> >>>> +	 * There are several places where we assume that the order value i=
-s sane
-> >>>> +	 * so bail out early if the request is out of bound.
-> >>>> +	 */
-> >>>> +	if (unlikely(order >=3D MAX_ORDER)) {
-> >>>> +		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
-> >>>> +		return NULL;
-> >>>> +	}
-> >>>> +
-> >>>
-> >>> I know "everybody enables CONFIG_DEBUG_VM", but given this is fastpat=
-h,
-> >>> we could help those who choose not to enable it by using
-> >>>
-> >>> #ifdef CONFIG_DEBUG_VM
-> >>> 	if (WARN_ON_ONCE(order >=3D MAX_ORDER && !(gfp_mask & __GFP_NOWARN)))
-> >>> 		return NULL;
-> >>> #endif
-> >>
-> >> Hmm, but that would mean there's still potential undefined behavior for
-> >> !CONFIG_DEBUG_VM, so I would prefer not to do it like that.
-> >>
+On Tue, Nov 27, 2018 at 05:10:18PM +0000, Catalin Marinas wrote:
+> On Wed, Nov 14, 2018 at 01:39:18PM +0000, Steve Capper wrote:
+> > Now that we have DEFAULT_MAP_WINDOW defined, we can arch_get_mmap_end
+> > and arch_get_mmap_base helpers to allow for high addresses in mmap.
 > >=20
-> > What does "potential undefined behavior" mean here?
+> > Signed-off-by: Steve Capper <steve.capper@arm.com>
 >=20
-> I mean that it becomes undefined once a caller with order >=3D MAX_ORDER
-> appears. Worse if it's directly due to a userspace action, like in this
-> case.
+> Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
 
-We should really check if value from userspace is sane _before_
-passing it to alloc_pages(). Anything else is too fragile. Maybe
-alloc_pages should do the second check, but...
-
-									Pavel
-
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
-
---ZwgA9U+XZDXt4+m+
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAlvzTfwACgkQMOfwapXb+vJrxQCfQWRQidsCidtn9kylt9QlaV9b
-HX8AoJNp4zXtXxXm0nbOi7G27O/MZVJy
-=y6KK
------END PGP SIGNATURE-----
-
---ZwgA9U+XZDXt4+m+--
+Thanks!
