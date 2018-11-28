@@ -1,86 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E43D6B4C2F
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 04:17:14 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id x15so12237491edd.2
-        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 01:17:13 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id z15-v6sor1943853eju.2.2018.11.28.01.17.12
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F24D6B4C2C
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 04:12:58 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id 143so11815241pgc.3
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 01:12:58 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u10sor8587496plm.18.2018.11.28.01.12.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 28 Nov 2018 01:17:12 -0800 (PST)
-Date: Wed, 28 Nov 2018 09:17:11 +0000
+        Wed, 28 Nov 2018 01:12:56 -0800 (PST)
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH] mm, sparse: drop pgdat_resize_lock in
- sparse_add/remove_one_section()
-Message-ID: <20181128091711.ky7ub3kvkxvjq7ys@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH v2] mm, sparse: drop pgdat_resize_lock in sparse_add/remove_one_section()
+Date: Wed, 28 Nov 2018 17:12:43 +0800
+Message-Id: <20181128091243.19249-1-richard.weiyang@gmail.com>
+In-Reply-To: <20181127023630.9066-1-richard.weiyang@gmail.com>
 References: <20181127023630.9066-1-richard.weiyang@gmail.com>
- <20181127062514.GJ12455@dhcp22.suse.cz>
- <3356e00d-9135-12ef-a53f-49d815b8fbfc@intel.com>
- <20181128010112.5tv7tpe3qeplzy6d@master>
- <20181128084729.jozab2gaej5vh7ig@master>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181128084729.jozab2gaej5vh7ig@master>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: mhocko@suse.com, dave.hansen@intel.com, osalvador@suse.de
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-On Wed, Nov 28, 2018 at 08:47:29AM +0000, Wei Yang wrote:
->>
->>Dave,
->>
->>Thanks for your comment :-)
->>
->>I should put more words to the reason for removing the lock.
->>
->>Here is a simplified call trace for sparse_add_one_section() during
->>physical add/remove phase.
->>
->>    __add_memory()
->>        add_memory_resource()
->>    	mem_hotplug_begin()
->>    
->>    	arch_add_memory()
->>    	    add_pages()
->>    	        __add_pages()
->>    	            __add_section()
->>    	                sparse_add_one_section(pfn)
->>    
->>    	mem_hotplug_done()
->>
->>When we just look at the sparse section initialization, we can see the
->>contention happens when __add_memory() try to add a same range or range
->>overlapped in SECTIONS_PER_ROOT number of sections. Otherwise, they
->>won't access the same memory. 
->>
->>If this happens, we may face two contentions:
->>
->>    * reallocation of mem_section[root]
->>    * reallocation of memmap and usemap
->>
->>While neither of them could be protected by the pgdat_resize_lock from
->>my understanding. Grab pgdat_resize_lock just slow down the process,
->>while finally they will replace the mem_section[root] and
->>ms->section_mem_map with their own new allocated data.
->>
->
->Hmm... sorry, I am not correct here.
->
->The pgdat_resize_lock do protect the second case.
->
->But not the first one.
->
+In function sparse_add/remove_one_section(), pgdat_resize_lock is used
+to protect initialization/release of one mem_section. This looks not
+necessary for current implementation.
 
-One more thing, (hope I am not too talkative)
+Following is the current call trace of sparse_add/remove_one_section()
 
-Expand the pgdat_resize_lock to include sparse_index_init() may not
-work. Because SECTIONS_PER_ROOT number of section may span two nodes.
+    mem_hotplug_begin()
+    arch_add_memory()
+       add_pages()
+           __add_pages()
+               __add_section()
+                   sparse_add_one_section()
+    mem_hotplug_done()
 
+    mem_hotplug_begin()
+    arch_remove_memory()
+        __remove_pages()
+            __remove_section()
+                sparse_remove_one_section()
+    mem_hotplug_done()
 
+which shows these functions is protected by the global mem_hotplug_lock.
+It won't face contention when accessing the mem_section.
+
+Since the information needed in sparse_add_one_section() is node id to
+allocate proper memory. This patch also changes the prototype of
+sparse_add_one_section() to pass node id directly. This is intended to
+reduce misleading that sparse_add_one_section() would touch pgdat.
+
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+
+---
+v2:
+   * adjust changelog to show this procedure is serialized by global
+     mem_hotplug_lock
+---
+ include/linux/memory_hotplug.h |  2 +-
+ mm/memory_hotplug.c            |  2 +-
+ mm/sparse.c                    | 17 +++++------------
+ 3 files changed, 7 insertions(+), 14 deletions(-)
+
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 45a5affcab8a..3787d4e913e6 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -333,7 +333,7 @@ extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+ 		unsigned long nr_pages, struct vmem_altmap *altmap);
+ extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+ extern bool is_memblock_offlined(struct memory_block *mem);
+-extern int sparse_add_one_section(struct pglist_data *pgdat,
++extern int sparse_add_one_section(int nid,
+ 		unsigned long start_pfn, struct vmem_altmap *altmap);
+ extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
+ 		unsigned long map_offset, struct vmem_altmap *altmap);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index f626e7e5f57b..5b3a3d7b4466 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -253,7 +253,7 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
+ 	if (pfn_valid(phys_start_pfn))
+ 		return -EEXIST;
+ 
+-	ret = sparse_add_one_section(NODE_DATA(nid), phys_start_pfn, altmap);
++	ret = sparse_add_one_section(nid, phys_start_pfn, altmap);
+ 	if (ret < 0)
+ 		return ret;
+ 
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 33307fc05c4d..a4fdbcb21514 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -662,25 +662,24 @@ static void free_map_bootmem(struct page *memmap)
+  * set.  If this is <=0, then that means that the passed-in
+  * map was not consumed and must be freed.
+  */
+-int __meminit sparse_add_one_section(struct pglist_data *pgdat,
+-		unsigned long start_pfn, struct vmem_altmap *altmap)
++int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
++				     struct vmem_altmap *altmap)
+ {
+ 	unsigned long section_nr = pfn_to_section_nr(start_pfn);
+ 	struct mem_section *ms;
+ 	struct page *memmap;
+ 	unsigned long *usemap;
+-	unsigned long flags;
+ 	int ret;
+ 
+ 	/*
+ 	 * no locking for this, because it does its own
+ 	 * plus, it does a kmalloc
+ 	 */
+-	ret = sparse_index_init(section_nr, pgdat->node_id);
++	ret = sparse_index_init(section_nr, nid);
+ 	if (ret < 0 && ret != -EEXIST)
+ 		return ret;
+ 	ret = 0;
+-	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, altmap);
++	memmap = kmalloc_section_memmap(section_nr, nid, altmap);
+ 	if (!memmap)
+ 		return -ENOMEM;
+ 	usemap = __kmalloc_section_usemap();
+@@ -689,8 +688,6 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
+ 		return -ENOMEM;
+ 	}
+ 
+-	pgdat_resize_lock(pgdat, &flags);
+-
+ 	ms = __pfn_to_section(start_pfn);
+ 	if (ms->section_mem_map & SECTION_MARKED_PRESENT) {
+ 		ret = -EEXIST;
+@@ -707,7 +704,6 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
+ 	sparse_init_one_section(ms, section_nr, memmap, usemap);
+ 
+ out:
+-	pgdat_resize_unlock(pgdat, &flags);
+ 	if (ret < 0) {
+ 		kfree(usemap);
+ 		__kfree_section_memmap(memmap, altmap);
+@@ -769,10 +765,8 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
+ 		unsigned long map_offset, struct vmem_altmap *altmap)
+ {
+ 	struct page *memmap = NULL;
+-	unsigned long *usemap = NULL, flags;
+-	struct pglist_data *pgdat = zone->zone_pgdat;
++	unsigned long *usemap = NULL;
+ 
+-	pgdat_resize_lock(pgdat, &flags);
+ 	if (ms->section_mem_map) {
+ 		usemap = ms->pageblock_flags;
+ 		memmap = sparse_decode_mem_map(ms->section_mem_map,
+@@ -780,7 +774,6 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
+ 		ms->section_mem_map = 0;
+ 		ms->pageblock_flags = NULL;
+ 	}
+-	pgdat_resize_unlock(pgdat, &flags);
+ 
+ 	clear_hwpoisoned_pages(memmap + map_offset,
+ 			PAGES_PER_SECTION - map_offset);
 -- 
-Wei Yang
-Help you, Help me
+2.15.1
