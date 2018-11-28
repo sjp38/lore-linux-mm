@@ -1,174 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E173E6B41CA
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 06:00:40 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id a9so20831325pla.2
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 03:00:40 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id c31si46871694pgc.465.2018.11.26.03.00.39
+	by kanga.kvack.org (Postfix) with ESMTP id CA88C6B4D70
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 09:35:04 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id h10so26355271plk.12
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 06:35:04 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id p3-v6si7542229pld.119.2018.11.28.06.35.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Nov 2018 03:00:39 -0800 (PST)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.14 48/62] x86/mm: Move LDT remap out of KASLR region on 5-level paging
-Date: Mon, 26 Nov 2018 11:51:29 +0100
-Message-Id: <20181126105054.375708665@linuxfoundation.org>
-In-Reply-To: <20181126105050.592727680@linuxfoundation.org>
-References: <20181126105050.592727680@linuxfoundation.org>
+        Wed, 28 Nov 2018 06:35:03 -0800 (PST)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wASEYJJv008335
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 09:35:02 -0500
+Received: from e36.co.us.ibm.com (e36.co.us.ibm.com [32.97.110.154])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2p1tve6316-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 09:35:01 -0500
+Received: from localhost
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Wed, 28 Nov 2018 14:35:01 -0000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: [PATCH V2 1/5] mm: Update ptep_modify_prot_start/commit to take vm_area_struct as arg
+Date: Wed, 28 Nov 2018 20:04:34 +0530
+In-Reply-To: <20181128143438.29458-1-aneesh.kumar@linux.ibm.com>
+References: <20181128143438.29458-1-aneesh.kumar@linux.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
+Message-Id: <20181128143438.29458-2-aneesh.kumar@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@kernel.org>, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, peterz@infradead.org, boris.ostrovsky@oracle.com, jgross@suse.com, bhe@redhat.com, willy@infradead.org, linux-mm@kvack.org, Sasha Levin <sashal@kernel.org>
+To: akpm@linux-foundation.org, mpe@ellerman.id.au, benh@kernel.crashing.org, paulus@samba.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
 
-4.14-stable review patch.  If anyone has any objections, please let me know.
+Some architecture may want to call flush_tlb_range from these helpers.
 
-------------------
-
-commit d52888aa2753e3063a9d3a0c9f72f94aa9809c15 upstream
-
-On 5-level paging the LDT remap area is placed in the middle of the KASLR
-randomization region and it can overlap with the direct mapping, the
-vmalloc or the vmap area.
-
-The LDT mapping is per mm, so it cannot be moved into the P4D page table
-next to the CPU_ENTRY_AREA without complicating PGD table allocation for
-5-level paging.
-
-The 4 PGD slot gap just before the direct mapping is reserved for
-hypervisors, so it cannot be used.
-
-Move the direct mapping one slot deeper and use the resulting gap for the
-LDT remap area. The resulting layout is the same for 4 and 5 level paging.
-
-[ tglx: Massaged changelog ]
-
-Fixes: f55f0501cbf6 ("x86/pti: Put the LDT in its own PGD if PTI is on")
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Reviewed-by: Andy Lutomirski <luto@kernel.org>
-Cc: bp@alien8.de
-Cc: hpa@zytor.com
-Cc: dave.hansen@linux.intel.com
-Cc: peterz@infradead.org
-Cc: boris.ostrovsky@oracle.com
-Cc: jgross@suse.com
-Cc: bhe@redhat.com
-Cc: willy@infradead.org
-Cc: linux-mm@kvack.org
-Cc: stable@vger.kernel.org
-Link: https://lkml.kernel.org/r/20181026122856.66224-2-kirill.shutemov@linux.intel.com
-Signed-off-by: Sasha Levin <sashal@kernel.org>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
 ---
- Documentation/x86/x86_64/mm.txt         | 10 ++++++----
- arch/x86/include/asm/page_64_types.h    | 12 +++++++-----
- arch/x86/include/asm/pgtable_64_types.h |  7 +++----
- arch/x86/xen/mmu_pv.c                   |  6 +++---
- 4 files changed, 19 insertions(+), 16 deletions(-)
+ arch/s390/include/asm/pgtable.h | 4 ++--
+ arch/s390/mm/pgtable.c          | 6 ++++--
+ arch/x86/include/asm/paravirt.h | 7 +++++--
+ fs/proc/task_mmu.c              | 4 ++--
+ include/asm-generic/pgtable.h   | 8 ++++----
+ mm/memory.c                     | 4 ++--
+ mm/mprotect.c                   | 4 ++--
+ 7 files changed, 21 insertions(+), 16 deletions(-)
 
-diff --git a/Documentation/x86/x86_64/mm.txt b/Documentation/x86/x86_64/mm.txt
-index ea91cb61a602..43f066cde67d 100644
---- a/Documentation/x86/x86_64/mm.txt
-+++ b/Documentation/x86/x86_64/mm.txt
-@@ -4,8 +4,9 @@ Virtual memory map with 4 level page tables:
- 0000000000000000 - 00007fffffffffff (=47 bits) user space, different per mm
- hole caused by [47:63] sign extension
- ffff800000000000 - ffff87ffffffffff (=43 bits) guard hole, reserved for hypervisor
--ffff880000000000 - ffffc7ffffffffff (=64 TB) direct mapping of all phys. memory
--ffffc80000000000 - ffffc8ffffffffff (=40 bits) hole
-+ffff880000000000 - ffff887fffffffff (=39 bits) LDT remap for PTI
-+ffff888000000000 - ffffc87fffffffff (=64 TB) direct mapping of all phys. memory
-+ffffc88000000000 - ffffc8ffffffffff (=39 bits) hole
- ffffc90000000000 - ffffe8ffffffffff (=45 bits) vmalloc/ioremap space
- ffffe90000000000 - ffffe9ffffffffff (=40 bits) hole
- ffffea0000000000 - ffffeaffffffffff (=40 bits) virtual memory map (1TB)
-@@ -30,8 +31,9 @@ Virtual memory map with 5 level page tables:
- 0000000000000000 - 00ffffffffffffff (=56 bits) user space, different per mm
- hole caused by [56:63] sign extension
- ff00000000000000 - ff0fffffffffffff (=52 bits) guard hole, reserved for hypervisor
--ff10000000000000 - ff8fffffffffffff (=55 bits) direct mapping of all phys. memory
--ff90000000000000 - ff9fffffffffffff (=52 bits) LDT remap for PTI
-+ff10000000000000 - ff10ffffffffffff (=48 bits) LDT remap for PTI
-+ff11000000000000 - ff90ffffffffffff (=55 bits) direct mapping of all phys. memory
-+ff91000000000000 - ff9fffffffffffff (=3840 TB) hole
- ffa0000000000000 - ffd1ffffffffffff (=54 bits) vmalloc/ioremap space (12800 TB)
- ffd2000000000000 - ffd3ffffffffffff (=49 bits) hole
- ffd4000000000000 - ffd5ffffffffffff (=49 bits) virtual memory map (512TB)
-diff --git a/arch/x86/include/asm/page_64_types.h b/arch/x86/include/asm/page_64_types.h
-index e1407312c412..74d531f6d518 100644
---- a/arch/x86/include/asm/page_64_types.h
-+++ b/arch/x86/include/asm/page_64_types.h
-@@ -33,14 +33,16 @@
+diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
+index 063732414dfb..5d730199e37b 100644
+--- a/arch/s390/include/asm/pgtable.h
++++ b/arch/s390/include/asm/pgtable.h
+@@ -1069,8 +1069,8 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
+ }
+ 
+ #define __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION
+-pte_t ptep_modify_prot_start(struct mm_struct *, unsigned long, pte_t *);
+-void ptep_modify_prot_commit(struct mm_struct *, unsigned long, pte_t *, pte_t);
++pte_t ptep_modify_prot_start(struct vm_area_struct *, unsigned long, pte_t *);
++void ptep_modify_prot_commit(struct vm_area_struct *, unsigned long, pte_t *, pte_t);
+ 
+ #define __HAVE_ARCH_PTEP_CLEAR_FLUSH
+ static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
+diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
+index f2cc7da473e4..29c0a21cd34a 100644
+--- a/arch/s390/mm/pgtable.c
++++ b/arch/s390/mm/pgtable.c
+@@ -301,12 +301,13 @@ pte_t ptep_xchg_lazy(struct mm_struct *mm, unsigned long addr,
+ }
+ EXPORT_SYMBOL(ptep_xchg_lazy);
+ 
+-pte_t ptep_modify_prot_start(struct mm_struct *mm, unsigned long addr,
++pte_t ptep_modify_prot_start(struct vm_area_struct *vma, unsigned long addr,
+ 			     pte_t *ptep)
+ {
+ 	pgste_t pgste;
+ 	pte_t old;
+ 	int nodat;
++	struct mm_struct *mm = vma->vm_mm;
+ 
+ 	preempt_disable();
+ 	pgste = ptep_xchg_start(mm, addr, ptep);
+@@ -320,10 +321,11 @@ pte_t ptep_modify_prot_start(struct mm_struct *mm, unsigned long addr,
+ }
+ EXPORT_SYMBOL(ptep_modify_prot_start);
+ 
+-void ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
++void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
+ 			     pte_t *ptep, pte_t pte)
+ {
+ 	pgste_t pgste;
++	struct mm_struct *mm = vma->vm_mm;
+ 
+ 	if (!MACHINE_HAS_NX)
+ 		pte_val(pte) &= ~_PAGE_NOEXEC;
+diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
+index 4bf42f9e4eea..1154f154025d 100644
+--- a/arch/x86/include/asm/paravirt.h
++++ b/arch/x86/include/asm/paravirt.h
+@@ -417,19 +417,22 @@ static inline pgdval_t pgd_val(pgd_t pgd)
+ }
+ 
+ #define  __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION
+-static inline pte_t ptep_modify_prot_start(struct mm_struct *mm, unsigned long addr,
++static inline pte_t ptep_modify_prot_start(struct vm_area_struct *vma, unsigned long addr,
+ 					   pte_t *ptep)
+ {
+ 	pteval_t ret;
++	struct mm_struct *mm = vma->vm_mm;
+ 
+ 	ret = PVOP_CALL3(pteval_t, mmu.ptep_modify_prot_start, mm, addr, ptep);
+ 
+ 	return (pte_t) { .pte = ret };
+ }
+ 
+-static inline void ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
++static inline void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
+ 					   pte_t *ptep, pte_t pte)
+ {
++	struct mm_struct *mm = vma->vm_mm;
++
+ 	if (sizeof(pteval_t) > sizeof(long))
+ 		/* 5 arg words */
+ 		pv_ops.mmu.ptep_modify_prot_commit(mm, addr, ptep, pte);
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 47c3764c469b..9952d7185170 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -940,10 +940,10 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
+ 	pte_t ptent = *pte;
+ 
+ 	if (pte_present(ptent)) {
+-		ptent = ptep_modify_prot_start(vma->vm_mm, addr, pte);
++		ptent = ptep_modify_prot_start(vma, addr, pte);
+ 		ptent = pte_wrprotect(ptent);
+ 		ptent = pte_clear_soft_dirty(ptent);
+-		ptep_modify_prot_commit(vma->vm_mm, addr, pte, ptent);
++		ptep_modify_prot_commit(vma, addr, pte, ptent);
+ 	} else if (is_swap_pte(ptent)) {
+ 		ptent = pte_swp_clear_soft_dirty(ptent);
+ 		set_pte_at(vma->vm_mm, addr, pte, ptent);
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 359fb935ded6..c9897dcc46c4 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -606,22 +606,22 @@ static inline void __ptep_modify_prot_commit(struct mm_struct *mm,
+  * queue the update to be done at some later time.  The update must be
+  * actually committed before the pte lock is released, however.
+  */
+-static inline pte_t ptep_modify_prot_start(struct mm_struct *mm,
++static inline pte_t ptep_modify_prot_start(struct vm_area_struct *vma,
+ 					   unsigned long addr,
+ 					   pte_t *ptep)
+ {
+-	return __ptep_modify_prot_start(mm, addr, ptep);
++	return __ptep_modify_prot_start(vma->vm_mm, addr, ptep);
+ }
  
  /*
-  * Set __PAGE_OFFSET to the most negative possible address +
-- * PGDIR_SIZE*16 (pgd slot 272).  The gap is to allow a space for a
-- * hypervisor to fit.  Choosing 16 slots here is arbitrary, but it's
-- * what Xen requires.
-+ * PGDIR_SIZE*17 (pgd slot 273).
-+ *
-+ * The gap is to allow a space for LDT remap for PTI (1 pgd slot) and space for
-+ * a hypervisor (16 slots). Choosing 16 slots for a hypervisor is arbitrary,
-+ * but it's what Xen requires.
+  * Commit an update to a pte, leaving any hardware-controlled bits in
+  * the PTE unmodified.
   */
- #ifdef CONFIG_X86_5LEVEL
--#define __PAGE_OFFSET_BASE      _AC(0xff10000000000000, UL)
-+#define __PAGE_OFFSET_BASE	_AC(0xff11000000000000, UL)
- #else
--#define __PAGE_OFFSET_BASE      _AC(0xffff880000000000, UL)
-+#define __PAGE_OFFSET_BASE	_AC(0xffff888000000000, UL)
- #endif
+-static inline void ptep_modify_prot_commit(struct mm_struct *mm,
++static inline void ptep_modify_prot_commit(struct vm_area_struct *vma,
+ 					   unsigned long addr,
+ 					   pte_t *ptep, pte_t pte)
+ {
+-	__ptep_modify_prot_commit(mm, addr, ptep, pte);
++	__ptep_modify_prot_commit(vma->vm_mm, addr, ptep, pte);
+ }
+ #endif /* __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION */
+ #endif /* CONFIG_MMU */
+diff --git a/mm/memory.c b/mm/memory.c
+index 4ad2d293ddc2..d36b0eaa7862 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3588,12 +3588,12 @@ static vm_fault_t do_numa_page(struct vm_fault *vmf)
+ 	 * Make it present again, Depending on how arch implementes non
+ 	 * accessible ptes, some can allow access by kernel mode.
+ 	 */
+-	pte = ptep_modify_prot_start(vma->vm_mm, vmf->address, vmf->pte);
++	pte = ptep_modify_prot_start(vma, vmf->address, vmf->pte);
+ 	pte = pte_modify(pte, vma->vm_page_prot);
+ 	pte = pte_mkyoung(pte);
+ 	if (was_writable)
+ 		pte = pte_mkwrite(pte);
+-	ptep_modify_prot_commit(vma->vm_mm, vmf->address, vmf->pte, pte);
++	ptep_modify_prot_commit(vma, vmf->address, vmf->pte, pte);
+ 	update_mmu_cache(vma, vmf->address, vmf->pte);
  
- #ifdef CONFIG_RANDOMIZE_MEMORY
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 6b8f73dcbc2c..7764617b8f9c 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -88,16 +88,15 @@ typedef struct { pteval_t pte; } pte_t;
- # define VMALLOC_SIZE_TB	_AC(12800, UL)
- # define __VMALLOC_BASE		_AC(0xffa0000000000000, UL)
- # define __VMEMMAP_BASE		_AC(0xffd4000000000000, UL)
--# define LDT_PGD_ENTRY		_AC(-112, UL)
--# define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
- #else
- # define VMALLOC_SIZE_TB	_AC(32, UL)
- # define __VMALLOC_BASE		_AC(0xffffc90000000000, UL)
- # define __VMEMMAP_BASE		_AC(0xffffea0000000000, UL)
--# define LDT_PGD_ENTRY		_AC(-3, UL)
--# define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
- #endif
+ 	page = vm_normal_page(vma, vmf->address, pte);
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 6d331620b9e5..a301d4c83d3c 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -110,7 +110,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 					continue;
+ 			}
  
-+#define LDT_PGD_ENTRY		-240UL
-+#define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
-+
- #ifdef CONFIG_RANDOMIZE_MEMORY
- # define VMALLOC_START		vmalloc_base
- # define VMEMMAP_START		vmemmap_base
-diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
-index 8ed11a5b1a9d..b33fa127a613 100644
---- a/arch/x86/xen/mmu_pv.c
-+++ b/arch/x86/xen/mmu_pv.c
-@@ -1869,7 +1869,7 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
- 	init_top_pgt[0] = __pgd(0);
- 
- 	/* Pre-constructed entries are in pfn, so convert to mfn */
--	/* L4[272] -> level3_ident_pgt  */
-+	/* L4[273] -> level3_ident_pgt  */
- 	/* L4[511] -> level3_kernel_pgt */
- 	convert_pfn_mfn(init_top_pgt);
- 
-@@ -1889,8 +1889,8 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
- 	addr[0] = (unsigned long)pgd;
- 	addr[1] = (unsigned long)l3;
- 	addr[2] = (unsigned long)l2;
--	/* Graft it onto L4[272][0]. Note that we creating an aliasing problem:
--	 * Both L4[272][0] and L4[511][510] have entries that point to the same
-+	/* Graft it onto L4[273][0]. Note that we creating an aliasing problem:
-+	 * Both L4[273][0] and L4[511][510] have entries that point to the same
- 	 * L2 (PMD) tables. Meaning that if you modify it in __va space
- 	 * it will be also modified in the __ka space! (But if you just
- 	 * modify the PMD table to point to other PTE's or none, then you
+-			ptent = ptep_modify_prot_start(mm, addr, pte);
++			ptent = ptep_modify_prot_start(vma, addr, pte);
+ 			ptent = pte_modify(ptent, newprot);
+ 			if (preserve_write)
+ 				ptent = pte_mk_savedwrite(ptent);
+@@ -121,7 +121,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 					 !(vma->vm_flags & VM_SOFTDIRTY))) {
+ 				ptent = pte_mkwrite(ptent);
+ 			}
+-			ptep_modify_prot_commit(mm, addr, pte, ptent);
++			ptep_modify_prot_commit(vma, addr, pte, ptent);
+ 			pages++;
+ 		} else if (IS_ENABLED(CONFIG_MIGRATION)) {
+ 			swp_entry_t entry = pte_to_swp_entry(oldpte);
 -- 
-2.17.1
+2.19.1
