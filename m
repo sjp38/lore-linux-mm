@@ -1,83 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 961956B4475
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 18:33:17 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id w19-v6so22295595plq.1
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 15:33:17 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c84sor2876236pfe.49.2018.11.26.15.33.16
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 057746B4682
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 19:34:08 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id u20so13239699pfa.1
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 16:34:08 -0800 (PST)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id s5si5346864pfi.134.2018.11.27.16.34.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 26 Nov 2018 15:33:16 -0800 (PST)
-Date: Mon, 26 Nov 2018 15:33:13 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 10/10] mm/khugepaged: fix the xas_create_range() error path
-In-Reply-To: <alpine.LSU.2.11.1811261444420.2275@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1811261531200.2275@eggly.anvils>
-References: <alpine.LSU.2.11.1811261444420.2275@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Nov 2018 16:34:07 -0800 (PST)
+From: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Subject: [PATCH 1/2] vmalloc: New flag for flush before releasing pages
+Date: Tue, 27 Nov 2018 16:07:53 -0800
+Message-Id: <20181128000754.18056-2-rick.p.edgecombe@intel.com>
+In-Reply-To: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
+References: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
+To: akpm@linux-foundation.org, luto@kernel.org, will.deacon@arm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, naveen.n.rao@linux.vnet.ibm.com, anil.s.keshavamurthy@intel.com, davem@davemloft.net, mhiramat@kernel.org, rostedt@goodmis.org, mingo@redhat.com, ast@kernel.org, daniel@iogearbox.net, jeyu@kernel.org, netdev@vger.kernel.org, ard.biesheuvel@linaro.org, jannh@google.com
+Cc: kristen@linux.intel.com, dave.hansen@intel.com, deneen.t.dock@intel.com, Rick Edgecombe <rick.p.edgecombe@intel.com>
 
-collapse_shmem()'s xas_nomem() is very unlikely to fail, but it is
-rightly given a failure path, so move the whole xas_create_range() block
-up before __SetPageLocked(new_page): so that it does not need to remember
-to unlock_page(new_page).  Add the missing mem_cgroup_cancel_charge(),
-and set (currently unused) result to SCAN_FAIL rather than SCAN_SUCCEED.
+Since vfree will lazily flush the TLB, but not lazily free the underlying pages,
+it often leaves stale TLB entries to freed pages that could get re-used. This is
+undesirable for cases where the memory being freed has special permissions such
+as executable.
 
-Fixes: 77da9389b9d5 ("mm: Convert collapse_shmem to XArray")
-Signed-off-by: Hugh Dickins <hughd@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Having callers flush the TLB after calling vfree still leaves a window where
+the pages are freed, but the TLB entry remains. Also the entire operation can be
+deferred if the vfree is called from an interrupt and so a TLB flush after
+calling vfree would miss the entire operation. So in order to support this use
+case, a new flag VM_IMMEDIATE_UNMAP is added, that will cause the free operation
+to take place like this:
+        1. Unmap
+        2. Flush TLB/Unmap aliases
+        3. Free pages
+In the deferred case these steps are all done by the work queue.
+
+This implementation derives from two sketches from Dave Hansen and
+Andy Lutomirski.
+
+Suggested-by: Dave Hansen <dave.hansen@intel.com>
+Suggested-by: Andy Lutomirski <luto@kernel.org>
+Suggested-by: Will Deacon <will.deacon@arm.com>
+Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- mm/khugepaged.c | 25 ++++++++++++++-----------
- 1 file changed, 14 insertions(+), 11 deletions(-)
+ include/linux/vmalloc.h |  1 +
+ mm/vmalloc.c            | 13 +++++++++++--
+ 2 files changed, 12 insertions(+), 2 deletions(-)
 
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index 2c5fe4f7a0c6..8e2ff195ecb3 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -1329,6 +1329,20 @@ static void collapse_shmem(struct mm_struct *mm,
- 		goto out;
- 	}
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 398e9c95cd61..cca6b6b83cf0 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -21,6 +21,7 @@ struct notifier_block;		/* in notifier.h */
+ #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
+ #define VM_NO_GUARD		0x00000040      /* don't add guard page */
+ #define VM_KASAN		0x00000080      /* has allocated kasan shadow memory */
++#define VM_IMMEDIATE_UNMAP	0x00000200	/* flush before releasing pages */
+ /* bits [20..32] reserved for arch specific ioremap internals */
  
-+	/* This will be less messy when we use multi-index entries */
-+	do {
-+		xas_lock_irq(&xas);
-+		xas_create_range(&xas);
-+		if (!xas_error(&xas))
-+			break;
-+		xas_unlock_irq(&xas);
-+		if (!xas_nomem(&xas, GFP_KERNEL)) {
-+			mem_cgroup_cancel_charge(new_page, memcg, true);
-+			result = SCAN_FAIL;
-+			goto out;
-+		}
-+	} while (1);
+ /*
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 97d4b25d0373..68766651b5a7 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1516,6 +1516,14 @@ static void __vunmap(const void *addr, int deallocate_pages)
+ 	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
+ 
+ 	remove_vm_area(addr);
 +
- 	__SetPageLocked(new_page);
- 	__SetPageSwapBacked(new_page);
- 	new_page->index = start;
-@@ -1340,17 +1354,6 @@ static void collapse_shmem(struct mm_struct *mm,
- 	 * be able to map it or use it in another way until we unlock it.
- 	 */
++	/*
++	 * Need to flush the TLB before freeing pages in the case of this flag.
++	 * As long as that's happening, unmap aliases.
++	 */
++	if (area->flags & VM_IMMEDIATE_UNMAP)
++		vm_unmap_aliases();
++
+ 	if (deallocate_pages) {
+ 		int i;
  
--	/* This will be less messy when we use multi-index entries */
--	do {
--		xas_lock_irq(&xas);
--		xas_create_range(&xas);
--		if (!xas_error(&xas))
--			break;
--		xas_unlock_irq(&xas);
--		if (!xas_nomem(&xas, GFP_KERNEL))
--			goto out;
--	} while (1);
--
- 	xas_set(&xas, start);
- 	for (index = start; index < end; index++) {
- 		struct page *page = xas_next(&xas);
+@@ -1925,8 +1933,9 @@ EXPORT_SYMBOL(vzalloc_node);
+ 
+ void *vmalloc_exec(unsigned long size)
+ {
+-	return __vmalloc_node(size, 1, GFP_KERNEL, PAGE_KERNEL_EXEC,
+-			      NUMA_NO_NODE, __builtin_return_address(0));
++	return __vmalloc_node_range(size, 1, VMALLOC_START, VMALLOC_END,
++			GFP_KERNEL, PAGE_KERNEL_EXEC, VM_IMMEDIATE_UNMAP,
++			NUMA_NO_NODE, __builtin_return_address(0));
+ }
+ 
+ #if defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA32)
 -- 
-2.20.0.rc0.387.gc7a69e6b6c-goog
+2.17.1
