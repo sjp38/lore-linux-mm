@@ -1,103 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A89366B46B7
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 20:01:15 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id e17so11615511edr.7
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 17:01:15 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q9sor3587374eda.25.2018.11.27.17.01.13
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 27 Nov 2018 17:01:14 -0800 (PST)
-Date: Wed, 28 Nov 2018 01:01:12 +0000
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3950C6B466F
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 19:29:56 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id k58so11693078eda.20
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 16:29:56 -0800 (PST)
+Date: Wed, 28 Nov 2018 00:29:52 +0000
 From: Wei Yang <richard.weiyang@gmail.com>
 Subject: Re: [PATCH] mm, sparse: drop pgdat_resize_lock in
  sparse_add/remove_one_section()
-Message-ID: <20181128010112.5tv7tpe3qeplzy6d@master>
+Message-ID: <20181128002952.x2m33nvlunzij5tk@master>
 Reply-To: Wei Yang <richard.weiyang@gmail.com>
 References: <20181127023630.9066-1-richard.weiyang@gmail.com>
  <20181127062514.GJ12455@dhcp22.suse.cz>
  <3356e00d-9135-12ef-a53f-49d815b8fbfc@intel.com>
+ <4fe3f8203a35ea01c9e0ed87c361465e@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <3356e00d-9135-12ef-a53f-49d815b8fbfc@intel.com>
+In-Reply-To: <4fe3f8203a35ea01c9e0ed87c361465e@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: osalvador@suse.de
+Cc: Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, owner-linux-mm@kvack.org
 
-On Mon, Nov 26, 2018 at 11:17:40PM -0800, Dave Hansen wrote:
->On 11/26/18 10:25 PM, Michal Hocko wrote:
->> [Cc Dave who has added the lock into this path. Maybe he remembers why]
+On Tue, Nov 27, 2018 at 08:52:14AM +0100, osalvador@suse.de wrote:
+>> I think mem_hotplug_lock protects this case these days, though.  I don't
+>> think we had it in the early days and were just slumming it with the
+>> pgdat locks.
 >
->I don't remember specifically.  But, the pattern of:
+>Yes, it does.
 >
->	allocate
->	lock
->	set
->	unlock
+>> 
+>> I really don't like the idea of removing the lock by just saying it
+>> doesn't protect anything without doing some homework first, though.  It
+>> would actually be really nice to comment the entire call chain from the
+>> mem_hotplug_lock acquisition to here.  There is precious little
+>> commenting in there and it could use some love.
 >
->is _usually_ so we don't have two "sets" racing with each other.  In
->this case, that would have been to ensure that two
->sparse_init_one_section()'s didn't race and leak one of the two
->allocated memmaps or worse.
+>[hot-add operation]
+>add_memory_resource     : acquire mem_hotplug lock
+> arch_add_memory
+>  add_pages
+>   __add_pages
+>    __add_section
+>     sparse_add_one_section
+>      sparse_init_one_section
 >
->I think mem_hotplug_lock protects this case these days, though.  I don't
->think we had it in the early days and were just slumming it with the
->pgdat locks.
+>[hot-remove operation]
+>__remove_memory         : acquire mem_hotplug lock
+> arch_remove_memory
+>  __remove_pages
+>   __remove_section
+>    sparse_remove_one_section
 >
->I really don't like the idea of removing the lock by just saying it
->doesn't protect anything without doing some homework first, though.  It
->would actually be really nice to comment the entire call chain from the
->mem_hotplug_lock acquisition to here.  There is precious little
->commenting in there and it could use some love.
 
-Dave,
+Thanks for this detailed analysis.
 
-Thanks for your comment :-)
+>Both operations are serialized by the mem_hotplug lock, so they cannot step
+>on each other's feet.
+>
+>Now, there seems to be an agreement/thought to remove the global mem_hotplug
+>lock, in favor of a range locking for hot-add/remove and online/offline
+>stage.
+>So, although removing the lock here is pretty straightforward, it does not
+>really get us closer to that goal IMHO, if that is what we want to do in the
+>end.
+>
 
-I should put more words to the reason for removing the lock.
+My current idea is :
 
-Here is a simplified call trace for sparse_add_one_section() during
-physical add/remove phase.
+  we can try to get rid of global mem_hotplug_lock in logical
+  online/offline phase first, and leave the physical add/remove phase
+  serialized by mem_hotplug_lock for now.
+
+There are two phase in memory hotplug:
+
+  * physical add/remove phase
+  * logical online/offline phase
+
+Currently, both of them are protected by the global mem_hotplug_lock.
+
+While get rid of the this in logical online/offline phase is a little
+easier to me, since this procedure is protected by memory_block_dev's lock.
+This ensures there is no pfn over lap during parallel processing.
+
+The physical add/remove phase is a little harder, because it will touch
+
+   * memblock
+   * kernel page table
+   * node online
+   * sparse mem
+
+And I don't see a similar lock as memory_block_dev's lock.
+
+Below is the call trace for these two phase and I list some suspicious
+point which is not safe without mem_hotplug_lock.
+
+1. physical phase
 
     __add_memory()
+        register_memory_resource() <- protected by resource_lock
         add_memory_resource()
     	mem_hotplug_begin()
     
+    	memblock_add_node()    <- add to memblock.memory, not safe
+    	__try_online_node()    <- not safe, related to node_set_online()
+    
     	arch_add_memory()
+    	    init_memory_mapping() <- not safe
+    
     	    add_pages()
     	        __add_pages()
     	            __add_section()
-    	                sparse_add_one_section(pfn)
+    	                sparse_add_one_section()
+    	        update_end_of_memory_vars()  <- not safe
+            node_set_online(nid)             <- need to hold mem_hotplug
+    	__register_one_node(nid)
+    	link_mem_sections()
+    	firmware_map_add_hotplug()
     
     	mem_hotplug_done()
 
-When we just look at the sparse section initialization, we can see the
-contention happens when __add_memory() try to add a same range or range
-overlapped in SECTIONS_PER_ROOT number of sections. Otherwise, they
-won't access the same memory. 
+2. logical phase
 
-If this happens, we may face two contentions:
+    device_lock(memory_block_dev)
+    online_pages()
+        mem_hotplug_begin()
+    
+        mem = find_memory_block()     <- not
+        zone = move_pfn_range()
+            zone_for_pfn_range();
+    	move_pfn_range_to_zone()
+        !populated_zone()
+            setup_zone_pageset(zone)
+    
+        online_pages_range()          <- looks safe
+        build_all_zonelists()         <- not
+        init_per_zone_wmark_min()     <- not
+        kswapd_run()                  <- may not
+        vm_total_pages = nr_free_pagecache_pages()
+    
+        mem_hotplug_done()
+    device_unlock(memory_block_dev)
 
-    * reallocation of mem_section[root]
-    * reallocation of memmap and usemap
 
-While neither of them could be protected by the pgdat_resize_lock from
-my understanding. Grab pgdat_resize_lock just slow down the process,
-while finally they will replace the mem_section[root] and
-ms->section_mem_map with their own new allocated data.
-
-Last bu not the least, to be honest, even the global mem_hotplug_lock
-doesn't help in this situation. In case __add_memory() try to add the
-same range twice, the sparse section would be initialized twice. Which
-means it will be overwritten with the new allocated memmap/usermap.
-
-But maybe we have the assumption this reentrance will not happen.
-
-This is all what I understand, in case there is some misunderstanding,
-please let me know.
 
 -- 
 Wei Yang
