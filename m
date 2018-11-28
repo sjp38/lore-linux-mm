@@ -1,135 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C37BA6B42C9
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 12:07:32 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id t13so6694613otk.4
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 09:07:32 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 4si345997ote.30.2018.11.26.09.07.31
-        for <linux-mm@kvack.org>;
-        Mon, 26 Nov 2018 09:07:31 -0800 (PST)
-From: Will Deacon <will.deacon@arm.com>
-Subject: [PATCH v4 1/5] ioremap: Rework pXd_free_pYd_page() API
-Date: Mon, 26 Nov 2018 17:07:43 +0000
-Message-Id: <1543252067-30831-2-git-send-email-will.deacon@arm.com>
-In-Reply-To: <1543252067-30831-1-git-send-email-will.deacon@arm.com>
-References: <1543252067-30831-1-git-send-email-will.deacon@arm.com>
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D292E6B4F37
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 17:11:30 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id o9so12970949pgv.19
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 14:11:30 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id u25si8039804pgm.532.2018.11.28.14.11.29
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Nov 2018 14:11:29 -0800 (PST)
+Date: Wed, 28 Nov 2018 14:11:26 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH V2 0/5] NestMMU pte upgrade workaround for mprotect
+Message-Id: <20181128141126.03004299897430353c37e889@linux-foundation.org>
+In-Reply-To: <20181128143438.29458-1-aneesh.kumar@linux.ibm.com>
+References: <20181128143438.29458-1-aneesh.kumar@linux.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: cpandya@codeaurora.org, toshi.kani@hpe.com, tglx@linutronix.de, mhocko@suse.com, akpm@linux-foundation.org, sean.j.christopherson@intel.com, Will Deacon <will.deacon@arm.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: mpe@ellerman.id.au, benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-The recently merged API for ensuring break-before-make on page-table
-entries when installing huge mappings in the vmalloc/ioremap region is
-fairly counter-intuitive, resulting in the arch freeing functions
-(e.g. pmd_free_pte_page()) being called even on entries that aren't
-present. This resulted in a minor bug in the arm64 implementation, giving
-rise to spurious VM_WARN messages.
+On Wed, 28 Nov 2018 20:04:33 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> wrote:
 
-This patch moves the pXd_present() checks out into the core code,
-refactoring the callsites at the same time so that we avoid the complex
-conjunctions when determining whether or not we can put down a huge
-mapping.
+> We can upgrade pte access (R -> RW transition) via mprotect. We need
+> to make sure we follow the recommended pte update sequence as outlined in
+> commit: bd5050e38aec ("powerpc/mm/radix: Change pte relax sequence to handle nest MMU hang")
+> for such updates. This patch series do that.
 
-Cc: Chintan Pandya <cpandya@codeaurora.org>
-Cc: Toshi Kani <toshi.kani@hpe.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
-Reviewed-by: Toshi Kani <toshi.kani@hpe.com>
-Signed-off-by: Will Deacon <will.deacon@arm.com>
----
- lib/ioremap.c | 56 ++++++++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 42 insertions(+), 14 deletions(-)
-
-diff --git a/lib/ioremap.c b/lib/ioremap.c
-index 517f5853ffed..6c72764af19c 100644
---- a/lib/ioremap.c
-+++ b/lib/ioremap.c
-@@ -76,6 +76,25 @@ static int ioremap_pte_range(pmd_t *pmd, unsigned long addr,
- 	return 0;
- }
- 
-+static int ioremap_try_huge_pmd(pmd_t *pmd, unsigned long addr,
-+				unsigned long end, phys_addr_t phys_addr,
-+				pgprot_t prot)
-+{
-+	if (!ioremap_pmd_enabled())
-+		return 0;
-+
-+	if ((end - addr) != PMD_SIZE)
-+		return 0;
-+
-+	if (!IS_ALIGNED(phys_addr, PMD_SIZE))
-+		return 0;
-+
-+	if (pmd_present(*pmd) && !pmd_free_pte_page(pmd, addr))
-+		return 0;
-+
-+	return pmd_set_huge(pmd, phys_addr, prot);
-+}
-+
- static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
- 		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
- {
-@@ -89,13 +108,8 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
- 	do {
- 		next = pmd_addr_end(addr, end);
- 
--		if (ioremap_pmd_enabled() &&
--		    ((next - addr) == PMD_SIZE) &&
--		    IS_ALIGNED(phys_addr + addr, PMD_SIZE) &&
--		    pmd_free_pte_page(pmd, addr)) {
--			if (pmd_set_huge(pmd, phys_addr + addr, prot))
--				continue;
--		}
-+		if (ioremap_try_huge_pmd(pmd, addr, next, phys_addr + addr, prot))
-+			continue;
- 
- 		if (ioremap_pte_range(pmd, addr, next, phys_addr + addr, prot))
- 			return -ENOMEM;
-@@ -103,6 +117,25 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
- 	return 0;
- }
- 
-+static int ioremap_try_huge_pud(pud_t *pud, unsigned long addr,
-+				unsigned long end, phys_addr_t phys_addr,
-+				pgprot_t prot)
-+{
-+	if (!ioremap_pud_enabled())
-+		return 0;
-+
-+	if ((end - addr) != PUD_SIZE)
-+		return 0;
-+
-+	if (!IS_ALIGNED(phys_addr, PUD_SIZE))
-+		return 0;
-+
-+	if (pud_present(*pud) && !pud_free_pmd_page(pud, addr))
-+		return 0;
-+
-+	return pud_set_huge(pud, phys_addr, prot);
-+}
-+
- static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
- 		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
- {
-@@ -116,13 +149,8 @@ static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
- 	do {
- 		next = pud_addr_end(addr, end);
- 
--		if (ioremap_pud_enabled() &&
--		    ((next - addr) == PUD_SIZE) &&
--		    IS_ALIGNED(phys_addr + addr, PUD_SIZE) &&
--		    pud_free_pmd_page(pud, addr)) {
--			if (pud_set_huge(pud, phys_addr + addr, prot))
--				continue;
--		}
-+		if (ioremap_try_huge_pud(pud, addr, next, phys_addr + addr, prot))
-+			continue;
- 
- 		if (ioremap_pmd_range(pud, addr, next, phys_addr + addr, prot))
- 			return -ENOMEM;
--- 
-2.1.4
+The mm bits look (mostly) OK to me.  I suggest all these be merged via
+the appropriate powerpc tree.
