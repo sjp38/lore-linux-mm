@@ -1,54 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 490966B5014
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 20:52:09 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id i55so344936ede.14
-        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 17:52:09 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n10sor159376edq.15.2018.11.28.17.52.07
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B4BE6B4F2F
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 17:07:58 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id r13so12957397pgb.7
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 14:07:58 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id u16si9504618plk.192.2018.11.28.14.07.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 28 Nov 2018 17:52:07 -0800 (PST)
-Date: Thu, 29 Nov 2018 01:52:05 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Nov 2018 14:07:57 -0800 (PST)
+Date: Wed, 28 Nov 2018 14:07:51 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] mm, show_mem: drop pgdat_resize_lock in show_mem()
-Message-ID: <20181129015205.rrwzakileopkrxaa@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
+Message-Id: <20181128140751.e79de952a3fdfdac3aab75e9@linux-foundation.org>
+In-Reply-To: <20181128210815.2134-1-richard.weiyang@gmail.com>
 References: <20181128210815.2134-1-richard.weiyang@gmail.com>
- <20181128140751.e79de952a3fdfdac3aab75e9@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181128140751.e79de952a3fdfdac3aab75e9@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wei Yang <richard.weiyang@gmail.com>, mhocko@suse.com, jweiner@fb.com, linux-mm@kvack.org
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: mhocko@suse.com, jweiner@fb.com, linux-mm@kvack.org
 
-On Wed, Nov 28, 2018 at 02:07:51PM -0800, Andrew Morton wrote:
->On Thu, 29 Nov 2018 05:08:15 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
->
->> Function show_mem() is used to print system memory status when user
->> requires or fail to allocate memory. Generally, this is a best effort
->> information and not willing to affect core mm subsystem.
->> 
->> The data protected by pgdat_resize_lock is mostly correct except there is:
->> 
->>    * page struct defer init
->>    * memory hotplug
->
->What is the advantage in doing this?  What problem does the taking of
->that lock cause?
+On Thu, 29 Nov 2018 05:08:15 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
 
-Michal and I had a discussion in https://patchwork.kernel.org/patch/10689759/
+> Function show_mem() is used to print system memory status when user
+> requires or fail to allocate memory. Generally, this is a best effort
+> information and not willing to affect core mm subsystem.
+> 
+> The data protected by pgdat_resize_lock is mostly correct except there is:
+> 
+>    * page struct defer init
+>    * memory hotplug
 
-The purpose of this is to see whehter it is nessary to make
-pgdat_resize_lock IRQ context safe. After went through the code, most of
-the users are not from IRQ context.
-
-If my understanding is correct, Michal's suggestion is to drop the lock
-here. (The second last reply from Michal.)
-
--- 
-Wei Yang
-Help you, Help me
+What is the advantage in doing this?  What problem does the taking of
+that lock cause?
