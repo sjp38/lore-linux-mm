@@ -1,42 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E9FCA6B4D9B
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 10:55:53 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id o63-v6so2979222wma.2
-        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 07:55:53 -0800 (PST)
-Received: from mo6-p01-ob.smtp.rzone.de (mo6-p01-ob.smtp.rzone.de. [2a01:238:20a:202:5301::10])
-        by mx.google.com with ESMTPS id y3-v6si2552174wmg.193.2018.11.28.07.55.52
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 49A696B4C9F
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 06:05:24 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id f69so5636618pff.5
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 03:05:24 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
+        by mx.google.com with ESMTPS id 38si7132820pln.313.2018.11.28.03.05.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Nov 2018 07:55:52 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 28 Nov 2018 03:05:23 -0800 (PST)
+From: Michael Ellerman <mpe@ellerman.id.au>
 Subject: Re: use generic DMA mapping code in powerpc V4
+In-Reply-To: <20181127074253.GB30186@lst.de>
 References: <20181114082314.8965-1-hch@lst.de> <20181127074253.GB30186@lst.de>
- <87zhttfonk.fsf@concordia.ellerman.id.au>
-From: Christian Zigotzky <chzigotzky@xenosoft.de>
-Message-ID: <535776df-dea3-eb26-6bf3-83f225e977df@xenosoft.de>
-Date: Wed, 28 Nov 2018 16:55:30 +0100
+Date: Wed, 28 Nov 2018 22:05:19 +1100
+Message-ID: <87zhttfonk.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-In-Reply-To: <87zhttfonk.fsf@concordia.ellerman.id.au>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: de-DE
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>, Christoph Hellwig <hch@lst.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>
+To: Christoph Hellwig <hch@lst.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>
 Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org
 
-On 28 November 2018 at 12:05PM, Michael Ellerman wrote:
-> Nothing specific yet.
->
-> I'm a bit worried it might break one of the many old obscure platforms
-> we have that aren't well tested.
->
-Please don't apply the new DMA mapping code if you don't be sure if it 
-works on all supported PowerPC machines. Is the new DMA mapping code 
-really necessary? It's not really nice, to rewrote code if the old code 
-works perfect. We must not forget, that we work for the end users. Does 
-the end user have advantages with this new code? Is it faster? The old 
-code works without any problems. I am also worried about this code. How 
-can I test this new DMA mapping code?
+Christoph Hellwig <hch@lst.de> writes:
 
-Thanks
+> Any comments?  I'd like to at least get the ball moving on the easy
+> bits.
+
+Nothing specific yet.
+
+I'm a bit worried it might break one of the many old obscure platforms
+we have that aren't well tested.
+
+There's not much we can do about that, but I'll just try and test it on
+everything I can find.
+
+Is the plan that you take these via the dma-mapping tree or that they go
+via powerpc?
+
+cheers
+
+> On Wed, Nov 14, 2018 at 09:22:40AM +0100, Christoph Hellwig wrote:
+>> Hi all,
+>> 
+>> this series switches the powerpc port to use the generic swiotlb and
+>> noncoherent dma ops, and to use more generic code for the coherent
+>> direct mapping, as well as removing a lot of dead code.
+>> 
+>> As this series is very large and depends on the dma-mapping tree I've
+>> also published a git tree:
+>> 
+>>     git://git.infradead.org/users/hch/misc.git powerpc-dma.4
+>> 
+>> Gitweb:
+>> 
+>>     http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.4
+>> 
+>> Changes since v3:
+>>  - rebase on the powerpc fixes tree
+>>  - add a new patch to actually make the baseline amigaone config
+>>    configure without warnings
+>>  - only use ZONE_DMA for 64-bit embedded CPUs, on pseries an IOMMU is
+>>    always present
+>>  - fix compile in mem.c for one configuration
+>>  - drop the full npu removal for now, will be resent separately
+>>  - a few git bisection fixes
+>> 
+>> The changes since v1 are to big to list and v2 was not posted in public.
+>> 
+>> _______________________________________________
+>> iommu mailing list
+>> iommu@lists.linux-foundation.org
+>> https://lists.linuxfoundation.org/mailman/listinfo/iommu
+> ---end quoted text---
