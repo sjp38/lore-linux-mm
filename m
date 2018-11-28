@@ -1,196 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C81A6B4900
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:26:06 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id o21so7688213edq.4
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:26:06 -0800 (PST)
-Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
-        by mx.google.com with ESMTPS id k3-v6si27618ejr.219.2018.11.27.08.26.04
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AF346B4C1C
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 03:56:08 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id d3so11718426pgv.23
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 00:56:08 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t62sor9042148pfa.72.2018.11.28.00.56.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Nov 2018 08:26:04 -0800 (PST)
-From: Oscar Salvador <osalvador@suse.de>
-Subject: [PATCH v2 4/5] mm, memory-hotplug: Rework unregister_mem_sect_under_nodes
-Date: Tue, 27 Nov 2018 17:25:35 +0100
-Message-Id: <20181127162535.15910-1-osalvador@suse.de>
+        (Google Transport Security);
+        Wed, 28 Nov 2018 00:56:06 -0800 (PST)
+MIME-Version: 1.0
+References: <20181111090341.120786-1-drinkcat@chromium.org>
+ <0100016737801f14-84f1265d-4577-4dcf-ad57-90dbc8e0a78f-000000@email.amazonses.com>
+ <20181121213853.GL3065@bombadil.infradead.org> <c5ccde1e-a711-ad33-537c-2d5a0bd9edd4@arm.com>
+ <20181122082336.GA2049@infradead.org> <555dd63a-0634-6a39-7abc-121e02273cb2@suse.cz>
+ <20181126080213.GA17809@infradead.org>
+In-Reply-To: <20181126080213.GA17809@infradead.org>
+From: Nicolas Boichat <drinkcat@chromium.org>
+Date: Wed, 28 Nov 2018 16:55:54 +0800
+Message-ID: <CANMq1KBYAgoPh37e+BPz7xK4z3jJ4Gm30Gs662+_gTdM8v0QDA@mail.gmail.com>
+Subject: Re: [PATCH v2 0/3] iommu/io-pgtable-arm-v7s: Use DMA32 zone for page tables
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, dan.j.williams@intel.com, pavel.tatashin@microsoft.com, jglisse@redhat.com, Jonathan.Cameron@huawei.com, rafael@kernel.org, david@redhat.com, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.com>, Oscar Salvador <osalvador@suse.de>
+To: hch@infradead.org
+Cc: Vlastimil Babka <vbabka@suse.cz>, Robin Murphy <robin.murphy@arm.com>, willy@infradead.org, Christoph Lameter <cl@linux.com>, Levin Alexander <Alexander.Levin@microsoft.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Huaisheng Ye <yehs1@lenovo.com>, Tomasz Figa <tfiga@google.com>, Will Deacon <will.deacon@arm.com>, lkml <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Michal Hocko <mhocko@suse.com>, linux-arm Mailing List <linux-arm-kernel@lists.infradead.org>, David Rientjes <rientjes@google.com>, Matthias Brugger <matthias.bgg@gmail.com>, yingjoe.chen@mediatek.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
 
-From: Oscar Salvador <osalvador@suse.com>
+On Mon, Nov 26, 2018 at 4:02 PM Christoph Hellwig <hch@infradead.org> wrote:
+>
+> On Fri, Nov 23, 2018 at 01:23:41PM +0100, Vlastimil Babka wrote:
+> > Is this also true for caches created by kmem_cache_create(), that
+> > debugging options can result in not respecting the alignment passed to
+> > kmem_cache_create()? That would be rather bad, IMHO.
+>
+> That's what I understood in the discussion.  If not it would make
+> our live simpler, but would need to be well document.
 
-This tries to address another issue about accessing
-unitiliazed pages.
+>From my experiment, adding `slub_debug` to command line does _not_
+break the alignment of kmem_cache_alloc'ed objects.
 
-Jonathan reported a problem [1] where we can access steal pages
-in case we hot-remove memory without onlining it first.
+We do see an increase in slab_size
+(/sys/kernel/slab/io-pgtable_armv7s_l2/slab_size), from 1024 to 3072
+(probably because slub needs to allocate space on each side for the
+red zone/padding, while keeping the alignment?)
 
-This time is in unregister_mem_sect_under_nodes.
-This function tries to get the nid from the pfn and then
-tries to remove the symlink between mem_blk <-> nid and vice versa.
-
-Since we already know the nid in remove_memory(), we can pass
-it down the chain to unregister_mem_sect_under_nodes.
-There we can just remove the symlinks without the need
-to look into the pages.
-
-This also allows us to cleanup unregister_mem_sect_under_nodes.
-
-[1] https://www.spinics.net/lists/linux-mm/msg161316.html
-
-Signed-off-by: Oscar Salvador <osalvador@suse.de>
-Tested-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>
----
- drivers/base/memory.c  |  9 ++++-----
- drivers/base/node.c    | 39 ++++++---------------------------------
- include/linux/memory.h |  2 +-
- include/linux/node.h   |  9 ++++-----
- mm/memory_hotplug.c    |  2 +-
- 5 files changed, 16 insertions(+), 45 deletions(-)
-
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 0e5985682642..3d8c65d84bea 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -744,8 +744,7 @@ unregister_memory(struct memory_block *memory)
- 	device_unregister(&memory->dev);
- }
- 
--static int remove_memory_section(unsigned long node_id,
--			       struct mem_section *section, int phys_device)
-+static int remove_memory_section(unsigned long nid, struct mem_section *section)
- {
- 	struct memory_block *mem;
- 
-@@ -759,7 +758,7 @@ static int remove_memory_section(unsigned long node_id,
- 	if (!mem)
- 		goto out_unlock;
- 
--	unregister_mem_sect_under_nodes(mem, __section_nr(section));
-+	unregister_mem_sect_under_nodes(nid, mem);
- 
- 	mem->section_count--;
- 	if (mem->section_count == 0)
-@@ -772,12 +771,12 @@ static int remove_memory_section(unsigned long node_id,
- 	return 0;
- }
- 
--int unregister_memory_section(struct mem_section *section)
-+int unregister_memory_section(int nid, struct mem_section *section)
- {
- 	if (!present_section(section))
- 		return -EINVAL;
- 
--	return remove_memory_section(0, section, 0);
-+	return remove_memory_section(nid, section);
- }
- #endif /* CONFIG_MEMORY_HOTREMOVE */
- 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 86d6cd92ce3d..0858f7f3c7cd 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -453,40 +453,13 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, void *arg)
- 	return 0;
- }
- 
--/* unregister memory section under all nodes that it spans */
--int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
--				    unsigned long phys_index)
-+/* Remove symlink between node <-> mem_blk */
-+void unregister_mem_sect_under_nodes(int nid, struct memory_block *mem_blk)
- {
--	NODEMASK_ALLOC(nodemask_t, unlinked_nodes, GFP_KERNEL);
--	unsigned long pfn, sect_start_pfn, sect_end_pfn;
--
--	if (!mem_blk) {
--		NODEMASK_FREE(unlinked_nodes);
--		return -EFAULT;
--	}
--	if (!unlinked_nodes)
--		return -ENOMEM;
--	nodes_clear(*unlinked_nodes);
--
--	sect_start_pfn = section_nr_to_pfn(phys_index);
--	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
--	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
--		int nid;
--
--		nid = get_nid_for_pfn(pfn);
--		if (nid < 0)
--			continue;
--		if (!node_online(nid))
--			continue;
--		if (node_test_and_set(nid, *unlinked_nodes))
--			continue;
--		sysfs_remove_link(&node_devices[nid]->dev.kobj,
--			 kobject_name(&mem_blk->dev.kobj));
--		sysfs_remove_link(&mem_blk->dev.kobj,
--			 kobject_name(&node_devices[nid]->dev.kobj));
--	}
--	NODEMASK_FREE(unlinked_nodes);
--	return 0;
-+	sysfs_remove_link(&node_devices[nid]->dev.kobj,
-+			kobject_name(&mem_blk->dev.kobj));
-+	sysfs_remove_link(&mem_blk->dev.kobj,
-+			kobject_name(&node_devices[nid]->dev.kobj));
- }
- 
- int link_mem_sections(int nid, unsigned long start_pfn, unsigned long end_pfn)
-diff --git a/include/linux/memory.h b/include/linux/memory.h
-index a6ddefc60517..d75ec88ca09d 100644
---- a/include/linux/memory.h
-+++ b/include/linux/memory.h
-@@ -113,7 +113,7 @@ extern int register_memory_isolate_notifier(struct notifier_block *nb);
- extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
- int hotplug_memory_register(int nid, struct mem_section *section);
- #ifdef CONFIG_MEMORY_HOTREMOVE
--extern int unregister_memory_section(struct mem_section *);
-+extern int unregister_memory_section(int nid, struct mem_section *);
- #endif
- extern int memory_dev_init(void);
- extern int memory_notify(unsigned long val, void *v);
-diff --git a/include/linux/node.h b/include/linux/node.h
-index 257bb3d6d014..488c1333bb06 100644
---- a/include/linux/node.h
-+++ b/include/linux/node.h
-@@ -72,8 +72,8 @@ extern int register_cpu_under_node(unsigned int cpu, unsigned int nid);
- extern int unregister_cpu_under_node(unsigned int cpu, unsigned int nid);
- extern int register_mem_sect_under_node(struct memory_block *mem_blk,
- 						void *arg);
--extern int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
--					   unsigned long phys_index);
-+extern void unregister_mem_sect_under_nodes(int nid,
-+			struct memory_block *mem_blk);
- 
- #ifdef CONFIG_HUGETLBFS
- extern void register_hugetlbfs_with_node(node_registration_func_t doregister,
-@@ -105,10 +105,9 @@ static inline int register_mem_sect_under_node(struct memory_block *mem_blk,
- {
- 	return 0;
- }
--static inline int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
--						  unsigned long phys_index)
-+static inline void unregister_mem_sect_under_nodes(int nid,
-+				struct memory_block *mem_blk)
- {
--	return 0;
- }
- 
- static inline void register_hugetlbfs_with_node(node_registration_func_t reg,
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 4fe42ccb0be4..49b91907e19e 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -544,7 +544,7 @@ static int __remove_section(int nid, struct mem_section *ms,
- 	if (!valid_section(ms))
- 		return ret;
- 
--	ret = unregister_memory_section(ms);
-+	ret = unregister_memory_section(nid, ms);
- 	if (ret)
- 		return ret;
- 
--- 
-2.13.6
+> Christoph can probably explain the alignment choices in slub.
+>
+> >
+> > > But I do agree with the sentiment of not wanting to spread GFP_DMA32
+> > > futher into the slab allocator.
+> >
+> > I don't see a problem with GFP_DMA32 for custom caches. Generic
+> > kmalloc() would be worse, since it would have to create a new array of
+> > kmalloc caches. But that's already ruled out due to the alignment.
+>
+> True, purely slab probably isn't too bad.
