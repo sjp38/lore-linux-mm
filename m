@@ -1,32 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AD44D6B53B2
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2018 12:15:45 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id b7so1423046eda.10
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2018 09:15:45 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l17si40505edq.20.2018.11.29.09.15.44
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A36606B5365
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2018 11:01:55 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id u20so2146399qtk.6
+        for <linux-mm@kvack.org>; Thu, 29 Nov 2018 08:01:55 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x2si1588895qta.285.2018.11.29.08.01.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Nov 2018 09:15:44 -0800 (PST)
-Date: Thu, 29 Nov 2018 18:15:42 +0100
-From: Michal Hocko <mhocko@suse.com>
+        Thu, 29 Nov 2018 08:01:54 -0800 (PST)
 Subject: Re: [PATCH v3 2/2] mm, sparse: pass nid instead of pgdat to
  sparse_add_one_section()
-Message-ID: <20181129171542.GX6923@dhcp22.suse.cz>
 References: <20181128091243.19249-1-richard.weiyang@gmail.com>
  <20181129155316.8174-1-richard.weiyang@gmail.com>
  <20181129155316.8174-2-richard.weiyang@gmail.com>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <7acfdb10-9e4e-a766-fb6f-08c575887167@redhat.com>
+Date: Thu, 29 Nov 2018 17:01:51 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <20181129155316.8174-2-richard.weiyang@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: dave.hansen@intel.com, osalvador@suse.de, david@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Wei Yang <richard.weiyang@gmail.com>, mhocko@suse.com, dave.hansen@intel.com, osalvador@suse.de
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 
-On Thu 29-11-18 23:53:16, Wei Yang wrote:
+On 29.11.18 16:53, Wei Yang wrote:
 > Since the information needed in sparse_add_one_section() is node id to
 > allocate proper memory, it is not necessary to pass its pgdat.
 > 
@@ -35,13 +36,6 @@ On Thu 29-11-18 23:53:16, Wei Yang wrote:
 > sparse_add_one_section() would touch pgdat.
 > 
 > Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-
->From a quick look, this looks ok.
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks for splitting up it from the original patch.
-
 > ---
 >  include/linux/memory_hotplug.h | 2 +-
 >  mm/memory_hotplug.c            | 2 +-
@@ -59,6 +53,13 @@ Thanks for splitting up it from the original patch.
 > -extern int sparse_add_one_section(struct pglist_data *pgdat,
 > +extern int sparse_add_one_section(int nid,
 >  		unsigned long start_pfn, struct vmem_altmap *altmap);
+
+While you touch that, can you fixup the alignment of the other parameters?
+
+Apart from that
+
+Reviewed-by: David Hildenbrand <david@redhat.com>
+
 >  extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
 >  		unsigned long map_offset, struct vmem_altmap *altmap);
 > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
@@ -101,10 +102,11 @@ Thanks for splitting up it from the original patch.
 >  	if (!memmap)
 >  		return -ENOMEM;
 >  	usemap = __kmalloc_section_usemap();
-> -- 
-> 2.15.1
 > 
 
+
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
