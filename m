@@ -1,92 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2600F6B420A
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 06:54:20 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id m19so9070311edc.6
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 03:54:20 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id h17si295151edr.245.2018.11.26.03.54.17
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Nov 2018 03:54:18 -0800 (PST)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAQBsE1x030035
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 06:54:16 -0500
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2p0enpcqw7-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 06:54:15 -0500
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 26 Nov 2018 11:53:45 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH] alpha: fix hang caused by the bootmem removal
-Date: Mon, 26 Nov 2018 13:53:36 +0200
-Message-Id: <1543233216-25833-1-git-send-email-rppt@linux.ibm.com>
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 63AF26B53EE
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2018 13:22:27 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id b18so1516266oii.1
+        for <linux-mm@kvack.org>; Thu, 29 Nov 2018 10:22:27 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id e26si1085500otr.95.2018.11.29.10.22.26
+        for <linux-mm@kvack.org>;
+        Thu, 29 Nov 2018 10:22:26 -0800 (PST)
+Date: Thu, 29 Nov 2018 18:22:18 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v8 1/8] arm64: add type casts to untagged_addr macro
+Message-ID: <20181129182218.GH22027@arrakis.emea.arm.com>
+References: <cover.1541687720.git.andreyknvl@google.com>
+ <4a4063a3e074608b99cf22ab447fecc36d056251.1541687720.git.andreyknvl@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4a4063a3e074608b99cf22ab447fecc36d056251.1541687720.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Meelis Roos <mroos@linux.ee>, linux-alpha@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Evgeniy Stepanov <eugenis@google.com>
 
-The conversion of alpha to memblock as the early memory manager caused boot
-to hang as described at [1].
+On Thu, Nov 08, 2018 at 03:36:08PM +0100, Andrey Konovalov wrote:
+> This patch makes the untagged_addr macro accept all kinds of address types
+> (void *, unsigned long, etc.) and allows not to specify type casts in each
+> place where it is used. This is done by using __typeof__.
+> 
+> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> ---
+>  arch/arm64/include/asm/uaccess.h | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
+> index 07c34087bd5e..c1325271e368 100644
+> --- a/arch/arm64/include/asm/uaccess.h
+> +++ b/arch/arm64/include/asm/uaccess.h
+> @@ -101,7 +101,8 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
+>   * up with a tagged userland pointer. Clear the tag to get a sane pointer to
+>   * pass on to access_ok(), for instance.
+>   */
+> -#define untagged_addr(addr)		sign_extend64(addr, 55)
+> +#define untagged_addr(addr)		\
+> +	((__typeof__(addr))sign_extend64((__u64)(addr), 55))
 
-The issue is caused because for CONFIG_DISCTONTIGMEM=y case, memblock_add()
-is called using memory start PFN that had been rounded down to the nearest
-8Mb and it caused memblock to see more memory that is actually present in
-the system.
+Nitpick: same comment as here (use u64):
 
-Besides, memblock allocates memory from high addresses while bootmem was
-using low memory, which broke the assumption that early allocations are
-always accessible by the hardware.
+http://lkml.kernel.org/r/20181123173739.osgvnnhmptdgtlnl@lakrids.cambridge.arm.com
 
-This patch ensures that memblock_add() is using the correct PFN for the
-memory start and forces memblock to use bottom-up allocations.
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 
-[1] https://lkml.org/lkml/2018/11/22/1032
-
-Reported-by: Meelis Roos <mroos@linux.ee>
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-Tested-by: Meelis Roos <mroos@linux.ee>
----
- arch/alpha/kernel/setup.c | 1 +
- arch/alpha/mm/numa.c      | 6 +++---
- 2 files changed, 4 insertions(+), 3 deletions(-)
-
-diff --git a/arch/alpha/kernel/setup.c b/arch/alpha/kernel/setup.c
-index a37fd99..4b5b1b2 100644
---- a/arch/alpha/kernel/setup.c
-+++ b/arch/alpha/kernel/setup.c
-@@ -634,6 +634,7 @@ setup_arch(char **cmdline_p)
- 
- 	/* Find our memory.  */
- 	setup_memory(kernel_end);
-+	memblock_set_bottom_up(true);
- 
- 	/* First guess at cpu cache sizes.  Do this before init_arch.  */
- 	determine_cpu_caches(cpu->type);
-diff --git a/arch/alpha/mm/numa.c b/arch/alpha/mm/numa.c
-index 74846553..d0b7337 100644
---- a/arch/alpha/mm/numa.c
-+++ b/arch/alpha/mm/numa.c
-@@ -144,14 +144,14 @@ setup_memory_node(int nid, void *kernel_end)
- 	if (!nid && (node_max_pfn < end_kernel_pfn || node_min_pfn > start_kernel_pfn))
- 		panic("kernel loaded out of ram");
- 
-+	memblock_add(PFN_PHYS(node_min_pfn),
-+		     (node_max_pfn - node_min_pfn) << PAGE_SHIFT);
-+
- 	/* Zone start phys-addr must be 2^(MAX_ORDER-1) aligned.
- 	   Note that we round this down, not up - node memory
- 	   has much larger alignment than 8Mb, so it's safe. */
- 	node_min_pfn &= ~((1UL << (MAX_ORDER-1))-1);
- 
--	memblock_add(PFN_PHYS(node_min_pfn),
--		     (node_max_pfn - node_min_pfn) << PAGE_SHIFT);
--
- 	NODE_DATA(nid)->node_start_pfn = node_min_pfn;
- 	NODE_DATA(nid)->node_present_pages = node_max_pfn - node_min_pfn;
- 
--- 
-2.7.4
+(not acking the whole series just yet, only specific patches to remember
+what I reviewed)
