@@ -1,92 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D86F96B3F74
-	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 21:19:20 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id u32so15455076qte.1
-        for <linux-mm@kvack.org>; Sun, 25 Nov 2018 18:19:20 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g14si5517qti.392.2018.11.25.18.19.19
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B1186B5024
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 21:08:28 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id l45so378335edb.1
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 18:08:28 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e19sor344608edq.29.2018.11.28.18.08.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Nov 2018 18:19:20 -0800 (PST)
-From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V12 08/20] block: introduce bio_for_each_bvec() and rq_for_each_bvec()
-Date: Mon, 26 Nov 2018 10:17:08 +0800
-Message-Id: <20181126021720.19471-9-ming.lei@redhat.com>
-In-Reply-To: <20181126021720.19471-1-ming.lei@redhat.com>
-References: <20181126021720.19471-1-ming.lei@redhat.com>
+        (Google Transport Security);
+        Wed, 28 Nov 2018 18:08:26 -0800 (PST)
+Date: Thu, 29 Nov 2018 02:08:25 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [RFC PATCH] mm: update highest_memmap_pfn based on exact pfn
+Message-ID: <20181129020825.3zezgscg3nilfssy@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181128083634.18515-1-richard.weiyang@gmail.com>
+ <20181128150052.6c00403395ca3c9654341a94@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181128150052.6c00403395ca3c9654341a94@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Wei Yang <richard.weiyang@gmail.com>, hughd@google.com, pasha.tatashin@oracle.com, mgorman@suse.de, linux-mm@kvack.org
 
-bio_for_each_bvec() is used for iterating over multi-page bvec for bio
-split & merge code.
+On Wed, Nov 28, 2018 at 03:00:52PM -0800, Andrew Morton wrote:
+>On Wed, 28 Nov 2018 16:36:34 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
+>
+>> When DEFERRED_STRUCT_PAGE_INIT is set, page struct will not be
+>> initialized all at boot up. Some of them is postponed to defer stage.
+>> While the global variable highest_memmap_pfn is still set to the highest
+>> pfn at boot up, even some of them are not initialized.
+>> 
+>> This patch adjust this behavior by update highest_memmap_pfn with the
+>> exact pfn during each iteration. Since each node has a defer thread,
+>> introduce a spin lock to protect it.
+>> 
+>
+>Does this solve any known problems?  If so then I'm suspecting that
+>those problems go deeper than this.
 
-rq_for_each_bvec() can be used for drivers which may handle the
-multi-page bvec directly, so far loop is one perfect use case.
+Corrently I don't see any problem.
 
-Reviewed-by: Omar Sandoval <osandov@fb.com>
-Signed-off-by: Ming Lei <ming.lei@redhat.com>
----
- include/linux/bio.h    | 10 ++++++++++
- include/linux/blkdev.h |  4 ++++
- include/linux/bvec.h   |  7 +++++++
- 3 files changed, 21 insertions(+)
+>
+>Why use a spinlock rather than an atomic_long_t?
 
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 6a0ff02f4d1c..46fd0e03233b 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -156,6 +156,16 @@ static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
- #define bio_for_each_segment(bvl, bio, iter)				\
- 	__bio_for_each_segment(bvl, bio, iter, (bio)->bi_iter)
- 
-+#define __bio_for_each_bvec(bvl, bio, iter, start)		\
-+	for (iter = (start);						\
-+	     (iter).bi_size &&						\
-+		((bvl = bvec_iter_bvec((bio)->bi_io_vec, (iter))), 1); \
-+	     bio_advance_iter((bio), &(iter), (bvl).bv_len))
-+
-+/* iterate over multi-page bvec */
-+#define bio_for_each_bvec(bvl, bio, iter)			\
-+	__bio_for_each_bvec(bvl, bio, iter, (bio)->bi_iter)
-+
- #define bio_iter_last(bvec, iter) ((iter).bi_size == (bvec).bv_len)
- 
- static inline unsigned bio_segments(struct bio *bio)
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 399a7a415609..fa263de3f1d1 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -799,6 +799,10 @@ struct req_iterator {
- 	__rq_for_each_bio(_iter.bio, _rq)			\
- 		bio_for_each_segment(bvl, _iter.bio, _iter.iter)
- 
-+#define rq_for_each_bvec(bvl, _rq, _iter)			\
-+	__rq_for_each_bio(_iter.bio, _rq)			\
-+		bio_for_each_bvec(bvl, _iter.bio, _iter.iter)
-+
- #define rq_iter_last(bvec, _iter)				\
- 		(_iter.bio->bi_next == NULL &&			\
- 		 bio_iter_last(bvec, _iter.iter))
-diff --git a/include/linux/bvec.h b/include/linux/bvec.h
-index babc6316c117..d441486db605 100644
---- a/include/linux/bvec.h
-+++ b/include/linux/bvec.h
-@@ -65,6 +65,13 @@ struct bvec_iter {
- #define bvec_iter_page_idx(bvec, iter)			\
- 	(bvec_iter_offset((bvec), (iter)) / PAGE_SIZE)
- 
-+#define bvec_iter_bvec(bvec, iter)				\
-+((struct bio_vec) {						\
-+	.bv_page	= bvec_iter_page((bvec), (iter)),	\
-+	.bv_len		= bvec_iter_len((bvec), (iter)),	\
-+	.bv_offset	= bvec_iter_offset((bvec), (iter)),	\
-+})
-+
- /* For building single-page bvec(segment) in flight */
-  #define segment_iter_offset(bvec, iter)				\
- 	(bvec_iter_offset((bvec), (iter)) % PAGE_SIZE)
+Sorry for my shortage in knowledge. I am not sure how to compare and
+change a value atomicly. cmpxchg just could compare the exact value.
+
+>
+>Perhaps this check should instead be built into pfn_valid()?
+
+I think the original commit 22b31eec63e5 ('badpage: vm_normal_page use
+print_bad_pte') introduce highest_memmap_pfn to make pfn_valid()
+cheaper.
+
+Some definition of pfn_valid() is :
+
+#define pfn_valid(pfn)          ((pfn) < max_pfn)
+
+Which doesn't care about the exact presented or memmap-ed page.
+
+I am not for sure all pfn_valid() could leverage this. One thing for
+sure is there are only two users of highest_memmap_pfn
+
+   * vm_normal_page_pmd
+   * _vm_normal_page
+
 -- 
-2.9.5
+Wei Yang
+Help you, Help me
