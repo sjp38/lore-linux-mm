@@ -1,31 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 18D486B53B0
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2018 12:14:47 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id v4so1376207edm.18
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2018 09:14:47 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d12si1198972edn.298.2018.11.29.09.14.45
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 096D06B536A
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2018 11:06:20 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id n50so2172024qtb.9
+        for <linux-mm@kvack.org>; Thu, 29 Nov 2018 08:06:20 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i54si1647451qvh.107.2018.11.29.08.06.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Nov 2018 09:14:45 -0800 (PST)
-Date: Thu, 29 Nov 2018 18:14:43 +0100
-From: Michal Hocko <mhocko@suse.com>
+        Thu, 29 Nov 2018 08:06:18 -0800 (PST)
 Subject: Re: [PATCH v3 1/2] mm, sparse: drop pgdat_resize_lock in
  sparse_add/remove_one_section()
-Message-ID: <20181129171443.GW6923@dhcp22.suse.cz>
 References: <20181128091243.19249-1-richard.weiyang@gmail.com>
  <20181129155316.8174-1-richard.weiyang@gmail.com>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <d67e3edd-5a93-c133-3b3c-d3833ed27fd5@redhat.com>
+Date: Thu, 29 Nov 2018 17:06:15 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <20181129155316.8174-1-richard.weiyang@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: dave.hansen@intel.com, osalvador@suse.de, david@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Wei Yang <richard.weiyang@gmail.com>, mhocko@suse.com, dave.hansen@intel.com, osalvador@suse.de
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 
-On Thu 29-11-18 23:53:15, Wei Yang wrote:
+On 29.11.18 16:53, Wei Yang wrote:
 > pgdat_resize_lock is used to protect pgdat's memory region information
 > like: node_start_pfn, node_present_pages, etc. While in function
 > sparse_add/remove_one_section(), pgdat_resize_lock is used to protect
@@ -35,10 +36,7 @@ On Thu 29-11-18 23:53:15, Wei Yang wrote:
 > is still away from contention, because it is protected by global
 > mem_hotpulg_lock.
 
-I guess you wanted to say.
-These code paths are currently protected by mem_hotpulg_lock currently
-but should there ever be any reason for locking at the sparse layer a
-dedicated lock should be introduced.
+s/mem_hotpulg_lock/mem_hotplug_lock/
 
 > 
 > Following is the current call trace of sparse_add/remove_one_section()
@@ -64,12 +62,16 @@ dedicated lock should be introduced.
 > implementation doesn't meet this comment. There isn't any pfn walkers
 > to take the lock so this looks like a relict from the past. This patch
 > also removes this comment.
+
+Should we start to document which lock is expected to protect what?
+
+I suggest adding what you just found out to
+Documentation/admin-guide/mm/memory-hotplug.rst "Locking Internals".
+Maybe a new subsection for mem_hotplug_lock. And eventually also
+pgdat_resize_lock.
+
 > 
 > Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-
-Other than that
-Acked-by: Michal Hocko <mhocko@suse.com>
-
 > 
 > ---
 > v3:
@@ -147,10 +149,11 @@ Acked-by: Michal Hocko <mhocko@suse.com>
 >  
 >  	clear_hwpoisoned_pages(memmap + map_offset,
 >  			PAGES_PER_SECTION - map_offset);
-> -- 
-> 2.15.1
 > 
 
+
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
