@@ -1,63 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EEE0A6B2957
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 23:01:32 -0500 (EST)
-Received: by mail-io1-f72.google.com with SMTP id f24so7296322ioh.21
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 20:01:32 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id t16-v6sor5037248ita.13.2018.11.21.20.01.31
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5787F6B5519
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2018 18:19:21 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id e89so2900675pfb.17
+        for <linux-mm@kvack.org>; Thu, 29 Nov 2018 15:19:21 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id x5si2693884pga.440.2018.11.29.15.19.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 21 Nov 2018 20:01:31 -0800 (PST)
-MIME-Version: 1.0
-References: <20181120221659.GA61322@dennisz-mbp.dhcp.thefacebook.com>
-In-Reply-To: <20181120221659.GA61322@dennisz-mbp.dhcp.thefacebook.com>
-From: Vlad Dumitrescu <vladum@google.com>
-Date: Wed, 21 Nov 2018 20:01:04 -0800
-Message-ID: <CABDEL=+Q7eOycRC9zvjdffq3Kyn6Fcau4HVponM-Y6-dHYewNg@mail.gmail.com>
-Subject: Re: LPC Traffic Shaping w/ BPF Talk - percpu followup
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 Nov 2018 15:19:20 -0800 (PST)
+Date: Fri, 30 Nov 2018 08:19:13 +0900
+From: Masami Hiramatsu <mhiramat@kernel.org>
+Subject: Re: [PATCH 0/2] =?ISO-2022-JP?B?RG9uGyRCIUcbKEJ0?= leave executable
+ TLB entries to freed pages
+Message-Id: <20181130081913.916a27c8230b125da4bcf2f7@kernel.org>
+In-Reply-To: <4cddc2ba36ba3b6d528556207b8d4592209797ea.camel@intel.com>
+References: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
+	<20181129230616.f017059a093841dbaa4b82e6@kernel.org>
+	<4cddc2ba36ba3b6d528556207b8d4592209797ea.camel@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dennis@kernel.org
-Cc: Eddie Hao <eddieh@google.com>, Willem de Bruijn <willemb@google.com>, ast@kernel.org, tj@kernel.org, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Eric Dumazet <edumazet@google.com>
+To: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "jeyu@kernel.org" <jeyu@kernel.org>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "ast@kernel.org" <ast@kernel.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jannh@google.com" <jannh@google.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "Keshavamurthy, Anil S" <anil.s.keshavamurthy@intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, "naveen.n.rao@linux.vnet.ibm.com" <naveen.n.rao@linux.vnet.ibm.com>, "davem@davemloft.net" <davem@davemloft.net>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
 
-On Tue, Nov 20, 2018 at 2:17 PM Dennis Zhou <dennis@kernel.org> wrote:
->
-> Hi Eddie, Vlad, and Willem,
->
-> A few people mentioned to me that you guys were experiencing issues with
-> the percpu memory allocator. I saw the talk slides mention the
-> following two bullets:
->
-> 1) allocation pattern makes the per cpu allocator reach a highly
->    fragmented state
-> 2) sometimes takes a long time (up to 12s) to create the PERCPU_HASH
->    maps at startup
->
-> Could you guys elaborate a little more about the above? Some things
-> that would help: kernel version, cpu info, and a reproducer if possible?
->
-> Also, I did some work last summer to make percpu allocation more
-> efficient, which went into the 4.14 kernel. Just to be sure, is that a
-> part of the kernel you guys are running?
->
-> Thanks,
-> Dennis
+On Thu, 29 Nov 2018 18:49:26 +0000
+"Edgecombe, Rick P" <rick.p.edgecombe@intel.com> wrote:
 
-Hi, Dennis,
+> On Thu, 2018-11-29 at 23:06 +0900, Masami Hiramatsu wrote:
+> > On Tue, 27 Nov 2018 16:07:52 -0800
+> > Rick Edgecombe <rick.p.edgecombe@intel.com> wrote:
+> > 
+> > > Sometimes when memory is freed via the module subsystem, an executable
+> > > permissioned TLB entry can remain to a freed page. If the page is re-used to
+> > > back an address that will receive data from userspace, it can result in user
+> > > data being mapped as executable in the kernel. The root of this behavior is
+> > > vfree lazily flushing the TLB, but not lazily freeing the underlying pages. 
+> > 
+> > Good catch!
+> > 
+> > > 
+> > > There are sort of three categories of this which show up across modules,
+> > > bpf,
+> > > kprobes and ftrace:
+> > 
+> > For x86-64 kprobe, it sets the page NX and after that RW, and then release
+> > via module_memfree. So I'm not sure it really happens on kprobes. (Of course
+> > the default memory allocator is simpler so it may happen on other archs) But
+> > interesting fixes.
+> Yes, I think you are right, it should not leave an executable TLB entry in this
+> case. Ftrace actually does this on x86 as well.
+> 
+> Is there some other reason for calling set_memory_nx that should apply elsewhere
+> for module users? Or could it be removed in the case of this patch to centralize
+> the behavior?
 
-Thanks a lot for reaching out and sorry for the delay in answering. I
-was trying to build something which shows the problem on a recent
-upstream kernel, but I was unable to do so until now.
+According to the commit c93f5cf571e7 ("kprobes/x86: Fix to set RWX bits correctly
+before releasing trampoline"), if we release readonly page by module_memfree(),
+it causes kernel crash. And at this moment, on x86-64 set the trampoline page
+readonly becuase it is an exacutable page. Setting NX bit is for security reason
+that should be set before making it writable.
+So I think if you centralize setting NX bit, it should be done before setting
+writable bit.
 
-It seems like I can still reliably reproduce on one of our kernels,
-which has a lot of 'percpu: *' patches by you from 4.14, and with an
-internal application. Unfortunately, we haven't spent too much time on
-this issue, and I will have 'page in' state from a few months back.
-Hopefully, I'll be able to reproduce on a vanilla kernel and a simpler
-application, that we can publish, in the following days (after TG
-weekend).
+Thank you,
 
-Thanks,
-Vlad
+
+-- 
+Masami Hiramatsu <mhiramat@kernel.org>
