@@ -1,66 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 55C3B6B5007
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 20:41:08 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id v72so208289pgb.10
-        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 17:41:08 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 15si319577pgv.351.2018.11.28.17.41.07
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 072616B4FA4
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 19:02:19 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id l9so81275plt.7
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 16:02:18 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id j20si113705pgh.224.2018.11.28.16.02.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Nov 2018 17:41:07 -0800 (PST)
-Received: from mail-wm1-f49.google.com (mail-wm1-f49.google.com [209.85.128.49])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 8DE132133F
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2018 01:41:06 +0000 (UTC)
-Received: by mail-wm1-f49.google.com with SMTP id g67so548425wmd.2
-        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 17:41:06 -0800 (PST)
-MIME-Version: 1.0
-References: <20181128000754.18056-1-rick.p.edgecombe@intel.com> <20181128000754.18056-3-rick.p.edgecombe@intel.com>
-In-Reply-To: <20181128000754.18056-3-rick.p.edgecombe@intel.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Wed, 28 Nov 2018 17:40:53 -0800
-Message-ID: <CALCETrU+skBS0r6WtkwwMZJvb3s2vWB-JmDeZtVWV8pOkxKojQ@mail.gmail.com>
+        Wed, 28 Nov 2018 16:02:17 -0800 (PST)
+From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
 Subject: Re: [PATCH 2/2] x86/modules: Make x86 allocs to flush when free
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Date: Thu, 29 Nov 2018 00:02:15 +0000
+Message-ID: <c4d6ce8af83ab9f92e76f36bce7ffa5574f7104b.camel@intel.com>
+References: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
+	 <20181128000754.18056-3-rick.p.edgecombe@intel.com>
+	 <20181128151145.78a3d8b1f66f6b8fd66f0629@linux-foundation.org>
+In-Reply-To: <20181128151145.78a3d8b1f66f6b8fd66f0629@linux-foundation.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <DD3C3FE40262C94EB56C735C4EBC5A4F@intel.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrew Lutomirski <luto@kernel.org>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, "Naveen N . Rao" <naveen.n.rao@linux.vnet.ibm.com>, Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>, "David S. Miller" <davem@davemloft.net>, Masami Hiramatsu <mhiramat@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Alexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, jeyu@kernel.org, Network Development <netdev@vger.kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Jann Horn <jannh@google.com>, Kristen Carlson Accardi <kristen@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>
+To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "jeyu@kernel.org" <jeyu@kernel.org>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "ast@kernel.org" <ast@kernel.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jannh@google.com" <jannh@google.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "will.deacon@arm.com" <will.deacon@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "Keshavamurthy, Anil S" <anil.s.keshavamurthy@intel.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "mhiramat@kernel.org" <mhiramat@kernel.org>, "naveen.n.rao@linux.vnet.ibm.com" <naveen.n.rao@linux.vnet.ibm.com>, "davem@davemloft.net" <davem@davemloft.net>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>
 
-> On Nov 27, 2018, at 4:07 PM, Rick Edgecombe <rick.p.edgecombe@intel.com> =
-wrote:
->
-> Change the module allocations to flush before freeing the pages.
->
-> Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
-> ---
-> arch/x86/kernel/module.c | 4 ++--
-> 1 file changed, 2 insertions(+), 2 deletions(-)
->
-> diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
-> index b052e883dd8c..1694daf256b3 100644
-> --- a/arch/x86/kernel/module.c
-> +++ b/arch/x86/kernel/module.c
-> @@ -87,8 +87,8 @@ void *module_alloc(unsigned long size)
->    p =3D __vmalloc_node_range(size, MODULE_ALIGN,
->                    MODULES_VADDR + get_module_load_offset(),
->                    MODULES_END, GFP_KERNEL,
-> -                    PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
-> -                    __builtin_return_address(0));
-> +                    PAGE_KERNEL_EXEC, VM_IMMEDIATE_UNMAP,
-> +                    NUMA_NO_NODE, __builtin_return_address(0));
-
-Hmm. How awful is the resulting performance for heavy eBPF users?  I=E2=80=
-=99m
-wondering if the JIT will need some kind of cache to reuse
-allocations.
-
->    if (p && (kasan_module_alloc(p, size) < 0)) {
->        vfree(p);
->        return NULL;
-> --
-> 2.17.1
->
+T24gV2VkLCAyMDE4LTExLTI4IGF0IDE1OjExIC0wODAwLCBBbmRyZXcgTW9ydG9uIHdyb3RlOg0K
+PiBPbiBUdWUsIDI3IE5vdiAyMDE4IDE2OjA3OjU0IC0wODAwIFJpY2sgRWRnZWNvbWJlIDxyaWNr
+LnAuZWRnZWNvbWJlQGludGVsLmNvbT4NCj4gd3JvdGU6DQo+IA0KPiA+IENoYW5nZSB0aGUgbW9k
+dWxlIGFsbG9jYXRpb25zIHRvIGZsdXNoIGJlZm9yZSBmcmVlaW5nIHRoZSBwYWdlcy4NCj4gPiAN
+Cj4gPiAuLi4NCj4gPiANCj4gPiAtLS0gYS9hcmNoL3g4Ni9rZXJuZWwvbW9kdWxlLmMNCj4gPiAr
+KysgYi9hcmNoL3g4Ni9rZXJuZWwvbW9kdWxlLmMNCj4gPiBAQCAtODcsOCArODcsOCBAQCB2b2lk
+ICptb2R1bGVfYWxsb2ModW5zaWduZWQgbG9uZyBzaXplKQ0KPiA+ICAJcCA9IF9fdm1hbGxvY19u
+b2RlX3JhbmdlKHNpemUsIE1PRFVMRV9BTElHTiwNCj4gPiAgCQkJCSAgICBNT0RVTEVTX1ZBRERS
+ICsgZ2V0X21vZHVsZV9sb2FkX29mZnNldCgpLA0KPiA+ICAJCQkJICAgIE1PRFVMRVNfRU5ELCBH
+RlBfS0VSTkVMLA0KPiA+IC0JCQkJICAgIFBBR0VfS0VSTkVMX0VYRUMsIDAsIE5VTUFfTk9fTk9E
+RSwNCj4gPiAtCQkJCSAgICBfX2J1aWx0aW5fcmV0dXJuX2FkZHJlc3MoMCkpOw0KPiA+ICsJCQkJ
+ICAgIFBBR0VfS0VSTkVMX0VYRUMsIFZNX0lNTUVESUFURV9VTk1BUCwNCj4gPiArCQkJCSAgICBO
+VU1BX05PX05PREUsIF9fYnVpbHRpbl9yZXR1cm5fYWRkcmVzcygwKSk7DQo+ID4gIAlpZiAocCAm
+JiAoa2FzYW5fbW9kdWxlX2FsbG9jKHAsIHNpemUpIDwgMCkpIHsNCj4gPiAgCQl2ZnJlZShwKTsN
+Cj4gPiAgCQlyZXR1cm4gTlVMTDsNCj4gDQo+IFNob3VsZCBhbnkgb3RoZXIgYXJjaGl0ZWN0dXJl
+cyBkbyB0aGlzPw0KDQpJIHdvdWxkIHRoaW5rIGV2ZXJ5dGhpbmcgdGhhdCBoYXMgc29tZXRoaW5n
+IGxpa2UgYW4gTlggYml0IGFuZCBkb2Vzbid0IHVzZSB0aGUNCmRlZmF1bHQgbW9kdWxlX2FsbG9j
+IGltcGxlbWVudGF0aW9uLg0KDQpJIGNvdWxkIGFkZCB0aGUgZmxhZyBmb3IgZXZlcnkgYXJjaCB0
+aGF0IGRlZmluZXMgUEFHRV9LRVJORUxfRVhFQywgYnV0IEkgZG9uJ3QNCmhhdmUgYSBnb29kIHdh
+eSB0byB0ZXN0IG9uIGFsbCBvZiB0aG9zZSBhcmNoaXRlY3R1cmVzLg0KDQpUaGFua3MsDQoNClJp
+Y2sNCg==
