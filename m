@@ -1,29 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B208E6B525B
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2018 06:38:44 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id p24so1459501qtl.2
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2018 03:38:44 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t65si1135599qkh.219.2018.11.29.03.38.43
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DE35C6B5245
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2018 06:17:42 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id d23so1133936plj.22
+        for <linux-mm@kvack.org>; Thu, 29 Nov 2018 03:17:42 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id w16si1728148pga.328.2018.11.29.03.17.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Nov 2018 03:38:43 -0800 (PST)
-Date: Thu, 29 Nov 2018 06:38:40 -0500 (EST)
-From: Pankaj Gupta <pagupta@redhat.com>
-Message-ID: <1231450124.37408874.1543491520867.JavaMail.zimbra@redhat.com>
-In-Reply-To: <0921bc8f-b899-4925-51f2-a9f45d4c906a@suse.com>
-References: <20181129075301.29087-1-nborisov@suse.com> <20181129075301.29087-2-nborisov@suse.com> <20181129081826.GO6923@dhcp22.suse.cz> <0921bc8f-b899-4925-51f2-a9f45d4c906a@suse.com>
+        Thu, 29 Nov 2018 03:17:41 -0800 (PST)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wATBDfwZ053445
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2018 06:17:40 -0500
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2p2cr5ptcw-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2018 06:17:40 -0500
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Thu, 29 Nov 2018 11:17:37 -0000
+Date: Thu, 29 Nov 2018 13:17:24 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
 Subject: Re: [PATCH 2/2] fs: Don't open-code lru_to_page
+References: <20181129075301.29087-1-nborisov@suse.com>
+ <20181129075301.29087-2-nborisov@suse.com>
+ <20181129081826.GO6923@dhcp22.suse.cz>
+ <0921bc8f-b899-4925-51f2-a9f45d4c906a@suse.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <0921bc8f-b899-4925-51f2-a9f45d4c906a@suse.com>
+Message-Id: <20181129111723.GD9315@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Nikolay Borisov <nborisov@suse.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, David Howells <dhowells@redhat.com>, Chris Mason <clm@fb.com>, Josef Bacik <josef@toxicpanda.com>, David Sterba <dsterba@suse.com>, Zheng Yan <zyan@redhat.com>, Sage Weil <sage@redhat.com>, Ilya Dryomov <idryomov@gmail.com>, Steve French <sfrench@samba.org>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Mark Fasheh <mark@fasheh.com>, Joel Becker <jlbec@evilplan.org>, Mike Marshall <hubcap@omnibond.com>, Martin Brandenburg <martin@omnibond.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Matthew Wilcox <willy@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, YueHaibing <yuehaibing@huawei.com>, Shakeel Butt <shakeelb@google.com>, Dan Williams <dan.j.williams@intel.com>, linux-afs@lists.infradead.org, linux-btrfs@vger.kernel.org, ceph-devel@vger.kernel.org, linux-cifs@vger.kernel.org, samba-technical@lists.samba.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, devel@lists.orangefs.org, linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, David Howells <dhowells@redhat.com>, Chris Mason <clm@fb.com>, Josef Bacik <josef@toxicpanda.com>, David Sterba <dsterba@suse.com>, "Yan, Zheng" <zyan@redhat.com>, Sage Weil <sage@redhat.com>, Ilya Dryomov <idryomov@gmail.com>, Steve French <sfrench@samba.org>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Mark Fasheh <mark@fasheh.com>, Joel Becker <jlbec@evilplan.org>, Mike Marshall <hubcap@omnibond.com>, Martin Brandenburg <martin@omnibond.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Matthew Wilcox <willy@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, YueHaibing <yuehaibing@huawei.com>, Shakeel Butt <shakeelb@google.com>, Dan Williams <dan.j.williams@intel.com>, linux-afs@lists.infradead.org, linux-btrfs@vger.kernel.org, ceph-devel@vger.kernel.org, linux-cifs@vger.kernel.org, samba-technical@lists.samba.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, devel@lists.orangefs.org, linux-mm@kvack.org
 
-
+On Thu, Nov 29, 2018 at 10:50:08AM +0200, Nikolay Borisov wrote:
+> 
+> 
+> On 29.11.18 г. 10:18 ч., Michal Hocko wrote:
+> > On Thu 29-11-18 09:52:57, Nikolay Borisov wrote:
 > >> There are a bunch of filesystems which essentially open-code lru_to_page
 > >> helper. Change them to using the helper. No functional changes.
 > > 
@@ -32,12 +51,13 @@ Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, David Howell
 > 
 > No reason, just didn't know how people would react so that's why I chose
 > to send as two separate.
-> 
+
+I'm with Michal on this, a single patch seems better here.
+Yet, for either way:
+
+Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
+ 
 > If I squash them who would be the best person to take them ?
-
-For squashed version:
-Acked-by: Pankaj gupta <pagupta@redhat.com>
-
 > 
 > > 
 > >> Signed-off-by: Nikolay Borisov <nborisov@suse.com>
@@ -46,9 +66,8 @@ Acked-by: Pankaj gupta <pagupta@redhat.com>
 > > 
 > >> ---
 > >>
-> >> Since this is a mostly mechanical change I've actually batched all of them
-> >> in
-> >> a single patch.
+> >> Since this is a mostly mechanical change I've actually batched all of them in 
+> >> a single patch. 
 > >>
 > >>  fs/afs/file.c        | 5 +++--
 > >>  fs/btrfs/extent_io.c | 2 +-
@@ -72,8 +91,7 @@ Acked-by: Pankaj gupta <pagupta@redhat.com>
 > >>  #include "internal.h"
 > >>  
 > >>  static int afs_file_mmap(struct file *file, struct vm_area_struct *vma);
-> >> @@ -441,7 +442,7 @@ static int afs_readpages_one(struct file *file, struct
-> >> address_space *mapping,
+> >> @@ -441,7 +442,7 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 > >>  	/* Count the number of contiguous pages at the front of the list.  Note
 > >>  	 * that the list goes prev-wards rather than next-wards.
 > >>  	 */
@@ -82,8 +100,7 @@ Acked-by: Pankaj gupta <pagupta@redhat.com>
 > >>  	index = first->index + 1;
 > >>  	n = 1;
 > >>  	for (p = first->lru.prev; p != pages; p = p->prev) {
-> >> @@ -473,7 +474,7 @@ static int afs_readpages_one(struct file *file, struct
-> >> address_space *mapping,
+> >> @@ -473,7 +474,7 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 > >>  	 * page at the end of the file.
 > >>  	 */
 > >>  	do {
@@ -96,8 +113,7 @@ Acked-by: Pankaj gupta <pagupta@redhat.com>
 > >> index 19f4b8fd654f..8332c5f4b1c3 100644
 > >> --- a/fs/btrfs/extent_io.c
 > >> +++ b/fs/btrfs/extent_io.c
-> >> @@ -4104,7 +4104,7 @@ int extent_readpages(struct address_space *mapping,
-> >> struct list_head *pages,
+> >> @@ -4104,7 +4104,7 @@ int extent_readpages(struct address_space *mapping, struct list_head *pages,
 > >>  	u64 prev_em_start = (u64)-1;
 > >>  
 > >>  	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
@@ -110,8 +126,7 @@ Acked-by: Pankaj gupta <pagupta@redhat.com>
 > >> index 8eade7a993c1..5d0c05e288cc 100644
 > >> --- a/fs/ceph/addr.c
 > >> +++ b/fs/ceph/addr.c
-> >> @@ -306,7 +306,7 @@ static int start_read(struct inode *inode, struct
-> >> ceph_rw_context *rw_ctx,
+> >> @@ -306,7 +306,7 @@ static int start_read(struct inode *inode, struct ceph_rw_context *rw_ctx,
 > >>  	struct ceph_osd_client *osdc =
 > >>  		&ceph_inode_to_client(inode)->client->osdc;
 > >>  	struct ceph_inode_info *ci = ceph_inode(inode);
@@ -120,8 +135,7 @@ Acked-by: Pankaj gupta <pagupta@redhat.com>
 > >>  	struct ceph_vino vino;
 > >>  	struct ceph_osd_request *req;
 > >>  	u64 off;
-> >> @@ -333,8 +333,7 @@ static int start_read(struct inode *inode, struct
-> >> ceph_rw_context *rw_ctx,
+> >> @@ -333,8 +333,7 @@ static int start_read(struct inode *inode, struct ceph_rw_context *rw_ctx,
 > >>  			if (got)
 > >>  				ceph_put_cap_refs(ci, got);
 > >>  			while (!list_empty(page_list)) {
@@ -143,8 +157,7 @@ Acked-by: Pankaj gupta <pagupta@redhat.com>
 > >>  #include <asm/div64.h>
 > >>  #include "cifsfs.h"
 > >>  #include "cifspdu.h"
-> >> @@ -3975,7 +3976,7 @@ readpages_get_pages(struct address_space *mapping,
-> >> struct list_head *page_list,
+> >> @@ -3975,7 +3976,7 @@ readpages_get_pages(struct address_space *mapping, struct list_head *page_list,
 > >>  
 > >>  	INIT_LIST_HEAD(tmplist);
 > >>  
@@ -157,8 +170,7 @@ Acked-by: Pankaj gupta <pagupta@redhat.com>
 > >> index f461d75ac049..6aa282ee455a 100644
 > >> --- a/fs/ext4/readpage.c
 > >> +++ b/fs/ext4/readpage.c
-> >> @@ -128,7 +128,7 @@ int ext4_mpage_readpages(struct address_space
-> >> *mapping,
+> >> @@ -128,7 +128,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
 > >>  
 > >>  		prefetchw(&page->flags);
 > >>  		if (pages) {
@@ -179,8 +191,7 @@ Acked-by: Pankaj gupta <pagupta@redhat.com>
 > >>  
 > >>  #include <cluster/masklog.h>
 > >>  
-> >> @@ -397,7 +398,7 @@ static int ocfs2_readpages(struct file *filp, struct
-> >> address_space *mapping,
+> >> @@ -397,7 +398,7 @@ static int ocfs2_readpages(struct file *filp, struct address_space *mapping,
 > >>  	 * Check whether a remote node truncated this file - we just
 > >>  	 * drop out in that case as it's not worth handling here.
 > >>  	 */
@@ -215,8 +226,11 @@ Acked-by: Pankaj gupta <pagupta@redhat.com>
 > >>  		list_del(&victim->lru);
 > >>  		put_page(victim);
 > >>  	}
-> >> --
+> >> -- 
 > >> 2.17.1
 > > 
 > 
-> 
+
+-- 
+Sincerely yours,
+Mike.
