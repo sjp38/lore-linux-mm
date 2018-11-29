@@ -1,99 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D4F4F6B3E43
-	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 16:45:08 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id 129-v6so9715434pfx.11
-        for <linux-mm@kvack.org>; Sun, 25 Nov 2018 13:45:08 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id x186si9377693pfx.269.2018.11.25.13.45.07
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 593DD6B5073
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2018 22:31:21 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id b16so531938qtc.22
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2018 19:31:21 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u37si405733qta.385.2018.11.28.19.31.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Nov 2018 13:45:07 -0800 (PST)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wAPLi5K8007532
-	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 16:45:07 -0500
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2nymppq7js-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 16:45:07 -0500
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Sun, 25 Nov 2018 21:45:04 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH 3/5] sh: prefer memblock APIs returning virtual address
-Date: Sun, 25 Nov 2018 23:44:35 +0200
-In-Reply-To: <1543182277-8819-1-git-send-email-rppt@linux.ibm.com>
-References: <1543182277-8819-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1543182277-8819-4-git-send-email-rppt@linux.ibm.com>
+        Wed, 28 Nov 2018 19:31:20 -0800 (PST)
+Date: Thu, 29 Nov 2018 11:30:47 +0800
+From: Ming Lei <ming.lei@redhat.com>
+Subject: Re: [PATCH V12 00/20] block: support multi-page bvec
+Message-ID: <20181129033046.GE23390@ming.t460p>
+References: <20181126021720.19471-1-ming.lei@redhat.com>
+ <7096bc4e-0617-29d0-a90d-ae7caf09a16d@kernel.dk>
+ <20181129012959.GC23249@ming.t460p>
+ <1983a2f5-07be-4102-fedc-54e2ad2e16dc@kernel.dk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1983a2f5-07be-4102-fedc-54e2ad2e16dc@kernel.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Jonas Bonn <jonas@southpole.se>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Mike Snitzer <snitzer@redhat.com>, "Ewan D. Milne" <emilne@redhat.com>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-Rather than use the memblock_alloc_base that returns a physical address and
-then convert this address to the virtual one, use appropriate memblock
-function that returns a virtual address.
+On Wed, Nov 28, 2018 at 07:20:51PM -0700, Jens Axboe wrote:
+> On 11/28/18 6:30 PM, Ming Lei wrote:
+> >> I'm going back and forth on those one a bit. Any concerns with
+> >> pushing this to 4.22?
+> > 
+> > My only one concern is about the warning of
+> > "blk_cloned_rq_check_limits: over max segments limit" on dm multipath,
+> > and seems Ewan and Mike is waiting for this fix.
+> 
+> Not familiar with this issue, can you post a link to it? I'd be fine
+> working around anything until 4.22, it's not going to be a new issue.
 
-There is a small functional change in the allocation of then NODE_DATA().
-Instead of panicing if the local allocation failed, the non-local
-allocation attempt will be made.
+https://marc.info/?t=153303425700002&r=1&w=2
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
- arch/sh/mm/init.c | 18 +++++-------------
- arch/sh/mm/numa.c |  5 ++---
- 2 files changed, 7 insertions(+), 16 deletions(-)
-
-diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
-index c8c13c77..3576b5f 100644
---- a/arch/sh/mm/init.c
-+++ b/arch/sh/mm/init.c
-@@ -192,24 +192,16 @@ void __init page_table_range_init(unsigned long start, unsigned long end,
- void __init allocate_pgdat(unsigned int nid)
- {
- 	unsigned long start_pfn, end_pfn;
--#ifdef CONFIG_NEED_MULTIPLE_NODES
--	unsigned long phys;
--#endif
- 
- 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
- 
- #ifdef CONFIG_NEED_MULTIPLE_NODES
--	phys = __memblock_alloc_base(sizeof(struct pglist_data),
--				SMP_CACHE_BYTES, end_pfn << PAGE_SHIFT);
--	/* Retry with all of system memory */
--	if (!phys)
--		phys = __memblock_alloc_base(sizeof(struct pglist_data),
--					SMP_CACHE_BYTES, memblock_end_of_DRAM());
--	if (!phys)
-+	NODE_DATA(nid) = memblock_alloc_try_nid_nopanic(
-+				sizeof(struct pglist_data),
-+				SMP_CACHE_BYTES, MEMBLOCK_LOW_LIMIT,
-+				MEMBLOCK_ALLOC_ACCESSIBLE, nid);
-+	if (!NODE_DATA(nid))
- 		panic("Can't allocate pgdat for node %d\n", nid);
--
--	NODE_DATA(nid) = __va(phys);
--	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
- #endif
- 
- 	NODE_DATA(nid)->node_start_pfn = start_pfn;
-diff --git a/arch/sh/mm/numa.c b/arch/sh/mm/numa.c
-index 830e8b3..c4bde61 100644
---- a/arch/sh/mm/numa.c
-+++ b/arch/sh/mm/numa.c
-@@ -41,9 +41,8 @@ void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
- 	__add_active_range(nid, start_pfn, end_pfn);
- 
- 	/* Node-local pgdat */
--	NODE_DATA(nid) = __va(memblock_alloc_base(sizeof(struct pglist_data),
--					     SMP_CACHE_BYTES, end));
--	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
-+	NODE_DATA(nid) = memblock_alloc_node(sizeof(struct pglist_data),
-+					     SMP_CACHE_BYTES, nid);
- 
- 	NODE_DATA(nid)->node_start_pfn = start_pfn;
- 	NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
--- 
-2.7.4
+thanks,
+Ming
