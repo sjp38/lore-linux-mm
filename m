@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 059F16B59F5
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 15:23:53 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id v79so5316118pfd.20
-        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 12:23:52 -0800 (PST)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id 9si6079960plc.40.2018.11.30.12.23.51
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E2416B5810
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 06:58:06 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id h86-v6so4301380pfd.2
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 03:58:06 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id k11si5136491plt.68.2018.11.30.03.58.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Nov 2018 12:23:52 -0800 (PST)
+        Fri, 30 Nov 2018 03:58:05 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 2/2] x86/dump_pagetables: Fix LDT remap address marker
-Date: Fri, 30 Nov 2018 23:23:28 +0300
-Message-Id: <20181130202328.65359-3-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20181130202328.65359-1-kirill.shutemov@linux.intel.com>
-References: <20181130202328.65359-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 2/2] x86/dump_pagetables: Fix LDT remap address marker
+Date: Fri, 30 Nov 2018 14:57:58 +0300
+Message-Id: <20181130115758.4425-3-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20181130115758.4425-1-kirill.shutemov@linux.intel.com>
+References: <20181130115758.4425-1-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tglx@linutronix.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org
-Cc: boris.ostrovsky@oracle.com, jgross@suse.com, bhe@redhat.com, hans.van.kranenburg@mendix.com, x86@kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: boris.ostrovsky@oracle.com, jgross@suse.com, bhe@redhat.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
 The LDT remap placement has been changed. It's now placed before direct
 mapping in the kernel virtual address space for both paging modes.
