@@ -1,59 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B1EF6B5800
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 06:44:54 -0500 (EST)
-Received: by mail-vs1-f71.google.com with SMTP id t136so2338080vsc.12
-        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 03:44:54 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x62sor2490413vsa.96.2018.11.30.03.44.53
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BCD636B57CD
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 05:53:48 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id y1so3700934wrd.7
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 02:53:48 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id w18si3498580wrt.61.2018.11.30.02.53.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 30 Nov 2018 03:44:53 -0800 (PST)
-MIME-Version: 1.0
-References: <CALjTZvZzHSZ=s0W0Pd-MVd7OA0hYxu0LzsZ+GxYybXKoUQQR6Q@mail.gmail.com>
- <20181130103222.GA23393@lst.de>
-In-Reply-To: <20181130103222.GA23393@lst.de>
-From: Rui Salvaterra <rsalvaterra@gmail.com>
-Date: Fri, 30 Nov 2018 11:44:41 +0000
-Message-ID: <CALjTZvZsk0qA+Yxu7S+8pfa5y6rpihnThrHiAKkZMWsdyC-tVg@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Nov 2018 02:53:47 -0800 (PST)
+Date: Fri, 30 Nov 2018 11:53:46 +0100
+From: Christoph Hellwig <hch@lst.de>
 Subject: Re: use generic DMA mapping code in powerpc V4
-Content-Type: text/plain; charset="UTF-8"
+Message-ID: <20181130105346.GB26765@lst.de>
+References: <20181114082314.8965-1-hch@lst.de> <20181127074253.GB30186@lst.de> <87zhttfonk.fsf@concordia.ellerman.id.au> <4d4e3cdd-d1a9-affe-0f63-45b8c342bbd6@xenosoft.de> <20181129170351.GC27951@lst.de> <d0e04a85-f17d-414e-6fea-971414417430@xenosoft.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d0e04a85-f17d-414e-6fea-971414417430@xenosoft.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hch@lst.de
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Christian Zigotzky <chzigotzky@xenosoft.de>
+Cc: Christoph Hellwig <hch@lst.de>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, Olof Johansson <olof@lixom.net>
 
-On Fri, 30 Nov 2018 at 10:32, Christoph Hellwig <hch@lst.de> wrote:
->
-> Hi Rui,
->
-> can you check if the patch below fixes the issue for you?
->
-> diff --git a/arch/powerpc/sysdev/dart_iommu.c b/arch/powerpc/sysdev/dart_iommu.c
-> index 2e24fc87ed84..809797dbe169 100644
-> --- a/arch/powerpc/sysdev/dart_iommu.c
-> +++ b/arch/powerpc/sysdev/dart_iommu.c
-> @@ -392,7 +392,9 @@ static void pci_dma_dev_setup_dart(struct pci_dev *dev)
->
->  static bool iommu_bypass_supported_dart(struct pci_dev *dev, u64 mask)
->  {
-> -       return dart_is_u4 && dart_device_on_pcie(&dev->dev);
-> +       return dart_is_u4 &&
-> +               dart_device_on_pcie(&dev->dev) &&
-> +               mask >= DMA_BIT_MASK(40);
->  }
->
->  void __init iommu_init_early_dart(struct pci_controller_ops *controller_ops)
+Hi Christian,
 
-Hi, Christoph,
+for such a diverse architecture like powerpc we'll have to rely on
+users / non core developers like you to help with testing.
 
-Thanks for the quick response! I applied it on top of your
-powerpc-dma.4 branch and retested.
-I'm not seeing nouveau complaining anymore (I'm not using X11 or any
-DE, though).
-In any case and FWIW, this series is
+Can you try the patch below for he cyrus config?
 
-Tested-by: Rui Salvaterra <rsalvaterra@gmail.com>
+For the nemo one I have no idea yet, there is no chance I could trick
+you into a git bisect to see which patch caused the problem, is there?
 
-Thanks,
-Rui
+
+diff --git a/arch/powerpc/include/asm/machdep.h b/arch/powerpc/include/asm/machdep.h
+index 7b70dcbce1b9..2f0ca6560e47 100644
+--- a/arch/powerpc/include/asm/machdep.h
++++ b/arch/powerpc/include/asm/machdep.h
+@@ -47,7 +47,7 @@ struct machdep_calls {
+ #endif
+ #endif /* CONFIG_PPC64 */
+ 
+-	int		(*dma_set_mask)(struct device *dev, u64 dma_mask);
++	void		(*dma_set_mask)(struct device *dev, u64 dma_mask);
+ 
+ 	int		(*probe)(void);
+ 	void		(*setup_arch)(void); /* Optional, may be NULL */
+diff --git a/arch/powerpc/kernel/dma-swiotlb.c b/arch/powerpc/kernel/dma-swiotlb.c
+index bded4127791a..2587eb0f3fde 100644
+--- a/arch/powerpc/kernel/dma-swiotlb.c
++++ b/arch/powerpc/kernel/dma-swiotlb.c
+@@ -22,11 +22,10 @@
+ #include <asm/swiotlb.h>
+ #include <asm/dma.h>
+ 
+-bool arch_dma_set_mask(struct device *dev, u64 dma_mask)
++void arch_dma_set_mask(struct device *dev, u64 dma_mask)
+ {
+-	if (!ppc_md.dma_set_mask)
+-		return 0;
+-	return ppc_md.dma_set_mask(dev, dma_mask);
++	if (ppc_md.dma_set_mask)
++		ppc_md.dma_set_mask(dev, dma_mask);
+ }
+ EXPORT_SYMBOL(arch_dma_set_mask);
+ 
+diff --git a/arch/powerpc/sysdev/fsl_pci.c b/arch/powerpc/sysdev/fsl_pci.c
+index 9584765dbe3b..8582a418516b 100644
+--- a/arch/powerpc/sysdev/fsl_pci.c
++++ b/arch/powerpc/sysdev/fsl_pci.c
+@@ -134,7 +134,7 @@ static void setup_swiotlb_ops(struct pci_controller *hose)
+ static inline void setup_swiotlb_ops(struct pci_controller *hose) {}
+ #endif
+ 
+-static int fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
++static void fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
+ {
+ 	/*
+ 	 * Fix up PCI devices that are able to DMA to the large inbound
+@@ -144,8 +144,6 @@ static int fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
+ 		dev->bus_dma_mask = 0;
+ 		dev->archdata.dma_offset = pci64_dma_offset;
+ 	}
+-
+-	return 0;
+ }
+ 
+ static int setup_one_atmu(struct ccsr_pci __iomem *pci,
+diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
+index 8dd19e66c0e5..94a4db5f7ec3 100644
+--- a/include/linux/dma-mapping.h
++++ b/include/linux/dma-mapping.h
+@@ -599,17 +599,16 @@ static inline int dma_supported(struct device *dev, u64 mask)
+ }
+ 
+ #ifdef CONFIG_ARCH_HAS_DMA_SET_MASK
+-bool arch_dma_set_mask(struct device *dev, u64 mask);
++void arch_dma_set_mask(struct device *dev, u64 mask);
+ #else
+-#define arch_dma_set_mask(dev, mask)		true
++#define arch_dma_set_mask(dev, mask)	do { } while (0)
+ #endif
+ 
+ static inline int dma_set_mask(struct device *dev, u64 mask)
+ {
+ 	if (!dev->dma_mask || !dma_supported(dev, mask))
+ 		return -EIO;
+-	if (!arch_dma_set_mask(dev, mask))
+-		return -EIO;
++	arch_dma_set_mask(dev, mask);
+ 	dma_check_mask(dev, mask);
+ 
+ 	*dev->dma_mask = mask;
