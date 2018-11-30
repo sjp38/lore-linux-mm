@@ -1,233 +1,283 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 884626B4955
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:56:22 -0500 (EST)
-Received: by mail-wm1-f71.google.com with SMTP id y85so18175912wmc.7
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:56:22 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 51sor3115673wra.51.2018.11.27.08.56.20
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DCEB16B5A73
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 16:53:10 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id v72so4225660pgb.10
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 13:53:10 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id j20si5354964pgh.224.2018.11.30.13.53.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 27 Nov 2018 08:56:20 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v12 17/25] kasan: add bug reporting routines for tag-based mode
-Date: Tue, 27 Nov 2018 17:55:35 +0100
-Message-Id: <996c09ec2c8f11294c106973f3b1a211417fa74e.1543337629.git.andreyknvl@google.com>
-In-Reply-To: <cover.1543337629.git.andreyknvl@google.com>
-References: <cover.1543337629.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Nov 2018 13:53:09 -0800 (PST)
+Subject: [mm PATCH v6 4/7] mm: Initialize MAX_ORDER_NR_PAGES at a time
+ instead of doing larger sections
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Date: Fri, 30 Nov 2018 13:53:08 -0800
+Message-ID: <154361478854.7497.15456929701404283744.stgit@ahduyck-desk1.amr.corp.intel.com>
+In-Reply-To: <154361452447.7497.1348692079883153517.stgit@ahduyck-desk1.amr.corp.intel.com>
+References: <154361452447.7497.1348692079883153517.stgit@ahduyck-desk1.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mhocko@suse.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, alexander.h.duyck@linux.intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.comalexander.h.duyck@linux.intel.com
 
-This commit adds rountines, that print tag-based KASAN error reports.
-Those are quite similar to generic KASAN, the difference is:
+Add yet another iterator, for_each_free_mem_range_in_zone_from, and then
+use it to support initializing and freeing pages in groups no larger than
+MAX_ORDER_NR_PAGES. By doing this we can greatly improve the cache locality
+of the pages while we do several loops over them in the init and freeing
+process.
 
-1. The way tag-based KASAN finds the first bad shadow cell (with a
-   mismatching tag). Tag-based KASAN compares memory tags from the shadow
-   memory to the pointer tag.
+We are able to tighten the loops further as a result of the "from" iterator
+as we can perform the initial checks for first_init_pfn in our first call
+to the iterator, and continue without the need for those checks via the
+"from" iterator. I have added this functionality in the function called
+deferred_init_mem_pfn_range_in_zone that primes the iterator and causes us
+to exit if we encounter any failure.
 
-2. Tag-based KASAN reports all bugs with the "KASAN: invalid-access"
-   header.
+On my x86_64 test system with 384GB of memory per node I saw a reduction in
+initialization time from 1.85s to 1.38s as a result of this patch.
 
-Also simplify generic KASAN find_first_bad_addr.
-
-Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 ---
- mm/kasan/generic_report.c | 16 ++++-------
- mm/kasan/kasan.h          |  5 ++++
- mm/kasan/report.c         | 57 +++++++++++++++++++++------------------
- mm/kasan/tags_report.c    | 18 +++++++++++++
- 4 files changed, 59 insertions(+), 37 deletions(-)
+ include/linux/memblock.h |   16 +++++
+ mm/page_alloc.c          |  160 +++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 132 insertions(+), 44 deletions(-)
 
-diff --git a/mm/kasan/generic_report.c b/mm/kasan/generic_report.c
-index 5201d1770700..a4604cceae59 100644
---- a/mm/kasan/generic_report.c
-+++ b/mm/kasan/generic_report.c
-@@ -33,16 +33,13 @@
- #include "kasan.h"
- #include "../slab.h"
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 95d1aaa3f412..60e100fe5922 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -270,6 +270,22 @@ void __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
+ 	     __next_mem_pfn_range_in_zone(&i, zone, p_start, p_end);	\
+ 	     i != U64_MAX;					\
+ 	     __next_mem_pfn_range_in_zone(&i, zone, p_start, p_end))
++
++/**
++ * for_each_free_mem_range_in_zone_from - iterate through zone specific
++ * free memblock areas from a given point
++ * @i: u64 used as loop variable
++ * @zone: zone in which all of the memory blocks reside
++ * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
++ * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
++ *
++ * Walks over free (memory && !reserved) areas of memblock in a specific
++ * zone, continuing from current position. Available as soon as memblock is
++ * initialized.
++ */
++#define for_each_free_mem_pfn_range_in_zone_from(i, zone, p_start, p_end) \
++	for (; i != U64_MAX;					  \
++	     __next_mem_pfn_range_in_zone(&i, zone, p_start, p_end))
+ #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
  
--static const void *find_first_bad_addr(const void *addr, size_t size)
-+void *find_first_bad_addr(void *addr, size_t size)
- {
--	u8 shadow_val = *(u8 *)kasan_mem_to_shadow(addr);
--	const void *first_bad_addr = addr;
-+	void *p = addr;
- 
--	while (!shadow_val && first_bad_addr < addr + size) {
--		first_bad_addr += KASAN_SHADOW_SCALE_SIZE;
--		shadow_val = *(u8 *)kasan_mem_to_shadow(first_bad_addr);
--	}
--	return first_bad_addr;
-+	while (p < addr + size && !(*(u8 *)kasan_mem_to_shadow(p)))
-+		p += KASAN_SHADOW_SCALE_SIZE;
-+	return p;
+ /**
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 72f9889e3866..fbd9bd2bc262 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1519,16 +1519,102 @@ static unsigned long  __init deferred_init_pages(struct zone *zone,
+ 	return (nr_pages);
  }
  
- static const char *get_shadow_bug_type(struct kasan_access_info *info)
-@@ -50,9 +47,6 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
- 	const char *bug_type = "unknown-crash";
- 	u8 *shadow_addr;
- 
--	info->first_bad_addr = find_first_bad_addr(info->access_addr,
--						info->access_size);
--
- 	shadow_addr = (u8 *)kasan_mem_to_shadow(info->first_bad_addr);
- 
- 	/*
-diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-index 33cc3b0e017e..82a23b23ff93 100644
---- a/mm/kasan/kasan.h
-+++ b/mm/kasan/kasan.h
-@@ -119,6 +119,7 @@ void kasan_poison_shadow(const void *address, size_t size, u8 value);
- void check_memory_region(unsigned long addr, size_t size, bool write,
- 				unsigned long ret_ip);
- 
-+void *find_first_bad_addr(void *addr, size_t size);
- const char *get_bug_type(struct kasan_access_info *info);
- 
- void kasan_report(unsigned long addr, size_t size,
-@@ -139,10 +140,14 @@ static inline void quarantine_remove_cache(struct kmem_cache *cache) { }
- 
- #ifdef CONFIG_KASAN_SW_TAGS
- 
-+void print_tags(u8 addr_tag, const void *addr);
++/*
++ * This function is meant to pre-load the iterator for the zone init.
++ * Specifically it walks through the ranges until we are caught up to the
++ * first_init_pfn value and exits there. If we never encounter the value we
++ * return false indicating there are no valid ranges left.
++ */
++static bool __init
++deferred_init_mem_pfn_range_in_zone(u64 *i, struct zone *zone,
++				    unsigned long *spfn, unsigned long *epfn,
++				    unsigned long first_init_pfn)
++{
++	u64 j;
 +
- u8 random_tag(void);
- 
- #else
- 
-+static inline void print_tags(u8 addr_tag, const void *addr) { }
-+
- static inline u8 random_tag(void)
- {
- 	return 0;
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index 64a74f334c45..214d85035f99 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -64,11 +64,10 @@ static int __init kasan_set_multi_shot(char *str)
- }
- __setup("kasan_multi_shot", kasan_set_multi_shot);
- 
--static void print_error_description(struct kasan_access_info *info,
--					const char *bug_type)
-+static void print_error_description(struct kasan_access_info *info)
- {
- 	pr_err("BUG: KASAN: %s in %pS\n",
--		bug_type, (void *)info->ip);
-+		get_bug_type(info), (void *)info->ip);
- 	pr_err("%s of size %zu at addr %px by task %s/%d\n",
- 		info->is_write ? "Write" : "Read", info->access_size,
- 		info->access_addr, current->comm, task_pid_nr(current));
-@@ -272,6 +271,8 @@ void kasan_report_invalid_free(void *object, unsigned long ip)
- 
- 	start_report(&flags);
- 	pr_err("BUG: KASAN: double-free or invalid-free in %pS\n", (void *)ip);
-+	print_tags(get_tag(object), reset_tag(object));
-+	object = reset_tag(object);
- 	pr_err("\n");
- 	print_address_description(object);
- 	pr_err("\n");
-@@ -279,41 +280,45 @@ void kasan_report_invalid_free(void *object, unsigned long ip)
- 	end_report(&flags);
- }
- 
--static void kasan_report_error(struct kasan_access_info *info)
--{
--	unsigned long flags;
--
--	start_report(&flags);
--
--	print_error_description(info, get_bug_type(info));
--	pr_err("\n");
--
--	if (!addr_has_shadow(info->access_addr)) {
--		dump_stack();
--	} else {
--		print_address_description((void *)info->access_addr);
--		pr_err("\n");
--		print_shadow_for_address(info->first_bad_addr);
--	}
--
--	end_report(&flags);
--}
--
- void kasan_report(unsigned long addr, size_t size,
- 		bool is_write, unsigned long ip)
- {
- 	struct kasan_access_info info;
-+	void *tagged_addr;
-+	void *untagged_addr;
-+	unsigned long flags;
- 
- 	if (likely(!report_enabled()))
- 		return;
- 
- 	disable_trace_on_warning();
- 
--	info.access_addr = (void *)addr;
--	info.first_bad_addr = (void *)addr;
-+	tagged_addr = (void *)addr;
-+	untagged_addr = reset_tag(tagged_addr);
-+
-+	info.access_addr = tagged_addr;
-+	if (addr_has_shadow(untagged_addr))
-+		info.first_bad_addr = find_first_bad_addr(tagged_addr, size);
-+	else
-+		info.first_bad_addr = untagged_addr;
- 	info.access_size = size;
- 	info.is_write = is_write;
- 	info.ip = ip;
- 
--	kasan_report_error(&info);
-+	start_report(&flags);
-+
-+	print_error_description(&info);
-+	if (addr_has_shadow(untagged_addr))
-+		print_tags(get_tag(tagged_addr), info.first_bad_addr);
-+	pr_err("\n");
-+
-+	if (addr_has_shadow(untagged_addr)) {
-+		print_address_description(untagged_addr);
-+		pr_err("\n");
-+		print_shadow_for_address(info.first_bad_addr);
-+	} else {
-+		dump_stack();
++	/*
++	 * Start out by walking through the ranges in this zone that have
++	 * already been initialized. We don't need to do anything with them
++	 * so we just need to flush them out of the system.
++	 */
++	for_each_free_mem_pfn_range_in_zone(j, zone, spfn, epfn) {
++		if (*epfn <= first_init_pfn)
++			continue;
++		if (*spfn < first_init_pfn)
++			*spfn = first_init_pfn;
++		*i = j;
++		return true;
 +	}
 +
-+	end_report(&flags);
- }
-diff --git a/mm/kasan/tags_report.c b/mm/kasan/tags_report.c
-index 8af15e87d3bc..573c51d20d09 100644
---- a/mm/kasan/tags_report.c
-+++ b/mm/kasan/tags_report.c
-@@ -37,3 +37,21 @@ const char *get_bug_type(struct kasan_access_info *info)
++	return false;
++}
++
++/*
++ * Initialize and free pages. We do it in two loops: first we initialize
++ * struct page, than free to buddy allocator, because while we are
++ * freeing pages we can access pages that are ahead (computing buddy
++ * page in __free_one_page()).
++ *
++ * In order to try and keep some memory in the cache we have the loop
++ * broken along max page order boundaries. This way we will not cause
++ * any issues with the buddy page computation.
++ */
++static unsigned long __init
++deferred_init_maxorder(u64 *i, struct zone *zone, unsigned long *start_pfn,
++		       unsigned long *end_pfn)
++{
++	unsigned long mo_pfn = ALIGN(*start_pfn + 1, MAX_ORDER_NR_PAGES);
++	unsigned long spfn = *start_pfn, epfn = *end_pfn;
++	unsigned long nr_pages = 0;
++	u64 j = *i;
++
++	/* First we loop through and initialize the page values */
++	for_each_free_mem_pfn_range_in_zone_from(j, zone, &spfn, &epfn) {
++		unsigned long t;
++
++		if (mo_pfn <= spfn)
++			break;
++
++		t = min(mo_pfn, epfn);
++		nr_pages += deferred_init_pages(zone, spfn, t);
++
++		if (mo_pfn <= epfn)
++			break;
++	}
++
++	/* Reset values and now loop through freeing pages as needed */
++	j = *i;
++
++	for_each_free_mem_pfn_range_in_zone_from(j, zone, start_pfn, end_pfn) {
++		unsigned long t;
++
++		if (mo_pfn <= *start_pfn)
++			break;
++
++		t = min(mo_pfn, *end_pfn);
++		deferred_free_pages(*start_pfn, t);
++		*start_pfn = t;
++
++		if (mo_pfn < *end_pfn)
++			break;
++	}
++
++	/* Store our current values to be reused on the next iteration */
++	*i = j;
++
++	return nr_pages;
++}
++
+ /* Initialise remaining memory on a node */
+ static int __init deferred_init_memmap(void *data)
  {
- 	return "invalid-access";
- }
+ 	pg_data_t *pgdat = data;
++	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
++	unsigned long spfn = 0, epfn = 0, nr_pages = 0;
++	unsigned long first_init_pfn, flags;
+ 	unsigned long start = jiffies;
+-	unsigned long nr_pages = 0;
+-	unsigned long spfn, epfn, first_init_pfn, flags;
+-	int zid;
+ 	struct zone *zone;
+-	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
++	int zid;
+ 	u64 i;
+ 
+ 	/* Bind memory initialisation thread to a local node if possible */
+@@ -1554,22 +1640,20 @@ static int __init deferred_init_memmap(void *data)
+ 		if (first_init_pfn < zone_end_pfn(zone))
+ 			break;
+ 	}
+-	first_init_pfn = max(zone->zone_start_pfn, first_init_pfn);
 +
-+void *find_first_bad_addr(void *addr, size_t size)
-+{
-+	u8 tag = get_tag(addr);
-+	void *p = reset_tag(addr);
-+	void *end = p + size;
-+
-+	while (p < end && tag == *(u8 *)kasan_mem_to_shadow(p))
-+		p += KASAN_SHADOW_SCALE_SIZE;
-+	return p;
-+}
-+
-+void print_tags(u8 addr_tag, const void *addr)
-+{
-+	u8 *shadow = (u8 *)kasan_mem_to_shadow(addr);
-+
-+	pr_err("Pointer tag: [%02x], memory tag: [%02x]\n", addr_tag, *shadow);
-+}
--- 
-2.20.0.rc0.387.gc7a69e6b6c-goog
++	/* If the zone is empty somebody else may have cleared out the zone */
++	if (!deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn,
++						 first_init_pfn))
++		goto zone_empty;
+ 
+ 	/*
+-	 * Initialize and free pages. We do it in two loops: first we initialize
+-	 * struct page, than free to buddy allocator, because while we are
+-	 * freeing pages we can access pages that are ahead (computing buddy
+-	 * page in __free_one_page()).
++	 * Initialize and free pages in MAX_ORDER sized increments so
++	 * that we can avoid introducing any issues with the buddy
++	 * allocator.
+ 	 */
+-	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
+-		spfn = max_t(unsigned long, first_init_pfn, spfn);
+-		nr_pages += deferred_init_pages(zone, spfn, epfn);
+-	}
+-	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
+-		spfn = max_t(unsigned long, first_init_pfn, spfn);
+-		deferred_free_pages(spfn, epfn);
+-	}
++	while (spfn < epfn)
++		nr_pages += deferred_init_maxorder(&i, zone, &spfn, &epfn);
++zone_empty:
+ 	pgdat_resize_unlock(pgdat, &flags);
+ 
+ 	/* Sanity check that the next zone really is unpopulated */
+@@ -1609,9 +1693,9 @@ deferred_grow_zone(struct zone *zone, unsigned int order)
+ {
+ 	unsigned long nr_pages_needed = ALIGN(1 << order, PAGES_PER_SECTION);
+ 	pg_data_t *pgdat = zone->zone_pgdat;
+-	unsigned long nr_pages = 0;
+-	unsigned long first_init_pfn, spfn, epfn, t, flags;
+ 	unsigned long first_deferred_pfn = pgdat->first_deferred_pfn;
++	unsigned long spfn, epfn, flags;
++	unsigned long nr_pages = 0;
+ 	u64 i;
+ 
+ 	/* Only the last zone may have deferred pages */
+@@ -1640,36 +1724,24 @@ deferred_grow_zone(struct zone *zone, unsigned int order)
+ 		return true;
+ 	}
+ 
+-	first_init_pfn = max(zone->zone_start_pfn, first_deferred_pfn);
+-
+-	if (first_init_pfn >= pgdat_end_pfn(pgdat)) {
++	/* If the zone is empty somebody else may have cleared out the zone */
++	if (!deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn,
++						 first_deferred_pfn)) {
++		pgdat->first_deferred_pfn = ULONG_MAX;
+ 		pgdat_resize_unlock(pgdat, &flags);
+-		return false;
++		return true;
+ 	}
+ 
+-	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
+-		spfn = max_t(unsigned long, first_init_pfn, spfn);
+-
+-		while (spfn < epfn && nr_pages < nr_pages_needed) {
+-			t = ALIGN(spfn + PAGES_PER_SECTION, PAGES_PER_SECTION);
+-			first_deferred_pfn = min(t, epfn);
+-			nr_pages += deferred_init_pages(zone, spfn,
+-							first_deferred_pfn);
+-			spfn = first_deferred_pfn;
+-		}
+-
+-		if (nr_pages >= nr_pages_needed)
+-			break;
++	/*
++	 * Initialize and free pages in MAX_ORDER sized increments so
++	 * that we can avoid introducing any issues with the buddy
++	 * allocator.
++	 */
++	while (spfn < epfn && nr_pages < nr_pages_needed) {
++		nr_pages += deferred_init_maxorder(&i, zone, &spfn, &epfn);
++		first_deferred_pfn = spfn;
+ 	}
+ 
+-	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
+-		spfn = max_t(unsigned long, first_init_pfn, spfn);
+-		epfn = min_t(unsigned long, first_deferred_pfn, epfn);
+-		deferred_free_pages(spfn, epfn);
+-
+-		if (first_deferred_pfn == epfn)
+-			break;
+-	}
+ 	pgdat->first_deferred_pfn = first_deferred_pfn;
+ 	pgdat_resize_unlock(pgdat, &flags);
+ 
