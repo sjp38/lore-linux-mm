@@ -1,139 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F7616B42CB
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 12:07:33 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id j15so8637375ota.17
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 09:07:33 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id t32si369876otc.126.2018.11.26.09.07.31
-        for <linux-mm@kvack.org>;
-        Mon, 26 Nov 2018 09:07:31 -0800 (PST)
-From: Will Deacon <will.deacon@arm.com>
-Subject: [PATCH v4 4/5] lib/ioremap: Ensure phys_addr actually corresponds to a physical address
-Date: Mon, 26 Nov 2018 17:07:46 +0000
-Message-Id: <1543252067-30831-5-git-send-email-will.deacon@arm.com>
-In-Reply-To: <1543252067-30831-1-git-send-email-will.deacon@arm.com>
-References: <1543252067-30831-1-git-send-email-will.deacon@arm.com>
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D01F6B5A6E
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 16:53:00 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id d3so4206048pgv.23
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 13:53:00 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id t3si6045980pgl.108.2018.11.30.13.52.58
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Nov 2018 13:52:58 -0800 (PST)
+Subject: [mm PATCH v6 2/7] mm: Drop meminit_pfn_in_nid as it is redundant
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Date: Fri, 30 Nov 2018 13:52:58 -0800
+Message-ID: <154361477830.7497.18073959471440151885.stgit@ahduyck-desk1.amr.corp.intel.com>
+In-Reply-To: <154361452447.7497.1348692079883153517.stgit@ahduyck-desk1.amr.corp.intel.com>
+References: <154361452447.7497.1348692079883153517.stgit@ahduyck-desk1.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: cpandya@codeaurora.org, toshi.kani@hpe.com, tglx@linutronix.de, mhocko@suse.com, akpm@linux-foundation.org, sean.j.christopherson@intel.com, Will Deacon <will.deacon@arm.com>
+To: akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mhocko@suse.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, alexander.h.duyck@linux.intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.comalexander.h.duyck@linux.intel.com
 
-The current ioremap() code uses a phys_addr variable at each level of
-page table, which is confusingly offset by subtracting the base virtual
-address being mapped so that adding the current virtual address back on
-when iterating through the page table entries gives back the corresponding
-physical address.
+As best as I can tell the meminit_pfn_in_nid call is completely redundant.
+The deferred memory initialization is already making use of
+for_each_free_mem_range which in turn will call into __next_mem_range which
+will only return a memory range if it matches the node ID provided assuming
+it is not NUMA_NO_NODE.
 
-This is fairly confusing and results in all users of phys_addr having to
-add the current virtual address back on. Instead, this patch just updates
-phys_addr when iterating over the page table entries, ensuring that it's
-always up-to-date and doesn't require explicit offsetting.
+I am operating on the assumption that there are no zones or pgdata_t
+structures that have a NUMA node of NUMA_NO_NODE associated with them. If
+that is the case then __next_mem_range will never return a memory range
+that doesn't match the zone's node ID and as such the check is redundant.
 
-Cc: Chintan Pandya <cpandya@codeaurora.org>
-Cc: Toshi Kani <toshi.kani@hpe.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sean Christopherson <sean.j.christopherson@intel.com>
-Signed-off-by: Will Deacon <will.deacon@arm.com>
+So one piece I would like to verify on this is if this works for ia64.
+Technically it was using a different approach to get the node ID, but it
+seems to have the node ID also encoded into the memblock. So I am
+assuming this is okay, but would like to get confirmation on that.
+
+On my x86_64 test system with 384GB of memory per node I saw a reduction in
+initialization time from 2.80s to 1.85s as a result of this patch.
+
+Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 ---
- lib/ioremap.c | 28 ++++++++++++----------------
- 1 file changed, 12 insertions(+), 16 deletions(-)
+ mm/page_alloc.c |   51 ++++++++++++++-------------------------------------
+ 1 file changed, 14 insertions(+), 37 deletions(-)
 
-diff --git a/lib/ioremap.c b/lib/ioremap.c
-index 6c72764af19c..10d7c5485c39 100644
---- a/lib/ioremap.c
-+++ b/lib/ioremap.c
-@@ -101,19 +101,18 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
- 	pmd_t *pmd;
- 	unsigned long next;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 20e1a8a2e98c..09969619ab48 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1308,36 +1308,22 @@ int __meminit early_pfn_to_nid(unsigned long pfn)
+ #endif
  
--	phys_addr -= addr;
- 	pmd = pmd_alloc(&init_mm, pud, addr);
- 	if (!pmd)
- 		return -ENOMEM;
- 	do {
- 		next = pmd_addr_end(addr, end);
+ #ifdef CONFIG_NODES_SPAN_OTHER_NODES
+-static inline bool __meminit __maybe_unused
+-meminit_pfn_in_nid(unsigned long pfn, int node,
+-		   struct mminit_pfnnid_cache *state)
++/* Only safe to use early in boot when initialisation is single-threaded */
++static inline bool __meminit early_pfn_in_nid(unsigned long pfn, int node)
+ {
+ 	int nid;
  
--		if (ioremap_try_huge_pmd(pmd, addr, next, phys_addr + addr, prot))
-+		if (ioremap_try_huge_pmd(pmd, addr, next, phys_addr, prot))
- 			continue;
- 
--		if (ioremap_pte_range(pmd, addr, next, phys_addr + addr, prot))
-+		if (ioremap_pte_range(pmd, addr, next, phys_addr, prot))
- 			return -ENOMEM;
--	} while (pmd++, addr = next, addr != end);
-+	} while (pmd++, phys_addr += (next - addr), addr = next, addr != end);
- 	return 0;
+-	nid = __early_pfn_to_nid(pfn, state);
++	nid = __early_pfn_to_nid(pfn, &early_pfnnid_cache);
+ 	if (nid >= 0 && nid != node)
+ 		return false;
+ 	return true;
  }
  
-@@ -142,19 +141,18 @@ static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
- 	pud_t *pud;
- 	unsigned long next;
+-/* Only safe to use early in boot when initialisation is single-threaded */
+-static inline bool __meminit early_pfn_in_nid(unsigned long pfn, int node)
+-{
+-	return meminit_pfn_in_nid(pfn, node, &early_pfnnid_cache);
+-}
+-
+ #else
+-
+ static inline bool __meminit early_pfn_in_nid(unsigned long pfn, int node)
+ {
+ 	return true;
+ }
+-static inline bool __meminit  __maybe_unused
+-meminit_pfn_in_nid(unsigned long pfn, int node,
+-		   struct mminit_pfnnid_cache *state)
+-{
+-	return true;
+-}
+ #endif
  
--	phys_addr -= addr;
- 	pud = pud_alloc(&init_mm, p4d, addr);
- 	if (!pud)
- 		return -ENOMEM;
- 	do {
- 		next = pud_addr_end(addr, end);
  
--		if (ioremap_try_huge_pud(pud, addr, next, phys_addr + addr, prot))
-+		if (ioremap_try_huge_pud(pud, addr, next, phys_addr, prot))
- 			continue;
- 
--		if (ioremap_pmd_range(pud, addr, next, phys_addr + addr, prot))
-+		if (ioremap_pmd_range(pud, addr, next, phys_addr, prot))
- 			return -ENOMEM;
--	} while (pud++, addr = next, addr != end);
-+	} while (pud++, phys_addr += (next - addr), addr = next, addr != end);
- 	return 0;
+@@ -1466,21 +1452,13 @@ static inline void __init pgdat_init_report_one_done(void)
+  *
+  * Then, we check if a current large page is valid by only checking the validity
+  * of the head pfn.
+- *
+- * Finally, meminit_pfn_in_nid is checked on systems where pfns can interleave
+- * within a node: a pfn is between start and end of a node, but does not belong
+- * to this memory node.
+  */
+-static inline bool __init
+-deferred_pfn_valid(int nid, unsigned long pfn,
+-		   struct mminit_pfnnid_cache *nid_init_state)
++static inline bool __init deferred_pfn_valid(unsigned long pfn)
+ {
+ 	if (!pfn_valid_within(pfn))
+ 		return false;
+ 	if (!(pfn & (pageblock_nr_pages - 1)) && !pfn_valid(pfn))
+ 		return false;
+-	if (!meminit_pfn_in_nid(pfn, nid, nid_init_state))
+-		return false;
+ 	return true;
  }
  
-@@ -164,7 +162,6 @@ static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
- 	p4d_t *p4d;
- 	unsigned long next;
+@@ -1488,15 +1466,14 @@ deferred_pfn_valid(int nid, unsigned long pfn,
+  * Free pages to buddy allocator. Try to free aligned pages in
+  * pageblock_nr_pages sizes.
+  */
+-static void __init deferred_free_pages(int nid, int zid, unsigned long pfn,
++static void __init deferred_free_pages(unsigned long pfn,
+ 				       unsigned long end_pfn)
+ {
+-	struct mminit_pfnnid_cache nid_init_state = { };
+ 	unsigned long nr_pgmask = pageblock_nr_pages - 1;
+ 	unsigned long nr_free = 0;
  
--	phys_addr -= addr;
- 	p4d = p4d_alloc(&init_mm, pgd, addr);
- 	if (!p4d)
- 		return -ENOMEM;
-@@ -173,14 +170,14 @@ static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
+ 	for (; pfn < end_pfn; pfn++) {
+-		if (!deferred_pfn_valid(nid, pfn, &nid_init_state)) {
++		if (!deferred_pfn_valid(pfn)) {
+ 			deferred_free_range(pfn - nr_free, nr_free);
+ 			nr_free = 0;
+ 		} else if (!(pfn & nr_pgmask)) {
+@@ -1516,17 +1493,18 @@ static void __init deferred_free_pages(int nid, int zid, unsigned long pfn,
+  * by performing it only once every pageblock_nr_pages.
+  * Return number of pages initialized.
+  */
+-static unsigned long  __init deferred_init_pages(int nid, int zid,
++static unsigned long  __init deferred_init_pages(struct zone *zone,
+ 						 unsigned long pfn,
+ 						 unsigned long end_pfn)
+ {
+-	struct mminit_pfnnid_cache nid_init_state = { };
+ 	unsigned long nr_pgmask = pageblock_nr_pages - 1;
++	int nid = zone_to_nid(zone);
+ 	unsigned long nr_pages = 0;
++	int zid = zone_idx(zone);
+ 	struct page *page = NULL;
  
- 		if (ioremap_p4d_enabled() &&
- 		    ((next - addr) == P4D_SIZE) &&
--		    IS_ALIGNED(phys_addr + addr, P4D_SIZE)) {
--			if (p4d_set_huge(p4d, phys_addr + addr, prot))
-+		    IS_ALIGNED(phys_addr, P4D_SIZE)) {
-+			if (p4d_set_huge(p4d, phys_addr, prot))
- 				continue;
+ 	for (; pfn < end_pfn; pfn++) {
+-		if (!deferred_pfn_valid(nid, pfn, &nid_init_state)) {
++		if (!deferred_pfn_valid(pfn)) {
+ 			page = NULL;
+ 			continue;
+ 		} else if (!page || !(pfn & nr_pgmask)) {
+@@ -1589,12 +1567,12 @@ static int __init deferred_init_memmap(void *data)
+ 	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
+ 		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+ 		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
+-		nr_pages += deferred_init_pages(nid, zid, spfn, epfn);
++		nr_pages += deferred_init_pages(zone, spfn, epfn);
+ 	}
+ 	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
+ 		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+ 		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
+-		deferred_free_pages(nid, zid, spfn, epfn);
++		deferred_free_pages(spfn, epfn);
+ 	}
+ 	pgdat_resize_unlock(pgdat, &flags);
+ 
+@@ -1633,7 +1611,6 @@ static DEFINE_STATIC_KEY_TRUE(deferred_pages);
+ static noinline bool __init
+ deferred_grow_zone(struct zone *zone, unsigned int order)
+ {
+-	int zid = zone_idx(zone);
+ 	int nid = zone_to_nid(zone);
+ 	pg_data_t *pgdat = NODE_DATA(nid);
+ 	unsigned long nr_pages_needed = ALIGN(1 << order, PAGES_PER_SECTION);
+@@ -1683,7 +1660,7 @@ deferred_grow_zone(struct zone *zone, unsigned int order)
+ 		while (spfn < epfn && nr_pages < nr_pages_needed) {
+ 			t = ALIGN(spfn + PAGES_PER_SECTION, PAGES_PER_SECTION);
+ 			first_deferred_pfn = min(t, epfn);
+-			nr_pages += deferred_init_pages(nid, zid, spfn,
++			nr_pages += deferred_init_pages(zone, spfn,
+ 							first_deferred_pfn);
+ 			spfn = first_deferred_pfn;
  		}
+@@ -1695,7 +1672,7 @@ deferred_grow_zone(struct zone *zone, unsigned int order)
+ 	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
+ 		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+ 		epfn = min_t(unsigned long, first_deferred_pfn, PFN_DOWN(epa));
+-		deferred_free_pages(nid, zid, spfn, epfn);
++		deferred_free_pages(spfn, epfn);
  
--		if (ioremap_pud_range(p4d, addr, next, phys_addr + addr, prot))
-+		if (ioremap_pud_range(p4d, addr, next, phys_addr, prot))
- 			return -ENOMEM;
--	} while (p4d++, addr = next, addr != end);
-+	} while (p4d++, phys_addr += (next - addr), addr = next, addr != end);
- 	return 0;
- }
- 
-@@ -196,14 +193,13 @@ int ioremap_page_range(unsigned long addr,
- 	BUG_ON(addr >= end);
- 
- 	start = addr;
--	phys_addr -= addr;
- 	pgd = pgd_offset_k(addr);
- 	do {
- 		next = pgd_addr_end(addr, end);
--		err = ioremap_p4d_range(pgd, addr, next, phys_addr+addr, prot);
-+		err = ioremap_p4d_range(pgd, addr, next, phys_addr, prot);
- 		if (err)
+ 		if (first_deferred_pfn == epfn)
  			break;
--	} while (pgd++, addr = next, addr != end);
-+	} while (pgd++, phys_addr += (next - addr), addr = next, addr != end);
- 
- 	flush_cache_vmap(start, end);
- 
--- 
-2.1.4
