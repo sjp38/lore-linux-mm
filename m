@@ -1,43 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CB5C6B4A84
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 16:06:20 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id a199so23709188qkb.23
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 13:06:20 -0800 (PST)
-Received: from relay64.bu.edu (relay64.bu.edu. [128.197.228.104])
-        by mx.google.com with ESMTPS id r25si3876472qtn.101.2018.11.27.13.06.18
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 544476B576F
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 04:20:32 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id z68so4699886qkb.14
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 01:20:32 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q4si67165qkj.161.2018.11.30.01.20.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Nov 2018 13:06:19 -0800 (PST)
-From: Emre Ates <ates@bu.edu>
-Subject: [PATCH] Small typo fix
-Date: Tue, 27 Nov 2018 16:04:59 -0500
-Message-Id: <20181127210459.11809-1-ates@bu.edu>
+        Fri, 30 Nov 2018 01:20:31 -0800 (PST)
+Subject: Re: [PATCH v3 2/2] mm, sparse: pass nid instead of pgdat to
+ sparse_add_one_section()
+References: <20181128091243.19249-1-richard.weiyang@gmail.com>
+ <20181129155316.8174-1-richard.weiyang@gmail.com>
+ <20181129155316.8174-2-richard.weiyang@gmail.com>
+ <7acfdb10-9e4e-a766-fb6f-08c575887167@redhat.com>
+ <20181130012223.bfekdl2b3tghkvji@master>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <ed1263d6-0d10-d1b7-8c19-cafcef384cc3@redhat.com>
+Date: Fri, 30 Nov 2018 10:20:28 +0100
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181130012223.bfekdl2b3tghkvji@master>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, ates@bu.edu
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: mhocko@suse.com, dave.hansen@intel.com, osalvador@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org
 
----
- mm/vmstat.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+On 30.11.18 02:22, Wei Yang wrote:
+> On Thu, Nov 29, 2018 at 05:01:51PM +0100, David Hildenbrand wrote:
+>> On 29.11.18 16:53, Wei Yang wrote:
+>>> Since the information needed in sparse_add_one_section() is node id to
+>>> allocate proper memory, it is not necessary to pass its pgdat.
+>>>
+>>> This patch changes the prototype of sparse_add_one_section() to pass
+>>> node id directly. This is intended to reduce misleading that
+>>> sparse_add_one_section() would touch pgdat.
+>>>
+>>> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+>>> ---
+>>>  include/linux/memory_hotplug.h | 2 +-
+>>>  mm/memory_hotplug.c            | 2 +-
+>>>  mm/sparse.c                    | 6 +++---
+>>>  3 files changed, 5 insertions(+), 5 deletions(-)
+>>>
+>>> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+>>> index 45a5affcab8a..3787d4e913e6 100644
+>>> --- a/include/linux/memory_hotplug.h
+>>> +++ b/include/linux/memory_hotplug.h
+>>> @@ -333,7 +333,7 @@ extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+>>>  		unsigned long nr_pages, struct vmem_altmap *altmap);
+>>>  extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+>>>  extern bool is_memblock_offlined(struct memory_block *mem);
+>>> -extern int sparse_add_one_section(struct pglist_data *pgdat,
+>>> +extern int sparse_add_one_section(int nid,
+>>>  		unsigned long start_pfn, struct vmem_altmap *altmap);
+>>
+>> While you touch that, can you fixup the alignment of the other parameters?
+>>
+> 
+> If I am correct, the code style of alignment is like this?
+> 
+> extern int sparse_add_one_section(int nid, unsigned long start_pfn,
+> 				  struct vmem_altmap *altmap);
 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 9c624595e904..cc7d04928c2e 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1106,7 +1106,7 @@ int fragmentation_index(struct zone *zone, unsigned int order)
- 					TEXT_FOR_HIGHMEM(xx) xx "_movable",
+Yes, all parameters should start at the same indentation. (some people
+don't care and produce this "mess", I tend to care :) )
 
- const char * const vmstat_text[] = {
--	/* enum zone_stat_item countes */
-+	/* enum zone_stat_item counters */
- 	"nr_free_pages",
- 	"nr_zone_inactive_anon",
- 	"nr_zone_active_anon",
---
-2.19.1
+> 
+>> Apart from that
+>>
+>> Reviewed-by: David Hildenbrand <david@redhat.com>
+>>
+> 
 
-Signed-off-by: Emre Ates <ates@bu.edu>
+
+-- 
+
+Thanks,
+
+David / dhildenb
