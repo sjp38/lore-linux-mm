@@ -1,49 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DB7086B53E4
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2018 13:11:00 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id y7so1748188wrr.12
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2018 10:11:00 -0800 (PST)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 48D406B59F2
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 14:58:22 -0500 (EST)
+Received: by mail-yw1-f70.google.com with SMTP id t17so4380254ywc.23
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 11:58:22 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t10sor2202568wmt.1.2018.11.29.10.10.59
+        by mx.google.com with SMTPS id u186-v6sor2671556ybf.135.2018.11.30.11.58.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 29 Nov 2018 10:10:59 -0800 (PST)
-From: mhocko@kernel.org
-Subject: [PATCH] madvise.2: MADV_FREE clarify swapless behavior
-Date: Thu, 29 Nov 2018 19:10:48 +0100
-Message-Id: <20181129181048.11010-1-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+        Fri, 30 Nov 2018 11:58:21 -0800 (PST)
+From: Josef Bacik <josef@toxicpanda.com>
+Subject: [PATCH 4/4] mm: use the cached page for filemap_fault
+Date: Fri, 30 Nov 2018 14:58:12 -0500
+Message-Id: <20181130195812.19536-5-josef@toxicpanda.com>
+In-Reply-To: <20181130195812.19536-1-josef@toxicpanda.com>
+References: <20181130195812.19536-1-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: linux-mm@kvack.org, =?UTF-8?q?Niklas=20Hamb=C3=BCchen?= <mail@nh2.me>, Shaohua Li <shli@fb.com>, linux-man@vger.kernel.org, Michal Hocko <mhocko@suse.com>
+To: kernel-team@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tj@kernel.org, david@fromorbit.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, jack@suse.cz
 
-From: Michal Hocko <mhocko@suse.com>
+If we drop the mmap_sem we have to redo the vma lookup which requires
+redoing the fault handler.  Chances are we will just come back to the
+same page, so save this page in our vmf->cached_page and reuse it in the
+next loop through the fault handler.
 
-Since 93e06c7a6453 ("mm: enable MADV_FREE for swapless system") we
-handle MADV_FREE on a swapless system the same way as with the swap
-available. Clarify that fact in the man page.
-
-Reported-by: Niklas Hambüchen <mail@nh2.me>
+Signed-off-by: Josef Bacik <josef@toxicpanda.com>
 ---
- man2/madvise.2 | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/filemap.c | 45 +++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 43 insertions(+), 2 deletions(-)
 
-diff --git a/man2/madvise.2 b/man2/madvise.2
-index eb82a57a1cf5..d9135a05a1c2 100644
---- a/man2/madvise.2
-+++ b/man2/madvise.2
-@@ -403,7 +403,7 @@ The
- operation
- can be applied only to private anonymous pages (see
- .BR mmap (2)).
--On a swapless system, freeing pages in a given range happens instantly,
-+Prior to 4.12 on a swapless system, freeing pages in a given range happens instantly,
- regardless of memory pressure.
- .TP
- .BR MADV_WIPEONFORK " (since Linux 4.14)"
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 5e76b24b2a0f..d4385b704e04 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -2392,6 +2392,35 @@ static struct file *do_async_mmap_readahead(struct vm_area_struct *vma,
+ 	return fpin;
+ }
+ 
++static int vmf_has_cached_page(struct vm_fault *vmf, struct page **page)
++{
++	struct page *cached_page = vmf->cached_page;
++	struct mm_struct *mm = vmf->vma->vm_mm;
++	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
++	pgoff_t offset = vmf->pgoff;
++
++	if (!cached_page)
++		return 0;
++
++	if (vmf->flags & FAULT_FLAG_KILLABLE) {
++		int ret = lock_page_killable(cached_page);
++		if (ret) {
++			up_read(&mm->mmap_sem);
++			return ret;
++		}
++	} else
++		lock_page(cached_page);
++	vmf->cached_page = NULL;
++	if (cached_page->mapping == mapping &&
++	    cached_page->index == offset) {
++		*page = cached_page;
++	} else {
++		unlock_page(cached_page);
++		put_page(cached_page);
++	}
++	return 0;
++}
++
+ /**
+  * filemap_fault - read in file data for page fault handling
+  * @vmf:	struct vm_fault containing details of the fault
+@@ -2425,13 +2454,24 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
+ 	struct inode *inode = mapping->host;
+ 	pgoff_t offset = vmf->pgoff;
+ 	pgoff_t max_off;
+-	struct page *page;
++	struct page *page = NULL;
+ 	vm_fault_t ret = 0;
+ 
+ 	max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+ 	if (unlikely(offset >= max_off))
+ 		return VM_FAULT_SIGBUS;
+ 
++	/*
++	 * We may have read in the page already and have a page from an earlier
++	 * loop.  If so we need to see if this page is still valid, and if not
++	 * do the whole dance over again.
++	 */
++	error = vmf_has_cached_page(vmf, &page);
++	if (error)
++		goto out_retry;
++	if (page)
++		goto have_cached_page;
++
+ 	/*
+ 	 * Do we have something in the page cache already?
+ 	 */
+@@ -2492,6 +2532,7 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
+ 		put_page(page);
+ 		goto retry_find;
+ 	}
++have_cached_page:
+ 	VM_BUG_ON_PAGE(page->index != offset, page);
+ 
+ 	/*
+@@ -2558,7 +2599,7 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
+ 	 * page.
+ 	 */
+ 	if (page)
+-		put_page(page);
++		vmf->cached_page = page;
+ 	if (fpin)
+ 		fput(fpin);
+ 	return ret | VM_FAULT_RETRY;
 -- 
-2.19.1
+2.14.3
