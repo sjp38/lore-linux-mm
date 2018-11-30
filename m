@@ -1,75 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CE206B405E
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 00:36:58 -0500 (EST)
-Received: by mail-lj1-f198.google.com with SMTP id e12-v6so4984694ljb.18
-        for <linux-mm@kvack.org>; Sun, 25 Nov 2018 21:36:58 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o87sor13220323lfg.70.2018.11.25.21.36.56
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 51BD26B5942
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 12:06:14 -0500 (EST)
+Received: by mail-it1-f199.google.com with SMTP id p66so7498450itc.0
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 09:06:14 -0800 (PST)
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id z83si3601667itc.56.2018.11.30.09.06.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 25 Nov 2018 21:36:56 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 30 Nov 2018 09:06:13 -0800 (PST)
+From: Logan Gunthorpe <logang@deltatee.com>
+Date: Fri, 30 Nov 2018 10:06:05 -0700
+Message-Id: <20181130170606.17252-6-logang@deltatee.com>
+In-Reply-To: <20181130170606.17252-1-logang@deltatee.com>
+References: <20181130170606.17252-1-logang@deltatee.com>
 MIME-Version: 1.0
-References: <20181115154826.GA27948@jordon-HP-15-Notebook-PC>
-In-Reply-To: <20181115154826.GA27948@jordon-HP-15-Notebook-PC>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Mon, 26 Nov 2018 11:06:42 +0530
-Message-ID: <CAFqt6zZy0-dy=a+KDrx7V1-j37pAVmt2r6bOkjgHwiopG-L+xA@mail.gmail.com>
-Subject: Re: [PATCH 4/9] drm/rockchip/rockchip_drm_gem.c: Convert to use vm_insert_range
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Subject: [PATCH v24 5/6] ntb: ntb_hw_intel: use io-64-nonatomic instead of in-driver hacks
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie
-Cc: linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org
+To: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-ntb@googlegroups.com, linux-crypto@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andy Shevchenko <andy.shevchenko@gmail.com>, =?UTF-8?q?Horia=20Geant=C4=83?= <horia.geanta@nxp.com>, Logan Gunthorpe <logang@deltatee.com>
 
-Hi Heiko,
+Now that ioread64 and iowrite64 are available in io-64-nonatomic,
+we can remove the hack at the top of ntb_hw_intel.c and replace it
+with an include.
 
-On Thu, Nov 15, 2018 at 9:14 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
->
-> Convert to use vm_insert_range() to map range of kernel
-> memory to user vma.
->
-> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+Signed-off-by: Logan Gunthorpe <logang@deltatee.com>
+Reviewed-by: Andy Shevchenko <andy.shevchenko@gmail.com>
+Acked-by: Dave Jiang <dave.jiang@intel.com>
+Acked-by: Allen Hubbe <Allen.Hubbe@dell.com>
+Acked-by: Jon Mason <jdmason@kudzu.us>
+---
+ drivers/ntb/hw/intel/ntb_hw_intel.h | 30 +----------------------------
+ 1 file changed, 1 insertion(+), 29 deletions(-)
 
-Any feedback for this patch ?
-
-> ---
->  drivers/gpu/drm/rockchip/rockchip_drm_gem.c | 20 ++------------------
->  1 file changed, 2 insertions(+), 18 deletions(-)
->
-> diff --git a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
-> index a8db758..2cb83bb 100644
-> --- a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
-> +++ b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
-> @@ -221,26 +221,10 @@ static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
->                                               struct vm_area_struct *vma)
->  {
->         struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
-> -       unsigned int i, count = obj->size >> PAGE_SHIFT;
->         unsigned long user_count = vma_pages(vma);
-> -       unsigned long uaddr = vma->vm_start;
-> -       unsigned long offset = vma->vm_pgoff;
-> -       unsigned long end = user_count + offset;
-> -       int ret;
-> -
-> -       if (user_count == 0)
-> -               return -ENXIO;
-> -       if (end > count)
-> -               return -ENXIO;
->
-> -       for (i = offset; i < end; i++) {
-> -               ret = vm_insert_page(vma, uaddr, rk_obj->pages[i]);
-> -               if (ret)
-> -                       return ret;
-> -               uaddr += PAGE_SIZE;
-> -       }
-> -
-> -       return 0;
-> +       return vm_insert_range(vma, vma->vm_start, rk_obj->pages,
-> +                               user_count);
->  }
->
->  static int rockchip_drm_gem_object_mmap_dma(struct drm_gem_object *obj,
-> --
-> 1.9.1
->
+diff --git a/drivers/ntb/hw/intel/ntb_hw_intel.h b/drivers/ntb/hw/intel/ntb_hw_intel.h
+index c49ff8970ce3..e071e28bca3f 100644
+--- a/drivers/ntb/hw/intel/ntb_hw_intel.h
++++ b/drivers/ntb/hw/intel/ntb_hw_intel.h
+@@ -53,6 +53,7 @@
+ 
+ #include <linux/ntb.h>
+ #include <linux/pci.h>
++#include <linux/io-64-nonatomic-lo-hi.h>
+ 
+ /* PCI device IDs */
+ #define PCI_DEVICE_ID_INTEL_NTB_B2B_JSF	0x3725
+@@ -218,33 +219,4 @@ static inline int pdev_is_gen3(struct pci_dev *pdev)
+ 	return 0;
+ }
+ 
+-#ifndef ioread64
+-#ifdef readq
+-#define ioread64 readq
+-#else
+-#define ioread64 _ioread64
+-static inline u64 _ioread64(void __iomem *mmio)
+-{
+-	u64 low, high;
+-
+-	low = ioread32(mmio);
+-	high = ioread32(mmio + sizeof(u32));
+-	return low | (high << 32);
+-}
+-#endif
+-#endif
+-
+-#ifndef iowrite64
+-#ifdef writeq
+-#define iowrite64 writeq
+-#else
+-#define iowrite64 _iowrite64
+-static inline void _iowrite64(u64 val, void __iomem *mmio)
+-{
+-	iowrite32(val, mmio);
+-	iowrite32(val >> 32, mmio + sizeof(u32));
+-}
+-#endif
+-#endif
+-
+ #endif
+-- 
+2.19.0
