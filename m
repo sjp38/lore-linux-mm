@@ -1,615 +1,242 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F9F16B4953
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:56:21 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id b186so16863192wmc.8
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:56:21 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i74sor3227954wmd.20.2018.11.27.08.56.19
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C7E9A6B5A79
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 16:53:25 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id f69so5520200pff.5
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 13:53:25 -0800 (PST)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id t6si6239072pgn.258.2018.11.30.13.53.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 27 Nov 2018 08:56:19 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v12 16/25] kasan: split out generic_report.c from report.c
-Date: Tue, 27 Nov 2018 17:55:34 +0100
-Message-Id: <9030fe246a786be1348f8b08089f30e52be23ec4.1543337629.git.andreyknvl@google.com>
-In-Reply-To: <cover.1543337629.git.andreyknvl@google.com>
-References: <cover.1543337629.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Nov 2018 13:53:24 -0800 (PST)
+Subject: [mm PATCH v6 7/7] mm: Use common iterator for deferred_init_pages
+ and deferred_free_pages
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Date: Fri, 30 Nov 2018 13:53:23 -0800
+Message-ID: <154361480390.7497.9730184349746888133.stgit@ahduyck-desk1.amr.corp.intel.com>
+In-Reply-To: <154361452447.7497.1348692079883153517.stgit@ahduyck-desk1.amr.corp.intel.com>
+References: <154361452447.7497.1348692079883153517.stgit@ahduyck-desk1.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mhocko@suse.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, alexander.h.duyck@linux.intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.comalexander.h.duyck@linux.intel.com
 
-This patch moves generic KASAN specific error reporting routines to
-generic_report.c without any functional changes, leaving common error
-reporting code in report.c to be later reused by tag-based KASAN.
+Create a common iterator to be used by both deferred_init_pages and
+deferred_free_pages. By doing this we can cut down a bit on code overhead
+as they will likely both be inlined into the same function anyway.
 
-Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+This new approach allows deferred_init_pages to make use of
+__init_pageblock. By doing this we can cut down on the code size by sharing
+code between both the hotplug and deferred memory init code paths.
+
+An additional benefit to this approach is that we improve in cache locality
+of the memory init as we can focus on the memory areas related to
+identifying if a given PFN is valid and keep that warm in the cache until
+we transition to a region of a different type. So we will stream through a
+chunk of valid blocks before we turn to initializing page structs.
+
+On my x86_64 test system with 384GB of memory per node I saw a reduction in
+initialization time from 1.38s to 1.06s as a result of this patch.
+
+Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 ---
- mm/kasan/Makefile         |   4 +-
- mm/kasan/generic_report.c | 158 +++++++++++++++++++++++++
- mm/kasan/kasan.h          |   7 ++
- mm/kasan/report.c         | 234 +++++++++-----------------------------
- mm/kasan/tags_report.c    |  39 +++++++
- 5 files changed, 257 insertions(+), 185 deletions(-)
- create mode 100644 mm/kasan/generic_report.c
- create mode 100644 mm/kasan/tags_report.c
+ mm/page_alloc.c |  146 +++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 77 insertions(+), 69 deletions(-)
 
-diff --git a/mm/kasan/Makefile b/mm/kasan/Makefile
-index 68ba1822f003..0a14fcff70ed 100644
---- a/mm/kasan/Makefile
-+++ b/mm/kasan/Makefile
-@@ -14,5 +14,5 @@ CFLAGS_generic.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
- CFLAGS_tags.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
- 
- obj-$(CONFIG_KASAN) := common.o init.o report.o
--obj-$(CONFIG_KASAN_GENERIC) += generic.o quarantine.o
--obj-$(CONFIG_KASAN_SW_TAGS) += tags.o
-+obj-$(CONFIG_KASAN_GENERIC) += generic.o generic_report.o quarantine.o
-+obj-$(CONFIG_KASAN_SW_TAGS) += tags.o tags_report.o
-diff --git a/mm/kasan/generic_report.c b/mm/kasan/generic_report.c
-new file mode 100644
-index 000000000000..5201d1770700
---- /dev/null
-+++ b/mm/kasan/generic_report.c
-@@ -0,0 +1,158 @@
-+/*
-+ * This file contains generic KASAN specific error reporting code.
-+ *
-+ * Copyright (c) 2014 Samsung Electronics Co., Ltd.
-+ * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-+ *
-+ * Some code borrowed from https://github.com/xairy/kasan-prototype by
-+ *        Andrey Konovalov <andreyknvl@gmail.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License version 2 as
-+ * published by the Free Software Foundation.
-+ *
-+ */
-+
-+#include <linux/bitops.h>
-+#include <linux/ftrace.h>
-+#include <linux/init.h>
-+#include <linux/kernel.h>
-+#include <linux/mm.h>
-+#include <linux/printk.h>
-+#include <linux/sched.h>
-+#include <linux/slab.h>
-+#include <linux/stackdepot.h>
-+#include <linux/stacktrace.h>
-+#include <linux/string.h>
-+#include <linux/types.h>
-+#include <linux/kasan.h>
-+#include <linux/module.h>
-+
-+#include <asm/sections.h>
-+
-+#include "kasan.h"
-+#include "../slab.h"
-+
-+static const void *find_first_bad_addr(const void *addr, size_t size)
-+{
-+	u8 shadow_val = *(u8 *)kasan_mem_to_shadow(addr);
-+	const void *first_bad_addr = addr;
-+
-+	while (!shadow_val && first_bad_addr < addr + size) {
-+		first_bad_addr += KASAN_SHADOW_SCALE_SIZE;
-+		shadow_val = *(u8 *)kasan_mem_to_shadow(first_bad_addr);
-+	}
-+	return first_bad_addr;
-+}
-+
-+static const char *get_shadow_bug_type(struct kasan_access_info *info)
-+{
-+	const char *bug_type = "unknown-crash";
-+	u8 *shadow_addr;
-+
-+	info->first_bad_addr = find_first_bad_addr(info->access_addr,
-+						info->access_size);
-+
-+	shadow_addr = (u8 *)kasan_mem_to_shadow(info->first_bad_addr);
-+
-+	/*
-+	 * If shadow byte value is in [0, KASAN_SHADOW_SCALE_SIZE) we can look
-+	 * at the next shadow byte to determine the type of the bad access.
-+	 */
-+	if (*shadow_addr > 0 && *shadow_addr <= KASAN_SHADOW_SCALE_SIZE - 1)
-+		shadow_addr++;
-+
-+	switch (*shadow_addr) {
-+	case 0 ... KASAN_SHADOW_SCALE_SIZE - 1:
-+		/*
-+		 * In theory it's still possible to see these shadow values
-+		 * due to a data race in the kernel code.
-+		 */
-+		bug_type = "out-of-bounds";
-+		break;
-+	case KASAN_PAGE_REDZONE:
-+	case KASAN_KMALLOC_REDZONE:
-+		bug_type = "slab-out-of-bounds";
-+		break;
-+	case KASAN_GLOBAL_REDZONE:
-+		bug_type = "global-out-of-bounds";
-+		break;
-+	case KASAN_STACK_LEFT:
-+	case KASAN_STACK_MID:
-+	case KASAN_STACK_RIGHT:
-+	case KASAN_STACK_PARTIAL:
-+		bug_type = "stack-out-of-bounds";
-+		break;
-+	case KASAN_FREE_PAGE:
-+	case KASAN_KMALLOC_FREE:
-+		bug_type = "use-after-free";
-+		break;
-+	case KASAN_USE_AFTER_SCOPE:
-+		bug_type = "use-after-scope";
-+		break;
-+	case KASAN_ALLOCA_LEFT:
-+	case KASAN_ALLOCA_RIGHT:
-+		bug_type = "alloca-out-of-bounds";
-+		break;
-+	}
-+
-+	return bug_type;
-+}
-+
-+static const char *get_wild_bug_type(struct kasan_access_info *info)
-+{
-+	const char *bug_type = "unknown-crash";
-+
-+	if ((unsigned long)info->access_addr < PAGE_SIZE)
-+		bug_type = "null-ptr-deref";
-+	else if ((unsigned long)info->access_addr < TASK_SIZE)
-+		bug_type = "user-memory-access";
-+	else
-+		bug_type = "wild-memory-access";
-+
-+	return bug_type;
-+}
-+
-+const char *get_bug_type(struct kasan_access_info *info)
-+{
-+	if (addr_has_shadow(info->access_addr))
-+		return get_shadow_bug_type(info);
-+	return get_wild_bug_type(info);
-+}
-+
-+#define DEFINE_ASAN_REPORT_LOAD(size)                     \
-+void __asan_report_load##size##_noabort(unsigned long addr) \
-+{                                                         \
-+	kasan_report(addr, size, false, _RET_IP_);	  \
-+}                                                         \
-+EXPORT_SYMBOL(__asan_report_load##size##_noabort)
-+
-+#define DEFINE_ASAN_REPORT_STORE(size)                     \
-+void __asan_report_store##size##_noabort(unsigned long addr) \
-+{                                                          \
-+	kasan_report(addr, size, true, _RET_IP_);	   \
-+}                                                          \
-+EXPORT_SYMBOL(__asan_report_store##size##_noabort)
-+
-+DEFINE_ASAN_REPORT_LOAD(1);
-+DEFINE_ASAN_REPORT_LOAD(2);
-+DEFINE_ASAN_REPORT_LOAD(4);
-+DEFINE_ASAN_REPORT_LOAD(8);
-+DEFINE_ASAN_REPORT_LOAD(16);
-+DEFINE_ASAN_REPORT_STORE(1);
-+DEFINE_ASAN_REPORT_STORE(2);
-+DEFINE_ASAN_REPORT_STORE(4);
-+DEFINE_ASAN_REPORT_STORE(8);
-+DEFINE_ASAN_REPORT_STORE(16);
-+
-+void __asan_report_load_n_noabort(unsigned long addr, size_t size)
-+{
-+	kasan_report(addr, size, false, _RET_IP_);
-+}
-+EXPORT_SYMBOL(__asan_report_load_n_noabort);
-+
-+void __asan_report_store_n_noabort(unsigned long addr, size_t size)
-+{
-+	kasan_report(addr, size, true, _RET_IP_);
-+}
-+EXPORT_SYMBOL(__asan_report_store_n_noabort);
-diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-index b080b8d92812..33cc3b0e017e 100644
---- a/mm/kasan/kasan.h
-+++ b/mm/kasan/kasan.h
-@@ -109,11 +109,18 @@ static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
- 		<< KASAN_SHADOW_SCALE_SHIFT);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 61eb9945d805..48c6fc73a70d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1481,32 +1481,6 @@ void clear_zone_contiguous(struct zone *zone)
  }
  
-+static inline bool addr_has_shadow(const void *addr)
-+{
-+	return (addr >= kasan_shadow_to_mem((void *)KASAN_SHADOW_START));
-+}
-+
- void kasan_poison_shadow(const void *address, size_t size, u8 value);
+ #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+-static void __init deferred_free_range(unsigned long pfn,
+-				       unsigned long nr_pages)
+-{
+-	struct page *page;
+-	unsigned long i;
+-
+-	if (!nr_pages)
+-		return;
+-
+-	page = pfn_to_page(pfn);
+-
+-	/* Free a large naturally-aligned chunk if possible */
+-	if (nr_pages == pageblock_nr_pages &&
+-	    (pfn & (pageblock_nr_pages - 1)) == 0) {
+-		set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+-		__free_pages_core(page, pageblock_order);
+-		return;
+-	}
+-
+-	for (i = 0; i < nr_pages; i++, page++, pfn++) {
+-		if ((pfn & (pageblock_nr_pages - 1)) == 0)
+-			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+-		__free_pages_core(page, 0);
+-	}
+-}
+-
+ /* Completion tracking for deferred_init_memmap() threads */
+ static atomic_t pgdat_init_n_undone __initdata;
+ static __initdata DECLARE_COMPLETION(pgdat_init_all_done_comp);
+@@ -1518,48 +1492,89 @@ static inline void __init pgdat_init_report_one_done(void)
+ }
  
- void check_memory_region(unsigned long addr, size_t size, bool write,
- 				unsigned long ret_ip);
- 
-+const char *get_bug_type(struct kasan_access_info *info);
-+
- void kasan_report(unsigned long addr, size_t size,
- 		bool is_write, unsigned long ip);
- void kasan_report_invalid_free(void *object, unsigned long ip);
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index 5c169aa688fd..64a74f334c45 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -1,5 +1,5 @@
  /*
-- * This file contains error reporting code.
-+ * This file contains common generic and tag-based KASAN error reporting code.
+- * Returns true if page needs to be initialized or freed to buddy allocator.
++ * Returns count if page range needs to be initialized or freed
   *
-  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
-  * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-@@ -39,103 +39,34 @@
- #define SHADOW_BYTES_PER_ROW (SHADOW_BLOCKS_PER_ROW * SHADOW_BYTES_PER_BLOCK)
- #define SHADOW_ROWS_AROUND_ADDR 2
- 
--static const void *find_first_bad_addr(const void *addr, size_t size)
--{
--	u8 shadow_val = *(u8 *)kasan_mem_to_shadow(addr);
--	const void *first_bad_addr = addr;
--
--	while (!shadow_val && first_bad_addr < addr + size) {
--		first_bad_addr += KASAN_SHADOW_SCALE_SIZE;
--		shadow_val = *(u8 *)kasan_mem_to_shadow(first_bad_addr);
--	}
--	return first_bad_addr;
--}
-+static unsigned long kasan_flags;
- 
--static bool addr_has_shadow(struct kasan_access_info *info)
--{
--	return (info->access_addr >=
--		kasan_shadow_to_mem((void *)KASAN_SHADOW_START));
--}
-+#define KASAN_BIT_REPORTED	0
-+#define KASAN_BIT_MULTI_SHOT	1
- 
--static const char *get_shadow_bug_type(struct kasan_access_info *info)
-+bool kasan_save_enable_multi_shot(void)
+- * First we check if pfn is valid on architectures where it is possible to have
+- * holes within pageblock_nr_pages. On systems where it is not possible, this
+- * function is optimized out.
++ * First we check if the contiguous pfns are valid on architectures where it
++ * is possible to have holes within pageblock_nr_pages. On systems where it
++ * is not possible, this function is optimized out.
++ *
++ * Then, we check if a current large page is valid by only checking the
++ * validity of the head pfn.
+  *
+- * Then, we check if a current large page is valid by only checking the validity
+- * of the head pfn.
+  */
+-static inline bool __init deferred_pfn_valid(unsigned long pfn)
++static unsigned long __next_pfn_valid_range(unsigned long *pfn,
++					    unsigned long *i,
++					    unsigned long end_pfn)
  {
--	const char *bug_type = "unknown-crash";
--	u8 *shadow_addr;
--
--	info->first_bad_addr = find_first_bad_addr(info->access_addr,
--						info->access_size);
--
--	shadow_addr = (u8 *)kasan_mem_to_shadow(info->first_bad_addr);
--
--	/*
--	 * If shadow byte value is in [0, KASAN_SHADOW_SCALE_SIZE) we can look
--	 * at the next shadow byte to determine the type of the bad access.
--	 */
--	if (*shadow_addr > 0 && *shadow_addr <= KASAN_SHADOW_SCALE_SIZE - 1)
--		shadow_addr++;
--
--	switch (*shadow_addr) {
--	case 0 ... KASAN_SHADOW_SCALE_SIZE - 1:
--		/*
--		 * In theory it's still possible to see these shadow values
--		 * due to a data race in the kernel code.
--		 */
--		bug_type = "out-of-bounds";
--		break;
--	case KASAN_PAGE_REDZONE:
--	case KASAN_KMALLOC_REDZONE:
--		bug_type = "slab-out-of-bounds";
--		break;
--	case KASAN_GLOBAL_REDZONE:
--		bug_type = "global-out-of-bounds";
--		break;
--	case KASAN_STACK_LEFT:
--	case KASAN_STACK_MID:
--	case KASAN_STACK_RIGHT:
--	case KASAN_STACK_PARTIAL:
--		bug_type = "stack-out-of-bounds";
--		break;
--	case KASAN_FREE_PAGE:
--	case KASAN_KMALLOC_FREE:
--		bug_type = "use-after-free";
--		break;
--	case KASAN_USE_AFTER_SCOPE:
--		bug_type = "use-after-scope";
--		break;
--	case KASAN_ALLOCA_LEFT:
--	case KASAN_ALLOCA_RIGHT:
--		bug_type = "alloca-out-of-bounds";
--		break;
--	}
--
--	return bug_type;
-+	return test_and_set_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags);
- }
-+EXPORT_SYMBOL_GPL(kasan_save_enable_multi_shot);
- 
--static const char *get_wild_bug_type(struct kasan_access_info *info)
-+void kasan_restore_multi_shot(bool enabled)
- {
--	const char *bug_type = "unknown-crash";
--
--	if ((unsigned long)info->access_addr < PAGE_SIZE)
--		bug_type = "null-ptr-deref";
--	else if ((unsigned long)info->access_addr < TASK_SIZE)
--		bug_type = "user-memory-access";
--	else
--		bug_type = "wild-memory-access";
--
--	return bug_type;
-+	if (!enabled)
-+		clear_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags);
- }
-+EXPORT_SYMBOL_GPL(kasan_restore_multi_shot);
- 
--static const char *get_bug_type(struct kasan_access_info *info)
-+static int __init kasan_set_multi_shot(char *str)
- {
--	if (addr_has_shadow(info))
--		return get_shadow_bug_type(info);
--	return get_wild_bug_type(info);
-+	set_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags);
-+	return 1;
- }
-+__setup("kasan_multi_shot", kasan_set_multi_shot);
- 
--static void print_error_description(struct kasan_access_info *info)
-+static void print_error_description(struct kasan_access_info *info,
-+					const char *bug_type)
- {
--	const char *bug_type = get_bug_type(info);
--
- 	pr_err("BUG: KASAN: %s in %pS\n",
- 		bug_type, (void *)info->ip);
- 	pr_err("%s of size %zu at addr %px by task %s/%d\n",
-@@ -143,25 +74,9 @@ static void print_error_description(struct kasan_access_info *info)
- 		info->access_addr, current->comm, task_pid_nr(current));
- }
- 
--static inline bool kernel_or_module_addr(const void *addr)
--{
--	if (addr >= (void *)_stext && addr < (void *)_end)
--		return true;
--	if (is_module_address((unsigned long)addr))
--		return true;
--	return false;
--}
--
--static inline bool init_task_stack_addr(const void *addr)
--{
--	return addr >= (void *)&init_thread_union.stack &&
--		(addr <= (void *)&init_thread_union.stack +
--			sizeof(init_thread_union.stack));
--}
--
- static DEFINE_SPINLOCK(report_lock);
- 
--static void kasan_start_report(unsigned long *flags)
-+static void start_report(unsigned long *flags)
- {
- 	/*
- 	 * Make sure we don't end up in loop.
-@@ -171,7 +86,7 @@ static void kasan_start_report(unsigned long *flags)
- 	pr_err("==================================================================\n");
- }
- 
--static void kasan_end_report(unsigned long *flags)
-+static void end_report(unsigned long *flags)
- {
- 	pr_err("==================================================================\n");
- 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
-@@ -249,6 +164,22 @@ static void describe_object(struct kmem_cache *cache, void *object,
- 	describe_object_addr(cache, object, addr);
- }
- 
-+static inline bool kernel_or_module_addr(const void *addr)
-+{
-+	if (addr >= (void *)_stext && addr < (void *)_end)
-+		return true;
-+	if (is_module_address((unsigned long)addr))
-+		return true;
-+	return false;
-+}
-+
-+static inline bool init_task_stack_addr(const void *addr)
-+{
-+	return addr >= (void *)&init_thread_union.stack &&
-+		(addr <= (void *)&init_thread_union.stack +
-+			sizeof(init_thread_union.stack));
-+}
-+
- static void print_address_description(void *addr)
- {
- 	struct page *page = addr_to_page(addr);
-@@ -326,29 +257,38 @@ static void print_shadow_for_address(const void *addr)
- 	}
- }
- 
-+static bool report_enabled(void)
-+{
-+	if (current->kasan_depth)
-+		return false;
-+	if (test_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags))
-+		return true;
-+	return !test_and_set_bit(KASAN_BIT_REPORTED, &kasan_flags);
-+}
-+
- void kasan_report_invalid_free(void *object, unsigned long ip)
- {
- 	unsigned long flags;
- 
--	kasan_start_report(&flags);
-+	start_report(&flags);
- 	pr_err("BUG: KASAN: double-free or invalid-free in %pS\n", (void *)ip);
- 	pr_err("\n");
- 	print_address_description(object);
- 	pr_err("\n");
- 	print_shadow_for_address(object);
--	kasan_end_report(&flags);
-+	end_report(&flags);
- }
- 
- static void kasan_report_error(struct kasan_access_info *info)
- {
- 	unsigned long flags;
- 
--	kasan_start_report(&flags);
-+	start_report(&flags);
- 
--	print_error_description(info);
-+	print_error_description(info, get_bug_type(info));
- 	pr_err("\n");
- 
--	if (!addr_has_shadow(info)) {
-+	if (!addr_has_shadow(info->access_addr)) {
- 		dump_stack();
- 	} else {
- 		print_address_description((void *)info->access_addr);
-@@ -356,41 +296,7 @@ static void kasan_report_error(struct kasan_access_info *info)
- 		print_shadow_for_address(info->first_bad_addr);
- 	}
- 
--	kasan_end_report(&flags);
--}
--
--static unsigned long kasan_flags;
--
--#define KASAN_BIT_REPORTED	0
--#define KASAN_BIT_MULTI_SHOT	1
--
--bool kasan_save_enable_multi_shot(void)
--{
--	return test_and_set_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags);
--}
--EXPORT_SYMBOL_GPL(kasan_save_enable_multi_shot);
--
--void kasan_restore_multi_shot(bool enabled)
--{
--	if (!enabled)
--		clear_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags);
--}
--EXPORT_SYMBOL_GPL(kasan_restore_multi_shot);
--
--static int __init kasan_set_multi_shot(char *str)
--{
--	set_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags);
--	return 1;
--}
--__setup("kasan_multi_shot", kasan_set_multi_shot);
--
--static inline bool kasan_report_enabled(void)
--{
--	if (current->kasan_depth)
+-	if (!pfn_valid_within(pfn))
 -		return false;
--	if (test_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags))
--		return true;
--	return !test_and_set_bit(KASAN_BIT_REPORTED, &kasan_flags);
-+	end_report(&flags);
+-	if (!(pfn & (pageblock_nr_pages - 1)) && !pfn_valid(pfn))
+-		return false;
+-	return true;
++	unsigned long start_pfn = *i;
++
++	while (start_pfn < end_pfn) {
++		unsigned long t = ALIGN(start_pfn + 1, pageblock_nr_pages);
++		unsigned long pageblock_pfn = min(t, end_pfn);
++		unsigned long count = 0;
++
++#ifndef CONFIG_HOLES_IN_ZONE
++		if (pfn_valid(start_pfn))
++			count = pageblock_pfn - start_pfn;
++		start_pfn = pageblock_pfn;
++#else
++		while (start_pfn < pageblock_pfn) {
++			if (pfn_valid(start_pfn++)) {
++				count++;
++				continue;
++			}
++
++			if (!count)
++				continue;
++
++			/*
++			 * The last PFN was invalid, report the block of
++			 * PFNs we currently have available and skip over
++			 * the invalid one.
++			 */
++			*pfn = start_pfn - (count + 1);
++			*i = start_pfn;
++			return count;
++		}
++#endif
++		if (!count)
++			continue;
++
++		*pfn = start_pfn - count;
++		*i = start_pfn;
++		return count;
++	}
++
++	return 0;
  }
  
- void kasan_report(unsigned long addr, size_t size,
-@@ -398,7 +304,7 @@ void kasan_report(unsigned long addr, size_t size,
++#define for_each_deferred_pfn_valid_range(pfn, count, i, start_pfn, end_pfn) \
++	for (i = (start_pfn),						     \
++	     count = __next_pfn_valid_range(&pfn, &i, (end_pfn));	     \
++	     count;							     \
++	     count = __next_pfn_valid_range(&pfn, &i, (end_pfn)))
++
+ /*
+  * Free pages to buddy allocator. Try to free aligned pages in
+  * pageblock_nr_pages sizes.
+  */
+-static void __init deferred_free_pages(unsigned long pfn,
++static void __init deferred_free_pages(unsigned long start_pfn,
+ 				       unsigned long end_pfn)
  {
- 	struct kasan_access_info info;
- 
--	if (likely(!kasan_report_enabled()))
-+	if (likely(!report_enabled()))
- 		return;
- 
- 	disable_trace_on_warning();
-@@ -411,41 +317,3 @@ void kasan_report(unsigned long addr, size_t size,
- 
- 	kasan_report_error(&info);
+-	unsigned long nr_pgmask = pageblock_nr_pages - 1;
+-	unsigned long nr_free = 0;
+-
+-	for (; pfn < end_pfn; pfn++) {
+-		if (!deferred_pfn_valid(pfn)) {
+-			deferred_free_range(pfn - nr_free, nr_free);
+-			nr_free = 0;
+-		} else if (!(pfn & nr_pgmask)) {
+-			deferred_free_range(pfn - nr_free, nr_free);
+-			nr_free = 1;
+-			touch_nmi_watchdog();
++	unsigned long i, pfn, count;
++
++	for_each_deferred_pfn_valid_range(pfn, count, i, start_pfn, end_pfn) {
++		struct page *page = pfn_to_page(pfn);
++
++		if (count == pageblock_nr_pages) {
++			__free_pages_core(page, pageblock_order);
+ 		} else {
+-			nr_free++;
++			while (count--)
++				__free_pages_core(page++, 0);
+ 		}
++
++		touch_nmi_watchdog();
+ 	}
+-	/* Free the last block of pages to allocator */
+-	deferred_free_range(pfn - nr_free, nr_free);
  }
--
--
--#define DEFINE_ASAN_REPORT_LOAD(size)                     \
--void __asan_report_load##size##_noabort(unsigned long addr) \
--{                                                         \
--	kasan_report(addr, size, false, _RET_IP_);	  \
--}                                                         \
--EXPORT_SYMBOL(__asan_report_load##size##_noabort)
--
--#define DEFINE_ASAN_REPORT_STORE(size)                     \
--void __asan_report_store##size##_noabort(unsigned long addr) \
--{                                                          \
--	kasan_report(addr, size, true, _RET_IP_);	   \
--}                                                          \
--EXPORT_SYMBOL(__asan_report_store##size##_noabort)
--
--DEFINE_ASAN_REPORT_LOAD(1);
--DEFINE_ASAN_REPORT_LOAD(2);
--DEFINE_ASAN_REPORT_LOAD(4);
--DEFINE_ASAN_REPORT_LOAD(8);
--DEFINE_ASAN_REPORT_LOAD(16);
--DEFINE_ASAN_REPORT_STORE(1);
--DEFINE_ASAN_REPORT_STORE(2);
--DEFINE_ASAN_REPORT_STORE(4);
--DEFINE_ASAN_REPORT_STORE(8);
--DEFINE_ASAN_REPORT_STORE(16);
--
--void __asan_report_load_n_noabort(unsigned long addr, size_t size)
--{
--	kasan_report(addr, size, false, _RET_IP_);
--}
--EXPORT_SYMBOL(__asan_report_load_n_noabort);
--
--void __asan_report_store_n_noabort(unsigned long addr, size_t size)
--{
--	kasan_report(addr, size, true, _RET_IP_);
--}
--EXPORT_SYMBOL(__asan_report_store_n_noabort);
-diff --git a/mm/kasan/tags_report.c b/mm/kasan/tags_report.c
-new file mode 100644
-index 000000000000..8af15e87d3bc
---- /dev/null
-+++ b/mm/kasan/tags_report.c
-@@ -0,0 +1,39 @@
-+/*
-+ * This file contains tag-based KASAN specific error reporting code.
-+ *
-+ * Copyright (c) 2014 Samsung Electronics Co., Ltd.
-+ * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-+ *
-+ * Some code borrowed from https://github.com/xairy/kasan-prototype by
-+ *        Andrey Konovalov <andreyknvl@gmail.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License version 2 as
-+ * published by the Free Software Foundation.
-+ *
-+ */
+ 
+ /*
+@@ -1568,29 +1583,22 @@ static void __init deferred_free_pages(unsigned long pfn,
+  * Return number of pages initialized.
+  */
+ static unsigned long  __init deferred_init_pages(struct zone *zone,
+-						 unsigned long pfn,
++						 unsigned long start_pfn,
+ 						 unsigned long end_pfn)
+ {
+-	unsigned long nr_pgmask = pageblock_nr_pages - 1;
+ 	int nid = zone_to_nid(zone);
++	unsigned long i, pfn, count;
+ 	unsigned long nr_pages = 0;
+ 	int zid = zone_idx(zone);
+-	struct page *page = NULL;
+ 
+-	for (; pfn < end_pfn; pfn++) {
+-		if (!deferred_pfn_valid(pfn)) {
+-			page = NULL;
+-			continue;
+-		} else if (!page || !(pfn & nr_pgmask)) {
+-			page = pfn_to_page(pfn);
+-			touch_nmi_watchdog();
+-		} else {
+-			page++;
+-		}
+-		__init_single_page(page, pfn, zid, nid);
+-		nr_pages++;
++	for_each_deferred_pfn_valid_range(pfn, count, i, start_pfn, end_pfn) {
++		nr_pages += count;
++		__init_pageblock(pfn, count, zid, nid, NULL, false);
 +
-+#include <linux/bitops.h>
-+#include <linux/ftrace.h>
-+#include <linux/init.h>
-+#include <linux/kernel.h>
-+#include <linux/mm.h>
-+#include <linux/printk.h>
-+#include <linux/sched.h>
-+#include <linux/slab.h>
-+#include <linux/stackdepot.h>
-+#include <linux/stacktrace.h>
-+#include <linux/string.h>
-+#include <linux/types.h>
-+#include <linux/kasan.h>
-+#include <linux/module.h>
++		touch_nmi_watchdog();
+ 	}
+-	return (nr_pages);
 +
-+#include <asm/sections.h>
-+
-+#include "kasan.h"
-+#include "../slab.h"
-+
-+const char *get_bug_type(struct kasan_access_info *info)
-+{
-+	return "invalid-access";
-+}
--- 
-2.20.0.rc0.387.gc7a69e6b6c-goog
++	return nr_pages;
+ }
+ 
+ /*
