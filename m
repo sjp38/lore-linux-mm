@@ -1,58 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AA2CC6B444B
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2018 18:13:13 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id a18so8781155pga.16
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2018 15:13:13 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o10-v6sor2483520plk.56.2018.11.26.15.13.12
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AC2B6B5943
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 12:06:16 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id u2so6043053iob.7
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 09:06:16 -0800 (PST)
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id q6si3545085itj.38.2018.11.30.09.06.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 26 Nov 2018 15:13:12 -0800 (PST)
-Date: Mon, 26 Nov 2018 15:13:03 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 00/10] huge_memory,khugepaged tmpfs split/collapse fixes
-Message-ID: <alpine.LSU.2.11.1811261444420.2275@eggly.anvils>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 30 Nov 2018 09:06:14 -0800 (PST)
+From: Logan Gunthorpe <logang@deltatee.com>
+Date: Fri, 30 Nov 2018 10:06:01 -0700
+Message-Id: <20181130170606.17252-2-logang@deltatee.com>
+In-Reply-To: <20181130170606.17252-1-logang@deltatee.com>
+References: <20181130170606.17252-1-logang@deltatee.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
+Subject: [PATCH v24 1/6] iomap: Use non-raw io functions for io{read|write}XXbe
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-ntb@googlegroups.com, linux-crypto@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andy Shevchenko <andy.shevchenko@gmail.com>, =?UTF-8?q?Horia=20Geant=C4=83?= <horia.geanta@nxp.com>, Logan Gunthorpe <logang@deltatee.com>, Thomas Gleixner <tglx@linutronix.de>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>
 
-Hi Andrew,
+Fix an asymmetry in the io{read|write}XXbe functions in that the
+big-endian variants make use of the raw io accessors while the
+little-endian variants use the regular accessors. Some architectures
+implement barriers to order against both spinlocks and DMA accesses
+and for these case, the big-endian variant of the API would not be
+protected.
 
-Here's a set of 10 patches, mostly fixing some crashes and lockups
-which can happen when khugepaged collapses tmpfs pages to huge:
-by-products of ongoing work to extend upstream's huge tmpfs to
-match what we need in Google (but no enhancements included here).
+Thus, change the mmio_XXXXbe macros to use the appropriate swab() function
+wrapping the regular accessor. This is similar to what was done for PIO.
 
-Against v4.20-rc2 == v4.20-rc4: sorry, I haven't looked yet to see
-what clashes there might be with mmotm, because I believe that although
-these are all (except 10/10) to long-standing bugs, they still deserve
-to get into v4.20 and -stable.  See what you think.
+When this code was originally written, barriers in the IO accessors were
+not common and the accessors simply wrapped the raw functions in a
+conversion to CPU endianness. Since then, barriers have been added in
+some architectures and are now missing in the big endian variant of the
+API.
 
-Most of the testing has been on the whole series, and on a slightly
-earlier kernel: the move to XArray means that almost none of these
-patches will apply cleanly to v4.19 or earlier, but I do have the
-equivalents lined up ready.
+This also manages to silence a few sparse warnings that check
+for using the correct endian types which the original code did
+not annotate correctly.
 
- mm/huge_memory.c |   43 ++++++++-----
- mm/khugepaged.c  |  140 ++++++++++++++++++++++++++-------------------
- mm/rmap.c        |   13 ----
- mm/shmem.c       |    6 +
- 4 files changed, 114 insertions(+), 88 deletions(-)
+Signed-off-by: Logan Gunthorpe <logang@deltatee.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Kate Stewart <kstewart@linuxfoundation.org>
+Cc: Philippe Ombredanne <pombredanne@nexb.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Link: http://lkml.kernel.org/r/CAK8P3a25zQDxyaY3iVv+JmSSzs7F6ssGc+HdBkGs54ZfViX+Fg@mail.gmail.com
+---
+ lib/iomap.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
- 1/10 mm/huge_memory: rename freeze_page() to unmap_page()
- 2/10 mm/huge_memory: splitting set mapping+index before unfreeze
- 3/10 mm/huge_memory: fix lockdep complaint on 32-bit i_size_read()
- 4/10 mm/khugepaged: collapse_shmem() stop if punched or truncated
- 5/10 mm/khugepaged: fix crashes due to misaccounted holes
- 6/10 mm/khugepaged: collapse_shmem() remember to clear holes
- 7/10 mm/khugepaged: minor reorderings in collapse_shmem()
- 8/10 mm/khugepaged: collapse_shmem() without freezing new_page
- 9/10 mm/khugepaged: collapse_shmem() do not crash on Compound
-10/10 mm/khugepaged: fix the xas_create_range() error path
-
-Thanks,
-Hugh
+diff --git a/lib/iomap.c b/lib/iomap.c
+index 541d926da95e..2c293b22569f 100644
+--- a/lib/iomap.c
++++ b/lib/iomap.c
+@@ -65,8 +65,8 @@ static void bad_io_access(unsigned long port, const char *access)
+ #endif
+ 
+ #ifndef mmio_read16be
+-#define mmio_read16be(addr) be16_to_cpu(__raw_readw(addr))
+-#define mmio_read32be(addr) be32_to_cpu(__raw_readl(addr))
++#define mmio_read16be(addr) swab16(readw(addr))
++#define mmio_read32be(addr) swab32(readl(addr))
+ #endif
+ 
+ unsigned int ioread8(void __iomem *addr)
+@@ -106,8 +106,8 @@ EXPORT_SYMBOL(ioread32be);
+ #endif
+ 
+ #ifndef mmio_write16be
+-#define mmio_write16be(val,port) __raw_writew(be16_to_cpu(val),port)
+-#define mmio_write32be(val,port) __raw_writel(be32_to_cpu(val),port)
++#define mmio_write16be(val,port) writew(swab16(val),port)
++#define mmio_write32be(val,port) writel(swab32(val),port)
+ #endif
+ 
+ void iowrite8(u8 val, void __iomem *addr)
+-- 
+2.19.0
