@@ -1,114 +1,105 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Qian Cai <cai@gmx.us>
-Subject: [PATCH v2] mm/memblock: skip kmemleak for kasan_init()
-Date: Wed, 28 Nov 2018 17:08:45 -0500
-Message-Id: <1543442925-17794-1-git-send-email-cai@gmx.us>
-Sender: linux-kernel-owner@vger.kernel.org
-To: akpm@linux-foundation.org
-Cc: catalin.marinas@arm.com, mhocko@suse.com, rppt@linux.vnet.ibm.com, aryabinin@virtuozzo.com, glider@google.com, dvyukov@google.com, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Qian Cai <cai@gmx.us>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 549AC6B5A6A
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 16:52:50 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id 89so5050558ple.19
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 13:52:50 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id s11si5832718pgk.344.2018.11.30.13.52.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Nov 2018 13:52:48 -0800 (PST)
+Subject: [mm PATCH v6 0/7] Deferred page init improvements
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Date: Fri, 30 Nov 2018 13:52:48 -0800
+Message-ID: <154361452447.7497.1348692079883153517.stgit@ahduyck-desk1.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mhocko@suse.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, alexander.h.duyck@linux.intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.comalexander.h.duyck@linux.intel.com
 
-Kmemleak does not play well with KASAN (tested on both HPE Apollo 70 and
-Huawei TaiShan 2280 aarch64 servers).
+This patchset is essentially a refactor of the page initialization logic
+that is meant to provide for better code reuse while providing a
+significant improvement in deferred page initialization performance.
 
-After calling start_kernel()->setup_arch()->kasan_init(), kmemleak early
-log buffer went from something like 280 to 260000 which caused kmemleak
-disabled and crash dump memory reservation failed. The multitude of
-kmemleak_alloc() calls is from nested loops while KASAN is setting up
-full memory mappings, so let early kmemleak allocations skip those
-memblock_alloc_internal() calls came from kasan_init() given that those
-early KASAN memory mappings should not reference to other memory.
-Hence, no kmemleak false positives.
+In my testing on an x86_64 system with 384GB of RAM and 3TB of persistent
+memory per node I have seen the following. In the case of regular memory
+initialization the deferred init time was decreased from 3.75s to 1.06s on
+average. For the persistent memory the initialization time dropped from
+24.17s to 19.12s on average. This amounts to a 253% improvement for the
+deferred memory initialization performance, and a 26% improvement in the
+persistent memory initialization performance.
 
-kasan_init
-  kasan_map_populate [1]
-    kasan_pgd_populate [2]
-      kasan_pud_populate [3]
-        kasan_pmd_populate [4]
-          kasan_pte_populate [5]
-            kasan_alloc_zeroed_page
-              memblock_alloc_try_nid
-                memblock_alloc_internal
-                  kmemleak_alloc
+I have called out the improvement observed with each patch.
 
-[1] for_each_memblock(memory, reg)
-[2] while (pgdp++, addr = next, addr != end)
-[3] while (pudp++, addr = next, addr != end && pud_none(READ_ONCE(*pudp)))
-[4] while (pmdp++, addr = next, addr != end && pmd_none(READ_ONCE(*pmdp)))
-[5] while (ptep++, addr = next, addr != end && pte_none(READ_ONCE(*ptep)))
+Note: This patch set is meant as a replacment for the v5 set that is already
+      in the MM tree.
+      
+      I had considered just doing incremental changes but Pavel at the time
+      had suggested I submit it as a whole set, however that was almost 3
+      weeks ago so if incremental changes are preferred let me know and
+      I can submit the changes as incremental updates.
 
-Signed-off-by: Qian Cai <cai@gmx.us>
+      I appologize for the delay in submitting this follow-on set. I had been
+      trying to address the DAX PageReserved bit issue at the same time but
+      that is taking more time than I anticipated so I decided to push this
+      before the code sits too much longer.
+
+      Commit bf416078f1d83 ("mm/page_alloc.c: memory hotplug: free pages as 
+      higher order") causes issues with the revert of patch 7. It was
+      necessary to replace all instances of __free_pages_boot_core with
+      __free_pages_core.
+
+v1->v2:
+    Fixed build issue on PowerPC due to page struct size being 56
+    Added new patch that removed __SetPageReserved call for hotplug
+v2->v3:
+    Rebased on latest linux-next
+    Removed patch that had removed __SetPageReserved call from init
+    Added patch that folded __SetPageReserved into set_page_links
+    Tweaked __init_pageblock to use start_pfn to get section_nr instead of pfn
+v3->v4:
+    Updated patch description and comments for mm_zero_struct_page patch
+        Replaced "default" with "case 64"
+        Removed #ifndef mm_zero_struct_page
+    Fixed typo in comment that ommited "_from" in kerneldoc for iterator
+    Added Reviewed-by for patches reviewed by Pavel
+    Added Acked-by from Michal Hocko
+    Added deferred init times for patches that affect init performance
+    Swapped patches 5 & 6, pulled some code/comments from 4 into 5
+v4->v5:
+    Updated Acks/Reviewed-by
+    Rebased on latest linux-next
+    Split core bits of zone iterator patch from MAX_ORDER_NR_PAGES init
+v5->v6:
+    Rebased on linux-next with previous v5 reverted
+    Drop the "This patch" or "This change" from patch desriptions.
+    Cleaned up patch descriptions for patches 3 & 4
+    Fixed kerneldoc for __next_mem_pfn_range_in_zone
+    Updated several Reviewed-by, and incorporated suggestions from Pavel
+    Added __init_single_page_nolru to patch 5 to consolidate code
+    Refactored iterator in patch 7 and fixed several issues
+
 ---
 
-Changes since v1:
-* only skip memblock_alloc_internal() calls came from kasan_int().
+Alexander Duyck (7):
+      mm: Use mm_zero_struct_page from SPARC on all 64b architectures
+      mm: Drop meminit_pfn_in_nid as it is redundant
+      mm: Implement new zone specific memblock iterator
+      mm: Initialize MAX_ORDER_NR_PAGES at a time instead of doing larger sections
+      mm: Move hot-plug specific memory init into separate functions and optimize
+      mm: Add reserved flag setting to set_page_links
+      mm: Use common iterator for deferred_init_pages and deferred_free_pages
 
- arch/arm64/mm/kasan_init.c |  2 +-
- include/linux/memblock.h   |  1 +
- mm/memblock.c              | 19 +++++++++++--------
- 3 files changed, 13 insertions(+), 9 deletions(-)
 
-diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
-index 63527e5..fcb2ca3 100644
---- a/arch/arm64/mm/kasan_init.c
-+++ b/arch/arm64/mm/kasan_init.c
-@@ -39,7 +39,7 @@ static phys_addr_t __init kasan_alloc_zeroed_page(int node)
- {
- 	void *p = memblock_alloc_try_nid(PAGE_SIZE, PAGE_SIZE,
- 					      __pa(MAX_DMA_ADDRESS),
--					      MEMBLOCK_ALLOC_ACCESSIBLE, node);
-+					      MEMBLOCK_ALLOC_KASAN, node);
- 	return __pa(p);
- }
- 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index aee299a..3ef3086 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -320,6 +320,7 @@ static inline int memblock_get_region_node(const struct memblock_region *r)
- /* Flags for memblock allocation APIs */
- #define MEMBLOCK_ALLOC_ANYWHERE	(~(phys_addr_t)0)
- #define MEMBLOCK_ALLOC_ACCESSIBLE	0
-+#define MEMBLOCK_ALLOC_KASAN		1
- 
- /* We are using top down, so it is safe to use 0 here */
- #define MEMBLOCK_LOW_LIMIT 0
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 9a2d5ae..abb9f7f 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -262,7 +262,8 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
- 	phys_addr_t kernel_end, ret;
- 
- 	/* pump up @end */
--	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
-+	if (end == MEMBLOCK_ALLOC_ACCESSIBLE ||
-+	    end == MEMBLOCK_ALLOC_KASAN)
- 		end = memblock.current_limit;
- 
- 	/* avoid allocating the first page */
-@@ -1412,13 +1413,15 @@ static void * __init memblock_alloc_internal(
- done:
- 	ptr = phys_to_virt(alloc);
- 
--	/*
--	 * The min_count is set to 0 so that bootmem allocated blocks
--	 * are never reported as leaks. This is because many of these blocks
--	 * are only referred via the physical address which is not
--	 * looked up by kmemleak.
--	 */
--	kmemleak_alloc(ptr, size, 0, 0);
-+	/* Skip kmemleak for kasan_init() due to high volume. */
-+	if (max_addr != MEMBLOCK_ALLOC_KASAN)
-+		/*
-+		 * The min_count is set to 0 so that bootmem allocated
-+		 * blocks are never reported as leaks. This is because many
-+		 * of these blocks are only referred via the physical
-+		 * address which is not looked up by kmemleak.
-+		 */
-+		kmemleak_alloc(ptr, size, 0, 0);
- 
- 	return ptr;
- }
--- 
-1.8.3.1
+ arch/sparc/include/asm/pgtable_64.h |   30 --
+ include/linux/memblock.h            |   41 +++
+ include/linux/mm.h                  |   50 +++
+ mm/memblock.c                       |   64 ++++
+ mm/page_alloc.c                     |  571 +++++++++++++++++++++--------------
+ 5 files changed, 498 insertions(+), 258 deletions(-)
+
+--
