@@ -1,153 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 99D2D6B494D
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 11:56:14 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id o76so16748003wmg.4
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 08:56:14 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r7sor3151229wru.16.2018.11.27.08.56.12
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 68B736B5A6C
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 16:52:55 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id bj3so5048295plb.17
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 13:52:55 -0800 (PST)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id i129si6691798pfb.32.2018.11.30.13.52.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 27 Nov 2018 08:56:13 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v12 13/25] kasan, arm64: fix up fault handling logic
-Date: Tue, 27 Nov 2018 17:55:31 +0100
-Message-Id: <a54fe8c8c11948b0ac8c8b285fb36f845217c84a.1543337629.git.andreyknvl@google.com>
-In-Reply-To: <cover.1543337629.git.andreyknvl@google.com>
-References: <cover.1543337629.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Nov 2018 13:52:53 -0800 (PST)
+Subject: [mm PATCH v6 1/7] mm: Use mm_zero_struct_page from SPARC on all 64b
+ architectures
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Date: Fri, 30 Nov 2018 13:52:53 -0800
+Message-ID: <154361477318.7497.13432441396440493352.stgit@ahduyck-desk1.amr.corp.intel.com>
+In-Reply-To: <154361452447.7497.1348692079883153517.stgit@ahduyck-desk1.amr.corp.intel.com>
+References: <154361452447.7497.1348692079883153517.stgit@ahduyck-desk1.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, davem@davemloft.net, pavel.tatashin@microsoft.com, mhocko@suse.com, mingo@kernel.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, dave.jiang@intel.com, alexander.h.duyck@linux.intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org, vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, yi.z.zhang@linux.intel.comalexander.h.duyck@linux.intel.com
 
-Right now arm64 fault handling code removes pointer tags from addresses
-covered by TTBR0 in faults taken from both EL0 and EL1, but doesn't do
-that for pointers covered by TTBR1.
+Use the same approach that was already in use on Sparc on all the
+architectures that support a 64b long.
 
-This patch adds two helper functions is_ttbr0_addr() and is_ttbr1_addr(),
-where the latter one accounts for the fact that TTBR1 pointers might be
-tagged when tag-based KASAN is in use, and uses these helper functions to
-perform pointer checks in arch/arm64/mm/fault.c.
+This is mostly motivated by the fact that 7 to 10 store/move instructions
+are likely always going to be faster than having to call into a function
+that is not specialized for handling page init.
 
-Suggested-by: Mark Rutland <mark.rutland@arm.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+An added advantage to doing it this way is that the compiler can get away
+with combining writes in the __init_single_page call. As a result the
+memset call will be reduced to only about 4 write operations, or at least
+that is what I am seeing with GCC 6.2 as the flags, LRU pointers, and
+count/mapcount seem to be cancelling out at least 4 of the 8 assignments on
+my system.
+
+One change I had to make to the function was to reduce the minimum page
+size to 56 to support some powerpc64 configurations.
+
+This change should introduce no change on SPARC since it already had this
+code. In the case of x86_64 I saw a reduction from 3.75s to 2.80s when
+initializing 384GB of RAM per node. Pavel Tatashin tested on a system with
+Broadcom's Stingray CPU and 48GB of RAM and found that __init_single_page()
+takes 19.30ns / 64-byte struct page before this patch and with this patch
+it takes 17.33ns / 64-byte struct page. Mike Rapoport ran a similar test on
+a OpenPower (S812LC 8348-21C) with Power8 processor and 128GB or RAM. His
+results per 64-byte struct page were 4.68ns before, and 4.59ns after this
+patch.
+
+Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 ---
- arch/arm64/mm/fault.c | 31 ++++++++++++++++++++++---------
- 1 file changed, 22 insertions(+), 9 deletions(-)
+ arch/sparc/include/asm/pgtable_64.h |   30 --------------------------
+ include/linux/mm.h                  |   41 ++++++++++++++++++++++++++++++++---
+ 2 files changed, 38 insertions(+), 33 deletions(-)
 
-diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index 7d9571f4ae3d..c1d98f0a3086 100644
---- a/arch/arm64/mm/fault.c
-+++ b/arch/arm64/mm/fault.c
-@@ -40,6 +40,7 @@
- #include <asm/daifflags.h>
- #include <asm/debug-monitors.h>
- #include <asm/esr.h>
-+#include <asm/kasan.h>
- #include <asm/sysreg.h>
- #include <asm/system_misc.h>
- #include <asm/pgtable.h>
-@@ -132,6 +133,18 @@ static void mem_abort_decode(unsigned int esr)
- 		data_abort_decode(esr);
- }
+diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
+index 1393a8ac596b..22500c3be7a9 100644
+--- a/arch/sparc/include/asm/pgtable_64.h
++++ b/arch/sparc/include/asm/pgtable_64.h
+@@ -231,36 +231,6 @@ extern unsigned long _PAGE_ALL_SZ_BITS;
+ extern struct page *mem_map_zero;
+ #define ZERO_PAGE(vaddr)	(mem_map_zero)
  
-+static inline bool is_ttbr0_addr(unsigned long addr)
-+{
-+	/* entry assembly clears tags for TTBR0 addrs */
-+	return addr < TASK_SIZE;
-+}
-+
-+static inline bool is_ttbr1_addr(unsigned long addr)
-+{
-+	/* TTBR1 addresses may have a tag if KASAN_SW_TAGS is in use */
-+	return arch_kasan_reset_tag(addr) >= VA_START;
-+}
-+
+-/* This macro must be updated when the size of struct page grows above 80
+- * or reduces below 64.
+- * The idea that compiler optimizes out switch() statement, and only
+- * leaves clrx instructions
+- */
+-#define	mm_zero_struct_page(pp) do {					\
+-	unsigned long *_pp = (void *)(pp);				\
+-									\
+-	 /* Check that struct page is either 64, 72, or 80 bytes */	\
+-	BUILD_BUG_ON(sizeof(struct page) & 7);				\
+-	BUILD_BUG_ON(sizeof(struct page) < 64);				\
+-	BUILD_BUG_ON(sizeof(struct page) > 80);				\
+-									\
+-	switch (sizeof(struct page)) {					\
+-	case 80:							\
+-		_pp[9] = 0;	/* fallthrough */			\
+-	case 72:							\
+-		_pp[8] = 0;	/* fallthrough */			\
+-	default:							\
+-		_pp[7] = 0;						\
+-		_pp[6] = 0;						\
+-		_pp[5] = 0;						\
+-		_pp[4] = 0;						\
+-		_pp[3] = 0;						\
+-		_pp[2] = 0;						\
+-		_pp[1] = 0;						\
+-		_pp[0] = 0;						\
+-	}								\
+-} while (0)
+-
+ /* PFNs are real physical page numbers.  However, mem_map only begins to record
+  * per-page information starting at pfn_base.  This is to handle systems where
+  * the first physical page in the machine is at some huge physical address,
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 692158d6c619..eb6e52b66bc2 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -123,10 +123,45 @@ extern int mmap_rnd_compat_bits __read_mostly;
+ 
  /*
-  * Dump out the page tables associated with 'addr' in the currently active mm.
+  * On some architectures it is expensive to call memset() for small sizes.
+- * Those architectures should provide their own implementation of "struct page"
+- * zeroing by defining this macro in <asm/pgtable.h>.
++ * If an architecture decides to implement their own version of
++ * mm_zero_struct_page they should wrap the defines below in a #ifndef and
++ * define their own version of this macro in <asm/pgtable.h>
   */
-@@ -141,7 +154,7 @@ void show_pte(unsigned long addr)
- 	pgd_t *pgdp;
- 	pgd_t pgd;
+-#ifndef mm_zero_struct_page
++#if BITS_PER_LONG == 64
++/* This function must be updated when the size of struct page grows above 80
++ * or reduces below 56. The idea that compiler optimizes out switch()
++ * statement, and only leaves move/store instructions. Also the compiler can
++ * combine write statments if they are both assignments and can be reordered,
++ * this can result in several of the writes here being dropped.
++ */
++#define	mm_zero_struct_page(pp) __mm_zero_struct_page(pp)
++static inline void __mm_zero_struct_page(struct page *page)
++{
++	unsigned long *_pp = (void *)page;
++
++	 /* Check that struct page is either 56, 64, 72, or 80 bytes */
++	BUILD_BUG_ON(sizeof(struct page) & 7);
++	BUILD_BUG_ON(sizeof(struct page) < 56);
++	BUILD_BUG_ON(sizeof(struct page) > 80);
++
++	switch (sizeof(struct page)) {
++	case 80:
++		_pp[9] = 0;	/* fallthrough */
++	case 72:
++		_pp[8] = 0;	/* fallthrough */
++	case 64:
++		_pp[7] = 0;	/* fallthrough */
++	case 56:
++		_pp[6] = 0;
++		_pp[5] = 0;
++		_pp[4] = 0;
++		_pp[3] = 0;
++		_pp[2] = 0;
++		_pp[1] = 0;
++		_pp[0] = 0;
++	}
++}
++#else
+ #define mm_zero_struct_page(pp)  ((void)memset((pp), 0, sizeof(struct page)))
+ #endif
  
--	if (addr < TASK_SIZE) {
-+	if (is_ttbr0_addr(addr)) {
- 		/* TTBR0 */
- 		mm = current->active_mm;
- 		if (mm == &init_mm) {
-@@ -149,7 +162,7 @@ void show_pte(unsigned long addr)
- 				 addr);
- 			return;
- 		}
--	} else if (addr >= VA_START) {
-+	} else if (is_ttbr1_addr(addr)) {
- 		/* TTBR1 */
- 		mm = &init_mm;
- 	} else {
-@@ -254,7 +267,7 @@ static inline bool is_el1_permission_fault(unsigned long addr, unsigned int esr,
- 	if (fsc_type == ESR_ELx_FSC_PERM)
- 		return true;
- 
--	if (addr < TASK_SIZE && system_uses_ttbr0_pan())
-+	if (is_ttbr0_addr(addr) && system_uses_ttbr0_pan())
- 		return fsc_type == ESR_ELx_FSC_FAULT &&
- 			(regs->pstate & PSR_PAN_BIT);
- 
-@@ -319,7 +332,7 @@ static void set_thread_esr(unsigned long address, unsigned int esr)
- 	 * type", so we ignore this wrinkle and just return the translation
- 	 * fault.)
- 	 */
--	if (current->thread.fault_address >= TASK_SIZE) {
-+	if (!is_ttbr0_addr(current->thread.fault_address)) {
- 		switch (ESR_ELx_EC(esr)) {
- 		case ESR_ELx_EC_DABT_LOW:
- 			/*
-@@ -455,7 +468,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
- 		mm_flags |= FAULT_FLAG_WRITE;
- 	}
- 
--	if (addr < TASK_SIZE && is_el1_permission_fault(addr, esr, regs)) {
-+	if (is_ttbr0_addr(addr) && is_el1_permission_fault(addr, esr, regs)) {
- 		/* regs->orig_addr_limit may be 0 if we entered from EL0 */
- 		if (regs->orig_addr_limit == KERNEL_DS)
- 			die_kernel_fault("access to user memory with fs=KERNEL_DS",
-@@ -603,7 +616,7 @@ static int __kprobes do_translation_fault(unsigned long addr,
- 					  unsigned int esr,
- 					  struct pt_regs *regs)
- {
--	if (addr < TASK_SIZE)
-+	if (is_ttbr0_addr(addr))
- 		return do_page_fault(addr, esr, regs);
- 
- 	do_bad_area(addr, esr, regs);
-@@ -758,7 +771,7 @@ asmlinkage void __exception do_el0_ia_bp_hardening(unsigned long addr,
- 	 * re-enabled IRQs. If the address is a kernel address, apply
- 	 * BP hardening prior to enabling IRQs and pre-emption.
- 	 */
--	if (addr > TASK_SIZE)
-+	if (!is_ttbr0_addr(addr))
- 		arm64_apply_bp_hardening();
- 
- 	local_daif_restore(DAIF_PROCCTX);
-@@ -771,7 +784,7 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
- 					   struct pt_regs *regs)
- {
- 	if (user_mode(regs)) {
--		if (instruction_pointer(regs) > TASK_SIZE)
-+		if (!is_ttbr0_addr(instruction_pointer(regs)))
- 			arm64_apply_bp_hardening();
- 		local_daif_restore(DAIF_PROCCTX);
- 	}
-@@ -825,7 +838,7 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
- 	if (interrupts_enabled(regs))
- 		trace_hardirqs_off();
- 
--	if (user_mode(regs) && instruction_pointer(regs) > TASK_SIZE)
-+	if (user_mode(regs) && !is_ttbr0_addr(instruction_pointer(regs)))
- 		arm64_apply_bp_hardening();
- 
- 	if (!inf->fn(addr, esr, regs)) {
--- 
-2.20.0.rc0.387.gc7a69e6b6c-goog
