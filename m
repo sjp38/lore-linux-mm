@@ -1,75 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C0EB6B5A98
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 17:48:12 -0500 (EST)
-Received: by mail-oi1-f198.google.com with SMTP id k76so3808836oih.13
-        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 14:48:12 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w8sor3471237otg.23.2018.11.30.14.48.11
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D3BE16B5A79
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 17:34:14 -0500 (EST)
+Received: by mail-it1-f198.google.com with SMTP id k133so656025ite.4
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 14:34:14 -0800 (PST)
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id d67si317879itc.14.2018.11.30.14.34.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 30 Nov 2018 14:48:11 -0800 (PST)
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 30 Nov 2018 14:34:13 -0800 (PST)
 References: <154275556908.76910.8966087090637564219.stgit@dwillia2-desk3.amr.corp.intel.com>
  <154275558526.76910.7535251937849268605.stgit@dwillia2-desk3.amr.corp.intel.com>
- <6875ca04-a36a-89ae-825b-f629ab011d47@deltatee.com> <CAPcyv4i9QXsX9Rjz9E3gi643LQbSzaO_+iFLqLS+QO-GmrS0Eg@mail.gmail.com>
- <14d6413c-b002-c152-5016-7ed659c08c24@deltatee.com> <CAPcyv4gZisOAE8VJPJChNXrWv0NhUevWuutsPdvNORBTOBXJfA@mail.gmail.com>
- <43778343-6d43-eb43-0de0-3db6828902d0@deltatee.com> <CAPcyv4hJV71RLhBCKgqc=nQ_D_upySD=ZZk0y=5Qk69kKPHFog@mail.gmail.com>
- <b8ae55a4-7c1a-cc35-beea-badf35a69b06@deltatee.com> <CAPcyv4iVCMo29SWM2jhnNTZ5ugYaqjeW_LKe9O2YmeNohwQG3A@mail.gmail.com>
- <b55bf34b-9ff2-2c28-afdb-08e20b9ba84e@deltatee.com>
-In-Reply-To: <b55bf34b-9ff2-2c28-afdb-08e20b9ba84e@deltatee.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 30 Nov 2018 14:47:59 -0800
-Message-ID: <CAPcyv4i9My=3gwPUd_1qGVfhFUPBRh8teM6pgMD2w1scTRk12A@mail.gmail.com>
+ <6875ca04-a36a-89ae-825b-f629ab011d47@deltatee.com>
+ <CAPcyv4i9QXsX9Rjz9E3gi643LQbSzaO_+iFLqLS+QO-GmrS0Eg@mail.gmail.com>
+ <14d6413c-b002-c152-5016-7ed659c08c24@deltatee.com>
+ <CAPcyv4gZisOAE8VJPJChNXrWv0NhUevWuutsPdvNORBTOBXJfA@mail.gmail.com>
+ <43778343-6d43-eb43-0de0-3db6828902d0@deltatee.com>
+ <CAPcyv4hJV71RLhBCKgqc=nQ_D_upySD=ZZk0y=5Qk69kKPHFog@mail.gmail.com>
+ <b8ae55a4-7c1a-cc35-beea-badf35a69b06@deltatee.com>
+ <CAPcyv4iVCMo29SWM2jhnNTZ5ugYaqjeW_LKe9O2YmeNohwQG3A@mail.gmail.com>
+From: Logan Gunthorpe <logang@deltatee.com>
+Message-ID: <b55bf34b-9ff2-2c28-afdb-08e20b9ba84e@deltatee.com>
+Date: Fri, 30 Nov 2018 15:34:07 -0700
+MIME-Version: 1.0
+In-Reply-To: <CAPcyv4iVCMo29SWM2jhnNTZ5ugYaqjeW_LKe9O2YmeNohwQG3A@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-CA
+Content-Transfer-Encoding: 7bit
 Subject: Re: [PATCH v8 3/7] mm, devm_memremap_pages: Fix shutdown handling
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Logan Gunthorpe <logang@deltatee.com>
+To: Dan Williams <dan.j.williams@intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, stable <stable@vger.kernel.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Christoph Hellwig <hch@lst.de>, Linus Torvalds <torvalds@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Maling list - DRI developers <dri-devel@lists.freedesktop.org>, Bjorn Helgaas <bhelgaas@google.com>, Stephen Bates <sbates@raithlin.com>
 
-On Fri, Nov 30, 2018 at 2:34 PM Logan Gunthorpe <logang@deltatee.com> wrote:
->
->
->
-> On 2018-11-30 3:28 p.m., Dan Williams wrote:
-> > On Fri, Nov 30, 2018 at 2:19 PM Logan Gunthorpe <logang@deltatee.com> wrote:
-> >>
-> >> Hey,
-> >>
-> >> On 2018-11-29 11:51 a.m., Dan Williams wrote:
-> >>> Got it, let me see how bad moving arch_remove_memory() turns out,
-> >>> sounds like a decent approach to coordinate multiple users of a single
-> >>> ref.
-> >>
-> >> I've put together a patch set[1] that fixes all the users of
-> >> devm_memremap_pages() without moving arch_remove_memory(). It's pretty
-> >> clean except for the p2pdma case which is fairly tricky but I don't
-> >> think there's an easy way around that.
-> >
-> > The solution I'm trying is to introduce a devm_memremap_pages_remove()
-> > that each user can call after they have called percpu_ref_exit(), it's
-> > just crashing for me currently...
->
-> Ok, that's probably less of a clean up for other users, but sounds like
-> it would be less tricky for p2pdma. I'd have to create a list of all
-> pgmaps, but that's not so hard and doesn't create any nasty races to
-> consider like my current solution.
->
-> >> If you come up with a better solution that's great, otherwise let me
-> >> know and I'll do some clean up and more testing and send this set to the
-> >> lists. Though, we might need to wait for your patch to land before we
-> >> can properly send the fix to it (the first patch in my series)...
-> >
-> > I'd say go ahead and send it. We can fix p2pdma as a follow-on. Send
-> > it to Andrew as a patch relative to the current -next tree.
->
-> Ok, though, how do I reference the current patch in Andrew's tree? Or
-> does it matter?
 
-I would just let Andrew know that this applies incrementally to
-"mm-hmm-mark-hmm_devmem_add-add_resource-export_symbol_gpl.patch" in
-his tree. You can't specify Fixes: tags for pending patches in -mm.
-Andrew may choose to squash the change into the existing patch, which
-may be the best outcome for not exposing a bisect regression point for
-p2pdma.
+
+On 2018-11-30 3:28 p.m., Dan Williams wrote:
+> On Fri, Nov 30, 2018 at 2:19 PM Logan Gunthorpe <logang@deltatee.com> wrote:
+>>
+>> Hey,
+>>
+>> On 2018-11-29 11:51 a.m., Dan Williams wrote:
+>>> Got it, let me see how bad moving arch_remove_memory() turns out,
+>>> sounds like a decent approach to coordinate multiple users of a single
+>>> ref.
+>>
+>> I've put together a patch set[1] that fixes all the users of
+>> devm_memremap_pages() without moving arch_remove_memory(). It's pretty
+>> clean except for the p2pdma case which is fairly tricky but I don't
+>> think there's an easy way around that.
+> 
+> The solution I'm trying is to introduce a devm_memremap_pages_remove()
+> that each user can call after they have called percpu_ref_exit(), it's
+> just crashing for me currently...
+
+Ok, that's probably less of a clean up for other users, but sounds like
+it would be less tricky for p2pdma. I'd have to create a list of all
+pgmaps, but that's not so hard and doesn't create any nasty races to
+consider like my current solution.
+
+>> If you come up with a better solution that's great, otherwise let me
+>> know and I'll do some clean up and more testing and send this set to the
+>> lists. Though, we might need to wait for your patch to land before we
+>> can properly send the fix to it (the first patch in my series)...
+> 
+> I'd say go ahead and send it. We can fix p2pdma as a follow-on. Send
+> it to Andrew as a patch relative to the current -next tree.
+
+Ok, though, how do I reference the current patch in Andrew's tree? Or
+does it matter?
+
+Logan
