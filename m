@@ -1,66 +1,37 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-Date: Thu, 15 Nov 2018 21:16:46 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH 2/9] arch/arm/mm/dma-mapping.c: Convert to use vm_insert_range
-Message-ID: <20181115154645.GA27912@jordon-HP-15-Notebook-PC>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 936136B5757
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 03:54:22 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id d41so2435563eda.12
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 00:54:22 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Sender: linux-kernel-owner@vger.kernel.org
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Fri, 30 Nov 2018 09:54:20 +0100
+From: osalvador@suse.de
+Subject: Re: [PATCH v2] mm, show_mem: drop pgdat_resize_lock in show_mem()
+In-Reply-To: <20181129235532.9328-1-richard.weiyang@gmail.com>
+References: <20181128210815.2134-1-richard.weiyang@gmail.com>
+ <20181129235532.9328-1-richard.weiyang@gmail.com>
+Message-ID: <64daff638c221984017fe58b09893386@suse.de>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: mhocko@suse.com, akpm@linux-foundation.org, jweiner@fb.com, linux-mm@kvack.org, owner-linux-mm@kvack.org
 
-Convert to use vm_insert_range() to map range of kernel
-memory to user vma.
+On 2018-11-30 00:55, Wei Yang wrote:
+> Function show_mem() is used to print system memory status when user
+> requires or fail to allocate memory. Generally, this is a best effort
+> information so any races with memory hotplug (or very theoretically an
+> early initialization) should be tolerable and the worst that could
+> happen is to print an imprecise node state.
+> 
+> Drop the resize lock because this is the only place which might hold 
+> the
+> lock from the interrupt context and so all other callers might use a
+> simple spinlock. Even though this doesn't solve any real issue it makes
+> the code easier to follow and tiny more effective.
+> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
----
- arch/arm/mm/dma-mapping.c | 21 +++++++--------------
- 1 file changed, 7 insertions(+), 14 deletions(-)
-
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 661fe48..4eec323 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -1582,31 +1582,24 @@ static int __arm_iommu_mmap_attrs(struct device *dev, struct vm_area_struct *vma
- 		    void *cpu_addr, dma_addr_t dma_addr, size_t size,
- 		    unsigned long attrs)
- {
--	unsigned long uaddr = vma->vm_start;
--	unsigned long usize = vma->vm_end - vma->vm_start;
-+	unsigned long page_count = vma_pages(vma);
- 	struct page **pages = __iommu_get_pages(cpu_addr, attrs);
- 	unsigned long nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
- 	unsigned long off = vma->vm_pgoff;
-+	int err;
- 
- 	if (!pages)
- 		return -ENXIO;
- 
--	if (off >= nr_pages || (usize >> PAGE_SHIFT) > nr_pages - off)
-+	if (off >= nr_pages || page_count > nr_pages - off)
- 		return -ENXIO;
- 
- 	pages += off;
-+	err = vm_insert_range(vma, vma->vm_start, pages, page_count);
-+	if (err)
-+		pr_err("Remapping memory failed: %d\n", err);
- 
--	do {
--		int ret = vm_insert_page(vma, uaddr, *pages++);
--		if (ret) {
--			pr_err("Remapping memory failed: %d\n", ret);
--			return ret;
--		}
--		uaddr += PAGE_SIZE;
--		usize -= PAGE_SIZE;
--	} while (usize > 0);
--
--	return 0;
-+	return err;
- }
- static int arm_iommu_mmap_attrs(struct device *dev,
- 		struct vm_area_struct *vma, void *cpu_addr,
--- 
-1.9.1
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
