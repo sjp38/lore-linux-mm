@@ -1,20 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A07546B5B01
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 19:31:50 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id b3so3658183edi.0
-        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 16:31:50 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w19-v6sor2165787ejv.42.2018.11.30.16.31.49
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DC356B5790
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 04:52:34 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id k58so2557295eda.20
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 01:52:34 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a12si2262132edk.106.2018.11.30.01.52.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 30 Nov 2018 16:31:49 -0800 (PST)
-Date: Sat, 1 Dec 2018 00:31:47 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Nov 2018 01:52:33 -0800 (PST)
+Date: Fri, 30 Nov 2018 10:52:30 +0100
+From: Michal Hocko <mhocko@suse.com>
 Subject: Re: [PATCH v3 1/2] mm, sparse: drop pgdat_resize_lock in
  sparse_add/remove_one_section()
-Message-ID: <20181201003147.ahb6nte5bxrotmhx@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
+Message-ID: <20181130095230.GG6923@dhcp22.suse.cz>
 References: <20181128091243.19249-1-richard.weiyang@gmail.com>
  <20181129155316.8174-1-richard.weiyang@gmail.com>
  <d67e3edd-5a93-c133-3b3c-d3833ed27fd5@redhat.com>
@@ -26,106 +25,22 @@ Content-Disposition: inline
 In-Reply-To: <c1eab65f-b7b9-9a38-1ac5-8a23dbcb249f@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, mhocko@suse.com, dave.hansen@intel.com, osalvador@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org
+To: osalvador@suse.de
+Cc: Wei Yang <richard.weiyang@gmail.com>, dave.hansen@intel.com, David Hildenbrand <david@redhat.com>, akpm@linux-foundation.org, linux-mm@kvack.org
 
-On Fri, Nov 30, 2018 at 10:19:13AM +0100, David Hildenbrand wrote:
->>> I suggest adding what you just found out to
->>> Documentation/admin-guide/mm/memory-hotplug.rst "Locking Internals".
->>> Maybe a new subsection for mem_hotplug_lock. And eventually also
->>> pgdat_resize_lock.
->> 
->> Well, I am not good at document writting. Below is my first trial.  Look
->> forward your comments.
->
->I'll have a look, maybe also Oscar and Michal can have a look. I guess
->we don't have to cover all now, we can add more details as we discover them.
->
->> 
->> BTW, in case I would send a new version with this, would I put this into
->> a separate one or merge this into current one?
->
->I would put this into a separate patch.
->
->> 
->> diff --git a/Documentation/admin-guide/mm/memory-hotplug.rst b/Documentation/admin-guide/mm/memory-hotplug.rst
->> index 5c4432c96c4b..1548820a0762 100644
->> --- a/Documentation/admin-guide/mm/memory-hotplug.rst
->> +++ b/Documentation/admin-guide/mm/memory-hotplug.rst
->> @@ -396,6 +396,20 @@ Need more implementation yet....
->>  Locking Internals
->>  =================
->>  
->> +There are three locks involved in memory-hotplug, two global lock and one local
->> +lock:
->> +
->> +- device_hotplug_lock
->> +- mem_hotplug_lock
->> +- device_lock
->> +
->> +Currently, they are twisted together for all kinds of reasons. The following
->> +part is divded into device_hotplug_lock and mem_hotplug_lock parts
->
->s/divded/divided/
->
->> +respectively to describe those tricky situations.
->> +
->> +device_hotplug_lock
->> +---------------------
->> +
->>  When adding/removing memory that uses memory block devices (i.e. ordinary RAM),
->>  the device_hotplug_lock should be held to:
->>  
->> @@ -417,14 +431,21 @@ memory faster than expected:
->>  As the device is visible to user space before taking the device_lock(), this
->>  can result in a lock inversion.
->>  
->> +mem_hotplug_lock
->> +---------------------
->> +
->
->I would this section start after the following paragraph, as most of
->that paragraph belongs to the device_hotplug_lock.
->
->
->>  onlining/offlining of memory should be done via device_online()/
->> -device_offline() - to make sure it is properly synchronized to actions
->> -via sysfs. Holding device_hotplug_lock is advised (to e.g. protect online_type)
->> +device_offline() - to make sure it is properly synchronized to actions via
->> +sysfs. Even mem_hotplug_lock is used to protect the process, because of the
->> +lock inversion described above, holding device_hotplug_lock is still advised
->> +(to e.g. protect online_type)
->>  
->>  When adding/removing/onlining/offlining memory or adding/removing
->>  heterogeneous/device memory, we should always hold the mem_hotplug_lock in
->>  write mode to serialise memory hotplug (e.g. access to global/zone
->> -variables).
->> +variables). Currently, we take advantage of this to serialise sparsemem's
->> +mem_section handling in sparse_add_one_section() and
->> +sparse_remove_one_section().
->>  
->>  In addition, mem_hotplug_lock (in contrast to device_hotplug_lock) in read
->>  mode allows for a quite efficient get_online_mems/put_online_mems
->> 
->>>
->>>
->>> Thanks,
->>>
->>> David / dhildenb
->> 
->
->Apart from that looks good to me, thanks!
->
+On Fri 30-11-18 10:19:13, David Hildenbrand wrote:
+> >> I suggest adding what you just found out to
+> >> Documentation/admin-guide/mm/memory-hotplug.rst "Locking Internals".
+> >> Maybe a new subsection for mem_hotplug_lock. And eventually also
+> >> pgdat_resize_lock.
+> > 
+> > Well, I am not good at document writting. Below is my first trial.  Look
+> > forward your comments.
+> 
+> I'll have a look, maybe also Oscar and Michal can have a look. I guess
+> we don't have to cover all now, we can add more details as we discover them.
 
-Thanks :-)
-
->
->-- 
->
->Thanks,
->
->David / dhildenb
-
+Oscar, didn't you have something already?
 -- 
-Wei Yang
-Help you, Help me
+Michal Hocko
+SUSE Labs
