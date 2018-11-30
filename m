@@ -1,178 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A28BE6B27D0
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 17:06:37 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id x7so10518276pll.23
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 14:06:37 -0800 (PST)
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id c6si26873943plr.414.2018.11.21.14.06.35
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 26A566B5944
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 12:06:17 -0500 (EST)
+Received: by mail-it1-f198.google.com with SMTP id x82so7598851ita.9
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 09:06:17 -0800 (PST)
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id e8si3480698jaj.17.2018.11.30.09.06.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Nov 2018 14:06:36 -0800 (PST)
-Subject: Re: [PATCH v2 0/6] RFC: gup+dma: tracking dma-pinned pages
-References: <20181110085041.10071-1-jhubbard@nvidia.com>
- <942cb823-9b18-69e7-84aa-557a68f9d7e9@talpey.com>
- <97934904-2754-77e0-5fcb-83f2311362ee@nvidia.com>
- <5159e02f-17f8-df8b-600c-1b09356e46a9@talpey.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <c1ba07d6-ebfa-ddb9-c25e-e5c1bfbecf74@nvidia.com>
-Date: Wed, 21 Nov 2018 14:06:34 -0800
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 30 Nov 2018 09:06:15 -0800 (PST)
+From: Logan Gunthorpe <logang@deltatee.com>
+Date: Fri, 30 Nov 2018 10:06:02 -0700
+Message-Id: <20181130170606.17252-3-logang@deltatee.com>
+In-Reply-To: <20181130170606.17252-1-logang@deltatee.com>
+References: <20181130170606.17252-1-logang@deltatee.com>
 MIME-Version: 1.0
-In-Reply-To: <5159e02f-17f8-df8b-600c-1b09356e46a9@talpey.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 8bit
+Subject: [PATCH v24 2/6] parisc: iomap: introduce io{read|write}64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Talpey <tom@talpey.com>, john.hubbard@gmail.com, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-ntb@googlegroups.com, linux-crypto@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andy Shevchenko <andy.shevchenko@gmail.com>, =?UTF-8?q?Horia=20Geant=C4=83?= <horia.geanta@nxp.com>, Logan Gunthorpe <logang@deltatee.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>
 
-On 11/21/18 8:49 AM, Tom Talpey wrote:
-> On 11/21/2018 1:09 AM, John Hubbard wrote:
->> On 11/19/18 10:57 AM, Tom Talpey wrote:
->>> ~14000 4KB read IOPS is really, really low for an NVMe disk.
->>
->> Yes, but Jan Kara's original config file for fio is *intended* to highli=
-ght
->> the get_user_pages/put_user_pages changes. It was *not* intended to get =
-max
->> performance,=C2=A0 as you can see by the numjobs and direct IO parameter=
-s:
->>
->> cat fio.conf
->> [reader]
->> direct=3D1
->> ioengine=3Dlibaio
->> blocksize=3D4096
->> size=3D1g
->> numjobs=3D1
->> rw=3Dread
->> iodepth=3D64
->=20
-> To be clear - I used those identical parameters, on my lower-spec
-> machine, and got 400,000 4KB read IOPS. Those results are nearly 30x
-> higher than yours!
+Add support for io{read|write}64() functions in parisc architecture.
+These are pretty straightforward copies of similar functions which
+make use of readq and writeq.
 
-OK, then something really is wrong here...
+Also, indicate that the lo_hi and hi_lo variants of these functions
+are not provided by this architecture.
 
->=20
->> So I'm thinking that this is not a "tainted" test, but rather, we're con=
-straining
->> things a lot with these choices. It's hard to find a good test config to=
- run that
->> allows decisions, but so far, I'm not really seeing anything that says "=
-this
->> is so bad that we can't afford to fix the brokenness." I think.
->=20
-> I'm not suggesting we tune the benchmark, I'm suggesting the results
-> on your system are not meaningful since they are orders of magnitude
-> low. And without meaningful data it's impossible to see the performance
-> impact of the change...
->=20
->>> Can you confirm what type of hardware you're running this test on?
->>> CPU, memory speed and capacity, and NVMe device especially?
->>>
->>> Tom.
->>
->> Yes, it's a nice new system, I don't expect any strange perf problems:
->>
->> CPU: Intel(R) Core(TM) i7-7800X CPU @ 3.50GHz
->> =C2=A0=C2=A0=C2=A0=C2=A0 (Intel X299 chipset)
->> Block device: nvme-Samsung_SSD_970_EVO_250GB
->> DRAM: 32 GB
->=20
-> The Samsung Evo 970 250GB is speced to yield 200,000 random read IOPS
-> with a 4KB QD32 workload:
->=20
->=20
-> https://www.samsung.com/us/computing/memory-storage/solid-state-drives/ss=
-d-970-evo-nvme-m-2-250gb-mz-v7e250bw/#specs
->=20
-> And the I7-7800X is a 6-core processor (12 hyperthreads).
->=20
->> So, here's a comparison using 20 threads, direct IO, for the baseline vs=
-.
->> patched kernel (below). Highlights:
->>
->> =C2=A0=C2=A0=C2=A0=C2=A0-- IOPS are similar, around 60k.
->> =C2=A0=C2=A0=C2=A0=C2=A0-- BW gets worse, dropping from 290 to 220 MB/s.
->> =C2=A0=C2=A0=C2=A0=C2=A0-- CPU is well under 100%.
->> =C2=A0=C2=A0=C2=A0=C2=A0-- latency is incredibly long, but...20 threads.
->>
->> Baseline:
->>
->> $ ./run.sh
->> fio configuration:
->> [reader]
->> ioengine=3Dlibaio
->> blocksize=3D4096
->> size=3D1g
->> rw=3Dread
->> group_reporting
->> iodepth=3D256
->> direct=3D1
->> numjobs=3D20
->=20
-> Ouch - 20 threads issuing 256 io's each!? Of course latency skyrockets.
-> That's going to cause tremendous queuing, and context switching, far
-> outside of the get_user_pages() change.
->=20
-> But even so, it only brings IOPS to 74.2K, which is still far short of
-> the device's 200K spec.
->=20
-> Comparing anyway:
->=20
->=20
->> Patched:
->>
->> -------- Running fio:
->> reader: (g=3D0): rw=3Dread, bs=3D(R) 4096B-4096B, (W) 4096B-4096B, (T) 4=
-096B-4096B, ioengine=3Dlibaio, iodepth=3D256
->> ...
->> fio-3.3
->> Starting 20 processes
->> Jobs: 13 (f=3D8): [_(1),R(1),_(1),f(1),R(2),_(1),f(2),_(1),R(1),f(1),R(1=
-),f(1),R(1),_(2),R(1),_(1),R(1)][97.9%][r=3D229MiB/s,w=3D0KiB/s][r=3D58.5k,=
-w=3D0 IOPS][eta 00m:02s]
->> reader: (groupid=3D0, jobs=3D20): err=3D 0: pid=3D2104: Tue Nov 20 22:01=
-:58 2018
->> =C2=A0=C2=A0=C2=A0 read: IOPS=3D56.8k, BW=3D222MiB/s (232MB/s)(20.0GiB/9=
-2385msec)
->> ...
->> Thoughts?
->=20
-> Concern - the 74.2K IOPS unpatched drops to 56.8K patched!
+Signed-off-by: Logan Gunthorpe <logang@deltatee.com>
+Reviewed-by: Andy Shevchenko <andy.shevchenko@gmail.com>
+Acked-by: Helge Deller <deller@gmx.de>
+Cc: "James E.J. Bottomley" <jejb@parisc-linux.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Philippe Ombredanne <pombredanne@nexb.com>
+Cc: Kate Stewart <kstewart@linuxfoundation.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+---
+ arch/parisc/include/asm/io.h |  9 +++++
+ arch/parisc/lib/iomap.c      | 64 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 73 insertions(+)
 
-ACK. :)
-
->=20
-> What I'd really like to see is to go back to the original fio parameters
-> (1 thread, 64 iodepth) and try to get a result that gets at least close
-> to the speced 200K IOPS of the NVMe device. There seems to be something
-> wrong with yours, currently.
-
-I'll dig into what has gone wrong with the test. I see fio putting data fil=
-es
-in the right place, so the obvious "using the wrong drive" is (probably)
-not it. Even though it really feels like that sort of thing. We'll see.=20
-
->=20
-> Then of course, the result with the patched get_user_pages, and
-> compare whichever of IOPS or CPU% changes, and how much.
->=20
-> If these are within a few percent, I agree it's good to go. If it's
-> roughly 25% like the result just above, that's a rocky road.
->=20
-> I can try this after the holiday on some basic hardware and might
-> be able to scrounge up better. Can you post that github link?
->=20
-
-Here:
-
-   git@github.com:johnhubbard/linux (branch: gup_dma_testing)
-
-
---=20
-thanks,
-John Hubbard
-NVIDIA
+diff --git a/arch/parisc/include/asm/io.h b/arch/parisc/include/asm/io.h
+index afe493b23d04..30a8315d5c07 100644
+--- a/arch/parisc/include/asm/io.h
++++ b/arch/parisc/include/asm/io.h
+@@ -311,6 +311,15 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
+  * value for either 32 or 64 bit mode */
+ #define F_EXTEND(x) ((unsigned long)((x) | (0xffffffff00000000ULL)))
+ 
++#define ioread64 ioread64
++#define ioread64be ioread64be
++#define iowrite64 iowrite64
++#define iowrite64be iowrite64be
++extern u64 ioread64(void __iomem *addr);
++extern u64 ioread64be(void __iomem *addr);
++extern void iowrite64(u64 val, void __iomem *addr);
++extern void iowrite64be(u64 val, void __iomem *addr);
++
+ #include <asm-generic/iomap.h>
+ 
+ /*
+diff --git a/arch/parisc/lib/iomap.c b/arch/parisc/lib/iomap.c
+index 4b19e6e64fb7..0195aec657e2 100644
+--- a/arch/parisc/lib/iomap.c
++++ b/arch/parisc/lib/iomap.c
+@@ -48,11 +48,15 @@ struct iomap_ops {
+ 	unsigned int (*read16be)(void __iomem *);
+ 	unsigned int (*read32)(void __iomem *);
+ 	unsigned int (*read32be)(void __iomem *);
++	u64 (*read64)(void __iomem *);
++	u64 (*read64be)(void __iomem *);
+ 	void (*write8)(u8, void __iomem *);
+ 	void (*write16)(u16, void __iomem *);
+ 	void (*write16be)(u16, void __iomem *);
+ 	void (*write32)(u32, void __iomem *);
+ 	void (*write32be)(u32, void __iomem *);
++	void (*write64)(u64, void __iomem *);
++	void (*write64be)(u64, void __iomem *);
+ 	void (*read8r)(void __iomem *, void *, unsigned long);
+ 	void (*read16r)(void __iomem *, void *, unsigned long);
+ 	void (*read32r)(void __iomem *, void *, unsigned long);
+@@ -171,6 +175,16 @@ static unsigned int iomem_read32be(void __iomem *addr)
+ 	return __raw_readl(addr);
+ }
+ 
++static u64 iomem_read64(void __iomem *addr)
++{
++	return readq(addr);
++}
++
++static u64 iomem_read64be(void __iomem *addr)
++{
++	return __raw_readq(addr);
++}
++
+ static void iomem_write8(u8 datum, void __iomem *addr)
+ {
+ 	writeb(datum, addr);
+@@ -196,6 +210,16 @@ static void iomem_write32be(u32 datum, void __iomem *addr)
+ 	__raw_writel(datum, addr);
+ }
+ 
++static void iomem_write64(u64 datum, void __iomem *addr)
++{
++	writel(datum, addr);
++}
++
++static void iomem_write64be(u64 datum, void __iomem *addr)
++{
++	__raw_writel(datum, addr);
++}
++
+ static void iomem_read8r(void __iomem *addr, void *dst, unsigned long count)
+ {
+ 	while (count--) {
+@@ -250,11 +274,15 @@ static const struct iomap_ops iomem_ops = {
+ 	.read16be = iomem_read16be,
+ 	.read32 = iomem_read32,
+ 	.read32be = iomem_read32be,
++	.read64 = iomem_read64,
++	.read64be = iomem_read64be,
+ 	.write8 = iomem_write8,
+ 	.write16 = iomem_write16,
+ 	.write16be = iomem_write16be,
+ 	.write32 = iomem_write32,
+ 	.write32be = iomem_write32be,
++	.write64 = iomem_write64,
++	.write64be = iomem_write64be,
+ 	.read8r = iomem_read8r,
+ 	.read16r = iomem_read16r,
+ 	.read32r = iomem_read32r,
+@@ -304,6 +332,20 @@ unsigned int ioread32be(void __iomem *addr)
+ 	return *((u32 *)addr);
+ }
+ 
++u64 ioread64(void __iomem *addr)
++{
++	if (unlikely(INDIRECT_ADDR(addr)))
++		return iomap_ops[ADDR_TO_REGION(addr)]->read64(addr);
++	return le64_to_cpup((u64 *)addr);
++}
++
++u64 ioread64be(void __iomem *addr)
++{
++	if (unlikely(INDIRECT_ADDR(addr)))
++		return iomap_ops[ADDR_TO_REGION(addr)]->read64be(addr);
++	return *((u64 *)addr);
++}
++
+ void iowrite8(u8 datum, void __iomem *addr)
+ {
+ 	if (unlikely(INDIRECT_ADDR(addr))) {
+@@ -349,6 +391,24 @@ void iowrite32be(u32 datum, void __iomem *addr)
+ 	}
+ }
+ 
++void iowrite64(u64 datum, void __iomem *addr)
++{
++	if (unlikely(INDIRECT_ADDR(addr))) {
++		iomap_ops[ADDR_TO_REGION(addr)]->write64(datum, addr);
++	} else {
++		*((u64 *)addr) = cpu_to_le64(datum);
++	}
++}
++
++void iowrite64be(u64 datum, void __iomem *addr)
++{
++	if (unlikely(INDIRECT_ADDR(addr))) {
++		iomap_ops[ADDR_TO_REGION(addr)]->write64be(datum, addr);
++	} else {
++		*((u64 *)addr) = datum;
++	}
++}
++
+ /* Repeating interfaces */
+ 
+ void ioread8_rep(void __iomem *addr, void *dst, unsigned long count)
+@@ -449,11 +509,15 @@ EXPORT_SYMBOL(ioread16);
+ EXPORT_SYMBOL(ioread16be);
+ EXPORT_SYMBOL(ioread32);
+ EXPORT_SYMBOL(ioread32be);
++EXPORT_SYMBOL(ioread64);
++EXPORT_SYMBOL(ioread64be);
+ EXPORT_SYMBOL(iowrite8);
+ EXPORT_SYMBOL(iowrite16);
+ EXPORT_SYMBOL(iowrite16be);
+ EXPORT_SYMBOL(iowrite32);
+ EXPORT_SYMBOL(iowrite32be);
++EXPORT_SYMBOL(iowrite64);
++EXPORT_SYMBOL(iowrite64be);
+ EXPORT_SYMBOL(ioread8_rep);
+ EXPORT_SYMBOL(ioread16_rep);
+ EXPORT_SYMBOL(ioread32_rep);
+-- 
+2.19.0
