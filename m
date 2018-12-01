@@ -1,50 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5735E6B2925
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2018 22:15:16 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id v11so12674239ply.4
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2018 19:15:16 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id s22-v6si49740852plp.201.2018.11.21.19.15.14
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 07D476B5B04
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 19:34:12 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id o17so4430867pgi.14
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 16:34:11 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id c191si6878727pfg.72.2018.11.30.16.34.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Nov 2018 19:15:15 -0800 (PST)
-Date: Wed, 21 Nov 2018 19:15:11 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 RESEND update 1/2] mm/page_alloc: free order-0 pages
- through PCP in page_frag_free()
-Message-Id: <20181121191511.658e0d41504e146edd88af53@linux-foundation.org>
-In-Reply-To: <20181120014544.GB10657@intel.com>
-References: <20181119134834.17765-1-aaron.lu@intel.com>
-	<20181119134834.17765-2-aaron.lu@intel.com>
-	<20181120014544.GB10657@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 30 Nov 2018 16:34:10 -0800 (PST)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -V7 RESEND 08/21] swap: Support to read a huge swap cluster for swapin a THP
+References: <20181120085449.5542-1-ying.huang@intel.com>
+	<20181120085449.5542-9-ying.huang@intel.com>
+	<20181130233201.6yuzbhymtjddvf3u@ca-dmjordan1.us.oracle.com>
+Date: Sat, 01 Dec 2018 08:34:06 +0800
+In-Reply-To: <20181130233201.6yuzbhymtjddvf3u@ca-dmjordan1.us.oracle.com>
+	(Daniel Jordan's message of "Fri, 30 Nov 2018 15:32:01 -0800")
+Message-ID: <8736rirsox.fsf@yhuang-dev.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, =?UTF-8?Q?Pawe=C5=82?= Staszewski <pstaszewski@itcare.pl>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, Ilias Apalodimas <ilias.apalodimas@linaro.org>, Yoel Caspersen <yoel@kviknet.dk>, Mel Gorman <mgorman@techsingularity.net>, Saeed Mahameed <saeedm@mellanox.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Ian Kumlien <ian.kumlien@gmail.com>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Tue, 20 Nov 2018 09:45:44 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
+Hi, Daniel,
 
-> page_frag_free() calls __free_pages_ok() to free the page back to
-> Buddy. This is OK for high order page, but for order-0 pages, it
-> misses the optimization opportunity of using Per-Cpu-Pages and can
-> cause zone lock contention when called frequently.
-> 
+Daniel Jordan <daniel.m.jordan@oracle.com> writes:
 
-Looks nice to me.  Let's tell our readers why we're doing this.
+> Hi Ying,
+>
+> On Tue, Nov 20, 2018 at 04:54:36PM +0800, Huang Ying wrote:
+>> diff --git a/mm/swap_state.c b/mm/swap_state.c
+>> index 97831166994a..1eedbc0aede2 100644
+>> --- a/mm/swap_state.c
+>> +++ b/mm/swap_state.c
+>> @@ -387,14 +389,42 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+>>  		 * as SWAP_HAS_CACHE.  That's done in later part of code or
+>>  		 * else swap_off will be aborted if we return NULL.
+>>  		 */
+>> -		if (!__swp_swapcount(entry) && swap_slot_cache_enabled)
+>> +		if (!__swp_swapcount(entry, &entry_size) &&
+>> +		    swap_slot_cache_enabled)
+>>  			break;
+>>  
+>>  		/*
+>>  		 * Get a new page to read into from swap.
+>>  		 */
+>> -		if (!new_page) {
+>> -			new_page = alloc_page_vma(gfp_mask, vma, addr);
+>> +		if (!new_page ||
+>> +		    (IS_ENABLED(CONFIG_THP_SWAP) &&
+>> +		     hpage_nr_pages(new_page) != entry_size)) {
+>> +			if (new_page)
+>> +				put_page(new_page);
+>> +			if (IS_ENABLED(CONFIG_THP_SWAP) &&
+>> +			    entry_size == HPAGE_PMD_NR) {
+>> +				gfp_t gfp;
+>> +
+>> +				gfp = alloc_hugepage_direct_gfpmask(vma, addr);
+>
+> vma is NULL when we get here from try_to_unuse, so the kernel will die on
+> vma->flags inside alloc_hugepage_direct_gfpmask.
 
---- a/mm/page_alloc.c~mm-page_alloc-free-order-0-pages-through-pcp-in-page_frag_free-fix
-+++ a/mm/page_alloc.c
-@@ -4684,7 +4684,7 @@ void page_frag_free(void *addr)
- 	if (unlikely(put_page_testzero(page))) {
- 		unsigned int order = compound_order(page);
- 
--		if (order == 0)
-+		if (order == 0)		/* Via pcp? */
- 			free_unref_page(page);
- 		else
- 			__free_pages_ok(page, order);
-_
+Good catch!  Thanks a lot for your help to pinpoint this bug!
+
+> try_to_unuse swaps in before it finds vma's, but even if those were reversed,
+> it seems try_to_unuse wouldn't always have a single vma to pass into this path
+> since it's walking the swap_map and multiple processes mapping the same huge
+> page can have different huge page advice (and maybe mempolicies?), affecting
+> the result of alloc_hugepage_direct_gfpmask.  And yet
+> alloc_hugepage_direct_gfpmask needs a vma to do its job.  So, I'm not sure how
+> to fix this.
+>
+> If the entry's usage count were 1, we could find the vma in that common case to
+> give read_swap_cache_async, and otherwise allocate small pages.  We'd have THPs
+> some of the time and be exactly following alloc_hugepage_direct_gfpmask, but
+> would also be conservative when it's uncertain.
+>
+> Or, if the system-wide THP settings allow it then go for it, but otherwise
+> ignore vma hints and always fall back to small pages.  This requires another
+> way of controlling THP allocations besides alloc_hugepage_direct_gfpmask.
+>
+> Or maybe try_to_unuse shouldn't allocate hugepages at all, but then no perf
+> improvement for try_to_unuse.
+>
+> What do you think?
+
+I think that swapoff() which is the main user of try_to_unuse() isn't a
+common operation in practical.  So it's not necessary to make it more
+complex for this.
+
+In alloc_hugepage_direct_gfpmask(), the only information provided by vma
+is: vma->flags & VM_HUGEPAGE.  Because we have no vma available, I think
+it is OK to just assume that the flag is cleared.  That is, rely on
+system-wide THP settings only.
+
+What do you think about this proposal?
+
+Best Regards,
+Huang, Ying
