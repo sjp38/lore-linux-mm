@@ -1,46 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ECCBD6B467E
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2018 19:34:08 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id 75so13171317pfq.8
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2018 16:34:08 -0800 (PST)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id s5si5346864pfi.134.2018.11.27.16.34.07
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A07546B5B01
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 19:31:50 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id b3so3658183edi.0
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 16:31:50 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w19-v6sor2165787ejv.42.2018.11.30.16.31.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Nov 2018 16:34:07 -0800 (PST)
-From: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH 2/2] x86/modules: Make x86 allocs to flush when free
-Date: Tue, 27 Nov 2018 16:07:54 -0800
-Message-Id: <20181128000754.18056-3-rick.p.edgecombe@intel.com>
-In-Reply-To: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
-References: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
+        (Google Transport Security);
+        Fri, 30 Nov 2018 16:31:49 -0800 (PST)
+Date: Sat, 1 Dec 2018 00:31:47 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH v3 1/2] mm, sparse: drop pgdat_resize_lock in
+ sparse_add/remove_one_section()
+Message-ID: <20181201003147.ahb6nte5bxrotmhx@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181128091243.19249-1-richard.weiyang@gmail.com>
+ <20181129155316.8174-1-richard.weiyang@gmail.com>
+ <d67e3edd-5a93-c133-3b3c-d3833ed27fd5@redhat.com>
+ <20181130042815.t44nroyqcqa3tpgv@master>
+ <c1eab65f-b7b9-9a38-1ac5-8a23dbcb249f@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c1eab65f-b7b9-9a38-1ac5-8a23dbcb249f@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, luto@kernel.org, will.deacon@arm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, naveen.n.rao@linux.vnet.ibm.com, anil.s.keshavamurthy@intel.com, davem@davemloft.net, mhiramat@kernel.org, rostedt@goodmis.org, mingo@redhat.com, ast@kernel.org, daniel@iogearbox.net, jeyu@kernel.org, netdev@vger.kernel.org, ard.biesheuvel@linaro.org, jannh@google.com
-Cc: kristen@linux.intel.com, dave.hansen@intel.com, deneen.t.dock@intel.com, Rick Edgecombe <rick.p.edgecombe@intel.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, mhocko@suse.com, dave.hansen@intel.com, osalvador@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org
 
-Change the module allocations to flush before freeing the pages.
+On Fri, Nov 30, 2018 at 10:19:13AM +0100, David Hildenbrand wrote:
+>>> I suggest adding what you just found out to
+>>> Documentation/admin-guide/mm/memory-hotplug.rst "Locking Internals".
+>>> Maybe a new subsection for mem_hotplug_lock. And eventually also
+>>> pgdat_resize_lock.
+>> 
+>> Well, I am not good at document writting. Below is my first trial.  Look
+>> forward your comments.
+>
+>I'll have a look, maybe also Oscar and Michal can have a look. I guess
+>we don't have to cover all now, we can add more details as we discover them.
+>
+>> 
+>> BTW, in case I would send a new version with this, would I put this into
+>> a separate one or merge this into current one?
+>
+>I would put this into a separate patch.
+>
+>> 
+>> diff --git a/Documentation/admin-guide/mm/memory-hotplug.rst b/Documentation/admin-guide/mm/memory-hotplug.rst
+>> index 5c4432c96c4b..1548820a0762 100644
+>> --- a/Documentation/admin-guide/mm/memory-hotplug.rst
+>> +++ b/Documentation/admin-guide/mm/memory-hotplug.rst
+>> @@ -396,6 +396,20 @@ Need more implementation yet....
+>>  Locking Internals
+>>  =================
+>>  
+>> +There are three locks involved in memory-hotplug, two global lock and one local
+>> +lock:
+>> +
+>> +- device_hotplug_lock
+>> +- mem_hotplug_lock
+>> +- device_lock
+>> +
+>> +Currently, they are twisted together for all kinds of reasons. The following
+>> +part is divded into device_hotplug_lock and mem_hotplug_lock parts
+>
+>s/divded/divided/
+>
+>> +respectively to describe those tricky situations.
+>> +
+>> +device_hotplug_lock
+>> +---------------------
+>> +
+>>  When adding/removing memory that uses memory block devices (i.e. ordinary RAM),
+>>  the device_hotplug_lock should be held to:
+>>  
+>> @@ -417,14 +431,21 @@ memory faster than expected:
+>>  As the device is visible to user space before taking the device_lock(), this
+>>  can result in a lock inversion.
+>>  
+>> +mem_hotplug_lock
+>> +---------------------
+>> +
+>
+>I would this section start after the following paragraph, as most of
+>that paragraph belongs to the device_hotplug_lock.
+>
+>
+>>  onlining/offlining of memory should be done via device_online()/
+>> -device_offline() - to make sure it is properly synchronized to actions
+>> -via sysfs. Holding device_hotplug_lock is advised (to e.g. protect online_type)
+>> +device_offline() - to make sure it is properly synchronized to actions via
+>> +sysfs. Even mem_hotplug_lock is used to protect the process, because of the
+>> +lock inversion described above, holding device_hotplug_lock is still advised
+>> +(to e.g. protect online_type)
+>>  
+>>  When adding/removing/onlining/offlining memory or adding/removing
+>>  heterogeneous/device memory, we should always hold the mem_hotplug_lock in
+>>  write mode to serialise memory hotplug (e.g. access to global/zone
+>> -variables).
+>> +variables). Currently, we take advantage of this to serialise sparsemem's
+>> +mem_section handling in sparse_add_one_section() and
+>> +sparse_remove_one_section().
+>>  
+>>  In addition, mem_hotplug_lock (in contrast to device_hotplug_lock) in read
+>>  mode allows for a quite efficient get_online_mems/put_online_mems
+>> 
+>>>
+>>>
+>>> Thanks,
+>>>
+>>> David / dhildenb
+>> 
+>
+>Apart from that looks good to me, thanks!
+>
 
-Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
----
- arch/x86/kernel/module.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+Thanks :-)
 
-diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
-index b052e883dd8c..1694daf256b3 100644
---- a/arch/x86/kernel/module.c
-+++ b/arch/x86/kernel/module.c
-@@ -87,8 +87,8 @@ void *module_alloc(unsigned long size)
- 	p = __vmalloc_node_range(size, MODULE_ALIGN,
- 				    MODULES_VADDR + get_module_load_offset(),
- 				    MODULES_END, GFP_KERNEL,
--				    PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
--				    __builtin_return_address(0));
-+				    PAGE_KERNEL_EXEC, VM_IMMEDIATE_UNMAP,
-+				    NUMA_NO_NODE, __builtin_return_address(0));
- 	if (p && (kasan_module_alloc(p, size) < 0)) {
- 		vfree(p);
- 		return NULL;
+>
+>-- 
+>
+>Thanks,
+>
+>David / dhildenb
+
 -- 
-2.17.1
+Wei Yang
+Help you, Help me
