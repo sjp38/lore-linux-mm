@@ -1,93 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 117066B3F7F
-	for <linux-mm@kvack.org>; Sun, 25 Nov 2018 21:20:18 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id y83so17872648qka.7
-        for <linux-mm@kvack.org>; Sun, 25 Nov 2018 18:20:18 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h12si7732908qvb.79.2018.11.25.18.20.16
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 29A9B6B5AED
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 19:13:31 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id s7-v6so4640738ybp.10
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 16:13:31 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id z63-v6si3974523yba.492.2018.11.30.16.13.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Nov 2018 18:20:17 -0800 (PST)
-From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V12 13/20] block: loop: pass multi-page bvec to iov_iter
-Date: Mon, 26 Nov 2018 10:17:13 +0800
-Message-Id: <20181126021720.19471-14-ming.lei@redhat.com>
-In-Reply-To: <20181126021720.19471-1-ming.lei@redhat.com>
-References: <20181126021720.19471-1-ming.lei@redhat.com>
+        Fri, 30 Nov 2018 16:13:29 -0800 (PST)
+Date: Fri, 30 Nov 2018 16:13:07 -0800
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [RFC PATCH v4 00/13] ktask: multithread CPU-intensive kernel work
+Message-ID: <20181201001307.wmb6o4fuysnl7vcz@ca-dmjordan1.us.oracle.com>
+References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
+ <20181130191819.GJ2509588@devbig004.ftw2.facebook.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181130191819.GJ2509588@devbig004.ftw2.facebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-mm@kvack.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, aaron.lu@intel.com, akpm@linux-foundation.org, alex.williamson@redhat.com, bsd@redhat.com, darrick.wong@oracle.com, dave.hansen@linux.intel.com, jgg@mellanox.com, jwadams@google.com, jiangshanlai@gmail.com, mhocko@kernel.org, mike.kravetz@oracle.com, Pavel.Tatashin@microsoft.com, prasad.singamsetty@oracle.com, rdunlap@infradead.org, steven.sistare@oracle.com, tim.c.chen@intel.com, vbabka@suse.cz, peterz@infradead.org, dhaval.giani@oracle.com
 
-iov_iter is implemented on bvec itererator helpers, so it is safe to pass
-multi-page bvec to it, and this way is much more efficient than passing one
-page in each bvec.
+On Fri, Nov 30, 2018 at 11:18:19AM -0800, Tejun Heo wrote:
+> Hello,
+> 
+> On Mon, Nov 05, 2018 at 11:55:45AM -0500, Daniel Jordan wrote:
+> > Michal, you mentioned that ktask should be sensitive to CPU utilization[1].
+> > ktask threads now run at the lowest priority on the system to avoid disturbing
+> > busy CPUs (more details in patches 4 and 5).  Does this address your concern?
+> > The plan to address your other comments is explained below.
+> 
+> Have you tested what kind of impact this has on bandwidth of a system
+> in addition to latency?  The thing is while this would make a better
+> use of a system which has idle capacity, it does so by doing more
+> total work.  It'd be really interesting to see how this affects
+> bandwidth of a system too.
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Signed-off-by: Ming Lei <ming.lei@redhat.com>
----
- drivers/block/loop.c | 20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
-
-diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index 176ab1f28eca..e3683211f12d 100644
---- a/drivers/block/loop.c
-+++ b/drivers/block/loop.c
-@@ -510,21 +510,22 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
- 		     loff_t pos, bool rw)
- {
- 	struct iov_iter iter;
-+	struct req_iterator rq_iter;
- 	struct bio_vec *bvec;
- 	struct request *rq = blk_mq_rq_from_pdu(cmd);
- 	struct bio *bio = rq->bio;
- 	struct file *file = lo->lo_backing_file;
-+	struct bio_vec tmp;
- 	unsigned int offset;
--	int segments = 0;
-+	int nr_bvec = 0;
- 	int ret;
- 
-+	rq_for_each_bvec(tmp, rq, rq_iter)
-+		nr_bvec++;
-+
- 	if (rq->bio != rq->biotail) {
--		struct req_iterator iter;
--		struct bio_vec tmp;
- 
--		__rq_for_each_bio(bio, rq)
--			segments += bio_segments(bio);
--		bvec = kmalloc_array(segments, sizeof(struct bio_vec),
-+		bvec = kmalloc_array(nr_bvec, sizeof(struct bio_vec),
- 				     GFP_NOIO);
- 		if (!bvec)
- 			return -EIO;
-@@ -533,10 +534,10 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
- 		/*
- 		 * The bios of the request may be started from the middle of
- 		 * the 'bvec' because of bio splitting, so we can't directly
--		 * copy bio->bi_iov_vec to new bvec. The rq_for_each_segment
-+		 * copy bio->bi_iov_vec to new bvec. The rq_for_each_bvec
- 		 * API will take care of all details for us.
- 		 */
--		rq_for_each_segment(tmp, rq, iter) {
-+		rq_for_each_bvec(tmp, rq, rq_iter) {
- 			*bvec = tmp;
- 			bvec++;
- 		}
-@@ -550,11 +551,10 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
- 		 */
- 		offset = bio->bi_iter.bi_bvec_done;
- 		bvec = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
--		segments = bio_segments(bio);
- 	}
- 	atomic_set(&cmd->ref, 2);
- 
--	iov_iter_bvec(&iter, rw, bvec, segments, blk_rq_bytes(rq));
-+	iov_iter_bvec(&iter, rw, bvec, nr_bvec, blk_rq_bytes(rq));
- 	iter.iov_offset = offset;
- 
- 	cmd->iocb.ki_pos = pos;
--- 
-2.9.5
+I guess you mean something like comparing aggregate CPU time across threads to
+the base single thread time for some job or set of jobs?  Then no, I haven't
+measured that, but I can for next time.
