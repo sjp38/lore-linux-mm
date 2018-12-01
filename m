@@ -1,268 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EEA026B5946
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 12:06:19 -0500 (EST)
-Received: by mail-io1-f69.google.com with SMTP id k4so6081077ioc.10
-        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 09:06:19 -0800 (PST)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id j204si3269505iof.88.2018.11.30.09.06.18
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D76CC6B5AFB
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2018 19:27:12 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id i55so3644800ede.14
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2018 16:27:12 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e44sor4181419ede.13.2018.11.30.16.27.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 30 Nov 2018 09:06:18 -0800 (PST)
-From: Logan Gunthorpe <logang@deltatee.com>
-Date: Fri, 30 Nov 2018 10:06:03 -0700
-Message-Id: <20181130170606.17252-4-logang@deltatee.com>
-In-Reply-To: <20181130170606.17252-1-logang@deltatee.com>
-References: <20181130170606.17252-1-logang@deltatee.com>
+        (Google Transport Security);
+        Fri, 30 Nov 2018 16:27:11 -0800 (PST)
+Date: Sat, 1 Dec 2018 00:27:09 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH v3] mm, hotplug: move init_currently_empty_zone() under
+ zone_span_lock protection
+Message-ID: <20181201002709.ggybtqza6c7hyqrn@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181122101241.7965-1-richard.weiyang@gmail.com>
+ <20181130065847.13714-1-richard.weiyang@gmail.com>
+ <dd8f1834-769e-d341-58dc-50a81fe0c0ec@redhat.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Subject: [PATCH v24 3/6] iomap: introduce io{read|write}64_{lo_hi|hi_lo}
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <dd8f1834-769e-d341-58dc-50a81fe0c0ec@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-ntb@googlegroups.com, linux-crypto@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andy Shevchenko <andy.shevchenko@gmail.com>, =?UTF-8?q?Horia=20Geant=C4=83?= <horia.geanta@nxp.com>, Logan Gunthorpe <logang@deltatee.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Suresh Warrier <warrier@linux.vnet.ibm.com>, Nicholas Piggin <npiggin@gmail.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, mhocko@suse.com, osalvador@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org
 
-In order to provide non-atomic functions for io{read|write}64 that will
-use readq and writeq when appropriate. We define a number of variants
-of these functions in the generic iomap that will do non-atomic
-operations on pio but atomic operations on mmio.
+On Fri, Nov 30, 2018 at 10:30:22AM +0100, David Hildenbrand wrote:
+>On 30.11.18 07:58, Wei Yang wrote:
+>> During online_pages phase, pgdat->nr_zones will be updated in case this
+>> zone is empty.
+>> 
+>> Currently the online_pages phase is protected by the global lock
+>> mem_hotplug_begin(), which ensures there is no contention during the
+>> update of nr_zones. But this global lock introduces scalability issues.
+>> 
+>> The patch moves init_currently_empty_zone under both zone_span_writelock
+>> and pgdat_resize_lock because both the pgdat state is changed (nr_zones)
+>> and the zone's start_pfn. Also this patch changes the documentation
+>> of node_size_lock to include the protectioin of nr_zones.
+>
+>s/protectioin/protection/
+>
+>> 
+>> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+>> Acked-by: Michal Hocko <mhocko@suse.com>
+>> Reviewed-by: Oscar Salvador <osalvador@suse.de>
+>> CC: David Hildenbrand <david@redhat.com>
+>> 
+>> ---
+>> David, I may not catch you exact comment on the code or changelog. If I
+>> missed, just let me know.
+>
+>I guess I would have rewritten it to something like the following
+>
+>"
+>Currently the online_pages phase is protected by two global locks
+>(device_device_hotplug_lock and mem_hotplug_lock). Especial the latter
+>can result in scalability issues, as it will slow down code relying on
+>get_online_mems(). Let's prepare code for not having to rely on
+>get_online_mems() but instead some more fine grained locks.
 
-These functions are only defined if readq and writeq are defined. If
-they are not, then the wrappers that always use non-atomic operations
-from include/linux/io-64-nonatomic*.h will be used.
+I am not sure why we specify get_online_mems() here. mem_hotplug_lock is
+grabed in many places besides this one. In my mind, each place introduce
+scalability issue, not only this one.
 
-Signed-off-by: Logan Gunthorpe <logang@deltatee.com>
-Reviewed-by: Andy Shevchenko <andy.shevchenko@gmail.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: Suresh Warrier <warrier@linux.vnet.ibm.com>
-Cc: Nicholas Piggin <npiggin@gmail.com>
----
- arch/powerpc/include/asm/io.h |   2 +
- include/asm-generic/iomap.h   |  22 ++++++
- lib/iomap.c                   | 132 ++++++++++++++++++++++++++++++++++
- 3 files changed, 156 insertions(+)
+Or you want to say, the mem_hotplug_lock will introduce scalability
+issue in two place:
 
-diff --git a/arch/powerpc/include/asm/io.h b/arch/powerpc/include/asm/io.h
-index e746becd9d6f..093a61795b14 100644
---- a/arch/powerpc/include/asm/io.h
-+++ b/arch/powerpc/include/asm/io.h
-@@ -781,8 +781,10 @@ extern void __iounmap_at(void *ea, unsigned long size);
- 
- #define mmio_read16be(addr)		readw_be(addr)
- #define mmio_read32be(addr)		readl_be(addr)
-+#define mmio_read64be(addr)		readq_be(addr)
- #define mmio_write16be(val, addr)	writew_be(val, addr)
- #define mmio_write32be(val, addr)	writel_be(val, addr)
-+#define mmio_write64be(val, addr)	writeq_be(val, addr)
- #define mmio_insb(addr, dst, count)	readsb(addr, dst, count)
- #define mmio_insw(addr, dst, count)	readsw(addr, dst, count)
- #define mmio_insl(addr, dst, count)	readsl(addr, dst, count)
-diff --git a/include/asm-generic/iomap.h b/include/asm-generic/iomap.h
-index 5b63b94ef6b5..a008f504a2d0 100644
---- a/include/asm-generic/iomap.h
-+++ b/include/asm-generic/iomap.h
-@@ -36,6 +36,17 @@ extern u64 ioread64(void __iomem *);
- extern u64 ioread64be(void __iomem *);
- #endif
- 
-+#ifdef readq
-+#define ioread64_lo_hi ioread64_lo_hi
-+#define ioread64_hi_lo ioread64_hi_lo
-+#define ioread64be_lo_hi ioread64be_lo_hi
-+#define ioread64be_hi_lo ioread64be_hi_lo
-+extern u64 ioread64_lo_hi(void __iomem *addr);
-+extern u64 ioread64_hi_lo(void __iomem *addr);
-+extern u64 ioread64be_lo_hi(void __iomem *addr);
-+extern u64 ioread64be_hi_lo(void __iomem *addr);
-+#endif
-+
- extern void iowrite8(u8, void __iomem *);
- extern void iowrite16(u16, void __iomem *);
- extern void iowrite16be(u16, void __iomem *);
-@@ -46,6 +57,17 @@ extern void iowrite64(u64, void __iomem *);
- extern void iowrite64be(u64, void __iomem *);
- #endif
- 
-+#ifdef writeq
-+#define iowrite64_lo_hi iowrite64_lo_hi
-+#define iowrite64_hi_lo iowrite64_hi_lo
-+#define iowrite64be_lo_hi iowrite64be_lo_hi
-+#define iowrite64be_hi_lo iowrite64be_hi_lo
-+extern void iowrite64_lo_hi(u64 val, void __iomem *addr);
-+extern void iowrite64_hi_lo(u64 val, void __iomem *addr);
-+extern void iowrite64be_lo_hi(u64 val, void __iomem *addr);
-+extern void iowrite64be_hi_lo(u64 val, void __iomem *addr);
-+#endif
-+
- /*
-  * "string" versions of the above. Note that they
-  * use native byte ordering for the accesses (on
-diff --git a/lib/iomap.c b/lib/iomap.c
-index 2c293b22569f..e909ab71e995 100644
---- a/lib/iomap.c
-+++ b/lib/iomap.c
-@@ -67,6 +67,7 @@ static void bad_io_access(unsigned long port, const char *access)
- #ifndef mmio_read16be
- #define mmio_read16be(addr) swab16(readw(addr))
- #define mmio_read32be(addr) swab32(readl(addr))
-+#define mmio_read64be(addr) swab64(readq(addr))
- #endif
- 
- unsigned int ioread8(void __iomem *addr)
-@@ -100,6 +101,80 @@ EXPORT_SYMBOL(ioread16be);
- EXPORT_SYMBOL(ioread32);
- EXPORT_SYMBOL(ioread32be);
- 
-+#ifdef readq
-+static u64 pio_read64_lo_hi(unsigned long port)
-+{
-+	u64 lo, hi;
-+
-+	lo = inl(port);
-+	hi = inl(port + sizeof(u32));
-+
-+	return lo | (hi << 32);
-+}
-+
-+static u64 pio_read64_hi_lo(unsigned long port)
-+{
-+	u64 lo, hi;
-+
-+	hi = inl(port + sizeof(u32));
-+	lo = inl(port);
-+
-+	return lo | (hi << 32);
-+}
-+
-+static u64 pio_read64be_lo_hi(unsigned long port)
-+{
-+	u64 lo, hi;
-+
-+	lo = pio_read32be(port + sizeof(u32));
-+	hi = pio_read32be(port);
-+
-+	return lo | (hi << 32);
-+}
-+
-+static u64 pio_read64be_hi_lo(unsigned long port)
-+{
-+	u64 lo, hi;
-+
-+	hi = pio_read32be(port);
-+	lo = pio_read32be(port + sizeof(u32));
-+
-+	return lo | (hi << 32);
-+}
-+
-+u64 ioread64_lo_hi(void __iomem *addr)
-+{
-+	IO_COND(addr, return pio_read64_lo_hi(port), return readq(addr));
-+	return 0xffffffffffffffffULL;
-+}
-+
-+u64 ioread64_hi_lo(void __iomem *addr)
-+{
-+	IO_COND(addr, return pio_read64_hi_lo(port), return readq(addr));
-+	return 0xffffffffffffffffULL;
-+}
-+
-+u64 ioread64be_lo_hi(void __iomem *addr)
-+{
-+	IO_COND(addr, return pio_read64be_lo_hi(port),
-+		return mmio_read64be(addr));
-+	return 0xffffffffffffffffULL;
-+}
-+
-+u64 ioread64be_hi_lo(void __iomem *addr)
-+{
-+	IO_COND(addr, return pio_read64be_hi_lo(port),
-+		return mmio_read64be(addr));
-+	return 0xffffffffffffffffULL;
-+}
-+
-+EXPORT_SYMBOL(ioread64_lo_hi);
-+EXPORT_SYMBOL(ioread64_hi_lo);
-+EXPORT_SYMBOL(ioread64be_lo_hi);
-+EXPORT_SYMBOL(ioread64be_hi_lo);
-+
-+#endif /* readq */
-+
- #ifndef pio_write16be
- #define pio_write16be(val,port) outw(swab16(val),port)
- #define pio_write32be(val,port) outl(swab32(val),port)
-@@ -108,6 +183,7 @@ EXPORT_SYMBOL(ioread32be);
- #ifndef mmio_write16be
- #define mmio_write16be(val,port) writew(swab16(val),port)
- #define mmio_write32be(val,port) writel(swab32(val),port)
-+#define mmio_write64be(val,port) writeq(swab64(val),port)
- #endif
- 
- void iowrite8(u8 val, void __iomem *addr)
-@@ -136,6 +212,62 @@ EXPORT_SYMBOL(iowrite16be);
- EXPORT_SYMBOL(iowrite32);
- EXPORT_SYMBOL(iowrite32be);
- 
-+#ifdef writeq
-+static void pio_write64_lo_hi(u64 val, unsigned long port)
-+{
-+	outl(val, port);
-+	outl(val >> 32, port + sizeof(u32));
-+}
-+
-+static void pio_write64_hi_lo(u64 val, unsigned long port)
-+{
-+	outl(val >> 32, port + sizeof(u32));
-+	outl(val, port);
-+}
-+
-+static void pio_write64be_lo_hi(u64 val, unsigned long port)
-+{
-+	pio_write32be(val, port + sizeof(u32));
-+	pio_write32be(val >> 32, port);
-+}
-+
-+static void pio_write64be_hi_lo(u64 val, unsigned long port)
-+{
-+	pio_write32be(val >> 32, port);
-+	pio_write32be(val, port + sizeof(u32));
-+}
-+
-+void iowrite64_lo_hi(u64 val, void __iomem *addr)
-+{
-+	IO_COND(addr, pio_write64_lo_hi(val, port),
-+		writeq(val, addr));
-+}
-+
-+void iowrite64_hi_lo(u64 val, void __iomem *addr)
-+{
-+	IO_COND(addr, pio_write64_hi_lo(val, port),
-+		writeq(val, addr));
-+}
-+
-+void iowrite64be_lo_hi(u64 val, void __iomem *addr)
-+{
-+	IO_COND(addr, pio_write64be_lo_hi(val, port),
-+		mmio_write64be(val, addr));
-+}
-+
-+void iowrite64be_hi_lo(u64 val, void __iomem *addr)
-+{
-+	IO_COND(addr, pio_write64be_hi_lo(val, port),
-+		mmio_write64be(val, addr));
-+}
-+
-+EXPORT_SYMBOL(iowrite64_lo_hi);
-+EXPORT_SYMBOL(iowrite64_hi_lo);
-+EXPORT_SYMBOL(iowrite64be_lo_hi);
-+EXPORT_SYMBOL(iowrite64be_hi_lo);
-+
-+#endif /* readq */
-+
- /*
-  * These are the "repeat MMIO read/write" functions.
-  * Note the "__raw" accesses, since we don't want to
+  * hotplug process itself
+  * slab allocation process
+
+The second one is more critical. And this is what we try to address?
+
+>
+>During online_pages phase, pgdat->nr_zones will be updated in case the
+>zone is empty. Right now mem_hotplug_lock ensures that there is no
+>contention during the update of nr_zones.
+>
+>The patch moves init_currently_empty_zone under both zone_span_writelock
+>and pgdat_resize_lock because both the pgdat state is changed (nr_zones)
+>and the zone's start_pfn. Also this patch changes the documentation
+>of node_size_lock to include the protection of nr_zones.
+>"
+>
+>Does that make sense?
+>
+>> 
+>> ---
+>> v3:
+>>   * slightly modify the last paragraph of changelog based on Michal's
+>>     comment
+>> v2:
+>>   * commit log changes
+>>   * modify the code in move_pfn_range_to_zone() instead of in
+>>     init_currently_empty_zone()
+>>   * pgdat_resize_lock documentation change
+>> ---
+>>  include/linux/mmzone.h | 7 ++++---
+>>  mm/memory_hotplug.c    | 5 ++---
+>>  2 files changed, 6 insertions(+), 6 deletions(-)
+>> 
+>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+>> index 3d0c472438d2..37d9c5c3faa6 100644
+>> --- a/include/linux/mmzone.h
+>> +++ b/include/linux/mmzone.h
+>> @@ -635,9 +635,10 @@ typedef struct pglist_data {
+>>  #endif
+>>  #if defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_DEFERRED_STRUCT_PAGE_INIT)
+>>  	/*
+>> -	 * Must be held any time you expect node_start_pfn, node_present_pages
+>> -	 * or node_spanned_pages stay constant.  Holding this will also
+>> -	 * guarantee that any pfn_valid() stays that way.
+>> +	 * Must be held any time you expect node_start_pfn,
+>> +	 * node_present_pages, node_spanned_pages or nr_zones stay constant.
+>> +	 * Holding this will also guarantee that any pfn_valid() stays that
+>> +	 * way.
+>>  	 *
+>>  	 * pgdat_resize_lock() and pgdat_resize_unlock() are provided to
+>>  	 * manipulate node_size_lock without checking for CONFIG_MEMORY_HOTPLUG
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index 61972da38d93..f626e7e5f57b 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -742,14 +742,13 @@ void __ref move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+>>  	int nid = pgdat->node_id;
+>>  	unsigned long flags;
+>>  
+>> -	if (zone_is_empty(zone))
+>> -		init_currently_empty_zone(zone, start_pfn, nr_pages);
+>> -
+>>  	clear_zone_contiguous(zone);
+>>  
+>>  	/* TODO Huh pgdat is irqsave while zone is not. It used to be like that before */
+>>  	pgdat_resize_lock(pgdat, &flags);
+>>  	zone_span_writelock(zone);
+>> +	if (zone_is_empty(zone))
+>> +		init_currently_empty_zone(zone, start_pfn, nr_pages);
+>>  	resize_zone_range(zone, start_pfn, nr_pages);
+>>  	zone_span_writeunlock(zone);
+>>  	resize_pgdat_range(pgdat, start_pfn, nr_pages);
+>> 
+>
+>
+>-- 
+>
+>Thanks,
+>
+>David / dhildenb
+
 -- 
-2.19.0
+Wei Yang
+Help you, Help me
