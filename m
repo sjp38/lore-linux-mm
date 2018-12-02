@@ -1,62 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BEF8F8E0001
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 01:53:35 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id d18so14350071pfe.0
-        for <linux-mm@kvack.org>; Mon, 17 Dec 2018 22:53:35 -0800 (PST)
-Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
-        by mx.google.com with ESMTPS id r27si12934921pgl.494.2018.12.17.22.53.33
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EEDF6B61FB
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2018 01:18:14 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id ay11so7495253plb.20
+        for <linux-mm@kvack.org>; Sat, 01 Dec 2018 22:18:14 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t18sor10124624pfi.23.2018.12.01.22.18.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Dec 2018 22:53:34 -0800 (PST)
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [RFC PATCH 2/2] mm: swap: add comment for swap_vma_readahead
-Date: Tue, 18 Dec 2018 14:52:28 +0800
-Message-Id: <1545115948-25467-2-git-send-email-yang.shi@linux.alibaba.com>
-In-Reply-To: <1545115948-25467-1-git-send-email-yang.shi@linux.alibaba.com>
-References: <1545115948-25467-1-git-send-email-yang.shi@linux.alibaba.com>
+        (Google Transport Security);
+        Sat, 01 Dec 2018 22:18:13 -0800 (PST)
+Date: Sun, 2 Dec 2018 11:51:56 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH v2 3/9] drivers/firewire/core-iso.c: Convert to use
+ vm_insert_range
+Message-ID: <20181202062156.GA3131@jordon-HP-15-Notebook-PC>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ying.huang@intel.com, tim.c.chen@intel.com, minchan@kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, stefanr@s5r6.in-berlin.de
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net
 
-swap_vma_readahead()'s comment is missed, just add it.
+Convert to use vm_insert_range to map range of kernel memory
+to user vma.
 
-Cc: Huang Ying <ying.huang@intel.com>
-Cc: Tim Chen <tim.c.chen@intel.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+Reviewed-by: Matthew Wilcox <willy@infradead.org>
 ---
- mm/swap_state.c | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ drivers/firewire/core-iso.c | 15 ++-------------
+ 1 file changed, 2 insertions(+), 13 deletions(-)
 
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 7cc3c29..c12aedf 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -695,6 +695,23 @@ static void swap_ra_info(struct vm_fault *vmf,
- 	pte_unmap(orig_pte);
+diff --git a/drivers/firewire/core-iso.c b/drivers/firewire/core-iso.c
+index 35e784c..7bf28bb 100644
+--- a/drivers/firewire/core-iso.c
++++ b/drivers/firewire/core-iso.c
+@@ -107,19 +107,8 @@ int fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
+ int fw_iso_buffer_map_vma(struct fw_iso_buffer *buffer,
+ 			  struct vm_area_struct *vma)
+ {
+-	unsigned long uaddr;
+-	int i, err;
+-
+-	uaddr = vma->vm_start;
+-	for (i = 0; i < buffer->page_count; i++) {
+-		err = vm_insert_page(vma, uaddr, buffer->pages[i]);
+-		if (err)
+-			return err;
+-
+-		uaddr += PAGE_SIZE;
+-	}
+-
+-	return 0;
++	return vm_insert_range(vma, vma->vm_start, buffer->pages,
++				buffer->page_count);
  }
  
-+/**
-+ * swap_vm_readahead - swap in pages in hope we need them soon
-+ * @entry: swap entry of this memory
-+ * @gfp_mask: memory allocation flags
-+ * @vmf: fault information
-+ *
-+ * Returns the struct page for entry and addr, after queueing swapin.
-+ *
-+ * Primitive swap readahead code. We simply read in a few pages whoes
-+ * virtual addresses are around the fault address in the same vma.
-+ *
-+ * This has been extended to use the NUMA policies from the mm triggering
-+ * the readahead.
-+ *
-+ * Caller must hold down_read on the vma->vm_mm if vmf->vma is not NULL.
-+ *
-+ */
- static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
- 				       struct vm_fault *vmf)
- {
+ void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer,
 -- 
-1.8.3.1
+1.9.1
