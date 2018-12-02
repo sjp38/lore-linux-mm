@@ -1,52 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D3C88E0001
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 07:51:20 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id 18so2853089wmw.6
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 04:51:20 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 99DC66B61F8
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2018 01:17:26 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id bj3so7475911plb.17
+        for <linux-mm@kvack.org>; Sat, 01 Dec 2018 22:17:26 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j10sor6962203wrx.15.2018.12.10.04.51.18
+        by mx.google.com with SMTPS id v13sor12744528pgn.66.2018.12.01.22.17.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 10 Dec 2018 04:51:18 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v9 6/8] fs, arm64: untag user address in copy_mount_options
-Date: Mon, 10 Dec 2018 13:51:03 +0100
-Message-Id: <07a4efa5983abec2355b2754812509a73f648332.1544445454.git.andreyknvl@google.com>
-In-Reply-To: <cover.1544445454.git.andreyknvl@google.com>
-References: <cover.1544445454.git.andreyknvl@google.com>
+        Sat, 01 Dec 2018 22:17:25 -0800 (PST)
+Date: Sun, 2 Dec 2018 11:51:09 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH v2 2/9] arch/arm/mm/dma-mapping.c: Convert to use
+ vm_insert_range
+Message-ID: <20181202062109.GA3111@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Andrey Konovalov <andreyknvl@google.com>
+To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
 
-In copy_mount_options a user address is being subtracted from TASK_SIZE.
-If the address is lower than TASK_SIZE, the size is calculated to not
-allow the exact_copy_from_user() call to cross TASK_SIZE boundary.
-However if the address is tagged, then the size will be calculated
-incorrectly.
+Convert to use vm_insert_range() to map range of kernel
+memory to user vma.
 
-Untag the address before subtracting.
-
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
 ---
- fs/namespace.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/arm/mm/dma-mapping.c | 21 +++++++--------------
+ 1 file changed, 7 insertions(+), 14 deletions(-)
 
-diff --git a/fs/namespace.c b/fs/namespace.c
-index a7f91265ea67..694dcedb7e7d 100644
---- a/fs/namespace.c
-+++ b/fs/namespace.c
-@@ -2686,7 +2686,7 @@ void *copy_mount_options(const void __user * data)
- 	 * the remainder of the page.
- 	 */
- 	/* copy_from_user cannot cross TASK_SIZE ! */
--	size = TASK_SIZE - (unsigned long)data;
-+	size = TASK_SIZE - (unsigned long)untagged_addr(data);
- 	if (size > PAGE_SIZE)
- 		size = PAGE_SIZE;
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index 661fe48..4eec323 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -1582,31 +1582,24 @@ static int __arm_iommu_mmap_attrs(struct device *dev, struct vm_area_struct *vma
+ 		    void *cpu_addr, dma_addr_t dma_addr, size_t size,
+ 		    unsigned long attrs)
+ {
+-	unsigned long uaddr = vma->vm_start;
+-	unsigned long usize = vma->vm_end - vma->vm_start;
++	unsigned long page_count = vma_pages(vma);
+ 	struct page **pages = __iommu_get_pages(cpu_addr, attrs);
+ 	unsigned long nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
+ 	unsigned long off = vma->vm_pgoff;
++	int err;
  
+ 	if (!pages)
+ 		return -ENXIO;
+ 
+-	if (off >= nr_pages || (usize >> PAGE_SHIFT) > nr_pages - off)
++	if (off >= nr_pages || page_count > nr_pages - off)
+ 		return -ENXIO;
+ 
+ 	pages += off;
++	err = vm_insert_range(vma, vma->vm_start, pages, page_count);
++	if (err)
++		pr_err("Remapping memory failed: %d\n", err);
+ 
+-	do {
+-		int ret = vm_insert_page(vma, uaddr, *pages++);
+-		if (ret) {
+-			pr_err("Remapping memory failed: %d\n", ret);
+-			return ret;
+-		}
+-		uaddr += PAGE_SIZE;
+-		usize -= PAGE_SIZE;
+-	} while (usize > 0);
+-
+-	return 0;
++	return err;
+ }
+ static int arm_iommu_mmap_attrs(struct device *dev,
+ 		struct vm_area_struct *vma, void *cpu_addr,
 -- 
-2.20.0.rc2.403.gdbc3b29805-goog
+1.9.1
