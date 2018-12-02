@@ -1,49 +1,54 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-Date: Tue, 18 Dec 2018 01:54:48 +0530
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D2856B6200
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2018 01:24:34 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id b17so8282528pfc.11
+        for <linux-mm@kvack.org>; Sat, 01 Dec 2018 22:24:34 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l30sor249264plg.17.2018.12.01.22.24.33
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sat, 01 Dec 2018 22:24:33 -0800 (PST)
+Date: Sun, 2 Dec 2018 11:58:17 +0530
 From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v4 6/9] iommu/dma-iommu.c: Convert to use vm_insert_range
-Message-ID: <20181217202448.GA14918@jordon-HP-15-Notebook-PC>
+Subject: [PATCH v2 9/9] xen/privcmd-buf.c: Convert to use vm_insert_range
+Message-ID: <20181202062816.GA3256@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Sender: linux-kernel-owner@vger.kernel.org
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, joro@8bytes.org
-Cc: iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, boris.ostrovsky@oracle.com, jgross@suse.com
+Cc: xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 Convert to use vm_insert_range() to map range of kernel
 memory to user vma.
 
 Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
 Reviewed-by: Matthew Wilcox <willy@infradead.org>
+Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
 ---
- drivers/iommu/dma-iommu.c | 13 +++----------
- 1 file changed, 3 insertions(+), 10 deletions(-)
+ drivers/xen/privcmd-buf.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/iommu/dma-iommu.c b/drivers/iommu/dma-iommu.c
-index d1b0475..de7ffd8 100644
---- a/drivers/iommu/dma-iommu.c
-+++ b/drivers/iommu/dma-iommu.c
-@@ -622,17 +622,10 @@ struct page **iommu_dma_alloc(struct device *dev, size_t size, gfp_t gfp,
+diff --git a/drivers/xen/privcmd-buf.c b/drivers/xen/privcmd-buf.c
+index df1ed37..8d8255b 100644
+--- a/drivers/xen/privcmd-buf.c
++++ b/drivers/xen/privcmd-buf.c
+@@ -180,12 +180,8 @@ static int privcmd_buf_mmap(struct file *file, struct vm_area_struct *vma)
+ 	if (vma_priv->n_pages != count)
+ 		ret = -ENOMEM;
+ 	else
+-		for (i = 0; i < vma_priv->n_pages; i++) {
+-			ret = vm_insert_page(vma, vma->vm_start + i * PAGE_SIZE,
+-					     vma_priv->pages[i]);
+-			if (ret)
+-				break;
+-		}
++		ret = vm_insert_range(vma, vma->vm_start, vma_priv->pages,
++				vma_priv->n_pages);
  
- int iommu_dma_mmap(struct page **pages, size_t size, struct vm_area_struct *vma)
- {
--	unsigned long uaddr = vma->vm_start;
--	unsigned int i, count = PAGE_ALIGN(size) >> PAGE_SHIFT;
--	int ret = -ENXIO;
-+	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
- 
--	for (i = vma->vm_pgoff; i < count && uaddr < vma->vm_end; i++) {
--		ret = vm_insert_page(vma, uaddr, pages[i]);
--		if (ret)
--			break;
--		uaddr += PAGE_SIZE;
--	}
--	return ret;
-+	return vm_insert_range(vma, vma->vm_start, pages + vma->vm_pgoff,
-+				count - vma->vm_pgoff);
- }
- 
- static dma_addr_t __iommu_dma_map(struct device *dev, phys_addr_t phys,
+ 	if (ret)
+ 		privcmd_buf_vmapriv_free(vma_priv);
 -- 
 1.9.1
