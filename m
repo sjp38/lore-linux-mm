@@ -1,99 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2022F8E005B
-	for <linux-mm@kvack.org>; Sat, 29 Dec 2018 23:50:29 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id v11so20602901ply.4
-        for <linux-mm@kvack.org>; Sat, 29 Dec 2018 20:50:29 -0800 (PST)
-Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
-        by mx.google.com with ESMTPS id c19si38768515pls.242.2018.12.29.20.50.26
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A29AE6B61F3
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2018 01:13:27 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id ay11so7490900plb.20
+        for <linux-mm@kvack.org>; Sat, 01 Dec 2018 22:13:27 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p2sor12651339pgn.83.2018.12.01.22.13.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 29 Dec 2018 20:50:27 -0800 (PST)
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [v4 PATCH 1/2] mm: swap: check if swap backing device is congested or not
-Date: Sun, 30 Dec 2018 12:49:34 +0800
-Message-Id: <1546145375-793-1-git-send-email-yang.shi@linux.alibaba.com>
+        (Google Transport Security);
+        Sat, 01 Dec 2018 22:13:25 -0800 (PST)
+Date: Sun, 2 Dec 2018 11:47:07 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH v2 0/9] Use vm_insert_range
+Message-ID: <20181202061707.GA3070@jordon-HP-15-Notebook-PC>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ying.huang@intel.com, tim.c.chen@intel.com, minchan@kernel.org, akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, riel@surriel.com, sfr@canb.auug.org.au, rppt@linux.vnet.ibm.com, peterz@infradead.org, linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, kyungmin.park@samsung.com, mchehab@kernel.org, boris.ostrovsky@oracle.com, jgross@suse.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
 
-Swap readahead would read in a few pages regardless if the underlying
-device is busy or not.  It may incur long waiting time if the device is
-congested, and it may also exacerbate the congestion.
+Previouly drivers have their own way of mapping range of
+kernel pages/memory into user vma and this was done by
+invoking vm_insert_page() within a loop.
 
-Use inode_read_congested() to check if the underlying device is busy or
-not like what file page readahead does.  Get inode from swap_info_struct.
-Although we can add inode information in swap_address_space
-(address_space->host), it may lead some unexpected side effect, i.e.
-it may break mapping_cap_account_dirty().  Using inode from
-swap_info_struct seems simple and good enough.
+As this pattern is common across different drivers, it can
+be generalized by creating a new function and use it across
+the drivers.
 
-Just does the check in vma_cluster_readahead() since
-swap_vma_readahead() is just used for non-rotational device which
-much less likely has congestion than traditional HDD.
+vm_insert_range is the new API which will be used to map a
+range of kernel memory/pages to user vma.
 
-Although swap slots may be consecutive on swap partition, it still may be
-fragmented on swap file. This check would help to reduce excessive stall
-for such case.
+All the applicable places are converted to use new vm_insert_range
+in this patch series.
 
-The test on my virtual machine with congested HDD shows long tail
-latency is reduced significantly.
+v1 -> v2:
+	Address review comment on mm/memory.c. Add EXPORT_SYMBOL
+	for vm_insert_range and corrected the documentation part
+	for this API.
 
-Without the patch
- page_fault1_thr-1490  [023]   129.311706: funcgraph_entry:      #57377.796 us |  do_swap_page();
- page_fault1_thr-1490  [023]   129.369103: funcgraph_entry:        5.642us   |  do_swap_page();
- page_fault1_thr-1490  [023]   129.369119: funcgraph_entry:      #1289.592 us |  do_swap_page();
- page_fault1_thr-1490  [023]   129.370411: funcgraph_entry:        4.957us   |  do_swap_page();
- page_fault1_thr-1490  [023]   129.370419: funcgraph_entry:        1.940us   |  do_swap_page();
- page_fault1_thr-1490  [023]   129.378847: funcgraph_entry:      #1411.385 us |  do_swap_page();
- page_fault1_thr-1490  [023]   129.380262: funcgraph_entry:        3.916us   |  do_swap_page();
- page_fault1_thr-1490  [023]   129.380275: funcgraph_entry:      #4287.751 us |  do_swap_page();
+	In drivers/gpu/drm/xen/xen_drm_front_gem.c, replace err
+	with ret as suggested.
 
-With the patch
-      runtest.py-1417  [020]   301.925911: funcgraph_entry:      #9870.146 us |  do_swap_page();
-      runtest.py-1417  [020]   301.935785: funcgraph_entry:        9.802us   |  do_swap_page();
-      runtest.py-1417  [020]   301.935799: funcgraph_entry:        3.551us   |  do_swap_page();
-      runtest.py-1417  [020]   301.935806: funcgraph_entry:        2.142us   |  do_swap_page();
-      runtest.py-1417  [020]   301.935853: funcgraph_entry:        6.938us   |  do_swap_page();
-      runtest.py-1417  [020]   301.935864: funcgraph_entry:        3.765us   |  do_swap_page();
-      runtest.py-1417  [020]   301.935871: funcgraph_entry:        3.600us   |  do_swap_page();
-      runtest.py-1417  [020]   301.935878: funcgraph_entry:        7.202us   |  do_swap_page();
+	In drivers/iommu/dma-iommu.c, handle the scenario of partial
+	mmap() of large buffer by passing *pages + vma->vm_pgoff* to
+	vm_insert_range().
 
-Acked-by: Tim Chen <tim.c.chen@intel.com>
-Cc: Huang Ying <ying.huang@intel.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
----
-v4: Added observed effects in the commit log per Andrew
-v3: Move inode deference under swap device type check per Tim Chen
-v2: Check the swap device type per Tim Chen
+Souptick Joarder (9):
+  mm: Introduce new vm_insert_range API
+  arch/arm/mm/dma-mapping.c: Convert to use vm_insert_range
+  drivers/firewire/core-iso.c: Convert to use vm_insert_range
+  drm/rockchip/rockchip_drm_gem.c: Convert to use vm_insert_range
+  drm/xen/xen_drm_front_gem.c: Convert to use vm_insert_range
+  iommu/dma-iommu.c: Convert to use vm_insert_range
+  videobuf2/videobuf2-dma-sg.c: Convert to use vm_insert_range
+  xen/gntdev.c: Convert to use vm_insert_range
+  xen/privcmd-buf.c: Convert to use vm_insert_range
 
- mm/swap_state.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+ arch/arm/mm/dma-mapping.c                         | 21 +++++--------
+ drivers/firewire/core-iso.c                       | 15 ++-------
+ drivers/gpu/drm/rockchip/rockchip_drm_gem.c       | 20 ++----------
+ drivers/gpu/drm/xen/xen_drm_front_gem.c           | 20 ++++--------
+ drivers/iommu/dma-iommu.c                         | 13 ++------
+ drivers/media/common/videobuf2/videobuf2-dma-sg.c | 23 +++++---------
+ drivers/xen/gntdev.c                              | 11 +++----
+ drivers/xen/privcmd-buf.c                         |  8 ++---
+ include/linux/mm_types.h                          |  3 ++
+ mm/memory.c                                       | 38 +++++++++++++++++++++++
+ mm/nommu.c                                        |  7 +++++
+ 11 files changed, 81 insertions(+), 98 deletions(-)
 
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index fd2f21e..78d500e 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -538,11 +538,18 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
- 	bool do_poll = true, page_allocated;
- 	struct vm_area_struct *vma = vmf->vma;
- 	unsigned long addr = vmf->address;
-+	struct inode *inode = NULL;
- 
- 	mask = swapin_nr_pages(offset) - 1;
- 	if (!mask)
- 		goto skip;
- 
-+	if (si->flags & (SWP_BLKDEV | SWP_FS)) {
-+		inode = si->swap_file->f_mapping->host;
-+		if (inode_read_congested(inode))
-+			goto skip;
-+	}
-+
- 	do_poll = false;
- 	/* Read a page_cluster sized and aligned cluster around offset. */
- 	start_offset = offset & ~mask;
 -- 
-1.8.3.1
+1.9.1
