@@ -1,141 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F35F8E01DC
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 12:16:25 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id 82so4851036pfs.20
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 09:16:25 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A25B6B61FC
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2018 01:19:12 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id y2so7493425plr.8
+        for <linux-mm@kvack.org>; Sat, 01 Dec 2018 22:19:12 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w11sor8347559ply.14.2018.12.14.09.16.23
+        by mx.google.com with SMTPS id z11sor13367326pln.25.2018.12.01.22.19.11
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 14 Dec 2018 09:16:23 -0800 (PST)
-From: Suren Baghdasaryan <surenb@google.com>
-Subject: [PATCH 4/6] psi: introduce state_mask to represent stalled psi states
-Date: Fri, 14 Dec 2018 09:15:06 -0800
-Message-Id: <20181214171508.7791-5-surenb@google.com>
-In-Reply-To: <20181214171508.7791-1-surenb@google.com>
-References: <20181214171508.7791-1-surenb@google.com>
+        Sat, 01 Dec 2018 22:19:11 -0800 (PST)
+Date: Sun, 2 Dec 2018 11:52:55 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH v2 4/9] drm/rockchip/rockchip_drm_gem.c: Convert to use
+ vm_insert_range
+Message-ID: <20181202062255.GA3159@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org
-Cc: tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, dennis@kernel.org, dennisszhou@gmail.com, mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org, corbet@lwn.net, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@android.com, Suren Baghdasaryan <surenb@google.com>
+To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org
 
-The psi monitoring patches will need to determine the same states as
-record_times(). To avoid calculating them twice, maintain a state mask
-that can be consulted cheaply. Do this in a separate patch to keep the
-churn in the main feature patch at a minimum.
+Convert to use vm_insert_range() to map range of kernel
+memory to user vma.
 
-Signed-off-by: Suren Baghdasaryan <surenb@google.com>
+Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+Tested-by: Heiko Stuebner <heiko@sntech.de>
+Acked-by: Heiko Stuebner <heiko@sntech.de>
 ---
- include/linux/psi_types.h |  3 +++
- kernel/sched/psi.c        | 29 +++++++++++++++++++----------
- 2 files changed, 22 insertions(+), 10 deletions(-)
+ drivers/gpu/drm/rockchip/rockchip_drm_gem.c | 20 ++------------------
+ 1 file changed, 2 insertions(+), 18 deletions(-)
 
-diff --git a/include/linux/psi_types.h b/include/linux/psi_types.h
-index 2cf422db5d18..2c6e9b67b7eb 100644
---- a/include/linux/psi_types.h
-+++ b/include/linux/psi_types.h
-@@ -53,6 +53,9 @@ struct psi_group_cpu {
- 	/* States of the tasks belonging to this group */
- 	unsigned int tasks[NR_PSI_TASK_COUNTS];
- 
-+	/* Aggregate pressure state derived from the tasks */
-+	u32 state_mask;
-+
- 	/* Period time sampling buckets for each state of interest (ns) */
- 	u32 times[NR_PSI_STATES];
- 
-diff --git a/kernel/sched/psi.c b/kernel/sched/psi.c
-index d2b9c9a1a62f..153c0624976b 100644
---- a/kernel/sched/psi.c
-+++ b/kernel/sched/psi.c
-@@ -212,17 +212,17 @@ static bool test_state(unsigned int *tasks, enum psi_states state)
- static void get_recent_times(struct psi_group *group, int cpu, u32 *times)
+diff --git a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
+index a8db758..2cb83bb 100644
+--- a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
++++ b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
+@@ -221,26 +221,10 @@ static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
+ 					      struct vm_area_struct *vma)
  {
- 	struct psi_group_cpu *groupc = per_cpu_ptr(group->pcpu, cpu);
--	unsigned int tasks[NR_PSI_TASK_COUNTS];
- 	u64 now, state_start;
-+	enum psi_states s;
- 	unsigned int seq;
--	int s;
-+	u32 state_mask;
+ 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
+-	unsigned int i, count = obj->size >> PAGE_SHIFT;
+ 	unsigned long user_count = vma_pages(vma);
+-	unsigned long uaddr = vma->vm_start;
+-	unsigned long offset = vma->vm_pgoff;
+-	unsigned long end = user_count + offset;
+-	int ret;
+-
+-	if (user_count == 0)
+-		return -ENXIO;
+-	if (end > count)
+-		return -ENXIO;
  
- 	/* Snapshot a coherent view of the CPU state */
- 	do {
- 		seq = read_seqcount_begin(&groupc->seq);
- 		now = cpu_clock(cpu);
- 		memcpy(times, groupc->times, sizeof(groupc->times));
--		memcpy(tasks, groupc->tasks, sizeof(groupc->tasks));
-+		state_mask = groupc->state_mask;
- 		state_start = groupc->state_start;
- 	} while (read_seqcount_retry(&groupc->seq, seq));
- 
-@@ -238,7 +238,7 @@ static void get_recent_times(struct psi_group *group, int cpu, u32 *times)
- 		 * (u32) and our reported pressure close to what's
- 		 * actually happening.
- 		 */
--		if (test_state(tasks, s))
-+		if (state_mask & (1 << s))
- 			times[s] += now - state_start;
- 
- 		delta = times[s] - groupc->times_prev[s];
-@@ -390,15 +390,15 @@ static void record_times(struct psi_group_cpu *groupc, int cpu,
- 	delta = now - groupc->state_start;
- 	groupc->state_start = now;
- 
--	if (test_state(groupc->tasks, PSI_IO_SOME)) {
-+	if (groupc->state_mask & (1 << PSI_IO_SOME)) {
- 		groupc->times[PSI_IO_SOME] += delta;
--		if (test_state(groupc->tasks, PSI_IO_FULL))
-+		if (groupc->state_mask & (1 << PSI_IO_FULL))
- 			groupc->times[PSI_IO_FULL] += delta;
- 	}
- 
--	if (test_state(groupc->tasks, PSI_MEM_SOME)) {
-+	if (groupc->state_mask & (1 << PSI_MEM_SOME)) {
- 		groupc->times[PSI_MEM_SOME] += delta;
--		if (test_state(groupc->tasks, PSI_MEM_FULL))
-+		if (groupc->state_mask & (1 << PSI_MEM_FULL))
- 			groupc->times[PSI_MEM_FULL] += delta;
- 		else if (memstall_tick) {
- 			u32 sample;
-@@ -419,10 +419,10 @@ static void record_times(struct psi_group_cpu *groupc, int cpu,
- 		}
- 	}
- 
--	if (test_state(groupc->tasks, PSI_CPU_SOME))
-+	if (groupc->state_mask & (1 << PSI_CPU_SOME))
- 		groupc->times[PSI_CPU_SOME] += delta;
- 
--	if (test_state(groupc->tasks, PSI_NONIDLE))
-+	if (groupc->state_mask & (1 << PSI_NONIDLE))
- 		groupc->times[PSI_NONIDLE] += delta;
+-	for (i = offset; i < end; i++) {
+-		ret = vm_insert_page(vma, uaddr, rk_obj->pages[i]);
+-		if (ret)
+-			return ret;
+-		uaddr += PAGE_SIZE;
+-	}
+-
+-	return 0;
++	return vm_insert_range(vma, vma->vm_start, rk_obj->pages,
++				user_count);
  }
  
-@@ -431,6 +431,8 @@ static void psi_group_change(struct psi_group *group, int cpu,
- {
- 	struct psi_group_cpu *groupc;
- 	unsigned int t, m;
-+	enum psi_states s;
-+	u32 state_mask = 0;
- 
- 	groupc = per_cpu_ptr(group->pcpu, cpu);
- 
-@@ -463,6 +465,13 @@ static void psi_group_change(struct psi_group *group, int cpu,
- 		if (set & (1 << t))
- 			groupc->tasks[t]++;
- 
-+	/* Calculate state mask representing active states */
-+	for (s = 0; s < NR_PSI_STATES; s++) {
-+		if (test_state(groupc->tasks, s))
-+			state_mask |= (1 << s);
-+	}
-+	groupc->state_mask = state_mask;
-+
- 	write_seqcount_end(&groupc->seq);
- }
- 
+ static int rockchip_drm_gem_object_mmap_dma(struct drm_gem_object *obj,
 -- 
-2.20.0.405.gbc1bbc6f85-goog
+1.9.1
