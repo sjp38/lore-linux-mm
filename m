@@ -1,43 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BAF2A6B6D85
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 02:31:14 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id y7so12771813wrr.12
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 23:31:14 -0800 (PST)
-Received: from mo6-p02-ob.smtp.rzone.de (mo6-p02-ob.smtp.rzone.de. [2a01:238:20a:202:5302::5])
-        by mx.google.com with ESMTPS id h10si12729281wre.279.2018.12.03.23.31.12
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A97A76B61F3
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2018 01:11:15 -0500 (EST)
+Received: by mail-yw1-f71.google.com with SMTP id p141so1988096ywg.17
+        for <linux-mm@kvack.org>; Sat, 01 Dec 2018 22:11:15 -0800 (PST)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id a93-v6si6119636ybi.258.2018.12.01.22.11.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 23:31:12 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 01 Dec 2018 22:11:14 -0800 (PST)
+Message-ID: <42b1408cafe77ebac1b1ad909db237fe34e4d177.camel@kernel.crashing.org>
 Subject: Re: use generic DMA mapping code in powerpc V4
-From: Christian Zigotzky <chzigotzky@xenosoft.de>
-References: <20181114082314.8965-1-hch@lst.de> <20181127074253.GB30186@lst.de>
- <87zhttfonk.fsf@concordia.ellerman.id.au>
- <4d4e3cdd-d1a9-affe-0f63-45b8c342bbd6@xenosoft.de>
- <20181129170351.GC27951@lst.de>
- <d0e04a85-f17d-414e-6fea-971414417430@xenosoft.de>
- <20181130105346.GB26765@lst.de>
- <8694431d-c669-b7b9-99fa-e99db5d45a7d@xenosoft.de>
- <20181130131056.GA5211@lst.de>
- <25999587-2d91-a63c-ed38-c3fb0075d9f1@xenosoft.de>
-Message-ID: <c5202d29-863d-1377-0e2d-762203b317e2@xenosoft.de>
-Date: Tue, 4 Dec 2018 08:31:03 +0100
-MIME-Version: 1.0
-In-Reply-To: <25999587-2d91-a63c-ed38-c3fb0075d9f1@xenosoft.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Sun, 02 Dec 2018 17:11:02 +1100
+In-Reply-To: <CALjTZvZsk0qA+Yxu7S+8pfa5y6rpihnThrHiAKkZMWsdyC-tVg@mail.gmail.com>
+References: 
+	  <CALjTZvZzHSZ=s0W0Pd-MVd7OA0hYxu0LzsZ+GxYybXKoUQQR6Q@mail.gmail.com>
+	 <20181130103222.GA23393@lst.de>
+	 <CALjTZvZsk0qA+Yxu7S+8pfa5y6rpihnThrHiAKkZMWsdyC-tVg@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Language: de-DE
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>, linuxppc-dev@lists.ozlabs.org
+To: Rui Salvaterra <rsalvaterra@gmail.com>, hch@lst.de
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org
 
-Hi All,
+On Fri, 2018-11-30 at 11:44 +0000, Rui Salvaterra wrote:
+> Thanks for the quick response! I applied it on top of your
+> powerpc-dma.4 branch and retested.
+> I'm not seeing nouveau complaining anymore (I'm not using X11 or any
+> DE, though).
+> In any case and FWIW, this series is
+> 
+> Tested-by: Rui Salvaterra <rsalvaterra@gmail.com>
 
-Could you please test Christoph's kernel on your PASEMI and NXP boards? 
-Download:
+Talking of which ... Christoph, not sure if we can do something about
+this at the DMA API level or keep hacks but some adapters such as the
+nVidia GPUs have a HW hack we can use to work around their limitations
+in that case.
 
-'git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.5 a'
+They have a register that can program a fixed value for the top bits
+that they don't support.
 
-Thanks,
-Christian
+This works fine for any linear mapping with an offset, provided they
+can program the offset in that register and they have enough DMA range
+to cover all memory from that offset.
+
+I can probably get the info about this from them so we can exploit it
+in nouveau.
+
+Cheers,
+Ben.
+
+> Thanks,
+> Rui
