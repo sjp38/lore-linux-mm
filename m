@@ -1,96 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A0CB8E0001
-	for <linux-mm@kvack.org>; Sun,  9 Dec 2018 20:15:18 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id s27so6444165pgm.4
-        for <linux-mm@kvack.org>; Sun, 09 Dec 2018 17:15:18 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e69sor10922306plb.21.2018.12.09.17.15.16
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 09 Dec 2018 17:15:16 -0800 (PST)
-From: Nicolas Boichat <drinkcat@chromium.org>
-Subject: [PATCH v6 0/3] iommu/io-pgtable-arm-v7s: Use DMA32 zone for page tables
-Date: Mon, 10 Dec 2018 09:15:01 +0800
-Message-Id: <20181210011504.122604-1-drinkcat@chromium.org>
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 416F36B6A8D
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 13:07:53 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id s12so5859767otc.12
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:07:53 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 108si7171623oti.277.2018.12.03.10.07.52
+        for <linux-mm@kvack.org>;
+        Mon, 03 Dec 2018 10:07:52 -0800 (PST)
+From: James Morse <james.morse@arm.com>
+Subject: [PATCH v7 21/25] mm/memory-failure: Add memory_failure_queue_kick()
+Date: Mon,  3 Dec 2018 18:06:09 +0000
+Message-Id: <20181203180613.228133-22-james.morse@arm.com>
+In-Reply-To: <20181203180613.228133-1-james.morse@arm.com>
+References: <20181203180613.228133-1-james.morse@arm.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <joro@8bytes.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Matthias Brugger <matthias.bgg@gmail.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com, hch@infradead.org, Matthew Wilcox <willy@infradead.org>, hsinyi@chromium.org, stable@vger.kernel.org
+To: linux-acpi@vger.kernel.org
+Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>, James Morse <james.morse@arm.com>
 
-This is a follow-up to the discussion in [1], [2].
+The GHES code calls memory_failure_queue() from IRQ context to schedule
+work on the current CPU so that memory_failure() can sleep.
 
-IOMMUs using ARMv7 short-descriptor format require page tables
-(level 1 and 2) to be allocated within the first 4GB of RAM, even
-on 64-bit systems.
+For synchronous memory errors the arch code needs to know any signals
+that memory_failure() will trigger are pending before it returns to
+user-space, possibly when exiting from the IRQ.
 
-For L1 tables that are bigger than a page, we can just use __get_free_pages
-with GFP_DMA32 (on arm64 systems only, arm would still use GFP_DMA).
+Add a helper to kick the memory failure queue, to ensure the scheduled
+work has happened. This has to be called from process context, so may
+have been migrated from the original cpu. Pass the cpu the work was
+queued on.
 
-For L2 tables that only take 1KB, it would be a waste to allocate a full
-page, so we considered 3 approaches:
- 1. This series, adding support for GFP_DMA32 slab caches.
- 2. genalloc, which requires pre-allocating the maximum number of L2 page
-    tables (4096, so 4MB of memory).
- 3. page_frag, which is not very memory-efficient as it is unable to reuse
-    freed fragments until the whole page is freed. [3]
+Change memory_failure_work_func() to permit being called on the 'wrong'
+cpu.
 
-This series is the most memory-efficient approach.
+Signed-off-by: James Morse <james.morse@arm.com>
+---
+ include/linux/mm.h  |  1 +
+ mm/memory-failure.c | 15 ++++++++++++++-
+ 2 files changed, 15 insertions(+), 1 deletion(-)
 
-stable@ note:
-  We confirmed that this is a regression, and IOMMU errors happen on 4.19
-  and linux-next/master on MT8173 (elm, Acer Chromebook R13). The issue
-  most likely starts from commit ad67f5a6545f ("arm64: replace ZONE_DMA
-  with ZONE_DMA32"), i.e. 4.15, and presumably breaks a number of Mediatek
-  platforms (and maybe others?).
-
-[1] https://lists.linuxfoundation.org/pipermail/iommu/2018-November/030876.html
-[2] https://lists.linuxfoundation.org/pipermail/iommu/2018-December/031696.html
-[3] https://patchwork.codeaurora.org/patch/671639/
-
-Changes since v1:
- - Add support for SLAB_CACHE_DMA32 in slab and slub (patches 1/2)
- - iommu/io-pgtable-arm-v7s (patch 3):
-   - Changed approach to use SLAB_CACHE_DMA32 added by the previous
-     commit.
-   - Use DMA or DMA32 depending on the architecture (DMA for arm,
-     DMA32 for arm64).
-
-Changes since v2:
- - Reworded and expanded commit messages
- - Added cache_dma32 documentation in PATCH 2/3.
-
-v3 used the page_frag approach, see [3].
-
-Changes since v4:
- - Dropped change that removed GFP_DMA32 from GFP_SLAB_BUG_MASK:
-   instead we can just call kmem_cache_*alloc without GFP_DMA32
-   parameter. This also means that we can drop PATCH v4 1/3, as we
-   do not make any changes in GFP flag verification.
- - Dropped hunks that added cache_dma32 sysfs file, and moved
-   the hunks to PATCH v5 3/3, so that maintainer can decide whether
-   to pick the change independently.
-
-Changes since v5:
- - Rename ARM_V7S_TABLE_SLAB_CACHE to ARM_V7S_TABLE_SLAB_FLAGS.
- - Add stable@ to cc.
-
-Nicolas Boichat (3):
-  mm: Add support for kmem caches in DMA32 zone
-  iommu/io-pgtable-arm-v7s: Request DMA32 memory, and improve debugging
-  mm: Add /sys/kernel/slab/cache/cache_dma32
-
- Documentation/ABI/testing/sysfs-kernel-slab |  9 +++++++++
- drivers/iommu/io-pgtable-arm-v7s.c          | 19 +++++++++++++++----
- include/linux/slab.h                        |  2 ++
- mm/slab.c                                   |  2 ++
- mm/slab.h                                   |  3 ++-
- mm/slab_common.c                            |  2 +-
- mm/slub.c                                   | 16 ++++++++++++++++
- tools/vm/slabinfo.c                         |  7 ++++++-
- 8 files changed, 53 insertions(+), 7 deletions(-)
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 5411de93a363..37b4884b2a1e 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2692,6 +2692,7 @@ enum mf_flags {
+ };
+ extern int memory_failure(unsigned long pfn, int flags);
+ extern void memory_failure_queue(unsigned long pfn, int flags);
++extern void memory_failure_queue_kick(int cpu);
+ extern int unpoison_memory(unsigned long pfn);
+ extern int get_hwpoison_page(struct page *page);
+ #define put_hwpoison_page(page)	put_page(page)
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 0cd3de3550f0..ec05e1dfce37 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1480,7 +1480,7 @@ static void memory_failure_work_func(struct work_struct *work)
+ 	unsigned long proc_flags;
+ 	int gotten;
+ 
+-	mf_cpu = this_cpu_ptr(&memory_failure_cpu);
++	mf_cpu = container_of(work, struct memory_failure_cpu, work);
+ 	for (;;) {
+ 		spin_lock_irqsave(&mf_cpu->lock, proc_flags);
+ 		gotten = kfifo_get(&mf_cpu->fifo, &entry);
+@@ -1494,6 +1494,19 @@ static void memory_failure_work_func(struct work_struct *work)
+ 	}
+ }
+ 
++/*
++ * Process memory_failure work queued on the specified CPU.
++ * Used to avoid return-to-userspace racing with the memory_failure workqueue.
++ */
++void memory_failure_queue_kick(int cpu)
++{
++	struct memory_failure_cpu *mf_cpu;
++
++	mf_cpu = &per_cpu(memory_failure_cpu, cpu);
++	cancel_work_sync(&mf_cpu->work);
++	memory_failure_work_func(&mf_cpu->work);
++}
++
+ static int __init memory_failure_init(void)
+ {
+ 	struct memory_failure_cpu *mf_cpu;
 -- 
-2.20.0.rc2.403.gdbc3b29805-goog
+2.19.2
