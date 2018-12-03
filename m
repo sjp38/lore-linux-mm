@@ -1,99 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 42FAA6B69E0
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 10:47:54 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id e29so6791453ede.19
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 07:47:54 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id a17-v6si883276ejs.24.2018.12.03.07.47.52
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 07:47:52 -0800 (PST)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wB3FiFbI064919
-	for <linux-mm@kvack.org>; Mon, 3 Dec 2018 10:47:51 -0500
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2p56u7tatv-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:47:50 -0500
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 3 Dec 2018 15:47:44 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v2 3/6] sh: prefer memblock APIs returning virtual address
-Date: Mon,  3 Dec 2018 17:47:12 +0200
-In-Reply-To: <1543852035-26634-1-git-send-email-rppt@linux.ibm.com>
-References: <1543852035-26634-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1543852035-26634-4-git-send-email-rppt@linux.ibm.com>
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A96786B6A88
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 13:07:42 -0500 (EST)
+Received: by mail-oi1-f197.google.com with SMTP id j13so8564864oii.8
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:07:42 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id y23si7283647otj.129.2018.12.03.10.07.41
+        for <linux-mm@kvack.org>;
+        Mon, 03 Dec 2018 10:07:41 -0800 (PST)
+From: James Morse <james.morse@arm.com>
+Subject: [PATCH v7 18/25] ACPI / APEI: Split ghes_read_estatus() to allow a peek at the CPER length
+Date: Mon,  3 Dec 2018 18:06:06 +0000
+Message-Id: <20181203180613.228133-19-james.morse@arm.com>
+In-Reply-To: <20181203180613.228133-1-james.morse@arm.com>
+References: <20181203180613.228133-1-james.morse@arm.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Jonas Bonn <jonas@southpole.se>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+To: linux-acpi@vger.kernel.org
+Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>, James Morse <james.morse@arm.com>
 
-Rather than use the memblock_alloc_base that returns a physical address and
-then convert this address to the virtual one, use appropriate memblock
-function that returns a virtual address.
+ghes_read_estatus() reads the record address, then the record's
+header, then performs some sanity checks before reading the
+records into the provided estatus buffer.
 
-There is a small functional change in the allocation of then NODE_DATA().
-Instead of panicing if the local allocation failed, the non-local
-allocation attempt will be made.
+To provide this estatus buffer the caller must know the size of the
+records in advance, or always provide a worst-case sized buffer as
+happens today for the non-NMI notifications.
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+Add a function to peek at the record's header to find the size. This
+will let the NMI path allocate the right amount of memory before reading
+the records, instead of using the worst-case size, and having to copy
+the records.
+
+Split ghes_read_estatus() to create __ghes_peek_estatus() which
+returns the address and size of the CPER records.
+
+Signed-off-by: James Morse <james.morse@arm.com>
+
+Changes since v6:
+ * Additional buf_addr = 0 error handling
+ * Moved checking out of peek-estatus
+ * Reworded an error message so we can tell them apart
 ---
- arch/sh/mm/init.c | 18 +++++-------------
- arch/sh/mm/numa.c |  5 ++---
- 2 files changed, 7 insertions(+), 16 deletions(-)
+ drivers/acpi/apei/ghes.c | 59 ++++++++++++++++++++++++++++++++--------
+ 1 file changed, 47 insertions(+), 12 deletions(-)
 
-diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
-index c8c13c77..3576b5f 100644
---- a/arch/sh/mm/init.c
-+++ b/arch/sh/mm/init.c
-@@ -192,24 +192,16 @@ void __init page_table_range_init(unsigned long start, unsigned long end,
- void __init allocate_pgdat(unsigned int nid)
+diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
+index b70f5fd962cc..07a12aac4c1a 100644
+--- a/drivers/acpi/apei/ghes.c
++++ b/drivers/acpi/apei/ghes.c
+@@ -277,12 +277,12 @@ static void ghes_copy_tofrom_phys(void *buffer, u64 paddr, u32 len,
+ 	}
+ }
+ 
+-static int ghes_read_estatus(struct ghes *ghes,
+-			     struct acpi_hest_generic_status *estatus,
+-			     u64 *buf_paddr, int fixmap_idx)
++/* Read the CPER block and returning its address, and header in estatus. */
++static int __ghes_peek_estatus(struct ghes *ghes, int fixmap_idx,
++			       struct acpi_hest_generic_status *estatus,
++			       u64 *buf_paddr)
  {
- 	unsigned long start_pfn, end_pfn;
--#ifdef CONFIG_NEED_MULTIPLE_NODES
--	unsigned long phys;
--#endif
+ 	struct acpi_hest_generic *g = ghes->generic;
+-	u32 len;
+ 	int rc;
  
- 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
+ 	rc = apei_read(buf_paddr, &g->error_status_address);
+@@ -303,29 +303,64 @@ static int ghes_read_estatus(struct ghes *ghes,
+ 		return -ENOENT;
+ 	}
  
- #ifdef CONFIG_NEED_MULTIPLE_NODES
--	phys = __memblock_alloc_base(sizeof(struct pglist_data),
--				SMP_CACHE_BYTES, end_pfn << PAGE_SHIFT);
--	/* Retry with all of system memory */
--	if (!phys)
--		phys = __memblock_alloc_base(sizeof(struct pglist_data),
--					SMP_CACHE_BYTES, memblock_end_of_DRAM());
--	if (!phys)
-+	NODE_DATA(nid) = memblock_alloc_try_nid_nopanic(
-+				sizeof(struct pglist_data),
-+				SMP_CACHE_BYTES, MEMBLOCK_LOW_LIMIT,
-+				MEMBLOCK_ALLOC_ACCESSIBLE, nid);
-+	if (!NODE_DATA(nid))
- 		panic("Can't allocate pgdat for node %d\n", nid);
--
--	NODE_DATA(nid) = __va(phys);
--	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
- #endif
+-	rc = -EIO;
+-	len = cper_estatus_len(estatus);
++	return 0;
++}
++
++/* Check the top-level record header has an appropriate size. */
++int __ghes_check_estatus(struct ghes *ghes,
++			 struct acpi_hest_generic_status *estatus)
++{
++	u32 len = cper_estatus_len(estatus);
++	int rc = -EIO;
++
+ 	if (len < sizeof(*estatus))
+ 		goto err_read_block;
+ 	if (len > ghes->generic->error_block_length)
+ 		goto err_read_block;
+ 	if (cper_estatus_check_header(estatus))
+ 		goto err_read_block;
+-	ghes_copy_tofrom_phys(estatus + 1,
+-			      *buf_paddr + sizeof(*estatus),
+-			      len - sizeof(*estatus), 1, fixmap_idx);
+-	if (cper_estatus_check(estatus))
+-		goto err_read_block;
+ 	rc = 0;
  
- 	NODE_DATA(nid)->node_start_pfn = start_pfn;
-diff --git a/arch/sh/mm/numa.c b/arch/sh/mm/numa.c
-index 830e8b3..c4bde61 100644
---- a/arch/sh/mm/numa.c
-+++ b/arch/sh/mm/numa.c
-@@ -41,9 +41,8 @@ void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
- 	__add_active_range(nid, start_pfn, end_pfn);
+ err_read_block:
+ 	if (rc)
+ 		pr_warn_ratelimited(FW_WARN GHES_PFX
+-				    "Failed to read error status block!\n");
++				    "Invalid Error status block!\n");
  
- 	/* Node-local pgdat */
--	NODE_DATA(nid) = __va(memblock_alloc_base(sizeof(struct pglist_data),
--					     SMP_CACHE_BYTES, end));
--	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
-+	NODE_DATA(nid) = memblock_alloc_node(sizeof(struct pglist_data),
-+					     SMP_CACHE_BYTES, nid);
+ 	return rc;
+ }
  
- 	NODE_DATA(nid)->node_start_pfn = start_pfn;
- 	NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
++static int __ghes_read_estatus(struct acpi_hest_generic_status *estatus,
++			       u64 buf_paddr, size_t buf_len,
++			       int fixmap_idx)
++{
++	ghes_copy_tofrom_phys(estatus, buf_paddr, buf_len, 1, fixmap_idx);
++	if (cper_estatus_check(estatus)) {
++		pr_warn_ratelimited(FW_WARN GHES_PFX
++				   "Failed to read error status block!\n");
++		return -EIO;
++	}
++
++	return 0;
++}
++
++static int ghes_read_estatus(struct ghes *ghes,
++			     struct acpi_hest_generic_status *estatus,
++			     u64 *buf_paddr, int fixmap_idx)
++{
++	int rc;
++
++	rc = __ghes_peek_estatus(ghes, fixmap_idx, estatus, buf_paddr);
++	if (rc)
++		return rc;
++
++	rc = __ghes_check_estatus(ghes, estatus);
++	if (rc)
++		return rc;
++
++	return __ghes_read_estatus(estatus, *buf_paddr,
++				   cper_estatus_len(estatus), fixmap_idx);
++}
++
+ static void ghes_clear_estatus(struct acpi_hest_generic_status *estatus,
+ 			       u64 buf_paddr, int fixmap_idx)
+ {
 -- 
-2.7.4
+2.19.2
