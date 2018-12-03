@@ -1,139 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A5D968E0018
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 11:30:22 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id b26so12063778qtq.14
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 08:30:22 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x13si1369715qtq.206.2018.12.10.08.30.21
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Dec 2018 08:30:21 -0800 (PST)
-From: Waiman Long <longman@redhat.com>
-Subject: [PATCH] mm/page_alloc: Don't call kasan_free_pages() at deferred mem init
-Date: Mon, 10 Dec 2018 11:29:48 -0500
-Message-Id: <1544459388-8736-1-git-send-email-longman@redhat.com>
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A415D6B6A6C
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 13:06:27 -0500 (EST)
+Received: by mail-ot1-f69.google.com with SMTP id o13so5931568otl.20
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:06:27 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id d134si6897499oib.261.2018.12.03.10.06.25
+        for <linux-mm@kvack.org>;
+        Mon, 03 Dec 2018 10:06:25 -0800 (PST)
+From: James Morse <james.morse@arm.com>
+Subject: [PATCH v7 00/25] APEI in_nmi() rework and SDEI wire-up
+Date: Mon,  3 Dec 2018 18:05:48 +0000
+Message-Id: <20181203180613.228133-1-james.morse@arm.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Michal Hocko <mhocko@suse.com>, Waiman Long <longman@redhat.com>
+To: linux-acpi@vger.kernel.org
+Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>, James Morse <james.morse@arm.com>
 
-When CONFIG_KASAN is enabled on large memory SMP systems, the deferrred
-pages initialization can take a long time. Below were the reported init
-times on a 8-socket 96-core 4TB IvyBridge system.
+Hello,
 
-  1) Non-debug kernel without CONFIG_KASAN
-     [    8.764222] node 1 initialised, 132086516 pages in 7027ms
+This series aims to wire-up arm64's fancy new software-NMI notifications
+for firmware-first RAS. These need to use the estatus-queue, which is
+also needed for notifications via emulated-SError. All of these
+things take the 'in_nmi()' path through ghes_copy_tofrom_phys(), and
+so will deadlock if they can interact, which they might.
 
-  2) Debug kernel with CONFIG_KASAN
-     [  146.288115] node 1 initialised, 132075466 pages in 143052ms
+To that end, this series removes the in_nmi() stuff from ghes.c.
+Locks are pushed out to the notification helpers, and fixmap entries
+are passed in to the code that needs them. This means the estatus-queue
+users can interrupt each other however they like.
 
-So the page init time in a debug kernel was 20X of the non-debug kernel.
-The long init time can be problematic as the page initialization is
-done with interrupt disabled. In this particular case, it caused the
-appearance of following warning messages as well as NMI backtraces
-of all the cores that were doing the initialization.
+While doing this there is a fair amount of cleanup, which is (now) at the
+beginning of the series. NMIlike notifications interrupting
+ghes_probe() can go wrong for three different reasons. CPER record
+blocks greater than PAGE_SIZE dont' work.
+The estatus-pool allocation is simplified and the silent-flag/oops-begin
+is removed.
 
-[   68.240049] rcu: INFO: rcu_sched detected stalls on CPUs/tasks:
-[   68.241000] rcu: 	25-...0: (100 ticks this GP) idle=b72/1/0x4000000000000000 softirq=915/915 fqs=16252
-[   68.241000] rcu: 	44-...0: (95 ticks this GP) idle=49a/1/0x4000000000000000 softirq=788/788 fqs=16253
-[   68.241000] rcu: 	54-...0: (104 ticks this GP) idle=03a/1/0x4000000000000000 softirq=721/825 fqs=16253
-[   68.241000] rcu: 	60-...0: (103 ticks this GP) idle=cbe/1/0x4000000000000000 softirq=637/740 fqs=16253
-[   68.241000] rcu: 	72-...0: (105 ticks this GP) idle=786/1/0x4000000000000000 softirq=536/641 fqs=16253
-[   68.241000] rcu: 	84-...0: (99 ticks this GP) idle=292/1/0x4000000000000000 softirq=537/537 fqs=16253
-[   68.241000] rcu: 	111-...0: (104 ticks this GP) idle=bde/1/0x4000000000000000 softirq=474/476 fqs=16253
-[   68.241000] rcu: 	(detected by 13, t=65018 jiffies, g=249, q=2)
+Nothing in this series is intended as fixes, as its all cleanup or
+never-worked.
 
-The long init time was mainly caused by the call to kasan_free_pages() to
-poison the newly initialized pages. On a 4TB system, we are talking about
-almost 500GB of memory probably on the same node.
 
-In reality, we may not need to poison the newly initialized pages before
-they are ever allocated. So KASAN poisoning of freed pages before the
-completion of deferred memory initialization is now disabled. Those
-pages will be properly poisoned when they are allocated or freed after
-deferred pages initialization is done.
+----------%<----------
+The earlier boiler-plate:
 
-With this change, the new page initialization time became:
+What's SDEI? Its ARM's "Software Delegated Exception Interface" [0]. It's
+used by firmware to tell the OS about firmware-first RAS events.
 
-[   21.948010] node 1 initialised, 132075466 pages in 18702ms
+These Software exceptions can interrupt anything, so I describe them as
+NMI-like. They aren't the only NMI-like way to notify the OS about
+firmware-first RAS events, the ACPI spec also defines 'NOTFIY_SEA' and
+'NOTIFY_SEI'.
 
-This was still about double the non-debug kernel time, but was much
-better than before.
+(Acronyms: SEA, Synchronous External Abort. The CPU requested some memory,
+but the owner of that memory said no. These are always synchronous with the
+instruction that caused them. SEI, System-Error Interrupt, commonly called
+SError. This is an asynchronous external abort, the memory-owner didn't say no
+at the right point. Collectively these things are called external-aborts
+How is firmware involved? It traps these and re-injects them into the kernel
+once its written the CPER records).
 
-Signed-off-by: Waiman Long <longman@redhat.com>
----
- mm/page_alloc.c | 37 +++++++++++++++++++++++++++++--------
- 1 file changed, 29 insertions(+), 8 deletions(-)
+APEI's GHES code only expects one source of NMI. If a platform implements
+more than one of these mechanisms, APEI needs to handle the interaction.
+'SEA' and 'SEI' can interact as 'SEI' is asynchronous. SDEI can interact
+with itself: its exceptions can be 'normal' or 'critical', and firmware
+could use both types for RAS. (errors using normal, 'panic-now' using
+critical).
+----------%<----------
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2ec9cc4..941161d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -294,6 +294,32 @@ bool pm_suspended_storage(void)
- int page_group_by_mobility_disabled __read_mostly;
- 
- #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-+/*
-+ * During boot we initialize deferred pages on-demand, as needed, but once
-+ * page_alloc_init_late() has finished, the deferred pages are all initialized,
-+ * and we can permanently disable that path.
-+ */
-+static DEFINE_STATIC_KEY_TRUE(deferred_pages);
-+
-+/*
-+ * Calling kasan_free_pages() only after deferred memory initialization
-+ * has completed. Poisoning pages during deferred memory init will greatly
-+ * lengthen the process and cause problem in large memory systems as the
-+ * deferred pages initialization is done with interrupt disabled.
-+ *
-+ * Assuming that there will be no reference to those newly initialized
-+ * pages before they are ever allocated, this should have no effect on
-+ * KASAN memory tracking as the poison will be properly inserted at page
-+ * allocation time. The only corner case is when pages are allocated by
-+ * on-demand allocation and then freed again before the deferred pages
-+ * initialization is done, but this is not likely to happen.
-+ */
-+static inline void kasan_free_nondeferred_pages(struct page *page, int order)
-+{
-+	if (!static_branch_unlikely(&deferred_pages))
-+		kasan_free_pages(page, order);
-+}
-+
- /* Returns true if the struct page for the pfn is uninitialised */
- static inline bool __meminit early_page_uninitialised(unsigned long pfn)
- {
-@@ -335,6 +361,8 @@ static inline bool __meminit early_page_uninitialised(unsigned long pfn)
- 	return false;
- }
- #else
-+#define kasan_free_nondeferred_pages(p, o)	kasan_free_pages(p, o)
-+
- static inline bool early_page_uninitialised(unsigned long pfn)
- {
- 	return false;
-@@ -1037,7 +1065,7 @@ static __always_inline bool free_pages_prepare(struct page *page,
- 	arch_free_page(page, order);
- 	kernel_poison_pages(page, 1 << order, 0);
- 	kernel_map_pages(page, 1 << order, 0);
--	kasan_free_pages(page, order);
-+	kasan_free_nondeferred_pages(page, order);
- 
- 	return true;
- }
-@@ -1606,13 +1634,6 @@ static int __init deferred_init_memmap(void *data)
- }
- 
- /*
-- * During boot we initialize deferred pages on-demand, as needed, but once
-- * page_alloc_init_late() has finished, the deferred pages are all initialized,
-- * and we can permanently disable that path.
-- */
--static DEFINE_STATIC_KEY_TRUE(deferred_pages);
--
--/*
-  * If this zone has deferred pages, try to grow it by initializing enough
-  * deferred pages to satisfy the allocation specified by order, rounded up to
-  * the nearest PAGES_PER_SECTION boundary.  So we're adding memory in increments
+
+Known issue:
+ * ghes_copy_tofrom_phys() already takes a lock in NMI context, this
+   series moves that around, and makes sure we never try to take the
+   same lock from different NMIlike notifications. Since the switch to
+   queued spinlocks it looks like the kernel can only be 4 context's
+   deep in spinlock, which arm64 could exceed as it doesn't have a
+   single architected NMI. It either needs an additional
+   idx-bit in the qspinlock, or for ghes.c to switch to using a
+   different type of lock for NMIlike notifications.
+
+Changes since v6:
+ * Changed the order of the series.
+ * Made hest.c own the estatus pool, which is now vmalloc()d.
+ * Culled #ifdef, hopefully without generating too much noise.
+ * Added GHESv2 'ack' support to NMI-like notifications
+ * Use task-work to kick the memory_failure_queue()
+
+Specific changes are noted in each patch.
+
+[v6] https://www.spinics.net/lists/linux-acpi/msg84228.html
+[v5] https://www.spinics.net/lists/linux-acpi/msg82993.html
+[v4] https://www.spinics.net/lists/arm-kernel/msg653078.html
+[v3] https://www.spinics.net/lists/arm-kernel/msg649230.html
+
+[0] https://static.docs.arm.com/den0054/a/ARM_DEN0054A_Software_Delegated_Exception_Interface.pdf
+
+
+Feedback welcome,
+
+Thanks
+
+James Morse (25):
+  ACPI / APEI: Don't wait to serialise with oops messages when
+    panic()ing
+  ACPI / APEI: Remove silent flag from ghes_read_estatus()
+  ACPI / APEI: Switch estatus pool to use vmalloc memory
+  ACPI / APEI: Make hest.c manage the estatus memory pool
+  ACPI / APEI: Make estatus pool allocation a static size
+  ACPI / APEI: Don't store CPER records physical address in struct ghes
+  ACPI / APEI: Remove spurious GHES_TO_CLEAR check
+  ACPI / APEI: Don't update struct ghes' flags in read/clear estatus
+  ACPI / APEI: Generalise the estatus queue's notify code
+  ACPI / APEI: Tell firmware the estatus queue consumed the records
+  ACPI / APEI: Move NOTIFY_SEA between the estatus-queue and NOTIFY_NMI
+  ACPI / APEI: Switch NOTIFY_SEA to use the estatus queue
+  KVM: arm/arm64: Add kvm_ras.h to collect kvm specific RAS plumbing
+  arm64: KVM/mm: Move SEA handling behind a single 'claim' interface
+  ACPI / APEI: Move locking to the notification helper
+  ACPI / APEI: Let the notification helper specify the fixmap slot
+  ACPI / APEI: Pass ghes and estatus separately to avoid a later copy
+  ACPI / APEI: Split ghes_read_estatus() to allow a peek at the CPER
+    length
+  ACPI / APEI: Only use queued estatus entry during _in_nmi_notify_one()
+  ACPI / APEI: Use separate fixmap pages for arm64 NMI-like
+    notifications
+  mm/memory-failure: Add memory_failure_queue_kick()
+  ACPI / APEI: Kick the memory_failure() queue for synchronous errors
+  arm64: acpi: Make apei_claim_sea() synchronise with APEI's irq work
+  firmware: arm_sdei: Add ACPI GHES registration helper
+  ACPI / APEI: Add support for the SDEI GHES Notification type
+
+ arch/arm/include/asm/kvm_ras.h       |  14 +
+ arch/arm/include/asm/system_misc.h   |   5 -
+ arch/arm64/include/asm/acpi.h        |   4 +-
+ arch/arm64/include/asm/daifflags.h   |   1 +
+ arch/arm64/include/asm/fixmap.h      |   6 +-
+ arch/arm64/include/asm/kvm_ras.h     |  25 +
+ arch/arm64/include/asm/system_misc.h |   2 -
+ arch/arm64/kernel/acpi.c             |  51 +++
+ arch/arm64/mm/fault.c                |  25 +-
+ drivers/acpi/apei/Kconfig            |  12 +-
+ drivers/acpi/apei/ghes.c             | 652 ++++++++++++++++-----------
+ drivers/acpi/apei/hest.c             |   5 +
+ drivers/firmware/arm_sdei.c          |  70 +++
+ include/acpi/ghes.h                  |   4 +-
+ include/linux/arm_sdei.h             |   9 +
+ include/linux/mm.h                   |   1 +
+ mm/memory-failure.c                  |  15 +-
+ virt/kvm/arm/mmu.c                   |   4 +-
+ 18 files changed, 606 insertions(+), 299 deletions(-)
+ create mode 100644 arch/arm/include/asm/kvm_ras.h
+ create mode 100644 arch/arm64/include/asm/kvm_ras.h
+
 -- 
-1.8.3.1
+2.19.2
